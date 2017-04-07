@@ -330,16 +330,23 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
                 var_types srcType = castOp->TypeGet();
                 emitAttr  cmpSize = EA_ATTR(genTypeSize(srcType));
 
-                // If we cannot store the comparisons in an immediate for either
-                // comparing against the max or min value, then we will need to
-                // reserve a temporary register.
+                // If we cannot store data in an immediate for instructions,
+                // then we will need to reserve a temporary register.
 
+                // For checking the type
+                bool canStoreTypeMask = emitter::emitIns_valid_imm_for_alu(castInfo.typeMask);
+                if (!canStoreTypeMask)
+                {
+                    info->internalIntCount++;
+                }
+
+                // For comparing against the max or min value
                 bool canStoreMaxValue = emitter::emitIns_valid_imm_for_cmp(castInfo.typeMax, INS_FLAGS_DONT_CARE);
                 bool canStoreMinValue = emitter::emitIns_valid_imm_for_cmp(castInfo.typeMin, INS_FLAGS_DONT_CARE);
 
                 if (!canStoreMaxValue || !canStoreMinValue)
                 {
-                    info->internalIntCount = 1;
+                    info->internalIntCount++;
                 }
             }
         }
