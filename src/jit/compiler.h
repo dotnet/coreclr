@@ -3641,7 +3641,7 @@ public:
 
     GenTreePtr fgGetCritSectOfStaticMethod();
 
-#if !defined(_TARGET_X86_)
+#ifdef FEATURE_EH_FUNCLETS
 
     void fgAddSyncMethodEnterExit();
 
@@ -3649,7 +3649,7 @@ public:
 
     void fgConvertSyncReturnToLeave(BasicBlock* block);
 
-#endif // !_TARGET_X86_
+#endif // FEATURE_EH_FUNCLETS
 
     void fgAddReversePInvokeEnterExit();
 

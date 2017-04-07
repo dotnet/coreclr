@@ -3149,7 +3149,10 @@ void StackFrameIterator::PreProcessingForManagedFrames(void)
 
     INDEBUG(m_crawl.pThread->DebugLogStackWalkInfo(&m_crawl, "CONSIDER", m_uFramesProcessed));
 
-#if defined(_DEBUG) && defined(_TARGET_X86_) && !defined(DACCESS_COMPILE)
+#if defined(_DEBUG) && !defined(WIN64EXCEPTIONS) && !defined(DACCESS_COMPILE)
+    //
+    // VM is responsible for synchronization on non-funclet EH model.
+    //
     // m_crawl.GetThisPointer() requires full unwind
     // In GC's relocate phase, objects is not verifiable
     if ( !(m_flags & (LIGHTUNWIND | QUICKUNWIND | ALLOW_INVALID_OBJECTS)) && 

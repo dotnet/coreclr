@@ -5313,6 +5313,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     unsigned stackAdjustBias = 0;
 
 #if defined(_TARGET_X86_)
+#ifndef FEATURE_EH_FUNCLETS
     //-------------------------------------------------------------------------
     // Create a label for tracking of region protected by the monitor in synchronized methods.
     // This needs to be here, rather than above where fPossibleSyncHelperCall is set,
@@ -5340,6 +5341,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 break;
         }
     }
+#endif // FEATURE_EH_FUNCLETS
 
     // Is the caller supposed to pop the arguments?
     if (fCallerPop && (stackArgBytes != 0))
