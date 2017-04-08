@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
+#include "eventpipeevent.h"
 #include "eventpipeprovider.h"
 
 EventPipeProvider::EventPipeProvider(const GUID &providerID)
@@ -16,6 +17,7 @@ EventPipeProvider::EventPipeProvider(const GUID &providerID)
     // TODO: What is the right default?
     // Should this be an enum?
     m_level = 0;
+    m_pEventList = new SList<SListElem<EventPipeEvent*>>();
 }
 
 const GUID& EventPipeProvider::GetProviderID() const
@@ -53,4 +55,27 @@ void EventPipeProvider::SetConfiguration(INT64 keywords, int level)
 
     m_keywords = keywords;
     m_level = level;
+
+    RefreshAllEvents();
+}
+
+void EventPipeProvider::AddEvent(EventPipeEvent &event)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    m_pEventList->InsertTail(new SListElem<EventPipeEvent*>(&event));
+}
+
+void EventPipeProvider::RefreshAllEvents()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    SListElem<EventPipeEvent*> *pElem = m_pEventList->GetHead();
+    while(pElem != NULL)
+    {
+        EventPipeEvent *pEvent = pElem->GetValue();
+        pEvent->RefreshState();
+
+        pElem = m_pEventList->GetNext(pElem);
+    }
 }

@@ -15,6 +15,9 @@ EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, int 
     m_eventID = eventID;
     m_level = level;
     m_needStack = needStack;
+
+    // Register this event with the provider.
+    m_pProvider->AddEvent(*this);
 }
 
 EventPipeProvider* EventPipeEvent::GetProvider() const
@@ -56,5 +59,12 @@ bool EventPipeEvent::IsEnabled() const
 {
     LIMITED_METHOD_CONTRACT;
 
-    return m_pProvider->EventEnabled(m_keywords, m_level);
+    return m_enabled;
+}
+
+void EventPipeEvent::RefreshState()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    m_enabled = m_pProvider->EventEnabled(m_keywords, m_level);
 }

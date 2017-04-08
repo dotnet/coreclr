@@ -28,6 +28,9 @@ private:
     // True if a call stack should be captured when writing the event.
     bool m_needStack;
 
+    // True if the event is current enabled.
+    bool m_enabled;
+
 public:
 
     EventPipeEvent(EventPipeProvider &provider, INT64 keywords, int eventID, int level, bool needStack);
@@ -49,6 +52,10 @@ public:
 
     // True if the event is currently enabled.
     bool IsEnabled() const;
+
+    // TODO:Make this private and add EventPipeProvider as a friend.
+    // Refreshes the runtime state for this event.  Called by EventPipeProvider.
+    void RefreshState();
 };
 
 #endif // __EVENTPIPE_EVENT_H__

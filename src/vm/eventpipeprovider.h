@@ -7,6 +7,8 @@
 
 #include "common.h"
 
+class EventPipeEvent;
+
 class EventPipeProvider
 {
 private:
@@ -21,6 +23,10 @@ private:
 
     // The current verbosity of the provider.
     int m_level;
+
+    // List of every event currently associated with the provider.
+    // New events can be added on-the-fly.
+    SList<SListElem<EventPipeEvent*>> *m_pEventList;
 
 public:
 
@@ -40,6 +46,15 @@ public:
 
     // Set the provider configuration (enable and disable sets of events).
     void SetConfiguration(INT64 keywords, int level);
+
+    // Add an event to the provider.
+    // NOTE: This should be private, but needs to be called from EventPipeEvent.
+    void AddEvent(EventPipeEvent &event);
+
+private:
+
+    // Refresh the runtime state of all events.
+    void RefreshAllEvents();
 };
 
 #endif // __EVENTPIPE_PROVIDER_H__

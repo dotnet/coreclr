@@ -6,6 +6,7 @@
 
 #include "common.h"
 
+class EventPipeEvent;
 class EventPipeProvider;
 
 // Provider ID constants (these match src/vm/ClrEtwAll.man).
