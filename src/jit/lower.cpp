@@ -2002,12 +2002,6 @@ void Lowering::LowerCompare(GenTree* cmp)
     bool         isUsed    = BlockRange().TryGetUse(cmp, &cmpUse);
     GenCondition condition = GenCondition::FromCompareTree(cmp);
 
-    if (condition.IsFloat())
-    {
-        // For now floating point compares are not lowered.
-        return;
-    }
-
 #ifndef _TARGET_64BIT_
     if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
     {
@@ -2556,6 +2550,19 @@ void Lowering::LowerCompare(GenTree* cmp)
             //
 
             condition.MakeUnsigned();
+        }
+    }
+
+    if (condition.IsFloat())
+    {
+        oper = GT_FCMP;
+
+        if (condition.IsUnordered() ? cmp->OperIs(GT_GT, GT_GE) : cmp->OperIs(GT_LT, GT_LE))
+        {
+            std::swap(cmp->gtOp.gtOp1, cmp->gtOp.gtOp2);
+            cmp->gtFlags ^= GTF_REVERSE_OPS;
+            cmp->gtFlags &= ~GTF_RELOP_NAN_UN;
+            condition.Swap();
         }
     }
 

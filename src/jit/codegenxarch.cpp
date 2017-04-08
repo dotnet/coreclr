@@ -1868,6 +1868,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_GT:
         case GT_CMP:
         case GT_TEST:
+        case GT_FCMP:
         {
             // TODO-XArch-CQ: Check if we can use the currently set flags.
             // TODO-XArch-CQ: Check for the case where we can simply transfer the carry bit to a register
@@ -5805,7 +5806,7 @@ void CodeGen::genJumpKindsForTree(GenTreePtr cmpTree, emitJumpKind jmpKind[2], b
 // reveresed in case of BLT/CLT, BGT.UN/CGT.UN, BLE/CLE, BGE.UN/CGE.UN.
 void CodeGen::genCompareFloat(GenTreePtr treeNode)
 {
-    assert(treeNode->OperIsCompare());
+    assert(treeNode->OperIs(GT_FCMP));
 
     GenTreeOp* tree    = treeNode->AsOp();
     GenTreePtr op1     = tree->gtOp1;

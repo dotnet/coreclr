@@ -565,6 +565,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_GT:
         case GT_CMP:
         case GT_TEST:
+        case GT_FCMP:
             TreeNodeInfoInitCmp(tree);
             break;
 
@@ -2985,12 +2986,12 @@ void Lowering::TreeNodeInfoInitIndir(GenTreePtr indirTree)
 //
 void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
 {
-    assert(tree->OperIsCompare() || tree->OperIs(GT_CMP, GT_TEST));
+    assert(tree->OperIsCompare() || tree->OperIs(GT_CMP, GT_TEST, GT_FCMP));
 
     TreeNodeInfo* info = &(tree->gtLsraInfo);
 
     info->srcCount = 2;
-    info->dstCount = tree->OperIs(GT_CMP, GT_TEST) ? 0 : 1;
+    info->dstCount = tree->OperIs(GT_CMP, GT_TEST, GT_FCMP) ? 0 : 1;
 
 #ifdef _TARGET_X86_
     // If the compare is used by a jump, we just need to set the condition codes. If not, then we need

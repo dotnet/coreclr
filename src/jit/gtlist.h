@@ -147,6 +147,7 @@ GTNODE(GE               , ">="           ,GenTreeOp          ,0,GTK_BINOP|GTK_RE
 GTNODE(GT               , ">"            ,GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
 GTNODE(CMP              , "cmp"          ,GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)
 GTNODE(TEST             , "test"         ,GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)
+GTNODE(FCMP             , "fcmp"         ,GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)
 
 GTNODE(COMMA            , "comma"        ,GenTreeOp          ,0,GTK_BINOP|GTK_NOTLIR)
 
