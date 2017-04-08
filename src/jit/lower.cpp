@@ -1998,13 +1998,22 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 
 void Lowering::LowerCompare(GenTree* cmp)
 {
+    LIR::Use     cmpUse;
+    bool         isUsed    = BlockRange().TryGetUse(cmp, &cmpUse);
+    GenCondition condition = GenCondition::FromCompareTree(cmp);
+
+    if (condition.IsFloat())
+    {
+        // For now floating point compares are not lowered.
+        return;
+    }
+
 #ifndef _TARGET_64BIT_
     if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
     {
 // TODO-ARM: This code should be enabled for ARM32 once support for GT_CMP and GT_SETCC is added.
 #if _TARGET_X86_
-        LIR::Use cmpUse;
-        if (!BlockRange().TryGetUse(cmp, &cmpUse) || !cmpUse.User()->OperIs(GT_JTRUE))
+        if (!isUsed || !cmpUse.User()->OperIs(GT_JTRUE))
         {
             GenTree* src1 = cmp->gtGetOp1();
             GenTree* src2 = cmp->gtGetOp2();
@@ -2016,8 +2025,8 @@ void Lowering::LowerCompare(GenTree* cmp)
             GenTree* hiSrc2 = src2->gtGetOp2();
             BlockRange().Remove(src1);
             BlockRange().Remove(src2);
-
-            GenCondition condition  = GenCondition::FromCompareTree(cmp);
+            
+            GenCondition condition = GenCondition::FromCompareTree(cmp);
             GenTree*     loCmp;
             GenTree*     hiCmp;
 
@@ -2366,6 +2375,8 @@ void Lowering::LowerCompare(GenTree* cmp)
 
         BlockRange().Remove(src1);
         BlockRange().Remove(src2);
+
+        condition = GenCondition::FromCompareTree(cmp);
     }
 #endif
 
@@ -2412,6 +2423,8 @@ void Lowering::LowerCompare(GenTree* cmp)
         }
     }
 #endif // _TARGET_AMD64_
+
+    genTreeOps oper = GT_CMP;
 
     if (cmp->gtGetOp2()->IsIntegralConst())
     {
@@ -2482,7 +2495,7 @@ void Lowering::LowerCompare(GenTree* cmp)
                 {
                     op2Value = 0;
                     op2->SetIconValue(0);
-                    cmp->SetOperRaw(GenTree::ReverseRelop(cmp->OperGet()));
+                    condition.Reverse();
                 }
             }
 
@@ -2491,7 +2504,7 @@ void Lowering::LowerCompare(GenTree* cmp)
                 BlockRange().Remove(op1);
                 BlockRange().Remove(op2);
 
-                cmp->SetOperRaw(cmp->OperIs(GT_EQ) ? GT_TEST_EQ : GT_TEST_NE);
+                oper            = GT_TEST;
                 cmp->gtOp.gtOp1 = andOp1;
                 cmp->gtOp.gtOp2 = andOp2;
 
@@ -2542,7 +2555,26 @@ void Lowering::LowerCompare(GenTree* cmp)
             // has to generate a small comparison, it can still correctly generate a TYP_INT comparison.
             //
 
-            cmp->gtFlags |= GTF_UNSIGNED;
+            condition.MakeUnsigned();
+        }
+    }
+
+    cmp->SetOper(oper);
+    cmp->gtFlags &= ~GTF_UNSIGNED;
+
+    if (isUsed)
+    {
+        if (cmpUse.User()->OperIs(GT_JTRUE))
+        {
+            GenTree* jcc = cmpUse.User();
+            jcc->ChangeOper(GT_JCC);
+            jcc->AsCC()->gtCondition = condition;
+        }
+        else
+        {
+            GenTree* setcc = new (comp, GT_SETCC) GenTreeCC(GT_SETCC, condition, cmp->TypeGet());
+            BlockRange().InsertAfter(cmp, setcc);
+            cmpUse.ReplaceWith(comp, setcc);
         }
     }
 #endif // _TARGET_XARCH_

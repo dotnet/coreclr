@@ -563,9 +563,8 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_LE:
         case GT_GE:
         case GT_GT:
-        case GT_TEST_EQ:
-        case GT_TEST_NE:
         case GT_CMP:
+        case GT_TEST:
             TreeNodeInfoInitCmp(tree);
             break;
 
@@ -2986,12 +2985,12 @@ void Lowering::TreeNodeInfoInitIndir(GenTreePtr indirTree)
 //
 void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
 {
-    assert(tree->OperIsCompare() || tree->OperIs(GT_CMP));
+    assert(tree->OperIsCompare() || tree->OperIs(GT_CMP, GT_TEST));
 
     TreeNodeInfo* info = &(tree->gtLsraInfo);
 
     info->srcCount = 2;
-    info->dstCount = tree->OperIs(GT_CMP) ? 0 : 1;
+    info->dstCount = tree->OperIs(GT_CMP, GT_TEST) ? 0 : 1;
 
 #ifdef _TARGET_X86_
     // If the compare is used by a jump, we just need to set the condition codes. If not, then we need
@@ -3507,7 +3506,7 @@ bool Lowering::ExcludeNonByteableRegisters(GenTree* tree)
     {
         return true;
     }
-    else if (tree->OperIsCompare() || tree->OperIs(GT_CMP))
+    else if (tree->OperIsCompare() || tree->OperIs(GT_CMP, GT_TEST))
     {
         GenTree* op1 = tree->gtGetOp1();
         GenTree* op2 = tree->gtGetOp2();
