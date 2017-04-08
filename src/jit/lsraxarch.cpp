@@ -291,78 +291,8 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_JTRUE:
-        {
-            info->srcCount = 0;
-            info->dstCount = 0;
-
-            GenTree* cmp = tree->gtGetOp1();
-            l->clearDstCount(cmp);
-
-#ifdef FEATURE_SIMD
-            // Say we have the following IR
-            //   simdCompareResult = GT_SIMD((In)Equality, v1, v2)
-            //   integerCompareResult = GT_EQ/NE(simdCompareResult, true/false)
-            //   GT_JTRUE(integerCompareResult)
-            //
-            // In this case we don't need to generate code for GT_EQ_/NE, since SIMD (In)Equality
-            // intrinsic will set or clear the Zero flag.
-
-            genTreeOps cmpOper = cmp->OperGet();
-            if (cmpOper == GT_EQ || cmpOper == GT_NE)
-            {
-                GenTree* cmpOp1 = cmp->gtGetOp1();
-                GenTree* cmpOp2 = cmp->gtGetOp2();
-
-                if (cmpOp1->IsSIMDEqualityOrInequality() && (cmpOp2->IsIntegralConst(0) || cmpOp2->IsIntegralConst(1)))
-                {
-                    // We always generate code for a SIMD equality comparison, but the compare
-                    // is contained (evaluated as part of the GT_JTRUE).
-                    // Neither the SIMD node nor the immediate need to be evaluated into a register.
-                    l->clearOperandCounts(cmp);
-                    l->clearDstCount(cmpOp1);
-                    l->clearOperandCounts(cmpOp2);
-
-                    // Codegen of SIMD (in)Equality uses target integer reg only for setting flags.
-                    // A target reg is not needed on AVX when comparing against Vector Zero.
-                    // In all other cases we need to reserve an int type internal register, since we
-                    // have cleared dstCount.
-                    if (!compiler->canUseAVX() || !cmpOp1->gtGetOp2()->IsIntegralConstVector(0))
-                    {
-                        ++(cmpOp1->gtLsraInfo.internalIntCount);
-                        regMaskTP internalCandidates = cmpOp1->gtLsraInfo.getInternalCandidates(l);
-                        internalCandidates |= l->allRegs(TYP_INT);
-                        cmpOp1->gtLsraInfo.setInternalCandidates(l, internalCandidates);
-                    }
-
-                    // We have to reverse compare oper in the following cases:
-                    // 1) SIMD Equality: Sets Zero flag on equal otherwise clears it.
-                    //    Therefore, if compare oper is == or != against false(0), we will
-                    //    be checking opposite of what is required.
-                    //
-                    // 2) SIMD inEquality: Clears Zero flag on true otherwise sets it.
-                    //    Therefore, if compare oper is == or != against true(1), we will
-                    //    be checking opposite of what is required.
-                    GenTreeSIMD* simdNode = cmpOp1->AsSIMD();
-                    if (simdNode->gtSIMDIntrinsicID == SIMDIntrinsicOpEquality)
-                    {
-                        if (cmpOp2->IsIntegralConst(0))
-                        {
-                            cmp->SetOper(GenTree::ReverseRelop(cmpOper));
-                        }
-                    }
-                    else
-                    {
-                        assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicOpInEquality);
-                        if (cmpOp2->IsIntegralConst(1))
-                        {
-                            cmp->SetOper(GenTree::ReverseRelop(cmpOper));
-                        }
-                    }
-                }
-            }
-#endif // FEATURE_SIMD
-        }
-        break;
+            unreached();
+            break;
 
         case GT_JCC:
             info->srcCount = 0;
@@ -3442,7 +3372,7 @@ bool Lowering::ExcludeNonByteableRegisters(GenTree* tree)
     {
         return true;
     }
-    else if (tree->OperIsCompare() || tree->OperIs(GT_CMP, GT_TEST))
+    else if (tree->OperIs(GT_CMP, GT_TEST))
     {
         GenTree* op1 = tree->gtGetOp1();
         GenTree* op2 = tree->gtGetOp2();
