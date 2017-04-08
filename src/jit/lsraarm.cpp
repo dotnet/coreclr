@@ -728,6 +728,88 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntr
     }
 }
 
+void Lowering::TreeNodeInfoInitLclHeap(GenTree* tree)
+{
+    TreeNodeInfo* info     = &(tree->gtLsraInfo);
+    LinearScan*   l        = m_lsra;
+    Compiler*     compiler = comp;
+
+    info->srcCount = 1;
+    info->dstCount = 1;
+
+    // Need a variable number of temp regs (see genLclHeap() in codegenarm.cpp):
+    // Here '-' means don't care.
+    //
+    //  Size?                   Init Memory?    # temp regs
+    //   0                          -               0
+    //   const and <=4 ptr words    -             hasPspSym ? 1 : 0
+    //   const and <PageSize        No            hasPspSym ? 1 : 0
+    //   >4 ptr words               Yes           hasPspSym ? 2 : 1
+    //   Non-const                  Yes           hasPspSym ? 2 : 1
+    //   Non-const                  No            hasPspSym ? 2 : 1
+
+    bool hasPspSym;
+#if FEATURE_EH_FUNCLETS
+    hasPspSym = (compiler->lvaPSPSym != BAD_VAR_NUM);
+#else
+    hasPspSym = false;
+#endif
+
+    GenTreePtr size = tree->gtOp.gtOp1;
+    if (size->IsCnsIntOrI())
+    {
+        MakeSrcContained(tree, size);
+
+        size_t sizeVal = size->gtIntCon.gtIconVal;
+        if (sizeVal == 0)
+        {
+            info->internalIntCount = 0;
+        }
+        else
+        {
+            sizeVal                          = AlignUp(sizeVal, STACK_ALIGN);
+            size_t cntStackAlignedWidthItems = (sizeVal >> STACK_ALIGN_SHIFT);
+
+            // For small allocations up to 4 store instructions
+            if (cntStackAlignedWidthItems <= 4)
+            {
+                info->internalIntCount = 0;
+            }
+            else if (!compiler->info.compInitMem)
+            {
+                // No need to initialize allocated stack space.
+                if (sizeVal < compiler->eeGetPageSize())
+                {
+                    info->internalIntCount = 0;
+                }
+                else
+                {
+                    // target (regCnt) + tmp + [psp]
+                    info->internalIntCount       = 1;
+                    info->isInternalRegDelayFree = true;
+                }
+            }
+            else
+            {
+                // target (regCnt) + tmp + [psp]
+                info->internalIntCount       = 1;
+                info->isInternalRegDelayFree = true;
+            }
+
+            if (hasPspSym)
+            {
+                info->internalIntCount++;
+            }
+        }
+    }
+    else
+    {
+        // target (regCnt) + tmp + [psp]
+        info->internalIntCount       = hasPspSym ? 2 : 1;
+        info->isInternalRegDelayFree = true;
+    }
+}
+
 //------------------------------------------------------------------------
 // TreeNodeInfoInitBlockStore: Set the NodeInfo for a block store.
 //
@@ -897,7 +979,6 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
     JITDUMP("TreeNodeInfoInit for: ");
     DISPNODE(tree);
 
-    NYI_IF(tree->TypeGet() == TYP_STRUCT, "lowering struct");
     NYI_IF(tree->TypeGet() == TYP_DOUBLE, "lowering double");
 
     switch (tree->OperGet())
@@ -991,9 +1072,27 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
                 info->srcCount = 2;
             }
 
-            if (tree->gtOverflow())
+            CastInfo castInfo;
+
+            // Get information about the cast.
+            getCastDescription(tree, &castInfo);
+
+            if (castInfo.requiresOverflowCheck)
             {
-                NYI_ARM("overflow checks");
+                var_types srcType = castOp->TypeGet();
+                emitAttr  cmpSize = EA_ATTR(genTypeSize(srcType));
+
+                // If we cannot store the comparisons in an immediate for either
+                // comparing against the max or min value, then we will need to
+                // reserve a temporary register.
+
+                bool canStoreMaxValue = emitter::emitIns_valid_imm_for_cmp(castInfo.typeMax, INS_FLAGS_DONT_CARE);
+                bool canStoreMinValue = emitter::emitIns_valid_imm_for_cmp(castInfo.typeMin, INS_FLAGS_DONT_CARE);
+
+                if (!canStoreMaxValue || !canStoreMinValue)
+                {
+                    info->internalIntCount = 1;
+                }
             }
         }
         break;
@@ -1279,6 +1378,10 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             TreeNodeInfoInitBlockStore(tree->AsBlk());
             break;
 
+        case GT_LCLHEAP:
+            TreeNodeInfoInitLclHeap(tree);
+            break;
+
         case GT_STOREIND:
         {
             info->srcCount = 2;
@@ -1340,11 +1443,6 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_LCL_FLD_ADDR:
         case GT_LCL_VAR:
         case GT_LCL_VAR_ADDR:
-        {
-            unsigned   varNum = tree->gtLclVarCommon.gtLclNum;
-            LclVarDsc* varDsc = comp->lvaTable + varNum;
-            NYI_IF(varTypeIsStruct(varDsc), "lowering struct var");
-        }
         case GT_PHYSREG:
         case GT_CLS_VAR_ADDR:
         case GT_IL_OFFSET:
@@ -1354,6 +1452,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_LABEL:
         case GT_PINVOKE_PROLOG:
         case GT_JCC:
+        case GT_MEMORYBARRIER:
             info->dstCount = tree->IsValue() ? 1 : 0;
             if (kind & (GTK_CONST | GTK_LEAF))
             {

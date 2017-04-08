@@ -27,7 +27,6 @@
  * non-NULL.  In other words, if this handle is being initialized for the first
  * time.
  */
-#define ObjectFromHandle(handle)                   HndFetchHandle(handle)
 #define StoreObjectInHandle(handle, object)        HndAssignHandle(handle, object)
 #define InterlockedCompareExchangeObjectInHandle(handle, object, oldObj)        HndInterlockedCompareExchangeHandle(handle, object, oldObj)
 #define StoreFirstObjectInHandle(handle, object)   HndFirstAssignHandle(handle, object)
@@ -119,7 +118,7 @@ inline OBJECTHANDLE CreateDuplicateHandle(OBJECTHANDLE handle) {
     WRAPPER_NO_CONTRACT;
 
     // Create a new STRONG handle in the same table as an existing handle.  
-    return HndCreateHandle(HndGetHandleTable(handle), HNDTYPE_DEFAULT, ObjectFromHandle(handle));
+    return HndCreateHandle(HndGetHandleTable(handle), HNDTYPE_DEFAULT, HndFetchHandle(handle));
 }
 
 
@@ -510,8 +509,6 @@ void Ref_ScanSizedRefHandles(uint32_t condemned, uint32_t maxgen, ScanContext* s
 #ifdef FEATURE_REDHAWK
 void Ref_ScanPointers(uint32_t condemned, uint32_t maxgen, ScanContext* sc, Ref_promote_func* fn);
 #endif
-
-typedef void (* handle_scan_fn)(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, BOOL isDependent);
 
 void Ref_CheckReachable       (uint32_t uCondemnedGeneration, uint32_t uMaxGeneration, uintptr_t lp1);
 void Ref_CheckAlive           (uint32_t uCondemnedGeneration, uint32_t uMaxGeneration, uintptr_t lp1);

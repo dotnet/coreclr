@@ -214,12 +214,12 @@ TODO: Talk about initializing strutures before use
 #endif
 
 // Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* 3d43decb-a611-4413-a0af-a24278a00e2d */
-    0x3d43decb,
-    0xa611,
-    0x4413,
-    {0xa0, 0xaf, 0xa2, 0x42, 0x78, 0xa0, 0x0e, 0x2d}
-  };
+SELECTANY const GUID JITEEVersionIdentifier = { /* f00b3f49-ddd2-49be-ba43-6e49ffa66959 */
+    0xf00b3f49,
+    0xddd2,
+    0x49be,
+    { 0xba, 0x43, 0x6e, 0x49, 0xff, 0xa6, 0x69, 0x59 }
+};
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -746,6 +746,17 @@ enum CorInfoCallConv
     CORINFO_CALLCONV_EXPLICITTHIS=0x40,
     CORINFO_CALLCONV_PARAMTYPE  = 0x80,     // Passed last. Same as CORINFO_GENERICS_CTXT_FROM_PARAMTYPEARG
 };
+
+#ifdef UNIX_X86_ABI
+inline bool IsCallerPop(CorInfoCallConv callConv)
+{
+    unsigned int umask = CORINFO_CALLCONV_STDCALL
+                       | CORINFO_CALLCONV_THISCALL
+                       | CORINFO_CALLCONV_FASTCALL;
+
+    return !(callConv & umask);
+}
+#endif // UNIX_X86_ABI
 
 enum CorInfoUnmanagedCallConv
 {
@@ -2394,7 +2405,7 @@ public:
     virtual void getReadyToRunDelegateCtorHelper(
             CORINFO_RESOLVED_TOKEN * pTargetMethod,
             CORINFO_CLASS_HANDLE     delegateType,
-            CORINFO_CONST_LOOKUP *   pLookup
+            CORINFO_LOOKUP *   pLookup
             ) = 0;
 
     virtual const char* getHelperName(

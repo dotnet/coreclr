@@ -20,7 +20,6 @@ def static getOSGroup(def os) {
         'Ubuntu16.04': 'Linux',
         'Ubuntu16.10': 'Linux',
         'Debian8.4':'Linux',
-        'Fedora23':'Linux',
         'OSX10.12':'OSX',
         'Windows_NT':'Windows_NT',
         'FreeBSD':'FreeBSD',
@@ -51,8 +50,7 @@ class Constants {
                'RHEL7.2',
                'Ubuntu16.04',
                'Ubuntu16.10',
-               'Tizen',
-               'Fedora23']
+               'Tizen']
 
     def static crossList = ['Ubuntu', 'OSX10.12', 'CentOS7.1', 'RHEL7.2', 'Debian8.4']
 
@@ -145,10 +143,7 @@ class Constants {
 
 def static setMachineAffinity(def job, def os, def architecture) {
     if (architecture == 'arm64' && os == 'Windows_NT') {
-        // For cross compilation
-        job.with {
-            label('arm64')
-        }
+        Utilities.setMachineAffinity(job, os, 'latest-arm64');
     } else if (architecture == 'arm64' && os == 'Ubuntu') {
         Utilities.setMachineAffinity(job, os, 'arm-cross-latest');
     } else if ((architecture == 'arm') && (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen')) {
@@ -364,7 +359,10 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 case 'x64':
                 case 'x86':
                 case 'x86compatjit':
-                    if (isFlowJob || os == 'Windows_NT' || !(os in Constants.crossList)) {
+                    if (architecture == 'x86' && os == 'Ubuntu') {
+                        Utilities.addPeriodicTrigger(job, '@daily')
+                    }
+                    else if (isFlowJob || os == 'Windows_NT' || !(os in Constants.crossList)) {
                         Utilities.addGithubPushTrigger(job)
                     }
                     break
@@ -682,7 +680,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     // Distinguish with the other architectures (arm and x86)
                     Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build", "(?i).*test\\W+${os}\\W+${architecture}.*")
                     break
-                case 'Fedora23':
                 case 'Ubuntu16.10':
                 case 'OpenSUSE42.1':
                     assert !isFlowJob
@@ -1429,7 +1426,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     def illinkArch = (architecture == 'x86compatjit') ? 'x86' : architecture
                     if (scenario == 'illink') {
-                        buildCommands += "tests\\build_illink.cmd clone ${illinkArch}"
+                        buildCommands += "tests\\scripts\\build_illink.cmd clone ${illinkArch}"
                     }
 
                     if (Constants.jitStressModeScenarios.containsKey(scenario) ||
@@ -1678,7 +1675,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
         case 'RHEL7.2':
         case 'OpenSUSE42.1':
         case 'Tizen':
-        case 'Fedora23': // editor brace matching: {
             switch (architecture) {
                 case 'x64':
                 case 'x86':
@@ -2663,3 +2659,5 @@ JobReport.Report.generateJobReport(out)
 Utilities.createHelperJob(this, project, branch,
     "Welcome to the ${project} Repository",  // This is prepended to the help message
     "Have a nice day!")  // This is appended to the help message.  You might put known issues here.
+
+Utilities.addCROSSCheck(this, project, branch)

@@ -16,6 +16,7 @@ extern "C" {
 GPTR_DECL(uint8_t,g_lowest_address);
 GPTR_DECL(uint8_t,g_highest_address);
 GPTR_DECL(uint32_t,g_card_table);
+GVAL_DECL(GCHeapType, g_heap_type);
 #ifndef DACCESS_COMPILE
 }
 #endif // !DACCESS_COMPILE
@@ -26,6 +27,7 @@ GPTR_DECL(uint32_t,g_card_table);
 // GC will update it when it needs to.
 extern "C" gc_alloc_context g_global_alloc_context;
 
+extern "C" IGCHandleTable* g_pGCHandleTable;
 extern "C" uint32_t* g_card_bundle_table;
 extern "C" uint8_t* g_ephemeral_low;
 extern "C" uint8_t* g_ephemeral_high;
@@ -71,6 +73,15 @@ public:
         return g_pGCHeap;
     }
 
+    // Retrieves the GC handle table.
+    static IGCHandleTable* GetGCHandleTable() 
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        assert(g_pGCHandleTable != nullptr);
+        return g_pGCHandleTable;
+    }
+
     // Returns true if the heap has been initialized, false otherwise.
     inline static bool IsGCHeapInitialized()
     {
@@ -81,7 +92,7 @@ public:
 
     // Returns true if a the heap is initialized and a garbage collection
     // is in progress, false otherwise.
-    inline static BOOL IsGCInProgress(BOOL bConsiderGCStart = FALSE)
+    inline static bool IsGCInProgress(bool bConsiderGCStart = false)
     {
         WRAPPER_NO_CONTRACT;
 
@@ -90,7 +101,7 @@ public:
 
     // Returns true if we should be competing marking for statics. This
     // influences the behavior of `GCToEEInterface::GcScanRoots`.
-    inline static BOOL MarkShouldCompeteForStatics()
+    inline static bool MarkShouldCompeteForStatics()
     {
         WRAPPER_NO_CONTRACT;
 
@@ -98,7 +109,7 @@ public:
     }
 
     // Waits until a GC is complete, if the heap has been initialized.
-    inline static void WaitForGCCompletion(BOOL bConsiderGCStart = FALSE)
+    inline static void WaitForGCCompletion(bool bConsiderGCStart = false)
     {
         WRAPPER_NO_CONTRACT;
 
@@ -110,10 +121,11 @@ public:
     inline static bool IsServerHeap()
     {
         LIMITED_METHOD_CONTRACT;
+
 #ifdef FEATURE_SVR_GC
-        _ASSERTE(IGCHeap::gcHeapType != IGCHeap::GC_HEAP_INVALID);
-        return (IGCHeap::gcHeapType == IGCHeap::GC_HEAP_SVR);
-#else // FEATURE_SVR_GC
+        _ASSERTE(g_heap_type != GC_HEAP_INVALID);
+        return g_heap_type == GC_HEAP_SVR;
+#else
         return false;
 #endif // FEATURE_SVR_GC
     }
@@ -198,6 +210,23 @@ private:
     // This class should never be instantiated.
     GCHeapUtilities() = delete;
 };
+
+// Handle-related utilities.
+
+void ValidateHandleAndAppDomain(OBJECTHANDLE handle);
+
+// Given a handle, returns an OBJECTREF for the object it refers to.
+inline OBJECTREF ObjectFromHandle(OBJECTHANDLE handle)
+{
+    _ASSERTE(handle);
+
+#ifdef _DEBUG_IMPL
+    ValidateHandleAndAppDomain(handle);
+#endif // _DEBUG_IMPL
+
+    // Wrap the raw OBJECTREF and return it
+    return UNCHECKED_OBJECTREF_TO_OBJECTREF(*PTR_UNCHECKED_OBJECTREF(handle));
+}
 
 #endif // _GCHEAPUTILITIES_H_
 

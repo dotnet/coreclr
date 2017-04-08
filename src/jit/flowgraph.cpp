@@ -420,6 +420,9 @@ BasicBlock* Compiler::fgNewBasicBlock(BBjumpKinds jumpKind)
 
 void Compiler::fgEnsureFirstBBisScratch()
 {
+    // This method does not update predecessor lists and so must only be called before they are computed.
+    assert(!fgComputePredsDone);
+
     // Have we already allocated a scratch block?
 
     if (fgFirstBBisScratch())
@@ -438,6 +441,7 @@ void Compiler::fgEnsureFirstBBisScratch()
         {
             block->inheritWeight(fgFirstBB);
         }
+
         fgInsertBBbefore(fgFirstBB, block);
     }
     else
@@ -4271,7 +4275,7 @@ private:
 //    jumpTarget[N] is set to a JT_* value if IL offset N is a
 //    jump target in the method.
 //
-//    Also sets lvAddrExposed and lvArgWrite in lvaTable[].
+//    Also sets lvAddrExposed and lvHasILStoreOp, ilHasMultipleILStoreOp in lvaTable[].
 
 #ifdef _PREFAST_
 #pragma warning(push)
@@ -4552,8 +4556,63 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                     // be handled properly by the verifier.
                     if (varNum < lvaTableCnt)
                     {
+                        // In non-inline cases, note written-to arguments.
+                        lvaTable[varNum].lvHasILStoreOp = 1;
+                    }
+                }
+            }
+            break;
+
+            case CEE_STLOC_0:
+            case CEE_STLOC_1:
+            case CEE_STLOC_2:
+            case CEE_STLOC_3:
+                varNum = (opcode - CEE_STLOC_0);
+                goto STLOC;
+
+            case CEE_STLOC:
+            case CEE_STLOC_S:
+            {
+                noway_assert(sz == sizeof(BYTE) || sz == sizeof(WORD));
+
+                if (codeAddr > codeEndp - sz)
+                {
+                    goto TOO_FAR;
+                }
+
+                varNum = (sz == sizeof(BYTE)) ? getU1LittleEndian(codeAddr) : getU2LittleEndian(codeAddr);
+
+            STLOC:
+                if (isInlining)
+                {
+                    InlLclVarInfo& lclInfo = impInlineInfo->lclVarInfo[varNum + impInlineInfo->argCnt];
+
+                    if (lclInfo.lclHasStlocOp)
+                    {
+                        lclInfo.lclHasMultipleStlocOp = 1;
+                    }
+                    else
+                    {
+                        lclInfo.lclHasStlocOp = 1;
+                    }
+                }
+                else
+                {
+                    varNum += info.compArgsCount;
+
+                    // This check is only intended to prevent an AV.  Bad varNum values will later
+                    // be handled properly by the verifier.
+                    if (varNum < lvaTableCnt)
+                    {
                         // In non-inline cases, note written-to locals.
-                        lvaTable[varNum].lvArgWrite = 1;
+                        if (lvaTable[varNum].lvHasILStoreOp)
+                        {
+                            lvaTable[varNum].lvHasMultipleILStoreOp = 1;
+                        }
+                        else
+                        {
+                            lvaTable[varNum].lvHasILStoreOp = 1;
+                        }
                     }
                 }
             }
@@ -4875,11 +4934,11 @@ void Compiler::fgAdjustForAddressExposedOrWrittenThis()
     // Optionally enable adjustment during stress.
     if (!tiVerificationNeeded && compStressCompile(STRESS_GENERIC_VARN, 15))
     {
-        lvaTable[info.compThisArg].lvArgWrite = true;
+        lvaTable[info.compThisArg].lvHasILStoreOp = true;
     }
 
     // If this is exposed or written to, create a temp for the modifiable this
-    if (lvaTable[info.compThisArg].lvAddrExposed || lvaTable[info.compThisArg].lvArgWrite)
+    if (lvaTable[info.compThisArg].lvAddrExposed || lvaTable[info.compThisArg].lvHasILStoreOp)
     {
         // If there is a "ldarga 0" or "starg 0", grab and use the temp.
         lvaArg0Var = lvaGrabTemp(false DEBUGARG("Address-exposed, or written this pointer"));
@@ -4893,14 +4952,14 @@ void Compiler::fgAdjustForAddressExposedOrWrittenThis()
         lvaTable[lvaArg0Var].lvLclFieldExpr     = lvaTable[info.compThisArg].lvLclFieldExpr;
         lvaTable[lvaArg0Var].lvLiveAcrossUCall  = lvaTable[info.compThisArg].lvLiveAcrossUCall;
 #endif
-        lvaTable[lvaArg0Var].lvArgWrite    = lvaTable[info.compThisArg].lvArgWrite;
-        lvaTable[lvaArg0Var].lvVerTypeInfo = lvaTable[info.compThisArg].lvVerTypeInfo;
+        lvaTable[lvaArg0Var].lvHasILStoreOp = lvaTable[info.compThisArg].lvHasILStoreOp;
+        lvaTable[lvaArg0Var].lvVerTypeInfo  = lvaTable[info.compThisArg].lvVerTypeInfo;
 
         // Clear the TI_FLAG_THIS_PTR in the original 'this' pointer.
         noway_assert(lvaTable[lvaArg0Var].lvVerTypeInfo.IsThisPtr());
         lvaTable[info.compThisArg].lvVerTypeInfo.ClearThisPtr();
-        lvaTable[info.compThisArg].lvAddrExposed = false;
-        lvaTable[info.compThisArg].lvArgWrite    = false;
+        lvaTable[info.compThisArg].lvAddrExposed  = false;
+        lvaTable[info.compThisArg].lvHasILStoreOp = false;
     }
 }
 
@@ -7065,124 +7124,120 @@ GenTreePtr Compiler::fgOptimizeDelegateConstructor(GenTreeCall* call, CORINFO_CO
     CORINFO_METHOD_HANDLE methHnd = call->gtCallMethHnd;
     CORINFO_CLASS_HANDLE  clsHnd  = info.compCompHnd->getMethodClass(methHnd);
 
-    GenTreePtr targetMethod = call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp1;
+    GenTreePtr targetMethod = call->gtCallArgs->Rest()->Current();
     noway_assert(targetMethod->TypeGet() == TYP_I_IMPL);
-    genTreeOps oper = targetMethod->OperGet();
-    if (oper == GT_FTN_ADDR || oper == GT_CALL || oper == GT_QMARK)
+    genTreeOps            oper            = targetMethod->OperGet();
+    CORINFO_METHOD_HANDLE targetMethodHnd = nullptr;
+    GenTreePtr            qmarkNode       = nullptr;
+    if (oper == GT_FTN_ADDR)
     {
-        CORINFO_METHOD_HANDLE targetMethodHnd = nullptr;
-        GenTreePtr            qmarkNode       = nullptr;
-        if (oper == GT_FTN_ADDR)
+        targetMethodHnd = targetMethod->gtFptrVal.gtFptrMethod;
+    }
+    else if (oper == GT_CALL && targetMethod->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_VIRTUAL_FUNC_PTR))
+    {
+        GenTreePtr handleNode = targetMethod->gtCall.gtCallArgs->Rest()->Rest()->Current();
+
+        if (handleNode->OperGet() == GT_CNS_INT)
         {
-            targetMethodHnd = targetMethod->gtFptrVal.gtFptrMethod;
+            // it's a ldvirtftn case, fetch the methodhandle off the helper for ldvirtftn. It's the 3rd arg
+            targetMethodHnd = CORINFO_METHOD_HANDLE(handleNode->gtIntCon.gtCompileTimeHandle);
         }
-        else if (oper == GT_CALL && targetMethod->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_VIRTUAL_FUNC_PTR))
+        // Sometimes the argument to this is the result of a generic dictionary lookup, which shows
+        // up as a GT_QMARK.
+        else if (handleNode->OperGet() == GT_QMARK)
         {
-            GenTreePtr handleNode = targetMethod->gtCall.gtCallArgs->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp1;
-
-            if (handleNode->OperGet() == GT_CNS_INT)
-            {
-                // it's a ldvirtftn case, fetch the methodhandle off the helper for ldvirtftn. It's the 3rd arg
-                targetMethodHnd = CORINFO_METHOD_HANDLE(handleNode->gtIntCon.gtCompileTimeHandle);
-            }
-            // Sometimes the argument to this is the result of a generic dictionary lookup, which shows
-            // up as a GT_QMARK.
-            else if (handleNode->OperGet() == GT_QMARK)
-            {
-                qmarkNode = handleNode;
-            }
-        }
-        // Sometimes we don't call CORINFO_HELP_VIRTUAL_FUNC_PTR but instead just call
-        // CORINFO_HELP_RUNTIMEHANDLE_METHOD directly.
-        else if (oper == GT_QMARK)
-        {
-            qmarkNode = targetMethod;
-        }
-        if (qmarkNode)
-        {
-            noway_assert(qmarkNode->OperGet() == GT_QMARK);
-            // The argument is actually a generic dictionary lookup.  For delegate creation it looks
-            // like:
-            // GT_QMARK
-            //  GT_COLON
-            //      op1 -> call
-            //              Arg 1 -> token (has compile time handle)
-            //      op2 -> lclvar
-            //
-            //
-            // In this case I can find the token (which is a method handle) and that is the compile time
-            // handle.
-            noway_assert(qmarkNode->gtOp.gtOp2->OperGet() == GT_COLON);
-            noway_assert(qmarkNode->gtOp.gtOp2->gtOp.gtOp1->OperGet() == GT_CALL);
-            GenTreeCall* runtimeLookupCall = qmarkNode->gtOp.gtOp2->gtOp.gtOp1->AsCall();
-
-            // This could be any of CORINFO_HELP_RUNTIMEHANDLE_(METHOD|CLASS)(_LOG?)
-            GenTreePtr tokenNode = runtimeLookupCall->gtCallArgs->gtOp.gtOp2->gtOp.gtOp1;
-            noway_assert(tokenNode->OperGet() == GT_CNS_INT);
-            targetMethodHnd = CORINFO_METHOD_HANDLE(tokenNode->gtIntCon.gtCompileTimeHandle);
-        }
-
-#ifdef FEATURE_READYTORUN_COMPILER
-        if (opts.IsReadyToRun())
-        {
-            // ReadyToRun has this optimization for a non-virtual function pointers only for now.
-            if (oper == GT_FTN_ADDR)
-            {
-                // The first argument of the helper is delegate this pointer
-                GenTreeArgList*      helperArgs = gtNewArgList(call->gtCallObjp);
-                CORINFO_CONST_LOOKUP entryPoint;
-
-                // The second argument of the helper is the target object pointers
-                helperArgs->gtOp.gtOp2 = gtNewArgList(call->gtCallArgs->gtOp.gtOp1);
-
-                call = gtNewHelperCallNode(CORINFO_HELP_READYTORUN_DELEGATE_CTOR, TYP_VOID, GTF_EXCEPT, helperArgs);
-                info.compCompHnd->getReadyToRunDelegateCtorHelper(targetMethod->gtFptrVal.gtLdftnResolvedToken, clsHnd,
-                                                                  &entryPoint);
-                call->setEntryPoint(entryPoint);
-            }
-        }
-        else
-#endif
-            if (targetMethodHnd != nullptr)
-        {
-            CORINFO_METHOD_HANDLE alternateCtor = nullptr;
-            DelegateCtorArgs      ctorData;
-            ctorData.pMethod = info.compMethodHnd;
-            ctorData.pArg3   = nullptr;
-            ctorData.pArg4   = nullptr;
-            ctorData.pArg5   = nullptr;
-
-            alternateCtor = info.compCompHnd->GetDelegateCtor(methHnd, clsHnd, targetMethodHnd, &ctorData);
-            if (alternateCtor != methHnd)
-            {
-                // we erase any inline info that may have been set for generics has it is not needed here,
-                // and in fact it will pass the wrong info to the inliner code
-                *ExactContextHnd = nullptr;
-
-                call->gtCallMethHnd = alternateCtor;
-
-                noway_assert(call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp2 == nullptr);
-                if (ctorData.pArg3)
-                {
-                    call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp2 =
-                        gtNewArgList(gtNewIconHandleNode(size_t(ctorData.pArg3), GTF_ICON_FTN_ADDR));
-
-                    if (ctorData.pArg4)
-                    {
-                        call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp2 =
-                            gtNewArgList(gtNewIconHandleNode(size_t(ctorData.pArg4), GTF_ICON_FTN_ADDR));
-
-                        if (ctorData.pArg5)
-                        {
-                            call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp2 =
-                                gtNewArgList(gtNewIconHandleNode(size_t(ctorData.pArg5), GTF_ICON_FTN_ADDR));
-                        }
-                    }
-                }
-            }
+            qmarkNode = handleNode;
         }
     }
+    // Sometimes we don't call CORINFO_HELP_VIRTUAL_FUNC_PTR but instead just call
+    // CORINFO_HELP_RUNTIMEHANDLE_METHOD directly.
+    else if (oper == GT_QMARK)
+    {
+        qmarkNode = targetMethod;
+    }
+    if (qmarkNode)
+    {
+        noway_assert(qmarkNode->OperGet() == GT_QMARK);
+        // The argument is actually a generic dictionary lookup.  For delegate creation it looks
+        // like:
+        // GT_QMARK
+        //  GT_COLON
+        //      op1 -> call
+        //              Arg 1 -> token (has compile time handle)
+        //      op2 -> lclvar
+        //
+        //
+        // In this case I can find the token (which is a method handle) and that is the compile time
+        // handle.
+        noway_assert(qmarkNode->gtOp.gtOp2->OperGet() == GT_COLON);
+        noway_assert(qmarkNode->gtOp.gtOp2->gtOp.gtOp1->OperGet() == GT_CALL);
+        GenTreeCall* runtimeLookupCall = qmarkNode->gtOp.gtOp2->gtOp.gtOp1->AsCall();
 
+        // This could be any of CORINFO_HELP_RUNTIMEHANDLE_(METHOD|CLASS)(_LOG?)
+        GenTreePtr tokenNode = runtimeLookupCall->gtCallArgs->gtOp.gtOp2->gtOp.gtOp1;
+        noway_assert(tokenNode->OperGet() == GT_CNS_INT);
+        targetMethodHnd = CORINFO_METHOD_HANDLE(tokenNode->gtIntCon.gtCompileTimeHandle);
+    }
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    if (opts.IsReadyToRun())
+    {
+        // ReadyToRun has this optimization for a non-virtual function pointers only for now.
+        if (oper == GT_FTN_ADDR)
+        {
+            GenTreePtr      thisPointer       = call->gtCallObjp;
+            GenTreePtr      targetObjPointers = call->gtCallArgs->Current();
+            GenTreeArgList* helperArgs        = gtNewArgList(thisPointer, targetObjPointers);
+
+            call = gtNewHelperCallNode(CORINFO_HELP_READYTORUN_DELEGATE_CTOR, TYP_VOID, GTF_EXCEPT, helperArgs);
+
+            CORINFO_RESOLVED_TOKEN* ldftnToken = targetMethod->gtFptrVal.gtLdftnResolvedToken;
+            CORINFO_LOOKUP          entryPoint;
+            info.compCompHnd->getReadyToRunDelegateCtorHelper(ldftnToken, clsHnd, &entryPoint);
+            assert(!entryPoint.lookupKind.needsRuntimeLookup);
+            call->setEntryPoint(entryPoint.constLookup);
+        }
+    }
+    else
+#endif
+        if (targetMethodHnd != nullptr)
+    {
+        CORINFO_METHOD_HANDLE alternateCtor = nullptr;
+        DelegateCtorArgs      ctorData;
+        ctorData.pMethod = info.compMethodHnd;
+        ctorData.pArg3   = nullptr;
+        ctorData.pArg4   = nullptr;
+        ctorData.pArg5   = nullptr;
+
+        alternateCtor = info.compCompHnd->GetDelegateCtor(methHnd, clsHnd, targetMethodHnd, &ctorData);
+        if (alternateCtor != methHnd)
+        {
+            // we erase any inline info that may have been set for generics has it is not needed here,
+            // and in fact it will pass the wrong info to the inliner code
+            *ExactContextHnd = nullptr;
+
+            call->gtCallMethHnd = alternateCtor;
+
+            noway_assert(call->gtCallArgs->Rest()->Rest() == nullptr);
+            GenTreeArgList* addArgs = nullptr;
+            if (ctorData.pArg5)
+            {
+                GenTreePtr arg5 = gtNewIconHandleNode(size_t(ctorData.pArg5), GTF_ICON_FTN_ADDR);
+                addArgs         = gtNewListNode(arg5, addArgs);
+            }
+            if (ctorData.pArg4)
+            {
+                GenTreePtr arg4 = gtNewIconHandleNode(size_t(ctorData.pArg4), GTF_ICON_FTN_ADDR);
+                addArgs         = gtNewListNode(arg4, addArgs);
+            }
+            if (ctorData.pArg3)
+            {
+                GenTreePtr arg3 = gtNewIconHandleNode(size_t(ctorData.pArg3), GTF_ICON_FTN_ADDR);
+                addArgs         = gtNewListNode(arg3, addArgs);
+            }
+            call->gtCallArgs->Rest()->Rest() = addArgs;
+        }
+    }
     return call;
 }
 
@@ -8013,6 +8068,16 @@ void Compiler::fgAddInternal()
 {
     noway_assert(!compIsForInlining());
 
+#ifndef LEGACY_BACKEND
+    // The RyuJIT backend requires a scratch BB into which it can safely insert a P/Invoke method prolog if one is
+    // required. Create it here.
+    if (info.compCallUnmanaged != 0)
+    {
+        fgEnsureFirstBBisScratch();
+        fgFirstBB->bbFlags |= BBF_DONT_REMOVE;
+    }
+#endif // !LEGACY_BACKEND
+
     /*
         <BUGNUM> VSW441487 </BUGNUM>
 
@@ -8041,8 +8106,8 @@ void Compiler::fgAddInternal()
             lva0CopiedForGenericsCtxt = false;
 #endif // JIT32_GCENCODER
             noway_assert(lva0CopiedForGenericsCtxt || !lvaTable[info.compThisArg].lvAddrExposed);
-            noway_assert(!lvaTable[info.compThisArg].lvArgWrite);
-            noway_assert(lvaTable[lvaArg0Var].lvAddrExposed || lvaTable[lvaArg0Var].lvArgWrite ||
+            noway_assert(!lvaTable[info.compThisArg].lvHasILStoreOp);
+            noway_assert(lvaTable[lvaArg0Var].lvAddrExposed || lvaTable[lvaArg0Var].lvHasILStoreOp ||
                          lva0CopiedForGenericsCtxt);
 
             var_types thisType = lvaTable[info.compThisArg].TypeGet();
@@ -20466,10 +20531,11 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
         // Should never expose the address of arg 0 or write to arg 0.
         // In addition, lvArg0Var should remain 0 if arg0 is not
         // written to or address-exposed.
-        noway_assert(compThisArgAddrExposedOK && !lvaTable[info.compThisArg].lvArgWrite &&
-                     (lvaArg0Var == info.compThisArg ||
-                      lvaArg0Var != info.compThisArg && (lvaTable[lvaArg0Var].lvAddrExposed ||
-                                                         lvaTable[lvaArg0Var].lvArgWrite || copiedForGenericsCtxt)));
+        noway_assert(
+            compThisArgAddrExposedOK && !lvaTable[info.compThisArg].lvHasILStoreOp &&
+            (lvaArg0Var == info.compThisArg ||
+             lvaArg0Var != info.compThisArg &&
+                 (lvaTable[lvaArg0Var].lvAddrExposed || lvaTable[lvaArg0Var].lvHasILStoreOp || copiedForGenericsCtxt)));
     }
 }
 
@@ -22369,9 +22435,13 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 
         for (unsigned argNum = 0; argNum < inlineInfo->argCnt; argNum++)
         {
-            if (inlArgInfo[argNum].argHasTmp)
+            const InlArgInfo& argInfo        = inlArgInfo[argNum];
+            const bool        argIsSingleDef = !argInfo.argHasLdargaOp && !argInfo.argHasStargOp;
+            GenTree* const    argNode        = inlArgInfo[argNum].argNode;
+
+            if (argInfo.argHasTmp)
             {
-                noway_assert(inlArgInfo[argNum].argIsUsed);
+                noway_assert(argInfo.argIsUsed);
 
                 /* argBashTmpNode is non-NULL iff the argument's value was
                    referenced exactly once by the original IL. This offers an
@@ -22385,14 +22455,12 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                    once) but the optimization cannot be applied.
                  */
 
-                GenTreePtr argSingleUseNode = inlArgInfo[argNum].argBashTmpNode;
+                GenTreePtr argSingleUseNode = argInfo.argBashTmpNode;
 
-                if (argSingleUseNode && !(argSingleUseNode->gtFlags & GTF_VAR_CLONED) &&
-                    !inlArgInfo[argNum].argHasLdargaOp && !inlArgInfo[argNum].argHasStargOp)
+                if ((argSingleUseNode != nullptr) && !(argSingleUseNode->gtFlags & GTF_VAR_CLONED) && argIsSingleDef)
                 {
                     // Change the temp in-place to the actual argument.
                     // We currently do not support this for struct arguments, so it must not be a GT_OBJ.
-                    GenTree* argNode = inlArgInfo[argNum].argNode;
                     assert(argNode->gtOper != GT_OBJ);
                     argSingleUseNode->CopyFrom(argNode, this);
                     continue;
@@ -22401,44 +22469,15 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                 {
                     // We're going to assign the argument value to the
                     // temp we use for it in the inline body.
-                    //
-                    // If we know the argument's value can't be
-                    // changed within the method body, try and improve
-                    // the type of the temp.
-                    if (!inlArgInfo[argNum].argHasLdargaOp && !inlArgInfo[argNum].argHasStargOp)
-                    {
-                        GenTree*             argNode        = inlArgInfo[argNum].argNode;
-                        bool                 isExact        = false;
-                        bool                 isNonNull      = false;
-                        CORINFO_CLASS_HANDLE refClassHandle = gtGetClassHandle(argNode, &isExact, &isNonNull);
+                    const unsigned  tmpNum  = argInfo.argTmpNum;
+                    const var_types argType = lclVarInfo[argNum].lclTypeInfo;
 
-                        if (refClassHandle != nullptr)
-                        {
-                            const unsigned tmpNum = inlArgInfo[argNum].argTmpNum;
-
-                            // If we already had an exact type for
-                            // this temp, this new information had
-                            // better agree with what we knew before.
-                            if (lvaTable[tmpNum].lvClassIsExact)
-                            {
-                                assert(isExact);
-                                assert(refClassHandle == lvaTable[tmpNum].lvClassHnd);
-                            }
-                            else
-                            {
-                                lvaTable[tmpNum].lvClassHnd     = refClassHandle;
-                                lvaTable[tmpNum].lvClassIsExact = isExact;
-                            }
-                        }
-                    }
-
-                    /* Create the temp assignment for this argument */
-
+                    // Create the temp assignment for this argument
                     CORINFO_CLASS_HANDLE structHnd = DUMMY_INIT(0);
 
-                    if (varTypeIsStruct(lclVarInfo[argNum].lclTypeInfo))
+                    if (varTypeIsStruct(argType))
                     {
-                        structHnd = gtGetStructHandleIfPresent(inlArgInfo[argNum].argNode);
+                        structHnd = gtGetStructHandleIfPresent(argNode);
                         noway_assert(structHnd != NO_CLASS_HANDLE);
                     }
 
@@ -22446,8 +22485,16 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                     // argTmpNum here since in-linee compiler instance
                     // would have iterated over these and marked them
                     // accordingly.
-                    impAssignTempGen(inlArgInfo[argNum].argTmpNum, inlArgInfo[argNum].argNode, structHnd,
-                                     (unsigned)CHECK_SPILL_NONE, &afterStmt, callILOffset, block);
+                    impAssignTempGen(tmpNum, argNode, structHnd, (unsigned)CHECK_SPILL_NONE, &afterStmt, callILOffset,
+                                     block);
+
+                    // If we know the argument's value can't be
+                    // changed within the method body, try and improve
+                    // the type of the temp.
+                    if (argIsSingleDef && (argType == TYP_REF))
+                    {
+                        lvaUpdateClass(tmpNum, argNode);
+                    }
 
 #ifdef DEBUG
                     if (verbose)
@@ -22457,44 +22504,42 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 #endif // DEBUG
                 }
             }
-            else if (inlArgInfo[argNum].argIsByRefToStructLocal)
+            else if (argInfo.argIsByRefToStructLocal)
             {
-                // Do nothing.
+                // Do nothing. Arg was directly substituted as we read
+                // the inlinee.
             }
             else
             {
                 /* The argument is either not used or a const or lcl var */
 
-                noway_assert(!inlArgInfo[argNum].argIsUsed || inlArgInfo[argNum].argIsInvariant ||
-                             inlArgInfo[argNum].argIsLclVar);
+                noway_assert(!argInfo.argIsUsed || argInfo.argIsInvariant || argInfo.argIsLclVar);
 
                 /* Make sure we didnt change argNode's along the way, or else
                    subsequent uses of the arg would have worked with the bashed value */
-                if (inlArgInfo[argNum].argIsInvariant)
+                if (argInfo.argIsInvariant)
                 {
-                    assert(inlArgInfo[argNum].argNode->OperIsConst() || inlArgInfo[argNum].argNode->gtOper == GT_ADDR);
+                    assert(argNode->OperIsConst() || argNode->gtOper == GT_ADDR);
                 }
-                noway_assert((inlArgInfo[argNum].argIsLclVar == 0) ==
-                             (inlArgInfo[argNum].argNode->gtOper != GT_LCL_VAR ||
-                              (inlArgInfo[argNum].argNode->gtFlags & GTF_GLOB_REF)));
+                noway_assert((argInfo.argIsLclVar == 0) ==
+                             (argNode->gtOper != GT_LCL_VAR || (argNode->gtFlags & GTF_GLOB_REF)));
 
                 /* If the argument has side effects, append it */
 
-                if (inlArgInfo[argNum].argHasSideEff)
+                if (argInfo.argHasSideEff)
                 {
-                    noway_assert(inlArgInfo[argNum].argIsUsed == false);
+                    noway_assert(argInfo.argIsUsed == false);
 
-                    if (inlArgInfo[argNum].argNode->gtOper == GT_OBJ ||
-                        inlArgInfo[argNum].argNode->gtOper == GT_MKREFANY)
+                    if (argNode->gtOper == GT_OBJ || argNode->gtOper == GT_MKREFANY)
                     {
                         // Don't put GT_OBJ node under a GT_COMMA.
                         // Codegen can't deal with it.
                         // Just hang the address here in case there are side-effect.
-                        newStmt = gtNewStmt(gtUnusedValNode(inlArgInfo[argNum].argNode->gtOp.gtOp1), callILOffset);
+                        newStmt = gtNewStmt(gtUnusedValNode(argNode->gtOp.gtOp1), callILOffset);
                     }
                     else
                     {
-                        newStmt = gtNewStmt(gtUnusedValNode(inlArgInfo[argNum].argNode), callILOffset);
+                        newStmt = gtNewStmt(gtUnusedValNode(argNode), callILOffset);
                     }
                     afterStmt = fgInsertStmtAfter(block, afterStmt, newStmt);
 
@@ -23330,6 +23375,7 @@ void Compiler::fgRemoveEmptyTry()
         // Handler index of any nested blocks will update when we
         // remove the EH table entry.  Change handler exits to jump to
         // the continuation.  Clear catch type on handler entry.
+        // Decrement nesting level of enclosed GT_END_LFINs.
         for (BasicBlock* block = firstHandlerBlock; block != endHandlerBlock; block = block->bbNext)
         {
             if (block == firstHandlerBlock)
@@ -23359,6 +23405,22 @@ void Compiler::fgRemoveEmptyTry()
                     fgAddRefPred(continuation, block);
                 }
             }
+
+#if !FEATURE_EH_FUNCLETS
+            // If we're in a non-funclet model, decrement the nesting
+            // level of any GT_END_LFIN we find in the handler region,
+            // since we're removing the enclosing handler.
+            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            {
+                GenTreePtr expr = stmt->gtStmtExpr;
+                if (expr->gtOper == GT_END_LFIN)
+                {
+                    const unsigned nestLevel = expr->gtVal.gtVal1;
+                    assert(nestLevel > 0);
+                    expr->gtVal.gtVal1 = nestLevel - 1;
+                }
+            }
+#endif // !FEATURE_EH_FUNCLETS
         }
 
         // (6) Remove the try-finally EH region. This will compact the

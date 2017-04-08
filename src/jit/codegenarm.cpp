@@ -40,14 +40,6 @@ void CodeGen::genSetRegToIcon(regNumber reg, ssize_t val, var_types type, insFla
 }
 
 //------------------------------------------------------------------------
-// genEmitGSCookieCheck: Generate code to check that the GS cookie wasn't thrashed by a buffer overrun.
-//
-void CodeGen::genEmitGSCookieCheck(bool pushReg)
-{
-    NYI("ARM genEmitGSCookieCheck");
-}
-
-//------------------------------------------------------------------------
 // genCallFinally: Generate a call to the finally block.
 //
 BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
@@ -517,6 +509,10 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
     switch (treeNode->gtOper)
     {
+        case GT_LCLHEAP:
+            genLclHeap(treeNode);
+            break;
+
         case GT_CNS_INT:
         case GT_CNS_DBL:
             genSetRegToConst(targetReg, targetType, treeNode);
@@ -609,10 +605,6 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_CAST:
             // Cast is never contained (?)
             noway_assert(targetReg != REG_NA);
-
-            // Overflow conversions from float/double --> int types go through helper calls.
-            if (treeNode->gtOverflow() && !varTypeIsFloating(treeNode->gtOp.gtOp1))
-                NYI("Unimplmented GT_CAST:int <--> int with overflow");
 
             if (varTypeIsFloating(targetType) && varTypeIsFloating(treeNode->gtOp.gtOp1))
             {
@@ -1082,24 +1074,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         break;
 
         case GT_COPY:
-        {
-            assert(treeNode->gtOp.gtOp1->IsLocal());
-            GenTreeLclVarCommon* lcl    = treeNode->gtOp.gtOp1->AsLclVarCommon();
-            LclVarDsc*           varDsc = &compiler->lvaTable[lcl->gtLclNum];
-            inst_RV_RV(ins_Move_Extend(targetType, true), targetReg, genConsumeReg(treeNode->gtOp.gtOp1), targetType,
-                       emitTypeSize(targetType));
-
-            // The old location is dying
-            genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(treeNode->gtOp.gtOp1));
-
-            gcInfo.gcMarkRegSetNpt(genRegMask(treeNode->gtOp.gtOp1->gtRegNum));
-
-            genUpdateVarReg(varDsc, treeNode);
-
-            // The new location is going live
-            genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));
-        }
-            genProduceReg(treeNode);
+            // This is handled at the time we call genConsumeReg() on the GT_COPY
             break;
 
         case GT_LIST:
@@ -1136,6 +1111,10 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_XCHG:
         case GT_XADD:
             genLockedInstructions(treeNode->AsOp());
+            break;
+
+        case GT_MEMORYBARRIER:
+            instGen_MemoryBarrier();
             break;
 
         case GT_CMPXCHG:
@@ -1330,6 +1309,328 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTreePtr treeNode)
     }
 
     varDsc->lvRegNum = REG_STK;
+}
+
+//--------------------------------------------------------------------------------------
+// genLclHeap: Generate code for localloc
+//
+// Description:
+//      There are 2 ways depending from build version to generate code for localloc:
+//          1) For debug build where memory should be initialized we generate loop
+//             which invoke push {tmpReg} N times.
+//          2) Fore /o build  However, we tickle the pages to ensure that SP is always
+//             valid and is in sync with the "stack guard page". Amount of iteration
+//             is N/PAGE_SIZE.
+//
+// Comments:
+//      There can be some optimization:
+//          1) It's not needed to generate loop for zero size allocation
+//          2) For small allocation (less than 4 store) we unroll loop
+//          3) For allocation less than PAGE_SIZE and when it's not needed to initialize
+//             memory to zero, we can just increment SP.
+//
+// Notes: Size N should be aligned to STACK_ALIGN before any allocation
+//
+void CodeGen::genLclHeap(GenTreePtr tree)
+{
+    assert(tree->OperGet() == GT_LCLHEAP);
+
+    GenTreePtr size = tree->gtOp.gtOp1;
+    noway_assert((genActualType(size->gtType) == TYP_INT) || (genActualType(size->gtType) == TYP_I_IMPL));
+
+    // Result of localloc will be returned in regCnt.
+    // Also it used as temporary register in code generation
+    // for storing allocation size
+    regNumber   regCnt          = tree->gtRegNum;
+    regMaskTP   tmpRegsMask     = tree->gtRsvdRegs;
+    regNumber   pspSymReg       = REG_NA;
+    var_types   type            = genActualType(size->gtType);
+    emitAttr    easz            = emitTypeSize(type);
+    BasicBlock* endLabel        = nullptr;
+    BasicBlock* loop            = nullptr;
+    unsigned    stackAdjustment = 0;
+
+#ifdef DEBUG
+    // Verify ESP
+    if (compiler->opts.compStackCheckOnRet)
+    {
+        noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
+        getEmitter()->emitIns_S_R(INS_cmp, EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnEspCheck, 0);
+
+        BasicBlock*  esp_check = genCreateTempLabel();
+        emitJumpKind jmpEqual  = genJumpKindForOper(GT_EQ, CK_SIGNED);
+        inst_JMP(jmpEqual, esp_check);
+        getEmitter()->emitIns(INS_BREAKPOINT);
+        genDefineTempLabel(esp_check);
+    }
+#endif
+
+    noway_assert(isFramePointerUsed()); // localloc requires Frame Pointer to be established since SP changes
+    noway_assert(genStackLevel == 0);   // Can't have anything on the stack
+
+    // Whether method has PSPSym.
+    bool hasPspSym;
+#if FEATURE_EH_FUNCLETS
+    hasPspSym = (compiler->lvaPSPSym != BAD_VAR_NUM);
+#else
+    hasPspSym = false;
+#endif
+
+    // Check to 0 size allocations
+    // size_t amount = 0;
+    if (size->IsCnsIntOrI())
+    {
+        // If size is a constant, then it must be contained.
+        assert(size->isContained());
+
+        // If amount is zero then return null in regCnt
+        size_t amount = size->gtIntCon.gtIconVal;
+        if (amount == 0)
+        {
+            instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
+            goto BAILOUT;
+        }
+    }
+    else
+    {
+        // If 0 bail out by returning null in regCnt
+        genConsumeRegAndCopy(size, regCnt);
+        endLabel = genCreateTempLabel();
+        getEmitter()->emitIns_R_R(INS_TEST, easz, regCnt, regCnt);
+        emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+        inst_JMP(jmpEqual, endLabel);
+    }
+
+    stackAdjustment = 0;
+#if FEATURE_EH_FUNCLETS
+    // If we have PSPsym, then need to re-locate it after localloc.
+    if (hasPspSym)
+    {
+        stackAdjustment += STACK_ALIGN;
+
+        // Save a copy of PSPSym
+        assert(genCountBits(tmpRegsMask) >= 1);
+        regMaskTP pspSymRegMask = genFindLowestBit(tmpRegsMask);
+        tmpRegsMask &= ~pspSymRegMask;
+        pspSymReg = genRegNumFromMask(pspSymRegMask);
+        getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, pspSymReg, compiler->lvaPSPSym, 0);
+    }
+#endif
+
+#if FEATURE_FIXED_OUT_ARGS
+    // If we have an outgoing arg area then we must adjust the SP by popping off the
+    // outgoing arg area. We will restore it right before we return from this method.
+    if (compiler->lvaOutgoingArgSpaceSize > 0)
+    {
+        assert((compiler->lvaOutgoingArgSpaceSize % STACK_ALIGN) == 0); // This must be true for the stack to remain
+                                                                        // aligned
+        inst_RV_IV(INS_add, REG_SPBASE, compiler->lvaOutgoingArgSpaceSize, EA_PTRSIZE);
+        stackAdjustment += compiler->lvaOutgoingArgSpaceSize;
+    }
+#endif
+
+    // Put aligned allocation size to regCnt
+    if (size->IsCnsIntOrI())
+    {
+        // 'amount' is the total number of bytes to localloc to properly STACK_ALIGN
+        size_t amount = size->gtIntCon.gtIconVal;
+        amount        = AlignUp(amount, STACK_ALIGN);
+
+        // For small allocations we will generate up to four stp instructions
+        size_t cntStackAlignedWidthItems = (amount >> STACK_ALIGN_SHIFT);
+        if (cntStackAlignedWidthItems <= 4)
+        {
+            instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
+
+            while (cntStackAlignedWidthItems != 0)
+            {
+                inst_IV(INS_push, (unsigned)genRegMask(regCnt));
+                cntStackAlignedWidthItems -= 1;
+            }
+
+            goto ALLOC_DONE;
+        }
+        else if (!compiler->info.compInitMem && (amount < compiler->eeGetPageSize())) // must be < not <=
+        {
+            // Since the size is a page or less, simply adjust the SP value
+            // The SP might already be in the guard page, must touch it BEFORE
+            // the alloc, not after.
+            getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, regCnt, REG_SP, 0);
+            inst_RV_IV(INS_sub, REG_SP, amount, EA_PTRSIZE);
+            goto ALLOC_DONE;
+        }
+
+        // regCnt will be the total number of bytes to locAlloc
+        genSetRegToIcon(regCnt, amount, ((int)amount == amount) ? TYP_INT : TYP_LONG);
+    }
+    else
+    {
+        // Round up the number of bytes to allocate to a STACK_ALIGN boundary.
+        inst_RV_IV(INS_add, regCnt, (STACK_ALIGN - 1), emitActualTypeSize(type));
+        inst_RV_IV(INS_AND, regCnt, ~(STACK_ALIGN - 1), emitActualTypeSize(type));
+    }
+
+    // Allocation
+    if (compiler->info.compInitMem)
+    {
+        // At this point 'regCnt' is set to the total number of bytes to locAlloc.
+        // Since we have to zero out the allocated memory AND ensure that RSP is always valid
+        // by tickling the pages, we will just push 0's on the stack.
+
+        assert(tmpRegsMask != RBM_NONE);
+        assert(genCountBits(tmpRegsMask) >= 1);
+
+        regMaskTP regCntMask = genFindLowestBit(tmpRegsMask);
+        tmpRegsMask &= ~regCntMask;
+        regNumber regTmp = genRegNumFromMask(regCntMask);
+        instGen_Set_Reg_To_Zero(EA_PTRSIZE, regTmp);
+
+        // Loop:
+        BasicBlock* loop = genCreateTempLabel();
+        genDefineTempLabel(loop);
+
+        noway_assert(STACK_ALIGN == 8);
+        inst_IV(INS_push, (unsigned)genRegMask(regTmp));
+        inst_IV(INS_push, (unsigned)genRegMask(regTmp));
+
+        // If not done, loop
+        // Note that regCnt is the number of bytes to stack allocate.
+        assert(genIsValidIntReg(regCnt));
+        getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, regCnt, regCnt, STACK_ALIGN);
+        emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+        inst_JMP(jmpNotEqual, loop);
+    }
+    else
+    {
+        // At this point 'regCnt' is set to the total number of bytes to locAlloc.
+        //
+        // We don't need to zero out the allocated memory. However, we do have
+        // to tickle the pages to ensure that SP is always valid and is
+        // in sync with the "stack guard page".  Note that in the worst
+        // case SP is on the last byte of the guard page.  Thus you must
+        // touch SP+0 first not SP+0x1000.
+        //
+        // Another subtlety is that you don't want SP to be exactly on the
+        // boundary of the guard page because PUSH is predecrement, thus
+        // call setup would not touch the guard page but just beyond it
+        //
+        // Note that we go through a few hoops so that SP never points to
+        // illegal pages at any time during the ticking process
+        //
+        //       subs  regCnt, SP, regCnt      // regCnt now holds ultimate SP
+        //       jb    Loop                    // result is smaller than orignial SP (no wrap around)
+        //       mov   regCnt, #0              // Overflow, pick lowest possible value
+        //
+        //  Loop:
+        //       ldr   regTmp, [SP + 0]        // tickle the page - read from the page
+        //       sub   regTmp, SP, PAGE_SIZE   // decrement SP by PAGE_SIZE
+        //       cmp   regTmp, regCnt
+        //       jb    Done
+        //       mov   SP, regTmp
+        //       j     Loop
+        //
+        //  Done:
+        //       mov   SP, regCnt
+        //
+
+        // Setup the regTmp
+        assert(tmpRegsMask != RBM_NONE);
+        assert(genCountBits(tmpRegsMask) == 1);
+        regNumber regTmp = genRegNumFromMask(tmpRegsMask);
+
+        BasicBlock* loop = genCreateTempLabel();
+        BasicBlock* done = genCreateTempLabel();
+
+        //       subs  regCnt, SP, regCnt      // regCnt now holds ultimate SP
+        getEmitter()->emitIns_R_R_R(INS_sub, EA_PTRSIZE, regCnt, REG_SPBASE, regCnt);
+
+        inst_JMP(EJ_vc, loop); // branch if the V flag is not set
+
+        // Ups... Overflow, set regCnt to lowest possible value
+        instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
+
+        genDefineTempLabel(loop);
+
+        // tickle the page - Read from the updated SP - this triggers a page fault when on the guard page
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, regTmp, REG_SPBASE, 0);
+
+        // decrement SP by PAGE_SIZE
+        getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, regTmp, REG_SPBASE, compiler->eeGetPageSize());
+
+        getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, regTmp, regCnt);
+        emitJumpKind jmpLTU = genJumpKindForOper(GT_LT, CK_UNSIGNED);
+        inst_JMP(jmpLTU, done);
+
+        // Update SP to be at the next page of stack that we will tickle
+        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, regCnt);
+
+        // Jump to loop and tickle new stack address
+        inst_JMP(EJ_jmp, loop);
+
+        // Done with stack tickle loop
+        genDefineTempLabel(done);
+
+        // Now just move the final value to SP
+        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, regCnt);
+    }
+
+ALLOC_DONE:
+    // Re-adjust SP to allocate PSPSym and out-going arg area
+    if (stackAdjustment != 0)
+    {
+        assert((stackAdjustment % STACK_ALIGN) == 0); // This must be true for the stack to remain aligned
+        assert(stackAdjustment > 0);
+        getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, (int)stackAdjustment);
+
+#if FEATURE_EH_FUNCLETS
+        // Write PSPSym to its new location.
+        if (hasPspSym)
+        {
+            assert(genIsValidIntReg(pspSymReg));
+            getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, pspSymReg, compiler->lvaPSPSym, 0);
+        }
+#endif
+        // Return the stackalloc'ed address in result register.
+        // regCnt = RSP + stackAdjustment.
+        getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, regCnt, REG_SPBASE, (int)stackAdjustment);
+    }
+    else // stackAdjustment == 0
+    {
+        // Move the final value of SP to regCnt
+        inst_RV_RV(INS_mov, regCnt, REG_SPBASE);
+    }
+
+BAILOUT:
+    if (endLabel != nullptr)
+        genDefineTempLabel(endLabel);
+
+    // Write the lvaLocAllocSPvar stack frame slot
+    if (compiler->lvaLocAllocSPvar != BAD_VAR_NUM)
+    {
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regCnt, compiler->lvaLocAllocSPvar, 0);
+    }
+
+#if STACK_PROBES
+    if (compiler->opts.compNeedStackProbes)
+    {
+        genGenerateStackProbe();
+    }
+#endif
+
+#ifdef DEBUG
+    // Update new ESP
+    if (compiler->opts.compStackCheckOnRet)
+    {
+        noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regCnt, compiler->lvaReturnEspCheck, 0);
+    }
+#endif
+
+    genProduceReg(tree);
 }
 
 //------------------------------------------------------------------------
@@ -1879,7 +2180,65 @@ void CodeGen::genCodeForShiftLong(GenTreePtr tree)
 //
 void CodeGen::genRegCopy(GenTree* treeNode)
 {
-    NYI("genRegCopy");
+    assert(treeNode->OperGet() == GT_COPY);
+
+    var_types targetType = treeNode->TypeGet();
+    regNumber targetReg  = treeNode->gtRegNum;
+    assert(targetReg != REG_NA);
+
+    GenTree* op1 = treeNode->gtOp.gtOp1;
+
+    // Check whether this node and the node from which we're copying the value have the same
+    // register type.
+    // This can happen if (currently iff) we have a SIMD vector type that fits in an integer
+    // register, in which case it is passed as an argument, or returned from a call,
+    // in an integer register and must be copied if it's in an xmm register.
+
+    if (varTypeIsFloating(treeNode) != varTypeIsFloating(op1))
+    {
+        NYI("genRegCopy floating point");
+    }
+    else
+    {
+        inst_RV_RV(ins_Copy(targetType), targetReg, genConsumeReg(op1), targetType);
+    }
+
+    if (op1->IsLocal())
+    {
+        // The lclVar will never be a def.
+        // If it is a last use, the lclVar will be killed by genConsumeReg(), as usual, and genProduceReg will
+        // appropriately set the gcInfo for the copied value.
+        // If not, there are two cases we need to handle:
+        // - If this is a TEMPORARY copy (indicated by the GTF_VAR_DEATH flag) the variable
+        //   will remain live in its original register.
+        //   genProduceReg() will appropriately set the gcInfo for the copied value,
+        //   and genConsumeReg will reset it.
+        // - Otherwise, we need to update register info for the lclVar.
+
+        GenTreeLclVarCommon* lcl = op1->AsLclVarCommon();
+        assert((lcl->gtFlags & GTF_VAR_DEF) == 0);
+
+        if ((lcl->gtFlags & GTF_VAR_DEATH) == 0 && (treeNode->gtFlags & GTF_VAR_DEATH) == 0)
+        {
+            LclVarDsc* varDsc = &compiler->lvaTable[lcl->gtLclNum];
+
+            // If we didn't just spill it (in genConsumeReg, above), then update the register info
+            if (varDsc->lvRegNum != REG_STK)
+            {
+                // The old location is dying
+                genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(op1));
+
+                gcInfo.gcMarkRegSetNpt(genRegMask(op1->gtRegNum));
+
+                genUpdateVarReg(varDsc, treeNode);
+
+                // The new location is going live
+                genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));
+            }
+        }
+    }
+
+    genProduceReg(treeNode);
 }
 
 //------------------------------------------------------------------------
@@ -2421,7 +2780,50 @@ void CodeGen::genLongToIntCast(GenTree* cast)
 
     if (cast->gtOverflow())
     {
-        NYI("genLongToIntCast: overflow check");
+        //
+        // Generate an overflow check for [u]long to [u]int casts:
+        //
+        // long  -> int  - check if the upper 33 bits are all 0 or all 1
+        //
+        // ulong -> int  - check if the upper 33 bits are all 0
+        //
+        // long  -> uint - check if the upper 32 bits are all 0
+        // ulong -> uint - check if the upper 32 bits are all 0
+        //
+
+        if ((srcType == TYP_LONG) && (dstType == TYP_INT))
+        {
+            BasicBlock* allOne  = genCreateTempLabel();
+            BasicBlock* success = genCreateTempLabel();
+
+            inst_RV_RV(INS_tst, loSrcReg, loSrcReg, TYP_INT, EA_4BYTE);
+            emitJumpKind JmpNegative = genJumpKindForOper(GT_LT, CK_LOGICAL);
+            inst_JMP(JmpNegative, allOne);
+            inst_RV_RV(INS_tst, hiSrcReg, hiSrcReg, TYP_INT, EA_4BYTE);
+            emitJumpKind jmpNotEqualL = genJumpKindForOper(GT_NE, CK_LOGICAL);
+            genJumpToThrowHlpBlk(jmpNotEqualL, SCK_OVERFLOW);
+            inst_JMP(EJ_jmp, success);
+
+            genDefineTempLabel(allOne);
+            inst_RV_IV(INS_cmp, hiSrcReg, -1, EA_4BYTE);
+            emitJumpKind jmpNotEqualS = genJumpKindForOper(GT_NE, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpNotEqualS, SCK_OVERFLOW);
+
+            genDefineTempLabel(success);
+        }
+        else
+        {
+            if ((srcType == TYP_ULONG) && (dstType == TYP_INT))
+            {
+                inst_RV_RV(INS_tst, loSrcReg, loSrcReg, TYP_INT, EA_4BYTE);
+                emitJumpKind JmpNegative = genJumpKindForOper(GT_LT, CK_LOGICAL);
+                genJumpToThrowHlpBlk(JmpNegative, SCK_OVERFLOW);
+            }
+
+            inst_RV_RV(INS_tst, hiSrcReg, hiSrcReg, TYP_INT, EA_4BYTE);
+            emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_LOGICAL);
+            genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
+        }
     }
 
     if (dstReg != loSrcReg)
@@ -2483,7 +2885,76 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
 
     if (castInfo.requiresOverflowCheck)
     {
-        NYI_ARM("CodeGen::genIntToIntCast for OverflowCheck");
+        emitAttr cmpSize = EA_ATTR(genTypeSize(srcType));
+
+        if (castInfo.signCheckOnly)
+        {
+            // We only need to check for a negative value in sourceReg
+            emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, 0);
+            emitJumpKind jmpLT = genJumpKindForOper(GT_LT, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpLT, SCK_OVERFLOW);
+            noway_assert(genTypeSize(srcType) == 4 || genTypeSize(srcType) == 8);
+            // This is only interesting case to ensure zero-upper bits.
+            if ((srcType == TYP_INT) && (dstType == TYP_ULONG))
+            {
+                // cast to TYP_ULONG:
+                // We use a mov with size=EA_4BYTE
+                // which will zero out the upper bits
+                movSize     = EA_4BYTE;
+                movRequired = true;
+            }
+        }
+        else if (castInfo.unsignedSource || castInfo.unsignedDest)
+        {
+            // When we are converting from/to unsigned,
+            // we only have to check for any bits set in 'typeMask'
+
+            noway_assert(castInfo.typeMask != 0);
+            emit->emitIns_R_I(INS_tst, cmpSize, sourceReg, castInfo.typeMask);
+            emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
+        }
+        else
+        {
+            // For a narrowing signed cast
+            //
+            // We must check the value is in a signed range.
+
+            // Compare with the MAX
+
+            noway_assert((castInfo.typeMin != 0) && (castInfo.typeMax != 0));
+
+            if (emitter::emitIns_valid_imm_for_cmp(castInfo.typeMax, INS_FLAGS_DONT_CARE))
+            {
+                emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, castInfo.typeMax);
+            }
+            else
+            {
+                noway_assert(tmpReg != REG_NA);
+                instGen_Set_Reg_To_Imm(cmpSize, tmpReg, castInfo.typeMax);
+                emit->emitIns_R_R(INS_cmp, cmpSize, sourceReg, tmpReg);
+            }
+
+            emitJumpKind jmpGT = genJumpKindForOper(GT_GT, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpGT, SCK_OVERFLOW);
+
+            // Compare with the MIN
+
+            if (emitter::emitIns_valid_imm_for_cmp(castInfo.typeMin, INS_FLAGS_DONT_CARE))
+            {
+                emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, castInfo.typeMin);
+            }
+            else
+            {
+                noway_assert(tmpReg != REG_NA);
+                instGen_Set_Reg_To_Imm(cmpSize, tmpReg, castInfo.typeMin);
+                emit->emitIns_R_R(INS_cmp, cmpSize, sourceReg, tmpReg);
+            }
+
+            emitJumpKind jmpLT = genJumpKindForOper(GT_LT, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpLT, SCK_OVERFLOW);
+        }
+        ins = INS_mov;
     }
     else // Non-overflow checking cast.
     {

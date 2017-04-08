@@ -6338,7 +6338,7 @@ bool CEEInfo::getReadyToRunHelper(
 void CEEInfo::getReadyToRunDelegateCtorHelper(
         CORINFO_RESOLVED_TOKEN * pTargetMethod,
         CORINFO_CLASS_HANDLE     delegateType,
-        CORINFO_CONST_LOOKUP *   pLookup
+        CORINFO_LOOKUP *   pLookup
         )
 {
     LIMITED_METHOD_CONTRACT;
@@ -8728,7 +8728,6 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethodHelper(CORINFO_METHOD_HANDLE 
                                                           CORINFO_CONTEXT_HANDLE ownerType)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9926,15 +9925,12 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
     pEEInfoOut->maxUncheckedOffsetForNullObject = MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT;
     pEEInfoOut->targetAbi = CORINFO_CORECLR_ABI;
 
-    OSVERSIONINFO   sVerInfo;
-    sVerInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-    GetOSVersion(&sVerInfo);
-
     pEEInfoOut->osType = CORINFO_WINNT;
 
-    pEEInfoOut->osMajor = sVerInfo.dwMajorVersion;
-    pEEInfoOut->osMinor = sVerInfo.dwMinorVersion;
-    pEEInfoOut->osBuild = sVerInfo.dwBuildNumber;
+    // hardcode OS version to 0.0.0. These fields can be removed from JITEE interface
+    pEEInfoOut->osMajor = 0;
+    pEEInfoOut->osMinor = 0;
+    pEEInfoOut->osBuild = 0;
 
     EE_TO_JIT_TRANSITION();
 }

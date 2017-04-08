@@ -39,6 +39,7 @@
          the GenerateReferenceAssemblyPaths task (not target) and to prevent it from outputting a warning (MSB3644). -->
     <_TargetFrameworkDirectories>$(MSBuildThisFileDirectory)/Documentation</_TargetFrameworkDirectories>
     <_FullFrameworkReferenceAssemblyPaths>$(MSBuildThisFileDirectory)/Documentation</_FullFrameworkReferenceAssemblyPaths>
+    <SkipCommonResourcesIncludes>true</SkipCommonResourcesIncludes>
   </PropertyGroup>
   <!-- Add Serviceable attribute to the project's metadata -->
   <ItemGroup>
@@ -309,8 +310,7 @@
     <Compile Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.CoreClrOverrides.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.Defaults.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.Defaults.Central.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\CurrentTimeZone.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\TimeZone.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\CurrentSystemTimeZone.Cache.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Object.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ICloneable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Array.cs" />
@@ -321,13 +321,10 @@
     <Compile Include="$(BclSourcesRoot)\System\String.Comparison.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.Manipulation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.Searching.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\StringComparer.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\StringComparison.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilder.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilderCache.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Exception.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DateTime.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\DateTimeOffset.cs" />
     <Compile Include="$(BclSourcesRoot)\System\OutOfMemoryException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Delegate.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MulticastDelegate.cs" />
@@ -350,8 +347,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Boolean.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Byte.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Char.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\TypeUnloadedException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\CompatibilitySwitches.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Decimal.cs" />
@@ -511,58 +506,25 @@
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Globalization\BidiCategory.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\Calendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CalendarAlgorithmType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CalendarData.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CalendarWeekRule.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CalendricalCalculationsHelper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CharUnicodeInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CharUnicodeInfoData.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\ChineseLunisolarCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CompareInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CompareInfo.Invariant.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureData.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureNotFoundException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureTypes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\DaylightTime.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\DateTimeFormat.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\DateTimeFormatInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\DateTimeFormatInfoScanner.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\DateTimeParse.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\DateTimeStyles.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\DigitShapes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\EastAsianLunisolarCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GregorianCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GregorianCalendarHelper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\GregorianCalendarTypes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\HebrewCalendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\HebrewNumber.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\HijriCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\IdnMapping.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\InternalGlobalizationHelper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\JapaneseCalendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\JapaneseLunisolarCalendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\JulianCalendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\KoreanCalendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\KoreanLunisolarCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\NumberFormatInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\NumberStyles.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\PersianCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\RegionInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\SortKey.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\SortVersion.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\StringInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\TaiwanCalendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\TaiwanLunisolarCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\TextElementEnumerator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\TextInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\ThaiBuddhistCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\TimeSpanFormat.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\TimeSpanParse.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\UmAlQuraCalendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\UnicodeCategory.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\TimeSpanStyles.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' != 'true'">
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.cs" />
@@ -588,24 +550,15 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\JapaneseCalendar.Win32.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\TextInfo.Windows.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' == 'true' and '$(TargetsUnix)' == 'true'">
+  <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingTable.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\Normalization.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Calendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Casing.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Collation.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.ICU.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Idna.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Locale.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Normalization.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.ResultCode.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.TimeZoneInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Utils.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\HijriCalendar.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\IdnMapping.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\JapaneseCalendar.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\LocaleData.Unix.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Threading\AbandonedMutexException.cs" />
@@ -653,9 +606,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\FutureFactory.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\Task.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskContinuation.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskCanceledException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskExtensions.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskSchedulerException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskExceptionHolder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskFactory.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskScheduler.cs" />
@@ -699,7 +649,6 @@
     <Compile Include="$(BclSourcesRoot)\System\IO\PinnedBufferMemoryStream.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\SeekOrigin.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\Stream.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IO\StreamHelpers.CopyValidation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\TextReader.cs" Condition="'$(TargetsUnix)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\IO\StreamReader.cs" Condition="'$(TargetsUnix)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\IO\UnmanagedMemoryAccessor.cs" />
@@ -708,7 +657,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Security\DynamicSecurityMethodAttribute.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Security\SecurityState.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Security\VerificationException.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -719,6 +667,10 @@
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\AssertFilter.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\AssertFilters.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\ConditionalAttribute.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debug.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debug.Unix.cs" Condition="'$(TargetsUnix)' == 'true'" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debug.Windows.cs" Condition="'$(TargetsUnix)' != 'true'" />
+    <Compile Include="$(BclSourcesRoot)\Interop\Windows\kernel32\Interop.OutputDebugString.cs" Condition="'$(TargetsUnix)' != 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debugger.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\DebuggerAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\ICustomDebuggerNotification.cs" />
@@ -901,28 +853,18 @@
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Normaliz\Interop.Idna.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Normaliz\Interop.Normalization.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\System\Security\SecureString.cs" />
-  </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' != 'true'">
     <Compile Include="$(BclSourcesRoot)\System\Security\SafeBSTRHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Security\SecureString.Windows.cs" />
     <!-- Interop sources -->
-    <Compile Include="$(BclSourcesRoot)\Interop\Windows\Crypt32\Interop.CryptProtectMemory.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\NtDll\Interop.ZeroMemory.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Windows\kernel32\Interop.WideCharToMultiByte.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\oleaut32\Interop.SysAllocStringLen.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\oleaut32\Interop.SysStringLen.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
-    <Compile Include="$(BclSourcesRoot)\System\Security\SecureString.Unix.cs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\HResults.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Native\Interop.GetRandomBytes.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\Debug.cs" />
+    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Native\Interop.SysLog.cs" />
   </ItemGroup>
   <!-- Include additional sources shared files in the compilation -->
   <ItemGroup>
@@ -931,6 +873,7 @@
     <!-- These files are shared with other framework components and don't live the same folder as the rest of them-->
     <Compile Include="$(CommonPath)\NotImplemented.cs" />
     <Compile Include="$(CommonPath)\PinnableBufferCache.cs" />
+    <Compile Include="$(CommonPath)\System\SR.cs" />
     <!-- Include Internals visible to file in the compilation -->
     <Compile Include="$(BclSourcesRoot)\mscorlib.Friends.cs" />
     <!-- TODO list of types to be cleaned up from CoreLib -->

@@ -2175,9 +2175,12 @@ bool Compiler::impSpillStackEntry(unsigned level,
         }
     }
 
+    bool isNewTemp = false;
+
     if (tnum == BAD_VAR_NUM)
     {
-        tnum = lvaGrabTemp(true DEBUGARG(reason));
+        tnum      = lvaGrabTemp(true DEBUGARG(reason));
+        isNewTemp = true;
     }
     else if (tiVerificationNeeded && lvaTable[tnum].TypeGet() != TYP_UNDEF)
     {
@@ -2206,6 +2209,13 @@ bool Compiler::impSpillStackEntry(unsigned level,
 
     /* Assign the spilled entry to the temp */
     impAssignTempGen(tnum, tree, verCurrentState.esStack[level].seTypeInfo.GetClassHandle(), level);
+
+    // If temp is newly introduced and a ref type, grab what type info we can.
+    if (isNewTemp && (lvaTable[tnum].lvType == TYP_REF))
+    {
+        CORINFO_CLASS_HANDLE stkHnd = verCurrentState.esStack[level].seTypeInfo.GetClassHandle();
+        lvaSetClass(tnum, tree, stkHnd);
+    }
 
     // The tree type may be modified by impAssignTempGen, so use the type of the lclVar.
     var_types  type                    = genActualType(lvaTable[tnum].TypeGet());
@@ -6116,25 +6126,6 @@ void Compiler::impInsertHelperCall(CORINFO_HELPER_DESC* helperInfo)
     impAppendTree(callout, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
 }
 
-void Compiler::impInsertCalloutForDelegate(CORINFO_METHOD_HANDLE callerMethodHnd,
-                                           CORINFO_METHOD_HANDLE calleeMethodHnd,
-                                           CORINFO_CLASS_HANDLE  delegateTypeHnd)
-{
-#ifdef FEATURE_CORECLR
-    if (!info.compCompHnd->isDelegateCreationAllowed(delegateTypeHnd, calleeMethodHnd))
-    {
-        // Call the JIT_DelegateSecurityCheck helper before calling the actual function.
-        // This helper throws an exception if the CLR host disallows the call.
-
-        GenTreePtr helper = gtNewHelperCallNode(CORINFO_HELP_DELEGATE_SECURITY_CHECK, TYP_VOID, GTF_EXCEPT,
-                                                gtNewArgList(gtNewIconEmbClsHndNode(delegateTypeHnd),
-                                                             gtNewIconEmbMethHndNode(calleeMethodHnd)));
-        // Append the callout statement
-        impAppendTree(helper, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
-    }
-#endif // FEATURE_CORECLR
-}
-
 // Checks whether the return types of caller and callee are compatible
 // so that callee can be tail called. Note that here we don't check
 // compatibility in IL Verifier sense, but on the lines of return type
@@ -6956,6 +6947,14 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         BADCODE("Varargs not supported.");
     }
 #endif // !FEATURE_VARARG
+
+#ifdef UNIX_X86_ABI
+    if (call->gtCall.callSig == nullptr)
+    {
+        call->gtCall.callSig  = new (this, CMK_CorSig) CORINFO_SIG_INFO;
+        *call->gtCall.callSig = *sig;
+    }
+#endif // UNIX_X86_ABI
 
     if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_VARARG ||
         (sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_NATIVEVARARG)
@@ -9410,9 +9409,10 @@ GenTreePtr Compiler::impCastClassOrIsInstToTree(GenTreePtr              op1,
 
     // Make QMark node a top level node by spilling it.
     unsigned tmp = lvaGrabTemp(true DEBUGARG("spilling QMark2"));
-    // TODO: Is it possible op1 has a better type?
-    lvaTable[tmp].lvClassHnd = pResolvedToken->hClass;
     impAssignTempGen(tmp, qmarkNull, (unsigned)CHECK_SPILL_NONE);
+
+    // TODO: Is it possible op1 has a better type?
+    lvaSetClass(tmp, pResolvedToken->hClass);
     return gtNewLclvNode(tmp, TYP_REF);
 #endif
 }
@@ -9670,6 +9670,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
         GenTreeArgList* args          = nullptr; // What good do these "DUMMY_INIT"s do?
         GenTreePtr      newObjThisPtr = DUMMY_INIT(NULL);
         bool            uns           = DUMMY_INIT(false);
+        bool            isLocal       = false;
 
         /* Get the next opcode and the size of its parameters */
 
@@ -9925,7 +9926,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 {
                     lclNum = lvaArg0Var;
                 }
-                lvaTable[lclNum].lvArgWrite = 1;
+
+                // We should have seen this arg write in the prescan
+                assert(lvaTable[lclNum].lvHasILStoreOp);
 
                 if (tiVerificationNeeded)
                 {
@@ -9942,12 +9945,14 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 goto VAR_ST;
 
             case CEE_STLOC:
-                lclNum = getU2LittleEndian(codeAddr);
+                lclNum  = getU2LittleEndian(codeAddr);
+                isLocal = true;
                 JITDUMP(" %u", lclNum);
                 goto LOC_ST;
 
             case CEE_STLOC_S:
-                lclNum = getU1LittleEndian(codeAddr);
+                lclNum  = getU1LittleEndian(codeAddr);
+                isLocal = true;
                 JITDUMP(" %u", lclNum);
                 goto LOC_ST;
 
@@ -9955,7 +9960,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
             case CEE_STLOC_1:
             case CEE_STLOC_2:
             case CEE_STLOC_3:
-                lclNum = (opcode - CEE_STLOC_0);
+                isLocal = true;
+                lclNum  = (opcode - CEE_STLOC_0);
                 assert(lclNum >= 0 && lclNum < 4);
 
             LOC_ST:
@@ -10053,6 +10059,23 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     if (genActualType(lclTyp) == TYP_I_IMPL)
                     {
                         op1->gtType = TYP_I_IMPL;
+                    }
+                }
+
+                // If this is a local and the local is a ref type, see
+                // if we can improve type information based on the
+                // value being assigned.
+                if (isLocal && (lclTyp == TYP_REF))
+                {
+                    // We should have seen a stloc in our IL prescan.
+                    assert(lvaTable[lclNum].lvHasILStoreOp);
+
+                    const bool isSingleILStoreLocal =
+                        !lvaTable[lclNum].lvHasMultipleILStoreOp && !lvaTable[lclNum].lvHasLdAddrOp;
+
+                    if (isSingleILStoreLocal)
+                    {
+                        lvaUpdateClass(lclNum, op1, clsHnd);
                     }
                 }
 
@@ -11929,6 +11952,12 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     impAssignTempGen(tmpNum, op1, tiRetVal.GetClassHandle(), (unsigned)CHECK_SPILL_ALL);
                     var_types type = genActualType(lvaTable[tmpNum].TypeGet());
                     op1            = gtNewLclvNode(tmpNum, type);
+
+                    // Propagate type info to the temp
+                    if (type == TYP_REF)
+                    {
+                        lvaSetClass(tmpNum, op1, tiRetVal.GetClassHandle());
+                    }
                 }
 
                 op1 = impCloneExpr(op1, &op2, tiRetVal.GetClassHandle(), (unsigned)CHECK_SPILL_ALL,
@@ -12517,10 +12546,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     /* get a temporary for the new object */
                     lclNum = lvaGrabTemp(true DEBUGARG("NewObj constructor temp"));
 
-                    // Note the class handle...
-                    lvaTable[lclNum].lvClassHnd     = resolvedToken.hClass;
-                    lvaTable[lclNum].lvClassIsExact = 1;
-
                     // In the value class case we only need clsHnd for size calcs.
                     //
                     // The lookup of the code pointer will be handled by CALL in this case
@@ -12626,6 +12651,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         // without exhaustive walk over all expressions.
 
                         impAssignTempGen(lclNum, op1, (unsigned)CHECK_SPILL_NONE);
+                        lvaSetClass(lclNum, resolvedToken.hClass, true /* is Exact */);
 
                         newObjThisPtr = gtNewLclvNode(lclNum, TYP_REF);
                     }
@@ -12811,14 +12837,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         assert(verCheckDelegateCreation(delegateCreateStart, codeAddr - 1, delegateMethodRef));
                     }
 #endif
-
-#ifdef FEATURE_CORECLR
-                    // In coreclr the delegate transparency rule needs to be enforced even if verification is disabled
-                    typeInfo              tiActualFtn          = impStackTop(0).seTypeInfo;
-                    CORINFO_METHOD_HANDLE delegateMethodHandle = tiActualFtn.GetMethod2();
-
-                    impInsertCalloutForDelegate(info.compMethodHnd, delegateMethodHandle, resolvedToken.hClass);
-#endif // FEATURE_CORECLR
                 }
 
                 callTyp = impImportCall(opcode, &resolvedToken, constraintCall ? &constrainedResolvedToken : nullptr,
@@ -13587,8 +13605,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     Verify(elemTypeHnd == nullptr ||
                                !(info.compCompHnd->getClassAttribs(elemTypeHnd) & CORINFO_FLG_CONTAINS_STACK_PTR),
                            "array of byref-like type");
-                    tiRetVal = verMakeTypeInfo(resolvedToken.hClass);
                 }
+
+                tiRetVal = verMakeTypeInfo(resolvedToken.hClass);
 
                 accessAllowedResult =
                     info.compCompHnd->canAccessClass(&resolvedToken, info.compMethodHnd, &calloutHelper);
@@ -17706,15 +17725,18 @@ unsigned Compiler::impInlineFetchLocal(unsigned lclNum DEBUGARG(const char* reas
         impInlineInfo->lclTmpNum[lclNum] = tmpNum = lvaGrabTemp(false DEBUGARG(reason));
 
         // Copy over key info
-        lvaTable[tmpNum].lvType        = lclTyp;
-        lvaTable[tmpNum].lvHasLdAddrOp = inlineeLocal.lclHasLdlocaOp;
-        lvaTable[tmpNum].lvPinned      = inlineeLocal.lclIsPinned;
+        lvaTable[tmpNum].lvType                 = lclTyp;
+        lvaTable[tmpNum].lvHasLdAddrOp          = inlineeLocal.lclHasLdlocaOp;
+        lvaTable[tmpNum].lvPinned               = inlineeLocal.lclIsPinned;
+        lvaTable[tmpNum].lvHasILStoreOp         = inlineeLocal.lclHasStlocOp;
+        lvaTable[tmpNum].lvHasMultipleILStoreOp = inlineeLocal.lclHasMultipleStlocOp;
 
-        // Copy over class handle for ref types. Note this may be
-        // further improved if it is a shared type.
+        // Copy over class handle for ref types. Note this may be a
+        // shared type -- someday perhaps we can get the exact
+        // signature and pass in a more precise type.
         if (lclTyp == TYP_REF)
         {
-            lvaTable[tmpNum].lvClassHnd = inlineeLocal.lclVerTypeInfo.GetClassHandleForObjRef();
+            lvaSetClass(tmpNum, inlineeLocal.lclVerTypeInfo.GetClassHandleForObjRef());
         }
 
         if (inlineeLocal.lclVerTypeInfo.IsStruct())
@@ -17886,7 +17908,7 @@ GenTreePtr Compiler::impInlineFetchArg(unsigned lclNum, InlArgInfo* inlArgInfo, 
             // further improved if it is a shared type and we know the exact context.
             if (lclTyp == TYP_REF)
             {
-                lvaTable[tmpNum].lvClassHnd = lclInfo.lclVerTypeInfo.GetClassHandleForObjRef();
+                lvaSetClass(tmpNum, lclInfo.lclVerTypeInfo.GetClassHandleForObjRef());
             }
 
             assert(lvaTable[tmpNum].lvAddrExposed == 0);
@@ -18465,6 +18487,18 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     // Fetch information about the class that introduced the virtual method.
     CORINFO_CLASS_HANDLE baseClass        = info.compCompHnd->getMethodClass(baseMethod);
     const DWORD          baseClassAttribs = info.compCompHnd->getClassAttribs(baseClass);
+
+#if !defined(FEATURE_CORECLR)
+    // If base class is not beforefieldinit then devirtualizing may
+    // cause us to miss a base class init trigger. Spec says we don't
+    // need a trigger for ref class callvirts but desktop seems to
+    // have one anyways. So defer.
+    if ((baseClassAttribs & CORINFO_FLG_BEFOREFIELDINIT) == 0)
+    {
+        JITDUMP("\nimpDevirtualizeCall: base class has precise initialization, sorry\n");
+        return;
+    }
+#endif // FEATURE_CORECLR
 
     // Is the call an interface call?
     const bool isInterface = (baseClassAttribs & CORINFO_FLG_INTERFACE) != 0;
