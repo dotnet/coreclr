@@ -7042,12 +7042,20 @@ BOOL MethodTable::FindDefaultMethod(
                         );
                     }
 
-                    if (pBestCandidateMT == NULL ||                         // first time
-                        pCurMT->CanCastToInterface(pBestCandidateMT))       // Prefer "more specific"" interface
-                    {
-                        // This is a better match
-                        pBestCandidateMT = pCurMT;
-                        pBestCandidateMD = pCurMD;
+                    if (pBestCandidateMT != pCurMT)
+                    {                    
+                        if (pBestCandidateMT == NULL ||                         // first time
+                            pCurMT->CanCastToInterface(pBestCandidateMT))       // Prefer "more specific"" interface
+                        {
+                            // This is a better match
+                            pBestCandidateMT = pCurMT;
+                            pBestCandidateMD = pCurMD;
+                        }
+                        else
+                        {
+                            // not good. we have a conflict
+                            COMPlusThrow(kNotSupportedException);
+                        }
                     }
                 }
 
