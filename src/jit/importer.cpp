@@ -11866,11 +11866,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
             case CEE_POP:
             {
-                if (tiVerificationNeeded)
-                {
-                    impStackTop(0);
-                }
-
                 /* Pull the top value from the stack */
 
                 StackEntry se = impPopStack();
