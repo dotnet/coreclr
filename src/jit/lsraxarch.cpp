@@ -563,9 +563,12 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_LE:
         case GT_GE:
         case GT_GT:
+            unreached();
+            break;
+
         case GT_CMP:
         case GT_TEST:
-            TreeNodeInfoInitCmp(tree);
+            TreeNodeInfoInitCMP(tree->AsOp());
             break;
 
         case GT_FCMP:
@@ -2987,81 +2990,19 @@ void Lowering::TreeNodeInfoInitIndir(GenTreePtr indirTree)
 // Return Value:
 //    None.
 //
-void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
+void Lowering::TreeNodeInfoInitCMP(GenTreeOp* tree)
 {
-    assert(tree->OperIsCompare() || tree->OperIs(GT_CMP, GT_TEST, GT_FCMP));
+    assert(tree->OperIs(GT_CMP, GT_TEST));
 
     TreeNodeInfo* info = &(tree->gtLsraInfo);
 
     info->srcCount = 2;
-    info->dstCount = tree->OperIs(GT_CMP, GT_TEST, GT_FCMP) ? 0 : 1;
-
-#ifdef _TARGET_X86_
-    // If the compare is used by a jump, we just need to set the condition codes. If not, then we need
-    // to store the result into the low byte of a register, which requires the dst be a byteable register.
-    // We always set the dst candidates, though, because if this is compare is consumed by a jump, they
-    // won't be used. We might be able to use GTF_RELOP_JMP_USED to determine this case, but it's not clear
-    // that flag is maintained until this location (especially for decomposed long compares).
-    info->setDstCandidates(m_lsra, RBM_BYTE_REGS);
-#endif // _TARGET_X86_
+    info->dstCount = 0;
 
     GenTreePtr op1     = tree->gtOp.gtOp1;
     GenTreePtr op2     = tree->gtOp.gtOp2;
     var_types  op1Type = op1->TypeGet();
     var_types  op2Type = op2->TypeGet();
-
-    // If either of op1 or op2 is floating point values, then we need to use
-    // ucomiss or ucomisd to compare, both of which support the following form:
-    //     ucomis[s|d] xmm, xmm/mem
-    // That is only the second operand can be a memory op.
-    //
-    // Second operand is a memory Op:  Note that depending on comparison operator,
-    // the operands of ucomis[s|d] need to be reversed.  Therefore, either op1 or
-    // op2 can be a memory op depending on the comparison operator.
-    if (varTypeIsFloating(op1Type))
-    {
-        // The type of the operands has to be the same and no implicit conversions at this stage.
-        assert(op1Type == op2Type);
-
-        bool reverseOps;
-        if ((tree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-        {
-            // Unordered comparison case
-            reverseOps = tree->OperIs(GT_GT, GT_GE);
-        }
-        else
-        {
-            reverseOps = tree->OperIs(GT_LT, GT_LE);
-        }
-
-        GenTreePtr otherOp;
-        if (reverseOps)
-        {
-            otherOp = op1;
-        }
-        else
-        {
-            otherOp = op2;
-        }
-
-        assert(otherOp != nullptr);
-        if (otherOp->IsCnsNonZeroFltOrDbl())
-        {
-            MakeSrcContained(tree, otherOp);
-        }
-        else if (otherOp->isMemoryOp() && ((otherOp == op2) || IsSafeToContainMem(tree, otherOp)))
-        {
-            MakeSrcContained(tree, otherOp);
-        }
-        else
-        {
-            // SSE2 allows only otherOp to be a memory-op. Since otherOp is not
-            // contained, we can mark it reg-optional.
-            SetRegOptional(otherOp);
-        }
-
-        return;
-    }
 
     // TODO-XArch-CQ: factor out cmp optimization in 'genCondSetFlags' to be used here
     // or in other backend.

@@ -1866,12 +1866,15 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_LE:
         case GT_GE:
         case GT_GT:
+            unreached();
+            break;
+
         case GT_CMP:
         case GT_TEST:
             // TODO-XArch-CQ: Check if we can use the currently set flags.
             // TODO-XArch-CQ: Check for the case where we can simply transfer the carry bit to a register
             //         (signed < or >= where targetReg != REG_NA)
-            genCompareInt(treeNode);
+            genCMP(treeNode->AsOp());
             break;
 
         case GT_FCMP:
@@ -5818,11 +5821,10 @@ void CodeGen::genFCMP(GenTreeOp* tree)
 //
 // Return Value:
 //    None.
-void CodeGen::genCompareInt(GenTreePtr treeNode)
+void CodeGen::genCMP(GenTreeOp* tree)
 {
-    assert(treeNode->OperIsCompare() || treeNode->OperIs(GT_CMP, GT_TEST));
+    assert(tree->OperIs(GT_CMP, GT_TEST));
 
-    GenTreeOp* tree      = treeNode->AsOp();
     GenTreePtr op1       = tree->gtOp1;
     GenTreePtr op2       = tree->gtOp2;
     var_types  op1Type   = op1->TypeGet();
@@ -5938,8 +5940,6 @@ void CodeGen::genCompareInt(GenTreePtr treeNode)
     assert(genTypeSize(type) >= max(genTypeSize(op1Type), genTypeSize(op2Type)));
     // TYP_UINT and TYP_ULONG should not appear here, only small types can be unsigned
     assert(!varTypeIsUnsigned(type) || varTypeIsSmall(type));
-    // Small unsigned int types (TYP_BOOL can use anything) should use unsigned comparisons
-    assert(!(varTypeIsSmallInt(type) && varTypeIsUnsigned(type)) || ((tree->gtFlags & GTF_UNSIGNED) != 0));
     // If op1 is smaller then it cannot be in memory, we're probably missing a cast
     assert((genTypeSize(op1Type) >= genTypeSize(type)) || !op1->isUsedFromMemory());
     // If op2 is smaller then it cannot be in memory, we're probably missing a cast
@@ -5948,13 +5948,6 @@ void CodeGen::genCompareInt(GenTreePtr treeNode)
     assert(!op2->IsCnsIntOrI() || genTypeCanRepresentValue(type, op2->AsIntCon()->IconValue()));
 
     getEmitter()->emitInsBinary(ins, emitTypeSize(type), op1, op2);
-
-    // Are we evaluating this into a register?
-    if (targetReg != REG_NA)
-    {
-        genSetRegToCond(targetReg, tree);
-        genProduceReg(tree);
-    }
 }
 
 //-------------------------------------------------------------------------------------------

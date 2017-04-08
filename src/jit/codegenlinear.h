@@ -63,6 +63,7 @@ struct GenConditionDesc
 
 static const GenConditionDesc& GetConditionDesc(GenCondition condition);
 
+void genCMP(GenTreeOp* cmp);
 void genFCMP(GenTreeOp* fcmp);
 void genSETCC(GenTreeCC* setcc);
 void genJCC(GenTreeCC* jcc);
