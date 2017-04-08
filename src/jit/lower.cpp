@@ -2561,13 +2561,22 @@ void Lowering::LowerCompare(GenTree* cmp)
         {
             std::swap(cmp->gtOp.gtOp1, cmp->gtOp.gtOp2);
             cmp->gtFlags ^= GTF_REVERSE_OPS;
-            cmp->gtFlags &= ~GTF_RELOP_NAN_UN;
             condition.Swap();
         }
     }
+    else if (condition.Is(GenCondition::EQ, GenCondition::NE) && cmp->gtGetOp2()->IsIntegralConst(0) &&
+             cmp->gtGetOp1()->OperIs(GT_ADD, GT_SUB, GT_NEG, GT_AND, GT_OR, GT_XOR) &&
+             cmp->gtGetOp1()->gtNext == cmp->gtGetOp2() && cmp->gtGetOp2()->gtNext == cmp)
+    {
+        oper = GT_NONE;
 
-    cmp->SetOper(oper);
-    cmp->gtFlags &= ~GTF_UNSIGNED;
+        if (cmp->gtGetOp1()->OperIs(GT_SUB))
+        {
+            cmp->gtGetOp1()->SetOper(GT_CMP);
+        }
+
+        cmp->gtGetOp1()->gtFlags |= GTF_SET_FLAGS;
+    }
 
     if (isUsed)
     {
@@ -2576,6 +2585,17 @@ void Lowering::LowerCompare(GenTree* cmp)
             GenTree* jcc = cmpUse.User();
             jcc->ChangeOper(GT_JCC);
             jcc->AsCC()->gtCondition = condition;
+
+            if (oper == GT_NONE)
+            {
+                BlockRange().Remove(cmp);
+            }
+        }
+        else if (oper == GT_NONE)
+        {
+            BlockRange().Remove(cmp->gtGetOp2());
+            cmp->ChangeOper(GT_SETCC);
+            cmp->AsCC()->gtCondition = condition;
         }
         else
         {
@@ -2583,6 +2603,19 @@ void Lowering::LowerCompare(GenTree* cmp)
             BlockRange().InsertAfter(cmp, setcc);
             cmpUse.ReplaceWith(comp, setcc);
         }
+    }
+
+    if (oper == GT_NONE)
+    {
+        if (!cmp->OperIs(GT_SETCC))
+        {
+            BlockRange().Remove(cmp->gtGetOp2());
+        }
+    }
+    else
+    {
+        cmp->SetOper(oper);
+        cmp->gtFlags &= ~(GTF_UNSIGNED | GTF_RELOP_NAN_UN | GTF_RELOP_JMP_USED);
     }
 #endif // _TARGET_XARCH_
 }

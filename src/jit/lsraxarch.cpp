@@ -533,11 +533,6 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
                 info->internalFloatCount = 1;
                 info->setInternalCandidates(l, l->internalFloatRegCandidates());
             }
-            else
-            {
-                // Codegen of this tree node sets ZF and SF flags.
-                tree->gtFlags |= GTF_ZSF_SET;
-            }
             break;
 
         case GT_NOT:
@@ -2182,9 +2177,6 @@ void Lowering::TreeNodeInfoInitLogicalOp(GenTree* tree)
         // as reg optional.
         SetRegOptionalForBinOp(tree);
     }
-
-    // Codegen of this tree node sets ZF and SF flags.
-    tree->gtFlags |= GTF_ZSF_SET;
 }
 
 //------------------------------------------------------------------------
@@ -3016,40 +3008,6 @@ void Lowering::TreeNodeInfoInitCMP(GenTreeOp* tree)
             if (op1->isMemoryOp())
             {
                 MakeSrcContained(tree, op1);
-            }
-            // If op1 codegen sets ZF and SF flags and ==/!= against
-            // zero, we don't need to generate test instruction,
-            // provided we don't have another GenTree node between op1
-            // and tree that could potentially modify flags.
-            //
-            // TODO-CQ: right now the below peep is inexpensive and
-            // gets the benefit in most of cases because in majority
-            // of cases op1, op2 and tree would be in that order in
-            // execution.  In general we should be able to check that all
-            // the nodes that come after op1 in execution order do not
-            // modify the flags so that it is safe to avoid generating a
-            // test instruction.  Such a check requires that on each
-            // GenTree node we need to set the info whether its codegen
-            // will modify flags.
-            //
-            // TODO-CQ: We can optimize compare against zero in the
-            // following cases by generating the branch as indicated
-            // against each case.
-            //  1) unsigned compare
-            //        < 0  - always FALSE
-            //       <= 0  - ZF=1 and jne
-            //        > 0  - ZF=0 and je
-            //       >= 0  - always TRUE
-            //
-            // 2) signed compare
-            //        < 0  - SF=1 and js
-            //       >= 0  - SF=0 and jns
-            else if (tree->OperIs(GT_EQ, GT_NE) && op1->gtSetZSFlags() && op2->IsIntegralConst(0) &&
-                     (op1->gtNext == op2) && (op2->gtNext == tree))
-            {
-                // Require codegen of op1 to set the flags.
-                assert(!op1->gtSetFlags());
-                op1->gtFlags |= GTF_SET_FLAGS;
             }
             else
             {

@@ -1871,9 +1871,6 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
         case GT_CMP:
         case GT_TEST:
-            // TODO-XArch-CQ: Check if we can use the currently set flags.
-            // TODO-XArch-CQ: Check for the case where we can simply transfer the carry bit to a register
-            //         (signed < or >= where targetReg != REG_NA)
             genCMP(treeNode->AsOp());
             break;
 
@@ -5830,41 +5827,6 @@ void CodeGen::genCMP(GenTreeOp* tree)
     var_types  op1Type   = op1->TypeGet();
     var_types  op2Type   = op2->TypeGet();
     regNumber  targetReg = tree->gtRegNum;
-
-    // Case of op1 == 0 or op1 != 0:
-    // Optimize generation of 'test' instruction if op1 sets flags.
-    //
-    // Note that if LSRA has inserted any GT_RELOAD/GT_COPY before
-    // op1, it will not modify the flags set by codegen of op1.
-    // Similarly op1 could also be reg-optional at its use and
-    // it was spilled after producing its result in a register.
-    // Spill code too will not modify the flags set by op1.
-    GenTree* realOp1 = op1->gtSkipReloadOrCopy();
-    if (realOp1->gtSetFlags())
-    {
-        // op1 must set ZF and SF flags
-        assert(realOp1->gtSetZSFlags());
-
-        // Must be (in)equality against zero.
-        assert(tree->OperIs(GT_EQ, GT_NE));
-        assert(op2->IsIntegralConst(0));
-        assert(op2->isContained());
-
-        // Just consume the operands
-        genConsumeOperands(tree);
-
-        // No need to generate test instruction since
-        // op1 sets flags
-
-        // Are we evaluating this into a register?
-        if (targetReg != REG_NA)
-        {
-            genSetRegToCond(targetReg, tree);
-            genProduceReg(tree);
-        }
-
-        return;
-    }
 
 #ifdef FEATURE_SIMD
     // If we have GT_JTRUE(GT_EQ/NE(GT_SIMD((in)Equality, v1, v2), true/false)),
