@@ -2577,6 +2577,23 @@ void Lowering::LowerCompare(GenTree* cmp)
 
         cmp->gtGetOp1()->gtFlags |= GTF_SET_FLAGS;
     }
+#ifdef FEATURE_SIMD
+    else if (condition.Is(GenCondition::EQ, GenCondition::NE) && cmp->gtGetOp1()->IsSIMDEqualityOrInequality() &&
+             (cmp->gtGetOp2()->IsIntegralConst(0) || cmp->gtGetOp2()->IsIntegralConst(1)))
+    {
+        oper = GT_NONE;
+
+        cmp->gtGetOp1()->gtFlags |= GTF_SET_FLAGS;
+
+        GenTreeSIMD* simd = cmp->gtGetOp1()->AsSIMD();
+
+        if (((simd->gtSIMDIntrinsicID == SIMDIntrinsicOpEquality) && cmp->gtGetOp2()->IsIntegralConst(0)) ||
+            ((simd->gtSIMDIntrinsicID == SIMDIntrinsicOpInEquality) && cmp->gtGetOp2()->IsIntegralConst(1)))
+        {
+            condition.Reverse();
+        }
+    }
+#endif
 
     if (isUsed)
     {

@@ -3481,11 +3481,6 @@ bool Lowering::ExcludeNonByteableRegisters(GenTree* tree)
         GenTreeSIMD* simdNode = tree->AsSIMD();
         switch (simdNode->gtSIMDIntrinsicID)
         {
-            case SIMDIntrinsicOpEquality:
-            case SIMDIntrinsicOpInEquality:
-                // We manifest it into a byte register, so the target must be byteable.
-                return true;
-
             case SIMDIntrinsicGetItem:
             {
                 // This logic is duplicated from genSIMDIntrinsicGetItem().
