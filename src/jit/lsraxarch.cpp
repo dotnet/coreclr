@@ -565,8 +565,11 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_GT:
         case GT_CMP:
         case GT_TEST:
-        case GT_FCMP:
             TreeNodeInfoInitCmp(tree);
+            break;
+
+        case GT_FCMP:
+            TreeNodeInfoInitFCMP(tree->AsOp());
             break;
 
         case GT_CKFINITE:
@@ -3140,6 +3143,39 @@ void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
             // if one of them is on stack.
             SetRegOptional(PreferredRegOptionalOperand(tree));
         }
+    }
+}
+
+void Lowering::TreeNodeInfoInitFCMP(GenTreeOp* cmp)
+{
+    assert(cmp->OperIs(GT_FCMP));
+
+    TreeNodeInfo* info = &(cmp->gtLsraInfo);
+
+    info->srcCount = 2;
+    info->dstCount = 0;
+
+    //
+    // We need to use ucomiss or ucomisd to compare, both of which support the following form:
+    //     ucomis[s|d] xmm, xmm/mem
+    // That is only the second operand can be a memory op.
+    //
+
+    GenTree* op2 = cmp->gtOp.gtOp2;
+
+    if (op2->IsCnsNonZeroFltOrDbl())
+    {
+        MakeSrcContained(cmp, op2);
+    }
+    else if (op2->isMemoryOp() && IsSafeToContainMem(cmp, op2))
+    {
+        MakeSrcContained(cmp, op2);
+    }
+    else
+    {
+        // SSE2 allows only otherOp to be a memory-op. Since otherOp is not
+        // contained, we can mark it reg-optional.
+        SetRegOptional(op2);
     }
 }
 

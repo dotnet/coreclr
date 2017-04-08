@@ -1868,25 +1868,15 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_GT:
         case GT_CMP:
         case GT_TEST:
-        case GT_FCMP:
-        {
             // TODO-XArch-CQ: Check if we can use the currently set flags.
             // TODO-XArch-CQ: Check for the case where we can simply transfer the carry bit to a register
             //         (signed < or >= where targetReg != REG_NA)
+            genCompareInt(treeNode);
+            break;
 
-            GenTreePtr op1     = treeNode->gtGetOp1();
-            var_types  op1Type = op1->TypeGet();
-
-            if (varTypeIsFloating(op1Type))
-            {
-                genCompareFloat(treeNode);
-            }
-            else
-            {
-                genCompareInt(treeNode);
-            }
-        }
-        break;
+        case GT_FCMP:
+            genFCMP(treeNode->AsOp());
+            break;
 
         case GT_JTRUE:
             genCodeForJumpTrue(treeNode);
@@ -5804,54 +5794,20 @@ void CodeGen::genJumpKindsForTree(GenTreePtr cmpTree, emitJumpKind jmpKind[2], b
 //
 // As we can see from the above equalities that the operands of a compare operator need to be
 // reveresed in case of BLT/CLT, BGT.UN/CGT.UN, BLE/CLE, BGE.UN/CGE.UN.
-void CodeGen::genCompareFloat(GenTreePtr treeNode)
+void CodeGen::genFCMP(GenTreeOp* tree)
 {
-    assert(treeNode->OperIs(GT_FCMP));
+    assert(tree->OperIs(GT_FCMP));
 
-    GenTreeOp* tree    = treeNode->AsOp();
-    GenTreePtr op1     = tree->gtOp1;
-    GenTreePtr op2     = tree->gtOp2;
-    var_types  op1Type = op1->TypeGet();
-    var_types  op2Type = op2->TypeGet();
+    GenTreePtr op1  = tree->gtOp1;
+    GenTreePtr op2  = tree->gtOp2;
+    var_types  type = op1->TypeGet();
 
     genConsumeOperands(tree);
 
-    assert(varTypeIsFloating(op1Type));
-    assert(op1Type == op2Type);
+    assert(varTypeIsFloating(type));
+    assert(type == op2->TypeGet());
 
-    regNumber   targetReg = treeNode->gtRegNum;
-    instruction ins;
-    emitAttr    cmpAttr;
-
-    bool reverseOps;
-    if ((tree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-    {
-        // Unordered comparison case
-        reverseOps = (tree->gtOper == GT_GT || tree->gtOper == GT_GE);
-    }
-    else
-    {
-        reverseOps = (tree->gtOper == GT_LT || tree->gtOper == GT_LE);
-    }
-
-    if (reverseOps)
-    {
-        GenTreePtr tmp = op1;
-        op1            = op2;
-        op2            = tmp;
-    }
-
-    ins     = ins_FloatCompare(op1Type);
-    cmpAttr = emitTypeSize(op1Type);
-
-    getEmitter()->emitInsBinary(ins, cmpAttr, op1, op2);
-
-    // Are we evaluating this into a register?
-    if (targetReg != REG_NA)
-    {
-        genSetRegToCond(targetReg, tree);
-        genProduceReg(tree);
-    }
+    getEmitter()->emitInsBinary(ins_FloatCompare(type), emitTypeSize(type), op1, op2);
 }
 
 //------------------------------------------------------------------------

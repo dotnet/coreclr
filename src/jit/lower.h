@@ -199,6 +199,7 @@ private:
         GenTreeUnOp* node, regNumber argReg, TreeNodeInfo& info, bool isVarArgs, bool* callHasFloatRegArgs);
     void TreeNodeInfoInitCall(GenTreeCall* call);
     void TreeNodeInfoInitCmp(GenTreePtr tree);
+    void TreeNodeInfoInitFCMP(GenTreeOp* cmp);
     void TreeNodeInfoInitStructArg(GenTreePtr structArg);
     void TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode);
     void TreeNodeInfoInitLogicalOp(GenTree* tree);
