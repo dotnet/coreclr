@@ -1314,12 +1314,6 @@ public:
     }
 #endif // FEATURE_COMINTEROP
 
-    OBJECTHANDLE CreateVariableHandle(OBJECTREF object, UINT type)
-    {
-        WRAPPER_NO_CONTRACT;
-        return ::CreateVariableHandle(m_hHandleTableBucket->pTable[GetCurrentThreadHomeHeapNumber()], object, type);
-    }
-
     OBJECTHANDLE CreateDependentHandle(OBJECTREF primary, OBJECTREF secondary)
     {
         WRAPPER_NO_CONTRACT;
