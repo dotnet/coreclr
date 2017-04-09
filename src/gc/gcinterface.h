@@ -8,7 +8,6 @@
 struct ScanContext;
 struct gc_alloc_context;
 class CrawlFrame;
-class CLREventStatic;
 
 // Callback passed to GcScanRoots.
 typedef void promote_func(PTR_PTR_Object, ScanContext*, uint32_t);
@@ -650,9 +649,9 @@ public:
     // background GC as the BGC threads also need to walk LOH.
     virtual void PublishObject(uint8_t* obj) = 0;
 
-    // Gets the event that suspended threads will use to wait for the
-    // end of a GC.
-    virtual CLREventStatic* GetWaitForGCEvent() = 0;
+    virtual void SetWaitForGCEvent() = 0;
+
+    virtual void ResetWaitForGCEvent() = 0;
 
     /*
     ===========================================================================

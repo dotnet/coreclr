@@ -93,7 +93,8 @@ public:
 
     bool RuntimeStructuresValid();
 
-    CLREvent * GetWaitForGCEvent();
+    void SetWaitForGCEvent();
+    void ResetWaitForGCEvent();
 
     HRESULT Initialize ();
 

@@ -432,9 +432,14 @@ void GCHeap::SetGCInProgress(bool fInProgress)
     GcInProgress = fInProgress;
 }
 
-CLREvent * GCHeap::GetWaitForGCEvent()
+void GCHeap::SetWaitForGCEvent()
 {
-    return WaitForGCEvent;
+    WaitForGCEvent->Set();
+}
+
+void GCHeap::ResetWaitForGCEvent()
+{
+    WaitForGCEvent->Reset();
 }
 
 void GCHeap::WaitUntilConcurrentGCComplete()
