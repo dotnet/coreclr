@@ -3102,6 +3102,10 @@ private:
 
     //---------------- Spilling the importer stack ----------------------------
 
+    // The maximum tree size in the importer before it spills all trees from the stack into local variables.
+    const unsigned MAX_TREE_SIZE = 200;
+    bool impCanSpillNow(OPCODE prevOpcode);
+
     struct PendingDsc
     {
         PendingDsc*   pdNext;
