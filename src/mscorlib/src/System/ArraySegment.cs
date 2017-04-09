@@ -192,14 +192,24 @@ namespace System
         public ArraySegment<T> Slice(int index)
         {
             ThrowInvalidOperationIfDefault();
-            // Note: `index` is allowed to be negative so the start of this ArraySegment can be moved backwards.
+            
+            if ((uint)index > (uint)_count)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+            }
+
             return new ArraySegment<T>(_array, _offset + index, _count - index);
         }
 
         public ArraySegment<T> Slice(int index, int count)
         {
             ThrowInvalidOperationIfDefault();
-            // Note: `index` is allowed to be negative so the start of this ArraySegment can be moved backwards.
+
+            if ((uint)index > (uint)_count || (uint)count > (uint)(_count - index))
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+            }
+
             return new ArraySegment<T>(_array, _offset + index, count);
         }
 
