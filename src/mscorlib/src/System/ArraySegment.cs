@@ -334,8 +334,6 @@ namespace System
             return index >= 0;
         }
 
-        void ICollection<T>.CopyTo(T[] array, int arrayIndex) => CopyTo(array, arrayIndex);
-
         bool ICollection<T>.Remove(T item)
         {
             ThrowHelper.ThrowNotSupportedException();
