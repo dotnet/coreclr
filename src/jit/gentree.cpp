@@ -209,7 +209,7 @@ static void printIndent(IndentStack* indentStack)
 }
 
 static const char* nodeNames[] = {
-#define GTNODE(en, sn, st, cm, ok) sn,
+#define GTNODE(en, sn, st, cm, ok) #en,
 #include "gtlist.h"
 };
 
