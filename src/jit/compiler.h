@@ -3641,7 +3641,7 @@ public:
 
     GenTreePtr fgGetCritSectOfStaticMethod();
 
-#ifdef FEATURE_EH_FUNCLETS
+#if FEATURE_EH_FUNCLETS
 
     void fgAddSyncMethodEnterExit();
 

@@ -7630,7 +7630,7 @@ GenTreePtr Compiler::fgGetCritSectOfStaticMethod()
     return tree;
 }
 
-#ifdef FEATURE_EH_FUNCLETS
+#if FEATURE_EH_FUNCLETS
 
 /*****************************************************************************
  *
@@ -8266,7 +8266,7 @@ void Compiler::fgAddInternal()
         }
     }
 
-#if defined(FEATURE_EH_FUNCLETS)
+#if FEATURE_EH_FUNCLETS
     // Add the synchronized method enter/exit calls and try/finally protection. Note
     // that this must happen before the one BBJ_RETURN block is created below, so the
     // BBJ_RETURN block gets placed at the top-level, not within an EH region. (Otherwise,
@@ -8495,7 +8495,7 @@ void Compiler::fgAddInternal()
 #endif
     }
 
-#ifndef FEATURE_EH_FUNCLETS
+#if !FEATURE_EH_FUNCLETS
 
     /* Is this a 'synchronized' method? */
 
