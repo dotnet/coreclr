@@ -982,6 +982,12 @@ void Rationalizer::DoPhase()
 {
     DBEXEC(TRUE, SanityCheck());
 
+    if (!comp->opts.MinOpts() && !comp->opts.compDbgCode)
+    {
+        comp->optLoopsMarked = false;
+        comp->fgUpdateFlowGraph();
+    }
+
     comp->compCurBB = nullptr;
     comp->fgOrder   = Compiler::FGOrderLinear;
 
