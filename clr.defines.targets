@@ -110,5 +110,6 @@
         <DefineConstants Condition="'$(FeatureReadyToRun)' == 'true'">$(DefineConstants);FEATURE_READYTORUN</DefineConstants>
 
         <DefineConstants Condition="'$(TargetsUnix)' == 'true'">$(DefineConstants);PLATFORM_UNIX</DefineConstants>
+        <DefineConstants Condition="'$(TargetsWindows)' == 'true'">$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
     </PropertyGroup>
 </Project>
