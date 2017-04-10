@@ -282,11 +282,12 @@ int coreclr_initialize(
 extern "C"
 int coreclr_shutdown(
             void* hostHandle,
-            unsigned int domainId)
+            unsigned int domainId,
+            int* latchedExitCode)
 {
     ReleaseHolder<ICLRRuntimeHost2> host(reinterpret_cast<ICLRRuntimeHost2*>(hostHandle));
 
-    HRESULT hr = host->UnloadAppDomain(domainId, true); // Wait until done
+    HRESULT hr = host->UnloadAppDomain(domainId, true, latchedExitCode); // Wait until done
     IfFailRet(hr);
 
     hr = host->Stop();

@@ -1199,7 +1199,7 @@ HRESULT  GetCLRRuntimeHost(REFIID riid, IUnknown **ppUnk)
 }
 
 
-STDMETHODIMP CorHost2::UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone)
+STDMETHODIMP CorHost2::UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone, int *pLatchedExitCode)
 {
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_SO_TOLERANT;
@@ -1249,14 +1249,16 @@ STDMETHODIMP CorHost2::UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone)
         }
         END_ENTRYPOINT_NOTHROW;
 
+        *pLatchedExitCode = GetLatchedExitCode();
+
         return hr;
     }
     else
 
-    return CorRuntimeHostBase::UnloadAppDomain(dwDomainId, fWaitUntilDone);
+    return CorRuntimeHostBase::UnloadAppDomain(dwDomainId, fWaitUntilDone, pLatchedExitCode);
 }
 
-HRESULT CorRuntimeHostBase::UnloadAppDomain(DWORD dwDomainId, BOOL fSync)
+HRESULT CorRuntimeHostBase::UnloadAppDomain(DWORD dwDomainId, BOOL fSync, int *pLatchedExitCode)
 {
     CONTRACTL
     {
@@ -1303,6 +1305,8 @@ HRESULT CorRuntimeHostBase::UnloadAppDomain(DWORD dwDomainId, BOOL fSync)
     hr =  AppDomain::UnloadById(ADID(dwDomainId), fSync);
 
     END_ENTRYPOINT_NOTHROW;
+
+    *pLatchedExitCode = ::GetLatchedExitCode();
 
     return hr;
 }

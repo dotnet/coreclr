@@ -416,11 +416,17 @@ int ExecuteManagedAssembly(
                     exitCode = -1;
                 }
 
-                st = shutdownCoreCLR(hostHandle, domainId);
+                int latchedExitCode = 0;
+                st = shutdownCoreCLR(hostHandle, domainId, &latchedExitCode);
                 if (!SUCCEEDED(st))
                 {
                     fprintf(stderr, "coreclr_shutdown failed - status: 0x%08x\n", st);
                     exitCode = -1;
+                }
+
+                if (exitCode != -1)
+                {
+                    exitCode = latchedExitCode;
                 }
             }
         }

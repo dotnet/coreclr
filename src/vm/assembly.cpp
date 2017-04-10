@@ -1965,6 +1965,10 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
     IfFailThrow(hr);
     
     END_ENTRYPOINT_THROWS;
+
+    // Sync the latched exit code with the return value of main function.
+    SetLatchedExitCode(iRetVal);
+
     return iRetVal;
 }
 #endif // CROSSGEN_COMPILE
