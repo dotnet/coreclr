@@ -2556,10 +2556,12 @@ void Lowering::LowerCompare(GenTree* cmp)
     {
         oper = GT_NONE;
 
+#if 0 // Minimize diffs
         if (cmp->gtGetOp1()->OperIs(GT_SUB))
         {
             cmp->gtGetOp1()->SetOper(GT_CMP);
         }
+#endif
 
         cmp->gtGetOp1()->gtFlags |= GTF_SET_FLAGS;
     }
