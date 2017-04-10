@@ -1249,7 +1249,10 @@ STDMETHODIMP CorHost2::UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone, in
         }
         END_ENTRYPOINT_NOTHROW;
 
-        *pLatchedExitCode = GetLatchedExitCode();
+        if (pLatchedExitCode)
+        {
+            *pLatchedExitCode = GetLatchedExitCode();
+        }
 
         return hr;
     }
@@ -1306,7 +1309,10 @@ HRESULT CorRuntimeHostBase::UnloadAppDomain(DWORD dwDomainId, BOOL fSync, int *p
 
     END_ENTRYPOINT_NOTHROW;
 
-    *pLatchedExitCode = ::GetLatchedExitCode();
+    if (pLatchedExitCode)
+    {
+        *pLatchedExitCode = GetLatchedExitCode();
+    }
 
     return hr;
 }

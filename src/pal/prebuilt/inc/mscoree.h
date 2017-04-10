@@ -1603,7 +1603,7 @@ EXTERN_C const IID IID_ICLRRuntimeHost;
         virtual HRESULT STDMETHODCALLTYPE UnloadAppDomain( 
             /* [in] */ DWORD dwAppDomainId,
             /* [in] */ BOOL fWaitUntilDone,
-            /* [out] */ int *pLatchedExitCode) = 0;
+            /* [out] */ int *pLatchedExitCode = nullptr) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE ExecuteInAppDomain( 
             /* [in] */ DWORD dwAppDomainId,

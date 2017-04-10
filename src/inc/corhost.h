@@ -135,7 +135,7 @@ protected:
                                         // Some functions are only available in ICLRRuntimeHost.
                                         // Some functions are no-op in ICLRRuntimeHost.
 
-    STDMETHODIMP UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone, int *pLatchedExitCode);
+    STDMETHODIMP UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone, int *pLatchedExitCode = nullptr);
 
 public:
     static ULONG GetHostVersion()
@@ -335,7 +335,7 @@ public:
     STDMETHODIMP STDMETHODCALLTYPE GetCLRControl(
         ICLRControl** pCLRControl);
 
-    STDMETHODIMP UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone, int *pLatchedExitCode);
+    STDMETHODIMP UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone, int *pLatchedExitCode = nullptr);
 
     STDMETHODIMP GetCurrentAppDomainId(DWORD *pdwAppDomainId);
 
