@@ -56,18 +56,7 @@ static_assert(sizeof(uint64_t) == 8, "unsigned long isn't 8 bytes");
 #include <sched.h> // sched_yield
 #include <errno.h>
 #include <unistd.h> // sysconf
-
-// The number of milliseconds in a second.
-static const int tccSecondsToMilliSeconds = 1000;
-
-// The number of microseconds in a second.
-static const int tccSecondsToMicroSeconds = 1000000;
-
-// The number of microseconds in a millisecond.
-static const int tccMilliSecondsToMicroSeconds = 1000;
-
-// The number of nanoseconds in a millisecond.
-static const int tccMilliSecondsToNanoSeconds = 1000000;
+#include "globals.h"
 
 // The cachced number of logical CPUs observed.
 static uint32_t g_logicalCpuCount = 0;
@@ -116,6 +105,14 @@ bool GCToOSInterface::Initialize()
         munlock(g_helperPage, OS_PAGE_SIZE);
         return false;
     }
+
+#ifdef HAVE_MACH_ABSOLUTE_TIME
+    kern_return_t machRet;
+    if ((machRet = mach_timebase_info(&g_TimebaseInfo)) != KERN_SUCCESS)
+    {
+        return false;
+    }
+#endif // HAVE_MACH_ABSOLUTE_TIME
 
     return true;
 }

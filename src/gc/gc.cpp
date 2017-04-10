@@ -702,7 +702,7 @@ public:
                 // for an OS event on a managed thread.
                 // But we are not sure if this plays well in the hosting 
                 // environment.
-                join_struct.joined_event[i] = GCToEEInterface::CreateManualEvent(false);
+                join_struct.joined_event[i] = GCToOSInterface::CreateManualEvent(false);
                 if (!join_struct.joined_event[i])
                     return FALSE;
             }
@@ -1236,13 +1236,13 @@ BOOL recursive_gc_sync::init ()
     foreground_gate = 0;
 
     foreground_allowed = nullptr;
-    foreground_complete = GCToEEInterface::CreateOSAutoEvent(false);
+    foreground_complete = GCToOSInterface::CreateOSAutoEvent(false);
     if (!foreground_complete)
     {
         goto error;
     }
 
-    foreground_allowed = GCToEEInterface::CreateManualEvent(false);
+    foreground_allowed = GCToOSInterface::CreateManualEvent(false);
     if (!foreground_allowed)
     {
         goto error;
@@ -5132,13 +5132,13 @@ BOOL gc_heap::create_thread_support (unsigned number_of_heaps)
 {
     BOOL ret = FALSE;
     ee_suspend_event = nullptr;
-    gc_start_event = GCToEEInterface::CreateOSManualEvent(false);
+    gc_start_event = GCToOSInterface::CreateOSManualEvent(false);
     if (!gc_start_event)
     {
         goto cleanup;
     }
 
-    ee_suspend_event = GCToEEInterface::CreateOSAutoEvent(false);
+    ee_suspend_event = GCToOSInterface::CreateOSAutoEvent(false);
     if (!ee_suspend_event)
     {
         goto cleanup;
@@ -10111,13 +10111,13 @@ gc_heap::init_semi_shared()
     segment_standby_list = 0;
 
     full_gc_end_event = nullptr;
-    full_gc_approach_event = GCToEEInterface::CreateManualEvent(false);
+    full_gc_approach_event = GCToOSInterface::CreateManualEvent(false);
     if (!full_gc_approach_event)
     {
         goto cleanup;
     }
 
-    full_gc_end_event = GCToEEInterface::CreateManualEvent(false);
+    full_gc_end_event = GCToOSInterface::CreateManualEvent(false);
     if (!full_gc_end_event)
     {
         goto cleanup;
@@ -10453,7 +10453,7 @@ gc_heap::init_gc_heap (int  h_number)
 
     memset (&oom_info, 0, sizeof (oom_info));
     memset (&fgm_result, 0, sizeof (fgm_result));
-    gc_done_event = GCToEEInterface::CreateManualEvent(false);
+    gc_done_event = GCToOSInterface::CreateManualEvent(false);
     if (!gc_done_event)
     {
         return 0;
@@ -26851,25 +26851,25 @@ BOOL gc_heap::create_bgc_threads_support (int number_of_heaps)
     ee_proceed_event = nullptr;
     bgc_start_event = nullptr;
 
-    background_gc_done_event = GCToEEInterface::CreateManualEvent(true);
+    background_gc_done_event = GCToOSInterface::CreateManualEvent(true);
     if (!background_gc_done_event)
     {
         goto cleanup;
     }
 
-    bgc_threads_sync_event = GCToEEInterface::CreateManualEvent(false);
+    bgc_threads_sync_event = GCToOSInterface::CreateManualEvent(false);
     if (!bgc_threads_sync_event)
     {
         goto cleanup;
     }
 
-    ee_proceed_event = GCToEEInterface::CreateAutoEvent(false);
+    ee_proceed_event = GCToOSInterface::CreateAutoEvent(false);
     if (!ee_proceed_event)
     {
         goto cleanup;
     }
 
-    bgc_start_event = GCToEEInterface::CreateManualEvent(false);
+    bgc_start_event = GCToOSInterface::CreateManualEvent(false);
     if (!bgc_start_event)
     {
         goto cleanup;
@@ -26917,7 +26917,7 @@ BOOL gc_heap::create_bgc_thread_support()
     BOOL ret = FALSE;
     uint8_t** parr;
 
-    gc_lh_block_event = GCToEEInterface::CreateManualEvent(false);
+    gc_lh_block_event = GCToOSInterface::CreateManualEvent(false);
     if (!gc_lh_block_event)
     {
         goto cleanup;
@@ -33745,7 +33745,7 @@ HRESULT GCHeap::Initialize ()
     gc_heap::youngest_gen_desired_th = gc_heap::mem_one_percent;
 #endif // BIT64
 
-    WaitForGCEvent = GCToEEInterface::CreateManualEvent(true);
+    WaitForGCEvent = GCToOSInterface::CreateManualEvent(true);
 
     if (!WaitForGCEvent)
     {

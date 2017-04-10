@@ -47,6 +47,18 @@ struct GCThreadAffinity
     int Processor;
 };
 
+// An event is a synchronization primitive.
+class GCEvent {
+public:
+    virtual void Close() = 0;
+
+    virtual void Set() = 0;
+
+    virtual void Reset() = 0;
+
+    virtual uint32_t Wait(uint32_t timeout, bool alertable) = 0;
+};
+
 // GC thread function prototype
 typedef void (*GCThreadFunction)(void* param);
 
@@ -277,6 +289,18 @@ public:
     // Return:
     //  Time stamp in milliseconds
     static uint32_t GetLowPrecisionTimeStamp();
+
+    //
+    // Events
+    //
+
+    static GCEvent* CreateAutoEvent(bool initialState);
+
+    static GCEvent* CreateManualEvent(bool initialState);
+
+    static GCEvent* CreateOSAutoEvent(bool initialState);
+
+    static GCEvent* CreateOSManualEvent(bool initialState);
 };
 
 #endif // __GCENV_OS_H__
