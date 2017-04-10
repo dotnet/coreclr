@@ -467,23 +467,15 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     // the default case.  As stated above, this conditional is being shared between
     // both GT_SWITCH lowering code paths.
     // This condition is of the form: if (temp > jumpTableLength - 2){ goto jumpTable[jumpTableLength - 1]; }
-    GenTreePtr gtDefaultCaseCond = comp->gtNewOperNode(GT_GT, TYP_INT, comp->gtNewLclvNode(tempLclNum, tempLclType),
-                                                       comp->gtNewIconNode(jumpCnt - 2, tempLclType));
-
-    // Make sure we perform an unsigned comparison, just in case the switch index in 'temp'
-    // is now less than zero 0 (that would also hit the default case).
-    gtDefaultCaseCond->gtFlags |= GTF_UNSIGNED;
-
-    /* Increment the lvRefCnt and lvRefCntWtd for temp */
+    GenTree* switchValue = comp->gtNewLclvNode(tempLclNum, tempLclType);
     tempVarDsc->incRefCnts(blockWeight, comp);
+    GenTree* switchLimit    = comp->gtNewIconNode(jumpCnt - 2, tempLclType);
+    GenTree* defaultCaseCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, switchValue, switchLimit);
+    GenTree* defaultCaseJcc = new (comp, GT_JCC) GenTreeCC(GT_JCC, GenCondition::UGT);
+    defaultCaseJcc->gtFlags = node->gtFlags;
+    switchBBRange.InsertAfter(node, switchValue, switchLimit, defaultCaseCmp, defaultCaseJcc);
 
-    GenTreePtr gtDefaultCaseJump = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, gtDefaultCaseCond);
-    gtDefaultCaseJump->gtFlags   = node->gtFlags;
-
-    LIR::Range condRange = LIR::SeqTree(comp, gtDefaultCaseJump);
-    switchBBRange.InsertAtEnd(std::move(condRange));
-
-    BasicBlock* afterDefaultCondBlock = comp->fgSplitBlockAfterNode(originalSwitchBB, condRange.LastNode());
+    BasicBlock* afterDefaultCondBlock = comp->fgSplitBlockAfterNode(originalSwitchBB, defaultCaseJcc);
 
     // afterDefaultCondBlock is now the switch, and all the switch targets have it as a predecessor.
     // originalSwitchBB is now a BBJ_NONE, and there is a predecessor edge in afterDefaultCondBlock
@@ -628,20 +620,14 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
 
                 // Now, build the conditional statement for the current case that is
                 // being evaluated:
-                // GT_JTRUE
-                //   |__ GT_COND
-                //          |____GT_EQ
-                //                 |____ (switchIndex) (The temp variable)
-                //                 |____ (ICon)        (The actual case constant)
-                GenTreePtr gtCaseCond =
-                    comp->gtNewOperNode(GT_EQ, TYP_INT, comp->gtNewLclvNode(tempLclNum, tempLclType),
-                                        comp->gtNewIconNode(i, TYP_INT));
-                /* Increment the lvRefCnt and lvRefCntWtd for temp */
+                // GT_CMP switchValue, caseValue
+                // GT_JCC(EQ)
+                GenTree* switchValue = comp->gtNewLclvNode(tempLclNum, tempLclType);
                 tempVarDsc->incRefCnts(blockWeight, comp);
-
-                GenTreePtr gtCaseBranch = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, gtCaseCond);
-                LIR::Range caseRange    = LIR::SeqTree(comp, gtCaseBranch);
-                currentBBRange->InsertAtEnd(std::move(caseRange));
+                GenTree* caseValue = comp->gtNewIconNode(i, TYP_INT);
+                GenTree* caseCmp   = comp->gtNewOperNode(GT_CMP, TYP_VOID, switchValue, caseValue);
+                GenTree* caseJcc   = new (comp, GT_JCC) GenTreeCC(GT_JCC, GenCondition::EQ);
+                currentBBRange->InsertAfter(currentBBRange->LastNode(), switchValue, caseValue, caseCmp, caseJcc);
             }
         }
 
