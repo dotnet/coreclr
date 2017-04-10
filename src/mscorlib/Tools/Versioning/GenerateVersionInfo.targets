@@ -35,6 +35,11 @@
     <ItemGroup>
       <AssemblyInfoUsings Include="using System%3B" />
       <AssemblyInfoUsings Include="using System.Reflection%3B" />
+      <AssemblyInfoLines Include="[assembly:System.Resources.SatelliteContractVersion(&quot;$(AssemblyVersion)&quot;)]" />
+      <AssemblyInfoLines Include="[assembly:System.Security.AllowPartiallyTrustedCallers]" />
+      <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.ComVisible(false)]" />
+      <AssemblyInfoLines Include="[assembly:System.Resources.NeutralResourcesLanguage(&quot;en-US&quot;)]" />
+      <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute(System.Runtime.InteropServices.DllImportSearchPath.AssemblyDirectory | System.Runtime.InteropServices.DllImportSearchPath.System32)]" />
       <AssemblyInfoLines Include="[assembly:AssemblyTitle(&quot;$(AssemblyName)&quot;)]" />
       <AssemblyInfoLines Include="[assembly:AssemblyDescription(&quot;$(AssemblyName)&quot;)]" />
       <AssemblyInfoLines Include="[assembly:AssemblyDefaultAlias(&quot;$(AssemblyName)&quot;)]" />
