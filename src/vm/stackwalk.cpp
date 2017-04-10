@@ -3176,7 +3176,7 @@ void StackFrameIterator::PreProcessingForManagedFrames(void)
 
         END_GCX_ASSERT_COOP;
     }
-#endif // _DEBUG && _TARGET_X86_ && !DACCESS_COMPILE
+#endif // _DEBUG && !WIN64EXCEPTIONS && !DACCESS_COMPILE
 
     m_frameState = SFITER_FRAMELESS_METHOD;
 } // StackFrameIterator::PreProcessingForManagedFrames()

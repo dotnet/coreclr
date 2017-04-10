@@ -5310,9 +5310,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         gcInfo.gcMarkRegSetNpt(RBM_INTRET);
     }
 
-    unsigned stackAdjustBias = 0;
 
-#if defined(_TARGET_X86_)
 #if !FEATURE_EH_FUNCLETS
     //-------------------------------------------------------------------------
     // Create a label for tracking of region protected by the monitor in synchronized methods.
@@ -5343,6 +5341,9 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     }
 #endif // !FEATURE_EH_FUNCLETS
 
+    unsigned stackAdjustBias = 0;
+
+#if defined(_TARGET_X86_)
     // Is the caller supposed to pop the arguments?
     if (fCallerPop && (stackArgBytes != 0))
     {
