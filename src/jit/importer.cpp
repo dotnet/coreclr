@@ -9556,11 +9556,11 @@ void Compiler::impImportBlockCode(BasicBlock* block)
             /* Has it been a while since we last saw a non-empty stack (which
                guarantees that the tree depth isnt accumulating. */
 
-            if ((opcodeOffs - lastSpillOffs) > 200)
-            {
-                impSpillStackEnsure();
-                lastSpillOffs = opcodeOffs;
-            }
+            // if ((opcodeOffs - lastSpillOffs) > 200)
+            //{
+            //    impSpillStackEnsure();
+            //    lastSpillOffs = opcodeOffs;
+            //}
         }
         else
         {
