@@ -638,7 +638,6 @@ class Object
         // A method table pointer should always be aligned.
         // During GC we set the least significant bit for marked objects.
         // So if we want the actual MT pointer during a GC we must zero out the lowest bit.
-        // In the past we had put pinning bit here but now it's in sync block.
         return dac_cast<PTR_MethodTable>((dac_cast<TADDR>(m_pMethTab)) & (~MARKED_BIT));
     }
 
