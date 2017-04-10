@@ -2476,7 +2476,7 @@ void InitializeGarbageCollector()
     g_pFreeObjectMethodTable->SetComponentSize(1);
 
 #ifdef FEATURE_STANDALONE_GC
-    IGCToCLR* gcToClr = new (nothrow) GCToEEInterface();
+    IGCToCLR* gcToClr = new (nothrow) standalone::GCToEEInterface();
     if (!gcToClr)
         ThrowOutOfMemory();
 #else

@@ -17,9 +17,9 @@
 IGCHeapInternal* g_theGCHeap;
 IGCHandleManager* g_theGCHandleManager;
 
-#ifdef FEATURE_STANDALONE_GC
+#ifdef BUILD_AS_STANDALONE
 IGCToCLR* g_theGCToCLR;
-#endif // FEATURE_STANDALONE_GC
+#endif // BUILD_AS_STANDALONE
 
 #ifdef GC_CONFIG_DRIVEN
 size_t gc_global_mechanisms[MAX_GLOBAL_GC_MECHANISMS_COUNT];
@@ -184,7 +184,7 @@ bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleMa
 
     g_theGCHeap = heap;
 
-#ifdef FEATURE_STANDALONE_GC
+#ifdef BUILD_AS_STANDALONE
     assert(clrToGC != nullptr);
     g_theGCToCLR = clrToGC;
 #else

@@ -172,7 +172,9 @@ set(VM_SOURCES_WKS
     finalizerthread.cpp
     frameworkexceptionloader.cpp
     gccover.cpp
-    gcenv.ee.cpp
+    gcenv.ee.static.cpp
+    gcenv.ee.common.cpp
+    gcenv.os.cpp
     gchelpers.cpp
     genmeth.cpp
     hosting.cpp
@@ -248,6 +250,12 @@ if(FEATURE_EVENT_TRACE)
         eventtrace.cpp
         )
 endif(FEATURE_EVENT_TRACE)
+
+if(FEATURE_STANDALONE_GC)
+    list(APPEND VM_SOURCES_WKS
+        gcenv.ee.standalone.cpp
+        )
+endif(FEATURE_STANDALONE_GC)
 
 if(NOT FEATURE_STANDALONE_GC)
     list(APPEND VM_SOURCES_WKS
