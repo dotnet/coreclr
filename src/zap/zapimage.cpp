@@ -1547,7 +1547,7 @@ void ZapImage::OutputTables()
 
 #if defined(FEATURE_PAL)
     // PAL library requires native image sections to align to page bounaries.
-    SetFileAlignment(0x1000);
+    SetFileAlignment(0x10000);
 #elif defined(_TARGET_ARM_) && defined(FEATURE_CORESYSTEM)
     if (!IsReadyToRunCompilation())
     {

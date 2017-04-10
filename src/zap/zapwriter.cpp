@@ -55,7 +55,7 @@ void ZapWriter::Initialize()
     m_FileAlignment = 0x200;
 }
 
-#define SECTION_ALIGNMENT   0x1000
+#define SECTION_ALIGNMENT   0x10000
 
 void ZapWriter::Save(IStream * pStream)
 {

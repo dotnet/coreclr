@@ -4,6 +4,7 @@
 
 
 
+#define OS_PAGE_SIZE 0x1000
 #include "common.h"
 
 #if defined(FEATURE_SVR_GC)
