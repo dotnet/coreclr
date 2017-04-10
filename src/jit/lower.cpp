@@ -4250,7 +4250,10 @@ GenTree* Lowering::LowerSignedDivOrMod(GenTreePtr node)
         {
             // If the divisor is the minimum representable integer value then we can use a compare,
             // the result is 1 iff the dividend equals divisor.
-            divMod->SetOper(GT_EQ);
+            GenTree* cmp = comp->gtNewOperNode(GT_CMP, type, dividend, divisor);
+            BlockRange().InsertBefore(divMod, cmp);
+            divMod->ChangeOper(GT_SETCC);
+            divMod->AsCC()->gtCondition = GenCondition::EQ;
             return next;
         }
     }
