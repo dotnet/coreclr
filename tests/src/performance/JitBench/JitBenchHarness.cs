@@ -266,7 +266,7 @@ namespace JitBench
             [Option('o', Required = false, HelpText = "Specifies the intermediate output directory name.")]
             public string IntermediateOutputDirectory
             {
-                get => _tempDirectory;
+                get { return _tempDirectory; }
 
                 set
                 {
