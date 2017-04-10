@@ -11219,6 +11219,8 @@ void CEEJitInfo::recordRelocation(void * location,
                     //
                     m_fRel32Overflow = TRUE;
                     delta = 0;
+
+                    _ASSERTE(!"REL32 overflow!");
                 }
                 else
                 {
