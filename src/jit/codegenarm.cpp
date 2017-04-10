@@ -1971,6 +1971,58 @@ void CodeGen::genLongToIntCast(GenTree* cast)
 }
 
 //------------------------------------------------------------------------
+// genFloatToFloatCast: Generate code for a cast between float and double
+//
+// Arguments:
+//    treeNode - The GT_CAST node
+//
+// Return Value:
+//    None.
+//
+// Assumptions:
+//    Cast is a non-overflow conversion.
+//    The treeNode must have an assigned register.
+//    The cast is between float and double.
+//
+void CodeGen::genFloatToFloatCast(GenTreePtr treeNode)
+{
+    // float <--> double conversions are always non-overflow ones
+    assert(treeNode->OperGet() == GT_CAST);
+    assert(!treeNode->gtOverflow());
+
+    regNumber targetReg = treeNode->gtRegNum;
+    assert(genIsValidFloatReg(targetReg));
+
+    GenTreePtr op1 = treeNode->gtOp.gtOp1;
+    assert(!op1->isContained());               // Cannot be contained
+    assert(genIsValidFloatReg(op1->gtRegNum)); // Must be a valid float reg.
+
+    var_types dstType = treeNode->CastToType();
+    var_types srcType = op1->TypeGet();
+    assert(varTypeIsFloating(srcType) && varTypeIsFloating(dstType));
+
+    genConsumeOperands(treeNode->AsOp());
+
+    // treeNode must be a reg
+    assert(!treeNode->isContained());
+
+    if (srcType != dstType)
+    {
+        instruction insVcvt = (srcType == TYP_FLOAT) ? INS_vcvt_f2d  // convert Float to Double
+                                                     : INS_vcvt_d2f; // convert Double to Float
+
+        getEmitter()->emitIns_R_R(insVcvt, emitTypeSize(treeNode), treeNode->gtRegNum, op1->gtRegNum);
+    }
+    else if (treeNode->gtRegNum != op1->gtRegNum)
+    {
+        getEmitter()->emitIns_R_R(INS_vmov, emitTypeSize(treeNode), treeNode->gtRegNum, op1->gtRegNum);
+    }
+
+    genProduceReg(treeNode);
+}
+
+//------------------------------------------------------------------------
+>>>>>>> Add overflow check logics when using temp registers.
 // genIntToFloatCast: Generate code to cast an int/long to float/double
 //
 // Arguments:
