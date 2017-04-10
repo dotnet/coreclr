@@ -2453,6 +2453,88 @@ BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)
 // Initialize the Garbage Collector
 //
 
+typedef bool (*InitializeGarbageCollectorFunction)(
+    /* In  */ IGCToCLR*,
+    /* Out */ IGCHeap**,
+    /* Out */ IGCHandleManager**,
+    /* Out */ GcDacVars*
+);
+
+#ifdef FEATURE_STANDALONE_GC
+
+void LoadGarbageCollector()
+{
+    CONTRACTL {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    } CONTRACTL_END;
+
+    TCHAR *standaloneGc = nullptr;
+    CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCStandaloneLocation, &standaloneGc);
+    if (standaloneGc == nullptr)
+    {
+        ThrowHR(E_FAIL);
+    }
+
+    HMODULE hMod = CLRLoadLibrary(standaloneGc);
+    if (hMod == nullptr)
+    {
+        ThrowHR(E_FAIL);
+    }
+
+    InitializeGarbageCollectorFunction igcf = (InitializeGarbageCollectorFunction)GetProcAddress(hMod, "InitializeGarbageCollector");
+    if (igcf == nullptr)
+    {
+        ThrowHR(E_FAIL);
+    }
+
+    // at this point we are committing to using the standalone GC
+    // given to us.
+    IGCToCLR* gcToClr = new (nothrow) standalone::GCToEEInterface();
+    if (!gcToClr)
+    {
+        ThrowOutOfMemory();
+    }
+
+    IGCHandleManager *pGcHandleManager;
+    IGCHeap *pGCHeap;
+    if (!igcf(gcToClr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars))
+    {
+        ThrowOutOfMemory();
+    }
+
+    assert(pGCHeap != nullptr);
+    g_pGCHeap = pGCHeap;
+    g_pGCHandleTable = pGcHandleManager;
+    g_gcDacGlobals = &g_gc_dac_vars;
+}
+
+#endif // FEATURE_STANDALONE_GC
+
+void LoadStaticGarbageCollector()
+{
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    } CONTRACTL_END;
+
+    IGCHandleManager *pGcHandleManager;
+    IGCHeap *pGCHeap;
+
+    if (!InitializeGarbageCollector(nullptr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars)) 
+    {
+        ThrowOutOfMemory();
+    }
+
+    assert(pGCHeap != nullptr);
+    g_pGCHeap = pGCHeap;
+    g_pGcHandleManager = pGcHandleManager;
+    g_gcDacGlobals = &g_gc_dac_vars;
+}
+
+
 void InitializeGarbageCollector()
 {
     CONTRACTL{
@@ -2476,25 +2558,15 @@ void InitializeGarbageCollector()
     g_pFreeObjectMethodTable->SetComponentSize(1);
 
 #ifdef FEATURE_STANDALONE_GC
-    IGCToCLR* gcToClr = new (nothrow) standalone::GCToEEInterface();
-    if (!gcToClr)
-        ThrowOutOfMemory();
-#else
-    IGCToCLR* gcToClr = nullptr;
-#endif
-
-    IGCHandleManager *pGcHandleManager;
-
-    IGCHeap *pGCHeap;
-    if (!InitializeGarbageCollector(gcToClr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars)) 
+    if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCUseStandalone))
     {
-        ThrowOutOfMemory();
+        LoadGarbageCollector();
     }
-
-    assert(pGCHeap != nullptr);
-    g_pGCHeap = pGCHeap;
-    g_pGCHandleManager = pGcHandleManager;
-    g_gcDacGlobals = &g_gc_dac_vars;
+    else
+#endif // FEATURE_STANDALONE_GC
+    {
+        LoadStaticGarbageCollector();
+    }
 
     // Apparently the Windows linker removes global variables if they are never
     // read from, which is a problem for g_gcDacGlobals since it's expected that
