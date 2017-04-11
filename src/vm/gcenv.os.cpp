@@ -701,17 +701,20 @@ void CLRCriticalSection::Leave()
     UnsafeLeaveCriticalSection(&m_cs);
 }
 
+// PalEvent is an implementation of GCEvent that delegates to
+// a CLREvent, which in turn delegates to the PAL. This event
+// is also host-aware.
 class PalEvent : public GCEvent
 {
 private:
-    CLREventStatic m_event;
+    CLREvent m_event;
 
 public:
     PalEvent() = default;
 
     bool IsValid()
     {
-        return m_event.IsValid();
+        return !!m_event.IsValid();
     }
 
     void CloseEvent() override
@@ -753,7 +756,7 @@ public:
             GC_NOTRIGGER;
         } CONTRACTL_END;
 
-        return m_event.CreateAutoEventNoThrow(initialState);
+        return !!m_event.CreateAutoEventNoThrow(initialState);
     }
 
     bool CreateManualEvent(bool initialState)
@@ -763,7 +766,7 @@ public:
             GC_NOTRIGGER;
         } CONTRACTL_END;
 
-        return m_event.CreateManualEventNoThrow(initialState);
+        return !!m_event.CreateManualEventNoThrow(initialState);
     }
 
     bool CreateOSAutoEvent(bool initialState)
@@ -773,7 +776,7 @@ public:
             GC_NOTRIGGER;
         } CONTRACTL_END;
 
-        return m_event.CreateOSAutoEventNoThrow(initialState);
+        return !!m_event.CreateOSAutoEventNoThrow(initialState);
     }
 
     bool CreateOSManualEvent(bool initialState)
@@ -783,7 +786,7 @@ public:
             GC_NOTRIGGER;
         } CONTRACTL_END;
 
-        return m_event.CreateOSManualEventNoThrow(initialState);
+        return !!m_event.CreateOSManualEventNoThrow(initialState);
     }
 };
 

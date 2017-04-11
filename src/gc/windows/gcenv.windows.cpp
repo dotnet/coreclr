@@ -626,3 +626,116 @@ void CLRCriticalSection::Leave()
 {
     ::LeaveCriticalSection(&m_cs);
 }
+
+namespace
+{
+
+// WindowsEvent is an implementation of GCEvent that forwards
+// directly to Win32 APIs.
+class WindowsEvent : public GCEvent
+{
+private:
+    HANDLE m_hEvent;
+
+public:
+    WindowsEvent() = default;
+
+    bool IsValid() const
+    {
+        return m_hEvent != INVALID_HANDLE_VALUE;
+    }
+
+    void Set() override
+    {
+        assert(IsValid());
+        BOOL result = SetEvent(m_hEvent);
+        assert(result && "SetEvent failed");
+    }
+
+    void Reset() override
+    {
+        assert(IsValid());
+        BOOL result = ResetEvent(m_hEvent);
+        assert(result && "ResetEvent failed");
+    }
+
+    uint32_t Wait(uint32_t timeout, bool alertable) override
+    {
+        UNREFERENCED_PARAMETER(alertable);
+        assert(IsValid());
+
+        return WaitForSingleObject(m_hEvent, timeout);
+    }
+
+    void CloseEvent() override
+    {
+        assert(IsValid());
+        BOOL result = CloseHandle(m_hEvent);
+        assert(result && "CloseHandle failed");
+        m_hEvent = INVALID_HANDLE_VALUE;
+    }
+
+    bool CreateAutoEvent(bool initialState)
+    {
+        m_hEvent = CreateEvent(nullptr, false, initialState, nullptr);
+        return IsValid();
+    }
+
+    bool CreateManualEvent(bool initialState)
+    {
+        m_hEvent = CreateEvent(nullptr, true, initialState, nullptr);
+        return IsValid();
+    }
+};
+
+} // anonymous namespace
+
+GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
+{
+    // [DESKTOP TODO] The difference between events and OS events is
+    // whether or not the hosting API is made aware of them. When (if)
+    // we implement hosting support for Local GC, we will need to be
+    // aware of the host here.
+    return CreateOSAutoEvent(initialState);
+}
+
+GCEvent* GCToOSInterface::CreateManualEvent(bool initialState)
+{
+    // [DESKTOP TODO] The difference between events and OS events is
+    // whether or not the hosting API is made aware of them. When (if)
+    // we implement hosting support for Local GC, we will need to be
+    // aware of the host here.
+    return CreateOSManualEvent(initialState);
+}
+
+GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
+{
+    std::unique_ptr<WindowsEvent> event(new (std::nothrow) WindowsEvent());
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateAutoEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    return event.release();
+}
+
+GCEvent* GCToOSInterface::CreateOSManualEvent(bool initialState)
+{
+    std::unique_ptr<WindowsEvent> event(new (std::nothrow) WindowsEvent());
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateManualEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    return event.release();
+}

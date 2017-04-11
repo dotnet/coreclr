@@ -20,22 +20,22 @@
 #include "gcenv.os.h"
 #include "globals.h"
 
-namespace
-{
-    // Convert nanoseconds to the timespec structure
-    // Parameters:
-    //  nanoseconds - time in nanoseconds to convert
-    //  t           - the target timespec structure
-    void NanosecondsToTimeSpec(uint64_t nanoseconds, timespec* t)
-    {
-        t->tv_sec = nanoseconds / tccSecondsToNanoSeconds;
-        t->tv_nsec = nanoseconds % tccSecondsToNanoSeconds;
-    }
-} // anonymous namespace
-
 #ifdef HAVE_MACH_ABSOLUTE_TIME
 mach_timebase_info_data_t g_TimebaseInfo;
 #endif // MACH_ABSOLUTE_TIME
+
+namespace
+{
+
+// Convert nanoseconds to the timespec structure
+// Parameters:
+//  nanoseconds - time in nanoseconds to convert
+//  t           - the target timespec structure
+void NanosecondsToTimeSpec(uint64_t nanoseconds, timespec* t)
+{
+    t->tv_sec = nanoseconds / tccSecondsToNanoSeconds;
+    t->tv_nsec = nanoseconds % tccSecondsToNanoSeconds;
+}
 
 class UnixEvent : public GCEvent
 {
@@ -223,6 +223,8 @@ public:
     }
 };
 
+} // anonymous namespace
+
 GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
 {
     // [DESKTOP TODO] The difference between events and OS events is
@@ -243,7 +245,7 @@ GCEvent* GCToOSInterface::CreateManualEvent(bool initialState)
 
 GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
 {
-    auto event = std::unique_ptr<UnixEvent>(new (std::nothrow) UnixEvent(false, initialState));
+    std::unique_ptr<UnixEvent> event(new (std::nothrow) UnixEvent(false, initialState));
     if (!event)
     {
         return nullptr;
@@ -259,7 +261,7 @@ GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
 
 GCEvent* GCToOSInterface::CreateOSManualEvent(bool initialState)
 {
-    auto event = std::unique_ptr<UnixEvent>(new (std::nothrow) UnixEvent(true, initialState));
+    std::unique_ptr<UnixEvent> event(new (std::nothrow) UnixEvent(true, initialState));
     if (!event)
     {
         return nullptr;

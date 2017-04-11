@@ -47,18 +47,40 @@ struct GCThreadAffinity
     int Processor;
 };
 
-// An event is a synchronization primitive.
+// An event is a synchronization object whose state can be set and reset
+// indicating that an event has occured. It is used pervasively throughout
+// the GC.
 class GCEvent {
 public:
-    virtual ~GCEvent() {}
-
+    // Closes the event. Attempting to use the event past calling CloseEvent
+    // is a logic error.
     virtual void CloseEvent() = 0;
 
+    // "Sets" the event, indicating that a particular event has occured. May
+    // wake up other threads waiting on this event. Depending on whether or
+    // not this event is an auto-reset event, the state of the event may
+    // or may not be automatically reset after Set is called.
     virtual void Set() = 0;
 
+    // Resets the event, resetting it back to a non-signalled state. Auto-reset
+    // events automatically reset once the event is set, while manual-reset
+    // events do not reset until Reset is called. It is a no-op to call Reset
+    // on an auto-reset event.
     virtual void Reset() = 0;
 
+    // Waits for some period of time for this event to be signalled. The
+    // period of time may be infinite (if the timeout argument is INFINITE) or
+    // it may be a specified period of time, in milliseconds.
+    // Returns:
+    //   One of three values, depending on how why this thread was awoken:
+    //      WAIT_OBJECT_0 - This event was signalled and woke up this thread.
+    //      WAIT_TIMEOUT  - The timeout interval expired without this event being signalled.
+    //      WAIT_FAILED   - The wait failed.
     virtual uint32_t Wait(uint32_t timeout, bool alertable) = 0;
+
+    // Virtual destructor for subclasses. In general, these objects has a static
+    // lifetime and will only be destructured on process exit.
+    virtual ~GCEvent() {}
 };
 
 // GC thread function prototype
@@ -296,12 +318,28 @@ public:
     // Events
     //
 
+    // Constructs a new host-aware auto-resetting event.
+    // Return:
+    //   A newly-constructed event in the specified signal state, or
+    //   nullptr if the initialization of the event failed.
     static GCEvent* CreateAutoEvent(bool initialState);
 
+    // Constructs a new host-aware manual-resetting event.
+    // Return:
+    //   A newly-constructed event in the specified signal state, or
+    //   nullptr if the initialization of the event failed.
     static GCEvent* CreateManualEvent(bool initialState);
 
+    // Constructs a new auto-resetting event.
+    // Return:
+    //   A newly-constructed event in the specified signal state, or
+    //   nullptr if the initialization of the event failed.
     static GCEvent* CreateOSAutoEvent(bool initialState);
 
+    // Constructs a new manual-resetting event.
+    // Return:
+    //   A newly-constructed event in the specified signal state, or
+    //   nullptr if the initialization of the event failed.
     static GCEvent* CreateOSManualEvent(bool initialState);
 };
 
