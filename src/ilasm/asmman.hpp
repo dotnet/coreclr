@@ -196,7 +196,6 @@ class AsmMan
     void*               m_pAssembler;
     
     AsmManFile*         GetFileByName(__in __nullterminated char* szFileName);
-    AsmManAssembly*     GetAsmRefByName(__in __nullterminated const char* szAsmRefName);
     AsmManComType*      GetComTypeByName(__in_opt __nullterminated char* szComTypeName,
                                          __in_opt __nullterminated char* szComEnclosingTypeName = NULL);
     mdToken             GetComTypeTokByName(__in_opt __nullterminated char* szComTypeName,
@@ -274,6 +273,7 @@ public:
 
     mdToken             GetFileTokByName(__in __nullterminated char* szFileName);
     mdToken             GetAsmRefTokByName(__in __nullterminated const char* szAsmRefName);
+    AsmManAssembly*     GetAsmRefByName(__in __nullterminated const char* szAsmRefName);
     mdToken             GetAsmTokByName(__in __nullterminated const char* szAsmName)
         { return (m_pAssembly && (strcmp(m_pAssembly->szName,szAsmName)==0)) ? m_pAssembly->tkTok : 0; };
 
