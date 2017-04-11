@@ -635,7 +635,7 @@ private:
     HANDLE m_hEvent;
 
 public:
-    GCEvent::Impl() = default;
+    Impl() = default;
 
     bool IsValid() const
     {

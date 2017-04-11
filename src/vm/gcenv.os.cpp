@@ -710,7 +710,7 @@ private:
     CLREvent m_event;
 
 public:
-    GCEvent::Impl() = default;
+    Impl() = default;
 
     bool IsValid()
     {
