@@ -1162,7 +1162,6 @@ NESTED_END ResolveWorkerChainLookupAsmStub, _TEXT
 NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
     PROLOG_BEG
     PROLOG_PUSH eax // it may contain siteAddrForRegisterIndirect
-    PROLOG_PUSH ebx
     PROLOG_PUSH ecx
     PROLOG_PUSH edx
     PROLOG_END
@@ -1172,7 +1171,6 @@ NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
     // Here is expected stack layout at this point:
     //  | saved edx |
     //  | saved ecx |
-    //  | saved ebx |
     //  | saved eax |
     //  +-----------+ <- ebp
     //  | saved ebp |
@@ -1182,8 +1180,6 @@ NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
     //  +-----------+ <- CFA of ResolveStub (16-byte aligned)
     // (Please refer to ResolveStub in vm/i386/virtualcallstubcpu.hpp for details)
     //
-    #define STACK_ALIGN_PADDING 12
-    sub     esp, STACK_ALIGN_PADDING  //  16-bytes align padding
     push    eax                       //  any indirect call address as the 2nd arg
     push    DWORD PTR [ebp + 8]       //  return address (of ResolveStub) as the 1st arg
 
@@ -1191,13 +1187,11 @@ NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
     call    C_FUNC(BackPatchWorkerStaticStub)
 
     // Clean up arguments and alignment padding
-    add     esp, (STACK_ALIGN_PADDING + 2*4)
-    #undef STACK_ALIGN_PADDING
+    add     esp, 2*4
 
     EPILOG_BEG
     EPILOG_POP edx
     EPILOG_POP ecx
-    EPILOG_POP ebx
     EPILOG_POP eax
     EPILOG_END
     ret
