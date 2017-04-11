@@ -6306,7 +6306,7 @@ void gc_heap::make_c_mark_list (uint8_t** arr)
 static const size_t card_bundle_word_width = 32;
 
 // How do we express the fact that 32 bits (card_word_width) is one uint32_t?
-static const size_t card_bundle_size = (size_t)(OS_PAGE_SIZE / (sizeof(uint32_t)*card_bundle_word_width));
+static const size_t card_bundle_size = (size_t)(4096 / (sizeof(uint32_t)*card_bundle_word_width));
 
 inline
 size_t card_bundle_word (size_t cardb)
@@ -18786,13 +18786,13 @@ void gc_heap::fix_card_table ()
                     time_stop - time_start, tot_cycles);
 #endif //TIME_WRITE_WATCH
 
-            assert( ((card_size * card_word_width)&(OS_PAGE_SIZE-1))==0 );
+            assert( ((card_size * card_word_width)&(4096-1))==0 );
             //printf ("%Ix written into\n", bcount);
             dprintf (3,("Found %Id pages written", bcount));
             for (unsigned  i = 0; i < bcount; i++)
             {
                 // Set the card words corresponding to the entire page.
-                for (unsigned j = 0; j < (card_size*card_word_width)/OS_PAGE_SIZE; j++)
+                for (unsigned j = 0; j < (card_size*card_word_width)/4096; j++)
                 {
                     card_table [card_word (card_of (g_addresses [i]))+j] = ~0u;
                 }
@@ -26610,7 +26610,7 @@ void gc_heap::revisit_written_pages (BOOL concurrent_p, BOOL reset_only_p)
                             card_table [card_word (card_of (background_written_addresses [i]))] = ~0u;
                             dprintf (3,("Set Cards [%p:%p, %p:%p[",
                                         card_of (background_written_addresses [i]), g_addresses [i],
-                                        card_of (background_written_addresses [i]+OS_PAGE_SIZE), background_written_addresses [i]+OS_PAGE_SIZE));
+                                        card_of (background_written_addresses [i]+4096), background_written_addresses [i]+4096));
     #endif //NO_WRITE_BARRIER
                             uint8_t* page = (uint8_t*)background_written_addresses[i];
                             dprintf (3, ("looking at page %d at %Ix(h: %Ix)", i, 
