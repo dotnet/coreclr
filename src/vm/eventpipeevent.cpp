@@ -6,13 +6,14 @@
 #include "eventpipeevent.h"
 #include "eventpipeprovider.h"
 
-EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, int eventID, EventPipeEventLevel level, bool needStack)
+EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack)
 {
     LIMITED_METHOD_CONTRACT;
 
     m_pProvider = &provider;
     m_keywords = keywords;
     m_eventID = eventID;
+    m_eventVersion = eventVersion;
     m_level = level;
     m_needStack = needStack;
     m_enabled = false;
@@ -35,11 +36,18 @@ INT64 EventPipeEvent::GetKeywords() const
     return m_keywords;
 }
 
-int EventPipeEvent::GetEventID() const
+unsigned int EventPipeEvent::GetEventID() const
 {
     LIMITED_METHOD_CONTRACT;
 
     return m_eventID;
+}
+
+unsigned int EventPipeEvent::GetEventVersion() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_eventVersion;
 }
 
 EventPipeEventLevel EventPipeEvent::GetLevel() const

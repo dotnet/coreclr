@@ -22,8 +22,11 @@ private:
     // Bit vector containing the keywords that enable the event.
     INT64 m_keywords;
 
-    // The unique ID (with the provider) of the event.
-    int m_eventID;
+    // The ID (within the provider) of the event.
+    unsigned int m_eventID;
+
+    // The version of the event.
+    unsigned int m_eventVersion;
 
     // The verbosity of the event.
     EventPipeEventLevel m_level;
@@ -40,7 +43,7 @@ private:
 
 public:
 
-    EventPipeEvent(EventPipeProvider &provider, INT64 keywords, int eventID, EventPipeEventLevel level, bool needStack);
+    EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack);
 
     // Get the provider associated with this event.
     EventPipeProvider* GetProvider() const;
@@ -48,8 +51,11 @@ public:
     // Get the keywords that enable the event.
     INT64 GetKeywords() const;
 
-    // Get the unique ID (within the provider) of the event.
-    int GetEventID() const;
+    // Get the ID (within the provider) of the event.
+    unsigned int GetEventID() const;
+
+    // Get the version of the event.
+    unsigned int GetEventVersion() const;
 
     // Get the verbosity of the event.
     EventPipeEventLevel GetLevel() const;
