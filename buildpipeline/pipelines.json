@@ -340,10 +340,6 @@
       "BuildParameters": {
         "PB_BuildType": "Release"
       },
-      "ReportingParameters": {
-        "SubType":  "Publish",
-        "Type": "build/publish/"
-      },
       "Definitions": [
         {
           "Name": "DotNet-Trusted-Publish",
@@ -352,6 +348,10 @@
             "GitHubRepositoryName": "coreclr",
             "AzureContainerPackageGlob": "pkg\\*.nupkg",
             "AzureContainerSymbolPackageGlob": "symbolpkg\\*.nupkg"
+          },
+          "ReportingParameters": {
+            "SubType":  "Publish",
+            "Type": "build/publish/"
           }
         }
       ],
@@ -368,16 +368,16 @@
       "BuildParameters": {
         "PB_BuildType": "Debug"
       },
-      "ReportingParameters": {
-        "SubType": "Publish",
-        "Type": "build/publish/"
-      },
       "Definitions": [
         {
           "Name": "DotNet-Trusted-Publish",
           "Parameters": {
             "VstsRepositoryName": "DotNet-CoreCLR-Trusted",
             "GitHubRepositoryName": "coreclr"
+          },
+          "ReportingParameters": {
+            "SubType": "Publish",
+            "Type": "build/publish/"
           }
         }
       ],
@@ -394,17 +394,16 @@
       "BuildParameters": {
         "PB_BuildType": "Checked"
       },
-      "ReportingParameters": {
-        "SubType": "Publish",
-        "Type": "build/publish/"
-      },
-
       "Definitions": [
         {
           "Name": "DotNet-Trusted-Publish",
           "Parameters": {
             "VstsRepositoryName": "DotNet-CoreCLR-Trusted",
             "GitHubRepositoryName": "coreclr"
+          },
+          "ReportingParameters": {
+            "SubType": "Publish",
+            "Type": "build/publish/"
           }
         }
       ],
