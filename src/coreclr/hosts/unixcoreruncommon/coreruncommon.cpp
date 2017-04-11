@@ -321,7 +321,7 @@ int ExecuteManagedAssembly(
     {
         coreclr_initialize_ptr initializeCoreCLR = (coreclr_initialize_ptr)dlsym(coreclrLib, "coreclr_initialize");
         coreclr_execute_assembly_ptr executeAssembly = (coreclr_execute_assembly_ptr)dlsym(coreclrLib, "coreclr_execute_assembly");
-        coreclr_shutdown_ptr shutdownCoreCLR = (coreclr_shutdown_ptr)dlsym(coreclrLib, "coreclr_shutdown");
+        coreclr_shutdown_2_ptr shutdownCoreCLR = (coreclr_shutdown_2_ptr)dlsym(coreclrLib, "coreclr_shutdown_2");
 
         if (initializeCoreCLR == nullptr)
         {
@@ -333,7 +333,7 @@ int ExecuteManagedAssembly(
         }
         else if (shutdownCoreCLR == nullptr)
         {
-            fprintf(stderr, "Function coreclr_shutdown not found in the libcoreclr.so\n");
+            fprintf(stderr, "Function coreclr_shutdown_2 not found in the libcoreclr.so\n");
         }
         else
         {

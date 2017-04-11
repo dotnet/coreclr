@@ -27,6 +27,10 @@ CORECLR_HOSTING_API(coreclr_initialize,
 
 CORECLR_HOSTING_API(coreclr_shutdown,
             void* hostHandle,
+            unsigned int domainId);
+
+CORECLR_HOSTING_API(coreclr_shutdown_2,
+            void* hostHandle,
             unsigned int domainId,
             int* latchedExitCode);
 

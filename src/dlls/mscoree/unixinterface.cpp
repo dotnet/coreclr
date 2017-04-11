@@ -282,12 +282,44 @@ int coreclr_initialize(
 extern "C"
 int coreclr_shutdown(
             void* hostHandle,
-            unsigned int domainId,
-            int* latchedExitCode)
+            unsigned int domainId)
 {
     ReleaseHolder<ICLRRuntimeHost2> host(reinterpret_cast<ICLRRuntimeHost2*>(hostHandle));
 
-    HRESULT hr = host->UnloadAppDomain(domainId, true, latchedExitCode); // Wait until done
+    HRESULT hr = host->UnloadAppDomain(domainId, true); // Wait until done
+    IfFailRet(hr);
+
+    hr = host->Stop();
+
+#ifdef FEATURE_PAL
+    PAL_Shutdown();
+#endif
+
+    return hr;
+}
+
+//
+// Shutdown CoreCLR. It unloads the app domain and stops the CoreCLR host.
+//
+// Parameters:
+//  hostHandle              - Handle of the host
+//  domainId                - Id of the domain
+//  latchedExitCode         - Latched exit code after domain unloaded
+//
+// Returns:
+//  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
+//
+extern "C"
+int coreclr_shutdown_2(
+            void* hostHandle,
+            unsigned int domainId,
+            int* latchedExitCode)
+{
+    ICLRRuntimeHost4* hostHandleV4 = nullptr;
+    reinterpret_cast<ICLRRuntimeHost2*>(hostHandle)->QueryInterface(IID_ICLRRuntimeHost4, reinterpret_cast<void**>(&hostHandleV4));
+    ReleaseHolder<ICLRRuntimeHost4> host(reinterpret_cast<ICLRRuntimeHost4*>(hostHandleV4));
+
+    HRESULT hr = host->UnloadAppDomain2(domainId, true, latchedExitCode); // Wait until done
     IfFailRet(hr);
 
     hr = host->Stop();
