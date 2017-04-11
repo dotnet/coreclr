@@ -231,54 +231,6 @@ ALWAYS_INLINE bool GCToEEInterface::EagerFinalized(Object* obj)
     return g_theGCToCLR->EagerFinalized(obj);
 }
 
-ALWAYS_INLINE CLREventStatic* CreateAutoEvent(bool initialState)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CreateAutoEvent(initialState);
-}
-
-ALWAYS_INLINE CLREventStatic* CreateManualEvent(bool initialState)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CreateManualEvent(initialState);
-}
-
-ALWAYS_INLINE CLREventStatic* CreateOSAutoEvent(bool initialState)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CreateOSAutoEvent(initialState);
-}
-
-ALWAYS_INLINE CLREventStatic* CreateOSManualEvent(bool initialState)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CreateOSManualEvent(initialState);
-}
-
-ALWAYS_INLINE void CloseEvent(CLREventStatic* event)
-{
-    assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->CloseEvent(event);
-}
-
-ALWAYS_INLINE bool SetEvent(CLREventStatic* event)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->SetEvent(event);
-}
-
-ALWAYS_INLINE bool ResetEvent(CLREventStatic* event)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->ResetEvent(event);
-}
-
-ALWAYS_INLINE uint32_t WaitOnEvent(CLREventStatic* event, uint32_t milliseconds, bool alertable)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->WaitOnEvent(event, milliseconds, alertable);
-}
-
 #undef ALWAYS_INLINE
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

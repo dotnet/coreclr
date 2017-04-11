@@ -2,6 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#ifndef __GLOBALS_H__
+#define __GLOBALS_H__
+
 #ifdef HAVE_MACH_ABSOLUTE_TIME
 #include <mach/mach_time.h>
 #endif // HAVE_MACH_ABSOLUTE_TIME
@@ -23,3 +26,5 @@ const int tccMilliSecondsToNanoSeconds = 1000000;
 #ifdef HAVE_MACH_ABSOLUTE_TIME
 extern mach_timebase_info_data_t g_TimebaseInfo;
 #endif // HAVE_MACH_ABSOLUTE_TIME
+
+#endif // __GLOBALS_H__

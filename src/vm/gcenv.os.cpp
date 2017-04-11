@@ -701,6 +701,9 @@ void CLRCriticalSection::Leave()
     UnsafeLeaveCriticalSection(&m_cs);
 }
 
+namespace
+{
+
 // PalEvent is an implementation of GCEvent that delegates to
 // a CLREvent, which in turn delegates to the PAL. This event
 // is also host-aware.
@@ -789,6 +792,8 @@ public:
         return !!m_event.CreateOSManualEventNoThrow(initialState);
     }
 };
+
+} // anonymous namespace
 
 GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
 {

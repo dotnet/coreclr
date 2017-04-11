@@ -8,7 +8,6 @@
 
 #include "gcenv.h"
 #include "gc.h"
-#include <memory>
 
 MethodTable * g_pFreeObjectMethodTable;
 
@@ -285,94 +284,6 @@ bool GCToEEInterface::EagerFinalized(Object* obj)
 {
     // The sample does not finalize anything eagerly.
     return false;
-}
-
-CLREventStatic* GCToEEInterface::CreateAutoEvent(bool initialState)
-{
-    std::unique_ptr<CLREventStatic> event = std::unique_ptr<CLREventStatic>(new (nothrow) CLREventStatic());
-    if (!event)
-    {
-        return nullptr;
-    }
-
-    if (!event->CreateAutoEventNoThrow(initialState))
-    {
-        return nullptr;
-    }
-
-    return event.release();
-}
-
-CLREventStatic* GCToEEInterface::CreateManualEvent(bool initialState)
-{
-    std::unique_ptr<CLREventStatic> event = std::unique_ptr<CLREventStatic>(new (nothrow) CLREventStatic());
-    if (!event)
-    {
-        return nullptr;
-    }
-
-    if (!event->CreateManualEventNoThrow(initialState))
-    {
-        return nullptr;
-    }
-
-    return event.release();
-}
-
-CLREventStatic* GCToEEInterface::CreateOSAutoEvent(bool initialState)
-{
-    std::unique_ptr<CLREventStatic> event = std::unique_ptr<CLREventStatic>(new (nothrow) CLREventStatic());
-    if (!event)
-    {
-        return nullptr;
-    }
-
-    if (!event->CreateOSAutoEventNoThrow(initialState))
-    {
-        return nullptr;
-    }
-
-    return event.release();
-}
-
-CLREventStatic* GCToEEInterface::CreateOSManualEvent(bool initialState)
-{
-    std::unique_ptr<CLREventStatic> event = std::unique_ptr<CLREventStatic>(new (nothrow) CLREventStatic());
-    if (!event)
-    {
-        return nullptr;
-    }
-
-    if (!event->CreateOSManualEventNoThrow(initialState))
-    {
-        return nullptr;
-    }
-
-    return event.release();
-}
-
-void GCToEEInterface::CloseEvent(CLREventStatic* event)
-{
-    assert(event != nullptr);
-    event->CloseEvent();
-}
-
-bool GCToEEInterface::SetEvent(CLREventStatic* event)
-{
-    assert(event != nullptr);
-    return !!event->Set();
-}
-
-bool GCToEEInterface::ResetEvent(CLREventStatic* event)
-{
-    assert(event != nullptr);
-    return !!event->Reset();
-}
-
-uint32_t GCToEEInterface::WaitOnEvent(CLREventStatic* event, uint32_t milliseconds, bool alertable)
-{
-    assert(event != nullptr);
-    return event->Wait(milliseconds, alertable);
 }
 
 bool IsGCSpecialThread()

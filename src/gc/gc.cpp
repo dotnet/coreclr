@@ -1353,7 +1353,7 @@ void recursive_gc_sync::end_foreground()
             {
                 foreground_allowed->Reset();
                 dprintf(2, ("setting foreground complete event"));
-                foreground_allowed->Set();
+                foreground_complete->Set();
             }
         }
     }

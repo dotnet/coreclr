@@ -405,7 +405,7 @@ uint32_t GCHeap::WaitUntilGCComplete(bool bConsiderGCStart)
 #ifdef DETECT_DEADLOCK
         // wait for GC to complete
 BlockAgain:
-        dwWaitResult = GCToEEInterface::WaitOnEvent(WaitForGCEvent, DETECT_DEADLOCK_TIMEOUT, false);
+        dwWaitResult = WaitForGCEvent->Wait(DETECT_DEADLOCK_TIMEOUT, false);
 
         if (dwWaitResult == WAIT_TIMEOUT) {
             //  Even in retail, stop in the debugger if available.  Ideally, the

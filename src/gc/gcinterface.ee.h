@@ -156,52 +156,6 @@ public:
     // the EE can opt to elevate that collection to be a blocking GC and not a background one.
     virtual
     bool ForceFullGCToBeBlocking() = 0;
-
-    // Creates a new auto event that is host-aware, with the given initial signalled state.
-    // Returns null on failure - either on allocation failure or on a failure to create
-    // the event.
-    virtual
-    CLREventStatic* CreateAutoEvent(bool initialState) = 0;
-
-    // Creates a new manual event that is host-aware, with the given initial signalled state.
-    // Returns null on failure - either on allocation failure or on a failure to create
-    // the event.
-    virtual
-    CLREventStatic* CreateManualEvent(bool initialState) = 0;
-
-    // Creates a new auto event that is not host-aware, with the given initial signalled state.
-    // Returns null on failure - either on allocation failure or on a failure to create
-    // the event.
-    virtual
-    CLREventStatic* CreateOSAutoEvent(bool initialState) = 0;
-
-    // Creates a new manual event that is not host-aware, with the given initial signalled state.
-    // Returns null on failure - either on allocation failure on on a failure to create
-    // the event.
-    virtual
-    CLREventStatic* CreateOSManualEvent(bool initialState) = 0;
-
-    // Closes an event created by one of the four above methods. It is a logic error to use the event
-    // after closing it using this method.
-    virtual
-    void CloseEvent(CLREventStatic* event) = 0;
-
-    // Sets the state of an event to signalled.
-    virtual
-    bool SetEvent(CLREventStatic* event) = 0;
-
-    // Resets the state of an event. Should only be used with manual events - auto-resetting events
-    // automatically reset when a thread that is waiting on it is released, so resetting it here
-    // will have no effect.
-    virtual
-    bool ResetEvent(CLREventStatic* event) = 0;
-
-    // Waits on an event for the given timeout amount of time (or infinitely, if INFINITE). The
-    // wait will be alertable if "alertable" is true. Upon return, returns WAIT_TIMEOUT on timeout
-    // or WAIT_OBJECT_0 when woken by another thread signalling the event. Any other return value
-    // is an error.
-    virtual
-    uint32_t WaitOnEvent(CLREventStatic* event, uint32_t milliseconds, bool alertable) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
