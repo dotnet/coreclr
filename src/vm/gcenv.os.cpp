@@ -701,26 +701,25 @@ void CLRCriticalSection::Leave()
     UnsafeLeaveCriticalSection(&m_cs);
 }
 
-namespace
-{
-
-// PalEvent is an implementation of GCEvent that delegates to
+// An implementatino of GCEvent that delegates to
 // a CLREvent, which in turn delegates to the PAL. This event
 // is also host-aware.
-class PalEvent : public GCEvent
+class GCEvent::Impl
 {
 private:
     CLREvent m_event;
 
 public:
-    PalEvent() = default;
+    GCEvent::Impl() = default;
 
     bool IsValid()
     {
+        WRAPPER_NO_CONTRACT;
+
         return !!m_event.IsValid();
     }
 
-    void CloseEvent() override
+    void CloseEvent()
     {
         WRAPPER_NO_CONTRACT;
 
@@ -728,7 +727,7 @@ public:
         m_event.CloseEvent();
     }
 
-    void Set() override
+    void Set()
     {
         WRAPPER_NO_CONTRACT;
 
@@ -736,7 +735,7 @@ public:
         m_event.Set();
     }
 
-    void Reset() override
+    void Reset()
     {
         WRAPPER_NO_CONTRACT;
 
@@ -744,7 +743,7 @@ public:
         m_event.Reset();
     }
 
-    uint32_t Wait(uint32_t timeout, bool alertable) override
+    uint32_t Wait(uint32_t timeout, bool alertable)
     {
         WRAPPER_NO_CONTRACT;
 
@@ -793,7 +792,47 @@ public:
     }
 };
 
-} // anonymous namespace
+GCEvent::GCEvent()
+  : m_impl(new (nothrow) GCEvent::Impl())
+{
+}
+
+GCEvent::~GCEvent()
+{
+    delete m_impl;
+}
+
+void GCEvent::CloseEvent()
+{
+    WRAPPER_NO_CONTRACT;
+
+    assert(m_impl != nullptr);
+    m_impl->CloseEvent();
+}
+
+void GCEvent::Set()
+{
+    WRAPPER_NO_CONTRACT;
+
+    assert(m_impl != nullptr);
+    m_impl->Set();
+}
+
+void GCEvent::Reset()
+{
+    WRAPPER_NO_CONTRACT;
+
+    assert(m_impl != nullptr);
+    m_impl->Reset();
+}
+
+uint32_t GCEvent::Wait(uint32_t timeout, bool alertable)
+{
+    WRAPPER_NO_CONTRACT;
+
+    assert(m_impl != nullptr);
+    return m_impl->Wait(timeout, alertable);
+}
 
 GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
 {
@@ -802,18 +841,23 @@ GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
       GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    NewHolder<PalEvent> event = new (nothrow) PalEvent();
+    NewHolder<GCEvent> event = new (nothrow) GCEvent();
     if (!event)
     {
         return nullptr;
     }
 
-    if (!event->CreateAutoEvent(initialState))
+    if (!event->m_impl)
     {
         return nullptr;
     }
 
-    assert(event->IsValid());
+    if (!event->m_impl->CreateAutoEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->m_impl->IsValid());
     return event.Extract();
 }
 
@@ -824,18 +868,23 @@ GCEvent* GCToOSInterface::CreateManualEvent(bool initialState)
       GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    NewHolder<PalEvent> event = new (nothrow) PalEvent();
+    NewHolder<GCEvent> event = new (nothrow) GCEvent();
     if (!event)
     {
         return nullptr;
     }
 
-    if (!event->CreateManualEvent(initialState))
+    if (!event->m_impl)
     {
         return nullptr;
     }
 
-    assert(event->IsValid());
+    if (!event->m_impl->CreateManualEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->m_impl->IsValid());
     return event.Extract();
 }
 
@@ -846,18 +895,23 @@ GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
       GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    NewHolder<PalEvent> event = new (nothrow) PalEvent();
+    NewHolder<GCEvent> event = new (nothrow) GCEvent();
     if (!event)
     {
         return nullptr;
     }
 
-    if (!event->CreateOSAutoEvent(initialState))
+    if (!event->m_impl)
     {
         return nullptr;
     }
 
-    assert(event->IsValid());
+    if (!event->m_impl->CreateOSAutoEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->m_impl->IsValid());
     return event.Extract();
 }
 
@@ -868,17 +922,22 @@ GCEvent* GCToOSInterface::CreateOSManualEvent(bool initialState)
       GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    NewHolder<PalEvent> event = new (nothrow) PalEvent();
+    NewHolder<GCEvent> event = new (nothrow) GCEvent();
     if (!event)
     {
         return nullptr;
     }
 
-    if (!event->CreateOSManualEvent(initialState))
+    if (!event->m_impl)
     {
         return nullptr;
     }
 
-    assert(event->IsValid());
+    if (!event->m_impl->CreateOSManualEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->m_impl->IsValid());
     return event.Extract();
 }

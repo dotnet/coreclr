@@ -51,22 +51,36 @@ struct GCThreadAffinity
 // indicating that an event has occured. It is used pervasively throughout
 // the GC.
 class GCEvent {
+    // GCEvents are constructed by GCToOSInterface, so it is permitted
+    // to reference m_impl directly.
+    friend class GCToOSInterface;
+
+private:
+    class Impl;
+    Impl *m_impl;
+
 public:
+    // Constructs a new uninitialized event.
+    GCEvent();
+
+    // Destructs an event.
+    ~GCEvent();
+
     // Closes the event. Attempting to use the event past calling CloseEvent
     // is a logic error.
-    virtual void CloseEvent() = 0;
+    void CloseEvent();
 
     // "Sets" the event, indicating that a particular event has occured. May
     // wake up other threads waiting on this event. Depending on whether or
     // not this event is an auto-reset event, the state of the event may
     // or may not be automatically reset after Set is called.
-    virtual void Set() = 0;
+    void Set();
 
     // Resets the event, resetting it back to a non-signalled state. Auto-reset
     // events automatically reset once the event is set, while manual-reset
     // events do not reset until Reset is called. It is a no-op to call Reset
     // on an auto-reset event.
-    virtual void Reset() = 0;
+    void Reset();
 
     // Waits for some period of time for this event to be signalled. The
     // period of time may be infinite (if the timeout argument is INFINITE) or
@@ -76,11 +90,7 @@ public:
     //      WAIT_OBJECT_0 - This event was signalled and woke up this thread.
     //      WAIT_TIMEOUT  - The timeout interval expired without this event being signalled.
     //      WAIT_FAILED   - The wait failed.
-    virtual uint32_t Wait(uint32_t timeout, bool alertable) = 0;
-
-    // Virtual destructor for subclasses. In general, these objects has a static
-    // lifetime and will only be destructured on process exit.
-    virtual ~GCEvent() {}
+    uint32_t Wait(uint32_t timeout, bool alertable);
 };
 
 // GC thread function prototype

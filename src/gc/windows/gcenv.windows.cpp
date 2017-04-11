@@ -627,39 +627,36 @@ void CLRCriticalSection::Leave()
     ::LeaveCriticalSection(&m_cs);
 }
 
-namespace
-{
-
 // WindowsEvent is an implementation of GCEvent that forwards
 // directly to Win32 APIs.
-class WindowsEvent : public GCEvent
+class GCEvent::Impl
 {
 private:
     HANDLE m_hEvent;
 
 public:
-    WindowsEvent() = default;
+    GCEvent::Impl() = default;
 
     bool IsValid() const
     {
         return m_hEvent != INVALID_HANDLE_VALUE;
     }
 
-    void Set() override
+    void Set()
     {
         assert(IsValid());
         BOOL result = SetEvent(m_hEvent);
         assert(result && "SetEvent failed");
     }
 
-    void Reset() override
+    void Reset()
     {
         assert(IsValid());
         BOOL result = ResetEvent(m_hEvent);
         assert(result && "ResetEvent failed");
     }
 
-    uint32_t Wait(uint32_t timeout, bool alertable) override
+    uint32_t Wait(uint32_t timeout, bool alertable)
     {
         UNREFERENCED_PARAMETER(alertable);
         assert(IsValid());
@@ -667,7 +664,7 @@ public:
         return WaitForSingleObject(m_hEvent, timeout);
     }
 
-    void CloseEvent() override
+    void CloseEvent()
     {
         assert(IsValid());
         BOOL result = CloseHandle(m_hEvent);
@@ -688,7 +685,39 @@ public:
     }
 };
 
-} // anonymous namespace
+GCEvent::GCEvent()
+  : m_impl(new (std::nothrow) GCEvent::Impl())
+{
+}
+
+GCEvent::~GCEvent()
+{
+    delete m_impl;
+}
+
+void GCEvent::CloseEvent()
+{
+    assert(m_impl != nullptr);
+    m_impl->CloseEvent();
+}
+
+void GCEvent::Set()
+{
+    assert(m_impl != nullptr);
+    m_impl->Set();
+}
+
+void GCEvent::Reset()
+{
+    assert(m_impl != nullptr);
+    m_impl->Reset();
+}
+
+uint32_t GCEvent::Wait(uint32_t timeout, bool alertable)
+{
+    assert(m_impl != nullptr);
+    return m_impl->Wait(timeout, alertable);
+}
 
 GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
 {
@@ -710,13 +739,18 @@ GCEvent* GCToOSInterface::CreateManualEvent(bool initialState)
 
 GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
 {
-    std::unique_ptr<WindowsEvent> event(new (std::nothrow) WindowsEvent());
+    std::unique_ptr<GCEvent> event(new (std::nothrow) GCEvent());
     if (!event)
     {
         return nullptr;
     }
 
-    if (!event->CreateAutoEvent(initialState))
+    if (!event->m_impl)
+    {
+        return nullptr;
+    }
+
+    if (!event->m_impl->CreateAutoEvent(initialState))
     {
         return nullptr;
     }
@@ -726,13 +760,18 @@ GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
 
 GCEvent* GCToOSInterface::CreateOSManualEvent(bool initialState)
 {
-    std::unique_ptr<WindowsEvent> event(new (std::nothrow) WindowsEvent());
+    std::unique_ptr<GCEvent> event(new (std::nothrow) GCEvent());
     if (!event)
     {
         return nullptr;
     }
 
-    if (!event->CreateManualEvent(initialState))
+    if (!event->m_impl)
+    {
+        return nullptr;
+    }
+
+    if (!event->m_impl->CreateManualEvent(initialState))
     {
         return nullptr;
     }
