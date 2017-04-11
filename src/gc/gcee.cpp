@@ -419,7 +419,7 @@ BlockAgain:
 
 #else  //DETECT_DEADLOCK
         
-        dwWaitResult = GCToEEInterface::WaitOnEvent(WaitForGCEvent, INFINITE, false);
+        dwWaitResult = WaitForGCEvent->Wait(INFINITE, false);
         
 #endif //DETECT_DEADLOCK
     }
@@ -545,7 +545,7 @@ uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int ti
         }
     }
 
-    dwWaitResult = GCToEEInterface::WaitOnEvent(event, time_out_ms, false);
+    dwWaitResult = event->Wait(time_out_ms, false);
 
     if (!no_mode_change && mode)
     {

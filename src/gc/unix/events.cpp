@@ -98,7 +98,7 @@ public:
         return true;
     }
 
-    void Close() override
+    void CloseEvent() override
     {
         if (m_isValid)
         {

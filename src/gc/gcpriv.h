@@ -197,12 +197,6 @@ void GCLogConfig (const char *fmt, ... );
 
 //Please leave these definitions intact.
 
-#ifdef FEATURE_STANDALONE_GC
-typedef GCEvent CLREvent;
-#else
-typedef CLREventStatic CLREvent;
-#endif // FEATURE_STANDALONE_GC
-
 // hosted api
 #ifdef memcpy
 #undef memcpy

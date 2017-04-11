@@ -728,7 +728,7 @@ public:
         {
             if (join_struct.joined_event[i])
             {
-                GCToEEInterface::CloseEvent(join_struct.joined_event[i]);
+                join_struct.joined_event[i]->CloseEvent();
                 join_struct.joined_event[i] = nullptr;
             }
         }
@@ -778,7 +778,7 @@ respin:
 
                     //Thread* current_thread = GetThread();
                     //BOOL cooperative_mode = gc_heap::enable_preemptive (current_thread);
-                    uint32_t dwJoinWait = GCToEEInterface::WaitOnEvent(join_struct.joined_event[color], INFINITE, false);
+                    uint32_t dwJoinWait = join_struct.joined_event[color]->Wait(INFINITE, false);
                     //gc_heap::disable_preemptive (current_thread, cooperative_mode);
 
                     if (dwJoinWait != WAIT_OBJECT_0)
@@ -820,7 +820,7 @@ respin:
 
             join_struct.joined_p = TRUE;
             dprintf (JOIN_LOG, ("join%d(%d): Last thread to complete the join, setting id", flavor, join_id));
-            GCToEEInterface::ResetEvent(join_struct.joined_event[!color]);
+            join_struct.joined_event[!color]->Reset();
             id = join_id;
             // this one is alone so it can proceed
 #ifdef JOIN_STATS
@@ -875,7 +875,7 @@ respin:
                     if (!join_struct.wait_done)
                     {
                         dprintf (JOIN_LOG, ("Join() hard wait on reset event %d", first_thread_arrived));
-                        uint32_t dwJoinWait = GCToEEInterface::WaitOnEvent(join_struct.joined_event[first_thread_arrived], INFINITE, false);
+                        uint32_t dwJoinWait = join_struct.joined_event[first_thread_arrived]->Wait(INFINITE, false);
                         if (dwJoinWait != WAIT_OBJECT_0)
                         {
                             STRESS_LOG1 (LF_GC, LL_FATALERROR, "joined event wait failed with code: %Ix", dwJoinWait);
@@ -956,7 +956,7 @@ respin:
 //        printf("restart from join #%d at cycle %u from start of gc\n", join_id, GetCycleCount32() - gc_start);
         int color = join_struct.lock_color;
         join_struct.lock_color = !color;
-        GCToEEInterface::SetEvent(join_struct.joined_event[color]);
+        join_struct.joined_event[color]->Set();
 
 //        printf("Set joined_event %d\n", !join_struct.lock_color);
 
@@ -979,7 +979,7 @@ respin:
         {
             fire_event (join_heap_r_restart, time_start, type_restart, -1);
             join_struct.wait_done = TRUE;
-            GCToEEInterface::SetEvent(join_struct.joined_event[first_thread_arrived]);
+            join_struct.joined_event[first_thread_arrived]->Set();
             fire_event (join_heap_r_restart, time_end, type_restart, -1);
         }
     }
@@ -991,7 +991,7 @@ respin:
             join_struct.r_join_lock = join_struct.n_threads;
             join_struct.r_join_restart = join_struct.n_threads - 1;
             join_struct.wait_done = FALSE;
-            GCToEEInterface::ResetEvent(join_struct.joined_event[first_thread_arrived]);
+            join_struct.joined_event[first_thread_arrived]->Reset();
         }
     }
 };
@@ -1259,12 +1259,12 @@ void recursive_gc_sync::shutdown()
 {
     if (foreground_complete)
     {
-        GCToEEInterface::CloseEvent(foreground_complete);
+        foreground_complete->CloseEvent();
         foreground_complete = nullptr;
     }
     if (foreground_allowed)
     {
-        GCToEEInterface::CloseEvent(foreground_allowed);
+        foreground_allowed->CloseEvent();
         foreground_allowed = nullptr;
     }
 }
@@ -1274,7 +1274,7 @@ void recursive_gc_sync::begin_background()
     dprintf (2, ("begin background"));
     foreground_request_count = 1;
     foreground_count = 1;
-    GCToEEInterface::ResetEvent(foreground_allowed);
+    foreground_allowed->Reset();
     gc_background_running = TRUE;
 }
 void recursive_gc_sync::end_background()
@@ -1282,7 +1282,7 @@ void recursive_gc_sync::end_background()
     dprintf (2, ("end background"));
     gc_background_running = FALSE;
     foreground_gate = 1;
-    GCToEEInterface::SetEvent(foreground_allowed);
+    foreground_allowed->Set();
 }
 
 void recursive_gc_sync::begin_foreground()
@@ -1309,7 +1309,7 @@ try_again_no_inc:
         current_thread = GetThread();
         cooperative_mode = gc_heap::enable_preemptive (current_thread);
 
-        GCToEEInterface::WaitOnEvent(foreground_allowed, INFINITE, false);
+        foreground_allowed->Wait(INFINITE, false);
 
         dprintf(2, ("Waiting sync gc point is done"));
 
@@ -1351,9 +1351,9 @@ void recursive_gc_sync::end_foreground()
             foreground_gate = 0;
             if (foreground_count == 0)
             {
-                GCToEEInterface::ResetEvent(foreground_allowed);
+                foreground_allowed->Reset();
                 dprintf(2, ("setting foreground complete event"));
-                GCToEEInterface::SetEvent(foreground_allowed);
+                foreground_allowed->Set();
             }
         }
     }
@@ -1391,8 +1391,8 @@ BOOL recursive_gc_sync::allow_foreground()
                 //c_write ((BOOL*)&foreground_gate, 1);
                 // TODO - couldn't make the syntax work with Volatile<T>
                 foreground_gate = 1;
-                GCToEEInterface::SetEvent(foreground_allowed);
-                GCToEEInterface::WaitOnEvent(foreground_complete, INFINITE, false);
+                foreground_allowed->Set();
+                foreground_complete->Wait(INFINITE, false);
             }while (/*foreground_request_count ||*/ foreground_gate);
 
             assert (!foreground_gate);
@@ -5164,12 +5164,12 @@ void gc_heap::destroy_thread_support ()
 {
     if (ee_suspend_event)
     {
-        GCToEEInterface::CloseEvent(ee_suspend_event);
+        ee_suspend_event->CloseEvent();
         ee_suspend_event = nullptr;
     }
     if (gc_start_event)
     {
-        GCToEEInterface::CloseEvent(gc_start_event);
+        gc_start_event->CloseEvent();
         gc_start_event = nullptr;
     }
 }
@@ -5297,7 +5297,7 @@ void gc_heap::gc_thread_function ()
 
         if (heap_number == 0)
         {
-            GCToEEInterface::WaitOnEvent(gc_heap::ee_suspend_event, INFINITE, false);
+            gc_heap::ee_suspend_event->Wait(INFINITE, false);
 
             BEGIN_TIMING(suspend_ee_during_log);
             GCToEEInterface::SuspendEE(SUSPEND_FOR_GC);
@@ -5313,11 +5313,11 @@ void gc_heap::gc_thread_function ()
             else
                 settings.init_mechanisms();
             dprintf (3, ("%d gc thread waiting...", heap_number));
-            GCToEEInterface::SetEvent(gc_start_event);
+            gc_start_event->Set();
         }
         else
         {
-            GCToEEInterface::WaitOnEvent(gc_start_event, INFINITE, false);
+            gc_start_event->Wait(INFINITE, false);
             dprintf (3, ("%d gc thread waiting... Done", heap_number));
         }
 
@@ -9751,7 +9751,7 @@ void gc_heap::restart_vm()
     //assert (generation_allocation_pointer (youngest_generation) == 0);
     dprintf (3, ("Restarting EE"));
     STRESS_LOG0(LF_GC, LL_INFO10000, "Concurrent GC: Retarting EE\n");
-    GCToEEInterface::SetEvent(ee_proceed_event);
+    ee_proceed_event->Set();
 }
 
 inline
@@ -10173,12 +10173,12 @@ cleanup:
     {
         if (full_gc_approach_event)
         {
-            GCToEEInterface::CloseEvent(full_gc_approach_event);
+            full_gc_approach_event->CloseEvent();
             full_gc_approach_event = nullptr;
         }
         if (full_gc_end_event)
         {
-            GCToEEInterface::CloseEvent(full_gc_end_event);
+            full_gc_end_event->CloseEvent();
             full_gc_end_event = nullptr;
         }
     }
@@ -10264,7 +10264,7 @@ gc_heap::wait_for_gc_done(int32_t timeOut)
         PREFIX_ASSUME(wait_heap != NULL);
 #endif // _PREFAST_
 
-        dwWaitResult = GCToEEInterface::WaitOnEvent(wait_heap->gc_done_event, timeOut, false);
+        dwWaitResult = wait_heap->gc_done_event->Wait(timeOut, false);
     }
     disable_preemptive (current_thread, cooperative_mode);
 
@@ -10279,7 +10279,7 @@ gc_heap::set_gc_done()
     {
         gc_done_event_set = true;
         dprintf (2, ("heap %d: setting gc_done_event", heap_number));
-        GCToEEInterface::SetEvent(gc_done_event);
+        gc_done_event->Set();
     }
     exit_gc_done_event_lock();
 }
@@ -10292,7 +10292,7 @@ gc_heap::reset_gc_done()
     {
         gc_done_event_set = false;
         dprintf (2, ("heap %d: resetting gc_done_event", heap_number));
-        GCToEEInterface::ResetEvent(gc_done_event);
+        gc_done_event->Reset();
     }
     exit_gc_done_event_lock();
 }
@@ -10765,7 +10765,7 @@ gc_heap::self_destroy()
 
     if (gc_done_event)
     {
-        GCToEEInterface::CloseEvent(gc_done_event);
+        gc_done_event->CloseEvent();
         gc_done_event = nullptr;
     }
 
@@ -11766,8 +11766,8 @@ void gc_heap::send_full_gc_notification (int gen_num, BOOL due_to_alloc_p)
         assert (full_gc_approach_event);
         FireEtwGCFullNotify_V1 (gen_num, due_to_alloc_p, GetClrInstanceId());
 
-        GCToEEInterface::ResetEvent(full_gc_end_event);
-        GCToEEInterface::SetEvent(full_gc_approach_event);
+        full_gc_end_event->Reset();
+        full_gc_approach_event->Set();
         full_gc_approach_event_set = true;
     }
 }
@@ -15243,7 +15243,7 @@ void gc_heap::init_background_gc ()
             background_saved_highest_address));
     }
 
-    GCToEEInterface::ResetEvent(gc_lh_block_event);
+    gc_lh_block_event->Reset();
 }
 
 #endif //BACKGROUND_GC
@@ -15559,12 +15559,12 @@ void gc_heap::gc1()
             {
                 dprintf (2, ("FGN-GC: setting gen2 end event"));
 
-                GCToEEInterface::ResetEvent(full_gc_approach_event);
+                full_gc_approach_event->Reset();
 #ifdef BACKGROUND_GC
                 // By definition WaitForFullGCComplete only succeeds if it's full, *blocking* GC, otherwise need to return N/A
                 fgn_last_gc_was_concurrent = settings.concurrent ? TRUE : FALSE;
 #endif //BACKGROUND_GC
-                GCToEEInterface::SetEvent(full_gc_end_event);
+                full_gc_end_event->Set();
                 full_gc_approach_event_set = false;            
             }
         }
@@ -15641,7 +15641,7 @@ void gc_heap::gc1()
             bgc_t_join.join(this, gc_join_suspend_ee_verify);
             if (bgc_t_join.joined())
             {
-                GCToEEInterface::ResetEvent(bgc_threads_sync_event);
+                bgc_threads_sync_event->Reset();
 
                 dprintf(2, ("Joining BGC threads to suspend EE for verify heap"));
                 bgc_t_join.restart();
@@ -15649,11 +15649,11 @@ void gc_heap::gc1()
             if (heap_number == 0)
             {
                 suspend_EE();
-                GCToEEInterface::SetEvent(bgc_threads_sync_event);
+                bgc_threads_sync_event->Set();
             }
             else
             {
-                GCToEEInterface::WaitOnEvent(bgc_threads_sync_event, INFINITE, false);
+                bgc_threads_sync_event->Wait(INFINITE, false);
                 dprintf (2, ("bgc_threads_sync_event is signalled"));
             }
 #else
@@ -15697,7 +15697,7 @@ void gc_heap::gc1()
             bgc_t_join.join(this, gc_join_restart_ee_verify);
             if (bgc_t_join.joined())
             {
-                GCToEEInterface::ResetEvent(bgc_threads_sync_event);
+                bgc_threads_sync_event->Reset();
 
                 dprintf(2, ("Joining BGC threads to restart EE after verify heap"));
                 bgc_t_join.restart();
@@ -15705,11 +15705,11 @@ void gc_heap::gc1()
             if (heap_number == 0)
             {
                 restart_EE();
-                GCToEEInterface::SetEvent(bgc_threads_sync_event);
+                bgc_threads_sync_event->Set();
             }
             else
             {
-                GCToEEInterface::WaitOnEvent(bgc_threads_sync_event, INFINITE, false);
+                bgc_threads_sync_event->Wait(INFINITE, false);
                 dprintf (2, ("bgc_threads_sync_event is signalled"));
             }
 #else
@@ -16773,7 +16773,7 @@ int gc_heap::garbage_collect (int n)
         do_pre_gc();
 
 #ifdef MULTIPLE_HEAPS
-        GCToEEInterface::ResetEvent(gc_start_event);
+        gc_start_event->Reset();
         //start all threads on the roots.
         dprintf(3, ("Starting all gc threads for gc"));
         gc_t_join.restart();
@@ -16824,11 +16824,11 @@ int gc_heap::garbage_collect (int n)
                 prepare_bgc_thread (g_heaps[i]);
             }
             dprintf (2, ("setting bgc_threads_sync_event"));
-            GCToEEInterface::SetEvent(bgc_threads_sync_event);
+            bgc_threads_sync_event->Set();
         }
         else
         {
-            GCToEEInterface::WaitOnEvent(bgc_threads_sync_event, INFINITE, false);
+            bgc_threads_sync_event->Wait(INFINITE, false);
             dprintf (2, ("bgc_threads_sync_event is signalled"));
         }
 #else
@@ -25977,7 +25977,7 @@ void gc_heap::background_mark_phase ()
         bgc_t_join.join(this, gc_join_suspend_ee);
         if (bgc_t_join.joined())
         {
-            GCToEEInterface::ResetEvent(bgc_threads_sync_event);
+            bgc_threads_sync_event->Reset();
 
             dprintf(3, ("Joining BGC threads for non concurrent final marking"));
             bgc_t_join.restart();
@@ -25990,11 +25990,11 @@ void gc_heap::background_mark_phase ()
 
             bgc_suspend_EE ();
             //suspend_EE ();
-            GCToEEInterface::SetEvent(bgc_threads_sync_event);
+            bgc_threads_sync_event->Set();
         }
         else
         {
-            GCToEEInterface::WaitOnEvent(bgc_threads_sync_event, INFINITE, false);
+            bgc_threads_sync_event->Wait(INFINITE, false);
             dprintf (2, ("bgc_threads_sync_event is signalled"));
         }
 
@@ -26889,22 +26889,22 @@ cleanup:
     {
         if (background_gc_done_event)
         {
-            GCToEEInterface::CloseEvent(background_gc_done_event);
+            background_gc_done_event->CloseEvent();
             background_gc_done_event = nullptr;
         }
         if (bgc_threads_sync_event)
         {
-            GCToEEInterface::CloseEvent(bgc_threads_sync_event);
+            bgc_threads_sync_event->CloseEvent();
             bgc_threads_sync_event = nullptr;
         }
         if (ee_proceed_event)
         {
-            GCToEEInterface::CloseEvent(ee_proceed_event);
+            ee_proceed_event->CloseEvent();
             ee_proceed_event = nullptr;
         }
         if (bgc_start_event)
         {
-            GCToEEInterface::CloseEvent(bgc_start_event);
+            bgc_start_event->CloseEvent();
             bgc_start_event = nullptr;
         }
     }
@@ -26940,7 +26940,7 @@ cleanup:
     {
         if (gc_lh_block_event)
         {
-            GCToEEInterface::CloseEvent(gc_lh_block_event);
+            gc_lh_block_event->CloseEvent();
             gc_lh_block_event = nullptr;
         }
     }
@@ -26993,9 +26993,9 @@ void gc_heap::start_c_gc()
     assert (bgc_start_event);
 
 //Need to make sure that the gc thread is in the right place.
-    GCToEEInterface::WaitOnEvent(background_gc_done_event, INFINITE, false);
-    GCToEEInterface::ResetEvent(background_gc_done_event);
-    GCToEEInterface::SetEvent(bgc_start_event);
+    background_gc_done_event->Wait(INFINITE, false);
+    background_gc_done_event->Reset();
+    bgc_start_event->Set();
 }
 
 void gc_heap::do_background_gc()
@@ -27024,9 +27024,9 @@ void gc_heap::kill_gc_thread()
     // In the first stage, we do minimum work, and call ExitProcess at the end.
     // In the secodn stage, we have the Loader lock and only one thread is
     // alive.  Hence we do not need to kill gc thread.
-    GCToEEInterface::CloseEvent(background_gc_done_event);
-    GCToEEInterface::CloseEvent(gc_lh_block_event);
-    GCToEEInterface::CloseEvent(bgc_start_event);
+    background_gc_done_event->CloseEvent();
+    gc_lh_block_event->CloseEvent();
+    bgc_start_event->CloseEvent();
     background_gc_done_event = nullptr;
     gc_lh_block_event = nullptr;
     bgc_start_event = nullptr;
@@ -27056,7 +27056,7 @@ uint32_t gc_heap::bgc_thread_function()
         cooperative_mode = enable_preemptive (current_thread);
         //current_thread->m_fPreemptiveGCDisabled = 0;
 
-        uint32_t result = GCToEEInterface::WaitOnEvent(bgc_start_event,
+        uint32_t result = bgc_start_event->Wait(
 #ifdef _DEBUG
 #ifdef MULTIPLE_HEAPS
                                              INFINITE,
@@ -27132,7 +27132,7 @@ uint32_t gc_heap::bgc_thread_function()
             enter_spin_lock (&gc_lock);
             dprintf (SPINLOCK_LOG, ("bgc Egc"));
             
-            GCToEEInterface::ResetEvent(bgc_start_event);
+            bgc_start_event->Reset();
             do_post_gc();
 #ifdef MULTIPLE_HEAPS
             for (int gen = max_generation; gen <= (max_generation + 1); gen++)
@@ -27174,7 +27174,7 @@ uint32_t gc_heap::bgc_thread_function()
             c_write (settings.concurrent, FALSE);
             recursive_gc_sync::end_background();
             keep_bgc_threads_p = FALSE;
-            GCToEEInterface::SetEvent(background_gc_done_event);
+            background_gc_done_event->Set();
 
             dprintf (SPINLOCK_LOG, ("bgc Lgc"));
             leave_spin_lock (&gc_lock);
@@ -31431,7 +31431,7 @@ void gc_heap::background_sweep()
     dprintf (3, ("lh state: planning"));
     if (gc_lh_block_event)
     {
-        GCToEEInterface::ResetEvent(gc_lh_block_event);
+        gc_lh_block_event->Reset();
     }
 
     for (int i = 0; i <= (max_generation + 1); i++)
@@ -31762,7 +31762,7 @@ void gc_heap::background_sweep()
 
     if (gc_lh_block_event)
     {
-        GCToEEInterface::SetEvent(gc_lh_block_event);
+        gc_lh_block_event->Set();
     }
 
     //dprintf (GTC_LOG, ("---- (GC%d)End Background Sweep Phase ----", VolatileLoad(&settings.gc_index)));
@@ -35268,7 +35268,7 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
     cooperative_mode = gc_heap::enable_preemptive (current_thread);
 
     BEGIN_TIMING(gc_during_log);
-    GCToEEInterface::SetEvent(gc_heap::ee_suspend_event);
+    gc_heap::ee_suspend_event->Set();
     gc_heap::wait_for_gc_done();
     END_TIMING(gc_during_log);
 
@@ -35572,8 +35572,8 @@ bool GCHeap::RegisterForFullGCNotification(uint32_t gen2Percentage,
     pGenGCHeap->fgn_last_alloc = dd_new_allocation (pGenGCHeap->dynamic_data_of (0));
 #endif //MULTIPLE_HEAPS
 
-    GCToEEInterface::ResetEvent(pGenGCHeap->full_gc_approach_event);
-    GCToEEInterface::ResetEvent(pGenGCHeap->full_gc_end_event);
+    pGenGCHeap->full_gc_approach_event->Reset();
+    pGenGCHeap->full_gc_end_event->Reset();
     pGenGCHeap->full_gc_approach_event_set = false;
 
     pGenGCHeap->fgn_maxgen_percent = gen2Percentage;
@@ -35587,8 +35587,8 @@ bool GCHeap::CancelFullGCNotification()
     pGenGCHeap->fgn_maxgen_percent = 0;
     pGenGCHeap->fgn_loh_percent = 0;
 
-    GCToEEInterface::SetEvent(pGenGCHeap->full_gc_approach_event);
-    GCToEEInterface::SetEvent(pGenGCHeap->full_gc_end_event);
+    pGenGCHeap->full_gc_approach_event->Set();
+    pGenGCHeap->full_gc_end_event->Set();
 
     return TRUE;
 }

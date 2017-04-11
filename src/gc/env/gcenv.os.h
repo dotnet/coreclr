@@ -50,7 +50,9 @@ struct GCThreadAffinity
 // An event is a synchronization primitive.
 class GCEvent {
 public:
-    virtual void Close() = 0;
+    virtual ~GCEvent() {}
+
+    virtual void CloseEvent() = 0;
 
     virtual void Set() = 0;
 

@@ -6,7 +6,7 @@
 #ifndef GCIMPL_H_
 #define GCIMPL_H_
 
-#define CLREvent CLREventStatic
+#define CLREvent GCEvent
 
 #ifdef SERVER_GC
 #define MULTIPLE_HEAPS 1

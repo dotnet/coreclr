@@ -700,3 +700,177 @@ void CLRCriticalSection::Leave()
     WRAPPER_NO_CONTRACT;
     UnsafeLeaveCriticalSection(&m_cs);
 }
+
+class PalEvent : public GCEvent
+{
+private:
+    CLREventStatic m_event;
+
+public:
+    PalEvent() = default;
+
+    bool IsValid()
+    {
+        return m_event.IsValid();
+    }
+
+    void CloseEvent() override
+    {
+        WRAPPER_NO_CONTRACT;
+
+        assert(m_event.IsValid());
+        m_event.CloseEvent();
+    }
+
+    void Set() override
+    {
+        WRAPPER_NO_CONTRACT;
+
+        assert(m_event.IsValid());
+        m_event.Set();
+    }
+
+    void Reset() override
+    {
+        WRAPPER_NO_CONTRACT;
+
+        assert(m_event.IsValid());
+        m_event.Reset();
+    }
+
+    uint32_t Wait(uint32_t timeout, bool alertable) override
+    {
+        WRAPPER_NO_CONTRACT;
+
+        assert(m_event.IsValid());
+        return m_event.Wait(timeout, alertable);
+    }
+
+    bool CreateAutoEvent(bool initialState)
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+        } CONTRACTL_END;
+
+        return m_event.CreateAutoEventNoThrow(initialState);
+    }
+
+    bool CreateManualEvent(bool initialState)
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+        } CONTRACTL_END;
+
+        return m_event.CreateManualEventNoThrow(initialState);
+    }
+
+    bool CreateOSAutoEvent(bool initialState)
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+        } CONTRACTL_END;
+
+        return m_event.CreateOSAutoEventNoThrow(initialState);
+    }
+
+    bool CreateOSManualEvent(bool initialState)
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+        } CONTRACTL_END;
+
+        return m_event.CreateOSManualEventNoThrow(initialState);
+    }
+};
+
+GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    NewHolder<PalEvent> event = new (nothrow) PalEvent();
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateAutoEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->IsValid());
+    return event.Extract();
+}
+
+GCEvent* GCToOSInterface::CreateManualEvent(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    NewHolder<PalEvent> event = new (nothrow) PalEvent();
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateManualEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->IsValid());
+    return event.Extract();
+}
+
+GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    NewHolder<PalEvent> event = new (nothrow) PalEvent();
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateOSAutoEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->IsValid());
+    return event.Extract();
+}
+
+GCEvent* GCToOSInterface::CreateOSManualEvent(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    NewHolder<PalEvent> event = new (nothrow) PalEvent();
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateOSManualEvent(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->IsValid());
+    return event.Extract();
+}
