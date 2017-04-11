@@ -9,6 +9,16 @@
 
 class EventPipeEvent;
 
+enum EventPipeEventLevel
+{
+    LogAlways,
+    Critical,
+    Error,
+    Warning,
+    Informational,
+    Verbose
+};
+
 class EventPipeProvider
 {
 private:
@@ -22,11 +32,14 @@ private:
     INT64 m_keywords;
 
     // The current verbosity of the provider.
-    int m_level;
+    EventPipeEventLevel m_providerLevel;
 
     // List of every event currently associated with the provider.
     // New events can be added on-the-fly.
     SList<SListElem<EventPipeEvent*>> *m_pEventList;
+
+    // Lock to protect access to the event list.
+    SpinLock m_lock;
 
 public:
 
@@ -42,10 +55,10 @@ public:
     bool EventEnabled(INT64 keywords) const;
 
     // Determine if the specified keywords and level match the configuration.
-    bool EventEnabled(INT64 keywords, int level) const;
+    bool EventEnabled(INT64 keywords, EventPipeEventLevel eventLevel) const;
 
     // Set the provider configuration (enable and disable sets of events).
-    void SetConfiguration(INT64 keywords, int level);
+    void SetConfiguration(INT64 keywords, EventPipeEventLevel providerLevel);
 
     // Add an event to the provider.
     // NOTE: This should be private, but needs to be called from EventPipeEvent.

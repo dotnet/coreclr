@@ -3,6 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
+#include "eventpipe.h"
+#include "eventpipeconfiguration.h"
 #include "eventpipeevent.h"
 #include "eventpipeprovider.h"
 
@@ -13,11 +15,14 @@ EventPipeProvider::EventPipeProvider(const GUID &providerID)
     m_providerID = providerID;
     m_enabled = false;
     m_keywords = 0;
-
-    // TODO: What is the right default?
-    // Should this be an enum?
-    m_level = 0;
+    m_providerLevel = Critical;
     m_pEventList = new SList<SListElem<EventPipeEvent*>>();
+    m_lock.Init(LOCK_TYPE_DEFAULT);
+
+    // Register the provider.
+    EventPipeConfiguration* pConfig = EventPipe::GetConfiguration();
+    _ASSERTE(pConfig != NULL);
+    pConfig->RegisterProvider(*this);
 }
 
 const GUID& EventPipeProvider::GetProviderID() const
@@ -41,20 +46,20 @@ bool EventPipeProvider::EventEnabled(INT64 keywords) const
     return (Enabled() && ((m_keywords & keywords) != 0));
 }
 
-bool EventPipeProvider::EventEnabled(INT64 keywords, int level) const
+bool EventPipeProvider::EventEnabled(INT64 keywords, EventPipeEventLevel eventLevel) const
 {
     LIMITED_METHOD_CONTRACT;
 
-    // TODO: Should actually be something like level <= m_level
-    return (EventEnabled(keywords) && (level == m_level));
+    return (EventEnabled(keywords) &&
+        ((eventLevel == LogAlways) || (m_providerLevel >= eventLevel)));
 }
 
-void EventPipeProvider::SetConfiguration(INT64 keywords, int level)
+void EventPipeProvider::SetConfiguration(INT64 keywords, EventPipeEventLevel providerLevel)
 {
     LIMITED_METHOD_CONTRACT;
 
     m_keywords = keywords;
-    m_level = level;
+    m_providerLevel = providerLevel;
 
     RefreshAllEvents();
 }
@@ -63,12 +68,15 @@ void EventPipeProvider::AddEvent(EventPipeEvent &event)
 {
     LIMITED_METHOD_CONTRACT;
 
+    SpinLockHolder _slh(&m_lock);
     m_pEventList->InsertTail(new SListElem<EventPipeEvent*>(&event));
 }
 
 void EventPipeProvider::RefreshAllEvents()
 {
     LIMITED_METHOD_CONTRACT;
+
+    SpinLockHolder _slh(&m_lock);
 
     SListElem<EventPipeEvent*> *pElem = m_pEventList->GetHead();
     while(pElem != NULL)

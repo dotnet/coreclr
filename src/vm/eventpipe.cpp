@@ -6,6 +6,7 @@
 #include "eventpipe.h"
 #include "eventpipeconfiguration.h"
 #include "eventpipeevent.h"
+#include "eventpipeprovider.h"
 #include "eventpipejsonfile.h"
 #include "sampleprofiler.h"
 
@@ -84,7 +85,11 @@ void EventPipe::Enable()
         s_pJsonFile = new EventPipeJsonFile(outputFilePath);
     }
 
+    // Enable the sample profiler
     SampleProfiler::Enable();
+
+    // TODO: Iterate through the set of providers, enable them as appropriate.
+    // This in-turn will iterate through all of the events and set their isEnabled bits.
 }
 
 void EventPipe::Disable()
@@ -242,4 +247,11 @@ StackWalkAction EventPipe::StackWalkCallback(CrawlFrame *pCf, StackContents *pDa
 
     // Continue the stack walk.
     return SWA_CONTINUE;
+}
+
+EventPipeConfiguration* EventPipe::GetConfiguration()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return s_pConfig;
 }

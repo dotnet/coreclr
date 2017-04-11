@@ -109,6 +109,9 @@ public:
 
 class EventPipe
 {
+    // Declare friends.
+    friend class EventPipeProvider;
+
     public:
 
         // Initialize the event pipe.
@@ -143,6 +146,10 @@ class EventPipe
 
         // Callback function for the stack walker.  For each frame walked, this callback is invoked.
         static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
+
+        // Get the configuration object.
+        // This is called directly by the EventPipeProvider constructor to register the new provider.
+        static EventPipeConfiguration* GetConfiguration();
 
         static CrstStatic s_initCrst;
         static bool s_tracingInitialized;

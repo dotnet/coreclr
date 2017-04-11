@@ -6,11 +6,14 @@
 #define __EVENTPIPE_EVENT_H__
 
 #include "common.h"
+#include "eventpipeprovider.h"
 
-class EventPipeProvider;
+//class EventPipeProvider;
 
 class EventPipeEvent
 {
+    friend class EventPipeProvider;
+
 private:
 
     // The provider that contains the event.
@@ -22,8 +25,8 @@ private:
     // The unique ID (with the provider) of the event.
     int m_eventID;
 
-    // The verbosity of the provider.
-    int m_level;
+    // The verbosity of the event.
+    EventPipeEventLevel m_level;
 
     // True if a call stack should be captured when writing the event.
     bool m_needStack;
@@ -31,9 +34,13 @@ private:
     // True if the event is current enabled.
     bool m_enabled;
 
+    // Refreshes the runtime state for this event.
+    // Called by EventPipeProvider when the provider configuration changes.
+    void RefreshState();
+
 public:
 
-    EventPipeEvent(EventPipeProvider &provider, INT64 keywords, int eventID, int level, bool needStack);
+    EventPipeEvent(EventPipeProvider &provider, INT64 keywords, int eventID, EventPipeEventLevel level, bool needStack);
 
     // Get the provider associated with this event.
     EventPipeProvider* GetProvider() const;
@@ -45,17 +52,13 @@ public:
     int GetEventID() const;
 
     // Get the verbosity of the event.
-    int GetLevel() const;
+    EventPipeEventLevel GetLevel() const;
 
     // True if a call stack should be captured when writing the event.
     bool NeedStack() const;
 
     // True if the event is currently enabled.
     bool IsEnabled() const;
-
-    // TODO:Make this private and add EventPipeProvider as a friend.
-    // Refreshes the runtime state for this event.  Called by EventPipeProvider.
-    void RefreshState();
 };
 
 #endif // __EVENTPIPE_EVENT_H__

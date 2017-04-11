@@ -10,10 +10,22 @@ EventPipeConfiguration::EventPipeConfiguration()
 {
     LIMITED_METHOD_CONTRACT;
 
-    m_nextProviderIndex = 0;
+    m_pProviderList = new SList<SListElem<EventPipeProvider*>>();
+    m_lock.Init(LOCK_TYPE_DEFAULT);
 }
 
-void EventPipeConfiguration::DisableAllProviders()
+EventPipeConfiguration::~EventPipeConfiguration()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    if(m_pProviderList != NULL)
+    {
+        delete(m_pProviderList);
+        m_pProviderList = NULL;
+    }
+}
+
+bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
 {
     CONTRACTL
     {
@@ -23,14 +35,25 @@ void EventPipeConfiguration::DisableAllProviders()
     }
     CONTRACTL_END;
 
-    for(int i=0; i<m_nextProviderIndex; i++)
+    SpinLockHolder _slh(&m_lock);
+
+    // See if we've already registered this provider.
+    EventPipeProvider *pExistingProvider = GetProvider(provider.GetProviderID());
+    if(pExistingProvider != NULL)
     {
-        _ASSERTE(m_providers[i] != NULL);
-        m_providers[i]->SetConfiguration(0 /* keywords */, 0 /* level */);
+        return false;
     }
+
+    // The provider has not been registered, so register it.
+    m_pProviderList->InsertTail(new SListElem<EventPipeProvider*>(&provider));
+
+    // TODO: Set the provider configuration and enable it if we know
+    // anything about the provider before it is registered.
+
+    return true;
 }
 
-EventPipeProvider* EventPipeConfiguration::GetOrCreateProvider(const GUID &providerID)
+EventPipeProvider* EventPipeConfiguration::GetProvider(const GUID &providerID)
 {
     CONTRACTL
     {
@@ -40,25 +63,19 @@ EventPipeProvider* EventPipeConfiguration::GetOrCreateProvider(const GUID &provi
     }
     CONTRACTL_END;
 
-    EventPipeProvider * pProvider = NULL;
+    SpinLockHolder _slh(&m_lock);
 
-    // Attempt to find the provider.
-    for(int i=0; i<m_nextProviderIndex; i++)
+    SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
+    while(pElem != NULL)
     {
-        _ASSERTE(m_providers[i] != NULL);
-        if(providerID == m_providers[i]->GetProviderID())
+        EventPipeProvider *pProvider = pElem->GetValue();
+        if(pProvider->GetProviderID() == providerID)
         {
-            pProvider = m_providers[i];
-            break;
+            return pProvider;
         }
+
+        pElem = m_pProviderList->GetNext(pElem);
     }
 
-    // If we did not find the provider create it.
-    if(pProvider == NULL)
-    {
-        pProvider = new EventPipeProvider(providerID);
-        m_providers[m_nextProviderIndex++] = pProvider;
-    }
-
-    return pProvider;
+    return NULL;
 }

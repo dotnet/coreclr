@@ -6,7 +6,7 @@
 #include "eventpipeevent.h"
 #include "eventpipeprovider.h"
 
-EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, int eventID, int level, bool needStack)
+EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, int eventID, EventPipeEventLevel level, bool needStack)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -15,6 +15,7 @@ EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, int 
     m_eventID = eventID;
     m_level = level;
     m_needStack = needStack;
+    m_enabled = false;
 
     // Register this event with the provider.
     m_pProvider->AddEvent(*this);
@@ -41,7 +42,7 @@ int EventPipeEvent::GetEventID() const
     return m_eventID;
 }
 
-int EventPipeEvent::GetLevel() const
+EventPipeEventLevel EventPipeEvent::GetLevel() const
 {
     LIMITED_METHOD_CONTRACT;
 
