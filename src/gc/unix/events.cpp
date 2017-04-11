@@ -53,7 +53,9 @@ void NanosecondsToTimeSpec(uint64_t nanoseconds, timespec* t)
 }
 #endif // HAVE_PTHREAD_CONDATTR_SETCLOCK
 
-class UnixEvent : public GCEvent
+} // anonymous namespace
+
+class GCEvent::Impl
 {
     pthread_cond_t m_condition;
     pthread_mutex_t m_mutex;
@@ -63,7 +65,7 @@ class UnixEvent : public GCEvent
 
 public:
 
-    UnixEvent(bool manualReset, bool initialState)
+    Impl(bool manualReset, bool initialState)
     : m_manualReset(manualReset),
       m_state(initialState),
       m_isValid(false)
@@ -80,6 +82,7 @@ public:
             return false;
         }
 
+        // TODO(segilles) implement this for CoreCLR
         //PthreadCondAttrHolder attrsHolder(&attrs);
 
 #if HAVE_PTHREAD_CONDATTR_SETCLOCK && !HAVE_MACH_ABSOLUTE_TIME
@@ -114,7 +117,7 @@ public:
         return true;
     }
 
-    void CloseEvent() override
+    void CloseEvent()
     {
         if (m_isValid)
         {
@@ -126,7 +129,7 @@ public:
         }
     }
 
-    uint32_t Wait(uint32_t milliseconds, bool alertable) override
+    uint32_t Wait(uint32_t milliseconds, bool alertable)
     {
         UNREFERENCED_PARAMETER(alertable);
 
@@ -221,7 +224,7 @@ public:
         return waitStatus;
     }
 
-    void Set() override
+    void Set()
     {
         pthread_mutex_lock(&m_mutex);
         m_state = true;
@@ -231,7 +234,7 @@ public:
         pthread_cond_broadcast(&m_condition);
     }
 
-    void Reset() override
+    void Reset()
     {
         pthread_mutex_lock(&m_mutex);
         m_state = false;
@@ -239,7 +242,39 @@ public:
     }
 };
 
-} // anonymous namespace
+GCEvent::GCEvent()
+  : m_impl(nullptr)
+{
+}
+
+GCEvent::~GCEvent()
+{
+    delete m_impl;
+}
+
+void GCEvent::CloseEvent()
+{
+    assert(m_impl != nullptr);
+    m_impl->CloseEvent();
+}
+
+void GCEvent::Set()
+{
+    assert(m_impl != nullptr);
+    m_impl->Set();
+}
+
+void GCEvent::Reset()
+{
+    assert(m_impl != nullptr);
+    m_impl->Reset();
+}
+
+uint32_t GCEvent::Wait(uint32_t timeout, bool alertable)
+{
+    assert(m_impl != nullptr);
+    return m_impl->Wait(timeout, alertable);
+}
 
 GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
 {
@@ -261,33 +296,47 @@ GCEvent* GCToOSInterface::CreateManualEvent(bool initialState)
 
 GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
 {
-    std::unique_ptr<UnixEvent> event(new (std::nothrow) UnixEvent(false, initialState));
+    std::unique_ptr<GCEvent::Impl> impl(new (std::nothrow) GCEvent::Impl(false, initialState));
+    if (!impl)
+    {
+        return nullptr;
+    }
+
+    if (!impl->Initialize())
+    {
+        return nullptr;
+    }
+
+    std::unique_ptr<GCEvent> event(new (std::nothrow) GCEvent());
     if (!event)
     {
         return nullptr;
     }
 
-    if (!event->Initialize())
-    {
-        return nullptr;
-    }
-
+    event->m_impl = impl.release();
     return event.release();
 }
 
 GCEvent* GCToOSInterface::CreateOSManualEvent(bool initialState)
 {
-    std::unique_ptr<UnixEvent> event(new (std::nothrow) UnixEvent(true, initialState));
+    std::unique_ptr<GCEvent::Impl> impl(new (std::nothrow) GCEvent::Impl(true, initialState));
+    if (!impl)
+    {
+        return nullptr;
+    }
+
+    if (!impl->Initialize())
+    {
+        return nullptr;
+    }
+
+    std::unique_ptr<GCEvent> event(new (std::nothrow) GCEvent());
     if (!event)
     {
         return nullptr;
     }
 
-    if (!event->Initialize())
-    {
-        return nullptr;
-    }
-
+    event->m_impl = impl.release();
     return event.release();
 }
 
