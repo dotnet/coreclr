@@ -5,7 +5,7 @@
 #ifndef __GLOBALS_H__
 #define __GLOBALS_H__
 
-#ifdef HAVE_MACH_ABSOLUTE_TIME
+#if HAVE_MACH_ABSOLUTE_TIME
 #include <mach/mach_time.h>
 #endif // HAVE_MACH_ABSOLUTE_TIME
 
@@ -23,7 +23,7 @@ const int tccMilliSecondsToMicroSeconds = 1000;
 // The number of nanoseconds in a millisecond.
 const int tccMilliSecondsToNanoSeconds = 1000000;
 
-#ifdef HAVE_MACH_ABSOLUTE_TIME
+#if HAVE_MACH_ABSOLUTE_TIME
 extern mach_timebase_info_data_t g_TimebaseInfo;
 #endif // HAVE_MACH_ABSOLUTE_TIME
 

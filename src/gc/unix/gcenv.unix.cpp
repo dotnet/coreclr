@@ -36,13 +36,13 @@ static_assert(sizeof(uint64_t) == 8, "unsigned long isn't 8 bytes");
  #error "A GC-private implementation of GCToOSInterface should only be used with FEATURE_STANDALONE_GC"
 #endif // FEATURE_STANDALONE_GC
 
-#ifdef HAVE_SYS_TIME_H
+#if HAVE_SYS_TIME_H
  #include <sys/time.h>
 #else
  #error "sys/time.h required by GC PAL for the time being"
 #endif // HAVE_SYS_TIME_
 
-#ifdef HAVE_SYS_MMAN_H
+#if HAVE_SYS_MMAN_H
  #include <sys/mman.h>
 #else
  #error "sys/mman.h required by GC PAL"
@@ -106,7 +106,7 @@ bool GCToOSInterface::Initialize()
         return false;
     }
 
-#ifdef HAVE_MACH_ABSOLUTE_TIME
+#if HAVE_MACH_ABSOLUTE_TIME
     kern_return_t machRet;
     if ((machRet = mach_timebase_info(&g_TimebaseInfo)) != KERN_SUCCESS)
     {
