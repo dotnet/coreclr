@@ -1167,20 +1167,32 @@ NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
     PROLOG_PUSH edx
     PROLOG_END
 
-    // Align Stack Frame
-    mov     ebx, esp
-    and     esp, -16
-
     // Call BackPatchWorkerStaticStub
-    sub     esp, 8     //  16-bytes align padding
-    push    eax        //  push any indirect call address as the second arg to BackPatchWorker
-    push    [ebp + 8]  //  and push return address as the first arg to BackPatchWorker
+    //
+    // Here is expected stack layout at this point:
+    //  | saved edx |
+    //  | saved ecx |
+    //  | saved ebx |
+    //  | saved eax |
+    //  +-----------+ <- ebp
+    //  | saved ebp |
+    //  | saved eip |
+    //  +-----------+ <- CFA of BackPatchWorkerAsmStub
+    //  | saved eip |
+    //  +-----------+ <- CFA of ResolveStub (16-byte aligned)
+    // (Please refer to ResolveStub in vm/i386/virtualcallstubcpu.hpp for details)
+    //
+    #define STACK_ALIGN_PADDING 12
+    sub     esp, STACK_ALIGN_PADDING  //  16-bytes align padding
+    push    eax                       //  any indirect call address as the 2nd arg
+    push    DWORD PTR [ebp + 8]       //  return address (of ResolveStub) as the 1st arg
 
     CHECK_STACK_ALIGNMENT
     call    C_FUNC(BackPatchWorkerStaticStub)
 
-    // Restore Stack Frame
-    mov     esp, ebx
+    // Clean up arguments and alignment padding
+    add     esp, (STACK_ALIGN_PADDING + 2*4)
+    #undef STACK_ALIGN_PADDING
 
     EPILOG_BEG
     EPILOG_POP edx
