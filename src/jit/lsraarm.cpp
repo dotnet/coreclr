@@ -337,7 +337,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
                 bool canStoreTypeMask = emitter::emitIns_valid_imm_for_alu(castInfo.typeMask);
                 if (!canStoreTypeMask)
                 {
-                    info->internalIntCount++;
+                    info->internalIntCount = 1;
                 }
 
                 // For comparing against the max or min value
@@ -346,7 +346,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
 
                 if (!canStoreMaxValue || !canStoreMinValue)
                 {
-                    info->internalIntCount++;
+                    info->internalIntCount = 1;
                 }
             }
         }
