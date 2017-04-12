@@ -3655,14 +3655,20 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
         case CORINFO_INTRINSIC_Span_GetItem:
         case CORINFO_INTRINSIC_ReadOnlySpan_GetItem:
         {
-            // Have index, stack pointer-to Span<T> s on the stack.
+            // Have index, stack pointer-to Span<T> s on the stack. Expand to:
             //
-            // Implement
-            //     if (index >= s->_length) throw new IndexOutOfRangeException();
-            //     return s->_pointer + index * sizeof(T) (for Span)
-            //     return *(s->_pointer + index * sizeof(T)) (for ReadOnlySpan)
+            // For Span<T>
+            //   Comma
+            //     BoundsCheck(index, s->_length)
+            //     s->_pointer + index * sizeof(T)
             //
-            // Signature should show one class type parameter
+            // For ReadOnlySpan<T>
+            //   Comma
+            //     BoundsCheck(index, s->_length)
+            //     *(s->_pointer + index * sizeof(T))
+            //
+            // Signature should show one class type parameter, which
+            // we need to examine.
             assert(sig->sigInst.classInstCount == 1);
             CORINFO_CLASS_HANDLE spanElemHnd = sig->sigInst.classInst[0];
             const unsigned       elemSize    = info.compCompHnd->getClassSize(spanElemHnd);
@@ -3702,14 +3708,13 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
                 GenTreeBoundsChk(GT_ARR_BOUNDS_CHECK, TYP_VOID, index, length, SCK_RNGCHK_FAIL);
 
             // Element access
-            GenTreePtr           index2long = gtNewCastNode(TYP_I_IMPL, indexClone, TYP_I_IMPL);
-            GenTreePtr           sizeofNode = gtNewIconNode(elemSize);
-            GenTreePtr           mulNode    = gtNewOperNode(GT_MUL, TYP_I_IMPL, index2long, sizeofNode);
-            CORINFO_FIELD_HANDLE ptrHnd     = info.compCompHnd->getFieldInClass(clsHnd, 0);
-            const unsigned       ptrOffset  = info.compCompHnd->getFieldOffset(ptrHnd);
-            GenTreePtr           ptrToSpan2 = gtClone(ptrToSpan, true);
-            GenTreePtr           data       = gtNewFieldRef(TYP_BYREF, ptrHnd, ptrToSpanClone, ptrOffset, false);
-            GenTreePtr           result     = gtNewOperNode(GT_ADD, TYP_BYREF, data, mulNode);
+            GenTreePtr           indexIntPtr = impImplicitIorI4Cast(indexClone, TYP_I_IMPL);
+            GenTreePtr           sizeofNode  = gtNewIconNode(elemSize);
+            GenTreePtr           mulNode     = gtNewOperNode(GT_MUL, TYP_I_IMPL, indexIntPtr, sizeofNode);
+            CORINFO_FIELD_HANDLE ptrHnd      = info.compCompHnd->getFieldInClass(clsHnd, 0);
+            const unsigned       ptrOffset   = info.compCompHnd->getFieldOffset(ptrHnd);
+            GenTreePtr           data        = gtNewFieldRef(TYP_BYREF, ptrHnd, ptrToSpanClone, ptrOffset, false);
+            GenTreePtr           result      = gtNewOperNode(GT_ADD, TYP_BYREF, data, mulNode);
 
             // Prepare result
             var_types resultType = JITtype2varType(sig->retType);

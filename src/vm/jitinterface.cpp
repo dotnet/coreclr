@@ -8634,9 +8634,9 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
     else
     {
         MethodTable * pMT = method->GetMethodTable();
-        if (pMT->GetModule()->IsSystem())
+        if (pMT->GetModule()->IsSystem() && pMT->IsByRefLike())
         {
-            if (pMT->IsByRefLike() && pMT->HasSameTypeDefAs(g_pByReferenceClass))
+            if (pMT->HasSameTypeDefAs(g_pByReferenceClass))
             {
                 // ByReference<T> has just two methods: constructor and Value property
                 if (method->IsCtor())
