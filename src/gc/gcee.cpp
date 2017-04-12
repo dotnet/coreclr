@@ -529,7 +529,7 @@ void gc_heap::fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject)
 }
 #endif // FEATURE_EVENT_TRACE
 
-uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int time_out_ms)
+uint32_t gc_heap::user_thread_wait (GCEvent *event, BOOL no_mode_change, int time_out_ms)
 {
     Thread* pCurThread = NULL;
     bool mode = false;

@@ -2911,9 +2911,9 @@ public:
     PER_HEAP
     size_t fgn_last_alloc;
 
-    static uint32_t user_thread_wait (CLREvent *event, BOOL no_mode_change, int time_out_ms=INFINITE);
+    static uint32_t user_thread_wait (GCEvent *event, BOOL no_mode_change, int time_out_ms=INFINITE);
 
-    static wait_full_gc_status full_gc_wait (CLREvent *event, int time_out_ms);
+    static wait_full_gc_status full_gc_wait (GCEvent *event, int time_out_ms);
 
     PER_HEAP
     uint8_t* demotion_low;

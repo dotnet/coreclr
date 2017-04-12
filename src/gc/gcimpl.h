@@ -6,8 +6,6 @@
 #ifndef GCIMPL_H_
 #define GCIMPL_H_
 
-#define CLREvent GCEvent
-
 #ifdef SERVER_GC
 #define MULTIPLE_HEAPS 1
 #endif  // SERVER_GC
@@ -243,7 +241,7 @@ public:	// FIX
     void TemporaryDisableConcurrentGC();
     bool IsConcurrentGCEnabled();
 
-    PER_HEAP_ISOLATED   CLREvent *WaitForGCEvent;     // used for syncing w/GC
+    PER_HEAP_ISOLATED   GCEvent *WaitForGCEvent;     // used for syncing w/GC
 
     PER_HEAP_ISOLATED    CFinalize* m_Finalize;
 
