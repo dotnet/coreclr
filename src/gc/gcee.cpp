@@ -400,12 +400,12 @@ uint32_t GCHeap::WaitUntilGCComplete(bool bConsiderGCStart)
 
     if (GcInProgress) 
     {
-        ASSERT(WaitForGCEvent);
+        ASSERT( WaitForGCEvent->IsValid() );
 
 #ifdef DETECT_DEADLOCK
         // wait for GC to complete
 BlockAgain:
-        dwWaitResult = WaitForGCEvent->Wait(DETECT_DEADLOCK_TIMEOUT, false);
+        dwWaitResult = WaitForGCEvent->Wait(DETECT_DEADLOCK_TIMEOUT, FALSE );
 
         if (dwWaitResult == WAIT_TIMEOUT) {
             //  Even in retail, stop in the debugger if available.  Ideally, the
@@ -419,7 +419,7 @@ BlockAgain:
 
 #else  //DETECT_DEADLOCK
         
-        dwWaitResult = WaitForGCEvent->Wait(INFINITE, false);
+        dwWaitResult = WaitForGCEvent->Wait(INFINITE, FALSE );
         
 #endif //DETECT_DEADLOCK
     }
@@ -545,7 +545,7 @@ uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int ti
         }
     }
 
-    dwWaitResult = event->Wait(time_out_ms, false);
+    dwWaitResult = event->Wait(time_out_ms, FALSE);
 
     if (!no_mode_change && mode)
     {
@@ -560,9 +560,9 @@ uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int ti
 uint32_t gc_heap::background_gc_wait (alloc_wait_reason awr, int time_out_ms)
 {
     dprintf(2, ("Waiting end of background gc"));
-    assert (background_gc_done_event);
+    assert (background_gc_done_event.IsValid());
     fire_alloc_wait_event_begin (awr);
-    uint32_t dwRet = user_thread_wait (background_gc_done_event, FALSE, time_out_ms);
+    uint32_t dwRet = user_thread_wait (&background_gc_done_event, FALSE, time_out_ms);
     fire_alloc_wait_event_end (awr);
     dprintf(2, ("Waiting end of background gc is done"));
 
@@ -573,9 +573,9 @@ uint32_t gc_heap::background_gc_wait (alloc_wait_reason awr, int time_out_ms)
 void gc_heap::background_gc_wait_lh (alloc_wait_reason awr)
 {
     dprintf(2, ("Waiting end of background large sweep"));
-    assert (gc_lh_block_event);
+    assert (gc_lh_block_event.IsValid());
     fire_alloc_wait_event_begin (awr);
-    user_thread_wait (gc_lh_block_event, FALSE);
+    user_thread_wait (&gc_lh_block_event, FALSE);
     fire_alloc_wait_event_end (awr);
     dprintf(2, ("Waiting end of background large sweep is done"));
 }

@@ -250,6 +250,7 @@ GCEvent::GCEvent()
 GCEvent::~GCEvent()
 {
     delete m_impl;
+    m_impl = nullptr;
 }
 
 void GCEvent::CloseEvent()
@@ -276,68 +277,57 @@ uint32_t GCEvent::Wait(uint32_t timeout, bool alertable)
     return m_impl->Wait(timeout, alertable);
 }
 
-GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
+bool GCEvent::CreateAutoEventNoThrow(bool initialState)
 {
     // [DESKTOP TODO] The difference between events and OS events is
     // whether or not the hosting API is made aware of them. When (if)
     // we implement hosting support for Local GC, we will need to be
     // aware of the host here.
-    return CreateOSAutoEvent(initialState);
+    return CreateOSAutoEventNoThrow(initialState);
 }
 
-GCEvent* GCToOSInterface::CreateManualEvent(bool initialState)
+bool GCEvent::CreateManualEventNoThrow(bool initialState)
 {
     // [DESKTOP TODO] The difference between events and OS events is
     // whether or not the hosting API is made aware of them. When (if)
     // we implement hosting support for Local GC, we will need to be
     // aware of the host here.
-    return CreateOSManualEvent(initialState);
+    return CreateOSManualEventNoThrow(initialState);
 }
 
-GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
+bool GCEvent::CreateOSAutoEventNoThrow(bool initialState)
 {
-    std::unique_ptr<GCEvent::Impl> impl(new (std::nothrow) GCEvent::Impl(false, initialState));
-    if (!impl)
-    {
-        return nullptr;
-    }
-
-    if (!impl->Initialize())
-    {
-        return nullptr;
-    }
-
-    std::unique_ptr<GCEvent> event(new (std::nothrow) GCEvent());
+    assert(m_impl == nullptr);
+    std::unique_ptr<GCEvent::Impl> event(new (std::nothrow) GCEvent::Impl(false, initialState));
     if (!event)
     {
-        return nullptr;
+        return false;
     }
 
-    event->m_impl = impl.release();
-    return event.release();
+    if (!event->Initialize())
+    {
+        return false;
+    }
+
+    m_impl = event.release();
+    return true;
 }
 
-GCEvent* GCToOSInterface::CreateOSManualEvent(bool initialState)
+bool GCEvent::CreateOSManualEventNoThrow(bool initialState)
 {
-    std::unique_ptr<GCEvent::Impl> impl(new (std::nothrow) GCEvent::Impl(true, initialState));
-    if (!impl)
-    {
-        return nullptr;
-    }
-
-    if (!impl->Initialize())
-    {
-        return nullptr;
-    }
-
-    std::unique_ptr<GCEvent> event(new (std::nothrow) GCEvent());
+    assert(m_impl == nullptr);
+    std::unique_ptr<GCEvent::Impl> event(new (std::nothrow) GCEvent::Impl(true, initialState));
     if (!event)
     {
-        return nullptr;
+        return false;
     }
 
-    event->m_impl = impl.release();
-    return event.release();
-}
+    if (!event->Initialize())
+    {
+        return false;
+    }
 
+    m_impl = event.release();
+    return true;
+}
 

@@ -800,6 +800,7 @@ GCEvent::GCEvent()
 GCEvent::~GCEvent()
 {
     delete m_impl;
+    m_impl = nullptr;
 }
 
 void GCEvent::CloseEvent()
@@ -834,110 +835,79 @@ uint32_t GCEvent::Wait(uint32_t timeout, bool alertable)
     return m_impl->Wait(timeout, alertable);
 }
 
-GCEvent* GCToOSInterface::CreateAutoEvent(bool initialState)
+bool GCEvent::CreateManualEventNoThrow(bool initialState)
 {
     CONTRACTL {
       NOTHROW;
       GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    NewHolder<GCEvent> event = new (nothrow) GCEvent();
+    assert(m_impl == nullptr);
+    NewHolder<GCEvent::Impl> event = new (nothrow) GCEvent::Impl();
     if (!event)
     {
-        return nullptr;
+        return false;
     }
 
-    if (!event->m_impl)
-    {
-        return nullptr;
-    }
-
-    if (!event->m_impl->CreateAutoEvent(initialState))
-    {
-        return nullptr;
-    }
-
-    assert(event->m_impl->IsValid());
-    return event.Extract();
+    event->CreateManualEvent(initialState);
+    m_impl = event.Extract();
+    return true;
 }
 
-GCEvent* GCToOSInterface::CreateManualEvent(bool initialState)
+bool GCEvent::CreateAutoEventNoThrow(bool initialState)
 {
     CONTRACTL {
       NOTHROW;
       GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    NewHolder<GCEvent> event = new (nothrow) GCEvent();
+    assert(m_impl == nullptr);
+    NewHolder<GCEvent::Impl> event = new (nothrow) GCEvent::Impl();
     if (!event)
     {
-        return nullptr;
+        return false;
     }
 
-    if (!event->m_impl)
-    {
-        return nullptr;
-    }
-
-    if (!event->m_impl->CreateManualEvent(initialState))
-    {
-        return nullptr;
-    }
-
-    assert(event->m_impl->IsValid());
-    return event.Extract();
+    event->CreateAutoEvent(initialState);
+    m_impl = event.Extract();
+    return IsValid();
 }
 
-GCEvent* GCToOSInterface::CreateOSAutoEvent(bool initialState)
+bool GCEvent::CreateOSAutoEventNoThrow(bool initialState)
 {
     CONTRACTL {
       NOTHROW;
       GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    NewHolder<GCEvent> event = new (nothrow) GCEvent();
+    assert(m_impl == nullptr);
+    NewHolder<GCEvent::Impl> event = new (nothrow) GCEvent::Impl();
     if (!event)
     {
-        return nullptr;
+        return false;
     }
 
-    if (!event->m_impl)
-    {
-        return nullptr;
-    }
-
-    if (!event->m_impl->CreateOSAutoEvent(initialState))
-    {
-        return nullptr;
-    }
-
-    assert(event->m_impl->IsValid());
-    return event.Extract();
+    event->CreateOSAutoEvent(initialState);
+    m_impl = event.Extract();
+    return IsValid();
 }
 
-GCEvent* GCToOSInterface::CreateOSManualEvent(bool initialState)
+bool GCEvent::CreateOSManualEventNoThrow(bool initialState)
 {
     CONTRACTL {
       NOTHROW;
       GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    NewHolder<GCEvent> event = new (nothrow) GCEvent();
+    assert(m_impl == nullptr);
+    NewHolder<GCEvent::Impl> event = new (nothrow) GCEvent::Impl();
     if (!event)
     {
-        return nullptr;
+        return false;
     }
 
-    if (!event->m_impl)
-    {
-        return nullptr;
-    }
-
-    if (!event->m_impl->CreateOSManualEvent(initialState))
-    {
-        return nullptr;
-    }
-
-    assert(event->m_impl->IsValid());
-    return event.Extract();
+    event->CreateOSManualEvent(initialState);
+    m_impl = event.Extract();
+    return IsValid();
 }
+

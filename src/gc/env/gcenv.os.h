@@ -91,6 +91,39 @@ public:
     //      WAIT_TIMEOUT  - The timeout interval expired without this event being signalled.
     //      WAIT_FAILED   - The wait failed.
     uint32_t Wait(uint32_t timeout, bool alertable);
+
+    // Determines whether or not this event is valid.
+    // Returns:
+    //  true if this event is invalid (i.e. it has not yet been initialized or
+    //  has already been closed), false otherwise
+    bool IsValid() const
+    {
+        return m_impl != nullptr;
+    }
+
+    // Initializes this event to be a host-aware manual reset event with the
+    // given initial state.
+    // Returns:
+    //   true if the initialization succeeded, false if it did not
+    bool CreateManualEventNoThrow(bool initialState);
+
+    // Initializes this event to be a host-aware auto-resetting event with the
+    // given initial state.
+    // Returns:
+    //   true if the initialization succeeded, false if it did not
+    bool CreateAutoEventNoThrow(bool initialState);
+
+    // Initializes this event to be a host-unaware manual reset event with the
+    // given initial state.
+    // Returns:
+    //   true if the initialization succeeded, false if it did not
+    bool CreateOSManualEventNoThrow(bool initialState);
+
+    // Initializes this event to be a host-unaware auto-resetting event with the
+    // given initial state.
+    // Returns:
+    //   true if the initialization succeeded, false if it did not
+    bool CreateOSAutoEventNoThrow(bool initialState);
 };
 
 // GC thread function prototype
@@ -323,34 +356,6 @@ public:
     // Return:
     //  Time stamp in milliseconds
     static uint32_t GetLowPrecisionTimeStamp();
-
-    //
-    // Events
-    //
-
-    // Constructs a new host-aware auto-resetting event.
-    // Return:
-    //   A newly-constructed event in the specified signal state, or
-    //   nullptr if the initialization of the event failed.
-    static GCEvent* CreateAutoEvent(bool initialState);
-
-    // Constructs a new host-aware manual-resetting event.
-    // Return:
-    //   A newly-constructed event in the specified signal state, or
-    //   nullptr if the initialization of the event failed.
-    static GCEvent* CreateManualEvent(bool initialState);
-
-    // Constructs a new auto-resetting event.
-    // Return:
-    //   A newly-constructed event in the specified signal state, or
-    //   nullptr if the initialization of the event failed.
-    static GCEvent* CreateOSAutoEvent(bool initialState);
-
-    // Constructs a new manual-resetting event.
-    // Return:
-    //   A newly-constructed event in the specified signal state, or
-    //   nullptr if the initialization of the event failed.
-    static GCEvent* CreateOSManualEvent(bool initialState);
 };
 
 #endif // __GCENV_OS_H__
