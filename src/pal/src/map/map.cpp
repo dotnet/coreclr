@@ -2241,7 +2241,9 @@ MAPmmapAndRecord(
     PAL_ERROR palError = NO_ERROR;
     LPVOID pvBaseAddress = NULL;
 
-    pvBaseAddress = mmap(addr, len, prot, flags, fd, offset);
+    off_t adjust = offset & (VIRTUAL_PAGE_MASK);
+
+    pvBaseAddress = mmap(static_cast<char *>(addr) - adjust, len + adjust, prot, flags, fd, offset - adjust);
     if (MAP_FAILED == pvBaseAddress)
     {
         ERROR_(LOADER)( "mmap failed with code %d: %s.\n", errno, strerror( errno ) );
@@ -2364,14 +2366,6 @@ void * MAPMapPEFile(HANDLE hFile)
         || (VAL16(IMAGE_NT_OPTIONAL_HDR_MAGIC) != VAL16(ntHeader.OptionalHeader.Magic) ) )
     {
         ERROR_(LOADER)( "Magic number mismatch\n" );
-        palError = ERROR_INVALID_PARAMETER;
-        goto done;
-    }
-
-    //this code requires that the file alignment be the same as the page alignment
-    if (ntHeader.OptionalHeader.FileAlignment < VIRTUAL_PAGE_SIZE)
-    {
-        ERROR_(LOADER)( "Optional header file alignment is bad\n" );
         palError = ERROR_INVALID_PARAMETER;
         goto done;
     }

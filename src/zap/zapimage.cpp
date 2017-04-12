@@ -1545,10 +1545,7 @@ void ZapImage::OutputTables()
         SetSizeOfStackCommit(m_ModuleDecoder.GetSizeOfStackCommit());
     }
 
-#if defined(FEATURE_PAL)
-    // PAL library requires native image sections to align to page bounaries.
-    SetFileAlignment(0x1000);
-#elif defined(_TARGET_ARM_) && defined(FEATURE_CORESYSTEM)
+#if defined(_TARGET_ARM_) && defined(FEATURE_CORESYSTEM)
     if (!IsReadyToRunCompilation())
     {
         // On ARM CoreSys builds, crossgen will use 4k file alignment, as requested by Phone perf team
