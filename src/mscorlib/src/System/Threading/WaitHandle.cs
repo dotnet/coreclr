@@ -447,10 +447,10 @@ namespace System.Threading
                                         WaitHandle toSignal,
                                         WaitHandle toWaitOn)
         {
-#if PLATFORM_UNIX
-            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported); // https://github.com/dotnet/coreclr/issues/10441
-#else
+#if PLATFORM_WINDOWS
             return SignalAndWait(toSignal, toWaitOn, -1, false);
+#else
+            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported); // https://github.com/dotnet/coreclr/issues/10441
 #endif
         }
 
@@ -460,15 +460,15 @@ namespace System.Threading
                                         TimeSpan timeout,
                                         bool exitContext)
         {
-#if PLATFORM_UNIX
-            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported); // https://github.com/dotnet/coreclr/issues/10441
-#else
+#if PLATFORM_WINDOWS
             long tm = (long)timeout.TotalMilliseconds;
             if (-1 > tm || (long)Int32.MaxValue < tm)
             {
                 throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
             return SignalAndWait(toSignal, toWaitOn, (int)tm, exitContext);
+#else
+            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported); // https://github.com/dotnet/coreclr/issues/10441
 #endif
         }
 
@@ -479,9 +479,7 @@ namespace System.Threading
                                         int millisecondsTimeout,
                                         bool exitContext)
         {
-#if PLATFORM_UNIX
-            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported); // https://github.com/dotnet/coreclr/issues/10441
-#else
+#if PLATFORM_WINDOWS
             if (null == toSignal)
             {
                 throw new ArgumentNullException(nameof(toSignal));
@@ -518,6 +516,8 @@ namespace System.Threading
 
             //Timeout
             return false;
+#else
+            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported); // https://github.com/dotnet/coreclr/issues/10441
 #endif
         }
 
