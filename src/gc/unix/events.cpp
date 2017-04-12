@@ -279,19 +279,15 @@ uint32_t GCEvent::Wait(uint32_t timeout, bool alertable)
 
 bool GCEvent::CreateAutoEventNoThrow(bool initialState)
 {
-    // [DESKTOP TODO] The difference between events and OS events is
-    // whether or not the hosting API is made aware of them. When (if)
-    // we implement hosting support for Local GC, we will need to be
-    // aware of the host here.
+    // This implementation of GCEvent makes no distinction between
+    // host-aware and non-host-aware events (since there will be no host).
     return CreateOSAutoEventNoThrow(initialState);
 }
 
 bool GCEvent::CreateManualEventNoThrow(bool initialState)
 {
-    // [DESKTOP TODO] The difference between events and OS events is
-    // whether or not the hosting API is made aware of them. When (if)
-    // we implement hosting support for Local GC, we will need to be
-    // aware of the host here.
+    // This implementation of GCEvent makes no distinction between
+    // host-aware and non-host-aware events (since there will be no host).
     return CreateOSManualEventNoThrow(initialState);
 }
 

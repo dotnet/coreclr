@@ -51,10 +51,6 @@ struct GCThreadAffinity
 // indicating that an event has occured. It is used pervasively throughout
 // the GC.
 class GCEvent {
-    // GCEvents are constructed by GCToOSInterface, so it is permitted
-    // to reference m_impl directly.
-    friend class GCToOSInterface;
-
 private:
     class Impl;
     Impl *m_impl;

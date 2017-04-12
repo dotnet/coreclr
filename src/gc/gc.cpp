@@ -2308,7 +2308,7 @@ sorted_table* gc_heap::seg_table;
 #endif //!SEG_MAPPING_TABLE || FEATURE_BASICFREEZE
 
 #ifdef MULTIPLE_HEAPS
-GCEvent    gc_heap::ee_suspend_event;
+GCEvent     gc_heap::ee_suspend_event;
 size_t      gc_heap::min_balance_threshold = 0;
 #endif //MULTIPLE_HEAPS
 
@@ -2316,7 +2316,7 @@ VOLATILE(BOOL) gc_heap::gc_started;
 
 #ifdef MULTIPLE_HEAPS
 
-GCEvent    gc_heap::gc_start_event;
+GCEvent     gc_heap::gc_start_event;
 
 bool        gc_heap::gc_thread_no_affinitize_p = false;
 
@@ -2385,13 +2385,13 @@ uint64_t    gc_heap::total_physical_mem;
 uint64_t    gc_heap::entry_available_physical_mem;
 
 #ifdef BACKGROUND_GC
-GCEvent    gc_heap::bgc_start_event;
+GCEvent     gc_heap::bgc_start_event;
 
 gc_mechanisms gc_heap::saved_bgc_settings;
 
-GCEvent    gc_heap::background_gc_done_event;
+GCEvent     gc_heap::background_gc_done_event;
 
-GCEvent    gc_heap::ee_proceed_event;
+GCEvent     gc_heap::ee_proceed_event;
 
 bool        gc_heap::gc_can_use_concurrent = false;
 
@@ -2403,7 +2403,7 @@ BOOL        gc_heap::dont_restart_ee_p = FALSE;
 
 BOOL        gc_heap::keep_bgc_threads_p = FALSE;
 
-GCEvent    gc_heap::bgc_threads_sync_event;
+GCEvent     gc_heap::bgc_threads_sync_event;
 
 BOOL        gc_heap::do_ephemeral_gc_p = FALSE;
 
