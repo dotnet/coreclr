@@ -1280,7 +1280,6 @@ done:
     return pRetVal;
 }
 
-
 /*++
 Function:
   VirtualFree
