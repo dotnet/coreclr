@@ -183,9 +183,9 @@ int coreclr_initialize(
     }
 #endif
 
-    ReleaseHolder<ICLRRuntimeHost2> host;
+    ReleaseHolder<ICLRRuntimeHost4> host;
 
-    hr = CorHost2::CreateObject(IID_ICLRRuntimeHost2, (void**)&host);
+    hr = CorHost2::CreateObject(IID_ICLRRuntimeHost4, (void**)&host);
     IfFailRet(hr);
 
     ConstWStringHolder appDomainFriendlyNameW = StringToUnicode(appDomainFriendlyName);
@@ -284,7 +284,7 @@ int coreclr_shutdown(
             void* hostHandle,
             unsigned int domainId)
 {
-    ReleaseHolder<ICLRRuntimeHost2> host(reinterpret_cast<ICLRRuntimeHost2*>(hostHandle));
+    ReleaseHolder<ICLRRuntimeHost4> host(reinterpret_cast<ICLRRuntimeHost4*>(hostHandle));
 
     HRESULT hr = host->UnloadAppDomain(domainId, true); // Wait until done
     IfFailRet(hr);
@@ -315,9 +315,7 @@ int coreclr_shutdown_2(
             unsigned int domainId,
             int* latchedExitCode)
 {
-    ICLRRuntimeHost4* hostHandleV4 = nullptr;
-    reinterpret_cast<ICLRRuntimeHost2*>(hostHandle)->QueryInterface(IID_ICLRRuntimeHost4, reinterpret_cast<void**>(&hostHandleV4));
-    ReleaseHolder<ICLRRuntimeHost4> host(reinterpret_cast<ICLRRuntimeHost4*>(hostHandleV4));
+    ReleaseHolder<ICLRRuntimeHost4> host(reinterpret_cast<ICLRRuntimeHost4*>(hostHandle));
 
     HRESULT hr = host->UnloadAppDomain2(domainId, true, latchedExitCode); // Wait until done
     IfFailRet(hr);
@@ -354,7 +352,7 @@ int coreclr_create_delegate(
             const char* entryPointMethodName,
             void** delegate)
 {
-    ICLRRuntimeHost2* host = reinterpret_cast<ICLRRuntimeHost2*>(hostHandle);
+    ICLRRuntimeHost4* host = reinterpret_cast<ICLRRuntimeHost4*>(hostHandle);
 
     ConstWStringHolder entryPointAssemblyNameW = StringToUnicode(entryPointAssemblyName);
     ConstWStringHolder entryPointTypeNameW = StringToUnicode(entryPointTypeName);
@@ -399,7 +397,7 @@ int coreclr_execute_assembly(
     }
     *exitCode = -1;
 
-    ICLRRuntimeHost2* host = reinterpret_cast<ICLRRuntimeHost2*>(hostHandle);
+    ICLRRuntimeHost4* host = reinterpret_cast<ICLRRuntimeHost4*>(hostHandle);
 
     ConstWStringArrayHolder argvW;
     argvW.Set(StringArrayToUnicode(argc, argv), argc);
