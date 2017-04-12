@@ -7647,10 +7647,6 @@ bool Compiler::optExtractArrIndex(GenTreePtr tree, ArrIndex* result, unsigned lh
     {
         return false;
     }
-
-    // At this point, arrayOp should only be GT_ARR_LENGTH. Thus we
-    // know op1 is the array.
-    assert(arrayOp == GT_ARR_LENGTH);
     if (arrBndsChk->gtArrLen->gtGetOp1()->gtOper != GT_LCL_VAR)
     {
         return false;
