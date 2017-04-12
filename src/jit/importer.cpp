@@ -3678,6 +3678,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             GenTreePtr indexClone     = nullptr;
             GenTreePtr ptrToSpanClone = nullptr;
 
+#if defined(DEBUG)
             if (verbose)
             {
                 printf("with ptr-to-span\n");
@@ -3685,6 +3686,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
                 printf("and index\n");
                 gtDispTree(index);
             }
+#endif // defined(DEBUG)
 
             // We need to use both index and ptr-to-span twice, so clone or spill.
             index = impCloneExpr(index, &indexClone, NO_CLASS_HANDLE, (unsigned)CHECK_SPILL_ALL,

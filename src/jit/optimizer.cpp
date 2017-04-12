@@ -7639,24 +7639,23 @@ bool Compiler::optExtractArrIndex(GenTreePtr tree, ArrIndex* result, unsigned lh
         return false;
     }
 
-    // For span we may see gtArrLen is a local var.
-    unsigned arrLcl = BAD_VAR_NUM;
+    // For span we may see gtArrLen is a local var or local field.
+    // We won't try and extract those.
+    const genTreeOps arrayOp = arrBndsChk->gtArrLen->gtOper;
 
-    if (arrBndsChk->gtArrLen->gtOper == GT_LCL_VAR)
-    {
-        arrLcl = arrBndsChk->gtArrLen->gtLclVarCommon.gtLclNum;
-    }
-    else if (arrBndsChk->gtArrLen->gtGetOp1()->gtOper == GT_LCL_VAR)
-    {
-        arrLcl = arrBndsChk->gtArrLen->gtGetOp1()->gtLclVarCommon.gtLclNum;
-    }
-    else
+    if ((arrayOp == GT_LCL_VAR) || (arrayOp == GT_LCL_FLD))
     {
         return false;
     }
 
-    assert(arrLcl != BAD_VAR_NUM);
-
+    // At this point, arrayOp should only be GT_ARR_LENGTH. Thus we
+    // know op1 is the array.
+    assert(arrayOp == GT_ARR_LENGTH);
+    if (arrBndsChk->gtArrLen->gtGetOp1()->gtOper != GT_LCL_VAR)
+    {
+        return false;
+    }
+    unsigned arrLcl = arrBndsChk->gtArrLen->gtGetOp1()->gtLclVarCommon.gtLclNum;
     if (lhsNum != BAD_VAR_NUM && arrLcl != lhsNum)
     {
         return false;
