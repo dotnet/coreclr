@@ -793,7 +793,7 @@ public:
 };
 
 GCEvent::GCEvent()
-  : m_impl(new (nothrow) GCEvent::Impl())
+  : m_impl(nullptr)
 {
 }
 
