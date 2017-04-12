@@ -686,7 +686,7 @@ public:
 };
 
 GCEvent::GCEvent()
-  : m_impl(new (std::nothrow) GCEvent::Impl())
+  : m_impl(nullptr)
 {
 }
 
