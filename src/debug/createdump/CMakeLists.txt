@@ -24,9 +24,10 @@ _add_executable(createdump
 )
 
 target_link_libraries(createdump
-    corguids
-    coreclrpal
-    palrt
+    # share the PAL in the dac module
+    mscordaccore
 )
+
+add_dependencies(createdump mscordaccore)
 
 install_clr(createdump)

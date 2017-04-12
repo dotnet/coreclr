@@ -92,7 +92,7 @@ bool
 CrashInfo::EnumerateAndSuspendThreads()
 {
     char taskPath[128];
-    _snprintf_s(taskPath, sizeof(taskPath), sizeof(taskPath), "/proc/%lu/task", m_pid);
+    snprintf(taskPath, sizeof(taskPath), "/proc/%d/task", m_pid);
 
     DIR* taskDir = opendir(taskPath);
     if (taskDir == nullptr)
@@ -195,7 +195,7 @@ bool
 CrashInfo::GetAuxvEntries()
 {
     char auxvPath[128];
-    int chars = snprintf(auxvPath, sizeof(auxvPath), "/proc/%d/auxv", m_pid);
+    snprintf(auxvPath, sizeof(auxvPath), "/proc/%d/auxv", m_pid);
 
     int fd = open(auxvPath, O_RDONLY, 0);
     if (fd == -1)
@@ -586,7 +586,7 @@ bool
 CrashInfo::GetStatus(pid_t pid, pid_t* ppid, pid_t* tgid, char** name)
 {
     char statusPath[128];
-    _snprintf_s(statusPath, sizeof(statusPath), sizeof(statusPath), "/proc/%lu/status", pid);
+    snprintf(statusPath, sizeof(statusPath), "/proc/%d/status", pid);
 
     FILE *statusFile = fopen(statusPath, "r");
     if (statusFile == nullptr)

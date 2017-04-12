@@ -33,7 +33,7 @@ CreateDump(const char* pszExePath, const char* dumpPathTemplate, pid_t pid, MINI
     {
         goto exit;
     }
-    sprintf_s(dumpPath, MAX_LONGPATH, dumpPathTemplate, pid);
+    snprintf(dumpPath, MAX_LONGPATH, dumpPathTemplate, pid);
     if (!dumpWriter->OpenDump(dumpPath))
     {
         goto exit;
@@ -59,7 +59,7 @@ int __cdecl main(const int argc, const char* argv[])
     const char* dumpPathTemplate = "/tmp/coredump.%lu";
 
     char* diagnostics = getenv("COMPlus_CreateDumpDiagnostics");
-    g_diagnostics = diagnostics != nullptr && _stricmp(diagnostics, "1") == 0;
+    g_diagnostics = diagnostics != nullptr && strcmp(diagnostics, "1") == 0;
 
     int exitCode = PAL_InitializeDLL();
     if (exitCode != 0)

@@ -138,7 +138,7 @@ DataTarget::GetImageBase(
             {
                 name = image.FileName();
             }
-            if (_stricmp(name, tempModuleName) == 0)
+            if (strcmp(name, tempModuleName) == 0)
             {
                 *baseAddress = image.StartAddress();
                 return S_OK;
