@@ -6396,7 +6396,11 @@ void emitter::emitGCvarLiveUpd(int offs, int varNum, GCtype gcType, BYTE* addr)
             regPtrNext->rpdArg    = TRUE;
             regPtrNext->rpdCall   = FALSE;
             noway_assert(FitsIn<unsigned short>(offs));
+#ifndef UNIX_X86_ABI
             regPtrNext->rpdPtrArg  = (unsigned short)offs;
+#else
+            regPtrNext->rpdPtrArg  = (unsigned short)(offs/sizeof(void*)); // Used as offset number
+#endif
             regPtrNext->rpdArgType = (unsigned short)GCInfo::rpdARG_PUSH;
             regPtrNext->rpdIsThis  = FALSE;
 

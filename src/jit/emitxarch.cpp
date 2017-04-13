@@ -10671,7 +10671,12 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 assert(callInstrSize != 0);
 
 #if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
-// TODO-FOA: Fix here
+                // No matter it is callee-pop or caller-pop, we always encode `kill` when FEATURE_FIXED_OUT_ARGS on
+                if (args != 0)
+                {
+                    unsigned uargs = (args >= 0) ? args : -args;
+                    emitStackKillArgs(dst, uargs, callInstrSize);
+                }
 #else
                 if (args >= 0)
                 {

@@ -4367,6 +4367,7 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
             /* Report any pending pointer arguments */
 
             DWORD * pPendingArgFirst;       // points **AT** first parameter
+#if !(FEATURE_FIXED_OUT_ARGS && defined(UNIX_X86_ABI))
             if (!info.ebpFrame)
             {
                 // -sizeof(void*) because we want to point *AT* first parameter
@@ -4396,6 +4397,12 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
                     pPendingArgFirst = (DWORD *)(size_t)(EBP - info.stackSize);
                 }
             }
+#else // FEATURE_FIXED_OUT_ARGS && defined(UNIX_X86_ABI)
+            // pPendingArgFirst actually points to the last argument when FEATURE_FIXED_OUT_ARGS on.
+            // which means argument offsets are in reverse order compared to non-fixed-out-args version
+            // As we know that ESP is always fixed so we assume ESP as the last argument.
+            pPendingArgFirst = (DWORD *) ESP;
+#endif // FEATURE_FIXED_OUT_ARGS && defined(UNIX_X86_ABI)
 
             if  (!isZero(args))
             {
@@ -4403,9 +4410,14 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
                 ptrArgTP   b(1);
                 for (; !isZero(args) && (i < MAX_PTRARG_OFS); i += 1, b <<= 1)
                 {
-                    if  (intersect(args,b))
+                    if (intersect(args,b))
                     {
+#if !(FEATURE_FIXED_OUT_ARGS && defined(UNIX_X86_ABI))
                         unsigned    argAddr = (unsigned)(size_t)(pPendingArgFirst - i);
+#else // FEATURE_FIXED_OUT_ARGS && defined(UNIX_X86_ABI)
+                        // pPendingArgFirst points to ESP so the offset should be increasing 
+                        unsigned    argAddr = (unsigned)(size_t)(pPendingArgFirst + i);
+#endif // FEATURE_FIXED_OUT_ARGS && defined(UNIX_X86_ABI)
                         bool        iptr    = false;
 
                         setDiff(args, b);
@@ -4419,10 +4431,16 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
                         if (dspPtr)
                         {
                             printf("    Pushed ptr arg  [E");
+
+#if !(FEATURE_FIXED_OUT_ARGS && defined(UNIX_X86_ABI))
                             if  (info.ebpFrame)
                                 printf("BP-%02XH]: ", EBP - argAddr);
                             else
                                 printf("SP+%02XH]: ", argAddr - ESP);
+#else // FEATURE_FIXED_OUT_ARGS && defined(UNIX_X86_ABI)
+                            printf("SP+%02XH]: ", argAddr - ESP);
+#endif // FEATURE_FIXED_OUT_ARGS && defined(UNIX_X86_ABI)
+                            printf("\n");
                         }
 #endif
                         _ASSERTE(true == GC_CALL_INTERIOR);
