@@ -671,7 +671,7 @@ FCIMPL2(Object*, RuntimeTypeHandle::CreateCaInstance, ReflectClassBaseObject* pC
     CONTRACTL {
         FCALL_CHECK;
         PRECONDITION(CheckPointer(pCaTypeUNSAFE));
-		PRECONDITION(!pCaTypeUNSAFE->GetType().IsGenericVariable());
+        PRECONDITION(!pCaTypeUNSAFE->GetType().IsGenericVariable());
         PRECONDITION(pCaTypeUNSAFE->GetType().IsValueType() || CheckPointer(pCtorUNSAFE));
     }
     CONTRACTL_END;
