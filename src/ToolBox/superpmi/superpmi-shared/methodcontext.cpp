@@ -2283,7 +2283,7 @@ bool MethodContext::repGetReadyToRunHelper(
 void MethodContext::recGetReadyToRunDelegateCtorHelper(
     CORINFO_RESOLVED_TOKEN * pTargetMethod,
     CORINFO_CLASS_HANDLE     delegateType,
-    CORINFO_CONST_LOOKUP *   pLookup
+    CORINFO_LOOKUP *   pLookup
     )
 {
     LogError("GetReadyToRunDelegateCtorHelper NYI");
@@ -2302,7 +2302,7 @@ void MethodContext::dmpGetReadyToRunDelegateCtorHelper(DWORDLONG key, DWORD valu
 void MethodContext::repGetReadyToRunDelegateCtorHelper(
     CORINFO_RESOLVED_TOKEN * pTargetMethod,
     CORINFO_CLASS_HANDLE     delegateType,
-    CORINFO_CONST_LOOKUP *   pLookup
+    CORINFO_LOOKUP *   pLookup
     )
 {
     LogError("getReadyToRunDelegateCtorHelper NYI");
@@ -3296,6 +3296,47 @@ void MethodContext::repGetMethodVTableOffset(CORINFO_METHOD_HANDLE method, unsig
     DEBUG_REP(dmpGetMethodVTableOffset((DWORDLONG)method, value));
 }
 
+void MethodContext::recResolveVirtualMethod(CORINFO_METHOD_HANDLE virtMethod, CORINFO_CLASS_HANDLE implClass,
+    CORINFO_CONTEXT_HANDLE ownerType, CORINFO_METHOD_HANDLE result)
+{
+    if (ResolveVirtualMethod == nullptr)
+    {
+        ResolveVirtualMethod = new LightWeightMap<Agnostic_ResolveVirtualMethod, DWORDLONG>();
+    }
+
+    Agnostic_ResolveVirtualMethod key;
+    key.virtualMethod = (DWORDLONG)virtMethod;
+    key.implementingClass = (DWORDLONG)implClass;
+    key.ownerType = (DWORDLONG)ownerType;
+    ResolveVirtualMethod->Add(key, (DWORDLONG) result);
+    DEBUG_REC(dmpResolveVirtualMethod(key, result));
+}
+
+void MethodContext::dmpResolveVirtualMethod(const Agnostic_ResolveVirtualMethod& key, DWORDLONG value)
+{
+    printf("ResolveVirtualMethod virtMethod-%016llX, implClass-%016llX, ownerType--%01611X, result-%016llX",
+        key.virtualMethod, key.implementingClass, key.ownerType, value);
+}
+
+CORINFO_METHOD_HANDLE MethodContext::repResolveVirtualMethod(CORINFO_METHOD_HANDLE virtMethod, CORINFO_CLASS_HANDLE implClass,
+    CORINFO_CONTEXT_HANDLE ownerType)
+{
+    Agnostic_ResolveVirtualMethod key;
+    key.virtualMethod = (DWORDLONG)virtMethod;
+    key.implementingClass = (DWORDLONG)implClass;
+    key.ownerType = (DWORDLONG)ownerType;
+
+    AssertCodeMsg(ResolveVirtualMethod != nullptr, EXCEPTIONCODE_MC, "No ResolveVirtualMap map for %016llX-%016llX-%016llX",
+        key.virtualMethod, key.implementingClass, key.ownerType);
+    AssertCodeMsg(ResolveVirtualMethod->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX-%016llx-%016llX",
+        key.virtualMethod, key.implementingClass, key.ownerType);
+    DWORDLONG result = ResolveVirtualMethod->Get(key);
+
+    DEBUG_REP(dmpResolveVirtualMethod(key, result));
+
+    return (CORINFO_METHOD_HANDLE)result;
+}
+
 void MethodContext::recGetTokenTypeAsHandle(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_CLASS_HANDLE result)
 {
     if (GetTokenTypeAsHandle == nullptr)
@@ -4191,9 +4232,6 @@ void MethodContext::repGetEEInfo(CORINFO_EE_INFO *pEEInfoOut)
         pEEInfoOut->osMajor = (unsigned)0;
         pEEInfoOut->osMinor = (unsigned)0;
         pEEInfoOut->osBuild = (unsigned)0;
-#ifdef DEBUG_REP
-        printf("repGetEEInfo - fell to default params\n");
-#endif
     }
 }
 
@@ -6165,7 +6203,7 @@ mdMethodDef MethodContext::repGetMethodDefFromMethod(CORINFO_METHOD_HANDLE hMeth
 
     int index = GetMethodDefFromMethod->GetIndex((DWORDLONG)hMethod);
     if (index < 0)
-        return (mdMethodDef)0x06000001;    
+        return (mdMethodDef)0x06000001;
 
     return (mdMethodDef)GetMethodDefFromMethod->Get((DWORDLONG)hMethod);
 }

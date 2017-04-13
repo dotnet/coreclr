@@ -13,8 +13,8 @@
 #include "stdafx.h"
 #include <win32threadpool.h>
 
-#include <gceewks.cpp>
-#include <handletablepriv.h>
+// TODO(Local GC) - The DAC should not include GC headers
+#include <../../gc/handletablepriv.h>
 #include "typestring.h"
 #include <gccover.h>
 #include <virtualcallstub.h>
@@ -31,7 +31,7 @@
 #include <exstatecommon.h>
 
 #include "rejit.h"
-
+#include "request_common.h"
 
 // GC headers define these to EE-specific stuff that we don't want.
 #undef EnterCriticalSection
@@ -263,7 +263,6 @@ VOID GetJITMethodInfo (EECodeInfo * pCodeInfo, JITTypes *pJITType, CLRDATA_ADDRE
 
     *pGCInfo = (CLRDATA_ADDRESS)PTR_TO_TADDR(pCodeInfo->GetGCInfo());
 }
-
 
 HRESULT
 ClrDataAccess::GetWorkRequestData(CLRDATA_ADDRESS addr, struct DacpWorkRequestData *workRequestData)
@@ -737,10 +736,12 @@ ClrDataAccess::GetHeapAllocData(unsigned int count, struct DacpGenerationAllocDa
     
         if (data && count >= 1)
         {
-            for (int i=0;i<NUMBERGENERATIONS;i++)
+            DPTR(dac_generation) table = g_gcDacGlobals->generation_table;
+            for (unsigned int i=0; i < *g_gcDacGlobals->max_gen + 2; i++)
             {
-                data[0].allocData[i].allocBytes = (CLRDATA_ADDRESS)(ULONG_PTR) WKS::generation_table[i].allocation_context.alloc_bytes;
-                data[0].allocData[i].allocBytesLoh = (CLRDATA_ADDRESS)(ULONG_PTR) WKS::generation_table[i].allocation_context.alloc_bytes_loh;
+                dac_generation entry = *GenerationTableIndex(table, i);
+                data[0].allocData[i].allocBytes = (CLRDATA_ADDRESS)(ULONG_PTR) entry.allocation_context.alloc_bytes;
+                data[0].allocData[i].allocBytesLoh = (CLRDATA_ADDRESS)(ULONG_PTR) entry.allocation_context.alloc_bytes_loh;
             }
         }
     }
@@ -1580,9 +1581,6 @@ ClrDataAccess::GetModuleData(CLRDATA_ADDRESS addr, struct DacpModuleData *Module
         ModuleData->FileReferencesMap = PTR_CDADDR(pModule->m_FileReferencesMap.pTable);
         ModuleData->ManifestModuleReferencesMap = PTR_CDADDR(pModule->m_ManifestModuleReferencesMap.pTable);
 
-#ifdef FEATURE_MIXEDMODE // IJW
-        ModuleData->pThunkHeap = HOST_CDADDR(pModule->m_pThunkHeap);
-#endif // FEATURE_MIXEDMODE // IJW
     }
     EX_CATCH
     {
@@ -1804,11 +1802,7 @@ ClrDataAccess::GetFieldDescData(CLRDATA_ADDRESS addr, struct DacpFieldDescData *
     FieldDescData->MTOfEnclosingClass = HOST_CDADDR(pFieldDesc->GetApproxEnclosingMethodTable());
     FieldDescData->dwOffset = pFieldDesc->GetOffset();
     FieldDescData->bIsThreadLocal = pFieldDesc->IsThreadStatic();
-#ifdef FEATURE_REMOTING            
-    FieldDescData->bIsContextLocal = pFieldDesc->IsContextStatic();;
-#else
     FieldDescData->bIsContextLocal = FALSE;
-#endif
     FieldDescData->bIsStatic = pFieldDesc->IsStatic();
     FieldDescData->NextField = HOST_CDADDR(PTR_FieldDesc(PTR_HOST_TO_TADDR(pFieldDesc) + sizeof(FieldDesc)));
 
@@ -1838,16 +1832,8 @@ ClrDataAccess::GetMethodTableFieldData(CLRDATA_ADDRESS mt, struct DacpMethodTabl
 
         data->FirstField = PTR_TO_TADDR(pMT->GetClass()->GetFieldDescList());
 
-#ifdef FEATURE_REMOTING
-        BOOL hasContextStatics = pMT->HasContextStatics();
-    
-        data->wContextStaticsSize = (hasContextStatics) ? pMT->GetContextStaticsSize() : 0;
-        _ASSERTE(!hasContextStatics || FitsIn<WORD>(pMT->GetContextStaticsOffset()));
-        data->wContextStaticOffset = (hasContextStatics) ? static_cast<WORD>(pMT->GetContextStaticsOffset()) : 0;
-#else
         data->wContextStaticsSize = 0;
         data->wContextStaticOffset = 0;
-#endif
     }
 
     SOSDacLeave();
@@ -2295,10 +2281,6 @@ ClrDataAccess::GetFailedAssemblyData(CLRDATA_ADDRESS assembly, unsigned int *pCo
     }
     else
     {
-#ifdef FEATURE_FUSION
-        if (pContext)
-            *pContext = pAssembly->context;
-#endif
         if (pResult)
             *pResult = pAssembly->error;
     }
@@ -2679,10 +2661,6 @@ ClrDataAccess::GetAssemblyData(CLRDATA_ADDRESS cdBaseDomainPtr, CLRDATA_ADDRESS 
 
     if (pAssembly->GetManifestFile())
     {
-#ifdef FEATURE_FUSION    
-        assemblyData->LoadContext = pAssembly->GetManifestFile()->GetLoadContext();
-        assemblyData->dwLocationFlags = pAssembly->GetManifestFile()->GetLocationFlags();
-#endif
         
     }
 
@@ -2833,43 +2811,34 @@ ClrDataAccess::GetGCHeapStaticData(struct DacpGcHeapDetails *detailsData)
     detailsData->lowest_address = PTR_CDADDR(g_lowest_address);
     detailsData->highest_address = PTR_CDADDR(g_highest_address);
     detailsData->card_table = PTR_CDADDR(g_card_table);
-
     detailsData->heapAddr = NULL;
+    detailsData->alloc_allocated = (CLRDATA_ADDRESS)*g_gcDacGlobals->alloc_allocated;
+    detailsData->ephemeral_heap_segment = (CLRDATA_ADDRESS)*g_gcDacGlobals->ephemeral_heap_segment;
+    detailsData->mark_array = (CLRDATA_ADDRESS)*g_gcDacGlobals->mark_array;
+    detailsData->current_c_gc_state = (CLRDATA_ADDRESS)*g_gcDacGlobals->current_c_gc_state;
+    detailsData->next_sweep_obj = (CLRDATA_ADDRESS)*g_gcDacGlobals->next_sweep_obj;
+    detailsData->saved_sweep_ephemeral_seg = (CLRDATA_ADDRESS)*g_gcDacGlobals->saved_sweep_ephemeral_seg;
+    detailsData->saved_sweep_ephemeral_start = (CLRDATA_ADDRESS)*g_gcDacGlobals->saved_sweep_ephemeral_start;
+    detailsData->background_saved_lowest_address = (CLRDATA_ADDRESS)*g_gcDacGlobals->background_saved_lowest_address;
+    detailsData->background_saved_highest_address = (CLRDATA_ADDRESS)*g_gcDacGlobals->background_saved_highest_address;
 
-    detailsData->alloc_allocated = PTR_CDADDR(WKS::gc_heap::alloc_allocated);
-    detailsData->ephemeral_heap_segment = PTR_CDADDR(WKS::gc_heap::ephemeral_heap_segment);
-
-#ifdef BACKGROUND_GC
-    detailsData->mark_array = PTR_CDADDR(WKS::gc_heap::mark_array);
-    detailsData->current_c_gc_state = (CLRDATA_ADDRESS)(ULONG_PTR)WKS::gc_heap::current_c_gc_state;
-    detailsData->next_sweep_obj = PTR_CDADDR(WKS::gc_heap::next_sweep_obj);
-    detailsData->saved_sweep_ephemeral_seg = PTR_CDADDR(WKS::gc_heap::saved_sweep_ephemeral_seg);
-    detailsData->saved_sweep_ephemeral_start = PTR_CDADDR(WKS::gc_heap::saved_sweep_ephemeral_start);
-    detailsData->background_saved_lowest_address = PTR_CDADDR(WKS::gc_heap::background_saved_lowest_address);
-    detailsData->background_saved_highest_address = PTR_CDADDR(WKS::gc_heap::background_saved_highest_address);
-#endif //BACKGROUND_GC
-
-    for (int i=0;i<NUMBERGENERATIONS;i++)
+    for (unsigned int i=0; i < *g_gcDacGlobals->max_gen + 2; i++)
     {
-        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS)dac_cast<TADDR>(WKS::generation_table[i].start_segment);
-        detailsData->generation_table[i].allocation_start = (CLRDATA_ADDRESS)(ULONG_PTR) WKS::generation_table[i].allocation_start;
-        detailsData->generation_table[i].allocContextPtr = (CLRDATA_ADDRESS)(ULONG_PTR) WKS::generation_table[i].allocation_context.alloc_ptr;
-        detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)(ULONG_PTR) WKS::generation_table[i].allocation_context.alloc_limit;
+        DPTR(dac_generation) generation = GenerationTableIndex(g_gcDacGlobals->generation_table, i);
+        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS) dac_cast<TADDR>(generation->start_segment);
+
+        detailsData->generation_table[i].allocation_start = (CLRDATA_ADDRESS) generation->allocation_start;
+
+        DPTR(gc_alloc_context) alloc_context = dac_cast<TADDR>(generation) + offsetof(dac_generation, allocation_context);
+        detailsData->generation_table[i].allocContextPtr = (CLRDATA_ADDRESS)alloc_context->alloc_ptr;
+        detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)alloc_context->alloc_limit;
     }
 
-    TADDR pFillPointerArray = TO_TADDR(WKS::gc_heap::finalize_queue.GetAddr()) + offsetof(WKS::CFinalize,m_FillPointers);
-    for(int i=0;i<(NUMBERGENERATIONS+WKS::CFinalize::ExtraSegCount);i++)
+    DPTR(dac_finalize_queue) fq = Dereference(g_gcDacGlobals->finalize_queue);
+    DPTR(uint8_t*) fillPointersTable = dac_cast<TADDR>(fq) + offsetof(dac_finalize_queue, m_FillPointers);
+    for (unsigned int i = 0; i<(*g_gcDacGlobals->max_gen + 2 + dac_finalize_queue::ExtraSegCount); i++)
     {
-        ULONG32 returned = 0;
-        size_t pValue;
-        hr = m_pTarget->ReadVirtual(pFillPointerArray+(i*sizeof(size_t)), (PBYTE)&pValue, sizeof(size_t), &returned);
-        if (SUCCEEDED(hr))
-        {
-            if (returned == sizeof(size_t))
-                detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS) pValue;
-            else
-                hr = E_FAIL;
-        }
+        detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS)*TableIndex(fillPointersTable, i, sizeof(uint8_t*));
     }
 
     SOSDacLeave();
@@ -2894,7 +2863,7 @@ ClrDataAccess::GetHeapSegmentData(CLRDATA_ADDRESS seg, struct DacpHeapSegmentDat
     }
     else
     {
-        WKS::heap_segment *pSegment = __DPtr<WKS::heap_segment>(TO_TADDR(seg));
+        dac_heap_segment *pSegment = __DPtr<dac_heap_segment>(TO_TADDR(seg));
         if (!pSegment)
         {
             hr = E_INVALIDARG;
@@ -2960,31 +2929,33 @@ ClrDataAccess::GetGCHeapData(struct DacpGcHeapData *gcheapData)
 
     SOSDacEnter();
 
-    // for server GC-capable builds only, we need to check and see if IGCHeap::gcHeapType
+    // we need to check and see if g_heap_type
     // is GC_HEAP_INVALID, in which case we fail.
-    // IGCHeap::gcHeapType doesn't exist on non-server-GC capable builds.
-#ifdef FEATURE_SVR_GC
-    ULONG32 gcHeapValue = IGCHeap::gcHeapType;
+    ULONG32 gcHeapValue = g_heap_type;
 
     // GC_HEAP_TYPE has three possible values:
     //       GC_HEAP_INVALID = 0,
     //       GC_HEAP_WKS     = 1,
     //       GC_HEAP_SVR     = 2
     // If we get something other than that, we probably read the wrong location.
-    _ASSERTE(gcHeapValue >= IGCHeap::GC_HEAP_INVALID && gcHeapValue <= IGCHeap::GC_HEAP_SVR);
+    _ASSERTE(gcHeapValue >= GC_HEAP_INVALID && gcHeapValue <= GC_HEAP_SVR);
 
-    // we have GC_HEAP_INVALID if gcHeapValue == 0, so we're done
-    if (gcHeapValue == IGCHeap::GC_HEAP_INVALID)
+    // we have GC_HEAP_INVALID if gcHeapValue == 0, so we're done - we haven't
+    // initialized the heap yet.
+    if (gcHeapValue == GC_HEAP_INVALID)
     {
         hr = E_FAIL;
         goto cleanup;
     }
-#endif
 
     // Now we can get other important information about the heap
-    gcheapData->g_max_generation = GCHeapUtilities::GetMaxGeneration();
+    // We can use GCHeapUtilities::IsServerHeap here because we have already validated
+    // that the heap is in a valid state. We couldn't use it above, because IsServerHeap
+    // asserts if the heap type is GC_HEAP_INVALID.
+    gcheapData->g_max_generation = *g_gcDacGlobals->max_gen;
     gcheapData->bServerMode = GCHeapUtilities::IsServerHeap();
-    gcheapData->bGcStructuresValid = GCScan::GetGcRuntimeStructuresValid();
+    gcheapData->bGcStructuresValid = *g_gcDacGlobals->gc_structures_invalid_cnt == 0;
+
     if (GCHeapUtilities::IsServerHeap())
     {
 #if !defined (FEATURE_SVR_GC)
@@ -2999,10 +2970,8 @@ ClrDataAccess::GetGCHeapData(struct DacpGcHeapData *gcheapData)
         gcheapData->HeapCount = 1;
     }
 
-#ifdef FEATURE_SVR_GC
 cleanup:
     ;
-#endif
 
     SOSDacLeave();
     return hr;
@@ -3020,7 +2989,7 @@ ClrDataAccess::GetOOMStaticData(struct DacpOomData *oomData)
 
     if (!GCHeapUtilities::IsServerHeap())
     {
-        oom_history* pOOMInfo = &(WKS::gc_heap::oom_info);
+        oom_history* pOOMInfo = g_gcDacGlobals->oom_info;
         oomData->reason = pOOMInfo->reason;
         oomData->alloc_size = pOOMInfo->alloc_size;
         oomData->available_pagefile_mb = pOOMInfo->available_pagefile_mb;
@@ -3074,7 +3043,7 @@ ClrDataAccess::GetGCGlobalMechanisms(size_t* globalMechanisms)
 
     for (int i = 0; i < MAX_GLOBAL_GC_MECHANISMS_COUNT; i++)
     {
-        globalMechanisms[i] = gc_global_mechanisms[i];
+        globalMechanisms[i] = g_gcDacGlobals->gc_global_mechanisms[i];
     }
 
     SOSDacLeave();
@@ -3091,19 +3060,25 @@ ClrDataAccess::GetGCInterestingInfoStaticData(struct DacpGCInterestingInfoData *
     if (data == NULL)
         return E_INVALIDARG;
 
+    static_assert_no_msg(DAC_NUMBERGENERATIONS == NUMBERGENERATIONS);
+    static_assert_no_msg(DAC_NUM_GC_DATA_POINTS == NUM_GC_DATA_POINTS);
+    static_assert_no_msg(DAC_MAX_COMPACT_REASONS_COUNT == MAX_COMPACT_REASONS_COUNT);
+    static_assert_no_msg(DAC_MAX_EXPAND_MECHANISMS_COUNT == MAX_EXPAND_MECHANISMS_COUNT);
+    static_assert_no_msg(DAC_MAX_GC_MECHANISM_BITS_COUNT == MAX_GC_MECHANISM_BITS_COUNT);
+
     SOSDacEnter();
     memset(data, 0, sizeof(DacpGCInterestingInfoData));
 
-    if (!GCHeapUtilities::IsServerHeap())
+    if (g_heap_type != GC_HEAP_SVR)
     {
         for (int i = 0; i < NUM_GC_DATA_POINTS; i++)
-            data->interestingDataPoints[i] = WKS::interesting_data_per_heap[i];
+            data->interestingDataPoints[i] = g_gcDacGlobals->interesting_data_per_heap[i];
         for (int i = 0; i < MAX_COMPACT_REASONS_COUNT; i++)
-            data->compactReasons[i] = WKS::compact_reasons_per_heap[i];
+            data->compactReasons[i] = g_gcDacGlobals->compact_reasons_per_heap[i];
         for (int i = 0; i < MAX_EXPAND_MECHANISMS_COUNT; i++)
-            data->expandMechanisms[i] = WKS::expand_mechanisms_per_heap[i];
+            data->expandMechanisms[i] = g_gcDacGlobals->expand_mechanisms_per_heap[i];
         for (int i = 0; i < MAX_GC_MECHANISM_BITS_COUNT; i++)
-            data->bitMechanisms[i] = WKS::interesting_mechanism_bits_per_heap[i];
+            data->bitMechanisms[i] = g_gcDacGlobals->interesting_mechanism_bits_per_heap[i];
     }
     else
     {
@@ -3176,9 +3151,9 @@ ClrDataAccess::GetHeapAnalyzeStaticData(struct DacpGcHeapAnalyzeData *analyzeDat
 
     SOSDacEnter();
 
-    analyzeData->internal_root_array = PTR_CDADDR(WKS::gc_heap::internal_root_array);
-    analyzeData->internal_root_array_index = (size_t) WKS::gc_heap::internal_root_array_index;
-    analyzeData->heap_analyze_success = (BOOL) WKS::gc_heap::heap_analyze_success;
+    analyzeData->internal_root_array = dac_cast<TADDR>(g_gcDacGlobals->internal_root_array);
+    analyzeData->internal_root_array_index = *g_gcDacGlobals->internal_root_array_index;
+    analyzeData->heap_analyze_success = *g_gcDacGlobals->heap_analyze_success;
 
     SOSDacLeave();
     return hr;
@@ -3849,25 +3824,30 @@ void
 ClrDataAccess::EnumWksGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
     SUPPORTS_DAC;
-    WKS::gc_heap::ephemeral_heap_segment.EnumMem();
-    WKS::gc_heap::alloc_allocated.EnumMem();
-    WKS::gc_heap::finalize_queue.EnumMem();
-    WKS::generation_table.EnumMem();
-    WKS::gc_heap::oom_info.EnumMem();
 
-    if (WKS::generation_table.IsValid())
+    Dereference(g_gcDacGlobals->ephemeral_heap_segment).EnumMem();
+    g_gcDacGlobals->alloc_allocated.EnumMem();
+    g_gcDacGlobals->gc_structures_invalid_cnt.EnumMem();
+    Dereference(g_gcDacGlobals->finalize_queue).EnumMem();
+
+    // Enumerate the entire generation table, which has variable size
+    size_t gen_table_size = g_gcDacGlobals->generation_size * (*g_gcDacGlobals->max_gen + 1);
+    DacEnumMemoryRegion(dac_cast<TADDR>(g_gcDacGlobals->generation_table), gen_table_size);
+
+    if (g_gcDacGlobals->generation_table.IsValid())
     {
             // enumerating the generations from max (which is normally gen2) to max+1 gives you
             // the segment list for all the normal segements plus the large heap segment (max+1)
             // this is the convention in the GC so it is repeated here
-            for (ULONG i = GCHeapUtilities::GetMaxGeneration(); i <= GCHeapUtilities::GetMaxGeneration()+1; i++)
+            for (ULONG i = *g_gcDacGlobals->max_gen; i <= *g_gcDacGlobals->max_gen +1; i++)
             {
-                __DPtr<WKS::heap_segment> seg = dac_cast<TADDR>(WKS::generation_table[i].start_segment);
+                dac_generation *gen = GenerationTableIndex(g_gcDacGlobals->generation_table, i);
+                __DPtr<dac_heap_segment> seg = dac_cast<TADDR>(gen->start_segment);
                 while (seg)
                 {
-                        DacEnumMemoryRegion(dac_cast<TADDR>(seg), sizeof(WKS::heap_segment));
+                        DacEnumMemoryRegion(dac_cast<TADDR>(seg), sizeof(dac_heap_segment));
 
-                        seg = __DPtr<WKS::heap_segment>(dac_cast<TADDR>(seg->next));
+                        seg = seg->next;
                 }
             }
     }
@@ -3910,7 +3890,7 @@ HRESULT ClrDataAccess::GetClrWatsonBucketsWorker(Thread * pThread, GenericModeBl
     if (ohThrowable != NULL)
     {
         // Get the object from handle and check if the throwable is preallocated or not
-        OBJECTREF oThrowable = ObjectFromHandle(ohThrowable);
+        OBJECTREF oThrowable = ::HndFetchHandle(ohThrowable);
         if (oThrowable != NULL)
         {
             // Does the throwable have buckets?
@@ -4204,7 +4184,7 @@ HRESULT ClrDataAccess::GetCCWData(CLRDATA_ADDRESS ccw, struct DacpCCWData *ccwDa
     ccwData->isAggregated = pCCW->GetSimpleWrapper()->IsAggregated();
 
     if (pCCW->GetObjectHandle() != NULL)
-        ccwData->managedObject = PTR_CDADDR(ObjectFromHandle(pCCW->GetObjectHandle()));
+        ccwData->managedObject = PTR_CDADDR(::HndFetchHandle(pCCW->GetObjectHandle()));
 
     // count the number of COM vtables
     ccwData->interfaceCount = 0;

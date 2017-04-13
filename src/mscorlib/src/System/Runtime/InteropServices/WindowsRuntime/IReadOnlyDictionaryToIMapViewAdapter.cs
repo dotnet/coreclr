@@ -40,7 +40,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (!keyFound)
             {
-                Exception e = new KeyNotFoundException(Environment.GetResourceString("Arg_KeyNotFound"));
+                Exception e = new KeyNotFoundException(SR.Arg_KeyNotFound);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
             }
@@ -54,7 +54,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
             return (uint)_this.Count;
         }
-        
+
         // bool HasKey(K key)
         internal bool HasKey<K, V>(K key)
         {
@@ -67,7 +67,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
 
-            if (_this.Count < 2) {
+            if (_this.Count < 2)
+            {
                 first = null;
                 second = null;
                 return;

@@ -681,7 +681,9 @@ private:
 
     void buildPhysRegRecords();
 
-    void setLastUses(BasicBlock* block);
+#ifdef DEBUG
+    void checkLastUses(BasicBlock* block);
+#endif // DEBUG
 
     void setFrameType();
 
@@ -744,6 +746,9 @@ private:
         TreeNodeInfo& info = tree->gtLsraInfo;
         info.srcCount      = 0;
         info.dstCount      = 0;
+
+        info.internalIntCount   = 0;
+        info.internalFloatCount = 0;
     }
 
     inline bool isLocalDefUse(GenTree* tree)

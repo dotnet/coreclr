@@ -2,12 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+using System.Runtime.Serialization;
+using System.Diagnostics.Contracts;
+
 namespace System.Text
 {
-    using System;
-    using System.Runtime.Serialization;
-    using System.Diagnostics.Contracts;
-
     [Serializable]
     public sealed class EncoderExceptionFallback : EncoderFallback
     {
@@ -49,13 +49,12 @@ namespace System.Text
 
     public sealed class EncoderExceptionFallbackBuffer : EncoderFallbackBuffer
     {
-        public EncoderExceptionFallbackBuffer(){}
+        public EncoderExceptionFallbackBuffer() { }
         public override bool Fallback(char charUnknown, int index)
         {
             // Fall back our char
             throw new EncoderFallbackException(
-                Environment.GetResourceString("Argument_InvalidCodePageConversionIndex",
-                    (int)charUnknown, index), charUnknown, index);
+                SR.Format(SR.Argument_InvalidCodePageConversionIndex, (int)charUnknown, index), charUnknown, index);
         }
 
         public override bool Fallback(char charUnknownHigh, char charUnknownLow, int index)
@@ -63,14 +62,12 @@ namespace System.Text
             if (!Char.IsHighSurrogate(charUnknownHigh))
             {
                 throw new ArgumentOutOfRangeException(nameof(charUnknownHigh),
-                    Environment.GetResourceString("ArgumentOutOfRange_Range",
-                    0xD800, 0xDBFF));
+                    SR.Format(SR.ArgumentOutOfRange_Range, 0xD800, 0xDBFF));
             }
             if (!Char.IsLowSurrogate(charUnknownLow))
             {
                 throw new ArgumentOutOfRangeException(nameof(charUnknownLow),
-                    Environment.GetResourceString("ArgumentOutOfRange_Range",
-                    0xDC00, 0xDFFF));
+                    SR.Format(SR.ArgumentOutOfRange_Range, 0xDC00, 0xDFFF));
             }
             Contract.EndContractBlock();
 
@@ -78,8 +75,7 @@ namespace System.Text
 
             // Fall back our char
             throw new EncoderFallbackException(
-                Environment.GetResourceString("Argument_InvalidCodePageConversionIndex",
-                    iTemp, index), charUnknownHigh, charUnknownLow, index);
+                SR.Format(SR.Argument_InvalidCodePageConversionIndex, iTemp, index), charUnknownHigh, charUnknownLow, index);
         }
 
         public override char GetNextChar()
@@ -106,27 +102,27 @@ namespace System.Text
     [Serializable]
     public sealed class EncoderFallbackException : ArgumentException
     {
-        char    charUnknown;
-        char    charUnknownHigh;
-        char    charUnknownLow;
-        int     index;
+        private char charUnknown;
+        private char charUnknownHigh;
+        private char charUnknownLow;
+        private int index;
 
         public EncoderFallbackException()
-            : base(Environment.GetResourceString("Arg_ArgumentException"))
+            : base(SR.Arg_ArgumentException)
         {
-            SetErrorCode(__HResults.COR_E_ARGUMENT);
+            HResult = __HResults.COR_E_ARGUMENT;
         }
 
         public EncoderFallbackException(String message)
             : base(message)
         {
-            SetErrorCode(__HResults.COR_E_ARGUMENT);
+            HResult = __HResults.COR_E_ARGUMENT;
         }
 
         public EncoderFallbackException(String message, Exception innerException)
             : base(message, innerException)
         {
-            SetErrorCode(__HResults.COR_E_ARGUMENT);
+            HResult = __HResults.COR_E_ARGUMENT;
         }
 
         internal EncoderFallbackException(SerializationInfo info, StreamingContext context) : base(info, context)
@@ -146,14 +142,12 @@ namespace System.Text
             if (!Char.IsHighSurrogate(charUnknownHigh))
             {
                 throw new ArgumentOutOfRangeException(nameof(charUnknownHigh),
-                    Environment.GetResourceString("ArgumentOutOfRange_Range",
-                    0xD800, 0xDBFF));
+                    SR.Format(SR.ArgumentOutOfRange_Range, 0xD800, 0xDBFF));
             }
             if (!Char.IsLowSurrogate(charUnknownLow))
             {
                 throw new ArgumentOutOfRangeException(nameof(CharUnknownLow),
-                    Environment.GetResourceString("ArgumentOutOfRange_Range",
-                    0xDC00, 0xDFFF));
+                    SR.Format(SR.ArgumentOutOfRange_Range, 0xDC00, 0xDFFF));
             }
             Contract.EndContractBlock();
 
@@ -197,7 +191,7 @@ namespace System.Text
         // Return true if the unknown character is a surrogate pair.
         public bool IsUnknownSurrogate()
         {
-            return (this.charUnknownHigh != '\0');
+            return (charUnknownHigh != '\0');
         }
     }
 }

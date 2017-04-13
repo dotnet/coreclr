@@ -125,19 +125,21 @@ public:
             unsigned*                   offsetAfterIndirection  /* OUT */
             );
 
+    // Find the virtual method in implementingClass that overrides virtualMethod.
+    // Return null if devirtualization is not possible.
+    CORINFO_METHOD_HANDLE resolveVirtualMethod(
+        CORINFO_METHOD_HANDLE virtualMethod,
+        CORINFO_CLASS_HANDLE implementingClass,
+        CORINFO_CONTEXT_HANDLE ownerType
+        );
+
     // If a method's attributes have (getMethodAttribs) CORINFO_FLG_INTRINSIC set,
     // getIntrinsicID() returns the intrinsic ID.
     // *pMustExpand tells whether or not JIT must expand the intrinsic.
-#if COR_JIT_EE_VERSION > 460
     CorInfoIntrinsics getIntrinsicID(
             CORINFO_METHOD_HANDLE       method,
             bool*                       pMustExpand = NULL      /* OUT */
             );
-#else
-    CorInfoIntrinsics getIntrinsicID(
-            CORINFO_METHOD_HANDLE       method
-            );
-#endif
 
     // Is the given module the System.Numerics.Vectors module?
     // This defaults to false.
@@ -229,13 +231,11 @@ public:
     // failures during token resolution.
     void resolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken);
 
-#if COR_JIT_EE_VERSION > 460
     // Attempt to resolve a metadata token into a runtime method handle. Returns true
     // if resolution succeeded and false otherwise (e.g. if it encounters invalid metadata
     // during token reoslution). This method should be used instead of `resolveToken` in
     // situations that need to be resilient to invalid metadata.
     bool tryResolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken);
-#endif
 
     // Signature information about the call sig
     void findSig (
@@ -382,7 +382,7 @@ public:
     // in representing of 'cls' from a GC perspective.  The class is
     // assumed to be an array of machine words
     // (of length // getClassSize(cls) / sizeof(void*)),
-    // 'gcPtrs' is a poitner to an array of BYTEs of this length.
+    // 'gcPtrs' is a pointer to an array of BYTEs of this length.
     // getClassGClayout fills in this array so that gcPtrs[i] is set
     // to one of the CorInfoGCType values which is the GC type of
     // the i-th machine word of an object of type 'cls'
@@ -454,7 +454,7 @@ public:
     // value into a particular location and thus has the signature
     //     void unboxHelper(void* dest, CORINFO_CLASS_HANDLE cls, Object* obj)
     // Otherwise (it is null or points at a FALSE value) it is requesting 
-    // a helper that returns a poitner to the unboxed data 
+    // a helper that returns a pointer to the unboxed data 
     //     void* unboxHelper(CORINFO_CLASS_HANDLE cls, Object* obj)
     // The EE has the option of NOT returning the copy style helper
     // (But must be able to always honor the non-copy style helper)
@@ -465,7 +465,6 @@ public:
             CORINFO_CLASS_HANDLE        cls
             );
 
-#if COR_JIT_EE_VERSION > 460
     bool getReadyToRunHelper(
             CORINFO_RESOLVED_TOKEN *        pResolvedToken,
             CORINFO_LOOKUP_KIND *           pGenericLookupKind,
@@ -476,16 +475,8 @@ public:
     void getReadyToRunDelegateCtorHelper(
             CORINFO_RESOLVED_TOKEN * pTargetMethod,
             CORINFO_CLASS_HANDLE     delegateType,
-            CORINFO_CONST_LOOKUP *   pLookup
+            CORINFO_LOOKUP *   pLookup
             );
-#else
-    void getReadyToRunHelper(
-            CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CorInfoHelpFunc          id,
-            CORINFO_CONST_LOOKUP *   pLookup
-            );
-#endif
-
 
     const char* getHelperName(
             CorInfoHelpFunc
@@ -802,7 +793,6 @@ public:
     void ThrowExceptionForHelper(
             const CORINFO_HELPER_DESC * throwHelper);
 
-#if COR_JIT_EE_VERSION > 460
     // Runs the given function under an error trap. This allows the JIT to make calls
     // to interface functions that may throw exceptions without needing to be aware of
     // the EH ABI, exception types, etc. Returns true if the given function completed
@@ -811,7 +801,6 @@ public:
         void (*function)(void*), // The function to run
         void* parameter          // The context parameter that will be passed to the function and the handler
         );
-#endif
 
 /*****************************************************************************
  * ICorStaticInfo contains EE interface methods which return values that are
@@ -863,15 +852,11 @@ public:
             size_t FQNameCapacity  /* IN */
             );
 
-#if COR_JIT_EE_VERSION > 460
-
     // returns whether the struct is enregisterable. Only valid on a System V VM. Returns true on success, false on failure.
     bool getSystemVAmd64PassStructInRegisterDescriptor(
         /* IN */    CORINFO_CLASS_HANDLE        structHnd,
         /* OUT */   SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structPassInRegDescPtr
         );
-
-#endif // COR_JIT_EE_VERSION
 
 /*****************************************************************************
  * ICorDynamicInfo contains EE interface methods which return values that may
@@ -992,8 +977,7 @@ public:
                     );
 
     // NOTE: the two methods below--getPInvokeUnmanagedTarget and getAddressOfPInvokeFixup--are
-    //       deprecated. New code (i.e. anything that can depend on COR_JIT_EE_VERSION being
-    //       greater than 460) should instead use getAddressOfPInvokeTarget, which subsumes the
+    //       deprecated. New code should instead use getAddressOfPInvokeTarget, which subsumes the
     //       functionality of these methods.
 
     // return the unmanaged target *if method has already been prelinked.*
@@ -1008,14 +992,12 @@ public:
                     void                  **ppIndirection = NULL
                     );
 
-#if COR_JIT_EE_VERSION > 460
     // return the address of the PInvoke target. May be a fixup area in the
     // case of late-bound PInvoke calls.
     void getAddressOfPInvokeTarget(
                     CORINFO_METHOD_HANDLE  method,
                     CORINFO_CONST_LOOKUP  *pLookup
                     );
-#endif
 
     // Generate a cookie based on the signature that would needs to be passed
     // to CORINFO_HELP_PINVOKE_CALLI
@@ -1303,7 +1285,6 @@ public:
     // 
     DWORD getExpectedTargetArchitecture();
 
-#if COR_JIT_EE_VERSION > 460
     // Fetches extended flags for a particular compilation instance. Returns
     // the number of bytes written to the provided buffer.
     DWORD getJitFlags(
@@ -1311,6 +1292,5 @@ public:
         DWORD        sizeInBytes   /* IN: The size of the buffer. Note that this is effectively a
                                           version number for the CORJIT_FLAGS value. */
         );
-#endif
 
 #endif // _ICorJitInfoImpl

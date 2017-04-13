@@ -1565,10 +1565,10 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
             
             _ASSERTE(pThread->PreemptiveGCDisabled());    // Epilogs should be in cooperative mode, no GC can happen right now. 
             bool gcHappened = gcCover->gcCount != GCHeapUtilities::GetGCHeap()->GetGcCount();
-            checkAndUpdateReg(gcCover->callerRegs.Edi, *regDisp.pEdi, gcHappened);
-            checkAndUpdateReg(gcCover->callerRegs.Esi, *regDisp.pEsi, gcHappened);
-            checkAndUpdateReg(gcCover->callerRegs.Ebx, *regDisp.pEbx, gcHappened);
-            checkAndUpdateReg(gcCover->callerRegs.Ebp, *regDisp.pEbp, gcHappened);
+            checkAndUpdateReg(gcCover->callerRegs.Edi, *regDisp.GetEdiLocation(), gcHappened);
+            checkAndUpdateReg(gcCover->callerRegs.Esi, *regDisp.GetEsiLocation(), gcHappened);
+            checkAndUpdateReg(gcCover->callerRegs.Ebx, *regDisp.GetEbxLocation(), gcHappened);
+            checkAndUpdateReg(gcCover->callerRegs.Ebp, *regDisp.GetEbpLocation(), gcHappened);
             
             gcCover->gcCount = GCHeapUtilities::GetGCHeap()->GetGcCount();
 
@@ -1759,7 +1759,10 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
     // Do the actual stress work
     //
 
-    if (!GCHeapUtilities::GetGCHeap()->StressHeap())
+    // BUG(github #10318) - when not using allocation contexts, the alloc lock
+    // must be acquired here. Until fixed, this assert prevents random heap corruption.
+    assert(GCHeapUtilities::UseThreadAllocationContexts());
+    if (!GCHeapUtilities::GetGCHeap()->StressHeap(GetThread()->GetAllocContext()))
         UpdateGCStressInstructionWithoutGC ();
 
     // Must flush instruction cache before returning as instruction has been modified.

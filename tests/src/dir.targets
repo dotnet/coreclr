@@ -50,7 +50,7 @@
     <_CLRTestNeedsProjectToRun Condition=" '$(_CLRTestNeedsToRun)' and '!$(_CLRTestBuildsExecutable)' ">true</_CLRTestNeedsProjectToRun>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(ReferenceLocalMscorlib)' == 'true'">
+  <PropertyGroup Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true'">
     <ProjectJson>$(SourceDir)Common/empty/project.json</ProjectJson>
     <ProjectLockJson>$(SourceDir)Common/empty/project.lock.json</ProjectLockJson>
   </PropertyGroup>
@@ -173,4 +173,20 @@
     </ItemGroup>
   </Target>
 
+  <Target Name="UpdateReferenceItems"
+          BeforeTargets="BeforeResolveReferences"
+  >
+    <ItemGroup>
+      <Reference Include="$(TargetingPackPath)/*.dll" >
+        <Private>false</Private>
+      </Reference>
+    </ItemGroup>
+
+  </Target>
+
+  <Target Name="AfterBuild">
+     <Copy SourceFiles="$(AssemblyName).reflect.xml"
+           DestinationFolder="$(OutputPath)"
+       Condition="Exists('$(AssemblyName).reflect.xml')"/>
+  </Target>
 </Project>

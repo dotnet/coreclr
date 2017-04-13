@@ -1318,6 +1318,8 @@ size_t GCInfo::gcInfoBlockHdrSave(
 
     header->syncStartOffset = INVALID_SYNC_OFFSET;
     header->syncEndOffset   = INVALID_SYNC_OFFSET;
+#ifndef UNIX_X86_ABI
+    // JIT is responsible for synchronization on funclet-based EH model that x86/Linux uses.
     if (compiler->info.compFlags & CORINFO_FLG_SYNCH)
     {
         assert(compiler->syncStartEmitCookie != NULL);
@@ -1332,6 +1334,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
         // synchronized methods can't have more than 1 epilog
         assert(header->epilogCount <= 1);
     }
+#endif
 
     header->revPInvokeOffset = INVALID_REV_PINVOKE_OFFSET;
 
@@ -2424,7 +2427,9 @@ DONE_VLT:
 
                     assert((codeDelta & 0x7) == codeDelta);
                     *dest++ = 0xB0 | (BYTE)codeDelta;
+#ifndef UNIX_X86_ABI
                     assert(!compiler->isFramePointerUsed());
+#endif
 
                     /* Remember the new 'last' offset */
 
@@ -3844,12 +3849,14 @@ struct InterruptibleRangeReporter
     }
 };
 
-void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
-                               unsigned       codeSize,
-                               unsigned       prologSize,
-                               MakeRegPtrMode mode)
+void GCInfo::gcMakeRegPtrTable(
+    GcInfoEncoder* gcInfoEncoder, unsigned codeSize, unsigned prologSize, MakeRegPtrMode mode, unsigned* callCntRef)
 {
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
+
+    const bool noTrackedGCSlots =
+        (compiler->opts.MinOpts() && !compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT) &&
+         !JitConfig.JitMinOptsTrackGCrefs());
 
     if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
     {
@@ -3961,14 +3968,25 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
             {
                 stackSlotBase = GC_FRAMEREG_REL;
             }
-            StackSlotIdKey sskey(varDsc->lvStkOffs, (stackSlotBase == GC_FRAMEREG_REL), flags);
-            GcSlotId       varSlotId;
-            if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
+            if (noTrackedGCSlots)
             {
-                if (!m_stackSlotMap->Lookup(sskey, &varSlotId))
+                // No need to hash/lookup untracked GC refs; just grab a new Slot Id.
+                if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
                 {
-                    varSlotId = gcInfoEncoderWithLog->GetStackSlotId(varDsc->lvStkOffs, flags, stackSlotBase);
-                    m_stackSlotMap->Set(sskey, varSlotId);
+                    gcInfoEncoderWithLog->GetStackSlotId(varDsc->lvStkOffs, flags, stackSlotBase);
+                }
+            }
+            else
+            {
+                StackSlotIdKey sskey(varDsc->lvStkOffs, (stackSlotBase == GC_FRAMEREG_REL), flags);
+                GcSlotId       varSlotId;
+                if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
+                {
+                    if (!m_stackSlotMap->Lookup(sskey, &varSlotId))
+                    {
+                        varSlotId = gcInfoEncoderWithLog->GetStackSlotId(varDsc->lvStkOffs, flags, stackSlotBase);
+                        m_stackSlotMap->Set(sskey, varSlotId);
+                    }
                 }
             }
         }
@@ -4204,9 +4222,24 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
         {
             if (gcCallDescList != nullptr)
             {
-                for (CallDsc* call = gcCallDescList; call != nullptr; call = call->cdNext)
+                if (noTrackedGCSlots)
                 {
-                    numCallSites++;
+                    // We have the call count from the previous run.
+                    numCallSites = *callCntRef;
+
+                    // If there are no calls, tell the world and bail.
+                    if (numCallSites == 0)
+                    {
+                        gcInfoEncoderWithLog->DefineCallSites(nullptr, nullptr, 0);
+                        return;
+                    }
+                }
+                else
+                {
+                    for (CallDsc* call = gcCallDescList; call != nullptr; call = call->cdNext)
+                    {
+                        numCallSites++;
+                    }
                 }
                 pCallSites     = new (compiler, CMK_GC) unsigned[numCallSites];
                 pCallSiteSizes = new (compiler, CMK_GC) BYTE[numCallSites];
@@ -4216,17 +4249,8 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
         // Now consider every call.
         for (CallDsc* call = gcCallDescList; call != nullptr; call = call->cdNext)
         {
-            if (mode == MAKE_REG_PTR_MODE_DO_WORK)
-            {
-                pCallSites[callSiteNum]     = call->cdOffs - call->cdCallInstrSize;
-                pCallSiteSizes[callSiteNum] = call->cdCallInstrSize;
-                callSiteNum++;
-            }
-
-            unsigned nextOffset;
-
             // Figure out the code offset of this entry.
-            nextOffset = call->cdOffs;
+            unsigned nextOffset = call->cdOffs;
 
             // As far as I (DLD, 2010) can determine by asking around, the "call->u1.cdArgMask"
             // and "cdArgCnt" cases are to handle x86 situations in which a call expression is nested as an
@@ -4251,13 +4275,35 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
             assert(call->cdOffs >= call->cdCallInstrSize);
             // call->cdOffs is actually the offset of the instruction *following* the call, so subtract
             // the call instruction size to get the offset of the actual call instruction...
-            unsigned callOffset = call->cdOffs - call->cdCallInstrSize;
-            // Record that these registers are live before the call...
-            gcInfoRecordGCRegStateChange(gcInfoEncoder, mode, callOffset, regMask, GC_SLOT_LIVE, byrefRegMask, nullptr);
-            // ...and dead after.
-            gcInfoRecordGCRegStateChange(gcInfoEncoder, mode, call->cdOffs, regMask, GC_SLOT_DEAD, byrefRegMask,
-                                         nullptr);
+            unsigned callOffset = nextOffset - call->cdCallInstrSize;
+
+            if (noTrackedGCSlots && regMask == 0)
+            {
+                // No live GC refs in regs at the call -> don't record the call.
+            }
+            else
+            {
+                // Append an entry for the call if doing the real thing.
+                if (mode == MAKE_REG_PTR_MODE_DO_WORK)
+                {
+                    pCallSites[callSiteNum]     = callOffset;
+                    pCallSiteSizes[callSiteNum] = call->cdCallInstrSize;
+                }
+                callSiteNum++;
+
+                // Record that these registers are live before the call...
+                gcInfoRecordGCRegStateChange(gcInfoEncoder, mode, callOffset, regMask, GC_SLOT_LIVE, byrefRegMask,
+                                             nullptr);
+                // ...and dead after.
+                gcInfoRecordGCRegStateChange(gcInfoEncoder, mode, nextOffset, regMask, GC_SLOT_DEAD, byrefRegMask,
+                                             nullptr);
+            }
         }
+        // Make sure we've recorded the expected number of calls
+        assert(mode != MAKE_REG_PTR_MODE_DO_WORK || numCallSites == callSiteNum);
+        // Return the actual recorded call count to the caller
+        *callCntRef = callSiteNum;
+
         // OK, define the call sites.
         if (mode == MAKE_REG_PTR_MODE_DO_WORK)
         {

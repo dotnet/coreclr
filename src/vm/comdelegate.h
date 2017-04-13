@@ -131,14 +131,10 @@ public:
 
     static BOOL IsTrueMulticastDelegate(OBJECTREF delegate);
 
-#ifdef FEATURE_CORECLR    
     static BOOL IsMethodAllowedToSinkReversePInvoke(MethodDesc *pMD);
-#endif
 
 private:
-#ifdef FEATURE_CORECLR    
     static BOOL IsFullTrustDelegate(DELEGATEREF pDelegate);
-#endif
     static Stub* SetupShuffleThunk(MethodTable * pDelMT, MethodDesc *pTargetMeth);
 
 public:
@@ -184,8 +180,8 @@ enum DelegateBindingFlags
     DBF_RelaxedSignature    =   0x00000080, // Allow relaxed signature matching (co/contra variance)
 };
 
-void DistributeEventReliably(OBJECTREF *pDelegate,
-                             OBJECTREF *pDomain);
+void DistributeEvent(OBJECTREF *pDelegate,
+                     OBJECTREF *pDomain);
 
 void DistributeUnhandledExceptionReliably(OBJECTREF *pDelegate,
                                           OBJECTREF *pDomain,

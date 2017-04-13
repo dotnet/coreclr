@@ -10,11 +10,11 @@ set(ICU_HOMEBREW_INC_PATH "/usr/local/opt/icu4c/include")
 
 find_path(UTYPES_H "unicode/utypes.h" PATHS ${ICU_HOMEBREW_INC_PATH})
 if(UTYPES_H STREQUAL UTYPES_H-NOTFOUND)
-    message(FATAL_ERROR "Cannont find utypes.h, try installing libicu-dev (or the appropriate package for your platform)")
+    message(FATAL_ERROR "Cannot find utypes.h, try installing libicu-dev (or the appropriate package for your platform)")
     return()
 endif()
 
-if (FEATURE_FIXED_ICU_VERSION AND NOT CLR_CMAKE_PLATFORM_DARWIN)
+if (NOT CLR_CMAKE_PLATFORM_DARWIN)
     find_library(ICUUC icuuc)
     if(ICUUC STREQUAL ICUUC-NOTFOUND)
         message(FATAL_ERROR "Cannot find libicuuc, try installing libicu-dev (or the appropriate package for your platform)")
@@ -26,16 +26,14 @@ if (FEATURE_FIXED_ICU_VERSION AND NOT CLR_CMAKE_PLATFORM_DARWIN)
         message(FATAL_ERROR "Cannot find libicui18n, try installing libicu-dev (or the appropriate package for your platform)")
         return()
     endif()
-endif()
-
-if(CLR_CMAKE_PLATFORM_DARWIN)
+else()
     find_library(ICUCORE icucore)
     if(ICUI18N STREQUAL ICUCORE-NOTFOUND)
         message(FATAL_ERROR "Cannot find libicucore, skipping build for System.Globalization.Native. .NET globalization is not expected to function.")
         return()
     endif()
-    # On Darwin, we always use the OS provided ICU
-    SET(FEATURE_FIXED_ICU_VERSION 1)
+
+    add_definitions(-DOSX_ICU_LIBRARY_PATH=\"${ICUCORE}\")
 endif()
 
 include(configure.cmake)
@@ -52,13 +50,8 @@ set(NATIVEGLOBALIZATION_SOURCES
     localeStringData.cpp
     normalization.cpp
     timeZoneInfo.cpp
+    icushim.cpp
 )
-
-if (NOT FEATURE_FIXED_ICU_VERSION)
-    list(APPEND NATIVEGLOBALIZATION_SOURCES
-        icushim.cpp
-    )
-endif()
 
 include_directories(${UTYPES_H})
 
@@ -78,21 +71,8 @@ set_target_properties(System.Globalization.Native_Static PROPERTIES OUTPUT_NAME 
 # Disable the "lib" prefix.
 set_target_properties(System.Globalization.Native PROPERTIES PREFIX "")
 
-if (FEATURE_FIXED_ICU_VERSION)
-    add_definitions(-DFEATURE_FIXED_ICU_VERSION)
-endif()
-
 if(NOT CLR_CMAKE_PLATFORM_DARWIN)
-    if (FEATURE_FIXED_ICU_VERSION)
-        target_link_libraries(System.Globalization.Native
-            ${ICUUC}
-            ${ICUI18N}
-        )
-        target_link_libraries(System.Globalization.Native_Static
-            ${ICUUC}
-            ${ICUI18N}
-        )
-    elseif(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+    if (NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
         target_link_libraries(System.Globalization.Native
             dl
         )
@@ -102,7 +82,7 @@ if(NOT CLR_CMAKE_PLATFORM_DARWIN)
     endif()
 else()
     target_link_libraries(System.Globalization.Native
-        ${ICUCORE}
+        dl
     )
 
     add_definitions(-DU_DISABLE_RENAMING=1)

@@ -7,8 +7,6 @@ include_directories(${CLR_DIR}/src/gc)
 
 include_directories(${ARCH_SOURCES_DIR})
 
-add_definitions(-DFEATURE_LEAVE_RUNTIME_HOLDER=1)
-
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
@@ -99,6 +97,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     securitydescriptorassembly.cpp
     sigformat.cpp
     siginfo.cpp
+    spinlock.cpp
     stackwalk.cpp
     stublink.cpp
     stubmgr.cpp
@@ -139,15 +138,16 @@ set(VM_SOURCES_WKS
     assemblynative.cpp
     assemblyspec.cpp
     cachelinealloc.cpp
+    callcounter.cpp
     callhelpers.cpp
     ceemain.cpp
+    clrconfignative.cpp
     clrex.cpp
     clrprivbinderutil.cpp
     clrvarargs.cpp
     comdatetime.cpp
     comdependenthandle.cpp
     comdynamic.cpp
-    comisolatedstorage.cpp
     commemoryfailpoint.cpp
     commodule.cpp
     compatibilityswitch.cpp
@@ -164,6 +164,8 @@ set(VM_SOURCES_WKS
     eemessagebox.cpp
     eepolicy.cpp
     eetoprofinterfaceimpl.cpp
+    eventpipe.cpp
+    eventpipejsonfile.cpp
     eventstore.cpp
     fcall.cpp
     fieldmarshaler.cpp
@@ -211,19 +213,18 @@ set(VM_SOURCES_WKS
     reflectioninvocation.cpp
     runtimehandles.cpp
     safehandle.cpp
+    sampleprofiler.cpp
     security.cpp
     securityattributes.cpp
     securitydeclarative.cpp
     securitydeclarativecache.cpp
     securitydescriptorappdomain.cpp
-    securityhostprotection.cpp
     securitymeta.cpp
     securitypolicy.cpp
     securitytransparentassembly.cpp
     sha1.cpp
     simplerwlock.cpp
     sourceline.cpp
-    spinlock.cpp
     stackingallocator.cpp
     stringliteralmap.cpp
     stubcache.cpp
@@ -233,6 +234,7 @@ set(VM_SOURCES_WKS
     synch.cpp
     synchronizationcontextnative.cpp
     testhookmgr.cpp
+    tieredcompilation.cpp
     threaddebugblockinginfo.cpp
     threadsuspend.cpp
     typeparse.cpp
@@ -240,12 +242,6 @@ set(VM_SOURCES_WKS
     weakreferencenative.cpp
     ${VM_SOURCES_GDBJIT}
 )
-
-if(FEATURE_CER)
-    list(APPEND VM_SOURCES_WKS
-        constrainedexecutionregion.cpp
-        )
-endif(FEATURE_CER)
 
 if(FEATURE_EVENT_TRACE)
     list(APPEND VM_SOURCES_WKS
@@ -294,7 +290,6 @@ list(APPEND VM_SOURCES_WKS
     rcwrefcache.cpp
     rtlfunctions.cpp
     runtimecallablewrapper.cpp
-    securityprincipal.cpp
     stacksampler.cpp
     stdinterfaces.cpp
     stdinterfaces_wrapper.cpp
@@ -322,6 +317,7 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
         ${ARCH_SOURCES_DIR}/JitHelpers_FastWriteBarriers.asm
         ${ARCH_SOURCES_DIR}/JitHelpers_InlineGetAppDomain.asm
         ${ARCH_SOURCES_DIR}/JitHelpers_InlineGetThread.asm
+        ${ARCH_SOURCES_DIR}/JitHelpers_SingleAppDomain.asm
         ${ARCH_SOURCES_DIR}/JitHelpers_Slow.asm
         ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
         ${ARCH_SOURCES_DIR}/RedirectedHandledJITCase.asm
@@ -368,6 +364,7 @@ else(WIN32)
             ${ARCH_SOURCES_DIR}/getstate.S
             ${ARCH_SOURCES_DIR}/jithelpers_fast.S
             ${ARCH_SOURCES_DIR}/jithelpers_fastwritebarriers.S
+            ${ARCH_SOURCES_DIR}/jithelpers_singleappdomain.S
             ${ARCH_SOURCES_DIR}/jithelpers_slow.S
             ${ARCH_SOURCES_DIR}/pinvokestubs.S
             ${ARCH_SOURCES_DIR}/theprestubamd64.S
@@ -377,6 +374,7 @@ else(WIN32)
         )
     elseif(CLR_CMAKE_TARGET_ARCH_I386)
         set(VM_SOURCES_WKS_ARCH_ASM
+            ${ARCH_SOURCES_DIR}/ehhelpers.S
             ${ARCH_SOURCES_DIR}/asmhelpers.S
             ${ARCH_SOURCES_DIR}/jithelp.S
             ${ARCH_SOURCES_DIR}/gmsasm.S

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <_PlatformDoesNotSupportNiFiles Condition="'$(Platform)' == 'arm'">true</_PlatformDoesNotSupportNiFiles>
+    <_PlatformDoesNotSupportNiFiles Condition="'$(Platform)' == 'armel'">true</_PlatformDoesNotSupportNiFiles>
+    <_PlatformDoesNotSupportNiFiles Condition="'$(Platform)' == 'x86'">true</_PlatformDoesNotSupportNiFiles>
+    <_PlatformDoesNotSupportEventTrace Condition="'$(_runtimeOSFamily)' == 'tizen'">true</_PlatformDoesNotSupportEventTrace>
+    <_PlatformDoesNotSupportEventTrace Condition="'$(Platform)' == 'x86'">true</_PlatformDoesNotSupportEventTrace>
+  </PropertyGroup>
+  <ItemGroup>
+    <NativeBinary Include="$(BinDir)libcoreclr.so" />
+    <NativeBinary Condition="'$(_PlatformDoesNotSupportEventTrace)' != 'true'" Include="$(BinDir)libcoreclrtraceptprovider.so" />
+    <NativeBinary Include="$(BinDir)libdbgshim.so" />
+    <NativeBinary Include="$(BinDir)libmscordaccore.so" />
+    <NativeBinary Include="$(BinDir)libmscordbi.so" />
+    <NativeBinary Include="$(BinDir)libsos.so" />
+    <NativeBinary Include="$(BinDir)libsosplugin.so" />
+    <NativeBinary Include="$(BinDir)System.Globalization.Native.so" />
+    <NativeBinary Include="$(BinDir)sosdocsunix.txt" />
+    <NativeBinary Condition="'$(_PlatformDoesNotSupportNiFiles)' != 'true'" Include="$(BinDir)System.Private.CoreLib.ni.dll" />
+    <ArchitectureSpecificLibFile Include="$(BinDir)System.Private.CoreLib.dll" />
+    <ArchitectureSpecificLibFile Include="$(BinDir)SOS.NETCore.dll" />
+    <ArchitectureSpecificToolFile Include="$(BinDir)crossgen" />
+  </ItemGroup>
+</Project>

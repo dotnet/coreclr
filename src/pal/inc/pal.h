@@ -487,9 +487,12 @@ PAL_NotifyRuntimeStarted(VOID);
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = 64;
 
 PALIMPORT
-void
+VOID
 PALAPI
-PAL_GetTransportPipeName(char *name, DWORD id, const char *suffix);
+PAL_GetTransportPipeName(
+    OUT char *name,
+    IN DWORD id,
+    IN const char *suffix);
 
 PALIMPORT
 void
@@ -538,7 +541,6 @@ PAL_ProbeMemory(
     BOOL fWriteAccess);
 
 /******************* winuser.h Entrypoints *******************************/
-
 PALIMPORT
 LPSTR
 PALAPI
@@ -1782,6 +1784,7 @@ typedef struct _CONTEXT {
 
     UCHAR   ExtendedRegisters[MAXIMUM_SUPPORTED_EXTENSION];
 
+    ULONG   ResumeEsp;
 } CONTEXT, *PCONTEXT, *LPCONTEXT;
 
 // To support saving and loading xmm register context we need to know the offset in the ExtendedRegisters
@@ -1793,12 +1796,28 @@ typedef struct _CONTEXT {
 // support any other values in the ExtendedRegisters) but we might as well be as accurate as we can.
 #define CONTEXT_EXREG_XMM_OFFSET 160
 
+typedef struct _KNONVOLATILE_CONTEXT {
+
+    DWORD Edi;
+    DWORD Esi;
+    DWORD Ebx;
+    DWORD Ebp;
+
+} KNONVOLATILE_CONTEXT, *PKNONVOLATILE_CONTEXT;
+
 typedef struct _KNONVOLATILE_CONTEXT_POINTERS {
 
-    // TODO WIP x86/Linux, need to fix this.
-    PDWORD Ebx;
-    PDWORD Esi;
+    // The ordering of these fields should be aligned with that
+    // of corresponding fields in CONTEXT
+    //
+    // (See FillRegDisplay in inc/regdisp.h for details)
     PDWORD Edi;
+    PDWORD Esi;
+    PDWORD Ebx;
+    PDWORD Edx;
+    PDWORD Ecx;
+    PDWORD Eax;
+
     PDWORD Ebp;
 
 } KNONVOLATILE_CONTEXT_POINTERS, *PKNONVOLATILE_CONTEXT_POINTERS;
@@ -2515,6 +2534,16 @@ PALIMPORT
 DWORD
 PALAPI
 PAL_GetLogicalCpuCountFromOS(VOID);
+
+PALIMPORT
+size_t
+PALAPI
+PAL_GetRestrictedPhysicalMemoryLimit(VOID);
+
+PALIMPORT
+BOOL
+PALAPI
+PAL_GetWorkingSetSize(size_t* val);
 
 PALIMPORT
 size_t
@@ -4111,6 +4140,12 @@ QueryThreadCycleTime(
     IN HANDLE ThreadHandle,
     OUT PULONG64 CycleTime);
 
+PALIMPORT
+INT
+PALAPI
+PAL_nanosleep(
+    IN long timeInNs);
+
 #ifndef FEATURE_PAL_SXS
 
 typedef LONG (PALAPI *PTOP_LEVEL_EXCEPTION_FILTER)(
@@ -4714,18 +4749,6 @@ typedef LPOSVERSIONINFOEXW LPOSVERSIONINFOEX;
 typedef OSVERSIONINFOEXA OSVERSIONINFOEX;
 typedef POSVERSIONINFOEXA POSVERSIONINFOEX;
 typedef LPOSVERSIONINFOEXA LPOSVERSIONINFOEX;
-#endif
-
-PALIMPORT
-BOOL
-PALAPI
-GetVersionExW(
-          IN OUT LPOSVERSIONINFOW lpVersionInformation);
-
-#ifdef UNICODE
-#define GetVersionEx GetVersionExW
-#else
-#define GetVersionEx GetVersionExA
 #endif
 
 #define IMAGE_FILE_MACHINE_I386              0x014c

@@ -37,7 +37,7 @@
 // Aliases for Win32 types
 //
 
-typedef uint32_t BOOL;
+typedef int BOOL;
 typedef uint32_t DWORD;
 
 // -----------------------------------------------------------------------------------------------------------
@@ -65,6 +65,7 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define E_UNEXPECTED            0x8000FFFF
 #define E_NOTIMPL               0x80004001
 #define E_INVALIDARG            0x80070057
+#define COR_E_EXECUTIONENGINE   0x80131506
 
 #define NOERROR                 0x0
 #define ERROR_TIMEOUT           1460
@@ -327,16 +328,6 @@ typedef PTR_Object OBJECTREF;
 typedef PTR_PTR_Object PTR_OBJECTREF;
 typedef PTR_Object _UNCHECKED_OBJECTREF;
 typedef PTR_PTR_Object PTR_UNCHECKED_OBJECTREF;
-
-#ifndef DACCESS_COMPILE
-struct OBJECTHANDLE__
-{
-    void* unused;
-};
-typedef struct OBJECTHANDLE__* OBJECTHANDLE;
-#else
-typedef TADDR OBJECTHANDLE;
-#endif
 
 // With no object reference wrapping the following macros are very simple.
 #define ObjectToOBJECTREF(_obj) (OBJECTREF)(_obj)

@@ -10,12 +10,16 @@
 // eax = UMEntryThunk*
 //
 NESTED_ENTRY TheUMEntryPrestub, _TEXT, UnhandledExceptionHandlerUnix
+#define STK_ALIGN_PADDING 8
+    sub     esp, STK_ALIGN_PADDING
     push    eax  // UMEntryThunk*
+    CHECK_STACK_ALIGNMENT
     call    C_FUNC(TheUMEntryPrestubWorker)
-    add     esp, 4
-    // eax = PCODE
+    add     esp, (4 + STK_ALIGN_PADDING)
 
+    // eax = PCODE
     jmp     eax     // Tail Jmp
+#undef STK_ALIGN_PADDING
 NESTED_END TheUMEntryPrestub, _TEXT
 
 //
@@ -28,7 +32,7 @@ NESTED_ENTRY UMThunkStub, _TEXT, UnhandledExceptionHandlerUnix
 #define UMThunkStub_UMENTRYTHUNK_OFFSET     (UMThunkStub_SAVEDREG+4)
 #define UMThunkStub_THREAD_OFFSET           (UMThunkStub_UMENTRYTHUNK_OFFSET+4)
 #define UMThunkStub_INT_ARG_OFFSET          (UMThunkStub_THREAD_OFFSET+4)
-#define UMThunkStub_FIXEDALLOCSIZE          (UMThunkStub_LOCALVARS)
+#define UMThunkStub_FIXEDALLOCSIZE          (UMThunkStub_LOCALVARS+4) // extra 4 is for stack alignment
 
 // return address                           <-- entry ESP
 // saved ebp                                <-- EBP
@@ -37,6 +41,7 @@ NESTED_ENTRY UMThunkStub, _TEXT, UnhandledExceptionHandlerUnix
 // saved edi
 // UMEntryThunk*
 // Thread*
+// dummy 4 byte for 16 byte stack alignment
 // {optional stack args passed to callee}   <-- new esp
 
     PROLOG_BEG
@@ -102,12 +107,20 @@ LOCAL_LABEL(PostCall):
     mov     dword ptr [ebx + Thread_m_fPreemptiveGCDisabled], 0
 
     lea     esp, [ebp - UMThunkStub_SAVEDREG]  // deallocate arguments
+
+    mov     ecx, dword ptr [ebp - UMThunkStub_UMENTRYTHUNK_OFFSET]
+    mov     edx, dword ptr [ecx + UMEntryThunk__m_pUMThunkMarshInfo]
+    mov     edx, dword ptr [edx + UMThunkMarshInfo__m_cbRetPop]
+
     EPILOG_BEG
     EPILOG_POP edi
     EPILOG_POP esi
     EPILOG_POP ebx
     EPILOG_END
-    ret
+
+    pop     ecx  // pop return address
+    add     esp, edx // adjust ESP
+    jmp     ecx // return to caller
 
 LOCAL_LABEL(DoThreadSetup):
 
@@ -122,44 +135,47 @@ LOCAL_LABEL(InvalidTransition):
 LOCAL_LABEL(DoTrapReturningThreadsTHROW):
 
     // extern "C" VOID STDCALL UMThunkStubRareDisableWorker(Thread *pThread, UMEntryThunk *pUMEntryThunk)
+    sub     esp, (2*4) // add padding to ensure 16 byte stack alignment
     mov     eax, dword ptr [ebp - UMThunkStub_UMENTRYTHUNK_OFFSET]
     push    eax
     mov     eax, dword ptr [ebp - UMThunkStub_THREAD_OFFSET]
     push    eax
     call    C_FUNC(UMThunkStubRareDisableWorker)
+    add     esp, (2*4) // restore to before stack alignment
 
     jmp     LOCAL_LABEL(InCooperativeMode)
 
 LOCAL_LABEL(UMThunkStub_CopyStackArgs):
 
-    // eax = m_cbActualArgSize, in bytes
-    // esi = src
-    // edi = dest
-    // ebx = scratch
-    lea     esi, [ebp + 0x08]
-
-    // first [esi] goes to ecx, in LTR
-    add     eax, -4
-    mov     ecx, dword ptr [esi]
-    jz      LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
-
-    // second [esi+04] goes to edx
-    add     eax, -4
-    mov     edx, dword ptr [esi + 0x04]
-    jz      LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
+    // eax = m_cbActualArgSize (in bytes)
 
     sub     esp, eax
-    and     esp, -16    // align with 16 byte
-    lea     edi, [esp]
+    and     esp, -16          // align with 16 byte
+    lea     edi, [esp]        // edi = dest
 
-LOCAL_LABEL(CopyLoop):
+    lea     esi, [ebp + 0x8]  // esi = src
 
-    // copy rest of the arguments to [esp+08+n], in RTL
-    add     eax, -4
-    mov     ebx, dword ptr [esi + 0x08 + eax]
-    mov     dword ptr [edi + eax], ebx
-    jnz     LOCAL_LABEL(CopyLoop)
+    //
+    // EXTERN_C VOID STDCALL UMThunkStubSetupArgumentsWorker(UMThunkMarshInfo *pMarshInfo,
+    //                                                       char *pSrc,
+    //                                                       UMThunkMarshInfo::ArgumentRegisters *pArgRegs,
+    //                                                       char *pDst)
+    push    edx
+    push    ecx
+    lea     ecx, [esp]
 
+    sub     esp, 8  // Pad
+    push    edi     // pSrc
+    push    ecx     // pArgRegs
+    push    esi     // pSrc
+    mov     ecx, dword ptr [ebp - UMThunkStub_UMENTRYTHUNK_OFFSET]
+    mov     ecx, dword ptr [ecx + UMEntryThunk__m_pUMThunkMarshInfo]
+    push    ecx     // pMarshInfo
+    CHECK_STACK_ALIGNMENT
+    call    C_FUNC(UMThunkStubSetupArgumentsWorker)
+    add     esp, 8
+    pop     ecx
+    pop     edx
     jmp     LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
 
 #if _DEBUG

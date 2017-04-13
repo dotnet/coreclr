@@ -97,6 +97,12 @@ namespace System
 
         private void GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType nameType, ref string displayName)
         {
+            if (GlobalizationMode.Invariant)
+            {
+                displayName = _standardDisplayName;
+                return;
+            }
+
             string timeZoneDisplayName;
             bool result = Interop.CallStringMethod(
                 (locale, id, type, stringBuilder) => Interop.GlobalizationInterop.GetTimeZoneDisplayName(
@@ -128,8 +134,8 @@ namespace System
                 return Array.Empty<AdjustmentRule>();
             }
 
-            // The rules we use in Unix cares mostly about the start and end dates but doesn’t fill the transition start and end info.
-            // as the rules now is public, we should fill it properly so the caller doesn’t have to know how we use it internally
+            // The rules we use in Unix care mostly about the start and end dates but don't fill the transition start and end info.
+            // as the rules now is public, we should fill it properly so the caller doesn't have to know how we use it internally
             // and can use it as it is used in Windows
 
             AdjustmentRule[] rules = new AdjustmentRule[_adjustmentRules.Length];
@@ -138,10 +144,14 @@ namespace System
             {
                 var rule = _adjustmentRules[i];
                 var start = rule.DateStart.Kind == DateTimeKind.Utc ?
-                            new DateTime(TimeZoneInfo.ConvertTime(rule.DateStart, this).Ticks, DateTimeKind.Unspecified) :
+                            // At the daylight start we didn't start the daylight saving yet then we convert to Local time
+                            // by adding the _baseUtcOffset to the UTC time
+                            new DateTime(rule.DateStart.Ticks + _baseUtcOffset.Ticks, DateTimeKind.Unspecified) :
                             rule.DateStart;
                 var end = rule.DateEnd.Kind == DateTimeKind.Utc ?
-                            new DateTime(TimeZoneInfo.ConvertTime(rule.DateEnd, this).Ticks - 1, DateTimeKind.Unspecified) :
+                            // At the daylight saving end, the UTC time is mapped to local time which is already shifted by the daylight delta
+                            // we calculate the local time by adding _baseUtcOffset + DaylightDelta to the UTC time
+                            new DateTime(rule.DateEnd.Ticks + _baseUtcOffset.Ticks + rule.DaylightDelta.Ticks, DateTimeKind.Unspecified) :
                             rule.DateEnd;
 
                 var startTransition = TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, start.Hour, start.Minute, start.Second), start.Month, start.Day);
@@ -209,7 +219,7 @@ namespace System
             }
             catch (IOException ex)
             {
-                e = new InvalidTimeZoneException(Environment.GetResourceString("InvalidTimeZone_InvalidFileData", id, timeZoneFilePath), ex);
+                e = new InvalidTimeZoneException(SR.Format(SR.InvalidTimeZone_InvalidFileData, id, timeZoneFilePath), ex);
                 return TimeZoneInfoResult.InvalidTimeZoneException;
             }
 
@@ -217,7 +227,7 @@ namespace System
 
             if (value == null)
             {
-                e = new InvalidTimeZoneException(Environment.GetResourceString("InvalidTimeZone_InvalidFileData", id, timeZoneFilePath));
+                e = new InvalidTimeZoneException(SR.Format(SR.InvalidTimeZone_InvalidFileData, id, timeZoneFilePath));
                 return TimeZoneInfoResult.InvalidTimeZoneException;
             }
 
@@ -561,7 +571,7 @@ namespace System
             }
             else if (id.Length == 0 || id.Contains("\0"))
             {
-                throw new TimeZoneNotFoundException(Environment.GetResourceString("TimeZoneNotFound_MissingData", id));
+                throw new TimeZoneNotFoundException(SR.Format(SR.TimeZoneNotFound_MissingData, id));
             }
 
             TimeZoneInfo value;
@@ -588,11 +598,11 @@ namespace System
             }
             else if (result == TimeZoneInfoResult.SecurityException)
             {
-                throw new SecurityException(Environment.GetResourceString("Security_CannotReadFileData", id), e);
+                throw new SecurityException(SR.Format(SR.Security_CannotReadFileData, id), e);
             }
             else
             {
-                throw new TimeZoneNotFoundException(Environment.GetResourceString("TimeZoneNotFound_MissingData", id), e);
+                throw new TimeZoneNotFoundException(SR.Format(SR.TimeZoneNotFound_MissingData, id), e);
             }
         }
 
@@ -916,14 +926,14 @@ namespace System
                 return transitionTypes[0];
             }
 
-            throw new InvalidTimeZoneException(Environment.GetResourceString("InvalidTimeZone_NoTTInfoStructures"));
+            throw new InvalidTimeZoneException(SR.InvalidTimeZone_NoTTInfoStructures);
         }
 
         /// <summary>
         /// Creates an AdjustmentRule given the POSIX TZ environment variable string.
         /// </summary>
         /// <remarks>
-        /// See http://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html for the format and semantics of this POSX string.
+        /// See http://man7.org/linux/man-pages/man3/tzset.3.html for the format and semantics of this POSX string.
         /// </remarks>
         private static AdjustmentRule TZif_CreateAdjustmentRuleForPosixFormat(string posixFormat, DateTime startTransitionDate, TimeSpan timeZoneBaseUtcOffset)
         {
@@ -1050,7 +1060,7 @@ namespace System
                 DayOfWeek day;
                 if (!TZif_ParseMDateRule(date, out month, out week, out day))
                 {
-                    throw new InvalidTimeZoneException(Environment.GetResourceString("InvalidTimeZone_UnparseablePosixMDateString", date));
+                    throw new InvalidTimeZoneException(SR.Format(SR.InvalidTimeZone_UnparseablePosixMDateString, date));
                 }
 
                 DateTime timeOfDay;
@@ -1093,7 +1103,7 @@ namespace System
                 // One of them *could* be supported if we relaxed the TransitionTime validation rules, and allowed
                 // "IsFixedDateRule = true, Month = 0, Day = n" to mean the nth day of the year, picking one of the rules above
 
-                throw new InvalidTimeZoneException(Environment.GetResourceString("InvalidTimeZone_JulianDayNotSupported"));
+                throw new InvalidTimeZoneException(SR.InvalidTimeZone_JulianDayNotSupported);
             }
         }
 
@@ -1185,8 +1195,32 @@ namespace System
             return !string.IsNullOrEmpty(standardName) && !string.IsNullOrEmpty(standardOffset);
         }
 
-        private static string TZif_ParsePosixName(string posixFormat, ref int index) =>
-            TZif_ParsePosixString(posixFormat, ref index, c => char.IsDigit(c) || c == '+' || c == '-' || c == ',');
+        private static string TZif_ParsePosixName(string posixFormat, ref int index)
+        {
+            bool isBracketEnclosed = index < posixFormat.Length && posixFormat[index] == '<';
+            if (isBracketEnclosed)
+            {
+                // move past the opening bracket
+                index++;
+
+                string result = TZif_ParsePosixString(posixFormat, ref index, c => c == '>');
+
+                // move past the closing bracket
+                if (index < posixFormat.Length && posixFormat[index] == '>')
+                {
+                    index++;
+                }
+
+                return result;
+            }
+            else
+            {
+                return TZif_ParsePosixString(
+                    posixFormat,
+                    ref index,
+                    c => char.IsDigit(c) || c == '+' || c == '-' || c == ',');
+            }
+        }
 
         private static string TZif_ParsePosixOffset(string posixFormat, ref int index) =>
             TZif_ParsePosixString(posixFormat, ref index, c => !char.IsDigit(c) && c != '+' && c != '-' && c != ':');
@@ -1391,7 +1425,7 @@ namespace System
             {
                 if (data == null || data.Length < index + Length)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_TimeZoneInfoInvalidTZif"), nameof(data));
+                    throw new ArgumentException(SR.Argument_TimeZoneInfoInvalidTZif, nameof(data));
                 }
                 Contract.EndContractBlock();
                 UtcOffset = new TimeSpan(0, 0, TZif_ToInt32(data, index + 00));
@@ -1427,7 +1461,7 @@ namespace System
                 if (Magic != 0x545A6966)
                 {
                     // 0x545A6966 = {0x54, 0x5A, 0x69, 0x66} = "TZif"
-                    throw new ArgumentException(Environment.GetResourceString("Argument_TimeZoneInfoBadTZif"), nameof(data));
+                    throw new ArgumentException(SR.Argument_TimeZoneInfoBadTZif, nameof(data));
                 }
 
                 byte version = data[index + 04];

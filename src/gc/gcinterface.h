@@ -77,6 +77,10 @@ struct WriteBarrierParameters
     // card table. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
     uint32_t* card_table;
 
+    // The new card bundle table location. May or may not be the same as the previous
+    // card bundle table. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
+    uint32_t* card_bundle_table;
+
     // The heap's new low boundary. May or may not be the same as the previous
     // value. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
     uint8_t* lowest_address;
@@ -97,6 +101,11 @@ struct WriteBarrierParameters
     // implementation. Used for WriteBarrierOp::SwitchToWriteWatch only.
     uint8_t* write_watch_table;
 };
+
+ /*
+  * Scanning callback.
+  */
+typedef void (CALLBACK *HANDLESCANPROC)(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2);
 
 #include "gcinterface.ee.h"
 
@@ -129,6 +138,8 @@ public:
     }
 };
 
+#include "gcinterface.dac.h"
+
 // stub type to abstract a heap segment
 struct gc_heap_segment_stub;
 typedef gc_heap_segment_stub *segment_handle;
@@ -138,7 +149,7 @@ struct segment_info
     void * pvMem; // base of the allocation, not the first object (must add ibFirstObject)
     size_t ibFirstObject;   // offset to the base of the first object in the segment
     size_t ibAllocated; // limit of allocated memory in the segment (>= firstobject)
-    size_t ibCommit; // limit of committed memory in the segment (>= alllocated)
+    size_t ibCommit; // limit of committed memory in the segment (>= allocated)
     size_t ibReserved; // limit of reserved memory in the segment (>= commit)
 };
 
@@ -152,18 +163,18 @@ struct segment_info
 // one for the object header, and one for the first field in the object.
 #define min_obj_size ((sizeof(uint8_t*) + sizeof(uintptr_t) + sizeof(size_t)))
 
-#define max_generation 2
-
 // The bit shift used to convert a memory address into an index into the
 // Software Write Watch table.
 #define SOFTWARE_WRITE_WATCH_AddressToTableByteIndexShift 0xc
 
 class Object;
 class IGCHeap;
+class IGCHandleTable;
 
 // Initializes the garbage collector. Should only be called
-// once, during EE startup.
-IGCHeap* InitializeGarbageCollector(IGCToCLR* clrToGC);
+// once, during EE startup. Returns true if the initialization
+// was successful, false otherwise.
+bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleTable** gcHandleTable, GcDacVars* gcDacVars);
 
 // The runtime needs to know whether we're using workstation or server GC 
 // long before the GCHeap is created. This function sets the type of
@@ -181,8 +192,6 @@ extern uint8_t* g_shadow_lowest_address;
 
 // For low memory notification from host
 extern int32_t g_bLowMemoryFromHost;
-
-extern VOLATILE(int32_t) m_GCLock;
 
 // !!!!!!!!!!!!!!!!!!!!!!!
 // make sure you change the def in bcl\system\gc.cs 
@@ -229,12 +238,207 @@ enum end_no_gc_region_status
     end_no_gc_alloc_exceeded = 3
 };
 
-typedef BOOL (* walk_fn)(Object*, void*);
+typedef enum 
+{
+    /*
+     * WEAK HANDLES
+     *
+     * Weak handles are handles that track an object as long as it is alive,
+     * but do not keep the object alive if there are no strong references to it.
+     *
+     */
+
+    /*
+     * SHORT-LIVED WEAK HANDLES
+     *
+     * Short-lived weak handles are weak handles that track an object until the
+     * first time it is detected to be unreachable.  At this point, the handle is
+     * severed, even if the object will be visible from a pending finalization
+     * graph.  This further implies that short weak handles do not track
+     * across object resurrections.
+     *
+     */
+    HNDTYPE_WEAK_SHORT   = 0,
+
+    /*
+     * LONG-LIVED WEAK HANDLES
+     *
+     * Long-lived weak handles are weak handles that track an object until the
+     * object is actually reclaimed.  Unlike short weak handles, long weak handles
+     * continue to track their referents through finalization and across any
+     * resurrections that may occur.
+     *
+     */
+    HNDTYPE_WEAK_LONG    = 1,
+    HNDTYPE_WEAK_DEFAULT = 1,
+
+    /*
+     * STRONG HANDLES
+     *
+     * Strong handles are handles which function like a normal object reference.
+     * The existence of a strong handle for an object will cause the object to
+     * be promoted (remain alive) through a garbage collection cycle.
+     *
+     */
+    HNDTYPE_STRONG       = 2,
+    HNDTYPE_DEFAULT      = 2,
+
+    /*
+     * PINNED HANDLES
+     *
+     * Pinned handles are strong handles which have the added property that they
+     * prevent an object from moving during a garbage collection cycle.  This is
+     * useful when passing a pointer to object innards out of the runtime while GC
+     * may be enabled.
+     *
+     * NOTE:  PINNING AN OBJECT IS EXPENSIVE AS IT PREVENTS THE GC FROM ACHIEVING
+     *        OPTIMAL PACKING OF OBJECTS DURING EPHEMERAL COLLECTIONS.  THIS TYPE
+     *        OF HANDLE SHOULD BE USED SPARINGLY!
+     */
+    HNDTYPE_PINNED       = 3,
+
+    /*
+     * VARIABLE HANDLES
+     *
+     * Variable handles are handles whose type can be changed dynamically.  They
+     * are larger than other types of handles, and are scanned a little more often,
+     * but are useful when the handle owner needs an efficient way to change the
+     * strength of a handle on the fly.
+     * 
+     */
+    HNDTYPE_VARIABLE     = 4,
+
+    /*
+     * REFCOUNTED HANDLES
+     *
+     * Refcounted handles are handles that behave as strong handles while the
+     * refcount on them is greater than 0 and behave as weak handles otherwise.
+     *
+     * N.B. These are currently NOT general purpose.
+     *      The implementation is tied to COM Interop.
+     *
+     */
+    HNDTYPE_REFCOUNTED   = 5,
+
+    /*
+     * DEPENDENT HANDLES
+     *
+     * Dependent handles are two handles that need to have the same lifetime.  One handle refers to a secondary object 
+     * that needs to have the same lifetime as the primary object. The secondary object should not cause the primary 
+     * object to be referenced, but as long as the primary object is alive, so must be the secondary
+     *
+     * They are currently used for EnC for adding new field members to existing instantiations under EnC modes where
+     * the primary object is the original instantiation and the secondary represents the added field.
+     *
+     * They are also used to implement the ConditionalWeakTable class in mscorlib.dll. If you want to use
+     * these from managed code, they are exposed to BCL through the managed DependentHandle class.
+     *
+     *
+     */
+    HNDTYPE_DEPENDENT    = 6,
+
+    /*
+     * PINNED HANDLES for asynchronous operation
+     *
+     * Pinned handles are strong handles which have the added property that they
+     * prevent an object from moving during a garbage collection cycle.  This is
+     * useful when passing a pointer to object innards out of the runtime while GC
+     * may be enabled.
+     *
+     * NOTE:  PINNING AN OBJECT IS EXPENSIVE AS IT PREVENTS THE GC FROM ACHIEVING
+     *        OPTIMAL PACKING OF OBJECTS DURING EPHEMERAL COLLECTIONS.  THIS TYPE
+     *        OF HANDLE SHOULD BE USED SPARINGLY!
+     */
+    HNDTYPE_ASYNCPINNED  = 7,
+
+    /*
+     * SIZEDREF HANDLES
+     *
+     * SizedRef handles are strong handles. Each handle has a piece of user data associated
+     * with it that stores the size of the object this handle refers to. These handles
+     * are scanned as strong roots during each GC but only during full GCs would the size
+     * be calculated.
+     *
+     */
+    HNDTYPE_SIZEDREF     = 8,
+
+    /*
+     * WINRT WEAK HANDLES
+     *
+     * WinRT weak reference handles hold two different types of weak handles to any
+     * RCW with an underlying COM object that implements IWeakReferenceSource.  The
+     * object reference itself is a short weak handle to the RCW.  In addition an
+     * IWeakReference* to the underlying COM object is stored, allowing the handle
+     * to create a new RCW if the existing RCW is collected.  This ensures that any
+     * code holding onto a WinRT weak reference can always access an RCW to the
+     * underlying COM object as long as it has not been released by all of its strong
+     * references.
+     */
+    HNDTYPE_WEAK_WINRT   = 9
+} HandleType;
+
+typedef enum
+{
+    GC_HEAP_INVALID = 0,
+    GC_HEAP_WKS     = 1,
+    GC_HEAP_SVR     = 2
+} GCHeapType;
+
+typedef bool (* walk_fn)(Object*, void*);
 typedef void (* gen_walk_fn)(void* context, int generation, uint8_t* range_start, uint8_t* range_end, uint8_t* range_reserved);
-typedef void (* record_surv_fn)(uint8_t* begin, uint8_t* end, ptrdiff_t reloc, size_t context, BOOL compacting_p, BOOL bgc_p);
-typedef void (* fq_walk_fn)(BOOL, void*);
+typedef void (* record_surv_fn)(uint8_t* begin, uint8_t* end, ptrdiff_t reloc, void* context, bool compacting_p, bool bgc_p);
+typedef void (* fq_walk_fn)(bool, void*);
 typedef void (* fq_scan_fn)(Object** ppObject, ScanContext *pSC, uint32_t dwFlags);
-typedef void (* handle_scan_fn)(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, BOOL isDependent);
+typedef void (* handle_scan_fn)(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, bool isDependent);
+
+// Opaque type for tracking object pointers
+#ifndef DACCESS_COMPILE
+struct OBJECTHANDLE__
+{
+    void* unused;
+};
+typedef struct OBJECTHANDLE__* OBJECTHANDLE;
+#else
+typedef uintptr_t OBJECTHANDLE;
+#endif
+
+class IGCHandleTable {
+public:
+
+    virtual bool Initialize() = 0;
+
+    virtual void Shutdown() = 0;
+
+    virtual void* GetHandleContext(OBJECTHANDLE handle) = 0;
+
+    virtual void* GetGlobalHandleStore() = 0;
+
+    virtual void* CreateHandleStore(void* context) = 0;
+
+    virtual void DestroyHandleStore(void* store) = 0;
+
+    virtual void UprootHandleStore(void* store) = 0;
+
+    virtual bool ContainsHandle(void* store, OBJECTHANDLE handle) = 0;
+
+    virtual OBJECTHANDLE CreateHandleOfType(void* store, Object* object, int type) = 0;
+
+    virtual OBJECTHANDLE CreateHandleOfType(void* store, Object* object, int type, int heapToAffinitizeTo) = 0;
+
+    virtual OBJECTHANDLE CreateHandleWithExtraInfo(void* store, Object* object, int type, void* pExtraInfo) = 0;
+
+    virtual OBJECTHANDLE CreateDependentHandle(void* store, Object* primary, Object* secondary) = 0;
+
+    virtual OBJECTHANDLE CreateGlobalHandleOfType(Object* object, int type) = 0;
+
+    virtual OBJECTHANDLE CreateDuplicateHandle(OBJECTHANDLE handle) = 0;
+
+    virtual void DestroyHandleOfType(OBJECTHANDLE handle, int type) = 0;
+
+    virtual void DestroyHandleOfUnknownType(OBJECTHANDLE handle) = 0;
+
+    virtual void* GetExtraInfoFromHandle(OBJECTHANDLE handle) = 0;
+};
 
 // IGCHeap is the interface that the VM will use when interacting with the GC.
 class IGCHeap {
@@ -249,13 +453,13 @@ public:
     */
 
     // Returns whether or not the given size is a valid segment size.
-    virtual BOOL IsValidSegmentSize(size_t size) = 0;
+    virtual bool IsValidSegmentSize(size_t size) = 0;
 
     // Returns whether or not the given size is a valid gen 0 max size.
-    virtual BOOL IsValidGen0MaxSize(size_t size) = 0;
+    virtual bool IsValidGen0MaxSize(size_t size) = 0;
 
     // Gets a valid segment size.
-    virtual size_t GetValidSegmentSize(BOOL large_seg = FALSE) = 0;
+    virtual size_t GetValidSegmentSize(bool large_seg = false) = 0;
 
     // Sets the limit for reserved virtual memory.
     virtual void SetReservedVMLimit(size_t vmlimit) = 0;
@@ -275,7 +479,7 @@ public:
     virtual void WaitUntilConcurrentGCComplete() = 0;
 
     // Returns true if a concurrent GC is in progress, false otherwise.
-    virtual BOOL IsConcurrentGCInProgress() = 0;
+    virtual bool IsConcurrentGCInProgress() = 0;
 
     // Temporarily enables concurrent GC, used during profiling.
     virtual void TemporaryEnableConcurrentGC() = 0;
@@ -284,7 +488,7 @@ public:
     virtual void TemporaryDisableConcurrentGC() = 0;
 
     // Returns whether or not Concurrent GC is enabled.
-    virtual BOOL IsConcurrentGCEnabled() = 0;
+    virtual bool IsConcurrentGCEnabled() = 0;
 
     // Wait for a concurrent GC to complete if one is in progress, with the given timeout.
     virtual HRESULT WaitUntilConcurrentGCCompleteAsync(int millisecondsTimeout) = 0;    // Use in native threads. TRUE if succeed. FALSE if failed or timeout
@@ -298,17 +502,17 @@ public:
     */
 
     // Finalizes an app domain by finalizing objects within that app domain.
-    virtual BOOL FinalizeAppDomain(AppDomain* pDomain, BOOL fRunFinalizers) = 0;
+    virtual bool FinalizeAppDomain(AppDomain* pDomain, bool fRunFinalizers) = 0;
 
     // Finalizes all registered objects for shutdown, even if they are still reachable.
-    virtual void SetFinalizeQueueForShutdown(BOOL fHasLock) = 0;
+    virtual void SetFinalizeQueueForShutdown(bool fHasLock) = 0;
 
     // Gets the number of finalizable objects.
     virtual size_t GetNumberOfFinalizable() = 0;
 
     // Traditionally used by the finalizer thread on shutdown to determine
     // whether or not to time out. Returns true if the GC lock has not been taken.
-    virtual BOOL ShouldRestartFinalizerWatchDog() = 0;
+    virtual bool ShouldRestartFinalizerWatchDog() = 0;
 
     // Gets the next finalizable object.
     virtual Object* GetNextFinalizable() = 0;
@@ -341,10 +545,10 @@ public:
 
     // Registers for a full GC notification, raising a notification if the gen 2 or
     // LOH object heap thresholds are exceeded.
-    virtual BOOL RegisterForFullGCNotification(uint32_t gen2Percentage, uint32_t lohPercentage) = 0;
+    virtual bool RegisterForFullGCNotification(uint32_t gen2Percentage, uint32_t lohPercentage) = 0;
 
     // Cancels a full GC notification that was requested by `RegisterForFullGCNotification`.
-    virtual BOOL CancelFullGCNotification() = 0;
+    virtual bool CancelFullGCNotification() = 0;
 
     // Returns the status of a registered notification for determining whether a blocking
     // Gen 2 collection is about to be initiated, with the given timeout.
@@ -365,7 +569,7 @@ public:
 
     // Begins a no-GC region, returning a code indicating whether entering the no-GC
     // region was successful.
-    virtual int StartNoGCRegion(uint64_t totalSize, BOOL lohSizeKnown, uint64_t lohSize, BOOL disallowFullBlockingGC) = 0;
+    virtual int StartNoGCRegion(uint64_t totalSize, bool lohSizeKnown, uint64_t lohSize, bool disallowFullBlockingGC) = 0;
 
     // Exits a no-GC region.
     virtual int EndNoGCRegion() = 0;
@@ -375,7 +579,7 @@ public:
 
     // Forces a garbage collection of the given generation. Also used extensively
     // throughout the VM.
-    virtual HRESULT GarbageCollect(int generation = -1, BOOL low_memory_p = FALSE, int mode = collection_blocking) = 0;
+    virtual HRESULT GarbageCollect(int generation = -1, bool low_memory_p = false, int mode = collection_blocking) = 0;
 
     // Gets the largest GC generation. Also used extensively throughout the VM.
     virtual unsigned GetMaxGeneration() = 0;
@@ -397,16 +601,16 @@ public:
     virtual HRESULT Initialize() = 0;
 
     // Returns whether nor this GC was promoted by the last GC.
-    virtual BOOL IsPromoted(Object* object) = 0;
+    virtual bool IsPromoted(Object* object) = 0;
 
     // Returns true if this pointer points into a GC heap, false otherwise.
-    virtual BOOL IsHeapPointer(void* object, BOOL small_heap_only = FALSE) = 0;
+    virtual bool IsHeapPointer(void* object, bool small_heap_only = false) = 0;
 
     // Return the generation that has been condemned by the current GC.
     virtual unsigned GetCondemnedGeneration() = 0;
 
     // Returns whether or not a GC is in progress.
-    virtual BOOL IsGCInProgressHelper(BOOL bConsiderGCStart = FALSE) = 0;
+    virtual bool IsGCInProgressHelper(bool bConsiderGCStart = false) = 0;
 
     // Returns the number of GCs that have occured. Mainly used for
     // sanity checks asserting that a GC has not occured.
@@ -417,20 +621,23 @@ public:
     virtual bool IsThreadUsingAllocationContextHeap(gc_alloc_context* acontext, int thread_number) = 0;
     
     // Returns whether or not this object resides in an ephemeral generation.
-    virtual BOOL IsEphemeral(Object* object) = 0;
+    virtual bool IsEphemeral(Object* object) = 0;
 
     // Blocks until a GC is complete, returning a code indicating the wait was successful.
-    virtual uint32_t WaitUntilGCComplete(BOOL bConsiderGCStart = FALSE) = 0;
+    virtual uint32_t WaitUntilGCComplete(bool bConsiderGCStart = false) = 0;
 
     // "Fixes" an allocation context by binding its allocation pointer to a
     // location on the heap.
-    virtual void FixAllocContext(gc_alloc_context* acontext, BOOL lockp, void* arg, void* heap) = 0;
+    virtual void FixAllocContext(gc_alloc_context* acontext, bool lockp, void* arg, void* heap) = 0;
 
     // Gets the total survived size plus the total allocated bytes on the heap.
     virtual size_t GetCurrentObjSize() = 0;
 
     // Sets whether or not a GC is in progress.
-    virtual void SetGCInProgress(BOOL fInProgress) = 0;
+    virtual void SetGCInProgress(bool fInProgress) = 0;
+
+    // Gets whether or not the GC runtime structures are in a valid state for heap traversal.
+    virtual bool RuntimeStructuresValid() = 0;
 
     /*
     ============================================================================
@@ -459,21 +666,22 @@ public:
     */
 
     // Allocates an object on the given allocation context with the given size and flags.
+    // It is the responsibility of the caller to ensure that the passed-in alloc context is
+    // owned by the thread that is calling this function. If using per-thread alloc contexts,
+    // no lock is needed; callers not using per-thread alloc contexts will need to acquire
+    // a lock to ensure that the calling thread has unique ownership over this alloc context;
     virtual Object* Alloc(gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
-
-    // Allocates an object on the default allocation context with the given size and flags.
-    virtual Object* Alloc(size_t size, uint32_t flags) = 0;
 
     // Allocates an object on the large object heap with the given size and flags.
     virtual Object* AllocLHeap(size_t size, uint32_t flags) = 0;
 
-    // Allocates an object on the default allocation context, aligned to 64 bits,
-    // with the given size and flags.
-    virtual Object* AllocAlign8 (size_t size, uint32_t flags) = 0;
-
     // Allocates an object on the given allocation context, aligned to 64 bits,
     // with the given size and flags.
-    virtual Object* AllocAlign8 (gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
+    // It is the responsibility of the caller to ensure that the passed-in alloc context is
+    // owned by the thread that is calling this function. If using per-thread alloc contexts,
+    // no lock is needed; callers not using per-thread alloc contexts will need to acquire
+    // a lock to ensure that the calling thread has unique ownership over this alloc context.
+    virtual Object* AllocAlign8(gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
 
     // This is for the allocator to indicate it's done allocating a large object during a 
     // background GC as the BGC threads also need to walk LOH.
@@ -489,7 +697,7 @@ public:
     ===========================================================================
     */
     // Returns whether or not this object is in the fixed heap.
-    virtual BOOL IsObjectInFixedHeap(Object* pObj) = 0;
+    virtual bool IsObjectInFixedHeap(Object* pObj) = 0;
 
     // Walks an object and validates its members.
     virtual void ValidateObjectMember(Object* obj) = 0;
@@ -501,7 +709,9 @@ public:
 
     // Given an interior pointer, return a pointer to the object
     // containing that pointer. This is safe to call only when the EE is suspended.
-    virtual Object* GetContainingObject(void* pInteriorPtr) = 0;
+    // When fCollectedGenOnly is true, it only returns the object if it's found in 
+    // the generation(s) that are being collected.
+    virtual Object* GetContainingObject(void* pInteriorPtr, bool fCollectedGenOnly) = 0;
 
     /*
     ===========================================================================
@@ -514,10 +724,10 @@ public:
     virtual void DiagWalkObject(Object* obj, walk_fn fn, void* context) = 0;
 
     // Walk the heap object by object.
-    virtual void DiagWalkHeap(walk_fn fn, void* context, int gen_number, BOOL walk_large_object_heap_p) = 0;
+    virtual void DiagWalkHeap(walk_fn fn, void* context, int gen_number, bool walk_large_object_heap_p) = 0;
     
     // Walks the survivors and get the relocation information if objects have moved.
-    virtual void DiagWalkSurvivorsWithType(void* gc_context, record_surv_fn fn, size_t diag_context, walk_surv_type type) = 0;
+    virtual void DiagWalkSurvivorsWithType(void* gc_context, record_surv_fn fn, void* diag_context, walk_surv_type type) = 0;
 
     // Walks the finalization queue.
     virtual void DiagWalkFinalizeQueue(void* gc_context, fq_walk_fn fn) = 0;
@@ -543,8 +753,9 @@ public:
     ===========================================================================
     */
 
-    // Returns TRUE if GC actually happens, otherwise FALSE
-    virtual BOOL StressHeap(gc_alloc_context* acontext = 0) = 0;
+    // Returns TRUE if GC actually happens, otherwise FALSE. The passed alloc context
+    // must not be null.
+    virtual bool StressHeap(gc_alloc_context* acontext) = 0;
 
     /*
     ===========================================================================
@@ -561,19 +772,6 @@ public:
 
     IGCHeap() {}
     virtual ~IGCHeap() {}
-
-    typedef enum
-    {
-        GC_HEAP_INVALID = 0,
-        GC_HEAP_WKS     = 1,
-        GC_HEAP_SVR     = 2
-    } GC_HEAP_TYPE;
-
-#ifdef FEATURE_SVR_GC
-    SVAL_DECL(uint32_t, gcHeapType);
-#endif
-
-    SVAL_DECL(uint32_t, maxGeneration);
 };
 
 #ifdef WRITE_BARRIER_CHECK
@@ -597,8 +795,8 @@ struct ScanContext
     Thread* thread_under_crawl;
     int thread_number;
     uintptr_t stack_limit; // Lowest point on the thread stack that the scanning logic is permitted to read
-    BOOL promotion; //TRUE: Promotion, FALSE: Relocation.
-    BOOL concurrent; //TRUE: concurrent scanning 
+    bool promotion; //TRUE: Promotion, FALSE: Relocation.
+    bool concurrent; //TRUE: concurrent scanning 
 #if CHECK_APP_DOMAIN_LEAKS || defined (FEATURE_APPDOMAIN_RESOURCE_MONITORING) || defined (DACCESS_COMPILE)
     AppDomain *pCurrentDomain;
 #endif //CHECK_APP_DOMAIN_LEAKS || FEATURE_APPDOMAIN_RESOURCE_MONITORING || DACCESS_COMPILE
@@ -619,8 +817,8 @@ struct ScanContext
         thread_under_crawl = 0;
         thread_number = -1;
         stack_limit = 0;
-        promotion = FALSE;
-        concurrent = FALSE;
+        promotion = false;
+        concurrent = false;
 #ifdef GC_PROFILING
         pMD = NULL;
 #endif //GC_PROFILING

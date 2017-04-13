@@ -12,7 +12,6 @@
 
 using System;
 using System.Runtime.ConstrainedExecution;
-using System.Security.Permissions;
 using System.Threading;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
@@ -52,7 +51,7 @@ namespace System.Threading
     /// <remarks>
     /// <para>
     /// <see cref="SpinWait"/> encapsulates common spinning logic. On single-processor machines, yields are
-    /// always used instead of busy waits, and on computers with Intel™ processors employing Hyper-Threading™
+    /// always used instead of busy waits, and on computers with Intel processors employing Hyper-Threading
     /// technology, it helps to prevent hardware thread starvation. SpinWait encapsulates a good mixture of
     /// spinning and true yielding.
     /// </para>
@@ -72,7 +71,6 @@ namespace System.Threading
     /// </remarks>
     public struct SpinWait
     {
-
         // These constants determine the frequency of yields versus spinning. The
         // numbers may seem fairly arbitrary, but were derived with at least some
         // thought in the design document.  I fully expect they will need to change
@@ -189,7 +187,7 @@ namespace System.Threading
         public static void SpinUntil(Func<bool> condition)
         {
 #if DEBUG
-            bool result = 
+            bool result =
 #endif
             SpinUntil(condition, Timeout.Infinite);
 #if DEBUG
@@ -216,7 +214,7 @@ namespace System.Threading
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
-                    nameof(timeout), timeout, Environment.GetResourceString("SpinWait_SpinUntil_TimeoutWrong"));
+                    nameof(timeout), timeout, SR.SpinWait_SpinUntil_TimeoutWrong);
             }
 
             // Call wait with the timeout milliseconds
@@ -238,11 +236,11 @@ namespace System.Threading
             if (millisecondsTimeout < Timeout.Infinite)
             {
                 throw new ArgumentOutOfRangeException(
-                   nameof(millisecondsTimeout), millisecondsTimeout, Environment.GetResourceString("SpinWait_SpinUntil_TimeoutWrong"));
+                   nameof(millisecondsTimeout), millisecondsTimeout, SR.SpinWait_SpinUntil_TimeoutWrong);
             }
             if (condition == null)
             {
-                throw new ArgumentNullException(nameof(condition), Environment.GetResourceString("SpinWait_SpinUntil_ArgumentNull"));
+                throw new ArgumentNullException(nameof(condition), SR.SpinWait_SpinUntil_ArgumentNull);
             }
             uint startTime = 0;
             if (millisecondsTimeout != 0 && millisecondsTimeout != Timeout.Infinite)
@@ -268,7 +266,6 @@ namespace System.Threading
                 }
             }
             return true;
-
         }
         #endregion
 
@@ -315,51 +312,4 @@ namespace System.Threading
             get { return ProcessorCount == 1; }
         }
     }
-
-    /// <summary>
-    /// A helper class to capture a start time using Environment.TickCout as a time in milliseconds, also updates a given timeout bu subtracting the current time from
-    /// the start time
-    /// </summary>
-    internal static class TimeoutHelper
-    {
-        /// <summary>
-        /// Returns the Environment.TickCount as a start time in milliseconds as a uint, TickCount tools over from postive to negative every ~ 25 days
-        /// then ~25 days to back to positive again, uint is sued to ignore the sign and double the range to 50 days
-        /// </summary>
-        /// <returns></returns>
-        public static uint GetTime()
-        {
-            return (uint)Environment.TickCount;
-        }
-
-        /// <summary>
-        /// Helper function to measure and update the elapsed time
-        /// </summary>
-        /// <param name="startTime"> The first time (in milliseconds) observed when the wait started</param>
-        /// <param name="originalWaitMillisecondsTimeout">The orginal wait timeoutout in milliseconds</param>
-        /// <returns>The new wait time in milliseconds, -1 if the time expired</returns>
-        public static int UpdateTimeOut(uint startTime, int originalWaitMillisecondsTimeout)
-        {
-            // The function must be called in case the time out is not infinite
-            Debug.Assert(originalWaitMillisecondsTimeout != Timeout.Infinite);
-
-            uint elapsedMilliseconds = (GetTime() - startTime);
-
-            // Check the elapsed milliseconds is greater than max int because this property is uint
-            if (elapsedMilliseconds > int.MaxValue)
-            {
-                return 0;
-            }
-
-            // Subtract the elapsed time from the current wait time
-            int currentWaitTimeout = originalWaitMillisecondsTimeout - (int)elapsedMilliseconds; ;
-            if (currentWaitTimeout <= 0)
-            {
-                return 0;
-            }
-
-            return currentWaitTimeout;
-        }
-    }
-
 }

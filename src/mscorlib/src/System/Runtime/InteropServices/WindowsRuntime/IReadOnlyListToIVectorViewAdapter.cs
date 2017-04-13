@@ -35,11 +35,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal T GetAt<T>(uint index)
         {
             IReadOnlyList<T> _this = JitHelpers.UnsafeCast<IReadOnlyList<T>>(this);
-            EnsureIndexInt32(index, _this.Count);        
+            EnsureIndexInt32(index, _this.Count);
 
             try
             {
-                return _this[(int) index];
+                return _this[(int)index];
             }
             catch (ArgumentOutOfRangeException ex)
             {
@@ -126,7 +126,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // that Size > Int32.MaxValue:
             if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity)
             {
-                Exception e = new ArgumentOutOfRangeException(nameof(index), Environment.GetResourceString("ArgumentOutOfRange_IndexLargerThanMaxValue"));
+                Exception e = new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexLargerThanMaxValue);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
             }

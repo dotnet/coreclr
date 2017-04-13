@@ -25,13 +25,13 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // same code for all platforms, hence it is here instead of in the targetXXX.cpp
 // files.
 
-#ifdef PLATFORM_UNIX
+#ifdef _TARGET_UNIX_
 // Should we distinguish Mac? Can we?
 // Should we distinguish flavors of Unix? Can we?
 const char* Target::g_tgtPlatformName = "Unix";
-#else  // !PLATFORM_UNIX
+#else  // !_TARGET_UNIX_
 const char* Target::g_tgtPlatformName = "Windows";
-#endif // !PLATFORM_UNIX
+#endif // !_TARGET_UNIX_
 
 /*****************************************************************************/
 
@@ -698,18 +698,24 @@ const char* refCntWtd2str(unsigned refCntWtd)
 
     nump = (nump == num1) ? num2 : num1;
 
-    unsigned valueInt  = refCntWtd / BB_UNITY_WEIGHT;
-    unsigned valueFrac = refCntWtd % BB_UNITY_WEIGHT;
-
-    if (valueFrac == 0)
+    if (refCntWtd == BB_MAX_WEIGHT)
     {
-        sprintf_s(temp, bufSize, "%2u  ", valueInt);
+        sprintf_s(temp, bufSize, "MAX   ");
     }
     else
     {
-        sprintf_s(temp, bufSize, "%2u.%1u", valueInt, (valueFrac * 10 / BB_UNITY_WEIGHT));
-    }
+        unsigned valueInt  = refCntWtd / BB_UNITY_WEIGHT;
+        unsigned valueFrac = refCntWtd % BB_UNITY_WEIGHT;
 
+        if (valueFrac == 0)
+        {
+            sprintf_s(temp, bufSize, "%u   ", valueInt);
+        }
+        else
+        {
+            sprintf_s(temp, bufSize, "%u.%02u", valueInt, (valueFrac * 100 / BB_UNITY_WEIGHT));
+        }
+    }
     return temp;
 }
 
@@ -780,7 +786,7 @@ void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
     }
 
     // Allocate some persistent memory
-    ICorJitHost* jitHost = JitHost::getJitHost();
+    ICorJitHost* jitHost = g_jitHost;
     m_ranges             = (Range*)jitHost->allocateMemory(capacity * sizeof(Range));
     m_entries            = capacity;
 
@@ -1358,6 +1364,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_ISINSTANCEOFCLASS:
             case CORINFO_HELP_ISINSTANCEOFANY:
             case CORINFO_HELP_READYTORUN_ISINSTANCEOF:
+            case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE:
 
                 isPure  = true;
                 noThrow = true; // These return null for a failing cast
@@ -1411,9 +1418,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_GETGENERICS_GCSTATIC_BASE:
             case CORINFO_HELP_GETGENERICS_NONGCSTATIC_BASE:
             case CORINFO_HELP_READYTORUN_STATIC_BASE:
-#if COR_JIT_EE_VERSION > 460
             case CORINFO_HELP_READYTORUN_GENERIC_STATIC_BASE:
-#endif // COR_JIT_EE_VERSION > 460
 
                 // These may invoke static class constructors
                 // These can throw InvalidProgram exception if the class can not be constructed
@@ -1463,9 +1468,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_VERIFICATION:
             case CORINFO_HELP_RNGCHKFAIL:
             case CORINFO_HELP_THROWDIVZERO:
-#if COR_JIT_EE_VERSION > 460
             case CORINFO_HELP_THROWNULLREF:
-#endif // COR_JIT_EE_VERSION
             case CORINFO_HELP_THROW:
             case CORINFO_HELP_RETHROW:
 
@@ -1747,7 +1750,7 @@ double FloatingPointUtils::round(double x)
 {
     // If the number has no fractional part do nothing
     // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
-    if (x == ((double)((__int64)x)))
+    if (x == (double)((INT64)x))
     {
         return x;
     }
@@ -1764,4 +1767,44 @@ double FloatingPointUtils::round(double x)
     }
 
     return _copysign(flrTempVal, x);
+}
+
+// Windows x86 and Windows ARM/ARM64 may not define _copysignf() but they do define _copysign().
+// We will redirect the macro to this other functions if the macro is not defined for the platform.
+// This has the side effect of a possible implicit upcasting for arguments passed in and an explicit
+// downcasting for the _copysign() call.
+#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)) && !defined(FEATURE_PAL)
+
+#if !defined(_copysignf)
+#define _copysignf (float)_copysign
+#endif
+
+#endif
+
+// Rounds a single-precision floating-point value to the nearest integer,
+// and rounds midpoint values to the nearest even number.
+// Note this should align with classlib in floatsingle.cpp
+// Specializing for x86 using a x87 instruction is optional since
+// this outcome is identical across targets.
+float FloatingPointUtils::round(float x)
+{
+    // If the number has no fractional part do nothing
+    // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
+    if (x == (float)((INT32)x))
+    {
+        return x;
+    }
+
+    // We had a number that was equally close to 2 integers.
+    // We need to return the even one.
+
+    float tempVal    = (x + 0.5f);
+    float flrTempVal = floorf(tempVal);
+
+    if ((flrTempVal == tempVal) && (fmodf(tempVal, 2.0f) != 0))
+    {
+        flrTempVal -= 1.0f;
+    }
+
+    return _copysignf(flrTempVal, x);
 }

@@ -27,8 +27,7 @@ enum ti_types
 #define DEF_TI(ti, nm) ti,
 #include "titypes.h"
 #undef DEF_TI
-    TI_ONLY_ENUM = TI_METHOD, // Enum values above this are completely described by the enumeration
-    TI_COUNT
+    TI_ONLY_ENUM = TI_METHOD, // Enum values with greater value are completely described by the enumeration.
 };
 
 #if defined(_TARGET_64BIT_)
@@ -190,8 +189,6 @@ inline ti_types JITtype2tiType(CorInfoType type)
  *
  */
 
-// TI_COUNT is less than or equal to TI_FLAG_DATA_MASK
-
 #define TI_FLAG_DATA_BITS 6
 #define TI_FLAG_DATA_MASK ((1 << TI_FLAG_DATA_BITS) - 1)
 
@@ -224,6 +221,9 @@ inline ti_types JITtype2tiType(CorInfoType type)
 // different size, it's important to discern between a long and a native int
 // since conversions between them are not verifiable.
 #define TI_FLAG_NATIVE_INT 0x00000200
+
+// This item contains resolved token. It is used for ctor delegate optimization.
+#define TI_FLAG_TOKEN 0x00000400
 
 // This item contains the 'this' pointer (used for tracking)
 
@@ -287,12 +287,13 @@ private:
     union {
         struct
         {
-            ti_types type : 6;
+            ti_types type : TI_FLAG_DATA_BITS;
             unsigned uninitobj : 1;        // used
             unsigned byref : 1;            // used
             unsigned byref_readonly : 1;   // used
             unsigned nativeInt : 1;        // used
-            unsigned : 2;                  // unused
+            unsigned token : 1;            // used
+            unsigned : 1;                  // unused
             unsigned thisPtr : 1;          // used
             unsigned thisPermHome : 1;     // used
             unsigned generic_type_var : 1; // used
@@ -303,8 +304,10 @@ private:
 
     union {
         CORINFO_CLASS_HANDLE m_cls;
-        // Valid only for type TI_METHOD
+        // Valid only for type TI_METHOD without IsToken
         CORINFO_METHOD_HANDLE m_method;
+        // Valid only for TI_TOKEN with IsToken
+        CORINFO_RESOLVED_TOKEN* m_token;
     };
 
     template <typename T>
@@ -366,6 +369,16 @@ public:
         assert(method != nullptr && !isInvalidHandle(method));
         m_flags  = TI_METHOD;
         m_method = method;
+    }
+
+    typeInfo(CORINFO_RESOLVED_TOKEN* token)
+    {
+        assert(token != nullptr);
+        assert(token->hMethod != nullptr);
+        assert(!isInvalidHandle(token->hMethod));
+        m_flags = TI_METHOD;
+        SetIsToken();
+        m_token = token;
     }
 
 #ifdef DEBUG
@@ -446,6 +459,12 @@ public:
     /////////////////////////////////////////////////////////////////////////
     // Operations
     /////////////////////////////////////////////////////////////////////////
+
+    void SetIsToken()
+    {
+        m_flags |= TI_FLAG_TOKEN;
+        assert(m_bits.token);
+    }
 
     void SetIsThisPtr()
     {
@@ -556,14 +575,17 @@ public:
     CORINFO_METHOD_HANDLE GetMethod() const
     {
         assert(GetType() == TI_METHOD);
+        if (IsToken())
+        {
+            return m_token->hMethod;
+        }
         return m_method;
     }
 
-    // If FEATURE_CORECLR is enabled, GetMethod can be called
-    // before the pointer type is known to be a method pointer type.
-    CORINFO_METHOD_HANDLE GetMethod2() const
+    CORINFO_RESOLVED_TOKEN* GetToken() const
     {
-        return m_method;
+        assert(IsToken());
+        return m_token;
     }
 
     // Get this item's type
@@ -626,7 +648,7 @@ public:
     // Returns whether this is a method desc
     BOOL IsMethod() const
     {
-        return (GetType() == TI_METHOD);
+        return GetType() == TI_METHOD;
     }
 
     BOOL IsStruct() const
@@ -728,6 +750,11 @@ public:
     BOOL IsUninitialisedObjRef() const
     {
         return (m_flags & TI_FLAG_UNINIT_OBJREF);
+    }
+
+    BOOL IsToken() const
+    {
+        return IsMethod() && ((m_flags & TI_FLAG_TOKEN) != 0);
     }
 
 private:

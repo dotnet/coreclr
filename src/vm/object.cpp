@@ -18,20 +18,9 @@
 #include "excep.h"
 #include "eeconfig.h"
 #include "gcheaputilities.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "field.h"
-#include "gcscan.h"
 #include "argdestination.h"
 
-#ifdef FEATURE_COMPRESSEDSTACK
-void* CompressedStackObject::GetUnmanagedCompressedStack()
-{
-    LIMITED_METHOD_CONTRACT;  
-    return ((m_compressedStackHandle != NULL)?m_compressedStackHandle->GetHandle():NULL);
-}
-#endif // FEATURE_COMPRESSEDSTACK
 
 SVAL_IMPL(INT32, ArrayBase, s_arrayBoundsZero);
 
@@ -165,13 +154,6 @@ MethodTable *Object::GetTrueMethodTable()
 
     MethodTable *mt = GetMethodTable();
 
-#ifdef FEATURE_REMOTING    
-    if(mt->IsTransparentProxy())
-    {
-        mt = ((TransparentProxyObject *)this)->GetMethodTableBeingProxied();
-    }
-    _ASSERTE(!mt->IsTransparentProxy());
-#endif
 
     RETURN mt;
 }
@@ -1390,12 +1372,6 @@ void Object::ValidateHeap(Object *from, BOOL bDeep)
             //special case:thread object is allowed to hold a context belonging to current domain
             if (from->GetGCSafeMethodTable() == g_pThreadClass && 
                       (
-#ifdef FEATURE_REMOTING                      
-                      this == OBJECTREFToObject(((ThreadBaseObject *)from)->m_ExposedContext) ||
-#endif                      
-#ifndef FEATURE_CORECLR
-                        this == OBJECTREFToObject(((ThreadBaseObject *)from)->m_ExecutionContext) ||
-#endif
                         false))
             {  
                 if (((ThreadBaseObject *)from)->m_InternalThread)
@@ -1737,9 +1713,10 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
         AVInRuntimeImplOkayHolder avOk;
 
         MethodTable *pMT = GetGCSafeMethodTable();
+
         lastTest = 1;
 
-        CHECK_AND_TEAR_DOWN(pMT->Validate());
+        CHECK_AND_TEAR_DOWN(pMT && pMT->Validate());
         lastTest = 2;
 
         bool noRangeChecks =
@@ -1749,7 +1726,7 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
         BOOL bSmallObjectHeapPtr = FALSE, bLargeObjectHeapPtr = FALSE;
         if (!noRangeChecks)
         {
-            bSmallObjectHeapPtr = GCHeapUtilities::GetGCHeap()->IsHeapPointer(this, TRUE);
+            bSmallObjectHeapPtr = GCHeapUtilities::GetGCHeap()->IsHeapPointer(this, true);
             if (!bSmallObjectHeapPtr)
                 bLargeObjectHeapPtr = GCHeapUtilities::GetGCHeap()->IsHeapPointer(this);
                 
@@ -1795,12 +1772,13 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
 
         lastTest = 7;
 
+        _ASSERTE(GCHeapUtilities::IsGCHeapInitialized());
         // try to validate next object's header
         if (bDeep 
             && bVerifyNextHeader 
-            && GCScan::GetGcRuntimeStructuresValid ()
+            && GCHeapUtilities::GetGCHeap()->RuntimeStructuresValid()
             //NextObj could be very slow if concurrent GC is going on
-            && !(GCHeapUtilities::IsGCHeapInitialized() && GCHeapUtilities::GetGCHeap ()->IsConcurrentGCInProgress ()))
+            && !GCHeapUtilities::GetGCHeap ()->IsConcurrentGCInProgress ())
         {
             Object * nextObj = GCHeapUtilities::GetGCHeap ()->NextObj (this);
             if ((nextObj != NULL) &&

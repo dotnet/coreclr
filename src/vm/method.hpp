@@ -797,24 +797,6 @@ public:
 
     //================================================================
     // Does it represent a one way method call with no out/return parameters?
-#ifdef FEATURE_REMOTING
-    inline BOOL IsOneWay()
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            MODE_ANY;
-        }
-        CONTRACTL_END
-
-        return (S_OK == GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
-                                                                "System.Runtime.Remoting.Messaging.OneWayAttribute",
-                                                                NULL,
-                                                                NULL));
-
-    }
-#endif // FEATURE_REMOTING
 
     //================================================================
     // FCalls.
@@ -1307,6 +1289,58 @@ public:
 #endif // FEATURE_INTERPRETER
 
 public:
+
+#ifdef FEATURE_TIERED_COMPILATION
+    // Is this method allowed to be recompiled and the entrypoint redirected so that we
+    // can optimize its performance? Eligibility is invariant for the lifetime of a method.
+    BOOL IsEligibleForTieredCompilation()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        // This policy will need to change some more before tiered compilation feature
+        // can be properly supported across a broad range of scenarios. For instance it 
+        // wouldn't interact correctly debugging or profiling at the moment because we 
+        // enable it too aggresively and it conflicts with the operations of those features.
+
+        //Keep in-sync with MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
+        //In the future we might want mutable vtable slots too, but that would require
+        //more work around the runtime to prevent those mutable pointers from leaking
+        return g_pConfig->TieredCompilation() &&
+            !GetModule()->HasNativeOrReadyToRunImage() &&
+            !IsEnCMethod() &&
+            HasNativeCodeSlot();
+
+    }
+#endif
+
+    // Does this method force the NativeCodeSlot to stay fixed after it
+    // is first initialized to native code? Consumers of the native code
+    // pointer need to be very careful about if and when they cache it
+    // if it is not stable.
+    //
+    // The stability of the native code pointer is separate from the
+    // stability of the entrypoint. A stable entrypoint can be a precode
+    // which dispatches to an unstable native code pointer.
+    BOOL IsNativeCodeStableAfterInit()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return 
+#ifdef FEATURE_TIERED_COMPILATION
+            !IsEligibleForTieredCompilation() &&
+#endif
+            !IsEnCMethod();
+    }
+
+    //Is this method currently pointing to native code that will never change?
+    BOOL IsPointingToStableNativeCode()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        if (!IsNativeCodeStableAfterInit())
+            return FALSE;
+
+        return IsPointingToNativeCode();
+    }
 
     // Note: We are skipping the prestub based on addition information from the JIT.
     // (e.g. that the call is on same this ptr or that the this ptr is not null).
@@ -2645,19 +2679,6 @@ public:
     // Atomically set specified flags. Only setting of the bits is supported.
     void InterlockedSetNDirectFlags(WORD wFlags);
 
-#ifdef FEATURE_MIXEDMODE // IJW
-    void SetIsEarlyBound()
-    {
-        LIMITED_METHOD_CONTRACT;
-        ndirect.m_wFlags |= kEarlyBound;
-    }
-
-    BOOL IsEarlyBound()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (ndirect.m_wFlags & kEarlyBound) != 0;
-    }
-#endif // FEATURE_MIXEDMODE
 
     BOOL IsNativeAnsi() const
     {
@@ -2673,22 +2694,6 @@ public:
         return (ndirect.m_wFlags & kNativeNoMangle) != 0;
     }
 
-#ifndef FEATURE_CORECLR
-    BOOL HasSuppressUnmanagedCodeAccessAttr() const
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (ndirect.m_wFlags & kHasSuppressUnmanagedCodeAccess) != 0;
-    }
-
-    void SetSuppressUnmanagedCodeAccessAttr(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (value)
-            ndirect.m_wFlags |= kHasSuppressUnmanagedCodeAccess;
-    }
-#endif
 
     DWORD GetECallID() const
     {
@@ -2896,9 +2901,6 @@ public:
     }
 #endif // defined(_TARGET_X86_)
 
-#ifdef FEATURE_MIXEDMODE // IJW
-    VOID InitEarlyBoundNDirectTarget();
-#endif
 
     // In AppDomains, we can trigger declarer's cctor when we link the P/Invoke,
     // which takes care of inlined calls as well. See code:NDirect.NDirectLink.
@@ -2962,12 +2964,7 @@ struct ComPlusCallInfo
         kHasCopyCtorArgs                = 0x4,
     };
 
-#if defined(FEATURE_REMOTING) && !defined(HAS_REMOTING_PRECODE)
-    // These two fields cannot overlap in this case because of AMD64 GenericComPlusCallStub uses m_pILStub on the COM event provider path
-    struct
-#else
     union
-#endif
     {
         // IL stub for CLR to COM call
         PCODE m_pILStub; 
@@ -3101,32 +3098,6 @@ public:
         return m_pComPlusCallInfo->m_pEventProviderMD;
     }
 
-#ifndef FEATURE_CORECLR
-
-    BOOL HasSuppressUnmanagedCodeAccessAttr()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (m_pComPlusCallInfo != NULL)
-        {
-            return (m_pComPlusCallInfo->m_flags & ComPlusCallInfo::kHasSuppressUnmanagedCodeAccess) != 0;
-        }
-        
-        // it is possible that somebody will call this before we initialized m_pComPlusCallInfo
-        return (GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
-                                                        COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                        NULL,
-                                                        NULL) == S_OK);
-    }
-
-    void SetSuppressUnmanagedCodeAccessAttr(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (value)
-            FastInterlockOr(reinterpret_cast<DWORD *>(&m_pComPlusCallInfo->m_flags), ComPlusCallInfo::kHasSuppressUnmanagedCodeAccess);
-    }
-#endif // FEATURE_CORECLR
 
     BOOL RequiresArgumentWrapping()
     {

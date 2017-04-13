@@ -68,6 +68,12 @@ public:
     static void StompWriteBarrier(WriteBarrierParameters* args);
 
     static void EnableFinalization(bool foundFinalizers);
+
+    static void HandleFatalError(unsigned int exitCode);
+    static bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj);
+    static bool ForceFullGCToBeBlocking();
+    static bool EagerFinalized(Object* obj);
+    static MethodTable* GetFreeObjectMethodTable();
 };
 
 #endif // __GCENV_EE_H__

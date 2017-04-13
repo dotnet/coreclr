@@ -2,13 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime.Serialization;
+using System.Text;
+using System;
+using System.Diagnostics.Contracts;
+
 namespace System.Text
 {
-    using System.Runtime.Serialization;
-    using System.Security.Permissions;
-    using System.Text;
-    using System;
-    using System.Diagnostics.Contracts;
     // An Encoder is used to encode a sequence of blocks of characters into
     // a sequence of blocks of bytes. Following instantiation of an encoder,
     // sequential blocks of characters are converted into blocks of bytes through
@@ -25,23 +25,23 @@ namespace System.Text
     internal class EncoderNLS : Encoder, ISerializable
     {
         // Need a place for the last left over character, most of our encodings use this
-        internal char   charLeftOver;
-        
-        protected Encoding m_encoding;
-        
-        [NonSerialized] protected   bool     m_mustFlush;
-        [NonSerialized] internal    bool     m_throwOnOverflow;
-        [NonSerialized] internal    int      m_charsUsed;
+        internal char charLeftOver;
 
-#region Serialization
+        protected Encoding m_encoding;
+
+        [NonSerialized] protected bool m_mustFlush;
+        [NonSerialized] internal bool m_throwOnOverflow;
+        [NonSerialized] internal int m_charsUsed;
+
+        #region Serialization
 
         // Constructor called by serialization. called during deserialization.
         internal EncoderNLS(SerializationInfo info, StreamingContext context)
         {
             throw new NotSupportedException(
                         String.Format(
-                            System.Globalization.CultureInfo.CurrentCulture, 
-                            Environment.GetResourceString("NotSupported_TypeCannotDeserialized"), this.GetType()));
+                            System.Globalization.CultureInfo.CurrentCulture,
+                            SR.NotSupported_TypeCannotDeserialized, this.GetType()));
         }
 
         // ISerializable implementation. called during serialization.
@@ -53,7 +53,7 @@ namespace System.Text
             info.SetType(typeof(Encoding.DefaultEncoder));
         }
 
-#endregion Serialization 
+        #endregion Serialization 
 
         internal EncoderNLS(Encoding encoding)
         {
@@ -81,15 +81,15 @@ namespace System.Text
             // Validate input parameters
             if (chars == null)
                 throw new ArgumentNullException(nameof(chars),
-                      Environment.GetResourceString("ArgumentNull_Array"));
+                      SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index<0 ? nameof(index) : nameof(count)),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)),
+                      SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - index < count)
                 throw new ArgumentOutOfRangeException(nameof(chars),
-                      Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+                      SR.ArgumentOutOfRange_IndexCountBuffer);
             Contract.EndContractBlock();
 
             // Avoid empty input problem
@@ -98,7 +98,7 @@ namespace System.Text
 
             // Just call the pointer version
             int result = -1;
-            fixed (char* pChars = chars)
+            fixed (char* pChars = &chars[0])
             {
                 result = GetByteCount(pChars + index, count, flush);
             }
@@ -110,11 +110,11 @@ namespace System.Text
             // Validate input parameters
             if (chars == null)
                 throw new ArgumentNullException(nameof(chars),
-                      Environment.GetResourceString("ArgumentNull_Array"));
+                      SR.ArgumentNull_Array);
 
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                      SR.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
 
             this.m_mustFlush = flush;
@@ -128,19 +128,19 @@ namespace System.Text
             // Validate parameters
             if (chars == null || bytes == null)
                 throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
-                      Environment.GetResourceString("ArgumentNull_Array"));
+                      SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex<0 ? nameof(charIndex) : nameof(charCount)),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)),
+                      SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - charIndex < charCount)
                 throw new ArgumentOutOfRangeException(nameof(chars),
-                      Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+                      SR.ArgumentOutOfRange_IndexCountBuffer);
 
             if (byteIndex < 0 || byteIndex > bytes.Length)
                 throw new ArgumentOutOfRangeException(nameof(byteIndex),
-                     Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                     SR.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
 
             if (chars.Length == 0)
@@ -151,12 +151,12 @@ namespace System.Text
                 bytes = new byte[1];
 
             // Just call pointer version
-            fixed (char* pChars = chars)
-                fixed (byte* pBytes = bytes)
+            fixed (char* pChars = &chars[0])
+            fixed (byte* pBytes = &bytes[0])
 
-                    // Remember that charCount is # to decode, not size of array.
-                    return GetBytes(pChars + charIndex, charCount,
-                                    pBytes + byteIndex, byteCount, flush);
+                // Remember that charCount is # to decode, not size of array.
+                return GetBytes(pChars + charIndex, charCount,
+                                pBytes + byteIndex, byteCount, flush);
         }
 
         public unsafe override int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, bool flush)
@@ -164,11 +164,11 @@ namespace System.Text
             // Validate parameters
             if (chars == null || bytes == null)
                 throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
-                      Environment.GetResourceString("ArgumentNull_Array"));
+                      SR.ArgumentNull_Array);
 
             if (byteCount < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((byteCount<0 ? nameof(byteCount) : nameof(charCount)),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
+                      SR.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
 
             this.m_mustFlush = flush;
@@ -185,23 +185,23 @@ namespace System.Text
             // Validate parameters
             if (chars == null || bytes == null)
                 throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
-                      Environment.GetResourceString("ArgumentNull_Array"));
+                      SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex<0 ? nameof(charIndex) : nameof(charCount)),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)),
+                      SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex<0 ? nameof(byteIndex) : nameof(byteCount)),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)),
+                      SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - charIndex < charCount)
                 throw new ArgumentOutOfRangeException(nameof(chars),
-                      Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+                      SR.ArgumentOutOfRange_IndexCountBuffer);
 
             if (bytes.Length - byteIndex < byteCount)
                 throw new ArgumentOutOfRangeException(nameof(bytes),
-                      Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+                      SR.ArgumentOutOfRange_IndexCountBuffer);
 
             Contract.EndContractBlock();
 
@@ -212,9 +212,9 @@ namespace System.Text
                 bytes = new byte[1];
 
             // Just call the pointer version (can't do this for non-msft encoders)
-            fixed (char* pChars = chars)
+            fixed (char* pChars = &chars[0])
             {
-                fixed (byte* pBytes = bytes)
+                fixed (byte* pBytes = &bytes[0])
                 {
                     Convert(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, flush,
                         out charsUsed, out bytesUsed, out completed);
@@ -231,10 +231,10 @@ namespace System.Text
             // Validate input parameters
             if (bytes == null || chars == null)
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
-                    Environment.GetResourceString("ArgumentNull_Array"));
+                    SR.ArgumentNull_Array);
             if (charCount < 0 || byteCount < 0)
-            throw new ArgumentOutOfRangeException((charCount<0 ? nameof(charCount) : nameof(byteCount)),
-                Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)),
+                    SR.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
 
             // We don't want to throw
@@ -284,6 +284,5 @@ namespace System.Text
         {
             m_mustFlush = false;
         }
-
     }
 }

@@ -12,6 +12,7 @@ syntax: glob
 *.user
 *.userosscache
 *.sln.docstates
+*.swp
 
 # Build results
 [Dd]ebug/
@@ -298,6 +299,7 @@ Makefile
 
 # Cross compilation
 cross/rootfs/*
+cross/android-rootfs/*
 # add x86 as it is ignored in 'Build results'
 !cross/x86
 
@@ -309,3 +311,6 @@ src/jit32
 
 # performance testing sandbox
 sandbox
+
+#IL linker for testing
+linker

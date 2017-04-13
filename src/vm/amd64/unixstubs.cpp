@@ -11,21 +11,6 @@ extern "C"
         PORTABILITY_ASSERT("Implement for PAL");
     }
 
-    void NakedThrowHelper()
-    {
-        PORTABILITY_ASSERT("Implement for PAL");
-    }
-
-    void PInvokeStubForHost()
-    {
-        PORTABILITY_ASSERT("Implement for PAL");
-    }
-
-    void PInvokeStubForHostInner(DWORD dwStackSize, LPVOID pStackFrame, LPVOID pTarget)
-    {
-        PORTABILITY_ASSERT("Implement for PAL");
-    }
-
     void ProfileEnterNaked(FunctionIDOrClientID functionIDOrClientID)    
     {
         PORTABILITY_ASSERT("Implement for PAL");

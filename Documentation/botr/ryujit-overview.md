@@ -22,7 +22,7 @@ RyuJIT provides the just in time compilation service for the .NET runtime. The r
   * `compileMethod` is the main entry point for the JIT. The EE passes it a `ICorJitInfo` object, and the “info” containing the IL, the method header, and various other useful tidbits. It returns a pointer to the code, its size, and additional GC, EH and (optionally) debug info.
   * `getVersionIdentifier` is the mechanism by which the JIT/EE interface is versioned. There is a single GUID (manually generated) which the JIT and EE must agree on.
   * `getMaxIntrinsicSIMDVectorLength` communicates to the EE the largest SIMD vector length that the JIT can support.
-* `ICorJitInfo` – this is the interface that the EE implements. It has many methods defined on it that allow the JIT to look up metadata tokens, traverse type signatures, compute field and vtable offsets, find method entry points, construct string literals, etc. This bulk of this interface is inherited from `ICorJitDynamicInfo` which is defined in [src/inc/corinfo.h](https://github.com/dotnet/coreclr/blob/master/src/inc/corinfo.h). The implementation is defined in [src/vm/jitinterface.cpp](https://github.com/dotnet/coreclr/blob/master/src/vm/jitinterface.cpp).
+* `ICorJitInfo` – this is the interface that the EE implements. It has many methods defined on it that allow the JIT to look up metadata tokens, traverse type signatures, compute field and vtable offsets, find method entry points, construct string literals, etc. This bulk of this interface is inherited from `ICorDynamicInfo` which is defined in [src/inc/corinfo.h](https://github.com/dotnet/coreclr/blob/master/src/inc/corinfo.h). The implementation is defined in [src/vm/jitinterface.cpp](https://github.com/dotnet/coreclr/blob/master/src/vm/jitinterface.cpp).
 
 # Internal Representation (IR)
 
@@ -236,7 +236,7 @@ Utilizes value numbers to propagate and transform based on properties such as no
 
 Optimize array index range checks based on value numbers and assertions.
 
-## <a name=rationalization"/>Rationalization
+## <a name="rationalization"/>Rationalization
 
 As the JIT has evolved, changes have been made to improve the ability to reason over the tree in both “tree order” and “linear order”. These changes have been termed the “rationalization” of the IR. In the spirit of reuse and evolution, some of the changes have been made only in the later (“backend”) components of the JIT. The corresponding transformations are made to the IR by a “Rationalizer” component. It is expected that over time some of these changes will migrate to an earlier place in the JIT phase order:
 

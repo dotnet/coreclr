@@ -27,7 +27,7 @@ Abstract:
 #include "pal/init.h"
 #include "pal/process.h"
 #include "pal/malloc.hpp"
-#include "signal.hpp"
+#include "pal/signal.hpp"
 
 #if HAVE_MACH_EXCEPTIONS
 #include "machexception.h"
@@ -111,14 +111,12 @@ Return value :
 BOOL 
 SEHInitialize (CPalThread *pthrCurrent, DWORD flags)
 {
-#if !HAVE_MACH_EXCEPTIONS
     if (!SEHInitializeSignals(flags))
     {
         ERROR("SEHInitializeSignals failed!\n");
         SEHCleanup();
         return FALSE;
     }
-#endif
 
     return TRUE;
 }
@@ -142,9 +140,8 @@ SEHCleanup()
 
 #if HAVE_MACH_EXCEPTIONS
     SEHCleanupExceptionPort();
-#else
-    SEHCleanupSignals();
 #endif
+    SEHCleanupSignals();
 }
 
 /*++
@@ -226,7 +223,11 @@ Parameters:
     PAL_SEHException* ex - the exception to throw.
 --*/
 extern "C"
+#ifdef _X86_
+void __fastcall ThrowExceptionHelper(PAL_SEHException* ex)
+#else // _X86_
 void ThrowExceptionHelper(PAL_SEHException* ex)
+#endif // !_X86_
 {
     throw std::move(*ex);
 }

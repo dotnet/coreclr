@@ -11,30 +11,35 @@
 **
 =============================================================================*/
 
-namespace System {
-    
-    using System;
-    using System.Runtime.Serialization;
 
-    [System.Runtime.InteropServices.ComVisible(true)]
+using System;
+using System.Runtime.Serialization;
+
+namespace System
+{
     [Serializable]
-    public class DllNotFoundException : TypeLoadException {
-        public DllNotFoundException() 
-            : base(Environment.GetResourceString("Arg_DllNotFoundException")) {
-            SetErrorCode(__HResults.COR_E_DLLNOTFOUND);
-        }
-    
-        public DllNotFoundException(String message) 
-            : base(message) {
-            SetErrorCode(__HResults.COR_E_DLLNOTFOUND);
-        }
-    
-        public DllNotFoundException(String message, Exception inner) 
-            : base(message, inner) {
-            SetErrorCode(__HResults.COR_E_DLLNOTFOUND);
+    public class DllNotFoundException : TypeLoadException
+    {
+        public DllNotFoundException()
+            : base(SR.Arg_DllNotFoundException)
+        {
+            HResult = __HResults.COR_E_DLLNOTFOUND;
         }
 
-        protected DllNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context) {
-        }        
+        public DllNotFoundException(String message)
+            : base(message)
+        {
+            HResult = __HResults.COR_E_DLLNOTFOUND;
+        }
+
+        public DllNotFoundException(String message, Exception inner)
+            : base(message, inner)
+        {
+            HResult = __HResults.COR_E_DLLNOTFOUND;
+        }
+
+        protected DllNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+        }
     }
 }

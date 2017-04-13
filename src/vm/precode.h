@@ -256,7 +256,7 @@ public:
     void Init(PrecodeType t, MethodDesc* pMD, LoaderAllocator *pLoaderAllocator);
 
 #ifndef DACCESS_COMPILE
-    BOOL SetTargetInterlocked(PCODE target);
+    BOOL SetTargetInterlocked(PCODE target, BOOL fOnlyRedirectFromPrestub = TRUE);
 
     // Reset precode to point to prestub
     void Reset();
@@ -311,13 +311,8 @@ public:
 
     static Precode * GetPrecodeForTemporaryEntryPoint(TADDR temporaryEntryPoints, int index);
 
-    static SIZE_T SizeOfTemporaryEntryPoints(PrecodeType t, int count);
-    static SIZE_T SizeOfTemporaryEntryPoints(TADDR temporaryEntryPoints, int count)
-    {
-        WRAPPER_NO_CONTRACT;
-        SUPPORTS_DAC;
-        return SizeOfTemporaryEntryPoints(PTR_Precode(temporaryEntryPoints)->GetType(), count);
-    }
+    static SIZE_T SizeOfTemporaryEntryPoints(PrecodeType t, bool preallocateJumpStubs, int count);
+    static SIZE_T SizeOfTemporaryEntryPoints(TADDR temporaryEntryPoints, int count);
 
     static TADDR AllocateTemporaryEntryPoints(MethodDescChunk* pChunk,
         LoaderAllocator *pLoaderAllocator, AllocMemTracker *pamTracker);

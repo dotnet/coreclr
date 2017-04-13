@@ -2199,11 +2199,14 @@ inline bool Compiler::lvaKeepAliveAndReportThis()
         return false;
     }
 
+    const bool genericsContextIsThis = (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) != 0;
+
 #ifdef JIT32_GCENCODER
+
     if (info.compFlags & CORINFO_FLG_SYNCH)
         return true;
 
-    if (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS)
+    if (genericsContextIsThis)
     {
         // TODO: Check if any of the exception clauses are
         // typed using a generic type. Else, we do not need to report this.
@@ -2213,18 +2216,29 @@ inline bool Compiler::lvaKeepAliveAndReportThis()
         if (opts.compDbgCode)
             return true;
 
-        if (lvaGenericsContextUsed)
+        if (lvaGenericsContextUseCount > 0)
+        {
+            JITDUMP("Reporting this as generic context: %u refs\n", lvaGenericsContextUseCount);
             return true;
+        }
     }
 #else // !JIT32_GCENCODER
     // If the generics context is the this pointer we need to report it if either
     // the VM requires us to keep the generics context alive or it is used in a look-up.
-    // We keep it alive in the lookup scenario, even when the VM didn't ask us too
+    // We keep it alive in the lookup scenario, even when the VM didn't ask us to,
     // because collectible types need the generics context when gc-ing.
-    if ((info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) &&
-        (lvaGenericsContextUsed || (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_KEEP_ALIVE)))
+    if (genericsContextIsThis)
     {
-        return true;
+        const bool isUsed   = lvaGenericsContextUseCount > 0;
+        const bool mustKeep = (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_KEEP_ALIVE) != 0;
+
+        if (isUsed || mustKeep)
+        {
+            JITDUMP("Reporting this as generic context: %u refs%s\n", lvaGenericsContextUseCount,
+                    mustKeep ? ", must keep" : "");
+
+            return true;
+        }
     }
 #endif
 
@@ -2250,7 +2264,7 @@ inline bool Compiler::lvaReportParamTypeArg()
 
         // Otherwise, if an exact type parameter is needed in the body, report the generics context.
         // We do this because collectible types needs the generics context when gc-ing.
-        if (lvaGenericsContextUsed)
+        if (lvaGenericsContextUseCount > 0)
         {
             return true;
         }
@@ -2321,15 +2335,16 @@ inline
             // On amd64, every param has a stack location, except on Unix-like systems.
             assert(varDsc->lvIsParam);
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
-#elif defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
-            // For !LEGACY_BACKEND on x86, a stack parameter that is enregistered will have a stack location.
-            assert(varDsc->lvIsParam && !varDsc->lvIsRegArg);
-#else  // !(_TARGET_AMD64 || !(defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)))
+#elif !defined(LEGACY_BACKEND)
+            // For !LEGACY_BACKEND on other targets, a stack parameter that is enregistered or prespilled
+            // for profiling on ARM will have a stack location.
+            assert((varDsc->lvIsParam && !varDsc->lvIsRegArg) || isPrespilledArg);
+#else  // !(_TARGET_AMD64 || defined(LEGACY_BACKEND))
             // Otherwise, we only have a valid stack location for:
             // A parameter that was passed on the stack, being homed into its register home,
             // or a prespilled argument on arm under profiler.
             assert((varDsc->lvIsParam && !varDsc->lvIsRegArg && varDsc->lvRegister) || isPrespilledArg);
-#endif // !(_TARGET_AMD64 || !(defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)))
+#endif // !(_TARGET_AMD64 || defined(LEGACY_BACKEND))
         }
 
         FPbased = varDsc->lvFramePointerBased;
@@ -2516,10 +2531,10 @@ inline BOOL Compiler::lvaIsOriginalThisArg(unsigned varNum)
         // copy to a new local, and mark the original as DoNotEnregister, to
         // ensure that it is stack-allocated.  It should not be the case that the original one can be modified -- it
         // should not be written to, or address-exposed.
-        assert(!varDsc->lvArgWrite &&
+        assert(!varDsc->lvHasILStoreOp &&
                (!varDsc->lvAddrExposed || ((info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) != 0)));
 #else
-        assert(!varDsc->lvArgWrite && !varDsc->lvAddrExposed);
+        assert(!varDsc->lvHasILStoreOp && !varDsc->lvAddrExposed);
 #endif
     }
 #endif
@@ -2877,9 +2892,7 @@ inline bool Compiler::fgIsThrowHlpBlk(BasicBlock* block)
 
     if (!((call->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_RNGCHKFAIL)) ||
           (call->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_THROWDIVZERO)) ||
-#if COR_JIT_EE_VERSION > 460
           (call->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_THROWNULLREF)) ||
-#endif // COR_JIT_EE_VERSION
           (call->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_OVERFLOW))))
     {
         return false;
@@ -2893,11 +2906,8 @@ inline bool Compiler::fgIsThrowHlpBlk(BasicBlock* block)
     {
         if (block == add->acdDstBlk)
         {
-            return add->acdKind == SCK_RNGCHK_FAIL || add->acdKind == SCK_DIV_BY_ZERO || add->acdKind == SCK_OVERFLOW
-#if COR_JIT_EE_VERSION > 460
-                   || add->acdKind == SCK_ARG_EXCPN || add->acdKind == SCK_ARG_RNG_EXCPN
-#endif // COR_JIT_EE_VERSION
-                ;
+            return add->acdKind == SCK_RNGCHK_FAIL || add->acdKind == SCK_DIV_BY_ZERO || add->acdKind == SCK_OVERFLOW ||
+                   add->acdKind == SCK_ARG_EXCPN || add->acdKind == SCK_ARG_RNG_EXCPN;
         }
     }
 
@@ -2919,11 +2929,8 @@ inline unsigned Compiler::fgThrowHlpBlkStkLevel(BasicBlock* block)
         {
             // Compute assert cond separately as assert macro cannot have conditional compilation directives.
             bool cond =
-                (add->acdKind == SCK_RNGCHK_FAIL || add->acdKind == SCK_DIV_BY_ZERO || add->acdKind == SCK_OVERFLOW
-#if COR_JIT_EE_VERSION > 460
-                 || add->acdKind == SCK_ARG_EXCPN || add->acdKind == SCK_ARG_RNG_EXCPN
-#endif // COR_JIT_EE_VERSION
-                 );
+                (add->acdKind == SCK_RNGCHK_FAIL || add->acdKind == SCK_DIV_BY_ZERO || add->acdKind == SCK_OVERFLOW ||
+                 add->acdKind == SCK_ARG_EXCPN || add->acdKind == SCK_ARG_RNG_EXCPN);
             assert(cond);
 
             // TODO: bbTgtStkDepth is DEBUG-only.
@@ -4450,7 +4457,7 @@ inline void Compiler::EndPhase(Phases phase)
 #if defined(FEATURE_JIT_METHOD_PERF)
     if (pCompJitTimer != nullptr)
     {
-        pCompJitTimer->EndPhase(phase);
+        pCompJitTimer->EndPhase(this, phase);
     }
 #endif
 #if DUMP_FLOWGRAPHS
@@ -4687,10 +4694,10 @@ inline void BasicBlock::InitVarSets(Compiler* comp)
     VarSetOps::AssignNoCopy(comp, bbLiveOut, VarSetOps::MakeEmpty(comp));
     VarSetOps::AssignNoCopy(comp, bbScope, VarSetOps::MakeEmpty(comp));
 
-    bbHeapUse     = false;
-    bbHeapDef     = false;
-    bbHeapLiveIn  = false;
-    bbHeapLiveOut = false;
+    bbMemoryUse     = emptyMemoryKindSet;
+    bbMemoryDef     = emptyMemoryKindSet;
+    bbMemoryLiveIn  = emptyMemoryKindSet;
+    bbMemoryLiveOut = emptyMemoryKindSet;
 }
 
 // Returns true if the basic block ends with GT_JMP

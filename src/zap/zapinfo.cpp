@@ -466,10 +466,6 @@ void ZapInfo::CompileMethod()
             return;
     }
 
-#if !defined(FEATURE_CORECLR)
-    // Ask the JIT to generate desktop-quirk-compatible code.
-    m_jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_DESKTOP_QUIRKS);
-#endif
 
     if (m_pImage->m_stats)
     {
@@ -1013,12 +1009,19 @@ HRESULT ZapInfo::getBBProfileData (
     }
 
     // The md must match.
-    _ASSERTE(foundEntry->md == md); 
+    _ASSERTE(foundEntry->md == md);
 
+    if (foundEntry->pos == 0)
+    {
+        // We might not have profile data and instead only have CompileStatus and flags
+        assert(foundEntry->size == 0);
+        return E_FAIL;
+    }
+
+    //
     //
     // We found the md. Let's retrieve the profile data.
     //
-    _ASSERTE(foundEntry->pos > 0);                                   // The target position cannot be 0.
     _ASSERTE(foundEntry->size >= sizeof(CORBBTPROF_METHOD_HEADER));   // The size must at least this
 
     ProfileReader profileReader(DataSection_MethodBlockCounts->pData, DataSection_MethodBlockCounts->dataSize);
@@ -1239,9 +1242,6 @@ int ZapInfo::canHandleException(struct _EXCEPTION_POINTERS *pExceptionPointers)
 
 int ZapInfo::doAssert(const char* szFile, int iLine, const char* szExpr)
 {
-#if defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
-    ThrowHR(COR_E_INVALIDPROGRAM);
-#else
 
 #if defined(_DEBUG)
     return(_DbgBreakCheck(szFile, iLine, szExpr));
@@ -1249,7 +1249,6 @@ int ZapInfo::doAssert(const char* szFile, int iLine, const char* szExpr)
     return(true);       // break into debugger
 #endif
 
-#endif
 }
 void ZapInfo::reportFatalError(CorJitResult result)
 {
@@ -2574,9 +2573,6 @@ void ZapInfo::recordRelocation(void *location, void *target,
         break;
 
     case IMAGE_REL_BASED_PTR:
-#if defined(_TARGET_AMD64_) && !defined(FEATURE_CORECLR)
-        _ASSERTE(!"Why we are not using RIP relative address?");
-#endif
         *(UNALIGNED TADDR *)location = (TADDR)targetOffset;
         break;
 
@@ -3040,6 +3036,7 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 
         case CORINFO_FIELD_INTRINSIC_ZERO:
         case CORINFO_FIELD_INTRINSIC_EMPTY_STRING:
+        case CORINFO_FIELD_INTRINSIC_ISLITTLEENDIAN:
             break;
 
         default:
@@ -3277,15 +3274,6 @@ size_t ZapInfo::getClassModuleIdForStatics(CORINFO_CLASS_HANDLE cls, CORINFO_MOD
         // if the fixups were exclusively based on the moduleforstatics lookup
         cls = NULL;
 
-#ifndef FEATURE_CORECLR
-
-        // Is this mscorlib.dll (which has ModuleDomainId of 0 (tagged == 1), then you don't need a fixup
-        if (moduleId == (size_t) 1)
-        {
-            *ppIndirection = NULL;
-            return (size_t) 1;
-        }
-#endif
 
         if (module == m_pImage->m_hModule)
         {
@@ -3519,14 +3507,14 @@ bool ZapInfo::getReadyToRunHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken,
 void ZapInfo::getReadyToRunDelegateCtorHelper(
         CORINFO_RESOLVED_TOKEN * pTargetMethod,
         CORINFO_CLASS_HANDLE     delegateType,
-        CORINFO_CONST_LOOKUP *   pLookup
+        CORINFO_LOOKUP *   pLookup
         )
 {
 #ifdef FEATURE_READYTORUN_COMPILER
     _ASSERTE(IsReadyToRunCompilation());
-
-    pLookup->accessType = IAT_PVALUE;
-    pLookup->addr = m_pImage->GetImportTable()->GetDynamicHelperCell(
+    pLookup->lookupKind.needsRuntimeLookup = false;
+    pLookup->constLookup.accessType = IAT_PVALUE;
+    pLookup->constLookup.addr = m_pImage->GetImportTable()->GetDynamicHelperCell(
             (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_DELEGATE_CTOR), pTargetMethod->hMethod, pTargetMethod, delegateType);
 #endif
 }
@@ -3642,8 +3630,6 @@ void ZapInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
                                                 CorInfoInline inlineResult,
                                                 const char * reason)
 {
-
-#ifndef FEATURE_CORECLR
     if (!dontInline(inlineResult) && inlineeHnd != NULL)
     {
         // We deliberately report  m_currentMethodHandle (not inlinerHnd) as inliner, because
@@ -3651,8 +3637,6 @@ void ZapInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
         // in inlining into m_currentMethodHandle, and we have no interest to track those intermediate links now.
         m_pImage->m_pPreloader->ReportInlining(m_currentMethodHandle, inlineeHnd);
     }
-#endif //FEATURE_CORECLR
-
     return m_pEEJitInfo->reportInliningDecision(inlinerHnd, inlineeHnd, inlineResult, reason);
 }
 
@@ -3748,6 +3732,15 @@ void ZapInfo::getMethodVTableOffset(CORINFO_METHOD_HANDLE method,
                                                   unsigned * pOffsetAfterIndirection)
 {
     m_pEEJitInfo->getMethodVTableOffset(method, pOffsetOfIndirection, pOffsetAfterIndirection);
+}
+
+CORINFO_METHOD_HANDLE ZapInfo::resolveVirtualMethod(
+        CORINFO_METHOD_HANDLE virtualMethod,
+        CORINFO_CLASS_HANDLE implementingClass,
+        CORINFO_CONTEXT_HANDLE ownerType
+        )
+{
+    return m_pEEJitInfo->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
 }
 
 CorInfoIntrinsics ZapInfo::getIntrinsicID(CORINFO_METHOD_HANDLE method,

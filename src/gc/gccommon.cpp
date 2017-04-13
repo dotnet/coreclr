@@ -14,20 +14,15 @@
 #include "gcenv.h"
 #include "gc.h"
 
-#ifdef FEATURE_SVR_GC
-SVAL_IMPL_INIT(uint32_t,IGCHeap,gcHeapType,IGCHeap::GC_HEAP_INVALID);
-#endif // FEATURE_SVR_GC
-
-SVAL_IMPL_INIT(uint32_t,IGCHeap,maxGeneration,2);
-
 IGCHeapInternal* g_theGCHeap;
+IGCHandleTable* g_theGCHandleTable;
 
 #ifdef FEATURE_STANDALONE_GC
 IGCToCLR* g_theGCToCLR;
 #endif // FEATURE_STANDALONE_GC
 
 #ifdef GC_CONFIG_DRIVEN
-GARY_IMPL(size_t, gc_global_mechanisms, MAX_GLOBAL_GC_MECHANISMS_COUNT);
+size_t gc_global_mechanisms[MAX_GLOBAL_GC_MECHANISMS_COUNT];
 #endif //GC_CONFIG_DRIVEN
 
 #ifndef DACCESS_COMPILE
@@ -39,16 +34,21 @@ uint8_t* g_shadow_lowest_address = NULL;
 #endif
 
 uint32_t* g_gc_card_table;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+uint32_t* g_gc_card_bundle_table;
+#endif
+
 uint8_t* g_gc_lowest_address  = 0;
 uint8_t* g_gc_highest_address = 0;
-bool g_fFinalizerRunOnShutDown = false;
-
-VOLATILE(int32_t) m_GCLock = -1;
+GCHeapType g_gc_heap_type = GC_HEAP_INVALID;
+uint32_t g_max_generation = max_generation;
+MethodTable* g_gc_pFreeObjectMethodTable = nullptr;
 
 #ifdef GC_CONFIG_DRIVEN
 void record_global_mechanism (int mech_index)
 {
-	(gc_global_mechanisms[mech_index])++;
+    (gc_global_mechanisms[mech_index])++;
 }
 #endif //GC_CONFIG_DRIVEN
 
@@ -119,9 +119,9 @@ void InitializeHeapType(bool bServerHeap)
 {
     LIMITED_METHOD_CONTRACT;
 #ifdef FEATURE_SVR_GC
-    IGCHeap::gcHeapType = bServerHeap ? IGCHeap::GC_HEAP_SVR : IGCHeap::GC_HEAP_WKS;
+    g_gc_heap_type = bServerHeap ? GC_HEAP_SVR : GC_HEAP_WKS;
 #ifdef WRITE_BARRIER_CHECK
-    if (IGCHeap::gcHeapType == IGCHeap::GC_HEAP_SVR)
+    if (g_gc_heap_type == GC_HEAP_SVR)
     {
         g_GCShadow = 0;
         g_GCShadowEnd = 0;
@@ -133,17 +133,54 @@ void InitializeHeapType(bool bServerHeap)
 #endif // FEATURE_SVR_GC
 }
 
-IGCHeap* InitializeGarbageCollector(IGCToCLR* clrToGC)
+namespace WKS 
+{
+    extern void PopulateDacVars(GcDacVars* dacVars);
+}
+
+namespace SVR
+{
+    extern void PopulateDacVars(GcDacVars* dacVars);
+}
+
+bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleTable** gcHandleTable, GcDacVars* gcDacVars)
 {
     LIMITED_METHOD_CONTRACT;
 
     IGCHeapInternal* heap;
+
+    assert(gcDacVars != nullptr);
+    assert(gcHeap != nullptr);
+    assert(gcHandleTable != nullptr);
+
+    IGCHandleTable* handleTable = CreateGCHandleTable();
+    if (handleTable == nullptr)
+    {
+        return false;
+    }
+
 #ifdef FEATURE_SVR_GC
-    assert(IGCHeap::gcHeapType != IGCHeap::GC_HEAP_INVALID);
-    heap = IGCHeap::gcHeapType == IGCHeap::GC_HEAP_SVR ? SVR::CreateGCHeap() : WKS::CreateGCHeap();
+    assert(g_gc_heap_type != GC_HEAP_INVALID);
+
+    if (g_gc_heap_type == GC_HEAP_SVR)
+    {
+        heap = SVR::CreateGCHeap();
+        SVR::PopulateDacVars(gcDacVars);
+    }
+    else
+    {
+        heap = WKS::CreateGCHeap();
+        WKS::PopulateDacVars(gcDacVars);
+    }
 #else
     heap = WKS::CreateGCHeap();
+    WKS::PopulateDacVars(gcDacVars);
 #endif
+
+    if (heap == nullptr)
+    {
+        return false;
+    }
 
     g_theGCHeap = heap;
 
@@ -155,7 +192,9 @@ IGCHeap* InitializeGarbageCollector(IGCToCLR* clrToGC)
     assert(clrToGC == nullptr);
 #endif
 
-    return heap;
+    *gcHandleTable = handleTable;
+    *gcHeap = heap;
+    return true;
 }
 
 #endif // !DACCESS_COMPILE

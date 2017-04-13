@@ -107,6 +107,11 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     m_stkArgVarNum = BAD_VAR_NUM;
 #endif
 
+#if defined(UNIX_X86_ABI)
+    curNestedAlignment = 0;
+    maxNestedAlignment = 0;
+#endif
+
     regTracker.rsTrackInit(compiler, &regSet);
     gcInfo.regSet        = &regSet;
     m_cgEmitter          = new (compiler->getAllocator()) emitter();
@@ -647,7 +652,7 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 #if defined(_TARGET_AMD64_)
             return RBM_RSI | RBM_RDI | RBM_CALLEE_TRASH;
 #elif defined(_TARGET_ARM64_)
-            return RBM_CALLEE_TRASH_NOGC;
+            return RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF | RBM_CALLEE_TRASH_NOGC;
 #elif defined(_TARGET_X86_)
             return RBM_ESI | RBM_EDI | RBM_ECX;
 #else
@@ -717,6 +722,8 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
 #elif defined(_TARGET_X86_)
             // This helper only trashes ECX.
             return RBM_ECX;
+#elif defined(_TARGET_ARM64_)
+            return RBM_CALLEE_TRASH_NOGC & ~(RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF);
 #else
             return RBM_CALLEE_TRASH_NOGC;
 #endif // defined(_TARGET_AMD64_)
@@ -1095,9 +1102,9 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree)
     /* Can't simultaneously become live and dead at the same time */
 
     // (deadSet UNION bornSet) != EMPTY
-    noway_assert(!VarSetOps::IsEmpty(this, VarSetOps::Union(this, deadSet, bornSet)));
+    noway_assert(!VarSetOps::IsEmptyUnion(this, deadSet, bornSet));
     // (deadSet INTERSECTION bornSet) == EMPTY
-    noway_assert(VarSetOps::IsEmpty(this, VarSetOps::Intersection(this, deadSet, bornSet)));
+    noway_assert(VarSetOps::IsEmptyIntersection(this, deadSet, bornSet));
 
 #ifdef LEGACY_BACKEND
     // In the LEGACY_BACKEND case, we only consider variables that are fully enregisterd
@@ -1406,9 +1413,8 @@ void CodeGenInterface::reloadFloatReg(var_types type, TempDsc* tmp, regNumber re
 #endif // LEGACY_BACKEND
 
 // inline
-regNumber CodeGenInterface::genGetThisArgReg(GenTreePtr call)
+regNumber CodeGenInterface::genGetThisArgReg(GenTreeCall* call) const
 {
-    noway_assert(call->IsCall());
     return REG_ARG_0;
 }
 
@@ -1633,7 +1639,7 @@ void CodeGen::genDefineTempLabel(BasicBlock* label)
 
 void CodeGen::genAdjustSP(ssize_t delta)
 {
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(UNIX_X86_ABI)
     if (delta == sizeof(int))
         inst_RV(INS_pop, REG_ECX, TYP_INT);
     else
@@ -1663,14 +1669,14 @@ void CodeGen::genAdjustStackLevel(BasicBlock* block)
     {
         noway_assert(block->bbFlags & BBF_JMP_TARGET);
 
-        genStackLevel = compiler->fgThrowHlpBlkStkLevel(block) * sizeof(int);
+        SetStackLevel(compiler->fgThrowHlpBlkStkLevel(block) * sizeof(int));
 
         if (genStackLevel != 0)
         {
 #ifdef _TARGET_X86_
             getEmitter()->emitMarkStackLvl(genStackLevel);
             inst_RV_IV(INS_add, REG_SPBASE, genStackLevel, EA_PTRSIZE);
-            genStackLevel = 0;
+            SetStackLevel(0);
 #else  // _TARGET_X86_
             NYI("Need emitMarkStackLvl()");
 #endif // _TARGET_X86_
@@ -1863,26 +1869,26 @@ bool CodeGen::genCreateAddrMode(GenTreePtr  addr,
         The following indirections are valid address modes on x86/x64:
 
             [                  icon]      * not handled here
-            [reg                   ]      * not handled here
+            [reg                   ]
             [reg             + icon]
-            [reg2 +     reg1       ]
-            [reg2 +     reg1 + icon]
-            [reg2 + 2 * reg1       ]
-            [reg2 + 4 * reg1       ]
-            [reg2 + 8 * reg1       ]
-            [       2 * reg1 + icon]
-            [       4 * reg1 + icon]
-            [       8 * reg1 + icon]
-            [reg2 + 2 * reg1 + icon]
-            [reg2 + 4 * reg1 + icon]
-            [reg2 + 8 * reg1 + icon]
+            [reg1 +     reg2       ]
+            [reg1 +     reg2 + icon]
+            [reg1 + 2 * reg2       ]
+            [reg1 + 4 * reg2       ]
+            [reg1 + 8 * reg2       ]
+            [       2 * reg2 + icon]
+            [       4 * reg2 + icon]
+            [       8 * reg2 + icon]
+            [reg1 + 2 * reg2 + icon]
+            [reg1 + 4 * reg2 + icon]
+            [reg1 + 8 * reg2 + icon]
 
         The following indirections are valid address modes on arm64:
 
             [reg]
             [reg  + icon]
-            [reg2 + reg1]
-            [reg2 + reg1 * natural-scale]
+            [reg1 + reg2]
+            [reg1 + reg2 * natural-scale]
 
      */
 
@@ -2442,6 +2448,11 @@ FOUND_AM:
 
     noway_assert(FitsIn<INT32>(cns));
 
+    if (rv1 == nullptr && rv2 == nullptr)
+    {
+        return false;
+    }
+
     /* Success - return the various components to the caller */
 
     *revPtr = rev;
@@ -2603,6 +2614,51 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
     assert(result != EJ_COUNT);
     return result;
 }
+
+#ifndef LEGACY_BACKEND
+#ifdef _TARGET_ARMARCH_
+//------------------------------------------------------------------------
+// genEmitGSCookieCheck: Generate code to check that the GS cookie
+// wasn't thrashed by a buffer overrun. Coomon code for ARM32 and ARM64
+//
+void CodeGen::genEmitGSCookieCheck(bool pushReg)
+{
+    noway_assert(compiler->gsGlobalSecurityCookieAddr || compiler->gsGlobalSecurityCookieVal);
+
+    // Make sure that the return register is reported as live GC-ref so that any GC that kicks in while
+    // executing GS cookie check will not collect the object pointed to by REG_INTRET (R0).
+    if (!pushReg && (compiler->info.compRetType == TYP_REF))
+        gcInfo.gcRegGCrefSetCur |= RBM_INTRET;
+
+    regNumber regGSConst = REG_TMP_0;
+    regNumber regGSValue = REG_TMP_1;
+
+    if (compiler->gsGlobalSecurityCookieAddr == nullptr)
+    {
+        // load the GS cookie constant into a reg
+        //
+        genSetRegToIcon(regGSConst, compiler->gsGlobalSecurityCookieVal, TYP_I_IMPL);
+    }
+    else
+    {
+        // Ngen case - GS cookie constant needs to be accessed through an indirection.
+        instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, regGSConst, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
+        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSConst, regGSConst, 0);
+    }
+    // Load this method's GS value from the stack frame
+    getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSValue, compiler->lvaGSSecurityCookie, 0);
+    // Compare with the GC cookie constant
+    getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, regGSConst, regGSValue);
+
+    BasicBlock*  gsCheckBlk = genCreateTempLabel();
+    emitJumpKind jmpEqual   = genJumpKindForOper(GT_EQ, CK_SIGNED);
+    inst_JMP(jmpEqual, gsCheckBlk);
+    // regGSConst and regGSValue aren't needed anymore, we can use them for helper call
+    genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, EA_UNKNOWN, regGSConst);
+    genDefineTempLabel(gsCheckBlk);
+}
+#endif // _TARGET_ARMARCH_
+#endif // !LEGACY_BACKEND
 
 /*****************************************************************************
  *
@@ -2814,6 +2870,37 @@ void CodeGen::genUpdateCurrentFunclet(BasicBlock* block)
         }
     }
 }
+
+#if defined(_TARGET_ARM_)
+void CodeGen::genInsertNopForUnwinder(BasicBlock* block)
+{
+    // If this block is the target of a finally return, we need to add a preceding NOP, in the same EH region,
+    // so the unwinder doesn't get confused by our "movw lr, xxx; movt lr, xxx; b Lyyy" calling convention that
+    // calls the funclet during non-exceptional control flow.
+    if (block->bbFlags & BBF_FINALLY_TARGET)
+    {
+        assert(block->bbFlags & BBF_JMP_TARGET);
+
+#ifdef DEBUG
+        if (compiler->verbose)
+        {
+            printf("\nEmitting finally target NOP predecessor for BB%02u\n", block->bbNum);
+        }
+#endif
+        // Create a label that we'll use for computing the start of an EH region, if this block is
+        // at the beginning of such a region. If we used the existing bbEmitCookie as is for
+        // determining the EH regions, then this NOP would end up outside of the region, if this
+        // block starts an EH region. If we pointed the existing bbEmitCookie here, then the NOP
+        // would be executed, which we would prefer not to do.
+
+        block->bbUnwindNopEmitCookie =
+            getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur);
+
+        instGen(INS_nop);
+    }
+}
+#endif
+
 #endif // FEATURE_EH_FUNCLETS
 
 /*****************************************************************************
@@ -2946,7 +3033,8 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
         if (compiler->fgHaveProfileData())
         {
-            printf("; with IBC profile data\n");
+            printf("; with IBC profile data, edge weights are %s, and fgCalledCount is %u\n",
+                   compiler->fgHaveValidEdgeWeights ? "valid" : "invalid", compiler->fgCalledCount);
         }
 
         if (compiler->fgProfileData_ILSizeMismatch)
@@ -3120,14 +3208,11 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     bool trackedStackPtrsContig; // are tracked stk-ptrs contiguous ?
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
     trackedStackPtrsContig = false;
 #elif defined(_TARGET_ARM_)
     // On arm due to prespilling of arguments, tracked stk-ptrs may not be contiguous
     trackedStackPtrsContig = !compiler->opts.compDbgEnC && !compiler->compIsProfilerHookNeeded();
-#elif defined(_TARGET_ARM64_)
-    // Incoming vararg registers are homed on the top of the stack. Tracked var may not be contiguous.
-    trackedStackPtrsContig = !compiler->opts.compDbgEnC && !compiler->info.compIsVarArgs;
 #else
     trackedStackPtrsContig = !compiler->opts.compDbgEnC;
 #endif
@@ -3165,12 +3250,17 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
     /* Check our max stack level. Needed for fgAddCodeRef().
        We need to relax the assert as our estimation won't include code-gen
        stack changes (which we know don't affect fgAddCodeRef()) */
-    noway_assert(getEmitter()->emitMaxStackDepth <=
-                 (compiler->fgPtrArgCntMax +              // Max number of pointer-sized stack arguments.
-                  compiler->compHndBBtabCount +           // Return address for locally-called finallys
-                  genTypeStSz(TYP_LONG) +                 // longs/doubles may be transferred via stack, etc
-                  (compiler->compTailCallUsed ? 4 : 0))); // CORINFO_HELP_TAILCALL args
+    {
+        unsigned maxAllowedStackDepth = compiler->fgPtrArgCntMax +    // Max number of pointer-sized stack arguments.
+                                        compiler->compHndBBtabCount + // Return address for locally-called finallys
+                                        genTypeStSz(TYP_LONG) +       // longs/doubles may be transferred via stack, etc
+                                        (compiler->compTailCallUsed ? 4 : 0); // CORINFO_HELP_TAILCALL args
+#if defined(UNIX_X86_ABI)
+        maxAllowedStackDepth += maxNestedAlignment;
 #endif
+        noway_assert(getEmitter()->emitMaxStackDepth <= maxAllowedStackDepth);
+    }
+#endif // EMIT_TRACK_STACK_DEPTH
 
     *nativeSizeOfCode                 = codeSize;
     compiler->info.compNativeCodeSize = (UNATIVE_OFFSET)codeSize;
@@ -3891,12 +3981,12 @@ void CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf)
         }
 #endif // DEBUG
 #endif // 0
-        genStackLevel += 4;
+        AddStackLevel(4);
         inst_IV(INS_push, wbKind);
         genEmitHelperCall(helper,
                           4,           // argSize
                           EA_PTRSIZE); // retSize
-        genStackLevel -= 4;
+        SubtractStackLevel(4);
     }
     else
     {
@@ -7515,6 +7605,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     //
     if (compiler->fgPtrArgCntMax < 1)
     {
+        JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", compiler->fgPtrArgCntMax);
         compiler->fgPtrArgCntMax = 1;
     }
 #elif defined(_TARGET_ARM_)
@@ -7531,7 +7622,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 
     /* Restore the stack level */
 
-    genStackLevel = saveStackLvl2;
+    SetStackLevel(saveStackLvl2);
 
 #else  // target
     NYI("Emit Profiler Enter callback");
@@ -7674,6 +7765,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
     //
     if (compiler->fgPtrArgCntMax < 1)
     {
+        JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", compiler->fgPtrArgCntMax);
         compiler->fgPtrArgCntMax = 1;
     }
 
@@ -7760,7 +7852,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
 #endif // target
 
     /* Restore the stack level */
-    genStackLevel = saveStackLvl2;
+    SetStackLevel(saveStackLvl2);
 }
 
 #endif // PROFILING_SUPPORTED
@@ -8048,6 +8140,14 @@ void CodeGen::genFinalizeFrame()
         regSet.rsSetRegsModified(VERY_LARGE_FRAME_SIZE_REG_MASK);
     }
 #endif // defined(_TARGET_ARMARCH_)
+
+#if defined(_TARGET_ARM_)
+    // If there are any reserved registers, add them to the
+    if (regSet.rsMaskResvd != RBM_NONE)
+    {
+        regSet.rsSetRegsModified(regSet.rsMaskResvd);
+    }
+#endif // _TARGET_ARM_
 
 #ifdef DEBUG
     if (verbose)
@@ -9234,16 +9334,23 @@ void CodeGen::genFnEpilog(BasicBlock* block)
          * the same descriptor with some minor adjustments.
          */
 
-        getEmitter()->emitIns_Call(callType, methHnd, INDEBUG_LDISASM_COMMA(nullptr) addr,
+        // clang-format off
+        getEmitter()->emitIns_Call(callType,
+                                   methHnd,
+                                   INDEBUG_LDISASM_COMMA(nullptr)
+                                   addr,
                                    0,          // argSize
                                    EA_UNKNOWN, // retSize
-                                   gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur,
+                                   gcInfo.gcVarPtrSetCur,
+                                   gcInfo.gcRegGCrefSetCur,
+                                   gcInfo.gcRegByrefSetCur,
                                    BAD_IL_OFFSET, // IL offset
                                    indCallReg,    // ireg
                                    REG_NA,        // xreg
                                    0,             // xmul
                                    0,             // disp
                                    true);         // isJump
+        // clang-format on
     }
     else
     {
@@ -9336,13 +9443,21 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
             // Simply emit a jump to the methodHnd. This is similar to a call so we can use
             // the same descriptor with some minor adjustments.
-            getEmitter()->emitIns_Call(callType, methHnd, INDEBUG_LDISASM_COMMA(nullptr) addrInfo.addr,
+
+            // clang-format off
+            getEmitter()->emitIns_Call(callType,
+                                       methHnd,
+                                       INDEBUG_LDISASM_COMMA(nullptr)
+                                       addrInfo.addr,
                                        0,          // argSize
                                        EA_UNKNOWN, // retSize
                                        EA_UNKNOWN, // secondRetSize
-                                       gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur,
+                                       gcInfo.gcVarPtrSetCur,
+                                       gcInfo.gcRegGCrefSetCur,
+                                       gcInfo.gcRegByrefSetCur,
                                        BAD_IL_OFFSET, REG_NA, REG_NA, 0, 0, /* iloffset, ireg, xreg, xmul, disp */
                                        true);                               /* isJump */
+            // clang-format on
         }
 #if FEATURE_FASTTAILCALL
         else
@@ -9413,6 +9528,20 @@ void CodeGen::genFnEpilog(BasicBlock* block)
     // Restore float registers that were saved to stack before SP is modified.
     genRestoreCalleeSavedFltRegs(compiler->compLclFrameSize);
 #endif // !FEATURE_STACK_FP_X87
+
+#ifdef JIT32_GCENCODER
+    // When using the JIT32 GC encoder, we do not start the OS-reported portion of the epilog until after
+    // the above call to `genRestoreCalleeSavedFltRegs` because that function
+    //   a) does not actually restore any registers: there are none when targeting the Windows x86 ABI,
+    //      which is the only target that uses the JIT32 GC encoder
+    //   b) may issue a `vzeroupper` instruction to eliminate AVX -> SSE transition penalties.
+    // Because the `vzeroupper` instruction is not recognized by the VM's unwinder and there are no
+    // callee-save FP restores that the unwinder would need to see, we can avoid the need to change the
+    // unwinder (and break binary compat with older versions of the runtime) by starting the epilog
+    // after any `vzeroupper` instruction has been emitted. If either of the above conditions changes,
+    // we will need to rethink this.
+    getEmitter()->emitStartEpilog();
+#endif
 
     /* Compute the size in bytes we've pushed/popped */
 
@@ -9610,14 +9739,21 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
             // Simply emit a jump to the methodHnd. This is similar to a call so we can use
             // the same descriptor with some minor adjustments.
-            getEmitter()->emitIns_Call(callType, methHnd, INDEBUG_LDISASM_COMMA(nullptr) addrInfo.addr,
+
+            // clang-format off
+            getEmitter()->emitIns_Call(callType,
+                                       methHnd,
+                                       INDEBUG_LDISASM_COMMA(nullptr)
+                                       addrInfo.addr,
                                        0,                                                      // argSize
                                        EA_UNKNOWN                                              // retSize
-                                       FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(EA_UNKNOWN), // secondRetSize
+                                       MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(EA_UNKNOWN),        // secondRetSize
                                        gcInfo.gcVarPtrSetCur,
-                                       gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur, BAD_IL_OFFSET, REG_NA, REG_NA,
-                                       0, 0,  /* iloffset, ireg, xreg, xmul, disp */
+                                       gcInfo.gcRegGCrefSetCur,
+                                       gcInfo.gcRegByrefSetCur,
+                                       BAD_IL_OFFSET, REG_NA, REG_NA, 0, 0,  /* iloffset, ireg, xreg, xmul, disp */
                                        true); /* isJump */
+            // clang-format on
         }
 #if FEATURE_FASTTAILCALL
         else
@@ -9639,17 +9775,25 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         unsigned stkArgSize = 0; // Zero on all platforms except x86
 
 #if defined(_TARGET_X86_)
-
-        noway_assert(compiler->compArgSize >= intRegState.rsCalleeRegArgCount * sizeof(void*));
-        stkArgSize = compiler->compArgSize - intRegState.rsCalleeRegArgCount * sizeof(void*);
-
-        noway_assert(compiler->compArgSize < 0x10000); // "ret" only has 2 byte operand
+        bool     fCalleePop = true;
 
         // varargs has caller pop
         if (compiler->info.compIsVarArgs)
-            stkArgSize = 0;
+            fCalleePop = false;
 
-#endif // defined(_TARGET_X86_)
+#ifdef UNIX_X86_ABI
+        if (IsCallerPop(compiler->info.compMethodInfo->args.callConv))
+            fCalleePop = false;
+#endif // UNIX_X86_ABI
+
+        if (fCalleePop)
+        {
+            noway_assert(compiler->compArgSize >= intRegState.rsCalleeRegArgCount * sizeof(void*));
+            stkArgSize = compiler->compArgSize - intRegState.rsCalleeRegArgCount * sizeof(void*);
+
+            noway_assert(compiler->compArgSize < 0x10000); // "ret" only has 2 byte operand
+        }
+#endif // _TARGET_X86_
 
         /* Return, popping our arguments (if any) */
         instGen_Return(stkArgSize);
@@ -10266,6 +10410,22 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
 /*****************************************************************************
  *
  *  Generates code for an EH funclet prolog.
+ *
+ *
+ *  Funclets have the following incoming arguments:
+ *
+ *      catch/filter-handler: eax = the exception object that was caught (see GT_CATCH_ARG)
+ *      filter:               eax = the exception object that was caught (see GT_CATCH_ARG)
+ *      finally/fault:        none
+ *
+ *  Funclets set the following registers on exit:
+ *
+ *      catch/filter-handler: eax = the address at which execution should resume (see BBJ_EHCATCHRET)
+ *      filter:               eax = non-zero if the handler should handle the exception, zero otherwise (see GT_RETFILT)
+ *      finally/fault:        none
+ *
+ *  Funclet prolog/epilog sequence and funclet frame layout are TBD.
+ *
  */
 
 void CodeGen::genFuncletProlog(BasicBlock* block)
@@ -10279,12 +10439,17 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 
     ScopedSetVariable<bool> _setGeneratingProlog(&compiler->compGeneratingProlog, true);
 
-    compiler->unwindBegProlog();
+    gcInfo.gcResetForBB();
 
-    // TODO Save callee-saved registers
+    compiler->unwindBegProlog();
 
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
+
+    // TODO We may need EBP restore sequence here if we introduce PSPSym
+
+    // Add a padding for 16-byte alignment
+    inst_RV_IV(INS_sub, REG_SPBASE, 12, EA_PTRSIZE);
 }
 
 /*****************************************************************************
@@ -10303,7 +10468,8 @@ void CodeGen::genFuncletEpilog()
 
     ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
 
-    // TODO Restore callee-saved registers
+    // Revert a padding that was added for 16-byte alignment
+    inst_RV_IV(INS_add, REG_SPBASE, 12, EA_PTRSIZE);
 
     instGen_Return(0);
 }
@@ -11056,7 +11222,7 @@ unsigned CodeGen::getFirstArgWithStackSlot()
 //
 void CodeGen::genSinglePush()
 {
-    genStackLevel += sizeof(void*);
+    AddStackLevel(REGSIZE_BYTES);
 }
 
 //------------------------------------------------------------------------
@@ -11064,7 +11230,7 @@ void CodeGen::genSinglePush()
 //
 void CodeGen::genSinglePop()
 {
-    genStackLevel -= sizeof(void*);
+    SubtractStackLevel(REGSIZE_BYTES);
 }
 
 //------------------------------------------------------------------------

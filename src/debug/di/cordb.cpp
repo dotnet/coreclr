@@ -86,7 +86,7 @@ HINSTANCE       g_hInst;                // Instance handle to this piece of code
 //*****************************************************************************
 STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
 {
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_DBGIPC_TRANSPORT_DI) && !defined(FEATURE_CORESYSTEM)
+#if !defined(FEATURE_DBGIPC_TRANSPORT_DI) && !defined(FEATURE_CORESYSTEM)
     // This API should not be called for Windows CoreCLR unless we are doing interop-debugging
     // (which is only supported internally).  Use code:CoreCLRCreateCordbObject instead.
     if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DbgEnableMixedModeDebugging) == 0)
@@ -94,7 +94,7 @@ STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
         _ASSERTE(!"Deprecated entry point CreateCordbObject() is called on Windows CoreCLR\n");
         return E_NOTIMPL;
     }
-#endif // FEATURE_CORECLR && !FEATURE_DBGIPC_TRANSPORT_DI
+#endif // !defined(FEATURE_DBGIPC_TRANSPORT_DI) && !defined(FEATURE_CORESYSTEM)
 
     if (ppCordb == NULL)
     {
@@ -108,7 +108,6 @@ STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
     return Cordb::CreateObject((CorDebugInterfaceVersion)iDebuggerVersion, IID_ICorDebug, (void **) ppCordb);
 }
 
-#if defined(FEATURE_CORECLR)
 //
 // Public API.  
 // Telesto Creation path - only way to debug multi-instance.  
@@ -161,7 +160,6 @@ STDAPI CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTar
     return hr;
 }
 
-#endif // FEATURE_CORECLR
 
 
 
@@ -501,7 +499,7 @@ DbiGetThreadContext(HANDLE hThread,
     DT_CONTEXT *lpContext)
 {
     // if we aren't local debugging this isn't going to work
-#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI)
+#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || defined(__ANDROID__)
     _ASSERTE(!"Can't use local GetThreadContext remotely, this needed to go to datatarget");
     return FALSE;
 #else
@@ -540,7 +538,7 @@ BOOL
 DbiSetThreadContext(HANDLE hThread,
     const DT_CONTEXT *lpContext)
 {
-#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI)
+#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || defined(__ANDROID__)
     _ASSERTE(!"Can't use local GetThreadContext remotely, this needed to go to datatarget");
     return FALSE;
 #else

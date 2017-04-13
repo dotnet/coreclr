@@ -6,8 +6,31 @@ set __BuildArch=x64
 set __VCBuildArch=x86_amd64
 set __BuildType=Debug
 set __BuildOS=Windows_NT
-set __VSVersion=vs2015
-set __VSToolsRoot=%VS140COMNTOOLS%
+
+:: Default to highest Visual Studio version available
+::
+:: For VS2015 (and prior), only a single instance is allowed to be installed on a box
+:: and VS140COMNTOOLS is set as a global environment variable by the installer. This
+:: allows users to locate where the instance of VS2015 is installed.
+::
+:: For VS2017, multiple instances can be installed on the same box SxS and VS150COMNTOOLS
+:: is no longer set as a global environment variable and is instead only set if the user
+:: has launched the VS2017 Developer Command Prompt.
+::
+:: Following this logic, we will default to the VS2017 toolset if VS150COMNTOOLS tools is
+:: set, as this indicates the user is running from the VS2017 Developer Command Prompt and
+:: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
+:: toolset if it is installed. Finally, we will fail the script if no supported VS instance
+:: can be found.
+if defined VS150COMNTOOLS (
+  set "__VSToolsRoot=%VS150COMNTOOLS%"
+  set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
+  set __VSVersion=vs2017
+) else (
+  set "__VSToolsRoot=%VS140COMNTOOLS%"
+  set "__VCToolsRoot=%VS140COMNTOOLS%\..\..\VC"
+  set __VSVersion=vs2015
+)
 
 :: Define a prefix for most output progress messages that come from this script. That makes
 :: it easier to see where these are coming from. Note that there is a trailing space here.
@@ -31,9 +54,9 @@ set "__args= %*"
 set processedArgs=
 set __unprocessedBuildArgs=
 set __RunArgs=
-set __BuildAgainstPackages=
 set __BuildAgainstPackagesArg=
 set __RuntimeId=
+set __ZipTests=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -54,9 +77,10 @@ if /i "%1" == "checked"               (set __BuildType=Checked&set processedArgs
 if /i "%1" == "skipmanaged"           (set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "updateinvalidpackages" (set __UpdateInvalidPackagesArg=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "toolset_dir"           (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
-if /i "%1" == "buildagainstpackages"  (set __BuildAgainstPackages=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "buildagainstpackages"  (set __ZipTests=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "ziptests"              (set __ZipTests=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
-if /i "%1" == "Exclude"              (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 
 if [!processedArgs!]==[] (
   call set __UnprocessedBuildArgs=!__args!
@@ -136,8 +160,8 @@ if defined __ToolsetDir (
 )
 
 :: Set the environment for the native build
-echo %__MsgPrefix%Using environment: "%__VSToolsRoot%\..\..\VC\vcvarsall.bat" %__VCBuildArch%
-call                                 "%__VSToolsRoot%\..\..\VC\vcvarsall.bat" %__VCBuildArch%
+echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" %__VCBuildArch%
+call                                 "%__VCToolsRoot%\vcvarsall.bat" %__VCBuildArch%
 @if defined _echo @echo on
 
 if not defined VSINSTALLDIR (
@@ -195,7 +219,7 @@ set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
 set "__TestWorkingDir=%__RootBinDir%\tests\%__BuildOS%.%__BuildArch%.%__BuildType%"
 
-if not defined __BuildAgainstPackages goto SkipRestoreProduct
+if not defined __BuildAgainstPackagesArg goto SkipRestoreProduct
 REM =========================================================================================
 REM ===
 REM === Restore product binaries from packages
@@ -224,8 +248,8 @@ if defined __RuntimeId (
     )
 
     call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\runtest.proj -CreateNonWindowsTestOverlay -RuntimeId="%__RuntimeId%"  -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
-    for /R %__PackagesDir%\TestNativeBins\%__RuntimeId% %%f in (*.so) do copy %%f %Core_Overlay%
-    for /R %__PackagesDir%\TestNativeBins\%__RuntimeId% %%f in (*.dylib) do copy %%f %Core_Overlay%
+    for /R %__PackagesDir%\TestNativeBins\%__RuntimeId%\%__BuildType% %%f in (*.so) do copy %%f %Core_Overlay%
+    for /R %__PackagesDir%\TestNativeBins\%__RuntimeId%\%__BuildType% %%f in (*.dylib) do copy %%f %Core_Overlay%
 
     echo %__MsgPrefix% Created the runtime layout for %__RuntimeId% in %CORE_OVERLAY%
 )
@@ -261,7 +285,7 @@ if defined __UpdateInvalidPackagesArg (
   set __up=-updateinvalidpackageversions
 )
 
-call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__up% %__RunArgs% %__unprocessedBuildArgs%
+call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__up% %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -293,7 +317,7 @@ set __BuildLogRootName=Tests_XunitWrapper
 set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
 set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
 set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __msbuildLog=/flp:Verbosity=diag;LogFile="%__BuildLog%"
+set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
@@ -322,7 +346,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if not defined __BuildAgainstPackages goto SkipPrepForPublish
+if not defined __ZipTests goto SkipPrepForPublish
 
 set __BuildLogRootName=Helix_Prep
 set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
@@ -368,15 +392,15 @@ echo buildagainstpackages: builds tests against restored packages, instead of ag
 echo runtimeid ^<ID^>: Builds a test overlay for the specified OS (Only supported when building against packages). Supported IDs are:
 echo     alpine.3.4.3-x64: Builds overlay for Alpine 3.4.3
 echo     debian.8-x64: Builds overlay for Debian 8
-echo     fedora.23-x64: Builds overlay for Fedora 23
-echo     fedora.24-x64: Builds overlay for Fedora 23
-echo     opensuse.13.2-x64: Builds overlay for OpenSUSE 13.2
+echo     fedora.24-x64: Builds overlay for Fedora 24
+echo     fedora.25-x64: Builds overlay for Fedora 25
 echo     opensuse.42.1-x64: Builds overlay for OpenSUSE 42.1
-echo     osx.10.10-x64: Builds overlay for OSX 10.10
+echo     osx.10.12-x64: Builds overlay for OSX 10.12
 echo     rhel.7-x64: Builds overlay for RHEL 7 or CentOS
 echo     ubuntu.14.04-x64: Builds overlay for Ubuntu 14.04
 echo     ubuntu.16.04-x64: Builds overlay for Ubuntu 16.04
 echo     ubuntu.16.10-x64: Builds overlay for Ubuntu 16.10
+echo ziptests: zips CoreCLR tests & Core_Root for a Helix run
 echo Exclude- Optional parameter - specify location of default exclusion file (defaults to tests\issues.targets if not specified)
 echo     Set to "" to disable default exclusion file.
 echo -- ... : all arguments following this tag will be passed directly to msbuild.
@@ -396,8 +420,8 @@ This is due to a bug in the Visual Studio installer. It does not install DIA SDK
 at the install location of previous Visual Studio version. The workaround is to copy the DIA SDK folder from the Visual Studio install location ^
 of the previous version to "%VSINSTALLDIR%" and then build.
 :: DIA SDK not included in Express editions
-echo Visual Studio 2013 Express does not include the DIA SDK. ^
-You need Visual Studio 2013+ (Community is free).
+echo Visual Studio Express does not include the DIA SDK. ^
+You need Visual Studio 2015 or 2017 (Community is free).
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
 

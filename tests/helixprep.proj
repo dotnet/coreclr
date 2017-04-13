@@ -1,6 +1,6 @@
 <Project ToolsVersion="12.0" DefaultTargets="ArchiveAll" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <UsingTask TaskName="ZipFileCreateFromDirectory" AssemblyFile="$(ToolsDir)\net45\Microsoft.DotNet.Build.Tasks.dll"/>
+  <UsingTask TaskName="ZipFileCreateFromDirectory" AssemblyFile="$(ToolsDir)\net46\Microsoft.DotNet.Build.Tasks.dll"/>
   
   <Import Project="dir.props" />
   <Import Project="..\dir.props" />
@@ -15,7 +15,8 @@
 
   <ItemGroup>
     <TestCmds Include="$(DiscoveryDirectory)\**\*.cmd" ></TestCmds>
-    <XunitDlls Include="$(DiscoveryDirectory)\*\*.XUnitWrapper.dll" ></XunitDlls>
+    <XunitDlls Include="$(DiscoveryDirectory)\**\*.XUnitWrapper.dll" ></XunitDlls>
+    <RequiresSigningFilesToDelete Include="$(DiscoveryDirectory)\**\*.requires_signing" />
   </ItemGroup>
 
   <!-- Build the platform-specific wrapper to run an individual xunit wrapper -->
@@ -42,8 +43,11 @@
     <Copy SourceFiles="$(CORE_ROOT)\xunit.console.netcore.exe"
           DestinationFolder="%(XunitDlls.RootDir)%(XunitDlls.Directory)"
     />
+    <Message Text="Deleting '.requires_signing' files to avoid file name lengths exceeding MAX_PATH" Importance="Low" />
+    <Delete Files="@(RequiresSigningFilesToDelete)" />
     <MSBuild Projects="helixprep.proj"
              Properties="BuildPath=%(XunitDlls.RootDir)%(XunitDlls.Directory);ProjectName=%(XunitDlls.Filename);BuildArchiveDir=$(TestWorkingDir)archive\tests\"
+             BuildInParallel="true"
              Targets="ArchiveBuild" />
   </Target>
 
@@ -111,6 +115,7 @@ EXIT /B %ERRORLEVEL%
       <WrapperShContents>$(WrapperShContents)for scriptFilePath in %24(find . -type f -iname '%2A.sh' ! -iname "runtests.sh" | sort)%0a</WrapperShContents>
       <WrapperShContents>$(WrapperShContents)do%0a</WrapperShContents>
       <WrapperShContents>$(WrapperShContents) perl -pi -e 's/\r\n|\n|\r/\n/g' "%24scriptFilePath"%0a</WrapperShContents>
+      <WrapperShContents>$(WrapperShContents) chmod +x "%24scriptFilePath"%0a</WrapperShContents>
       <WrapperShContents>$(WrapperShContents)done%0a</WrapperShContents>
       <WrapperShContents>$(WrapperShContents)%0a</WrapperShContents>
       <WrapperShContents>$(WrapperShContents)echo BEGIN EXECUTION%0a</WrapperShContents>

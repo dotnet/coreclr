@@ -21,14 +21,6 @@
 #include "../../vm/gcenv.h"
 #include "../../vm/ecall.h"
 #include "../../vm/rcwwalker.h"
-#include "../../gc/gc.h"
-#include "../../gc/gcscan.h"
-
-#undef SERVER_GC
-namespace WKS {
-#include "../../gc/gcimpl.h"
-#include "../../gc/gcpriv.h"
-}
 
 #ifdef DEBUGGING_SUPPORTED
 
@@ -40,11 +32,7 @@ extern DWORD gThreadTLSIndex;
 extern DWORD gAppDomainTLSIndex;
 
 #ifdef FEATURE_APPX
-#if defined(FEATURE_CORECLR)
 extern BOOL g_fAppX;
-#else
-extern PTR_AppXRTInfo g_pAppXRTInfo;
-#endif
 #endif // FEATURE_APPX
 
 DacGlobals g_dacTable;

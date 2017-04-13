@@ -11,6 +11,7 @@ using System.Diagnostics.Contracts;
 // Windows.Foundation.Collections.IVector`1 and IVectorView`1 cannot be referenced from managed
 // code because they're hidden by the metadata adapter. We redeclare the interfaces manually
 // to be able to talk to native WinRT objects.
+
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     [ComImport]
@@ -57,9 +58,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         void Append(T value);
         void RemoveAtEnd();
         void Clear();
-        [Pure]
-        uint GetMany(uint startIndex, [Out] T[] items);
-        void ReplaceAll(T[] items);
     }
 
     [ComImport]

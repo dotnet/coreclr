@@ -165,6 +165,18 @@ void interceptor_ICJI::getMethodVTableOffset (
     original_ICorJitInfo->getMethodVTableOffset(method, offsetOfIndirection, offsetAfterIndirection);
 }
 
+// Find the virtual method in implementingClass that overrides virtualMethod.
+// Return null if devirtualization is not possible.
+CORINFO_METHOD_HANDLE interceptor_ICJI::resolveVirtualMethod(
+    CORINFO_METHOD_HANDLE virtualMethod,
+    CORINFO_CLASS_HANDLE implementingClass,
+    CORINFO_CONTEXT_HANDLE ownerType
+    )
+{
+    mcs->AddCall("resolveVirtualMethod");
+    return original_ICorJitInfo->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
+}
+
 // If a method's attributes have (getMethodAttribs) CORINFO_FLG_INTRINSIC set,
 // getIntrinsicID() returns the intrinsic ID.
 CorInfoIntrinsics interceptor_ICJI::getIntrinsicID(
@@ -555,7 +567,7 @@ unsigned interceptor_ICJI::getClassAlignmentRequirement (
 // in representing of 'cls' from a GC perspective.  The class is
 // assumed to be an array of machine words
 // (of length // getClassSize(cls) / sizeof(void*)),
-// 'gcPtrs' is a poitner to an array of BYTEs of this length.
+// 'gcPtrs' is a pointer to an array of BYTEs of this length.
 // getClassGClayout fills in this array so that gcPtrs[i] is set
 // to one of the CorInfoGCType values which is the GC type of
 // the i-th machine word of an object of type 'cls'
@@ -671,7 +683,7 @@ CorInfoHelpFunc interceptor_ICJI::getBoxHelper(
 // value into a particular location and thus has the signature
 //     void unboxHelper(void* dest, CORINFO_CLASS_HANDLE cls, Object* obj)
 // Otherwise (it is null or points at a FALSE value) it is requesting
-// a helper that returns a poitner to the unboxed data
+// a helper that returns a pointer to the unboxed data
 //     void* unboxHelper(CORINFO_CLASS_HANDLE cls, Object* obj)
 // The EE has the option of NOT returning the copy style helper
 // (But must be able to always honor the non-copy style helper)
@@ -700,7 +712,7 @@ bool interceptor_ICJI::getReadyToRunHelper(
 void interceptor_ICJI::getReadyToRunDelegateCtorHelper(
     CORINFO_RESOLVED_TOKEN * pTargetMethod,
     CORINFO_CLASS_HANDLE     delegateType,
-    CORINFO_CONST_LOOKUP *   pLookup
+    CORINFO_LOOKUP *   pLookup
     )
 {
     mcs->AddCall("getReadyToRunDelegateCtorHelper");

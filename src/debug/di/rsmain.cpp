@@ -60,7 +60,7 @@ const char * GetDebugCodeName(DWORD dwCode)
         "(5) EXIT_PROCESS_DEBUG_EVENT",
         "(6) LOAD_DLL_DEBUG_EVENT",
         "(7) UNLOAD_DLL_DEBUG_EVENT",
-        "(8) OUTPUT_DEBUG_STRING_EVENT"
+        "(8) OUTPUT_DEBUG_STRING_EVENT",
         "(9) RIP_EVENT",// <-- only on Win9X
     };
 
@@ -1308,7 +1308,6 @@ HRESULT Cordb::WaitForIPCEventFromProcess(CordbProcess* process,
                                                        event);
 }
 
-#ifdef FEATURE_CORECLR
 HRESULT Cordb::SetTargetCLR(HMODULE hmodTargetCLR)
 {
     if (m_initialized)
@@ -1332,7 +1331,6 @@ HRESULT Cordb::SetTargetCLR(HMODULE hmodTargetCLR)
 
     return S_OK;
 }
-#endif // FEATURE_CORECLR
 
 //-----------------------------------------------------------
 // ICorDebug
@@ -1411,7 +1409,7 @@ HRESULT Cordb::SetUnmanagedHandler(ICorDebugUnmanagedCallback *pCallback)
 // It is currently supported on Mac CoreCLR, but that may change.
 bool Cordb::IsCreateProcessSupported()
 {
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_DBGIPC_TRANSPORT_DI)
+#if !defined(FEATURE_DBGIPC_TRANSPORT_DI)
     return false;
 #else 
     return true;
@@ -1425,14 +1423,14 @@ bool Cordb::IsInteropDebuggingSupported()
     // ICorDebug::SetUnmanagedHandler for details.
 #ifdef FEATURE_INTEROP_DEBUGGING
 
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_CORESYSTEM)
+#if !defined(FEATURE_CORESYSTEM)
     // Interop debugging is only supported internally on CoreCLR.
     // Check if the special reg key is set.  If not, then we don't allow interop debugging.
     if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DbgEnableMixedModeDebugging) == 0)
     {
         return false;
     }
-#endif // FEATURE_CORECLR
+#endif // FEATURE_CORESYSTEM
 
     return true;
 #else

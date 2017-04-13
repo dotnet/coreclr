@@ -506,7 +506,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreePtr tree, const ASSERT_VALARG_TP ass
     {
         index++;
 
-        Compiler::AssertionDsc* curAssertion = m_pCompiler->optGetAssertion((Compiler::AssertionIndex)index);
+        Compiler::AssertionDsc* curAssertion = m_pCompiler->optGetAssertion((AssertionIndex)index);
 
         // Current assertion is about array length.
         if (!curAssertion->IsArrLenArithBound() && !curAssertion->IsArrLenBound() && !curAssertion->IsConstantBound())
@@ -517,7 +517,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreePtr tree, const ASSERT_VALARG_TP ass
 #ifdef DEBUG
         if (m_pCompiler->verbose)
         {
-            m_pCompiler->optPrintAssertion(curAssertion, (Compiler::AssertionIndex)index);
+            m_pCompiler->optPrintAssertion(curAssertion, (AssertionIndex)index);
         }
 #endif
 
@@ -617,7 +617,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreePtr tree, const ASSERT_VALARG_TP ass
 #ifdef DEBUG
         if (m_pCompiler->verbose)
         {
-            m_pCompiler->optPrintAssertion(curAssertion, (Compiler::AssertionIndex)index);
+            m_pCompiler->optPrintAssertion(curAssertion, (AssertionIndex)index);
         }
 #endif
 
@@ -869,10 +869,13 @@ Range RangeCheck::ComputeRangeForLocalDef(
         case GT_ASG:
         {
             Range range = GetRange(loc->block, loc->stmt, asg->gtGetOp2(), path, monotonic DEBUGARG(indent));
-            JITDUMP("Merge assertions from BB%02d:%s for assignment about %p\n", block->bbNum,
-                    BitVecOps::ToString(m_pCompiler->apTraits, block->bbAssertionIn), dspPtr(asg->gtGetOp1()));
-            MergeEdgeAssertions(asg->gtGetOp1(), block->bbAssertionIn, &range);
-            JITDUMP("done merging\n");
+            if (!BitVecOps::MayBeUninit(block->bbAssertionIn))
+            {
+                JITDUMP("Merge assertions from BB%02d:%s for assignment about %p\n", block->bbNum,
+                        BitVecOps::ToString(m_pCompiler->apTraits, block->bbAssertionIn), dspPtr(asg->gtGetOp1()));
+                MergeEdgeAssertions(asg->gtGetOp1(), block->bbAssertionIn, &range);
+                JITDUMP("done merging\n");
+            }
             return range;
         }
 

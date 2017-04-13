@@ -40,6 +40,8 @@
     #include "comcache.h"
 #endif // FEATURE_COMINTEROP
 
+#include "arraynative.inl"
+
 #define STACK_OVERFLOW_MESSAGE   W("StackOverflowException")
 
 //These are defined in System.ParseNumbers and should be kept in sync.
@@ -777,50 +779,7 @@ FCIMPL1(FC_BOOL_RET, ExceptionNative::IsTransient, INT32 hresult)
 }
 FCIMPLEND
 
-#ifndef FEATURE_CORECLR
 
-FCIMPL3(StringObject *, ExceptionNative::StripFileInfo, Object *orefExcepUNSAFE, StringObject *orefStrUNSAFE, CLR_BOOL isRemoteStackTrace)
-{
-    FCALL_CONTRACT;
-
-    OBJECTREF orefExcep = ObjectToOBJECTREF(orefExcepUNSAFE);
-    STRINGREF orefStr = (STRINGREF)ObjectToOBJECTREF(orefStrUNSAFE);
-
-    if (orefStr == NULL)
-    {
-        return NULL;
-    }
-
-    HELPER_METHOD_FRAME_BEGIN_RET_2(orefExcep, orefStr);
-
-    if (isRemoteStackTrace)
-    {
-        if (!AppX::IsAppXProcess() && ExceptionTypeOverridesStackTraceGetter(orefExcep->GetMethodTable()))
-        {
-            // In classic processes, the remote stack trace could have been generated using a custom get_StackTrace
-            // override which means that we would not be able to parse is - strip the whole string by returning NULL.
-            orefStr = NULL;
-        }
-    }
-
-    if (orefStr != NULL)
-    {
-        SString stackTrace;
-        orefStr->GetSString(stackTrace);
-
-        StripFileInfoFromStackTrace(stackTrace);
-
-        orefStr = AllocateString(stackTrace);
-    }
-
-    HELPER_METHOD_FRAME_END();
-    return (StringObject *)OBJECTREFToObject(orefStr);
-}
-FCIMPLEND
-
-#endif // !FEATURE_CORECLR
-
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
 // This FCall sets a flag against the thread exception state to indicate to
 // IL_Throw and the StackTraceInfo implementation to account for the fact
 // that we have restored a foreign exception dispatch details.
@@ -1021,7 +980,6 @@ FCIMPL1(Object*, ExceptionNative::CopyDynamicMethods, Object* pDynamicMethodsUNS
 }
 FCIMPLEND
 
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
 BSTR BStrFromString(STRINGREF s)
 {
@@ -1538,11 +1496,28 @@ FCIMPL5(VOID, Buffer::InternalBlockCopy, ArrayBase *src, int srcOffset, ArrayBas
 }
 FCIMPLEND
 
+void QCALLTYPE MemoryNative::Clear(void *dst, size_t length)
+{
+    QCALL_CONTRACT;
+
+    memset(dst, 0, length);
+}
+
+FCIMPL3(VOID, MemoryNative::BulkMoveWithWriteBarrier, void *dst, void *src, size_t byteCount)
+{
+    FCALL_CONTRACT;
+
+    InlinedMemmoveGCRefsHelper(dst, src, byteCount);
+
+    FC_GC_POLL();
+}
+FCIMPLEND
+
 void QCALLTYPE Buffer::MemMove(void *dst, void *src, size_t length)
 {
     QCALL_CONTRACT;
 
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_CORESYSTEM)
+#if !defined(FEATURE_CORESYSTEM)
     // Callers of memcpy do expect and handle access violations in some scenarios.
     // Access violations in the runtime dll are turned into fail fast by the vector exception handler by default.
     // We need to supress this behavior for CoreCLR using AVInRuntimeImplOkayHolder because of memcpy is statically linked in.
@@ -1802,9 +1777,9 @@ int QCALLTYPE GCInterface::StartNoGCRegion(INT64 totalSize, BOOL lohSizeKnown, I
     GCX_COOP();
 
     retVal = GCHeapUtilities::GetGCHeap()->StartNoGCRegion((ULONGLONG)totalSize, 
-                                                  lohSizeKnown,
+                                                  !!lohSizeKnown,
                                                   (ULONGLONG)lohSize,
-                                                  disallowFullBlockingGC);
+                                                  !!disallowFullBlockingGC);
 
     END_QCALL;
 
@@ -1893,7 +1868,7 @@ void QCALLTYPE GCInterface::Collect(INT32 generation, INT32 mode)
     //We don't need to check the top end because the GC will take care of that.
 
     GCX_COOP();
-    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, FALSE, mode);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, mode);
 
     END_QCALL;
 }
@@ -2356,7 +2331,7 @@ NOINLINE void GCInterface::GarbageCollectModeAny(int generation)
     CONTRACTL_END;
 
     GCX_COOP();
-    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, FALSE, collection_non_blocking);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, collection_non_blocking);
 }
 
 //
@@ -2609,9 +2584,23 @@ FCIMPL2_IV(INT64,COMInterlocked::ExchangeAdd64, INT64 *location, INT64 value)
 }
 FCIMPLEND
 
+FCIMPL0(void, COMInterlocked::FCMemoryBarrier)
+{
+    FCALL_CONTRACT;
+
+    MemoryBarrier();
+    FC_GC_POLL();
+}
+FCIMPLEND
+
 #include <optdefault.h>
 
+void QCALLTYPE COMInterlocked::MemoryBarrierProcessWide()
+{
+    QCALL_CONTRACT;
 
+    FlushProcessWriteBuffers();
+}
 
 FCIMPL6(INT32, ManagedLoggingHelper::GetRegistryLoggingValues, CLR_BOOL* bLoggingEnabled, CLR_BOOL* bLogToConsole, INT32 *iLogLevel, CLR_BOOL* bPerfWarnings, CLR_BOOL* bCorrectnessWarnings, CLR_BOOL* bSafeHandleStackTraces)
 {
@@ -2853,67 +2842,8 @@ FCIMPL1(INT32, ValueTypeHelper::GetHashCodeOfPtr, LPVOID ptr)
 }
 FCIMPLEND
 
-#ifndef FEATURE_CORECLR
-FCIMPL1(OBJECTHANDLE, SizedRefHandle::Initialize, Object* _obj)
-{
-    FCALL_CONTRACT;
 
-    OBJECTHANDLE result = 0; 
-    OBJECTREF obj(_obj);
-
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-
-    result = GetAppDomain()->CreateSizedRefHandle(obj);
-
-    HELPER_METHOD_FRAME_END();
-
-    return result;
-}
-FCIMPLEND
-
-FCIMPL1(VOID, SizedRefHandle::Free, OBJECTHANDLE handle)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(handle != NULL);
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-
-    DestroySizedRefHandle(handle);
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-FCIMPL1(LPVOID, SizedRefHandle::GetTarget, OBJECTHANDLE handle)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(handle != NULL);
-
-    OBJECTREF objRef = NULL;
-
-    objRef = ObjectFromHandle(handle);
-
-    FCUnique(0x33);
-    return *((LPVOID*)&objRef);
-}
-FCIMPLEND
-
-FCIMPL1(INT64, SizedRefHandle::GetApproximateSize, OBJECTHANDLE handle)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(handle != NULL);
-
-    return (INT64)HndGetHandleExtraInfo(handle);
-}
-FCIMPLEND
-#endif //!FEATURE_CORECLR
-
-#ifdef FEATURE_CORECLR
 COMNlsHashProvider COMNlsHashProvider::s_NlsHashProvider;
-#endif // FEATURE_CORECLR
 
 
 COMNlsHashProvider::COMNlsHashProvider()

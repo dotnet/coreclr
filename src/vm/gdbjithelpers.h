@@ -19,15 +19,25 @@ struct SequencePointInfo
     char16_t* fileName;
 };
 
+struct LocalVarInfo
+{
+    int startOffset;
+    int endOffset;
+    char16_t *name;
+};
+
 struct MethodDebugInfo
 {
     SequencePointInfo* points;
     int size;
-    char16_t** locals;
+    LocalVarInfo* locals;
     int localsSize;
+
+    MethodDebugInfo(int numPoints, int numLocals);
+    ~MethodDebugInfo();
 };
 
-typedef BOOL (*GetInfoForMethodDelegate)(const char*, unsigned int, MethodDebugInfo& methodDebugInfo);
+typedef BOOL (CALLBACK *GetInfoForMethodDelegate)(const char*, unsigned int, MethodDebugInfo& methodDebugInfo);
 extern GetInfoForMethodDelegate getInfoForMethodDelegate;
 
 #endif // !__GDBJITHELPERS_H__

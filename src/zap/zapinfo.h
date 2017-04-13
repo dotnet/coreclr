@@ -558,7 +558,7 @@ public:
     void getReadyToRunDelegateCtorHelper(
             CORINFO_RESOLVED_TOKEN * pTargetMethod,
             CORINFO_CLASS_HANDLE     delegateType,
-            CORINFO_CONST_LOOKUP *   pLookup
+            CORINFO_LOOKUP *   pLookup
             );
 
     CorInfoInitClassResult initClass(
@@ -664,6 +664,12 @@ public:
     void getMethodVTableOffset(CORINFO_METHOD_HANDLE method,
                                unsigned * pOffsetOfIndirection,
                                unsigned * pOffsetAfterIndirection);
+
+    CORINFO_METHOD_HANDLE resolveVirtualMethod(
+        CORINFO_METHOD_HANDLE virtualMethod,
+        CORINFO_CLASS_HANDLE implementingClass,
+        CORINFO_CONTEXT_HANDLE ownerType
+        );
 
     CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                      bool * pMustExpand = NULL);

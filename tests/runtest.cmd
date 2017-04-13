@@ -8,10 +8,24 @@ set __BuildOS=Windows_NT
 set __MSBuildBuildArch=x64
 
 :: Default to highest Visual Studio version available
-set __VSVersion=vs2015
+::
+:: For VS2015 (and prior), only a single instance is allowed to be installed on a box
+:: and VS140COMNTOOLS is set as a global environment variable by the installer. This
+:: allows users to locate where the instance of VS2015 is installed.
+::
+:: For VS2017, multiple instances can be installed on the same box SxS and VS150COMNTOOLS
+:: is no longer set as a global environment variable and is instead only set if the user
+:: has launched the VS2017 Developer Command Prompt.
+::
+:: Following this logic, we will default to the VS2017 toolset if VS150COMNTOOLS tools is
+:: set, as this indicates the user is running from the VS2017 Developer Command Prompt and
+:: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
+:: toolset if it is installed. Finally, we will fail the script if no supported VS instance
+:: can be found.
+set __VSVersion=vs2017
 
-if defined VS120COMNTOOLS set __VSVersion=vs2013
 if defined VS140COMNTOOLS set __VSVersion=vs2015
+if defined VS150COMNTOOLS set __VSVersion=vs2017
 
 :: Define a prefix for most output progress messages that come from this script. That makes
 :: it easier to see where these are coming from. Note that there is a trailing space here.
@@ -30,6 +44,7 @@ set __LongGCTests=
 set __GCSimulatorTests=
 set __AgainstPackages=
 set __JitDisasm=
+set __CollectDumps=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -49,8 +64,8 @@ if /i "%1" == "debug"                 (set __BuildType=Debug&shift&goto Arg_Loop
 if /i "%1" == "release"               (set __BuildType=Release&shift&goto Arg_Loop)
 if /i "%1" == "checked"               (set __BuildType=Checked&shift&goto Arg_Loop)
 
-if /i "%1" == "vs2013"                (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "vs2015"                (set __VSVersion=%1&shift&goto Arg_Loop)
+if /i "%1" == "vs2017"                (set __VSVersion=%1&shift&goto Arg_Loop)
 
 if /i "%1" == "TestEnv"               (set __TestEnv=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "AgainstPackages"       (set __AgainstPackages=1&shift&goto Arg_Loop)
@@ -66,8 +81,11 @@ if /i "%1" == "jitdisasm"             (set __JitDisasm=1&shift&goto Arg_Loop)
 if /i "%1" == "GenerateLayoutOnly"    (set __GenerateLayoutOnly=1&shift&goto Arg_Loop)
 if /i "%1" == "PerfTests"             (set __PerfTests=true&shift&goto Arg_Loop)
 if /i "%1" == "runcrossgentests"      (set RunCrossGen=true&shift&goto Arg_Loop)
+if /i "%1" == "link"                  (set DoLink=true&set ILLINK=%2&shift&shift&goto Arg_Loop)
+
 REM change it to COMPlus_GCStress when we stop using xunit harness
 if /i "%1" == "gcstresslevel"         (set __GCSTRESSLEVEL=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
+if /i "%1" == "collectdumps"          (set __CollectDumps=true&shift&goto Arg_Loop)
 
 if /i not "%1" == "msbuildargs" goto SkipMsbuildArgs
 :: All the rest of the args will be collected and passed directly to msbuild.
@@ -95,30 +113,26 @@ if not defined XunitTestReportDirBase set  XunitTestReportDirBase=%XunitTestBinB
 
 if not exist %__LogsDir% md %__LogsDir%
 
-set __VSProductVersion=
-if /i "%__VSVersion%" == "vs2013" set __VSProductVersion=120
-if /i "%__VSVersion%" == "vs2015" set __VSProductVersion=140
+set _msbuildexe=
+if /i "%__VSVersion%" == "vs2017" (
+  set "__VSToolsRoot=%VS150COMNTOOLS%"
+  set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
 
-:: Check presence of VS
-if not defined VS%__VSProductVersion%COMNTOOLS goto NoVS
+  set _msbuildexe="%VS150COMNTOOLS%\..\..\MSBuild\15.0\Bin\MSBuild.exe"
+) else if /i "%__VSVersion%" == "vs2015" (
+  set "__VSToolsRoot=%VS140COMNTOOLS%"
+  set "__VCToolsRoot=%VS140COMNTOOLS%\..\..\VC"
 
-set __VSToolsRoot=!VS%__VSProductVersion%COMNTOOLS!
-if %__VSToolsRoot:~-1%==\ set "__VSToolsRoot=%__VSToolsRoot:~0,-1%"
+  set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
+  if not exist !_msbuildexe! set _msbuildexe="%ProgramFiles%\MSBuild\14.0\Bin\MSBuild.exe"
+)
 
 :: Does VS really exist?
 if not exist "%__VSToolsRoot%\..\IDE\devenv.exe"      goto NoVS
-if not exist "%__VSToolsRoot%\..\..\VC\vcvarsall.bat" goto NoVS
+if not exist "%__VCToolsRoot%\vcvarsall.bat"          goto NoVS
 if not exist "%__VSToolsRoot%\VsDevCmd.bat"           goto NoVS
 
-if /i "%__VSVersion%" =="vs2015" goto MSBuild14
-set _msbuildexe="%ProgramFiles(x86)%\MSBuild\12.0\Bin\MSBuild.exe"
-if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles%\MSBuild\12.0\Bin\MSBuild.exe"
-if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-goto :CheckMSBuild14
-:MSBuild14
-set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-:CheckMSBuild14
-if not exist %_msbuildexe% set _msbuildexe="%ProgramFiles%\MSBuild\14.0\Bin\MSBuild.exe"
+:: Does MSBuild really exist?
 if not exist %_msbuildexe% echo Error: Could not find MSBuild.exe.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions. && exit /b 1
 
 :: Set the environment for the  build- VS cmd prompt
@@ -144,6 +158,10 @@ if not defined __Sequential (
 
 if defined __AgainstPackages (
     set __msbuildCommonArgs=%__msbuildCommonArgs% /p:BuildTestsAgainstPackages=true
+)
+
+if defined DoLink (
+    set __msbuildCommonArgs=%__msbuildCommonArgs% /p:RunTestsViaIllink=true
 )
 
 REM Prepare the Test Drop
@@ -195,13 +213,37 @@ if not exist %XunitTestBinBase% (
     echo %__MsgPrefix%Run "buildtest.cmd %__BuildArch% %__BuildType%" to build the tests first.
     exit /b 1
 )
+
+if "%__CollectDumps%"=="true" (
+    :: Install dumpling
+    set "__DumplingHelperPath=%__ProjectDir%\..\Tools\DumplingHelper.py"
+    python "!__DumplingHelperPath!" install_dumpling
+
+    :: Create the crash dump folder if necessary
+    set "__CrashDumpFolder=%tmp%\CoreCLRTestCrashDumps"
+    if not exist "!__CrashDumpFolder!" (
+        mkdir "!__CrashDumpFolder!"
+    )
+
+    :: Grab the current time before execution begins. This will be used to determine which crash dumps
+    :: will be uploaded.
+    for /f "delims=" %%a in ('python !__DumplingHelperPath! get_timestamp') do @set __StartTime=%%a
+)
+
 echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%
 echo %__MsgPrefix%Starting the test run ...
 
+del %CORE_ROOT%\mscorlib.ni.dll
+
 set __BuildLogRootName=TestRunResults
 call :msbuild "%__ProjectFilesDir%\runtest.proj" /p:Runtests=true /clp:showcommandline
+set __errorlevel=%errorlevel%
 
-if errorlevel 1 (
+if "%__CollectDumps%"=="true" (
+    python "%__DumplingHelperPath%" collect_dump %errorlevel% "%__CrashDumpFolder%" %__StartTime% "CoreCLR_Tests"
+)
+
+if %__errorlevel% GEQ 1 (
     echo Test Run failed. Refer to the following:
     echo     Html report: %__TestRunHtmlLog%
     exit /b 1
@@ -386,9 +428,10 @@ echo./? -? /h -h /help -help: view this message.
 echo BuildArch- Optional parameter - x64 or x86 ^(default: x64^).
 echo BuildType- Optional parameter - Debug, Release, or Checked ^(default: Debug^).
 echo TestEnv- Optional parameter - this will run a custom script to set custom test environment settings.
-echo VSVersion- Optional parameter - VS2013 or VS2015 ^(default: VS2015^)
+echo VSVersion- Optional parameter - VS2015 or VS2017 ^(default: VS2017^)
 echo AgainstPackages - Optional parameter - this indicates that we are running tests that were built against packages
 echo GenerateLayoutOnly - If specified will not run the tests and will only create the Runtime Dependency Layout
+echo link "ILlink"      - Runs the tests after linking via ILlink
 echo RunCrossgenTests   - Runs ReadytoRun tests
 echo jitstress n        - Runs the tests with COMPlus_JitStress=n
 echo jitstressregs n    - Runs the tests with COMPlus_JitStressRegs=n
@@ -403,6 +446,6 @@ echo CORE_ROOT The path to the runtime
 exit /b 1
 
 :NoVS
-echo Visual Studio 2013+ ^(Community is free^) is a prerequisite to build this repository.
+echo Visual Studio 2015 or 2017 (Community is free) is a prerequisite to build this repository.
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1

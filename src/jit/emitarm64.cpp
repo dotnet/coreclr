@@ -6697,12 +6697,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     {
         assert(emitNoGChelper(Compiler::eeGetHelperNum(methHnd)));
 
-        // This call will preserve the liveness of most registers
-        //
-        // - On the ARM64 the NOGC helpers will preserve all registers,
-        //   except for those listed in the RBM_CALLEE_TRASH_NOGC mask
-
-        savedSet = RBM_ALLINT & ~RBM_CALLEE_TRASH_NOGC;
+        // Get the set of registers that this call kills and remove it from the saved set.
+        savedSet = RBM_ALLINT & ~emitComp->compNoGCHelperCallKillSet(Compiler::eeGetHelperNum(methHnd));
 
         // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH
         if (isProfLeaveCB)
@@ -6842,12 +6838,10 @@ void emitter::emitIns_Call(EmitCallType          callType,
             id->idSetIsCallAddr();
         }
 
-#if RELOC_SUPPORT
         if (emitComp->opts.compReloc)
         {
             id->idSetIsDspReloc();
         }
-#endif
     }
 
 #ifdef DEBUG
@@ -10819,18 +10813,20 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 regNumber tmpReg     = genRegNumFromMask(tmpRegMask);
                 noway_assert(tmpReg != REG_NA);
 
+                emitAttr addType = varTypeIsGC(memBase) ? EA_BYREF : EA_PTRSIZE;
+
                 if (emitIns_valid_imm_for_add(offset, EA_8BYTE))
                 {
                     if (lsl > 0)
                     {
                         // Generate code to set tmpReg = base + index*scale
-                        emitIns_R_R_R_I(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
+                        emitIns_R_R_R_I(INS_add, addType, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
                                         INS_OPTS_LSL);
                     }
                     else // no scale
                     {
                         // Generate code to set tmpReg = base + index
-                        emitIns_R_R_R(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum);
+                        emitIns_R_R_R(INS_add, addType, tmpReg, memBase->gtRegNum, index->gtRegNum);
                     }
 
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
@@ -10845,7 +10841,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                     codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
                     // Then add the base register
                     //      rd = rd + base
-                    emitIns_R_R_R(INS_add, EA_PTRSIZE, tmpReg, tmpReg, memBase->gtRegNum);
+                    emitIns_R_R_R(INS_add, addType, tmpReg, tmpReg, memBase->gtRegNum);
 
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
                     noway_assert(tmpReg != index->gtRegNum);

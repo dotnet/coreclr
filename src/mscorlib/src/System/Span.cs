@@ -3,11 +3,19 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 
 #pragma warning disable 0809  //warning CS0809: Obsolete member 'Span<T>.Equals(object)' overrides non-obsolete member 'object.Equals(object)'
+
+#if BIT64
+using nuint = System.UInt64;
+#else
+using nuint = System.UInt32;
+#endif
 
 namespace System
 {
@@ -80,6 +88,7 @@ namespace System
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span(T[] array, int start, int length)
         {
             if (array == null)
@@ -108,9 +117,10 @@ namespace System
         /// Thrown when the specified <paramref name="length"/> is negative.
         /// </exception>
         [CLSCompliant(false)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe Span(void* pointer, int length)
         {
-            if (JitHelpers.ContainsReferences<T>())
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(T));
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
@@ -121,28 +131,15 @@ namespace System
 
         /// <summary>
         /// Create a new span over a portion of a regular managed object. This can be useful
-        /// if part of a managed object represents a "fixed array." This is dangerous because
-        /// "length" is not checked, nor is the fact that "rawPointer" actually lies within the object.
+        /// if part of a managed object represents a "fixed array." This is dangerous because neither the
+        /// <paramref name="length"/> is checked, nor <paramref name="obj"/> being null, nor the fact that
+        /// "rawPointer" actually lies within <paramref name="obj"/>.
         /// </summary>
         /// <param name="obj">The managed object that contains the data to span over.</param>
         /// <param name="objectData">A reference to data within that object.</param>
         /// <param name="length">The number of <typeparamref name="T"/> elements the memory contains.</param>
-        /// <exception cref="System.ArgumentNullException">
-        /// Thrown when the specified object is null.
-        /// </exception>
-        /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="length"/> is negative.
-        /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Span<T> DangerousCreate(object obj, ref T objectData, int length)
-        {
-            if (obj == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
-            if (length < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
-
-            return new Span<T>(ref objectData, length);
-        }
+        public static Span<T> DangerousCreate(object obj, ref T objectData, int length) => new Span<T>(ref objectData, length);
 
         // Constructor for internal use only.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -181,11 +178,7 @@ namespace System
         /// <exception cref="System.IndexOutOfRangeException">
         /// Thrown when index less than 0 or index greater than or equal to Length
         /// </exception>
-
-        // TODO: https://github.com/dotnet/corefx/issues/13681
-        //   Until we get over the hurdle of C# 7 tooling, this indexer will return "T" and have a setter rather than a "ref T". (The doc comments
-        //   continue to reflect the original intent of returning "ref T")
-        public T this[int index]
+        public ref T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -193,48 +186,23 @@ namespace System
                 if ((uint)index >= (uint)_length)
                     ThrowHelper.ThrowIndexOutOfRangeException();
 
-                return Unsafe.Add(ref _pointer.Value, index);
+                return ref Unsafe.Add(ref _pointer.Value, index);
             }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                if ((uint)index >= (uint)_length)
-                    ThrowHelper.ThrowIndexOutOfRangeException();
-
-                Unsafe.Add(ref _pointer.Value, index) = value;
-            }
-        }
-
-        /// <summary>
-        /// Returns a reference to specified element of the Span.
-        /// </summary>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        /// <exception cref="System.IndexOutOfRangeException">
-        /// Thrown when index less than 0 or index greater than or equal to Length
-        /// </exception>
-
-        // TODO: https://github.com/dotnet/corefx/issues/13681
-        //   Until we get over the hurdle of C# 7 tooling, this temporary method will simulate the intended "ref T" indexer for those
-        //   who need bypass the workaround for performance.
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref T GetItem(int index)
-        {
-            if ((uint)index >= ((uint)_length))
-                ThrowHelper.ThrowIndexOutOfRangeException();
-
-            return ref Unsafe.Add(ref _pointer.Value, index);
         }
 
         /// <summary>
         /// Clears the contents of this span.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
-            // TODO: Optimize - https://github.com/dotnet/coreclr/issues/9161
-            for (int i = 0; i < _length; i++)
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
-                this[i] = default(T);
+                SpanHelper.ClearWithReferences(ref Unsafe.As<T, IntPtr>(ref _pointer.Value), (nuint)_length * (nuint)(Unsafe.SizeOf<T>() / sizeof(nuint)));
+            }
+            else
+            {
+                SpanHelper.ClearWithoutReferences(ref Unsafe.As<T, byte>(ref _pointer.Value), (nuint)_length * (nuint)Unsafe.SizeOf<T>());
             }
         }
 
@@ -243,10 +211,51 @@ namespace System
         /// </summary>
         public void Fill(T value)
         {
-            // TODO: Optimize - https://github.com/dotnet/coreclr/issues/9161
-            for (int i = 0; i < _length; i++)
+            if (Unsafe.SizeOf<T>() == 1)
             {
-                this[i] = value;
+                uint length = (uint)_length;
+                if (length == 0)
+                    return;
+
+                T tmp = value; // Avoid taking address of the "value" argument. It would regress performance of the loop below.
+                Unsafe.InitBlockUnaligned(ref Unsafe.As<T, byte>(ref _pointer.Value), Unsafe.As<T, byte>(ref tmp), length);
+            }
+            else
+            {
+                // Do all math as nuint to avoid unnecessary 64->32->64 bit integer truncations
+                nuint length = (uint)_length;
+                if (length == 0)
+                    return;
+
+                ref T r = ref DangerousGetPinnableReference();
+
+                // TODO: Create block fill for value types of power of two sizes e.g. 2,4,8,16
+
+                nuint elementSize = (uint)Unsafe.SizeOf<T>();
+                nuint i = 0;
+                for (; i < (length & ~(nuint)7); i += 8)
+                {
+                    Unsafe.AddByteOffset<T>(ref r, (i + 0) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 1) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 2) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 3) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 4) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 5) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 6) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 7) * elementSize) = value;
+                }
+                if (i < (length & ~(nuint)3))
+                {
+                    Unsafe.AddByteOffset<T>(ref r, (i + 0) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 1) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 2) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 3) * elementSize) = value;
+                    i += 4;
+                }
+                for (; i < length; i++)
+                {
+                    Unsafe.AddByteOffset<T>(ref r, i * elementSize) = value;
+                }
             }
         }
 
@@ -307,9 +316,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
         {
-            ThrowHelper.ThrowNotSupportedException_CannotCallEqualsOnSpan();
-            // Prevent compiler error CS0161: 'Span<T>.Equals(object)': not all code paths return a value
-            return default(bool); 
+            throw new NotSupportedException(SR.NotSupported_CannotCallEqualsOnSpan);
         }
 
         /// <summary>
@@ -322,9 +329,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            ThrowHelper.ThrowNotSupportedException_CannotCallGetHashCodeOnSpan();
-            // Prevent compiler error CS0161: 'Span<T>.GetHashCode()': not all code paths return a value
-            return default(int); 
+            throw new NotSupportedException(SR.NotSupported_CannotCallGetHashCodeOnSpan);
         }
 
         /// <summary>
@@ -349,7 +354,7 @@ namespace System
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;=Length).
         /// </exception>
-        [MethodImpl(MethodImplOptions.NoOptimization)] // TODO-SPAN: Workaround for https://github.com/dotnet/coreclr/issues/7894
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Slice(int start)
         {
             if ((uint)start > (uint)_length)
@@ -366,7 +371,7 @@ namespace System
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> or end index is not in range (&lt;0 or &gt;=Length).
         /// </exception>
-        [MethodImpl(MethodImplOptions.NoOptimization)] // TODO-SPAN: Workaround for https://github.com/dotnet/coreclr/issues/7894
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Slice(int start, int length)
         {
             if ((uint)start > (uint)_length || (uint)length > (uint)(_length - start))
@@ -380,6 +385,7 @@ namespace System
         /// allocates, so should generally be avoided, however it is sometimes
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T[] ToArray()
         {
             if (_length == 0)
@@ -396,7 +402,7 @@ namespace System
         public static Span<T> Empty => default(Span<T>);
     }
 
-    public static class SpanExtensions
+    public static class Span
     {
         /// <summary>
         /// Casts a Span of one primitive type <typeparamref name="T"/> to Span of bytes.
@@ -406,10 +412,11 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="T"/> contains pointers.
         /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<byte> AsBytes<T>(this Span<T> source)
             where T : struct
         {
-            if (JitHelpers.ContainsReferences<T>())
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(T));
 
             return new Span<byte>(
@@ -425,10 +432,11 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="T"/> contains pointers.
         /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsBytes<T>(this ReadOnlySpan<T> source)
             where T : struct
         {
-            if (JitHelpers.ContainsReferences<T>())
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(T));
 
             return new ReadOnlySpan<byte>(
@@ -447,13 +455,14 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="TFrom"/> or <typeparamref name="TTo"/> contains pointers.
         /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<TTo> NonPortableCast<TFrom, TTo>(this Span<TFrom> source)
             where TFrom : struct
             where TTo : struct
         {
-            if (JitHelpers.ContainsReferences<TFrom>())
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<TFrom>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(TFrom));
-            if (JitHelpers.ContainsReferences<TTo>())
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<TTo>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(TTo));
 
             return new Span<TTo>(
@@ -472,18 +481,34 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="TFrom"/> or <typeparamref name="TTo"/> contains pointers.
         /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<TTo> NonPortableCast<TFrom, TTo>(this ReadOnlySpan<TFrom> source)
             where TFrom : struct
             where TTo : struct
         {
-            if (JitHelpers.ContainsReferences<TFrom>())
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<TFrom>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(TFrom));
-            if (JitHelpers.ContainsReferences<TTo>())
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<TTo>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(TTo));
 
             return new ReadOnlySpan<TTo>(
                 ref Unsafe.As<TFrom, TTo>(ref source.DangerousGetPinnableReference()),
                 checked((int)((long)source.Length * Unsafe.SizeOf<TFrom>() / Unsafe.SizeOf<TTo>())));
+        }
+
+        /// <summary>
+        /// Creates a new readonly span over the portion of the target string.
+        /// </summary>
+        /// <param name="text">The target string.</param>
+        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null
+        /// reference (Nothing in Visual Basic).</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<char> AsSpan(this string text)
+        {
+            if (text == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+
+            return new ReadOnlySpan<char>(ref text.GetFirstCharRef(), text.Length);
         }
     }
 
@@ -491,38 +516,394 @@ namespace System
     {
         internal static unsafe void CopyTo<T>(ref T destination, ref T source, int elementsCount)
         {
-            if (elementsCount == 0)
-                return;
-
             if (Unsafe.AreSame(ref destination, ref source))
                 return;
 
-            if (!JitHelpers.ContainsReferences<T>())
+            if (elementsCount <= 1)
+            {
+                if (elementsCount == 1)
+                {
+                    destination = source;
+                }
+                return;
+            }
+
+            nuint byteCount = (nuint)elementsCount * (nuint)Unsafe.SizeOf<T>();
+            if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
                 fixed (byte* pDestination = &Unsafe.As<T, byte>(ref destination))
                 {
                     fixed (byte* pSource = &Unsafe.As<T, byte>(ref source))
                     {
-#if BIT64
-                        Buffer.Memmove(pDestination, pSource, (ulong)elementsCount * (ulong)Unsafe.SizeOf<T>());
-#else
-                        Buffer.Memmove(pDestination, pSource, (uint)elementsCount * (uint)Unsafe.SizeOf<T>());
-#endif
+                        Buffer.Memmove(pDestination, pSource, byteCount);
                     }
                 }
             }
             else
             {
-                if (JitHelpers.ByRefLessThan(ref destination, ref source)) // copy forward
+                RuntimeImports.RhBulkMoveWithWriteBarrier(
+                    ref Unsafe.As<T, byte>(ref destination),
+                    ref Unsafe.As<T, byte>(ref source),
+                    byteCount);
+            }
+        }
+
+        internal static unsafe void ClearWithoutReferences(ref byte b, nuint byteLength)
+        {
+            if (byteLength == 0)
+                return;
+            
+#if AMD64
+            if (byteLength > 4096) goto PInvoke;
+            Unsafe.InitBlockUnaligned(ref b, 0, (uint)byteLength);
+            return;
+#else // AMD64
+            // TODO: Optimize this method on X86 machine
+            // Note: It's important that this switch handles lengths at least up to 22.
+            // See notes below near the main loop for why.
+
+            // The switch will be very fast since it can be implemented using a jump
+            // table in assembly. See http://stackoverflow.com/a/449297/4077294 for more info.
+
+            switch (byteLength)
+            {
+                case 1:
+                    b = 0;
+                    return;
+                case 2:
+                    Unsafe.As<byte, short>(ref b) = 0;
+                    return;
+                case 3:
+                    Unsafe.As<byte, short>(ref b) = 0;
+                    Unsafe.Add<byte>(ref b, 2) = 0;
+                    return;
+                case 4:
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    return;
+                case 5:
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.Add<byte>(ref b, 4) = 0;
+                    return;
+                case 6:
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, short>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+                    return;
+                case 7:
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, short>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+                    Unsafe.Add<byte>(ref b, 6) = 0;
+                    return;
+                case 8:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+#endif
+                    return;
+                case 9:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+#endif
+                    Unsafe.Add<byte>(ref b, 8) = 0;
+                    return;
+                case 10:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+#endif
+                    Unsafe.As<byte, short>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    return;
+                case 11:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+#endif
+                    Unsafe.As<byte, short>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.Add<byte>(ref b, 10) = 0;
+                    return;
+                case 12:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+#endif
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    return;
+                case 13:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+#endif
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.Add<byte>(ref b, 12) = 0;
+                    return;
+                case 14:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+#endif
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.As<byte, short>(ref Unsafe.Add<byte>(ref b, 12)) = 0;
+                    return;
+                case 15:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+#endif
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.As<byte, short>(ref Unsafe.Add<byte>(ref b, 12)) = 0;
+                    Unsafe.Add<byte>(ref b, 14) = 0;
+                    return;
+                case 16:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+                    Unsafe.As<byte, long>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 12)) = 0;
+#endif
+                    return;
+                case 17:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+                    Unsafe.As<byte, long>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 12)) = 0;
+#endif
+                    Unsafe.Add<byte>(ref b, 16) = 0;
+                    return;
+                case 18:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+                    Unsafe.As<byte, long>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 12)) = 0;
+#endif
+                    Unsafe.As<byte, short>(ref Unsafe.Add<byte>(ref b, 16)) = 0;
+                    return;
+                case 19:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+                    Unsafe.As<byte, long>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 12)) = 0;
+#endif
+                    Unsafe.As<byte, short>(ref Unsafe.Add<byte>(ref b, 16)) = 0;
+                    Unsafe.Add<byte>(ref b, 18) = 0;
+                    return;
+                case 20:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+                    Unsafe.As<byte, long>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 12)) = 0;
+#endif
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 16)) = 0;
+                    return;
+                case 21:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+                    Unsafe.As<byte, long>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 12)) = 0;
+#endif
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 16)) = 0;
+                    Unsafe.Add<byte>(ref b, 20) = 0;
+                    return;
+                case 22:
+#if BIT64
+                    Unsafe.As<byte, long>(ref b) = 0;
+                    Unsafe.As<byte, long>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+#else
+                    Unsafe.As<byte, int>(ref b) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 4)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 8)) = 0;
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 12)) = 0;
+#endif
+                    Unsafe.As<byte, int>(ref Unsafe.Add<byte>(ref b, 16)) = 0;
+                    Unsafe.As<byte, short>(ref Unsafe.Add<byte>(ref b, 20)) = 0;
+                    return;
+            }
+
+            // P/Invoke into the native version for large lengths
+            if (byteLength >= 512) goto PInvoke;
+
+            nuint i = 0; // byte offset at which we're copying
+
+            if ((Unsafe.As<byte, int>(ref b) & 3) != 0)
+            {
+                if ((Unsafe.As<byte, int>(ref b) & 1) != 0)
                 {
-                    for (int i = 0; i < elementsCount; i++)
-                        Unsafe.Add(ref destination, i) = Unsafe.Add(ref source, i);
+                    Unsafe.AddByteOffset<byte>(ref b, i) = 0;
+                    i += 1;
+                    if ((Unsafe.As<byte, int>(ref b) & 2) != 0)
+                        goto IntAligned;
                 }
-                else // copy backward to avoid overlapping issues
-                {
-                    for (int i = elementsCount - 1; i >= 0; i--)
-                        Unsafe.Add(ref destination, i) = Unsafe.Add(ref source, i);
-                }
+                Unsafe.As<byte, short>(ref Unsafe.AddByteOffset<byte>(ref b, i)) = 0;
+                i += 2;
+            }
+
+            IntAligned:
+
+            // On 64-bit IntPtr.Size == 8, so we want to advance to the next 8-aligned address. If
+            // (int)b % 8 is 0, 5, 6, or 7, we will already have advanced by 0, 3, 2, or 1
+            // bytes to the next aligned address (respectively), so do nothing. On the other hand,
+            // if it is 1, 2, 3, or 4 we will want to copy-and-advance another 4 bytes until
+            // we're aligned.
+            // The thing 1, 2, 3, and 4 have in common that the others don't is that if you
+            // subtract one from them, their 3rd lsb will not be set. Hence, the below check.
+
+            if (((Unsafe.As<byte, int>(ref b) - 1) & 4) == 0)
+            {
+                Unsafe.As<byte, int>(ref Unsafe.AddByteOffset<byte>(ref b, i)) = 0;
+                i += 4;
+            }
+
+            nuint end = byteLength - 16;
+            byteLength -= i; // lower 4 bits of byteLength represent how many bytes are left *after* the unrolled loop
+
+            // We know due to the above switch-case that this loop will always run 1 iteration; max
+            // bytes we clear before checking is 23 (7 to align the pointers, 16 for 1 iteration) so
+            // the switch handles lengths 0-22.
+            Debug.Assert(end >= 7 && i <= end);
+
+            // This is separated out into a different variable, so the i + 16 addition can be
+            // performed at the start of the pipeline and the loop condition does not have
+            // a dependency on the writes.
+            nuint counter;
+
+            do
+            {
+                counter = i + 16;
+
+                // This loop looks very costly since there appear to be a bunch of temporary values
+                // being created with the adds, but the jit (for x86 anyways) will convert each of
+                // these to use memory addressing operands.
+
+                // So the only cost is a bit of code size, which is made up for by the fact that
+                // we save on writes to b.
+
+#if BIT64
+                Unsafe.As<byte, long>(ref Unsafe.AddByteOffset<byte>(ref b, i)) = 0;
+                Unsafe.As<byte, long>(ref Unsafe.AddByteOffset<byte>(ref b, i + 8)) = 0;
+#else
+                Unsafe.As<byte, int>(ref Unsafe.AddByteOffset<byte>(ref b, i)) = 0;
+                Unsafe.As<byte, int>(ref Unsafe.AddByteOffset<byte>(ref b, i + 4)) = 0;
+                Unsafe.As<byte, int>(ref Unsafe.AddByteOffset<byte>(ref b, i + 8)) = 0;
+                Unsafe.As<byte, int>(ref Unsafe.AddByteOffset<byte>(ref b, i + 12)) = 0;
+#endif
+
+                i = counter;
+
+                // See notes above for why this wasn't used instead
+                // i += 16;
+            }
+            while (counter <= end);
+
+            if ((byteLength & 8) != 0)
+            {
+#if BIT64
+                Unsafe.As<byte, long>(ref Unsafe.AddByteOffset<byte>(ref b, i)) = 0;
+#else
+                Unsafe.As<byte, int>(ref Unsafe.AddByteOffset<byte>(ref b, i)) = 0;
+                Unsafe.As<byte, int>(ref Unsafe.AddByteOffset<byte>(ref b, i + 4)) = 0;
+#endif
+                i += 8;
+            }
+            if ((byteLength & 4) != 0)
+            {
+                Unsafe.As<byte, int>(ref Unsafe.AddByteOffset<byte>(ref b, i)) = 0;
+                i += 4;
+            }
+            if ((byteLength & 2) != 0)
+            {
+                Unsafe.As<byte, short>(ref Unsafe.AddByteOffset<byte>(ref b, i)) = 0;
+                i += 2;
+            }
+            if ((byteLength & 1) != 0)
+            {
+                Unsafe.AddByteOffset<byte>(ref b, i) = 0;
+                // We're not using i after this, so not needed
+                // i += 1;
+            }
+
+            return;
+#endif // AMD64
+            
+            PInvoke:
+            RuntimeImports.RhZeroMemory(ref b, byteLength);
+        }
+
+        internal static unsafe void ClearWithReferences(ref IntPtr ip, nuint pointerSizeLength)
+        {
+            if (pointerSizeLength == 0)
+                return;
+
+            // TODO: Perhaps do switch casing to improve small size perf
+
+            nuint i = 0;
+            nuint n = 0;
+            while ((n = i + 8) <= (pointerSizeLength))
+            {
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 0) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 1) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 2) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 3) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 4) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 5) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 6) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 7) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                i = n;
+            }
+            if ((n = i + 4) <= (pointerSizeLength))
+            {
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 0) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 1) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 2) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 3) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                i = n;
+            }
+            if ((n = i + 2) <= (pointerSizeLength))
+            {
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 0) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 1) * (nuint)sizeof(IntPtr)) = default(IntPtr);
+                i = n;
+            }
+            if ((i + 1) <= (pointerSizeLength))
+            {
+                Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 0) * (nuint)sizeof(IntPtr)) = default(IntPtr);
             }
         }
     }

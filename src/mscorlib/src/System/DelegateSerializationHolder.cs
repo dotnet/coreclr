@@ -2,12 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-    
+
 using System;
 using System.Reflection;
 using System.Runtime.Remoting;
 using System.Runtime.Serialization;
-using System.Security.Permissions;
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
@@ -22,20 +21,17 @@ namespace System
         {
             // Used for MulticastDelegate
 
-            if (method == null) 
+            if (method == null)
                 throw new ArgumentNullException(nameof(method));
             Contract.EndContractBlock();
-    
-            if (!method.IsPublic || (method.DeclaringType != null && !method.DeclaringType.IsVisible))
-                new ReflectionPermission(ReflectionPermissionFlag.MemberAccess).Demand();
-    
+
             Type c = delegateType.BaseType;
 
             if (c == null || (c != typeof(Delegate) && c != typeof(MulticastDelegate)))
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeDelegate"),"type");
+                throw new ArgumentException(SR.Arg_MustBeDelegate, "type");
 
             if (method.DeclaringType == null)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_GlobalMethodSerialization"));
+                throw new NotSupportedException(SR.NotSupported_GlobalMethodSerialization);
 
             DelegateEntry de = new DelegateEntry(delegateType.FullName, delegateType.Module.Assembly.FullName, target,
                 method.ReflectedType.Module.Assembly.FullName, method.ReflectedType.FullName, method.Name);
@@ -43,7 +39,7 @@ namespace System
             if (info.MemberCount == 0)
             {
                 info.SetType(typeof(DelegateSerializationHolder));
-                info.AddValue("Delegate",de,typeof(DelegateEntry));
+                info.AddValue("Delegate", de, typeof(DelegateEntry));
             }
 
             // target can be an object so it needs to be added to the info, or else a fixup is needed
@@ -112,15 +108,15 @@ namespace System
         #region Private Data Members
         private DelegateEntry m_delegateEntry;
         private MethodInfo[] m_methods;
-        #endregion    
-    
+        #endregion
+
         #region Constructor
         private DelegateSerializationHolder(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
-    
+
             bool bNewWire = true;
 
             try
@@ -174,7 +170,7 @@ namespace System
         private void ThrowInsufficientState(string field)
         {
             throw new SerializationException(
-                Environment.GetResourceString("Serialization_InsufficientDeserializationState", field));
+                SR.Format(SR.Serialization_InsufficientDeserializationState, field));
         }
 
         private DelegateEntry OldDelegateWireFormat(SerializationInfo info, StreamingContext context)
@@ -210,30 +206,35 @@ namespace System
 
                 // We cannot use Type.GetType directly, because of AppCompat - assembly names starting with '[' would fail to load.
                 RuntimeType type = (RuntimeType)Assembly.GetType_Compat(de.assembly, de.type);
-                RuntimeType targetType = (RuntimeType)Assembly.GetType_Compat(de.targetTypeAssembly, de.targetTypeName);
+
+                // {de.targetTypeAssembly, de.targetTypeName} do not actually refer to the type of the target, but the reflected
+                // type of the method. Those types may be the same when the method is on the target's type or on a type in its
+                // inheritance chain, but those types may not be the same when the method is an extension method for the
+                // target's type or a type in its inheritance chain.
 
                 // If we received the new style delegate encoding we already have the target MethodInfo in hand.
                 if (m_methods != null)
                 {
-                    if(de.target != null && !targetType.IsInstanceOfType(de.target))
-                        throw new InvalidCastException();
-                    Object target=de.target;
-                    d = Delegate.CreateDelegateNoSecurityCheck(type, target, m_methods[index]);
+                    // The method info is serialized, so the target type info is redundant. The desktop framework does no
+                    // additional verification on the target type info.
+                    d = Delegate.CreateDelegateNoSecurityCheck(type, de.target, m_methods[index]);
                 }
                 else
                 {
                     if (de.target != null)
                     {
-                        if(!targetType.IsInstanceOfType(de.target))
-                            throw new InvalidCastException();
-                         d = Delegate.CreateDelegate(type, de.target, de.methodName);
+                        // For consistency with the desktop framework, when the method info is not serialized for a closed
+                        // delegate, the method is assumed to be on the target's type or in its inheritance chain. An extension
+                        // method would not work on this path for the above reason and also because the delegate binds to
+                        // instance methods only. The desktop framework does no additional verification on the target type info.
+                        d = Delegate.CreateDelegate(type, de.target, de.methodName);
                     }
                     else
+                    {
+                        RuntimeType targetType = (RuntimeType)Assembly.GetType_Compat(de.targetTypeAssembly, de.targetTypeName);
                         d = Delegate.CreateDelegate(type, targetType, de.methodName);
+                    }
                 }
-
-                if ((d.Method != null && !d.Method.IsPublic) || (d.Method.DeclaringType != null && !d.Method.DeclaringType.IsVisible))
-                    new ReflectionPermission(ReflectionPermissionFlag.MemberAccess).Demand();
             }
             catch (Exception e)
             {
@@ -263,7 +264,7 @@ namespace System
             else
             {
                 object[] invocationList = new object[count];
-                
+
                 for (DelegateEntry de = m_delegateEntry; de != null; de = de.Entry)
                 {
                     // Be careful to match the index we pass to GetDelegate (used to look up extra information for each delegate) to
@@ -279,7 +280,7 @@ namespace System
         #region ISerializable
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_DelegateSerHolderSerial"));
+            throw new NotSupportedException(SR.NotSupported_DelegateSerHolderSerial);
         }
         #endregion
     }

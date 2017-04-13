@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <!--
@@ -77,15 +78,13 @@
 
     <Platform Condition="'$(Platform)' == ''">$(BuildArch)</Platform>
     <Platform Condition="'$(Platform)' == 'amd64'">x64</Platform>
-
   </PropertyGroup>
 
   <!-- Output paths -->
   <PropertyGroup>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)obj\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS).$(BuildArch).$(BuildType)\</IntermediateOutputPath>
-    <OutputPath Condition="'$(OutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS).$(BuildArch).$(BuildType)</OutputPath>
-    <FinalOutputPath Condition="'$(FinalOutputPath)' == ''">$(BinDir)</FinalOutputPath>
+    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS).$(BuildArch).$(BuildType)\$(MSBuildProjectName)</IntermediateOutputPath>
+    <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
   </PropertyGroup>
 
   <Import Condition="Exists('$(ToolsDir)BuildVersion.targets')" Project="$(ToolsDir)BuildVersion.targets" />
@@ -139,7 +138,7 @@
 
   <!-- Packaging properties -->
   <PropertyGroup>
-    <PreReleaseLabel>beta</PreReleaseLabel>
+    <PreReleaseLabel>preview1</PreReleaseLabel>
     <PackageDescriptionFile>$(SourceDir).nuget/descriptions.json</PackageDescriptionFile>
     <PackageLicenseFile>$(SourceDir).nuget/dotnet_library_license.txt</PackageLicenseFile>
     <PackageThirdPartyNoticesFile>$(SourceDir).nuget/ThirdPartyNotices.txt</PackageThirdPartyNoticesFile>
@@ -162,7 +161,7 @@
     <!-- On Windows, MSbuild still runs against Desktop FX while it runs on .NET Core on non-Windows. this requires
          pulling in different packaging dependencies.
      -->
-    <PackagingTaskDir Condition="'$(TargetsWindows)' == 'true'">$(ToolsDir)net45/</PackagingTaskDir>
+    <PackagingTaskDir Condition="'$(TargetsWindows)' == 'true'">$(ToolsDir)net46/</PackagingTaskDir>
     <BuildNumberMajor Condition="'$(BuildNumberMajor)' == ''">00001</BuildNumberMajor>
     <!-- defined in buildtools packaging.targets, but we need this before targets are imported -->
     <PackagePlatform Condition="'$(PackagePlatform)' == ''">$(Platform)</PackagePlatform>
@@ -180,6 +179,10 @@
 
     <PackageOutputPath>$(PackagesBinDir)/pkg/</PackageOutputPath>
     <SymbolPackageOutputPath>$(PackagesBinDir)/symbolpkg/</SymbolPackageOutputPath>
+    <PackageIndexFile>$(MSBuildThisFileDirectory)/src/.nuget/packageIndex.json</PackageIndexFile>
+
+    <!-- coreclr doesn't currently use the index so don't force it to be in sync -->
+    <SkipIndexCheck>true</SkipIndexCheck>
   </PropertyGroup>
 
   <!-- Add required legal files to packages -->
@@ -192,6 +195,10 @@
           Include="$(PackageThirdPartyNoticesFile)" >
       <SkipPackageFileCheck>true</SkipPackageFileCheck>
     </File>
+    <PackageIndex Include="$(PackageIndexFile)" />
   </ItemGroup>
 
+  <!-- Use Roslyn Compilers to build -->
+  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false'" />
+  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'=='true' and Exists('$(RoslynPropsFile)')" />
 </Project>

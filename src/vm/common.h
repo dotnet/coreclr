@@ -99,9 +99,6 @@
 
 #include "compatibilityflags.h"
 extern BOOL GetCompatibilityFlag(CompatibilityFlag flag);
-#ifndef FEATURE_CORECLR
-extern DWORD* GetGlobalCompatibilityFlags();
-#endif // !FEATURE_CORECLR
 
 #include "strongname.h"
 #include "stdmacros.h"
@@ -366,7 +363,6 @@ namespace Loader
 #include "threads.h"
 #include "clrex.inl"
 #ifdef FEATURE_COMINTEROP
-    // These need to be included *after* threads.h so that they can properly use LeaveRuntimeHolder
     #include "windowsruntime.h"
     #include "windowsstring.h"
 #endif
@@ -387,7 +383,6 @@ namespace Loader
 #include "interoputil.h"
 #include "wrappers.h"
 #include "dynamicmethod.h"
-#include "mixedmode.hpp"
 
 #include "gcstress.h"
 
@@ -399,11 +394,6 @@ inline VOID UnsafeEEEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_CAN_TAKE_LOCK;
 
-#ifndef FEATURE_CORECLR
-    if (CLRTaskHosted()) {
-        Thread::BeginThreadAffinity();
-    }
-#endif // !FEATURE_CORECLR
     UnsafeEnterCriticalSection(lpCriticalSection);
     INCTHREADLOCKCOUNT();
 }
@@ -415,11 +405,6 @@ inline VOID UnsafeEELeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 
     UnsafeLeaveCriticalSection(lpCriticalSection);
     DECTHREADLOCKCOUNT();
-#ifndef FEATURE_CORECLR
-    if (CLRTaskHosted()) {
-        Thread::EndThreadAffinity();
-    }
-#endif // !FEATURE_CORECLR
 }
 
 inline BOOL UnsafeEETryEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)

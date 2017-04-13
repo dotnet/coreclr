@@ -15,6 +15,8 @@ int32_t g_TrapReturningThreads;
 
 EEConfig * g_pConfig;
 
+gc_alloc_context g_global_alloc_context;
+
 bool CLREventStatic::CreateManualEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, TRUE, bInitialState, NULL);
@@ -135,7 +137,7 @@ void ThreadStore::AttachCurrentThread()
 
 void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {
-    g_theGCHeap->SetGCInProgress(TRUE);
+    g_theGCHeap->SetGCInProgress(true);
 
     // TODO: Implement
 }
@@ -144,7 +146,7 @@ void GCToEEInterface::RestartEE(bool bFinishedGC)
 {
     // TODO: Implement
 
-    g_theGCHeap->SetGCInProgress(FALSE);
+    g_theGCHeap->SetGCInProgress(false);
 }
 
 void GCToEEInterface::GcScanRoots(promote_func* fn,  int condemned, int max_gen, ScanContext* sc)
@@ -261,6 +263,32 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 {
     // Signal to finalizer thread that there are objects to finalize
     // TODO: Implement for finalization
+}
+
+void GCToEEInterface::HandleFatalError(unsigned int exitCode)
+{
+    abort();
+}
+
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
+{
+    return true;
+}
+
+bool GCToEEInterface::ForceFullGCToBeBlocking()
+{
+    return false;
+}
+
+bool GCToEEInterface::EagerFinalized(Object* obj)
+{
+    // The sample does not finalize anything eagerly.
+    return false;
+}
+
+MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
+{
+    return g_pFreeObjectMethodTable;
 }
 
 bool IsGCSpecialThread()

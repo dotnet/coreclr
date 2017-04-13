@@ -4,16 +4,25 @@
 
 @setlocal
 @echo off
+Setlocal EnableDelayedExpansion
 
 rem Set defaults for the file extension, architecture and configuration
 set CORECLR_REPO=%CD%
 set TEST_FILE_EXT=exe
 set TEST_ARCH=x64
+set TEST_ARCHITECTURE=x64
 set TEST_CONFIG=Release
 
 goto :ARGLOOP
 
+
 :SETUP
+
+IF /I [%TEST_ARCHITECTURE%] == [x86jit32] (
+    set TEST_ARCH=x86
+) ELSE (
+    set TEST_ARCH=%TEST_ARCHITECTURE%
+)
 
 set CORECLR_OVERLAY=%CORECLR_REPO%\bin\tests\Windows_NT.%TEST_ARCH%.%TEST_CONFIG%\Tests\Core_Root
 set RUNLOG=%CORECLR_REPO%\bin\Logs\perfrun.log
@@ -35,9 +44,9 @@ pushd sandbox
 @rem stage stuff we need
 
 @rem xunit and perf
-xcopy /sy %CORECLR_REPO%\packages\Microsoft.DotNet.xunit.performance.runner.Windows\1.0.0-alpha-build0040\tools\* . > %RUNLOG%
-xcopy /sy %CORECLR_REPO%\packages\Microsoft.DotNet.xunit.performance.analysis\1.0.0-alpha-build0040\tools\* . >> %RUNLOG%
-xcopy /sy %CORECLR_REPO%\packages\xunit.console.netcore\1.0.2-prerelease-00177\runtimes\any\native\* . >> %RUNLOG%
+"%CORECLR_REPO%\Tools\dotnetcli\dotnet.exe" restore "%CORECLR_REPO%\tests\src\Common\PerfHarness\project.json"
+"%CORECLR_REPO%\Tools\dotnetcli\dotnet.exe" publish "%CORECLR_REPO%\tests\src\Common\PerfHarness\project.json" -c Release -o %CORECLR_REPO%\sandbox
+xcopy /sy %CORECLR_REPO%\packages\Microsoft.Diagnostics.Tracing.TraceEvent\1.0.0-alpha-experimental\lib\native\* . >> %RUNLOG%
 xcopy /sy %CORECLR_REPO%\bin\tests\Windows_NT.%TEST_ARCH%.%TEST_CONFIG%\Tests\Core_Root\* . >> %RUNLOG%
 
 @rem find and stage the tests
@@ -56,7 +65,7 @@ if not [%BENCHVIEW_PATH%] == [] (
                                     --config-name "%TEST_CONFIG%" ^
                                     --config Configuration "%TEST_CONFIG%" ^
                                     --config OS "Windows_NT" ^
-                                    --arch "%TEST_ARCH%" ^
+                                    --arch "%TEST_ARCHITECTURE%" ^
                                     --machinepool "PerfSnake"
   py "%BENCHVIEW_PATH%\upload.py" submission.json --container coreclr
 )
@@ -78,16 +87,21 @@ xcopy /s %BENCHDIR%*.txt . >> %RUNLOG%
 
 set CORE_ROOT=%CORECLR_REPO%\sandbox
 
-xunit.performance.run.exe %BENCHNAME%.%TEST_FILE_EXT% -runner xunit.console.netcore.exe -runnerhost corerun.exe -verbose -runid %PERFOUT% > %BENCHNAME%.out
+@rem setup additional environment variables
+if DEFINED TEST_ENV (
+    if EXIST !TEST_ENV! (
+        call %TEST_ENV%
+    )
+)
 
-xunit.performance.analysis.exe %PERFOUT%.xml -xml %XMLOUT% > %BENCHNAME%-analysis.out
+corerun.exe PerfHarness.dll %WORKSPACE%\sandbox\%BENCHNAME%.%TEST_FILE_EXT% --perf:runid Perf > %BENCHNAME%.out
 
 @rem optionally generate results for benchview
 if not [%BENCHVIEW_PATH%] == [] (
-  py "%BENCHVIEW_PATH%\measurement.py" xunit "perf-%BENCHNAME%.xml" --better desc --drop-first-value --append
+  py "%BENCHVIEW_PATH%\measurement.py" xunit "Perf-%BENCHNAME%.xml" --better desc --drop-first-value --append
   REM Save off the results to the root directory for recovery later in Jenkins
-  xcopy perf-%BENCHNAME%*.xml %CORECLR_REPO%\
-  xcopy perf-%BENCHNAME%*.etl %CORECLR_REPO%\
+  xcopy Perf-%BENCHNAME%*.xml %CORECLR_REPO%\
+  xcopy Perf-%BENCHNAME%*.etl %CORECLR_REPO%\
 ) else (
   type %XMLOUT% | findstr "test name"
   type %XMLOUT% | findstr Duration
@@ -121,7 +135,13 @@ shift
 goto :ARGLOOP
 )
 IF /I [%1] == [-arch] (
-set TEST_ARCH=%2
+set TEST_ARCHITECTURE=%2
+shift
+shift
+goto :ARGLOOP
+)
+IF /I [%1] == [-testEnv] (
+set TEST_ENV=%2
 shift
 shift
 goto :ARGLOOP

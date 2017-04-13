@@ -133,6 +133,39 @@ public:
     // be finalized.
     virtual
     void EnableFinalization(bool foundFinalizers) = 0;
+
+    // Signals to the EE that the GC encountered a fatal error and can't recover.
+    virtual
+    void HandleFatalError(unsigned int exitCode) = 0;
+
+    // Asks the EE if it wants a particular object to be finalized when unloading
+    // an app domain.
+    virtual
+    bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj) = 0;
+
+    // Offers the EE the option to finalize the given object eagerly, i.e.
+    // not on the finalizer thread but on the current thread. The
+    // EE returns true if it finalized the object eagerly and the GC does not
+    // need to do so, and false if it chose not to eagerly finalize the object
+    // and it's up to the GC to finalize it later.
+    virtual
+    bool EagerFinalized(Object* obj) = 0;
+
+    // Asks the EE if it wishes for the current GC to be a blocking GC. The GC will
+    // only invoke this callback when it intends to do a full GC, so at this point
+    // the EE can opt to elevate that collection to be a blocking GC and not a background one.
+    virtual
+    bool ForceFullGCToBeBlocking() = 0;
+
+    // Retrieves the method table for the free object, a special kind of object used by the GC
+    // to keep the heap traversable. Conceptually, the free object is similar to a managed array
+    // of bytes: it consists of an object header (like all objects) and a "numComponents" field,
+    // followed by some number of bytes of space that's free on the heap.
+    //
+    // The free object allows the GC to traverse the heap because it can inspect the numComponents
+    // field to see how many bytes to skip before the next object on a heap segment begins.
+    virtual
+    MethodTable* GetFreeObjectMethodTable() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

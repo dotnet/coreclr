@@ -40,7 +40,7 @@
       "description": "MsBuild logging options.",
       "valueType": "passThrough",
       "values": [],
-      "defaultValue": "/l:BinClashLogger,Tools/net45/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"
+      "defaultValue": "/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"
     },
     "FilterToOSGroup": {
       "description": "Specifies the OSGroup.",
@@ -50,6 +50,12 @@
     },
     "RestoreNETCorePlatforms": {
       "description": "MsBuild target that restores the NETCore packages.",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
+    "RestoreOptData": {
+      "description": "MsBuild target that restores optimization profile data.",
       "valueType": "target",
       "values": [],
       "defaultValue": ""
@@ -180,6 +186,18 @@
       "values": [ "debug", "release", "checked" ],
       "defaultValue": "debug"
     },
+    "EnableProfileGuidedOptimization": {
+      "description": "Enables IBC profile optimizations if profile data are available.",
+      "valueType": "property",
+      "values": [ true, false ],
+      "defaultValue": false
+    },
+    "OptimizationDataDir": {
+      "description": "Sets the path where the build should look for IBC profile data.",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
     "UseEnv": {
       "description": "Set when building for arm64.",
       "valueType": "property",
@@ -191,6 +209,12 @@
       "valueType": "property",
       "values": [ "x86", "x64", "arm", "arm64" ],
       "defaultValue": "${CPUArch}"
+    },
+    "PortableBuild": {
+      "description": "Indicates if this is a portable build.",
+      "valueType": "property",
+      "values": [ "0", "1"],
+      "defaultValue": "0"
     },
     "Rebuild": {
       "description": "Specifies rebuild target.",
@@ -303,7 +327,7 @@
     "RuntimeId": {
       "description": "Specifies the OS to build Core_Root for",
       "valueType": "property",
-      "values": [ "debian.8-x64", "fedora.23-x64", "opensuse.13.2-x64", "opensuse.42.1-x64", "osx.10.10-x64", "rhel.7-x64", "ubuntu.14.04-x64", "ubuntu.16.04-x64", "ubuntu.16.10-x64" ],
+      "values": [ "debian.8-x64", "fedora.24-x64", "fedora.25-x64", "opensuse.42.1-x64", "osx.10.12-x64", "rhel.7-x64", "ubuntu.14.04-x64", "ubuntu.16.04-x64", "ubuntu.16.10-x64" ],
       "defaultValue": "${__RuntimeId}"
     },
     "UpdateDependencies": {
@@ -333,6 +357,24 @@
     "CopyCrossgenToProduct": {
       "description": "Place crossgen.exe in bin/Product folder for building tests against",
       "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
+    "OptionalToolSource": {
+      "description": "URL of the nuget feed used by 'optional-tools'",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
+    "OptionalToolSourceUser": {
+      "description": "User name for authenticating to the optional tools feed",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
+    "OptionalToolSourcePassword": {
+      "description": "VSTS token for authenticating to the optional tools feed; requires 'package(READ)' permission",
+      "valueType": "property",
       "values": [],
       "defaultValue": ""
     },
@@ -408,6 +450,12 @@
             "RestoreDuringBuild": false
           }
         },
+        "portable": {
+          "description": "Triggers a portable build.",
+          "settings": {
+            "PortableBuild": "1"
+          }
+        },
         "BuildTarget": {
           "description": "Runs the build target.",
           "settings": {
@@ -435,10 +483,25 @@
             "RestoreNETCorePlatforms": "default"
           }
         },
+        "optdata": {
+          "description": "Restores optimization profile data for the repository.",
+          "settings": {
+            "Project": "./build.proj",
+            "RestoreDuringBuild": true,
+            "RestoreOptData": "default"
+          }
+        },
         "ab": {
           "description": "Downloads the latests product packages from Azure. The values for '-AzureAccount' and '-AzureToken' are required",
           "settings": {
             "Project": "./src/syncAzure.proj"
+          }
+        },
+        "n": {
+          "description": "Downloads test native binaries. The values for '-AzureAccount', '-AzureToken', and '-Container' are required",
+          "settings": {
+            "Project": "./src/syncAzure.proj",
+            "PublishTestNativeBins": "true"
           }
         },
         "azureToken": {
@@ -459,6 +522,12 @@
             "__Container": "default"
           }
         },
+        "runtimeId": {
+          "description": "Runtime ID of the binaries in the specified container.",
+          "settings": {
+            "RuntimeId": "default"
+          }
+        },
         "verbose": {
           "description": "Passes /flp:v=diag to the msbuild command or the value passed by the user.",
           "settings": {
@@ -475,12 +544,6 @@
           "description": "To download a specific group of product packages, specify build number. The value for -BuildMajor required.",
           "settings": {
             "BuildNumberMinor": "default"
-          }
-        },
-        "PublishTestNativeBins": {
-          "description": "Downloads Published test native binaries.",
-          "settings": {
-            "PublishTestNativeBins": "default"
           }
         }
       },
@@ -556,6 +619,12 @@
           "description": "Specifies architecture to publish, can be x64, x86, arm or arm64",
           "settings": {
             "__BuildArch": "default"
+          }
+        },
+        "portable": {
+          "description": "Triggers a portable build.",
+          "settings": {
+            "PortableBuild": "1"
           }
         },
         "buildType": {

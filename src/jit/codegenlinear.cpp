@@ -133,9 +133,8 @@ void CodeGen::genCodeForBBlist()
      */
 
     BasicBlock* block;
-    BasicBlock* lblk; /* previous block */
 
-    for (lblk = nullptr, block = compiler->fgFirstBB; block != nullptr; lblk = block, block = block->bbNext)
+    for (block = compiler->fgFirstBB; block != nullptr; block = block->bbNext)
     {
 #ifdef DEBUG
         if (compiler->verbose)
@@ -247,6 +246,10 @@ void CodeGen::genCodeForBBlist()
             }
         }
 
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+        genInsertNopForUnwinder(block);
+#endif
+
         /* Start a new code output block */
 
         genUpdateCurrentFunclet(block);
@@ -284,7 +287,7 @@ void CodeGen::genCodeForBBlist()
             }
 #endif
             // We should never have a block that falls through into the Cold section
-            noway_assert(!lblk->bbFallsThrough());
+            noway_assert(!block->bbPrev->bbFallsThrough());
 
             // We require the block that starts the Cold section to have a label
             noway_assert(block->bbEmitCookie);
@@ -293,7 +296,7 @@ void CodeGen::genCodeForBBlist()
 
         /* Both stacks are always empty on entry to a basic block */
 
-        genStackLevel = 0;
+        SetStackLevel(0);
         genAdjustStackLevel(block);
         savedStkLvl = genStackLevel;
 
@@ -487,7 +490,7 @@ void CodeGen::genCodeForBBlist()
             }
         }
 
-        genStackLevel -= savedStkLvl;
+        SubtractStackLevel(savedStkLvl);
 
 #ifdef DEBUG
         // compCurLife should be equal to the liveOut set, except that we don't keep
@@ -602,7 +605,7 @@ void CodeGen::genCodeForBBlist()
                 break;
 
             case BBJ_CALLFINALLY:
-                block = genCallFinally(block, lblk);
+                block = genCallFinally(block);
                 break;
 
 #if FEATURE_EH_FUNCLETS
@@ -1732,43 +1735,73 @@ void CodeGen::genTransferRegGCState(regNumber dst, regNumber src)
 //     pass in 'addr' for a relative call or 'base' for a indirect register call
 //     methHnd - optional, only used for pretty printing
 //     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
+//
+// clang-format off
 void CodeGen::genEmitCall(int                   callType,
                           CORINFO_METHOD_HANDLE methHnd,
-                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo) void* addr X86_ARG(ssize_t argSize),
-                          emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
-                          IL_OFFSETX ilOffset,
-                          regNumber  base,
-                          bool       isJump,
-                          bool       isNoGC)
+                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
+                          void*                 addr
+                          X86_ARG(ssize_t argSize),
+                          emitAttr              retSize
+                          MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
+                          IL_OFFSETX            ilOffset,
+                          regNumber             base,
+                          bool                  isJump,
+                          bool                  isNoGC)
 {
 #if !defined(_TARGET_X86_)
     ssize_t argSize = 0;
 #endif // !defined(_TARGET_X86_)
-    getEmitter()->emitIns_Call(emitter::EmitCallType(callType), methHnd, INDEBUG_LDISASM_COMMA(sigInfo) addr, argSize,
-                               retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize), gcInfo.gcVarPtrSetCur,
-                               gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur, ilOffset, base, REG_NA, 0, 0, isJump,
+    getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
+                               methHnd,
+                               INDEBUG_LDISASM_COMMA(sigInfo)
+                               addr,
+                               argSize,
+                               retSize
+                               MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                               gcInfo.gcVarPtrSetCur,
+                               gcInfo.gcRegGCrefSetCur,
+                               gcInfo.gcRegByrefSetCur,
+                               ilOffset, base, REG_NA, 0, 0, isJump,
                                emitter::emitNoGChelper(compiler->eeGetHelperNum(methHnd)));
 }
+// clang-format on
 
 // generates an indirect call via addressing mode (call []) given an indir node
 //     methHnd - optional, only used for pretty printing
 //     retSize - emitter type of return for GC purposes, should be EA_BYREF, EA_GCREF, or EA_PTRSIZE(not GC)
+//
+// clang-format off
 void CodeGen::genEmitCall(int                   callType,
                           CORINFO_METHOD_HANDLE methHnd,
-                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo) GenTreeIndir* indir X86_ARG(ssize_t argSize),
-                          emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
-                          IL_OFFSETX ilOffset)
+                          INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
+                          GenTreeIndir*         indir
+                          X86_ARG(ssize_t argSize),
+                          emitAttr              retSize
+                          MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
+                          IL_OFFSETX            ilOffset)
 {
 #if !defined(_TARGET_X86_)
     ssize_t argSize = 0;
 #endif // !defined(_TARGET_X86_)
     genConsumeAddress(indir->Addr());
 
-    getEmitter()->emitIns_Call(emitter::EmitCallType(callType), methHnd, INDEBUG_LDISASM_COMMA(sigInfo) nullptr,
-                               argSize, retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
-                               gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur, ilOffset,
-                               indir->Base() ? indir->Base()->gtRegNum : REG_NA,
-                               indir->Index() ? indir->Index()->gtRegNum : REG_NA, indir->Scale(), indir->Offset());
+    getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
+                               methHnd,
+                               INDEBUG_LDISASM_COMMA(sigInfo)
+                               nullptr,
+                               argSize,
+                               retSize
+                               MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                               gcInfo.gcVarPtrSetCur,
+                               gcInfo.gcRegGCrefSetCur,
+                               gcInfo.gcRegByrefSetCur,
+                               ilOffset,
+                               (indir->Base()  != nullptr) ? indir->Base()->gtRegNum  : REG_NA,
+                               (indir->Index() != nullptr) ? indir->Index()->gtRegNum : REG_NA,
+                               indir->Scale(),
+                               indir->Offset());
 }
+// clang-format on
 
 #endif // !LEGACY_BACKEND

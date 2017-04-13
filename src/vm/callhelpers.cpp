@@ -35,17 +35,6 @@ void AssertMulticoreJitAllowedModule(PCODE pTarget)
 
     Module * pModule = pMethod->GetModule_NoLogging();
 
-#if defined(FEATURE_APPX_BINDER)
-    
-    // For Appx process, allow certain modules to load on background thread
-    if (AppX::IsAppXProcess())
-    {
-        if (MulticoreJitManager::IsLoadOkay(pModule))
-        {
-            return;
-        }
-    }
-#endif
 
     _ASSERTE(pModule->IsSystem());
 }
@@ -445,7 +434,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
 
 #ifdef _DEBUG
         {
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
             // Validate that the return value is not too big for the buffer passed
             if (m_pMD->GetMethodTable()->IsRegPassedStruct())
             {
@@ -455,7 +444,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
                     _ASSERTE(cbReturnValue >= thReturnValueType.GetSize());
                 }
             }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
             // The metasig should be reset
             _ASSERTE(m_methodSig.GetArgNum() == 0);

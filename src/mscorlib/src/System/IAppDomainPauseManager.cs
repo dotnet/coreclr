@@ -11,15 +11,15 @@
 **
 =============================================================================*/
 
+using System;
+using System.Threading;
+using System.Security;
+using System.Diagnostics.Contracts;
+using System.Runtime.Versioning;
+using System.Runtime.CompilerServices;
+
 namespace System
 {
-    using System;
-    using System.Threading;
-    using System.Security;
-    using System.Diagnostics.Contracts;
-    using System.Runtime.Versioning;
-    using System.Runtime.CompilerServices;
-
     internal class AppDomainPauseManager
     {
         public AppDomainPauseManager()
@@ -30,49 +30,9 @@ namespace System
         static AppDomainPauseManager()
         {
         }
-        
-        static readonly AppDomainPauseManager instance = new AppDomainPauseManager();
-        internal static AppDomainPauseManager Instance
-        {
-            get { return instance; }
-        }
 
-        // FAS: IAppDomainPauseConsumer interface implementation
-        // currently there is nothing we do here as the implementation
-        // of updating pause times have been moved to native CorHost2
-        public void Pausing()
-        {
-        }
+        private static readonly AppDomainPauseManager instance = new AppDomainPauseManager();
 
-        public void Paused()
-        {
-            Debug.Assert(!isPaused);
-
-            if(ResumeEvent == null)
-                ResumeEvent = new ManualResetEvent(false);
-            else
-                ResumeEvent.Reset();
-
-            Timer.Pause();
-
-            // Set IsPaused at the last as other threads seeing it set, will expect a valid
-            // reset ResumeEvent. Also the requirement here is that only after Paused
-            // returns other threads should block on this event. So there is a race condition here.
-            isPaused = true;
-        }
-
-        public void Resuming()
-        {
-            Debug.Assert(isPaused);
-            isPaused = false;
-            ResumeEvent.Set();
-        }
-
-        public void Resumed()
-        {
-            Timer.Resume();
-        }
-   
         private static volatile bool isPaused;
 
         internal static bool IsPaused
@@ -82,7 +42,7 @@ namespace System
 
         internal static ManualResetEvent ResumeEvent
         {
-            get; 
+            get;
             set;
         }
     }

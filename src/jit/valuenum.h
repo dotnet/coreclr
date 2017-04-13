@@ -205,6 +205,7 @@ private:
     int GetConstantInt32(ValueNum argVN);
     INT64 GetConstantInt64(ValueNum argVN);
     double GetConstantDouble(ValueNum argVN);
+    float GetConstantSingle(ValueNum argVN);
 
     // Assumes that all the ValueNum arguments of each of these functions have been shown to represent constants.
     // Assumes that "vnf" is a operator of the appropriate arity (unary for the first, binary for the second).
@@ -217,7 +218,7 @@ private:
 
 #ifdef DEBUG
     // This helps test some performance pathologies related to "evaluation" of VNF_MapSelect terms,
-    // especially relating to the heap.  We count the number of applications of such terms we consider,
+    // especially relating to GcHeap/ByrefExposed.  We count the number of applications of such terms we consider,
     // and if this exceeds a limit, indicated by a COMPlus_ variable, we assert.
     unsigned m_numMapSels;
 #endif
@@ -536,6 +537,17 @@ public:
     // Returns true iff the VN represents an integeral constant.
     bool IsVNInt32Constant(ValueNum vn);
 
+    struct ArrLenUnsignedBoundInfo
+    {
+        unsigned cmpOper;
+        ValueNum vnIdx;
+        ValueNum vnLen;
+
+        ArrLenUnsignedBoundInfo() : cmpOper(GT_NONE), vnIdx(NoVN), vnLen(NoVN)
+        {
+        }
+    };
+
     struct ArrLenArithBoundInfo
     {
         // (vnArr.len - 1) > vnOp
@@ -606,6 +618,9 @@ public:
     // If "vn" is constant bound, then populate the "info" fields for constVal, cmpOp, cmpOper.
     void GetConstantBoundInfo(ValueNum vn, ConstantBoundInfo* info);
 
+    // If "vn" is of the form "(uint)var < (uint)a.len" (or equivalent) return true.
+    bool IsVNArrLenUnsignedBound(ValueNum vn, ArrLenUnsignedBoundInfo* info);
+
     // If "vn" is of the form "var < a.len" or "a.len <= var" return true.
     bool IsVNArrLenBound(ValueNum vn);
 
@@ -663,9 +678,13 @@ private:
                 __fallthrough;
 
             case TYP_BYREF:
-#ifndef PLATFORM_UNIX
+
+#ifdef _MSC_VER
+
                 assert(&typeid(T) == &typeid(size_t)); // We represent ref/byref constants as size_t's.
-#endif                                                 // PLATFORM_UNIX
+
+#endif // _MSC_VER
+
                 __fallthrough;
 
             case TYP_INT:
@@ -762,7 +781,7 @@ public:
     // the function application it represents; otherwise, return "false."
     bool GetVNFunc(ValueNum vn, VNFuncApp* funcApp);
 
-    // Requires that "vn" represents a "heap address" the sum of a "TYP_REF" value and some integer
+    // Requires that "vn" represents a "GC heap address" the sum of a "TYP_REF" value and some integer
     // value.  Returns the TYP_REF value.
     ValueNum VNForRefInAddr(ValueNum vn);
 
