@@ -1849,10 +1849,7 @@ HRESULT RunMain(MethodDesc *pFD ,
         else 
         {
             *pParam->piRetVal = (INT32)threadStart.Call_RetArgSlot(&stackVar);
-            if (pParam->stringArgs == NULL) 
-            {
-                SetLatchedExitCode(*pParam->piRetVal);
-            }
+            SetLatchedExitCode(*pParam->piRetVal);
         }
 
         GCPROTECT_END();
@@ -1965,10 +1962,6 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
     IfFailThrow(hr);
     
     END_ENTRYPOINT_THROWS;
-
-    // Sync the latched exit code with the return value of main function.
-    SetLatchedExitCode(iRetVal);
-
     return iRetVal;
 }
 #endif // CROSSGEN_COMPILE
