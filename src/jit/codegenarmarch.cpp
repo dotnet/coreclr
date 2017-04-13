@@ -1428,11 +1428,13 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             // we only have to check for any bits set in 'typeMask'
 
             noway_assert(castInfo.typeMask != 0);
+#ifdef _TARGET_ARM_
             if (arm_Valid_Imm_For_Instr(INS_tst, castInfo.typeMask, INS_FLAGS_DONT_CARE))
             {
                 emit->emitIns_R_I(INS_tst, cmpSize, sourceReg, castInfo.typeMask);
             }
             else
+#endif // _TARGET_ARM
             {
                 noway_assert(tmpReg != REG_NA);
                 instGen_Set_Reg_To_Imm(cmpSize, tmpReg, castInfo.typeMask);
