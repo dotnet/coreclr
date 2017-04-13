@@ -888,6 +888,10 @@ TypeHandle FieldDesc::GetExactFieldType(TypeHandle owner)
         GetSig(&pSig, &cSig);
         SigPointer sig(pSig, cSig);
 
+        ULONG callConv;
+        IfFailThrow(sig.GetCallingConv(&callConv));
+        _ASSERTE(callConv == IMAGE_CEE_CS_CALLCONV_FIELD);
+
         // Get the generics information
         SigTypeContext sigTypeContext(GetExactClassInstantiation(owner), Instantiation());
 
