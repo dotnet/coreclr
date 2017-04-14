@@ -38,7 +38,7 @@ namespace Span
         public string Name => _name;
     }
 
-    class IndexerBench
+    public class IndexerBench
     {
         const int Iterations = 1000000;
         const int DefaultLength = 1024;
