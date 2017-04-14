@@ -5110,7 +5110,7 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip);
 struct CoreClrCallbacks
 {
     typedef IExecutionEngine* (__stdcall * pfnIEE_t)();
-    typedef HRESULT (__stdcall * pfnGetCORSystemDirectory_t)(SString& pbuffer);
+    typedef HRESULT (STDAPICALLTYPE * pfnGetCORSystemDirectory_t)(SString& pbuffer);
     typedef void* (__stdcall * pfnGetCLRFunction_t)(LPCSTR functionName);
 
     HINSTANCE                   m_hmodCoreCLR;
