@@ -1339,7 +1339,7 @@ Fail
     LEAF_ENTRY JIT_GetSharedNonGCStaticBase_SingleAppDomain
     ; If class is not initialized, bail to C++ helper
     add x2, x0, #DomainLocalModule__m_pDataBlob
-    ldrb w2, [x2, x1]
+    ldrb w2, [x2, w1, UXTW]
     tst w2, #1
     beq CallHelper1
 
@@ -1365,7 +1365,7 @@ CallHelper1
     LEAF_ENTRY JIT_GetSharedGCStaticBase_SingleAppDomain
     ; If class is not initialized, bail to C++ helper
     add x2, x0, #DomainLocalModule__m_pDataBlob
-    ldrb w2, [x2, x1]
+    ldrb w2, [x2, w1, UXTW]
     tst w2, #1
     beq CallHelper2
 

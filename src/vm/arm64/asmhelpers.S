@@ -1223,7 +1223,7 @@ LEAF_END setFPReturn, _TEXT
 LEAF_ENTRY JIT_GetSharedNonGCStaticBase_SingleAppDomain, _TEXT
     // If class is not initialized, bail to C++ helper
     add x2, x0, #DomainLocalModule__m_pDataBlob
-    ldrb w2, [x2, x1]
+    ldrb w2, [x2, w1, UXTW]
     tst w2, #1
     beq LOCAL_LABEL(JIT_GetSharedNonGCStaticBase_SingleAppDomain_CallHelper)
 
@@ -1249,7 +1249,7 @@ LEAF_END JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain, _TEXT
 LEAF_ENTRY JIT_GetSharedGCStaticBase_SingleAppDomain, _TEXT
     // If class is not initialized, bail to C++ helper
     add x2, x0, #DomainLocalModule__m_pDataBlob
-    ldrb w2, [x2, x1]
+    ldrb w2, [x2, w1, UXTW]
     tst w2, #1
     beq LOCAL_LABEL(JIT_GetSharedGCStaticBase_SingleAppDomain_CallHelper)
 
