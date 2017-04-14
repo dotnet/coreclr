@@ -895,9 +895,8 @@ TypeHandle FieldDesc::GetExactFieldType(TypeHandle owner)
         // Get the generics information
         SigTypeContext sigTypeContext(GetExactClassInstantiation(owner), Instantiation());
 
-        TypeHandle thApproxFieldType = GetApproxFieldTypeHandleThrowing();
         // Load the exact type
-        RETURN (sig.GetTypeHandleThrowing(thApproxFieldType.GetModule(), &sigTypeContext));
+        RETURN (sig.GetTypeHandleThrowing(GetModule(), &sigTypeContext));
     }
 }
 
