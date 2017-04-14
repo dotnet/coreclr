@@ -6,6 +6,17 @@ using System;
 
 namespace System.Runtime.InteropServices
 {
+    [AttributeUsage(AttributeTargets.Interface, Inherited = false)]
+    public sealed class TypeLibImportClassAttribute : Attribute
+    {
+        internal String _importClassName;
+        public TypeLibImportClassAttribute(Type importClass)
+        {
+            _importClassName = importClass.ToString();
+        }
+        public String Value { get { return _importClassName; } }
+    }       
+    
     [Serializable]
     [Flags()]
     public enum TypeLibTypeFlags
@@ -109,16 +120,22 @@ namespace System.Runtime.InteropServices
         public TypeLibVarFlags Value { get {return _val;} } 
     }   
 
-    [AttributeUsage(AttributeTargets.Interface, Inherited = false)]
-    public sealed class TypeLibImportClassAttribute : Attribute
+    [AttributeUsage(AttributeTargets.Assembly, Inherited = false)] 
+    [System.Runtime.InteropServices.ComVisible(true)]
+    public sealed class TypeLibVersionAttribute : Attribute
     {
-        internal String _importClassName;
-        public TypeLibImportClassAttribute(Type importClass)
+        internal int _major;
+        internal int _minor;
+        
+        public TypeLibVersionAttribute(int major, int minor)
         {
-            _importClassName = importClass.ToString();
+            _major = major;
+            _minor = minor;
         }
-        public String Value { get { return _importClassName; } }
-    }       
+        
+        public int MajorVersion { get {return _major;} }
+        public int MinorVersion { get {return _minor;} }
+    }    
 
     [AttributeUsage(AttributeTargets.Assembly, Inherited = false)] 
     public sealed class ImportedFromTypeLibAttribute : Attribute
