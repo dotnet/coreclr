@@ -14,7 +14,6 @@ CLREventStatic SampleProfiler::s_threadShutdownEvent;
 long SampleProfiler::s_samplingRateInNs = 1000000; // 1ms
 #endif
 
-// Synchronization of multiple callers occurs in EventPipe::Enable.
 void SampleProfiler::Enable()
 {
     CONTRACTL
@@ -23,6 +22,8 @@ void SampleProfiler::Enable()
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(s_pSamplingThread == NULL);
+        // Synchronization of multiple callers occurs in EventPipe::Enable.
+        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -40,7 +41,6 @@ void SampleProfiler::Enable()
     }
 }
 
-// Synchronization of multiple callers occurs in EventPipe::Disable.
 void SampleProfiler::Disable()
 {
     CONTRACTL
@@ -48,6 +48,8 @@ void SampleProfiler::Disable()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        // Synchronization of multiple callers occurs in EventPipe::Disable.
+        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
 

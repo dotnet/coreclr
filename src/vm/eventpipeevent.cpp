@@ -8,7 +8,13 @@
 
 EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack)
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
 
     m_pProvider = &provider;
     m_keywords = keywords;

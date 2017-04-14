@@ -110,7 +110,9 @@ public:
 class EventPipe
 {
     // Declare friends.
+    friend class EventPipeConfiguration;
     friend class EventPipeProvider;
+    friend class SampleProfiler;
 
     public:
 
@@ -151,7 +153,13 @@ class EventPipe
         // This is called directly by the EventPipeProvider constructor to register the new provider.
         static EventPipeConfiguration* GetConfiguration();
 
-        static CrstStatic s_initCrst;
+        // Populate common fields for every event.
+        static void PopulateCommonEventFields(CommonEventFields &commonEventFields, Thread *pThread);
+
+        // Get the event pipe configuration lock.
+        static CrstStatic* GetLock();
+
+        static CrstStatic s_configCrst;
         static bool s_tracingInitialized;
         static bool s_tracingEnabled;
         static EventPipeConfiguration *s_pConfig;

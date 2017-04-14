@@ -10,14 +10,19 @@
 
 EventPipeProvider::EventPipeProvider(const GUID &providerID)
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
 
     m_providerID = providerID;
     m_enabled = false;
     m_keywords = 0;
     m_providerLevel = Critical;
     m_pEventList = new SList<SListElem<EventPipeEvent*>>();
-    m_lock.Init(LOCK_TYPE_DEFAULT);
 
     // Register the provider.
     EventPipeConfiguration* pConfig = EventPipe::GetConfiguration();
@@ -43,21 +48,36 @@ bool EventPipeProvider::EventEnabled(INT64 keywords) const
 {
     LIMITED_METHOD_CONTRACT;
 
-    return (Enabled() && ((m_keywords & keywords) != 0));
+    // The event is enabled if:
+    //  - The provider is enabled.
+    //  - The event keywords are unspecified in the manifest (== 0) or when masked with the enabled config are != 0.
+    return (Enabled() && ((keywords == 0) || ((m_keywords & keywords) != 0)));
 }
 
 bool EventPipeProvider::EventEnabled(INT64 keywords, EventPipeEventLevel eventLevel) const
 {
     LIMITED_METHOD_CONTRACT;
 
+    // The event is enabled if:
+    //  - The provider is enabled.
+    //  - The event keywords are unspecified in the manifest (== 0) or when masked with the enabled config are != 0.
+    //  - The event level is LogAlways or the provider's verbosity level is set to greater than the event's verbosity level in the manifest.
     return (EventEnabled(keywords) &&
         ((eventLevel == LogAlways) || (m_providerLevel >= eventLevel)));
 }
 
-void EventPipeProvider::SetConfiguration(INT64 keywords, EventPipeEventLevel providerLevel)
+void EventPipeProvider::SetConfiguration(bool providerEnabled, INT64 keywords, EventPipeEventLevel providerLevel)
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END;
 
+    m_enabled = providerEnabled;
     m_keywords = keywords;
     m_providerLevel = providerLevel;
 
@@ -66,17 +86,30 @@ void EventPipeProvider::SetConfiguration(INT64 keywords, EventPipeEventLevel pro
 
 void EventPipeProvider::AddEvent(EventPipeEvent &event)
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
 
-    SpinLockHolder _slh(&m_lock);
+    // Take the config lock before inserting a new event.
+    CrstHolder _crst(EventPipe::GetLock());
+
     m_pEventList->InsertTail(new SListElem<EventPipeEvent*>(&event));
 }
 
 void EventPipeProvider::RefreshAllEvents()
 {
-    LIMITED_METHOD_CONTRACT;
-
-    SpinLockHolder _slh(&m_lock);
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END;
 
     SListElem<EventPipeEvent*> *pElem = m_pEventList->GetHead();
     while(pElem != NULL)

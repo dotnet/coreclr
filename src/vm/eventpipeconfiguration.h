@@ -22,13 +22,19 @@ public:
     // Get the provider with the specified provider ID if it exists.
     EventPipeProvider* GetProvider(const GUID &providerID);
 
+    // Enable the event pipe.
+    void Enable();
+
+    // Disable the event pipe.
+    void Disable();
+
 private:
+
+    // Get the provider without taking the lock.
+    EventPipeProvider* GetProviderNoLock(const GUID &providerID);
 
     // The list of event pipe providers.
     SList<SListElem<EventPipeProvider*>> *m_pProviderList;
-
-    // Lock to protect access to the provider list.
-    SpinLock m_lock;
 };
 
 #endif // __EVENTPIPE_CONFIGURATION_H__

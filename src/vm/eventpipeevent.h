@@ -12,6 +12,7 @@
 
 class EventPipeEvent
 {
+    // Declare friends.
     friend class EventPipeProvider;
 
 private:

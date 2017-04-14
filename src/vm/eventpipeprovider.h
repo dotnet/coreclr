@@ -21,6 +21,9 @@ enum EventPipeEventLevel
 
 class EventPipeProvider
 {
+    // Declare friends.
+    friend class EventPipeConfiguration;
+
 private:
     // The GUID of the provider.
     GUID m_providerID;
@@ -38,9 +41,6 @@ private:
     // New events can be added on-the-fly.
     SList<SListElem<EventPipeEvent*>> *m_pEventList;
 
-    // Lock to protect access to the event list.
-    SpinLock m_lock;
-
 public:
 
     EventPipeProvider(const GUID &providerID);
@@ -57,14 +57,15 @@ public:
     // Determine if the specified keywords and level match the configuration.
     bool EventEnabled(INT64 keywords, EventPipeEventLevel eventLevel) const;
 
-    // Set the provider configuration (enable and disable sets of events).
-    void SetConfiguration(INT64 keywords, EventPipeEventLevel providerLevel);
-
     // Add an event to the provider.
     // NOTE: This should be private, but needs to be called from EventPipeEvent.
     void AddEvent(EventPipeEvent &event);
 
 private:
+
+    // Set the provider configuration (enable and disable sets of events).
+    // This is called by EventPipeConfiguration.
+    void SetConfiguration(bool providerEnabled, INT64 keywords, EventPipeEventLevel providerLevel);
 
     // Refresh the runtime state of all events.
     void RefreshAllEvents();
