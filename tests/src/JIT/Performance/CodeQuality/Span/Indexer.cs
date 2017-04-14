@@ -490,7 +490,7 @@ namespace Span
                 byte result = 0;
                 for (int i = 0; i < innerIterationCount; ++i)
                 {
-                    result = TestWriteViaIndexer2(s);
+                    result = TestWriteViaIndexer2(s, 0, length);
                 }
                 return result;
             },
@@ -498,11 +498,11 @@ namespace Span
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static byte TestWriteViaIndexer2(Span<byte> data)
+        static byte TestWriteViaIndexer2(Span<byte> data, int start, int end)
         {
             byte x = 0;
 
-            for (var idx = 0; idx < data.Length; idx++)
+            for (var idx = start; idx < end; idx++)
             {
                 // Bounds checks are redundant
                 byte b = data[idx];
@@ -789,7 +789,7 @@ namespace Span
             {
                 x ^= data[idx];
 
-                if (idx == 100)
+                if (idx != 100)
                 {
                     // Should be able to eliminate this bounds check
                     y ^= data[0];
@@ -837,7 +837,7 @@ namespace Span
             {
                 x ^= data[idx];
 
-                if (idx == 100)
+                if (idx != 100)
                 {
                     y ^= data[50];
                     // Should be able to eliminate this bounds check
