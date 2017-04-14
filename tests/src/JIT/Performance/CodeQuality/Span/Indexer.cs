@@ -454,7 +454,7 @@ namespace Span
                 byte result = 0;
                 for (int i = 0; i < innerIterationCount; ++i)
                 {
-                    result = WriteViaIndexer1(s);
+                    result = TestWriteViaIndexer1(s);
                 }
                 return result;
             },
@@ -462,7 +462,7 @@ namespace Span
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static byte WriteViaIndexer1(Span<byte> data)
+        static byte TestWriteViaIndexer1(Span<byte> data)
         {
             byte q = data[0];
 
@@ -490,7 +490,7 @@ namespace Span
                 byte result = 0;
                 for (int i = 0; i < innerIterationCount; ++i)
                 {
-                    result = WriteViaIndexer2(s);
+                    result = TestWriteViaIndexer2(s);
                 }
                 return result;
             },
@@ -498,7 +498,7 @@ namespace Span
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static byte WriteViaIndexer2(Span<byte> data)
+        static byte TestWriteViaIndexer2(Span<byte> data)
         {
             byte x = data[0];
 
