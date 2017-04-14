@@ -500,9 +500,9 @@ namespace Span
         [MethodImpl(MethodImplOptions.NoInlining)]
         static byte TestWriteViaIndexer2(Span<byte> data)
         {
-            byte x = data[0];
+            byte x = 0;
 
-            for (var idx = 1; idx < data.Length; idx++)
+            for (var idx = 0; idx < data.Length; idx++)
             {
                 // Bounds checks are redundant
                 byte b = data[idx];
@@ -645,7 +645,7 @@ namespace Span
                 byte result = 0;
                 for (int i = 0; i < innerIterationCount; ++i)
                 {
-                    result = TestSameIndex1(s);
+                    result = TestSameIndex1(s, 0, length);
                 }
                 return result;
             },
@@ -653,12 +653,12 @@ namespace Span
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static byte TestSameIndex1(Span<byte> data)
+        static byte TestSameIndex1(Span<byte> data, int start, int end)
         {
             byte x = 0;
             byte y = 0;
 
-            for (var idx = 0; idx < data.Length; idx++)
+            for (var idx = start; idx < end; idx++)
             {
                 x ^= data[idx];
                 y ^= data[idx];
@@ -682,7 +682,7 @@ namespace Span
                 byte result = 0;
                 for (int i = 0; i < innerIterationCount; ++i)
                 {
-                    result = TestSameIndex2(s, ref s[0]);
+                    result = TestSameIndex2(s, ref s[0], 0, length);
                 }
                 return result;
             },
@@ -690,14 +690,14 @@ namespace Span
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static byte TestSameIndex2(Span<byte> data, ref byte b)
+        static byte TestSameIndex2(Span<byte> data, ref byte b, int start, int end)
         {
             byte x = 0;
             byte y = 0;
             byte ye = 121;
             byte q = data[0];
 
-            for (var idx = 0; idx < data.Length; idx++)
+            for (var idx = start; idx < end; idx++)
             {
                 // Bounds check is redundant, but values are not CSEs.
                 x ^= data[idx];
@@ -716,6 +716,11 @@ namespace Span
         [Category("Covered index in-loop redundant bounds check elimination")]
         public static void CoveredIndex1(int length)
         {
+            if (length < 100)
+            {
+                throw new Exception("test requires at least 100 byte length");
+            }
+
             byte[] a = GetData(length);
 
             Invoke((int innerIterationCount) =>
@@ -724,7 +729,7 @@ namespace Span
                 byte result = 0;
                 for (int i = 0; i < innerIterationCount; ++i)
                 {
-                    result = TestCoveredIndex1(s);
+                    result = TestCoveredIndex1(s, 0, length);
                 }
                 return result;
             },
@@ -732,24 +737,115 @@ namespace Span
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static byte TestCoveredIndex1(Span<byte> data)
+        static byte TestCoveredIndex1(Span<byte> data, int start, int end)
         {
             byte x = 0;
             byte y = 0;
 
-            for (var idx = 0; idx < data.Length - 100; idx++)
+            for (var idx = start; idx < end - 100; idx++)
             {
                 x ^= data[idx + 100];
                 y ^= data[idx];
             }
 
-            for (var idx = data.Length - 100; idx < data.Length; idx++)
+            for (var idx = end - 100; idx < end; idx++)
             {
                 y ^= data[idx];
                 x ^= data[idx - 100];
             }
 
             byte r = (byte)(x ^ y ^ x);
+
+            return r;
+        }
+
+        [Benchmark(InnerIterationCount = Iterations)]
+        [InlineData(DefaultLength)]
+        [Category("Covered index in-loop redundant bounds check elimination")]
+        public static void CoveredIndex2(int length)
+        {
+            byte[] a = GetData(length);
+
+            Invoke((int innerIterationCount) =>
+            {
+                Span<byte> s = new Span<byte>(a);
+                byte result = 0;
+                for (int i = 0; i < innerIterationCount; ++i)
+                {
+                    result = TestCoveredIndex2(s, 0, length);
+                }
+                return result;
+            },
+            "CoveredIndex2({0})", length);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static byte TestCoveredIndex2(Span<byte> data, int start, int end)
+        {
+            byte x = 0;
+            byte y = 0;
+
+            for (var idx = start; idx < end; idx++)
+            {
+                x ^= data[idx];
+
+                if (idx == 100)
+                {
+                    // Should be able to eliminate this bounds check
+                    y ^= data[0];
+                }
+            }
+
+            byte r = (byte)(y ^ x ^ y);
+
+            return r;
+        }
+
+        [Benchmark(InnerIterationCount = Iterations)]
+        [InlineData(DefaultLength)]
+        [Category("Covered index in-loop redundant bounds check elimination")]
+        public static void CoveredIndex3(int length)
+        {
+            if (length < 50)
+            {
+                throw new Exception("test requires at least 100 byte length");
+            }
+
+            byte[] a = GetData(length);
+
+            Invoke((int innerIterationCount) =>
+            {
+                Span<byte> s = new Span<byte>(a);
+                byte result = 0;
+                for (int i = 0; i < innerIterationCount; ++i)
+                {
+                    result = TestCoveredIndex3(s, 0, length);
+                }
+                return result;
+            },
+            "CoveredIndex3({0})", length);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static byte TestCoveredIndex3(Span<byte> data, int start, int end)
+        {
+            byte x = 0;
+            byte y = 0;
+            byte z = 0;
+
+            for (var idx = start; idx < end; idx++)
+            {
+                x ^= data[idx];
+
+                if (idx == 100)
+                {
+                    y ^= data[50];
+                    // Should be able to eliminate this bounds check
+                    z ^= data[25];
+                }
+            }
+
+            byte r = (byte)(z ^ y ^ x ^ y ^ z);
 
             return r;
         }
