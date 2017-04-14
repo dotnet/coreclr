@@ -38,7 +38,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
     // For DAC, if we get here, it means that the LazyMachState is uninitialized and we have to unwind it.
     // The API we use to unwind in DAC is StackWalk64(), which does not support the context pointers.
-#define CALLEE_SAVED_REGISTER(regname) nonVolRegPtrs.regname = (PDWORD64)&unwoundState->m_Capture.regname;
+#define CALLEE_SAVED_REGISTER(regname) nonVolRegPtrs.regname = (PDWORD64)&(baseState->m_Capture.regname);
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
