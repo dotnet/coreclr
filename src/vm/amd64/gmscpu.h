@@ -136,6 +136,8 @@ inline void LazyMachState::setLazyStateFromUnwind(MachState* copy)
     this->m_Unwound = copy->m_Unwound;
 #endif
 
+    memcpy(&this->m_Ptrs, &copy->m_Ptrs, sizeof(CalleeSavedRegistersPointers));
+
     // this has to be last because we depend on write ordering to 
     // synchronize the race implicit in updating this struct
     VolatileStore(&_pRetAddr, (PTR_TADDR)(TADDR)&m_Rip);
