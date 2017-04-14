@@ -4,7 +4,7 @@
 #ifndef __EVENTPIPE_CONFIGURATION_H__
 #define __EVENTPIPE_CONFIGURATION_H__
 
-#include "common.h"
+#include "slist.h"
 
 class EventPipeEvent;
 class EventPipeProvider;

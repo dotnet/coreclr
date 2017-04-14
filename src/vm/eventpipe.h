@@ -5,11 +5,13 @@
 #ifndef __EVENTPIPE_H__
 #define __EVENTPIPE_H__
 
-#include "common.h"
+#include "crst.h"
+#include "stackwalk.h"
 
 class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeJsonFile;
+class MethodDesc;
 
 // The data fields common to every event.
 struct CommonEventFields

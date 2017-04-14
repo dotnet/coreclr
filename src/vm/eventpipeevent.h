@@ -5,10 +5,7 @@
 #ifndef __EVENTPIPE_EVENT_H__
 #define __EVENTPIPE_EVENT_H__
 
-#include "common.h"
 #include "eventpipeprovider.h"
-
-//class EventPipeProvider;
 
 class EventPipeEvent
 {
