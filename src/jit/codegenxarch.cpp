@@ -6482,10 +6482,12 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
     assert(genIsValidIntReg(targetReg));
     assert(genIsValidIntReg(sourceReg));
 
-    instruction ins  = INS_invalid;
-    emitAttr    size = EA_UNKNOWN;
+    instruction ins     = INS_invalid;
+    emitAttr    srcSize = EA_ATTR(genTypeSize(srcType));
+    emitAttr    dstSize = EA_ATTR(genTypeSize(dstType));
+    emitAttr    size    = EA_UNKNOWN;
 
-    if (genTypeSize(srcType) < genTypeSize(dstType))
+    if (srcSize < dstSize)
     {
         // Widening cast
 
@@ -6496,13 +6498,13 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
         if (treeNode->gtOverflow() && (srcType == TYP_INT) && (dstType == TYP_ULONG))
         {
             requiresOverflowCheck = true;
-            size                  = EA_ATTR(genTypeSize(srcType));
+            size                  = srcSize;
             ins                   = INS_mov;
         }
         else
         {
             // we need the source size
-            size = EA_ATTR(genTypeSize(srcType));
+            size = srcSize;
             noway_assert(size < EA_PTRSIZE);
 
             ins = ins_Move_Extend(srcType, castOp->InReg());
@@ -6513,7 +6515,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
                 64-bit, and a regular 32-bit mov clears the high 32 bits (like the non-existant movzxd),
                 but for a sign extension from TYP_INT to TYP_LONG, we need to use movsxd opcode.
             */
-            if (!isUnsignedSrc && !isUnsignedDst && (size == EA_4BYTE) && (genTypeSize(dstType) > EA_4BYTE))
+            if (!isUnsignedSrc && !isUnsignedDst && (size == EA_4BYTE) && (dstSize > EA_4BYTE))
             {
 #ifdef _TARGET_X86_
                 NYI_X86("Cast to 64 bit for x86/RyuJIT");
@@ -6528,9 +6530,9 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
                 mask off the high bits.
                 Use 'movsx' followed by 'and'
             */
-            if (!isUnsignedSrc && isUnsignedDst && (genTypeSize(dstType) < EA_4BYTE))
+            if (!isUnsignedSrc && isUnsignedDst && (dstSize < EA_4BYTE))
             {
-                noway_assert(genTypeSize(dstType) == EA_2BYTE && size == EA_1BYTE);
+                noway_assert(dstSize == EA_2BYTE && size == EA_1BYTE);
                 needAndAfter = true;
             }
         }
@@ -6538,18 +6540,18 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
     else
     {
         // Narrowing cast, or sign-changing cast
-        noway_assert(genTypeSize(srcType) >= genTypeSize(dstType));
+        noway_assert(srcSize >= dstSize);
 
         // Is this an Overflow checking cast?
         if (treeNode->gtOverflow())
         {
             requiresOverflowCheck = true;
-            size                  = EA_ATTR(genTypeSize(srcType));
+            size                  = srcSize;
             ins                   = INS_mov;
         }
         else
         {
-            size = EA_ATTR(genTypeSize(dstType));
+            size = dstSize;
             ins  = ins_Move_Extend(dstType, castOp->InReg());
         }
     }
@@ -6680,7 +6682,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             // On amd64, we can hit this path for a same-register
             // 4-byte to 8-byte widening conversion, and need to
             // emit the instruction to set the high bits correctly.
-            || (EA_ATTR(genTypeSize(dstType)) == EA_8BYTE && EA_ATTR(genTypeSize(srcType)) == EA_4BYTE)
+            || (dstSize == EA_8BYTE && srcSize == EA_4BYTE)
 #endif // _TARGET_AMD64_
                 )
             inst_RV_RV(ins, targetReg, sourceReg, srcType, size);
@@ -6752,7 +6754,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
 #ifdef _TARGET_AMD64_
                 // On amd64, 'mov' is the opcode used to zero-extend from
                 // 4 bytes to 8 bytes.
-                || (EA_ATTR(genTypeSize(dstType)) == EA_8BYTE && EA_ATTR(genTypeSize(srcType)) == EA_4BYTE)
+                || (dstSize == EA_8BYTE && srcSize == EA_4BYTE)
 #endif // _TARGET_AMD64_
                     )
             {
@@ -6769,7 +6771,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             /* Mask off high bits for cast from byte to char */
             if (needAndAfter)
             {
-                noway_assert(genTypeSize(dstType) == 2 && ins == INS_movsx);
+                noway_assert(dstSize == EA_2BYTE && ins == INS_movsx);
                 inst_RV_IV(INS_AND, targetReg, 0xFFFF, EA_4BYTE);
             }
         }
