@@ -6456,13 +6456,13 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
     var_types  srcType = genActualType(castOp->TypeGet());
     noway_assert(genTypeSize(srcType) >= 4);
 
-#if !defined(_TARGET_64BIT_)
+#ifdef _TARGET_X86_
     if (varTypeIsLong(srcType))
     {
         genLongToIntCast(treeNode);
         return;
     }
-#endif // !defined(_TARGET_64BIT_)
+#endif // _TARGET_X86_
 
     regNumber targetReg     = treeNode->gtRegNum;
     regNumber sourceReg     = castOp->gtRegNum;
