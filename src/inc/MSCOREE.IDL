@@ -858,7 +858,7 @@ interface ICLRRuntimeHost2 : ICLRRuntimeHost
     pointer_default(unique),
     local
 ]
-ICLRRuntimeHost4 : public ICLRRuntimeHost2
+interface ICLRRuntimeHost4 : public ICLRRuntimeHost2
 {
     virtual HRESULT STDMETHODCALLTYPE UnloadAppDomain2(
         /* [in] */ DWORD dwAppDomainId,
