@@ -6512,7 +6512,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
                 64-bit, and a regular 32-bit mov clears the high 32 bits (like the non-existant movzxd),
                 but for a sign extension from TYP_INT to TYP_LONG, we need to use movsxd opcode.
             */
-            if (!isUnsignedSrc && !isUnsignedDst && (srcSize == EA_4BYTE) && (dstSize > EA_4BYTE))
+            if (!isUnsignedSrc && !isUnsignedDst)
             {
 #ifdef _TARGET_X86_
                 NYI_X86("Cast to 64 bit for x86/RyuJIT");
