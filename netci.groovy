@@ -1020,7 +1020,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             switch (os) {
                 case 'Ubuntu':
                 case 'Ubuntu16.04':
-                    if ((os == 'Ubuntu' && configuration == 'Release') || (os == 'Ubuntu16.04' && configuration == 'Debug')) {
+                    if ((os == 'Ubuntu16.04' && configuration == 'Release') || (os == 'Ubuntu16.04' && configuration == 'Debug')) {
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build")
                     }
                     else {
@@ -1623,12 +1623,15 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // default values for Ubuntu
                     def arm_abi="arm"
                     def linuxCodeName="trusty"
+                    def skipTestsArg="--skipTests"
                     if (os == 'Ubuntu16.04') {
                         linuxCodeName="xenial"
+                        skipTestsArg=""
                     }
                     else if (os == 'Tizen') {
                         arm_abi="armel"
                         linuxCodeName="tizen"
+                        skipTestsArg=""
                     }
 
                     // Unzip the Windows test binaries first. Exit with 0
@@ -1643,7 +1646,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     // Call the ARM CI script to cross build and test using docker
                     buildCommands += """./tests/scripts/arm32_ci_script.sh \\
-                    --mode=docker \\
+                    --mode=docker ${skipTestsArg} \\
                     --${arm_abi} \\
                     --linuxCodeName=${linuxCodeName} \\
                     --buildConfig=${lowerConfiguration} \\
