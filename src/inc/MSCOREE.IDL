@@ -860,10 +860,9 @@ interface ICLRRuntimeHost2 : ICLRRuntimeHost
 ]
 interface ICLRRuntimeHost4 : ICLRRuntimeHost2
 {
-    virtual HRESULT STDMETHODCALLTYPE UnloadAppDomain2(
-        /* [in] */ DWORD dwAppDomainId,
-        /* [in] */ BOOL fWaitUntilDone,
-        /* [out] */ int *pLatchedExitCode);
+    HRESULT UnloadAppDomain2([in] DWORD dwAppDomainId,
+                                          [in] BOOL fWaitUntilDone,
+                                          [out] int *pLatchedExitCode);
 };
 
 [
