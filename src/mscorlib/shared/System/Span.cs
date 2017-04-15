@@ -5,7 +5,6 @@
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 
@@ -45,7 +44,7 @@ namespace System
             if (default(T) == null && array.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
-            _pointer = new ByReference<T>(ref JitHelpers.GetArrayData(array));
+            _pointer = new ByReference<T>(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()));
             _length = array.Length;
         }
 
@@ -71,7 +70,7 @@ namespace System
             if ((uint)start > (uint)array.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            _pointer = new ByReference<T>(ref Unsafe.Add(ref JitHelpers.GetArrayData(array), start));
+            _pointer = new ByReference<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start));
             _length = array.Length - start;
         }
 
@@ -98,7 +97,7 @@ namespace System
             if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            _pointer = new ByReference<T>(ref Unsafe.Add(ref JitHelpers.GetArrayData(array), start));
+            _pointer = new ByReference<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start));
             _length = length;
         }
 
@@ -198,11 +197,11 @@ namespace System
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
-                SpanHelper.ClearWithReferences(ref Unsafe.As<T, IntPtr>(ref _pointer.Value), (nuint)_length * (nuint)(Unsafe.SizeOf<T>() / sizeof(nuint)));
+                Span.ClearWithReferences(ref Unsafe.As<T, IntPtr>(ref _pointer.Value), (nuint)_length * (nuint)(Unsafe.SizeOf<T>() / sizeof(nuint)));
             }
             else
             {
-                SpanHelper.ClearWithoutReferences(ref Unsafe.As<T, byte>(ref _pointer.Value), (nuint)_length * (nuint)Unsafe.SizeOf<T>());
+                Span.ClearWithoutReferences(ref Unsafe.As<T, byte>(ref _pointer.Value), (nuint)_length * (nuint)Unsafe.SizeOf<T>());
             }
         }
 
@@ -287,7 +286,7 @@ namespace System
             if ((uint)_length > (uint)destination.Length)
                 return false;
 
-            SpanHelper.CopyTo<T>(ref destination._pointer.Value, ref _pointer.Value, _length);
+            Span.CopyTo<T>(ref destination._pointer.Value, ref _pointer.Value, _length);
             return true;
         }
 
@@ -392,7 +391,7 @@ namespace System
                 return Array.Empty<T>();
 
             var destination = new T[_length];
-            SpanHelper.CopyTo<T>(ref JitHelpers.GetArrayData(destination), ref _pointer.Value, _length);
+            Span.CopyTo<T>(ref Unsafe.As<byte, T>(ref destination.GetRawSzArrayData()), ref _pointer.Value, _length);
             return destination;
         }
 
@@ -508,12 +507,9 @@ namespace System
             if (text == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
 
-            return new ReadOnlySpan<char>(ref text.GetFirstCharRef(), text.Length);
+            return new ReadOnlySpan<char>(ref text.GetRawStringData(), text.Length);
         }
-    }
 
-    internal static class SpanHelper
-    {
         internal static unsafe void CopyTo<T>(ref T destination, ref T source, int elementsCount)
         {
             if (Unsafe.AreSame(ref destination, ref source))
