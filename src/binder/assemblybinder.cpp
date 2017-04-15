@@ -685,19 +685,23 @@ namespace BINDER_SPACE
 
         StackSString sCoreLib;
 
-        // At run-time, System.Private.CoreLib.ni.dll is typically always available, and
-        // System.Private.CoreLib.dll is typically not.  So check for the NI first.
+        // At run-time, System.Private.CoreLib.dll is expected to be the NI image.
+        // Try binding to it first as that. If it fails, we will try to bind to it as 
+        // IL image.
         sCoreLib = sCoreLibDir;
-        sCoreLib.Append(CoreLibName_NI_W);
+        sCoreLib.Append(CoreLibName_IL_W);
+#if defined(FEATURE_PAL) && !defined(_TARGET_AMD64_)
+        // Native image for core library only exists for X64 on non-Windows. As other architectures
+        // bring them up, we should update this condition.
+        fBindToNativeImage = false;
+#endif // defined(FEATURE_PAL) && !defined(_TARGET_AMD64_)
         if (!fBindToNativeImage || FAILED(AssemblyBinder::GetAssembly(sCoreLib,
                                                FALSE /* fInspectionOnly */,
                                                TRUE /* fIsInGAC */,
                                                TRUE /* fExplicitBindToNativeImage */,
                                                &pSystemAssembly)))
         {
-            // If System.Private.CoreLib.ni.dll is unavailable, look for System.Private.CoreLib.dll instead
-            sCoreLib = sCoreLibDir;
-            sCoreLib.Append(CoreLibName_IL_W);
+            // If bind as NI failed, try to bind as IL.
             IF_FAIL_GO(AssemblyBinder::GetAssembly(sCoreLib,
                                                    FALSE /* fInspectionOnly */,
                                                    TRUE /* fIsInGAC */,
