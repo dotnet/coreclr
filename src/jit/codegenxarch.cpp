@@ -6619,7 +6619,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
         if (signCheckOnly)
         {
             // We only need to check for a negative value in sourceReg
-            inst_RV_IV(INS_cmp, sourceReg, 0, size);
+            inst_RV_IV(INS_cmp, sourceReg, 0, srcSize);
             genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
         }
         else
@@ -6632,13 +6632,13 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
                 {
                     regNumber tmpReg = treeNode->GetSingleTempReg();
                     inst_RV_RV(INS_mov, tmpReg, sourceReg, TYP_LONG); // Move the 64-bit value to a writeable temp reg
-                    inst_RV_SH(INS_SHIFT_RIGHT_LOGICAL, size, tmpReg, 32); // Shift right by 32 bits
-                    genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);            // Throw if result shift is non-zero
+                    inst_RV_SH(INS_SHIFT_RIGHT_LOGICAL, srcSize, tmpReg, 32); // Shift right by 32 bits
+                    genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);               // Throw if result shift is non-zero
                 }
                 else
                 {
                     noway_assert(typeMask != 0);
-                    inst_RV_IV(INS_TEST, sourceReg, typeMask, size);
+                    inst_RV_IV(INS_TEST, sourceReg, typeMask, srcSize);
                     genJumpToThrowHlpBlk(EJ_jne, SCK_OVERFLOW);
                 }
             }
@@ -6652,12 +6652,12 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
 
                 noway_assert((typeMin != 0) && (typeMax != 0));
 
-                inst_RV_IV(INS_cmp, sourceReg, typeMax, size);
+                inst_RV_IV(INS_cmp, sourceReg, typeMax, srcSize);
                 genJumpToThrowHlpBlk(EJ_jg, SCK_OVERFLOW);
 
                 // Compare with the MIN
 
-                inst_RV_IV(INS_cmp, sourceReg, typeMin, size);
+                inst_RV_IV(INS_cmp, sourceReg, typeMin, srcSize);
                 genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
             }
         }
@@ -6670,7 +6670,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             || (dstSize == EA_8BYTE && srcSize == EA_4BYTE)
 #endif // _TARGET_AMD64_
                 )
-            inst_RV_RV(ins, targetReg, sourceReg, srcType, size);
+            inst_RV_RV(ins, targetReg, sourceReg, srcType, srcSize);
     }
     else // non-overflow checking cast
     {
