@@ -6485,12 +6485,10 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
     instruction ins     = INS_invalid;
     emitAttr    srcSize = EA_ATTR(genTypeSize(srcType));
     emitAttr    dstSize = EA_ATTR(genTypeSize(dstType));
-    emitAttr    size    = EA_UNKNOWN;
 
     if (srcSize < dstSize)
     {
         // Widening cast
-        size = srcSize;
         // Is this an Overflow checking cast?
         // We only need to handle one case, as the other casts can never overflow.
         //   cast from TYP_INT to TYP_ULONG
@@ -6531,13 +6529,11 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
         if (treeNode->gtOverflow())
         {
             requiresOverflowCheck = true;
-            size                  = srcSize;
             ins                   = INS_mov;
         }
         else
         {
-            size = dstSize;
-            ins  = ins_Move_Extend(dstType, castOp->InReg());
+            ins = ins_Move_Extend(dstType, castOp->InReg());
         }
     }
 
@@ -6674,8 +6670,6 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
     }
     else // non-overflow checking cast
     {
-        noway_assert(size < EA_PTRSIZE || srcType == dstType);
-
         // We may have code transformations that result in casts where srcType is the same as dstType.
         // e.g. Bug 824281, in which a comma is split by the rationalizer, leaving an assignment of a
         // long constant to a long lclVar.
