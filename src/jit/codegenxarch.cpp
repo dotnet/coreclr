@@ -6684,7 +6684,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             ins = INS_mov;
         }
         /* Is the value sitting in a non-byte-addressable register? */
-        else if (castOp->InReg() && (size == EA_1BYTE) && !isByteReg(sourceReg))
+        else if (castOp->InReg() && (dstSize == EA_1BYTE) && !isByteReg(sourceReg))
         {
             if (isUnsignedDst)
             {
@@ -6700,7 +6700,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             /* Generate "mov targetReg, castOp->gtReg */
             if (targetReg != sourceReg)
             {
-                inst_RV_RV(INS_mov, targetReg, sourceReg, srcType);
+                inst_RV_RV(INS_mov, targetReg, sourceReg, srcType, dstSize);
             }
         }
 
@@ -6710,11 +6710,11 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
 
             /* Generate "and reg, MASK */
             unsigned fillPattern;
-            if (size == EA_1BYTE)
+            if (dstSize == EA_1BYTE)
             {
                 fillPattern = 0xff;
             }
-            else if (size == EA_2BYTE)
+            else if (dstSize == EA_2BYTE)
             {
                 fillPattern = 0xffff;
             }
@@ -6728,7 +6728,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
 #ifdef _TARGET_AMD64_
         else if (ins == INS_movsxd)
         {
-            inst_RV_RV(ins, targetReg, sourceReg, srcType, size);
+            inst_RV_RV(ins, targetReg, sourceReg, srcType, srcSize);
         }
 #endif // _TARGET_AMD64_
         else if (ins == INS_mov)
@@ -6741,7 +6741,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
 #endif // _TARGET_AMD64_
                     )
             {
-                inst_RV_RV(ins, targetReg, sourceReg, srcType, size);
+                inst_RV_RV(ins, targetReg, sourceReg, srcType, srcSize);
             }
         }
         else
@@ -6749,7 +6749,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             noway_assert(ins == INS_movsx || ins == INS_movzx);
 
             /* Generate "mov targetReg, castOp->gtReg */
-            inst_RV_RV(ins, targetReg, sourceReg, srcType, size);
+            inst_RV_RV(ins, targetReg, sourceReg, srcType, dstSize);
         }
     }
 
