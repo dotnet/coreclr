@@ -1681,7 +1681,7 @@ public:
 
         // clear the GC flag bits off the MethodTable
         // equivalent to Object::GetGCSafeMethodTable()
-        *mt &= ~3;
+        *mt &= ~1;
         return true;
     }
 
