@@ -6344,7 +6344,7 @@ void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
 
 #if !defined(_TARGET_64BIT_)
 //------------------------------------------------------------------------
-// genIntToIntCast: Generate code for long to int casts on x86.
+// genLongToIntCast: Generate code for long to int casts on x86.
 //
 // Arguments:
 //    cast - The GT_CAST node
@@ -6741,6 +6741,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
         else
         {
             noway_assert(ins == INS_movsx || ins == INS_movzx);
+            noway_assert(srcSize >= dstSize);
 
             /* Generate "mov targetReg, castOp->gtReg */
             inst_RV_RV(ins, targetReg, sourceReg, srcType, dstSize);
