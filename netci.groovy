@@ -87,7 +87,9 @@ class Constants {
 def static setMachineAffinity(def job, def os, def architecture) {
     if (architecture == 'arm64' && os == 'Windows_NT') {
         Utilities.setMachineAffinity(job, os, 'latest-arm64');
-    } else if (architecture == 'arm64' && os == 'Ubuntu') {
+    } else if (architecture == 'arm64' && os == 'Ubuntu' || os == 'Ubuntu16.04') {
+        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size');
+    }else if (architecture == 'arm64' && os == 'Ubuntu') {
         Utilities.setMachineAffinity(job, os, 'arm-cross-latest');
     } else if ((architecture == 'arm') && (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen')) {
         Utilities.setMachineAffinity(job, 'Ubuntu', 'arm-cross-latest');
@@ -309,11 +311,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     Utilities.addGithubPushTrigger(job)
                     break
                 case 'arm64':
-                    if (os == 'Windows_NT') {
-                        Utilities.addGithubPushTrigger(job)
-                        // TODO: Add once external email sending is available again
-                        // addEmailPublisher(job, 'dotnetonarm64@microsoft.com')
-                    }
+                    Utilities.addGithubPushTrigger(job)
                     break
                 default:
                     println("Unknown architecture: ${architecture}");
@@ -1013,11 +1011,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 'jashook',
                 'JosephTremoulet',
                 'pgavlin',
-                'pkukol',
                 'russellhadley',
                 'RussKeldorph',
                 'sandreenko',
-                'sivarv',
                 'swaroop-sridhar',
                 'gkhanna79',
                 'jkotas',
@@ -1029,6 +1025,48 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             ]
 
             switch (os) {
+                case 'Ubuntu':
+                case 'Ubuntu16.04':
+                    switch (scenario) {
+                        case 'pri1':
+                            if (configuration == 'Release') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Priority 1 Build and Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
+                            }
+                            break
+                        case 'r2r':
+                            if (configuration == 'Checked' || configuration == 'Release') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri0 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
+                        case 'pri1r2r':
+                            if (configuration == 'Checked' || configuration == 'Release') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
+                        case 'gcstress15_pri1r2r':
+                            if (configuration == 'Release' || configuration == 'Checked') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GCStress 15 R2R pri1 Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
+                        case 'r2r_jitstress1':
+                        case 'r2r_jitstress2':
+                        case 'r2r_jitstressregs1':
+                        case 'r2r_jitstressregs2':
+                        case 'r2r_jitstressregs3':
+                        case 'r2r_jitstressregs4':
+                        case 'r2r_jitstressregs8':
+                        case 'r2r_jitstressregs0x10':
+                        case 'r2r_jitstressregs0x80':
+                        case 'r2r_jitstressregs0x1000':
+                        case 'r2r_jitminopts':
+                        case 'r2r_jitforcerelocs':
+                            if (configuration == 'Release' || configuration == 'Checked') {
+                                def displayStr = getR2RStressModeDisplayName(scenario)
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} ${displayStr} R2R Build & Test", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
+                        default:
+                            break
                 case 'Windows_NT':
                     switch (scenario) {
                         case 'default':
@@ -1546,14 +1584,22 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
                     break
                 case 'arm64':
-                    // We don't run the cross build except on Ubuntu
-                    assert os == 'Ubuntu'
+                    def standaloneGc = ''
+                    if (scenario == 'standalone_gc') {
+                        standaloneGc = 'buildstandalonegc'
+                    }
 
-                    buildCommands += """echo \"Using rootfs in /opt/aarch64-linux-gnu-root\"
-                        ROOTFS_DIR=/opt/aarch64-linux-gnu-root ./build.sh skipmscorlib arm64 cross verbose ${lowerConfiguration}"""
+                    if (!enableCorefxTesting) {
+                        buildCommands += "./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture} ${standaloneGc}"
+                        buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
-                    // Basic archiving of the build, no pal tests
-                    Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/**/.nuget/**")
+                        // Set time out
+                        setTestJobTimeOut(newJob, scenario)
+                        // Basic archiving of the build
+                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
+                        // And pal tests
+                        Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
+                    }
                     break
                 case 'arm':
                     // Cross builds for ARM runs on Ubuntu, Ubuntu16.04 and Tizen currently
@@ -1647,7 +1693,7 @@ combinedScenarios.each { scenario ->
                     switch (architecture) {
                         case 'arm64':
                             // Windows only
-                            if (os != 'Windows_NT' || isBuildOnly) {
+                            if (isBuildOnly) {
                                 return
                             }
                             break
