@@ -560,6 +560,7 @@ public class ReliabilityFramework
         return (99);
     }
 
+#if !PROJECTK_BUILD
     [DllImport("kernel32.dll")]
     private extern static void DebugBreak();
 
@@ -568,6 +569,7 @@ public class ReliabilityFramework
 
     [DllImport("kernel32.dll")]
     private extern static void OutputDebugString(string debugStr);
+#endif
 
     /// <summary>
     /// Checks to see if we should block all execution due to a fatal error
@@ -589,12 +591,20 @@ public class ReliabilityFramework
     }
     internal static void MyDebugBreak(string extraData)
     {
+#if !PROJECTK_BUILD
         if (IsDebuggerPresent())
         {
             OutputDebugString(String.Format("\r\n\r\n\r\nRELIABILITYFRAMEWORK DEBUGBREAK: Breaking in because test throw an exception ({0})\r\n\r\n\r\n", extraData));
             DebugBreak();
         }
         else
+#else
+        if (Debugger.IsAttached)
+        {
+            Console.WriteLine(string.Format("DebugBreak: breaking in because test threw an exception: {0}", extraData));
+            Debugger.Break();
+        }
+#endif
         {
             // We need to stop the process now, 
             // but all the threads are still running
@@ -700,7 +710,7 @@ public class ReliabilityFramework
             ourPageFaultsCounter = new PerformanceCounter("Process", "Page Faults/sec", myProcessName);
         }
     }
-#endif 
+#endif
     /// <summary>
     /// Calculates the total number of tests to be run based upon the maximum
     /// number of loops & number of tests in the current test set.
@@ -1048,7 +1058,7 @@ public class ReliabilityFramework
         test.TestStarted();
 
         StartTestWorker(test);
-#else     
+#else
         try
         {
             if (curTestSet.AppDomainLoaderMode == AppDomainLoaderMode.Lazy)
@@ -1093,7 +1103,7 @@ public class ReliabilityFramework
         {
             HandleOom(e, "StartTest");
         }
-#endif      
+#endif
     }
 
     /// <summary>
@@ -1470,7 +1480,7 @@ public class ReliabilityFramework
                     {
                         SignalTestFinished(daTest);
                     }
-#endif 
+#endif
                     break;
             }
         }
@@ -1586,7 +1596,7 @@ public class ReliabilityFramework
                 case TestStartModeEnum.AppDomainLoader:
 #if PROJECTK_BUILD
                     Console.WriteLine("Appdomain mode is NOT supported for ProjectK");
-#else                    
+#else
                     TestPreLoader_AppDomain(test, paths);
 #endif
                     break;
@@ -1797,7 +1807,7 @@ public class ReliabilityFramework
 
             test.EntryPointMethod = methodInfo;
         }
-#endif 
+#endif
     }
 
 #if !PROJECTK_BUILD
