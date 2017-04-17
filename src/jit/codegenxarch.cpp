@@ -6694,7 +6694,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             /* Generate "mov targetReg, castOp->gtReg */
             if (targetReg != sourceReg)
             {
-                inst_RV_RV(INS_mov, targetReg, sourceReg, srcType, dstSize);
+                inst_RV_RV(INS_mov, targetReg, sourceReg, srcType, srcSize);
             }
         }
 
