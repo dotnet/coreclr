@@ -248,7 +248,7 @@ public class ReliabilityFramework
                 if (eTemp == null)
                 {
                     rf._logger.WriteToInstrumentationLog(null, LoggingLevels.Tests, String.Format("Exception while running tests: {0}", e));
-                    Console.WriteLine("There was an exception while attempting to run the tests: See Instrumentation Log for details");
+                    Console.WriteLine("There was an exception while attempting to run the tests: See Instrumentation Log for details. (Exception: {0})", e);
                 }
             }
         }
