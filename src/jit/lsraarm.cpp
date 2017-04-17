@@ -425,7 +425,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             if (tree->gtOverflow())
             {
                 // Need a register different from target reg to check for overflow.
-                info->internalIntCount = 1;
+                info->internalIntCount       = 1;
                 info->isInternalRegDelayFree = true;
             }
             __fallthrough;
@@ -523,9 +523,9 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_ARR_INDEX:
-            info->srcCount = 2;
-            info->dstCount = 1;
-            info->internalIntCount = 1;
+            info->srcCount               = 2;
+            info->dstCount               = 1;
+            info->internalIntCount       = 1;
             info->isInternalRegDelayFree = true;
 
             // For GT_ARR_INDEX, the lifetime of the arrObj must be extended because it is actually used multiple
