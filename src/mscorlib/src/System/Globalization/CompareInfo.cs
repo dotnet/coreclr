@@ -801,7 +801,7 @@ namespace System.Globalization
             return IndexOfCore(source, value, startIndex, count, options, null);
         }
 
-        // The following IndexOf overload is mainly used by String.Replace. This overload assume the parameters are already validated
+        // The following IndexOf overload is mainly used by String.Replace. This overload assumes the parameters are already validated
         // and the caller is passing a valid matchLengthPtr pointer.
         internal unsafe int IndexOf(string source, string value, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
         {
