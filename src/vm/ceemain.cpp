@@ -2453,12 +2453,13 @@ BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)
 // Initialize the Garbage Collector
 //
 
-typedef bool (*InitializeGarbageCollectorFunction)(
-    /* In  */ IGCToCLR*,
-    /* Out */ IGCHeap**,
-    /* Out */ IGCHandleManager**,
-    /* Out */ GcDacVars*
-);
+// Prototype for the function that initialzes the garbage collector.
+// Should only be called once: here, during EE startup.
+// Returns true if the initialization was successful, false otherwise.
+//
+// When using a standalone GC, this function is loaded dynamically using
+// GetProcAddress.
+extern "C" bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleManager** gcHandleManager, GcDacVars* gcDacVars);
 
 #ifdef FEATURE_STANDALONE_GC
 
@@ -2472,19 +2473,29 @@ void LoadGarbageCollector()
 
     TCHAR *standaloneGc = nullptr;
     CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCStandaloneLocation, &standaloneGc);
-    if (standaloneGc == nullptr)
+    HMODULE hMod;
+    if (!standaloneGc)
+    {
+#ifdef FEATURE_STANDALONE_GC_ONLY
+        // if the user has set GCUseStandalone but has not given us a standalone location,
+        // try and load the initialization symbol from the current module.
+        hMod = GetModuleInst();
+#else
+        ThrowHR(E_FAIL);
+#endif // FEATURE_STANDALONE_GC_ONLY
+    }
+    else
+    {
+        hMod = CLRLoadLibrary(standaloneGc);
+    }
+
+    if (!hMod)
     {
         ThrowHR(E_FAIL);
     }
 
-    HMODULE hMod = CLRLoadLibrary(standaloneGc);
-    if (hMod == nullptr)
-    {
-        ThrowHR(E_FAIL);
-    }
-
-    InitializeGarbageCollectorFunction igcf = (InitializeGarbageCollectorFunction)GetProcAddress(hMod, "InitializeGarbageCollector");
-    if (igcf == nullptr)
+    InitializeGarbageCollectorFunction igcf = (InitializeGarbageCollectorFunction)GetProcAddress(hMod, INITIALIZE_GC_FUNCTION_NAME);
+    if (!igcf)
     {
         ThrowHR(E_FAIL);
     }
@@ -2505,6 +2516,7 @@ void LoadGarbageCollector()
     }
 
     assert(pGCHeap != nullptr);
+    assert(pGcHandleManager != nullptr);
     g_pGCHeap = pGCHeap;
     g_pGCHandleTable = pGcHandleManager;
     g_gcDacGlobals = &g_gc_dac_vars;
@@ -2529,6 +2541,7 @@ void LoadStaticGarbageCollector()
     }
 
     assert(pGCHeap != nullptr);
+    assert(pGcHandleManager != nullptr);
     g_pGCHeap = pGCHeap;
     g_pGcHandleManager = pGcHandleManager;
     g_gcDacGlobals = &g_gc_dac_vars;
@@ -2558,7 +2571,11 @@ void InitializeGarbageCollector()
     g_pFreeObjectMethodTable->SetComponentSize(1);
 
 #ifdef FEATURE_STANDALONE_GC
-    if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCUseStandalone))
+    if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCUseStandalone)
+#ifdef FEATURE_STANDALONE_GC_ONLY
+        || true
+#endif // FEATURE_STANDALONE_GC_ONLY
+        )
     {
         LoadGarbageCollector();
     }

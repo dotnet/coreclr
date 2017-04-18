@@ -143,7 +143,30 @@ namespace SVR
     extern void PopulateDacVars(GcDacVars* dacVars);
 }
 
-bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleManager** gcHandleManager, GcDacVars* gcDacVars)
+//------------------------------------------------------------------
+// Externally-facing GC symbols, used to initialize the GC
+// -----------------------------------------------------------------
+
+#ifdef _MSC_VER
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT
+#endif // _MSC_VER
+
+#ifdef BUILD_AS_STANDALONE
+#define GC_API extern "C" DLLEXPORT
+#else
+#define GC_API extern "C"
+#endif // BUILD_AS_STANDALONE
+
+GC_API
+bool
+InitializeGarbageCollector(
+    /* In */  IGCToCLR* clrToGC,
+    /* Out */ IGCHeap** gcHeap,
+    /* Out */ IGCHandleManager** gcHandleManager,
+    /* Out */ GcDacVars* gcDacVars
+    )
 {
     LIMITED_METHOD_CONTRACT;
 

@@ -13,11 +13,15 @@ add_definitions(-D_UNICODE)
 
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   foreach (Config DEBUG CHECKED)  
-     set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:WRITE_BARRIER_CHECK=1>)
+    if(NOT FEATURE_STANDALONE_GC_ONLY)
+      set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:WRITE_BARRIER_CHECK=1>)
+    endif(NOT FEATURE_STANDALONE_GC_ONLY)
   endforeach (Config)
 else()
   if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    add_definitions(-DWRITE_BARRIER_CHECK=1)
+    if(NOT FEATURE_STANDALONE_GC_ONLY)
+      add_definitions(-DWRITE_BARRIER_CHECK=1)
+    endif(NOT FEATURE_STANDALONE_GC_ONLY)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
 
@@ -505,10 +509,18 @@ list(APPEND VM_SOURCES_DAC
     ${VM_SOURCES_DAC_AND_WKS_ARCH}
 )
 
-list(APPEND VM_SOURCES_WKS
-    ${GC_SOURCES_WKS}
-)
+# The default option for FEATURE_STANDALONE_GC builds a standalone
+# and non-standalone GC, linking the non-standalone GC into coreclr.dll.
+# For testing purposes, FEATURE_STANDALONE_GC_ONLY instead only builds and
+# links the non-standalone GC into coreclr.dll.
+if (NOT FEATURE_STANDALONE_GC_ONLY)
+    list(APPEND VM_SOURCES_WKS
+        ${GC_SOURCES_WKS}
+    )
+endif(NOT FEATURE_STANDALONE_GC_ONLY)
 
+# The DAC does need GC sources in order to link correctly, even if
+# it's not used.
 list(APPEND VM_SOURCES_DAC
     ${GC_SOURCES_DAC}
 )
