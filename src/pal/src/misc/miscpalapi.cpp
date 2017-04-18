@@ -247,6 +247,7 @@ PAL_Random(
     DWORD i;
     char buf;
     long num = 0;
+    static BOOL sInitializedStrongRandom;
     static BOOL sMissingDevRandom;
     static BOOL sMissingDevURandom;
     static BOOL sInitializedMRand;
@@ -257,11 +258,14 @@ PAL_Random(
 
     i = 0;
 
-    if (bStrong == TRUE && i < dwLength && !sMissingDevRandom)
+    if (bStrong == TRUE && i < dwLength && !sInitializedStrongRandom && !sMissingDevRandom)
     {
-        // request non-blocking access to avoid hangs if the /dev/random is exhausted
-        // or just simply broken
-        if ((rand_des = PAL__open(RANDOM_DEVICE_NAME, O_RDONLY | O_NONBLOCK)) == -1)
+        // For "strong" requests, read one blocking byte from /dev/random. On kernels built after
+        // commit 8c3711e7d2a86b6ca4fd8344c18209606d4a8a21, once this blocking read returns,
+        // then /dev/urandom will be initialized and ready to return unpredictable results.
+        // From then on, use /dev/urandom.
+        
+        if ((rand_des = PAL__open(RANDOM_DEVICE_NAME, O_RDONLY)) == -1)
         {
             if (errno == ENOENT)
             {
@@ -276,16 +280,16 @@ PAL_Random(
         }
         else
         {
-            for( ; i < dwLength; i++)
+            if (read(rand_des, &buf, 1) == 1)
             {
-                if (read(rand_des, &buf, 1) < 1)
-                {
-                    // the /dev/random pool has been exhausted.  Fall back
-                    // to /dev/urandom for the remainder of the buffer.
-                    break;
-                }
-
                 *(((BYTE*)lpBuffer) + i) ^= buf;
+                i++;
+
+                sInitializedStrongRandom = TRUE;
+            }
+            else
+            {
+                ASSERT("PAL_Random() failed, /dev/random didn't block until 1 byte could be read. \n");
             }
 
             close(rand_des);
@@ -322,7 +326,7 @@ PAL_Random(
 
             close(rand_des);
         }
-    }    
+    }
 
     if (!sInitializedMRand)
     {
@@ -343,7 +347,16 @@ PAL_Random(
         num >>= 8;
     }
 
-    bRet = TRUE;
+    // if a "strong" random number was requested, but we weren't able to read from /dev/random,
+    // return a failure
+    if (bStrong == TRUE && !sInitializedStrongRandom)
+    {
+        bRet = FALSE;
+    }
+    else
+    {
+        bRet = TRUE;
+    }
 
     LOGEXIT("PAL_Random returns %d\n", bRet);
     PERF_EXIT(PAL_Random);
