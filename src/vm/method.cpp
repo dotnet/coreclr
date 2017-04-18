@@ -2739,10 +2739,7 @@ BOOL MethodDesc::RequiresStableEntryPoint(BOOL fEstimateForChunk /*=FALSE*/)
             return TRUE;
 
         // TODO: Can we avoid early allocation of precodes for interfaces and cominterop?
-        // Only abstract virtual interface method need precode
-        // @DIM_TODO - We need to decide what is the right approach for precode for default 
-        // interface methods
-        if ((IsInterface() && IsAbstract() && IsVirtual() && !IsStatic()) || IsComPlusCall())
+        if ((IsInterface() && !IsStatic() && IsVirtual()) || IsComPlusCall())
             return TRUE;
     }
 
@@ -2838,7 +2835,7 @@ BOOL MethodDesc::MayHaveNativeCode()
 
     _ASSERTE(IsIL());
 
-    if (IsWrapperStub() || ContainsGenericVariables() || IsAbstract())
+    if ((IsInterface() && !IsStatic() && IsVirtual()) || IsWrapperStub() || ContainsGenericVariables() || IsAbstract())
     {
         return FALSE;
     }
@@ -4945,6 +4942,11 @@ BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/
         return FastInterlockCompareExchangePointer(EnsureWritablePages(reinterpret_cast<TADDR*>(pSlot)),
             (TADDR&)value, (TADDR&)expected) == (TADDR&)expected;
 #endif // FEATURE_INTERPRETER
+    }
+    
+    if (IsDefaultInterfaceMethod() && HasPrecode())
+    {        
+        return GetPrecode()->SetTargetInterlocked(addr);
     }
 
 #ifdef FEATURE_INTERPRETER
