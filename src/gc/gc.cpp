@@ -621,7 +621,7 @@ enum gc_join_flavor
 #define first_thread_arrived 2
 struct join_structure
 {
-    CLREvent joined_event[3]; // the last event in the array is only used for first_thread_arrived.
+    GCEvent joined_event[3]; // the last event in the array is only used for first_thread_arrived.
     VOLATILE(int32_t) join_lock;
     VOLATILE(int32_t) r_join_lock;
     VOLATILE(int32_t) join_restart;
@@ -1201,8 +1201,8 @@ class recursive_gc_sync
     static VOLATILE(BOOL) gc_background_running; //initial state FALSE
     static VOLATILE(int32_t) foreground_count; // initial state 0;
     static VOLATILE(uint32_t) foreground_gate; // initial state FALSE;
-    static CLREvent foreground_complete;//Auto Reset
-    static CLREvent foreground_allowed;//Auto Reset
+    static GCEvent foreground_complete;//Auto Reset
+    static GCEvent foreground_allowed;//Auto Reset
 public:
     static void begin_background();
     static void end_background();
@@ -1218,8 +1218,8 @@ VOLATILE(int32_t) recursive_gc_sync::foreground_request_count = 0;//initial stat
 VOLATILE(int32_t) recursive_gc_sync::foreground_count = 0; // initial state 0;
 VOLATILE(BOOL) recursive_gc_sync::gc_background_running = FALSE; //initial state FALSE
 VOLATILE(uint32_t) recursive_gc_sync::foreground_gate = 0;
-CLREvent recursive_gc_sync::foreground_complete;//Auto Reset
-CLREvent recursive_gc_sync::foreground_allowed;//Manual Reset
+GCEvent recursive_gc_sync::foreground_complete;//Auto Reset
+GCEvent recursive_gc_sync::foreground_allowed;//Manual Reset
 
 BOOL recursive_gc_sync::init ()
 {
@@ -2308,7 +2308,7 @@ sorted_table* gc_heap::seg_table;
 #endif //!SEG_MAPPING_TABLE || FEATURE_BASICFREEZE
 
 #ifdef MULTIPLE_HEAPS
-CLREvent    gc_heap::ee_suspend_event;
+GCEvent     gc_heap::ee_suspend_event;
 size_t      gc_heap::min_balance_threshold = 0;
 #endif //MULTIPLE_HEAPS
 
@@ -2316,7 +2316,7 @@ VOLATILE(BOOL) gc_heap::gc_started;
 
 #ifdef MULTIPLE_HEAPS
 
-CLREvent    gc_heap::gc_start_event;
+GCEvent     gc_heap::gc_start_event;
 
 bool        gc_heap::gc_thread_no_affinitize_p = false;
 
@@ -2385,13 +2385,13 @@ uint64_t    gc_heap::total_physical_mem;
 uint64_t    gc_heap::entry_available_physical_mem;
 
 #ifdef BACKGROUND_GC
-CLREvent    gc_heap::bgc_start_event;
+GCEvent     gc_heap::bgc_start_event;
 
 gc_mechanisms gc_heap::saved_bgc_settings;
 
-CLREvent    gc_heap::background_gc_done_event;
+GCEvent     gc_heap::background_gc_done_event;
 
-CLREvent    gc_heap::ee_proceed_event;
+GCEvent     gc_heap::ee_proceed_event;
 
 bool        gc_heap::gc_can_use_concurrent = false;
 
@@ -2403,7 +2403,7 @@ BOOL        gc_heap::dont_restart_ee_p = FALSE;
 
 BOOL        gc_heap::keep_bgc_threads_p = FALSE;
 
-CLREvent    gc_heap::bgc_threads_sync_event;
+GCEvent     gc_heap::bgc_threads_sync_event;
 
 BOOL        gc_heap::do_ephemeral_gc_p = FALSE;
 
@@ -2589,7 +2589,7 @@ BOOL    gc_heap::bgc_thread_running;
 
 CLRCriticalSection gc_heap::bgc_threads_timeout_cs;
 
-CLREvent gc_heap::gc_lh_block_event;
+GCEvent gc_heap::gc_lh_block_event;
 
 #endif //BACKGROUND_GC
 
@@ -2685,9 +2685,9 @@ int                    gc_heap::loh_pinned_queue_decay = LOH_PIN_DECAY;
 
 #endif //FEATURE_LOH_COMPACTION
 
-CLREvent gc_heap::full_gc_approach_event;
+GCEvent gc_heap::full_gc_approach_event;
 
-CLREvent gc_heap::full_gc_end_event;
+GCEvent gc_heap::full_gc_end_event;
 
 uint32_t gc_heap::fgn_maxgen_percent = 0;
 
@@ -9266,12 +9266,10 @@ void gc_heap::delete_heap_segment (heap_segment* seg, BOOL consider_hoarding)
 
 void gc_heap::reset_heap_segment_pages (heap_segment* seg)
 {
-#ifndef FEATURE_PAL // No MEM_RESET support in PAL VirtualAlloc
     size_t page_start = align_on_page ((size_t)heap_segment_allocated (seg));
     size_t size = (size_t)heap_segment_committed (seg) - page_start;
     if (size != 0)
         GCToOSInterface::VirtualReset((void*)page_start, size, false /* unlock */);
-#endif //!FEATURE_PAL
 }
 
 void gc_heap::decommit_heap_segment_pages (heap_segment* seg,
@@ -10312,7 +10310,7 @@ gc_heap::loh_state_info gc_heap::last_loh_states[max_saved_loh_states];
 
 VOLATILE(int32_t) gc_heap::gc_done_event_lock;
 VOLATILE(bool) gc_heap::gc_done_event_set;
-CLREvent gc_heap::gc_done_event;
+GCEvent gc_heap::gc_done_event;
 #endif //!MULTIPLE_HEAPS
 VOLATILE(bool) gc_heap::internal_gc_done;
 
@@ -11741,7 +11739,7 @@ void gc_heap::send_full_gc_notification (int gen_num, BOOL due_to_alloc_p)
     }
 }
 
-wait_full_gc_status gc_heap::full_gc_wait (CLREvent *event, int time_out_ms)
+wait_full_gc_status gc_heap::full_gc_wait (GCEvent *event, int time_out_ms)
 {
     if (fgn_maxgen_percent == 0)
     {
@@ -30809,7 +30807,6 @@ CObjectHeader* gc_heap::allocate_large_object (size_t jsize, int64_t& alloc_byte
 
 void reset_memory (uint8_t* o, size_t sizeo)
 {
-#ifndef FEATURE_PAL
     if (sizeo > 128 * 1024)
     {
         // We cannot reset the memory for the useful part of a free object.
@@ -30824,7 +30821,6 @@ void reset_memory (uint8_t* o, size_t sizeo)
             reset_mm_p = GCToOSInterface::VirtualReset((void*)page_start, size, true /* unlock */);
         }
     }
-#endif //!FEATURE_PAL
 }
 
 void gc_heap::reset_large_object (uint8_t* o)
@@ -32417,7 +32413,7 @@ void gc_heap::descr_generations (BOOL begin_gc_p)
 VOLATILE(BOOL)    GCHeap::GcInProgress            = FALSE;
 //GCTODO
 //CMCSafeLock*      GCHeap::fGcLock;
-CLREvent            *GCHeap::WaitForGCEvent         = NULL;
+GCEvent            *GCHeap::WaitForGCEvent         = NULL;
 //GCTODO
 #ifdef TRACE_GC
 unsigned int       GCHeap::GcDuration;
@@ -33691,7 +33687,7 @@ HRESULT GCHeap::Initialize ()
     gc_heap::youngest_gen_desired_th = gc_heap::mem_one_percent;
 #endif // BIT64
 
-    WaitForGCEvent = new (nothrow) CLREvent;
+    WaitForGCEvent = new (nothrow) GCEvent;
 
     if (!WaitForGCEvent)
     {
@@ -33891,7 +33887,7 @@ bool GCHeap::IsHeapPointer (void* vpObject, bool small_heap_only)
     STATIC_CONTRACT_SO_TOLERANT;
 
     // removed STATIC_CONTRACT_CAN_TAKE_LOCK here because find_segment 
-    // no longer calls CLREvent::Wait which eventually takes a lock.
+    // no longer calls GCEvent::Wait which eventually takes a lock.
 
     uint8_t* object = (uint8_t*) vpObject;
 #ifndef FEATURE_BASICFREEZE
