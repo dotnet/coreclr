@@ -1545,7 +1545,10 @@ void ZapImage::OutputTables()
         SetSizeOfStackCommit(m_ModuleDecoder.GetSizeOfStackCommit());
     }
 
-#if defined(_TARGET_ARM_) && defined(FEATURE_CORESYSTEM)
+#if defined(FEATURE_PAL) && !defined(BIT64)
+    // To minimize wasted VA space on 32 bit systems align file to page bounaries (presumed to be 4K).
+    SetFileAlignment(0x1000);
+#elif defined(_TARGET_ARM_) && defined(FEATURE_CORESYSTEM)
     if (!IsReadyToRunCompilation())
     {
         // On ARM CoreSys builds, crossgen will use 4k file alignment, as requested by Phone perf team
