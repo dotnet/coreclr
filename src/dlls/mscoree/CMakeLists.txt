@@ -19,9 +19,15 @@ set (DEF_SOURCES
   mscorwks_ntdef.src
 )
 else()
-set (DEF_SOURCES
-  mscorwks_unixexports.src
-)
+if(FEATURE_STANDALONE_GC_ONLY)
+  set (DEF_SOURCES
+    mscorwks_unixexports_standalone_gc.src
+  )
+else()
+  set (DEF_SOURCES
+    mscorwks_unixexports.src
+  )
+endif(FEATURE_STANDALONE_GC_ONLY)
 endif(WIN32)
 
 convert_to_absolute_path(DEF_SOURCES ${DEF_SOURCES})

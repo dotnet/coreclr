@@ -150,7 +150,7 @@ namespace SVR
 #ifdef _MSC_VER
 #define DLLEXPORT __declspec(dllexport)
 #else
-#define DLLEXPORT
+#define DLLEXPORT __attribute__ ((visibility ("default")))
 #endif // _MSC_VER
 
 #ifdef BUILD_AS_STANDALONE
