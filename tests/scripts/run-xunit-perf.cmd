@@ -44,9 +44,16 @@ pushd sandbox
 @rem stage stuff we need
 
 @rem xunit and perf
+
+set TRACEEVENT_VERSION= 
+
+for /f "tokens=*" %%G in ('dir /b /a:d "%thisdir%\*"') do (
+    set TRACEEVENT_VERSION=%%G
+)
+
 "%CORECLR_REPO%\Tools\dotnetcli\dotnet.exe" restore "%CORECLR_REPO%\tests\src\Common\PerfHarness\project.json"
 "%CORECLR_REPO%\Tools\dotnetcli\dotnet.exe" publish "%CORECLR_REPO%\tests\src\Common\PerfHarness\project.json" -c Release -o %CORECLR_REPO%\sandbox
-xcopy /sy %CORECLR_REPO%\packages\Microsoft.Diagnostics.Tracing.TraceEvent\1.0.0-alpha-experimental\lib\native\* . >> %RUNLOG%
+xcopy /sy %CORECLR_REPO%\packages\Microsoft.Diagnostics.Tracing.TraceEvent\!TRACEEVENT_VERSION!\lib\native\* . >> %RUNLOG%
 xcopy /sy %CORECLR_REPO%\bin\tests\Windows_NT.%TEST_ARCH%.%TEST_CONFIG%\Tests\Core_Root\* . >> %RUNLOG%
 
 @rem find and stage the tests
