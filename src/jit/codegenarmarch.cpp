@@ -1216,6 +1216,7 @@ void CodeGen::genCodeForShift(GenTreePtr tree)
     genProduceReg(tree);
 }
 
+<<<<<<< e4d54d57f74f79a668794f444476c7f7180d443a
 //------------------------------------------------------------------------
 // genCodeForCast: Generates the code for GT_CAST.
 //
@@ -1339,6 +1340,49 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
     genConsumeAddress(tree->Addr());
     emit->emitInsLoadStoreOp(ins_Load(targetType), emitTypeSize(tree), targetReg, tree);
     genProduceReg(tree);
+        unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
+
+        unsigned i = 0;
+        while (i < slots)
+        {
+            switch (gcPtrs[i])
+            {
+                case TYPE_GC_NONE:
+// TODO-ARM64-CQ: Consider using LDP/STP to save codesize in case of contigous NON-GC slots.
+#if defined(_TARGET_ARM_)
+                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, srcReg, TARGET_POINTER_SIZE);
+                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, dstReg, TARGET_POINTER_SIZE);
+#elif defined(_TARGET_ARM64_)
+                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, srcReg, TARGET_POINTER_SIZE, INS_OPTS_POST_INDEX);
+                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, dstReg, TARGET_POINTER_SIZE, INS_OPTS_POST_INDEX);
+#endif
+                    break;
+
+                default:
+                    // In the case of a GC-Pointer we'll call the ByRef write barrier helper
+                    genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
+
+                    gcPtrCount--;
+                    break;
+            }
+            ++i;
+        }
+        assert(gcPtrCount == 0);
+    }
+
+    // Clear the gcInfo for registers of source and dest.
+    // While we normally update GC info prior to the last instruction that uses them,
+    // these actually live into the helper call.
+    regMaskTP sourceRegMask, destRegMask;
+#if defined(_TARGET_ARM_)
+    destRegMask   = RBM_ARG_0;
+    sourceRegMask = RBM_ARG_1;
+#elif defined(_TARGET_ARM64_)
+    destRegMask   = RBM_WRITE_BARRIER_DST_BYREF;
+    sourceRegMask = RBM_WRITE_BARRIER_SRC_BYREF;
+#endif
+    gcInfo.gcMarkRegSetNpt(sourceRegMask | destRegMask);
+>>>>>>> Implement CodeGen::genCodeForCpObj
 }
 
 // Generate code for a CpBlk node by the means of the VM memcpy helper call
