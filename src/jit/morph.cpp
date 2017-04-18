@@ -3408,7 +3408,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #ifdef _TARGET_ARM_
             else if (isHfaArg)
             {
-                size = GetHfaCount(argx);
+                size                  = GetHfaCount(argx);
                 hasMultiregStructArgs = true;
             }
 #endif           // _TARGET_ARM_
@@ -4791,7 +4791,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
         type[0]   = getJitGCType(gcPtrs[0]);
         type[1]   = getJitGCType(gcPtrs[1]);
 #elif defined(_TARGET_ARM_)
-        elemCount = roundUp(structSize) / TARGET_POINTER_SIZE;
+        elemCount              = roundUp(structSize) / TARGET_POINTER_SIZE;
         BYTE gcPtrs[elemCount];
         for (unsigned idx = 0; idx < elemCount; idx++)
         {
@@ -4803,7 +4803,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
 
         if ((argValue->OperGet() == GT_LCL_FLD) || (argValue->OperGet() == GT_LCL_VAR))
         {
-            elemSize   = TARGET_POINTER_SIZE;
+            elemSize = TARGET_POINTER_SIZE;
             // We can safely widen this to aligned bytes since we are loading from
             // a GT_LCL_VAR or a GT_LCL_FLD which is properly padded and
             // lives in the stack frame or will be a promoted field.
@@ -4818,7 +4818,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             // and we can't read past the end of the structSize
             // We adjust the last load type here
             //
-            unsigned remains = structSize % TARGET_POINTER_SIZE;
+            unsigned remains  = structSize % TARGET_POINTER_SIZE;
             unsigned lastElem = elemCount - 1;
             if (remains != 0)
             {
@@ -4965,7 +4965,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
         {
             // See if we have promoted fields?
             unsigned varNums[elemCount];
-            bool hasBadVarNum = false;
+            bool     hasBadVarNum = false;
             for (unsigned idx = 0; idx < elemCount; idx++)
             {
                 varNums[idx] = lvaGetFieldLocal(varDsc, TARGET_POINTER_SIZE * idx);
@@ -4980,8 +4980,8 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             if (!hasBadVarNum)
             {
                 LclVarDsc* varDscs[elemCount];
-                var_types varType[elemCount];
-                bool varIsFloat = false;
+                var_types  varType[elemCount];
+                bool       varIsFloat = false;
 
                 for (unsigned idx = 0; idx < elemCount; idx++)
                 {
@@ -4989,9 +4989,10 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                     varType[idx] = varDscs[idx]->lvType;
                     if (varTypeIsFloating(varType[idx]))
                     {
-                        // TODO-LSRA - It currently doesn't support the passing of floating point LCL_VARS in the integer
+                        // TODO-LSRA - It currently doesn't support the passing of floating point LCL_VARS in the
+                        // integer
                         // registers. So for now we will use GT_LCLFLD's to pass this struct (it won't be enregistered)
-                    //
+                        //
                         JITDUMP("Multireg struct V%02u will be passed using GT_LCLFLD because it has float fields.\n",
                                 varNum);
                         //
@@ -5004,7 +5005,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
 
                 if (!varIsFloat)
                 {
-                    unsigned offset = 0;
+                    unsigned          offset    = 0;
                     GenTreeFieldList* listEntry = nullptr;
                     // We can use the struct promoted field as arguments
                     for (unsigned idx = 0; idx < elemCount; idx++)
