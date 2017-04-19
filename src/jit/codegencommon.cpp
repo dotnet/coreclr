@@ -2707,7 +2707,7 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
 
     if (useExnThrowingBlock)
     {
-       BasicBlock* tgtBlk;
+        BasicBlock* tgtBlk;
 
         if (failBlk)
         {
