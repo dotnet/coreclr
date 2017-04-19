@@ -2835,7 +2835,7 @@ BOOL MethodDesc::MayHaveNativeCode()
 
     _ASSERTE(IsIL());
 
-    if ((IsInterface() && !IsStatic() && IsVirtual()) || IsWrapperStub() || ContainsGenericVariables() || IsAbstract())
+    if ((IsInterface() && !IsStatic() && IsVirtual() && IsAbstract()) || IsWrapperStub() || ContainsGenericVariables() || IsAbstract())
     {
         return FALSE;
     }
