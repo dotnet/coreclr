@@ -1082,13 +1082,29 @@ namespace System.Text
         }
 
         // Append joined values with a separator between each value.
-        public unsafe StringBuilder AppendJoin<T>(char separator, params T[] values)
+        public unsafe StringBuilder AppendJoin(char separator, params object[] values)
         {
             // Defer argument validation to the internal function
             return AppendJoinCore(&separator, 1, values);
         }
 
-        public unsafe StringBuilder AppendJoin<T>(string separator, params T[] values)
+        public unsafe StringBuilder AppendJoin(char separator, params string[] values)
+        {
+            // Defer argument validation to the internal function
+            return AppendJoinCore(&separator, 1, values);
+        }
+
+        public unsafe StringBuilder AppendJoin(string separator, params object[] values)
+        {
+            separator = separator ?? string.Empty;
+            fixed (char* pSeparator = separator)
+            {
+                // Defer argument validation to the internal function
+                return AppendJoinCore(pSeparator, separator.Length, values);
+            }
+        }
+
+        public unsafe StringBuilder AppendJoin(string separator, params string[] values)
         {
             separator = separator ?? string.Empty;
             fixed (char* pSeparator = separator)
