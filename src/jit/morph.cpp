@@ -3770,13 +3770,13 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 }
 
 #ifdef _TARGET_64BIT_
-                // TODO-Arm: Does this apply for _TARGET_ARM_, where structs passed by value can be split between
-                // registers and stack?
                 if (size > 1)
                 {
                     hasMultiregStructArgs = true;
                 }
 #elif defined(_TARGET_ARM_)
+                // TODO-Arm: Where structs passed by value can be split between
+                // registers and stack?
                 if (size > 1 && size <= 4)
                 {
                     hasMultiregStructArgs = true;
@@ -4171,7 +4171,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             fp->node            = fieldList;
             args->gtOp.gtOp1    = fieldList;
 
-#else  // !_TARGET_X86_
+#else  // _TARGET_64BIT_
 
             // Get a new temp
             // Here we don't need unsafe value cls check since the addr of temp is used only in mkrefany
@@ -4197,7 +4197,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             // EvalArgsToTemps will cause tmp to actually get loaded as the argument
             call->fgArgInfo->EvalToTmp(argIndex, tmp, asg);
             lvaSetVarAddrExposed(tmp);
-#endif // !_TARGET_X86_
+#endif // _TARGET_64BIT_
         }
 #endif // !LEGACY_BACKEND
 
@@ -4236,7 +4236,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 }
             }
         }
-#endif // defined (_TARGET_X86_) && !defined(LEGACY_BACKEND)
+#endif // defined (_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
         if (isStructArg && !isRegArg)
@@ -4616,9 +4616,8 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
     unsigned     flagsSummary   = 0;
     fgArgInfoPtr allArgInfo     = call->fgArgInfo;
 
-    // Currently only ARM64 is using this method to morph the MultiReg struct args
-    //  in the future AMD64_UNIX and for HFAs ARM32, will also use this method
-    //
+    // Currently ARM64/ARM is using this method to morph the MultiReg struct args
+    //  in the future AMD64_UNIX will also use this method
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef _TARGET_X86_
@@ -4716,7 +4715,7 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
 //    this also forces the struct to be stack allocated into the local frame.
 //    For the GT_OBJ case will clone the address expression and generate two (or more)
 //    indirections.
-//    Currently the implementation only handles ARM64 and will NYI for other architectures.
+//    Currently the implementation handles ARM64/ARM and will NYI for other architectures.
 //
 GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr fgEntryPtr)
 {
@@ -4780,7 +4779,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
     {
 #ifdef _TARGET_ARM64_
         unsigned maxStructSize = 2 * TARGET_POINTER_SIZE;
-#elif defined(_TARGET_ARM_)
+#elif defined( _TARGET_ARM_)
         unsigned maxStructSize = 4 * TARGET_POINTER_SIZE;
 #endif
         assert(structSize <= maxStructSize);
@@ -4799,7 +4798,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             info.compCompHnd->getClassGClayout(objClass, &gcPtrs[idx]);
             type[idx] = getJitGCType(gcPtrs[idx]);
         }
-#endif
+#endif // _TARGET_ARM_
 
         if ((argValue->OperGet() == GT_LCL_FLD) || (argValue->OperGet() == GT_LCL_VAR))
         {
@@ -4818,11 +4817,11 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             // and we can't read past the end of the structSize
             // We adjust the last load type here
             //
-            unsigned remains  = structSize % TARGET_POINTER_SIZE;
-            unsigned lastElem = elemCount - 1;
-            if (remains != 0)
+            unsigned remainingBytes = structSize % TARGET_POINTER_SIZE;
+            unsigned lastElem       = elemCount - 1;
+            if (remainingBytes != 0)
             {
-                switch (remains)
+                switch (remainingBytes)
                 {
                     case 1:
                         type[lastElem] = TYP_BYTE;
@@ -4834,7 +4833,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                     case 4:
                         type[lastElem] = TYP_INT;
                         break;
-#endif
+#endif // _TARGET_ARM64_
                     default:
                         noway_assert(!"NYI: odd sized struct in fgMorphMultiregStructArg");
                         break;
@@ -4856,7 +4855,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
         assert(varNum < lvaCount);
         LclVarDsc* varDsc = &lvaTable[varNum];
 
-        // At this point any TYP_STRUCT LclVar must be aligned struct
+        // At this point any TYP_STRUCT LclVar must be an aligned struct
         // or an HFA struct, both which are passed by value.
         //
         assert((varDsc->lvSize() == elemCount * TARGET_POINTER_SIZE) || varDsc->lvIsHfa());
@@ -4889,7 +4888,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
         {
 #ifdef _TARGET_ARM64_
             // We must have a 16-byte struct (non-HFA)
-            noway_assert(elemCount == 2);
+            noway_assert(elemCount == 2);       
 #elif defined(_TARGET_ARM_)
             noway_assert(elemCount <= 4);
 #endif
@@ -5023,7 +5022,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                 }
             }
         }
-#endif
+#endif // _TARGET_ARM_
         else
         {
             //
