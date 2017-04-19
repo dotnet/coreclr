@@ -4778,11 +4778,11 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
     else
     {
 #ifdef _TARGET_ARM64_
-        unsigned maxStructSize = 2 * TARGET_POINTER_SIZE;
-#elif defined( _TARGET_ARM_)
-        unsigned maxStructSize = 4 * TARGET_POINTER_SIZE;
+        assert(structSize <= 2 * TARGET_POINTER_SIZE);
+#elif defined(_TARGET_ARM_)
+        assert(structSize <= 4 * TARGET_POINTER_SIZE);
 #endif
-        assert(structSize <= maxStructSize);
+
 #ifdef _TARGET_ARM64_
         BYTE gcPtrs[2] = {TYPE_GC_NONE, TYPE_GC_NONE};
         info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
@@ -4790,13 +4790,13 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
         type[0]   = getJitGCType(gcPtrs[0]);
         type[1]   = getJitGCType(gcPtrs[1]);
 #elif defined(_TARGET_ARM_)
-        elemCount              = roundUp(structSize) / TARGET_POINTER_SIZE;
-        BYTE gcPtrs[elemCount];
-        for (unsigned idx = 0; idx < elemCount; idx++)
+        BYTE gcPtrs[4] = {TYPE_GC_NONE, TYPE_GC_NONE, TYPE_GC_NONE, TYPE_GC_NONE};
+        elemCount      = (unsigned)roundUp(structSize, TARGET_POINTER_SIZE) / TARGET_POINTER_SIZE;
+        for (unsigned inx = 0; inx < elemCount; inx++)
         {
-            gcPtrs[idx] = TYPE_GC_NONE;
-            info.compCompHnd->getClassGClayout(objClass, &gcPtrs[idx]);
-            type[idx] = getJitGCType(gcPtrs[idx]);
+            gcPtrs[inx] = TYPE_GC_NONE;
+            info.compCompHnd->getClassGClayout(objClass, &gcPtrs[inx]);
+            type[inx] = getJitGCType(gcPtrs[inx]);
         }
 #endif // _TARGET_ARM_
 
@@ -4888,7 +4888,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
         {
 #ifdef _TARGET_ARM64_
             // We must have a 16-byte struct (non-HFA)
-            noway_assert(elemCount == 2);       
+            noway_assert(elemCount == 2);
 #elif defined(_TARGET_ARM_)
             noway_assert(elemCount <= 4);
 #endif
@@ -4958,17 +4958,24 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                 }
             }
         }
+        else
+        {
+            //
+            // We will create a list of GT_LCL_FLDs nodes to pass this struct
+            //
+            lvaSetVarDoNotEnregister(varNum DEBUG_ARG(DNER_LocalField));
+        }
 #elif defined(_TARGET_ARM_)
         // Is this LclVar a promoted struct with exactly same size?
         if (varDsc->lvPromoted && (varDsc->lvFieldCnt == elemCount) && !varDsc->lvIsHfa())
         {
             // See if we have promoted fields?
-            unsigned varNums[elemCount];
+            unsigned varNums[4];
             bool     hasBadVarNum = false;
-            for (unsigned idx = 0; idx < elemCount; idx++)
+            for (unsigned inx = 0; inx < elemCount; inx++)
             {
-                varNums[idx] = lvaGetFieldLocal(varDsc, TARGET_POINTER_SIZE * idx);
-                if (varNums[idx] == BAD_VAR_NUM)
+                varNums[inx] = lvaGetFieldLocal(varDsc, TARGET_POINTER_SIZE * inx);
+                if (varNums[inx] == BAD_VAR_NUM)
                 {
                     hasBadVarNum = true;
                     break;
@@ -4978,15 +4985,15 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             // Did we find the promoted fields at the necessary offsets?
             if (!hasBadVarNum)
             {
-                LclVarDsc* varDscs[elemCount];
-                var_types  varType[elemCount];
+                LclVarDsc* varDscs[4];
+                var_types  varType[4];
                 bool       varIsFloat = false;
 
-                for (unsigned idx = 0; idx < elemCount; idx++)
+                for (unsigned inx = 0; inx < elemCount; inx++)
                 {
-                    varDscs[idx] = &lvaTable[idx];
-                    varType[idx] = varDscs[idx]->lvType;
-                    if (varTypeIsFloating(varType[idx]))
+                    varDscs[inx] = &lvaTable[inx];
+                    varType[inx] = varDscs[inx]->lvType;
+                    if (varTypeIsFloating(varType[inx]))
                     {
                         // TODO-LSRA - It currently doesn't support the passing of floating point LCL_VARS in the
                         // integer
@@ -5007,12 +5014,12 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                     unsigned          offset    = 0;
                     GenTreeFieldList* listEntry = nullptr;
                     // We can use the struct promoted field as arguments
-                    for (unsigned idx = 0; idx < elemCount; idx++)
+                    for (unsigned inx = 0; inx < elemCount; inx++)
                     {
-                        GenTreePtr lclVar = gtNewLclvNode(varNums[idx], varType[idx], varNums[idx]);
+                        GenTreePtr lclVar = gtNewLclvNode(varNums[inx], varType[inx], varNums[inx]);
                         // Create a new tree for 'arg'
                         //    replace the existing LDOBJ(ADDR(LCLVAR))
-                        listEntry = new (this, GT_FIELD_LIST) GenTreeFieldList(lclVar, offset, varType[idx], listEntry);
+                        listEntry = new (this, GT_FIELD_LIST) GenTreeFieldList(lclVar, offset, varType[inx], listEntry);
                         if (newArg == nullptr)
                         {
                             newArg = listEntry;
@@ -5022,7 +5029,6 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                 }
             }
         }
-#endif // _TARGET_ARM_
         else
         {
             //
@@ -5030,6 +5036,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             //
             lvaSetVarDoNotEnregister(varNum DEBUG_ARG(DNER_LocalField));
         }
+#endif // _TARGET_ARM_
     }
 
     // If we didn't set newarg to a new List Node tree
