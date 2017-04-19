@@ -1130,8 +1130,7 @@ namespace System.Text
         private unsafe StringBuilder AppendJoinCore<T>(char* separator, int separatorLength, IEnumerable<T> values)
         {
             if (values == null)
-                throw new ArgumentNullException(nameof(values));
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.values);
 
             using (var en = values.GetEnumerator())
             {
@@ -1156,8 +1155,7 @@ namespace System.Text
         private unsafe StringBuilder AppendJoinCore<T>(char* separator, int separatorLength, T[] values)
         {
             if (values == null)
-                throw new ArgumentNullException(nameof(values));
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.values);
 
             if (values.Length == 0)
                 return this;
