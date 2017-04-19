@@ -2518,7 +2518,7 @@ void LoadGarbageCollector()
     assert(pGCHeap != nullptr);
     assert(pGcHandleManager != nullptr);
     g_pGCHeap = pGCHeap;
-    g_pGCHandleTable = pGcHandleManager;
+    g_pGCHandleManager = pGcHandleManager;
     g_gcDacGlobals = &g_gc_dac_vars;
 }
 
@@ -2543,7 +2543,7 @@ void LoadStaticGarbageCollector()
     assert(pGCHeap != nullptr);
     assert(pGcHandleManager != nullptr);
     g_pGCHeap = pGCHeap;
-    g_pGcHandleManager = pGcHandleManager;
+    g_pGCHandleManager = pGcHandleManager;
     g_gcDacGlobals = &g_gc_dac_vars;
 }
 
