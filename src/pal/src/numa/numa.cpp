@@ -77,7 +77,7 @@ static const WORD NO_GROUP = 0xffff;
 
 /*++
 Function:
-  FreeLookupArrays
+  AllocateLookupArrays
 
 Allocate CPU and group lookup arrays
 --*/
@@ -151,6 +151,9 @@ NUMASupportInitialize()
         for (int i = 0; i < numaNodesCount; i++)
         {
             int st = numa_node_to_cpus(i, mask);
+            // The only failure that can happen is that the mask is not large enough
+            // but that cannot happen since the mask was allocated by numa_allocate_cpumask
+            _ASSERTE(st == 0);
             unsigned int nodeCpuCount = numa_bitmask_weight(mask);
             unsigned int nodeGroupCount = (nodeCpuCount + MaxCpusPerGroup - 1) / MaxCpusPerGroup;
             g_groupCount += nodeGroupCount;
@@ -164,6 +167,9 @@ NUMASupportInitialize()
         for (int i = 0; i < numaNodesCount; i++)
         {
             int st = numa_node_to_cpus(i, mask);
+            // The only failure that can happen is that the mask is not large enough
+            // but that cannot happen since the mask was allocated by numa_allocate_cpumask
+            _ASSERTE(st == 0);
             unsigned int nodeCpuCount = numa_bitmask_weight(mask);
             unsigned int nodeGroupCount = (nodeCpuCount + MaxCpusPerGroup - 1) / MaxCpusPerGroup;
             for (int j = 0; j < g_cpuCount; j++)
@@ -172,6 +178,8 @@ NUMASupportInitialize()
                 {
                     if (currentGroupCpus == MaxCpusPerGroup)
                     {
+                        g_groupToCpuCount[currentGroup] = MaxCpusPerGroup;
+                        g_groupToCpuMask[currentGroup] = GetFullAffinityMask(MaxCpusPerGroup);
                         currentGroupCpus = 0;
                         currentGroup++;
                     }
@@ -579,6 +587,7 @@ GetProcessAffinityMask(
                         // The process has affinity in more than one group, in such case
                         // the function needs to return zero in both masks.
                         processMask = 0;
+                        systemMask = 0;
                         group = NO_GROUP;
                         break;
                     }
