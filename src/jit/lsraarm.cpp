@@ -131,7 +131,7 @@ void Lowering::TreeNodeInfoInitLclHeap(GenTree* tree)
     //
     //  Size?                   Init Memory?    # temp regs
     //   0                          -               0
-    //   const and <=4 ptr words    -             hasPspSym ? 1 : 0
+    //   const and <=4 str instr    -             hasPspSym ? 1 : 0
     //   const and <PageSize        No            hasPspSym ? 1 : 0
     //   >4 ptr words               Yes           hasPspSym ? 2 : 1
     //   Non-const                  Yes           hasPspSym ? 2 : 1
@@ -173,16 +173,12 @@ void Lowering::TreeNodeInfoInitLclHeap(GenTree* tree)
                 }
                 else
                 {
-                    // target (regCnt) + tmp + [psp]
-                    info->internalIntCount       = 1;
-                    info->isInternalRegDelayFree = true;
+                    info->internalIntCount = 1;
                 }
             }
             else
             {
-                // target (regCnt) + tmp + [psp]
-                info->internalIntCount       = 1;
-                info->isInternalRegDelayFree = true;
+                info->internalIntCount = 1;
             }
 
             if (hasPspSym)
@@ -194,7 +190,13 @@ void Lowering::TreeNodeInfoInitLclHeap(GenTree* tree)
     else
     {
         // target (regCnt) + tmp + [psp]
-        info->internalIntCount       = hasPspSym ? 2 : 1;
+        info->internalIntCount = hasPspSym ? 2 : 1;
+    }
+
+    // If we are needed in temporary registers we should be sure that
+    // it's different from target (regCnt)
+    if (info->internalIntCount > 0)
+    {
         info->isInternalRegDelayFree = true;
     }
 }
@@ -330,16 +332,33 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
                 var_types srcType = castOp->TypeGet();
                 emitAttr  cmpSize = EA_ATTR(genTypeSize(srcType));
 
-                // If we cannot store the comparisons in an immediate for either
-                // comparing against the max or min value, then we will need to
-                // reserve a temporary register.
+                // If we cannot store data in an immediate for instructions,
+                // then we will need to reserve a temporary register.
 
-                bool canStoreMaxValue = emitter::emitIns_valid_imm_for_cmp(castInfo.typeMax, INS_FLAGS_DONT_CARE);
-                bool canStoreMinValue = emitter::emitIns_valid_imm_for_cmp(castInfo.typeMin, INS_FLAGS_DONT_CARE);
-
-                if (!canStoreMaxValue || !canStoreMinValue)
+                if (!castInfo.signCheckOnly) // In case of only sign check, temp regs are not needeed.
                 {
-                    info->internalIntCount = 1;
+                    if (castInfo.unsignedSource || castInfo.unsignedDest)
+                    {
+                        // check typeMask
+                        bool canStoreTypeMask = emitter::emitIns_valid_imm_for_alu(castInfo.typeMask);
+                        if (!canStoreTypeMask)
+                        {
+                            info->internalIntCount = 1;
+                        }
+                    }
+                    else
+                    {
+                        // For comparing against the max or min value
+                        bool canStoreMaxValue =
+                            emitter::emitIns_valid_imm_for_cmp(castInfo.typeMax, INS_FLAGS_DONT_CARE);
+                        bool canStoreMinValue =
+                            emitter::emitIns_valid_imm_for_cmp(castInfo.typeMin, INS_FLAGS_DONT_CARE);
+
+                        if (!canStoreMaxValue || !canStoreMinValue)
+                        {
+                            info->internalIntCount = 1;
+                        }
+                    }
                 }
             }
         }
@@ -425,7 +444,8 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             if (tree->gtOverflow())
             {
                 // Need a register different from target reg to check for overflow.
-                info->internalIntCount = 2;
+                info->internalIntCount       = 1;
+                info->isInternalRegDelayFree = true;
             }
             __fallthrough;
 
@@ -522,14 +542,10 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_ARR_INDEX:
-            info->srcCount = 2;
-            info->dstCount = 1;
-
-            // We need one internal register when generating code for GT_ARR_INDEX, however the
-            // register allocator always may just give us the same one as it gives us for the 'dst'
-            // as a workaround we will just ask for two internal registers.
-            //
-            info->internalIntCount = 2;
+            info->srcCount               = 2;
+            info->dstCount               = 1;
+            info->internalIntCount       = 1;
+            info->isInternalRegDelayFree = true;
 
             // For GT_ARR_INDEX, the lifetime of the arrObj must be extended because it is actually used multiple
             // times while the result is being computed.

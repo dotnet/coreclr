@@ -145,24 +145,6 @@ void Compiler::impPushOnStack(GenTreePtr tree, typeInfo ti)
     }
 }
 
-/******************************************************************************/
-// used in the inliner, where we can assume typesafe code. please don't use in the importer!!
-inline void Compiler::impPushOnStackNoType(GenTreePtr tree)
-{
-    assert(verCurrentState.esStackDepth < impStkSize);
-    INDEBUG(verCurrentState.esStack[verCurrentState.esStackDepth].seTypeInfo = typeInfo());
-    verCurrentState.esStack[verCurrentState.esStackDepth++].val              = tree;
-
-    if ((tree->gtType == TYP_LONG) && (compLongUsed == false))
-    {
-        compLongUsed = true;
-    }
-    else if (((tree->gtType == TYP_FLOAT) || (tree->gtType == TYP_DOUBLE)) && (compFloatingPointUsed == false))
-    {
-        compFloatingPointUsed = true;
-    }
-}
-
 inline void Compiler::impPushNullObjRefOnStack()
 {
     impPushOnStack(gtNewIconNode(0, TYP_REF), typeInfo(TI_NULL));
@@ -320,20 +302,6 @@ StackEntry Compiler::impPopStack()
 #endif // DEBUG
 
     return verCurrentState.esStack[--verCurrentState.esStackDepth];
-}
-
-StackEntry Compiler::impPopStack(CORINFO_CLASS_HANDLE& structType)
-{
-    StackEntry ret = impPopStack();
-    structType     = verCurrentState.esStack[verCurrentState.esStackDepth].seTypeInfo.GetClassHandle();
-    return (ret);
-}
-
-GenTreePtr Compiler::impPopStack(typeInfo& ti)
-{
-    StackEntry ret = impPopStack();
-    ti             = ret.seTypeInfo;
-    return (ret.val);
 }
 
 /*****************************************************************************
@@ -3652,6 +3620,87 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             retNode                     = field;
             break;
         }
+        case CORINFO_INTRINSIC_Span_GetItem:
+        case CORINFO_INTRINSIC_ReadOnlySpan_GetItem:
+        {
+            // Have index, stack pointer-to Span<T> s on the stack. Expand to:
+            //
+            // For Span<T>
+            //   Comma
+            //     BoundsCheck(index, s->_length)
+            //     s->_pointer + index * sizeof(T)
+            //
+            // For ReadOnlySpan<T>
+            //   Comma
+            //     BoundsCheck(index, s->_length)
+            //     *(s->_pointer + index * sizeof(T))
+            //
+            // Signature should show one class type parameter, which
+            // we need to examine.
+            assert(sig->sigInst.classInstCount == 1);
+            CORINFO_CLASS_HANDLE spanElemHnd = sig->sigInst.classInst[0];
+            const unsigned       elemSize    = info.compCompHnd->getClassSize(spanElemHnd);
+            assert(elemSize > 0);
+
+            const bool isReadOnly = (intrinsicID == CORINFO_INTRINSIC_ReadOnlySpan_GetItem);
+
+            JITDUMP("\nimpIntrinsic: Expanding %sSpan<T>.get_Item, T=%s, sizeof(T)=%u\n", isReadOnly ? "ReadOnly" : "",
+                    info.compCompHnd->getClassName(spanElemHnd), elemSize);
+
+            GenTreePtr index          = impPopStack().val;
+            GenTreePtr ptrToSpan      = impPopStack().val;
+            GenTreePtr indexClone     = nullptr;
+            GenTreePtr ptrToSpanClone = nullptr;
+
+#if defined(DEBUG)
+            if (verbose)
+            {
+                printf("with ptr-to-span\n");
+                gtDispTree(ptrToSpan);
+                printf("and index\n");
+                gtDispTree(index);
+            }
+#endif // defined(DEBUG)
+
+            // We need to use both index and ptr-to-span twice, so clone or spill.
+            index = impCloneExpr(index, &indexClone, NO_CLASS_HANDLE, (unsigned)CHECK_SPILL_ALL,
+                                 nullptr DEBUGARG("Span.get_Item index"));
+            ptrToSpan = impCloneExpr(ptrToSpan, &ptrToSpanClone, NO_CLASS_HANDLE, (unsigned)CHECK_SPILL_ALL,
+                                     nullptr DEBUGARG("Span.get_Item ptrToSpan"));
+
+            // Bounds check
+            CORINFO_FIELD_HANDLE lengthHnd    = info.compCompHnd->getFieldInClass(clsHnd, 1);
+            const unsigned       lengthOffset = info.compCompHnd->getFieldOffset(lengthHnd);
+            GenTreePtr           length       = gtNewFieldRef(TYP_INT, lengthHnd, ptrToSpan, lengthOffset, false);
+            GenTreePtr           boundsCheck  = new (this, GT_ARR_BOUNDS_CHECK)
+                GenTreeBoundsChk(GT_ARR_BOUNDS_CHECK, TYP_VOID, index, length, SCK_RNGCHK_FAIL);
+
+            // Element access
+            GenTreePtr           indexIntPtr = impImplicitIorI4Cast(indexClone, TYP_I_IMPL);
+            GenTreePtr           sizeofNode  = gtNewIconNode(elemSize);
+            GenTreePtr           mulNode     = gtNewOperNode(GT_MUL, TYP_I_IMPL, indexIntPtr, sizeofNode);
+            CORINFO_FIELD_HANDLE ptrHnd      = info.compCompHnd->getFieldInClass(clsHnd, 0);
+            const unsigned       ptrOffset   = info.compCompHnd->getFieldOffset(ptrHnd);
+            GenTreePtr           data        = gtNewFieldRef(TYP_BYREF, ptrHnd, ptrToSpanClone, ptrOffset, false);
+            GenTreePtr           result      = gtNewOperNode(GT_ADD, TYP_BYREF, data, mulNode);
+
+            // Prepare result
+            var_types resultType = JITtype2varType(sig->retType);
+
+            if (isReadOnly)
+            {
+                result = gtNewOperNode(GT_IND, resultType, result);
+            }
+            else
+            {
+                assert(resultType == result->TypeGet());
+            }
+
+            retNode = gtNewOperNode(GT_COMMA, resultType, boundsCheck, result);
+
+            break;
+        }
+
         default:
             /* Unknown intrinsic */
             break;
@@ -5093,8 +5142,9 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
     impSpillSpecialSideEff();
 
     // Now get the expression to box from the stack.
-    CORINFO_CLASS_HANDLE operCls;
-    GenTreePtr           exprToBox = impPopStack(operCls).val;
+    StackEntry           se        = impPopStack();
+    CORINFO_CLASS_HANDLE operCls   = se.seTypeInfo.GetClassHandle();
+    GenTreePtr           exprToBox = se.val;
 
     CorInfoHelpFunc boxHelper = info.compCompHnd->getBoxHelper(pResolvedToken->hClass);
     if (boxHelper == CORINFO_HELP_BOX)
@@ -10052,7 +10102,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 /* Pop the value being assigned */
 
                 {
-                    StackEntry se = impPopStack(clsHnd);
+                    StackEntry se = impPopStack();
+                    clsHnd        = se.seTypeInfo.GetClassHandle();
                     op1           = se.val;
                     tiRetVal      = se.seTypeInfo;
                 }
@@ -11916,14 +11967,12 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 break;
 
             case CEE_POP:
-                if (tiVerificationNeeded)
-                {
-                    impStackTop(0);
-                }
-
+            {
                 /* Pull the top value from the stack */
 
-                op1 = impPopStack(clsHnd).val;
+                StackEntry se = impPopStack();
+                clsHnd        = se.seTypeInfo.GetClassHandle();
+                op1           = se.val;
 
                 /* Get hold of the type of the value being duplicated */
 
@@ -11974,10 +12023,11 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 }
 
                 /* No side effects - just throw the <BEEP> thing away */
-                break;
+            }
+            break;
 
             case CEE_DUP:
-
+            {
                 if (tiVerificationNeeded)
                 {
                     // Dup could start the begining of delegate creation sequence, remember that
@@ -11988,7 +12038,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 // If the expression to dup is simple, just clone it.
                 // Otherwise spill it to a temp, and reload the temp
                 // twice.
-                op1 = impPopStack(tiRetVal);
+                StackEntry se = impPopStack();
+                tiRetVal      = se.seTypeInfo;
+                op1           = se.val;
 
                 if (!opts.compDbgCode && !op1->IsIntegralConst(0) && !op1->IsFPZero() && !op1->IsLocal())
                 {
@@ -12010,8 +12062,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 assert(!(op1->gtFlags & GTF_GLOB_EFFECT) && !(op2->gtFlags & GTF_GLOB_EFFECT));
                 impPushOnStack(op1, tiRetVal);
                 impPushOnStack(op2, tiRetVal);
-
-                break;
+            }
+            break;
 
             case CEE_STIND_I1:
                 lclTyp = TYP_BYTE;
@@ -12928,8 +12980,10 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 if (opcode == CEE_LDFLD || opcode == CEE_LDFLDA)
                 {
-                    tiObj = &impStackTop().seTypeInfo;
-                    obj   = impPopStack(objType).val;
+                    tiObj         = &impStackTop().seTypeInfo;
+                    StackEntry se = impPopStack();
+                    objType       = se.seTypeInfo.GetClassHandle();
+                    obj           = se.val;
 
                     if (impIsThis(obj))
                     {
@@ -13311,8 +13365,10 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 typeInfo   tiVal;
 
                 /* Pull the value from the stack */
-                op2    = impPopStack(tiVal);
-                clsHnd = tiVal.GetClassHandle();
+                StackEntry se = impPopStack();
+                op2           = se.val;
+                tiVal         = se.seTypeInfo;
+                clsHnd        = tiVal.GetClassHandle();
 
                 if (opcode == CEE_STFLD)
                 {
@@ -14552,7 +14608,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     op1 = gtNewOperNode(GT_IND, TYP_REF, op1);
                     op1->gtFlags |= GTF_EXCEPT | GTF_GLOB_REF;
 
-                    impPushOnStackNoType(op1);
+                    impPushOnStack(op1, typeInfo());
                     opcode = CEE_STIND_REF;
                     lclTyp = TYP_REF;
                     goto STIND_POST_VERIFY;
@@ -15050,7 +15106,8 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
 
     if (info.compRetType != TYP_VOID)
     {
-        StackEntry se = impPopStack(retClsHnd);
+        StackEntry se = impPopStack();
+        retClsHnd     = se.seTypeInfo.GetClassHandle();
         op2           = se.val;
 
         if (!compIsForInlining())
@@ -15450,7 +15507,8 @@ inline void Compiler::impReimportMarkBlock(BasicBlock* block)
 
 void Compiler::impReimportMarkSuccessors(BasicBlock* block)
 {
-    for (unsigned i = 0; i < block->NumSucc(); i++)
+    const unsigned numSuccs = block->NumSucc();
+    for (unsigned i = 0; i < numSuccs; i++)
     {
         impReimportMarkBlock(block->GetSucc(i));
     }
@@ -15625,7 +15683,8 @@ void Compiler::impImportBlock(BasicBlock* block)
         JITDUMP("Marking BBF_INTERNAL block BB%02u as BBF_IMPORTED\n", block->bbNum);
         block->bbFlags |= BBF_IMPORTED;
 
-        for (unsigned i = 0; i < block->NumSucc(); i++)
+        const unsigned numSuccs = block->NumSucc();
+        for (unsigned i = 0; i < numSuccs; i++)
         {
             impImportBlockPending(block->GetSucc(i));
         }
@@ -16052,7 +16111,8 @@ SPILLSTACK:
         impReimportSpillClique(block);
 
         // For blocks that haven't been imported yet, we still need to mark them as pending import.
-        for (unsigned i = 0; i < block->NumSucc(); i++)
+        const unsigned numSuccs = block->NumSucc();
+        for (unsigned i = 0; i < numSuccs; i++)
         {
             BasicBlock* succ = block->GetSucc(i);
             if ((succ->bbFlags & BBF_IMPORTED) == 0)
@@ -16066,7 +16126,8 @@ SPILLSTACK:
         // otherwise just import the successors of block
 
         /* Does this block jump to any other blocks? */
-        for (unsigned i = 0; i < block->NumSucc(); i++)
+        const unsigned numSuccs = block->NumSucc();
+        for (unsigned i = 0; i < numSuccs; i++)
         {
             impImportBlockPending(block->GetSucc(i));
         }
@@ -16323,7 +16384,8 @@ void Compiler::impWalkSpillCliqueFromPred(BasicBlock* block, SpillCliqueWalker* 
             BasicBlock* blk     = node->m_blk;
             FreeBlockListNode(node);
 
-            for (unsigned succNum = 0; succNum < blk->NumSucc(); succNum++)
+            const unsigned numSuccs = blk->NumSucc();
+            for (unsigned succNum = 0; succNum < numSuccs; succNum++)
             {
                 BasicBlock* succ = blk->GetSucc(succNum);
                 // If it's not already in the clique, add it, and also add it

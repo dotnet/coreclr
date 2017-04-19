@@ -212,12 +212,9 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // We will copy this struct to the stack, possibly using a ldp instruction
             // Setup loReg and hiReg from the internal registers that we reserved in lower.
             //
-            regNumber loReg   = REG_NA;
-            regNumber hiReg   = REG_NA;
+            regNumber loReg   = treeNode->ExtractTempReg();
+            regNumber hiReg   = treeNode->GetSingleTempReg();
             regNumber addrReg = REG_NA;
-
-            // In lowerArm64/TreeNodeInfoInitPutArgStk we have reserved two internal integer registers
-            genGetRegPairFromMask(treeNode->gtRsvdRegs, &loReg, &hiReg);
 
             GenTreeLclVarCommon* varNode  = nullptr;
             GenTreePtr           addrNode = nullptr;
@@ -709,15 +706,9 @@ void CodeGen::genCodeForArrIndex(GenTreeArrIndex* arrIndex)
     regNumber  tgtReg    = arrIndex->gtRegNum;
     noway_assert(tgtReg != REG_NA);
 
-    // We will use a temp register to load the lower bound and dimension size values
-    //
-    regMaskTP tmpRegsMask = arrIndex->gtRsvdRegs; // there will be two bits set
-    tmpRegsMask &= ~genRegMask(tgtReg);           // remove the bit for 'tgtReg' from 'tmpRegsMask'
+    // We will use a temp register to load the lower bound and dimension size values.
 
-    regMaskTP tmpRegMask = genFindLowestBit(tmpRegsMask); // set tmpRegMsk to a one-bit mask
-    regNumber tmpReg     = genRegNumFromMask(tmpRegMask); // set tmpReg from that mask
-    noway_assert(tmpReg != REG_NA);
-
+    regNumber tmpReg = arrIndex->GetSingleTempReg();
     assert(tgtReg != tmpReg);
 
     unsigned  dim      = arrIndex->gtCurrDim;
@@ -773,25 +764,17 @@ void CodeGen::genCodeForArrOffset(GenTreeArrOffs* arrOffset)
         noway_assert(indexReg != REG_NA);
         noway_assert(arrReg != REG_NA);
 
-        regMaskTP tmpRegMask = arrOffset->gtRsvdRegs;
-        regNumber tmpReg     = genRegNumFromMask(tmpRegMask);
-        noway_assert(tmpReg != REG_NA);
+        regNumber tmpReg = arrOffset->GetSingleTempReg();
 
         unsigned  dim      = arrOffset->gtCurrDim;
         unsigned  rank     = arrOffset->gtArrRank;
         var_types elemType = arrOffset->gtArrElemType;
         unsigned  offset   = genOffsetOfMDArrayDimensionSize(elemType, rank, dim);
 
-// Load tmpReg with the dimension size and evaluate
-// tgtReg = offsetReg*dim_size + indexReg.
-#if defined(_TARGET_ARM_)
-        emit->emitIns_R_R_I(ins_Load(TYP_INT), EA_4BYTE, tmpReg, arrReg, offset); // a 4 BYTE sign extending load
-        emit->emitIns_R_R_R(INS_MUL, EA_4BYTE, tgtReg, tmpReg, offsetReg);
-        emit->emitIns_R_R_R(INS_add, EA_4BYTE, tgtReg, tgtReg, indexReg);
-#elif defined(_TARGET_ARM64_)
-        emit->emitIns_R_R_I(ins_Load(TYP_INT), EA_8BYTE, tmpReg, arrReg, offset); // a 4 BYTE sign extending load
-        emit->emitIns_R_R_R_R(INS_madd, EA_4BYTE, tgtReg, tmpReg, offsetReg, indexReg);
-#endif // _TARGET_*
+        // Load tmpReg with the dimension size and evaluate
+        // tgtReg = offsetReg*tmpReg + indexReg.
+        emit->emitIns_R_R_I(ins_Load(TYP_INT), EA_PTRSIZE, tmpReg, arrReg, offset);
+        emit->emitIns_R_R_R_R(INS_MULADD, EA_PTRSIZE, tgtReg, tmpReg, offsetReg, indexReg);
     }
     else
     {
@@ -1073,12 +1056,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         const regNumber regThis = genGetThisArgReg(call);
 
 #if defined(_TARGET_ARM_)
-        regMaskTP       tempMask = genFindLowestBit(call->gtRsvdRegs);
-        const regNumber tmpReg   = genRegNumFromMask(tempMask);
-        if (genCountBits(call->gtRsvdRegs) > 1)
-        {
-            call->gtRsvdRegs &= ~tempMask;
-        }
+        const regNumber tmpReg = call->ExtractTempReg();
         getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, tmpReg, regThis, 0);
 #elif defined(_TARGET_ARM64_)
         getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, REG_ZR, regThis, 0);
@@ -1239,7 +1217,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #ifdef _TARGET_ARM_
         if (!arm_Valid_Imm_For_BL((ssize_t)addr))
         {
-            regNumber tmpReg = genRegNumFromMask(call->gtRsvdRegs);
+            regNumber tmpReg = call->GetSingleTempReg();
             instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, tmpReg, (ssize_t)addr);
             genEmitCall(emitter::EC_INDIR_R, methHnd, INDEBUG_LDISASM_COMMA(sigInfo) NULL, retSize, ilOffset, tmpReg);
         }
@@ -1388,7 +1366,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
     regNumber sourceReg = castOp->gtRegNum;
 
     // For Long to Int conversion we will have a reserved integer register to hold the immediate mask
-    regNumber tmpReg = (treeNode->gtRsvdRegs == RBM_NONE) ? REG_NA : genRegNumFromMask(treeNode->gtRsvdRegs);
+    regNumber tmpReg = (treeNode->AvailableTempRegCount() == 0) ? REG_NA : treeNode->GetSingleTempReg();
 
     assert(genIsValidIntReg(targetReg));
     assert(genIsValidIntReg(sourceReg));
@@ -1428,7 +1406,20 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             // we only have to check for any bits set in 'typeMask'
 
             noway_assert(castInfo.typeMask != 0);
+#if defined(_TARGET_ARM_)
+            if (arm_Valid_Imm_For_Instr(INS_tst, castInfo.typeMask, INS_FLAGS_DONT_CARE))
+            {
+                emit->emitIns_R_I(INS_tst, cmpSize, sourceReg, castInfo.typeMask);
+            }
+            else
+            {
+                noway_assert(tmpReg != REG_NA);
+                instGen_Set_Reg_To_Imm(cmpSize, tmpReg, castInfo.typeMask);
+                emit->emitIns_R_R(INS_tst, cmpSize, sourceReg, tmpReg);
+            }
+#elif defined(_TARGET_ARM64_)
             emit->emitIns_R_I(INS_tst, cmpSize, sourceReg, castInfo.typeMask);
+#endif // _TARGET_ARM*
             emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
             genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
         }

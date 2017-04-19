@@ -2875,13 +2875,10 @@ protected:
     bool impILConsumesAddr(const BYTE* codeAddr, CORINFO_METHOD_HANDLE fncHandle, CORINFO_MODULE_HANDLE scpHandle);
 
     void impResolveToken(const BYTE* addr, CORINFO_RESOLVED_TOKEN* pResolvedToken, CorInfoTokenKind kind);
-    void impPushOnStackNoType(GenTreePtr tree);
 
     void impPushOnStack(GenTreePtr tree, typeInfo ti);
-    void       impPushNullObjRefOnStack();
-    StackEntry impPopStack();
-    StackEntry impPopStack(CORINFO_CLASS_HANDLE& structTypeRet);
-    GenTreePtr impPopStack(typeInfo& ti);
+    void        impPushNullObjRefOnStack();
+    StackEntry  impPopStack();
     StackEntry& impStackTop(unsigned n = 0);
     unsigned impStackHeight();
 
@@ -9475,6 +9472,7 @@ const instruction INS_XOR             = INS_eor;
 const instruction INS_NEG             = INS_rsb;
 const instruction INS_TEST            = INS_tst;
 const instruction INS_MUL             = INS_mul;
+const instruction INS_MULADD          = INS_mla;
 const instruction INS_SIGNED_DIVIDE   = INS_sdiv;
 const instruction INS_UNSIGNED_DIVIDE = INS_udiv;
 const instruction INS_BREAKPOINT      = INS_bkpt;
@@ -9500,6 +9498,7 @@ const instruction INS_XOR             = INS_eor;
 const instruction INS_NEG             = INS_neg;
 const instruction INS_TEST            = INS_tst;
 const instruction INS_MUL             = INS_mul;
+const instruction INS_MULADD          = INS_madd;
 const instruction INS_SIGNED_DIVIDE   = INS_sdiv;
 const instruction INS_UNSIGNED_DIVIDE = INS_udiv;
 const instruction INS_BREAKPOINT      = INS_bkpt;
