@@ -780,8 +780,13 @@ fi
 # Set default clang version
 if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
     if [ $__CrossBuild == 1 ]; then
-        __ClangMajorVersion=3
-        __ClangMinorVersion=6
+        if [[ "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ]]; then
+            __ClangMajorVersion=3
+            __ClangMinorVersion=9
+        else
+            __ClangMajorVersion=3
+            __ClangMinorVersion=6
+        fi
     else
         __ClangMajorVersion=3
         __ClangMinorVersion=5
