@@ -2692,12 +2692,22 @@ void CodeGen::genExitCode(BasicBlock* block)
 
 void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTreePtr failBlk)
 {
-    if (!compiler->opts.compDbgCode)
-    {
-        /* For non-debuggable code, find and use the helper block for
-           raising the exception. The block may be shared by other trees too. */
+    /* For non-debuggable code, find and use the helper block for
+       raising the exception. The block may be shared by other trees too.
 
-        BasicBlock* tgtBlk;
+       Otherwise, the code to throw the exception will be generated inline,
+       and we will jump around it in the normal non-exception case */
+    bool useExnThrowingBlock = !compiler->opts.compDbgCode;
+
+#if !FEATURE_FIXED_OUT_ARGS
+    /* Allow the use of exception throwing blocks only for EBP frame.
+       (two basic blocks may have different stack level due to push/pop) */
+    useExnThrowingBlock = useExnThrowingBlock && (compiler->rpFrameType != FT_ESP_FRAME);
+#endif
+
+    if (useExnThrowingBlock)
+    {
+       BasicBlock* tgtBlk;
 
         if (failBlk)
         {
@@ -2727,9 +2737,6 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
     }
     else
     {
-        /* The code to throw the exception will be generated inline, and
-           we will jump around it in the normal non-exception case */
-
         BasicBlock*  tgtBlk          = nullptr;
         emitJumpKind reverseJumpKind = emitter::emitReverseJumpKind(jumpKind);
         if (reverseJumpKind != jumpKind)
