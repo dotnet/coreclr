@@ -13,9 +13,9 @@ set TEST_ARCH=x64
 set TEST_ARCHITECTURE=x64
 set TEST_CONFIG=Release
 set IS_SCENARIO_TEST=0
+set BENCHVIEW_GROUP=CoreCLR
 
 goto :ARGLOOP
-
 
 :SETUP
 
@@ -60,7 +60,7 @@ if not [%BENCHVIEW_PATH%] == [] (
                                     --build ..\build.json ^
                                     --machine-data ..\machinedata.json ^
                                     --metadata ..\submission-metadata.json ^
-                                    --group "CoreCLR" ^
+                                    --group "%BENCHVIEW_GROUP%" ^
                                     --type "%RUN_TYPE%" ^
                                     --config-name "%TEST_CONFIG%" ^
                                     --config Configuration "%TEST_CONFIG%" ^
@@ -147,6 +147,12 @@ shift
 shift
 goto :ARGLOOP
 )
+IF /I [%1] == [-group] (
+set BENCHVIEW_GROUP=%2
+shift
+shift
+goto :ARGLOOP
+)
 IF /I [%1] == [-arch] (
 set TEST_ARCHITECTURE=%2
 shift
@@ -179,7 +185,7 @@ goto :USAGE
 goto :SETUP
 
 :USAGE
-echo run-xunit-perf.cmd -testBinLoc ^<path_to_tests^> [-library] [-arch] ^<x86^|x64^> [-configuration] ^<Release^|Debug^> [-uploadToBenchview] ^<path_to_benchview_tools^> [-runtype] ^<rolling^|private^> [-scenarioTest]
+echo run-xunit-perf.cmd -testBinLoc ^<path_to_tests^> [-library] [-arch] ^<x86^|x64^> [-configuration] ^<Release^|Debug^> [-uploadToBenchview] ^<path_to_benchview_tools^> [-group] ^<CoreCLR^|ILLink^> [-runtype] ^<rolling^|private^> [-scenarioTest] 
 
 echo For the path to the tests you can pass a parent directory and the script will grovel for
 echo all tests in subdirectories and run them.
@@ -187,6 +193,7 @@ echo The library flag denotes whether the tests are build as libraries (.dll) or
 echo Architecture defaults to x64 and configuration defaults to release.
 echo -uploadtoBenchview is used to specify a path to the Benchview tooling and when this flag is
 echo set we will upload the results of the tests to the coreclr container in benchviewupload.
+echo -group specifies the Benchview group to which this data should be uploaded (default CoreCLR)
 echo Runtype sets the runtype that we upload to Benchview, rolling for regular runs, and private for
 echo PRs.
 echo -scenarioTest should be included if you are running a scenario benchmark.
