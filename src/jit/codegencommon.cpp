@@ -557,30 +557,6 @@ regMaskTP CodeGenInterface::genGetRegMask(GenTreePtr tree)
     return regMask;
 }
 
-//------------------------------------------------------------------------
-// getRegistersFromMask: Given a register mask return the two registers
-//                       specified by the mask.
-//
-// Arguments:
-//    regPairMask:  a register mask that has exactly two bits set
-// Return values:
-//    pLoReg:       the address of where to write the first register
-//    pHiReg:       the address of where to write the second register
-//
-void CodeGenInterface::genGetRegPairFromMask(regMaskTP regPairMask, regNumber* pLoReg, regNumber* pHiReg)
-{
-    assert(genCountBits(regPairMask) == 2);
-
-    regMaskTP loMask = genFindLowestBit(regPairMask); // set loMask to a one-bit mask
-    regMaskTP hiMask = regPairMask - loMask;          // set hiMask to the other bit that was in tmpRegMask
-
-    regNumber loReg = genRegNumFromMask(loMask); // set loReg from loMask
-    regNumber hiReg = genRegNumFromMask(hiMask); // set hiReg from hiMask
-
-    *pLoReg = loReg;
-    *pHiReg = hiReg;
-}
-
 // The given lclVar is either going live (being born) or dying.
 // It might be both going live and dying (that is, it is a dead store) under MinOpts.
 // Update regSet.rsMaskVars accordingly.
@@ -1869,26 +1845,26 @@ bool CodeGen::genCreateAddrMode(GenTreePtr  addr,
         The following indirections are valid address modes on x86/x64:
 
             [                  icon]      * not handled here
-            [reg                   ]      * not handled here
+            [reg                   ]
             [reg             + icon]
-            [reg2 +     reg1       ]
-            [reg2 +     reg1 + icon]
-            [reg2 + 2 * reg1       ]
-            [reg2 + 4 * reg1       ]
-            [reg2 + 8 * reg1       ]
-            [       2 * reg1 + icon]
-            [       4 * reg1 + icon]
-            [       8 * reg1 + icon]
-            [reg2 + 2 * reg1 + icon]
-            [reg2 + 4 * reg1 + icon]
-            [reg2 + 8 * reg1 + icon]
+            [reg1 +     reg2       ]
+            [reg1 +     reg2 + icon]
+            [reg1 + 2 * reg2       ]
+            [reg1 + 4 * reg2       ]
+            [reg1 + 8 * reg2       ]
+            [       2 * reg2 + icon]
+            [       4 * reg2 + icon]
+            [       8 * reg2 + icon]
+            [reg1 + 2 * reg2 + icon]
+            [reg1 + 4 * reg2 + icon]
+            [reg1 + 8 * reg2 + icon]
 
         The following indirections are valid address modes on arm64:
 
             [reg]
             [reg  + icon]
-            [reg2 + reg1]
-            [reg2 + reg1 * natural-scale]
+            [reg1 + reg2]
+            [reg1 + reg2 * natural-scale]
 
      */
 
@@ -2447,6 +2423,11 @@ FOUND_AM:
     noway_assert(rv1 || mul != 1);
 
     noway_assert(FitsIn<INT32>(cns));
+
+    if (rv1 == nullptr && rv2 == nullptr)
+    {
+        return false;
+    }
 
     /* Success - return the various components to the caller */
 

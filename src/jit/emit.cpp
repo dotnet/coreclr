@@ -1381,7 +1381,6 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
         id->idOpSize(EA_SIZE(opsz));
     }
 
-#if RELOC_SUPPORT
     // Amd64: ip-relative addressing is supported even when not generating relocatable ngen code
     if (EA_IS_DSP_RELOC(opsz)
 #ifndef _TARGET_AMD64_
@@ -1400,7 +1399,6 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
         /* instruction has an immediate constant that is relocatable */
         id->idSetIsCnsReloc();
     }
-#endif
 
 #if EMITTER_STATS
     emitTotalInsCnt++;
@@ -4405,6 +4403,12 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     emitFullyInt   = fullyInt;
     emitFullGCinfo = fullPtrMap;
 
+#ifndef UNIX_X86_ABI
+    emitFullArgInfo = !emitHasFramePtr;
+#else
+    emitFullArgInfo = fullPtrMap;
+#endif
+
 #if EMITTER_STATS
     GCrefsTable.record(emitGCrFrameOffsCnt);
     emitSizeTable.record(static_cast<unsigned>(emitSizeMethod));
@@ -6817,7 +6821,7 @@ void emitter::emitStackPushLargeStk(BYTE* addr, GCtype gcType, unsigned count)
         *u2.emitArgTrackTop++ = (BYTE)gcType;
         assert(u2.emitArgTrackTop <= u2.emitArgTrackTab + emitMaxStackDepth);
 
-        if (!emitHasFramePtr || needsGC(gcType))
+        if (emitFullArgInfo || needsGC(gcType))
         {
             if (emitFullGCinfo)
             {
@@ -6889,7 +6893,7 @@ void emitter::emitStackPopLargeStk(BYTE* addr, bool isCall, unsigned char callIn
 
         // This is an "interesting" argument
 
-        if (!emitHasFramePtr || needsGC(gcType))
+        if (emitFullArgInfo || needsGC(gcType))
         {
             argRecCnt += 1;
         }
@@ -7037,7 +7041,7 @@ void emitter::emitStackKillArgs(BYTE* addr, unsigned count, unsigned char callIn
 
         /* We're about to kill the corresponding (pointer) arg records */
 
-        if (emitHasFramePtr)
+        if (!emitFullArgInfo)
         {
             u2.emitGcArgTrackCnt -= gcCnt.Value();
         }

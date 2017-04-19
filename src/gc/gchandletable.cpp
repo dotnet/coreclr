@@ -8,27 +8,127 @@
 #include "gchandletableimpl.h"
 #include "objecthandle.h"
 
-IGCHandleTable* CreateGCHandleTable()
+GCHandleStore* g_gcGlobalHandleStore;
+
+IGCHandleManager* CreateGCHandleManager()
 {
-    return new(nothrow) GCHandleTable();
+    return new (nothrow) GCHandleManager();
 }
 
-bool GCHandleTable::Initialize()
+void GCHandleStore::Uproot()
+{
+    Ref_RemoveHandleTableBucket(&_underlyingBucket);
+}
+
+bool GCHandleStore::ContainsHandle(OBJECTHANDLE handle)
+{
+    return _underlyingBucket.Contains(handle);
+}
+
+OBJECTHANDLE GCHandleStore::CreateHandleOfType(Object* object, int type)
+{
+    HHANDLETABLE handletable = _underlyingBucket.pTable[GetCurrentThreadHomeHeapNumber()];
+    return ::HndCreateHandle(handletable, type, ObjectToOBJECTREF(object));
+}
+
+OBJECTHANDLE GCHandleStore::CreateHandleOfType(Object* object, int type, int heapToAffinitizeTo)
+{
+    HHANDLETABLE handletable = _underlyingBucket.pTable[heapToAffinitizeTo];
+    return ::HndCreateHandle(handletable, type, ObjectToOBJECTREF(object));
+}
+
+OBJECTHANDLE GCHandleStore::CreateHandleWithExtraInfo(Object* object, int type, void* pExtraInfo)
+{
+    HHANDLETABLE handletable = _underlyingBucket.pTable[GetCurrentThreadHomeHeapNumber()];
+    return ::HndCreateHandle(handletable, type, ObjectToOBJECTREF(object), reinterpret_cast<uintptr_t>(pExtraInfo));
+}
+
+OBJECTHANDLE GCHandleStore::CreateDependentHandle(Object* primary, Object* secondary)
+{
+    HHANDLETABLE handletable = _underlyingBucket.pTable[GetCurrentThreadHomeHeapNumber()];
+    OBJECTHANDLE handle = ::HndCreateHandle(handletable, HNDTYPE_DEPENDENT, ObjectToOBJECTREF(primary));
+    ::SetDependentHandleSecondary(handle, ObjectToOBJECTREF(secondary));
+
+    return handle;
+}
+
+GCHandleStore::~GCHandleStore()
+{
+    ::Ref_DestroyHandleTableBucket(&_underlyingBucket);
+}
+
+bool GCHandleManager::Initialize()
 {
     return Ref_Initialize();
 }
 
-void GCHandleTable::Shutdown()
+void GCHandleManager::Shutdown()
 {
-    Ref_Shutdown();
+    if (g_gcGlobalHandleStore != nullptr)
+    {
+        DestroyHandleStore(g_gcGlobalHandleStore);
+    }
+
+    ::Ref_Shutdown();
 }
 
-void* GCHandleTable::GetHandleTableContext(void* handleTable)
+IGCHandleStore* GCHandleManager::GetGlobalHandleStore()
 {
-    return (void*)((uintptr_t)::HndGetHandleTableADIndex((HHANDLETABLE)handleTable).m_dwIndex);
+    return g_gcGlobalHandleStore;
 }
 
-void* GCHandleTable::GetHandleTableForHandle(OBJECTHANDLE handle)
+IGCHandleStore* GCHandleManager::CreateHandleStore(void* context)
 {
-    return (void*)::HndGetHandleTable(handle);
+#ifndef FEATURE_REDHAWK
+    GCHandleStore* store = new (nothrow) GCHandleStore();
+    if (store == nullptr)
+        return nullptr;
+
+    bool success = ::Ref_InitializeHandleTableBucket(&store->_underlyingBucket, context);
+    if (!success)
+    {
+        delete store;
+        return nullptr;
+    }
+
+    return store;
+#else
+    assert("CreateHandleStore is not implemented when FEATURE_REDHAWK is defined!");
+    return nullptr;
+#endif
+}
+
+void GCHandleManager::DestroyHandleStore(IGCHandleStore* store)
+{
+    delete store;
+}
+
+void* GCHandleManager::GetHandleContext(OBJECTHANDLE handle)
+{
+    return (void*)((uintptr_t)::HndGetHandleTableADIndex(::HndGetHandleTable(handle)).m_dwIndex);
+}
+
+OBJECTHANDLE GCHandleManager::CreateGlobalHandleOfType(Object* object, int type)
+{
+    return ::HndCreateHandle(g_HandleTableMap.pBuckets[0]->pTable[GetCurrentThreadHomeHeapNumber()], type, ObjectToOBJECTREF(object)); 
+}
+
+OBJECTHANDLE GCHandleManager::CreateDuplicateHandle(OBJECTHANDLE handle)
+{
+    return ::HndCreateHandle(HndGetHandleTable(handle), HNDTYPE_DEFAULT, ::HndFetchHandle(handle));
+}
+
+void GCHandleManager::DestroyHandleOfType(OBJECTHANDLE handle, int type)
+{
+    ::HndDestroyHandle(::HndGetHandleTable(handle), type, handle);
+}
+
+void GCHandleManager::DestroyHandleOfUnknownType(OBJECTHANDLE handle)
+{
+    ::HndDestroyHandleOfUnknownType(::HndGetHandleTable(handle), handle);
+}
+
+void* GCHandleManager::GetExtraInfoFromHandle(OBJECTHANDLE handle)
+{
+    return (void*)::HndGetHandleExtraInfo(handle);
 }

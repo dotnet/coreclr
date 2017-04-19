@@ -408,12 +408,8 @@ BlockAgain:
         dwWaitResult = WaitForGCEvent->Wait(DETECT_DEADLOCK_TIMEOUT, FALSE );
 
         if (dwWaitResult == WAIT_TIMEOUT) {
-            //  Even in retail, stop in the debugger if available.  Ideally, the
-            //  following would use DebugBreak, but debspew.h makes this a null
-            //  macro in retail.  Note that in debug, we don't use the debspew.h
-            //  macros because these take a critical section that may have been
-            //  taken by a suspended thread.
-            FreeBuildDebugBreak();
+            //  Even in retail, stop in the debugger if available.
+            GCToOSInterface::DebugBreak();
             goto BlockAgain;
         }
 
@@ -432,9 +428,14 @@ void GCHeap::SetGCInProgress(bool fInProgress)
     GcInProgress = fInProgress;
 }
 
-CLREvent * GCHeap::GetWaitForGCEvent()
+void GCHeap::SetWaitForGCEvent()
 {
-    return WaitForGCEvent;
+    WaitForGCEvent->Set();
+}
+
+void GCHeap::ResetWaitForGCEvent()
+{
+    WaitForGCEvent->Reset();
 }
 
 void GCHeap::WaitUntilConcurrentGCComplete()
@@ -524,7 +525,7 @@ void gc_heap::fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject)
 }
 #endif // FEATURE_EVENT_TRACE
 
-uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int time_out_ms)
+uint32_t gc_heap::user_thread_wait (GCEvent *event, BOOL no_mode_change, int time_out_ms)
 {
     Thread* pCurThread = NULL;
     bool mode = false;

@@ -113,8 +113,9 @@ extern "C" uint8_t* g_gc_lowest_address;
 extern "C" uint8_t* g_gc_highest_address;
 extern "C" GCHeapType g_gc_heap_type;
 extern "C" uint32_t g_max_generation;
+extern "C" MethodTable* g_gc_pFreeObjectMethodTable;
 
-::IGCHandleTable*  CreateGCHandleTable();
+::IGCHandleManager*  CreateGCHandleManager();
 
 namespace WKS {
     ::IGCHeapInternal* CreateGCHeap();
@@ -259,8 +260,8 @@ void updateGCShadow(Object** ptr, Object* val);
 // The single GC heap instance, shared with the VM.
 extern IGCHeapInternal* g_theGCHeap;
 
-// The single GC handle table instance, shared with the VM.
-extern IGCHandleTable* g_theGCHandleTable;
+// The single GC handle manager instance, shared with the VM.
+extern IGCHandleManager* g_theGCHandleManager;
 
 #ifndef DACCESS_COMPILE
 inline bool IsGCInProgress(bool bConsiderGCStart = false)

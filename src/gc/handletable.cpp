@@ -313,6 +313,10 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
     }
 #endif // _DEBUG && !FEATURE_REDHAWK
 
+    // If we are creating a variable-strength handle, verify that the
+    // requested variable handle type is valid.
+    _ASSERTE(uType != HNDTYPE_VARIABLE || IS_VALID_VHT_VALUE(lExtraInfo));
+
     VALIDATEOBJECTREF(object);
 
     // fetch the handle table pointer
@@ -1334,24 +1338,6 @@ void  Ref_RelocateAsyncPinHandles(HandleTableBucket *pSource, HandleTableBucket 
 }
 #endif // !FEATURE_REDHAWK
 
-BOOL Ref_ContainHandle(HandleTableBucket *pBucket, OBJECTHANDLE handle)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    int limit = getNumberOfSlots();
-    for (int n = 0; n < limit; n ++ )
-    {
-        if (TableContainHandle(Table(pBucket->pTable[n]), handle))
-            return TRUE;
-    }
-
-    return FALSE;
-}
 /*--------------------------------------------------------------------------*/
 
 

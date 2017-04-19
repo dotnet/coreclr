@@ -1088,6 +1088,11 @@ CPFH_RealFirstPassHandler(                  // ExceptionContinueSearch, etc.
             // of the active exception.
             CEHelper::SetupCorruptionSeverityForActiveException(bRethrownException, bNestedException, 
                 CEHelper::ShouldTreatActiveExceptionAsNonCorrupting());
+
+            // Failfast if exception indicates corrupted process state   
+            if (pExInfo->GetCorruptionSeverity() == ProcessCorrupting)
+                EEPOLICY_HANDLE_FATAL_ERROR(exceptionCode);
+                
             END_SO_INTOLERANT_CODE;
         }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -3702,6 +3707,13 @@ AdjustContextForVirtualStub(
     PCODE callsite = GetAdjustedCallAddress(*dac_cast<PTR_PCODE>(GetSP(pContext)));
     pExceptionRecord->ExceptionAddress = (PVOID)callsite;
     SetIP(pContext, callsite);
+
+#ifdef HAVE_GCCOVER
+    // Modify LastAVAddress saved in thread to distinguish between fake & real AV
+    // See comments in IsGcMarker in file excep.cpp for more details
+    pThread->SetLastAVAddress((LPVOID)GetIP(pContext));
+#endif    
+
 
     // put ESP back to what it was before the call.
     SetSP(pContext, dac_cast<PCODE>(dac_cast<PTR_BYTE>(GetSP(pContext)) + sizeof(void*)));

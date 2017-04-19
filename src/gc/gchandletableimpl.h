@@ -6,17 +6,54 @@
 #define GCHANDLETABLE_H_
 
 #include "gcinterface.h"
+#include "objecthandle.h"
 
-class GCHandleTable : public IGCHandleTable
+class GCHandleStore : public IGCHandleStore
+{
+public:
+    virtual void Uproot();
+
+    virtual bool ContainsHandle(OBJECTHANDLE handle);
+
+    virtual OBJECTHANDLE CreateHandleOfType(Object* object, int type);
+
+    virtual OBJECTHANDLE CreateHandleOfType(Object* object, int type, int heapToAffinitizeTo);
+
+    virtual OBJECTHANDLE CreateHandleWithExtraInfo(Object* object, int type, void* pExtraInfo);
+
+    virtual OBJECTHANDLE CreateDependentHandle(Object* primary, Object* secondary);
+
+    virtual ~GCHandleStore();
+
+    HandleTableBucket _underlyingBucket;
+};
+
+extern GCHandleStore* g_gcGlobalHandleStore;
+
+class GCHandleManager : public IGCHandleManager
 {
 public:
     virtual bool Initialize();
 
     virtual void Shutdown();
 
-    virtual void* GetHandleTableContext(void* handleTable);
+    virtual void* GetHandleContext(OBJECTHANDLE handle);
 
-    virtual void* GetHandleTableForHandle(OBJECTHANDLE handle);
+    virtual IGCHandleStore* GetGlobalHandleStore();
+
+    virtual IGCHandleStore* CreateHandleStore(void* context);
+
+    virtual void DestroyHandleStore(IGCHandleStore* store);
+
+    virtual OBJECTHANDLE CreateGlobalHandleOfType(Object* object, int type);
+
+    virtual OBJECTHANDLE CreateDuplicateHandle(OBJECTHANDLE handle);
+
+    virtual void DestroyHandleOfType(OBJECTHANDLE handle, int type);
+
+    virtual void DestroyHandleOfUnknownType(OBJECTHANDLE handle);
+
+    virtual void* GetExtraInfoFromHandle(OBJECTHANDLE handle);
 };
 
 #endif  // GCHANDLETABLE_H_

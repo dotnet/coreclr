@@ -8,11 +8,13 @@ def project = GithubProject
 def branch = GithubBranchName
 def projectFolder = Utilities.getFolderName(project) + '/' + Utilities.getFolderName(branch)
 
-// Create a folder for JIT stress jobs
+// Create a folder for JIT stress jobs and associated folder views
 folder('jitstress')
+Utilities.addStandardFolderView(this, 'jitstress', project)
 
 // Create a folder for testing via illink
 folder('illink')
+Utilities.addStandardFolderView(this, 'illink', project)
 
 def static getOSGroup(def os) {
     def osGroupMap = ['Ubuntu':'Linux',
@@ -1473,8 +1475,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                 case 'x64':
                 case 'x86':
                     if (architecture == 'x86' && os == 'Ubuntu') {
-                        // build only, not test yet
+                        // build and PAL test
                         buildCommands += "./tests/scripts/x86_ci_script.sh --buildConfig=${lowerConfiguration}"
+                        Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                         break;
                     }
 
@@ -1573,6 +1576,14 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // Unpack the corefx binaries
                     buildCommands += "mkdir ./bin/CoreFxBinDir"
                     buildCommands += "tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir"
+                    if (os != 'Tizen') {
+                        buildCommands += "chmod a+x ./bin/CoreFxBinDir/corerun"
+                    }
+                    // Test environment emulation using docker and qemu has some problem to use lttng library.
+                    // We should remove libcoreclrtraceptprovider.so to avoid test hang.
+                    if (os == 'Ubuntu') {
+                        buildCommands += "rm -f -v ./bin/CoreFxBinDir/libcoreclrtraceptprovider.so"
+                    }
 
                     // Call the ARM CI script to cross build and test using docker
                     buildCommands += """./tests/scripts/arm32_ci_script.sh \\

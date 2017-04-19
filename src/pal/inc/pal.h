@@ -487,9 +487,12 @@ PAL_NotifyRuntimeStarted(VOID);
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = 64;
 
 PALIMPORT
-void
+VOID
 PALAPI
-PAL_GetTransportPipeName(char *name, DWORD id, const char *suffix);
+PAL_GetTransportPipeName(
+    OUT char *name,
+    IN DWORD id,
+    IN const char *suffix);
 
 PALIMPORT
 void
@@ -4136,6 +4139,12 @@ PALAPI
 QueryThreadCycleTime(
     IN HANDLE ThreadHandle,
     OUT PULONG64 CycleTime);
+
+PALIMPORT
+INT
+PALAPI
+PAL_nanosleep(
+    IN long timeInNs);
 
 #ifndef FEATURE_PAL_SXS
 

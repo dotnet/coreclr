@@ -15,7 +15,7 @@ Visual Studio must be installed. Supported versions:
 - [Visual Studio 2017](https://www.visualstudio.com/downloads/) (Community, Professional, Enterprise).  The community version is completely free.  
 
 For Visual Studio 2015:
-* To debug managed code, ensure you have installed at least [Visual Studio 2015 Update 3](https://www.visualstudio.com/en-us/news/releasenotes/vs2015-update3-vs).
+* Ensure you have installed at least [Visual Studio 2015 Update 3](https://www.visualstudio.com/en-us/news/releasenotes/vs2015-update3-vs).
 * Make sure that you install "VC++ Tools". By default, they will not be installed.
 * To build for Arm32, Make sure that you have the Windows SDK for Windows 10 installed (or selected to be installed as part of VS installation). To explicitly install Windows SDK, download it from here: [Windows SDK for Windows 10](https://developer.microsoft.com/en-us/windows/downloads)
 
@@ -30,16 +30,21 @@ For Visual Studio 2017:
     * Windows 8.1 SDK and UCRT SDK
     * VC++ 2015.3 v140 Toolset (x86, x64)
 * When doing an 'Individual Components' based install, the following are the minimum requirements:
-  * C# and Visual Basic Roslyn Compilers
-  * Static Analysis Tools
-  * .NET Portable Library Targeting Pack
-  * Windows 10 SDK or Windows 8.1 SDK
-  * Visual Studio C++ Core Features
-  * VC++ 2017 v141 Toolset (x86, x64)
-  * MSBuild
-  * .NET Framework 4.6 Targeting Pack
-  * Windows Universal CRT SDK
-  * VC++ 2015.3 v140 Toolset (x86, x64)
+  * Under ".NET":
+    * .NET Framework 4.6 targeting pack
+    * .NET Portable Library targeting pack
+  * Under "Code tools":
+    * Static analysis tools
+  * Under "Compilers, build tools, and runtimes":
+    * C# and Visual Basic Roslyn Compilers
+    * MSBuild
+    * VC++ 2015.3 v140 toolset (x86, x64)
+    * VC++ 2017 v141 toolset (x86, x64)
+    * Windows Universal CRT SDK
+  * Under "Development activities":
+    * Visual Studio C++ core features
+  * Under "SDKs, libraries, and frameworks":
+    * Windows 10 SDK or Windows 8.1 SDK
 * To build for Arm32, Make sure that you have the Windows 10 SDK installed (or selected to be installed as part of VS installation). To explicitly install Windows SDK, download it from here: [Windows SDK for Windows 10](https://developer.microsoft.com/en-us/windows/downloads)
 * **Important:** You must have the `msdia120.dll` COM Library registered in order to build the repository.
   * This binary is registered by default when installing the "VC++ Tools" with Visual Studio 2015

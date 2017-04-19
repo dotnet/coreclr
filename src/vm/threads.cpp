@@ -5074,9 +5074,12 @@ void Thread::SafeUpdateLastThrownObject(void)
     {
         EX_TRY
         {
-            // Using CreateDuplicateHandle here ensures that the AD of the last thrown object matches the domain of
-            // the current throwable.
-            SetLastThrownObjectHandle(CreateDuplicateHandle(hThrowable));
+            IGCHandleManager *pHandleTable = GCHandleUtilities::GetGCHandleManager();
+
+            // Creating a duplicate handle here ensures that the AD of the last thrown object
+            // matches the domain of the current throwable.
+            OBJECTHANDLE duplicateHandle = pHandleTable->CreateDuplicateHandle(hThrowable);
+            SetLastThrownObjectHandle(duplicateHandle);
         }
         EX_CATCH
         {
@@ -6073,7 +6076,7 @@ bool ThreadStore::ShouldTriggerGCForDeadThreads()
 void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
 {
     CONTRACTL {
-        NOTHROW;
+        THROWS;
         GC_TRIGGERS;
     }
     CONTRACTL_END;

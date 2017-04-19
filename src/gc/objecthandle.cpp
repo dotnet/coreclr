@@ -19,6 +19,8 @@
 #include "objecthandle.h"
 #include "handletablepriv.h"
 
+#include "gchandletableimpl.h"
+
 #ifdef FEATURE_COMINTEROP
 #include "comcallablewrapper.h"
 #endif // FEATURE_COMINTEROP
@@ -627,54 +629,62 @@ bool Ref_Initialize()
     if (pBuckets == NULL)
         return false;
 
-    ZeroMemory(pBuckets,
-         INITIAL_HANDLE_TABLE_ARRAY_SIZE * sizeof (HandleTableBucket *));
+    ZeroMemory(pBuckets, INITIAL_HANDLE_TABLE_ARRAY_SIZE * sizeof (HandleTableBucket *));
 
-    // Crate the first bucket
-    HandleTableBucket * pBucket = new (nothrow) HandleTableBucket;
-    if (pBucket != NULL)
+    g_gcGlobalHandleStore = new (nothrow) GCHandleStore();
+    if (g_gcGlobalHandleStore == NULL)
     {
-        pBucket->HandleTableIndex = 0;
-
-        int n_slots = getNumberOfSlots();
-
-        HandleTableBucketHolder bucketHolder(pBucket, n_slots);
-
-        // create the handle table set for the first bucket
-        pBucket->pTable = new (nothrow) HHANDLETABLE[n_slots];
-        if (pBucket->pTable == NULL)
-            goto CleanupAndFail;
-
-        ZeroMemory(pBucket->pTable,
-            n_slots * sizeof(HHANDLETABLE));
-        for (int uCPUindex = 0; uCPUindex < n_slots; uCPUindex++)
-        {
-            pBucket->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags), ADIndex(1));
-            if (pBucket->pTable[uCPUindex] == NULL)
-                goto CleanupAndFail;
-
-            HndSetHandleTableIndex(pBucket->pTable[uCPUindex], 0);
-        }
-
-        pBuckets[0] = pBucket;
-        bucketHolder.SuppressRelease();
-
-        g_HandleTableMap.pBuckets = pBuckets;
-        g_HandleTableMap.dwMaxIndex = INITIAL_HANDLE_TABLE_ARRAY_SIZE;
-        g_HandleTableMap.pNext = NULL;
-
-        // Allocate contexts used during dependent handle promotion scanning. There's one of these for every GC
-        // heap since they're scanned in parallel.
-        g_pDependentHandleContexts = new (nothrow) DhContext[n_slots];
-        if (g_pDependentHandleContexts == NULL)
-            goto CleanupAndFail;
-
-        return true;
+        delete[] pBuckets;
+        return false;
     }
+
+    // Initialize the bucket in the global handle store
+    HandleTableBucket* pBucket = &g_gcGlobalHandleStore->_underlyingBucket;
+
+    pBucket->HandleTableIndex = 0;
+
+    int n_slots = getNumberOfSlots();
+
+    HandleTableBucketHolder bucketHolder(pBucket, n_slots);
+
+    // create the handle table set for the first bucket
+    pBucket->pTable = new (nothrow) HHANDLETABLE[n_slots];
+    if (pBucket->pTable == NULL)
+        goto CleanupAndFail;
+
+    ZeroMemory(pBucket->pTable,
+        n_slots * sizeof(HHANDLETABLE));
+    for (int uCPUindex = 0; uCPUindex < n_slots; uCPUindex++)
+    {
+        pBucket->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags), ADIndex(1));
+        if (pBucket->pTable[uCPUindex] == NULL)
+            goto CleanupAndFail;
+
+        HndSetHandleTableIndex(pBucket->pTable[uCPUindex], 0);
+    }
+
+    pBuckets[0] = pBucket;
+    bucketHolder.SuppressRelease();
+
+    g_HandleTableMap.pBuckets = pBuckets;
+    g_HandleTableMap.dwMaxIndex = INITIAL_HANDLE_TABLE_ARRAY_SIZE;
+    g_HandleTableMap.pNext = NULL;
+
+    // Allocate contexts used during dependent handle promotion scanning. There's one of these for every GC
+    // heap since they're scanned in parallel.
+    g_pDependentHandleContexts = new (nothrow) DhContext[n_slots];
+    if (g_pDependentHandleContexts == NULL)
+        goto CleanupAndFail;
+
+    return true;
 
 CleanupAndFail:
     if (pBuckets != NULL)
         delete[] pBuckets;
+
+    if (g_gcGlobalHandleStore != NULL)
+        delete g_gcGlobalHandleStore;
+
     return false;
 }
 
@@ -694,9 +704,6 @@ void Ref_Shutdown()
         // don't destroy any of the indexed handle tables; they should
         // be destroyed externally.
 
-        // destroy the global handle table bucket tables
-        Ref_DestroyHandleTableBucket(g_HandleTableMap.pBuckets[0]);
-
         // destroy the handle table bucket array
         HandleTableMap *walk = &g_HandleTableMap;
         while (walk) {
@@ -714,9 +721,22 @@ void Ref_Shutdown()
 }
 
 #ifndef FEATURE_REDHAWK
-// ATTENTION: interface changed
-// Note: this function called only from AppDomain::Init()
-HandleTableBucket *Ref_CreateHandleTableBucket(ADIndex uADIndex)
+HandleTableBucket* Ref_CreateHandleTableBucket(void* context)
+{
+    HandleTableBucket* result = new (nothrow) HandleTableBucket();
+    if (result == nullptr)
+        return nullptr;
+
+    if (!Ref_InitializeHandleTableBucket(result, context))
+    {
+        delete result;
+        return nullptr;
+    }
+
+    return result;
+}
+
+bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context)
 {
     CONTRACTL
     {
@@ -726,14 +746,12 @@ HandleTableBucket *Ref_CreateHandleTableBucket(ADIndex uADIndex)
     }
     CONTRACTL_END;
 
-    HandleTableBucket *result = NULL;
-    HandleTableMap *walk;
-    
-    walk = &g_HandleTableMap;
+    HandleTableBucket *result = bucket;
+    HandleTableMap *walk = &g_HandleTableMap;
+
     HandleTableMap *last = NULL;
     uint32_t offset = 0;
 
-    result = new HandleTableBucket;
     result->pTable = NULL;
 
     // create handle table set for the bucket
@@ -741,11 +759,11 @@ HandleTableBucket *Ref_CreateHandleTableBucket(ADIndex uADIndex)
 
     HandleTableBucketHolder bucketHolder(result, n_slots);
 
-    result->pTable = new HHANDLETABLE [ n_slots ];
-    ZeroMemory(result->pTable, n_slots * sizeof (HHANDLETABLE));
+    result->pTable = new HHANDLETABLE[n_slots];
+    ZeroMemory(result->pTable, n_slots * sizeof(HHANDLETABLE));
 
     for (int uCPUindex=0; uCPUindex < n_slots; uCPUindex++) {
-        result->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags), uADIndex);
+        result->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags), ADIndex((DWORD)(uintptr_t)context));
         if (!result->pTable[uCPUindex])
             COMPlusThrowOM();
     }
@@ -762,7 +780,7 @@ HandleTableBucket *Ref_CreateHandleTableBucket(ADIndex uADIndex)
                     if (Interlocked::CompareExchangePointer(&walk->pBuckets[i], result, NULL) == 0) {
                         // Get a free slot.
                         bucketHolder.SuppressRelease();
-                        return result;
+                        return true;
                     }
                 }
             }
@@ -871,24 +889,6 @@ void Ref_EndSynchronousGC(uint32_t condemned, uint32_t maxgen)
 */    
 }
 
-
-OBJECTHANDLE CreateDependentHandle(HHANDLETABLE table, OBJECTREF primary, OBJECTREF secondary)
-{ 
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    OBJECTHANDLE handle = HndCreateHandle(table, HNDTYPE_DEPENDENT, primary); 
-
-    SetDependentHandleSecondary(handle, secondary);
-
-    return handle;
-}
-
 void SetDependentHandleSecondary(OBJECTHANDLE handle, OBJECTREF objref)
 { 
     CONTRACTL
@@ -923,30 +923,6 @@ void SetDependentHandleSecondary(OBJECTHANDLE handle, OBJECTREF objref)
 
 
 //----------------------------------------------------------------------------
-
-/*
- * CreateVariableHandle.
- *
- * Creates a variable-strength handle.
- *
- * N.B. This routine is not a macro since we do validation in RETAIL.
- * We always validate the type here because it can come from external callers.
- */
-OBJECTHANDLE CreateVariableHandle(HHANDLETABLE hTable, OBJECTREF object, uint32_t type)
-{
-    WRAPPER_NO_CONTRACT;
-
-    // verify that we are being asked to create a valid type
-    if (!IS_VALID_VHT_VALUE(type))
-    {
-        // bogus value passed in
-        _ASSERTE(FALSE);
-        return NULL;
-    }
-
-    // create the handle
-    return HndCreateHandle(hTable, HNDTYPE_VARIABLE, object, (uintptr_t)type);
-}
 
 /*
 * GetVariableHandleType.
@@ -1897,51 +1873,6 @@ bool HandleTableBucket::Contains(OBJECTHANDLE handle)
     }
     return FALSE;
 }
-
-void DestroySizedRefHandle(OBJECTHANDLE handle)
-{ 
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HHANDLETABLE hTable = HndGetHandleTable(handle);
-    HndDestroyHandle(hTable , HNDTYPE_SIZEDREF, handle);
-    AppDomain* pDomain = SystemDomain::GetAppDomainAtIndex(HndGetHandleTableADIndex(hTable));
-    pDomain->DecNumSizedRefHandles();
-}
-
-#ifdef FEATURE_COMINTEROP
-
-void DestroyWinRTWeakHandle(OBJECTHANDLE handle)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        CAN_TAKE_LOCK;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    // Release the WinRT weak reference if we have one.  We're assuming that this will not reenter the
-    // runtime, since if we are pointing at a managed object, we should not be using a HNDTYPE_WEAK_WINRT
-    // but rather a HNDTYPE_WEAK_SHORT or HNDTYPE_WEAK_LONG.
-    IWeakReference* pWinRTWeakReference = reinterpret_cast<IWeakReference*>(HndGetHandleExtraInfo(handle));
-    if (pWinRTWeakReference != NULL)
-    {
-        pWinRTWeakReference->Release();
-    }
-
-    HndDestroyHandle(HndGetHandleTable(handle), HNDTYPE_WEAK_WINRT, handle);
-}
-
-#endif // FEATURE_COMINTEROP
 
 #endif // !DACCESS_COMPILE
 

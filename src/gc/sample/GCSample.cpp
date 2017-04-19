@@ -130,8 +130,8 @@ int __cdecl main(int argc, char* argv[])
     //
     GcDacVars dacVars;
     IGCHeap *pGCHeap;
-    IGCHandleTable *pGCHandleTable;
-    if (!InitializeGarbageCollector(nullptr, &pGCHeap, &pGCHandleTable, &dacVars))
+    IGCHandleManager *pGCHandleManager;
+    if (!InitializeGarbageCollector(nullptr, &pGCHeap, &pGCHandleManager, &dacVars))
     {
         return -1;
     }
@@ -140,9 +140,9 @@ int __cdecl main(int argc, char* argv[])
         return -1;
 
     //
-    // Initialize handle table
+    // Initialize handle manager
     //
-    if (!pGCHandleTable->Initialize())
+    if (!pGCHandleManager->Initialize())
         return -1;
 
     //
@@ -201,7 +201,7 @@ int __cdecl main(int argc, char* argv[])
         return -1;
 
     // Create strong handle and store the object into it
-    OBJECTHANDLE oh = CreateGlobalHandle(pObj);
+    OBJECTHANDLE oh = HndCreateHandle(g_HandleTableMap.pBuckets[0]->pTable[GetCurrentThreadHomeHeapNumber()], HNDTYPE_DEFAULT, pObj);
     if (oh == NULL)
         return -1;
 
@@ -224,12 +224,12 @@ int __cdecl main(int argc, char* argv[])
     }
 
     // Create weak handle that points to our object
-    OBJECTHANDLE ohWeak = CreateGlobalWeakHandle(HndFetchHandle(oh));
+    OBJECTHANDLE ohWeak = HndCreateHandle(g_HandleTableMap.pBuckets[0]->pTable[GetCurrentThreadHomeHeapNumber()], HNDTYPE_WEAK_DEFAULT, HndFetchHandle(oh));
     if (ohWeak == NULL)
         return -1;
 
     // Destroy the strong handle so that nothing will be keeping out object alive
-    DestroyGlobalHandle(oh);
+    HndDestroyHandle(HndGetHandleTable(oh), HNDTYPE_DEFAULT, oh);
 
     // Explicitly trigger full GC
     pGCHeap->GarbageCollect();

@@ -123,6 +123,24 @@ bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
                              bool      fAborting
                              );
 
+void FixContext(PCONTEXT pContextRecord)
+{
+#define FIXUPREG(reg, value)                                                                \
+    do {                                                                                    \
+        STRESS_LOG2(LF_GCROOTS, LL_INFO100, "Updating " #reg " %p to %p\n",                 \
+                pContextRecord->reg,                                                        \
+                (value));                                                                   \
+        pContextRecord->reg = (value);                                                      \
+    } while (0)
+
+#ifdef _TARGET_X86_
+    size_t resumeSp = EECodeManager::GetResumeSp(pContextRecord);
+    FIXUPREG(ResumeEsp, resumeSp);
+#endif // _TARGET_X86_
+
+#undef FIXUPREG
+}
+
 MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDesc * pILStubMD, Frame ** ppFrameOut);
 
 #ifdef FEATURE_PAL
@@ -440,6 +458,7 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
             pAbortContext->reg = pContextRecord->reg;                                       \
         }                                                                                   \
     } while (0)
+
 
 #if defined(_TARGET_X86_)
 
@@ -992,6 +1011,10 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
                 CEHelper::SetupCorruptionSeverityForActiveException((STState == ExceptionTracker::STS_FirstRethrowFrame), (pTracker->GetPreviousExceptionTracker() != NULL),
                                                                     CEHelper::ShouldTreatActiveExceptionAsNonCorrupting());
             }
+
+            // Failfast if exception indicates corrupted process state            
+            if (pTracker->GetCorruptionSeverity() == ProcessCorrupting)
+                EEPOLICY_HANDLE_FATAL_ERROR(pExceptionRecord->ExceptionCode);
         }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
@@ -1052,9 +1075,11 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
 
         CLRUnwindStatus                     status;
         
+#ifdef USE_PER_FRAME_PINVOKE_INIT
         // Refer to comment in ProcessOSExceptionNotification about ICF and codegen difference.
-        ARM_ONLY(InlinedCallFrame *pICFSetAsLimitFrame = NULL;)
-        
+        InlinedCallFrame *pICFSetAsLimitFrame = NULL;
+#endif // USE_PER_FRAME_PINVOKE_INIT
+
         status = pTracker->ProcessOSExceptionNotification(
             pExceptionRecord,
             pContextRecord,
@@ -1062,7 +1087,11 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
             dwExceptionFlags,
             sf,
             pThread,
-            STState ARM_ARG((PVOID)pICFSetAsLimitFrame));
+            STState
+#ifdef USE_PER_FRAME_PINVOKE_INIT
+            , (PVOID)pICFSetAsLimitFrame
+#endif // USE_PER_FRAME_PINVOKE_INIT
+            );
 
         if (FirstPassComplete == status)
         {
@@ -1165,7 +1194,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
 
 
                 CONSISTENCY_CHECK(pLimitFrame > dac_cast<PTR_VOID>(GetSP(pContextRecord)));
-#if defined(_TARGET_ARM_)            
+#ifdef USE_PER_FRAME_PINVOKE_INIT
                 if (pICFSetAsLimitFrame != NULL)
                 {
                     _ASSERTE(pICFSetAsLimitFrame == pLimitFrame);
@@ -1177,9 +1206,11 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
                     // the next pinvoke callsite does not see the frame as active.
                     pICFSetAsLimitFrame->Reset();
                 }
-#endif // defined(_TARGET_ARM_)            
+#endif // USE_PER_FRAME_PINVOKE_INIT
 
                 pThread->SetFrame(pLimitFrame);
+
+                FixContext(pContextRecord);
 
                 SetIP(pContextRecord, (PCODE)uResumePC);
             }
@@ -1632,7 +1663,11 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
     DWORD dwExceptionFlags,
     StackFrame sf,
     Thread* pThread,
-    StackTraceState STState ARM_ARG(PVOID pICFSetAsLimitFrame))
+    StackTraceState STState
+#ifdef USE_PER_FRAME_PINVOKE_INIT
+    , PVOID pICFSetAsLimitFrame
+#endif // USE_PER_FRAME_PINVOKE_INIT
+)
 {
     CONTRACTL
     {
@@ -1698,10 +1733,10 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
         this->m_EnclosingClauseInfoForGCReporting.SetEnclosingClauseCallerSP(uCallerSP);
     }
     
-#if defined(_TARGET_ARM_)
+#ifdef USE_PER_FRAME_PINVOKE_INIT
     // Refer to detailed comment below.
     PTR_Frame pICFForUnwindTarget = NULL;
-#endif // defined(_TARGET_ARM_)
+#endif // USE_PER_FRAME_PINVOKE_INIT
 
     CheckForRudeAbort(pThread, fIsFirstPass);
 
@@ -1730,7 +1765,7 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
 
         while (((UINT_PTR)pFrame) < uCallerSP)
         {
-#if defined(_TARGET_ARM_)
+#ifdef USE_PER_FRAME_PINVOKE_INIT
             // InlinedCallFrames (ICF) are allocated, initialized and linked to the Frame chain
             // by the code generated by the JIT for a method containing a PInvoke.
             //
@@ -1935,7 +1970,7 @@ lExit:
     
     if (fTargetUnwind && (status == SecondPassComplete))
     {
-#if defined(_TARGET_ARM_)
+#ifdef USE_PER_FRAME_PINVOKE_INIT
         // If we have got a ICF to set as the LimitFrame, do that now.
         // The Frame chain is still intact and would be updated using
         // the LimitFrame (done after the catch handler returns).
@@ -1947,7 +1982,7 @@ lExit:
             m_pLimitFrame = pICFForUnwindTarget;
             pICFSetAsLimitFrame = (PVOID)pICFForUnwindTarget;
         }
-#endif // _TARGET_ARM_
+#endif // USE_PER_FRAME_PINVOKE_INIT
 
         // Since second pass is complete and we have reached
         // the frame containing the catch funclet, reset the enclosing 

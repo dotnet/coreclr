@@ -114,7 +114,7 @@ namespace System.Collections.Generic
             this.comparer = comparer ?? EqualityComparer<TKey>.Default;
 
 #if FEATURE_RANDOMIZED_STRING_HASHING
-            if (HashHelpers.s_UseRandomizedStringHashing && comparer == EqualityComparer<string>.Default)
+            if (HashHelpers.s_UseRandomizedStringHashing && this.comparer == EqualityComparer<string>.Default)
             {
                 this.comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Default;
             }
@@ -382,13 +382,7 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.info);
             }
             info.AddValue(VersionName, version);
-
-#if FEATURE_RANDOMIZED_STRING_HASHING
-            info.AddValue(ComparerName, HashHelpers.GetEqualityComparerForSerialization(comparer), typeof(IEqualityComparer<TKey>));
-#else
             info.AddValue(ComparerName, comparer, typeof(IEqualityComparer<TKey>));
-#endif
-
             info.AddValue(HashSizeName, buckets == null ? 0 : buckets.Length); //This is the length of the bucket array.
             if (buckets != null)
             {
@@ -434,8 +428,7 @@ namespace System.Collections.Generic
 
             if (buckets == null) Initialize(0);
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-            int targetBucket = hashCode % buckets.Length;
-
+            int targetBucket = hashCode % buckets.Length;            
 #if FEATURE_RANDOMIZED_STRING_HASHING
             int collisionCount = 0;
 #endif
@@ -458,7 +451,6 @@ namespace System.Collections.Generic
 
                     return false;
                 }
-
 #if FEATURE_RANDOMIZED_STRING_HASHING
                 collisionCount++;
 #endif
@@ -590,6 +582,9 @@ namespace System.Collections.Generic
             entries = newEntries;
         }
 
+        // The overload Remove(TKey key, out TValue value) is a copy of this method with one additional
+        // statement to copy the value for entry being removed into the output parameter.
+        // Code has been intentionally duplicated for performance reasons.
         public bool Remove(TKey key)
         {
             if (key == null)
@@ -602,29 +597,86 @@ namespace System.Collections.Generic
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;
                 int last = -1;
-                for (int i = buckets[bucket]; i >= 0; last = i, i = entries[i].next)
+                int i = buckets[bucket];
+                while (i >= 0)
                 {
-                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
+                    ref Entry entry = ref entries[i];
+
+                    if (entry.hashCode == hashCode && comparer.Equals(entry.key, key))
                     {
                         if (last < 0)
                         {
-                            buckets[bucket] = entries[i].next;
+                            buckets[bucket] = entry.next;
                         }
                         else
                         {
-                            entries[last].next = entries[i].next;
+                            entries[last].next = entry.next;
                         }
-                        entries[i].hashCode = -1;
-                        entries[i].next = freeList;
-                        entries[i].key = default(TKey);
-                        entries[i].value = default(TValue);
+                        entry.hashCode = -1;
+                        entry.next = freeList;
+                        entry.key = default(TKey);
+                        entry.value = default(TValue);
                         freeList = i;
                         freeCount++;
                         version++;
                         return true;
                     }
+
+                    last = i;
+                    i = entry.next;
                 }
             }
+            return false;
+        }
+
+        // This overload is a copy of the overload Remove(TKey key) with one additional
+        // statement to copy the value for entry being removed into the output parameter.
+        // Code has been intentionally duplicated for performance reasons.
+        public bool Remove(TKey key, out TValue value)
+        {
+            if (key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+            }
+
+            if (buckets != null)
+            {
+                int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+                int bucket = hashCode % buckets.Length;
+                int last = -1;
+                int i = buckets[bucket];
+                while (i >= 0)
+                {
+                    ref Entry entry = ref entries[i];
+
+                    if (entry.hashCode == hashCode && comparer.Equals(entry.key, key))
+                    {
+                        if (last < 0)
+                        {
+                            buckets[bucket] = entry.next;
+                        }
+                        else
+                        {
+                            entries[last].next = entry.next;
+                        }
+
+                        value = entry.value;
+
+                        entry.hashCode = -1;
+                        entry.next = freeList;
+                        entry.key = default(TKey);
+                        entry.value = default(TValue);
+                        freeList = i;
+                        freeCount++;
+                        version++;
+                        return true;
+                    }
+
+                    last = i;
+                    i = entry.next;
+                }
+            }
+            value = default(TValue);
             return false;
         }
 
@@ -913,13 +965,13 @@ namespace System.Collections.Generic
                 // dictionary.count+1 could be negative if dictionary.count is Int32.MaxValue
                 while ((uint)index < (uint)dictionary.count)
                 {
-                    if (dictionary.entries[index].hashCode >= 0)
+                    ref Entry entry = ref dictionary.entries[index++];
+
+                    if (entry.hashCode >= 0)
                     {
-                        current = new KeyValuePair<TKey, TValue>(dictionary.entries[index].key, dictionary.entries[index].value);
-                        index++;
+                        current = new KeyValuePair<TKey, TValue>(entry.key, entry.value);
                         return true;
                     }
-                    index++;
                 }
 
                 index = dictionary.count + 1;
@@ -1189,13 +1241,13 @@ namespace System.Collections.Generic
 
                     while ((uint)index < (uint)dictionary.count)
                     {
-                        if (dictionary.entries[index].hashCode >= 0)
+                        ref Entry entry = ref dictionary.entries[index++];
+
+                        if (entry.hashCode >= 0)
                         {
-                            currentKey = dictionary.entries[index].key;
-                            index++;
+                            currentKey = entry.key;
                             return true;
                         }
-                        index++;
                     }
 
                     index = dictionary.count + 1;
@@ -1417,13 +1469,13 @@ namespace System.Collections.Generic
 
                     while ((uint)index < (uint)dictionary.count)
                     {
-                        if (dictionary.entries[index].hashCode >= 0)
+                        ref Entry entry = ref dictionary.entries[index++];
+
+                        if (entry.hashCode >= 0)
                         {
-                            currentValue = dictionary.entries[index].value;
-                            index++;
+                            currentValue = entry.value;
                             return true;
                         }
-                        index++;
                     }
                     index = dictionary.count + 1;
                     currentValue = default(TValue);

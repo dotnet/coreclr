@@ -229,6 +229,8 @@
 #include "perfmap.h"
 #endif
 
+#include "eventpipe.h"
+
 #ifndef FEATURE_PAL
 // Included for referencing __security_cookie
 #include "process.h"
@@ -867,7 +869,7 @@ void EEStartupHelper(COINITIEE fFlags)
 
         // Initialize remoting
 
-        if (!GCHeapUtilities::GetGCHandleTable()->Initialize())
+        if (!GCHandleUtilities::GetGCHandleManager()->Initialize())
         {
             IfFailGo(E_OUTOFMEMORY);
         }
@@ -1032,7 +1034,12 @@ void EEStartupHelper(COINITIEE fFlags)
              SystemDomain::System()->DefaultDomain()));
         SystemDomain::System()->PublishAppDomainAndInformDebugger(SystemDomain::System()->DefaultDomain());
 #endif
- 
+
+#ifdef FEATURE_PERFTRACING
+        // Initialize the event pipe and start it if requested.
+        EventPipe::Initialize();
+        EventPipe::EnableOnStartup();
+#endif // FEATURE_PERFTRACING
 
 #endif // CROSSGEN_COMPILE
 
@@ -1701,6 +1708,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         PerfMap::Destroy();
 #endif
 
+#ifdef FEATURE_PERFTRACING
+        // Shutdown the event pipe.
+        EventPipe::Shutdown();
+#endif // FEATURE_PERFTRACING
+
 #ifdef FEATURE_PREJIT
         {
             // If we're doing basic block profiling, we need to write the log files to disk.
@@ -1709,8 +1721,19 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
             if (!fIBCLoggingDone)
             {
                 if (g_IBCLogger.InstrEnabled())
-                    Module::WriteAllModuleProfileData(true);
+                {
+                    Thread * pThread = GetThread();
+                    ThreadLocalIBCInfo* pInfo = pThread->GetIBCInfo();
 
+                    // Acquire the Crst lock before creating the IBCLoggingDisabler object.
+                    // Only one thread at a time can be processing an IBC logging event.
+                    CrstHolder lock(g_IBCLogger.GetSync());
+                    {
+                        IBCLoggingDisabler disableLogging( pInfo );  // runs IBCLoggingDisabler::DisableLogging
+                        
+                        Module::WriteAllModuleProfileData(true);
+                    }
+                }
                 fIBCLoggingDone = TRUE;
             }
         }
@@ -1857,7 +1880,7 @@ part2:
 #ifdef SHOULD_WE_CLEANUP
                 if (!g_fFastExitProcess)
                 {
-                    GCHeapUtilities::GetGCHandleTable()->Shutdown();
+                    GCHandleUtilities::GetGCHandleManager()->Shutdown();
                 }
 #endif /* SHOULD_WE_CLEANUP */
 
@@ -2460,17 +2483,17 @@ void InitializeGarbageCollector()
     IGCToCLR* gcToClr = nullptr;
 #endif
 
-    IGCHandleTable *pGcHandleTable;
+    IGCHandleManager *pGcHandleManager;
 
     IGCHeap *pGCHeap;
-    if (!InitializeGarbageCollector(gcToClr, &pGCHeap, &pGcHandleTable, &g_gc_dac_vars)) 
+    if (!InitializeGarbageCollector(gcToClr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars)) 
     {
         ThrowOutOfMemory();
     }
 
     assert(pGCHeap != nullptr);
     g_pGCHeap = pGCHeap;
-    g_pGCHandleTable = pGcHandleTable;
+    g_pGCHandleManager = pGcHandleManager;
     g_gcDacGlobals = &g_gc_dac_vars;
 
     // Apparently the Windows linker removes global variables if they are never

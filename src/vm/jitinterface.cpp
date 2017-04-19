@@ -6921,18 +6921,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
             return true;
         }
     }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__BYREF_LESSTHAN)->GetMemberDef())
-    {
-        // Compare the two arguments
-        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_PREFIX1, (CEE_CLT & 0xFF), CEE_RET };
-        methInfo->ILCode = const_cast<BYTE*>(ilcode);
-        methInfo->ILCodeSize = sizeof(ilcode);
-        methInfo->maxStack = 2;
-        methInfo->EHcount = 0;
-        methInfo->options = (CorInfoOptions)0;
-        return true;
-    }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__GET_ARRAY_DATA)->GetMemberDef())
+    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
     {
         mdToken tokArrayPinningHelper = MscorlibBinder::GetField(FIELD__ARRAY_PINNING_HELPER__M_ARRAY_DATA)->GetMemberDef();
 
@@ -8634,7 +8623,7 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
     else
     {
         MethodTable * pMT = method->GetMethodTable();
-        if (pMT->IsByRefLike() && pMT->GetModule()->IsSystem())
+        if (pMT->GetModule()->IsSystem() && pMT->IsByRefLike())
         {
             if (pMT->HasSameTypeDefAs(g_pByReferenceClass))
             {
@@ -8648,10 +8637,25 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
                     _ASSERTE(strcmp(method->GetName(), "get_Value") == 0);
                     result = CORINFO_INTRINSIC_ByReference_Value;
                 }
-                *pMustExpand = true;
+                if (pMustExpand != nullptr)
+                {
+                    *pMustExpand = true;
+                }
             }
-
-            // TODO-SPAN: Span<T> intrinsics for optimizations
+            else if (pMT->HasSameTypeDefAs(MscorlibBinder::GetClass(CLASS__SPAN)))
+            {
+                if (method->HasSameMethodDefAs(MscorlibBinder::GetMethod(METHOD__SPAN__GET_ITEM)))
+                {
+                    result = CORINFO_INTRINSIC_Span_GetItem;
+                }
+            }
+            else if (pMT->HasSameTypeDefAs(MscorlibBinder::GetClass(CLASS__READONLY_SPAN)))
+            {
+                if (method->HasSameMethodDefAs(MscorlibBinder::GetMethod(METHOD__READONLY_SPAN__GET_ITEM)))
+                {
+                    result = CORINFO_INTRINSIC_ReadOnlySpan_GetItem;
+                }
+            }
         }
     }
 

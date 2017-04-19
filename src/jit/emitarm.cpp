@@ -1422,6 +1422,20 @@ DONE:
 
 /*****************************************************************************
  *
+ *  emitIns_valid_imm_for_ldst_offset() returns true when the immediate 'imm'
+ *   can be encoded as the offset in a ldr/str instruction.
+ */
+/*static*/ bool emitter::emitIns_valid_imm_for_ldst_offset(int imm, emitAttr size)
+{
+    if ((imm & 0x0fff) == imm)
+        return true; // encodable using IF_T2_K1
+    if (unsigned_abs(imm) <= 0x0ff)
+        return true; // encodable using IF_T2_H0
+    return false;
+}
+
+/*****************************************************************************
+ *
  *  Add an instruction with no operands.
  */
 
@@ -4303,14 +4317,12 @@ void emitter::emitIns_R_D(instruction ins, emitAttr attr, unsigned offs, regNumb
     id->idInsFmt(fmt);
     id->idInsSize(isz);
 
-#if RELOC_SUPPORT
     if (emitComp->opts.compReloc)
     {
         // Set the relocation flags - these give hint to zap to perform
         // relocation of the specified 32bit address.
         id->idSetRelocFlags(attr);
     }
-#endif // RELOC_SUPPORT
 
     dispIns(id);
     appendToCurIG(id);
@@ -4593,7 +4605,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
             id->idSetIsCallAddr();
         }
 
-#if RELOC_SUPPORT
         if (emitComp->opts.compReloc)
         {
             // Since this is an indirect call through a pointer and we don't
@@ -4602,7 +4613,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
 
             id->idSetIsDspReloc();
         }
-#endif
     }
 
 #ifdef DEBUG
@@ -5268,7 +5278,6 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
             else if (fmt == IF_T2_J2)
             {
                 assert((distVal & 1) == 0);
-#ifdef RELOC_SUPPORT
                 if (emitComp->opts.compReloc && emitJumpCrossHotColdBoundary(srcOffs, dstOffs))
                 {
                     // dst isn't an actual final target location, just some intermediate
@@ -5277,7 +5286,6 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
                     // rely on the relocation to do all the work
                 }
                 else
-#endif
                 {
                     assert(distVal >= CALL_DIST_MAX_NEG);
                     assert(distVal <= CALL_DIST_MAX_POS);
@@ -5304,7 +5312,6 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
 
             unsigned instrSize = emitOutput_Thumb2Instr(dst, code);
 
-#ifdef RELOC_SUPPORT
             if (emitComp->opts.compReloc)
             {
                 if (emitJumpCrossHotColdBoundary(srcOffs, dstOffs))
@@ -5317,7 +5324,6 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
                     }
                 }
             }
-#endif // RELOC_SUPPORT
 
             dst += instrSize;
         }
@@ -5982,9 +5988,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 assert(!id->idIsLclVar());
                 assert((ins == INS_movw) || (ins == INS_movt));
                 imm += (size_t)emitConsBlock;
-#ifdef RELOC_SUPPORT
                 if (!id->idIsCnsReloc() && !id->idIsDspReloc())
-#endif
                 {
                     goto SPLIT_IMM;
                 }
@@ -6002,7 +6006,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 }
             }
 
-#ifdef RELOC_SUPPORT
             if (id->idIsCnsReloc() || id->idIsDspReloc())
             {
                 assert((ins == INS_movt) || (ins == INS_movw));
@@ -6011,7 +6014,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                     emitRecordRelocation((void*)(dst - 8), (void*)imm, IMAGE_REL_BASED_THUMB_MOV32);
             }
             else
-#endif // RELOC_SUPPORT
             {
                 assert((imm & 0x0000ffff) == imm);
                 code |= (imm & 0x00ff);
@@ -6234,7 +6236,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             code = emitInsCode(ins, fmt);
 
-#ifdef RELOC_SUPPORT
             if (id->idIsDspReloc())
             {
                 callInstrSize = SafeCvtAssert<unsigned char>(emitOutput_Thumb2Instr(dst, code));
@@ -6243,7 +6244,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                     emitRecordRelocation((void*)(dst - 4), addr, IMAGE_REL_BASED_THUMB_BRANCH24);
             }
             else
-#endif // RELOC_SUPPORT
             {
                 addr = (BYTE*)((size_t)addr & ~1); // Clear the lowest bit from target address
 
@@ -6949,14 +6949,12 @@ void emitter::emitDispInsHelp(
             {
                 if (emitComp->opts.disDiffable)
                     imm = 0xD1FF;
-#if RELOC_SUPPORT
                 if (id->idIsCnsReloc() || id->idIsDspReloc())
                 {
                     if (emitComp->opts.disDiffable)
                         imm = 0xD1FFAB1E;
                     printf("%s RELOC ", (id->idIns() == INS_movw) ? "LOW" : "HIGH");
                 }
-#endif // RELOC_SUPPORT
             }
             emitDispImm(imm, false, (fmt == IF_T2_N));
             break;
@@ -6987,12 +6985,10 @@ void emitter::emitDispInsHelp(
 
                 assert(jdsc != NULL);
 
-#ifdef RELOC_SUPPORT
                 if (id->idIsDspReloc())
                 {
                     printf("reloc ");
                 }
-#endif
                 printf("%s ADDRESS J_M%03u_DS%02u", (id->idIns() == INS_movw) ? "LOW" : "HIGH",
                        Compiler::s_compMethodsCount, imm);
 
@@ -7572,9 +7568,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
 
             if (offset != 0)
             {
-                regMaskTP tmpRegMask = indir->gtRsvdRegs;
-                regNumber tmpReg     = genRegNumFromMask(tmpRegMask);
-                noway_assert(tmpReg != REG_NA);
+                regNumber tmpReg = indir->GetSingleTempReg();
 
                 if (emitIns_valid_imm_for_add(offset, INS_FLAGS_DONT_CARE))
                 {
@@ -7626,10 +7620,24 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 }
             }
         }
-        else
+        else // no Index
         {
-            // TODO check offset is valid for encoding
-            emitIns_R_R_I(ins, attr, dataReg, memBase->gtRegNum, offset);
+            if (emitIns_valid_imm_for_ldst_offset(offset, attr))
+            {
+                // Then load/store dataReg from/to [memBase + offset]
+                emitIns_R_R_I(ins, attr, dataReg, memBase->gtRegNum, offset);
+            }
+            else
+            {
+                // We require a tmpReg to hold the offset
+                regNumber tmpReg = indir->GetSingleTempReg();
+
+                // First load/store tmpReg with the large offset constant
+                codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
+
+                // Then load/store dataReg from/to [memBase + tmpReg]
+                emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, tmpReg);
+            }
         }
     }
     else
@@ -7720,9 +7728,7 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
             assert(!src1->isContained());
         }
     }
-    bool      isMulOverflow = false;
-    bool      isUnsignedMul = false;
-    regNumber extraReg      = REG_NA;
+    bool isMulOverflow = false;
     if (dst->gtOverflowEx())
     {
         NYI_ARM("emitInsTernary overflow");
@@ -7738,7 +7744,6 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
         else if (ins == INS_mul)
         {
             isMulOverflow = true;
-            isUnsignedMul = ((dst->gtFlags & GTF_UNSIGNED) != 0);
             assert(intConst == nullptr); // overflow format doesn't support an int constant operand
         }
         else
@@ -7757,17 +7762,10 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
         {
             NYI_ARM("emitInsTernary overflow");
 #if 0
-            // Make sure that we have an internal register
-            assert(genCountBits(dst->gtRsvdRegs) == 2);
+            regNumber extraReg = dst->GetSingleTempReg();
+            assert(extraReg != dst->gtRegNum);
 
-            // There will be two bits set in tmpRegsMask.
-            // Remove the bit for 'dst->gtRegNum' from 'tmpRegsMask'
-            regMaskTP tmpRegsMask = dst->gtRsvdRegs & ~genRegMask(dst->gtRegNum);
-            assert(tmpRegsMask != RBM_NONE);
-            regMaskTP tmpRegMask = genFindLowestBit(tmpRegsMask); // set tmpRegMsk to a one-bit mask
-            extraReg             = genRegNumFromMask(tmpRegMask); // set tmpReg from that mask
-
-            if (isUnsignedMul)
+            if ((dst->gtFlags & GTF_UNSIGNED) != 0)
             {
                 if (attr == EA_4BYTE)
                 {
@@ -7787,7 +7785,7 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
                     emitIns_R_R_R(ins, attr, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
                 }
 
-                // zero-sign bit comparision to detect overflow.
+                // zero-sign bit comparison to detect overflow.
                 emitIns_R_I(INS_cmp, attr, extraReg, 0);
             }
             else
@@ -7815,7 +7813,7 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
                     bitShift = 63;
                 }
 
-                // Sign bit comparision to detect overflow.
+                // Sign bit comparison to detect overflow.
                 emitIns_R_R_I(INS_cmp, attr, extraReg, dst->gtRegNum, bitShift, INS_OPTS_ASR);
             }
 #endif

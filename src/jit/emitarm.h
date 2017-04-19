@@ -10,10 +10,8 @@
 
 struct CnsVal
 {
-    int cnsVal;
-#ifdef RELOC_SUPPORT
+    int  cnsVal;
     bool cnsReloc;
-#endif
 };
 
 insSize emitInsSize(insFormat insFmt);
@@ -234,6 +232,13 @@ inline static bool insOptsROR(insOpts opt)
     return (opt == INS_OPTS_ROR);
 }
 
+// Returns the number of bits used by the given 'size'.
+inline static unsigned getBitWidth(emitAttr size)
+{
+    assert(size <= EA_8BYTE);
+    return (unsigned)size * BITS_PER_BYTE;
+}
+
 /************************************************************************/
 /*           The public entry points to output instructions             */
 /************************************************************************/
@@ -245,6 +250,7 @@ static bool emitIns_valid_imm_for_small_mov(regNumber reg, int imm, insFlags fla
 static bool emitIns_valid_imm_for_add(int imm, insFlags flags);
 static bool emitIns_valid_imm_for_cmp(int imm, insFlags flags);
 static bool emitIns_valid_imm_for_add_sp(int imm);
+static bool emitIns_valid_imm_for_ldst_offset(int imm, emitAttr size);
 
 void emitIns(instruction ins);
 

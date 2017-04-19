@@ -2413,6 +2413,7 @@ void Compiler::fgComputeDoms()
     bbRoot.bbNum    = 0;
     bbRoot.bbIDom   = &bbRoot;
     bbRoot.bbDfsNum = 0;
+    bbRoot.bbFlags  = 0;
     flRoot.flNext   = nullptr;
     flRoot.flBlock  = &bbRoot;
 
@@ -2534,6 +2535,8 @@ void Compiler::fgComputeDoms()
             block->bbPreds = nullptr;
         }
     }
+
+    fgCompDominatedByExceptionalEntryBlocks();
 
 #ifdef DEBUG
     if (verbose)
@@ -7222,7 +7225,6 @@ GenTreePtr Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
 
             call = gtNewHelperCallNode(CORINFO_HELP_READYTORUN_DELEGATE_CTOR, TYP_VOID, GTF_EXCEPT, helperArgs);
 
-            assert(ldftnToken == targetMethod->gtFptrVal.gtLdftnResolvedToken);
             CORINFO_LOOKUP entryPoint;
             info.compCompHnd->getReadyToRunDelegateCtorHelper(ldftnToken, clsHnd, &entryPoint);
             assert(!entryPoint.lookupKind.needsRuntimeLookup);
@@ -7628,7 +7630,7 @@ GenTreePtr Compiler::fgGetCritSectOfStaticMethod()
     return tree;
 }
 
-#if !defined(_TARGET_X86_)
+#if FEATURE_EH_FUNCLETS
 
 /*****************************************************************************
  *
@@ -8003,7 +8005,7 @@ void Compiler::fgConvertSyncReturnToLeave(BasicBlock* block)
 #endif
 }
 
-#endif // !_TARGET_X86_
+#endif // FEATURE_EH_FUNCLETS
 
 //------------------------------------------------------------------------
 // fgAddReversePInvokeEnterExit: Add enter/exit calls for reverse PInvoke methods
@@ -8264,7 +8266,7 @@ void Compiler::fgAddInternal()
         }
     }
 
-#if !defined(_TARGET_X86_)
+#if FEATURE_EH_FUNCLETS
     // Add the synchronized method enter/exit calls and try/finally protection. Note
     // that this must happen before the one BBJ_RETURN block is created below, so the
     // BBJ_RETURN block gets placed at the top-level, not within an EH region. (Otherwise,
@@ -8274,7 +8276,7 @@ void Compiler::fgAddInternal()
     {
         fgAddSyncMethodEnterExit();
     }
-#endif // !_TARGET_X86_
+#endif // FEATURE_EH_FUNCLETS
 
     if (oneReturn)
     {
@@ -8493,7 +8495,7 @@ void Compiler::fgAddInternal()
 #endif
     }
 
-#if defined(_TARGET_X86_)
+#if !FEATURE_EH_FUNCLETS
 
     /* Is this a 'synchronized' method? */
 
@@ -8569,7 +8571,7 @@ void Compiler::fgAddInternal()
         syncEndEmitCookie   = NULL;
     }
 
-#endif // _TARGET_X86_
+#endif // !FEATURE_EH_FUNCLETS
 
     /* Do we need to do runtime call out to check the security? */
 
@@ -9122,7 +9124,7 @@ void Compiler::fgSimpleLowering()
                         else
                         {
                             con             = gtNewIconNode(arrLen->ArrLenOffset(), TYP_I_IMPL);
-                            con->gtRsvdRegs = 0;
+                            con->gtRsvdRegs = RBM_NONE;
 
                             add             = gtNewOperNode(GT_ADD, TYP_REF, arr, con);
                             add->gtRsvdRegs = arr->gtRsvdRegs;
@@ -25081,4 +25083,31 @@ unsigned Compiler::fgMeasureIR()
     }
 
     return nodeCount;
+}
+
+//------------------------------------------------------------------------
+// fgCompDominatedByExceptionalEntryBlocks: compute blocks that are
+// dominated by not normal entry.
+//
+void Compiler::fgCompDominatedByExceptionalEntryBlocks()
+{
+    assert(fgEnterBlksSetValid);
+    if (BlockSetOps::Count(this, fgEnterBlks) != 1) // There are exception entries.
+    {
+        for (unsigned i = 1; i <= fgBBNumMax; ++i)
+        {
+            BasicBlock* block = fgBBInvPostOrder[i];
+            if (BlockSetOps::IsMember(this, fgEnterBlks, block->bbNum))
+            {
+                if (fgFirstBB != block) // skip the normal entry.
+                {
+                    block->SetDominatedByExceptionalEntryFlag();
+                }
+            }
+            else if (block->bbIDom->IsDominatedByExceptionalEntryFlag())
+            {
+                block->SetDominatedByExceptionalEntryFlag();
+            }
+        }
+    }
 }

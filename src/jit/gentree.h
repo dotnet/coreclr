@@ -733,6 +733,13 @@ public:
     ValueNumPair gtVNPair;
 
     regMaskSmall gtRsvdRegs; // set of fixed trashed  registers
+
+#ifndef LEGACY_BACKEND
+    unsigned AvailableTempRegCount(regMaskTP mask = (regMaskTP)-1) const;
+    regNumber GetSingleTempReg(regMaskTP mask = (regMaskTP)-1);
+    regNumber ExtractTempReg(regMaskTP mask = (regMaskTP)-1);
+#endif // !LEGACY_BACKEND
+
 #ifdef LEGACY_BACKEND
     regMaskSmall gtUsedRegs; // set of used (trashed) registers
 #endif                       // LEGACY_BACKEND
@@ -3715,8 +3722,7 @@ struct GenTreeFptrVal : public GenTree
     CORINFO_METHOD_HANDLE gtFptrMethod;
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    CORINFO_CONST_LOOKUP    gtEntryPoint;
-    CORINFO_RESOLVED_TOKEN* gtLdftnResolvedToken;
+    CORINFO_CONST_LOOKUP gtEntryPoint;
 #endif
 
     GenTreeFptrVal(var_types type, CORINFO_METHOD_HANDLE meth) : GenTree(GT_FTN_ADDR, type), gtFptrMethod(meth)
@@ -4166,6 +4172,7 @@ struct GenTreeAddrMode : public GenTreeOp
     GenTreeAddrMode(var_types type, GenTreePtr base, GenTreePtr index, unsigned scale, unsigned offset)
         : GenTreeOp(GT_LEA, type, base, index)
     {
+        assert(base != nullptr || index != nullptr);
         gtScale  = scale;
         gtOffset = offset;
     }
