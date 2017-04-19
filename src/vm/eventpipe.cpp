@@ -20,6 +20,9 @@ bool EventPipe::s_tracingEnabled = false;
 EventPipeConfiguration* EventPipe::s_pConfig = NULL;
 EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
 
+// this function is generated from /src/scripts/genEventPipe.py
+extern "C" void InitProvidersAndEvents();
+
 void EventPipe::Initialize()
 {
     STANDARD_VM_CONTRACT;
@@ -29,6 +32,7 @@ void EventPipe::Initialize()
         (CrstFlags)(CRST_TAKEN_DURING_SHUTDOWN));
 
     s_pConfig = new EventPipeConfiguration();
+    InitProvidersAndEvents();
 }
 
 void EventPipe::EnableOnStartup()
