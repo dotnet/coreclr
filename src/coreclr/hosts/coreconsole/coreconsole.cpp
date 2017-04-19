@@ -541,15 +541,17 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
 
     log << W("Unloading the AppDomain") << Logger::endl;
 
-    hr = host->UnloadAppDomain(
+    hr = host->UnloadAppDomain2(
         domainId, 
-        true);                          // Wait until done
+        true,
+        (int *)&exitCode);                          // Wait until done
 
     if (FAILED(hr)) {
         log << W("Failed to unload the AppDomain. ERRORCODE: ") << hr << Logger::endl;
         return false;
     }
 
+    log << W("App domain unloaded exit value = ") << exitCode << Logger::endl;
 
     //-------------------------------------------------------------
 
