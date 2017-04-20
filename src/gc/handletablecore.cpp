@@ -1076,6 +1076,7 @@ void TableRelocateAsyncPinHandles(HandleTable *pTable, HandleTable *pTargetTable
 
     BOOL fGotException = FALSE;
     TableSegment *pSegment = pTable->pSegmentList;
+    bool wasSuccessful = true;
     
 #ifdef _DEBUG
     // on debug builds, execute the OOM path 10% of the time.
@@ -1084,7 +1085,6 @@ void TableRelocateAsyncPinHandles(HandleTable *pTable, HandleTable *pTargetTable
 #endif
 
     // Step 1: replace pinning handles with ones from default domain
-    bool wasSuccessful = true;
     while (pSegment)
     {
         wasSuccessful = wasSuccessful && SegmentRelocateAsyncPinHandles (pSegment, pTargetTable);
