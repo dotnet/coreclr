@@ -816,6 +816,7 @@ NESTED_END ExternalMethodFixupStub, _TEXT
 
 #ifdef FEATURE_READYTORUN
 NESTED_ENTRY DynamicHelperArgsStub, _TEXT, NoHandler
+    .cfi_def_cfa_offset 16
     CHECK_STACK_ALIGNMENT
     call  eax
     add   esp, 12
