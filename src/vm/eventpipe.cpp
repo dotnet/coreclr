@@ -169,6 +169,8 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, size_t length)
             {
                 wszProviderID[0] = '\0';
             }
+            memmove(wszProviderID, &wszProviderID[1], guidSize-3);
+            wszProviderID[guidSize-3] = '\0';
             SString message;
             message.Printf("Provider=%S/EventID=%d/Version=%d", wszProviderID, event.GetEventID(), event.GetEventVersion());
             s_pJsonFile->WriteEvent(eventFields, message, stackContents);
