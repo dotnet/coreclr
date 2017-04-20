@@ -1160,16 +1160,14 @@ namespace System.Text
             if (values.Length == 0)
                 return this;
 
-            var value = values[0];
-            if (value != null)
-                Append(value.ToString());
+            if (values[0] != null)
+                Append(values[0].ToString());
 
             for (var i = 1; i < values.Length; i++)
             {
                 Append(separator, separatorLength);
-                value = values[i];
-                if (value != null)
-                    Append(value.ToString());
+                if (values[i] != null)
+                    Append(values[i].ToString());
             }
             return this;
         }
