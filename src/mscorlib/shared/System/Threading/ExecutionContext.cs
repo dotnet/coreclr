@@ -13,6 +13,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.Serialization;
 
@@ -40,6 +41,33 @@ namespace System.Threading
             if (currentThread.ExecutionContext != m_ec)
             {
                 ExecutionContext.Restore(currentThread, m_ec);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool CurrentIsDefault(Thread currentThread, ExecutionContext defaultContext)
+        {
+            Debug.Assert(currentThread == Thread.CurrentThread);
+            Debug.Assert(defaultContext == ExecutionContext.Default);
+
+            return (currentThread.ExecutionContext == defaultContext && currentThread.SynchronizationContext == null);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void UndoToDefault(Thread currentThread, ExecutionContext defaultContext)
+        {
+            Debug.Assert(currentThread == Thread.CurrentThread);
+            Debug.Assert(defaultContext == ExecutionContext.Default);
+
+            // The common case is that these have not changed, so avoid the cost of a write if not needed.
+            if (currentThread.SynchronizationContext != null)
+            {
+                currentThread.SynchronizationContext = null;
+            }
+
+            if (currentThread.ExecutionContext != defaultContext)
+            {
+                ExecutionContext.RestoreDefault(currentThread, defaultContext);
             }
         }
     }
@@ -165,16 +193,54 @@ namespace System.Threading
             ecsw.Undo(currentThread);
         }
 
+        internal static void RunDefaultContext(ContextCallback callback, Object state)
+        {
+            ExecutionContext defaultContext = Default;
+            Thread currentThread = Thread.CurrentThread;
+            if (ExecutionContextSwitcher.CurrentIsDefault(currentThread, defaultContext))
+            {
+                try
+                {
+                    callback(state);
+                }
+                finally
+                {
+                    ExecutionContextSwitcher.UndoToDefault(currentThread, defaultContext);
+                }
+            }
+            else
+            {
+                Run(defaultContext, callback, state);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void RestoreDefault(Thread currentThread, ExecutionContext defaultContext)
+        {
+            Debug.Assert(currentThread == Thread.CurrentThread);
+            Debug.Assert(defaultContext == ExecutionContext.Default);
+
+            ExecutionContext previous = currentThread.ExecutionContext;
+            currentThread.ExecutionContext = defaultContext;
+
+            // For the purposes of dealing with context change, null counts as the default EC
+            if (previous != null)
+            {
+                OnContextChanged(previous, defaultContext);
+            }
+        }
+
         internal static void Restore(Thread currentThread, ExecutionContext executionContext)
         {
             Debug.Assert(currentThread == Thread.CurrentThread);
 
-            ExecutionContext previous = currentThread.ExecutionContext ?? Default;
+            ExecutionContext defaultContext = Default;
+            ExecutionContext previous = currentThread.ExecutionContext ?? defaultContext;
             currentThread.ExecutionContext = executionContext;
 
             // New EC could be null if that's what ECS.Undo saved off.
             // For the purposes of dealing with context change, treat this as the default EC
-            executionContext = executionContext ?? Default;
+            executionContext = executionContext ?? defaultContext;
 
             if (previous != executionContext)
             {
