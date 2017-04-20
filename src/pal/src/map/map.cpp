@@ -49,7 +49,7 @@ SET_DEFAULT_DEBUG_CHANNEL(VIRTUAL);
 // This is temporary until #10981 merges.
 // There will be an equivalent but opposite temporary fix in #10981 which
 // will trigger a merge conflict to be sure both of these workarounds are removed
-#define VirtualPageSize() VIRTUAL_PAGE_SIZE
+#define GetVirtualPageSize() VIRTUAL_PAGE_SIZE
 
 //
 // The mapping critical section guards access to the list
@@ -2019,14 +2019,14 @@ BOOL MAPGetRegionInfo(LPVOID lpAddress,
         real_map_sz = pView->NumberOfBytesToMap;
 #endif
 
-        MappedSize = ALIGN_UP(real_map_sz, VirtualPageSize());
+        MappedSize = ALIGN_UP(real_map_sz, GetVirtualPageSize());
         if ( real_map_addr <= lpAddress && 
              (VOID *)((UINT_PTR)real_map_addr+MappedSize) > lpAddress )
         {
             if (lpBuffer)
             {
                 SIZE_T regionSize = MappedSize + (UINT_PTR) real_map_addr -
-                       ALIGN_DOWN((UINT_PTR)lpAddress, VirtualPageSize());
+                       ALIGN_DOWN((UINT_PTR)lpAddress, GetVirtualPageSize());
 
                 lpBuffer->BaseAddress = lpAddress;
                 lpBuffer->AllocationProtect = 0;
@@ -2248,7 +2248,7 @@ MAPmmapAndRecord(
     PAL_ERROR palError = NO_ERROR;
     LPVOID pvBaseAddress = NULL;
 
-    off_t adjust = offset & (VirtualPageSize() - 1);
+    off_t adjust = offset & (GetVirtualPageSize() - 1);
 
     pvBaseAddress = mmap(static_cast<char *>(addr) - adjust, len + adjust, prot, flags, fd, offset - adjust);
     if (MAP_FAILED == pvBaseAddress)
@@ -2417,7 +2417,7 @@ void * MAPMapPEFile(HANDLE hFile)
     {
         //if we're forcing relocs, create an anonymous mapping at the preferred base.  Only create the
         //mapping if we can create it at the specified address.
-        pForceRelocBase = mmap( (void*)preferredBase, VirtualPageSize(), PROT_NONE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0 );
+        pForceRelocBase = mmap( (void*)preferredBase, GetVirtualPageSize(), PROT_NONE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0 );
         if (pForceRelocBase == MAP_FAILED)
         {
             TRACE_(LOADER)("Attempt to take preferred base of %p to force relocation failed\n", (void*)preferredBase);
@@ -2446,7 +2446,7 @@ void * MAPMapPEFile(HANDLE hFile)
     // First try to reserve virtual memory using ExecutableAllcator. This allows all PE images to be
     // near each other and close to the coreclr library which also allows the runtime to generate
     // more efficient code (by avoiding usage of jump stubs).
-    loadedBase = ReserveMemoryFromExecutableAllocator(pThread, ALIGN_UP(virtualSize, VirtualPageSize()));
+    loadedBase = ReserveMemoryFromExecutableAllocator(pThread, ALIGN_UP(virtualSize, GetVirtualPageSize()));
     if (loadedBase == NULL)
     {
         // MAC64 requires we pass MAP_SHARED (or MAP_PRIVATE) flags - otherwise, the call is failed.
@@ -2469,7 +2469,7 @@ void * MAPMapPEFile(HANDLE hFile)
     if (forceRelocs)
     {
         _ASSERTE(((SIZE_T)loadedBase) != preferredBase);
-        munmap(pForceRelocBase, VirtualPageSize()); // now that we've forced relocation, let the original address mapping go
+        munmap(pForceRelocBase, GetVirtualPageSize()); // now that we've forced relocation, let the original address mapping go
     }
     if (((SIZE_T)loadedBase) != preferredBase)
     {
@@ -2485,7 +2485,7 @@ void * MAPMapPEFile(HANDLE hFile)
     //separately.
 
     size_t headerSize;
-    headerSize = VirtualPageSize(); // if there are lots of sections, this could be wrong
+    headerSize = GetVirtualPageSize(); // if there are lots of sections, this could be wrong
 
     //first, map the PE header to the first page in the image.  Get pointers to the section headers
     palError = MAPmmapAndRecord(pFileObject, loadedBase,
@@ -2531,7 +2531,7 @@ void * MAPMapPEFile(HANDLE hFile)
         IMAGE_SECTION_HEADER &currentHeader = firstSection[i];
 
         void* sectionBase = (char*)loadedBase + currentHeader.VirtualAddress;
-        void* sectionBaseAligned = ALIGN_DOWN(sectionBase, VirtualPageSize());
+        void* sectionBaseAligned = ALIGN_DOWN(sectionBase, GetVirtualPageSize());
 
         // Validate the section header
         if (   (sectionBase < loadedBase)                                                           // Did computing the section base overflow?
@@ -2601,7 +2601,7 @@ void * MAPMapPEFile(HANDLE hFile)
         }
 #endif // _DEBUG
 
-        prevSectionEnd = ALIGN_UP((char*)sectionBase + currentHeader.SizeOfRawData, VirtualPageSize()); // round up to page boundary
+        prevSectionEnd = ALIGN_UP((char*)sectionBase + currentHeader.SizeOfRawData, GetVirtualPageSize()); // round up to page boundary
     }
 
     // Is there space after the last section and before the end of the mapped image? If so, add a PROT_NONE mapping to cover it.
