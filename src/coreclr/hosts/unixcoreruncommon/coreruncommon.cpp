@@ -272,7 +272,7 @@ const char* GetEnvValueBoolean(const char* envVariable)
         envValue = "0";
     }
     // CoreCLR expects strings "true" and "false" instead of "1" and "0".
-    return std::strcmp(envValue, "1") == 0 ? "true" : "false";
+    return (std::strcmp(envValue, "1") == 0 || strcasecmp(envValue, "true") == 0) ? "true" : "false";
 }
 
 int ExecuteManagedAssembly(
