@@ -2692,15 +2692,11 @@ void CodeGen::genExitCode(BasicBlock* block)
 
 void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTreePtr failBlk)
 {
-    // For non-debuggable code, find and use the helper block for
-    // raising the exception. The block may be shared by other trees too.
-    //
-    // Otherwise, the code to throw the exception will be generated inline,
-    // and we will jump around it in the normal non-exception case
-    bool useExnThrowingBlock = !compiler->opts.compDbgCode;
-
-    if (useExnThrowingBlock)
+    if (!compiler->opts.compDbgCode)
     {
+        /* For non-debuggable code, find and use the helper block for
+           raising the exception. The block may be shared by other trees too. */
+
         BasicBlock* tgtBlk;
 
         if (failBlk)
@@ -2731,6 +2727,9 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
     }
     else
     {
+        /* The code to throw the exception will be generated inline, and
+           we will jump around it in the normal non-exception case */
+
         BasicBlock*  tgtBlk          = nullptr;
         emitJumpKind reverseJumpKind = emitter::emitReverseJumpKind(jumpKind);
         if (reverseJumpKind != jumpKind)
