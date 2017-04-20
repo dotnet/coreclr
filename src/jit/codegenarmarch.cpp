@@ -1348,13 +1348,15 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
             switch (gcPtrs[i])
             {
                 case TYPE_GC_NONE:
-// TODO-ARM64-CQ: Consider using LDP/STP to save codesize in case of contigous NON-GC slots.
 #if defined(_TARGET_ARM_)
-                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, srcReg, TARGET_POINTER_SIZE);
-                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, dstReg, TARGET_POINTER_SIZE);
+                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE);
+                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE);
 #elif defined(_TARGET_ARM64_)
-                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, srcReg, TARGET_POINTER_SIZE, INS_OPTS_POST_INDEX);
-                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, dstReg, TARGET_POINTER_SIZE, INS_OPTS_POST_INDEX);
+                    // TODO-ARM64-CQ: Consider using LDP/STP to save codesize in case of contigous NON-GC slots.
+                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
+                                        INS_OPTS_POST_INDEX);
+                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
+                                        INS_OPTS_POST_INDEX);
 #endif
                     break;
 
@@ -1382,7 +1384,6 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
     sourceRegMask = RBM_WRITE_BARRIER_SRC_BYREF;
 #endif
     gcInfo.gcMarkRegSetNpt(sourceRegMask | destRegMask);
->>>>>>> Implement CodeGen::genCodeForCpObj
 }
 
 // Generate code for a CpBlk node by the means of the VM memcpy helper call

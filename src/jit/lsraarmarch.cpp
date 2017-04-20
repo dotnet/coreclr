@@ -788,22 +788,13 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
             // a temporary register to perform the sequence of loads and stores.
             blkNode->gtLsraInfo.internalIntCount = 1;
 
-            regMaskTP dstAddrRegMask, sourceRegMask;
-#if defined(_TARGET_ARM_)
-            dstAddrRegMask = RBM_ARG_0;
-            sourceRegMask  = RBM_ARG_1;
-#elif defined(_TARGET_ARM64_)
-            dstAddrRegMask = RBM_WRITE_BARRIER_DST_BYREF;
+            dstAddr->gtLsraInfo.setSrcCandidates(l, RBM_WRITE_BARRIER_DST_BYREF);
             // If we have a source address we want it in REG_WRITE_BARRIER_SRC_BYREF.
             // Otherwise, if it is a local, codegen will put its address in REG_WRITE_BARRIER_SRC_BYREF,
             // which is killed by a StoreObj (and thus needn't be reserved).
-            sourceRegMask = RBM_WRITE_BARRIER_SRC_BYREF;
-#endif // _TARGET_ARM64_*
-            dstAddr->gtLsraInfo.setSrcCandidates(l, dstAddrRegMask);
-
             if (srcAddrOrFill != nullptr)
             {
-                srcAddrOrFill->gtLsraInfo.setSrcCandidates(l, sourceRegMask);
+                srcAddrOrFill->gtLsraInfo.setSrcCandidates(l, RBM_WRITE_BARRIER_SRC_BYREF);
             }
         }
         else
