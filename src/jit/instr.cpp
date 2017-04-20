@@ -239,11 +239,11 @@ void CodeGen::instNop(unsigned size)
 void CodeGen::inst_JMP(emitJumpKind jmp, BasicBlock* tgtBlock)
 {
 #if !FEATURE_FIXED_OUT_ARGS
-    // On the x86 we are pushing (and changing the stack level), but on x64 and other archs we have
-    // a fixed outgoing args area that we store into and we never change the stack level when calling methods.
-    //
-    // Thus only on x86 do we need to assert that the stack level at the target block matches the current stack level.
-    //
+// On the x86 we are pushing (and changing the stack level), but on x64 and other archs we have
+// a fixed outgoing args area that we store into and we never change the stack level when calling methods.
+//
+// Thus only on x86 do we need to assert that the stack level at the target block matches the current stack level.
+//
 #ifndef UNIX_X86_ABI
     assert(tgtBlock->bbTgtStkDepth * sizeof(int) == genStackLevel || isFramePointerUsed());
 #else
