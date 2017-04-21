@@ -823,6 +823,10 @@ namespace System.Runtime.InteropServices
             }
         }
 
+        [System.Security.SecurityCritical]  // auto-generated_required
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern /* struct _EXCEPTION_POINTERS* */ IntPtr GetExceptionPointers();
+        
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern int GetExceptionCode();
 
