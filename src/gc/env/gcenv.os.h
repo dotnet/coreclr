@@ -52,7 +52,7 @@ struct GCThreadAffinity
 // the GC.
 //
 // Note that GCEvent deliberately leaks its contents by not having a non-trivial destructor.
-// This is by design; since many uses of GCEvent have static lifetime, their destructors
+// This is by design; since all uses of GCEvent have static lifetime, their destructors
 // are run on process exit, potentially concurrently with other threads that may still be
 // operating on the static event. To avoid these sorts of unsafety, GCEvent chooses to
 // not have a destructor at all. The cost of this is leaking a small amount of memory, but
