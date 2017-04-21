@@ -3775,12 +3775,18 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     hasMultiregStructArgs = true;
                 }
 #elif defined(_TARGET_ARM_)
-                // TODO-Arm: Where structs passed by value can be split between
-                // registers and stack?
+                // TODO-Arm: Need to handle the case
+                // where structs passed by value can be split between registers and stack.
                 if (size > 1 && size <= 4)
                 {
                     hasMultiregStructArgs = true;
                 }
+#ifndef LEGACY_BACKEND
+                else if (size > 4 && passUsingIntRegs)
+                {
+                    NYI("Struct can be split between registers and stack");
+                }
+#endif // !LEGACY_BACKEND
 #endif // _TARGET_ARM_
             }
 
