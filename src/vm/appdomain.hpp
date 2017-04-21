@@ -1245,7 +1245,13 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 
-        return ::CreateHandleCommon(m_handleStore, OBJECTREFToObject(object), type);
+        OBJECTHANDLE hnd = m_handleStore->CreateHandleOfType(OBJECTREFToObject(object), type);
+        if (!hnd)
+        {
+            COMPlusThrowOM();
+        }
+
+        return hnd;
     }
 
     OBJECTHANDLE CreateHandle(OBJECTREF object)
@@ -1344,7 +1350,13 @@ public:
         }
         CONTRACTL_END;
 
-        return ::CreateDependentHandle(m_handleStore, primary, secondary);
+        OBJECTHANDLE hnd = m_handleStore->CreateDependentHandle(OBJECTREFToObject(primary), OBJECTREFToObject(secondary));
+        if (!hnd)
+        {
+            COMPlusThrowOM();
+        }
+
+        return hnd;
     }
 #endif // DACCESS_COMPILE && !CROSSGEN_COMPILE
 
