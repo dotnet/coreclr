@@ -1739,8 +1739,12 @@ combinedScenarios.each { scenario ->
                     // Skip totally unimplemented (in CI) configurations.
                     switch (architecture) {
                         case 'arm64':
+                            if (os == 'Ubuntu16.04') {
+                                os = 'Ubuntu'
+                            }
+
                             // Windows and Ubuntu only
-                            if ((os != "Windows_NT" && os != "Ubuntu") || isBuildOnly) {
+                            if ((os != 'Windows_NT' && os != 'Ubuntu') || isBuildOnly) {
                                 return
                             }
                             break
