@@ -59,9 +59,6 @@ public:
     // Constructs a new uninitialized event.
     GCEvent();
 
-    // Destructs an event.
-    ~GCEvent();
-
     // Closes the event. Attempting to use the event past calling CloseEvent
     // is a logic error.
     void CloseEvent();
