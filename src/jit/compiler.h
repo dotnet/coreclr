@@ -1218,13 +1218,13 @@ struct fgArgTabEntry
     regNumber otherRegNum; // The (second) register to use when passing this argument.
 
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-#elif defined(_TARGET_X86_)
+#elif !defined(_TARGET_64BIT_)
     __declspec(property(get = getIsStruct)) bool isStruct;
     bool getIsStruct()
     {
         return varTypeIsStruct(node);
     }
-#endif // _TARGET_X86_
+#endif // !_TARGET_64BIT_
 
 #ifdef _TARGET_ARM_
     void SetIsHfaRegArg(bool hfaRegArg)
@@ -9472,6 +9472,7 @@ const instruction INS_XOR             = INS_eor;
 const instruction INS_NEG             = INS_rsb;
 const instruction INS_TEST            = INS_tst;
 const instruction INS_MUL             = INS_mul;
+const instruction INS_MULADD          = INS_mla;
 const instruction INS_SIGNED_DIVIDE   = INS_sdiv;
 const instruction INS_UNSIGNED_DIVIDE = INS_udiv;
 const instruction INS_BREAKPOINT      = INS_bkpt;
@@ -9497,6 +9498,7 @@ const instruction INS_XOR             = INS_eor;
 const instruction INS_NEG             = INS_neg;
 const instruction INS_TEST            = INS_tst;
 const instruction INS_MUL             = INS_mul;
+const instruction INS_MULADD          = INS_madd;
 const instruction INS_SIGNED_DIVIDE   = INS_sdiv;
 const instruction INS_UNSIGNED_DIVIDE = INS_udiv;
 const instruction INS_BREAKPOINT      = INS_bkpt;

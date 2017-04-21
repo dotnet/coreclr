@@ -1380,7 +1380,7 @@ public:
     static BOOL CanEnableGCNumaAware();
     static void InitNumaNodeInfo();
 
-#if !defined(FEATURE_REDHAWK)&& !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
 private:	// apis types
 
     //GetNumaHighestNodeNumber()
@@ -1448,7 +1448,7 @@ public:
     static DWORD CalculateCurrentProcessorNumber();
     //static void PopulateCPUUsageArray(void * infoBuffer, ULONG infoSize);
 
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
 private:
     //GetLogicalProcessorInforomationEx()
     typedef BOOL
@@ -5109,9 +5109,9 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip);
 //----------------------------------------------------------------------------------------
 struct CoreClrCallbacks
 {
-    typedef IExecutionEngine* (__stdcall * pfnIEE_t)();
-    typedef HRESULT (__stdcall * pfnGetCORSystemDirectory_t)(SString& pbuffer);
-    typedef void* (__stdcall * pfnGetCLRFunction_t)(LPCSTR functionName);
+    typedef IExecutionEngine* (* pfnIEE_t)();
+    typedef HRESULT (* pfnGetCORSystemDirectory_t)(SString& pbuffer);
+    typedef void* (* pfnGetCLRFunction_t)(LPCSTR functionName);
 
     HINSTANCE                   m_hmodCoreCLR;
     pfnIEE_t                    m_pfnIEE;
@@ -5516,6 +5516,6 @@ extern SpinConstants g_SpinConstants;
 
 // ======================================================================================
 
-void* __stdcall GetCLRFunction(LPCSTR FunctionName);
+void* GetCLRFunction(LPCSTR FunctionName);
 
 #endif // __UtilCode_h__
