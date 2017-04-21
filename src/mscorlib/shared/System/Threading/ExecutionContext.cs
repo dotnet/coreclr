@@ -71,7 +71,6 @@ namespace System.Threading
             }
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void SetDefaults()
         {
@@ -130,6 +129,7 @@ namespace System.Threading
         {
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ExecutionContext Capture()
         {
             ExecutionContext executionContext = Thread.CurrentThread.ExecutionContext;
