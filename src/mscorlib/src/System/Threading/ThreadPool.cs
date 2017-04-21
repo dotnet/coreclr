@@ -492,7 +492,7 @@ namespace System.Threading
         internal static bool Dispatch()
         {
             // Put threadpool thread on default context
-            Thread.CurrentThread.ExecutionContext = ExecutionContext.Default;
+            ExecutionContextSwitcher.SetDefaults();
 
             var workQueue = ThreadPoolGlobals.workQueue;
             //
@@ -943,6 +943,9 @@ namespace System.Threading
                 WaitCallback cb = callback;
                 callback = null;
                 cb(state);
+
+                // Restore Threadpool thread to defaults if changed by callback
+                ExecutionContextSwitcher.SetDefaults();
             }
             else
             {

@@ -70,6 +70,26 @@ namespace System.Threading
                 ExecutionContext.RestoreDefault(currentThread, defaultContext);
             }
         }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void SetDefaults()
+        {
+            var currentThread = Thread.CurrentThread;
+            var defaultContext = ExecutionContext.Default;
+
+            // The common case is that these have not changed, 
+            // so avoid the GC memory barrier cost of a write if not needed.
+            if (currentThread.SynchronizationContext != null)
+            {
+                currentThread.SynchronizationContext = null;
+            }
+
+            if (currentThread.ExecutionContext != defaultContext)
+            {
+                currentThread.ExecutionContext = defaultContext;
+            }
+        }
     }
 
     [Serializable]
