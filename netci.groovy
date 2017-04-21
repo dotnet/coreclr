@@ -90,8 +90,8 @@ def static setMachineAffinity(def job, def os, def architecture) {
         Utilities.setMachineAffinity(job, os, 'latest-arm64');
     } else if (architecture == 'arm64' && os == 'Ubuntu') {
         Utilities.setMachineAffinity(job, os, 'arm64-small-page-size');
-    } else if (architecture == 'arm64' && os == 'Ubuntu') {
-        Utilities.setMachineAffinity(job, os, 'arm-cross-latest');
+    } else if (architecture == 'arm64' && os == 'Ubuntu16.04') {
+        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size');
     } else if ((architecture == 'arm') && (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen')) {
         Utilities.setMachineAffinity(job, 'Ubuntu', 'arm-cross-latest');
     } else {
@@ -1740,7 +1740,7 @@ combinedScenarios.each { scenario ->
                     switch (architecture) {
                         case 'arm64':
                             // Windows and Ubuntu only
-                            if ((os != "Windows_NT" && os != "Ubuntu" && os != "Ubuntu16.04") || isBuildOnly) {
+                            if ((os != "Windows_NT" && os != "Ubuntu") || isBuildOnly) {
                                 return
                             }
                             break
