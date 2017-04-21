@@ -2054,10 +2054,22 @@ combinedScenarios.each { scenario ->
 combinedScenarios.each { scenario ->
     [true, false].each { isPR ->
         // Architectures.  x64 only at this point
-        ['x64'].each { architecture ->
+        ['x64', 'arm64'].each { architecture ->
             // Put the OS's supported for coreclr cross testing here
             Constants.crossList.each { os ->
+                if (architecture == 'arm64') {
+                    if (os != "Ubuntu") {
+                        return
+                    }
+                }
+
                 Constants.configurationList.each { configuration ->
+
+                    if (architecture == 'arm64') {
+                        if (scenario != 'default' && scenario != 'pri1r2r' && scenario != 'gcstress0x3' && scenario != 'gcstress0xc') {
+                            return
+                        }
+                    }
 
                     if (Constants.jitStressModeScenarios.containsKey(scenario)) {
                         if (configuration != 'Checked') {
