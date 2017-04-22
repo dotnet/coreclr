@@ -174,10 +174,11 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <summary>Completes the method builder successfully.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetResult()
         {
             if (AsyncCausalityTracer.LoggingOn)
-                AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, this.Task.Id, AsyncCausalityStatus.Completed);
+                TraceCompletion(AsyncCausalityStatus.Completed);
 
             if (m_synchronizationContext != null)
             {
@@ -195,7 +196,7 @@ namespace System.Runtime.CompilerServices
             Contract.EndContractBlock();
 
             if (AsyncCausalityTracer.LoggingOn)
-                AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, this.Task.Id, AsyncCausalityStatus.Error);
+                TraceCompletion(AsyncCausalityStatus.Error);
 
             if (m_synchronizationContext != null)
             {
@@ -217,6 +218,12 @@ namespace System.Runtime.CompilerServices
                 // file or a CLR host.
                 AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void TraceCompletion(AsyncCausalityStatus status)
+        {
+            AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, this.Task.Id, status);
         }
 
         /// <summary>Notifies the current synchronization context that the operation completed.</summary>
@@ -294,7 +301,6 @@ namespace System.Runtime.CompilerServices
 
             Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
-
             ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
             stateMachine.MoveNext();
             ecs.Undo(currentThread);
@@ -561,6 +567,7 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         /// <param name="result">The result to use to complete the task.</param>
         /// <exception cref="System.InvalidOperationException">The task has already completed.</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetResult(TResult result)
         {
             // Get the currently stored task, which will be non-null if get_Task has already been accessed.
@@ -617,6 +624,7 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         /// <param name="completedTask">A task already completed with the value default(TResult).</param>
         /// <exception cref="System.InvalidOperationException">The task has already completed.</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetResult(Task<TResult> completedTask)
         {
             Contract.Requires(completedTask != null, "Expected non-null task");
