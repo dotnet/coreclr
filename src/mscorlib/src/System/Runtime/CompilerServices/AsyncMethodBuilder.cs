@@ -11,13 +11,10 @@
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Runtime.ExceptionServices;
-using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -42,6 +39,7 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Initializes a new <see cref="AsyncVoidMethodBuilder"/>.</summary>
         /// <returns>The initialized <see cref="AsyncVoidMethodBuilder"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AsyncVoidMethodBuilder Create()
         {
             // Capture the current sync context.  If there isn't one, use the dummy s_noContextCaptured
@@ -58,6 +56,7 @@ namespace System.Runtime.CompilerServices
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         /// <exception cref="System.ArgumentNullException">The <paramref name="stateMachine"/> argument was null (Nothing in Visual Basic).</exception>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
         {
             // See comment on AsyncMethodBuilderCore.Start
@@ -271,6 +270,7 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Initializes a new <see cref="AsyncTaskMethodBuilder"/>.</summary>
         /// <returns>The initialized <see cref="AsyncTaskMethodBuilder"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AsyncTaskMethodBuilder Create()
         {
             return default(AsyncTaskMethodBuilder);
@@ -282,6 +282,7 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
         {
             // See comment on AsyncMethodBuilderCore.Start
@@ -428,6 +429,7 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Initializes a new <see cref="AsyncTaskMethodBuilder"/>.</summary>
         /// <returns>The initialized <see cref="AsyncTaskMethodBuilder"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AsyncTaskMethodBuilder<TResult> Create()
         {
             return default(AsyncTaskMethodBuilder<TResult>);
@@ -439,6 +441,7 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
         {
             // See comment on AsyncMethodBuilderCore.Start
