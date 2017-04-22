@@ -11,10 +11,13 @@
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Runtime.ExceptionServices;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -71,15 +74,9 @@ namespace System.Runtime.CompilerServices
 
             Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
-            try
-            {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
-                stateMachine.MoveNext();
-            }
-            finally
-            {
-                ecs.Undo(currentThread);
-            }
+            ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
+            stateMachine.MoveNext();
+            ecs.Undo(currentThread);
         }
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
@@ -297,15 +294,10 @@ namespace System.Runtime.CompilerServices
 
             Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
-            try
-            {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
-                stateMachine.MoveNext();
-            }
-            finally
-            {
-                ecs.Undo(currentThread);
-            }
+
+            ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
+            stateMachine.MoveNext();
+            ecs.Undo(currentThread);
         }
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
@@ -456,15 +448,10 @@ namespace System.Runtime.CompilerServices
 
             Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
-            try
-            {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
-                stateMachine.MoveNext();
-            }
-            finally
-            {
-                ecs.Undo(currentThread);
-            }
+
+            ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
+            stateMachine.MoveNext();
+            ecs.Undo(currentThread);
         }
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
