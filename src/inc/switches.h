@@ -76,7 +76,7 @@
     #define USE_UPPER_ADDRESS       0
 
 #elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
-    #define PAGE_SIZE               0x1000
+    #define PAGE_SIZE               0x10000
     #define UPPER_ADDRESS_MAPPING_FACTOR 2
     #define CLR_UPPER_ADDRESS_MIN   0x64400000000
     #define CODEHEAP_START_ADDRESS  0x64480000000
