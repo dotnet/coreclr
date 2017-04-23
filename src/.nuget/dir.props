@@ -45,9 +45,10 @@
   <!-- _packageTargetOSGroup is used to control the runtime package imports, don't import runtime package targets for 
        an unsupported OS Group -->
   <PropertyGroup Condition="'$(PackageTargetRuntime)' != '' and '$(_isSupportedOSGroup)' == 'true'">
+    <!-- Android will use Linux package definitions -->
     <_packageTargetOSGroup>$(_derivedPackageTargetOSGroup)</_packageTargetOSGroup>
+    <_packageTargetOSGroup Condition="'$(_derivedPackageTargetOSGroup)' == 'Android'">Linux</_packageTargetOSGroup>
   </PropertyGroup>
-
   <PropertyGroup>
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
     <OutputPath>$(PackageOutputPath)</OutputPath>
