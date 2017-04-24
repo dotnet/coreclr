@@ -5185,7 +5185,11 @@ void Compiler::fgValueNumberTreeConst(GenTreePtr tree)
             break;
 
         case TYP_FLOAT:
+#if FEATURE_X87_DOUBLES
             tree->gtVNPair.SetBoth(vnStore->VNForFloatCon((float)tree->gtDblCon.gtDconVal));
+#else
+            tree->gtVNPair.SetBoth(vnStore->VNForFloatCon(tree->gtFltCon.gtFconVal));
+#endif // FEATURE_X87_DOUBLES
             break;
         case TYP_DOUBLE:
             tree->gtVNPair.SetBoth(vnStore->VNForDoubleCon(tree->gtDblCon.gtDconVal));

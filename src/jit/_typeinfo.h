@@ -131,6 +131,9 @@ inline ti_types JITtype2tiType(CorInfoType type)
 
     assert(g_ti_types_map[CORINFO_TYPE_CLASS] == TI_REF);
     assert(g_ti_types_map[CORINFO_TYPE_BYREF] == TI_ERROR);
+#if !FEATURE_X87_DOUBLES
+    assert(g_ti_types_map[CORINFO_TYPE_FLOAT] == TI_FLOAT);
+#endif // !FEATURE_X87_DOUBLES
     assert(g_ti_types_map[CORINFO_TYPE_DOUBLE] == TI_DOUBLE);
     assert(g_ti_types_map[CORINFO_TYPE_VALUECLASS] == TI_STRUCT);
     assert(g_ti_types_map[CORINFO_TYPE_STRING] == TI_REF);
@@ -528,7 +531,7 @@ public:
     }
 
     // I1,I2 --> I4
-    // FLOAT --> DOUBLE
+    // FLOAT --> DOUBLE (x87 only)
     // objref, arrays, byrefs, value classes are unchanged
     //
     typeInfo& NormaliseForStack()
@@ -540,9 +543,11 @@ public:
                 m_flags = TI_INT;
                 break;
 
+#if FEATURE_X87_DOUBLES
             case TI_FLOAT:
                 m_flags = TI_DOUBLE;
                 break;
+#endif // FEATURE_X87_DOUBLES
             default:
                 break;
         }
@@ -686,10 +691,14 @@ public:
     {
         ti_types Type = GetType();
 
-        // I1, I2, Boolean, character etc. cannot exist plainly -
-        // everything is at least an I4
+// I1, I2, Boolean, character etc. cannot exist plainly -
+// everything is at least an I4
 
+#if FEATURE_X87_DOUBLES
         return (Type == TI_INT || Type == TI_LONG || Type == TI_DOUBLE);
+#else
+        return (Type == TI_INT || Type == TI_LONG || Type == TI_FLOAT || Type == TI_DOUBLE);
+#endif // FEATURE_X87_DOUBLES
     }
 
     // Returns whether this is an integer

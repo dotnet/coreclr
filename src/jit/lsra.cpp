@@ -5468,6 +5468,20 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
                             }
                         }
                         break;
+
+#if !FEATURE_X87_DOUBLES
+                    case GT_CNS_FLT:
+                    {
+                        // For single floating point constants, the values must be identical, not simply compare
+                        // equal.  So we compare the bits.
+                        if (refPosition->treeNode->AsFltCon()->isBitwiseEqual(otherTreeNode->AsFltCon()) &&
+                            (refPosition->treeNode->TypeGet() == otherTreeNode->TypeGet()))
+                        {
+                            score |= VALUE_AVAILABLE;
+                        }
+                        break;
+                    }
+#endif // !FEATURE_X87_DOUBLES
                     case GT_CNS_DBL:
                     {
                         // For floating point constants, the values must be identical, not simply compare
@@ -5479,6 +5493,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
                         }
                         break;
                     }
+
                     default:
                         // for all other 'otherTreeNode->OperGet()' kinds, we leave 'score' unchanged
                         break;

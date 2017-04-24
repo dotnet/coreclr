@@ -380,6 +380,9 @@ void Compiler::impSaveStackState(SavedStack* savePtr, bool copy)
                 {
                     case GT_CNS_INT:
                     case GT_CNS_LNG:
+#if !FEATURE_X87_DOUBLES
+                    case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
                     case GT_CNS_DBL:
                     case GT_CNS_STR:
                     case GT_LCL_VAR:
@@ -5880,6 +5883,9 @@ GenTreePtr Compiler::impImportStaticReadOnlyField(void* fldAddr, var_types lclTy
         int     ival;
         __int64 lval;
         double  dval;
+#if !FEATURE_X87_DOUBLES
+        float fval;
+#endif // !FEATURE_X87_DOUBLES
 
         case TYP_BOOL:
             ival = *((bool*)fldAddr);
@@ -5916,12 +5922,12 @@ GenTreePtr Compiler::impImportStaticReadOnlyField(void* fldAddr, var_types lclTy
             break;
 
         case TYP_FLOAT:
+#if FEATURE_X87_DOUBLES
             dval = *((float*)fldAddr);
             op1  = gtNewDconNode(dval);
-#if !FEATURE_X87_DOUBLES
-            // X87 stack doesn't differentiate between float/double
-            // so R4 is treated as R8, but everybody else does
-            op1->gtType = TYP_FLOAT;
+#else
+            fval = *((float*)fldAddr);
+            op1  = gtNewFconNode(fval);
 #endif // FEATURE_X87_DOUBLES
             break;
 
@@ -6331,7 +6337,7 @@ bool Compiler::impIsTailCallILPattern(bool        tailPrefixed,
              ((nextOpcode == CEE_NOP) || ((nextOpcode == CEE_POP) && (++cntPop == 1)))); // Next opcode = nop or exactly
                                                                                          // one pop seen so far.
 #else
-    nextOpcode = (OPCODE)getU1LittleEndian(codeAddrOfNextOpcode);
+    nextOpcode   = (OPCODE)getU1LittleEndian(codeAddrOfNextOpcode);
 #endif
 
     if (isCallPopAndRet)
@@ -9909,16 +9915,19 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 break;
 
             case CEE_LDC_R4:
+#if FEATURE_X87_DOUBLES
                 cval.dblVal = getR4LittleEndian(codeAddr);
                 JITDUMP(" %#.17g", cval.dblVal);
                 {
                     GenTreePtr cnsOp = gtNewDconNode(cval.dblVal);
-#if !FEATURE_X87_DOUBLES
-                    // X87 stack doesn't differentiate between float/double
-                    // so R4 is treated as R8, but everybody else does
-                    cnsOp->gtType = TYP_FLOAT;
-#endif // FEATURE_X87_DOUBLES
                     impPushOnStack(cnsOp, typeInfo(TI_DOUBLE));
+#else
+                cval.fltVal = getR4LittleEndian(codeAddr);
+                JITDUMP(" %#.9g", cval.fltVal);
+                {
+                    GenTreePtr cnsOp = gtNewFconNode(cval.fltVal);
+                    impPushOnStack(cnsOp, typeInfo(TI_FLOAT));
+#endif // FEATURE_X87_DOUBLES
                 }
                 break;
 
@@ -11298,7 +11307,11 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (tiVerificationNeeded)
                 {
                     tiRetVal = impStackTop().seTypeInfo;
+#if FEATURE_X87_DOUBLES
                     Verify(tiRetVal.IsType(TI_DOUBLE), "bad R value");
+#else
+                    Verify(tiRetVal.IsType(TI_FLOAT) || tiRetVal.IsType(TI_DOUBLE), "bad R value");
+#endif // FEATURE_X87_DOUBLES
                 }
                 op1  = impPopStack().val;
                 type = op1->TypeGet();

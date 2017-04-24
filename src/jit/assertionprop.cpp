@@ -586,8 +586,13 @@ void Compiler::optPrintAssertion(AssertionDsc* curAssertion, AssertionIndex asse
     {
         printf("Copy     ");
     }
+#if FEATURE_X87_DOUBLES
     else if ((curAssertion->op2.kind == O2K_CONST_INT) || (curAssertion->op2.kind == O2K_CONST_LONG) ||
              (curAssertion->op2.kind == O2K_CONST_DOUBLE))
+#else
+    else if ((curAssertion->op2.kind == O2K_CONST_INT) || (curAssertion->op2.kind == O2K_CONST_LONG) ||
+             (curAssertion->op2.kind == O2K_CONST_FLOAT) || (curAssertion->op2.kind == O2K_CONST_DOUBLE))
+#endif // FEATURE_X87_DOUBLES
     {
         printf("Constant ");
     }
@@ -765,6 +770,18 @@ void Compiler::optPrintAssertion(AssertionDsc* curAssertion, AssertionIndex asse
                 printf("0x%016llx", curAssertion->op2.lconVal);
                 break;
 
+#if !FEATURE_X87_DOUBLES
+            case O2K_CONST_FLOAT:
+                if (*((__int32*)&curAssertion->op2.fconVal) == (__int32)0x80000000)
+                {
+                    printf("-0.00000");
+                }
+                else
+                {
+                    printf("%#lg", curAssertion->op2.fconVal);
+                }
+                break;
+#endif // !FEATURE_X87_DOUBLES
             case O2K_CONST_DOUBLE:
                 if (*((__int64*)&curAssertion->op2.dconVal) == (__int64)I64(0x8000000000000000))
                 {
@@ -826,6 +843,17 @@ AssertionIndex Compiler::optCreateAssertion(GenTreePtr op1, GenTreePtr op2, optA
     return optCreateAssertion(op1, op2, assertionKind, &assertionDsc);
 }
 
+// Windows x86 and Windows ARM/ARM64 may not define _isnanf() but they do define _isnan().
+// We will redirect the macros to these other functions if the macro is not defined for the
+// platform. This has the side effect of a possible implicit upcasting for arguments passed.
+#if !FEATURE_X87_DOUBLES && (defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)) &&             \
+    !defined(FEATURE_PAL)
+
+#if !defined(_isnanf)
+#define _isnanf _isnan
+#endif
+
+#endif
 /*****************************************************************************
  *
  *  We attempt to create the following assertion:
@@ -1088,6 +1116,11 @@ AssertionIndex Compiler::optCreateAssertion(GenTreePtr       op1,
                     op2Kind = O2K_CONST_LONG;
                     goto CNS_COMMON;
 
+#if !FEATURE_X87_DOUBLES
+                case GT_CNS_FLT:
+                    op2Kind = O2K_CONST_FLOAT;
+                    goto CNS_COMMON;
+#endif // !FEATURE_X87_DOUBLES
                 case GT_CNS_DBL:
                     op2Kind = O2K_CONST_DOUBLE;
                     goto CNS_COMMON;
@@ -1136,6 +1169,17 @@ AssertionIndex Compiler::optCreateAssertion(GenTreePtr       op1,
                     {
                         assertion->op2.lconVal = op2->gtLngCon.gtLconVal;
                     }
+#if !FEATURE_X87_DOUBLES
+                    else if (op2->gtOper == GT_CNS_FLT)
+                    {
+                        /* If we have an NaN value then don't record it */
+                        if (_isnanf(op2->gtFltCon.gtFconVal))
+                        {
+                            goto DONE_ASSERTION; // Don't make an assertion
+                        }
+                        assertion->op2.fconVal = op2->gtFltCon.gtFconVal;
+                    }
+#endif // !FEATURE_X87_DOUBLES
                     else
                     {
                         noway_assert(op2->gtOper == GT_CNS_DBL);
@@ -2396,13 +2440,23 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
             }
             else
             {
+#if FEATURE_X87_DOUBLES
                 // Implicit assignment conversion to float or double
                 assert(varTypeIsFloating(tree->TypeGet()));
+#else
+                // Same type no conversion required
+                assert(tree->TypeGet() == TYP_FLOAT);
+#endif // FEATURE_X87_DOUBLES
 
                 newTree = optPrepareTreeForReplacement(tree, tree);
+#if FEATURE_X87_DOUBLES
                 tree->ChangeOperConst(GT_CNS_DBL);
                 tree->gtDblCon.gtDconVal = value;
-                tree->gtVNPair           = ValueNumPair(vnLib, vnCns);
+#else
+                tree->ChangeOperConst(GT_CNS_FLT);
+                tree->gtFltCon.gtFconVal = value;
+#endif // FEATURE_X87_DOUBLES
+                tree->gtVNPair = ValueNumPair(vnLib, vnCns);
             }
             break;
         }
@@ -2421,8 +2475,13 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
             }
             else
             {
+#if FEATURE_X87_DOUBLES
                 // Implicit assignment conversion to float or double
                 assert(varTypeIsFloating(tree->TypeGet()));
+#else
+                // Same type no conversion required
+                assert(tree->TypeGet() == TYP_DOUBLE);
+#endif // FEATURE_X87_DOUBLES
 
                 newTree = optPrepareTreeForReplacement(tree, tree);
                 tree->ChangeOperConst(GT_CNS_DBL);
@@ -2544,9 +2603,14 @@ GenTreePtr Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTreePtr stmt,
                     case TYP_FLOAT:
                         // Same sized reinterpretation of bits to float
                         newTree = optPrepareTreeForReplacement(tree, tree);
+#if FEATURE_X87_DOUBLES
                         tree->ChangeOperConst(GT_CNS_DBL);
                         tree->gtDblCon.gtDconVal = *(reinterpret_cast<float*>(&value));
-                        tree->gtVNPair           = ValueNumPair(vnLib, vnCns);
+#else
+                        tree->ChangeOperConst(GT_CNS_FLT);
+                        tree->gtFltCon.gtFconVal = *(reinterpret_cast<float*>(&value));
+#endif // FEATURE_X87_DOUBLES
+                        tree->gtVNPair = ValueNumPair(vnLib, vnCns);
                         break;
 
                     case TYP_DOUBLE:
@@ -2590,6 +2654,17 @@ GenTreePtr Compiler::optConstantAssertionProp(AssertionDsc* curAssertion,
     // Typically newTree == tree and we are updating the node in place
     switch (curAssertion->op2.kind)
     {
+#if !FEATURE_X87_DOUBLES
+        case O2K_CONST_FLOAT:
+            // There could be a positive zero and a negative zero, so don't propagate zeroes.
+            if (curAssertion->op2.fconVal == 0.0f)
+            {
+                return nullptr;
+            }
+            newTree->ChangeOperConst(GT_CNS_FLT);
+            newTree->gtFltCon.gtFconVal = curAssertion->op2.fconVal;
+            break;
+#endif // !FEATURE_X87_DOUBLES
         case O2K_CONST_DOUBLE:
             // There could be a positive zero and a negative zero, so don't propagate zeroes.
             if (curAssertion->op2.dconVal == 0.0)
@@ -2634,7 +2709,11 @@ GenTreePtr Compiler::optConstantAssertionProp(AssertionDsc* curAssertion,
                 if (varTypeIsSIMD(tree))
                 {
                     var_types simdType = tree->TypeGet();
+#if FEATURE_X87_DOUBLES
                     tree->ChangeOperConst(GT_CNS_DBL);
+#else
+                    tree->ChangeOperConst(GT_CNS_FLT);
+#endif // FEATURE_X87_DOUBLES
                     GenTree* initVal = tree;
                     initVal->gtType  = TYP_FLOAT;
                     newTree =
@@ -3129,10 +3208,17 @@ GenTreePtr Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions,
         else if (op1->TypeGet() == TYP_FLOAT)
         {
             float constant = vnStore->ConstantValue<float>(vnCns);
+#if FEATURE_X87_DOUBLES
             op1->ChangeOperConst(GT_CNS_DBL);
             op1->gtDblCon.gtDconVal = constant;
             // See comments for TYP_DOUBLE.
             allowReverse = (_isnan(constant) == 0);
+#else
+            op1->ChangeOperConst(GT_CNS_FLT);
+            op1->gtFltCon.gtFconVal = constant;
+            // See comments for TYP_DOUBLE.
+            allowReverse = (_isnanf(constant) == 0);
+#endif // FEATURE_X87_DOUBLES
         }
         else if (op1->TypeGet() == TYP_REF)
         {
@@ -3163,9 +3249,26 @@ GenTreePtr Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions,
 #endif
         lvaTable[op1->gtLclVar.gtLclNum].decRefCnts(compCurBB->getBBWeight(this), this);
 
-        // If floating point, don't just substitute op1 with op2, this won't work if
-        // op2 is NaN. Just turn it into a "true" or "false" yielding expression.
+// If floating point, don't just substitute op1 with op2, this won't work if
+// op2 is NaN. Just turn it into a "true" or "false" yielding expression.
+#if FEATURE_X87_DOUBLES
         if (op1->TypeGet() == TYP_DOUBLE || op1->TypeGet() == TYP_FLOAT)
+#else
+        if (op1->TypeGet() == TYP_FLOAT)
+        {
+            // Note we can't trust the OAK_EQUAL as the value could end up being a NaN
+            // violating the assertion. However, we create OAK_EQUAL assertions for floating
+            // point only on JTrue nodes, so if the condition held earlier, it will hold
+            // now. We don't create OAK_EQUAL assertion on floating point from GT_ASG
+            // because we depend on value num which would constant prop the NaN.
+            lvaTable[op2->gtLclVar.gtLclNum].decRefCnts(compCurBB->getBBWeight(this), this);
+            op1->ChangeOperConst(GT_CNS_FLT);
+            op1->gtFltCon.gtFconVal = 0;
+            op2->ChangeOperConst(GT_CNS_FLT);
+            op2->gtFltCon.gtFconVal = 0;
+        }
+        else if (op1->TypeGet() == TYP_DOUBLE)
+#endif // FEATURE_X87_DOUBLES
         {
             // Note we can't trust the OAK_EQUAL as the value could end up being a NaN
             // violating the assertion. However, we create OAK_EQUAL assertions for floating
@@ -4269,6 +4372,13 @@ void Compiler::optImpliedByCopyAssertion(AssertionDsc* copyAssertion, AssertionD
                 usable = op1MatchesCopy && (impAssertion->op2.lconVal == depAssertion->op2.lconVal);
                 break;
 
+#if !FEATURE_X87_DOUBLES
+            case O2K_CONST_FLOAT:
+                // Exact memory match because of positive and negative zero
+                usable = op1MatchesCopy &&
+                         (memcmp(&impAssertion->op2.fconVal, &depAssertion->op2.fconVal, sizeof(float)) == 0);
+                break;
+#endif // !FEATURE_X87_DOUBLES
             case O2K_CONST_DOUBLE:
                 // Exact memory match because of positive and negative zero
                 usable = op1MatchesCopy &&

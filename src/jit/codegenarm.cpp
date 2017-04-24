@@ -129,7 +129,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
 
 //------------------------------------------------------------------------
 // genSetRegToConst: Generate code to set a register 'targetReg' of type 'targetType'
-//    to the constant specified by the constant (GT_CNS_INT or GT_CNS_DBL) in 'tree'.
+//    to the constant specified by the constant (GT_CNS_INT, GT_CNS_DBL, or GT_CNS_FLT) in 'tree'.
 //
 // Notes:
 //    This does not call genProduceReg() on the target register.
@@ -158,11 +158,34 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
         }
         break;
 
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+        {
+            // TODO-ARM-CQ: Do we have a faster/smaller way to generate 0.0 in thumb2 ISA ?
+            assert(targetType == TYP_FLOAT);
+
+            GenTreeFltCon* fltConst   = tree->AsFltCon();
+            float          constValue = fltConst->gtFltCon.gtFconVal;
+
+            unsigned* cv = (unsigned*)&constValue;
+
+            // Get a temp integer register
+            regMaskTP tmpRegMask = tree->gtRsvdRegs;
+            regNumber tmpReg     = genRegNumFromMask(tmpRegMask);
+            assert(tmpReg != REG_NA);
+
+            genSetRegToIcon(tmpReg, cv[0]);
+
+            getEmitter()->emitIns_R_R(INS_vmov_i2f, EA_4BYTE, targetReg, tmpReg);
+        }
+        break;
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
         {
             GenTreeDblCon* dblConst   = tree->AsDblCon();
             double         constValue = dblConst->gtDblCon.gtDconVal;
-            // TODO-ARM-CQ: Do we have a faster/smaller way to generate 0.0 in thumb2 ISA ?
+// TODO-ARM-CQ: Do we have a faster/smaller way to generate 0.0 in thumb2 ISA ?
+#if FEATURE_X87_DOUBLES
             if (targetType == TYP_FLOAT)
             {
                 // Get a temp integer register
@@ -173,6 +196,7 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
                 getEmitter()->emitIns_R_R(INS_vmov_i2f, EA_4BYTE, targetReg, tmpReg);
             }
             else
+#endif // FEATURE_X87_DOUBLES
             {
                 assert(targetType == TYP_DOUBLE);
 
@@ -355,6 +379,9 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             break;
 
         case GT_CNS_INT:
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+#endif
         case GT_CNS_DBL:
             genSetRegToConst(targetReg, targetType, treeNode);
             genProduceReg(treeNode);

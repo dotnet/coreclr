@@ -359,6 +359,21 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
 
         if (srcType == TYP_ULONG)
         {
+#if !FEATURE_X87_DOUBLES
+            if (dstType == TYP_FLOAT)
+            {
+                // Codegen can handle U8 -> R8 conversion.
+                // U8 -> R4 =  U8 -> R8 -> R4
+                // - change the dsttype to double
+                // - insert a cast from double to float
+                // - recurse into the resulting tree
+                tree->CastToType() = TYP_DOUBLE;
+                tree->gtType       = TYP_DOUBLE;
+                tree               = gtNewCastNode(TYP_FLOAT, tree, TYP_FLOAT);
+                return fgMorphTree(tree);
+            }
+#endif // !FEATURE_X87_DOUBLES
+
             return fgMorphCastIntoHelper(tree, CORINFO_HELP_ULNG2DBL, oper);
         }
         else if (srcType == TYP_UINT)
@@ -374,6 +389,22 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
 #ifndef LEGACY_BACKEND
     else if (((tree->gtFlags & GTF_UNSIGNED) == 0) && (srcType == TYP_LONG) && varTypeIsFloating(dstType))
     {
+#if !FEATURE_X87_DOUBLES
+        if (dstType == TYP_FLOAT)
+        {
+            // there is only a double helper, so we
+            // - change the dsttype to double
+            // - insert a cast from double to float
+            // - recurse into the resulting tree
+            tree->CastToType() = TYP_DOUBLE;
+            tree->gtType       = TYP_DOUBLE;
+
+            tree = gtNewCastNode(TYP_FLOAT, tree, TYP_FLOAT);
+
+            return fgMorphTree(tree);
+        }
+#endif // !FEATURE_X87_DOUBLES
+
         return fgMorphCastIntoHelper(tree, CORINFO_HELP_LNG2DBL, oper);
     }
 #endif
@@ -609,6 +640,9 @@ OPTIMIZECAST:
             /* If the operand is a constant, we'll fold it */
             case GT_CNS_INT:
             case GT_CNS_LNG:
+#if !FEATURE_X87_DOUBLES
+            case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
             case GT_CNS_DBL:
             case GT_CNS_STR:
             {
@@ -680,7 +714,17 @@ OPTIMIZECAST:
                             /* Change the types of oper and commaOp2 to TYP_LONG */
                             oper->gtType = commaOp2->gtType = TYP_LONG;
                         }
+#if FEATURE_X87_DOUBLES
                         else if (varTypeIsFloating(tree->gtType))
+#else
+                        else if (tree->gtType == TYP_FLOAT)
+                        {
+                            commaOp2->ChangeOperConst(GT_CNS_FLT);
+                            commaOp2->gtFltCon.gtFconVal = 0.0f;
+                            oper->gtType = commaOp2->gtType = TYP_FLOAT;
+                        }
+                        else if (tree->gtType == TYP_DOUBLE)
+#endif // FEATURE_X87_DOUBLES
                         {
                             commaOp2->ChangeOperConst(GT_CNS_DBL);
                             commaOp2->gtDblCon.gtDconVal = 0.0;
@@ -690,7 +734,7 @@ OPTIMIZECAST:
                             const var_types newTyp
 #if FEATURE_X87_DOUBLES
                                 = TYP_DOUBLE;
-#else  // FEATURE_X87_DOUBLES
+#else
                                 = tree->gtType;
 #endif // FEATURE_X87_DOUBLES
                             oper->gtType = commaOp2->gtType = newTyp;
@@ -9200,7 +9244,20 @@ GenTreePtr Compiler::fgMorphInitBlock(GenTreePtr tree)
                     /* Change the types of srcCopy to TYP_LONG */
                     srcCopy->gtType = TYP_LONG;
                 }
+#if FEATURE_X87_DOUBLES
                 else if (varTypeIsFloating(dest->gtType))
+#else
+                else if (dest->gtType == TYP_FLOAT)
+                {
+                    srcCopy->ChangeOperConst(GT_CNS_FLT);
+                    // setup the bit pattern
+                    memset(&srcCopy->gtFltCon.gtFconVal, (int)initVal->gtIntCon.gtIconVal,
+                           sizeof(srcCopy->gtFltCon.gtFconVal));
+                    /* Change the types of srcCopy to TYP_FLOAT */
+                    srcCopy->gtType = TYP_FLOAT;
+                }
+                else if (dest->gtType == TYP_DOUBLE)
+#endif // FEATURE_X87_DOUBLES
                 {
                     srcCopy->ChangeOperConst(GT_CNS_DBL);
                     // setup the bit pattern
@@ -13516,7 +13573,18 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                                 /* Change the types of oper and commaOp2 to TYP_LONG */
                                 op1->gtType = commaOp2->gtType = TYP_LONG;
                             }
+#if FEATURE_X87_DOUBLES
                             else if (varTypeIsFloating(typ))
+#else
+                            else if (typ == TYP_FLOAT)
+                            {
+                                commaOp2->ChangeOperConst(GT_CNS_FLT);
+                                commaOp2->gtFltCon.gtFconVal = 0.0f;
+                                /* Change the types of oper and commaOp2 to TYP_FLOAT */
+                                op1->gtType = commaOp2->gtType = TYP_FLOAT;
+                            }
+                            else if (typ == TYP_DOUBLE)
+#endif // FEATURE_X87_DOUBLES
                             {
                                 commaOp2->ChangeOperConst(GT_CNS_DBL);
                                 commaOp2->gtDblCon.gtDconVal = 0.0;
@@ -14029,7 +14097,19 @@ GenTree* Compiler::fgMorphSmpOpOptional(GenTreeOp* tree)
                                 break;
                             }
 
+#if FEATURE_X87_DOUBLES
                             op1 = gtNewDconNode(1.0);
+#else
+                            if (tree->TypeGet() == TYP_FLOAT)
+                            {
+                                op1 = gtNewFconNode(1.0f);
+                            }
+                            else
+                            {
+                                assert(tree->TypeGet() == TYP_DOUBLE);
+                                op1 = gtNewDconNode(1.0);
+                            }
+#endif // FEATURE_X87_DOUBLES
 
                             /* Now make the "*=" node */
 

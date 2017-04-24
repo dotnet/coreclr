@@ -2769,7 +2769,11 @@ CORINFO_FIELD_HANDLE emitter::emitLiteralConst(ssize_t cnsValIn, emitAttr attr /
 // Generates a float or double data section constant and returns field handle representing
 // the data offset to access the constant.  This is called by emitInsBinary() in case
 // of contained float of double constants.
+#if FEATURE_X87_DOUBLES
 CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(GenTreeDblCon* tree, emitAttr attr /*=EA_UNKNOWN*/)
+#else
+CORINFO_FIELD_HANDLE emitter::emitDblConst(GenTreeDblCon* tree, emitAttr attr /*=EA_UNKNOWN*/)
+#endif // FEATURE_X87_DOUBLES
 {
     if (attr == EA_UNKNOWN)
     {
@@ -2781,9 +2785,10 @@ CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(GenTreeDblCon* tree, emitAttr at
     }
 
     double constValue = tree->gtDblCon.gtDconVal;
-    void*  cnsAddr;
-    float  f;
-    bool   dblAlign;
+#if FEATURE_X87_DOUBLES
+    void* cnsAddr;
+    float f;
+    bool  dblAlign;
 
     if (attr == EA_4BYTE)
     {
@@ -2796,16 +2801,51 @@ CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(GenTreeDblCon* tree, emitAttr at
         cnsAddr  = &constValue;
         dblAlign = true;
     }
+#else
+    assert(attr == EA_8BYTE);
+    void*          cnsAddr = &constValue;
+#endif // FEATURE_X87_DOUBLES
+
+// Access to inline data is 'abstracted' by a special type of static member
+// (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
+// to constant data, not a real static field.
+
+#if FEATURE_X87_DOUBLES
+    UNATIVE_OFFSET cnsSize = (attr == EA_4BYTE) ? 4 : 8;
+    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, cnsSize, dblAlign);
+#else
+    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, 8, true);
+#endif // FEATURE_X87_DOUBLES
+    return emitComp->eeFindJitDataOffs(cnum);
+}
+
+#if !FEATURE_X87_DOUBLES
+// Generates a float data section constant and returns field handle representing
+// the data offset to access the constant.  This is called by emitInsBinary() in case
+// of contained float constants.
+CORINFO_FIELD_HANDLE emitter::emitFltConst(GenTreeFltCon* tree, emitAttr attr /*=EA_UNKNOWN*/)
+{
+    if (attr == EA_UNKNOWN)
+    {
+        attr = emitTypeSize(tree->TypeGet());
+    }
+    else
+    {
+        assert(emitTypeSize(tree->TypeGet()) == attr);
+    }
+
+    assert(attr == EA_4BYTE);
+    float constValue = tree->gtFltCon.gtFconVal;
+    void* cnsAddr    = &constValue;
 
     // Access to inline data is 'abstracted' by a special type of static member
     // (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
     // to constant data, not a real static field.
 
-    UNATIVE_OFFSET cnsSize = (attr == EA_4BYTE) ? 4 : 8;
-    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, cnsSize, dblAlign);
+    UNATIVE_OFFSET cnum = emitDataConst(cnsAddr, 4, false);
     return emitComp->eeFindJitDataOffs(cnum);
 }
-
+#endif // !FEATURE_X87_DOUBLES
 // The callee must call genConsumeReg() for all sources, including address registers
 // of both source and destination, and genProduceReg() for the destination register, if any.
 
@@ -2850,12 +2890,23 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
     // Find immed (if any) - it cannot be the dst
     // SSE2 instructions allow only the second operand to be a memory operand.
     GenTreeIntConCommon* intConst = nullptr;
-    GenTreeDblCon*       dblConst = nullptr;
+#if !FEATURE_X87_DOUBLES
+    GenTreeFltCon* fltConst = nullptr;
+#endif // !FEATURE_X87_DOUBLES
+    GenTreeDblCon* dblConst = nullptr;
     if (src->isContainedIntOrIImmed())
     {
         intConst = src->AsIntConCommon();
     }
+#if FEATURE_X87_DOUBLES
     else if (src->isContainedFltOrDblImmed())
+#else
+    else if (src->isContainedFltImmed())
+    {
+        fltConst = src->AsFltCon();
+    }
+    else if (src->isContainedDblImmed())
+#endif // FEATURE_X87_DOUBLES
     {
         dblConst = src->AsDblCon();
     }
@@ -2910,10 +2961,24 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
             // TODO-XArch-Bug?: does the caller call regTracker.rsTrackRegTrash(dst->gtRegNum) or
             // rsTrackRegIntCns(dst->gtRegNum, intConst->IconValue()) (as appropriate)?
         }
+#if !FEATURE_X87_DOUBLES
+        else if (fltConst != nullptr)
+        {
+            // Emit a data section constant for float constant.
+            CORINFO_FIELD_HANDLE hnd = emitFltConst(fltConst);
+
+            emitIns_R_C(ins, attr, dst->gtRegNum, hnd, 0);
+        }
+#endif // !FEATURE_X87_DOUBLES
         else if (dblConst != nullptr)
         {
+#if FEATURE_X87_DOUBLES
             // Emit a data section constant for float or double constant.
             CORINFO_FIELD_HANDLE hnd = emitFltOrDblConst(dblConst);
+#else
+            // Emit a data section constant for double constant.
+            CORINFO_FIELD_HANDLE hnd    = emitDblConst(dblConst);
+#endif // FEATURE_X87_DOUBLES
 
             emitIns_R_C(ins, attr, dst->gtRegNum, hnd, 0);
         }
@@ -6451,7 +6516,7 @@ void emitter::emitDispInsHex(BYTE* code, size_t sz)
         // how many bytes per instruction we format for
         const size_t digits = 10;
 #else // _TARGET_X86
-        const size_t digits = 6;
+        const size_t             digits = 6;
 #endif
         printf(" ");
         for (unsigned i = 0; i < sz; i++)

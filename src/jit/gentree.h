@@ -627,11 +627,21 @@ public:
         return isContained() && IsCnsIntOrI() && !isUsedFromSpillTemp();
     }
 
+#if FEATURE_X87_DOUBLES
     bool isContainedFltOrDblImmed() const
+#else
+    bool isContainedDblImmed() const
+#endif // FEATURE_X87_DOUBLES
     {
         return isContained() && (OperGet() == GT_CNS_DBL);
     }
 
+#if !FEATURE_X87_DOUBLES
+    bool isContainedFltImmed() const
+    {
+        return isContained() && (OperGet() == GT_CNS_FLT);
+    }
+#endif // !FEATURE_X87_DOUBLES
     bool isLclField() const
     {
         return OperGet() == GT_LCL_FLD || OperGet() == GT_STORE_LCL_FLD;
@@ -648,8 +658,14 @@ public:
 
     bool isUsedFromMemory() const
     {
+#if FEATURE_X87_DOUBLES
         return ((isContained() && (isMemoryOp() || (OperGet() == GT_LCL_VAR) || (OperGet() == GT_CNS_DBL))) ||
                 isUsedFromSpillTemp());
+#else
+        return ((isContained() && (isMemoryOp() || (OperGet() == GT_LCL_VAR) || (OperGet() == GT_CNS_FLT) ||
+                                   (OperGet() == GT_CNS_DBL))) ||
+                isUsedFromSpillTemp());
+#endif // FEATURE_X87_DOUBLES
     }
 
     bool isLclVarUsedFromMemory() const
@@ -2598,6 +2614,30 @@ inline void GenTreeIntConCommon::SetIconValue(ssize_t val)
     AsIntCon()->gtIconVal = val;
 }
 
+#if !FEATURE_X87_DOUBLES
+/* gtFltCon -- single  constant (GT_CNS_FLT) */
+
+struct GenTreeFltCon : public GenTree
+{
+    float gtFconVal;
+
+    bool isBitwiseEqual(GenTreeFltCon* other)
+    {
+        unsigned __int32 bits      = *(unsigned __int32*)(&gtFconVal);
+        unsigned __int32 otherBits = *(unsigned __int32*)(&(other->gtFconVal));
+        return (bits == otherBits);
+    }
+
+    GenTreeFltCon(float val) : GenTree(GT_CNS_FLT, TYP_FLOAT), gtFconVal(val)
+    {
+    }
+#if DEBUGGABLE_GENTREE
+    GenTreeFltCon() : GenTree()
+    {
+    }
+#endif
+};
+#endif // !FEATURE_X87_DOUBLES
 /* gtDblCon -- double  constant (GT_CNS_DBL) */
 
 struct GenTreeDblCon : public GenTree
@@ -5034,11 +5074,16 @@ inline bool GenTree::OperIsCopyBlkOp()
 // IsFPZero: Checks whether this is a floating point constant with value 0.0
 //
 // Return Value:
-//    Returns true iff the tree is an GT_CNS_DBL, with value of 0.0.
+//    Returns true if the tree is an GT_CNS_FLT or GT_CNS_DBL, with value of 0.0.
 
 inline bool GenTree::IsFPZero()
 {
+#if FEATURE_X87_DOUBLES
     if ((gtOper == GT_CNS_DBL) && (gtDblCon.gtDconVal == 0.0))
+#else
+    if (((gtOper == GT_CNS_FLT) && (gtFltCon.gtFconVal == 0.0f)) ||
+        ((gtOper == GT_CNS_DBL) && (gtDblCon.gtDconVal == 0.0)))
+#endif // FEATURE_X87_DOUBLES
     {
         return true;
     }
@@ -5407,11 +5452,16 @@ inline bool GenTree::IsIntCnsFitsInI32()
 
 inline bool GenTree::IsCnsFltOrDbl() const
 {
+#if FEATURE_X87_DOUBLES
     return OperGet() == GT_CNS_DBL;
+#else
+    return (OperGet() == GT_CNS_FLT) || (OperGet() == GT_CNS_DBL);
+#endif
 }
 
 inline bool GenTree::IsCnsNonZeroFltOrDbl()
 {
+#if FEATURE_X87_DOUBLES
     if (OperGet() == GT_CNS_DBL)
     {
         double constValue = gtDblCon.gtDconVal;
@@ -5419,6 +5469,25 @@ inline bool GenTree::IsCnsNonZeroFltOrDbl()
     }
 
     return false;
+#else
+    switch (OperGet())
+    {
+        case GT_CNS_FLT:
+        {
+            float constValue = gtFltCon.gtFconVal;
+            return *(__int32*)&constValue != 0;
+        }
+
+        case GT_CNS_DBL:
+        {
+            double constValue = gtDblCon.gtDconVal;
+            return *(__int64*)&constValue != 0;
+        }
+
+        default:
+            return false;
+    }
+#endif // FEATURE_X87_DOUBLES
 }
 
 inline bool GenTree::IsHelperCall()

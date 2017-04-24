@@ -965,7 +965,11 @@ void CodeGen::genMovStackFP(GenTreePtr dst, regNumber dstreg, GenTreePtr src, re
             FlatFPX87_PushVirtual(&compCurFPState, dstreg);
             FlatFPX87_MoveToTOS(&compCurFPState, dstreg);
 
+#if FEATURE_X87_DOUBLES
             if (src->gtOper == GT_CNS_DBL)
+#else
+            if ((src->gtOper == GT_CNS_FLT) || (src->gtOper == GT_CNS_DBL))
+#endif // FEATURE_X87_DOUBLES
             {
                 genConstantLoadStackFP(src);
             }
@@ -1117,8 +1121,26 @@ regMaskTP CodeGen::genPushArgumentStackFP(GenTreePtr args)
         GenTreePtr fval;
         size_t     flopsz;
 
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+        {
+            assert(args->TypeGet() == TYP_FLOAT);
+
+            float f = args->gtFltCon.gtFconVal;
+            // *(long*) (&f) used instead of *addr because of of strict
+            // pointer aliasing optimization. According to the ISO C/C++
+            // standard, an optimizer can assume two pointers of
+            // non-compatible types do not point to the same memory.
+            inst_IV(INS_push, *((int*)(&f)));
+            genSinglePush();
+            addrReg = 0;
+
+            break;
+        }
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
         {
+#if FEATURE_X87_DOUBLES
             float f    = 0.0;
             int*  addr = NULL;
             if (args->TypeGet() == TYP_FLOAT)
@@ -1148,6 +1170,23 @@ regMaskTP CodeGen::genPushArgumentStackFP(GenTreePtr args)
 
                 addrReg = 0;
             }
+#else
+            assert(args->TypeGet() == TYP_DOUBLE);
+
+            int* addr = (int*)&args->gtDblCon.gtDconVal;
+
+            // store forwarding fix for pentium 4 and Centrino
+            // (even for down level CPUs as we don't care about their perf any more)
+            fval = genMakeConst(&args->gtDblCon.gtDconVal, args->gtType, args, true);
+            inst_FS_TT(INS_fld, fval);
+            flopsz = (size_t)8;
+            inst_RV_IV(INS_sub, REG_ESP, flopsz, EA_PTRSIZE);
+            getEmitter()->emitIns_AR_R(INS_fstp, EA_ATTR(flopsz), REG_NA, REG_ESP, 0);
+            genSinglePush();
+            genSinglePush();
+
+            addrReg = 0;
+#endif // FEATURE_X87_DOUBLES
 
             break;
         }
@@ -1241,6 +1280,9 @@ void CodeGen::genRoundFpExpressionStackFP(GenTreePtr op, var_types type)
         case GT_LCL_VAR:
         case GT_LCL_FLD:
         case GT_CLS_VAR:
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
         case GT_IND:
         case GT_LEA:
@@ -1280,7 +1322,11 @@ void CodeGen::genCodeForTreeStackFP_Const(GenTreePtr tree)
 #endif // DEBUG
 
 #ifdef DEBUG
+#if FEATURE_X87_DOUBLES
     if (tree->OperGet() != GT_CNS_DBL)
+#else
+    if ((tree->OperGet() != GT_CNS_FLT) && (tree->OperGet() != GT_CNS_DBL))
+#endif // FEATURE_X87_DOUBLES
     {
         compiler->gtDispTree(tree);
         assert(!"bogus float const");
@@ -1423,6 +1469,10 @@ void CodeGen::genCodeForTreeStackFP_Asg(GenTreePtr tree)
 
             assert(compCurFPState.m_uStackSize <= FP_PHYSICREGISTERS);
 
+#if !FEATURE_X87_DOUBLES
+            assert(op1->gtType == TYP_DOUBLE);
+            assert(op2->gtType == TYP_DOUBLE);
+#endif // !FEATURE_X87_DOUBLES
             regMaskTP addrRegInt;
             addrRegInt = 0;
             regMaskTP addrRegFlt;
@@ -1435,11 +1485,13 @@ void CodeGen::genCodeForTreeStackFP_Asg(GenTreePtr tree)
             // We want to 'cast' the constant to the op1'a type
             double constantValue;
             constantValue = op2->gtDblCon.gtDconVal;
+#if FEATURE_X87_DOUBLES
             if (op1->gtType == TYP_FLOAT)
             {
                 float temp    = forceCastToFloat(constantValue);
                 constantValue = (double)temp;
             }
+#endif // FEATURE_X87_DOUBLES
 
             GenTreePtr constantTree;
             constantTree = compiler->gtNewDconNode(constantValue);
@@ -1468,8 +1520,12 @@ void CodeGen::genCodeForTreeStackFP_Asg(GenTreePtr tree)
 
                     GenTreePtr cnsaddr;
 
-                    // Create slot for constant
+// Create slot for constant
+#if FEATURE_X87_DOUBLES
                     if (op1->gtType == TYP_FLOAT || StackFPIsSameAsFloat(op2->gtDblCon.gtDconVal))
+#else
+                    if (StackFPIsSameAsFloat(op2->gtDblCon.gtDconVal))
+#endif // FEATURE_X87_DOUBLES
                     {
                         // We're going to use that double as a float, so recompute addr
                         float f = forceCastToFloat(op2->gtDblCon.gtDconVal);
@@ -1510,8 +1566,12 @@ void CodeGen::genCodeForTreeStackFP_Asg(GenTreePtr tree)
                         // 4 bytes of load
                         GenTreePtr cnsaddr;
 
-                        // Create slot for constant
+// Create slot for constant
+#if FEATURE_X87_DOUBLES
                         if (op1->gtType == TYP_FLOAT || StackFPIsSameAsFloat(op2->gtDblCon.gtDconVal))
+#else
+                        if (StackFPIsSameAsFloat(op2->gtDblCon.gtDconVal))
+#endif // FEATURE_X87_DOUBLES
                         {
                             // We're going to use that double as a float, so recompute addr
                             float f = forceCastToFloat(op2->gtDblCon.gtDconVal);
@@ -1532,6 +1592,89 @@ void CodeGen::genCodeForTreeStackFP_Asg(GenTreePtr tree)
             genDoneAddressableStackFP(op1, addrRegInt, addrRegFlt, RegSet::KEEP_REG);
             genUpdateLife(op1);
             return;
+
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+        {
+            assert(compCurFPState.m_uStackSize <= FP_PHYSICREGISTERS);
+
+            assert(op1->gtType == TYP_FLOAT);
+            assert(op2->gtType == TYP_FLOAT);
+
+            regMaskTP addrRegInt;
+            addrRegInt = 0;
+            regMaskTP addrRegFlt;
+            addrRegFlt = 0;
+
+            // op2 is already "evaluated," so doesn't matter if they're reversed or not...
+            op1 = genCodeForCommaTree(op1);
+            op1 = genMakeAddressableStackFP(op1, &addrRegInt, &addrRegFlt);
+
+            // We want to 'cast' the constant to the op1'a type
+            float      constantValue = op2->gtFltCon.gtFconVal;
+            GenTreePtr constantTree  = compiler->gtNewFconNode(constantValue);
+
+            if (genConstantLoadStackFP(constantTree, true))
+            {
+                if (op1->IsRegVar())
+                {
+                    // regvar birth
+                    genRegVarBirthStackFP(op1);
+
+                    // Update
+                    compCurFPState.Push(op1->gtRegNum);
+                }
+                else
+                {
+                    // store in target
+                    inst_FS_TT(INS_fstp, op1);
+                }
+            }
+            else
+            {
+                // Standard constant
+                if (op1->IsRegVar())
+                {
+                    // Load constant to fp stack and Create slot for constant
+                    GenTreePtr cnsaddr = genMakeConst(&op2->gtFltCon.gtFconVal, TYP_FLOAT, tree, false);
+
+                    // Load into stack
+                    inst_FS_TT(INS_fld, cnsaddr);
+
+                    // regvar birth
+                    genRegVarBirthStackFP(op1);
+
+                    // Update
+                    compCurFPState.Push(op1->gtRegNum);
+                }
+                else
+                {
+                    if (size == 4)
+                    {
+                        float f    = op2->gtFltCon.gtFconVal;
+                        int*  addr = (int*)&f;
+
+                        do
+                        {
+                            inst_TT_IV(INS_mov, op1, *addr++, offs);
+                            offs += sizeof(int);
+                        } while (offs < size);
+                    }
+                    else
+                    {
+                        // store forwarding fix for pentium 4 and centrino
+                        GenTreePtr cnsaddr = genMakeConst(&op2->gtFltCon.gtFconVal, TYP_FLOAT, tree, false);
+                        inst_FS_TT(INS_fld, cnsaddr);
+                        inst_FS_TT(INS_fstp, op1);
+                    }
+                }
+            }
+
+            genDoneAddressableStackFP(op1, addrRegInt, addrRegFlt, RegSet::KEEP_REG);
+            genUpdateLife(op1);
+            return;
+        }
+#endif // !FEATURE_X87_DOUBLES
 
         default:
             break;
@@ -3146,11 +3289,14 @@ void CodeGen::genTableSwitchStackFP(regNumber reg, unsigned jumpCnt, BasicBlock*
 
 bool CodeGen::genConstantLoadStackFP(GenTreePtr tree, bool bOnlyNoMemAccess)
 {
+#if FEATURE_X87_DOUBLES
     assert(tree->gtOper == GT_CNS_DBL);
+#endif // FEATURE_X87_DOUBLES
 
     bool        bFastConstant  = false;
     instruction ins_ConstantNN = INS_fldz; // keep compiler happy
 
+#if FEATURE_X87_DOUBLES
     // Both positive 0 and 1 are represnetable in float and double, beware if we add other constants
     switch (*((__int64*)&(tree->gtDblCon.gtDconVal)))
     {
@@ -3163,6 +3309,40 @@ bool CodeGen::genConstantLoadStackFP(GenTreePtr tree, bool bOnlyNoMemAccess)
             ins_ConstantNN = INS_fld1;
             bFastConstant  = true;
     }
+#else
+    if (tree->gtOper == GT_CNS_FLT)
+    {
+        // Both positive 0 and 1 are represnetable in float, beware if we add other constants
+        switch (*((__int32*)&(tree->gtFltCon.gtFconVal)))
+        {
+            case 0:
+                // CAREFUL here!, -0 is different than +0, a -0 shouldn't issue a fldz.
+                ins_ConstantNN = INS_fldz;
+                bFastConstant  = true;
+                break;
+            case 0x3f800000:
+                ins_ConstantNN = INS_fld1;
+                bFastConstant  = true;
+        }
+    }
+    else
+    {
+        assert(tree->gtOper == GT_CNS_DBL);
+
+        // Both positive 0 and 1 are represnetable in double, beware if we add other constants
+        switch (*((__int64*)&(tree->gtDblCon.gtDconVal)))
+        {
+            case 0:
+                // CAREFUL here!, -0 is different than +0, a -0 shouldn't issue a fldz.
+                ins_ConstantNN = INS_fldz;
+                bFastConstant  = true;
+                break;
+            case I64(0x3ff0000000000000):
+                ins_ConstantNN = INS_fld1;
+                bFastConstant  = true;
+        }
+    }
+#endif // FEATURE_X87_DOUBLES
 
     if (bFastConstant == false && bOnlyNoMemAccess)
     {
@@ -3175,17 +3355,38 @@ bool CodeGen::genConstantLoadStackFP(GenTreePtr tree, bool bOnlyNoMemAccess)
         assert(compCurFPState.m_uStackSize <= FP_PHYSICREGISTERS);
         instGen(ins_ConstantNN);
     }
+#if !FEATURE_X87_DOUBLES
+    else if (tree->gtType == TYP_FLOAT)
+    {
+        assert(tree->gtOper == GT_CNS_FLT);
+        GenTreePtr addr = genMakeConst(&tree->gtFltCon.gtFconVal, TYP_FLOAT, tree, false);
+        inst_FS_TT(INS_fld, addr);
+    }
+#endif // !FEATURE_X87_DOUBLES
     else
     {
+#if !FEATURE_X87_DOUBLES
+        assert(tree->gtType == TYP_DOUBLE);
+        assert(tree->gtOper == GT_CNS_DBL);
+#endif // !FEATURE_X87_DOUBLES
+
         GenTreePtr addr;
+#if FEATURE_X87_DOUBLES
         if (tree->gtType == TYP_FLOAT || StackFPIsSameAsFloat(tree->gtDblCon.gtDconVal))
+#else
+        if (StackFPIsSameAsFloat(tree->gtDblCon.gtDconVal))
+#endif // FEATURE_X87_DOUBLES
         {
             float f = forceCastToFloat(tree->gtDblCon.gtDconVal);
             addr    = genMakeConst(&f, TYP_FLOAT, tree, false);
         }
         else
         {
+#if FEATURE_X87_DOUBLES
             addr = genMakeConst(&tree->gtDblCon.gtDconVal, tree->gtType, tree, true);
+#else
+            addr = genMakeConst(&tree->gtDblCon.gtDconVal, TYP_DOUBLE, tree, true);
+#endif // FEATURE_X87_DOUBLES
         }
 
         inst_FS_TT(INS_fld, addr);
@@ -3251,7 +3452,42 @@ GenTreePtr CodeGen::genMakeAddressableStackFP(GenTreePtr tree,
 
     switch (tree->OperGet())
     {
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+            assert(tree->gtType == TYP_FLOAT);
+
+            if (tree->gtFltCon.gtFconVal == 0.0f || tree->gtFltCon.gtFconVal == 1.0f)
+            {
+                // For constants like 0 or 1 don't waste memory
+                genCodeForTree(tree, 0);
+                regSet.SetUsedRegFloat(tree, true);
+
+                *regMaskFltPtr = genRegMaskFloat(tree->gtRegNum);
+                return tree;
+            }
+            else
+            {
+                GenTreePtr addr = genMakeConst(&tree->gtFltCon.gtFconVal, TYP_FLOAT, tree, false);
+
+#ifdef DEBUG
+                if (compiler->verbose)
+                {
+                    printf("Generated new constant in tree ");
+                    Compiler::printTreeID(addr);
+                    printf(" with value %lf\n", tree->gtFltCon.gtFconVal);
+                }
+#endif // DEBUG
+
+                tree->CopyFrom(addr, compiler);
+                return tree;
+            }
+            break;
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
+#if !FEATURE_X87_DOUBLES
+            assert(tree->gtType == TYP_DOUBLE);
+#endif // !FEATURE_X87_DOUBLES
+
             if (tree->gtDblCon.gtDconVal == 0.0 || tree->gtDblCon.gtDconVal == 1.0)
             {
                 // For constants like 0 or 1 don't waste memory
@@ -3264,16 +3500,25 @@ GenTreePtr CodeGen::genMakeAddressableStackFP(GenTreePtr tree,
             else
             {
                 GenTreePtr addr;
+#if FEATURE_X87_DOUBLES
                 if (tree->gtType == TYP_FLOAT ||
                     (bCollapseConstantDoubles && StackFPIsSameAsFloat(tree->gtDblCon.gtDconVal)))
+#else
+                if (bCollapseConstantDoubles && StackFPIsSameAsFloat(tree->gtDblCon.gtDconVal))
+#endif // FEATURE_X87_DOUBLES
                 {
                     float f = forceCastToFloat(tree->gtDblCon.gtDconVal);
                     addr    = genMakeConst(&f, TYP_FLOAT, tree, true);
                 }
                 else
                 {
+#if FEATURE_X87_DOUBLES
                     addr = genMakeConst(&tree->gtDblCon.gtDconVal, tree->gtType, tree, true);
+#else
+                    addr = genMakeConst(&tree->gtDblCon.gtDconVal, TYP_DOUBLE, tree, true);
+#endif // FEATURE_X87_DOUBLES
                 }
+
 #ifdef DEBUG
                 if (compiler->verbose)
                 {
@@ -3282,10 +3527,12 @@ GenTreePtr CodeGen::genMakeAddressableStackFP(GenTreePtr tree,
                     printf(" with value %lf\n", tree->gtDblCon.gtDconVal);
                 }
 #endif // DEBUG
+
                 tree->CopyFrom(addr, compiler);
                 return tree;
             }
             break;
+
         case GT_REG_VAR:
             // We take care about this in genKeepAddressableStackFP
             return tree;
@@ -3362,6 +3609,9 @@ void CodeGen::genKeepAddressableStackFP(GenTreePtr tree, regMaskTP* regMaskIntPt
             genUpdateLife(tree);
 
             return;
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
         {
             if (tree->gtFlags & GTF_SPILLED)

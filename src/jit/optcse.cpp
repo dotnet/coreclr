@@ -2420,21 +2420,21 @@ bool Compiler::optIsCSEcandidate(GenTreePtr tree)
         return false;
     }
 
-#ifdef _TARGET_X86_
+#if FEATURE_X87_DOUBLES
     if (type == TYP_FLOAT)
     {
         // TODO-X86-CQ: Revisit this
         // Don't CSE a TYP_FLOAT on x86 as we currently can only enregister doubles
         return false;
     }
-#else
+
     if (oper == GT_CNS_DBL)
     {
         // TODO-CQ: Revisit this
         // Don't try to CSE a GT_CNS_DBL as they can represent both float and doubles
         return false;
     }
-#endif
+#endif // FEATURE_X87_DOUBLES
 
     unsigned cost;
     if (compCodeOpt() == SMALL_CODE)
@@ -2487,6 +2487,9 @@ bool Compiler::optIsCSEcandidate(GenTreePtr tree)
 
         case GT_CNS_INT:
         case GT_CNS_LNG:
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
         case GT_CNS_STR:
             return true; // We reach here only when CSE_CONSTS is enabled

@@ -483,9 +483,22 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             info->dstCount = 0;
             break;
 
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+            info->srcCount = 0;
+            info->dstCount = 1;
+
+            assert(tree->TypeGet() == TYP_FLOAT);
+
+            // An int register for float constant
+            info->internalIntCount = 1;
+            break;
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
             info->srcCount = 0;
             info->dstCount = 1;
+
+#if FEATURE_X87_DOUBLES
             if (tree->TypeGet() == TYP_FLOAT)
             {
                 // An int register for float constant
@@ -499,6 +512,12 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
                 // Two int registers for double constant
                 info->internalIntCount = 2;
             }
+#else
+            assert(tree->TypeGet() == TYP_DOUBLE);
+
+            // Two int registers for double constant
+            info->internalIntCount = 2;
+#endif // FEATURE_X87_DOUBLES
             break;
 
         case GT_RETURN:
