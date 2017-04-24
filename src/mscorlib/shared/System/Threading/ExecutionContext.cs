@@ -51,7 +51,7 @@ namespace System.Threading
         {
             // Current thread passed as parameter to avoid extern current native thread lookup call
             Debug.Assert(currentThread == Thread.CurrentThread);
-            // Default context passed as parameter to avoid static inializer checks in NGen'd code
+            // Default context passed as parameter to avoid static initializer checks in NGen'd code
             Debug.Assert(defaultContext == ExecutionContext.Default);
 
             return (currentThread.ExecutionContext == defaultContext && currentThread.SynchronizationContext == null);
@@ -62,7 +62,7 @@ namespace System.Threading
         {
             // Current thread passed as parameter to avoid extern current native thread lookup call
             Debug.Assert(currentThread == Thread.CurrentThread);
-            // Default context passed as parameter to avoid static inializer checks in NGen'd code
+            // Default context passed as parameter to avoid static initializer checks in NGen'd code
             Debug.Assert(defaultContext == ExecutionContext.Default);
 
             // The common case is that these have not changed, so avoid the GC memory barrier 
@@ -228,7 +228,7 @@ namespace System.Threading
 
         internal static void RunDefaultContext(ContextCallback callback, Object state)
         {
-            // Local copies used and passed to minimise static inializer checks in NGen'd code
+            // Local copies used and passed to minimise static initializer checks in NGen'd code
             // and extern current native thread lookup calls
             ExecutionContext defaultContext = Default;
             Thread currentThread = Thread.CurrentThread;
@@ -256,10 +256,11 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void RestoreDefault(Thread currentThread, ExecutionContext defaultContext)
         {
-            // Passed to minimise static inializer checks in NGen'd code
+            // Passed to minimise static initializer checks in NGen'd code
             // and extern current native thread lookup calls
             Debug.Assert(currentThread == Thread.CurrentThread);
             Debug.Assert(defaultContext == ExecutionContext.Default);
+            Debug.Assert(currentThread.ExecutionContext != defaultContext);
 
             ExecutionContext previous = currentThread.ExecutionContext;
             currentThread.ExecutionContext = defaultContext;
@@ -277,7 +278,7 @@ namespace System.Threading
             // Current thread passed as parameter to avoid extern current native thread lookup call
             Debug.Assert(currentThread == Thread.CurrentThread);
 
-            // Local copies used and passed to minimise static inializer checks in NGen'd code
+            // Local copies used and passed to minimise static initializer checks in NGen'd code
             ExecutionContext defaultContext = Default;
             ExecutionContext previous = currentThread.ExecutionContext ?? defaultContext;
             currentThread.ExecutionContext = executionContext;
