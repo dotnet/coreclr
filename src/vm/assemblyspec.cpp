@@ -18,7 +18,6 @@
 
 #include <stdlib.h>
 
-#include "../binder/inc/applicationcontext.hpp"
 #include "assemblyspec.hpp"
 #include "security.h"
 #include "eeconfig.h"
@@ -973,88 +972,6 @@ Assembly *AssemblySpec::LoadAssembly(LPCWSTR pFilePath)
 
     AssemblySpec spec;
     spec.SetCodeBase(pFilePath);
-
-    if (pFilePath == nullptr)
-    {
-        RETURN spec.LoadAssembly(FILE_LOADED);
-    }
-
-    size_t len = wcslen(pFilePath);
-    if (len <= 0)
-    {
-        RETURN spec.LoadAssembly(FILE_LOADED);
-    }
-
-    BINDER_SPACE::ApplicationContext* appContext = spec.GetAppDomain()->GetTPABinderContext()->GetAppContext();
-    if (!appContext->IsTpaListProvided())
-    {
-        RETURN spec.LoadAssembly(FILE_LOADED);
-    }
-
-#ifdef _WIN32
-    WCHAR slashChar = W('\\');
-#else
-    WCHAR slashChar = W('/');
-#endif
-
-    // Extract file name without extension as simpleName from pFilePath.
-    size_t dotIndex = len - 1;
-    while(dotIndex > 1 && pFilePath[dotIndex] != W('.') && pFilePath[dotIndex] != slashChar)
-    {
-        --dotIndex;
-    }
-
-    size_t slashIndex = dotIndex;
-    while(slashIndex > 1 && pFilePath[slashIndex] != slashChar)
-    {
-        --slashIndex;
-    }
-
-    size_t simpleNameLength = 0;
-    LPCWSTR startPos = nullptr;
-    if (pFilePath[dotIndex] == W('.') && pFilePath[slashIndex] == slashChar)
-    {
-        simpleNameLength = dotIndex - slashIndex;
-        startPos = pFilePath + slashIndex + 1;
-    }
-    else if (pFilePath[dotIndex] != W('.') && pFilePath[slashIndex] == slashChar)
-    {
-        simpleNameLength = len - slashIndex;
-        startPos = pFilePath + slashIndex + 1;
-    }
-    else if (pFilePath[dotIndex] == W('.') && pFilePath[slashIndex] != slashChar)
-    {
-        simpleNameLength = dotIndex + 1;
-        startPos = pFilePath + dotIndex - 1;
-    }
-    else
-    {
-        simpleNameLength = len;
-        startPos = pFilePath;
-    }
-
-    LPWSTR simpleName = new WCHAR[simpleNameLength];
-    memcpy(simpleName, startPos, (simpleNameLength - 1) * sizeof(WCHAR));
-    simpleName[simpleNameLength - 1] = '\0';
-
-    // Ensure we're using correct IL file path in the application context.
-    BINDER_SPACE::SimpleNameToFileNameMap* tpaMap = appContext->GetTpaList();
-    const BINDER_SPACE::SimpleNameToFileNameMapEntry* existingEntry = tpaMap->LookupPtr(simpleName);
-    if (existingEntry != nullptr && wcscmp(existingEntry->m_wszILFileName, pFilePath) != 0)
-    {
-        BINDER_SPACE::SimpleNameToFileNameMapEntry mapEntry;
-        mapEntry.m_wszSimpleName = simpleName;
-        mapEntry.m_wszILFileName = const_cast<LPWSTR>(pFilePath);
-        mapEntry.m_wszNIFileName = existingEntry->m_wszNIFileName;
-
-        tpaMap->AddOrReplace(mapEntry);
-    }
-    else
-    {
-        delete[] simpleName;
-        simpleName = nullptr;
-    }
-
     RETURN spec.LoadAssembly(FILE_LOADED);
 }
 
