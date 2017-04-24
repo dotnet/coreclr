@@ -120,7 +120,7 @@ void EventPipeConfiguration::Enable()
     {
         // TODO: Only enable the providers that have been explicitly enabled.
         EventPipeProvider *pProvider = pElem->GetValue();
-        pProvider->SetConfiguration(true /* providerEnabled */, 0 /* keywords */, Critical /* level */);
+        pProvider->SetConfiguration(true /* providerEnabled */, 0 /* keywords */, EventPipeEventLevel::Critical /* level */);
 
         pElem = m_pProviderList->GetNext(pElem);
     }
@@ -143,7 +143,7 @@ void EventPipeConfiguration::Disable()
     while(pElem != NULL)
     {
         EventPipeProvider *pProvider = pElem->GetValue();
-        pProvider->SetConfiguration(false /* providerEnabled */, 0 /* keywords */, Critical /* level */);
+        pProvider->SetConfiguration(false /* providerEnabled */, 0 /* keywords */, EventPipeEventLevel::Critical /* level */);
 
         pElem = m_pProviderList->GetNext(pElem);
     }

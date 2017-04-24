@@ -9,7 +9,7 @@
 
 class EventPipeEvent;
 
-enum EventPipeEventLevel
+enum class EventPipeEventLevel
 {
     LogAlways,
     Critical,

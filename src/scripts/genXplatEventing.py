@@ -39,7 +39,7 @@ stdprolog_cmake="""
 #******************************************************************
 """
 
-lindent = "                  ";
+lindent = "    ";
 palDataTypeMapping ={
         #constructed types
         "win:null"          :" ",
@@ -338,17 +338,22 @@ def generateClrallEvents(eventNodes,allTemplates):
         fnptype.extend(fnptypeline)
         fnptype.append("\n)\n{\n")
         fnbody.append(lindent)
-        fnbody.append("if (!EventEnabled")
-        fnbody.append(eventName)
-        fnbody.append("()) {return ERROR_SUCCESS;}\n")
+        fnbody.append("ULONG status = EventPipeWriteEvent" + eventName + "(" + ''.join(line) + ");\n")
         fnbody.append(lindent)
-        fnbody.append("EventPipeWriteEvent" + eventName + "(" + ''.join(line) + ");\n")
+        fnbody.append("if(XplatEventLogger::IsEventLoggingEnabled())\n")
         fnbody.append(lindent)
-        fnbody.append("return FireEtXplat")
+        fnbody.append("{\n")
+        fnbody.append(lindent)
+        fnbody.append(lindent)
+        fnbody.append("status &= FireEtXplat")
         fnbody.append(eventName)
         fnbody.append("(")
         fnbody.extend(line)
         fnbody.append(");\n")
+        fnbody.append(lindent)
+        fnbody.append("}\n")
+        fnbody.append(lindent)
+        fnbody.append("return status;\n")
         fnbody.append("}\n\n")
 
         clrallEvents.extend(fnptype)

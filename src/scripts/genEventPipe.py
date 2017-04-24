@@ -133,7 +133,7 @@ def generateClrEventPipeWriteEventsImpl(
         eventValue = eventNode.getAttribute('value')
         eventVersion = eventNode.getAttribute('version')
         eventLevel = eventNode.getAttribute('level')
-        eventLevel = eventLevel.replace("win:", "")
+        eventLevel = eventLevel.replace("win:", "EventPipeEventLevel::")
         exclusionInfo = parseExclusionList(exclusionListFile)
         taskName = eventNode.getAttribute('task')
         noStack = getStackWalkBit(
