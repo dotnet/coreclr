@@ -9,6 +9,16 @@
 
 class EventPipeEvent;
 
+// Define the event pipe callback to match the ETW callback signature.
+typedef void (*EventPipeCallback)(
+    LPCGUID SourceID,
+    ULONG IsEnabled,
+    UCHAR Level,
+    ULONGLONG MatchAnyKeywords,
+    ULONGLONG MatchAllKeywords,
+    void *FilterData,
+    void *CallbackContext);
+
 enum EventPipeEventLevel
 {
     LogAlways,
@@ -41,6 +51,12 @@ private:
     // New events can be added on-the-fly.
     SList<SListElem<EventPipeEvent*>> *m_pEventList;
 
+    // The optional provider callback.
+    EventPipeCallback m_pCallbackFunction;
+
+    // The optional provider callback data pointer.
+    void *m_pCallbackData;
+
 public:
 
     EventPipeProvider(const GUID &providerID);
@@ -61,6 +77,12 @@ public:
     // NOTE: This should be private, but needs to be called from EventPipeEvent.
     void AddEvent(EventPipeEvent &event);
 
+    // Register a callback with the provider to be called on state change.
+    void RegisterCallback(EventPipeCallback pCallbackFunction, void *pData);
+
+    // Unregister a callback.
+    void UnregisterCallback(EventPipeCallback pCallbackFunction);
+
 private:
 
     // Set the provider configuration (enable and disable sets of events).
@@ -69,6 +91,9 @@ private:
 
     // Refresh the runtime state of all events.
     void RefreshAllEvents();
+
+    // Invoke the provider callback.
+    void InvokeCallback();
 };
 
 #endif // __EVENTPIPE_PROVIDER_H__
