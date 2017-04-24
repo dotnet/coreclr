@@ -1690,12 +1690,10 @@ void CodeGen::genCreateAndStoreGCInfo(unsigned codeSize,
 //    At least one conditional branch instruction will be returned.
 //    Typically only one conditional branch is needed
 //     and the second jmpKind[] value is set to EJ_NONE
-//-------------------------------------------------------------------------------------------
-
-// static
+//
 void CodeGen::genJumpKindsForTree(GenTreePtr cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2])
 {
-    // On Arm64 both branches will always branch to the true label
+    // On ARM both branches will always branch to the true label
     jmpToTrueLabel[0] = true;
     jmpToTrueLabel[1] = true;
 
@@ -1710,9 +1708,9 @@ void CodeGen::genJumpKindsForTree(GenTreePtr cmpTree, emitJumpKind jmpKind[2], b
     {
         assert(cmpTree->OperIsCompare());
 
-        // For details on this mapping, see the ARM64 Condition Code
-        // table at section C1.2.3 in the ARMV8 architecture manual
-        //
+        // For details on this mapping, see the ARM Condition Code table
+        // at section A8.3   in the ARMv7 architecture manual or
+        // at section C1.2.3 in the ARMV8 architecture manual.
 
         // We must check the GTF_RELOP_NAN_UN to find out
         // if we need to branch when we have a NaN operand.
