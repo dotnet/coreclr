@@ -131,17 +131,7 @@ mdToken Assembler::ResolveClassRef(mdToken tkResScope, __in __nullterminated con
             if((TypeFromToken(tkResScope) == mdtAssemblyRef) && !IsNilToken(tkResScope))
             {
                 // considering the aliased case '[' dottedName ']' slashedName
-                AsmManAssembly* assembly;
-                AsmManAssembly* assemblyTemp = m_pManifest->m_AsmRefLst.PEEK(RidFromToken(tkResScope) - 1);
-                _ASSERT(assemblyTemp != NULL);
-                do
-                {
-                    // resolving chained aliases like System.Runtime <- Foo <- Bar <- FooBar
-                    assembly = assemblyTemp;
-                    assemblyTemp = m_pManifest->GetAsmRefByName(assembly->szName);
-                }
-                while(assemblyTemp != NULL && assemblyTemp != assembly);
-
+                AsmManAssembly* assembly = m_pManifest->m_AsmRefLst.PEEK(RidFromToken(tkResScope) - 1);
                 tkResScope = GetAsmRef(assembly->szAlias);
             }
             if(IsNilToken(tkResScope) && !m_fIsMscorlib) tkResScope = GetBaseAsmRef();
