@@ -15,8 +15,13 @@ EventPipeFile::EventPipeFile(SString &outputFilePath)
     }
     CONTRACTL_END;
 
-    m_pSerializer = new FastSerializer(outputFilePath);
+    m_pSerializer = new FastSerializer(outputFilePath, *this);
     QueryPerformanceCounter(&m_fileOpenTimeStamp);
+
+    // Write a forward reference to the beginning of the event stream.
+    // This also allows readers to know where the event stream ends and skip it if needed.
+    m_beginEventsForwardReferenceIndex = m_pSerializer->AllocateForwardReference();
+    m_pSerializer->WriteForwardReference(m_beginEventsForwardReferenceIndex);
 }
 
 EventPipeFile::~EventPipeFile()
@@ -29,6 +34,13 @@ EventPipeFile::~EventPipeFile()
     }
     CONTRACTL_END;
 
+    // Mark the end of the event stream.
+    StreamLabel currentLabel = m_pSerializer->GetStreamLabel();
+
+    // Define the event start forward reference.
+    m_pSerializer->DefineForwardReference(m_beginEventsForwardReferenceIndex, currentLabel);
+
+    // Close the serializer.
     if(m_pSerializer != NULL)
     {
         delete(m_pSerializer);
@@ -46,5 +58,6 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     }
     CONTRACTL_END;
 
-    // TODO: Write it to the event buffer.
+    // Write the event to the stream.
+    instance.FastSerialize(m_pSerializer);
 }

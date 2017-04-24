@@ -6,6 +6,7 @@
 #include "eventpipe.h"
 #include "eventpipeconfiguration.h"
 #include "eventpipeevent.h"
+#include "eventpipefile.h"
 #include "eventpipeprovider.h"
 #include "eventpipejsonfile.h"
 #include "sampleprofiler.h"
@@ -17,6 +18,7 @@
 CrstStatic EventPipe::s_configCrst;
 bool EventPipe::s_tracingInitialized = false;
 EventPipeConfiguration* EventPipe::s_pConfig = NULL;
+EventPipeFile* EventPipe::s_pFile = NULL;
 EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
 
 #ifdef FEATURE_PAL
@@ -121,6 +123,9 @@ void EventPipe::Disable()
     }
     CONTRACTL_END;
 
+    // Don't block GC during clean-up.
+    GCX_PREEMP();
+
     // Take the lock before disabling tracing.
     CrstHolder _crst(GetLock());
 
@@ -136,6 +141,12 @@ void EventPipe::Disable()
     {
         delete(s_pJsonFile);
         s_pJsonFile = NULL;
+    }
+
+    if(s_pFile != NULL)
+    {
+        delete(s_pFile);
+        s_pFile = NULL;
     }
 
     if(s_pConfig != NULL)
@@ -162,6 +173,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, size_t length)
     }
 
     DWORD threadID = GetCurrentThreadId();
+    bool stackWalkSucceeded = false;
 
     // Create an instance of the event.
     EventPipeEventInstance instance(
@@ -280,4 +292,57 @@ CrstStatic* EventPipe::GetLock()
     LIMITED_METHOD_CONTRACT;
 
     return &s_configCrst;
+}
+
+void EventPipe::WriteToFile(EventPipeEvent &event, CommonEventFields &eventFields, StackContents &stackContents, BYTE *pData, size_t length)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if(s_pFile == NULL)
+    {
+        return;
+    }
+
+    EX_TRY
+    {
+    }
+    EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
+}
+
+void EventPipe::WriteToJsonFile(EventPipeEvent &event, CommonEventFields &eventFields, StackContents &stackContents)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if(s_pJsonFile == NULL)
+    {
+        return;
+    }
+
+    EX_TRY
+    {
+        const unsigned int guidSize = 39;
+        WCHAR wszProviderID[guidSize];
+        if(!StringFromGUID2(event.GetProvider()->GetProviderID(), wszProviderID, guidSize))
+        {
+            wszProviderID[0] = '\0';
+        }
+        memmove(wszProviderID, &wszProviderID[1], guidSize-3);
+        wszProviderID[guidSize-3] = '\0';
+        SString message;
+        message.Printf("Provider=%S/EventID=%d/Version=%d", wszProviderID, event.GetEventID(), event.GetEventVersion());
+        s_pJsonFile->WriteEvent(eventFields, message, stackContents);
+    }
+    EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }

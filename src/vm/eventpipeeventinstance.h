@@ -7,6 +7,7 @@
 
 #include "eventpipe.h"
 #include "eventpipeevent.h"
+#include "fastserializableobject.h"
 #include "fastserializer.h"
 
 class EventPipeEventInstance
@@ -19,11 +20,8 @@ public:
     // Get the stack contents object to either read or write to it.
     StackContents* GetStack();
 
-    // Static serialize function that can be called by FastSerializer.
-    static void Serialize(FastSerializer *pSerializer, EventPipeEventInstance *pInstance);
-
-    // Called from the static Serialize method to do the actual work.
-    void Serialize(FastSerializer *pSerializer);
+    // Serialize this object using FastSerialization.
+    void FastSerialize(FastSerializer *pSerializer);
 
     // Serialize this event to the JSON file.
     void SerializeToJsonFile(EventPipeJsonFile *pFile);

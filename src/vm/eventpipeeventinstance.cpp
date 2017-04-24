@@ -41,22 +41,7 @@ StackContents* EventPipeEventInstance::GetStack()
     return &m_stackContents;
 }
 
-void EventPipeEventInstance::Serialize(FastSerializer *pSerializer, EventPipeEventInstance *pInstance)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(pSerializer != NULL);
-        PRECONDITION(pInstance != NULL);
-    }
-    CONTRACTL_END;
-
-    pInstance->Serialize(pSerializer);
-}
-
-void EventPipeEventInstance::Serialize(FastSerializer *pSerializer)
+void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer)
 {
     CONTRACTL
     {
@@ -68,6 +53,8 @@ void EventPipeEventInstance::Serialize(FastSerializer *pSerializer)
     CONTRACTL_END;
 
     // TODO: Serialize the event using the serializer.
+    const unsigned int value = 0xDEADBEEF;
+    pSerializer->WriteBuffer((BYTE*)&value, sizeof(value));
 }
 
 void EventPipeEventInstance::SerializeToJsonFile(EventPipeJsonFile *pFile)
