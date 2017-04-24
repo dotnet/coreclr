@@ -85,7 +85,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) git checkout $(SourceVersion)",
+        "arguments": "run --rm $(DockerCommonRunArgs) git checkout $(Build.SourceVersion)",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -390,10 +390,6 @@
     },
     "PB_CleanAgent": {
       "value": "true"
-    }
-    "SourceVersion": {
-      "value": "HEAD",
-      "allowOverride": true
     }
   },
   "demands": [
