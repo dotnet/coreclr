@@ -710,39 +710,32 @@ namespace System
                 // Take a lock to ensure only one thread can restore the details
                 // at a time against this exception object that could have
                 // multiple ExceptionDispatchInfo instances associated with it.
+
+                // When restoring back the fields, we again create a copy and set reference to them
+                // in the exception object. This will ensure that when this exception is thrown and these
+                // fields are modified, then EDI's references remain intact.
                 //
-                // We do this inside a finally clause to ensure ThreadAbort cannot
-                // be injected while we have taken the lock. This is to prevent
-                // unrelated exception restorations from getting blocked due to TAE.
-                try { }
-                finally
+                // Since deep copying can throw on OOM, try to get the copies
+                // outside the lock.
+                object _stackTraceCopy = (exceptionDispatchInfo.BinaryStackTraceArray == null) ? null : DeepCopyStackTrace(exceptionDispatchInfo.BinaryStackTraceArray);
+                object _dynamicMethodsCopy = (exceptionDispatchInfo.DynamicMethodArray == null) ? null : DeepCopyDynamicMethods(exceptionDispatchInfo.DynamicMethodArray);
+
+                // Finally, restore the information. 
+                //
+                // Since EDI can be created at various points during exception dispatch (e.g. at various frames on the stack) for the same exception instance,
+                // they can have different data to be restored. Thus, to ensure atomicity of restoration from each EDI, perform the restore under a lock.
+                lock (Exception.s_EDILock)
                 {
-                    // When restoring back the fields, we again create a copy and set reference to them
-                    // in the exception object. This will ensure that when this exception is thrown and these
-                    // fields are modified, then EDI's references remain intact.
-                    //
-                    // Since deep copying can throw on OOM, try to get the copies
-                    // outside the lock.
-                    object _stackTraceCopy = (exceptionDispatchInfo.BinaryStackTraceArray == null) ? null : DeepCopyStackTrace(exceptionDispatchInfo.BinaryStackTraceArray);
-                    object _dynamicMethodsCopy = (exceptionDispatchInfo.DynamicMethodArray == null) ? null : DeepCopyDynamicMethods(exceptionDispatchInfo.DynamicMethodArray);
-
-                    // Finally, restore the information. 
-                    //
-                    // Since EDI can be created at various points during exception dispatch (e.g. at various frames on the stack) for the same exception instance,
-                    // they can have different data to be restored. Thus, to ensure atomicity of restoration from each EDI, perform the restore under a lock.
-                    lock (Exception.s_EDILock)
-                    {
-                        _watsonBuckets = exceptionDispatchInfo.WatsonBuckets;
-                        _ipForWatsonBuckets = exceptionDispatchInfo.IPForWatsonBuckets;
-                        _remoteStackTraceString = exceptionDispatchInfo.RemoteStackTrace;
-                        SaveStackTracesFromDeepCopy(this, _stackTraceCopy, _dynamicMethodsCopy);
-                    }
-                    _stackTraceString = null;
-
-                    // Marks the TES state to indicate we have restored foreign exception
-                    // dispatch information.
-                    Exception.PrepareForForeignExceptionRaise();
+                    _watsonBuckets = exceptionDispatchInfo.WatsonBuckets;
+                    _ipForWatsonBuckets = exceptionDispatchInfo.IPForWatsonBuckets;
+                    _remoteStackTraceString = exceptionDispatchInfo.RemoteStackTrace;
+                    SaveStackTracesFromDeepCopy(this, _stackTraceCopy, _dynamicMethodsCopy);
                 }
+                _stackTraceString = null;
+
+                // Marks the TES state to indicate we have restored foreign exception
+                // dispatch information.
+                Exception.PrepareForForeignExceptionRaise();
             }
         }
 
@@ -834,7 +827,6 @@ namespace System
         // involved to native code.
         internal enum ExceptionMessageKind
         {
-            ThreadAbort = 1,
             ThreadInterrupted = 2,
             OutOfMemory = 3
         }

@@ -1151,9 +1151,8 @@ namespace System.Threading.Tasks
                 }
                 catch (Exception e)
                 {
-                    // we 1) either received an unexpected exception originating from a custom scheduler, which needs to be wrapped in a TSE and thrown
-                    //    2) or a a ThreadAbortException, which we need to skip here, because it would already have been handled in Task.Execute
-                    if (!taskQueued && !(e is ThreadAbortException))
+                    // we received an unexpected exception originating from a custom scheduler, which needs to be wrapped in a TSE and thrown
+                    if (!taskQueued)
                     {
                         // We had a problem with TryRunInline() or QueueTask().  
                         // Record the exception, marking ourselves as Completed/Faulted.
@@ -1779,11 +1778,6 @@ namespace System.Threading.Tasks
                 // Queue to the indicated scheduler.
                 m_taskScheduler.InternalQueueTask(this);
             }
-            catch (ThreadAbortException tae)
-            {
-                AddException(tae);
-                FinishThreadAbortedTask(delegateRan: false);
-            }
             catch (Exception e)
             {
                 // The scheduler had a problem queueing this task.  Record the exception, leaving this task in
@@ -2305,51 +2299,12 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>
-        /// Special purpose Finish() entry point to be used when the task delegate throws a ThreadAbortedException
-        /// This makes a note in the state flags so that we avoid any costly synchronous operations in the finish codepath
-        /// such as inlined continuations
-        /// </summary>
-        /// <param name="delegateRan">Whether the delegate was executed.</param>
-        internal void FinishThreadAbortedTask(bool delegateRan)
-        {
-            Debug.Assert(m_contingentProperties?.m_exceptionsHolder != null,
-                "FinishThreadAbortedTask() called on a task whose exception holder wasn't initialized");
-
-            m_contingentProperties.m_exceptionsHolder.MarkAsHandled(false);
-
-            // If this method has already been called for this task, or if this task has already completed, then
-            // return before actually calling Finish().
-            if (!AtomicStateUpdate(TASK_STATE_THREAD_WAS_ABORTED,
-                            TASK_STATE_THREAD_WAS_ABORTED | TASK_STATE_RAN_TO_COMPLETION | TASK_STATE_FAULTED | TASK_STATE_CANCELED))
-            {
-                return;
-            }
-
-            Finish(delegateRan);
-        }
-
-        /// <summary>
         /// IThreadPoolWorkItem override, which is the entry function for this task when the TP scheduler decides to run it.
         /// 
         /// </summary>
         void IThreadPoolWorkItem.ExecuteWorkItem()
         {
             ExecuteEntryUnsafe();
-        }
-
-        /// <summary>
-        /// The ThreadPool calls this if a ThreadAbortException is thrown while trying to execute this workitem.  This may occur
-        /// before Task would otherwise be able to observe it.  
-        /// </summary>
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-            // If the task has marked itself as Completed, then it either a) already observed this exception (so we shouldn't handle it here)
-            // or b) completed before the exception ocurred (in which case it shouldn't count against this Task).
-            if (!IsCompleted)
-            {
-                HandleException(tae);
-                FinishThreadAbortedTask(delegateRan: false);
-            }
         }
 
         /// <summary>
@@ -2458,13 +2413,6 @@ namespace System.Threading.Tasks
                 {
                     // Record this exception in the task's exception list
                     HandleException(exn);
-                    if (exn is ThreadAbortException)
-                    {
-                        // This is a ThreadAbortException and it will be rethrown from this catch clause, causing us to 
-                        // skip the regular Finish codepath. In order not to leave the task unfinished, we now call 
-                        // FinishThreadAbortedTask here.
-                        FinishThreadAbortedTask(delegateRan: true);
-                    }
                 }
 
                 if (loggingOn)
@@ -2817,17 +2765,9 @@ namespace System.Threading.Tasks
             }
             catch (Exception e)
             {
-                // we 1) either received an unexpected exception originating from a custom scheduler, which needs to be wrapped in a TSE and thrown
-                //    2) or a a ThreadAbortException, which we need to skip here, because it would already have been handled in Task.Execute
-                if (!(e is ThreadAbortException))
-                {
-                    TaskSchedulerException tse = new TaskSchedulerException(e);
-                    throw tse;
-                }
-                else
-                {
-                    throw;
-                }
+                // we received an unexpected exception originating from a custom scheduler, which needs to be wrapped in a TSE and thrown
+                TaskSchedulerException tse = new TaskSchedulerException(e);
+                throw tse;
             }
         }
 
@@ -2855,10 +2795,7 @@ namespace System.Threading.Tasks
             if (!returnValue)
             {
                 // Alert a listening debugger that we can't make forward progress unless it slips threads.
-                // We call NOCTD for two reasons:
-                //    1. If the task runs on another thread, then we'll be blocked here indefinitely.
-                //    2. If the task runs inline but takes some time to complete, it will suffer ThreadAbort with possible state corruption,
-                //       and it is best to prevent this unless the user explicitly asks to view the value with thread-slipping enabled.
+                // We call NOCTD if the task runs on another thread, then we'll be blocked here indefinitely.
                 Debugger.NotifyOfCrossThreadDependency();
 
                 // We will attempt inline execution only if an infinite wait was requested
@@ -3026,10 +2963,7 @@ namespace System.Threading.Tasks
                     // the cancellation logic run its course (record the request, attempt atomic state transition and do cleanup where appropriate)
                     // Here we will only record a TaskSchedulerException, which will later be thrown at function exit.
 
-                    if (!(e is ThreadAbortException))
-                    {
-                        tse = new TaskSchedulerException(e);
-                    }
+                    tse = new TaskSchedulerException(e);
                 }
 
                 bool bRequiresAtomicStartTransition = ts != null && ts.RequiresAtomicStartTransition;
@@ -6222,11 +6156,6 @@ namespace System.Threading.Tasks
         void IThreadPoolWorkItem.ExecuteWorkItem()
         {
             m_action.Invoke(m_completingTask);
-        }
-
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-            /* NOP */
         }
     }
 

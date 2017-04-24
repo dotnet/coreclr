@@ -89,7 +89,7 @@ namespace System.Diagnostics
             // 0 means capture all frames.  For StackTraces from an Exception, the EE always
             // captures all frames.  For other uses of StackTraces, we can abort stack walking after
             // some limit if we want to by setting this to a non-zero value.  In Whidbey this was 
-            // hard-coded to 512, but some customers complained.  There shouldn't be any need to limit
+            // hard-coded to 512, but some customers reported issues.  There shouldn't be any need to limit
             // this as memory/CPU is no longer allocated up front.  If there is some reason to provide a
             // limit in the future, then we should expose it in the managed API so applications can 
             // override it.

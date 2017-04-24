@@ -544,11 +544,7 @@ namespace System.Threading.Tasks
                 }
                 else if (ex != null)
                 {
-                    bool bWonSetException = promise.TrySetException(ex);
-                    if (bWonSetException && ex is ThreadAbortException)
-                    {
-                        promise.m_contingentProperties.m_exceptionsHolder.MarkAsHandled(false);
-                    }
+                    promise.TrySetException(ex);
                 }
                 else
                 {

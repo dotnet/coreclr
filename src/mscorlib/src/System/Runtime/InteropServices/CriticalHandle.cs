@@ -66,8 +66,7 @@ using System.IO;
   handle. This method will be prepared as a constrained execution
   region at instance construction time (along with all the methods in
   its statically determinable call graph). This implies that we won't
-  get any inconvenient jit allocation errors or rude thread abort
-  interrupts while releasing the handle but the user must still write
+  get any inconvenient jit allocation errors while releasing the handle but the user must still write
   careful code to avoid injecting fault paths of their own (see the
   CER spec for more details). In particular, any sub-methods you call
   should be decorated with a reliability contract of the appropriate

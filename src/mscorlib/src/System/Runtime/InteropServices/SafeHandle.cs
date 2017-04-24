@@ -171,8 +171,7 @@ namespace System.Runtime.InteropServices
 
             // Set this last to prevent SafeHandle's finalizer from freeing an
             // invalid handle.  This means we don't have to worry about 
-            // ThreadAbortExceptions interrupting this constructor or the managed
-            // constructors on subclasses that call this constructor.
+            // the managed constructors on subclasses that call this constructor.
             _fullyInitialized = true;
         }
 
@@ -273,7 +272,7 @@ namespace System.Runtime.InteropServices
         // that callers need not worry about the atomicity of calling the routine
         // and assigning the return value to a variable (the variable should be
         // explicitly set to false prior to the call). The only failure cases are
-        // when the method is interrupted prior to processing by a thread abort or
+        // when the method is interrupted prior to processing 
         // when the handle has already been (or is in the process of being)
         // released.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
