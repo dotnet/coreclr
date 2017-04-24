@@ -79,7 +79,7 @@ def static getOSGroup(def os) {
                     if (arch == 'x86jit32')
                     {
                         // Download package and copy compatjit into Core_Root
-                        batchFile("C:\\Tools\\nuget.exe install runtime.win7-${architecture}.Microsoft.NETCore.Jit -Source https://dotnet.myget.org/F/dotnet-core -OutputDirectory \"%WORKSPACE%\" -Prerelease -ExcludeVersion\n" +
+                        batchFile("C:\\Tools\\nuget.exe install runtime.win7-${architecture}.Microsoft.NETCore.Jit -Source https://dotnet.myget.org/F/dotnet-core -OutputDirectory \"%WORKSPACE%\" -Prerelease -Version 2.0.0-preview1-25205-04 -ExcludeVersion\n" +
                         "xcopy \"%WORKSPACE%\\runtime.win7-x86.Microsoft.NETCore.Jit\\runtimes\\win7-x86\\native\\compatjit.dll\" \"%WORKSPACE%\\bin\\Product\\${os}.${architecture}.${configuration}\" /Y")
                     }
 
@@ -174,7 +174,7 @@ def static getOSGroup(def os) {
                     if (arch == 'x86jit32')
                     {
                         // Download package and copy compatjit into Core_Root
-                        batchFile("C:\\Tools\\nuget.exe install runtime.win7-${architecture}.Microsoft.NETCore.Jit -Source https://dotnet.myget.org/F/dotnet-core -OutputDirectory \"%WORKSPACE%\" -Prerelease -ExcludeVersion\n" +
+                        batchFile("C:\\Tools\\nuget.exe install runtime.win7-${architecture}.Microsoft.NETCore.Jit -Source https://dotnet.myget.org/F/dotnet-core -OutputDirectory \"%WORKSPACE%\" -Prerelease -Version 2.0.0-preview1-25205-04 -ExcludeVersion\n" +
                         "xcopy \"%WORKSPACE%\\runtime.win7-x86.Microsoft.NETCore.Jit\\runtimes\\win7-x86\\native\\compatjit.dll\" \"%WORKSPACE%\\bin\\Product\\${os}.${architecture}.${configuration}\" /Y")
                     }
                     batchFile("py -u tests\\scripts\\run-throughput-perf.py -arch ${arch} -os ${os} -configuration ${configuration} -clr_root \"%WORKSPACE%\" -assembly_root \"%WORKSPACE%\\Microsoft.BenchView.ThroughputBenchmarks.${architecture}.${os}\\lib\" -benchview_path \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" -run_type ${runType}")
