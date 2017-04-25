@@ -3,7 +3,8 @@
   "Definitions": {
     "Path": ".",
     "Type": "VSTS",
-    "BaseUrl":  "https://devdiv.visualstudio.com/DefaultCollection"
+    "BaseUrl":  "https://devdiv.visualstudio.com/DefaultCollection",
+    "SkipBranchAndVersionOverrides": "false"
   },
   "DefinitionGroups": [
     {
@@ -396,6 +397,7 @@
       "Definitions": [
         {
           "Name": "DotNet-Trusted-Publish",
+          "SkipBranchAndVersionOverrides": "true",
           "Parameters": {
             "VstsRepositoryName": "DotNet-CoreCLR-Trusted",
             "GitHubRepositoryName": "coreclr",
@@ -425,6 +427,7 @@
       "Definitions": [
         {
           "Name": "DotNet-Trusted-Publish",
+          "SkipBranchAndVersionOverrides": "true",
           "Parameters": {
             "VstsRepositoryName": "DotNet-CoreCLR-Trusted",
             "GitHubRepositoryName": "coreclr"
@@ -452,6 +455,7 @@
       "Definitions": [
         {
           "Name": "DotNet-Trusted-Publish",
+          "SkipBranchAndVersionOverrides": "true",
           "Parameters": {
             "VstsRepositoryName": "DotNet-CoreCLR-Trusted",
             "GitHubRepositoryName": "coreclr"
