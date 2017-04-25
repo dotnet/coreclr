@@ -205,7 +205,7 @@
       "value": "coreclr"
     },
     "HelixBranch": {
-      "value": "master"
+      "value": "release/2.0.0"
     },
     "HelixApiAccessKey": {
       "value": null,
