@@ -6184,6 +6184,14 @@ bool Compiler::optHoistLoopExprsForTree(
                     treeIsHoistable = false;
                 }
             }
+            // Currently we must give up on reads from static variables (even if we are in the first block).
+            //
+            if (tree->OperGet() == GT_CLS_VAR)
+            {
+                // TODO-CQ: test that fails if we hoist GT_CLS_VAR: JIT\Directed\Languages\ComponentPascal\pi_r.exe
+                // method Main
+                treeIsHoistable =  false;
+            }
         }
 
         // Is the value of the whole tree loop invariant?
@@ -6196,9 +6204,8 @@ bool Compiler::optHoistLoopExprsForTree(
             treeIsHoistable = false;
         }
 
-        // Currently we must give up on reads from static variables (even if we are in the first block).
-        //
-        if (tree->OperGet() == GT_CLS_VAR)
+        // Avoid to hoist reference loading
+        if (tree->OperGet() == GT_CLS_VAR && tree->gtType == TYP_BYREF)
         {
             treeIsHoistable = treeIsInvariant = false;
         }
