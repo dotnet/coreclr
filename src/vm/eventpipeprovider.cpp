@@ -21,7 +21,7 @@ EventPipeProvider::EventPipeProvider(const GUID &providerID)
     m_providerID = providerID;
     m_enabled = false;
     m_keywords = 0;
-    m_providerLevel = Critical;
+    m_providerLevel = EventPipeEventLevel::Critical;
     m_pEventList = new SList<SListElem<EventPipeEvent*>>();
     m_pCallbackFunction = NULL;
     m_pCallbackData = NULL;
@@ -65,7 +65,7 @@ bool EventPipeProvider::EventEnabled(INT64 keywords, EventPipeEventLevel eventLe
     //  - The event keywords are unspecified in the manifest (== 0) or when masked with the enabled config are != 0.
     //  - The event level is LogAlways or the provider's verbosity level is set to greater than the event's verbosity level in the manifest.
     return (EventEnabled(keywords) &&
-        ((eventLevel == LogAlways) || (m_providerLevel >= eventLevel)));
+        ((eventLevel == EventPipeEventLevel::LogAlways) || (m_providerLevel >= eventLevel)));
 }
 
 void EventPipeProvider::SetConfiguration(bool providerEnabled, INT64 keywords, EventPipeEventLevel providerLevel)

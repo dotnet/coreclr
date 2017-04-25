@@ -19,7 +19,7 @@ typedef void (*EventPipeCallback)(
     void *FilterData,
     void *CallbackContext);
 
-enum EventPipeEventLevel
+enum class EventPipeEventLevel
 {
     LogAlways,
     Critical,
