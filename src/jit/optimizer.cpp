@@ -6190,7 +6190,7 @@ bool Compiler::optHoistLoopExprsForTree(
             {
                 // TODO-CQ: test that fails if we hoist GT_CLS_VAR: JIT\Directed\Languages\ComponentPascal\pi_r.exe
                 // method Main
-                treeIsHoistable =  false;
+                treeIsHoistable = false;
             }
         }
 
