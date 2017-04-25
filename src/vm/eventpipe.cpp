@@ -16,7 +16,6 @@
 
 CrstStatic EventPipe::s_configCrst;
 bool EventPipe::s_tracingInitialized = false;
-bool EventPipe::s_tracingEnabled = false;
 EventPipeConfiguration* EventPipe::s_pConfig = NULL;
 EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
 
@@ -89,8 +88,11 @@ void EventPipe::Enable()
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
 
-    // Set the bit that actually enables tracing.
-    s_tracingEnabled = true;
+    // Create the event pipe file.
+    SString eventPipeFileOutputPath;
+    eventPipeFileOutputPath.Printf("Process-%d.netperf", GetCurrentProcessId());
+    s_pFile = new EventPipeFile(eventPipeFileOutputPath);
+
     if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) == 2)
     {
         // File placed in current working directory.
@@ -98,6 +100,9 @@ void EventPipe::Enable()
         outputFilePath.Printf("Process-%d.PerfView.json", GetCurrentProcessId());
         s_pJsonFile = new EventPipeJsonFile(outputFilePath);
     }
+
+    // Enable tracing.
+    s_pConfig->Enable();
 
     // Enable the sample profiler
     SampleProfiler::Enable();
@@ -119,9 +124,10 @@ void EventPipe::Disable()
     // Take the lock before disabling tracing.
     CrstHolder _crst(GetLock());
 
-    // Actually disable tracing.
-    s_tracingEnabled = false;
+    // Disable the profiler.
     SampleProfiler::Disable();
+
+    // Disable tracing.
     s_pConfig->Disable();
 
     // TODO: Fix race conditions.  It's possible that these resources get deleted
