@@ -7982,7 +7982,7 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
         // the call.
         GenTreeStmt* nextMorphStmt = fgMorphStmt->gtNextStmt;
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
         // Legacy Jit64 Compat:
         // There could be any number of GT_NOPs between tail call and GT_RETURN.
         // That is tail call pattern could be one of the following:
