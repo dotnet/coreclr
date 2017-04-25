@@ -146,8 +146,6 @@ public class Usage
             // ensure threshold is increasing
             if (!CheckPercentageIncrease(handleCount, prevHandleCount))
             {
-                // see github#4093 for the rationale for fail-fast in this test.
-                Environment.FailFast(string.Empty);
                 return false;
             }
             prevHandleCount = handleCount;
@@ -162,16 +160,29 @@ public class Usage
     // Checks that the threshold increases are within 0.2 error margine of deltaPercent
     private bool CheckPercentageIncrease(int current, int previous)
     {
-        bool retValue = true;
-        if (previous != 0)
+        // Precision for determining whether or not the error margin is
+        // changing.
+        const double ChangingTolerance = 0.0001;
+        if (previous == 0)
         {
-            double value = ((double)(current - previous)) / (double)previous;
-            double expected = (double)deltaPercent / 100;
-            double errorMargin = Math.Abs((double)(value - expected) / (double)expected);
-            retValue = (errorMargin < 0.2);
+            return true;
         }
 
-        return retValue;
+        double lastErrorMargin = 0.0;
+        double errorMargin = 0.0;
+        do
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            lastErrorMargin = errorMargin;
+            double value = ((double)(current - previous)) / (double)previous;
+            double expected = (double)deltaPercent / 100;
+            errorMargin = Math.Abs((double)(value - expected) / (double)expected);
+        } while (Math.Abs(lastErrorMargin - errorMargin) >= ChangingTolerance);
+
+        return errorMargin < 0.2;
     }
 
 
