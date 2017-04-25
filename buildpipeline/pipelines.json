@@ -455,6 +455,7 @@
       "Definitions": [
         {
           "Name": "DotNet-Trusted-Publish-Symbols",
+          "SkipBranchAndVersionOverrides": "true",
           "Parameters": {
           },
           "ReportingParameters": {
