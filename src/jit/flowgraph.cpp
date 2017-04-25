@@ -14634,12 +14634,18 @@ void Compiler::fgReorderBlocks()
             continue;
         }
 
-        bool        reorderBlock   = true; // This is set to false if we decide not to reorder 'block'
-        const bool  isRare         = block->isRunRarely();
-        const bool  isReturn       = (block->bbJumpKind == BBJ_RETURN);
+        bool       reorderBlock = true; // This is set to false if we decide not to reorder 'block'
+        const bool isRare       = block->isRunRarely();
+        const bool isReturn     = (block->bbJumpKind == BBJ_RETURN) && (bPrev->bbJumpKind == BBJ_COND) &&
+                              ((block->bbFlags & BBF_BACKWARD_JUMP) != 0);
         BasicBlock* bDest          = nullptr;
         bool        forwardBranch  = false;
         bool        backwardBranch = false;
+
+        if (isRare || isReturn)
+        {
+            JITDUMP("*** BB%02u is %s %s\n", block->bbNum, isRare ? "rare" : "", isReturn ? "return" : "");
+        }
 
         // Setup bDest
         if ((bPrev->bbJumpKind == BBJ_COND) || (bPrev->bbJumpKind == BBJ_ALWAYS))
