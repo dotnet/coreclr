@@ -146,7 +146,16 @@ public class Usage
             // ensure threshold is increasing
             if (!CheckPercentageIncrease(handleCount, prevHandleCount))
             {
-                return false;
+                Console.WriteLine("Percentage not increasing, performing Collect/WFPF/Collect cycle");
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                if (handleCount == HandleCollectorTest.Count)
+                {
+                    Console.WriteLine("No handles finalized in Collect/WFPF/Collect cycle");
+                    return false;
+                }
             }
             prevHandleCount = handleCount;
         }
@@ -160,29 +169,16 @@ public class Usage
     // Checks that the threshold increases are within 0.2 error margine of deltaPercent
     private bool CheckPercentageIncrease(int current, int previous)
     {
-        // Precision for determining whether or not the error margin is
-        // changing.
-        const double ChangingTolerance = 0.0001;
-        if (previous == 0)
+        bool retValue = true;
+        if (previous != 0)
         {
-            return true;
-        }
-
-        double lastErrorMargin = 0.0;
-        double errorMargin = 0.0;
-        do
-        {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-
-            lastErrorMargin = errorMargin;
             double value = ((double)(current - previous)) / (double)previous;
             double expected = (double)deltaPercent / 100;
-            errorMargin = Math.Abs((double)(value - expected) / (double)expected);
-        } while (Math.Abs(lastErrorMargin - errorMargin) >= ChangingTolerance);
+            double errorMargin = Math.Abs((double)(value - expected) / (double)expected);
+            retValue = (errorMargin < 0.2);
+        }
 
-        return errorMargin < 0.2;
+        return retValue;
     }
 
 
