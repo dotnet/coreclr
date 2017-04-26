@@ -4078,7 +4078,7 @@ BOOL ExceptionTracker::ClauseCoversPC(
     // of the method so we can just compare them to the offset returned
     // by JitCodeToMethodInfo.
     //
-    return ((pEHClause->TryStartPC <= dwOffset) && (dwOffset < pEHClause->TryEndPC));
+    return ((pEHClause->TryStartPC <= dwOffset) && (dwOffset <= pEHClause->TryEndPC));
 }
 
 #if defined(DEBUGGING_SUPPORTED)
