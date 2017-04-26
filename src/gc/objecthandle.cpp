@@ -608,7 +608,8 @@ HandleTableBucketHolder::~HandleTableBucketHolder()
         }
         delete [] m_bucket->pTable;
     }
-    delete m_bucket;
+
+    // we do not own m_bucket, so we shouldn't delete it here.
 }
 
 bool Ref_Initialize()
@@ -729,8 +730,7 @@ HandleTableBucket* Ref_CreateHandleTableBucket(void* context)
 
     if (!Ref_InitializeHandleTableBucket(result, context))
     {
-        // result has already been freed by Ref_InitializeHandleTableBucket.
-        // no need to do so here.
+        delete result;
         return nullptr;
     }
 
