@@ -9,8 +9,8 @@
 # Print script usage
 #################################
 
-if [ ! -r "$1" -o -z "$2" ]; then
-	echo "usage: $0 <path to clrconfigvalues.h> <output file>"
+if [ ! -r "$1" -o ! -r "$2" -o -z "$3" ]; then
+	echo "usage: $0 <path to clrconfigvalues.h> <path to jitconfigvalues.h> <output file>"
 	exit 1;
 fi
 
@@ -86,7 +86,13 @@ define("CONFIG_DWORD_INFO_EX", "`$2` | $4 | DWORD | patsubst("$1", "_.*", "") | 
 define("RETAIL_CONFIG_DWORD_INFO_EX", "`$2` | $4 | DWORD | patsubst("$1", "_.*", "") | $3 | patsubst(patsubst("$5", "CLRConfig::", ""), "|", "/")")dnl
 define("CONFIG_STRING_INFO_EX", "`$2` | $3 | STRING | patsubst("$1", "_.*", "") | | patsubst(patsubst("$4", "CLRConfig::", ""), "|", "/")")dnl
 define("RETAIL_CONFIG_STRING_INFO_EX", "`$2` | $3 | STRING | patsubst("$1", "_.*", "") | | patsubst(patsubst("$4", "CLRConfig::", ""), "|", "/")")dnl
+define("JIT_CONFIG_DWORD_INFO", "`$2` |  $4 | DWORD | JIT | $3 | | ")dnl
+define("JIT_CONFIG_STRING_INFO", "`$2` | $3 | STRING | JIT | | ")dnl
+define("JIT_CONFIG_METHODSET_INFO", "`$2` | $3 | STRING | JIT | | ")dnl
 define("W", "$1")dnl
+define("CONFIG_INTEGER", "!!!")dnl
+define("CONFIG_STRING", "!!!")dnl
+define("CONFIG_METHODSET", "!!!")dnl
 dnl
 
 EOF
@@ -98,8 +104,8 @@ EOF
 cat <(echo "$INTROSECTION") <(echo)\
     <(echo "$HOSTCONFIGURATIONKNOBSSECTION") <(echo)\
     <(echo "$CLRCONFIGSECTIONTITLE") <(echo)\
-    <(echo "$GENERATEDTABLEINFO") > "$2";
+    <(echo "$GENERATEDTABLEINFO") > "$3";
 
 cat <(echo "$M4SCRIPT") \
-    <(echo "$CLRCONFIGSECTIONCONTENTS") <(cat "$1" | sed "/^\/\//d" | sed "/^#/d" | sed "s/\\\\\"/'/g" | sed "/^$/d"  ) \
-    | m4 | sed "s/;$//" >> "$2";
+    <(echo "$CLRCONFIGSECTIONCONTENTS") <(cat "$1" "$2" | sed "/^\/\//d" | sed "/^#/d" | sed "s/\\\\\"/'/g" | sed "/^$/d"  ) \
+    | m4 | sed "s/;$//" | sed "/^[ \t]*\/\//d" | sed "/^!!!/d" >> "$3";

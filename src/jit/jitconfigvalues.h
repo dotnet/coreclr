@@ -6,6 +6,19 @@
 #error CONFIG_INTEGER, CONFIG_STRING, and CONFIG_METHODSET must be defined before including this file.
 #endif // !defined(CONFIG_INTEGER) || !defined(CONFIG_STRING) || !defined(CONFIG_METHODSET)
 
+// These three macros are used to generate documentation by src/Documentation/project-docs/clr-complus-conf-docgen.sh
+#if !defined(JIT_CONFIG_DWORD_INFO)
+#define JIT_CONFIG_DWORD_INFO(t, n, d, p)
+#endif //! defined(JIT_CONFIG_DWORD_INFO)
+
+#if !defined(JIT_CONFIG_STRING_INFO)
+#define JIT_CONFIG_STRING_INFO(t, n, p)
+#endif //! defined(JIT_CONFIG_STRING_INFO)
+
+#if !defined(JIT_CONFIG_METHODSET_INFO)
+#define JIT_CONFIG_METHODSET_INFO(t, n, p)
+#endif //! defined(JIT_CONFIG_METHODSET_INFO)
+
 #ifdef DEBUG
 #define OPT_CONFIG // Enable optimization level configuration.
 #endif
@@ -201,6 +214,7 @@ CONFIG_INTEGER(AltJitAssertOnNYI, W("AltJitAssertOnNYI"), 1) // Controls the Alt
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 CONFIG_INTEGER(EnableSSE3_4, W("EnableSSE3_4"), 1) // Enable SSE3, SSSE3, SSE 4.1 and 4.2 instruction set as default
+JIT_CONFIG_DWORD_INFO(EnableSSE3_4, W("EnableSSE3_4"), 1, "Enable SSE3, SSSE3, and SSE4 instruction set as default")
 #endif
 
 #if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
