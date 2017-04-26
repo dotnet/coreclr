@@ -729,7 +729,8 @@ HandleTableBucket* Ref_CreateHandleTableBucket(void* context)
 
     if (!Ref_InitializeHandleTableBucket(result, context))
     {
-        delete result;
+        // result has already been freed by Ref_InitializeHandleTableBucket.
+        // no need to do so here.
         return nullptr;
     }
 
