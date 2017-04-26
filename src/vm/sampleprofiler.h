@@ -10,6 +10,10 @@
 
 class SampleProfiler
 {
+
+    // Declare friends.
+    friend class SampleProfilerEventInstance;
+
     public:
 
         // Enable profiling.
@@ -31,6 +35,10 @@ class SampleProfiler
 
         // The sampling thread.
         static Thread *s_pSamplingThread;
+
+        // The provider and event emitted by the profiler.
+        static EventPipeProvider *s_pEventPipeProvider;
+        static EventPipeEvent *s_pThreadTimeEvent;
 
         // Thread shutdown event for synchronization between Disable() and the sampling thread.
         static CLREventStatic s_threadShutdownEvent;

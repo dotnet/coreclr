@@ -8,6 +8,7 @@
 
 #include "common.h"
 #include "eventpipe.h"
+#include "eventpipeeventinstance.h"
 #include "fstream.h"
 
 class EventPipeJsonFile
@@ -16,8 +17,11 @@ class EventPipeJsonFile
         EventPipeJsonFile(SString &outFilePath);
         ~EventPipeJsonFile();
 
+        // Write an event instance.
+        void WriteEvent(EventPipeEventInstance &instance);
+
         // Write an event with the specified message and stack.
-        void WriteEvent(CommonEventFields &commonFields, SString &message, StackContents &stackContents);
+        void WriteEvent(LARGE_INTEGER timeStamp, DWORD threadID, SString &message, StackContents &stackContents);
 
     private:
 

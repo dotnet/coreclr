@@ -118,9 +118,9 @@ void EventPipeConfiguration::Enable()
     SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
     while(pElem != NULL)
     {
-        // TODO: Only enable the providers that have been explicitly enabled.
+        // TODO: Only enable the providers that have been explicitly enabled with specified keywords/level.
         EventPipeProvider *pProvider = pElem->GetValue();
-        pProvider->SetConfiguration(true /* providerEnabled */, 0 /* keywords */, EventPipeEventLevel::Critical /* level */);
+        pProvider->SetConfiguration(true /* providerEnabled */, 0xFFFFFFFFFFFFFFFF /* keywords */, EventPipeEventLevel::Verbose /* level */);
 
         pElem = m_pProviderList->GetNext(pElem);
     }

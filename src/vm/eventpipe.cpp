@@ -30,7 +30,7 @@ void EventPipe::Initialize()
 
     s_tracingInitialized = s_configCrst.InitNoThrow(
         CrstEventPipe,
-        (CrstFlags)(CRST_TAKEN_DURING_SHUTDOWN));
+        (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN));
 
     s_pConfig = new EventPipeConfiguration();
 #ifdef FEATURE_PAL
@@ -161,64 +161,40 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, size_t length)
         return;
     }
 
-    // Walk the stack if requested.
-    StackContents stackContents;
-    bool stackWalkSucceeded = false;
+    DWORD threadID = GetCurrentThreadId();
 
-    if(event.NeedStack())
+    // Create an instance of the event.
+    EventPipeEventInstance instance(
+        event,
+        threadID,
+        pData,
+        length);
+
+    // Write to the EventPipeFile if it exists.
+    _ASSERTE(s_pFile != NULL);
+    s_pFile->WriteEvent(instance);
+
+    // Write to the EventPipeJsonFile if it exists.
+    if(s_pJsonFile != NULL)
     {
-        stackWalkSucceeded = WalkManagedStackForCurrentThread(stackContents);
+        s_pJsonFile->WriteEvent(instance);
     }
-
-    EX_TRY
-    {
-        if(s_pJsonFile != NULL)
-        {
-            Thread *pThread = GetThread();
-
-            CommonEventFields eventFields;
-            PopulateCommonEventFields(eventFields, pThread);
-
-            const unsigned int guidSize = 39;
-            WCHAR wszProviderID[guidSize];
-            if(!StringFromGUID2(event.GetProvider()->GetProviderID(), wszProviderID, guidSize))
-            {
-                wszProviderID[0] = '\0';
-            }
-            memmove(wszProviderID, &wszProviderID[1], guidSize-3);
-            wszProviderID[guidSize-3] = '\0';
-            SString message;
-            message.Printf("Provider=%S/EventID=%d/Version=%d", wszProviderID, event.GetEventID(), event.GetEventVersion());
-            s_pJsonFile->WriteEvent(eventFields, message, stackContents);
-        }
-    }
-    EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }
 
-void EventPipe::WriteSampleProfileEvent(Thread *pThread, StackContents &stackContents)
+void EventPipe::WriteSampleProfileEvent(SampleProfilerEventInstance &instance)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(pThread != NULL);
     }
     CONTRACTL_END;
 
-    EX_TRY
+    if(s_pJsonFile != NULL)
     {
-        if(s_pJsonFile != NULL)
-        {
-            CommonEventFields eventFields;
-            QueryPerformanceCounter(&eventFields.TimeStamp);
-            eventFields.ThreadID = pThread->GetOSThreadId();
-
-            static SString message(W("THREAD_TIME"));
-            s_pJsonFile->WriteEvent(eventFields, message, stackContents);
-        }
+        s_pJsonFile->WriteEvent(instance);
     }
-    EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }
 
 bool EventPipe::WalkManagedStackForCurrentThread(StackContents &stackContents)
@@ -297,21 +273,6 @@ EventPipeConfiguration* EventPipe::GetConfiguration()
     LIMITED_METHOD_CONTRACT;
 
     return s_pConfig;
-}
-
-void EventPipe::PopulateCommonEventFields(CommonEventFields &commonEventFields, Thread * pThread)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(pThread != NULL);
-    }
-    CONTRACTL_END;
-
-    QueryPerformanceCounter(&commonEventFields.TimeStamp);
-    commonEventFields.ThreadID = pThread->GetOSThreadId();
 }
 
 CrstStatic* EventPipe::GetLock()
