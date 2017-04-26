@@ -1800,14 +1800,12 @@ namespace System.Runtime.InteropServices
 
             return s.MarshalToString(globalAlloc: false, unicode: true);
         }
-
-#if FEATURE_COMINTEROP
+        
         public static void ZeroFreeBSTR(IntPtr s)
         {
             Win32Native.ZeroMemory(s, (UIntPtr)(Win32Native.SysStringLen(s) * 2));
             FreeBSTR(s);
         }
-#endif
 
         public static void ZeroFreeCoTaskMemAnsi(IntPtr s)
         {

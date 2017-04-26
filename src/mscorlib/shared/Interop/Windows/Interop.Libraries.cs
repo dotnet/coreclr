@@ -8,8 +8,15 @@ internal static partial class Interop
     {
         internal const string BCrypt = "BCrypt.dll";
         internal const string Crypt32 = "crypt32.dll";
+
+#if !FEATURE_PAL
         internal const string Kernel32 = "kernel32.dll";
         internal const string NtDll = "ntdll.dll";
         internal const string OleAut32 = "oleaut32.dll";
+#else //FEATURE_PAL
+        internal const string Kernel32 = "libcoreclr";
+        internal const string NtDll = "libcoreclr";
+        internal const string OleAut32 = "libcoreclr";
+#endif //FEATURE_PAL
     }
 }

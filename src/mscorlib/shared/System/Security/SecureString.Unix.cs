@@ -142,6 +142,49 @@ namespace System.Security
             _buffer.Write((ulong)(index * sizeof(char)), c);
         }
 
+        internal unsafe IntPtr MarshalToBSTR()
+        {
+#if CORECLR
+            int length = _decryptedLength;
+            IntPtr ptr = IntPtr.Zero;
+            IntPtr result = IntPtr.Zero;
+            byte* bufferPtr = null;
+            
+            try
+            {
+                _buffer.AcquirePointer(ref bufferPtr);
+                int resultByteLength = (length + 1) * sizeof(char);
+
+                ptr = Interop.OleAut32.SysAllocStringLen(null, length);
+                if (ptr == IntPtr.Zero)
+                {
+                    throw new OutOfMemoryException();
+                }
+
+                Buffer.MemoryCopy(bufferPtr, (byte*)ptr, resultByteLength, length * sizeof(char));
+
+                result = ptr;
+            }
+            finally
+            {
+                // If we failed for any reason, free the new buffer
+                if (result == IntPtr.Zero && ptr != IntPtr.Zero)
+                {
+                    UnmanagedBuffer.ZeroMemory(ptr, (UIntPtr)(length * sizeof(char)));
+                    Interop.OleAut32.SysFreeString(ptr);
+                }
+
+                if (bufferPtr != null)
+                {
+                    _buffer.ReleasePointer();
+                }
+            }
+            return result;
+#else // CORECLR
+            // We have a native BSTR implementation available on Unix in CoreCLR, but not in CoreRT or ProjectN.
+            throw new PlatformNotSupportedException();
+        }
+
         internal unsafe IntPtr MarshalToStringCore(bool globalAlloc, bool unicode)
         {
             int length = _decryptedLength;
