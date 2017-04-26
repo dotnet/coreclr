@@ -30,25 +30,27 @@
 //    // If not aligned then make it 8-byte aligned   
 //    if(((uint64_t)dst&0xf) != 0)
 //    {
-//        if(count == 0)
-//            return
-//        if(dst&0x1)
+//        // Calculate alignment we can do without exceeding count
+//        // Use math to avoid introducing more unpredictable branches
+//        // Due to inherent mod in lsr, ~7 is used instead of ~0 to handle count == 0
+//        // Note logic will fail is count >= (1 << 61).  But this exceeds max physical memory for arm64
+//        uint8_t align = (dst & 0x7) & (~uint64_t(7) >> (countLeadingZeros(count) mod 64))
+//
+//        if(align&0x1)
 //        {
 //            *(unit8_t*)dst = (unit8_t)valEx;
 //            dst = (unit8_t*)dst + 1;
 //            count-=1;
 //        }
-//        if(count == 0)
-//            return
-//        if(dst&0x2)
+//
+//        if(align&0x2)
 //        {
 //            *(unit16_t*)dst = (unit16_t)valEx;
 //            dst = (unit16_t*)dst + 1;
 //            count-=2;
 //        }
-//        if(count == 0)
-//            return
-//        if(dst&0x4)
+//
+//        if(align&0x4)
 //        {
 //            *(unit32_t*)dst = (unit32_t)valEx;
 //            dst = (unit32_t*)dst + 1;
@@ -142,7 +144,7 @@ LEAF_ENTRY JIT_MemSet, _TEXT
 
     orr         w8, w8, w8, lsl #0x10
     csel        x11, x11, xzr, eq                  // x11 = (val == 0) && !DCZID_EL0.p ? count >> 3 : 0
-    tst         x0, #7
+    ands        x3, x0, #7                         // x3 = dst & 7
     lsl         x9, x6, x5                         // x9 = size
 
     orr         x8, x8, x8, lsl #0x20
@@ -151,20 +153,22 @@ LEAF_ENTRY JIT_MemSet, _TEXT
 
     b.eq        LOCAL_LABEL(JIT_MemSet_0x80)
 
-    tbz         x0, #0, LOCAL_LABEL(JIT_MemSet_0x2c)
+    movn        x4, #7
+    clz         x5, x2
+    lsr         x4, x4, x5
+    and         x3, x3, x4
+
+    tbz         x3, #0, LOCAL_LABEL(JIT_MemSet_0x2c)
     strb        w8, [x0], #1
-    subs        x2, x2, #1
-    b.eq        LOCAL_LABEL(JIT_MemSet_0xe8)
+    sub         x2, x2, #1
 LOCAL_LABEL(JIT_MemSet_0x2c):
-    tbz         x0, #1, LOCAL_LABEL(JIT_MemSet_0x5c)
+    tbz         x3, #1, LOCAL_LABEL(JIT_MemSet_0x5c)
     strh        w8, [x0], #2
-    subs        x2, x2, #2
-    b.eq        LOCAL_LABEL(JIT_MemSet_0xe8)
+    sub         x2, x2, #2
 LOCAL_LABEL(JIT_MemSet_0x5c):
-    tbz         x0, #2, LOCAL_LABEL(JIT_MemSet_0x80)
+    tbz         x3, #2, LOCAL_LABEL(JIT_MemSet_0x80)
     str         w8, [x0], #4
-    subs        x2, x2, #4
-    b.eq        LOCAL_LABEL(JIT_MemSet_0xe8)
+    sub         x2, x2, #4
 LOCAL_LABEL(JIT_MemSet_0x80):
     cbz         x11, LOCAL_LABEL(JIT_MemSet_0x9c)
     tbz         x0, #3, LOCAL_LABEL(JIT_MemSet_0x84)
