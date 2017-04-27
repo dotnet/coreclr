@@ -9933,11 +9933,11 @@ void TreeNodeInfo::Initialize(LinearScan* lsra, GenTree* node, LsraLocation loca
         dstCandidates = genRegMask(node->gtRegNum);
     }
 
-    internalIntCount      = 0;
-    internalFloatCount    = 0;
-    isLocalDefUse         = false;
-    isLsraAdded           = false;
-    definesAnyRegisters   = false;
+    internalIntCount    = 0;
+    internalFloatCount  = 0;
+    isLocalDefUse       = false;
+    isLsraAdded         = false;
+    definesAnyRegisters = false;
 
     setDstCandidates(lsra, dstCandidates);
     srcCandsIndex = dstCandsIndex;
