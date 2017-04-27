@@ -42,46 +42,34 @@ class Constants {
     // test execution in the build flow runs.  It generates the exact same build
     // as Windows_NT but without the tests.
     def static osList = [
+               'Ubuntu',
                'OSX10.12',
                'Windows_NT',
                'Windows_NT_BuildOnly',
-               'Ubuntu16.04',
-               'Tizen']
+               'Ubuntu16.04']
 
     def static crossList = ['Ubuntu', 'OSX10.12', 'CentOS7.1', 'RHEL7.2', 'Debian8.4']
 
     // This is a set of JIT stress modes combined with the set of variables that
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
     // the values are the environment variables
-    def static jitStressModeScenarios = [
-               'jitstress2'                     : ['COMPlus_JitStress' : '2']
-               ]
+    def static jitStressModeScenarios = [:]
 
-    // This is a set of r2r jit stress scenarios
-    def static r2rJitStressScenarios = [
-               'r2r_jitstress1'
-               ]
+    // This is a list of r2r jit stress scenarios
+    def static r2rJitStressScenarios = []
 
     // This is the basic set of scenarios
     def static basicScenarios = [
                'default',
                'pri1',
-               'ilrt',
-               'r2r',
-               'pri1r2r',
-               'gcstress15_pri1r2r',
                'longgc',
-               'coverage',
-               'formatting',
                'gcsimulator',
-               'jitdiff',              
-               'standalone_gc',
-               'illink'] + r2rJitStressScenarios
+               'standalone_gc']
 
     def static configurationList = ['Debug', 'Checked', 'Release']
 
     // This is the set of architectures
-    def static architectureList = ['arm', 'arm64', 'x64', 'x86']
+    def static architectureList = ['x64']
 }
 
 def static setMachineAffinity(def job, def os, def architecture) {
@@ -434,7 +422,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             assert (configuration == 'Release' || configuration == 'Checked')
             // TODO: Add once external email sending is available again
             // addEmailPublisher(job, 'dotnetgctests@microsoft.com')
-            Utilities.addPeriodicTrigger(job, '@weekly')
+            Utilities.addGithubPushTrigger(job)
             break
         case 'ilrt':
             assert !(os in bidailyCrossList)
@@ -2329,7 +2317,8 @@ combinedScenarios.each { scenario ->
                                     }
                                 }
 
-                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName(branch)
+                                // Local GC workaround: CoreFX does not have a branch called 'dev/local-gc'
+                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName('master')
 
                                 // Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
                                 def osJobName
