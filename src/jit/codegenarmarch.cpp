@@ -286,7 +286,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                 // If addrReg equal to loReg, swap(loReg, hiReg)
                 // This reduces code complexity by only supporting one addrReg overwrite case
-                if(loReg == addrReg)
+                if (loReg == addrReg)
                 {
                     loReg = hiReg;
                     hiReg = addrReg;
@@ -358,7 +358,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                     // Use a ldp instruction if types match
                     // TODO-ARM64-CQ: Current limitations only allows using ldp/stp when both of the GC types match
-                    if(type0 == type1)
+                    if (type0 == type1)
                     {
                         // Load from our address expression source
                         emit->emitIns_R_R_R_I(INS_ldp, emitTypeSize(type0), loReg, hiReg, addrReg, structOffset);
