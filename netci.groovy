@@ -54,29 +54,19 @@ class Constants {
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
     // the values are the environment variables
     def static jitStressModeScenarios = [
-               'jitstress2'                     : ['COMPlus_JitStress' : '2']
                ]
 
     // This is a set of r2r jit stress scenarios
     def static r2rJitStressScenarios = [
-               'r2r_jitstress1'
                ]
 
     // This is the basic set of scenarios
     def static basicScenarios = [
                'default',
                'pri1',
-               'ilrt',
-               'r2r',
-               'pri1r2r',
-               'gcstress15_pri1r2r',
                'longgc',
-               'coverage',
-               'formatting',
                'gcsimulator',
-               'jitdiff',              
-               'standalone_gc',
-               'illink'] + r2rJitStressScenarios
+               'standalone_gc']
 
     def static configurationList = ['Debug', 'Checked', 'Release']
 
