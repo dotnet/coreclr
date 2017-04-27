@@ -1815,9 +1815,9 @@ void Compiler::fgComputeReachabilitySets()
 
     for (block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        // Initialize the per-block bbReach sets. (Note that we can't just call BlockSetOps::OldStyleClearD()
-        // when re-running this computation, because if the epoch changes, the size and representation of the
-        // sets might change).
+        // Initialize the per-block bbReach sets. It creates a new empty set,
+        // because the block epoch could change since the previous initialization
+        // and the old set could have wrong size.
         block->bbReach = BlockSetOps::MakeEmpty(this);
 
         /* Mark block as reaching itself */
