@@ -233,8 +233,8 @@
 #define FEATURE_STACK_SAMPLING
 #endif // defined (ALLOW_SXS_JIT)
 
-#if defined(USE_INTERPRETER)
-#define FEATURE_INTERPRETER
-#endif // USE_INTERPRETER
 #endif // !defined(CROSSGEN_COMPILE)
 
+#if defined(FEATURE_INTERPRETER) && defined(CROSSGEN_COMPILE)
+#undef FEATURE_INTERPRETER
+#endif
