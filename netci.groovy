@@ -42,11 +42,11 @@ class Constants {
     // test execution in the build flow runs.  It generates the exact same build
     // as Windows_NT but without the tests.
     def static osList = [
+               'Ubuntu',
                'OSX10.12',
                'Windows_NT',
                'Windows_NT_BuildOnly',
-               'Ubuntu16.04',
-               'Tizen']
+               'Ubuntu16.04']
 
     def static crossList = ['Ubuntu', 'OSX10.12', 'CentOS7.1', 'RHEL7.2', 'Debian8.4']
 
@@ -69,7 +69,7 @@ class Constants {
     def static configurationList = ['Debug', 'Checked', 'Release']
 
     // This is the set of architectures
-    def static architectureList = ['arm', 'arm64', 'x64', 'x86']
+    def static architectureList = ['x64']
 }
 
 def static setMachineAffinity(def job, def os, def architecture) {
