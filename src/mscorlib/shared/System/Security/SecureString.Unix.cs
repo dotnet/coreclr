@@ -155,7 +155,7 @@ namespace System.Security
                 _buffer.AcquirePointer(ref bufferPtr);
                 int resultByteLength = (length + 1) * sizeof(char);
 
-                ptr = Interop.OleAut32.SysAllocStringLen(null, length);
+                ptr = Interop.LibCoreCLR.SysAllocStringLen(null, length);
                 if (ptr == IntPtr.Zero)
                 {
                     throw new OutOfMemoryException();
@@ -170,8 +170,8 @@ namespace System.Security
                 // If we failed for any reason, free the new buffer
                 if (result == IntPtr.Zero && ptr != IntPtr.Zero)
                 {
-                    UnmanagedBuffer.ZeroMemory(ptr, (UIntPtr)(length * sizeof(char)));
-                    Interop.OleAut32.SysFreeString(ptr);
+                    UnmanagedBuffer.ZeroMemory((byte*)ptr, (ulong)(length * sizeof(char)));
+                    Interop.LibCoreCLR.SysFreeString(ptr);
                 }
 
                 if (bufferPtr != null)
@@ -183,6 +183,7 @@ namespace System.Security
 #else // CORECLR
             // We have a native BSTR implementation available on Unix in CoreCLR, but not in CoreRT or ProjectN.
             throw new PlatformNotSupportedException();
+#endif
         }
 
         internal unsafe IntPtr MarshalToStringCore(bool globalAlloc, bool unicode)
