@@ -1772,11 +1772,7 @@ namespace System.Runtime.InteropServices
             }
             Contract.EndContractBlock();
 
-#if FEATURE_COMINTEROP
             return s.MarshalToBSTR();
-#else
-            throw new PlatformNotSupportedException(); // https://github.com/dotnet/coreclr/issues/10443
-#endif
         }
 
         public static IntPtr SecureStringToCoTaskMemAnsi(SecureString s)
