@@ -23,6 +23,10 @@ the [.NET Core Getting Started](http://dotnet.github.io/getting-started/) page.
 If you need the most up to date (daily) version of this .NET Core installer you can get it from the
 [latest Installers of .NET Core and .NET Core SDK](https://github.com/dotnet/cli#installers-and-binaries).
 
+
+
+
+
 ## Are you Here for Something Besides the Source Code?  
 
 In addition to providing the source code, this repository also acts as a useful nexus for things
