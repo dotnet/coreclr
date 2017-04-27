@@ -422,7 +422,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             assert (configuration == 'Release' || configuration == 'Checked')
             // TODO: Add once external email sending is available again
             // addEmailPublisher(job, 'dotnetgctests@microsoft.com')
-            Utilities.addPeriodicTrigger(job, '@weekly')
+            Utilities.addGithubPushTrigger(job)
             break
         case 'ilrt':
             assert !(os in bidailyCrossList)
@@ -2317,7 +2317,8 @@ combinedScenarios.each { scenario ->
                                     }
                                 }
 
-                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName(branch)
+                                // Local GC workaround: CoreFX does not have a branch called 'dev/local-gc'
+                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName('master')
 
                                 // Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
                                 def osJobName
