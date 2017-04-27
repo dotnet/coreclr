@@ -6204,9 +6204,10 @@ bool Compiler::optHoistLoopExprsForTree(
             treeIsHoistable = false;
         }
 
-        // Avoid to hoist reference loading
-        if (tree->OperGet() == GT_CLS_VAR && tree->gtType == TYP_REF)
+        if (tree->OperGet() == GT_CLS_VAR)
         {
+            // It is unsafe to mark this as invariant,
+            // as we currently don't prevent it from being hoisted above the call to the class initializer.
             treeIsInvariant = false;
         }
     }
