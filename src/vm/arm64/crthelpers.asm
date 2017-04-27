@@ -242,7 +242,7 @@ JIT_MemSet_0xd8
     ands        x3, x0, #7
     movn        x4, #7
     clz         x5, x2
-    b.eq        JIT_MemCpy_0xa8
+    beq         JIT_MemCpy_0xa8
     lsr         x4, x4, x5
     and         x3, x3, x4
     tbz         x3, #0, JIT_MemCpy_0x2c
@@ -265,7 +265,7 @@ JIT_MemCpy_0xa0
     stp         x8, x9, [x0], #16
 JIT_MemCpy_0xa8
     subs        x2, x2, #16
-    b.ge        JIT_MemCpy_0xa0
+    bge         JIT_MemCpy_0xa0
 JIT_MemCpy_0xb0
     tbz         x2, #3, JIT_MemCpy_0xb4
     ldr         x8, [x1], #8
