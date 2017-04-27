@@ -49,6 +49,11 @@ public:
         bs = 0;
     }
 
+    static void ClearD(Env env, UINT64& bs)
+    {
+        bs = 0;
+    }
+
     static UINT64 MakeSingleton(Env env, unsigned bitNum)
     {
         assert(bitNum < BitSetTraits::GetSize(env));

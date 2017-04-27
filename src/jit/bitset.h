@@ -211,6 +211,9 @@ class BitSetOps
     // TODO #11263: delete it.
     static void OldStyleClearD(Env env, BitSetType& bs);
 
+    // Destructively set "bs" to be the empty set.
+    static void ClearD(Env env, BitSetType& bs);
+
     // Returns a copy of "bs".  If the representation of "bs" involves a level of indirection, the data
     // structure is copied and a pointer to the copy is returned.
     static BitSetValueRetType MakeCopy(Env env, BitSetValueArgType bs);
@@ -331,6 +334,11 @@ public:
     {
         BitSetTraits::GetOpCounter(env)->RecordOp(BitSetSupport::BSOP_OldStyleClearD);
         BSO::OldStyleClearD(env, bs);
+    }
+    static void ClearD(Env env, BitSetType& bs)
+    {
+        BitSetTraits::GetOpCounter(env)->RecordOp(BitSetSupport::BSOP_ClearD);
+        BSO::ClearD(env, bs);
     }
     static BitSetValueRetType MakeCopy(Env env, BitSetValueArgType bs)
     {

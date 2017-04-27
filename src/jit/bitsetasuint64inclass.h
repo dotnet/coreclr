@@ -188,6 +188,12 @@ private:
 #endif
     }
 
+    inline void ClearD(Env env)
+    {
+        assert(m_epoch == BitSetTraits::GetEpoch(env));
+        Uint64BitSetOps::ClearD(env, m_bits);
+    }
+
     inline bool IsEmpty(Env env) const
     {
         CheckEpoch(env);
@@ -372,6 +378,11 @@ public:
     static void OldStyleClearD(Env env, BST& bs)
     {
         bs.OldStyleClearD(env);
+    }
+
+    static void ClearD(Env env, BST& bs)
+    {
+        bs.ClearD(env);
     }
 
     static BSTRetVal MakeSingleton(Env env, unsigned bitNum)
