@@ -37,6 +37,14 @@ class EventPipeFile : public FastSerializableObject
         }
 
     private:
+
+        // Get the metadata address in the file for an event.
+        // The return value can be written into the file as a back-pointer to the event metadata.
+        StreamLabel GetMetadataLabel(EventPipeEvent &event);
+
+        // Save the metadata address in the file for an event.
+        void SaveMetadataLabel(EventPipeEvent &event, StreamLabel label);
+
         // The object responsible for serialization.
         FastSerializer *m_pSerializer;
 
@@ -45,6 +53,13 @@ class EventPipeFile : public FastSerializableObject
 
         // The forward reference index that marks the beginning of the event stream.
         unsigned int m_beginEventsForwardReferenceIndex;
+
+        // The serialization which is responsible for making sure only a single event
+        // or block of events gets written to the file at once.
+        SpinLock m_serializationLock;
+
+        // Hashtable of metadata labels.
+        MapSHashWithRemove<EventPipeEvent*, StreamLabel> *m_pMetadataLabels;
 };
 
 #endif // __EVENTPIPE_FILE_H__

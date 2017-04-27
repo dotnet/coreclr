@@ -35,6 +35,8 @@ void EventPipe::Initialize()
         (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN));
 
     s_pConfig = new EventPipeConfiguration();
+    s_pConfig->Initialize();
+
 #ifdef FEATURE_PAL
     // This calls into auto-generated code to initialize the runtime providers
     // and events so that the EventPipe configuration lock isn't taken at runtime

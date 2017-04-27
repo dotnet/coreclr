@@ -41,7 +41,28 @@ StackContents* EventPipeEventInstance::GetStack()
     return &m_stackContents;
 }
 
-void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer)
+EventPipeEvent* EventPipeEventInstance::GetEvent() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_pEvent;
+}
+
+BYTE* EventPipeEventInstance::GetData() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_pData;
+}
+
+size_t EventPipeEventInstance::GetLength() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_dataLength;
+}
+
+void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer, StreamLabel metadataLabel)
 {
     CONTRACTL
     {
@@ -52,9 +73,38 @@ void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer)
     }
     CONTRACTL_END;
 
-    // TODO: Serialize the event using the serializer.
+    // TODO: Remove this.
     const unsigned int value = 0xDEADBEEF;
     pSerializer->WriteBuffer((BYTE*)&value, sizeof(value));
+
+    // Calculate the size of the total payload so that it can be written to the file.
+    unsigned int payloadLength =
+        sizeof(metadataLabel) +
+        sizeof(m_threadID) +        // Thread ID
+        sizeof(m_timeStamp) +       // TimeStamp
+        m_dataLength +              // Event payload data length
+        m_stackContents.GetSize();  // Stack payload size
+
+    // Write the size of the event to the file.
+    pSerializer->WriteBuffer((BYTE*)&payloadLength, sizeof(payloadLength));
+
+    // Write the metadata label.
+    pSerializer->WriteBuffer((BYTE*)&metadataLabel, sizeof(metadataLabel));
+
+    // Write the thread ID.
+    pSerializer->WriteBuffer((BYTE*)&m_threadID, sizeof(m_threadID));
+
+    // Write the timestamp.
+    pSerializer->WriteBuffer((BYTE*)&m_timeStamp, sizeof(m_timeStamp));
+
+    // Write the event data payload.
+    pSerializer->WriteBuffer(m_pData, m_dataLength);
+
+    // Write the stack if present.
+    if(m_stackContents.GetSize() > 0)
+    {
+        pSerializer->WriteBuffer(m_stackContents.GetPointer(), m_stackContents.GetSize());
+    }
 }
 
 void EventPipeEventInstance::SerializeToJsonFile(EventPipeJsonFile *pFile)

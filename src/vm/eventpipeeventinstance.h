@@ -17,11 +17,20 @@ public:
 
     EventPipeEventInstance(EventPipeEvent &event, DWORD threadID, BYTE *pData, size_t length);
 
+    // Get the event associated with this instance.
+    EventPipeEvent* GetEvent() const;
+
     // Get the stack contents object to either read or write to it.
     StackContents* GetStack();
 
+    // Get a pointer to the data payload.
+    BYTE* GetData() const;
+
+    // Get the length of the data.
+    size_t GetLength() const;
+
     // Serialize this object using FastSerialization.
-    void FastSerialize(FastSerializer *pSerializer);
+    void FastSerialize(FastSerializer *pSerializer, StreamLabel metadataLabel);
 
     // Serialize this event to the JSON file.
     void SerializeToJsonFile(EventPipeJsonFile *pFile);

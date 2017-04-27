@@ -5,7 +5,12 @@
 #include "common.h"
 #include "eventpipe.h"
 #include "eventpipeconfiguration.h"
+#include "eventpipeeventinstance.h"
 #include "eventpipeprovider.h"
+
+// {5291C09C-2660-4D6A-83A3-C383FD020DEC}
+const GUID EventPipeConfiguration::s_configurationProviderID =
+    { 0x5291c09c, 0x2660, 0x4d6a, { 0x83, 0xa3, 0xc3, 0x83, 0xfd, 0x2, 0xd, 0xec } };
 
 EventPipeConfiguration::EventPipeConfiguration()
 {
@@ -29,6 +34,29 @@ EventPipeConfiguration::~EventPipeConfiguration()
         delete(m_pProviderList);
         m_pProviderList = NULL;
     }
+}
+
+void EventPipeConfiguration::Initialize()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Create the configuration provider.
+    m_pConfigProvider = new EventPipeProvider(s_configurationProviderID);
+
+    // Create the metadata event.
+    m_pMetadataEvent = new EventPipeEvent(
+        *m_pConfigProvider,
+        0,      /* keywords */
+        0,      /* eventID */
+        0,      /* eventVersion */
+        EventPipeEventLevel::Critical,
+        false); /* needStack */
 }
 
 bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
@@ -147,4 +175,57 @@ void EventPipeConfiguration::Disable()
 
         pElem = m_pProviderList->GetNext(pElem);
     }
+}
+
+EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEvent &sourceEvent, BYTE *pPayloadData, size_t payloadLength)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // The payload of the event should contain:
+    // - GUID ProviderID.
+    // - unsigned int EventID.
+    // - unsigned int EventVersion.
+    // - Optional event description payload.
+
+    // Calculate the size of the event.
+    const GUID &providerID = sourceEvent.GetProvider()->GetProviderID();
+    unsigned int eventID = sourceEvent.GetEventID();
+    unsigned int eventVersion = sourceEvent.GetEventVersion();
+    unsigned int instancePayloadSize = sizeof(providerID) + sizeof(eventID) + sizeof(eventVersion) + payloadLength;
+
+    // Allocate the payload.
+    BYTE *pInstancePayload = new BYTE[instancePayloadSize];
+
+    // Fill the buffer with the payload.
+    BYTE *currentPtr = pInstancePayload;
+
+    // Write the provider ID.
+    memcpy(currentPtr, (BYTE*)&providerID, sizeof(providerID));
+    currentPtr += sizeof(providerID);
+
+    // Write the event ID.
+    memcpy(currentPtr, &eventID, sizeof(eventID));
+    currentPtr += sizeof(eventID);
+
+    // Write the event version.
+    memcpy(currentPtr, &eventVersion, sizeof(eventVersion));
+    currentPtr += sizeof(eventVersion);
+
+    // Write the incoming payload data.
+    memcpy(currentPtr, pPayloadData, payloadLength);
+
+    // Construct the event instance.
+    EventPipeEventInstance *pInstance = new EventPipeEventInstance(
+        *m_pMetadataEvent,
+        GetCurrentThreadId(),
+        pInstancePayload,
+        instancePayloadSize);
+
+    return pInstance;
 }
