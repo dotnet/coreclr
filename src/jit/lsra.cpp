@@ -1313,7 +1313,6 @@ BasicBlock* LinearScan::getNextCandidateFromWorkList()
 
 void LinearScan::setBlockSequence()
 {
-    unsigned lsraBlockEpoch = compiler->GetCurBasicBlockEpoch();
     // Reset the "visited" flag on each block.
     compiler->EnsureBasicBlockEpoch();
     bbVisitedSet = BlockSetOps::MakeEmpty(compiler);
@@ -1457,7 +1456,6 @@ void LinearScan::setBlockSequence()
             }
         }
     }
-    noway_assert(lsraBlockEpoch = compiler->GetCurBasicBlockEpoch());
     blockSequencingDone = true;
 
 #ifdef DEBUG
@@ -1730,6 +1728,8 @@ void LinearScan::doLinearScan()
     }
 #endif // DEBUG
 
+    unsigned lsraBlockEpoch = compiler->GetCurBasicBlockEpoch();
+
     splitBBNumToTargetBBNumMap = nullptr;
 
     // This is complicated by the fact that physical registers have refs associated
@@ -1745,7 +1745,7 @@ void LinearScan::doLinearScan()
 
     DBEXEC(VERBOSE, lsraDumpIntervals("after buildIntervals"));
 
-    BlockSetOps::OldStyleClearD(compiler, bbVisitedSet);
+    clearVisitedBlocks();
     initVarRegMaps();
     allocateRegisters();
     compiler->EndPhase(PHASE_LINEAR_SCAN_ALLOC);
@@ -1766,6 +1766,7 @@ void LinearScan::doLinearScan()
     DBEXEC(VERBOSE, TupleStyleDump(LSRA_DUMP_POST));
 
     compiler->compLSRADone = true;
+    noway_assert(lsraBlockEpoch = compiler->GetCurBasicBlockEpoch());
 }
 
 //------------------------------------------------------------------------
@@ -9321,7 +9322,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
             // we carefully order them to ensure all the input regs are read before they are
             // overwritten.)
             VarSetOps::UnionD(compiler, diffResolutionSet, sameResolutionSet);
-            VarSetOps::OldStyleClearD(compiler, sameResolutionSet);
+            VarSetOps::ClearD(compiler, sameResolutionSet);
         }
         else
         {
