@@ -53,12 +53,10 @@ class Constants {
     // This is a set of JIT stress modes combined with the set of variables that
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
     // the values are the environment variables
-    def static jitStressModeScenarios = [
-               ]
+    def static jitStressModeScenarios = [:]
 
     // This is a set of r2r jit stress scenarios
-    def static r2rJitStressScenarios = [
-               ]
+    def static r2rJitStressScenarios = [] as Set
 
     // This is the basic set of scenarios
     def static basicScenarios = [
