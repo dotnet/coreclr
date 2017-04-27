@@ -55,8 +55,8 @@ class Constants {
     // the values are the environment variables
     def static jitStressModeScenarios = [:]
 
-    // This is a set of r2r jit stress scenarios
-    def static r2rJitStressScenarios = [] as Set
+    // This is a list of r2r jit stress scenarios
+    def static r2rJitStressScenarios = []
 
     // This is the basic set of scenarios
     def static basicScenarios = [
