@@ -1738,7 +1738,7 @@ void LinearScan::doLinearScan()
 
     DBEXEC(VERBOSE, lsraDumpIntervals("after buildIntervals"));
 
-    BlockSetOps::ClearD(compiler, bbVisitedSet);
+    BlockSetOps::OldStyleClearD(compiler, bbVisitedSet);
     initVarRegMaps();
     allocateRegisters();
     compiler->EndPhase(PHASE_LINEAR_SCAN_ALLOC);
@@ -9314,7 +9314,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
             // we carefully order them to ensure all the input regs are read before they are
             // overwritten.)
             VarSetOps::UnionD(compiler, diffResolutionSet, sameResolutionSet);
-            VarSetOps::ClearD(compiler, sameResolutionSet);
+            VarSetOps::OldStyleClearD(compiler, sameResolutionSet);
         }
         else
         {

@@ -44,7 +44,7 @@ public:
         lhs = rhs;
     }
 
-    static void ClearD(Env env, UINT64& bs)
+    static void OldStyleClearD(Env env, UINT64& bs)
     {
         bs = 0;
     }

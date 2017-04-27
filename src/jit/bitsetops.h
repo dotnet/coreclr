@@ -5,7 +5,7 @@
 BSOPNAME(BSOP_Assign)
 BSOPNAME(BSOP_AssignAllowUninitRhs)
 BSOPNAME(BSOP_AssignNocopy)
-BSOPNAME(BSOP_ClearD)
+BSOPNAME(BSOP_OldStyleClearD)
 BSOPNAME(BSOP_MakeSingleton)
 BSOPNAME(BSOP_MakeEmpty)
 BSOPNAME(BSOP_MakeFull)

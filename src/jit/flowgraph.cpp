@@ -1815,7 +1815,7 @@ void Compiler::fgComputeReachabilitySets()
 
     for (block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        // Initialize the per-block bbReach sets. (Note that we can't just call BlockSetOps::ClearD()
+        // Initialize the per-block bbReach sets. (Note that we can't just call BlockSetOps::OldStyleClearD()
         // when re-running this computation, because if the epoch changes, the size and representation of the
         // sets might change).
         block->bbReach = BlockSetOps::MakeEmpty(this);
@@ -10011,7 +10011,7 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
     if (fgDomsComputed && block->bbNum > fgDomBBcount)
     {
         BlockSetOps::Assign(this, block->bbReach, bNext->bbReach);
-        BlockSetOps::ClearD(this, bNext->bbReach);
+        BlockSetOps::OldStyleClearD(this, bNext->bbReach);
 
         block->bbIDom = bNext->bbIDom;
         bNext->bbIDom = nullptr;

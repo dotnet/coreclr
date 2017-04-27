@@ -486,8 +486,8 @@ void Compiler::fgPerBlockLocalVarLiveness()
 
     for (block = fgFirstBB; block; block = block->bbNext)
     {
-        VarSetOps::ClearD(this, fgCurUseSet);
-        VarSetOps::ClearD(this, fgCurDefSet);
+        VarSetOps::OldStyleClearD(this, fgCurUseSet);
+        VarSetOps::OldStyleClearD(this, fgCurDefSet);
 
         fgCurMemoryUse   = emptyMemoryKindSet;
         fgCurMemoryDef   = emptyMemoryKindSet;
@@ -722,7 +722,7 @@ void Compiler::fgExtendDbgScopes()
         if (block->bbFlags & BBF_FUNCLET_BEG)
         {
             compResetScopeLists();
-            VarSetOps::ClearD(this, inScope);
+            VarSetOps::OldStyleClearD(this, inScope);
         }
 
         // Process all scopes up to the current offset
@@ -912,7 +912,7 @@ void Compiler::fgExtendDbgLifetimes()
 
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
-        VarSetOps::ClearD(this, initVars);
+        VarSetOps::OldStyleClearD(this, initVars);
 
         switch (block->bbJumpKind)
         {
@@ -1148,7 +1148,7 @@ class LiveVarAnalysis
     bool PerBlockAnalysis(BasicBlock* block, bool updateInternalOnly, bool keepAliveThis)
     {
         /* Compute the 'liveOut' set */
-        VarSetOps::ClearD(m_compiler, m_liveOut);
+        VarSetOps::OldStyleClearD(m_compiler, m_liveOut);
         m_memoryLiveOut = emptyMemoryKindSet;
         if (block->endsWithJmpMethod(m_compiler))
         {
@@ -1262,8 +1262,8 @@ class LiveVarAnalysis
 
             /* Visit all blocks and compute new data flow values */
 
-            VarSetOps::ClearD(m_compiler, m_liveIn);
-            VarSetOps::ClearD(m_compiler, m_liveOut);
+            VarSetOps::OldStyleClearD(m_compiler, m_liveIn);
+            VarSetOps::OldStyleClearD(m_compiler, m_liveOut);
 
             m_memoryLiveIn  = emptyMemoryKindSet;
             m_memoryLiveOut = emptyMemoryKindSet;

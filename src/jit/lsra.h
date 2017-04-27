@@ -1106,7 +1106,7 @@ private:
     }
     void clearVisitedBlocks()
     {
-        BlockSetOps::ClearD(compiler, bbVisitedSet);
+        BlockSetOps::OldStyleClearD(compiler, bbVisitedSet);
     }
     bool isBlockVisited(BasicBlock* block)
     {
