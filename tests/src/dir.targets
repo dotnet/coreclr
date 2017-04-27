@@ -109,7 +109,7 @@
   </PropertyGroup>
   
   <!-- TODO (#1122): import this from the ToolsDir once it becomes available --> 
-  <Import Project="$(ProjectDir)src\IL.targets" Condition="'$(ProjectLanguage)' == 'IL' And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'" />
+  <Import Project="$(ProjectDir)src\IL.targets" Condition="'$(ProjectLanguage)' == 'IL'" />
 
 
   <Import Project="CLRTest.Execute.targets" />
