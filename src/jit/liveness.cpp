@@ -418,6 +418,8 @@ void Compiler::fgPerBlockLocalVarLiveness()
     }
 #endif // DEBUG
 
+    unsigned livenessVarEpoch = GetCurLVEpoch();
+
     BasicBlock* block;
 
 #if CAN_DISABLE_DFA
@@ -486,8 +488,8 @@ void Compiler::fgPerBlockLocalVarLiveness()
 
     for (block = fgFirstBB; block; block = block->bbNext)
     {
-        VarSetOps::OldStyleClearD(this, fgCurUseSet);
-        VarSetOps::OldStyleClearD(this, fgCurDefSet);
+        VarSetOps::ClearD(this, fgCurUseSet);
+        VarSetOps::ClearD(this, fgCurDefSet);
 
         fgCurMemoryUse   = emptyMemoryKindSet;
         fgCurMemoryDef   = emptyMemoryKindSet;
@@ -587,6 +589,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
         block->bbMemoryLiveIn = emptyMemoryKindSet;
     }
 
+    noway_assert(livenessVarEpoch == GetCurLVEpoch());
 #ifdef DEBUG
     if (verbose)
     {
@@ -722,7 +725,7 @@ void Compiler::fgExtendDbgScopes()
         if (block->bbFlags & BBF_FUNCLET_BEG)
         {
             compResetScopeLists();
-            VarSetOps::OldStyleClearD(this, inScope);
+            VarSetOps::ClearD(this, inScope);
         }
 
         // Process all scopes up to the current offset
@@ -912,7 +915,7 @@ void Compiler::fgExtendDbgLifetimes()
 
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
-        VarSetOps::OldStyleClearD(this, initVars);
+        VarSetOps::ClearD(this, initVars);
 
         switch (block->bbJumpKind)
         {
@@ -1148,7 +1151,7 @@ class LiveVarAnalysis
     bool PerBlockAnalysis(BasicBlock* block, bool updateInternalOnly, bool keepAliveThis)
     {
         /* Compute the 'liveOut' set */
-        VarSetOps::OldStyleClearD(m_compiler, m_liveOut);
+        VarSetOps::ClearD(m_compiler, m_liveOut);
         m_memoryLiveOut = emptyMemoryKindSet;
         if (block->endsWithJmpMethod(m_compiler))
         {
@@ -1262,8 +1265,8 @@ class LiveVarAnalysis
 
             /* Visit all blocks and compute new data flow values */
 
-            VarSetOps::OldStyleClearD(m_compiler, m_liveIn);
-            VarSetOps::OldStyleClearD(m_compiler, m_liveOut);
+            VarSetOps::ClearD(m_compiler, m_liveIn);
+            VarSetOps::ClearD(m_compiler, m_liveOut);
 
             m_memoryLiveIn  = emptyMemoryKindSet;
             m_memoryLiveOut = emptyMemoryKindSet;
