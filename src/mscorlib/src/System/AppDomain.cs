@@ -647,7 +647,6 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        [SuppressUnmanagedCodeSecurity]
         private extern Assembly[] nGetAssemblies(bool forIntrospection);
 
         internal Assembly[] GetAssemblies(bool forIntrospection)
