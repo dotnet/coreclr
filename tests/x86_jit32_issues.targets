@@ -337,6 +337,25 @@
         <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TSAmbiguities\CollapsedInterfaces\HelloWorld\HelloWorld.cmd">
             <Issue>6714</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\Span\Indexer\Indexer.cmd">
+            <Issue>Span Unsupported</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\Span\SpanBench\SpanBench.cmd">
+            <Issue>Span Unsupported</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\superpmi\superpmicollect\superpmicollect.cmd">
+            <Issue>needs triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\JitBlue\DevDiv_359734\DevDiv_359734\DevDiv_359734.cmd">
+            <Issue>needs triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\CoreMangLib\cti\system\mathf\MathFCos\MathFCos.cmd">
+            <Issue>11276</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\CoreMangLib\cti\system\mathf\MathFSin\MathFSin.cmd">
+            <Issue>11276</Issue>
+        </ExcludeList>
+
     </ItemGroup>
 
     <!-- Tests that need to be triaged for vararg usage as that is not supported -->
