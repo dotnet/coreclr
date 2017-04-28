@@ -6193,7 +6193,7 @@ bool Compiler::optHoistLoopExprsForTree(
                 treeIsHoistable = false;
             }
         }
-        
+
         if (tree->OperGet() == GT_CLS_VAR)
         {
             // It is unsafe to mark this as invariant,
