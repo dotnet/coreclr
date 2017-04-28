@@ -7,9 +7,16 @@ using System.Runtime.InteropServices;
 
 internal partial class Interop
 {
-    internal partial class LibCoreCLR
+    internal partial class OleAut32
     {
-        [DllImport(Libraries.LibCoreCLR)]
+#if CORECLR
+        [DllImport(Libraries.OleAut32)]
         internal static extern void SysFreeString(IntPtr bstr);
+#else
+        internal static void SysFreeString(IntPtr bstr);
+        {
+        	throw new PlatformNotSupportedException();
+        }
+#endif
     }
 }

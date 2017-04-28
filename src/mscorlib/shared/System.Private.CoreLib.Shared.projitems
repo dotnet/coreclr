@@ -497,8 +497,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\Interop.Errors.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\Interop.IOErrors.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\Interop.Libraries.cs"/>
-    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\LibCoreCLR\Interop.SysAllocStringLen.cs"/>
-    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\LibCoreCLR\Interop.SysFreeString.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\OleAut32\Interop.SysAllocStringLen.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\OleAut32\Interop.SysFreeString.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.Calendar.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.Casing.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.Idna.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>

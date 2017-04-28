@@ -144,7 +144,6 @@ namespace System.Security
 
         internal unsafe IntPtr MarshalToBSTR()
         {
-#if CORECLR
             int length = _decryptedLength;
             IntPtr ptr = IntPtr.Zero;
             IntPtr result = IntPtr.Zero;
@@ -180,10 +179,6 @@ namespace System.Security
                 }
             }
             return result;
-#else // CORECLR
-            // We have a native BSTR implementation available on Unix in CoreCLR, but not in CoreRT or ProjectN.
-            throw new PlatformNotSupportedException();
-#endif
         }
 
         internal unsafe IntPtr MarshalToStringCore(bool globalAlloc, bool unicode)

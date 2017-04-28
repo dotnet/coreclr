@@ -8,6 +8,8 @@ internal static partial class Interop
     {
         internal const string GlobalizationInterop = "System.Globalization.Native";
         internal const string SystemNative = "System.Native";
-        internal const string LibCoreCLR = "libcoreclr";
+#if CORECLR
+        internal const string OleAut32 = "libcoreclr";
+#endif
     }
 }

@@ -4,13 +4,19 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Security;
 
 internal partial class Interop
 {
-    internal partial class LibCoreCLR
+    internal partial class OleAut32
     {
-        [DllImport(Libraries.LibCoreCLR, CharSet = CharSet.Unicode)]
+#if CORECLR
+        [DllImport(Libraries.OleAut32, CharSet = CharSet.Unicode)]
         internal static extern IntPtr SysAllocStringLen(String src, int len);
+#else
+        internal static IntPtr SysAllocStringLen(String src, int len)
+        {
+        	throw new PlatformNotSupportedException();
+        }
+#endif
     }
 }
