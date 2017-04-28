@@ -703,7 +703,7 @@ namespace System.StubHelpers
         // Needs to match exactly with MngdNativeArrayMarshaler in ilmarshalers.h
         internal struct MarshalerState
         {
-            IntPtr  m_pElementMT;
+            IntPtr m_pElementMT;
             IntPtr m_Array;
             int m_NativeDataValid;
             int m_BestFitMap;

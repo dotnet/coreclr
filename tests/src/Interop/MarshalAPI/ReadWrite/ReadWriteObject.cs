@@ -20,7 +20,6 @@ internal struct StructWithReferenceTypes
 {
     internal IntPtr ptr;
     internal string str;
-    internal int[] arr;
     [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
     internal int[] byValArr;
 }
@@ -94,17 +93,15 @@ class Test
         StructWithReferenceTypes structWithReferenceTypes = new StructWithReferenceTypes();
         structWithReferenceTypes.ptr = new IntPtr(100);
         structWithReferenceTypes.str = "ABC";
-        structWithReferenceTypes.arr = null;
         structWithReferenceTypes.byValArr = new int[10] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
         object boxedStruct = (object)structWithReferenceTypes;
 
         int offsetOfStr = Marshal.OffsetOf<StructWithReferenceTypes>("str").ToInt32();
-        int offsetOfArr = Marshal.OffsetOf<StructWithReferenceTypes>("arr").ToInt32();
         int offsetOfByValArr = Marshal.OffsetOf<StructWithReferenceTypes>("byValArr").ToInt32();
 
         Assert.AreEqual(Marshal.ReadInt32(boxedStruct, 0), 100);
-        Assert.AreEqual(Marshal.ReadIntPtr(boxedStruct, offsetOfArr), IntPtr.Zero);
+        Assert.AreNotEqual(Marshal.ReadIntPtr(boxedStruct, offsetOfStr), IntPtr.Zero);
         Assert.AreEqual(Marshal.ReadInt32(boxedStruct, offsetOfByValArr + sizeof(int) * 2), 3);
 
         Marshal.WriteInt32(boxedStruct, 0, 200);

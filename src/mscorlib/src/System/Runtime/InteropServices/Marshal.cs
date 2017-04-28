@@ -407,7 +407,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         // Read from memory
         //====================================================================
-        public static byte ReadByte([MarshalAs(UnmanagedType.AsAny), In] Object ptr, int ofs)
+        public static byte ReadByte(Object ptr, int ofs)
         {
             return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => { return Marshal.ReadByte(nativeHome, offset); });
         }
@@ -431,7 +431,7 @@ namespace System.Runtime.InteropServices
             return ReadByte(ptr, 0);
         }
 
-        public static short ReadInt16([MarshalAs(UnmanagedType.AsAny), In] Object ptr, int ofs)
+        public static short ReadInt16(Object ptr, int ofs)
         {
             return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => { return Marshal.ReadInt16(nativeHome, offset); });
         }
@@ -507,7 +507,7 @@ namespace System.Runtime.InteropServices
             return ReadInt32(ptr, 0);
         }
 
-        public static IntPtr ReadIntPtr([MarshalAs(UnmanagedType.AsAny), In] Object ptr, int ofs)
+        public static IntPtr ReadIntPtr(Object ptr, int ofs)
         {
 #if BIT64
             return (IntPtr)ReadInt64(ptr, ofs);
@@ -584,11 +584,11 @@ namespace System.Runtime.InteropServices
         // I don't think we should spend time optimizing it
         // People should really call the IntPtr overload instead
         //====================================================================
-        static unsafe T ReadValueSlow<T>(object ptr, int ofs, Func<IntPtr, int, T> readValueHelper)
+        private static unsafe T ReadValueSlow<T>(object ptr, int ofs, Func<IntPtr, int, T> readValueHelper)
         {
             // We AV on desktop if passing NULL. So this is technically a breaking change but is an improvement
             if (ptr == null)
-                throw new ArgumentNullException("ptr");
+                throw new ArgumentNullException(nameof(ptr));
 
             int dwFlags = 
                 (int)AsAnyMarshaler.AsAnyFlags.In | 
@@ -806,7 +806,7 @@ namespace System.Runtime.InteropServices
         {
             // We AV on desktop if passing NULL. So this is technically a breaking change but is an improvement
             if (ptr == null)
-                throw new ArgumentNullException("ptr");
+                throw new ArgumentNullException(nameof(ptr));
                             
             int dwFlags = 
                 (int)AsAnyMarshaler.AsAnyFlags.In | 
