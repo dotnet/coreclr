@@ -14816,7 +14816,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 if (prefixFlags & PREFIX_UNALIGNED)
                 {
-                  op1->gtFlags |= GTF_IND_UNALIGNED;
+                    op1->gtFlags |= GTF_IND_UNALIGNED;
                 }
 
                 impPushOnStack(op1, tiRetVal);
