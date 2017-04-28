@@ -14693,6 +14693,11 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 assertImp(varTypeIsStruct(op2));
 
                 op1 = impAssignStructPtr(op1, op2, resolvedToken.hClass, (unsigned)CHECK_SPILL_ALL);
+
+                if (op1->OperIsBlkOp() && (prefixFlags & PREFIX_UNALIGNED))
+                {
+                    op1->gtFlags |= GTF_BLK_UNALIGNED;
+                }
                 goto SPILL_APPEND;
             }
 
