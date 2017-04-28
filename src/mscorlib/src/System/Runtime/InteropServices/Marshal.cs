@@ -409,7 +409,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         public static byte ReadByte(Object ptr, int ofs)
         {
-            return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => { return Marshal.ReadByte(nativeHome, offset); });
+            return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => Marshal.ReadByte(nativeHome, offset));
         }
 
         public static unsafe byte ReadByte(IntPtr ptr, int ofs)
@@ -433,7 +433,7 @@ namespace System.Runtime.InteropServices
 
         public static short ReadInt16(Object ptr, int ofs)
         {
-            return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => { return Marshal.ReadInt16(nativeHome, offset); });
+            return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => Marshal.ReadInt16(nativeHome, offset));
         }
 
         public static unsafe short ReadInt16(IntPtr ptr, int ofs)
@@ -470,7 +470,7 @@ namespace System.Runtime.InteropServices
 
         public static int ReadInt32(object ptr, int ofs)
         {
-            return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => { return Marshal.ReadInt32(nativeHome, offset); });
+            return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => Marshal.ReadInt32(nativeHome, offset));
         }
 
         public static unsafe int ReadInt32(IntPtr ptr, int ofs)
@@ -536,7 +536,7 @@ namespace System.Runtime.InteropServices
 
         public static long ReadInt64([MarshalAs(UnmanagedType.AsAny), In] Object ptr, int ofs)
         {
-            return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => { return Marshal.ReadInt64(nativeHome, offset); });
+            return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => Marshal.ReadInt64(nativeHome, offset));
         }
 
         public static unsafe long ReadInt64(IntPtr ptr, int ofs)
@@ -632,7 +632,7 @@ namespace System.Runtime.InteropServices
 
         public static void WriteByte(Object ptr, int ofs, byte val)
         {
-            WriteValueSlow(ptr, ofs, val, (IntPtr nativeHome, int offset, byte value) => { Marshal.WriteByte(nativeHome, offset, value); });
+            WriteValueSlow(ptr, ofs, val, (IntPtr nativeHome, int offset, byte value) => Marshal.WriteByte(nativeHome, offset, value));
         }
 
         public static void WriteByte(IntPtr ptr, byte val)
@@ -667,7 +667,7 @@ namespace System.Runtime.InteropServices
 
         public static void WriteInt16(Object ptr, int ofs, short val)
         {
-            WriteValueSlow(ptr, ofs, val, (IntPtr nativeHome, int offset, short value) => { Marshal.WriteInt16(nativeHome, offset, value); });
+            WriteValueSlow(ptr, ofs, val, (IntPtr nativeHome, int offset, short value) => Marshal.WriteInt16(nativeHome, offset, value));
         }
 
         public static void WriteInt16(IntPtr ptr, short val)
@@ -719,7 +719,7 @@ namespace System.Runtime.InteropServices
 
         public static void WriteInt32(Object ptr, int ofs, int val)
         {
-            WriteValueSlow(ptr, ofs, val, (IntPtr nativeHome, int offset, int value) => { Marshal.WriteInt32(nativeHome, offset, value); });
+            WriteValueSlow(ptr, ofs, val, (IntPtr nativeHome, int offset, int value) => Marshal.WriteInt32(nativeHome, offset, value));
         }
 
         public static void WriteInt32(IntPtr ptr, int val)
@@ -787,7 +787,7 @@ namespace System.Runtime.InteropServices
 
         public static void WriteInt64(Object ptr, int ofs, long val)
         {
-            WriteValueSlow(ptr, ofs, val, (IntPtr nativeHome, int offset, long value) => { Marshal.WriteInt64(nativeHome, offset, value); });
+            WriteValueSlow(ptr, ofs, val, (IntPtr nativeHome, int offset, long value) => Marshal.WriteInt64(nativeHome, offset, value));
         }
 
         public static void WriteInt64(IntPtr ptr, long val)
