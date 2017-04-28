@@ -1216,7 +1216,6 @@ void CodeGen::genCodeForShift(GenTreePtr tree)
     genProduceReg(tree);
 }
 
-<<<<<<< e4d54d57f74f79a668794f444476c7f7180d443a
 //------------------------------------------------------------------------
 // genCodeForCast: Generates the code for GT_CAST.
 //
