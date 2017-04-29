@@ -654,6 +654,90 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     }
     else
     {
+#ifdef _TARGET_XARCH_
+        if ((targetCnt == 2 || targetCnt == 3) && (jumpCnt - 1 <= genTypeSize(TYP_I_IMPL) * 8))
+        {
+            BasicBlock* bbCase0  = nullptr;
+            BasicBlock* bbCase1  = jumpTab[0];
+            size_t      bitTable = 0;
+            bool        tooMany  = false;
+
+            for (unsigned i = 0; i < jumpCnt - 1; i++)
+            {
+                if (jumpTab[i] == bbCase1)
+                {
+                    bitTable |= (1 << i);
+                }
+                else if (bbCase0 == nullptr)
+                {
+                    bbCase0 = jumpTab[i];
+                }
+                else if (jumpTab[i] != bbCase0)
+                {
+                    tooMany = true;
+                    break;
+                }
+            }
+
+            if (!tooMany)
+            {
+                if (~bitTable <= UINT32_MAX)
+                {
+                    bitTable = ~bitTable;
+                    std::swap(bbCase0, bbCase1);
+                }
+
+                BasicBlock* bbSwitch = afterDefaultCondBlock;
+                BasicBlock* bbNext   = bbSwitch->bbNext;
+
+                GenTree*   switchValue = comp->gtNewLclvNode(tempLclNum, tempLclType);
+                GenTree*   switchMask  = comp->gtNewIconNode(bitTable, bitTable > UINT32_MAX ? TYP_LONG : TYP_INT);
+                GenTree*   bt          = comp->gtNewOperNode(GT_BT, TYP_VOID, switchMask, switchValue);
+                GenTreeCC* jcc         = new (comp, GT_JCC) GenTreeCC(GT_JCC, GenCondition::C);
+
+                LIR::AsRange(bbSwitch).InsertAfter(nullptr, switchValue, switchMask, bt, jcc);
+                tempVarDsc->incRefCnts(blockWeight, comp);
+
+                bbSwitch->bbJumpKind = BBJ_COND;
+
+                comp->fgRemoveAllRefPreds(bbCase1, bbSwitch);
+                comp->fgRemoveAllRefPreds(bbCase0, bbSwitch);
+
+                if (bbCase0 == bbNext)
+                {
+                    bbSwitch->bbJumpDest = bbCase1;
+
+                    comp->fgAddRefPred(bbCase0, bbSwitch);
+                    comp->fgAddRefPred(bbCase1, bbSwitch);
+                }
+                else if (bbCase1 == bbNext)
+                {
+                    jcc->gtCondition.Reverse();
+                    bbSwitch->bbJumpDest = bbCase0;
+
+                    comp->fgAddRefPred(bbCase0, bbSwitch);
+                    comp->fgAddRefPred(bbCase1, bbSwitch);
+                }
+                else
+                {
+                    BasicBlock* bbJump   = comp->fgNewBBafter(BBJ_ALWAYS, bbSwitch, true);
+                    bbJump->bbJumpDest   = bbCase0;
+                    bbSwitch->bbJumpDest = bbCase1;
+
+                    comp->fgAddRefPred(bbJump, bbSwitch);
+                    comp->fgAddRefPred(bbCase0, bbJump);
+                    comp->fgAddRefPred(bbCase1, bbSwitch);
+                }
+
+                comp->fgInvalidateSwitchDescMapEntry(bbSwitch);
+                GenTree* next = node->gtNext;
+                switchBBRange.Remove(node->gtGetOp1());
+                switchBBRange.Remove(node);
+                return next;
+            }
+        }
+#endif
+
         // Lower the switch into an indirect branch using a jump table:
         //
         // 1. Create the constant for the default case
