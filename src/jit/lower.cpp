@@ -2603,6 +2603,21 @@ void Lowering::LowerCompare(GenTree* cmp)
                         andOp2->gtType = TYP_CHAR;
                     }
                 }
+
+#ifdef _TARGET_XARCH_
+                if (andOp2->IsIntegralConst())
+                {
+                    size_t mask = static_cast<size_t>(andOp2->AsIntCon()->IconValue());
+
+                    if ((andOp1->TypeGet() == TYP_LONG) && (mask > UINT32_MAX) && isPow2(mask))
+                    {
+                        // Transform (x TEST 2^n) into (x BT n) to avoid an 8 byte immediate
+                        oper      = GT_BT;
+                        condition = condition.Is(GenCondition::EQ) ? GenCondition::NC : GenCondition::C;
+                        andOp2->AsIntCon()->SetIconValue(genLog2(mask));
+                    }
+                }
+#endif
             }
         }
     }
