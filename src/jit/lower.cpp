@@ -2616,6 +2616,35 @@ void Lowering::LowerCompare(GenTree* cmp)
                         condition = condition.Is(GenCondition::EQ) ? GenCondition::NC : GenCondition::C;
                         andOp2->AsIntCon()->SetIconValue(genLog2(mask));
                     }
+                    else if ((mask == 1) && andOp1->OperIs(GT_RSZ))
+                    {
+                        // Transform ((x RSZ y) TEST 1) into (x BT y)
+                        oper            = GT_BT;
+                        condition       = condition.Is(GenCondition::EQ) ? GenCondition::NC : GenCondition::C;
+                        cmp->gtOp.gtOp1 = andOp1->gtGetOp1();
+                        cmp->gtOp.gtOp2 = andOp1->gtGetOp2();
+                        BlockRange().Remove(andOp1);
+                        BlockRange().Remove(andOp2);
+                    }
+                }
+                else if (andOp2->OperIs(GT_LSH) && andOp2->gtGetOp1()->IsIntegralConst(1))
+                {
+                    // Transform (x TEST (1 LSH y)) into (x BT y)
+                    oper            = GT_BT;
+                    condition       = condition.Is(GenCondition::EQ) ? GenCondition::NC : GenCondition::C;
+                    cmp->gtOp.gtOp2 = andOp2->gtGetOp2();
+                    BlockRange().Remove(andOp2->gtGetOp1());
+                    BlockRange().Remove(andOp2);
+                }
+                else if (andOp1->OperIs(GT_LSH) && andOp1->gtGetOp1()->IsIntegralConst(1))
+                {
+                    // Transform ((1 LSH y) TEST x) into (x BT y)
+                    oper      = GT_BT;
+                    condition = condition.Is(GenCondition::EQ) ? GenCondition::NC : GenCondition::C;
+                    std::swap(cmp->gtOp.gtOp1, cmp->gtOp.gtOp2);
+                    cmp->gtOp.gtOp2 = andOp1->gtGetOp2();
+                    BlockRange().Remove(andOp1->gtGetOp1());
+                    BlockRange().Remove(andOp1);
                 }
 #endif
             }
