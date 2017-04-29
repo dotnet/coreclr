@@ -307,6 +307,34 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
 #endif // _TARGET_X86_
             break;
 
+        case GT_BT:
+        case GT_BTC:
+        case GT_BTR:
+        case GT_BTS:
+            info->srcCount = 2;
+            info->dstCount = tree->OperIs(GT_BT) ? 0 : 1;
+
+            // BT supports "reg/mem,reg" and "reg/mem,imm" forms.
+            // The "mem,reg" form has bad performance so it should be avoided.
+
+            if (tree->gtGetOp2()->IsIntegralConst())
+            {
+                MakeSrcContained(tree, tree->gtGetOp2());
+
+                if (tree->OperIs(GT_BT))
+                {
+                    if (tree->gtGetOp1()->isMemoryOp())
+                    {
+                        MakeSrcContained(tree, tree->gtGetOp1());
+                    }
+                    else if (!tree->gtGetOp1()->IsIntegralConst())
+                    {
+                        SetRegOptional(tree->gtGetOp1());
+                    }
+                }
+            }
+            break;
+
         case GT_JMP:
             info->srcCount = 0;
             info->dstCount = 0;

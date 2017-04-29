@@ -65,6 +65,7 @@ static const GenConditionDesc& GetConditionDesc(GenCondition condition);
 
 void genCMP(GenTreeOp* cmp);
 void genFCMP(GenTreeOp* fcmp);
+void genBTx(GenTreeOp* btx, instruction ins);
 void genSETCC(GenTreeCC* setcc);
 void genJCC(GenTreeCC* jcc);
 #endif

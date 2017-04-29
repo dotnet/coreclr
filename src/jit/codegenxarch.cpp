@@ -1830,6 +1830,22 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             genSETCC(treeNode->AsCC());
             break;
 
+        case GT_BT:
+            genBTx(treeNode->AsOp(), INS_bt);
+            break;
+
+        case GT_BTC:
+            genBTx(treeNode->AsOp(), INS_btc);
+            break;
+
+        case GT_BTR:
+            genBTx(treeNode->AsOp(), INS_btr);
+            break;
+
+        case GT_BTS:
+            genBTx(treeNode->AsOp(), INS_bts);
+            break;
+
         case GT_RETURNTRAP:
         {
             // this is nothing but a conditional call to CORINFO_HELP_STOP_FOR_GC
@@ -8118,6 +8134,32 @@ void CodeGen::genAmd64EmitterUnitTests()
 #endif // defined(DEBUG) && defined(LATE_DISASM) && defined(_TARGET_AMD64_)
 
 #endif // _TARGET_AMD64_
+
+void CodeGen::genBTx(GenTreeOp* btx, instruction ins)
+{
+    GenTree*  op1  = btx->gtGetOp1();
+    GenTree*  op2  = btx->gtGetOp2();
+    var_types type = btx->OperIs(GT_BT) ? op1->TypeGet() : btx->TypeGet();
+
+    assert(op1->isUsedFromReg() || op1->isUsedFromMemory());
+    assert(op2->isUsedFromReg() || op2->isContainedIntOrIImmed());
+    assert((genTypeSize(type) > 1) && (genTypeSize(type) <= genTypeSize(TYP_I_IMPL)));
+
+    genConsumeOperands(btx);
+
+    if ((ins != INS_bt) && op1->isUsedFromReg() && (btx->gtRegNum != op1->gtRegNum))
+    {
+        inst_RV_RV(INS_mov, btx->gtRegNum, op1->gtRegNum, type);
+        op1 = btx;
+    }
+
+    getEmitter()->emitInsBinary(ins, emitTypeSize(type), op1, op2);
+
+    if (ins != INS_bt)
+    {
+        genProduceReg(btx);
+    }
+}
 
 const CodeGen::GenConditionDesc& CodeGen::GetConditionDesc(GenCondition condition)
 {

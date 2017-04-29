@@ -148,6 +148,10 @@ GTNODE(GT               , ">"            ,GenTreeOp          ,0,GTK_BINOP|GTK_RE
 GTNODE(CMP              , "cmp"          ,GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)
 GTNODE(TEST             , "test"         ,GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)
 GTNODE(FCMP             , "fcmp"         ,GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)
+GTNODE(BT               , "bt"           ,GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)
+GTNODE(BTC              , "btc"          ,GenTreeOp          ,0,GTK_BINOP)
+GTNODE(BTR              , "btr"          ,GenTreeOp          ,0,GTK_BINOP)
+GTNODE(BTS              , "bts"          ,GenTreeOp          ,0,GTK_BINOP)
 
 GTNODE(COMMA            , "comma"        ,GenTreeOp          ,0,GTK_BINOP|GTK_NOTLIR)
 
