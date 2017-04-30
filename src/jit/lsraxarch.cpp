@@ -299,6 +299,10 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             info->dstCount = 0;
             break;
 
+        case GT_SELCC:
+            TreeNodeInfoInitSELCC(tree->AsOpCC());
+            break;
+
         case GT_SETCC:
             info->srcCount = 0;
             info->dstCount = 1;
@@ -3032,6 +3036,41 @@ void Lowering::TreeNodeInfoInitFCMP(GenTreeOp* cmp)
     {
         // SSE2 allows only otherOp to be a memory-op. Since otherOp is not
         // contained, we can mark it reg-optional.
+        SetRegOptional(op2);
+    }
+}
+
+//------------------------------------------------------------------------
+// TreeNodeInfoInitSELCC: Set the NodeInfo for a GT_SELCC
+//
+// Arguments:
+//    select - the select node
+//
+
+void Lowering::TreeNodeInfoInitSELCC(GenTreeOpCC* selcc)
+{
+    TreeNodeInfo* info = &(selcc->gtLsraInfo);
+
+    info->srcCount = 2;
+    info->dstCount = 1;
+
+    GenTree* op2 = selcc->gtGetOp2();
+
+    if (op2->isMemoryOp())
+    {
+        //
+        // There's no byte-sized CMOV so we can't contain a memory operand unless it's
+        // TYP_INT (and TYP_LONG on x64). There's a word-sized CMOV but to use it we
+        // we would likely need to widen the result of CMOV the same way a GT_IND does.
+        //
+
+        if (varTypeIsIntOrI(op2))
+        {
+            MakeSrcContained(selcc, op2);
+        }
+    }
+    else
+    {
         SetRegOptional(op2);
     }
 }

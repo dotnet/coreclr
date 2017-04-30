@@ -68,6 +68,7 @@ void genFCMP(GenTreeOp* fcmp);
 void genBTx(GenTreeOp* btx, instruction ins);
 void genSETCC(GenTreeCC* setcc);
 void genJCC(GenTreeCC* jcc);
+void genSELCC(GenTreeOpCC* selcc);
 #endif
 
 #ifdef FEATURE_SIMD

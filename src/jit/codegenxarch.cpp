@@ -1830,6 +1830,10 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             genSETCC(treeNode->AsCC());
             break;
 
+        case GT_SELCC:
+            genSELCC(treeNode->AsOpCC());
+            break;
+
         case GT_BT:
             genBTx(treeNode->AsOp(), INS_bt);
             break;
@@ -8271,6 +8275,80 @@ void CodeGen::genJCC(GenTreeCC* jcc)
             genDefineTempLabel(skipLabel);
         }
     }
+}
+
+//------------------------------------------------------------------------
+// genSELCC: Generate code for selecting a value based on a condition.
+//
+// Arguments:
+//    select - A GT_SELCC node
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    CMOV is used if available, otherwise a conditional branch and a normal
+//    MOV is used instead.
+
+void CodeGen::genSELCC(GenTreeOpCC* selcc)
+{
+    assert(selcc->OperIs(GT_SELCC));
+
+    genConsumeOperands(selcc);
+
+    GenTree* op1 = selcc->gtGetOp1();
+    GenTree* op2 = selcc->gtGetOp2();
+
+    var_types srcType = op1->TypeGet();
+    var_types dstType = selcc->TypeGet();
+
+    assert(varTypeIsIntOrI(dstType));
+    assert(srcType == op2->TypeGet());
+    assert(op1->isUsedFromReg());
+    assert(op2->isUsedFromReg() || op2->isUsedFromMemory());
+
+    regNumber srcReg1 = op1->gtRegNum;
+    regNumber srcReg2 = op2->isUsedFromReg() ? op2->gtRegNum : REG_NA;
+    regNumber dstReg  = selcc->gtRegNum;
+
+    assert(genIsValidIntReg(srcReg1));
+    assert(op2->isUsedFromMemory() || genIsValidIntReg(srcReg2));
+    assert(genIsValidIntReg(dstReg));
+
+    if (dstReg != srcReg1)
+    {
+        inst_RV_RV(INS_mov, dstReg, srcReg1, dstType);
+        op1 = selcc;
+    }
+
+    if (compiler->opts.compUseCMOV)
+    {
+        const GenConditionDesc& desc = GetConditionDesc(selcc->gtCondition);
+        assert(desc.jmpKind[1] == EJ_NONE);
+
+        constexpr instruction EJtoCMOV[]{INS_nop,    INS_nop,    INS_cmovo,  INS_cmovno, INS_cmovb,  INS_cmovae,
+                                         INS_cmove,  INS_cmovne, INS_cmovbe, INS_cmova,  INS_cmovs,  INS_cmovns,
+                                         INS_cmovpe, INS_cmovpo, INS_cmovl,  INS_cmovge, INS_cmovle, INS_cmovg};
+        noway_assert((unsigned)desc.jmpKind[0] < COUNTOF(EJtoCMOV));
+        instruction ins = EJtoCMOV[desc.jmpKind[0]];
+        noway_assert(insIsCMOV(ins));
+
+        getEmitter()->emitInsBinary(ins, emitTypeSize(dstType), op1, op2);
+    }
+    else
+    {
+        GenCondition condition = selcc->gtCondition;
+        condition.Reverse();
+        const GenConditionDesc& desc = GetConditionDesc(condition);
+        assert(desc.jmpKind[1] == EJ_NONE);
+
+        BasicBlock* label = genCreateTempLabel();
+        inst_JMP(desc.jmpKind[0], label);
+        getEmitter()->emitInsBinary(INS_mov, emitTypeSize(dstType), op1, op2);
+        genDefineTempLabel(label);
+    }
+
+    genProduceReg(selcc);
 }
 
 #endif // !LEGACY_BACKEND

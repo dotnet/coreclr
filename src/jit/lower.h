@@ -201,6 +201,7 @@ private:
     void TreeNodeInfoInitCmp(GenTreePtr tree);
     void TreeNodeInfoInitCMP(GenTreeOp* cmp);
     void TreeNodeInfoInitFCMP(GenTreeOp* cmp);
+    void TreeNodeInfoInitSELCC(GenTreeOpCC* selcc);
     void TreeNodeInfoInitStructArg(GenTreePtr structArg);
     void TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode);
     void TreeNodeInfoInitLogicalOp(GenTree* tree);
