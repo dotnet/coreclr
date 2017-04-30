@@ -122,6 +122,11 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_ADD:
             return LowerAdd(node);
 
+        case GT_AND:
+        case GT_OR:
+        case GT_XOR:
+            return LowerBitwise(node->AsOp());
+
         case GT_UDIV:
         case GT_UMOD:
             LowerUnsignedDivOrMod(node);
@@ -4176,6 +4181,98 @@ GenTree* Lowering::LowerAdd(GenTree* node)
     GenTree* addr = TryCreateAddrMode(std::move(use), false);
     return addr->gtNext;
 #endif // !_TARGET_ARMARCH_
+}
+
+GenTree* Lowering::LowerBitwise(GenTreeOp* node)
+{
+    GenTree* op1 = node->gtGetOp1();
+    GenTree* op2 = node->gtGetOp2();
+
+#ifdef _TARGET_AMD64_
+    if (varTypeIsLong(op1) && op2->IsCnsIntOrI() && !FitsIn<INT32>(op2->AsIntCon()->IconValue()))
+    {
+        // When the second operand is a constant that doesn't fit in 32 bit
+        // we can avoid loading a 64 bit immediate in a register by replacing
+        // AND/OR/XOR with BTR/BTS/BTC.
+
+        size_t mask = static_cast<size_t>(op2->AsIntCon()->IconValue());
+
+        if (node->OperIs(GT_OR, GT_XOR) && isPow2(mask))
+        {
+            // (x OR|XOR 2^N) = (x BTS|BTC N)
+            op2->AsIntCon()->SetIconValue(genLog2(mask));
+            node->SetOperRaw(node->OperIs(GT_OR) ? GT_BTS : GT_BTC);
+        }
+        else if (node->OperIs(GT_AND) && isPow2(~mask))
+        {
+            // (x AND ~2^N) = (x BTR N)
+            op2->AsIntCon()->SetIconValue(genLog2(~mask));
+            node->SetOperRaw(GT_BTR);
+        }
+
+        return node->gtNext;
+    }
+#endif
+#ifdef _TARGET_XARCH_
+    if (node->OperIs(GT_OR, GT_XOR))
+    {
+        // Transform (x OR|XOR (1 LSH y)) into (x BTS|BTC y)
+        GenTree* shift = nullptr;
+
+        if (op2->OperIs(GT_LSH) && op2->gtGetOp1()->IsIntegralConst(1))
+        {
+            shift = op2;
+        }
+        else if (op1->OperIs(GT_LSH) && op1->gtGetOp1()->IsIntegralConst(1))
+        {
+            shift = op1;
+        }
+
+        if (shift != nullptr)
+        {
+            node->SetOper(node->OperIs(GT_OR) ? GT_BTS : GT_BTC);
+            if (op1 == shift)
+            {
+                node->gtOp1 = op2;
+            }
+            node->gtOp2 = shift->gtGetOp2();
+            BlockRange().Remove(shift->gtGetOp1());
+            BlockRange().Remove(shift);
+        }
+    }
+    else
+    {
+        assert(node->OperIs(GT_AND));
+
+        // Transform (x AND NOT(1 LSH y)) into (x BTR y)
+        GenTree* notOp = nullptr;
+
+        if (op2->OperIs(GT_NOT) && op2->gtGetOp1()->OperIs(GT_LSH) && op2->gtGetOp1()->gtGetOp1()->IsIntegralConst(1))
+        {
+            notOp = op2;
+        }
+        else if (op1->OperIs(GT_NOT) && op1->gtGetOp1()->OperIs(GT_LSH) &&
+                 op1->gtGetOp1()->gtGetOp1()->IsIntegralConst(1))
+        {
+            notOp = op1;
+        }
+
+        if (notOp != nullptr)
+        {
+            node->SetOper(GT_BTR);
+            if (op1 == notOp)
+            {
+                node->gtOp1 = op2;
+            }
+            node->gtOp2 = notOp->gtGetOp1()->gtGetOp2();
+            BlockRange().Remove(notOp->gtGetOp1()->gtGetOp1());
+            BlockRange().Remove(notOp->gtGetOp1());
+            BlockRange().Remove(notOp);
+        }
+    }
+#endif
+
+    return node->gtNext;
 }
 
 //------------------------------------------------------------------------
