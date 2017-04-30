@@ -2,8 +2,6 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <_PlatformDoesNotSupportNiFiles Condition="'$(Platform)' == 'arm'">true</_PlatformDoesNotSupportNiFiles>
-<!-- TODO: ni files can be generated on arm64 android but custom pkg exclusion conditional does not work --> 
-    <_PlatformDoesNotSupportNiFiles Condition="'$(Platform)' == 'arm64'">true</_PlatformDoesNotSupportNiFiles> 
     <_PlatformDoesNotSupportNiFiles Condition="'$(Platform)' == 'armel'">true</_PlatformDoesNotSupportNiFiles>
     <_PlatformDoesNotSupportNiFiles Condition="'$(Platform)' == 'x86'">true</_PlatformDoesNotSupportNiFiles>
     <_PlatformDoesNotSupportEventTrace Condition="'$(_runtimeOSFamily)' == 'tizen'">true</_PlatformDoesNotSupportEventTrace>
