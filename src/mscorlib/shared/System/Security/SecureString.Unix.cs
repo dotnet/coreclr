@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -154,11 +155,7 @@ namespace System.Security
                 _buffer.AcquirePointer(ref bufferPtr);
                 int resultByteLength = (length + 1) * sizeof(char);
 
-                ptr = Interop.LibCoreCLR.SysAllocStringLen(null, length);
-                if (ptr == IntPtr.Zero)
-                {
-                    throw new OutOfMemoryException();
-                }
+                ptr = PInvokeMarshal.AllocBSTR(length);
 
                 Buffer.MemoryCopy(bufferPtr, (byte*)ptr, resultByteLength, length * sizeof(char));
 
@@ -169,8 +166,8 @@ namespace System.Security
                 // If we failed for any reason, free the new buffer
                 if (result == IntPtr.Zero && ptr != IntPtr.Zero)
                 {
-                    UnmanagedBuffer.ZeroMemory((byte*)ptr, (ulong)(length * sizeof(char)));
-                    Interop.LibCoreCLR.SysFreeString(ptr);
+                    RuntimeImports.RhZeroMemory(ptr, (UIntPtr)(length * sizeof(char)));
+                    PInvokeMarshal.FreeBSTR(ptr);
                 }
 
                 if (bufferPtr != null)
@@ -218,7 +215,7 @@ namespace System.Security
                 // release the string if we had one.
                 if (stringPtr != IntPtr.Zero && result == IntPtr.Zero)
                 {
-                    UnmanagedBuffer.ZeroMemory((byte*)stringPtr, (ulong)(length * sizeof(char)));
+                    RuntimeImports.RhZeroMemory(stringPtr, (UIntPtr)(length * sizeof(char)));
                     MarshalFree(stringPtr, globalAlloc);
                 }
 
@@ -280,7 +277,7 @@ namespace System.Security
                 try
                 {
                     AcquirePointer(ref ptr);
-                    ZeroMemory(ptr, ByteLength);
+                    RuntimeImports.RhZeroMemory((IntPtr)ptr, (UIntPtr)ByteLength);
                 }
                 finally
                 {
@@ -323,12 +320,6 @@ namespace System.Security
                 Marshal.FreeHGlobal(handle);
                 return true;
             }
-
-            internal static unsafe void ZeroMemory(byte* ptr, ulong len)
-            {
-                for (ulong i = 0; i < len; i++) *ptr++ = 0;
-            }
         }
-
     }
 }

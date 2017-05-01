@@ -62,15 +62,26 @@ public class StringMarshalingTest
                 secureString.AppendChar(character);
             }
 
-            IntPtr BStr = Marshal.SecureStringToBSTR(secureString);
-            String str = Marshal.PtrToStringBSTR(BStr);
+            IntPtr BStr = IntPtr.Zero;
+            String str;
+
+            try
+            {
+                BStr = Marshal.SecureStringToBSTR(secureString);
+                str = Marshal.PtrToStringBSTR(BStr);
+            }
+            finally
+            {
+                if (BStr != IntPtr.Zero)
+                {
+                    Marshal.ZeroFreeBSTR(BStr);
+                }
+            }
 
             if (!str.Equals(ts))
             {
                 throw new Exception();
             }
-
-            Marshal.ZeroFreeBSTR(BStr);
         }
     }
 

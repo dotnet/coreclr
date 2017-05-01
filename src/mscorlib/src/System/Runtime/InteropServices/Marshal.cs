@@ -15,6 +15,7 @@
 namespace System.Runtime.InteropServices
 {
     using System;
+    using System.Runtime;
     using System.Collections.Generic;
     using System.Reflection;
     using System.Reflection.Emit;
@@ -1799,25 +1800,25 @@ namespace System.Runtime.InteropServices
         
         public static void ZeroFreeBSTR(IntPtr s)
         {
-            Win32Native.ZeroMemory(s, (UIntPtr)(Win32Native.SysStringLen(s) * 2));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.SysStringLen(s) * 2));
             FreeBSTR(s);
         }
 
         public static void ZeroFreeCoTaskMemAnsi(IntPtr s)
         {
-            Win32Native.ZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
             FreeCoTaskMem(s);
         }
 
         public static void ZeroFreeCoTaskMemUnicode(IntPtr s)
         {
-            Win32Native.ZeroMemory(s, (UIntPtr)(Win32Native.lstrlenW(s) * 2));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenW(s) * 2));
             FreeCoTaskMem(s);
         }
 
         unsafe public static void ZeroFreeCoTaskMemUTF8(IntPtr s)
         {
-            Win32Native.ZeroMemory(s, (UIntPtr)System.StubHelpers.StubHelpers.strlen((sbyte*)s));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)System.StubHelpers.StubHelpers.strlen((sbyte*)s));
             FreeCoTaskMem(s);
         }
 
@@ -1845,13 +1846,13 @@ namespace System.Runtime.InteropServices
 
         public static void ZeroFreeGlobalAllocAnsi(IntPtr s)
         {
-            Win32Native.ZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenA(s)));
             FreeHGlobal(s);
         }
 
         public static void ZeroFreeGlobalAllocUnicode(IntPtr s)
         {
-            Win32Native.ZeroMemory(s, (UIntPtr)(Win32Native.lstrlenW(s) * 2));
+            RuntimeImports.RhZeroMemory(s, (UIntPtr)(Win32Native.lstrlenW(s) * 2));
             FreeHGlobal(s);
         }
     }
