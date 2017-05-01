@@ -20,7 +20,7 @@ set (DEF_SOURCES
 )
 else()
 set (DEF_SOURCES
-  mscorwks_unixexports.src
+mscorwks_unixexports.src
 )
 endif(WIN32)
 

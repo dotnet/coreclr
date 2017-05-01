@@ -77,6 +77,7 @@ set __BuildTypeChecked=0
 set __BuildTypeRelease=0
 set __BuildJit32=0
 set __BuildStandaloneGC="-DFEATURE_STANDALONE_GC=0"
+set __BuildStandaloneGCOnly="-DFEATURE_STANDALONE_GC_ONLY=0"
 
 set __PgoInstrument=0
 set __IbcTuning=
@@ -147,7 +148,12 @@ if /i "%1" == "pgoinstrument"       (set __PgoInstrument=1&set processedArgs=!pr
 if /i "%1" == "ibcinstrument"       (set __IbcTuning=/Tuning&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "toolset_dir"         (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "compatjitcrossgen"   (set __CompatJitCrossgen=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "buildstandalonegc"   (set __BuildStandaloneGC="-DFEATURE_STANDALONE_GC=1"&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "buildstandalonegc"   (
+    set __BuildStandaloneGC="-DFEATURE_STANDALONE_GC=1"
+    set __BuildStandaloneGCOnly="-DFEATURE_STANDALONE_GC_ONLY=1"
+    set processedArgs=!processedArgs! %1
+    shift&goto Arg_Loop
+)
 
 @REM The following can be deleted once the CI system that passes it is updated to not pass it.
 if /i "%1" == "altjitcrossgen"      (set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -318,7 +324,7 @@ if %__BuildNative% EQU 1 (
 
     pushd "%__IntermediatesDir%"
     set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%"
-    call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% "-DBUILD_JIT32=%__BuildJit32%" %__BuildStandaloneGC% !__ExtraCmakeArgs!
+    call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% "-DBUILD_JIT32=%__BuildJit32%" %__BuildStandaloneGC% %__BuildStandaloneGCOnly% !__ExtraCmakeArgs!
 	@if defined _echo @echo on
     popd
 :SkipConfigure
