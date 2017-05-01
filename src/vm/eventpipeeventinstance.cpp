@@ -74,9 +74,11 @@ void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer, StreamLa
     }
     CONTRACTL_END;
 
-    // TODO: Remove this.
+#ifdef _DEBUG
+    // Useful for diagnosing serialization bugs.
     const unsigned int value = 0xDEADBEEF;
     pSerializer->WriteBuffer((BYTE*)&value, sizeof(value));
+#endif
 
     // Calculate the size of the total payload so that it can be written to the file.
     unsigned int payloadLength =
