@@ -277,7 +277,7 @@
         "detailedLog": "false",
         "usePat": "false",
         "retentionDays": "",
-        "dropMetadataContainerName": "DropMetadata"
+        "dropMetadataContainerName": "Drop-OfficialBuildId"
       }
     },
     {
@@ -300,7 +300,7 @@
         "detailedLog": "false",
         "usePat": "false",
         "retentionDays": "",
-        "dropMetadataContainerName": "DropMetadata"
+        "dropMetadataContainerName": "Drop-BuildNumber"
       }
     },
     {
