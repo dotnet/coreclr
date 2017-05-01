@@ -5,6 +5,8 @@
 #include "common.h"
 #include "eventpipejsonfile.h"
 
+#ifdef FEATURE_PERFTRACING
+
 EventPipeJsonFile::EventPipeJsonFile(SString &outFilePath)
 {
     CONTRACTL
@@ -137,3 +139,5 @@ void EventPipeJsonFile::FormatCallStack(StackContents &stackContents, SString &r
         resultStr.Append(frameStr);
     }
 }
+
+#endif // FEATURE_PERFTRACING

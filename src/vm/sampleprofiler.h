@@ -5,6 +5,8 @@
 #ifndef __SAMPLEPROFILER_H__
 #define __SAMPLEPROFILER_H__
 
+#ifdef FEATURE_PERFTRACING
+
 #include "common.h"
 #include "eventpipe.h"
 
@@ -48,5 +50,7 @@ class SampleProfiler
         static long s_samplingRateInNs;
 #endif
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // __SAMPLEPROFILER_H__

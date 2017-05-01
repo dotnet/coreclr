@@ -4,6 +4,8 @@
 #ifndef __EVENTPIPE_CONFIGURATION_H__
 #define __EVENTPIPE_CONFIGURATION_H__
 
+#ifdef FEATURE_PERFTRACING
+
 #include "slist.h"
 
 class EventPipeEvent;
@@ -33,7 +35,7 @@ public:
     void Disable();
 
     // Get the event used to write metadata to the event stream.
-    EventPipeEventInstance* BuildEventMetadataEvent(EventPipeEvent &sourceEvent, BYTE *pPayloadData = NULL, size_t payloadLength = 0);
+    EventPipeEventInstance* BuildEventMetadataEvent(EventPipeEvent &sourceEvent, BYTE *pPayloadData = NULL, unsigned int payloadLength = 0);
 
 private:
 
@@ -53,5 +55,7 @@ private:
     // This provider is used to emit configuration events.
     static const GUID s_configurationProviderID;
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_CONFIGURATION_H__

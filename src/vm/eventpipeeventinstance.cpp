@@ -8,11 +8,13 @@
 #include "fastserializer.h"
 #include "sampleprofiler.h"
 
+#ifdef FEATURE_PERFTRACING
+
 EventPipeEventInstance::EventPipeEventInstance(
     EventPipeEvent &event,
     DWORD threadID,
     BYTE *pData,
-    size_t length)
+    unsigned int length)
 {
     CONTRACTL
     {
@@ -55,7 +57,7 @@ BYTE* EventPipeEventInstance::GetData() const
     return m_pData;
 }
 
-size_t EventPipeEventInstance::GetLength() const
+unsigned int EventPipeEventInstance::GetLength() const
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -69,7 +71,6 @@ void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer, StreamLa
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(pThread != NULL);
     }
     CONTRACTL_END;
 
@@ -144,3 +145,5 @@ SampleProfilerEventInstance::SampleProfilerEventInstance(Thread *pThread)
 {
     LIMITED_METHOD_CONTRACT;
 }
+
+#endif // FEATURE_PERFTRACING

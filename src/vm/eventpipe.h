@@ -5,6 +5,8 @@
 #ifndef __EVENTPIPE_H__
 #define __EVENTPIPE_H__
 
+#ifdef FEATURE_PERFTRACING
+
 #include "crst.h"
 #include "stackwalk.h"
 
@@ -107,7 +109,7 @@ public:
         return (BYTE*)m_stackFrames;
     }
 
-    size_t GetSize() const
+    unsigned int GetSize() const
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -142,7 +144,7 @@ class EventPipe
 
         // Write out an event.
         // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEvent(EventPipeEvent &event, BYTE *pData, size_t length);
+        static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length);
 
         // Write out a sample profile event.
         static void WriteSampleProfileEvent(SampleProfilerEventInstance &instance);
@@ -177,5 +179,7 @@ class EventPipe
         static EventPipeFile *s_pFile;
         static EventPipeJsonFile *s_pJsonFile;
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_H__

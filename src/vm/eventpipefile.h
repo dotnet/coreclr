@@ -6,6 +6,8 @@
 #ifndef __EVENTPIPE_FILE_H__
 #define __EVENTPIPE_FILE_H__
 
+#ifdef FEATURE_PERFTRACING
+
 #include "eventpipe.h"
 #include "eventpipeeventinstance.h"
 #include "fastserializableobject.h"
@@ -61,5 +63,7 @@ class EventPipeFile : public FastSerializableObject
         // Hashtable of metadata labels.
         MapSHashWithRemove<EventPipeEvent*, StreamLabel> *m_pMetadataLabels;
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_FILE_H__

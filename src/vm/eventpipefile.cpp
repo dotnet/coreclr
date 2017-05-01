@@ -6,6 +6,8 @@
 #include "eventpipeconfiguration.h"
 #include "eventpipefile.h"
 
+#ifdef FEATURE_PERFTRACING
+
 EventPipeFile::EventPipeFile(SString &outputFilePath)
 {
     CONTRACTL
@@ -125,3 +127,5 @@ void EventPipeFile::SaveMetadataLabel(EventPipeEvent &event, StreamLabel label)
     // Add the metadata label.
     m_pMetadataLabels->Add(&event, label);
 }
+
+#endif // FEATURE_PERFTRACING

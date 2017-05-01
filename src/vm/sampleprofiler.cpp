@@ -8,6 +8,8 @@
 #include "hosting.h"
 #include "threadsuspend.h"
 
+#ifdef FEATURE_PERFTRACING
+
 Volatile<BOOL> SampleProfiler::s_profilingEnabled = false;
 Thread* SampleProfiler::s_pSamplingThread = NULL;
 EventPipeProvider* SampleProfiler::s_pEventPipeProvider = NULL;
@@ -172,3 +174,5 @@ void SampleProfiler::WalkManagedThreads()
         }
     }
 }
+
+#endif // FEATURE_PERFTRACING

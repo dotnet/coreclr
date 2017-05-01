@@ -5,6 +5,8 @@
 #ifndef __FASTSERIALIZABLE_OBJECT_H__
 #define __FASTSERIALIZABLE_OBJECT_H__
 
+#ifdef FEATURE_PERFTRACING
+
 class FastSerializer;
 
 class FastSerializableObject
@@ -24,5 +26,7 @@ public:
     // Get the type name for the current object.
     virtual const char* GetTypeName() = 0;
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // _FASTSERIALIZABLE_OBJECT_H__

@@ -5,6 +5,8 @@
 #include "common.h"
 #include "fastserializer.h"
 
+#ifdef FEATURE_PERFTRACING
+
 FastSerializer::FastSerializer(SString &outputFilePath, FastSerializableObject &object)
 {
     CONTRACTL
@@ -64,7 +66,7 @@ StreamLabel FastSerializer::GetStreamLabel() const
 {
     LIMITED_METHOD_CONTRACT;
 
-    return m_currentPos;
+    return (StreamLabel)m_currentPos;
 }
 
 void FastSerializer::WriteObject(FastSerializableObject *pObject)
@@ -91,7 +93,7 @@ void FastSerializer::WriteObject(FastSerializableObject *pObject)
     WriteTag(FastSerializerTags::EndObject);
 }
 
-void FastSerializer::WriteBuffer(BYTE *pBuffer, size_t length)
+void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
 {
     CONTRACTL
     {
@@ -114,7 +116,7 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, size_t length)
         m_pFileStream->Write(pBuffer, length, &outCount);
 
 #ifdef _DEBUG
-        unsigned int prevPos = m_currentPos;
+        size_t prevPos = m_currentPos;
 #endif
         m_currentPos += outCount;
 #ifdef _DEBUG
@@ -230,7 +232,7 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
 
     // Write the SerializationType TypeName field.
     const char *strTypeName = pObject->GetTypeName();
-    size_t length = strlen(strTypeName);
+    unsigned int length = (unsigned int)strlen(strTypeName);
     WriteString(strTypeName, length);
 
     // Write the EndObject tag.
@@ -238,20 +240,20 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
 }
 
 
-void FastSerializer::WriteTag(FastSerializerTags tag, BYTE *payload, size_t payloadLength)
+void FastSerializer::WriteTag(FastSerializerTags tag, BYTE *payload, unsigned int payloadLength)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION( if (payload != NULL) { payLoadLength > 0 } );
     }
     CONTRACTL_END;
 
     WriteBuffer((BYTE *)&tag, sizeof(tag));
     if(payload != NULL)
     {
+        _ASSERTE(payloadLength > 0);
         WriteBuffer(payload, payloadLength);
     }
 }
@@ -268,11 +270,11 @@ void FastSerializer::WriteFileHeader()
     CONTRACTL_END;
 
     const char *strSignature = "!FastSerialization.1";
-    size_t length = strlen(strSignature);
+    unsigned int length = (unsigned int)strlen(strSignature);
     WriteString(strSignature, length);
 }
 
-void FastSerializer::WriteString(const char *strContents, int length)
+void FastSerializer::WriteString(const char *strContents, unsigned int length)
 {
     CONTRACTL
     {
@@ -283,7 +285,7 @@ void FastSerializer::WriteString(const char *strContents, int length)
     CONTRACTL_END;
 
     // Write the string length .
-    WriteBuffer((BYTE*) &length, sizeof(int));
+    WriteBuffer((BYTE*) &length, sizeof(length));
 
     // Write the string contents.
     WriteBuffer((BYTE*) strContents, length);
@@ -331,3 +333,5 @@ void FastSerializer::WriteTrailer(StreamLabel forwardReferencesTableStart)
     // so that it can be easily found by a reader that can seek to the end of the file.
     WriteBuffer((BYTE*) &current, sizeof(current));
 }
+
+#endif // FEATURE_PERFTRACING

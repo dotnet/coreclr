@@ -6,6 +6,8 @@
 #include "eventpipeevent.h"
 #include "eventpipeprovider.h"
 
+#ifdef FEATURE_PERFTRACING
+
 EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack)
 {
     CONTRACTL
@@ -83,3 +85,5 @@ void EventPipeEvent::RefreshState()
 
     m_enabled = m_pProvider->EventEnabled(m_keywords, m_level);
 }
+
+#endif // FEATURE_PERFTRACING

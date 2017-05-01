@@ -6,6 +6,8 @@
 #ifndef __EVENTPIPE_JSONFILE_H__
 #define __EVENTPIPE_JSONFILE_H__
 
+#ifdef FEATURE_PERFTRACING
+
 #include "common.h"
 #include "eventpipe.h"
 #include "eventpipeeventinstance.h"
@@ -40,5 +42,7 @@ class EventPipeJsonFile
         // File-open timestamp for use when calculating event timestamps.
         LARGE_INTEGER m_fileOpenTimeStamp;
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_JSONFILE_H__

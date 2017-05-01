@@ -5,6 +5,8 @@
 #ifndef __EVENTPIPE_PROVIDER_H__
 #define __EVENTPIPE_PROVIDER_H__
 
+#ifdef FEATURE_PERFTRACING
+
 #include "slist.h"
 
 class EventPipeEvent;
@@ -95,5 +97,7 @@ private:
     // Invoke the provider callback.
     void InvokeCallback();
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_PROVIDER_H__

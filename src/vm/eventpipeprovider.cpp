@@ -8,6 +8,8 @@
 #include "eventpipeevent.h"
 #include "eventpipeprovider.h"
 
+#ifdef FEATURE_PERFTRACING
+
 EventPipeProvider::EventPipeProvider(const GUID &providerID)
 {
     CONTRACTL
@@ -187,3 +189,5 @@ void EventPipeProvider::RefreshAllEvents()
         pElem = m_pEventList->GetNext(pElem);
     }
 }
+
+#endif // FEATURE_PERFTRACING

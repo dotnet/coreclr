@@ -5,6 +5,8 @@
 #ifndef __EVENTPIPE_EVENT_H__
 #define __EVENTPIPE_EVENT_H__
 
+#ifdef FEATURE_PERFTRACING
+
 #include "eventpipeprovider.h"
 
 class EventPipeEvent
@@ -64,5 +66,7 @@ public:
     // True if the event is currently enabled.
     bool IsEnabled() const;
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_EVENT_H__

@@ -8,6 +8,8 @@
 #include "eventpipeeventinstance.h"
 #include "eventpipeprovider.h"
 
+#ifdef FEATURE_PERFTRACING
+
 // {5291C09C-2660-4D6A-83A3-C383FD020DEC}
 const GUID EventPipeConfiguration::s_configurationProviderID =
     { 0x5291c09c, 0x2660, 0x4d6a, { 0x83, 0xa3, 0xc3, 0x83, 0xfd, 0x2, 0xd, 0xec } };
@@ -177,7 +179,7 @@ void EventPipeConfiguration::Disable()
     }
 }
 
-EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEvent &sourceEvent, BYTE *pPayloadData, size_t payloadLength)
+EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEvent &sourceEvent, BYTE *pPayloadData, unsigned int payloadLength)
 {
     CONTRACTL
     {
@@ -229,3 +231,5 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
 
     return pInstance;
 }
+
+#endif // FEATURE_PERFTRACING

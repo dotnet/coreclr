@@ -5,6 +5,8 @@
 #ifndef __FASTSERIALIZER_H__
 #define __FASTSERIALIZER_H__
 
+#ifdef FEATURE_PERFTRACING
+
 #include "fastserializableobject.h"
 #include "fstream.h"
 
@@ -41,9 +43,9 @@ public:
     StreamLabel GetStreamLabel() const;
 
     void WriteObject(FastSerializableObject *pObject);
-    void WriteBuffer(BYTE *pBuffer, size_t length);
-    void WriteTag(FastSerializerTags tag, BYTE *payload = NULL, size_t payloadLength = 0);
-    void WriteString(const char *strContents, int length);
+    void WriteBuffer(BYTE *pBuffer, unsigned int length);
+    void WriteTag(FastSerializerTags tag, BYTE *payload = NULL, unsigned int payloadLength = 0);
+    void WriteString(const char *strContents, unsigned int length);
 
     unsigned int AllocateForwardReference();
     void DefineForwardReference(unsigned int index, StreamLabel value);
@@ -66,5 +68,7 @@ private:
     StreamLabel m_forwardReferences[MaxForwardReferences];
     unsigned int m_nextForwardReference;
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // __FASTSERIALIZER_H__
