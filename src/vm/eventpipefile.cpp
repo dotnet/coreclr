@@ -21,12 +21,27 @@ EventPipeFile::EventPipeFile(SString &outputFilePath)
     m_pSerializer = new FastSerializer(outputFilePath, *this);
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
     m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
+
+    // File start time information.
+    GetSystemTime(&m_fileOpenSystemTime);
     QueryPerformanceCounter(&m_fileOpenTimeStamp);
+    QueryPerformanceFrequency(&m_timeStampFrequency);
 
     // Write a forward reference to the beginning of the event stream.
     // This also allows readers to know where the event stream ends and skip it if needed.
     m_beginEventsForwardReferenceIndex = m_pSerializer->AllocateForwardReference();
     m_pSerializer->WriteForwardReference(m_beginEventsForwardReferenceIndex);
+
+    // Write the header information into the file.
+
+    // Write the current date and time.
+    m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenSystemTime, sizeof(m_fileOpenSystemTime));
+
+    // Write FileOpenTimeStamp
+    m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenTimeStamp, sizeof(m_fileOpenTimeStamp));
+
+    // Write ClockFrequency
+    m_pSerializer->WriteBuffer((BYTE*)&m_timeStampFrequency, sizeof(m_timeStampFrequency));
 }
 
 EventPipeFile::~EventPipeFile()

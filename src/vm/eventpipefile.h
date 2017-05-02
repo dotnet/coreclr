@@ -50,8 +50,14 @@ class EventPipeFile : public FastSerializableObject
         // The object responsible for serialization.
         FastSerializer *m_pSerializer;
 
+        // The system time when the file was opened.
+        SYSTEMTIME m_fileOpenSystemTime;
+
         // The timestamp when the file was opened.  Used for calculating file-relative timestamps.
         LARGE_INTEGER m_fileOpenTimeStamp;
+
+        // The frequency of the timestamps used for this file.
+        LARGE_INTEGER m_timeStampFrequency;
 
         // The forward reference index that marks the beginning of the event stream.
         unsigned int m_beginEventsForwardReferenceIndex;
