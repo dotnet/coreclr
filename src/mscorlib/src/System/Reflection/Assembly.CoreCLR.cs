@@ -23,37 +23,35 @@ namespace System.Reflection
         private static Assembly LoadFromResolveHandler(object sender, ResolveEventArgs args)
         {
             Assembly requestingAssembly = args.RequestingAssembly;
-            Assembly requestedAssembly = null;
-
+            
             // Requesting assembly for LoadFrom is always loaded in defaultContext - proceed only if that
             // is the case.
-            if (AssemblyLoadContext.Default == AssemblyLoadContext.GetLoadContext(requestingAssembly))
+            if (AssemblyLoadContext.Default != AssemblyLoadContext.GetLoadContext(requestingAssembly))
+                return null;
+
+            // Get the path where requesting assembly lives and check if it is in the list
+            // of assemblies for which LoadFrom was invoked.
+            bool fRequestorLoadedViaLoadFrom = false;
+            string requestorPath = Path.GetFullPath(requestingAssembly.Location);
+            if (string.IsNullOrEmpty(requestorPath))
+                return null;
+
+            lock(s_syncLoadFromAssemblyList)
             {
-                // Get the path where requesting assembly lives and check if it is in the list
-                // of assemblies for which LoadFrom was invoked.
-                bool fRequestorLoadedViaLoadFrom = false;
-                string requestorPath = Path.GetFullPath(requestingAssembly.Location);
-                if (!string.IsNullOrEmpty(requestorPath))
-                {
-                    lock(s_syncLoadFromAssemblyList)
-                    {
-                        fRequestorLoadedViaLoadFrom = s_LoadFromAssemblyList.Contains(requestorPath);
-                    }
-                }
-
-                // Requestor assembly was loaded using loadFrom, so look for its dependencies
-                // in the same folder as it.
-                if (fRequestorLoadedViaLoadFrom)
-                {
-                    // Form the name of the assembly using the path of the assembly that requested its load.
-                    AssemblyName requestedAssemblyName = new AssemblyName(args.Name);
-                    string requestedAssemblyPath = Path.Combine(Path.GetDirectoryName(requestorPath), requestedAssemblyName.Name+".dll");
-
-                    requestedAssembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(requestedAssemblyPath);
-                }
+                fRequestorLoadedViaLoadFrom = s_LoadFromAssemblyList.Contains(requestorPath);
             }
+            
+            // If the requestor assembly was not loaded using LoadFrom, exit.
+            if (!fRequestorLoadedViaLoadFrom)
+                return null;
 
-            return requestedAssembly;
+            // Requestor assembly was loaded using loadFrom, so look for its dependencies
+            // in the same folder as it.
+            // Form the name of the assembly using the path of the assembly that requested its load.
+            AssemblyName requestedAssemblyName = new AssemblyName(args.Name);
+            string requestedAssemblyPath = Path.Combine(Path.GetDirectoryName(requestorPath), requestedAssemblyName.Name+".dll");
+
+            return AssemblyLoadContext.Default.LoadFromAssemblyPath(requestedAssemblyPath);
         }
 
         public static Assembly LoadFrom(String assemblyFile)
