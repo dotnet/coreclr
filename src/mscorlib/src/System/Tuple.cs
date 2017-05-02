@@ -118,7 +118,7 @@ namespace System
 
         public override Boolean Equals(Object obj)
         {
-            return ((IStructuralEquatable)this).Equals(obj, EqualityComparer<Object>.Default);
+            return ((IStructuralEquatable)this).Equals(obj, null);
         }
 
         Boolean IStructuralEquatable.Equals(Object other, IEqualityComparer comparer)
@@ -138,7 +138,7 @@ namespace System
 
         Int32 IComparable.CompareTo(Object obj)
         {
-            return ((IStructuralComparable)this).CompareTo(obj, Comparer<Object>.Default);
+            return ((IStructuralComparable)this).CompareTo(obj, null);
         }
 
         Int32 IStructuralComparable.CompareTo(Object other, IComparer comparer)
@@ -158,7 +158,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return ((IStructuralEquatable)this).GetHashCode(EqualityComparer<Object>.Default);
+            return ((IStructuralEquatable)this).GetHashCode(null);
         }
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
@@ -223,7 +223,7 @@ namespace System
 
         public override Boolean Equals(Object obj)
         {
-            return ((IStructuralEquatable)this).Equals(obj, EqualityComparer<Object>.Default); ;
+            return ((IStructuralEquatable)this).Equals(obj, null);
         }
 
         Boolean IStructuralEquatable.Equals(Object other, IEqualityComparer comparer)
@@ -243,7 +243,7 @@ namespace System
 
         Int32 IComparable.CompareTo(Object obj)
         {
-            return ((IStructuralComparable)this).CompareTo(obj, Comparer<Object>.Default);
+            return ((IStructuralComparable)this).CompareTo(obj, null);
         }
 
         Int32 IStructuralComparable.CompareTo(Object other, IComparer comparer)
@@ -270,7 +270,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return ((IStructuralEquatable)this).GetHashCode(EqualityComparer<Object>.Default);
+            return ((IStructuralEquatable)this).GetHashCode(null);
         }
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
@@ -344,7 +344,7 @@ namespace System
 
         public override Boolean Equals(Object obj)
         {
-            return ((IStructuralEquatable)this).Equals(obj, EqualityComparer<Object>.Default); ;
+            return ((IStructuralEquatable)this).Equals(obj, null);
         }
 
         Boolean IStructuralEquatable.Equals(Object other, IEqualityComparer comparer)
@@ -364,7 +364,7 @@ namespace System
 
         Int32 IComparable.CompareTo(Object obj)
         {
-            return ((IStructuralComparable)this).CompareTo(obj, Comparer<Object>.Default);
+            return ((IStructuralComparable)this).CompareTo(obj, null);
         }
 
         Int32 IStructuralComparable.CompareTo(Object other, IComparer comparer)
@@ -395,7 +395,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return ((IStructuralEquatable)this).GetHashCode(EqualityComparer<Object>.Default);
+            return ((IStructuralEquatable)this).GetHashCode(null);
         }
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
@@ -476,7 +476,7 @@ namespace System
 
         public override Boolean Equals(Object obj)
         {
-            return ((IStructuralEquatable)this).Equals(obj, EqualityComparer<Object>.Default); ;
+            return ((IStructuralEquatable)this).Equals(obj, null);
         }
 
         Boolean IStructuralEquatable.Equals(Object other, IEqualityComparer comparer)
@@ -496,7 +496,7 @@ namespace System
 
         Int32 IComparable.CompareTo(Object obj)
         {
-            return ((IStructuralComparable)this).CompareTo(obj, Comparer<Object>.Default);
+            return ((IStructuralComparable)this).CompareTo(obj, null);
         }
 
         Int32 IStructuralComparable.CompareTo(Object other, IComparer comparer)
@@ -531,7 +531,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return ((IStructuralEquatable)this).GetHashCode(EqualityComparer<Object>.Default);
+            return ((IStructuralEquatable)this).GetHashCode(null);
         }
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
@@ -619,7 +619,7 @@ namespace System
 
         public override Boolean Equals(Object obj)
         {
-            return ((IStructuralEquatable)this).Equals(obj, EqualityComparer<Object>.Default); ;
+            return ((IStructuralEquatable)this).Equals(obj, null);
         }
 
         Boolean IStructuralEquatable.Equals(Object other, IEqualityComparer comparer)
@@ -639,7 +639,7 @@ namespace System
 
         Int32 IComparable.CompareTo(Object obj)
         {
-            return ((IStructuralComparable)this).CompareTo(obj, Comparer<Object>.Default);
+            return ((IStructuralComparable)this).CompareTo(obj, null);
         }
 
         Int32 IStructuralComparable.CompareTo(Object other, IComparer comparer)
@@ -678,7 +678,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return ((IStructuralEquatable)this).GetHashCode(EqualityComparer<Object>.Default);
+            return ((IStructuralEquatable)this).GetHashCode(null);
         }
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
@@ -773,7 +773,7 @@ namespace System
 
         public override Boolean Equals(Object obj)
         {
-            return ((IStructuralEquatable)this).Equals(obj, EqualityComparer<Object>.Default); ;
+            return ((IStructuralEquatable)this).Equals(obj, null);
         }
 
         Boolean IStructuralEquatable.Equals(Object other, IEqualityComparer comparer)
@@ -793,7 +793,7 @@ namespace System
 
         Int32 IComparable.CompareTo(Object obj)
         {
-            return ((IStructuralComparable)this).CompareTo(obj, Comparer<Object>.Default);
+            return ((IStructuralComparable)this).CompareTo(obj, null);
         }
 
         Int32 IStructuralComparable.CompareTo(Object other, IComparer comparer)
@@ -836,7 +836,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return ((IStructuralEquatable)this).GetHashCode(EqualityComparer<Object>.Default);
+            return ((IStructuralEquatable)this).GetHashCode(null);
         }
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
@@ -938,7 +938,7 @@ namespace System
 
         public override Boolean Equals(Object obj)
         {
-            return ((IStructuralEquatable)this).Equals(obj, EqualityComparer<Object>.Default); ;
+            return ((IStructuralEquatable)this).Equals(obj, null);
         }
 
         Boolean IStructuralEquatable.Equals(Object other, IEqualityComparer comparer)
@@ -958,7 +958,7 @@ namespace System
 
         Int32 IComparable.CompareTo(Object obj)
         {
-            return ((IStructuralComparable)this).CompareTo(obj, Comparer<Object>.Default);
+            return ((IStructuralComparable)this).CompareTo(obj, null);
         }
 
         Int32 IStructuralComparable.CompareTo(Object other, IComparer comparer)
@@ -1005,7 +1005,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return ((IStructuralEquatable)this).GetHashCode(EqualityComparer<Object>.Default);
+            return ((IStructuralEquatable)this).GetHashCode(null);
         }
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
@@ -1119,7 +1119,7 @@ namespace System
 
         public override Boolean Equals(Object obj)
         {
-            return ((IStructuralEquatable)this).Equals(obj, EqualityComparer<Object>.Default); ;
+            return ((IStructuralEquatable)this).Equals(obj, null);
         }
 
         Boolean IStructuralEquatable.Equals(Object other, IEqualityComparer comparer)
@@ -1139,7 +1139,7 @@ namespace System
 
         Int32 IComparable.CompareTo(Object obj)
         {
-            return ((IStructuralComparable)this).CompareTo(obj, Comparer<Object>.Default);
+            return ((IStructuralComparable)this).CompareTo(obj, null);
         }
 
         Int32 IStructuralComparable.CompareTo(Object other, IComparer comparer)
@@ -1190,7 +1190,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return ((IStructuralEquatable)this).GetHashCode(EqualityComparer<Object>.Default);
+            return ((IStructuralEquatable)this).GetHashCode(null);
         }
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
