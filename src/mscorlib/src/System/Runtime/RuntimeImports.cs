@@ -28,7 +28,7 @@ namespace System.Runtime
 
         internal unsafe static void RhZeroMemory(IntPtr p, UIntPtr byteLength)
         {
-            RhZeroMemory((void*)p, (uint)byteLength);
+            RhZeroMemory((void*)p, (nuint)byteLength);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
