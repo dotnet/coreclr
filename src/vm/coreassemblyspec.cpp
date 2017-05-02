@@ -275,8 +275,23 @@ STDAPI BinderAcquirePEImage(LPCWSTR   wszAssemblyPath,
 
 STDAPI BinderHasNativeHeader(PEImage *pPEImage, BOOL* result)
 {
-    *result = pPEImage->HasNativeHeader();
-    return S_OK;
+    HRESULT hr = S_OK;
+
+    _ASSERTE(pPEImage != NULL);
+    _ASSERTE(result != NULL);
+
+    EX_TRY
+    {
+        *result = pPEImage->HasNativeHeader();
+    }
+    EX_CATCH_HRESULT(hr);
+
+    if (FAILED(hr))
+    {
+        *result = false;
+    }
+
+    return hr;
 }
 
 STDAPI BinderAcquireImport(PEImage                  *pPEImage,
