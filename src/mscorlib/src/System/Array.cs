@@ -680,17 +680,27 @@ namespace System
                 ThrowHelper.ThrowArgumentException(ExceptionResource.ArgumentException_OtherNotArrayOfCorrectLength, ExceptionArgument.other);
             }
 
+            if (o.Length == 0)
+            {
+                return 0;
+            }
+
+            if (comparer == null)
+            {
+                comparer = Comparer.Default;
+            }
+
             int i = 0;
             int c = 0;
 
-            while (i < o.Length && c == 0)
+            do
             {
                 object left = GetValue(i);
                 object right = o.GetValue(i);
 
                 c = comparer.Compare(left, right);
                 i++;
-            }
+            } while (i < o.Length && c == 0);
 
             return c;
         }
@@ -714,8 +724,18 @@ namespace System
                 return false;
             }
 
+            if (o.Length == 0)
+            {
+                return true;
+            }
+
+            if (comparer == null)
+            {
+                comparer = EqualityComparer<object>.Default;
+            }
+
             int i = 0;
-            while (i < o.Length)
+            do
             {
                 object left = GetValue(i);
                 object right = o.GetValue(i);
@@ -725,7 +745,7 @@ namespace System
                     return false;
                 }
                 i++;
-            }
+            } while (i < o.Length);
 
             return true;
         }
@@ -739,8 +759,9 @@ namespace System
         int IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
             if (comparer == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparer);
-            Contract.EndContractBlock();
+            {
+                comparer = EqualityComparer<object>.Default;
+            }
 
             int ret = 0;
 

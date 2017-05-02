@@ -132,6 +132,7 @@ namespace System
                 return false;
             }
 
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return comparer.Equals(m_Item1, objTuple.m_Item1);
         }
 
@@ -151,6 +152,7 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), "other");
             }
 
+            if (comparer == null) comparer = Comparer<object>.Default;
             return comparer.Compare(m_Item1, objTuple.m_Item1);
         }
 
@@ -161,6 +163,7 @@ namespace System
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return comparer.GetHashCode(m_Item1);
         }
 
@@ -234,6 +237,7 @@ namespace System
                 return false;
             }
 
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return comparer.Equals(m_Item1, objTuple.m_Item1) && comparer.Equals(m_Item2, objTuple.m_Item2);
         }
 
@@ -253,6 +257,8 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), "other");
             }
 
+            if (comparer == null) comparer = Comparer<object>.Default;
+
             int c = 0;
 
             c = comparer.Compare(m_Item1, objTuple.m_Item1);
@@ -269,6 +275,7 @@ namespace System
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return Tuple.CombineHashCodes(comparer.GetHashCode(m_Item1), comparer.GetHashCode(m_Item2));
         }
 
@@ -351,6 +358,7 @@ namespace System
                 return false;
             }
 
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return comparer.Equals(m_Item1, objTuple.m_Item1) && comparer.Equals(m_Item2, objTuple.m_Item2) && comparer.Equals(m_Item3, objTuple.m_Item3);
         }
 
@@ -369,6 +377,8 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), "other");
             }
+
+            if (comparer == null) comparer = Comparer<object>.Default;
 
             int c = 0;
 
@@ -390,6 +400,7 @@ namespace System
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return Tuple.CombineHashCodes(comparer.GetHashCode(m_Item1), comparer.GetHashCode(m_Item2), comparer.GetHashCode(m_Item3));
         }
 
@@ -479,6 +490,7 @@ namespace System
                 return false;
             }
 
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return comparer.Equals(m_Item1, objTuple.m_Item1) && comparer.Equals(m_Item2, objTuple.m_Item2) && comparer.Equals(m_Item3, objTuple.m_Item3) && comparer.Equals(m_Item4, objTuple.m_Item4);
         }
 
@@ -497,6 +509,8 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), "other");
             }
+
+            if (comparer == null) comparer = Comparer<object>.Default;
 
             int c = 0;
 
@@ -522,6 +536,7 @@ namespace System
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return Tuple.CombineHashCodes(comparer.GetHashCode(m_Item1), comparer.GetHashCode(m_Item2), comparer.GetHashCode(m_Item3), comparer.GetHashCode(m_Item4));
         }
 
@@ -618,6 +633,7 @@ namespace System
                 return false;
             }
 
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return comparer.Equals(m_Item1, objTuple.m_Item1) && comparer.Equals(m_Item2, objTuple.m_Item2) && comparer.Equals(m_Item3, objTuple.m_Item3) && comparer.Equals(m_Item4, objTuple.m_Item4) && comparer.Equals(m_Item5, objTuple.m_Item5);
         }
 
@@ -636,6 +652,8 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), "other");
             }
+
+            if (comparer == null) comparer = Comparer<object>.Default;
 
             int c = 0;
 
@@ -665,6 +683,7 @@ namespace System
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return Tuple.CombineHashCodes(comparer.GetHashCode(m_Item1), comparer.GetHashCode(m_Item2), comparer.GetHashCode(m_Item3), comparer.GetHashCode(m_Item4), comparer.GetHashCode(m_Item5));
         }
 
@@ -768,6 +787,7 @@ namespace System
                 return false;
             }
 
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return comparer.Equals(m_Item1, objTuple.m_Item1) && comparer.Equals(m_Item2, objTuple.m_Item2) && comparer.Equals(m_Item3, objTuple.m_Item3) && comparer.Equals(m_Item4, objTuple.m_Item4) && comparer.Equals(m_Item5, objTuple.m_Item5) && comparer.Equals(m_Item6, objTuple.m_Item6);
         }
 
@@ -786,6 +806,8 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), "other");
             }
+
+            if (comparer == null) comparer = Comparer<object>.Default;
 
             int c = 0;
 
@@ -819,6 +841,7 @@ namespace System
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return Tuple.CombineHashCodes(comparer.GetHashCode(m_Item1), comparer.GetHashCode(m_Item2), comparer.GetHashCode(m_Item3), comparer.GetHashCode(m_Item4), comparer.GetHashCode(m_Item5), comparer.GetHashCode(m_Item6));
         }
 
@@ -929,6 +952,7 @@ namespace System
                 return false;
             }
 
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return comparer.Equals(m_Item1, objTuple.m_Item1) && comparer.Equals(m_Item2, objTuple.m_Item2) && comparer.Equals(m_Item3, objTuple.m_Item3) && comparer.Equals(m_Item4, objTuple.m_Item4) && comparer.Equals(m_Item5, objTuple.m_Item5) && comparer.Equals(m_Item6, objTuple.m_Item6) && comparer.Equals(m_Item7, objTuple.m_Item7);
         }
 
@@ -947,6 +971,8 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), "other");
             }
+
+            if (comparer == null) comparer = Comparer<object>.Default;
 
             int c = 0;
 
@@ -984,6 +1010,7 @@ namespace System
 
         Int32 IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return Tuple.CombineHashCodes(comparer.GetHashCode(m_Item1), comparer.GetHashCode(m_Item2), comparer.GetHashCode(m_Item3), comparer.GetHashCode(m_Item4), comparer.GetHashCode(m_Item5), comparer.GetHashCode(m_Item6), comparer.GetHashCode(m_Item7));
         }
 
@@ -1106,6 +1133,7 @@ namespace System
                 return false;
             }
 
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
             return comparer.Equals(m_Item1, objTuple.m_Item1) && comparer.Equals(m_Item2, objTuple.m_Item2) && comparer.Equals(m_Item3, objTuple.m_Item3) && comparer.Equals(m_Item4, objTuple.m_Item4) && comparer.Equals(m_Item5, objTuple.m_Item5) && comparer.Equals(m_Item6, objTuple.m_Item6) && comparer.Equals(m_Item7, objTuple.m_Item7) && comparer.Equals(m_Rest, objTuple.m_Rest);
         }
 
@@ -1124,6 +1152,8 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, this.GetType().ToString()), "other");
             }
+
+            if (comparer == null) comparer = Comparer<object>.Default;
 
             int c = 0;
 
@@ -1168,6 +1198,8 @@ namespace System
             // We want to have a limited hash in this case.  We'll use the last 8 elements of the tuple
             ITupleInternal t = (ITupleInternal)m_Rest;
             if (t.Length >= 8) { return t.GetHashCode(comparer); }
+
+            if (comparer == null) comparer = EqualityComparer<object>.Default;
 
             // In this case, the rest memeber has less than 8 elements so we need to combine some our elements with the elements in rest
             int k = 8 - t.Length;
