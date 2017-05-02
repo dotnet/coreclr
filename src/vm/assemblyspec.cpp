@@ -719,7 +719,7 @@ PEAssembly *AssemblySpec::ResolveAssemblyFile(AppDomain *pDomain, BOOL fPreBind)
 }
 
 
-Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, AssemblyLoadSecurity *pLoadSecurity, BOOL fThrowOnFileNotFound, BOOL fRaisePrebindEvents, StackCrawlMark *pCallerStackMark)
+Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, AssemblyLoadSecurity *pLoadSecurity, BOOL fThrowOnFileNotFound, BOOL fRaisePrebindEvents, StackCrawlMark *pCallerStackMark, BOOL fUseExplicitFilePath)
 {
     CONTRACTL
     {
@@ -729,7 +729,7 @@ Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, AssemblyLoadSecu
     }
     CONTRACTL_END;
  
-    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, pLoadSecurity, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark);
+    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, pLoadSecurity, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark, fUseExplicitFilePath);
     if (pDomainAssembly == NULL) {
         _ASSERTE(!fThrowOnFileNotFound);
         return NULL;
@@ -860,7 +860,8 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
                                                  AssemblyLoadSecurity *pLoadSecurity,
                                                  BOOL fThrowOnFileNotFound,
                                                  BOOL fRaisePrebindEvents,
-                                                 StackCrawlMark *pCallerStackMark)
+                                                 StackCrawlMark *pCallerStackMark,
+                                                 BOOL fUseExplicitFilePath)
 {
     CONTRACT(DomainAssembly *)
     {
@@ -912,7 +913,7 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
     }
 
 
-    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark, pLoadSecurity));
+    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark, pLoadSecurity, TRUE, fUseExplicitFilePath));
     if (pFile == NULL)
         RETURN NULL;
 
@@ -962,7 +963,8 @@ Assembly *AssemblySpec::LoadAssembly(LPCWSTR pFilePath)
 
     AssemblySpec spec;
     spec.SetCodeBase(pFilePath);
-    RETURN spec.LoadAssembly(FILE_LOADED);
+
+    RETURN spec.LoadAssembly(FILE_LOADED, NULL, TRUE, TRUE, NULL, TRUE);
 }
 
 HRESULT AssemblySpec::CheckFriendAssemblyName()
