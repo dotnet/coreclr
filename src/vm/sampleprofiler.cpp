@@ -12,6 +12,7 @@
 
 Volatile<BOOL> SampleProfiler::s_profilingEnabled = false;
 Thread* SampleProfiler::s_pSamplingThread = NULL;
+const GUID SampleProfiler::s_providerID = {0x3c530d44,0x97ae,0x513a,{0x1e,0x6d,0x78,0x3e,0x8f,0x8e,0x03,0xa9}}; // {3c530d44-97ae-513a-1e6d-783e8f8e03a9}
 EventPipeProvider* SampleProfiler::s_pEventPipeProvider = NULL;
 EventPipeEvent* SampleProfiler::s_pThreadTimeEvent = NULL;
 CLREventStatic SampleProfiler::s_threadShutdownEvent;
@@ -34,7 +35,7 @@ void SampleProfiler::Enable()
 
     if(s_pEventPipeProvider == NULL)
     {
-        s_pEventPipeProvider = new EventPipeProvider({0});
+        s_pEventPipeProvider = new EventPipeProvider(s_providerID);
         s_pThreadTimeEvent = new EventPipeEvent(
             *s_pEventPipeProvider,
             0, /* keywords */

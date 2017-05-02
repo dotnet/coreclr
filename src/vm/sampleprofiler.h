@@ -39,6 +39,7 @@ class SampleProfiler
         static Thread *s_pSamplingThread;
 
         // The provider and event emitted by the profiler.
+        static const GUID s_providerID;
         static EventPipeProvider *s_pEventPipeProvider;
         static EventPipeEvent *s_pThreadTimeEvent;
 

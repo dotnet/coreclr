@@ -186,7 +186,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         pData,
         length);
 
-    // Write to the EventPipeFile if it exists.
+    // Write to the EventPipeFile.
     _ASSERTE(s_pFile != NULL);
     s_pFile->WriteEvent(instance);
 
@@ -207,6 +207,11 @@ void EventPipe::WriteSampleProfileEvent(SampleProfilerEventInstance &instance)
     }
     CONTRACTL_END;
 
+    // Write to the EventPipeFile.
+    _ASSERTE(s_pFile != NULL);
+    s_pFile->WriteEvent(instance);
+
+    // Write to the EventPipeJsonFile if it exists.
     if(s_pJsonFile != NULL)
     {
         s_pJsonFile->WriteEvent(instance);

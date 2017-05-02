@@ -101,7 +101,10 @@ void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer, StreamLa
     pSerializer->WriteBuffer((BYTE*)&m_timeStamp, sizeof(m_timeStamp));
 
     // Write the event data payload.
-    pSerializer->WriteBuffer(m_pData, m_dataLength);
+    if(m_dataLength > 0)
+    {
+        pSerializer->WriteBuffer(m_pData, m_dataLength);
+    }
 
     // Write the stack if present.
     if(m_stackContents.GetSize() > 0)
