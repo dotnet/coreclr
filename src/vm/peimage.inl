@@ -481,7 +481,7 @@ inline BOOL PEImage::HasNativeHeader()
         return GetLoadedLayout()->HasNativeHeader();
     else
     {
-        bool result = false;
+        BOOL result = false;
         EX_TRY
         {
             PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
