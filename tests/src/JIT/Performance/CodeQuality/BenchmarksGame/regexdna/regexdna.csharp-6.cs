@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -39,40 +40,20 @@ public static class Regexdna
 
    static string FindInput(string s)
    {
-       string CoreRoot = System.Environment.GetEnvironmentVariable("CORE_ROOT");
-
-       if (CoreRoot == null)
-       {
-           Console.WriteLine("This benchmark requries CORE_ROOT to be set");
-           return null;
-       }
 
        string inputFile = s ?? InputFile;
 
-       // Normal testing -- input file will end up next to the assembly
-       // and CoreRoot points at the test overlay dir
-       string[] pathPartsNormal = new string[] {
-           CoreRoot, "..", "..", "JIT", "Performance",
-           "CodeQuality", "BenchmarksGame", "regexdna", "regexdna", inputFile
-       };
-
-       string inputPathNormal = Path.Combine(pathPartsNormal);
-
-       // Perf testing -- input file will end up next to the assembly
-       // and CoreRoot points at this directory
-       string[] pathPartsPerf = new string[] { CoreRoot, inputFile };
-
-       string inputPathPerf = Path.Combine(pathPartsPerf);
+       // Input file will end up next to the assembly
+       string currentDirectory = AssemblyDir;
+       string[] inputPathParts = new string[] {currentDirectory, inputFile};
 
        string inputPath = null;
 
-       if (File.Exists(inputPathNormal))
+       Console.WriteLine(Path.Combine(inputPathParts));
+
+       if (File.Exists(Path.Combine(inputPathParts)))
        {
-           inputPath = inputPathNormal;
-       }
-       else if (File.Exists(inputPathPerf))
-       {
-           inputPath = inputPathPerf;
+           inputPath = Path.Combine(inputPathParts);
        }
 
        if (inputPath != null)
@@ -225,6 +206,8 @@ public static class Regexdna
            }
        }
    }
+
+   public static string AssemblyDir => typeof(Regexdna).GetTypeInfo().Assembly.Location;
 }
 
 }
