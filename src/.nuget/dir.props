@@ -114,7 +114,7 @@
     <When Condition="'$(_runtimeOSFamily)' == 'android'">
       <PropertyGroup>
         <LibraryFileExtension>.so</LibraryFileExtension>
-<!--symbols included in .so, like Linux, but can be generated externally and if so, uses .debug ext-->
+        <!--symbols included in .so, like Linux, but can be generated externally and if so, uses .debug ext-->
         <SymbolFileExtension>.debug</SymbolFileExtension>
       </PropertyGroup>
     </When>
