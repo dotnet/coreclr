@@ -136,10 +136,13 @@ void EventPipeEventInstance::SerializeToJsonFile(EventPipeJsonFile *pFile)
         {
             wszProviderID[0] = '\0';
         }
-        memmove(wszProviderID, &wszProviderID[1], guidSize-3);
-        wszProviderID[guidSize-3] = '\0';
+
+        // Strip off the {}.
+        StackScratchBuffer scratch;
+        SString guidStr(&wszProviderID[1], guidSize-3);
+
         SString message;
-        message.Printf("Provider=%S/EventID=%d/Version=%d", wszProviderID, m_pEvent->GetEventID(), m_pEvent->GetEventVersion());
+        message.Printf("Provider=%s/EventID=%d/Version=%d", guidStr.GetANSI(scratch), m_pEvent->GetEventID(), m_pEvent->GetEventVersion());
         pFile->WriteEvent(m_timeStamp, m_threadID, message, m_stackContents);
     }
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
