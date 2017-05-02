@@ -4,15 +4,9 @@
 
 // This program uses code hyperlinks available as part of the HyperAddin Visual Studio plug-in.
 // It is available from http://www.codeplex.com/hyperAddin 
-#if PLATFORM_WINDOWS
-
-#define FEATURE_MANAGED_ETW
-
 #if !ES_BUILD_STANDALONE && !CORECLR && !ES_BUILD_PN
 #define FEATURE_ACTIVITYSAMPLING
 #endif // !ES_BUILD_STANDALONE
-
-#endif // PLATFORM_WINDOWS
 
 #if ES_BUILD_STANDALONE
 #define FEATURE_MANAGED_ETW_CHANNELS
@@ -1456,7 +1450,7 @@ namespace System.Diagnostics.Tracing
                 //Enable Implicit Activity tracker
                 m_activityTracker = ActivityTracker.Instance;
 
-#if FEATURE_MANAGED_ETW
+#if FEATURE_MANAGED_ETW && !PLATFORM_UNIX
                 // Create and register our provider traits.  We do this early because it is needed to log errors 
                 // In the self-describing event case. 
                 this.InitializeProviderMetadata();
@@ -1469,7 +1463,7 @@ namespace System.Diagnostics.Tracing
                 // This also sets m_id, which is the index in the list. 
                 EventListener.AddEventSource(this);
 
-#if FEATURE_MANAGED_ETW
+#if (FEATURE_MANAGED_ETW && !PLATFORM_UNIX)
                 // OK if we get this far without an exception, then we can at least write out error messages. 
                 // Set m_provider, which allows this.  
                 m_provider = provider;
@@ -1492,7 +1486,7 @@ namespace System.Diagnostics.Tracing
 
                     metadataHandle.Free();
                 }
-#endif // FEATURE_MANAGED_ETW
+#endif // FEATURE_MANAGED_ETW && !PLATFORM_UNIX
 
                 Debug.Assert(!m_eventSourceEnabled);     // We can't be enabled until we are completely initted.  
                 // We are logically completely initialized at this point.  
@@ -2607,7 +2601,7 @@ namespace System.Diagnostics.Tracing
             // We defer commands until we are completely inited.  This allows error messages to be sent.  
             Debug.Assert(m_completelyInited);
 
-#if FEATURE_MANAGED_ETW
+#if FEATURE_MANAGED_ETW && !PLATFORM_UNIX
             if (m_provider == null)     // If we failed to construct
                 return;
 #endif // FEATURE_MANAGED_ETW

@@ -64,6 +64,7 @@
   <PropertyGroup Condition="'$(TargetsUnix)' == 'true'">
     <FeaturePal>true</FeaturePal>
     <FeatureXplatEventSource>true</FeatureXplatEventSource>
+    <FeatureManagedEtw>true</FeatureManagedEtw>
 
     <FeatureArrayStubAsIL>true</FeatureArrayStubAsIL>
     <FeatureStubsAsIL>true</FeatureStubsAsIL>
@@ -76,7 +77,6 @@
     <FeatureCominterop>false</FeatureCominterop>
     <FeatureCominteropUnmanagedActivation>false</FeatureCominteropUnmanagedActivation>
     <FeatureCominteropWinRTManagedActivation>false</FeatureCominteropWinRTManagedActivation>
-    <FeatureManagedEtw>false</FeatureManagedEtw>
 
     <FeatureCoreFxGlobalization>true</FeatureCoreFxGlobalization>
   </PropertyGroup>
