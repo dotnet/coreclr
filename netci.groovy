@@ -600,6 +600,14 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 break
             }
 
+            if (scenario == 'standalone_gc') {
+                assert (configuration == 'Release' || configuration == 'Checked')
+                if (os == 'Windows_NT' || os == 'Ubuntu' || os == 'OSX10.12') {
+                    Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Standalone GC")
+                }
+                break
+            }
+
             switch (os) {
                 // OpenSUSE, Debian & RedHat get trigger phrases for pri 0 build, and pri 1 build & test
                 case 'Debian8.4':
@@ -635,6 +643,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 case 'OSX10.12':
                     // Triggers on the non-flow jobs aren't necessary here
                     // Corefx testing uses non-flow jobs.
+                    // Local GC workaround: run standalone_gc jobs on all PRs
                     if (!isFlowJob && !isCorefxTesting(scenario)) {
                         break
                     }
