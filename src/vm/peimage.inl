@@ -481,8 +481,19 @@ inline BOOL PEImage::HasNativeHeader()
         return GetLoadedLayout()->HasNativeHeader();
     else
     {
-        PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
-        return pLayout->HasNativeHeader();
+        bool result = false;
+        EX_TRY
+        {
+            PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
+            result = pLayout->HasNativeHeader();
+        }
+        EX_CATCH
+        {
+            result = false;
+        }
+        EX_END_CATCH(RethrowTerminalExceptions)
+
+        return result;
     }
 }
 

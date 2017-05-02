@@ -689,11 +689,6 @@ namespace BINDER_SPACE
         sCoreLib = sCoreLibDir;
         sCoreLib.Append(CoreLibName_IL_W);
         BOOL fExplicitBindToNativeImage = (fBindToNativeImage == true)? TRUE:FALSE;
-#if defined(FEATURE_PAL) && !defined(_TARGET_AMD64_)      
-        // Non-Amd64 platforms on non-Windows do not support generating the NI image
-        // as CoreLib.dll. For those, we will bind as IL.
-        fExplicitBindToNativeImage = FALSE;
-#endif // defined(FEATURE_PAL) && !defined(_TARGET_AMD64_)
         IF_FAIL_GO(AssemblyBinder::GetAssembly(sCoreLib,
                                                    FALSE /* fInspectionOnly */,
                                                    TRUE /* fIsInGAC */,
@@ -1594,10 +1589,16 @@ namespace BINDER_SPACE
             {
                 BOOL hasHeader = TRUE;
                 IF_FAIL_GO(BinderHasNativeHeader(pNativePEImage, &hasHeader));
+
                 if (!hasHeader)
                 {
-                     pPEImage = pNativePEImage;
-                     pNativePEImage = NULL;
+                    BinderReleasePEImage(pPEImage);
+                    BinderReleasePEImage(pNativePEImage);
+
+                    BINDER_LOG_ENTER(W("BinderAcquirePEImageIL"));
+                    hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, false);
+                    BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImageIL"), hr);
+                    IF_FAIL_GO(hr);
                 }
             }
 
