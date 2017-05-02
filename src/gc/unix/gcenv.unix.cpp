@@ -17,17 +17,6 @@
 #include <signal.h>
 #include "config.h"
 
-// clang typedefs uint64_t to be unsigned long long, which clashes with
-// PAL/MSVC's unsigned long, causing linker errors. This ugly hack
-// will go away once the GC doesn't depend on PAL headers.
-typedef unsigned long uint64_t_hack;
-#define uint64_t uint64_t_hack
-static_assert(sizeof(uint64_t) == 8, "unsigned long isn't 8 bytes");
-
-#ifndef __out_z
-#define __out_z
-#endif // __out_z
-
 #include "gcenv.structs.h"
 #include "gcenv.base.h"
 #include "gcenv.os.h"

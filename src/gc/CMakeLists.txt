@@ -27,11 +27,18 @@ set( GC_SOURCES
   gceewks.cpp
   handletablecache.cpp)
 
-if(NOT CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
+include(unix/configure.cmake)
+set ( GC_SOURCES
+  ${GC_SOURCES}
+  unix/gcenv.unix.cpp
+  unix/events.cpp
+  unix/cgroup.cpp)
+else()
 set ( GC_SOURCES
   ${GC_SOURCES}
   windows/gcenv.windows.cpp)
-endif(NOT CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 convert_to_absolute_path(GC_SOURCES ${GC_SOURCES})
 
