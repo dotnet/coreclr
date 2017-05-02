@@ -51,6 +51,7 @@ namespace System.Reflection
             AssemblyName requestedAssemblyName = new AssemblyName(args.Name);
             string requestedAssemblyPath = Path.Combine(Path.GetDirectoryName(requestorPath), requestedAssemblyName.Name+".dll");
 
+            // Load the dependency via LoadFrom so that it goes through the same path of being in the LoadFrom list.
             return Assembly.LoadFrom(requestedAssemblyPath);
         }
 
