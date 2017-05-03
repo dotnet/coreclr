@@ -310,17 +310,17 @@ LOCAL_LABEL(shadowupdateend):
     ldp  x12, x13, [sp],#16
 #endif
 
-    // Branch to Exit if the reference is not in the Gen0 heap
+    // Branch to DoneCardTable if the reference is not in the Gen0 heap
     //
     PREPARE_EXTERNAL_VAR g_ephemeral_low, x12
     ldr  x12,  [x12]
     cmp  x15,  x12
-    blt  LOCAL_LABEL(Exit)
+    blt  LOCAL_LABEL(DoneCardTable)
 
     PREPARE_EXTERNAL_VAR g_ephemeral_high, x12
     ldr  x12, [x12]
     cmp  x15,  x12
-    bgt  LOCAL_LABEL(Exit)
+    bgt  LOCAL_LABEL(DoneCardTable)
 
     // Check if we need to update the card table
     PREPARE_EXTERNAL_VAR g_card_table, x12
@@ -328,11 +328,28 @@ LOCAL_LABEL(shadowupdateend):
     add  x15,  x12, x14, lsr #11
     ldrb w12, [x15]
     cmp  x12, 0xFF
-    beq  LOCAL_LABEL(Exit)
+    beq  LOCAL_LABEL(DoneCardTable)
 
 LOCAL_LABEL(UpdateCardTable):
     mov  x12, 0xFF 
     strb w12, [x15]
+
+LOCAL_LABEL(DoneCardTable):
+
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    // Update the write watch table if necessary
+    PREPARE_EXTERNAL_VAR g_sw_ww_enabled_for_gc_heap, x12
+    ldrb w12, [x12]
+    cbz  x12, LOCAL_LABEL(Exit)
+    PREPARE_EXTERNAL_VAR g_sw_ww_table, x12
+    lsr  x15, x14, #0xc  // SoftwareWriteWatch::AddressToTableByteIndexShift
+    add  x12, x12, x15
+    ldrb w15, [x12]
+    cbnz x15, LOCAL_LABEL(Exit)
+    mov  x15, 0xFF
+    strb w15, [x12]
+#endif
+
 LOCAL_LABEL(Exit):
     add  x14, x14, 8
     ret  lr  
