@@ -173,6 +173,14 @@ void genCodeForShiftLong(GenTreePtr tree);
 void genCodeForShiftRMW(GenTreeStoreInd* storeInd);
 #endif // _TARGET_XARCH_
 
+void genCodeForCast(GenTreeOp* tree);
+
+void genCodeForLclAddr(GenTree* tree);
+
+void genCodeForIndir(GenTreeIndir* tree);
+
+void genCodeForDiv(GenTreeOp* tree);
+
 void genCodeForNegNot(GenTree* tree);
 
 void genCodeForLclVar(GenTreeLclVar* tree);
@@ -185,6 +193,8 @@ void genCodeForStoreLclVar(GenTreeLclVar* tree);
 
 void genCodeForReturnTrap(GenTreeOp* tree);
 
+void genCodeForJcc(GenTreeJumpCC* tree);
+
 void genCodeForStoreInd(GenTreeStoreInd* tree);
 
 void genCodeForSwap(GenTreeOp* tree);
@@ -196,6 +206,10 @@ void genCodeForCpBlk(GenTreeBlk* cpBlkNode);
 void genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode);
 
 void genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode);
+
+void genCodeForPhysReg(GenTreePhysReg* tree);
+
+void genCodeForNullCheck(GenTreeOp* tree);
 
 void genAlignStackBeforeCall(GenTreePutArgStk* putArgStk);
 void genAlignStackBeforeCall(GenTreeCall* call);
@@ -305,7 +319,6 @@ void genMultiRegCallStoreToLocal(GenTreePtr treeNode);
 bool isStructReturn(GenTreePtr treeNode);
 void genStructReturn(GenTreePtr treeNode);
 
-// Codegen for GT_RETURN.
 void genReturn(GenTreePtr treeNode);
 
 void genLclHeap(GenTreePtr tree);
