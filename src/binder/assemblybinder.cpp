@@ -1593,13 +1593,7 @@ namespace BINDER_SPACE
             if (pNativePEImage)
             {
                 BOOL hasHeader = TRUE;
-
-                hr = BinderHasNativeHeader(pNativePEImage, &hasHeader);
-
-#if !(defined(FEATURE_PAL) && defined(_TARGET_ARM64_))
-                IF_FAIL_GO(hr);
-#endif
-
+                IF_FAIL_GO(BinderHasNativeHeader(pNativePEImage, &hasHeader));
                 if (!hasHeader)
                 {
                     BinderReleasePEImage(pPEImage);
