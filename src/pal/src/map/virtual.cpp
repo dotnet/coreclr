@@ -18,15 +18,19 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+
+SET_DEFAULT_DEBUG_CHANNEL(VIRTUAL); // some headers have code with asserts, so do this first
+
 #include "pal/thread.hpp"
 #include "pal/cs.hpp"
 #include "pal/malloc.hpp"
 #include "pal/file.hpp"
 #include "pal/seh.hpp"
-#include "pal/dbgmsg.h"
 #include "pal/virtual.h"
 #include "pal/map.h"
 #include "pal/init.h"
+#include "pal/utils.h"
 #include "common.h"
 
 #include <sys/types.h>
@@ -42,8 +46,6 @@ Abstract:
 #endif // HAVE_VM_ALLOCATE
 
 using namespace CorUnix;
-
-SET_DEFAULT_DEBUG_CHANNEL(VIRTUAL);
 
 CRITICAL_SECTION virtual_critsec;
 
@@ -884,8 +886,10 @@ static LPVOID VIRTUALReserveMemory(
 
     // First, figure out where we're trying to reserve the memory and
     // how much we need. On most systems, requests to mmap must be
-    // page-aligned and at multiples of the page size.
-    StartBoundary = (UINT_PTR)lpAddress & ~BOUNDARY_64K;
+    // page-aligned and at multiples of the page size. Unlike on Windows, on
+    // Unix, the allocation granularity is the page size, so the start boundary
+    // and memory size to reserve are not aligned to 64 KB.
+    StartBoundary = (UINT_PTR)lpAddress & ~VIRTUAL_PAGE_MASK;
     /* Add the sizes, and round down to the nearest page boundary. */
     MemSize = ( ((UINT_PTR)lpAddress + dwSize + VIRTUAL_PAGE_MASK) & ~VIRTUAL_PAGE_MASK ) - 
                StartBoundary;
@@ -1223,6 +1227,61 @@ done:
         pRetVal != NULL);
 
     return pRetVal;
+}
+
+/*++
+Function:
+  VirtualReserveFromExecutableMemoryAllocatorWithinRange
+
+  This function attempts to allocate the requested amount of memory in the specified address range, from the executable memory
+  allocator. If unable to do so, the function returns nullptr and does not set the last error.
+
+  lpBeginAddress - Inclusive beginning of range
+  lpEndAddress - Exclusive end of range
+  dwSize - Number of bytes to allocate
+--*/
+LPVOID
+PALAPI
+VirtualReserveFromExecutableMemoryAllocatorWithinRange(
+    IN LPCVOID lpBeginAddress,
+    IN LPCVOID lpEndAddress,
+    IN SIZE_T dwSize)
+{
+#ifdef BIT64
+    PERF_ENTRY(VirtualReserveFromExecutableMemoryAllocatorWithinRange);
+    ENTRY(
+        "VirtualReserveFromExecutableMemoryAllocatorWithinRange(lpBeginAddress = %p, lpEndAddress = %p, dwSize = %Iu)\n",
+        lpBeginAddress,
+        lpEndAddress,
+        dwSize);
+
+    _ASSERTE(lpBeginAddress <= lpEndAddress);
+
+    dwSize = ALIGN_UP(dwSize, VIRTUAL_PAGE_SIZE);
+
+    CPalThread *currentThread = InternalGetCurrentThread();
+    InternalEnterCriticalSection(currentThread, &virtual_critsec);
+
+    void *address = g_executableMemoryAllocator.AllocateMemoryWithinRange(lpBeginAddress, lpEndAddress, dwSize);
+    if (address != nullptr)
+    {
+        _ASSERTE(IS_ALIGNED(address, VIRTUAL_PAGE_SIZE));
+        if (!VIRTUALStoreAllocationInfo((UINT_PTR)address, dwSize, MEM_RESERVE | MEM_RESERVE_EXECUTABLE, PAGE_NOACCESS))
+        {
+            ASSERT("Unable to store the structure in the list.\n");
+            munmap(address, dwSize);
+            address = nullptr;
+        }
+    }
+
+    InternalLeaveCriticalSection(currentThread, &virtual_critsec);
+
+    LOGEXIT("VirtualReserveFromExecutableMemoryAllocatorWithinRange returning %p\n", address);
+    PERF_EXIT(VirtualReserveFromExecutableMemoryAllocatorWithinRange);
+    return address;
+#else // !BIT64
+    return nullptr;
+#endif // BIT64
 }
 
 /*++
@@ -1982,11 +2041,15 @@ Function :
 --*/
 void* ReserveMemoryFromExecutableAllocator(CPalThread* pThread, SIZE_T allocationSize)
 {
+#ifdef BIT64
     InternalEnterCriticalSection(pThread, &virtual_critsec);
     void* mem = g_executableMemoryAllocator.AllocateMemory(allocationSize);
     InternalLeaveCriticalSection(pThread, &virtual_critsec);
 
     return mem;
+#else // !BIT64
+    return nullptr;
+#endif // BIT64
 }
 
 /*++
@@ -2024,14 +2087,14 @@ Function:
 void ExecutableMemoryAllocator::TryReserveInitialMemory()
 {
     CPalThread* pthrCurrent = InternalGetCurrentThread();
-    int32_t sizeOfAllocation = MaxExecutableMemorySize;
+    int32_t sizeOfAllocation = MaxExecutableMemorySizeNearCoreClr;
     int32_t startAddressIncrement;
     UINT_PTR startAddress;
     UINT_PTR coreclrLoadAddress;
     const int32_t MemoryProbingIncrement = 128 * 1024 * 1024;
 
     // Try to find and reserve an available region of virtual memory that is located
-    // within 2GB range (defined by the MaxExecutableMemorySize constant) from the
+    // within 2GB range (defined by the MaxExecutableMemorySizeNearCoreClr constant) from the
     // location of the coreclr library.
     // Potentially, as a possible future improvement, we can get precise information
     // about available memory ranges by parsing data from '/proc/self/maps'.
@@ -2045,7 +2108,7 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     // (thus avoiding reserving memory below 4GB; besides some operating systems do not allow that).
     // If libcoreclr is loaded at high addresses then try to reserve memory below its location.
     coreclrLoadAddress = (UINT_PTR)PAL_GetSymbolModuleBase((void*)VirtualAlloc);
-    if ((coreclrLoadAddress < 0xFFFFFFFF) || ((coreclrLoadAddress - MaxExecutableMemorySize) < 0xFFFFFFFF))
+    if ((coreclrLoadAddress < 0xFFFFFFFF) || ((coreclrLoadAddress - MaxExecutableMemorySizeNearCoreClr) < 0xFFFFFFFF))
     {
         // Try to allocate above the location of libcoreclr
         startAddress = coreclrLoadAddress + CoreClrLibrarySize;
@@ -2054,7 +2117,7 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     else
     {
         // Try to allocate below the location of libcoreclr
-        startAddress = coreclrLoadAddress - MaxExecutableMemorySize;
+        startAddress = coreclrLoadAddress - MaxExecutableMemorySizeNearCoreClr;
         startAddressIncrement = 0;
     }
 
@@ -2062,15 +2125,8 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     do
     {
         m_startAddress = ReserveVirtualMemory(pthrCurrent, (void*)startAddress, sizeOfAllocation);
-        if (m_startAddress != NULL)
+        if (m_startAddress != nullptr)
         {
-            // Memory has been successfully reserved.
-            m_totalSizeOfReservedMemory = sizeOfAllocation;
-
-            // Randomize the location at which we start allocating from the reserved memory range.
-            int32_t randomOffset = GenerateRandomStartOffset();
-            m_nextFreeAddress = (void*)(((UINT_PTR)m_startAddress) + randomOffset);
-            m_remainingReservedMemory = sizeOfAllocation - randomOffset;
             break;
         }
 
@@ -2079,6 +2135,39 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
         startAddress += startAddressIncrement;
 
     } while (sizeOfAllocation >= MemoryProbingIncrement);
+
+    if (m_startAddress == nullptr)
+    {
+        // We were not able to reserve any memory near libcoreclr. Try to reserve approximately 2 GB of address space somewhere
+        // anyway:
+        //   - This sets aside address space that can be used for executable code, such that jumps/calls between such code may
+        //     continue to use short relative addresses instead of long absolute addresses that would currently require jump
+        //     stubs.
+        //   - The inability to allocate memory in a specific range for jump stubs is an unrecoverable problem. This reservation
+        //     would mitigate such issues that can become prevalent depending on which security features are enabled and to what
+        //     extent, such as in particular, PaX's RANDMMAP:
+        //       - https://en.wikibooks.org/wiki/Grsecurity/Appendix/Grsecurity_and_PaX_Configuration_Options
+        //   - Jump stubs for executable code residing in this region can request memory from this allocator
+        //   - Native images can be loaded into this address space, including any jump stubs that are required for its helper
+        //     table. This satisfies the vast majority of practical cases where the total amount of loaded native image memory
+        //     does not exceed approximately 2 GB.
+        //   - The code heap allocator for the JIT can allocate from this address space. Beyond this reservation, one can use
+        //     the COMPlus_CodeHeapReserveForJumpStubs environment variable to reserve space for jump stubs.
+        sizeOfAllocation = MaxExecutableMemorySize;
+        m_startAddress = ReserveVirtualMemory(pthrCurrent, nullptr, sizeOfAllocation);
+        if (m_startAddress == nullptr)
+        {
+            return;
+        }
+    }
+
+    // Memory has been successfully reserved.
+    m_totalSizeOfReservedMemory = sizeOfAllocation;
+
+    // Randomize the location at which we start allocating from the reserved memory range.
+    int32_t randomOffset = GenerateRandomStartOffset();
+    m_nextFreeAddress = (void*)(((UINT_PTR)m_startAddress) + randomOffset);
+    m_remainingReservedMemory = sizeOfAllocation - randomOffset;
 }
 
 /*++
@@ -2086,7 +2175,7 @@ Function:
     ExecutableMemoryAllocator::AllocateMemory
 
     This function attempts to allocate the requested amount of memory from its reserved virtual
-    address space. The function will return NULL if the allocation request cannot
+    address space. The function will return null if the allocation request cannot
     be satisfied by the memory that is currently available in the allocator.
 
     Note: This function MUST be called with the virtual_critsec lock held.
@@ -2094,7 +2183,8 @@ Function:
 --*/
 void* ExecutableMemoryAllocator::AllocateMemory(SIZE_T allocationSize)
 {
-    void* allocatedMemory = NULL;
+#ifdef BIT64
+    void* allocatedMemory = nullptr;
 
     // Allocation size must be in multiples of the virtual page size.
     _ASSERTE((allocationSize & VIRTUAL_PAGE_MASK) == 0);
@@ -2106,10 +2196,59 @@ void* ExecutableMemoryAllocator::AllocateMemory(SIZE_T allocationSize)
         allocatedMemory = m_nextFreeAddress;
         m_nextFreeAddress = (void*)(((UINT_PTR)m_nextFreeAddress) + allocationSize);
         m_remainingReservedMemory -= allocationSize;
-
     }
 
     return allocatedMemory;
+#else // !BIT64
+    return nullptr;
+#endif // BIT64
+}
+
+/*++
+Function:
+    AllocateMemory
+
+    This function attempts to allocate the requested amount of memory from its reserved virtual
+    address space, if memory is available within the specified range. The function will return
+    null if the allocation request cannot satisfied by the memory that is currently available in
+    the allocator.
+
+    Note: This function MUST be called with the virtual_critsec lock held.
+--*/
+void *ExecutableMemoryAllocator::AllocateMemoryWithinRange(const void *beginAddress, const void *endAddress, SIZE_T allocationSize)
+{
+#ifdef BIT64
+    _ASSERTE(beginAddress <= endAddress);
+
+    // Allocation size must be in multiples of the virtual page size.
+    _ASSERTE(IS_ALIGNED(allocationSize, VIRTUAL_PAGE_SIZE));
+
+    // The code below assumes that the caller owns the virtual_critsec lock.
+    // So the calculations are not done in thread-safe manner.
+
+    if (allocationSize == 0 || allocationSize > m_remainingReservedMemory)
+    {
+        return nullptr;
+    }
+
+    void *address = m_nextFreeAddress;
+    if (address < beginAddress)
+    {
+        return nullptr;
+    }
+
+    void *nextFreeAddress = (void *)((UINT_PTR)address + allocationSize);
+    if (nextFreeAddress > endAddress)
+    {
+        return nullptr;
+    }
+
+    m_nextFreeAddress = nextFreeAddress;
+    m_remainingReservedMemory -= allocationSize;
+    return address;
+#else // !BIT64
+    return nullptr;
+#endif // BIT64
 }
 
 /*++
