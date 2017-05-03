@@ -177,7 +177,6 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
     }
 
     DWORD threadID = GetCurrentThreadId();
-    bool stackWalkSucceeded = false;
 
     // Create an instance of the event.
     EventPipeEventInstance instance(
@@ -304,4 +303,3 @@ CrstStatic* EventPipe::GetLock()
 }
 
 #endif // FEATURE_PERFTRACING
->>>>>>> 5dce0cf... Only build this feature on Linux.

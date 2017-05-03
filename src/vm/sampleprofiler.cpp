@@ -36,8 +36,7 @@ void SampleProfiler::Enable()
     if(s_pEventPipeProvider == NULL)
     {
         s_pEventPipeProvider = new EventPipeProvider(s_providerID);
-        s_pThreadTimeEvent = new EventPipeEvent(
-            *s_pEventPipeProvider,
+        s_pThreadTimeEvent = s_pEventPipeProvider->AddEvent(
             0, /* keywords */
             0, /* eventID */
             0, /* eventVersion */

@@ -34,6 +34,42 @@ EventPipeProvider::EventPipeProvider(const GUID &providerID)
     pConfig->RegisterProvider(*this);
 }
 
+EventPipeProvider::~EventPipeProvider()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Unregister the provider.
+    // This call is re-entrant.
+    EventPipeConfiguration* pConfig = EventPipe::GetConfiguration();
+    _ASSERTE(pConfig != NULL);
+    pConfig->UnregisterProvider(*this);
+
+    // Free all of the events.
+    if(m_pEventList != NULL)
+    {
+        // Take the lock before manipulating the list.
+        CrstHolder _crst(EventPipe::GetLock());
+
+        SListElem<EventPipeEvent*> *pElem = m_pEventList->GetHead();
+        while(pElem != NULL)
+        {
+            EventPipeEvent *pEvent = pElem->GetValue();
+            delete pEvent;
+
+            pElem = m_pEventList->GetNext(pElem);
+        }
+
+        delete m_pEventList;
+        m_pEventList = NULL;
+    }
+}
+
 const GUID& EventPipeProvider::GetProviderID() const
 {
     LIMITED_METHOD_CONTRACT;
@@ -87,6 +123,30 @@ void EventPipeProvider::SetConfiguration(bool providerEnabled, INT64 keywords, E
 
     RefreshAllEvents();
     InvokeCallback();
+}
+
+EventPipeEvent* EventPipeProvider::AddEvent(INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Create the event.
+    EventPipeEvent *pEvent = new EventPipeEvent(
+        *this,
+        keywords,
+        eventID,
+        eventVersion,
+        level,
+        needStack);
+
+    // Add it to the list of events.
+    AddEvent(*pEvent);
+    return pEvent;
 }
 
 void EventPipeProvider::AddEvent(EventPipeEvent &event)

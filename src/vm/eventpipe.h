@@ -167,12 +167,6 @@ class EventPipe
         // Get the event pipe configuration lock.
         static CrstStatic* GetLock();
 
-        // Write an event to the file.
-        static void WriteToFile(EventPipeEvent &event, CommonEventFields &eventFields, StackContents &stackContents, BYTE *pData, size_t length);
-
-        // Write an event to the JSON file.
-        static void WriteToJsonFile(EventPipeEvent &event, CommonEventFields &eventFields, StackContents &stackContents);
-
         static CrstStatic s_configCrst;
         static bool s_tracingInitialized;
         static EventPipeConfiguration *s_pConfig;

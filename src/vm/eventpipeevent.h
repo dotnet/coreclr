@@ -41,9 +41,11 @@ private:
     // Called by EventPipeProvider when the provider configuration changes.
     void RefreshState();
 
-public:
-
+    // Only EventPipeProvider can create events.
+    // The provider is responsible for allocating and freeing events.
     EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack);
+
+public:
 
     // Get the provider associated with this event.
     EventPipeProvider* GetProvider() const;

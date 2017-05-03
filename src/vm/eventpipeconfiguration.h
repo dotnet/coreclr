@@ -25,6 +25,9 @@ public:
     // Register a provider.
     bool RegisterProvider(EventPipeProvider &provider);
 
+    // Unregister a provider.
+    bool UnregisterProvider(EventPipeProvider &provider);
+
     // Get the provider with the specified provider ID if it exists.
     EventPipeProvider* GetProvider(const GUID &providerID);
 

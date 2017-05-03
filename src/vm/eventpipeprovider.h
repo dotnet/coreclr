@@ -62,6 +62,7 @@ private:
 public:
 
     EventPipeProvider(const GUID &providerID);
+    ~EventPipeProvider();
 
     // Get the provider ID.
     const GUID& GetProviderID() const;
@@ -75,9 +76,8 @@ public:
     // Determine if the specified keywords and level match the configuration.
     bool EventEnabled(INT64 keywords, EventPipeEventLevel eventLevel) const;
 
-    // Add an event to the provider.
-    // NOTE: This should be private, but needs to be called from EventPipeEvent.
-    void AddEvent(EventPipeEvent &event);
+    // Create a new event.
+    EventPipeEvent* AddEvent(INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack);
 
     // Register a callback with the provider to be called on state change.
     void RegisterCallback(EventPipeCallback pCallbackFunction, void *pData);
@@ -86,6 +86,9 @@ public:
     void UnregisterCallback(EventPipeCallback pCallbackFunction);
 
 private:
+
+    // Add an event to the provider.
+    void AddEvent(EventPipeEvent &event);
 
     // Set the provider configuration (enable and disable sets of events).
     // This is called by EventPipeConfiguration.

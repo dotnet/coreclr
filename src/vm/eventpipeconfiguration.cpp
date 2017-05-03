@@ -52,8 +52,7 @@ void EventPipeConfiguration::Initialize()
     m_pConfigProvider = new EventPipeProvider(s_configurationProviderID);
 
     // Create the metadata event.
-    m_pMetadataEvent = new EventPipeEvent(
-        *m_pConfigProvider,
+    m_pMetadataEvent = m_pConfigProvider->AddEvent(
         0,      /* keywords */
         0,      /* eventID */
         0,      /* eventVersion */
@@ -88,6 +87,43 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
     // anything about the provider before it is registered.
 
     return true;
+}
+
+bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Take the lock before manipulating the provider list.
+    CrstHolder _crst(EventPipe::GetLock());
+
+    // Find the provider.
+    SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
+    while(pElem != NULL)
+    {
+        if(pElem->GetValue() == &provider)
+        {
+            break;
+        }
+
+        pElem = m_pProviderList->GetNext(pElem);
+    }
+
+    // If we found the provider, remove it.
+    if(pElem != NULL)
+    {
+        if(m_pProviderList->FindAndRemove(pElem) != NULL)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 EventPipeProvider* EventPipeConfiguration::GetProvider(const GUID &providerID)

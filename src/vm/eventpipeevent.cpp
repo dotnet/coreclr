@@ -25,9 +25,6 @@ EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsi
     m_level = level;
     m_needStack = needStack;
     m_enabled = false;
-
-    // Register this event with the provider.
-    m_pProvider->AddEvent(*this);
 }
 
 EventPipeProvider* EventPipeEvent::GetProvider() const

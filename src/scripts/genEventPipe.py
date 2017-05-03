@@ -142,7 +142,7 @@ def generateClrEventPipeWriteEventsImpl(
             eventName,
             exclusionInfo.nostack)
 
-        initEvent = """    EventPipeEvent%s = new EventPipeEvent(*EventPipeProvider%s,%s,%s,%s,%s,%d);
+        initEvent = """    EventPipeEvent%s = EventPipeProvider%s->AddEvent(%s,%s,%s,%s,%d);
 """ % (eventName, providerPrettyName, eventKeywordsMask, eventValue, eventVersion, eventLevel, int(noStack))
 
         WriteEventImpl.append(initEvent)
