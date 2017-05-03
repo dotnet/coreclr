@@ -2,20 +2,57 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 using System;
-using System.Threading;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-struct Gen
+namespace ConsoleApp22
 {
-    public void Target() {}
-}
-
-public class Test
-{
-    public static int Main()
+    class Test
     {
-        Thread[] threads = new Thread[1];
-        Gen obj = new Gen();
-        threads[0] = new Thread(new ThreadStart(obj.Target));
-        return 100;
+        public static int Main(string[] args)
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                var arr = new Test[100000];
+                for (int j = 0; j < arr.Length; j++)
+                {
+                    arr[j] = new Test();
+                }
+
+                Parallel.For(0, 512, (e) =>
+                {
+                    for (int j = 0; j < arr.Length; j++)
+                    {
+                        arr[j].DoubleCheckLockTest();
+                    }
+                });
+            }
+
+            return 100;
+        }
+
+
+        bool flag;
+        string str;
+
+        public void DoubleCheckLockTest()
+        {
+            if (!flag)
+            {
+                lock(this)
+                {
+                    if (!flag)
+                    {
+                        str = "hello";
+                    }
+
+                    flag = true;
+                }
+            }
+
+            str.GetType();
+        }
     }
 }
