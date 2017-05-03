@@ -1156,7 +1156,7 @@ namespace System.Diagnostics.Tracing
                     }
 
 #if FEATURE_MANAGED_ETW
-                    if (m_eventData[eventId].EnabledForETW)
+                    if (m_eventData[eventId].EnabledForETW || m_eventData[eventId].EnabledForEventPipe)
                     {
 
 #if FEATURE_ACTIVITYSAMPLING
@@ -1450,7 +1450,7 @@ namespace System.Diagnostics.Tracing
                 //Enable Implicit Activity tracker
                 m_activityTracker = ActivityTracker.Instance;
 
-#if FEATURE_MANAGED_ETW && !PLATFORM_UNIX
+#if FEATURE_MANAGED_ETW
                 // Create and register our provider traits.  We do this early because it is needed to log errors 
                 // In the self-describing event case. 
                 this.InitializeProviderMetadata();
@@ -1463,12 +1463,12 @@ namespace System.Diagnostics.Tracing
                 // This also sets m_id, which is the index in the list. 
                 EventListener.AddEventSource(this);
 
-#if (FEATURE_MANAGED_ETW && !PLATFORM_UNIX)
+#if FEATURE_MANAGED_ETW
                 // OK if we get this far without an exception, then we can at least write out error messages. 
                 // Set m_provider, which allows this.  
                 m_provider = provider;
 
-#if (!ES_BUILD_STANDALONE && !ES_BUILD_PN)
+#if (!ES_BUILD_STANDALONE && !ES_BUILD_PN && !PLATFORM_UNIX)
                 // API available on OS >= Win 8 and patched Win 7.
                 // Disable only for FrameworkEventSource to avoid recursion inside exception handling.
                 if (this.Name != "System.Diagnostics.Eventing.FrameworkEventSource" || Environment.IsWindows8OrAbove)
@@ -1486,7 +1486,7 @@ namespace System.Diagnostics.Tracing
 
                     metadataHandle.Free();
                 }
-#endif // FEATURE_MANAGED_ETW && !PLATFORM_UNIX
+#endif // FEATURE_MANAGED_ETW
 
                 Debug.Assert(!m_eventSourceEnabled);     // We can't be enabled until we are completely initted.  
                 // We are logically completely initialized at this point.  
@@ -2518,6 +2518,7 @@ namespace System.Diagnostics.Tracing
             public EventTags Tags;
             public bool EnabledForAnyListener;      // true if any dispatcher has this event turned on
             public bool EnabledForETW;              // is this event on for the OS ETW data dispatcher?
+            public bool EnabledForEventPipe;        // is this event on for the EventPipe dispatcher?
 
             public bool HasRelatedActivityID;       // Set if the event method's first parameter is a Guid named 'relatedActivityId'
 #if !FEATURE_ACTIVITYSAMPLING
@@ -2601,7 +2602,7 @@ namespace System.Diagnostics.Tracing
             // We defer commands until we are completely inited.  This allows error messages to be sent.  
             Debug.Assert(m_completelyInited);
 
-#if FEATURE_MANAGED_ETW && !PLATFORM_UNIX
+#if FEATURE_MANAGED_ETW
             if (m_provider == null)     // If we failed to construct
                 return;
 #endif // FEATURE_MANAGED_ETW
@@ -3684,6 +3685,9 @@ namespace System.Diagnostics.Tracing
             eventData[eventAttribute.EventId].Message = eventAttribute.Message;
             eventData[eventAttribute.EventId].ActivityOptions = eventAttribute.ActivityOptions;
             eventData[eventAttribute.EventId].HasRelatedActivityID = hasRelatedActivityID;
+
+            // TODO
+            eventData[eventAttribute.EventId].EnabledForEventPipe = true;
         }
 
         // Helper used by code:CreateManifestAndDescriptors that trims the m_eventData array to the correct
