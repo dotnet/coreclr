@@ -325,11 +325,12 @@ namespace System.IO
                     throw new NotSupportedException(SR.NotSupported_UmsSafeBuffer);
                 if (!_isOpen) __Error.StreamIsClosed();
 
+                if (value < _mem)
+                    throw new IOException(SR.IO_SeekBeforeBegin);
                 long newPosition = (long)value - (long)_mem;
                 if (newPosition < 0)
                     throw new ArgumentOutOfRangeException("offset", SR.ArgumentOutOfRange_UnmanagedMemStreamLength);
-                if (value < _mem)
-                    throw new IOException(SR.IO_SeekBeforeBegin);
+
 
                 Interlocked.Exchange(ref _position, newPosition);
             }
