@@ -1200,7 +1200,7 @@ namespace System
                         {
                             string name = eventInfo.Name;
 
-                            if (csEventInfos.GetValueOrDefault(name) != null)
+                            if (csEventInfos.ContainsKey(name) ==true)
                                 continue;
 
                             csEventInfos[name] = eventInfo;
@@ -1356,8 +1356,8 @@ namespace System
                             {
                                 string name = propertyInfo.Name;
 
-                                List<RuntimePropertyInfo> cache = csPropertyInfos.GetValueOrDefault(name);
-
+                                List<RuntimePropertyInfo> cache;
+                                csPropertyInfos.TryGetValue(name,out cache);
                                 if (cache == null)
                                 {
                                     cache = new List<RuntimePropertyInfo>(1);
