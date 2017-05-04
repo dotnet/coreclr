@@ -350,6 +350,21 @@ LOCAL_LABEL(CheckCardTable):
 LOCAL_LABEL(UpdateCardTable):
     mov  x12, 0xFF 
     strb w12, [x15]
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+    // Check if we need to update the card table
+    PREPARE_EXTERNAL_VAR g_card_bundle_table, x12
+    ldr  x12, [x12]
+    add  x15,  x12, x14, lsr #21
+    ldrb w12, [x15]
+    cmp  x12, 0xFF
+    beq  LOCAL_LABEL(Exit)
+
+LOCAL_LABEL(UpdateCardBundle):
+    mov  x12, 0xFF
+    strb w12, [x15]
+#endif
+
 LOCAL_LABEL(Exit):
     add  x14, x14, 8
     ret  lr  
