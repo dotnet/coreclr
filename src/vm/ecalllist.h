@@ -1270,6 +1270,13 @@ FCFuncStart(gEventLogger)
     QCFuncElement("IsEventSourceLoggingEnabled", XplatEventSourceLogger::IsEventSourceLoggingEnabled)
     QCFuncElement("LogEventSource", XplatEventSourceLogger::LogEventSource)
 FCFuncEnd()
+
+FCFuncStart(gEventPipeInternalFuncs)
+    QCFuncElement("CreateProvider", EventPipeInternal::CreateProvider)
+    QCFuncElement("AddEvent", EventPipeInternal::AddEvent)
+    QCFuncElement("DeleteProvider", EventPipeInternal::DeleteProvider)
+    QCFuncElement("WriteEvent", EventPipeInternal::WriteEvent)
+FCFuncEnd()
 #endif // defined(FEATURE_EVENTSOURCE_XPLAT)
 
 #ifdef FEATURE_COMINTEROP
@@ -1375,6 +1382,9 @@ FCClassElement("Environment", "System", gEnvironmentFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("EventArgsMarshaler", "System.StubHelpers", gEventArgsMarshalerFuncs)
 #endif // FEATURE_COMINTEROP
+#if defined(FEATURE_EVENTSOURCE_XPLAT)
+FCClassElement("EventPipeInternal", "System.Diagnostics.Tracing", gEventPipeInternalFuncs)
+#endif // FEATURE_EVENTSOURCE_XPLAT
 FCClassElement("Exception", "System", gExceptionFuncs)
 FCClassElement("FileLoadException", "System.IO", gFileLoadExceptionFuncs)
 FCClassElement("FormatterServices", "System.Runtime.Serialization", gSerializationFuncs)

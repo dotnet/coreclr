@@ -307,3 +307,59 @@ CrstStatic* EventPipe::GetLock()
 }
 
 #endif // FEATURE_PERFTRACING
+
+INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
+    GUID providerID,
+    void *pCallbackFunc)
+{
+    QCALL_CONTRACT;
+    BEGIN_QCALL;
+
+    // TODO
+
+    END_QCALL;
+
+    return 0;
+}
+
+INT_PTR QCALLTYPE EventPipeInternal::AddEvent(
+    INT_PTR provHandle,
+    __int64 keywords,
+    unsigned int eventID,
+    unsigned int eventVersion,
+    unsigned int level,
+    bool needStack)
+{
+    QCALL_CONTRACT;
+    BEGIN_QCALL;
+
+    // TODO
+
+    END_QCALL;
+
+    return 0;
+}
+
+void QCALLTYPE EventPipeInternal::DeleteProvider(
+    INT_PTR provHandle)
+{
+    QCALL_CONTRACT;
+    BEGIN_QCALL;
+
+    // TODO
+
+    END_QCALL;
+}
+
+void QCALLTYPE EventPipeInternal::WriteEvent(
+    INT_PTR eventHandle,
+    void *pData,
+    unsigned int length)
+{
+    QCALL_CONTRACT;
+    BEGIN_QCALL;
+
+    // TODO
+
+    END_QCALL;
+}

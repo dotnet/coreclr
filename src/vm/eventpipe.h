@@ -174,6 +174,32 @@ class EventPipe
         static EventPipeJsonFile *s_pJsonFile;
 };
 
+class EventPipeInternal
+{
+
+public:
+
+    static INT_PTR QCALLTYPE CreateProvider(
+        GUID providerID,
+        void *pCallbackFunc);
+
+    static INT_PTR QCALLTYPE AddEvent(
+        INT_PTR provHandle,
+        __int64 keywords,
+        unsigned int eventID,
+        unsigned int eventVersion,
+        unsigned int level,
+        bool needStack);
+
+    static void QCALLTYPE DeleteProvider(
+        INT_PTR provHandle);
+
+    static void QCALLTYPE WriteEvent(
+        INT_PTR eventHandle,
+        void *pData,
+        unsigned int length);
+};
+
 #endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_H__
