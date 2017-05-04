@@ -1294,6 +1294,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             scenario == 'default' ||
                             scenario == 'r2r' ||
                             scenario == 'jitdiff' ||
+                            scenario == 'ilrt' ||
                             scenario == 'illink' ||
                             Constants.r2rJitStressScenarios.indexOf(scenario) != -1) {
                         buildOpts += enableCorefxTesting ? ' skiptests' : ''
@@ -1308,11 +1309,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     else if (scenario == 'pri1' || scenario == 'pri1r2r' || scenario == 'gcstress15_pri1r2r'|| scenario == 'coverage') {
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts} -priority=1"
-                    }
-                    else if (scenario == 'ilrt') {
-                        // First do the build with skiptests and then build the tests with ilasm roundtrip
-                        buildCommands += "build.cmd ${lowerConfiguration} ${arch} ${buildOpts} skiptests"
-                        buildCommands += "set __TestIntermediateDir=int&&build-test.cmd ${lowerConfiguration} ${arch} -ilasmroundtrip"
                     }
                     else if (isLongGc(scenario)) {
                         buildCommands += "build.cmd ${lowerConfiguration} ${arch} ${buildOpts} skiptests"
@@ -1343,6 +1339,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def runjitmioptsStr = ''
                         def runjitforcerelocsStr = ''
                         def runjitdisasmStr = ''
+                        def runilasmroundtripStr = ''
                         def gcstressStr = ''
                         def runtestArguments = ''
                         def gcTestArguments = ''
@@ -1402,6 +1399,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             runjitdisasmStr = 'jitdisasm crossgen'
                         }
 
+                        if (scenario == 'ilrt')
+                        {
+                            runilasmroundtripStr = 'ilasmroundtrip'
+                        }
+
                         if (isLongGc(scenario)) {
                             gcTestArguments = "${scenario} sequential"
                         }
@@ -1411,7 +1413,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             illinkArguments = "link %WORKSPACE%\\linker\\linker\\bin\\netcore_Release\\netcoreapp2.0\\win10-${arch}\\publish\\illink.exe"
                         }
 
-                        runtestArguments = "${lowerConfiguration} ${arch} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${gcTestArguments} ${illinkArguments} collectdumps"
+                        runtestArguments = "${lowerConfiguration} ${arch} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${runilasmroundtripStr} ${gcTestArguments} ${illinkArguments} collectdumps"
 
                         if (Constants.jitStressModeScenarios.containsKey(scenario)) {
                             def stepScriptLocation = "%WORKSPACE%\\SetStressModes.bat"
@@ -1852,7 +1854,7 @@ combinedScenarios.each { scenario ->
                                 if (os != 'Windows_NT') {
                                     return
                                 }
-                                if (architecture != 'x64') {
+                                if (architecture != 'x64' && architecture != 'x86') {
                                     return
                                 }
                                 break
@@ -2165,7 +2167,7 @@ combinedScenarios.each { scenario ->
                     if (testBuildScenario == 'coverage' || testBuildScenario == 'pri1r2r'|| testBuildScenario == 'gcstress15_pri1r2r') {
                         testBuildScenario = 'pri1'
                     }
-                    else if ( testBuildScenario == 'r2r' || isLongGc(testBuildScenario)) {
+                    else if ( testBuildScenario == 'r2r' || Constants.r2rJitStressScenarios.indexOf(testBuildScenario) != -1 || isLongGc(testBuildScenario)) {
                         testBuildScenario = 'default'
                     }
                     def inputWindowTestsBuildName = ''
@@ -2205,6 +2207,7 @@ combinedScenarios.each { scenario ->
                     def runjitmioptsStr = ''
                     def runjitforcerelocsStr = ''
                     def runjitdisasmStr = ''
+                    def runilasmroundtripStr = ''
                     def gcstressStr = ''
                     def illinkStr = ''
 
@@ -2435,7 +2438,7 @@ combinedScenarios.each { scenario ->
                 --mscorlibDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
                 --coreFxBinDir=\"\${WORKSPACE}/bin/CoreFxBinDir\" \\
                 --limitedDumpGeneration \\
-                ${testEnvOpt} ${serverGCString} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${illinkStr} ${sequentialString} ${playlistString}""")
+                ${testEnvOpt} ${serverGCString} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${runilasmroundtripStr} ${illinkStr} ${sequentialString} ${playlistString}""")
                             }
                         }
                     }

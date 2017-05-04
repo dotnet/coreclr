@@ -519,6 +519,7 @@ FCFuncStart(gAppDomainFuncs)
 #if FEATURE_COMINTEROP
     FCFuncElement("nSetDisableInterfaceCache", AppDomainNative::SetDisableInterfaceCache)
 #endif // FEATURE_COMINTEROP
+    FCFuncElement("nGetAssemblies", AppDomainNative::GetAssemblies)
     FCFuncElement("nCreateContext", AppDomainNative::CreateContext)
     FCFuncElement("GetId", AppDomainNative::GetId)
     FCFuncElement("GetOrInternString", AppDomainNative::GetOrInternString)
@@ -617,7 +618,6 @@ FCFuncEnd()
 FCFuncStart(gAssemblyLoadContextFuncs)
     QCFuncElement("InitializeAssemblyLoadContext", AssemblyNative::InitializeAssemblyLoadContext)
     QCFuncElement("LoadFromPath", AssemblyNative::LoadFromPath)
-    QCFuncElement("GetLoadedAssembliesInternal", AssemblyNative::GetLoadedAssembliesInternal)
     QCFuncElement("InternalLoadUnmanagedDllFromPath", AssemblyNative::InternalLoadUnmanagedDllFromPath)
     QCFuncElement("CanUseAppPathAssemblyLoadContextInCurrentDomain", AssemblyNative::CanUseAppPathAssemblyLoadContextInCurrentDomain)
     QCFuncElement("LoadFromStream", AssemblyNative::LoadFromStream)
@@ -1237,10 +1237,6 @@ FCFuncStart(gStubHelperFuncs)
 #endif //FEATURE_STUBS_AS_IL
 FCFuncEnd()
 
-FCFuncStart(gCoverageFuncs)
-    FCUnreferenced FCFuncElement("nativeCoverBlock", COMCoverage::nativeCoverBlock)
-FCFuncEnd()
-
 FCFuncStart(gGCHandleFuncs)
     FCFuncElement("InternalAlloc", MarshalNative::GCHandleInternalAlloc)
     FCFuncElement("InternalFree", MarshalNative::GCHandleInternalFree)
@@ -1388,12 +1384,7 @@ FCClassElement("GCHandle", "System.Runtime.InteropServices", gGCHandleFuncs)
 FCClassElement("IEnumerable", "System.Collections", gStdMngIEnumerableFuncs)
 FCClassElement("IEnumerator", "System.Collections", gStdMngIEnumeratorFuncs)
 FCClassElement("IExpando", "System.Runtime.InteropServices.Expando", gStdMngIExpandoFuncs)
-#endif // FEATURE_COMINTEROP
-FCClassElement("ILCover", "System.Coverage", gCoverageFuncs)
-#ifdef FEATURE_COMINTEROP
 FCClassElement("IReflect", "System.Reflection", gStdMngIReflectFuncs)
-#endif
-#ifdef FEATURE_COMINTEROP
 FCClassElement("InterfaceMarshaler", "System.StubHelpers", gInterfaceMarshalerFuncs)
 #endif
 FCClassElement("Interlocked", "System.Threading", gInterlockedFuncs)

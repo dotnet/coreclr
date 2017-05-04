@@ -4,6 +4,7 @@
 
 /*=============================================================================
 **
+** Class: DllNotFoundException
 **
 **
 ** Purpose: The exception class for some failed P/Invoke calls.
@@ -11,8 +12,6 @@
 **
 =============================================================================*/
 
-
-using System;
 using System.Runtime.Serialization;
 
 namespace System

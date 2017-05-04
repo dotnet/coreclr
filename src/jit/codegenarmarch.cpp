@@ -95,7 +95,7 @@ void CodeGen::genIntrinsic(GenTreePtr treeNode)
 //
 void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 {
-    assert(treeNode->OperGet() == GT_PUTARG_STK);
+    assert(treeNode->OperIs(GT_PUTARG_STK));
     var_types  targetType = treeNode->TypeGet();
     GenTreePtr source     = treeNode->gtOp1;
     emitter*   emit       = getEmitter();
@@ -284,14 +284,20 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 genConsumeAddress(addrNode);
                 addrReg = addrNode->gtRegNum;
 
+                // If addrReg equal to loReg, swap(loReg, hiReg)
+                // This reduces code complexity by only supporting one addrReg overwrite case
+                if (loReg == addrReg)
+                {
+                    loReg = hiReg;
+                    hiReg = addrReg;
+                }
+
                 CORINFO_CLASS_HANDLE objClass = source->gtObj.gtClass;
 
                 structSize = compiler->info.compCompHnd->getClassSize(objClass);
                 isHfa      = compiler->IsHfa(objClass);
                 gcPtrCount = compiler->info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
             }
-
-            bool hasGCpointers = (gcPtrCount > 0); // true if there are any GC pointers in the struct
 
             // If we have an HFA we can't have any GC pointers,
             // if not then the max size for the the struct is 16 bytes
@@ -338,57 +344,21 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 var_types type0 = compiler->getJitGCType(gcPtrs[nextIndex + 0]);
                 var_types type1 = compiler->getJitGCType(gcPtrs[nextIndex + 1]);
 
-                if (hasGCpointers)
+                if (varNode != nullptr)
                 {
-                    // We have GC pointers, so use two ldr instructions
-                    //
-                    // We must do it this way because we can't currently pass or track
-                    // two different emitAttr values for a ldp instruction.
-
-                    // Make sure that the first load instruction does not overwrite the addrReg.
-                    //
-                    if (loReg != addrReg)
-                    {
-                        if (varNode != nullptr)
-                        {
-                            // Load from our varNumImp source
-                            emit->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), loReg, varNumInp, 0);
-                            emit->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), hiReg, varNumInp,
-                                              TARGET_POINTER_SIZE);
-                        }
-                        else
-                        {
-                            // Load from our address expression source
-                            emit->emitIns_R_R_I(ins_Load(type0), emitTypeSize(type0), loReg, addrReg, structOffset);
-                            emit->emitIns_R_R_I(ins_Load(type1), emitTypeSize(type1), hiReg, addrReg,
-                                                structOffset + TARGET_POINTER_SIZE);
-                        }
-                    }
-                    else // loReg == addrReg
-                    {
-                        assert(varNode == nullptr); // because addrReg is REG_NA when varNode is non-null
-                        assert(hiReg != addrReg);
-                        // Load from our address expression source
-                        emit->emitIns_R_R_I(ins_Load(type1), emitTypeSize(type1), hiReg, addrReg,
-                                            structOffset + TARGET_POINTER_SIZE);
-                        emit->emitIns_R_R_I(ins_Load(type0), emitTypeSize(type0), loReg, addrReg, structOffset);
-                    }
+                    // Load from our varNumImp source, currently we can't use a ldp instruction to do this
+                    emit->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), loReg, varNumInp, 0);
+                    emit->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), hiReg, varNumInp, TARGET_POINTER_SIZE);
                 }
-                else // our struct has no GC pointers
+                else
                 {
-                    if (varNode != nullptr)
-                    {
-                        // Load from our varNumImp source, currently we can't use a ldp instruction to do this
-                        emit->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), loReg, varNumInp, 0);
-                        emit->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), hiReg, varNumInp, TARGET_POINTER_SIZE);
-                    }
-                    else
-                    {
-                        // Use a ldp instruction
+                    // check for case of destroying the addrRegister while we still need it
+                    assert(loReg != addrReg);
+                    noway_assert((remainingSize == 2 * TARGET_POINTER_SIZE) || (hiReg != addrReg));
 
-                        // Load from our address expression source
-                        emit->emitIns_R_R_R_I(INS_ldp, EA_PTRSIZE, loReg, hiReg, addrReg, structOffset);
-                    }
+                    // Load from our address expression source
+                    emit->emitIns_R_R_R_I(INS_ldp, emitTypeSize(type0), loReg, hiReg, addrReg, structOffset,
+                                          INS_OPTS_NONE, emitTypeSize(type0));
                 }
 
                 // Emit two store instructions to store the two registers into the outgoing argument area
@@ -408,23 +378,9 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             //             ldr     w3, [x0, #8]
             //             str     x2, [sp, #16]
             //             str     w3, [sp, #24]
-            //
-            // When the first instruction has a loReg that is the same register as the addrReg,
-            //  we set deferLoad to true and issue the intructions in the reverse order
-            //             ldr     x3, [x2, #8]
-            //             ldr     x2, [x2]
-            //             str     x2, [sp, #16]
-            //             str     x3, [sp, #24]
-            //
 
             var_types nextType = compiler->getJitGCType(gcPtrs[nextIndex]);
             emitAttr  nextAttr = emitTypeSize(nextType);
-            regNumber curReg   = loReg;
-
-            bool      deferLoad   = false;
-            var_types deferType   = TYP_UNKNOWN;
-            emitAttr  deferAttr   = EA_PTRSIZE;
-            int       deferOffset = 0;
 
             while (remainingSize > 0)
             {
@@ -432,31 +388,23 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 {
                     remainingSize -= TARGET_POINTER_SIZE;
 
-                    if ((curReg == addrReg) && (remainingSize != 0))
+                    if (varNode != nullptr)
                     {
-                        deferLoad   = true;
-                        deferType   = nextType;
-                        deferAttr   = emitTypeSize(nextType);
-                        deferOffset = structOffset;
+                        // Load from our varNumImp source
+                        emit->emitIns_R_S(ins_Load(nextType), nextAttr, loReg, varNumInp, structOffset);
                     }
-                    else // the typical case
+                    else
                     {
-                        if (varNode != nullptr)
-                        {
-                            // Load from our varNumImp source
-                            emit->emitIns_R_S(ins_Load(nextType), nextAttr, curReg, varNumInp, structOffset);
-                        }
-                        else
-                        {
-                            // Load from our address expression source
-                            emit->emitIns_R_R_I(ins_Load(nextType), nextAttr, curReg, addrReg, structOffset);
-                        }
-                        // Emit a store instruction to store the register into the outgoing argument area
-                        emit->emitIns_S_R(ins_Store(nextType), nextAttr, curReg, varNumOut, argOffsetOut);
-                        argOffsetOut += EA_SIZE_IN_BYTES(nextAttr);
-                        assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
+                        assert(loReg != addrReg);
+
+                        // Load from our address expression source
+                        emit->emitIns_R_R_I(ins_Load(nextType), nextAttr, loReg, addrReg, structOffset);
                     }
-                    curReg = hiReg;
+                    // Emit a store instruction to store the register into the outgoing argument area
+                    emit->emitIns_S_R(ins_Store(nextType), nextAttr, loReg, varNumOut, argOffsetOut);
+                    argOffsetOut += EA_SIZE_IN_BYTES(nextAttr);
+                    assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
+
                     structOffset += TARGET_POINTER_SIZE;
                     nextIndex++;
                     nextType = compiler->getJitGCType(gcPtrs[nextIndex]);
@@ -491,39 +439,52 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     instruction loadIns  = ins_Load(loadType);
                     emitAttr    loadAttr = emitAttr(loadSize);
 
-                    // When deferLoad is false, curReg can be the same as addrReg
-                    // because the last instruction is allowed to overwrite addrReg.
-                    //
-                    noway_assert(!deferLoad || (curReg != addrReg));
+                    assert(loReg != addrReg);
 
-                    emit->emitIns_R_R_I(loadIns, loadAttr, curReg, addrReg, structOffset);
+                    emit->emitIns_R_R_I(loadIns, loadAttr, loReg, addrReg, structOffset);
 
                     // Emit a store instruction to store the register into the outgoing argument area
-                    emit->emitIns_S_R(ins_Store(loadType), loadAttr, curReg, varNumOut, argOffsetOut);
+                    emit->emitIns_S_R(ins_Store(loadType), loadAttr, loReg, varNumOut, argOffsetOut);
                     argOffsetOut += EA_SIZE_IN_BYTES(loadAttr);
                     assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
                 }
             }
 
-            if (deferLoad)
-            {
-                // We should never have to do a deferred load when we have a LclVar source
-                assert(varNode == nullptr);
-
-                curReg = addrReg;
-
-                // Load from our address expression source
-                emit->emitIns_R_R_I(ins_Load(deferType), deferAttr, curReg, addrReg, deferOffset);
-
-                // Emit a store instruction to store the register into the outgoing argument area
-                emit->emitIns_S_R(ins_Store(nextType), nextAttr, curReg, varNumOut, argOffsetOut);
-                argOffsetOut += EA_SIZE_IN_BYTES(nextAttr);
-                assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
-            }
-
 #endif // _TARGET_ARM64_
         }
     }
+}
+
+//---------------------------------------------------------------------
+// genPutArgReg - generate code for a GT_PUTARG_REG node
+//
+// Arguments
+//    treeNode - the GT_PUTARG_REG node
+//
+// Return value:
+//    None
+//
+void CodeGen::genPutArgReg(GenTreeOp* tree)
+{
+    assert(tree->OperIs(GT_PUTARG_REG));
+    var_types targetType = tree->TypeGet();
+    regNumber targetReg  = tree->gtRegNum;
+
+    // Any TYP_STRUCT register args should have been removed by fgMorphMultiregStructArg
+    assert(targetType != TYP_STRUCT);
+
+    // We have a normal non-Struct targetType
+
+    GenTree* op1 = tree->gtOp1;
+    genConsumeReg(op1);
+
+    // If child node is not already in the register we need, move it
+    if (targetReg != op1->gtRegNum)
+    {
+        inst_RV_RV(ins_Copy(targetType), targetReg, op1->gtRegNum, targetType);
+    }
+
+    genProduceReg(tree);
 }
 
 //----------------------------------------------------------------------------------
@@ -848,6 +809,48 @@ void CodeGen::genCodeForShift(GenTreePtr tree)
         ssize_t  shiftByImm = shiftBy->gtIntCon.gtIconVal & (immWidth - 1);
 
         getEmitter()->emitIns_R_R_I(ins, size, tree->gtRegNum, operand->gtRegNum, shiftByImm);
+    }
+
+    genProduceReg(tree);
+}
+
+//------------------------------------------------------------------------
+// genCodeForLclFld: Produce code for a GT_LCL_FLD node.
+//
+// Arguments:
+//    tree - the GT_LCL_FLD node
+//
+void CodeGen::genCodeForLclFld(GenTreeLclFld* tree)
+{
+    var_types targetType = tree->TypeGet();
+    regNumber targetReg  = tree->gtRegNum;
+    emitter*  emit       = getEmitter();
+
+    NYI_IF(targetType == TYP_STRUCT, "GT_LCL_FLD: struct load local field not supported");
+    NYI_IF(targetReg == REG_NA, "GT_LCL_FLD: load local field not into a register is not supported");
+
+    emitAttr size   = emitTypeSize(targetType);
+    unsigned offs   = tree->gtLclOffs;
+    unsigned varNum = tree->gtLclNum;
+    assert(varNum < compiler->lvaCount);
+
+    if (varTypeIsFloating(targetType))
+    {
+        if (tree->InReg())
+        {
+            NYI("GT_LCL_FLD with register to register Floating point move");
+        }
+        else
+        {
+            emit->emitIns_R_S(ins_Load(targetType), size, targetReg, varNum, offs);
+        }
+    }
+    else
+    {
+#ifdef _TARGET_ARM64_
+        size = EA_SET_SIZE(size, EA_8BYTE);
+#endif // _TARGET_ARM64_
+        emit->emitIns_R_S(ins_Move_Extend(targetType, tree->InReg()), size, targetReg, varNum, offs);
     }
 
     genProduceReg(tree);
@@ -1671,6 +1674,163 @@ void CodeGen::genCreateAndStoreGCInfo(unsigned codeSize,
     // let's save the values anyway for debugging purposes
     compiler->compInfoBlkAddr = gcInfoEncoder->Emit();
     compiler->compInfoBlkSize = 0; // not exposed by the GCEncoder interface
+}
+
+//-------------------------------------------------------------------------------------------
+// genJumpKindsForTree:  Determine the number and kinds of conditional branches
+//                       necessary to implement the given GT_CMP node
+//
+// Arguments:
+//   cmpTree           - (input) The GenTree node that is used to set the Condition codes
+//                     - The GenTree Relop node that was used to set the Condition codes
+//   jmpKind[2]        - (output) One or two conditional branch instructions
+//   jmpToTrueLabel[2] - (output) On Arm64 both branches will always branch to the true label
+//
+// Return Value:
+//    Sets the proper values into the array elements of jmpKind[] and jmpToTrueLabel[]
+//
+// Assumptions:
+//    At least one conditional branch instruction will be returned.
+//    Typically only one conditional branch is needed
+//     and the second jmpKind[] value is set to EJ_NONE
+//
+void CodeGen::genJumpKindsForTree(GenTreePtr cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2])
+{
+    // On ARM both branches will always branch to the true label
+    jmpToTrueLabel[0] = true;
+    jmpToTrueLabel[1] = true;
+
+    // For integer comparisons just use genJumpKindForOper
+    if (!varTypeIsFloating(cmpTree->gtOp.gtOp1->gtEffectiveVal()))
+    {
+        CompareKind compareKind = ((cmpTree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
+        jmpKind[0]              = genJumpKindForOper(cmpTree->gtOper, compareKind);
+        jmpKind[1]              = EJ_NONE;
+    }
+    else // We have a Floating Point Compare operation
+    {
+        assert(cmpTree->OperIsCompare());
+
+        // For details on this mapping, see the ARM Condition Code table
+        // at section A8.3   in the ARMv7 architecture manual or
+        // at section C1.2.3 in the ARMV8 architecture manual.
+
+        // We must check the GTF_RELOP_NAN_UN to find out
+        // if we need to branch when we have a NaN operand.
+        //
+        if ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) != 0)
+        {
+            // Must branch if we have an NaN, unordered
+            switch (cmpTree->gtOper)
+            {
+                case GT_EQ:
+                    jmpKind[0] = EJ_eq; // branch or set when equal (and no NaN's)
+                    jmpKind[1] = EJ_vs; // branch or set when we have a NaN
+                    break;
+
+                case GT_NE:
+                    jmpKind[0] = EJ_ne; // branch or set when not equal (or have NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                case GT_LT:
+                    jmpKind[0] = EJ_lt; // branch or set when less than (or have NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                case GT_LE:
+                    jmpKind[0] = EJ_le; // branch or set when less than or equal (or have NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                case GT_GT:
+                    jmpKind[0] = EJ_hi; // branch or set when greater than (or have NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                case GT_GE:
+                    jmpKind[0] = EJ_hs; // branch or set when greater than or equal (or have NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                default:
+                    unreached();
+            }
+        }
+        else // ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) == 0)
+        {
+            // Do not branch if we have an NaN, unordered
+            switch (cmpTree->gtOper)
+            {
+                case GT_EQ:
+                    jmpKind[0] = EJ_eq; // branch or set when equal (and no NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                case GT_NE:
+                    jmpKind[0] = EJ_gt; // branch or set when greater than (and no NaN's)
+                    jmpKind[1] = EJ_lo; // branch or set when less than (and no NaN's)
+                    break;
+
+                case GT_LT:
+                    jmpKind[0] = EJ_lo; // branch or set when less than (and no NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                case GT_LE:
+                    jmpKind[0] = EJ_ls; // branch or set when less than or equal (and no NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                case GT_GT:
+                    jmpKind[0] = EJ_gt; // branch or set when greater than (and no NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                case GT_GE:
+                    jmpKind[0] = EJ_ge; // branch or set when greater than or equal (and no NaN's)
+                    jmpKind[1] = EJ_NONE;
+                    break;
+
+                default:
+                    unreached();
+            }
+        }
+    }
+}
+
+//------------------------------------------------------------------------
+// genCodeForJumpTrue: Generates code for jmpTrue statement.
+//
+// Arguments:
+//    tree - The GT_JTRUE tree node.
+//
+// Return Value:
+//    None
+//
+void CodeGen::genCodeForJumpTrue(GenTreePtr tree)
+{
+    GenTree* cmp = tree->gtOp.gtOp1->gtEffectiveVal();
+    assert(cmp->OperIsCompare());
+    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
+
+    // Get the "kind" and type of the comparison.  Note that whether it is an unsigned cmp
+    // is governed by a flag NOT by the inherent type of the node
+    emitJumpKind jumpKind[2];
+    bool         branchToTrueLabel[2];
+    genJumpKindsForTree(cmp, jumpKind, branchToTrueLabel);
+    assert(jumpKind[0] != EJ_NONE);
+
+    // On ARM the branches will always branch to the true label
+    assert(branchToTrueLabel[0]);
+    inst_JMP(jumpKind[0], compiler->compCurBB->bbJumpDest);
+
+    if (jumpKind[1] != EJ_NONE)
+    {
+        // the second conditional branch always has to be to the true label
+        assert(branchToTrueLabel[1]);
+        inst_JMP(jumpKind[1], compiler->compCurBB->bbJumpDest);
+    }
 }
 
 #endif // _TARGET_ARMARCH_

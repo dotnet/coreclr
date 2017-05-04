@@ -173,6 +173,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Marshal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\MarshalDirectiveException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\PInvokeMap.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\PInvokeMarshal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\RuntimeEnvironment.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SEHException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeBuffer.cs" />
@@ -314,10 +315,8 @@
     <Compile Include="$(BclSourcesRoot)\System\IAppDomainPauseManager.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppDomainAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppDomainUnloadedException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\ArgumentOutOfRangeException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ArgIterator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Attribute.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\BadImageFormatException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BitConverter.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Boolean.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
@@ -330,7 +329,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Double.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Empty.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Enum.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\DllNotFoundException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Environment.cs" />
     <Compile Include="$(BclSourcesRoot)\System\GC.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Guid.cs" />
@@ -635,11 +633,9 @@
     <Compile Include="$(BclSourcesRoot)\System\Resources\IResourceGroveler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\LooselyLinkedResourceReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ManifestBasedResourceGroveler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceFallbackManager.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceManager.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceReader.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceSet.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\RuntimeResourceSet.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Nullable.cs" />
@@ -662,7 +658,6 @@
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeFindHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeLibraryHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeWaitHandle.cs" />
-    <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\Win32SafeHandles.cs" />
     <Compile Condition="'$(FeatureWin32Registry)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeRegistryHandle.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -691,7 +686,6 @@
     <Compile Include="$(BclSourcesRoot)\System\TimeZoneInfo.Unix.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
-    <Compile Include="$(BclSourcesRoot)\Interop\Windows\kernel32\Interop.Globalization.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Normaliz\Interop.Idna.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Normaliz\Interop.Normalization.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debug.Windows.cs" />

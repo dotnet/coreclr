@@ -42,10 +42,17 @@ void genIntToFloatCast(GenTreePtr treeNode);
 
 void genCkfinite(GenTreePtr treeNode);
 
+void genCodeForCompare(GenTreeOp* tree);
+
 void genIntrinsic(GenTreePtr treeNode);
 
 void genPutArgStk(GenTreePutArgStk* treeNode);
+
+void genPutArgReg(GenTreeOp* tree);
+
+#if defined(_TARGET_XARCH_)
 unsigned getBaseVarForPutArgStk(GenTreePtr treeNode);
+#endif // _TARGET_XARCH_
 
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
 unsigned getFirstArgWithStackSlot();
@@ -166,6 +173,22 @@ void genCodeForShiftLong(GenTreePtr tree);
 void genCodeForShiftRMW(GenTreeStoreInd* storeInd);
 #endif // _TARGET_XARCH_
 
+void genCodeForNegNot(GenTree* tree);
+
+void genCodeForLclVar(GenTreeLclVar* tree);
+
+void genCodeForLclFld(GenTreeLclFld* tree);
+
+void genCodeForStoreLclFld(GenTreeLclFld* tree);
+
+void genCodeForStoreLclVar(GenTreeLclVar* tree);
+
+void genCodeForReturnTrap(GenTreeOp* tree);
+
+void genCodeForStoreInd(GenTreeStoreInd* tree);
+
+void genCodeForSwap(GenTreeOp* tree);
+
 void genCodeForCpObj(GenTreeObj* cpObjNode);
 
 void genCodeForCpBlk(GenTreeBlk* cpBlkNode);
@@ -267,6 +290,8 @@ void genCallInstruction(GenTreeCall* call);
 void genJmpMethod(GenTreePtr jmp);
 
 BasicBlock* genCallFinally(BasicBlock* block);
+
+void genCodeForJumpTrue(GenTreePtr tree);
 
 #if FEATURE_EH_FUNCLETS
 void genEHCatchRet(BasicBlock* block);

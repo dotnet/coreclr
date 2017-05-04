@@ -397,6 +397,13 @@ REM ===
 REM =========================================================================================
 
 call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\helixprep.proj  -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %RuntimeIdArg% %TargetsWindowsArg% %__CrossgenArg% %__unprocessedBuildArgs%
+if errorlevel 1 (
+    echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
+    echo     %__BuildLog%
+    echo     %__BuildWrn%
+    echo     %__BuildErr%
+    exit /b 1
+)
 
 echo %__MsgPrefix% Prepped test binaries for publishing
 
@@ -448,7 +455,6 @@ echo     1: Build all tests with priority 0 and 1
 echo     666: Build all tests with priority 0, 1 ... 666
 echo -sequential: force a non-parallel build ^(default is to build in parallel
 echo     using all processors^).
-echo -ilasmroundtrip: enables ilasm round trip build and run of the tests before executing them.
 echo -verbose: enables detailed file logging for the msbuild tasks into the msbuild log file.
 exit /b 1
 
@@ -473,6 +479,11 @@ if /i "%__ToolsetDir%" == "" (
     exit /b 1
 )
 
+if not exist "%__ToolsetDir%"\buildenv_arm64.cmd goto :Not_EWDK
+call "%__ToolsetDir%"\buildenv_arm64.cmd
+exit /b 0
+
+:Not_EWDK
 set PATH=%__ToolsetDir%\VC_sdk\bin;%PATH%
 set LIB=%__ToolsetDir%\VC_sdk\lib\arm64;%__ToolsetDir%\sdpublic\sdk\lib\arm64
 set INCLUDE=^

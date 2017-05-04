@@ -737,15 +737,30 @@ void LinearScan::associateRefPosWithInterval(RefPosition* rp)
             else if (rp->refType == RefTypeUse)
             {
                 // Ensure that we have consistent def/use on SDSU temps.
-                // However, in the case of a non-commutative rmw def, we must avoid over-constraining
-                // the def, so don't propagate a single-register restriction from the consumer to the producer
+                // However, there are a couple of cases where this may over-constrain allocation:
+                // 1. In the case of a non-commutative rmw def (in which the rmw source must be delay-free), or
+                // 2. In the case where the defining node requires a temp distinct from the target (also a
+                //    delay-free case).
+                // In those cases, if we propagate a single-register restriction from the consumer to the producer
+                // the delayed uses will not see a fixed reference in the PhysReg at that position, and may
+                // incorrectly allocate that register.
+                // TODO-CQ: This means that we may often require a copy at the use of this node's result.
+                // This case could be moved to BuildRefPositionsForNode, at the point where the def RefPosition is
+                // created, causing a RefTypeFixedRef to be added at that location. This, however, results in
+                // more PhysReg RefPositions (a throughput impact), and a large number of diffs that require
+                // further analysis to determine benefit.
+                // See Issue #11274.
                 RefPosition* prevRefPosition = theInterval->recentRefPosition;
                 assert(prevRefPosition != nullptr && theInterval->firstRefPosition == prevRefPosition);
+                // All defs must have a valid treeNode, but we check it below to be conservative.
+                assert(prevRefPosition->treeNode != nullptr);
                 regMaskTP prevAssignment = prevRefPosition->registerAssignment;
                 regMaskTP newAssignment  = (prevAssignment & rp->registerAssignment);
                 if (newAssignment != RBM_NONE)
                 {
-                    if (!theInterval->hasNonCommutativeRMWDef || !isSingleRegister(newAssignment))
+                    if (!isSingleRegister(newAssignment) ||
+                        (!theInterval->hasNonCommutativeRMWDef && (prevRefPosition->treeNode != nullptr) &&
+                         !prevRefPosition->treeNode->gtLsraInfo.isInternalRegDelayFree))
                     {
                         prevRefPosition->registerAssignment = newAssignment;
                     }
@@ -1317,6 +1332,8 @@ void LinearScan::setBlockSequence()
     compiler->EnsureBasicBlockEpoch();
     bbVisitedSet = BlockSetOps::MakeEmpty(compiler);
     BlockSet BLOCKSET_INIT_NOCOPY(readySet, BlockSetOps::MakeEmpty(compiler));
+    BlockSet BLOCKSET_INIT_NOCOPY(predSet, BlockSetOps::MakeEmpty(compiler));
+
     assert(blockSequence == nullptr && bbSeqCount == 0);
     blockSequence            = new (compiler, CMK_LSRA) BasicBlock*[compiler->fgBBcount];
     bbNumMaxBeforeResolution = compiler->fgBBNumMax;
@@ -1400,7 +1417,7 @@ void LinearScan::setBlockSequence()
             // (i.e. pred-first or random, since layout order is handled above).
             if (!BlockSetOps::IsMember(compiler, readySet, succ->bbNum))
             {
-                addToBlockSequenceWorkList(readySet, succ);
+                addToBlockSequenceWorkList(readySet, succ, predSet);
                 BlockSetOps::AddElemD(compiler, readySet, succ->bbNum);
             }
         }
@@ -1433,7 +1450,7 @@ void LinearScan::setBlockSequence()
                 {
                     if (!isBlockVisited(block))
                     {
-                        addToBlockSequenceWorkList(readySet, block);
+                        addToBlockSequenceWorkList(readySet, block, predSet);
                         BlockSetOps::AddElemD(compiler, readySet, block->bbNum);
                     }
                 }
@@ -1442,7 +1459,7 @@ void LinearScan::setBlockSequence()
                 {
                     if (!isBlockVisited(block))
                     {
-                        addToBlockSequenceWorkList(readySet, block);
+                        addToBlockSequenceWorkList(readySet, block, predSet);
                         BlockSetOps::AddElemD(compiler, readySet, block->bbNum);
                     }
                 }
@@ -1540,6 +1557,9 @@ int LinearScan::compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block
 // Arguments:
 //    sequencedBlockSet - the set of blocks that are already sequenced
 //    block             - the new block to be added
+//    predSet           - the buffer to save predecessors set. A block set allocated by the caller used here as a
+//    temporary block set for constructing a predecessor set. Allocated by the caller to avoid reallocating a new block
+//    set with every call to this function
 //
 // Return Value:
 //    None.
@@ -1561,13 +1581,13 @@ int LinearScan::compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block
 //    Note also that, when random traversal order is implemented, this method
 //    should insert the blocks into the list in random order, so that we can always
 //    simply select the first block in the list.
-void LinearScan::addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block)
+void LinearScan::addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block, BlockSet& predSet)
 {
     // The block that is being added is not already sequenced
     assert(!BlockSetOps::IsMember(compiler, sequencedBlockSet, block->bbNum));
 
     // Get predSet of block
-    BlockSet  BLOCKSET_INIT_NOCOPY(predSet, BlockSetOps::MakeEmpty(compiler));
+    BlockSetOps::ClearD(compiler, predSet);
     flowList* pred;
     for (pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
     {
@@ -1723,6 +1743,8 @@ void LinearScan::doLinearScan()
     }
 #endif // DEBUG
 
+    unsigned lsraBlockEpoch = compiler->GetCurBasicBlockEpoch();
+
     splitBBNumToTargetBBNumMap = nullptr;
 
     // This is complicated by the fact that physical registers have refs associated
@@ -1738,7 +1760,7 @@ void LinearScan::doLinearScan()
 
     DBEXEC(VERBOSE, lsraDumpIntervals("after buildIntervals"));
 
-    BlockSetOps::ClearD(compiler, bbVisitedSet);
+    clearVisitedBlocks();
     initVarRegMaps();
     allocateRegisters();
     compiler->EndPhase(PHASE_LINEAR_SCAN_ALLOC);
@@ -1759,6 +1781,7 @@ void LinearScan::doLinearScan()
     DBEXEC(VERBOSE, TupleStyleDump(LSRA_DUMP_POST));
 
     compiler->compLSRADone = true;
+    noway_assert(lsraBlockEpoch = compiler->GetCurBasicBlockEpoch());
 }
 
 //------------------------------------------------------------------------
@@ -2747,16 +2770,6 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
         }
         break;
 
-        case GT_LSH:
-        case GT_RSH:
-        case GT_RSZ:
-        case GT_ROL:
-        case GT_ROR:
-            if (tree->gtLsraInfo.isHelperCallWithKills)
-            {
-                killMask = RBM_CALLEE_TRASH;
-            }
-            break;
         case GT_RETURNTRAP:
             killMask = compiler->compHelperCallKillSet(CORINFO_HELP_STOP_FOR_GC);
             break;
@@ -4698,11 +4711,13 @@ void LinearScan::buildIntervals()
         {
             VarSetOps::DiffD(compiler, expUseSet, nextBlock->bbLiveIn);
         }
-        AllSuccessorIter succsEnd = block->GetAllSuccs(compiler).end();
-        for (AllSuccessorIter succs = block->GetAllSuccs(compiler).begin();
-             succs != succsEnd && !VarSetOps::IsEmpty(compiler, expUseSet); ++succs)
+        for (BasicBlock* succ : block->GetAllSuccs(compiler))
         {
-            BasicBlock* succ = (*succs);
+            if (VarSetOps::IsEmpty(compiler, expUseSet))
+            {
+                break;
+            }
+
             if (isBlockVisited(succ))
             {
                 continue;
@@ -9941,12 +9956,11 @@ void TreeNodeInfo::Initialize(LinearScan* lsra, GenTree* node, LsraLocation loca
         dstCandidates = genRegMask(node->gtRegNum);
     }
 
-    internalIntCount      = 0;
-    internalFloatCount    = 0;
-    isLocalDefUse         = false;
-    isHelperCallWithKills = false;
-    isLsraAdded           = false;
-    definesAnyRegisters   = false;
+    internalIntCount    = 0;
+    internalFloatCount  = 0;
+    isLocalDefUse       = false;
+    isLsraAdded         = false;
+    definesAnyRegisters = false;
 
     setDstCandidates(lsra, dstCandidates);
     srcCandsIndex = dstCandsIndex;
@@ -10370,10 +10384,6 @@ void TreeNodeInfo::dump(LinearScan* lsra)
     if (isInitialized)
     {
         printf(" I");
-    }
-    if (isHelperCallWithKills)
-    {
-        printf(" H");
     }
     if (isLsraAdded)
     {
