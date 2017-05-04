@@ -319,6 +319,7 @@ LOCAL_LABEL(shadowupdateend):
     ldrb w12, [x12]
     cbz  x12, LOCAL_LABEL(CheckCardTable)
     PREPARE_EXTERNAL_VAR g_sw_ww_table, x12
+    ldr  x12, [x12]
     add  x12, x12, x14, lsr #0xc  // SoftwareWriteWatch::AddressToTableByteIndexShift
     ldrb w17, [x12]
     cbnz x17, LOCAL_LABEL(CheckCardTable)
