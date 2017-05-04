@@ -142,7 +142,7 @@ namespace System.IO
         {
             if (path == null) return null;
             if (string.IsNullOrWhiteSpace(path)) 
-                throw new ArgumentException(SR.Arg_PathIllegal);
+                throw new ArgumentException(SR.Arg_PathIllegal, nameof(path));
 
             PathInternal.CheckInvalidPathChars(path);
 
