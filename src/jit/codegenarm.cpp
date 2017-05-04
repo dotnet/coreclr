@@ -1060,12 +1060,12 @@ void CodeGen::genLeaInstruction(GenTreeAddrMode* lea)
 }
 
 //------------------------------------------------------------------------
-// genCodeForDiv: Produce code for a GT_DIV/GT_UDIV/GT_MOD/GT_UMOD node.
+// genCodeForDivMod: Produce code for a GT_DIV/GT_UDIV/GT_MOD/GT_UMOD node.
 //
 // Arguments:
 //    tree - the node
 //
-void CodeGen::genCodeForDiv(GenTreeOp* tree)
+void CodeGen::genCodeForDivMod(GenTreeOp* tree)
 {
     assert(tree->OperIs(GT_DIV, GT_UDIV, GT_MOD, GT_UMOD));
 

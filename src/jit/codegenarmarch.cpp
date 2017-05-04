@@ -107,18 +107,9 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
         case GT_MOD:
         case GT_UMOD:
-
-#ifdef _TARGET_ARM64_
-            // Integer MOD should have been morphed into a sequence of sub, mul, div in fgMorph.
-            //
-            // We shouldn't be seeing GT_MOD on float/double as it is morphed into a helper call by front-end.
-            noway_assert(!"Codegen for GT_MOD/GT_UMOD");
-            break;
-#endif // !_TARGET_ARM64_
-
         case GT_DIV:
         case GT_UDIV:
-            genCodeForDiv(treeNode->AsOp());
+            genCodeForDivMod(treeNode->AsOp());
             break;
 
         case GT_OR:

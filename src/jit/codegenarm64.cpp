@@ -1510,13 +1510,6 @@ void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
 #endif // !0
 }
 
-// generate code for a DIV or MOD operation
-//
-void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
-{
-    // unused on ARM64
-}
-
 // Generate code for ADD, SUB, MUL, DIV, UDIV, AND, OR and XOR
 // This method is expected to have called genConsumeOperands() before calling it.
 void CodeGen::genCodeForBinary(GenTree* treeNode)
@@ -2390,12 +2383,14 @@ void CodeGen::genCodeForNegNot(GenTree* tree)
 }
 
 //------------------------------------------------------------------------
-// genCodeForDiv: Produce code for a GT_DIV/GT_UDIV node.
+// genCodeForDivMod: Produce code for a GT_DIV/GT_UDIV node. We don't see MOD:
+// (1) integer MOD is morphed into a sequence of sub, mul, div in fgMorph;
+// (2) float/double MOD is morphed into a helper call by front-end.
 //
 // Arguments:
 //    tree - the node
 //
-void CodeGen::genCodeForDiv(GenTreeOp* tree)
+void CodeGen::genCodeForDivMod(GenTreeOp* tree)
 {
     assert(tree->OperIs(GT_DIV, GT_UDIV));
 
