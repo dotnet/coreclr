@@ -139,8 +139,6 @@ void EventPipe::Disable()
     // Disable tracing.
     s_pConfig->Disable();
 
-    // TODO: Fix race conditions.  It's possible that these resources get deleted
-    // while other threads are attempting to use them.
     if(s_pJsonFile != NULL)
     {
         delete(s_pJsonFile);
@@ -207,8 +205,10 @@ void EventPipe::WriteSampleProfileEvent(SampleProfilerEventInstance &instance)
     CONTRACTL_END;
 
     // Write to the EventPipeFile.
-    _ASSERTE(s_pFile != NULL);
-    s_pFile->WriteEvent(instance);
+    if(s_pFile != NULL)
+    {
+        s_pFile->WriteEvent(instance);
+    }
 
     // Write to the EventPipeJsonFile if it exists.
     if(s_pJsonFile != NULL)
@@ -228,8 +228,12 @@ bool EventPipe::WalkManagedStackForCurrentThread(StackContents &stackContents)
     CONTRACTL_END;
 
     Thread *pThread = GetThread();
-    _ASSERTE(pThread != NULL);
-    return WalkManagedStackForThread(pThread, stackContents);
+    if(pThread != NULL)
+    {
+        return WalkManagedStackForThread(pThread, stackContents);
+    }
+
+    return false;
 }
 
 bool EventPipe::WalkManagedStackForThread(Thread *pThread, StackContents &stackContents)
