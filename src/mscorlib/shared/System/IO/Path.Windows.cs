@@ -136,10 +136,13 @@ namespace System.IO
         // path on the current drive), "X:" (a relative path on a given drive,
         // where X is the drive letter), "X:\" (an absolute path on a given drive),
         // and "\\server\share" (a UNC path for a given server and share name).
-        // The resulting string is null if path is null.
+        // The resulting string is null if path is null. If string is empty
+        // ArgumentException gets thrown.
         public static string GetPathRoot(string path)
         {
             if (path == null) return null;
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException(SR.Arg_PathIllegal);
+
             PathInternal.CheckInvalidPathChars(path);
 
             // Need to return the normalized directory separator

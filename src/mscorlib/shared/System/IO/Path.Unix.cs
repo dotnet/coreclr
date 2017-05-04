@@ -196,7 +196,9 @@ namespace System.IO
         public static string GetPathRoot(string path)
         {
             if (path == null) return null;
-            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
+			if (path == string.Empty) throw new ArgumentException(SR.Arg_PathIllegal);
+
+			return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
         }
 
         /// <summary>Gets whether the system is case-sensitive.</summary>
