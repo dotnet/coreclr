@@ -313,13 +313,17 @@ INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
     void *pCallbackFunc)
 {
     QCALL_CONTRACT;
+
+    EventPipeProvider *pProvider = NULL;
+
     BEGIN_QCALL;
 
-    // TODO
+    pProvider = new EventPipeProvider(providerID);
+    // TODO: Set the callback function.
 
     END_QCALL;
 
-    return 0;
+    return reinterpret_cast<INT_PTR>(pProvider);
 }
 
 INT_PTR QCALLTYPE EventPipeInternal::AddEvent(
@@ -346,7 +350,11 @@ void QCALLTYPE EventPipeInternal::DeleteProvider(
     QCALL_CONTRACT;
     BEGIN_QCALL;
 
-    // TODO
+    if(provHandle != NULL)
+    {
+        EventPipeProvider *pProvider = reinterpret_cast<EventPipeProvider*>(provHandle);
+        delete pProvider;
+    }
 
     END_QCALL;
 }

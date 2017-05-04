@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -14,6 +15,8 @@ namespace System.Diagnostics.Tracing
 {
     internal sealed class EventPipeEventProvider : IEventProvider
     {
+        private IntPtr m_provHandle = IntPtr.Zero;
+
         // Register an event provider.
         unsafe uint IEventProvider.EventRegister(
             ref Guid providerId,
@@ -21,14 +24,27 @@ namespace System.Diagnostics.Tracing
             void* callbackContext,
             ref long registrationHandle)
         {
-            // TODO
-            EventPipeInternal.CreateProvider(providerId, enableCallback);
-            return 0;
+            uint returnStatus = 0;
+            m_provHandle = EventPipeInternal.CreateProvider(providerId, null);
+            if(m_provHandle != IntPtr.Zero)
+            {
+                // Fixed registration handle because a new EventPipeEventProvider
+                // will be created for each new EventSource.
+                registrationHandle = 1;
+            }
+            else
+            {
+                // Unable to create the provider.
+                returnStatus = 1;
+            }
+
+            return returnStatus;
         }
 
         // Unregister an event provider.
         uint IEventProvider.EventUnregister(long registrationHandle)
         {
+            EventPipeInternal.DeleteProvider(m_provHandle);
             return 0;
         }
 
