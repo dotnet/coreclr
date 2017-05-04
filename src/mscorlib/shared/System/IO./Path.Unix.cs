@@ -193,13 +193,15 @@ namespace System.IO
             return path.Length > 0 && path[0] == PathInternal.DirectorySeparatorChar;
         }
 
+        // The resulting string is null if path is null. If the path is empty or
+        // only contains whitespace characters an ArgumentException gets thrown.
         public static string GetPathRoot(string path)
         {
             if (path == null) return null;
-	    if (string.IsNullOrWhiteSpace(path))
+			if (string.IsNullOrWhiteSpace(path))
                 throw new ArgumentException(SR.Arg_PathIllegal);
 
-	    return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
+			return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
         }
 
         /// <summary>Gets whether the system is case-sensitive.</summary>
