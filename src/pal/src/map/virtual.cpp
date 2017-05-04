@@ -95,6 +95,7 @@ namespace VirtualMemoryLogging
         Decommit = 0x40,
         Release = 0x50,
         Reset = 0x60,
+        ReserveFromExecutableMemoryAllocatorWithinRange = 0x70
     };
 
     // Indicates that the attempted operation has failed
@@ -887,9 +888,12 @@ static LPVOID VIRTUALReserveMemory(
     // First, figure out where we're trying to reserve the memory and
     // how much we need. On most systems, requests to mmap must be
     // page-aligned and at multiples of the page size. Unlike on Windows, on
-    // Unix, the allocation granularity is the page size, so the start boundary
-    // and memory size to reserve are not aligned to 64 KB.
-    StartBoundary = (UINT_PTR)lpAddress & ~VIRTUAL_PAGE_MASK;
+    // Unix, the allocation granularity is the page size, so the memory size to
+    // reserve is not aligned to 64 KB. Nor should the start boundary need to
+    // to be aligned down to 64 KB, but it is expected that there are other
+    // components that rely on this alignment when providing a specific address
+    // (note that mmap itself does not make any such guarantees).
+    StartBoundary = (UINT_PTR)ALIGN_DOWN(lpAddress, VIRTUAL_64KB);
     /* Add the sizes, and round down to the nearest page boundary. */
     MemSize = ( ((UINT_PTR)lpAddress + dwSize + VIRTUAL_PAGE_MASK) & ~VIRTUAL_PAGE_MASK ) - 
                StartBoundary;
@@ -898,7 +902,14 @@ static LPVOID VIRTUALReserveMemory(
     // try to get memory from the executable memory allocator to satisfy the request.
     if (((flAllocationType & MEM_RESERVE_EXECUTABLE) != 0) && (lpAddress == NULL))
     {
-        pRetVal = g_executableMemoryAllocator.AllocateMemory(MemSize);
+        // Alignment to a 64 KB granularity should not be necessary (alignment to page size should be sufficient), but see
+        // ExecutableMemoryAllocator::AllocateMemory() for the reason why it is done
+        SIZE_T reservationSize = ALIGN_UP(MemSize, VIRTUAL_64KB);
+        pRetVal = g_executableMemoryAllocator.AllocateMemory(reservationSize);
+        if (pRetVal != nullptr)
+        {
+            MemSize = reservationSize;
+        }
     }
 
     if (pRetVal == NULL)
@@ -1231,7 +1242,7 @@ done:
 
 /*++
 Function:
-  VirtualReserveFromExecutableMemoryAllocatorWithinRange
+  PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange
 
   This function attempts to allocate the requested amount of memory in the specified address range, from the executable memory
   allocator. If unable to do so, the function returns nullptr and does not set the last error.
@@ -1242,42 +1253,53 @@ Function:
 --*/
 LPVOID
 PALAPI
-VirtualReserveFromExecutableMemoryAllocatorWithinRange(
+PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(
     IN LPCVOID lpBeginAddress,
     IN LPCVOID lpEndAddress,
     IN SIZE_T dwSize)
 {
 #ifdef BIT64
-    PERF_ENTRY(VirtualReserveFromExecutableMemoryAllocatorWithinRange);
+    PERF_ENTRY(PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange);
     ENTRY(
-        "VirtualReserveFromExecutableMemoryAllocatorWithinRange(lpBeginAddress = %p, lpEndAddress = %p, dwSize = %Iu)\n",
+        "PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(lpBeginAddress = %p, lpEndAddress = %p, dwSize = %Iu)\n",
         lpBeginAddress,
         lpEndAddress,
         dwSize);
 
     _ASSERTE(lpBeginAddress <= lpEndAddress);
 
-    dwSize = ALIGN_UP(dwSize, VIRTUAL_PAGE_SIZE);
+    // Alignment to a 64 KB granularity should not be necessary (alignment to page size should be sufficient), but see
+    // ExecutableMemoryAllocator::AllocateMemory() for the reason why it is done
+    SIZE_T reservationSize = ALIGN_UP(dwSize, VIRTUAL_64KB);
 
     CPalThread *currentThread = InternalGetCurrentThread();
     InternalEnterCriticalSection(currentThread, &virtual_critsec);
 
-    void *address = g_executableMemoryAllocator.AllocateMemoryWithinRange(lpBeginAddress, lpEndAddress, dwSize);
+    void *address = g_executableMemoryAllocator.AllocateMemoryWithinRange(lpBeginAddress, lpEndAddress, reservationSize);
     if (address != nullptr)
     {
         _ASSERTE(IS_ALIGNED(address, VIRTUAL_PAGE_SIZE));
-        if (!VIRTUALStoreAllocationInfo((UINT_PTR)address, dwSize, MEM_RESERVE | MEM_RESERVE_EXECUTABLE, PAGE_NOACCESS))
+        if (!VIRTUALStoreAllocationInfo((UINT_PTR)address, reservationSize, MEM_RESERVE | MEM_RESERVE_EXECUTABLE, PAGE_NOACCESS))
         {
             ASSERT("Unable to store the structure in the list.\n");
-            munmap(address, dwSize);
+            munmap(address, reservationSize);
             address = nullptr;
         }
     }
 
+    LogVaOperation(
+        VirtualMemoryLogging::VirtualOperation::ReserveFromExecutableMemoryAllocatorWithinRange,
+        nullptr,
+        dwSize,
+        MEM_RESERVE | MEM_RESERVE_EXECUTABLE,
+        PAGE_NOACCESS,
+        address,
+        TRUE);
+
     InternalLeaveCriticalSection(currentThread, &virtual_critsec);
 
-    LOGEXIT("VirtualReserveFromExecutableMemoryAllocatorWithinRange returning %p\n", address);
-    PERF_EXIT(VirtualReserveFromExecutableMemoryAllocatorWithinRange);
+    LOGEXIT("PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange returning %p\n", address);
+    PERF_EXIT(PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange);
     return address;
 #else // !BIT64
     return nullptr;
@@ -2063,7 +2085,6 @@ Function:
 --*/
 void ExecutableMemoryAllocator::Initialize()
 {
-    m_startAddress = NULL;
     m_nextFreeAddress = NULL;
     m_totalSizeOfReservedMemory = 0;
     m_remainingReservedMemory = 0;
@@ -2088,8 +2109,8 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
 {
     CPalThread* pthrCurrent = InternalGetCurrentThread();
     int32_t sizeOfAllocation = MaxExecutableMemorySizeNearCoreClr;
-    int32_t startAddressIncrement;
-    UINT_PTR startAddress;
+    int32_t preferredStartAddressIncrement;
+    UINT_PTR preferredStartAddress;
     UINT_PTR coreclrLoadAddress;
     const int32_t MemoryProbingIncrement = 128 * 1024 * 1024;
 
@@ -2111,32 +2132,33 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     if ((coreclrLoadAddress < 0xFFFFFFFF) || ((coreclrLoadAddress - MaxExecutableMemorySizeNearCoreClr) < 0xFFFFFFFF))
     {
         // Try to allocate above the location of libcoreclr
-        startAddress = coreclrLoadAddress + CoreClrLibrarySize;
-        startAddressIncrement = MemoryProbingIncrement;
+        preferredStartAddress = coreclrLoadAddress + CoreClrLibrarySize;
+        preferredStartAddressIncrement = MemoryProbingIncrement;
     }
     else
     {
         // Try to allocate below the location of libcoreclr
-        startAddress = coreclrLoadAddress - MaxExecutableMemorySizeNearCoreClr;
-        startAddressIncrement = 0;
+        preferredStartAddress = coreclrLoadAddress - MaxExecutableMemorySizeNearCoreClr;
+        preferredStartAddressIncrement = 0;
     }
 
     // Do actual memory reservation.
+    void* startAddress;
     do
     {
-        m_startAddress = ReserveVirtualMemory(pthrCurrent, (void*)startAddress, sizeOfAllocation);
-        if (m_startAddress != nullptr)
+        startAddress = ReserveVirtualMemory(pthrCurrent, (void*)preferredStartAddress, sizeOfAllocation);
+        if (startAddress != nullptr)
         {
             break;
         }
 
         // Try to allocate a smaller region
         sizeOfAllocation -= MemoryProbingIncrement;
-        startAddress += startAddressIncrement;
+        preferredStartAddress += preferredStartAddressIncrement;
 
     } while (sizeOfAllocation >= MemoryProbingIncrement);
 
-    if (m_startAddress == nullptr)
+    if (startAddress == nullptr)
     {
         // We were not able to reserve any memory near libcoreclr. Try to reserve approximately 2 GB of address space somewhere
         // anyway:
@@ -2154,8 +2176,8 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
         //   - The code heap allocator for the JIT can allocate from this address space. Beyond this reservation, one can use
         //     the COMPlus_CodeHeapReserveForJumpStubs environment variable to reserve space for jump stubs.
         sizeOfAllocation = MaxExecutableMemorySize;
-        m_startAddress = ReserveVirtualMemory(pthrCurrent, nullptr, sizeOfAllocation);
-        if (m_startAddress == nullptr)
+        startAddress = ReserveVirtualMemory(pthrCurrent, nullptr, sizeOfAllocation);
+        if (startAddress == nullptr)
         {
             return;
         }
@@ -2164,10 +2186,13 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     // Memory has been successfully reserved.
     m_totalSizeOfReservedMemory = sizeOfAllocation;
 
-    // Randomize the location at which we start allocating from the reserved memory range.
+    // Randomize the location at which we start allocating from the reserved memory range. Alignment to a 64 KB granularity
+    // should not be necessary, but see AllocateMemory() for the reason why it is done.
     int32_t randomOffset = GenerateRandomStartOffset();
-    m_nextFreeAddress = (void*)(((UINT_PTR)m_startAddress) + randomOffset);
-    m_remainingReservedMemory = sizeOfAllocation - randomOffset;
+    m_nextFreeAddress = ALIGN_UP((void*)(((UINT_PTR)startAddress) + randomOffset), VIRTUAL_64KB);
+    _ASSERTE(sizeOfAllocation >= (UINT_PTR)m_nextFreeAddress - (UINT_PTR)startAddress);
+    m_remainingReservedMemory =
+        ALIGN_DOWN(sizeOfAllocation - ((UINT_PTR)m_nextFreeAddress - (UINT_PTR)startAddress), VIRTUAL_64KB);
 }
 
 /*++
@@ -2186,8 +2211,12 @@ void* ExecutableMemoryAllocator::AllocateMemory(SIZE_T allocationSize)
 #ifdef BIT64
     void* allocatedMemory = nullptr;
 
-    // Allocation size must be in multiples of the virtual page size.
-    _ASSERTE((allocationSize & VIRTUAL_PAGE_MASK) == 0);
+    // Alignment to a 64 KB granularity should not be necessary (alignment to page size should be sufficient), but
+    // VIRTUALReserveMemory() aligns down the specified address to a 64 KB granularity, and as long as that is necessary, the
+    // reservation size here must be aligned to a 64 KB granularity to guarantee that all returned addresses are also aligned to
+    // a 64 KB granularity. Otherwise, attempting to reserve memory starting from an unaligned address returned by this function
+    // would fail in VIRTUALReserveMemory.
+    _ASSERTE(IS_ALIGNED(allocationSize, VIRTUAL_64KB));
 
     // The code below assumes that the caller owns the virtual_critsec lock.
     // So the calculations are not done in thread-safe manner.
@@ -2220,8 +2249,9 @@ void *ExecutableMemoryAllocator::AllocateMemoryWithinRange(const void *beginAddr
 #ifdef BIT64
     _ASSERTE(beginAddress <= endAddress);
 
-    // Allocation size must be in multiples of the virtual page size.
-    _ASSERTE(IS_ALIGNED(allocationSize, VIRTUAL_PAGE_SIZE));
+    // Alignment to a 64 KB granularity should not be necessary (alignment to page size should be sufficient), but see
+    // AllocateMemory() for the reason why it is necessary
+    _ASSERTE(IS_ALIGNED(allocationSize, VIRTUAL_64KB));
 
     // The code below assumes that the caller owns the virtual_critsec lock.
     // So the calculations are not done in thread-safe manner.

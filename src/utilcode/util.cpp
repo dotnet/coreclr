@@ -639,7 +639,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     }
 
 #ifdef FEATURE_PAL
-    pResult = (BYTE *)VirtualReserveFromExecutableMemoryAllocatorWithinRange(pMinAddr, pMaxAddr, dwSize);
+    pResult = (BYTE *)PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(pMinAddr, pMaxAddr, dwSize);
     if (pResult != nullptr)
     {
         return pResult;

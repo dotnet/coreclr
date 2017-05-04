@@ -2853,7 +2853,7 @@ PAL_GetSymbolModuleBase(void *symbol);
 PALIMPORT
 LPVOID
 PALAPI
-VirtualReserveFromExecutableMemoryAllocatorWithinRange(
+PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(
     IN LPCVOID lpBeginAddress,
     IN LPCVOID lpEndAddress,
     IN SIZE_T dwSize);

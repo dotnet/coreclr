@@ -59,7 +59,8 @@ enum VIRTUAL_CONSTANTS
     VIRTUAL_EXECUTE_READ,
     
     VIRTUAL_PAGE_SIZE       = 0x1000,
-    VIRTUAL_PAGE_MASK       = VIRTUAL_PAGE_SIZE - 1
+    VIRTUAL_PAGE_MASK       = VIRTUAL_PAGE_SIZE - 1,
+    VIRTUAL_64KB            = 0x10000
 };
 
 /*++
@@ -177,9 +178,6 @@ private:
     // entire libcoreclr to be located in a 2GB range.
     static const int32_t MaxExecutableMemorySize = 0x7FFF0000;
     static const int32_t MaxExecutableMemorySizeNearCoreClr = MaxExecutableMemorySize - CoreClrLibrarySize;
-
-    // Start address of the reserved virtual address space
-    void* m_startAddress;
 
     // Next available address in the reserved address space
     void* m_nextFreeAddress;
