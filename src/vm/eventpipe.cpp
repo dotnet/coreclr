@@ -184,8 +184,10 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         length);
 
     // Write to the EventPipeFile.
-    _ASSERTE(s_pFile != NULL);
-    s_pFile->WriteEvent(instance);
+    if(s_pFile != NULL)
+    {
+        s_pFile->WriteEvent(instance);
+    }
 
     // Write to the EventPipeJsonFile if it exists.
     if(s_pJsonFile != NULL)
