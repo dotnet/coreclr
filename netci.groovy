@@ -206,8 +206,12 @@ def static isJitDiff(def scenario) {
     return (scenario == 'jitdiff')
 }
 
+def static isGcReliabilityFramework(def scenario) {
+    return (scenario == 'gc_reliability_framework')
+}
+
 def static scenarioNeedsPri1Build(def scenario) {
-  return (scenario == 'pri1' || scenario == 'pri1r2r' || scenario == 'gcstress15_pri1r2r'|| scenario == 'coverage' || scenario == 'gc_reliability_framework')
+    return (scenario == 'pri1' || scenario == 'pri1r2r' || scenario == 'gcstress15_pri1r2r'|| scenario == 'coverage' || isGcReliabilityFramework(scenario))
 }
 
 def static setTestJobTimeOut(newJob, scenario) {
@@ -231,6 +235,9 @@ def static setTestJobTimeOut(newJob, scenario) {
     }
     else if (isJitDiff(scenario)) {
         Utilities.setJobTimeout(newJob, 240)
+    }
+    else if (isGcReliabilityFramework(scenario)) {
+        Utilities.setJobTimeout(newJob, 1440)
     }
     // Non-test jobs use the default timeout value.
 }
@@ -1460,7 +1467,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 buildCommands += "%WORKSPACE%\\tests\\runtest.cmd ${runtestArguments} TestEnv ${stepScriptLocation}"
                             }
                         }
-                        else if (scenario == 'gc_reliability_framework') {
+                        else if (isGcReliabilityFramework(scenario)) {
                             buildCommands += "tests\\runtest.cmd ${runtestArguments} GenerateLayoutOnly"
                             buildCommands += "tests\\scripts\\run-gc-reliability-framework.cmd ${arch} ${configuration}"
                             Utilities.addArchival(newJob, "stdout.txt")
@@ -2321,7 +2328,7 @@ combinedScenarios.each { scenario ->
                         }
                     }
 
-                    if (scenario == 'gc_reliability_framework') {
+                    if (isGcReliabilityFramework(scenario)) {
                         layoutOnlyStr = '--build-overlay-only'
                     }
 
@@ -2481,7 +2488,7 @@ combinedScenarios.each { scenario ->
                 ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${runilasmroundtripStr} \\
                 ${illinkStr} ${sequentialString} ${playlistString} ${layoutOnlyStr}""")
 
-                                if (scenario == 'gc_reliability_framework') {
+                                if (isGcReliabilityFramework(scenario)) {
                                     // runtest.sh doesn't actually execute the reliability framework - do it here.
                                     if (serverGCString != '') {
                                         shell("export COMPlus_gcServer=1")
@@ -2493,7 +2500,7 @@ combinedScenarios.each { scenario ->
                         }
                     }
 
-                    if (scenario == 'gc_reliability_framework')
+                    if (isGcReliabilityFramework(scenario))
                     {
                         // Both of these are emitted by the RF
                         Utilities.addArchival(newJob, "stdout.txt")
