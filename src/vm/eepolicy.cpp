@@ -1105,6 +1105,42 @@ void EEPolicy::HandleExitProcess(ShutdownCompleteAction sca)
     HandleExitProcessHelper(action, 0, sca);
 }
 
+//---------------------------------------------------------------------------------------
+//
+// Writes a log error message to stderr of an unhandled exception.
+//
+// Arguments:
+//    pExceptionInfo - Exception information
+//
+// Return Value:
+//    None
+//
+void DoLogForUnhandledException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+{
+    WRAPPER_NO_CONTRACT;
+
+    EX_TRY
+    {
+        StackSString s;
+        InlineSString<80> ssErrorFormat;
+        if(!ssErrorFormat.LoadResource(CCompRC::Optional, IDS_ER_UNHANDLEDEXCEPTIONINFO))
+            ssErrorFormat.Set(W("exception code %1, exception address %2"));
+        SmallStackSString exceptionCodeString;
+        exceptionCodeString.Printf(W("%x"), pExceptionInfo->ExceptionRecord->ExceptionCode);
+        SmallStackSString addressString;
+        addressString.Printf(W("%p"), (UINT_PTR)pExceptionInfo->ExceptionRecord->ExceptionAddress);
+        s.FormatMessage(FORMAT_MESSAGE_FROM_STRING, (LPCWSTR)ssErrorFormat, 0, 0, exceptionCodeString, addressString);
+        LPCWSTR stackMsg = s.GetUnicode();
+
+        PrintToStdErrW((WCHAR*)pszMessage);
+        PrintToStdErrW((WCHAR*)stackMsg);
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+}
+
 //
 // Log an error to the event log if possible, then throw up a dialog box.
 //
@@ -1116,6 +1152,9 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
     STATIC_CONTRACT_MODE_ANY;
 
     _ASSERTE(pExceptionInfo != NULL);
+
+    // Log exception to StdErr
+    DoLogForUnhandledException(pszMessage, pExceptionInfo);
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
     {
