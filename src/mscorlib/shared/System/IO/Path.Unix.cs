@@ -196,7 +196,8 @@ namespace System.IO
         public static string GetPathRoot(string path)
         {
             if (path == null) return null;
-			if (path == string.Empty) throw new ArgumentException(SR.Arg_PathIllegal);
+			if (path == string.Empty) 
+                throw new ArgumentException(SR.Arg_PathIllegal);
 
 			return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
         }

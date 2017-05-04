@@ -141,7 +141,8 @@ namespace System.IO
         public static string GetPathRoot(string path)
         {
             if (path == null) return null;
-            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException(SR.Arg_PathIllegal);
+            if (string.IsNullOrWhiteSpace(path)) 
+                throw new ArgumentException(SR.Arg_PathIllegal);
 
             PathInternal.CheckInvalidPathChars(path);
 
