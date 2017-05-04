@@ -52,6 +52,9 @@ public:
     bool ForceFullGCToBeBlocking();
     bool EagerFinalized(Object* obj);
     MethodTable* GetFreeObjectMethodTable();
+    bool GetBooleanConfigValue(BoolConfigKey key, bool* value);
+    bool GetIntConfigValue(IntConfigKey key, int* value);
+    bool GetSizeTConfigValue(SizeTConfigKey key, size_t* value);
 };
 
 } // namespace standalone

@@ -993,3 +993,32 @@ MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     assert(g_pFreeObjectMethodTable != nullptr);
     return g_pFreeObjectMethodTable;
 }
+
+bool GCToEEInterface::GetBooleanConfigValue(BoolConfigKey key, bool* value)
+{
+    assert(value != nullptr);
+    switch (key)
+    {
+        case BoolConfigKey::ServerGC:
+            assert(g_heap_type != GC_HEAP_INVALID);
+            *value = g_heap_type == GC_HEAP_SVR;
+            return true;
+        case BoolConfigKey::ConcurrentGC:
+            *value = g_IGCconcurrent != 0;
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool GCToEEInterface::GetIntConfigValue(IntConfigKey key, int* value)
+{
+    // TODO(segilles)
+    return false;
+}
+
+bool GCToEEInterface::GetSizeTConfigValue(SizeTConfigKey key, size_t* value)
+{
+    // TODO(segilles)
+    return false;
+}

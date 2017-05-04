@@ -74,6 +74,9 @@ public:
     static bool ForceFullGCToBeBlocking();
     static bool EagerFinalized(Object* obj);
     static MethodTable* GetFreeObjectMethodTable();
+    static bool GetBooleanConfigValue(BoolConfigKey key, bool* value);
+    static bool GetIntConfigValue(IntConfigKey key, int* value);
+    static bool GetSizeTConfigValue(SizeTConfigKey key, size_t* value);
 };
 
 #endif // __GCENV_EE_H__

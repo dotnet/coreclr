@@ -241,6 +241,25 @@ ALWAYS_INLINE MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     assert(g_theGCToCLR != nullptr);
     return g_theGCToCLR->GetFreeObjectMethodTable();
 }
+
+ALWAYS_INLINE bool GCToEEInterface::GetBooleanConfigValue(BoolConfigKey key, bool* value)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->GetBooleanConfigValue(key, value);
+}
+
+ALWAYS_INLINE bool GCToEEInterface::GetIntConfigValue(IntConfigKey key, int* value)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->GetIntConfigValue(key, value);
+}
+
+ALWAYS_INLINE bool GCToEEInterface::GetSizeTConfigValue(SizeTConfigKey key, size_t* value)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->GetSizeTConfigValue(key, value);
+}
+
 #undef ALWAYS_INLINE
 
 } // anonymous namespace
