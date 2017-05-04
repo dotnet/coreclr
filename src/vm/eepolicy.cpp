@@ -1121,6 +1121,8 @@ void DoLogForUnhandledException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExcepti
 
     EX_TRY
     {
+        PrintToStdErrW((WCHAR*)pszMessage);
+
         StackSString s;
         InlineSString<80> ssErrorFormat;
         if(!ssErrorFormat.LoadResource(CCompRC::Optional, IDS_ER_UNHANDLEDEXCEPTIONINFO))
@@ -1130,9 +1132,8 @@ void DoLogForUnhandledException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExcepti
         SmallStackSString addressString;
         addressString.Printf(W("%p"), (UINT_PTR)pExceptionInfo->ExceptionRecord->ExceptionAddress);
         s.FormatMessage(FORMAT_MESSAGE_FROM_STRING, (LPCWSTR)ssErrorFormat, 0, 0, exceptionCodeString, addressString);
-        LPCWSTR stackMsg = s.GetUnicode();
-
-        PrintToStdErrW((WCHAR*)pszMessage);
+        
+        LPCWSTR stackMsg = s.GetUnicode();        
         PrintToStdErrW((WCHAR*)stackMsg);
     }
     EX_CATCH
@@ -1153,8 +1154,11 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
 
     _ASSERTE(pExceptionInfo != NULL);
 
-    // Log exception to StdErr
-    DoLogForUnhandledException(pszMessage, pExceptionInfo);
+    // Log FailFast exception to StdErr
+    if (exitCode == (UINT)COR_E_FAILFAST)
+    {
+        DoLogForUnhandledException(pszMessage, pExceptionInfo);
+    }
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
     {
