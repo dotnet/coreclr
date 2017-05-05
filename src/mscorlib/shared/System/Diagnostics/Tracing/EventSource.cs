@@ -1156,7 +1156,7 @@ namespace System.Diagnostics.Tracing
                     }
 
 #if FEATURE_MANAGED_ETW
-                    if (m_eventData[eventId].EnabledForETW || m_eventData[eventId].EnabledForEventPipe)
+                    if (m_eventData[eventId].EnabledForETW)
                     {
 
 #if FEATURE_ACTIVITYSAMPLING
@@ -2518,7 +2518,6 @@ namespace System.Diagnostics.Tracing
             public EventTags Tags;
             public bool EnabledForAnyListener;      // true if any dispatcher has this event turned on
             public bool EnabledForETW;              // is this event on for the OS ETW data dispatcher?
-            public bool EnabledForEventPipe;        // is this event on for the EventPipe dispatcher?
 
             public bool HasRelatedActivityID;       // Set if the event method's first parameter is a Guid named 'relatedActivityId'
 #if !FEATURE_ACTIVITYSAMPLING
@@ -3685,9 +3684,6 @@ namespace System.Diagnostics.Tracing
             eventData[eventAttribute.EventId].Message = eventAttribute.Message;
             eventData[eventAttribute.EventId].ActivityOptions = eventAttribute.ActivityOptions;
             eventData[eventAttribute.EventId].HasRelatedActivityID = hasRelatedActivityID;
-
-            // TODO
-            eventData[eventAttribute.EventId].EnabledForEventPipe = true;
         }
 
         // Helper used by code:CreateManifestAndDescriptors that trims the m_eventData array to the correct

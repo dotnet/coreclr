@@ -312,7 +312,7 @@ CrstStatic* EventPipe::GetLock()
 
 INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
     GUID providerID,
-    void *pCallbackFunc)
+    EventPipeCallback pCallbackFunc)
 {
     QCALL_CONTRACT;
 
@@ -320,8 +320,7 @@ INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
 
     BEGIN_QCALL;
 
-    pProvider = new EventPipeProvider(providerID);
-    // TODO: Set the callback function.
+    pProvider = new EventPipeProvider(providerID, pCallbackFunc, NULL);
 
     END_QCALL;
 

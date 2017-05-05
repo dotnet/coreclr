@@ -435,7 +435,7 @@ namespace System.Diagnostics.Tracing
 
             // However the framework version of EventSource DOES have ES_SESSION_INFO defined and thus
             // does not have this issue.  
-#if ES_SESSION_INFO || !ES_BUILD_STANDALONE  
+#if (PLATFORM_WINDOWS && (ES_SESSION_INFO || !ES_BUILD_STANDALONE))
             int buffSize = 256;     // An initial guess that probably works most of the time.  
             byte* buffer;
             for (; ; )

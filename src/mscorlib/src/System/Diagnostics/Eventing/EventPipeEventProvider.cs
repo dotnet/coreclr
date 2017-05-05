@@ -25,7 +25,7 @@ namespace System.Diagnostics.Tracing
             ref long registrationHandle)
         {
             uint returnStatus = 0;
-            m_provHandle = EventPipeInternal.CreateProvider(providerId, null);
+            m_provHandle = EventPipeInternal.CreateProvider(providerId, enableCallback);
             if(m_provHandle != IntPtr.Zero)
             {
                 // Fixed registration handle because a new EventPipeEventProvider

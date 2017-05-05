@@ -8,6 +8,7 @@
 #ifdef FEATURE_PERFTRACING
 
 #include "crst.h"
+#include "eventpipeprovider.h"
 #include "stackwalk.h"
 
 class EventPipeConfiguration;
@@ -181,7 +182,7 @@ public:
 
     static INT_PTR QCALLTYPE CreateProvider(
         GUID providerID,
-        void *pCallbackFunc);
+        EventPipeCallback pCallbackFunc);
 
     static INT_PTR QCALLTYPE AddEvent(
         INT_PTR provHandle,
