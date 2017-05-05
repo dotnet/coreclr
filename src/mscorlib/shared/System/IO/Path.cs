@@ -76,13 +76,9 @@ namespace System.IO
         // "\\server\share").
         public static string GetDirectoryName(string path)
         {
-            if (path == null)
-            {
-                return null;
-            }
-
             if (string.IsNullOrWhiteSpace(path))
             {
+                if (path == null) return null;
                 throw new ArgumentException(SR.Arg_PathIllegal, nameof(path));
             }
 
