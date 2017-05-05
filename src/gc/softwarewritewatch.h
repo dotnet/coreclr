@@ -11,6 +11,8 @@
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 #ifndef DACCESS_COMPILE
 
+#define WRITE_WATCH_UNIT_SIZE 0x1000
+
 extern "C"
 {
     // Table containing the dirty state. This table is translated to exclude the lowest address it represents, see
@@ -249,7 +251,7 @@ inline void *SoftwareWriteWatch::GetPageAddress(size_t tableByteIndex)
     void *pageAddress = reinterpret_cast<void *>(tableByteIndex << AddressToTableByteIndexShift);
     assert(pageAddress >= GetHeapStartAddress());
     assert(pageAddress < GetHeapEndAddress());
-    assert(ALIGN_DOWN(pageAddress, OS_PAGE_SIZE) == pageAddress);
+    assert(ALIGN_DOWN(pageAddress, WRITE_WATCH_UNIT_SIZE) == pageAddress);
     return pageAddress;
 }
 
