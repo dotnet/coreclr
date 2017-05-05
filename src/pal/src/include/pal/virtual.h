@@ -179,6 +179,9 @@ private:
     static const int32_t MaxExecutableMemorySize = 0x7FFF0000;
     static const int32_t MaxExecutableMemorySizeNearCoreClr = MaxExecutableMemorySize - CoreClrLibrarySize;
 
+    // Start address of the reserved virtual address space
+    void* m_startAddress;
+
     // Next available address in the reserved address space
     void* m_nextFreeAddress;
 

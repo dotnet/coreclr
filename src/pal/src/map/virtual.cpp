@@ -2085,6 +2085,7 @@ Function:
 --*/
 void ExecutableMemoryAllocator::Initialize()
 {
+    m_startAddress = NULL;
     m_nextFreeAddress = NULL;
     m_totalSizeOfReservedMemory = 0;
     m_remainingReservedMemory = 0;
@@ -2143,11 +2144,10 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     }
 
     // Do actual memory reservation.
-    void* startAddress;
     do
     {
-        startAddress = ReserveVirtualMemory(pthrCurrent, (void*)preferredStartAddress, sizeOfAllocation);
-        if (startAddress != nullptr)
+        m_startAddress = ReserveVirtualMemory(pthrCurrent, (void*)preferredStartAddress, sizeOfAllocation);
+        if (m_startAddress != nullptr)
         {
             break;
         }
@@ -2158,7 +2158,7 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
 
     } while (sizeOfAllocation >= MemoryProbingIncrement);
 
-    if (startAddress == nullptr)
+    if (m_startAddress == nullptr)
     {
         // We were not able to reserve any memory near libcoreclr. Try to reserve approximately 2 GB of address space somewhere
         // anyway:
@@ -2176,8 +2176,8 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
         //   - The code heap allocator for the JIT can allocate from this address space. Beyond this reservation, one can use
         //     the COMPlus_CodeHeapReserveForJumpStubs environment variable to reserve space for jump stubs.
         sizeOfAllocation = MaxExecutableMemorySize;
-        startAddress = ReserveVirtualMemory(pthrCurrent, nullptr, sizeOfAllocation);
-        if (startAddress == nullptr)
+        m_startAddress = ReserveVirtualMemory(pthrCurrent, nullptr, sizeOfAllocation);
+        if (m_startAddress == nullptr)
         {
             return;
         }
@@ -2189,10 +2189,10 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     // Randomize the location at which we start allocating from the reserved memory range. Alignment to a 64 KB granularity
     // should not be necessary, but see AllocateMemory() for the reason why it is done.
     int32_t randomOffset = GenerateRandomStartOffset();
-    m_nextFreeAddress = ALIGN_UP((void*)(((UINT_PTR)startAddress) + randomOffset), VIRTUAL_64KB);
-    _ASSERTE(sizeOfAllocation >= (UINT_PTR)m_nextFreeAddress - (UINT_PTR)startAddress);
+    m_nextFreeAddress = ALIGN_UP((void*)(((UINT_PTR)m_startAddress) + randomOffset), VIRTUAL_64KB);
+    _ASSERTE(sizeOfAllocation >= (UINT_PTR)m_nextFreeAddress - (UINT_PTR)m_startAddress);
     m_remainingReservedMemory =
-        ALIGN_DOWN(sizeOfAllocation - ((UINT_PTR)m_nextFreeAddress - (UINT_PTR)startAddress), VIRTUAL_64KB);
+        ALIGN_DOWN(sizeOfAllocation - ((UINT_PTR)m_nextFreeAddress - (UINT_PTR)m_startAddress), VIRTUAL_64KB);
 }
 
 /*++
