@@ -1105,9 +1105,67 @@ void EEPolicy::HandleExitProcess(ShutdownCompleteAction sca)
     HandleExitProcessHelper(action, 0, sca);
 }
 
+StackWalkAction LogCallstackForLogCallback(
+    CrawlFrame       *pCF,      //
+    VOID*             pData     // Caller's private data
+)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        SO_INTOLERANT;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    SmallStackSString *pWordAt = ((SmallStackSString*)pData);
+
+    MethodDesc *pMD = pCF->GetFunction();
+    _ASSERTE(pMD != NULL);
+
+    StackSString str;
+    str = *pWordAt;
+
+    TypeString::AppendMethodInternal(str, pMD, TypeString::FormatNamespace|TypeString::FormatFullInst|TypeString::FormatSignature); 
+    PrintToStdErrW(str.GetUnicode());
+
+    return SWA_CONTINUE;
+}
+
 //---------------------------------------------------------------------------------------
 //
-// Writes a log error message to stderr of an unhandled exception.
+// A woker to save managed stack trace.
+//
+// Arguments:
+//    reporter - EventReporter object for EventLog
+//
+// Return Value:
+//    None
+//
+void LogCallstackForLogWorker()
+{
+    Thread* pThread = GetThread();
+    _ASSERTE (pThread);
+
+    SmallStackSString WordAt;
+
+    if (!WordAt.LoadResource(CCompRC::Optional, IDS_ER_WORDAT))
+    {
+        WordAt.Set(W("   at"));
+    }
+    else
+    {
+        WordAt.Insert(WordAt.Begin(), W("   "));
+    }
+    WordAt += W(" ");
+
+    pThread->StackWalkFrames(&LogCallstackForLogCallback, &WordAt, QUICKUNWIND | FUNCTIONSONLY);
+}
+
+//---------------------------------------------------------------------------------------
+//
+// Generate an EventLog entry for unhandled exception.
 //
 // Arguments:
 //    pExceptionInfo - Exception information
@@ -1115,14 +1173,13 @@ void EEPolicy::HandleExitProcess(ShutdownCompleteAction sca)
 // Return Value:
 //    None
 //
-void DoLogForUnhandledException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+void DoLogForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
 {
     WRAPPER_NO_CONTRACT;
 
+    Thread *pThread = GetThread();
     EX_TRY
     {
-        PrintToStdErrW((WCHAR*)pszMessage);
-
         StackSString s;
         InlineSString<80> ssErrorFormat;
         if(!ssErrorFormat.LoadResource(CCompRC::Optional, IDS_ER_UNHANDLEDEXCEPTIONINFO))
@@ -1131,15 +1188,17 @@ void DoLogForUnhandledException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExcepti
         exceptionCodeString.Printf(W("%x"), pExceptionInfo->ExceptionRecord->ExceptionCode);
         SmallStackSString addressString;
         addressString.Printf(W("%p"), (UINT_PTR)pExceptionInfo->ExceptionRecord->ExceptionAddress);
-        s.FormatMessage(FORMAT_MESSAGE_FROM_STRING, (LPCWSTR)ssErrorFormat, 0, 0, exceptionCodeString, addressString);
-        
-        LPCWSTR stackMsg = s.GetUnicode();        
-        PrintToStdErrW((WCHAR*)stackMsg);
+        s.FormatMessage(FORMAT_MESSAGE_FROM_STRING, (LPCWSTR)ssErrorFormat, 0, 0, exceptionCodeString, addressString);        
+        PrintToStdErrW((WCHAR*)s.GetUnicode());
+        if (pThread)
+        {
+            LogCallstackForLogWorker();
+        }
     }
     EX_CATCH
     {
     }
-    EX_END_CATCH(SwallowAllExceptions);
+    EX_END_CATCH(SwallowAllExceptions)
 }
 
 //
@@ -1157,7 +1216,9 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
     // Log FailFast exception to StdErr
     if (exitCode == (UINT)COR_E_FAILFAST)
     {
-        DoLogForUnhandledException(pszMessage, pExceptionInfo);
+        PrintToStdErrW((WCHAR*)pszMessage);
+        PrintToStdErrA("\n"); // This will result in blank line
+        DoLogForUnhandledException(pExceptionInfo);
     }
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
