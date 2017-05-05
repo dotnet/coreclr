@@ -2231,7 +2231,7 @@ namespace System.Reflection
 
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
 
-            if (!all && s_pca.ContainsKey(caType) == false && !IsSecurityAttribute(caType))
+            if (!all && !s_pca.ContainsKey(caType) && !IsSecurityAttribute(caType))
                 return Array.Empty<Attribute>();
 
             List<Attribute> pcas = new List<Attribute>();
