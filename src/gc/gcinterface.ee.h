@@ -5,39 +5,6 @@
 #ifndef _GCINTERFACE_EE_H_
 #define _GCINTERFACE_EE_H_
 
-enum class SizeTConfigKey
-{
-    SegmentSize
-};
-
-enum class BoolConfigKey
-{
-    ServerGC,
-    ConcurrentGC,
-    GCRetainVM,
-    GCStressMix,
-    GCBreakOnOOMEnabled,
-    GCConservative,
-    GCForceCompact,
-    GCNoAffinitize,
-    AppDomainLeaks,
-};
-
-enum class IntConfigKey
-{
-    HeapVerifyLevel,
-    GCprnLvl,
-    GCtraceFac,
-    LOHCompactionMode,
-    GCStressLevel,
-    GCtraceStart,
-    GCtraceStop,
-    GCHeapCount,
-    FastGCStressLevel,
-    GCStressStep,
-    GCgen0Size
-};
-
 // This interface provides the interface that the GC will use to speak to the rest
 // of the execution engine. Everything that the GC does that requires the EE
 // to be informed or that requires EE action must go through this interface.
@@ -205,13 +172,16 @@ public:
     // pointer is undefined. Otherwise, true is returned and the config key's value is written to
     // the passed-in pointer.
     virtual
-    bool GetBooleanConfigValue(BoolConfigKey key, bool* value) = 0;
+    bool GetBooleanConfigValue(const char* key, bool* value) = 0;
 
     virtual
-    bool GetIntConfigValue(IntConfigKey key, int* value) = 0;
+    bool GetIntConfigValue(const char* key, int64_t* value) = 0;
 
     virtual
-    bool GetSizeTConfigValue(SizeTConfigKey key, size_t* value) = 0;
+    bool GetStringConfigValue(const char* key, const char** value) = 0;
+
+    virtual
+    void FreeStringConfigValue(const char* value) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

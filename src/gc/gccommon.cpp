@@ -162,8 +162,16 @@ InitializeGarbageCollector(
         return false;
     }
 
+#ifdef BUILD_AS_STANDALONE
+    assert(clrToGC != nullptr);
+    g_theGCToCLR = clrToGC;
+#else
+    UNREFERENCED_PARAMETER(clrToGC);
+    assert(clrToGC == nullptr);
+#endif
+
 #ifdef FEATURE_SVR_GC
-    if (GCConfig::UseServerGC())
+    if (GCConfig::GetServerGC())
     {
 #ifdef WRITE_BARRIER_CHECK
         g_GCShadow = 0;
@@ -192,15 +200,6 @@ InitializeGarbageCollector(
     }
 
     g_theGCHeap = heap;
-
-#ifdef BUILD_AS_STANDALONE
-    assert(clrToGC != nullptr);
-    g_theGCToCLR = clrToGC;
-#else
-    UNREFERENCED_PARAMETER(clrToGC);
-    assert(clrToGC == nullptr);
-#endif
-
     *gcHandleManager = handleManager;
     *gcHeap = heap;
     return true;

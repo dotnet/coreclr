@@ -5,16 +5,32 @@
 #include "common.h"
 #include "gc.h"
 
-bool GCConfig::UseServerGC()
-{
-    bool result = false;
-    GCToEEInterface::GetBooleanConfigValue(BoolConfigKey::ServerGC, &result);
-    return result;
-}
+#define BOOL_CONFIG(name, key, default, unused_doc)            \
+  bool GCConfig::Get##name()                                   \
+  {                                                            \
+      bool result = default;                                   \
+      GCToEEInterface::GetBooleanConfigValue(key, &result);    \
+      return result;                                           \
+  }
 
-bool GCConfig::UseConcurrentGC()
-{
-    bool result = true;
-    GCToEEInterface::GetBooleanConfigValue(BoolConfigKey::ConcurrentGC, &result);
-    return result;
-}
+#define INT_CONFIG(name, key, default, unused_doc)             \
+  int64_t GCConfig::Get##name()                                \
+  {                                                            \
+      int64_t result = default;                                \
+      GCToEEInterface::GetIntConfigValue(key, &result);        \
+      return result;                                           \
+  }
+
+#define STRING_CONFIG(name, key, unused_doc)   \
+  GCConfigStringHolder GCConfig::Get##name()                   \
+  {                                                            \
+      const char* resultStr = nullptr;                         \
+      GCToEEInterface::GetStringConfigValue(key, &resultStr);  \
+      return GCConfigStringHolder(resultStr);                  \
+  }
+
+GC_CONFIGURATION_KEYS
+
+#undef BOOL_CONFIG
+#undef INT_CONFIG
+#undef STRING_CONFIG
