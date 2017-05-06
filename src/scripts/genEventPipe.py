@@ -304,6 +304,7 @@ bool ResizeBuffer(char *&buffer, unsigned int& size, unsigned int currLen, unsig
 
 bool WriteToBuffer(const BYTE *src, unsigned int len, char *&buffer, unsigned int& offset, unsigned int& size, bool &fixedBuffer)
 {
+    if(!src) return true;
     if (offset + len > size)
     {
         if (!ResizeBuffer(buffer, size, offset, size + len, fixedBuffer))
@@ -317,6 +318,7 @@ bool WriteToBuffer(const BYTE *src, unsigned int len, char *&buffer, unsigned in
 
 bool WriteToBuffer(PCWSTR str, char *&buffer, unsigned int& offset, unsigned int& size, bool &fixedBuffer)
 {
+    if(!str) return true;
     unsigned int byteCount = (PAL_wcslen(str) + 1) * sizeof(*str);
 
     if (offset + byteCount > size)
@@ -332,6 +334,7 @@ bool WriteToBuffer(PCWSTR str, char *&buffer, unsigned int& offset, unsigned int
 
 bool WriteToBuffer(const char *str, char *&buffer, unsigned int& offset, unsigned int& size, bool &fixedBuffer)
 {
+    if(!str) return true;
     unsigned int len = strlen(str) + 1;
     if (offset + len > size)
     {

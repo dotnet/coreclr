@@ -11,7 +11,6 @@
 #ifdef FEATURE_PERFTRACING
 
 EventPipeProvider::EventPipeProvider(const GUID &providerID, EventPipeCallback pCallbackFunction, void *pCallbackData)
-
 {
     CONTRACTL
     {

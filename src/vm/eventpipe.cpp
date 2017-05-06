@@ -308,8 +308,6 @@ CrstStatic* EventPipe::GetLock()
     return &s_configCrst;
 }
 
-#endif // FEATURE_PERFTRACING
-
 INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
     GUID providerID,
     EventPipeCallback pCallbackFunc)
@@ -372,3 +370,5 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
 
     END_QCALL;
 }
+
+#endif // FEATURE_PERFTRACING
