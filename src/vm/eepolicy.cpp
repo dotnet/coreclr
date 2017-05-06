@@ -1144,7 +1144,7 @@ StackWalkAction LogCallstackForLogCallback(
 // Return Value:
 //    None
 //
-void LogCallstackForLogWorker()
+inline void LogCallstackForLogWorker()
 {
     Thread* pThread = GetThread();
     _ASSERTE (pThread);
