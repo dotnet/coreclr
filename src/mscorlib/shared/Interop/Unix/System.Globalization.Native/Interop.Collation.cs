@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -61,8 +60,6 @@ internal static partial class Interop
 
             protected override bool ReleaseHandle()
             {
-                Debug.Assert(!GlobalizationMode.Invariant);
-
                 CloseSortHandle(handle);
                 SetHandle(IntPtr.Zero);
                 return true;
