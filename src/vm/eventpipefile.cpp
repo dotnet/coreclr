@@ -93,7 +93,7 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
 
         SaveMetadataLabel(*instance.GetEvent(), metadataLabel);
 
-        delete (pMetadataInstance->GetData());
+        delete[] (pMetadataInstance->GetData());
         delete (pMetadataInstance);
     }
 

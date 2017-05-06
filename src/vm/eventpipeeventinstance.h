@@ -25,6 +25,9 @@ public:
     // Get the stack contents object to either read or write to it.
     StackContents* GetStack();
 
+    // Get the timestamp.
+    LARGE_INTEGER GetTimeStamp() const;
+
     // Get a pointer to the data payload.
     BYTE* GetData() const;
 

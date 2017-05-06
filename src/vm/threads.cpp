@@ -2008,6 +2008,10 @@ Thread::Thread()
 #endif
 
     m_pAllLoggedTypes = NULL;
+
+#ifdef FEATURE_PERFTRACING
+    m_pEventPipeBufferList = NULL;
+#endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
 }
 

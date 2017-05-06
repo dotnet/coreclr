@@ -174,18 +174,26 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         return;
     }
 
-    DWORD threadID = GetCurrentThreadId();
+    // Get the current thread;
+    Thread *pThread = GetThread();
+    if(pThread == NULL)
+    {
+        // We can't write an event without the thread object.
+        return;
+    }
 
     // Create an instance of the event.
     EventPipeEventInstance instance(
         event,
-        threadID,
+        pThread->GetOSThreadId(),
         pData,
         length);
 
-    // Write to the EventPipeFile.
-    _ASSERTE(s_pFile != NULL);
-    s_pFile->WriteEvent(instance);
+    // Write to the EventPipeFile if it exists.
+    if(s_pFile != NULL)
+    {
+        s_pFile->WriteEvent(instance);
+    }
 
     // Write to the EventPipeJsonFile if it exists.
     if(s_pJsonFile != NULL)

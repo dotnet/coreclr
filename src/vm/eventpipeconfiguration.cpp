@@ -18,6 +18,8 @@ EventPipeConfiguration::EventPipeConfiguration()
 {
     STANDARD_VM_CONTRACT;
 
+    m_enabled = false;
+    m_circularBufferSizeInBytes = 0;
     m_pProviderList = new SList<SListElem<EventPipeProvider*>>();
 }
 
@@ -169,6 +171,23 @@ EventPipeProvider* EventPipeConfiguration::GetProviderNoLock(const GUID &provide
     return NULL;
 }
 
+size_t EventPipeConfiguration::GetCircularBufferSize() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_circularBufferSizeInBytes;
+}
+
+void EventPipeConfiguration::SetCircularBufferSize(size_t circularBufferSize)
+{
+    LIMITED_METHOD_CONTRACT;
+    
+    if(!m_enabled)
+    {
+        m_circularBufferSizeInBytes = circularBufferSize;
+    }
+}
+
 void EventPipeConfiguration::Enable()
 {
     CONTRACTL
@@ -180,6 +199,8 @@ void EventPipeConfiguration::Enable()
         PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
+
+    m_enabled = true;
 
     SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
     while(pElem != NULL)
@@ -213,6 +234,8 @@ void EventPipeConfiguration::Disable()
 
         pElem = m_pProviderList->GetNext(pElem);
     }
+
+    m_enabled = false;
 }
 
 EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEvent &sourceEvent, BYTE *pPayloadData, unsigned int payloadLength)

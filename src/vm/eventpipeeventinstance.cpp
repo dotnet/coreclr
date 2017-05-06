@@ -50,6 +50,13 @@ EventPipeEvent* EventPipeEventInstance::GetEvent() const
     return m_pEvent;
 }
 
+LARGE_INTEGER EventPipeEventInstance::GetTimeStamp() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_timeStamp;
+}
+
 BYTE* EventPipeEventInstance::GetData() const
 {
     LIMITED_METHOD_CONTRACT;

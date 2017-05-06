@@ -14,6 +14,7 @@ class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeFile;
 class EventPipeJsonFile;
+class EventPipeBuffer;
 class MethodDesc;
 class SampleProfilerEventInstance;
 
@@ -123,6 +124,7 @@ class EventPipe
     friend class EventPipeConfiguration;
     friend class EventPipeFile;
     friend class EventPipeProvider;
+    friend class EventPipeBufferManager;
     friend class SampleProfiler;
 
     public:
