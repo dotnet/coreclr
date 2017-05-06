@@ -1129,13 +1129,14 @@ StackWalkAction LogCallstackForLogCallback(
 
     TypeString::AppendMethodInternal(str, pMD, TypeString::FormatNamespace|TypeString::FormatFullInst|TypeString::FormatSignature); 
     PrintToStdErrW(str.GetUnicode());
+    PrintToStdErrA("\n");
 
     return SWA_CONTINUE;
 }
 
 //---------------------------------------------------------------------------------------
 //
-// A woker to save managed stack trace.
+// A worker to save managed stack trace.
 //
 // Arguments:
 //    reporter - EventReporter object for EventLog
@@ -1173,13 +1174,16 @@ void LogCallstackForLogWorker()
 // Return Value:
 //    None
 //
-void DoLogForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
+void DoLogForUnhandledException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
 {
     WRAPPER_NO_CONTRACT;
 
     Thread *pThread = GetThread();
     EX_TRY
     {
+        PrintToStdErrW((WCHAR*)pszMessage);
+        PrintToStdErrA("\n");
+
         StackSString s;
         InlineSString<80> ssErrorFormat;
         if(!ssErrorFormat.LoadResource(CCompRC::Optional, IDS_ER_UNHANDLEDEXCEPTIONINFO))
@@ -1192,6 +1196,7 @@ void DoLogForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
         PrintToStdErrW((WCHAR*)s.GetUnicode());
         if (pThread)
         {
+            PrintToStdErrA("\n");
             LogCallstackForLogWorker();
         }
     }
@@ -1216,9 +1221,7 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
     // Log FailFast exception to StdErr
     if (exitCode == (UINT)COR_E_FAILFAST)
     {
-        PrintToStdErrW((WCHAR*)pszMessage);
-        PrintToStdErrA("\n"); // This will result in blank line
-        DoLogForUnhandledException(pExceptionInfo);
+        DoLogForUnhandledException(pszMessage, pExceptionInfo);
     }
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
