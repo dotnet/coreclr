@@ -1174,7 +1174,7 @@ void LogCallstackForLogWorker()
 // Return Value:
 //    None
 //
-void DoLogForUnhandledException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+inline void DoLogForUnhandledException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
 {
     WRAPPER_NO_CONTRACT;
 
