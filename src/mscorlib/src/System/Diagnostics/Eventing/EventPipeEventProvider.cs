@@ -7,14 +7,11 @@ using System.Runtime.InteropServices;
 using System.Security;
 using Microsoft.Win32;
 
-#if ES_BUILD_STANDALONE
-namespace Microsoft.Diagnostics.Tracing
-#else
 namespace System.Diagnostics.Tracing
-#endif
 {
     internal sealed class EventPipeEventProvider : IEventProvider
     {
+        // The EventPipeProvider handle.
         private IntPtr m_provHandle = IntPtr.Zero;
 
         // Register an event provider.
@@ -57,14 +54,12 @@ namespace System.Diagnostics.Tracing
             int userDataCount,
             EventProvider.EventData* userData)
         {
-            // TODO
             return 0;
         }
 
         // Get or set the per-thread activity ID.
         int IEventProvider.EventActivityIdControl(UnsafeNativeMethods.ManifestEtw.ActivityControl ControlCode, ref Guid ActivityId)
         {
-            // TODO
             return 0;
         }
     }

@@ -120,9 +120,9 @@ namespace System.Diagnostics.Tracing
         // EventSource has special logic to do this, no one else should be calling EventProvider.  
         internal EventProvider()
         {
-#if !PLATFORM_UNIX
+#if PLATFORM_WINDOWS
             m_eventProvider = new EtwEventProvider();
-#else
+#elif FEATURE_PERFTRACING
             m_eventProvider = new EventPipeEventProvider();
 #endif
         }
@@ -1210,7 +1210,7 @@ namespace System.Diagnostics.Tracing
         }
     }
 
-#if !PLATFORM_UNIX
+#if PLATFORM_WINDOWS
 
     // A wrapper around the ETW-specific API calls.
     internal sealed class EtwEventProvider : IEventProvider

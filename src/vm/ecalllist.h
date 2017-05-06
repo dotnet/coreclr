@@ -1269,14 +1269,16 @@ FCFuncStart(gEventLogger)
     QCFuncElement("IsEventSourceLoggingEnabled", XplatEventSourceLogger::IsEventSourceLoggingEnabled)
     QCFuncElement("LogEventSource", XplatEventSourceLogger::LogEventSource)
 FCFuncEnd()
+#endif // defined(FEATURE_EVENTSOURCE_XPLAT)
 
+#ifdef FEATURE_PERFTRACING
 FCFuncStart(gEventPipeInternalFuncs)
     QCFuncElement("CreateProvider", EventPipeInternal::CreateProvider)
     QCFuncElement("AddEvent", EventPipeInternal::AddEvent)
     QCFuncElement("DeleteProvider", EventPipeInternal::DeleteProvider)
     QCFuncElement("WriteEvent", EventPipeInternal::WriteEvent)
 FCFuncEnd()
-#endif // defined(FEATURE_EVENTSOURCE_XPLAT)
+#endif // FEATURE_PERFTRACING
 
 #ifdef FEATURE_COMINTEROP
 FCFuncStart(gRuntimeClassFuncs)
