@@ -32,13 +32,38 @@ namespace System.Text
         // a chunk of the string.  It turns out string as a whole can also be represented as just a chunk, 
         // so that is what we do.  
 
-        internal char[] m_ChunkChars;                // The characters in this block
-        internal StringBuilder m_ChunkPrevious;      // Link to the block logically before this block
-        internal int m_ChunkLength;                  // The index in m_ChunkChars that represent the end of the block
-        internal int m_ChunkOffset;                  // The logical offset (sum of all characters in previous blocks)
-        internal int m_MaxCapacity = 0;
+        /// <summary>
+        /// The character buffer for this chunk.
+        /// </summary>
+        internal char[] m_ChunkChars;
 
+        /// <summary>
+        /// The chunk that logically precedes this chunk.
+        /// </summary>
+        internal StringBuilder m_ChunkPrevious;
+
+        /// <summary>
+        /// The number of characters in this chunk.
+        /// This is the number of elements in <see cref="m_ChunkChars"/> that are in use, from the start of the buffer.
+        /// </summary>
+        internal int m_ChunkLength;
+
+        /// <summary>
+        /// The logical offset of this chunk's characters in the string it is a part of.
+        /// This is the sum of the number of characters in preceding blocks.
+        /// </summary>
+        internal int m_ChunkOffset;
+
+        /// <summary>
+        /// The maximum capacity this builder is allowed to have.
+        /// </summary>
+        internal int m_MaxCapacity;
+
+        /// <summary>
+        /// The default capacity of a <see cref="StringBuilder"/>.
+        /// </summary>
         internal const int DefaultCapacity = 16;
+
         private const String CapacityField = "Capacity";
         private const String MaxCapacityField = "m_MaxCapacity";
         private const String StringValueField = "m_StringValue";
@@ -304,6 +329,9 @@ namespace System.Text
             }
         }
 
+        /// <summary>
+        /// Gets the maximum capacity this builder is allowed to have.
+        /// </summary>
         public int MaxCapacity => m_MaxCapacity;
 
         /// <summary>
@@ -1561,7 +1589,6 @@ namespace System.Text
                     thisChunkIndex = thisChunk.m_ChunkLength + thisChunkIndex;
                 }
 
-                // TODO: Doc the fields.
                 while (sbChunkIndex < 0)
                 {
                     sbChunk = sbChunk.m_ChunkPrevious;
