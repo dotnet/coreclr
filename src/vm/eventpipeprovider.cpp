@@ -176,7 +176,7 @@ void EventPipeProvider::InvokeCallback()
     }
     CONTRACTL_END;
 
-    if(m_pCallbackFunction != NULL)
+    if(m_pCallbackFunction != NULL && !g_fEEShutDown)
     {
         (*m_pCallbackFunction)(
             &m_providerID,

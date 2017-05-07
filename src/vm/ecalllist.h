@@ -1383,9 +1383,9 @@ FCClassElement("Environment", "System", gEnvironmentFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("EventArgsMarshaler", "System.StubHelpers", gEventArgsMarshalerFuncs)
 #endif // FEATURE_COMINTEROP
-#if defined(FEATURE_EVENTSOURCE_XPLAT)
+#if defined(FEATURE_PERFTRACING)
 FCClassElement("EventPipeInternal", "System.Diagnostics.Tracing", gEventPipeInternalFuncs)
-#endif // FEATURE_EVENTSOURCE_XPLAT
+#endif // FEATURE_PERFTRACING
 FCClassElement("Exception", "System", gExceptionFuncs)
 FCClassElement("FileLoadException", "System.IO", gFileLoadExceptionFuncs)
 FCClassElement("FormatterServices", "System.Runtime.Serialization", gSerializationFuncs)
