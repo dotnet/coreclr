@@ -495,8 +495,7 @@ namespace System.Text
                 if (delta > 0)
                 {
                     // Pad ourselves with null characters.
-                    // TODO: Improve on comment here?
-                    Append('\0', delta); // We could improve on this, but who does this anyway?
+                    Append('\0', delta);
                 }
                 else
                 {
@@ -985,7 +984,7 @@ namespace System.Text
         [CLSCompliant(false)]
         public StringBuilder Append(ulong value) => Append(value.ToString());
 
-        public StringBuilder Append(object value) => value == null ? this : Append(value.ToString());
+        public StringBuilder Append(object value) => (value == null) ? this : Append(value.ToString());
 
         public StringBuilder Append(char[] value)
         {
@@ -1230,7 +1229,7 @@ namespace System.Text
         [CLSCompliant(false)]
         public StringBuilder Insert(int index, ulong value) => Insert(index, value.ToString(), 1);
 
-        public StringBuilder Insert(int index, Object value) => value == null ? this : Insert(index, value.ToString(), 1);
+        public StringBuilder Insert(int index, Object value) => (value == null) ? this : Insert(index, value.ToString(), 1);
 
         public StringBuilder AppendFormat(String format, Object arg0) => AppendFormatHelper(null, format, new ParamsArray(arg0));
 
@@ -1244,7 +1243,7 @@ namespace System.Text
             {
                 // To preserve the original exception behavior, throw an exception about format if both
                 // args and format are null. The actual null check for format is in AppendFormatHelper.
-                string paramName = format == null ? nameof(format) : nameof(args);
+                string paramName = (format == null) ? nameof(format) : nameof(args);
                 throw new ArgumentNullException(paramName);
             }
             Contract.Ensures(Contract.Result<String>() != null);
@@ -1265,7 +1264,7 @@ namespace System.Text
             {
                 // To preserve the original exception behavior, throw an exception about format if both
                 // args and format are null. The actual null check for format is in AppendFormatHelper.
-                string paramName = format == null ? nameof(format) : nameof(args);
+                string paramName = (format == null) ? nameof(format) : nameof(args);
                 throw new ArgumentNullException(paramName);
             }
             Contract.Ensures(Contract.Result<String>() != null);
