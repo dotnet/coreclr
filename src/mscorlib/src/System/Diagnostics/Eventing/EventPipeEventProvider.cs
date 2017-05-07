@@ -6,6 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
 using Microsoft.Win32;
+using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace System.Diagnostics.Tracing
 {
@@ -14,6 +16,11 @@ namespace System.Diagnostics.Tracing
         // The EventPipeProvider handle.
         private IntPtr m_provHandle = IntPtr.Zero;
 
+        // The dictionary of EventPipeEvent handles.
+        // Key: EventID.
+        // Value: EventPipeEvent handle.
+        Dictionary<uint, IntPtr> m_events = new Dictionary<uint, IntPtr>();
+        
         // Register an event provider.
         unsafe uint IEventProvider.EventRegister(
             ref Guid providerId,
@@ -54,6 +61,12 @@ namespace System.Diagnostics.Tracing
             int userDataCount,
             EventProvider.EventData* userData)
         {
+            uint eventID = (uint)eventDescriptor.EventId;
+            if(m_events.Count != 0)
+            {
+                Debug.Assert(m_events.ContainsKey(eventID));
+                EventPipeInternal.WriteEvent(m_events[eventID], userData, (uint)userDataCount);
+            }
             return 0;
         }
 
@@ -61,6 +74,13 @@ namespace System.Diagnostics.Tracing
         int IEventProvider.EventActivityIdControl(UnsafeNativeMethods.ManifestEtw.ActivityControl ControlCode, ref Guid ActivityId)
         {
             return 0;
+        }
+
+        // Register an EventPipeEvent handle to this EventPipeEventProvider.
+        unsafe void IEventProvider.AddEventHandle(Int64 keywords, uint eventID, uint eventVersion, uint level, bool needStack)
+        {
+            IntPtr eventHandle = EventPipeInternal.AddEvent(m_provHandle, keywords, eventID, eventVersion, level, needStack);
+            m_events.Add(eventID, eventHandle);
         }
     }
 
@@ -81,6 +101,6 @@ namespace System.Diagnostics.Tracing
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        internal static extern unsafe void WriteEvent(IntPtr eventHandle, void* data, uint length);
+        internal static extern unsafe void WriteEvent(IntPtr eventHandle, void* data, uint dataCount);
     }
 }

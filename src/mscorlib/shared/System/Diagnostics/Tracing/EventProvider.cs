@@ -54,6 +54,7 @@ namespace System.Diagnostics.Tracing
         // subclasses of EventProvider use when creating efficient (but unsafe) version of
         // EventWrite.   We do make it a nested type because we really don't expect anyone to use 
         // it except subclasses (and then only rarely).  
+        [StructLayout(LayoutKind.Sequential)]
         public struct EventData
         {
             internal unsafe ulong Ptr;
@@ -149,6 +150,14 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentException(Win32Native.GetMessage(unchecked((int)status)));
             }
         }
+
+#if FEATURE_PERFTRACING
+        // Add EventPipeEvent to this EventProvider
+        internal unsafe void AddEventPipeEvent(Int64 keywords, uint eventID, uint eventVersion, uint level, bool needStack)
+        {
+            m_eventProvider.AddEventHandle(keywords, eventID, eventVersion, level, needStack);
+        }
+#endif
 
         //
         // implement Dispose Pattern to early deregister from ETW insted of waiting for 
@@ -1259,6 +1268,12 @@ namespace System.Diagnostics.Tracing
             return UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
                 ControlCode,
                 ref ActivityId);
+        }
+
+        // Register an EventPipeEvent handle to this EventPipeEventProvider.
+        unsafe void IEventProvider.AddEventHandle(Int64 keywords, uint eventID, uint eventVersion, uint level, bool needStack)
+        {
+            throw new System.NotSupportedException();
         }
     }
 

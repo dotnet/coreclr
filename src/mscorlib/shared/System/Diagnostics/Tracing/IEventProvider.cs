@@ -34,5 +34,8 @@ namespace System.Diagnostics.Tracing
 
         // Get or set the per-thread activity ID.
         int EventActivityIdControl(UnsafeNativeMethods.ManifestEtw.ActivityControl ControlCode, ref Guid ActivityId);
+
+        // Register an EventPipeEvent handle to this EventPipeEventProvider.
+        unsafe void AddEventHandle(Int64 keywords, uint eventID, uint eventVersion, uint level, bool needStack);
     }
 }
