@@ -31,6 +31,17 @@ private:
     // Lock to protect access to the per-thread buffer list and total allocation size.
     SpinLock m_lock;
 
+#ifdef _DEBUG
+    // For debugging purposes.
+    unsigned int m_numBuffersAllocated;
+    unsigned int m_numBuffersStolen;
+#endif // _DEBUG
+
+    // Allocate a new buffer for the specified thread.
+    // This function will store the buffer in the thread's buffer list for future use and also return it here.
+    // A NULL return value means that a buffer could not be allocated.
+    EventPipeBuffer* AllocateBufferForThread(Thread *pThread, unsigned int requestSize);
+
     // Add a buffer to the thread buffer list.
     void AddBufferToThreadBufferList(EventPipeBufferList *pThreadBuffers, EventPipeBuffer *pBuffer);
 
@@ -41,11 +52,8 @@ public:
 
     EventPipeBufferManager();
 
-    // Allocate a new buffer for the specified thread.
-    // Returns:
-    //  - true: The buffer allocation succeeded and the buffer can be retrieved from the thread.
-    //  - false: Unable to allocate a new buffer.
-    bool AllocateBufferForThread(Thread *pThread);
+    // Write an event to the input thread's current event buffer.
+    bool WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int length);
 
     // Write the contents of the managed buffers to the specified file.
     void WriteAllBuffersToFile(EventPipeFile *pFile);
@@ -60,6 +68,9 @@ private:
     // Head is the oldest buffer.  Tail is the newest (and currently used) buffer.
     EventPipeBuffer *m_pHeadBuffer;
     EventPipeBuffer *m_pTailBuffer;
+
+    // The number of buffers in the list.
+    unsigned int m_bufferCount;
 
 #ifdef _DEBUG
     // For diagnostics, keep the thread pointer.
@@ -82,6 +93,9 @@ public:
 
     // Remove the head node of the list.
     EventPipeBuffer* GetAndRemoveHead();
+
+    // Get the count of buffers in the list.
+    unsigned int GetCount() const;
 
 #ifdef _DEBUG
     // Get the thread associated with this list.

@@ -15,6 +15,7 @@ class EventPipeEvent;
 class EventPipeFile;
 class EventPipeJsonFile;
 class EventPipeBuffer;
+class EventPipeBufferManager;
 class MethodDesc;
 class SampleProfilerEventInstance;
 
@@ -172,6 +173,7 @@ class EventPipe
         static CrstStatic s_configCrst;
         static bool s_tracingInitialized;
         static EventPipeConfiguration *s_pConfig;
+        static EventPipeBufferManager *s_pBufferManager;
         static EventPipeFile *s_pFile;
         static EventPipeJsonFile *s_pJsonFile;
 };

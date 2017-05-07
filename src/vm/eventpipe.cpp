@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "eventpipe.h"
+#include "eventpipebuffermanager.h"
 #include "eventpipeconfiguration.h"
 #include "eventpipeevent.h"
 #include "eventpipefile.h"
@@ -20,6 +21,7 @@
 CrstStatic EventPipe::s_configCrst;
 bool EventPipe::s_tracingInitialized = false;
 EventPipeConfiguration* EventPipe::s_pConfig = NULL;
+EventPipeBufferManager* EventPipe::s_pBufferManager = NULL;
 EventPipeFile* EventPipe::s_pFile = NULL;
 EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
 
@@ -38,6 +40,8 @@ void EventPipe::Initialize()
 
     s_pConfig = new EventPipeConfiguration();
     s_pConfig->Initialize();
+
+    s_pBufferManager = new EventPipeBufferManager();
 
 #ifdef FEATURE_PAL
     // This calls into auto-generated code to initialize the runtime providers
@@ -74,6 +78,17 @@ void EventPipe::Shutdown()
     CONTRACTL_END;
 
     Disable();
+
+    if(s_pConfig != NULL)
+    {
+        delete(s_pConfig);
+        s_pConfig = NULL;
+    }
+    if(s_pBufferManager != NULL)
+    {
+        delete(s_pBufferManager);
+        s_pBufferManager = NULL;
+    }
 }
 
 void EventPipe::Enable()
@@ -165,6 +180,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(s_pBufferManager != NULL);
     }
     CONTRACTL_END;
 
@@ -182,6 +198,12 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         return;
     }
 
+    // Write the event to the thread's buffer.
+    if(s_pBufferManager != NULL)
+    {
+        s_pBufferManager->WriteEvent(pThread, event, pData, length);
+    }
+
     // Create an instance of the event.
     EventPipeEventInstance instance(
         event,
@@ -189,6 +211,8 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         pData,
         length);
 
+    // TODO: Put synchronous paths under COMPlus variable.
+    // TODO: Create a separate synchronous file for comparison.
     // Write to the EventPipeFile if it exists.
     if(s_pFile != NULL)
     {

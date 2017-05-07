@@ -8,6 +8,7 @@
 #ifdef FEATURE_PERFTRACING
 
 #include "eventpipeevent.h"
+#include "eventpipeeventinstance.h"
 
 class EventPipeBuffer
 {

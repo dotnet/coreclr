@@ -22,9 +22,14 @@ EventPipeBufferManager::EventPipeBufferManager()
     m_pPerThreadBufferList = new SList<SListElem<EventPipeBufferList*>>();
     m_sizeOfAllBuffers = 0;
     m_lock.Init(LOCK_TYPE_DEFAULT);
+
+#ifdef _DEBUG
+    m_numBuffersAllocated = 0;
+    m_numBuffersStolen = 0;
+#endif // _DEBUG
 }
 
-bool EventPipeBufferManager::AllocateBufferForThread(Thread *pThread)
+EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread, unsigned int requestSize)
 {
     CONTRACTL
     {
@@ -32,6 +37,7 @@ bool EventPipeBufferManager::AllocateBufferForThread(Thread *pThread)
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pThread != NULL);
+        PRECONDITION(requestSize > 0);
     }
     CONTRACTL_END;
 
@@ -57,7 +63,7 @@ bool EventPipeBufferManager::AllocateBufferForThread(Thread *pThread)
         EventPipeConfiguration *pConfig = EventPipe::GetConfiguration();
         if(pConfig == NULL)
         {
-            return false;
+            return NULL;
         }
 
         size_t circularBufferSizeInBytes = pConfig->GetCircularBufferSize();
@@ -68,8 +74,6 @@ bool EventPipeBufferManager::AllocateBufferForThread(Thread *pThread)
             allocateNewBuffer = true;
         }
     }
-
-    // TODO: Make sure that the event will fit in the new buffer.  If not, increase it's size.
 
     EventPipeBuffer *pNewBuffer = NULL;
     if(!allocateNewBuffer)
@@ -90,6 +94,11 @@ bool EventPipeBufferManager::AllocateBufferForThread(Thread *pThread)
 
             // Clear the buffer.
             pNewBuffer->Clear();
+
+#ifdef _DEBUG
+            m_numBuffersStolen++;
+#endif // _DEBUG
+
         }
         else
         {
@@ -101,23 +110,36 @@ bool EventPipeBufferManager::AllocateBufferForThread(Thread *pThread)
 
     if(allocateNewBuffer)
     {
-        // TODO: Figure out what size the buffer should be.
-        unsigned int bufferSize = 100 * 1024;  // 100K
+        // Pick a buffer size by multiplying the base buffer size by the number of buffers already allocated for this thread.
+        unsigned int sizeMultiplier = pThreadBufferList->GetCount() + 1;
+        unsigned int baseBufferSize = 100 * 1024; // 100K
+        unsigned int bufferSize = baseBufferSize * sizeMultiplier;
+
+        // Make sure that buffer size >= request size so that the buffer size does not
+        // determine the max event size.
+        if(bufferSize < requestSize)
+        {
+            bufferSize = requestSize;
+        }
+
         pNewBuffer = new EventPipeBuffer(bufferSize);
         m_sizeOfAllBuffers += bufferSize;
+#ifdef _DEBUG
+        m_numBuffersAllocated++;
+#endif // _DEBUG
     }
 
     // Set the buffer on the thread.
     if(pNewBuffer != NULL)
     {
         pThreadBufferList->InsertTail(pNewBuffer);
-        return true;
+        return pNewBuffer;
     }
 
     // TODO: If we steal a buffer from another thread, do we need to alert the file so that it can alert the reader?
     // TODO: Make sure that when we steal a buffer that we re-size as appropriate and don't just hand a big buffer to a thread that doesn't need it.
 
-    return false;
+    return NULL;
 }
 
 EventPipeBufferList* EventPipeBufferManager::FindThreadToStealFrom()
@@ -163,12 +185,68 @@ EventPipeBufferList* EventPipeBufferManager::FindThreadToStealFrom()
     return pOldestContainingList;
 }
 
+bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int length)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        // The input thread must match the current thread because no lock is taken on the buffer.
+        PRECONDITION(pThread == GetThread());
+    }
+    CONTRACTL_END;
+
+    // See if the thread already has a buffer to try.
+    bool allocNewBuffer = false;
+    EventPipeBuffer *pBuffer = NULL;
+    EventPipeBufferList *pThreadBufferList = pThread->GetEventPipeBufferList();
+    if(pThreadBufferList == NULL)
+    {
+        allocNewBuffer = true;
+    }
+    else
+    {
+        // The thread already has a buffer list.  Select the newest buffer and attempt to write into it.
+        pBuffer = pThreadBufferList->GetTail();
+        if(pBuffer == NULL)
+        {
+            // This should never happen.  If the buffer list exists, it must contain at least one entry.
+            _ASSERT(!"Thread buffer list with zero entries encountered.");
+            return false;
+        }
+        else
+        {
+            // Attempt to write the event to the buffer.  If this fails, we should allocate a new buffer.
+            allocNewBuffer = !pBuffer->WriteEvent(pThread, event, pData, length);
+        }
+    }
+
+    // Check to see if we need to allocate a new buffer, and if so, do it here.
+    if(allocNewBuffer)
+    {
+        unsigned int requestSize = sizeof(EventPipeEventInstance) + length;
+        pBuffer = AllocateBufferForThread(pThread, requestSize);
+    }
+
+    // Try to write the event.
+    // This is the first time if the thread had no buffers before the call to this function.
+    // This is the second time if this thread did have one or more buffers, but they were full.
+    if(pBuffer != NULL)
+    {
+        allocNewBuffer = !pBuffer->WriteEvent(pThread, event, pData, length);
+    }
+
+    return !allocNewBuffer;
+}
+
 EventPipeBufferList::EventPipeBufferList()
 {
     LIMITED_METHOD_CONTRACT;
 
     m_pHeadBuffer = NULL;
     m_pTailBuffer = NULL;
+    m_bufferCount = 0;
 
 #ifdef _DEBUG
     m_pCreatingThread = GetThread();
@@ -230,6 +308,8 @@ void EventPipeBufferList::InsertTail(EventPipeBuffer *pBuffer)
         m_pTailBuffer = pBuffer;
     }
 
+    m_bufferCount++;
+
     _ASSERTE(EnsureConsistency());
 }
 
@@ -255,6 +335,18 @@ EventPipeBuffer* EventPipeBufferList::GetAndRemoveHead()
         // Set the new head node.
         m_pHeadBuffer = m_pHeadBuffer->GetNext();
 
+        // Update the head node's previous pointer.
+        if(m_pHeadBuffer != NULL)
+        {
+            m_pHeadBuffer->SetPrevious(NULL);
+        }
+        else
+        {
+            // We just removed the last buffer from the list.
+            // Make sure both head and tail pointers are NULL.
+            m_pTailBuffer = NULL;
+        }
+
         // Clear the next pointer of the old head node.
         pRetBuffer->SetNext(NULL);
 
@@ -262,9 +354,18 @@ EventPipeBuffer* EventPipeBufferList::GetAndRemoveHead()
         _ASSERTE((pRetBuffer->GetNext() == NULL) && (pRetBuffer->GetPrevious() == NULL));
     }
 
+    m_bufferCount--;
+
     _ASSERTE(EnsureConsistency());
 
     return pRetBuffer;
+}
+
+unsigned int EventPipeBufferList::GetCount() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_bufferCount;
 }
 
 #ifdef _DEBUG
@@ -289,31 +390,48 @@ bool EventPipeBufferList::EnsureConsistency()
     // Either the head and tail nodes are both NULL or both are non-NULL.
     _ASSERTE((m_pHeadBuffer == NULL && m_pTailBuffer == NULL) || (m_pHeadBuffer != NULL && m_pTailBuffer != NULL));
 
-    // If the list is NULL, we're done.
+    // If the list is NULL, check the count and return.
     if(m_pHeadBuffer == NULL)
     {
+        _ASSERTE(m_bufferCount == 0);
         return true;
     }
 
     // If the list is non-NULL, walk the list forward until we get to the end.
+    unsigned int nodeCount = (m_pHeadBuffer != NULL) ? 1 : 0;
     EventPipeBuffer *pIter = m_pHeadBuffer;
     while(pIter->GetNext() != NULL)
     {
         pIter = pIter->GetNext();
+        nodeCount++;
+
+        // Check for cycles.
+        _ASSERTE(nodeCount <= m_bufferCount);
     }
 
     // When we're done with the walk, pIter must point to the tail node.
     _ASSERTE(pIter == m_pTailBuffer);
 
+    // Node count must equal the buffer count.
+    _ASSERTE(nodeCount == m_bufferCount);
+
     // Now, walk the list in reverse.
     pIter = m_pTailBuffer;
+    nodeCount = (m_pTailBuffer != NULL) ? 1 : 0;
     while(pIter->GetPrevious() != NULL)
     {
         pIter = pIter->GetPrevious();
+        nodeCount++;
+
+        // Check for cycles.
+        _ASSERTE(nodeCount <= m_bufferCount);
     }
 
     // When we're done with the reverse walk, pIter must point to the head node.
     _ASSERTE(pIter == m_pHeadBuffer);
+
+    // Node count must equal the buffer count.
+    _ASSERTE(nodeCount == m_bufferCount);
 
     // We're done.
     return true;
