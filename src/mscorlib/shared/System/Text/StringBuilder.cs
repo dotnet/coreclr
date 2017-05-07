@@ -251,7 +251,7 @@ namespace System.Text
             persistedString.CopyTo(0, m_ChunkChars, 0, persistedString.Length);
             m_ChunkLength = persistedString.Length;
             m_ChunkPrevious = null;
-            VerifyClassInvariant();
+            AssertInvariants();
         }
 
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
@@ -262,7 +262,7 @@ namespace System.Text
             }
             Contract.EndContractBlock();
 
-            VerifyClassInvariant();
+            AssertInvariants();
             info.AddValue(MaxCapacityField, m_MaxCapacity);
             info.AddValue(CapacityField, Capacity);
             info.AddValue(StringValueField, ToString());
@@ -271,7 +271,7 @@ namespace System.Text
         }
 
         [System.Diagnostics.Conditional("_DEBUG")]
-        private void VerifyClassInvariant()
+        private void AssertInvariants()
         {
             // TODO: This assert looks like it will always succeed bc both sides are being converted to long.
             Debug.Assert((uint)(m_ChunkOffset + m_ChunkChars.Length) >= m_ChunkOffset);
@@ -357,7 +357,7 @@ namespace System.Text
 
         public override String ToString()
         {
-            VerifyClassInvariant();
+            AssertInvariants();
 
             if (Length == 0)
             {
@@ -426,7 +426,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_IndexLength);
             }
 
-            VerifyClassInvariant();
+            AssertInvariants();
 
             StringBuilder chunk = this;
             int sourceEndIndex = startIndex + length;
@@ -543,7 +543,7 @@ namespace System.Text
                         m_ChunkOffset = chunk.m_ChunkOffset;
                     }
                     m_ChunkLength = value - chunk.m_ChunkOffset;
-                    VerifyClassInvariant();
+                    AssertInvariants();
                 }
                 Debug.Assert(Capacity >= originalCapacity);
             }
@@ -642,7 +642,7 @@ namespace System.Text
             }
 
             m_ChunkLength = index;
-            VerifyClassInvariant();
+            AssertInvariants();
             return this;
         }
 
@@ -844,7 +844,7 @@ namespace System.Text
             }
             Contract.EndContractBlock();
 
-            VerifyClassInvariant();
+            AssertInvariants();
 
             StringBuilder chunk = this;
             int sourceEndIndex = sourceIndex + count;
@@ -1693,7 +1693,7 @@ namespace System.Text
                 }
             }
 
-            VerifyClassInvariant();
+            AssertInvariants();
             return this;
         }
 
@@ -1752,7 +1752,7 @@ namespace System.Text
                 chunk = chunk.m_ChunkPrevious;
             }
 
-            VerifyClassInvariant();
+            AssertInvariants();
             return this;
         }
 
@@ -1804,7 +1804,7 @@ namespace System.Text
                 ThreadSafeCopy(value + firstLength, m_ChunkChars, 0, restLength);
                 m_ChunkLength = restLength;
             }
-            VerifyClassInvariant();
+            AssertInvariants();
             return this;
         }
 
@@ -2081,7 +2081,7 @@ namespace System.Text
             Contract.Requires(Capacity == Length, $"{nameof(ExpandByABlock)} should only be called when there is no space left.");
             Contract.Requires(minBlockCharCount > 0);
 
-            VerifyClassInvariant();
+            AssertInvariants();
 
             if ((minBlockCharCount + Length) > m_MaxCapacity || minBlockCharCount + Length < minBlockCharCount)
             {
@@ -2108,7 +2108,7 @@ namespace System.Text
             }
             m_ChunkChars = new char[newBlockLength];
 
-            VerifyClassInvariant();
+            AssertInvariants();
         }
 
         /// <summary>
@@ -2135,7 +2135,7 @@ namespace System.Text
             m_MaxCapacity = from.m_MaxCapacity;
 
             // TODO: Rename to AssertInvariants.
-            VerifyClassInvariant();
+            AssertInvariants();
         }
 
         /// <summary>
@@ -2166,7 +2166,7 @@ namespace System.Text
         /// </remarks>
         private void MakeRoom(int index, int count, out StringBuilder chunk, out int indexInChunk, bool doNotMoveFollowingChars)
         {
-            VerifyClassInvariant();
+            AssertInvariants();
             Debug.Assert(count > 0);
             Debug.Assert(index >= 0);
 
@@ -2230,7 +2230,7 @@ namespace System.Text
                 indexInChunk = copyCount1;
             }
 
-            VerifyClassInvariant();
+            AssertInvariants();
         }
 
         /// <summary>
@@ -2252,7 +2252,7 @@ namespace System.Text
                 m_ChunkOffset = previousBlock.m_ChunkOffset + previousBlock.m_ChunkLength;
             }
 
-            VerifyClassInvariant();
+            AssertInvariants();
         }
 
         /// <summary>
@@ -2266,7 +2266,7 @@ namespace System.Text
         /// </param>
         private void Remove(int startIndex, int count, out StringBuilder chunk, out int indexInChunk)
         {
-            VerifyClassInvariant();
+            AssertInvariants();
             Debug.Assert(startIndex >= 0 && startIndex < Length);
 
             int endIndex = startIndex + count;
@@ -2329,7 +2329,7 @@ namespace System.Text
             }
 
             Debug.Assert(chunk != null, "We fell off the beginning of the string!");
-            VerifyClassInvariant();
+            AssertInvariants();
         }
     }
 }
