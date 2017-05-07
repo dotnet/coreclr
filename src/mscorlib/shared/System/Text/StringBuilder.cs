@@ -273,14 +273,13 @@ namespace System.Text
         [System.Diagnostics.Conditional("_DEBUG")]
         private void AssertInvariants()
         {
-            // TODO: This assert looks like it will always succeed bc both sides are being converted to long.
-            Debug.Assert((uint)(m_ChunkOffset + m_ChunkChars.Length) >= m_ChunkOffset);
+            Debug.Assert(m_ChunkOffset + m_ChunkChars.Length >= m_ChunkOffset, "The length of the string is greater than int.MaxValue.");
 
             StringBuilder currentBlock = this;
             int maxCapacity = this.m_MaxCapacity;
             for (;;)
             {
-                // All blocks have copy of the maxCapacity.
+                // All blocks have the same max capacity.
                 Debug.Assert(currentBlock.m_MaxCapacity == maxCapacity);
                 Debug.Assert(currentBlock.m_ChunkChars != null);
 
@@ -2134,7 +2133,6 @@ namespace System.Text
             m_ChunkPrevious = from.m_ChunkPrevious;
             m_MaxCapacity = from.m_MaxCapacity;
 
-            // TODO: Rename to AssertInvariants.
             AssertInvariants();
         }
 
