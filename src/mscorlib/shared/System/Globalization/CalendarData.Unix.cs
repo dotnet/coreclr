@@ -324,8 +324,9 @@ namespace System.Globalization
 
                 callbackContext.Results.Add(calendarString);
             }
-            catch
+            catch (Exception e)
             {
+                Debug.Assert(false, e.ToString());
                 // we ignore the managed exceptions here because EnumCalendarInfoCallback will get called from the native code.
                 // If we don't ignore the exception here that can cause the runtime to fail fast.
             }
