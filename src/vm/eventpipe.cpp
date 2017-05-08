@@ -33,6 +33,11 @@ EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
 extern "C" void InitProvidersAndEvents();
 #endif
 
+#ifdef FEATURE_PAL
+// This function is auto-generated from /src/scripts/genEventPipe.py
+extern "C" void InitProvidersAndEvents();
+#endif
+
 void EventPipe::Initialize()
 {
     STANDARD_VM_CONTRACT;
@@ -256,7 +261,6 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, Thread *pTarget
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(pThread != NULL);
     }
     CONTRACTL_END;
 

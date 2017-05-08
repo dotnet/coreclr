@@ -7446,7 +7446,17 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 
             var_types storeType = varDsc->lvaArgType();
             regNumber argReg    = varDsc->lvArgReg;
-            getEmitter()->emitIns_S_R(ins_Store(storeType), emitTypeSize(storeType), argReg, varNum, 0);
+
+            instruction store_ins = ins_Store(storeType);
+
+#ifdef FEATURE_SIMD
+            if ((storeType == TYP_SIMD8) && genIsValidIntReg(argReg))
+            {
+                store_ins = INS_mov;
+            }
+#endif // FEATURE_SIMD
+
+            getEmitter()->emitIns_S_R(store_ins, emitTypeSize(storeType), argReg, varNum, 0);
         }
     }
 
@@ -7509,7 +7519,17 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 
         var_types loadType = varDsc->lvaArgType();
         regNumber argReg   = varDsc->lvArgReg;
-        getEmitter()->emitIns_R_S(ins_Load(loadType), emitTypeSize(loadType), argReg, varNum, 0);
+
+        instruction load_ins = ins_Load(loadType);
+
+#ifdef FEATURE_SIMD
+        if ((loadType == TYP_SIMD8) && genIsValidIntReg(argReg))
+        {
+            load_ins = INS_mov;
+        }
+#endif // FEATURE_SIMD
+
+        getEmitter()->emitIns_R_S(load_ins, emitTypeSize(loadType), argReg, varNum, 0);
 
 #if FEATURE_VARARG
         if (compiler->info.compIsVarArgs && varTypeIsFloating(loadType))
