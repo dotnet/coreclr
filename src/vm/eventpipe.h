@@ -115,7 +115,9 @@ public:
         if(m_nextAvailableFrame < MAX_STACK_DEPTH)
         {
             m_stackFrames[m_nextAvailableFrame] = controlPC;
+#ifdef _DEBUG
             m_methods[m_nextAvailableFrame] = pMethod;
+#endif
             m_nextAvailableFrame++;
         }
     }

@@ -39,10 +39,10 @@ public:
     // Serialize this object using FastSerialization.
     void FastSerialize(FastSerializer *pSerializer, StreamLabel metadataLabel);
 
+#ifdef _DEBUG
     // Serialize this event to the JSON file.
     void SerializeToJsonFile(EventPipeJsonFile *pFile);
 
-#ifdef _DEBUG
     bool EnsureConsistency();
 #endif // _DEBUG
 

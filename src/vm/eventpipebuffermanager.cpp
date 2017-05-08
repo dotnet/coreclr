@@ -2,12 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#ifdef FEATURE_PERFTRACING
-
 #include "common.h"
 #include "eventpipeconfiguration.h"
 #include "eventpipebuffer.h"
 #include "eventpipebuffermanager.h"
+
+#ifdef FEATURE_PERFTRACING
 
 EventPipeBufferManager::EventPipeBufferManager()
 {

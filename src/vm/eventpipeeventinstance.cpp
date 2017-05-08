@@ -128,6 +128,7 @@ void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer, StreamLa
     }
 }
 
+#ifdef _DEBUG
 void EventPipeEventInstance::SerializeToJsonFile(EventPipeJsonFile *pFile)
 {
     CONTRACTL
@@ -162,6 +163,7 @@ void EventPipeEventInstance::SerializeToJsonFile(EventPipeJsonFile *pFile)
     }
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }
+#endif
 
 void EventPipeEventInstance::SetTimeStamp(LARGE_INTEGER timeStamp)
 {
