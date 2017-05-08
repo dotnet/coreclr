@@ -53,10 +53,16 @@ public:
     EventPipeBufferManager();
 
     // Write an event to the input thread's current event buffer.
-    bool WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int length);
+    // An optional eventThread can be provided for sample profiler events.
+    // This is because the thread that writes the events is not the same as the "event thread".
+    // An optional stack trace can be provided for sample profiler events.
+    // Otherwise, if a stack trace is needed, one will be automatically collected.
+    bool WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int length, Thread *pEventThread = NULL, StackContents *pStack = NULL);
 
     // Write the contents of the managed buffers to the specified file.
-    void WriteAllBuffersToFile(EventPipeFile *pFile);
+    // The stopTimeStamp is used to determine when tracing was stopped to ensure that we
+    // skip any events that might be partially written due to races when tracing is stopped.
+    void WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp);
 };
 
 // Represents a list of buffers associated with a specific thread.

@@ -45,6 +45,16 @@ public:
         Reset();
     }
 
+    void CopyTo(StackContents *pDest)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(pDest != NULL);
+
+        memcpy(pDest->m_stackFrames, m_stackFrames, sizeof(m_stackFrames));
+        memcpy(pDest->m_methods, m_methods, sizeof(m_methods));
+        pDest->m_nextAvailableFrame = m_nextAvailableFrame;
+    }
+
     void Reset()
     {
         LIMITED_METHOD_CONTRACT;
@@ -150,7 +160,7 @@ class EventPipe
         static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length);
 
         // Write out a sample profile event.
-        static void WriteSampleProfileEvent(SampleProfilerEventInstance &instance);
+        static void WriteSampleProfileEvent(Thread *pSamplingThread, Thread *pTargetThread, StackContents &stackContents);
         
         // Get the managed call stack for the current thread.
         static bool WalkManagedStackForCurrentThread(StackContents &stackContents);
@@ -175,6 +185,9 @@ class EventPipe
         static EventPipeConfiguration *s_pConfig;
         static EventPipeBufferManager *s_pBufferManager;
         static EventPipeFile *s_pFile;
+#ifdef _DEBUG
+        static EventPipeFile *s_pSyncFile;
+#endif // _DEBUG
         static EventPipeJsonFile *s_pJsonFile;
 };
 

@@ -40,7 +40,15 @@ public:
     // Serialize this event to the JSON file.
     void SerializeToJsonFile(EventPipeJsonFile *pFile);
 
+#ifdef _DEBUG
+    bool EnsureConsistency();
+#endif // _DEBUG
+
 protected:
+
+#ifdef _DEBUG
+    unsigned int m_debugEventStart;
+#endif // _DEBUG
 
     EventPipeEvent *m_pEvent;
     DWORD m_threadID;
@@ -49,6 +57,10 @@ protected:
     BYTE *m_pData;
     unsigned int m_dataLength;
     StackContents m_stackContents;
+
+#ifdef _DEBUG
+    unsigned int m_debugEventEnd;
+#endif // _DEBUG
 };
 
 // A specific type of event instance for use by the SampleProfiler.

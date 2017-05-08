@@ -185,7 +185,7 @@ EventPipeBufferList* EventPipeBufferManager::FindThreadToStealFrom()
     return pOldestContainingList;
 }
 
-bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int length)
+bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int length, Thread *pEventThread, StackContents *pStack)
 {
     CONTRACTL
     {
@@ -196,6 +196,14 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
         PRECONDITION(pThread == GetThread());
     }
     CONTRACTL_END;
+
+    _ASSERTE(pThread == GetThread());
+
+    // Check to see an event thread was specified.  If not, then use the current thread.
+    if(pEventThread == NULL)
+    {
+        pEventThread = pThread;
+    }
 
     // See if the thread already has a buffer to try.
     bool allocNewBuffer = false;
@@ -208,6 +216,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
     else
     {
         // The thread already has a buffer list.  Select the newest buffer and attempt to write into it.
+        // TODO: Should we remove this indirection and just give the thread a direct pointer?
         pBuffer = pThreadBufferList->GetTail();
         if(pBuffer == NULL)
         {
@@ -218,7 +227,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
         else
         {
             // Attempt to write the event to the buffer.  If this fails, we should allocate a new buffer.
-            allocNewBuffer = !pBuffer->WriteEvent(pThread, event, pData, length);
+            allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pData, length, pStack);
         }
     }
 
@@ -229,15 +238,57 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
         pBuffer = AllocateBufferForThread(pThread, requestSize);
     }
 
-    // Try to write the event.
+    // Try to write the event after we allocated (or stole) a buffer.
     // This is the first time if the thread had no buffers before the call to this function.
     // This is the second time if this thread did have one or more buffers, but they were full.
-    if(pBuffer != NULL)
+    if(allocNewBuffer && pBuffer != NULL)
     {
-        allocNewBuffer = !pBuffer->WriteEvent(pThread, event, pData, length);
+        allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pData, length, pStack);
     }
 
     return !allocNewBuffer;
+}
+
+void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(pFile != NULL);
+    }
+    CONTRACTL_END;
+
+    // TODO: Will need to implement merge sort for proper ordering.
+    SListElem<EventPipeBufferList*> *pElem = m_pPerThreadBufferList->GetHead();
+    while(pElem != NULL)
+    {
+        EventPipeBufferList *pBufferList = pElem->GetValue();
+
+        // Iterate through each of the buffers in the list.
+        EventPipeBuffer *pBuffer = pBufferList->GetHead();
+        while(pBuffer != NULL)
+        {
+            // Iterate though each of the events in the buffer.
+            EventPipeEventInstance *pInstance = pBuffer->GetNext(NULL, stopTimeStamp);
+            while(pInstance != NULL)
+            {
+                _ASSERTE(pInstance->EnsureConsistency());
+                _ASSERTE(pInstance->GetEvent() != NULL);
+
+                // Write the event.
+                pFile->WriteEvent(*pInstance);
+
+                // Get the next event.
+                pInstance = pBuffer->GetNext(pInstance, stopTimeStamp);
+            }
+            // Get the next buffer.
+            pBuffer = pBuffer->GetNext();
+        }
+
+        pElem = m_pPerThreadBufferList->GetNext(pElem);
+    } 
 }
 
 EventPipeBufferList::EventPipeBufferList()

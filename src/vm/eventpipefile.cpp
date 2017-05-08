@@ -9,22 +9,6 @@
 
 #ifdef FEATURE_PERFTRACING
 
-#ifdef _DEBUG
-        // This constructor causes EventPipeFile to put events into an EventPipeBuffer before flushing them.
-        // This is used to test EventPipeBuffer and to be able to compare the output file to a directly written file.
-EventPipeFile::EventPipeFile(SString &outputFilePath, bool useEventPipeBuffer)
-    : EventPipeFile(outputFilePath)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if(useEventPipeBuffer)
-    {
-        unsigned int bufferSize = 1024 * 1024 * 10; // 10 MB
-        m_pBuffer = new EventPipeBuffer(bufferSize);
-    }
-}
-#endif // _DEBUG
-
 EventPipeFile::EventPipeFile(SString &outputFilePath)
 {
     CONTRACTL
@@ -83,15 +67,6 @@ EventPipeFile::~EventPipeFile()
         delete(m_pSerializer);
         m_pSerializer = NULL;
     }
-
-#ifdef _DEBUG
-    // Free the buffer.
-    if(m_pBuffer != NULL)
-    {
-        delete(m_pBuffer);
-        m_pBuffer = NULL;
-    }
-#endif // _DEBUG
 }
 
 void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
@@ -106,9 +81,6 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
 
     // Take the serialization lock.
     SpinLockHolder _slh(&m_serializationLock);
-
-    // TODO: Fill the buffer.
-    // TODO: Add a boolean so that we can know when the buffer is full or we're shutting down, and do the actual write.
 
     // Check to see if we've seen this event type before.
     // If not, then write the event metadata to the event stream first.

@@ -44,7 +44,7 @@ EventPipeBuffer::~EventPipeBuffer()
     }
 }
 
-bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int dataLength)
+bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int dataLength, StackContents *pStack)
 {
     CONTRACTL
     {
@@ -70,17 +70,29 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *p
     bool success = true;
     EX_TRY
     {
-        // Write the event payload data to the buffer.
-        memcpy(pDataDest, pData, dataLength);
-
         // Placement-new the EventPipeEventInstance.
         EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
             event,
             pThread->GetOSThreadId(),
-            pData,
+            pDataDest,
             dataLength);
 
+        // Copy the stack if a separate stack trace was provided.
+        if(pStack != NULL)
+        {
+            StackContents *pInstanceStack = pInstance->GetStack();
+            pStack->CopyTo(pInstanceStack);
+        }
+
+        // Write the event payload data to the buffer.
+        if(dataLength > 0)
+        {
+            memcpy(pDataDest, pData, dataLength);
+        }
+
+        // Save the most recent event timestamp.
         m_mostRecentTimeStamp = pInstance->GetTimeStamp();
+
     }
     EX_CATCH
     {
@@ -120,9 +132,7 @@ void EventPipeBuffer::Clear()
     m_mostRecentTimeStamp.QuadPart = 0;
 }
 
-// TODO: We need to know the timestamp that we stop tracing to ensure that we don't read an event that might be
-// partially written after tracing stops.
-EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent)
+EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent, LARGE_INTEGER beforeTimeStamp)
 {
     CONTRACTL
     {
@@ -132,29 +142,98 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent)
     }
     CONTRACTL_END;
 
+    EventPipeEventInstance *pNextInstance = NULL;
     // If input is NULL, return the first event if there is one.
     if(pEvent == NULL)
     {
-        // If this buffer contains an event, return it.
-        // Otherwise, return NULL.
+        // If this buffer contains an event, select it.
         if(m_pCurrent > m_pBuffer)
         {
-            return (EventPipeEventInstance*)m_pBuffer;
+            pNextInstance = (EventPipeEventInstance*)m_pBuffer;
         }
-        return NULL;
+    }
+    else
+    {
+        // Confirm that pEvent is within the used range of the buffer.
+        if(((BYTE*)pEvent < m_pBuffer) || ((BYTE*)pEvent >= m_pCurrent))
+        {
+            return NULL;
+        }
+
+        // We have a pointer within the bounds of the buffer.
+        // Find the next event by skipping the current event with it's data payload immediately after the instance.
+        // If there is no data payload, then just skip the event instance.
+        if(pEvent->GetData() != NULL)
+        {
+            pNextInstance = (EventPipeEventInstance *)(pEvent->GetData() + pEvent->GetLength());
+        }
+        else
+        {
+            pNextInstance = pEvent + 1;
+        }
     }
 
-    // Confirm that pEvent is within the range of the buffer.
-    if(((BYTE*)pEvent < m_pBuffer) || ((BYTE*)pEvent >= m_pLimit))
+    // Ensure that the timestamp is valid.  The buffer is zero'd before use, so a zero timestamp is invalid.
+    LARGE_INTEGER nextTimeStamp = pNextInstance->GetTimeStamp();
+    if(nextTimeStamp.QuadPart == 0)
     {
         return NULL;
     }
 
-    // We have a pointer within the bounds of the buffer.
-    // Find the next event by skipping the current event with it's data payload immediately after the instance.
-    EventPipeEventInstance *pNextInstance = (EventPipeEventInstance *)(pEvent->GetData() + pEvent->GetLength());
+    // Ensure that the timestamp is earlier than the beforeTimeStamp.
+    if(nextTimeStamp.QuadPart >= beforeTimeStamp.QuadPart)
+    {
+        return NULL;
+    }
 
     return pNextInstance;
 }
+
+#ifdef _DEBUG
+bool EventPipeBuffer::EnsureConsistency()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Check to see if the buffer is empty.
+    if(m_pBuffer == m_pCurrent)
+    {
+        // Make sure that the buffer size is greater than zero.
+        _ASSERTE(m_pBuffer != m_pLimit);
+    }
+
+    // Validate the contents of the filled portion of the buffer.
+    BYTE *ptr = m_pBuffer;
+    while(ptr < m_pCurrent)
+    {
+        // Validate the event.
+        EventPipeEventInstance *pInstance = (EventPipeEventInstance*)ptr;
+        _ASSERTE(pInstance->EnsureConsistency());
+
+        // Validate that payload and length match.
+        _ASSERTE((pInstance->GetData() != NULL && pInstance->GetLength() > 0) || (pInstance->GetData() != NULL && pInstance->GetLength() == 0));
+
+        // Skip the event.
+        ptr += sizeof(*pInstance) + pInstance->GetLength();
+    }
+
+    // When we're done walking the filled portion of the buffer,
+    // ptr should be the same as m_pCurrent.
+    _ASSERTE(ptr == m_pCurrent);
+
+    // Walk the rest of the buffer, making sure it is properly zeroed.
+    while(ptr < m_pLimit)
+    {
+        _ASSERTE(*ptr++ == 0);
+    }
+
+    return true;
+}
+#endif // _DEBUG
 
 #endif // FEATURE_PERFTRACING

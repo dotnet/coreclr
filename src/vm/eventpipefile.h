@@ -16,11 +16,7 @@
 class EventPipeFile : public FastSerializableObject
 {
     public:
-#ifdef _DEBUG
-        // This constructor causes EventPipeFile to put events into an EventPipeBuffer before flushing them.
-        // This is used to test EventPipeBuffer and to be able to compare the output file to a directly written file.
-        EventPipeFile(SString &outputFilePath, bool useEventPipeBuffer);
-#endif // _DEBUG
+
         EventPipeFile(SString &outputFilePath);
         ~EventPipeFile();
 
@@ -73,11 +69,6 @@ class EventPipeFile : public FastSerializableObject
 
         // Hashtable of metadata labels.
         MapSHashWithRemove<EventPipeEvent*, StreamLabel> *m_pMetadataLabels;
-
-#ifdef _DEBUG
-        // A test-mode buffer that can be used to test the buffer functionality.
-        EventPipeBuffer *m_pBuffer;
-#endif // _DEBUG
 };
 
 #endif // FEATURE_PERFTRACING

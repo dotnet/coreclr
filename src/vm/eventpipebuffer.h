@@ -65,10 +65,12 @@ public:
     ~EventPipeBuffer();
 
     // Write an event to the buffer.
+    // An optional stack trace can be provided for sample profiler events.
+    // Otherwise, if a stack trace is needed, one will be automatically collected.
     // Returns:
     //  - true: The write succeeded.
     //  - false: The write failed.  In this case, the buffer should be considered full.
-    bool WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int dataLength);
+    bool WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int dataLength, StackContents *pStack = NULL);
 
     // Get the timestamp of the most recent event in the buffer.
     LARGE_INTEGER GetMostRecentTimeStamp() const;
@@ -76,8 +78,13 @@ public:
     // Clear the buffer.
     void Clear();
 
-    // Get the next event from the buffer.  Input of NULL gets the first event.
-    EventPipeEventInstance* GetNext(EventPipeEventInstance *pEvent);
+    // Get the next event from the buffer as long as it is before the specified timestamp.
+    // Input of NULL gets the first event.
+    EventPipeEventInstance* GetNext(EventPipeEventInstance *pEvent, LARGE_INTEGER beforeTimeStamp);
+
+#ifdef _DEBUG
+    bool EnsureConsistency();
+#endif // _DEBUG
 };
 
 #endif // FEATURE_PERFTRACING
