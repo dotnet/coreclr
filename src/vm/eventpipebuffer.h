@@ -40,6 +40,12 @@ private:
     EventPipeBuffer *m_pPrevBuffer;
     EventPipeBuffer *m_pNextBuffer;
 
+    unsigned int GetSize() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return (unsigned int)(m_pLimit - m_pBuffer);
+    }
+
     EventPipeBuffer* GetPrevious() const
     {
         LIMITED_METHOD_CONTRACT;

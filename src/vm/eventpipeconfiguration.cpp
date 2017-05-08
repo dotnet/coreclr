@@ -19,7 +19,7 @@ EventPipeConfiguration::EventPipeConfiguration()
     STANDARD_VM_CONTRACT;
 
     m_enabled = false;
-    m_circularBufferSizeInBytes = 1024 * 1024 * 1000; // 1000MB
+    m_circularBufferSizeInBytes = 1024 * 1024 * 10; // 10MB
     m_pProviderList = new SList<SListElem<EventPipeProvider*>>();
 }
 

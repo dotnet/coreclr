@@ -92,8 +92,14 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread
             // Remove the oldest buffer from the list.
             pNewBuffer = pListToStealFrom->GetAndRemoveHead();
 
-            // Clear the buffer.
-            pNewBuffer->Clear();
+            // De-allocate the buffer.  We do this because buffers are variable sized
+            // based on how much volume is coming from the thread.
+            m_sizeOfAllBuffers -= pNewBuffer->GetSize();
+            delete(pNewBuffer);
+            pNewBuffer = NULL;
+
+            // Set that we want to allocate a new buffer.
+            allocateNewBuffer = true;
 
 #ifdef _DEBUG
             m_numBuffersStolen++;
@@ -112,7 +118,14 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread
     {
         // Pick a buffer size by multiplying the base buffer size by the number of buffers already allocated for this thread.
         unsigned int sizeMultiplier = pThreadBufferList->GetCount() + 1;
-        unsigned int baseBufferSize = 100 * 1024; // 100K
+
+        // Pick the base buffer size based.  Debug builds have a smaller size to stress the allocate/steal path more.
+        unsigned int baseBufferSize =
+#ifdef _DEBUG
+            5 * 1024; // 5K
+#else
+            100 * 1024; // 100K
+#endif
         unsigned int bufferSize = baseBufferSize * sizeMultiplier;
 
         // Make sure that buffer size >= request size so that the buffer size does not
