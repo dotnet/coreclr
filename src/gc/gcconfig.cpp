@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
+#include "gcenv.h"
 #include "gc.h"
 
 #define BOOL_CONFIG(name, key, default, unused_doc)            \

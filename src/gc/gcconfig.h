@@ -59,14 +59,35 @@ public:
 #define GC_CONFIGURATION_KEYS \
   BOOL_CONFIG(ServerGC,     "gcServer",     false, "Whether we should be using Server GC")     \
   BOOL_CONFIG(ConcurrentGC, "gcConcurrent", true,  "Whether we should be using Concurrent GC") \
+  BOOL_CONFIG(ConservativeGC, "gcConservative", false, "Enables/Disables conservative GC")     \
+  BOOL_CONFIG(ForceCompact, "gcForceCompact", false,                                           \
+      "When set to true, always do compacting GC")                                             \
   BOOL_CONFIG(RetainVM,     "GCRetainVM",   false,                                             \
       "When set we put the segments that should be deleted on a standby list (instead of "     \
       "releasing them back to the OS) which will be considered to satisfy new segment requests"\
      " (note that the same thing can be specified via API which is the supported way)")        \
   BOOL_CONFIG(StressMix,    "GCStressMix",  false,                                             \
       "Specifies whether the GC mix mode is enabled or not")                                   \
+  BOOL_CONFIG(BreakOnOOM,   "GCBreakOnOOM", false,                                             \
+      "Does a DebugBreak at the soonest time we detect an OOM")                                \
+  BOOL_CONFIG(NoAffinitize, "GCNoAffinitize", false,                                           \
+      "If set, do not affinitize server GC threads")                                           \
+  BOOL_CONFIG(AppDomainLeaks, "AppDomainAgilityChecked", false, "unused")                      \
   INT_CONFIG(HeapVerifyLevel, "HeapVerify", HEAPVERIFY_NONE,                                   \
       "When set verifies the integrity of the managed heap on entry and exit of each GC")      \
+  INT_CONFIG(GCtraceStart,  "GCtraceStart", 0, "unused")                                       \
+  INT_CONFIG(GCtraceEnd,    "GCtraceEnd",   0, "unused")                                       \
+  INT_CONFIG(GCtraceFac,    "GCtraceFac",   0, "unused")                                       \
+  INT_CONFIG(GCprnLvl,      "GCprnLvl",     0, "unused")                                       \
+  INT_CONFIG(LOHCompactionMode, "GCLOHCompact", 0, "Specifies the LOH compaction mode")        \
+  INT_CONFIG(BGCSpinCount,  "BGCSpinCount", 140, "Specifies the bgc spin count")               \
+  INT_CONFIG(BGCSpin,       "BGCSpin",      2,   "Specifies the bgc spin time")                \
+  INT_CONFIG(HeapCount,     "GCHeapCount",  0,   "Specifies the number of server GC heaps")    \
+  INT_CONFIG(Gen0Size,      "GCgen0size",   0, "Specifies the smallest gen0 size")             \
+  INT_CONFIG(SegmentSize,   "GCSegmentSize", 0, "Specifies the managed heap segment size")     \
+  INT_CONFIG(LatencyMode,   "GCLatencyMode", 0,                                                \
+      "Specifies the GC latency mode - batch, interactive or low latency (note that the same " \
+      "thing can be specified via API which is the supported way")                             \
   STRING_CONFIG(LogFile,    "GCLogFile",    "Specifies the name of the GC log file")
 
 // This class is responsible for retreiving configuration information

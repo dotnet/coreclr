@@ -286,6 +286,26 @@ bool GCToEEInterface::EagerFinalized(Object* obj)
     return false;
 }
 
+bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
+{
+    return false;
+}
+
+bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
+{
+    return false;
+}
+
+bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
+{
+    return false;
+}
+
+void GCToEEInterface::FreeStringConfigValue(const char *value)
+{
+
+}
+
 MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
 {
     return g_pFreeObjectMethodTable;
