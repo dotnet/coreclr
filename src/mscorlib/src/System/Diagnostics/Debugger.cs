@@ -17,6 +17,9 @@ namespace System.Diagnostics
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Break() => BreakInternal();
 
+        // The VM depends on this private method.
+        private static void BreakCanThrow() => BreakInternal();
+
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void BreakInternal();
 
