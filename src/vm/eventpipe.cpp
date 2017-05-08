@@ -25,8 +25,8 @@ EventPipeBufferManager* EventPipe::s_pBufferManager = NULL;
 EventPipeFile* EventPipe::s_pFile = NULL;
 #ifdef _DEBUG
 EventPipeFile* EventPipe::s_pSyncFile = NULL;
-#endif // _DEBUG
 EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
+#endif // _DEBUG
 
 #ifdef FEATURE_PAL
 // This function is auto-generated from /src/scripts/genEventPipe.py
@@ -118,18 +118,19 @@ void EventPipe::Enable()
     s_pFile = new EventPipeFile(eventPipeFileOutputPath);
 
 #ifdef _DEBUG
-    SString eventPipeSyncFileOutputPath;
-    eventPipeSyncFileOutputPath.Printf("Process-%d.sync.netperf", GetCurrentProcessId());
-    s_pSyncFile = new EventPipeFile(eventPipeSyncFileOutputPath);
-#endif // _DEBUG
-
     if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) == 2)
     {
-        // File placed in current working directory.
+        // Create a synchronous file.
+        SString eventPipeSyncFileOutputPath;
+        eventPipeSyncFileOutputPath.Printf("Process-%d.sync.netperf", GetCurrentProcessId());
+        s_pSyncFile = new EventPipeFile(eventPipeSyncFileOutputPath);
+
+        // Create a JSON file.
         SString outputFilePath;
         outputFilePath.Printf("Process-%d.PerfView.json", GetCurrentProcessId());
         s_pJsonFile = new EventPipeJsonFile(outputFilePath);
     }
+#endif // _DEBUG
 
     // Enable tracing.
     s_pConfig->Enable();
@@ -168,12 +169,6 @@ void EventPipe::Disable()
     QueryPerformanceCounter(&disableTimeStamp);
     s_pBufferManager->WriteAllBuffersToFile(s_pFile, disableTimeStamp);
 
-    if(s_pJsonFile != NULL)
-    {
-        delete(s_pJsonFile);
-        s_pJsonFile = NULL;
-    }
-
     if(s_pFile != NULL)
     {
         delete(s_pFile);
@@ -185,6 +180,12 @@ void EventPipe::Disable()
     {
         delete(s_pSyncFile);
         s_pSyncFile = NULL;
+    }
+
+    if(s_pJsonFile != NULL)
+    {
+        delete(s_pJsonFile);
+        s_pJsonFile = NULL;
     }
 #endif // _DEBUG
 
@@ -226,27 +227,26 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         s_pBufferManager->WriteEvent(pThread, event, pData, length);
     }
 
-    // Create an instance of the event.
+#ifdef _DEBUG
+    // Create an instance of the event for the synchronous path.
     EventPipeEventInstance instance(
         event,
         pThread->GetOSThreadId(),
         pData,
         length);
 
-#ifdef _DEBUG
-    // TODO: Put synchronous paths under COMPlus variable.
     // Write to the EventPipeFile if it exists.
     if(s_pSyncFile != NULL)
     {
         s_pSyncFile->WriteEvent(instance);
     }
-#endif // _DEBUG
  
     // Write to the EventPipeJsonFile if it exists.
     if(s_pJsonFile != NULL)
     {
         s_pJsonFile->WriteEvent(instance);
     }
+#endif // _DEBUG
 }
 
 void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, Thread *pTargetThread, StackContents &stackContents)
@@ -268,24 +268,23 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, Thread *pTarget
         s_pBufferManager->WriteEvent(pSamplingThread, *SampleProfiler::s_pThreadTimeEvent, NULL, 0, pTargetThread, &stackContents);
     }
 
-    // TODO: Put synchronous paths under COMPlus variable.
+#ifdef _DEBUG
     // Create an instance for the synchronous path.
     SampleProfilerEventInstance instance(pTargetThread);
     stackContents.CopyTo(instance.GetStack());
 
-#ifdef _DEBUG
     // Write to the EventPipeFile.
     if(s_pSyncFile != NULL)
     {
         s_pSyncFile->WriteEvent(instance);
     }
-#endif // _DEBUG
 
     // Write to the EventPipeJsonFile if it exists.
     if(s_pJsonFile != NULL)
     {
         s_pJsonFile->WriteEvent(instance);
     }
+#endif // _DEBUG
 }
 
 bool EventPipe::WalkManagedStackForCurrentThread(StackContents &stackContents)

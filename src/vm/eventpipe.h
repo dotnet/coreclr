@@ -29,9 +29,11 @@ private:
     // Top of stack is at index 0.
     UINT_PTR m_stackFrames[MAX_STACK_DEPTH];
 
+#ifdef _DEBUG
     // Parallel array of MethodDesc pointers.
     // Used for debug-only stack printing.
     MethodDesc* m_methods[MAX_STACK_DEPTH];
+#endif // _DEBUG
 
     // The next available slot in StackFrames.
     unsigned int m_nextAvailableFrame;
@@ -50,8 +52,10 @@ public:
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(pDest != NULL);
 
-        memcpy(pDest->m_stackFrames, m_stackFrames, sizeof(m_stackFrames));
-        memcpy(pDest->m_methods, m_methods, sizeof(m_methods));
+        memcpy(pDest->m_stackFrames, m_stackFrames, sizeof(UINT_PTR) * m_nextAvailableFrame);
+#ifdef _DEBUG
+        memcpy(pDest->m_methods, m_methods, sizeof(MethodDesc*) * m_nextAvailableFrame);
+#endif
         pDest->m_nextAvailableFrame = m_nextAvailableFrame;
     }
 
@@ -89,6 +93,7 @@ public:
         return m_stackFrames[frameIndex];
     }
 
+#ifdef _DEBUG
     MethodDesc* GetMethod(unsigned int frameIndex)
     {
         LIMITED_METHOD_CONTRACT;
@@ -101,6 +106,7 @@ public:
 
         return m_methods[frameIndex];
     }
+#endif // _DEBUG
 
     void Append(UINT_PTR controlPC, MethodDesc *pMethod)
     {
@@ -187,8 +193,8 @@ class EventPipe
         static EventPipeFile *s_pFile;
 #ifdef _DEBUG
         static EventPipeFile *s_pSyncFile;
-#endif // _DEBUG
         static EventPipeJsonFile *s_pJsonFile;
+#endif // _DEBUG
 };
 
 #endif // FEATURE_PERFTRACING

@@ -149,9 +149,6 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread
         return pNewBuffer;
     }
 
-    // TODO: If we steal a buffer from another thread, do we need to alert the file so that it can alert the reader?
-    // TODO: Make sure that when we steal a buffer that we re-size as appropriate and don't just hand a big buffer to a thread that doesn't need it.
-
     return NULL;
 }
 
@@ -162,7 +159,7 @@ EventPipeBufferList* EventPipeBufferManager::FindThreadToStealFrom()
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        // TODO: Assert that we are holding the lock.
+        PRECONDITION(m_lock.OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -229,7 +226,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
     else
     {
         // The thread already has a buffer list.  Select the newest buffer and attempt to write into it.
-        // TODO: Should we remove this indirection and just give the thread a direct pointer?
         pBuffer = pThreadBufferList->GetTail();
         if(pBuffer == NULL)
         {
@@ -272,38 +268,6 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
         PRECONDITION(pFile != NULL);
     }
     CONTRACTL_END;
-
-#if 0
-    // TODO: Will need to implement merge sort for proper ordering.
-    SListElem<EventPipeBufferList*> *pElem = m_pPerThreadBufferList->GetHead();
-    while(pElem != NULL)
-    {
-        EventPipeBufferList *pBufferList = pElem->GetValue();
-
-        // Iterate through each of the buffers in the list.
-        EventPipeBuffer *pBuffer = pBufferList->GetHead();
-        while(pBuffer != NULL)
-        {
-            // Iterate though each of the events in the buffer.
-            EventPipeEventInstance *pInstance = pBuffer->GetNext(NULL, stopTimeStamp);
-            while(pInstance != NULL)
-            {
-                _ASSERTE(pInstance->EnsureConsistency());
-                _ASSERTE(pInstance->GetEvent() != NULL);
-
-                // Write the event.
-                pFile->WriteEvent(*pInstance);
-
-                // Get the next event.
-                pInstance = pBuffer->GetNext(pInstance, stopTimeStamp);
-            }
-            // Get the next buffer.
-            pBuffer = pBuffer->GetNext();
-        }
-
-        pElem = m_pPerThreadBufferList->GetNext(pElem);
-    }
-#endif
 
     // TODO: Better version of merge sort.
     // 1. Iterate through all of the threads, adding each buffer to a temporary list.
@@ -378,7 +342,10 @@ EventPipeBufferList::~EventPipeBufferList()
 {
     LIMITED_METHOD_CONTRACT;
 
-    // TODO: Should we free all of the buffers here?
+    // Explicitly don't free buffers here.
+    // Individual buffers will be freed upon writing of the trace.
+    // If the trace gets written at shutdown, leave the buffers in-place
+    // and let the OS reclaim the memory.
 }
 
 EventPipeBuffer* EventPipeBufferList::GetHead()
@@ -403,7 +370,6 @@ void EventPipeBufferList::InsertTail(EventPipeBuffer *pBuffer)
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pBuffer != NULL);
-        // TODO: Assert that we are holding the lock.
     }
     CONTRACTL_END;
 
@@ -439,7 +405,6 @@ EventPipeBuffer* EventPipeBufferList::GetAndRemoveHead()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        // TODO: Assert that we are holding the lock.
     }
     CONTRACTL_END;
 
@@ -494,7 +459,6 @@ EventPipeEventInstance* EventPipeBufferList::PeekNextEvent(LARGE_INTEGER beforeT
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        // TODO: Assert that we are holding the lock.
     }
     CONTRACTL_END;
 
@@ -542,7 +506,6 @@ EventPipeEventInstance* EventPipeBufferList::PopNextEvent(LARGE_INTEGER beforeTi
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        // TODO: Assert that we are holding the lock.
     }
     CONTRACTL_END;
 
@@ -575,7 +538,6 @@ bool EventPipeBufferList::EnsureConsistency()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        // TODO: Assert that we are holding the lock.
     }
     CONTRACTL_END;
 
