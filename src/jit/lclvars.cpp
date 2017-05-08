@@ -1554,6 +1554,8 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
 
             if (pFieldInfo->fldSize == 0)
             {
+                // Non-primitive struct field.
+
                 // Size of TYP_BLK, TYP_FUNC, TYP_VOID and TYP_STRUCT is zero.
                 // Early out if field type is other than TYP_STRUCT.
                 // This is a defensive check as we don't expect a struct to have
@@ -1563,9 +1565,16 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
                     return;
                 }
 
-                // Non-primitive struct field.
-                // Try to promote structs of single field of scalar types aligned at their
-                // natural boundary.
+                // Try to promote byref-like structs with a single field of scalar type that is aligned at its
+                // type's natural boundary.
+
+                // Do not promote if the single field is not byref-like.
+                const DWORD fieldFlags       = info.compCompHnd->getClassAttribs(pFieldInfo->fldTypeHnd);
+                const bool  fieldIsByRefLike = (fieldFlags & CORINFO_FLG_CONTAINS_STACK_PTR) != 0;
+                if (!fieldIsByRefLike)
+                {
+                    return;
+                }
 
                 // Do Not promote if the struct field in turn has more than one field.
                 if (info.compCompHnd->getClassNumInstanceFields(pFieldInfo->fldTypeHnd) != 1)
