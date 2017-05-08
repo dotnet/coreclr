@@ -3005,6 +3005,11 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
             }
         }
 
+        if (lclField != nullptr)
+        {
+            codeGen->genUpdateLife(lclField);
+        }
+
         if (tmpDsc != nullptr)
         {
             emitComp->tmpRlsTemp(tmpDsc);
