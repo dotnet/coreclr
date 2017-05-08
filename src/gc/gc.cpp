@@ -21,7 +21,6 @@
 
 #define USE_INTROSORT
 
-
 #if defined(BACKGROUND_GC) && defined(FEATURE_EVENT_TRACE)
 BOOL bgc_heap_walk_for_etw_p = FALSE;
 #endif //BACKGROUND_GC && FEATURE_EVENT_TRACE
@@ -180,7 +179,7 @@ size_t GetHighPrecisionTimeStamp()
 GCStatistics g_GCStatistics;
 GCStatistics g_LastGCStatistics;
 
-TCHAR* GCStatistics::logFileName = NULL;
+char* GCStatistics::logFileName = NULL;
 FILE*  GCStatistics::logFile = NULL;
 
 void GCStatistics::AddGCStats(const gc_mechanisms& settings, size_t timeInMSec)
@@ -9798,28 +9797,20 @@ void gc_heap::adjust_ephemeral_limits ()
 }
 
 #if defined(TRACE_GC) || defined(GC_CONFIG_DRIVEN)
-FILE* CreateLogFile(const CLRConfig::ConfigStringInfo & info, BOOL is_config)
+FILE* CreateLogFile(const GCConfigStringHolder& temp_logfile_name, bool is_config)
 {
     FILE* logFile;
-    TCHAR * temp_logfile_name = NULL;
-    CLRConfig::GetConfigValue(info, &temp_logfile_name);
 
-    TCHAR logfile_name[MAX_LONGPATH+1];
-    if (temp_logfile_name != 0)
+    if (!temp_logfile_name.Get())
     {
-        _tcscpy(logfile_name, temp_logfile_name);
+        return nullptr;
     }
 
-    size_t logfile_name_len = _tcslen(logfile_name);
-    TCHAR* szPid = logfile_name + logfile_name_len;
-    size_t remaining_space = MAX_LONGPATH + 1 - logfile_name_len;
-
-    _stprintf_s(szPid, remaining_space, _T(".%d%s"), GCToOSInterface::GetCurrentProcessId(), (is_config ? _T(".config.log") : _T(".log")));
-
-    logFile = _tfopen(logfile_name, _T("wb"));
-
-    delete temp_logfile_name;
-
+    char logfile_name[MAX_LONGPATH+1];
+    uint32_t pid = GCToOSInterface::GetCurrentProcessId();
+    const char* suffix = is_config ? ".config.log" : ".log";
+    snprintf(logfile_name, MAX_LONGPATH+1, "%s.%d%s", temp_logfile_name.Get(), pid, suffix);
+    logFile = fopen(logfile_name, "wb");
     return logFile;
 }
 #endif //TRACE_GC || GC_CONFIG_DRIVEN
@@ -9832,18 +9823,17 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
 )
 {
 #ifdef TRACE_GC
-    int log_last_gcs = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCLogEnabled);
-    if (log_last_gcs)
+    if (GCConfig::GetLogEnabled())
     {
-        gc_log = CreateLogFile(CLRConfig::UNSUPPORTED_GCLogFile, FALSE);
+        gc_log = CreateLogFile(GCConfig::GetLogFile(), false);
 
         if (gc_log == NULL)
             return E_FAIL;
 
         // GCLogFileSize in MBs.
-        gc_log_file_size = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCLogFileSize);
+        gc_log_file_size = GCConfig::GetLogFileSize();
 
-        if (gc_log_file_size > 500)
+        if (gc_log_file_size <= 0 || gc_log_file_size > 500)
         {
             fclose (gc_log);
             return E_FAIL;
@@ -9864,10 +9854,9 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
 #endif // TRACE_GC
 
 #ifdef GC_CONFIG_DRIVEN
-    gc_config_log_on = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCConfigLogEnabled);
-    if (gc_config_log_on)
+    if (GCConfig::GetConfigLogEnabled())
     {
-        gc_config_log = CreateLogFile(CLRConfig::UNSUPPORTED_GCConfigLogFile, TRUE);
+        gc_config_log = CreateLogFile(GCConfig::GetConfigLogFile(), true);
 
         if (gc_config_log == NULL)
             return E_FAIL;
@@ -9879,7 +9868,7 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
             return E_FAIL;
         }
 
-        compact_ratio = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCCompactRatio);
+        compact_ratio = static_cast<int>(GCConfig::GetCompactRatio());
 
         //         h#  | GC  | gen | C   | EX   | NF  | BF  | ML  | DM  || PreS | PostS | Merge | Conv | Pre | Post | PrPo | PreP | PostP | 
         cprintf (("%2s | %6s | %1s | %1s | %2s | %2s | %2s | %2s | %2s || %5s | %5s | %5s | %5s | %5s | %5s | %5s | %5s | %5s |",
@@ -9906,10 +9895,15 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
 #endif //GC_CONFIG_DRIVEN
 
 #ifdef GC_STATS
-    GCStatistics::logFileName = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCMixLog);
-    if (GCStatistics::logFileName != NULL)
+    GCConfigStringHolder logFileName = GCConfig::GetMixLogFile();
+    if (logFileName.Get() != nullptr)
     {
-        GCStatistics::logFile = _tfopen(GCStatistics::logFileName, _T("a"));
+        GCStatistics::logFileName = _strdup(logFileName.Get());
+        GCStatistics::logFile = fopen(GCStatistics::logFileName, "a");
+        if (!GCStatistics::logFile)
+        {
+            return E_FAIL;
+        }
     }
 #endif // GC_STATS
 
@@ -11932,7 +11926,7 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
 #ifdef VERIFY_HEAP
     // since we filled in 0xcc for free object when we verify heap,
     // we need to make sure we clear those bytes.
-    if (GCToEEInterface::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+    if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
     {
         if (size_to_clear < saved_size_to_clear)
         {
@@ -32988,7 +32982,7 @@ gc_heap::verify_free_lists ()
 void
 gc_heap::verify_heap (BOOL begin_gc_p)
 {
-    int             heap_verify_level = GCConfig::GetHeapVerifyLevel();
+    int             heap_verify_level = static_cast<int>(GCConfig::GetHeapVerifyLevel());
     size_t          last_valid_brick = 0;
     BOOL            bCurrentBrickInvalid = FALSE;
     BOOL            large_brick_p = TRUE;
@@ -33640,7 +33634,7 @@ HRESULT GCHeap::Initialize ()
     if (GCConfig::GetNoAffinitize())
         gc_heap::gc_thread_no_affinitize_p = true;
 
-    uint32_t nhp_from_config = GCConfig::GetHeapCount();
+    uint32_t nhp_from_config = static_cast<uint32_t>(GCConfig::GetHeapCount());
     // GetGCProcessCpuCount only returns up to 64 procs.
     uint32_t nhp_from_process = CPUGroupInfo::CanEnableGCCPUGroups() ?
                                 CPUGroupInfo::GetNumActiveProcessors():
@@ -34217,7 +34211,7 @@ bool GCHeap::StressHeap(gc_alloc_context * context)
                     str->SetStringLength (strLen);
 
 #if CHECK_APP_DOMAIN_LEAKS
-                    if (GCConfig::AppDomainLeaks() && str->SetAppDomainNoThrow())
+                    if (GCConfig::GetAppDomainLeaks() && str->SetAppDomainNoThrow())
                     {
 #endif
                         HndAssignHandle(m_StressObjs[i], ObjectToOBJECTREF(str));

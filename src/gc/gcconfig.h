@@ -73,6 +73,10 @@ public:
   BOOL_CONFIG(NoAffinitize, "GCNoAffinitize", false,                                           \
       "If set, do not affinitize server GC threads")                                           \
   BOOL_CONFIG(AppDomainLeaks, "AppDomainAgilityChecked", false, "unused")                      \
+  BOOL_CONFIG(LogEnabled,   "GCLogEnabled", false,                                             \
+      "Specifies if you want to turn on logging in GC")                                        \
+  BOOL_CONFIG(ConfigLogEnabled, "GCConfigLogEnabled", false,                                   \
+      "Specifies the name of the GC config log file")                                          \
   INT_CONFIG(HeapVerifyLevel, "HeapVerify", HEAPVERIFY_NONE,                                   \
       "When set verifies the integrity of the managed heap on entry and exit of each GC")      \
   INT_CONFIG(GCtraceStart,  "GCtraceStart", 0, "unused")                                       \
@@ -88,7 +92,14 @@ public:
   INT_CONFIG(LatencyMode,   "GCLatencyMode", 0,                                                \
       "Specifies the GC latency mode - batch, interactive or low latency (note that the same " \
       "thing can be specified via API which is the supported way")                             \
-  STRING_CONFIG(LogFile,    "GCLogFile",    "Specifies the name of the GC log file")
+  INT_CONFIG(LogFileSize,   "GCLogFileSize", 0, "Specifies the GC log file size")              \
+  INT_CONFIG(CompactRatio,  "GCCompactRatio", 0,                                               \
+      "Specifies the ratio compacting GCs vs sweeping")                                        \
+  STRING_CONFIG(LogFile,    "GCLogFile",    "Specifies the name of the GC log file")           \
+  STRING_CONFIG(ConfigLogFile, "GCConfigLogFile",                                              \
+      "Specifies the name of the GC config log file")                                          \
+  STRING_CONFIG(MixLogFile, "GCMixLog",                                                        \
+      "Specifies the name of the log file for GC mix statistics")
 
 // This class is responsible for retreiving configuration information
 // for how the GC should operate.

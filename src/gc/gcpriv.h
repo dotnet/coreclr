@@ -604,7 +604,7 @@ struct GCStatistics
     : public StatisticsBase
 {
     // initialized to the contents of COMPlus_GcMixLog, or NULL, if not present
-    static TCHAR* logFileName;
+    static char* logFileName;
     static FILE*  logFile;
 
     // number of times we executed a background GC, a foreground GC, or a
