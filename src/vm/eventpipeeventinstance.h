@@ -14,6 +14,8 @@
 
 class EventPipeEventInstance
 {
+    // Declare friends.
+    friend EventPipeConfiguration;
 
 public:
 
@@ -61,6 +63,13 @@ protected:
 #ifdef _DEBUG
     unsigned int m_debugEventEnd;
 #endif // _DEBUG
+
+private:
+
+    // This is used for metadata events by EventPipeConfiguration because
+    // the metadata event is created after the first instance of the event
+    // but must be inserted into the file before the first instance of the event.
+    void SetTimeStamp(LARGE_INTEGER timeStamp);
 };
 
 // A specific type of event instance for use by the SampleProfiler.

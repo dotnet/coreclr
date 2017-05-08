@@ -30,6 +30,11 @@ private:
     // The timestamp of the most recent event in the buffer.
     LARGE_INTEGER m_mostRecentTimeStamp;
 
+    // Used by PopNext as input to GetNext.
+    // If NULL, no events have been popped.
+    // The event will still remain in the buffer after it is popped, but PopNext will not return it again.
+    EventPipeEventInstance *m_pLastPoppedEvent;
+
     // Each buffer will become part of a per-thread linked list of buffers.
     // The linked list is invasive, thus we declare the pointers here.
     EventPipeBuffer *m_pPrevBuffer;
@@ -81,6 +86,12 @@ public:
     // Get the next event from the buffer as long as it is before the specified timestamp.
     // Input of NULL gets the first event.
     EventPipeEventInstance* GetNext(EventPipeEventInstance *pEvent, LARGE_INTEGER beforeTimeStamp);
+
+    // Get the next event from the buffer, but don't mark it read.
+    EventPipeEventInstance* PeekNext(LARGE_INTEGER beforeTimeStamp);
+
+    // Get the next event from the buffer and mark it as read.
+    EventPipeEventInstance* PopNext(LARGE_INTEGER beforeTimeStamp);
 
 #ifdef _DEBUG
     bool EnsureConsistency();

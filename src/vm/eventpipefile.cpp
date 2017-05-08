@@ -87,7 +87,7 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     StreamLabel metadataLabel = GetMetadataLabel(*instance.GetEvent());
     if(metadataLabel == 0)
     {
-        EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(*instance.GetEvent());
+        EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance);
 
         metadataLabel = m_pSerializer->GetStreamLabel();
         pMetadataInstance->FastSerialize(m_pSerializer, (StreamLabel)0); // 0 breaks recursion and represents the metadata event.

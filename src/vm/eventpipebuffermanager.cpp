@@ -260,6 +260,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
     }
     CONTRACTL_END;
 
+#if 0
     // TODO: Will need to implement merge sort for proper ordering.
     SListElem<EventPipeBufferList*> *pElem = m_pPerThreadBufferList->GetHead();
     while(pElem != NULL)
@@ -288,7 +289,60 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
         }
 
         pElem = m_pPerThreadBufferList->GetNext(pElem);
-    } 
+    }
+#endif
+
+    // TODO: Better version of merge sort.
+    // 1. Iterate through all of the threads, adding each buffer to a temporary list.
+    // 2. While iterating, get the lowest most recent timestamp.  This is the timestamp that we want to process up to.
+    // 3. Process up to the lowest most recent timestamp for the set of buffers.
+    // 4. When we get NULLs from each of the buffers on PopNext(), we're done.
+    // 5. While iterating if PopNext() == NULL && Empty() == NULL, remove the buffer from the list.  It's empty.
+    // 6. While iterating, grab the next lowest most recent timestamp.
+    // 7. Walk through the list again and look for any buffers that have a lower most recent timestamp than the next most recent timestamp.
+    // 8. If we find one, add it to the list and select its most recent timestamp as the lowest.
+    // 9. Process again (go to 3).
+    // 10. Continue until there are no more buffers to process.
+
+    // Niavely walk the circular buffer, writing the event stream in timestamp order.
+    while(true)
+    {
+        EventPipeEventInstance *pOldestInstance = NULL;
+        EventPipeBuffer *pOldestContainingBuffer = NULL;
+        SListElem<EventPipeBufferList*> *pElem = m_pPerThreadBufferList->GetHead();
+        while(pElem != NULL)
+        {
+            EventPipeBufferList *pBufferList = pElem->GetValue();
+
+            // Peek the next event out of the list.
+            EventPipeBuffer *pContainingBuffer = NULL;
+            EventPipeEventInstance *pNext = pBufferList->PeekNextEvent(stopTimeStamp, &pContainingBuffer);
+            if(pNext != NULL)
+            {
+                // If it's the oldest event we've seen, then save it.
+                if((pOldestInstance == NULL) ||
+                   (pOldestInstance->GetTimeStamp().QuadPart > pNext->GetTimeStamp().QuadPart)) 
+                {
+                    pOldestInstance = pNext;
+                    pOldestContainingBuffer = pContainingBuffer;
+                }
+            }
+
+            pElem = m_pPerThreadBufferList->GetNext(pElem);
+        }
+
+        if(pOldestInstance == NULL)
+        {
+            // We're done.  There are no more events.
+            break;
+        }
+
+        // Write the oldest event.
+        pFile->WriteEvent(*pOldestInstance);
+
+        // Pop the event from the buffer.
+        pOldestContainingBuffer->PopNext(stopTimeStamp);
+    }
 }
 
 EventPipeBufferList::EventPipeBufferList()
@@ -298,6 +352,7 @@ EventPipeBufferList::EventPipeBufferList()
     m_pHeadBuffer = NULL;
     m_pTailBuffer = NULL;
     m_bufferCount = 0;
+    m_pReadBuffer = NULL;
 
 #ifdef _DEBUG
     m_pCreatingThread = GetThread();
@@ -417,6 +472,79 @@ unsigned int EventPipeBufferList::GetCount() const
     LIMITED_METHOD_CONTRACT;
 
     return m_bufferCount;
+}
+
+EventPipeEventInstance* EventPipeBufferList::PeekNextEvent(LARGE_INTEGER beforeTimeStamp, EventPipeBuffer **pContainingBuffer)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        // TODO: Assert that we are holding the lock.
+    }
+    CONTRACTL_END;
+
+    // Get the current read buffer.
+    // If it's not set, start with the head buffer.
+    if(m_pReadBuffer == NULL)
+    {
+        m_pReadBuffer = m_pHeadBuffer;
+    }
+
+    // If the read buffer is still NULL, then this list contains no buffers.
+    if(m_pReadBuffer == NULL)
+    {
+        return NULL;
+    }
+
+    // Get the next event in the buffer.
+    EventPipeEventInstance *pNext = m_pReadBuffer->PeekNext(beforeTimeStamp);
+
+    // If the next event is NULL, then go to the next buffer.
+    if(pNext == NULL)
+    {
+        m_pReadBuffer = m_pReadBuffer->GetNext();
+        if(m_pReadBuffer != NULL)
+        {
+            pNext = m_pReadBuffer->PeekNext(beforeTimeStamp);
+        }
+    }
+
+    // Set the containing buffer.
+    if(pNext != NULL && pContainingBuffer != NULL)
+    {
+        *pContainingBuffer = m_pReadBuffer;
+    }
+
+    // Make sure pContainingBuffer is properly set.
+    _ASSERTE((pNext == NULL) || (pNext != NULL && pContainingBuffer == NULL) || (pNext != NULL && *pContainingBuffer == m_pReadBuffer));
+    return pNext;
+}
+
+EventPipeEventInstance* EventPipeBufferList::PopNextEvent(LARGE_INTEGER beforeTimeStamp)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        // TODO: Assert that we are holding the lock.
+    }
+    CONTRACTL_END;
+
+    // Get the next event.
+    EventPipeBuffer *pContainingBuffer = NULL;
+    EventPipeEventInstance *pNext = PeekNextEvent(beforeTimeStamp, &pContainingBuffer);
+
+    // If the event is non-NULL, pop it.
+    if(pNext != NULL && pContainingBuffer != NULL)
+    {
+        pContainingBuffer->PopNext(beforeTimeStamp);
+    }
+
+    return pNext;
+
 }
 
 #ifdef _DEBUG

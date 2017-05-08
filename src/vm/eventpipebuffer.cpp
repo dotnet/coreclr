@@ -24,6 +24,7 @@ EventPipeBuffer::EventPipeBuffer(unsigned int bufferSize)
     m_pLimit = m_pBuffer + bufferSize;
 
     m_mostRecentTimeStamp.QuadPart = 0;
+    m_pLastPoppedEvent = NULL;
     m_pPrevBuffer = NULL;
     m_pNextBuffer = NULL;
 }
@@ -130,6 +131,7 @@ void EventPipeBuffer::Clear()
     memset(m_pBuffer, 0, (size_t)(m_pLimit - m_pBuffer));
     m_pCurrent = m_pBuffer;
     m_mostRecentTimeStamp.QuadPart = 0;
+    m_pLastPoppedEvent = NULL;
 }
 
 EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent, LARGE_INTEGER beforeTimeStamp)
@@ -187,6 +189,40 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent,
     }
 
     return pNextInstance;
+}
+
+EventPipeEventInstance* EventPipeBuffer::PeekNext(LARGE_INTEGER beforeTimeStamp)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Get the next event using the last popped event as a marker.
+    return GetNext(m_pLastPoppedEvent, beforeTimeStamp);
+}
+
+EventPipeEventInstance* EventPipeBuffer::PopNext(LARGE_INTEGER beforeTimeStamp)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Get the next event using the last popped event as a marker.
+    EventPipeEventInstance *pNext = PeekNext(beforeTimeStamp);
+    if(pNext != NULL)
+    {
+        m_pLastPoppedEvent = pNext;
+    }
+
+    return pNext;
 }
 
 #ifdef _DEBUG

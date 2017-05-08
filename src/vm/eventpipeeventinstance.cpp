@@ -163,6 +163,13 @@ void EventPipeEventInstance::SerializeToJsonFile(EventPipeJsonFile *pFile)
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }
 
+void EventPipeEventInstance::SetTimeStamp(LARGE_INTEGER timeStamp)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    m_timeStamp = timeStamp;
+}
+
 #ifdef _DEBUG
 bool EventPipeEventInstance::EnsureConsistency()
 {

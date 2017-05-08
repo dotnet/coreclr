@@ -78,6 +78,9 @@ private:
     // The number of buffers in the list.
     unsigned int m_bufferCount;
 
+    // The current read buffer (used when processing events on tracing stop).
+    EventPipeBuffer *m_pReadBuffer;
+
 #ifdef _DEBUG
     // For diagnostics, keep the thread pointer.
     Thread *m_pCreatingThread;
@@ -102,6 +105,12 @@ public:
 
     // Get the count of buffers in the list.
     unsigned int GetCount() const;
+
+    // Get the next event as long as it is before the specified timestamp.
+    EventPipeEventInstance* PeekNextEvent(LARGE_INTEGER beforeTimeStamp, EventPipeBuffer **pContainingBuffer);
+
+    // Get the next event as long as it is before the specified timestamp, and also mark it as read.
+    EventPipeEventInstance* PopNextEvent(LARGE_INTEGER beforeTimeStamp);
 
 #ifdef _DEBUG
     // Get the thread associated with this list.

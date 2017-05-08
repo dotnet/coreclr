@@ -238,7 +238,7 @@ void EventPipeConfiguration::Disable()
     m_enabled = false;
 }
 
-EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEvent &sourceEvent, BYTE *pPayloadData, unsigned int payloadLength)
+EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, BYTE *pPayloadData, unsigned int payloadLength)
 {
     CONTRACTL
     {
@@ -255,6 +255,7 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     // - Optional event description payload.
 
     // Calculate the size of the event.
+    EventPipeEvent &sourceEvent = *sourceInstance.GetEvent();
     const GUID &providerID = sourceEvent.GetProvider()->GetProviderID();
     unsigned int eventID = sourceEvent.GetEventID();
     unsigned int eventVersion = sourceEvent.GetEventVersion();
@@ -287,6 +288,10 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
         GetCurrentThreadId(),
         pInstancePayload,
         instancePayloadSize);
+
+    // Set the timestamp to match the source event, because the metadata event
+    // will be emitted right before the source event.
+    pInstance->SetTimeStamp(sourceInstance.GetTimeStamp());
 
     return pInstance;
 }
