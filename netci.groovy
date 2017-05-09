@@ -2220,13 +2220,18 @@ combinedScenarios.each { scenario ->
                         testBuildScenario = 'default'
                     }
                     def inputWindowTestsBuildName = ''
+                    def inputWindowsTestBuildArch = architecture
+                    if (architecture == "arm64") {
+                        // Use the x64 test build for arm64 unix
+                        inputWindowsTestBuildArch = "x64"
+                    }
                     if (Constants.jitStressModeScenarios.containsKey(testBuildScenario)) {
                         inputWindowTestsBuildName = projectFolder + '/' +
-                            Utilities.getFullJobName(project, getJobName(configuration, architecture, 'windows_nt', 'default', true), isPR)
+                            Utilities.getFullJobName(project, getJobName(configuration, inputWindowsTestBuildArch, 'windows_nt', 'default', true), isPR)
                     }
                     else {
                         inputWindowTestsBuildName = projectFolder + '/' +
-                            Utilities.getFullJobName(project, getJobName(configuration, architecture, 'windows_nt', testBuildScenario, true), isPR)
+                            Utilities.getFullJobName(project, getJobName(configuration, inputWindowsTestBuildArch, 'windows_nt', testBuildScenario, true), isPR)
                     }
                     // Enable Server GC for Ubuntu PR builds
                     def serverGCString = ''
