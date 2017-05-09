@@ -985,9 +985,9 @@ struct DECLSPEC_ALIGN(4) UMEntryThunkCode
     WORD        m_code[4];
 
     TADDR       m_pTargetCode;
-    TADDR       m_pvSecretParam;
+    TADDR       m_pvContextParam;
 
-    void Encode(BYTE* pTargetCode, void* pvSecretParam);
+    void Encode(BYTE* pTargetCode, void* pvContextParam);
 
     LPCBYTE GetEntryPoint() const
     {

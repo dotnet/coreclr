@@ -963,7 +963,7 @@ GenericComCallStub_Frame        SETA SIZEOF__FloatArgumentRegisters + GenericCom
 ;   r0          : dwStackSlots, count of argument stack slots to copy
 ;   r1          : pFrame, ComMethodFrame pushed by GenericComCallStub above
 ;   r2          : pTarget, address of code to call
-;   r3          : pSecretArg, hidden argument passed to target above in r12
+;   r3          : pContextArg, hidden argument passed to target above in r12
 ;   [sp, #0]    : pDangerousThis, managed 'this' reference
 ;
 ; On exit:

@@ -2502,13 +2502,13 @@ class UMEntryThunk * UMEntryThunk::Decode(void *pCallback)
         (pCode->m_code[2] == 0xf8df) &&
         (pCode->m_code[3] == 0xf000))
     {
-        return (UMEntryThunk*)pCode->m_pvSecretParam;
+        return (UMEntryThunk*)pCode->m_pvContextParam;
     }
 
     return NULL;
 }
 
-void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
+void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvContextParam)
 {
     // ldr r12, [pc + 8]
     m_code[0] = 0xf8df;
@@ -2518,7 +2518,7 @@ void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
     m_code[3] = 0xf000;
 
     m_pTargetCode = (TADDR)pTargetCode;
-    m_pvSecretParam = (TADDR)pvSecretParam;
+    m_pvContextParam = (TADDR)pvContextParam;
 
     FlushInstructionCache(GetCurrentProcess(),&m_code,sizeof(m_code));
 }

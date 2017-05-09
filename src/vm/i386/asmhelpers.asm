@@ -1458,14 +1458,14 @@ ifdef FEATURE_COMINTEROP
 ;==========================================================================
 ; This is a fast alternative to CallDescr* tailored specifically for
 ; COM to CLR calls. Stack arguments don't come in a continuous buffer
-; and secret argument can be passed in EAX.
+; and the context argument can be passed in EAX.
 ; 
 
 ; extern "C" ARG_SLOT __fastcall COMToCLRDispatchHelper(
 ;     INT_PTR dwArgECX,                 ; ecx
 ;     INT_PTR dwArgEDX,                 ; edx
 ;     PCODE   pTarget,                  ; [esp + 4]
-;     PCODE   pSecretArg,               ; [esp + 8]
+;     PCODE   pContextArg,              ; [esp + 8]
 ;     INT_PTR *pInputStack,             ; [esp + c]
 ;     WORD    wOutputStackSlots,        ; [esp +10]
 ;     UINT16  *pOutputStackOffsets,     ; [esp +14]
@@ -1477,7 +1477,7 @@ FASTCALL_FUNC COMToCLRDispatchHelper, 32
     ; edx: dwArgEDX
 
     offset_pTarget              equ 4   
-    offset_pSecretArg           equ 8   
+    offset_pContextArg          equ 8   
     offset_pInputStack          equ 0Ch 
     offset_wOutputStackSlots    equ 10h
     offset_pOutputStackOffsets  equ 14h 
@@ -1493,7 +1493,7 @@ FASTCALL_FUNC COMToCLRDispatchHelper, 32
 
     PUSH_CPFH_FOR_COM   eax, esp, offset_pCurFrame     ; trashes eax
 
-    mov     eax, [esp + offset_pSecretArg + CPFH_STACK_SIZE]
+    mov     eax, [esp + offset_pContextArg + CPFH_STACK_SIZE]
     call    [esp + offset_pTarget + CPFH_STACK_SIZE]
 ifdef _DEBUG
     nop     ; This is a tag that we use in an assert.
@@ -1539,7 +1539,7 @@ CopyStackLoop:
     ; and we've copied the stack arguments over as well, so now it's
     ; time to make the call.
 
-    mov     eax, [ebp + ebpFrame_adjust + offset_pSecretArg]
+    mov     eax, [ebp + ebpFrame_adjust + offset_pContextArg]
     call    [ebp + ebpFrame_adjust + offset_pTarget]
 ifdef _DEBUG
     nop     ; This is a tag that we use in an assert.

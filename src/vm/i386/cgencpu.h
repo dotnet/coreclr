@@ -503,7 +503,7 @@ struct DECLSPEC_ALIGN(4) UMEntryThunkCode
     BYTE            m_jmp;      //JMP NEAR32
     const BYTE *    m_execstub; // pointer to destination code  // make sure the backpatched portion is dword aligned.
 
-    void Encode(BYTE* pTargetCode, void* pvSecretParam);
+    void Encode(BYTE* pTargetCode, void* pvContextParam);
 
     LPCBYTE GetEntryPoint() const
     {

@@ -94,7 +94,7 @@ LEAF_ENTRY VarargPInvokeStubHelper, _TEXT
 LEAF_END VarargPInvokeStubHelper, _TEXT
 
 //
-// IN: METHODDESC_REGISTER (R10) stub secret param
+// IN: METHODDESC_REGISTER (R10) stub context param
 //     PINVOKE_CALLI_SIGTOKEN_REGISTER (R11) VASigCookie*
 //
 // ASSUMES: we already checked for an existing stub to use

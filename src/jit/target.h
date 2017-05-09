@@ -593,9 +593,9 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   // GenericPInvokeCalliHelper cookie parameter
   #define REG_PINVOKE_COOKIE_PARAM REG_STK
 
-  // IL stub's secret parameter (JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM)
-  #define REG_SECRET_STUB_PARAM    REG_EAX
-  #define RBM_SECRET_STUB_PARAM    RBM_EAX
+  // IL stub's secret parameter (JitFlags::JIT_FLAG_PUBLISH_STUB_CONTEXT)
+  #define REG_STUB_CONTEXT    REG_EAX
+  #define RBM_STUB_CONTEXT    RBM_EAX
 
   // VSD extra parameter
   #define REG_VIRTUAL_STUB_PARAM   REG_EAX
@@ -986,9 +986,9 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_PINVOKE_TARGET_PARAM          RBM_R10
   #define PREDICT_REG_PINVOKE_TARGET_PARAM  PREDICT_REG_R10
 
-  // IL stub's secret MethodDesc parameter (JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM)
-  #define REG_SECRET_STUB_PARAM    REG_R10
-  #define RBM_SECRET_STUB_PARAM    RBM_R10
+  // IL stub's secret MethodDesc parameter (JitFlags::JIT_FLAG_PUBLISH_STUB_CONTEXT)
+  #define REG_STUB_CONTEXT    REG_R10
+  #define RBM_STUB_CONTEXT    RBM_R10
 
   // VSD extra parameter (slot address)
   #define REG_VIRTUAL_STUB_PARAM   REG_R11
@@ -1367,9 +1367,9 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_PINVOKE_TARGET_PARAM          RBM_R12
   #define PREDICT_REG_PINVOKE_TARGET_PARAM  PREDICT_REG_R12
 
-  // IL stub's secret MethodDesc parameter (JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM)
-  #define REG_SECRET_STUB_PARAM     REG_R12
-  #define RBM_SECRET_STUB_PARAM     RBM_R12
+  // IL stub's secret MethodDesc parameter (JitFlags::JIT_FLAG_PUBLISH_STUB_CONTEXT)
+  #define REG_STUB_CONTEXT     REG_R12
+  #define RBM_STUB_CONTEXT     RBM_R12
 
   // VSD extra parameter (slot address)
   #define REG_VIRTUAL_STUB_PARAM          REG_R4
@@ -1658,9 +1658,9 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_PINVOKE_TARGET_PARAM          RBM_R14
   #define PREDICT_REG_PINVOKE_TARGET_PARAM  PREDICT_REG_R14
 
-  // IL stub's secret MethodDesc parameter (JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM)
-  #define REG_SECRET_STUB_PARAM     REG_R12
-  #define RBM_SECRET_STUB_PARAM     RBM_R12
+  // IL stub's secret MethodDesc parameter (JitFlags::JIT_FLAG_PUBLISH_STUB_CONTEXT)
+  #define REG_STUB_CONTEXT     REG_R12
+  #define RBM_STUB_CONTEXT     RBM_R12
 
   // VSD extra parameter (slot address)
   #define REG_VIRTUAL_STUB_PARAM          REG_R11

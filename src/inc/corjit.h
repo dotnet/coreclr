@@ -140,7 +140,7 @@ public:
         CORJIT_FLAG_BBOPT                   = 30, // Optimize method based on profile information
         CORJIT_FLAG_FRAMED                  = 31, // All methods have an EBP frame
         CORJIT_FLAG_ALIGN_LOOPS             = 32, // add NOPs before loops to align them at 16 byte boundaries
-        CORJIT_FLAG_PUBLISH_SECRET_PARAM    = 33, // JIT must place stub secret param into local 0.  (used by IL stubs)
+        CORJIT_FLAG_PUBLISH_STUB_CONTEXT    = 33, // JIT must place the "stub context" param into stack frame (used by IL stubs)
         CORJIT_FLAG_GCPOLL_INLINE           = 34, // JIT must inline calls to GCPoll when possible
         CORJIT_FLAG_SAMPLING_JIT_BACKGROUND = 35, // JIT is being invoked as a result of stack sampling for hot methods in the background
         CORJIT_FLAG_USE_PINVOKE_HELPERS     = 36, // The JIT should use the PINVOKE_{BEGIN,END} helpers instead of emitting inline transitions
