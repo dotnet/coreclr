@@ -92,10 +92,6 @@ public:
       "Specifies the name of the GC config log file")                                          \
   INT_CONFIG(HeapVerifyLevel, "HeapVerify", HEAPVERIFY_NONE,                                   \
       "When set verifies the integrity of the managed heap on entry and exit of each GC")      \
-  INT_CONFIG(GCtraceStart,  "GCtraceStart", 0, "unused")                                       \
-  INT_CONFIG(GCtraceEnd,    "GCtraceEnd",   0, "unused")                                       \
-  INT_CONFIG(GCtraceFac,    "GCtraceFac",   0, "unused")                                       \
-  INT_CONFIG(GCprnLvl,      "GCprnLvl",     0, "unused")                                       \
   INT_CONFIG(LOHCompactionMode, "GCLOHCompact", 0, "Specifies the LOH compaction mode")        \
   INT_CONFIG(BGCSpinCount,  "BGCSpinCount", 140, "Specifies the bgc spin count")               \
   INT_CONFIG(BGCSpin,       "BGCSpin",      2,   "Specifies the bgc spin time")                \

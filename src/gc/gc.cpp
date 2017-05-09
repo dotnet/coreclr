@@ -1427,15 +1427,6 @@ int mark_time, plan_time, sweep_time, reloc_time, compact_time;
 
 #endif // MULTIPLE_HEAPS
 
-#ifdef TRACE_GC
-
-int     print_level     = DEFAULT_GC_PRN_LVL;  //level of detail of the debug trace
-BOOL    trace_gc        = FALSE;
-int       gc_trace_fac = 0;
-hlet* hlet::bindings = 0;
-
-#endif //TRACE_GC
-
 void reset_memory (uint8_t* o, size_t sizeo);
 
 #ifdef WRITE_WATCH
@@ -10003,11 +9994,6 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
 
 #endif //MULTIPLE_HEAPS
 
-#ifdef TRACE_GC
-    print_level = static_cast<int>(GCConfig::GetGCprnLvl());
-    gc_trace_fac = static_cast<int>(GCConfig::GetGCtraceFac());
-#endif //TRACE_GC
-
     if (!init_semi_shared())
     {
         hres = E_FAIL;
@@ -15547,7 +15533,6 @@ void gc_heap::gc1()
 #endif //NO_WRITE_BARRIER
 
     descr_generations (FALSE);
-    descr_card_table();
 
     verify_soh_segment_list();
 
@@ -16599,14 +16584,6 @@ int gc_heap::garbage_collect (int n)
     if (gc_t_join.joined())
 #endif //MULTIPLE_HEAPS
     {
-#ifdef TRACE_GC
-        int gc_count = (int)dd_collection_count (dynamic_data_of (0));
-        if (gc_count >= GCConfig::GetGCtraceStart())
-            trace_gc = 1;
-        if (gc_count >=  GCConfig::GetGCtraceEnd())
-            trace_gc = 0;
-#endif //TRACE_GC
-
 #ifdef MULTIPLE_HEAPS
 #if !defined(SEG_MAPPING_TABLE) && !defined(FEATURE_BASICFREEZE)
         //delete old slots from the segment table
@@ -32105,36 +32082,6 @@ void gc_heap::descr_segment (heap_segment* seg )
 #else // TRACE_GC
     UNREFERENCED_PARAMETER(seg);
 #endif // TRACE_GC
-}
-
-void gc_heap::descr_card_table ()
-{
-#ifdef TRACE_GC
-    if (trace_gc && (print_level >= 4))
-    {
-        ptrdiff_t  min = -1;
-        dprintf(3,("Card Table set at: "));
-        for (size_t i = card_of (lowest_address); i < card_of (highest_address); i++)
-        {
-            if (card_set_p (i))
-            {
-                if (min == -1)
-                {
-                    min = i;
-                }
-            }
-            else
-            {
-                if (! ((min == -1)))
-                {
-                    dprintf (3,("[%Ix %Ix[, ",
-                            (size_t)card_address (min), (size_t)card_address (i)));
-                    min = -1;
-                }
-            }
-        }
-    }
-#endif //TRACE_GC
 }
 
 void gc_heap::descr_generations_to_profiler (gen_walk_fn fn, void *context)
