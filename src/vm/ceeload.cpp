@@ -12757,7 +12757,6 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(g_IBCLogger.InstrEnabled());
-        PRECONDITION(flagnum >= 0);
         PRECONDITION(flagnum < CORBBTPROF_TOKEN_MAX_NUM_FLAGS);
     }
     CONTRACTL_END;
@@ -12771,7 +12770,7 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
     if (!m_nativeImageProfiling)
         return;
 
-    if (flagnum < 0 || flagnum >= CORBBTPROF_TOKEN_MAX_NUM_FLAGS)
+    if (flagnum >= CORBBTPROF_TOKEN_MAX_NUM_FLAGS)
     {
         return;
     }

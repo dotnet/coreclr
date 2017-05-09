@@ -38,32 +38,30 @@ HRESULT STDMETHODCALLTYPE CreateICeeGen(REFIID riid, void **pCeeGen)
 
 HRESULT CCeeGen::CreateNewInstance(CCeeGen* & pGen) // static, public
 {
-    pGen = new CCeeGen();
-    _ASSERTE(pGen != NULL);
-    TESTANDRETURNMEMORY(pGen);
+    NewHolder<CCeeGen> pGenHolder(new CCeeGen());
+    _ASSERTE(pGenHolder != NULL);
+    TESTANDRETURNMEMORY(pGenHolder);
     
-    pGen->m_peSectionMan = new PESectionMan;    
-    _ASSERTE(pGen->m_peSectionMan != NULL);
-    TESTANDRETURNMEMORY(pGen->m_peSectionMan);
+    pGenHolder->m_peSectionMan = new PESectionMan;    
+    _ASSERTE(pGenHolder->m_peSectionMan != NULL);
+    TESTANDRETURNMEMORY(pGenHolder->m_peSectionMan);
 
-    HRESULT hr = pGen->m_peSectionMan->Init();
+    HRESULT hr = pGenHolder->m_peSectionMan->Init();
     if (FAILED(hr))
     {
-        pGen->Cleanup();
-        delete pGen;
+        pGenHolder->Cleanup();
         return hr;
     }
 
-    hr = pGen->Init();
+    hr = pGenHolder->Init();
     if (FAILED(hr))
     {
         // Init() calls Cleanup() on failure
-        delete pGen;
         return hr;
     }
 
+    pGen = pGenHolder.Extract();
     return hr;
-
 }
 
 STDMETHODIMP CCeeGen::QueryInterface(REFIID riid, void** ppv)
