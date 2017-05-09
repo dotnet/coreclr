@@ -14,6 +14,8 @@ class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeFile;
 class EventPipeJsonFile;
+class EventPipeBuffer;
+class EventPipeBufferManager;
 class MethodDesc;
 class SampleProfilerEventInstance;
 
@@ -27,9 +29,11 @@ private:
     // Top of stack is at index 0.
     UINT_PTR m_stackFrames[MAX_STACK_DEPTH];
 
+#ifdef _DEBUG
     // Parallel array of MethodDesc pointers.
     // Used for debug-only stack printing.
     MethodDesc* m_methods[MAX_STACK_DEPTH];
+#endif // _DEBUG
 
     // The next available slot in StackFrames.
     unsigned int m_nextAvailableFrame;
@@ -41,6 +45,18 @@ public:
         LIMITED_METHOD_CONTRACT;
 
         Reset();
+    }
+
+    void CopyTo(StackContents *pDest)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(pDest != NULL);
+
+        memcpy(pDest->m_stackFrames, m_stackFrames, sizeof(UINT_PTR) * m_nextAvailableFrame);
+#ifdef _DEBUG
+        memcpy(pDest->m_methods, m_methods, sizeof(MethodDesc*) * m_nextAvailableFrame);
+#endif
+        pDest->m_nextAvailableFrame = m_nextAvailableFrame;
     }
 
     void Reset()
@@ -77,6 +93,7 @@ public:
         return m_stackFrames[frameIndex];
     }
 
+#ifdef _DEBUG
     MethodDesc* GetMethod(unsigned int frameIndex)
     {
         LIMITED_METHOD_CONTRACT;
@@ -89,6 +106,7 @@ public:
 
         return m_methods[frameIndex];
     }
+#endif // _DEBUG
 
     void Append(UINT_PTR controlPC, MethodDesc *pMethod)
     {
@@ -97,7 +115,9 @@ public:
         if(m_nextAvailableFrame < MAX_STACK_DEPTH)
         {
             m_stackFrames[m_nextAvailableFrame] = controlPC;
+#ifdef _DEBUG
             m_methods[m_nextAvailableFrame] = pMethod;
+#endif
             m_nextAvailableFrame++;
         }
     }
@@ -123,6 +143,7 @@ class EventPipe
     friend class EventPipeConfiguration;
     friend class EventPipeFile;
     friend class EventPipeProvider;
+    friend class EventPipeBufferManager;
     friend class SampleProfiler;
 
     public:
@@ -147,7 +168,7 @@ class EventPipe
         static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length);
 
         // Write out a sample profile event.
-        static void WriteSampleProfileEvent(SampleProfilerEventInstance &instance);
+        static void WriteSampleProfileEvent(Thread *pSamplingThread, Thread *pTargetThread, StackContents &stackContents);
         
         // Get the managed call stack for the current thread.
         static bool WalkManagedStackForCurrentThread(StackContents &stackContents);
@@ -170,8 +191,12 @@ class EventPipe
         static CrstStatic s_configCrst;
         static bool s_tracingInitialized;
         static EventPipeConfiguration *s_pConfig;
+        static EventPipeBufferManager *s_pBufferManager;
         static EventPipeFile *s_pFile;
+#ifdef _DEBUG
+        static EventPipeFile *s_pSyncFile;
         static EventPipeJsonFile *s_pJsonFile;
+#endif // _DEBUG
 };
 
 #endif // FEATURE_PERFTRACING

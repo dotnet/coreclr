@@ -31,6 +31,12 @@ public:
     // Get the provider with the specified provider ID if it exists.
     EventPipeProvider* GetProvider(const GUID &providerID);
 
+    // Get the configured size of the circular buffer.
+    size_t GetCircularBufferSize() const;
+
+    // Set the configured size of the circular buffer.
+    void SetCircularBufferSize(size_t circularBufferSize);
+
     // Enable the event pipe.
     void Enable();
 
@@ -38,12 +44,18 @@ public:
     void Disable();
 
     // Get the event used to write metadata to the event stream.
-    EventPipeEventInstance* BuildEventMetadataEvent(EventPipeEvent &sourceEvent, BYTE *pPayloadData = NULL, unsigned int payloadLength = 0);
+    EventPipeEventInstance* BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, BYTE *pPayloadData = NULL, unsigned int payloadLength = 0);
 
 private:
 
     // Get the provider without taking the lock.
     EventPipeProvider* GetProviderNoLock(const GUID &providerID);
+
+    // Determines whether or not the event pipe is enabled.
+    bool m_enabled;
+
+    // The configured size of the circular buffer.
+    size_t m_circularBufferSizeInBytes;
 
     // The list of event pipe providers.
     SList<SListElem<EventPipeProvider*>> *m_pProviderList;

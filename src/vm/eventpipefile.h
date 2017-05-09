@@ -16,6 +16,7 @@
 class EventPipeFile : public FastSerializableObject
 {
     public:
+
         EventPipeFile(SString &outputFilePath);
         ~EventPipeFile();
 
