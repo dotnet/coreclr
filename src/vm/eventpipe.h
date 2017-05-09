@@ -8,6 +8,7 @@
 #ifdef FEATURE_PERFTRACING
 
 #include "crst.h"
+#include "eventpipeprovider.h"
 #include "stackwalk.h"
 
 class EventPipeConfiguration;
@@ -197,6 +198,32 @@ class EventPipe
         static EventPipeFile *s_pSyncFile;
         static EventPipeJsonFile *s_pJsonFile;
 #endif // _DEBUG
+};
+
+class EventPipeInternal
+{
+
+public:
+
+    static INT_PTR QCALLTYPE CreateProvider(
+        GUID providerID,
+        EventPipeCallback pCallbackFunc);
+
+    static INT_PTR QCALLTYPE AddEvent(
+        INT_PTR provHandle,
+        __int64 keywords,
+        unsigned int eventID,
+        unsigned int eventVersion,
+        unsigned int level,
+        bool needStack);
+
+    static void QCALLTYPE DeleteProvider(
+        INT_PTR provHandle);
+
+    static void QCALLTYPE WriteEvent(
+        INT_PTR eventHandle,
+        void *pData,
+        unsigned int length);
 };
 
 #endif // FEATURE_PERFTRACING
