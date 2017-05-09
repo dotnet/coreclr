@@ -98,7 +98,7 @@ public:
   INT_CONFIG(HeapCount,     "GCHeapCount",  0,   "Specifies the number of server GC heaps")    \
   INT_CONFIG(Gen0Size,      "GCgen0size",   0, "Specifies the smallest gen0 size")             \
   INT_CONFIG(SegmentSize,   "GCSegmentSize", 0, "Specifies the managed heap segment size")     \
-  INT_CONFIG(LatencyMode,   "GCLatencyMode", 0,                                                \
+  INT_CONFIG(LatencyMode,   "GCLatencyMode", -1,                                               \
       "Specifies the GC latency mode - batch, interactive or low latency (note that the same " \
       "thing can be specified via API which is the supported way")                             \
   INT_CONFIG(LogFileSize,   "GCLogFileSize", 0, "Specifies the GC log file size")              \
