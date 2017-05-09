@@ -34210,14 +34210,7 @@ bool GCHeap::StressHeap(gc_alloc_context * context)
                     str->SetMethodTable (g_pStringClass);
                     str->SetStringLength (strLen);
 
-#if CHECK_APP_DOMAIN_LEAKS
-                    if (GCConfig::GetAppDomainLeaks() && str->SetAppDomainNoThrow())
-                    {
-#endif
-                        HndAssignHandle(m_StressObjs[i], ObjectToOBJECTREF(str));
-#if CHECK_APP_DOMAIN_LEAKS
-                    }
-#endif
+                    HndAssignHandle(m_StressObjs[i], ObjectToOBJECTREF(str));
                 }
                 i = (i + 1) % NUM_HEAP_STRESS_OBJS;
                 if (i == m_CurStressObj) break;

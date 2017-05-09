@@ -86,7 +86,6 @@ public:
       "Does a DebugBreak at the soonest time we detect an OOM")                                \
   BOOL_CONFIG(NoAffinitize, "GCNoAffinitize", false,                                           \
       "If set, do not affinitize server GC threads")                                           \
-  BOOL_CONFIG(AppDomainLeaks, "AppDomainAgilityChecked", false, "unused")                      \
   BOOL_CONFIG(LogEnabled,   "GCLogEnabled", false,                                             \
       "Specifies if you want to turn on logging in GC")                                        \
   BOOL_CONFIG(ConfigLogEnabled, "GCConfigLogEnabled", false,                                   \
