@@ -5,6 +5,11 @@
 #ifndef __GCCONFIG_H__
 #define __GCCONFIG_H__
 
+// gcconfig.h - GC configuration management and retrieval.
+//
+// This file and the GCConfig class are designed to be the primary entry point
+// for querying configuration information from within the GC.
+
 // Flags that may inhabit the number returned for the HeapVerifyLevel config option.
 // Keep this in sync with vm\eeconfig.h if this ever changes.
 enum HeapVerifyFlags {
@@ -26,6 +31,9 @@ enum HeapVerifyFlags {
 // GCConfigStringHolder is a wrapper around a configuration string obtained
 // from the EE. Such strings must be disposed using GCToEEInterface::FreeStringConfigValue,
 // so this class ensures that is done correctly.
+//
+// The name is unfortunately a little long, but "ConfigStringHolder" is already taken by the
+// EE's config mechanism.
 class GCConfigStringHolder
 {
 private:
@@ -37,8 +45,12 @@ public:
     explicit GCConfigStringHolder(const char* str)
       : m_str(str) {}
 
+    // No copy operators - this type cannot be copied.
     GCConfigStringHolder(const GCConfigStringHolder&) = delete;
     GCConfigStringHolder& operator=(const GCConfigStringHolder&) = delete;
+
+    // This type is returned by-value by string config functions, so it
+    // requires a move constructor.
     GCConfigStringHolder(GCConfigStringHolder&&) = default;
 
     // Frees a string config value by delegating to GCToEEInterface::FreeStringConfigValue.
@@ -56,6 +68,8 @@ public:
     const char* Get() const { return m_str; }
 };
 
+// Each one of these keys produces a method on GCConfig with the name "Get{name}", where {name}
+// is the first parameter of the *_CONFIG macros below.
 #define GC_CONFIGURATION_KEYS \
   BOOL_CONFIG(ServerGC,     "gcServer",     false, "Whether we should be using Server GC")     \
   BOOL_CONFIG(ConcurrentGC, "gcConcurrent", true,  "Whether we should be using Concurrent GC") \

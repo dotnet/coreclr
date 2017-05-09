@@ -9,20 +9,33 @@
 #define BOOL_CONFIG(name, key, default, unused_doc)            \
   bool GCConfig::Get##name()                                   \
   {                                                            \
+      static bool hasCachedValue = false;                      \
+      static bool cachedValue = false;                         \
+      if (hasCachedValue) return cachedValue;                  \
       bool result = default;                                   \
       GCToEEInterface::GetBooleanConfigValue(key, &result);    \
+      cachedValue = result;                                    \
+      hasCachedValue = true;                                   \
       return result;                                           \
   }
 
 #define INT_CONFIG(name, key, default, unused_doc)             \
   int64_t GCConfig::Get##name()                                \
   {                                                            \
+      static bool hasCachedValue = false;                      \
+      static int64_t cachedValue = 0;                          \
+      if (hasCachedValue) return cachedValue;                  \
       int64_t result = default;                                \
       GCToEEInterface::GetIntConfigValue(key, &result);        \
+      cachedValue = result;                                    \
+      hasCachedValue = true;                                   \
       return result;                                           \
   }
 
-#define STRING_CONFIG(name, key, unused_doc)   \
+// String configs are not cached because 1) they are rare and
+// not on hot paths and 2) they involve transfers of ownership
+// of EE-allocated strings, which is potentially complicated.
+#define STRING_CONFIG(name, key, unused_doc)                   \
   GCConfigStringHolder GCConfig::Get##name()                   \
   {                                                            \
       const char* resultStr = nullptr;                         \
