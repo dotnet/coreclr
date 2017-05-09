@@ -12757,6 +12757,7 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(g_IBCLogger.InstrEnabled());
+        PRECONDITION(flagnum >= 0);
         PRECONDITION(flagnum < CORBBTPROF_TOKEN_MAX_NUM_FLAGS);
     }
     CONTRACTL_END;
@@ -12769,6 +12770,11 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
 
     if (!m_nativeImageProfiling)
         return;
+
+    if (flagnum < 0 || flagnum >= CORBBTPROF_TOKEN_MAX_NUM_FLAGS)
+    {
+        return;
+    }
 
     mdToken rid = RidFromToken(token);
     CorTokenType  tkType  = (CorTokenType) TypeFromToken(token);
@@ -12798,8 +12804,9 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
     else if (tkKind == (SectionFormat) (ibcMethodSpec >> 24))
         tkKind = IbcMethodSpecSection;
 
+    _ASSERTE(tkKind >= 0);
     _ASSERTE(tkKind < SectionFormatCount);
-    if (tkKind >= SectionFormatCount)
+    if (tkKind < 0 || tkKind >= SectionFormatCount)
     {
         return;
     }

@@ -47,10 +47,20 @@ HRESULT CCeeGen::CreateNewInstance(CCeeGen* & pGen) // static, public
     TESTANDRETURNMEMORY(pGen->m_peSectionMan);
 
     HRESULT hr = pGen->m_peSectionMan->Init();
-    TESTANDRETURNHR(hr);
+    if (FAILED(hr))
+    {
+        pGen->Cleanup();
+        delete pGen;
+        return hr;
+    }
 
     hr = pGen->Init();
-    TESTANDRETURNHR(hr);
+    if (FAILED(hr))
+    {
+        // Init() calls Cleanup() on failure
+        delete pGen;
+        return hr;
+    }
 
     return hr;
 
