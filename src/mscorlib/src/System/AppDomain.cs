@@ -566,17 +566,6 @@ namespace System
                 throw new ArgumentNullException(nameof(name));
             Contract.EndContractBlock();
 
-            // SetData should only be used to set values that don't already exist.
-            object currentVal;
-            lock (((ICollection)LocalStore).SyncRoot)
-            {
-                LocalStore.TryGetValue(name, out currentVal);
-            }
-            if (currentVal != null)
-            {
-                throw new InvalidOperationException(SR.InvalidOperation_SetData_OnlyOnce);
-            }
-
             lock (((ICollection)LocalStore).SyncRoot)
             {
                 LocalStore[name] = data;
