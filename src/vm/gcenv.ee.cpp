@@ -994,6 +994,8 @@ MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     return g_pFreeObjectMethodTable;
 }
 
+// These are arbitrary, we shouldn't ever be having confrig keys or values
+// longer than these lengths.
 const size_t MaxConfigKeyLength = 255;
 const size_t MaxConfigValueLength = 255;
 
@@ -1014,6 +1016,21 @@ bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
     if (strcmp(key, "gcConcurrent") == 0)
     {
         *value = g_IGCconcurrent != 0;
+        return true;
+    }
+
+    if (strcmp(key, "GCRetainVM") == 0)
+    {
+        // GCRetainVM is strange in that it is derived from startup flags
+        // on unixes, but not on windows. This call preserves the current
+        // behavior.
+        //
+        // This is probably not optimal. The problem is that users of ICLRRuntimeHost4
+        // (i.e. corerun) are free to specify their own startup flags as they see fit, while
+        // users of the Unix hosting API (coreclr_initialize and friends, i.e. unix corerun) are
+        // not free to do so - they must pass a list of key-value string pairs,
+        // from which the runtime constructs startup flags and hands to ICLRRuntimeHost4.
+        *value = !!g_pConfig->GetGCRetainVM();
         return true;
     }
 
