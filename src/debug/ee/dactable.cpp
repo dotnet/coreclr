@@ -42,9 +42,6 @@ void DacGlobals::Initialize()
 {
     TADDR baseAddress = PTR_TO_TADDR(PAL_GetSymbolModuleBase((void *)DacGlobals::Initialize));
     g_dacTable.InitializeEntries(baseAddress);
-#ifdef FEATURE_SVR_GC
-    g_dacTable.InitializeSVREntries(baseAddress);
-#endif
 }
 
 // Initializes the non-SVR table entries
