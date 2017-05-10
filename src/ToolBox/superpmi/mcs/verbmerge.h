@@ -5,6 +5,7 @@
 
 //----------------------------------------------------------
 // verbMerge.h - verb that merges multiple .MC into one .MCH file
+// It allows .MC names to be Unicode names with long paths.
 //----------------------------------------------------------
 #ifndef _verbMerge
 #define _verbMerge
@@ -15,21 +16,23 @@ public:
     static int DoWork(const char* nameOfOutputFile, const char* pattern, bool recursive);
 
 private:
-    typedef bool (*DirectoryFilterFunction_t)(WIN32_FIND_DATAA*);
-    static bool DirectoryFilterDirectories(WIN32_FIND_DATAA* findData);
-    static bool DirectoryFilterFile(WIN32_FIND_DATAA* findData);
-    static int __cdecl WIN32_FIND_DATAA_qsort_helper(const void* p1, const void* p2);
-    static int FilterDirectory(const char*                  searchPattern,
+    typedef bool (*DirectoryFilterFunction_t)(WIN32_FIND_DATAW*);
+    static bool DirectoryFilterDirectories(WIN32_FIND_DATAW* findData);
+    static bool DirectoryFilterFile(WIN32_FIND_DATAW* findData);
+    static int __cdecl WIN32_FIND_DATAW_qsort_helper(const void* p1, const void* p2);
+    static int FilterDirectory(LPCTSTR                      searchPattern,
                                DirectoryFilterFunction_t    filter,
-                               /* out */ WIN32_FIND_DATAA** ppFileArray,
+                               /* out */ WIN32_FIND_DATAW** ppFileArray,
                                int*                         pElemCount);
 
-    static char* MergePathStrings(const char* dir, const char* file);
+    static LPTSTR MergePathStrings(LPCTSTR dir, LPCTSTR file);
 
-    static int AppendFile(HANDLE hFileOut, const char* fileName, unsigned char* buffer, size_t bufferSize);
+    static char* ConvertUTF8ToMultiByte(LPCTSTR wstr);
+
+    static int AppendFile(HANDLE hFileOut, LPCTSTR fileName, unsigned char* buffer, size_t bufferSize);
     static int AppendAllInDir(HANDLE              hFileOut,
-                              const char*         dir,
-                              const char*         file,
+                              LPCTSTR             dir,
+                              LPCTSTR             file,
                               unsigned char*      buffer,
                               size_t              bufferSize,
                               bool                recursive,
