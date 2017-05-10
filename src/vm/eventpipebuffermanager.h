@@ -39,6 +39,7 @@ private:
     // For debugging purposes.
     unsigned int m_numBuffersAllocated;
     unsigned int m_numBuffersStolen;
+    unsigned int m_numBuffersLeaked;
     Volatile<LONG> m_numEventsStored;
     LONG m_numEventsWritten;
 #endif // _DEBUG
@@ -102,6 +103,10 @@ private:
     // The current read buffer (used when processing events on tracing stop).
     EventPipeBuffer *m_pReadBuffer;
 
+    // True if this thread is owned by a thread.
+    // If it is false, then this buffer can be de-allocated after it is drained.
+    Volatile<bool> m_ownedByThread;
+
 #ifdef _DEBUG
     // For diagnostics, keep the thread pointer.
     Thread *m_pCreatingThread;
@@ -131,6 +136,15 @@ public:
 
     // Get the next event as long as it is before the specified timestamp, and also mark it as read.
     EventPipeEventInstance* PopNextEvent(LARGE_INTEGER beforeTimeStamp);
+
+    // True if a thread owns this list.
+    bool OwnedByThread();
+
+    // Set whether or not this list is owned by a thread.
+    // If it is not owned by a thread, then it can be de-allocated
+    // after the buffer is drained.
+    // The default value is true.
+    void SetOwnedByThread(bool value);
 
 #ifdef _DEBUG
     // Get the thread associated with this list.

@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
+#include "eventpipebuffermanager.h"
 #include "eventpipeeventinstance.h"
 #include "sampleprofiler.h"
 #include "hosting.h"
@@ -136,7 +137,15 @@ DWORD WINAPI SampleProfiler::ThreadProc(void *args)
         }
     }
 
-    // Destroy the sampling thread when done running.
+    // Before destroying the sampling thread, mark its buffer list as no longer
+    // owned by a thread, so that it can be freed.
+    EventPipeBufferList *pBufferList = s_pSamplingThread->GetEventPipeBufferList();
+    if(pBufferList != NULL)
+    {
+        pBufferList->SetOwnedByThread(false);
+    }
+
+    // Destroy the sampling thread when it is done running.
     DestroyThread(s_pSamplingThread);
     s_pSamplingThread = NULL;
 

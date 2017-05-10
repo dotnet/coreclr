@@ -162,6 +162,7 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent,
         // Confirm that pEvent is within the used range of the buffer.
         if(((BYTE*)pEvent < m_pBuffer) || ((BYTE*)pEvent >= m_pCurrent))
         {
+            _ASSERT(!"Input pointer is out of range.");
             return NULL;
         }
 
@@ -226,12 +227,6 @@ EventPipeEventInstance* EventPipeBuffer::PopNext(LARGE_INTEGER beforeTimeStamp)
     }
 
     return pNext;
-}
-
-bool EventPipeBuffer::HasBeenDrained(LARGE_INTEGER beforeTimeStamp)
-{
-    LIMITED_METHOD_CONTRACT;
-    return PeekNext(beforeTimeStamp);
 }
 
 #ifdef _DEBUG

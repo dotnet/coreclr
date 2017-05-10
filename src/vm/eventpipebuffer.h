@@ -99,9 +99,6 @@ public:
     // Get the next event from the buffer and mark it as read.
     EventPipeEventInstance* PopNext(LARGE_INTEGER beforeTimeStamp);
 
-    // True if the buffer has been drained of all events.
-    bool HasBeenDrained(LARGE_INTEGER beforeTimeStamp);
-
 #ifdef _DEBUG
     bool EnsureConsistency();
 #endif // _DEBUG

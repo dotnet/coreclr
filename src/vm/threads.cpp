@@ -54,6 +54,10 @@
 #include "olecontexthelpers.h"
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
+#ifdef FEATURE_PERFTRACING
+#include "eventpipebuffermanager.h"
+#endif // FEATURE_PERFTRACING
+
 
 
 SPTR_IMPL(ThreadStore, ThreadStore, s_pThreadStore);
@@ -1083,6 +1087,15 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
 #ifdef ENABLE_CONTRACTS_DATA
     m_pClrDebugState = NULL;
 #endif //ENABLE_CONTRACTS_DATA
+
+#ifdef FEATURE_PERFTRACING
+    // Before the thread dies, mark its buffers as no longer owned
+    // so that they can be cleaned up after the thread dies.
+    if(((EventPipeBufferList*)m_pEventPipeBufferList) != NULL)
+    {
+        ((EventPipeBufferList*)m_pEventPipeBufferList)->SetOwnedByThread(false);
+    }
+#endif // FEATURE_PERFTRACING
 
     FastInterlockOr((ULONG*)&m_State, (int) (Thread::TS_Detached | Thread::TS_ReportDead));
     // Do not touch Thread object any more.  It may be destroyed.
