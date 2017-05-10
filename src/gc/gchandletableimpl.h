@@ -23,6 +23,8 @@ public:
 
     virtual OBJECTHANDLE CreateDependentHandle(Object* primary, Object* secondary);
 
+    virtual void RelocateAsyncPinnedHandles(IGCHandleStore* pTarget);
+
     virtual ~GCHandleStore();
 
     HandleTableBucket _underlyingBucket;
@@ -64,6 +66,8 @@ public:
     virtual Object* GetDependentHandleSecondary(OBJECTHANDLE handle);
 
     virtual Object* InterlockedCompareExchangeObjectInHandle(OBJECTHANDLE handle, Object* object, Object* comparandObject);
+
+    virtual bool HandleAsyncPinnedHandles();
 };
 
 #endif  // GCHANDLETABLE_H_

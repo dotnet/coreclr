@@ -262,7 +262,7 @@ void OverlappedDataObject::StartCleanup()
     if (FastInterlockExchange((LONG*)&s_CleanupInProgress, TRUE) == FALSE)
     {
         {
-            BOOL HasJob = Ref_HandleAsyncPinHandles();
+            bool HasJob = GCHandleUtilities::GetGCHandleManager()->HandleAsyncPinnedHandles();
             if (!HasJob)
             {
                 s_CleanupInProgress = FALSE;
@@ -292,7 +292,7 @@ void OverlappedDataObject::FinishCleanup(bool wasDrained)
         GCX_COOP();
 
         s_CleanupFreeHandle = TRUE;
-        Ref_HandleAsyncPinHandles();
+        GCHandleUtilities::GetGCHandleManager()->HandleAsyncPinnedHandles();
         s_CleanupFreeHandle = FALSE;
 
         s_CleanupInProgress = FALSE;
