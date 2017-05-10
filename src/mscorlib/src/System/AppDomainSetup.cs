@@ -29,7 +29,7 @@ namespace System
         internal enum LoaderInformation
         {
             // If you add a new value, add the corresponding property
-            // to AppDomain.pa() and SetData()'s switch statements,
+            // to AppDomain.GetData() and SetData()'s switch statements,
             // as well as fusionsetup.h.
             ApplicationBaseValue = 0,  // LOADER_APPLICATION_BASE
             ConfigurationFileValue = 1,  // LOADER_CONFIGURATION_BASE
