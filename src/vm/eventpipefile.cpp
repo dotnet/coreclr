@@ -9,7 +9,13 @@
 
 #ifdef FEATURE_PERFTRACING
 
-EventPipeFile::EventPipeFile(SString &outputFilePath)
+EventPipeFile::EventPipeFile(
+    SString &outputFilePath
+#ifdef _DEBUG
+    ,
+    bool lockOnWrite
+#endif // _DEBUG
+)
 {
     CONTRACTL
     {
@@ -22,6 +28,10 @@ EventPipeFile::EventPipeFile(SString &outputFilePath)
     m_pSerializer = new FastSerializer(outputFilePath, *this);
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
     m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
+
+#ifdef _DEBUG
+    m_lockOnWrite = lockOnWrite;
+#endif // _DEBUG
 
     // File start time information.
     GetSystemTime(&m_fileOpenSystemTime);
@@ -79,8 +89,15 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     }
     CONTRACTL_END;
 
-    // Take the serialization lock.
-    SpinLockHolder _slh(&m_serializationLock);
+#ifdef _DEBUG
+    if(m_lockOnWrite)
+    {
+        // Take the serialization lock.
+        // This is used for synchronous file writes.
+        // The circular buffer path only writes from one thread.
+        SpinLockHolder _slh(&m_serializationLock);
+    }
+#endif // _DEBUG
 
     // Check to see if we've seen this event type before.
     // If not, then write the event metadata to the event stream first.

@@ -5341,7 +5341,10 @@ public:
 #ifdef FEATURE_PERFTRACING
 private:
     // The object that contains the list write buffers used by this thread.
-    EventPipeBufferList *m_pEventPipeBufferList;
+    Volatile<EventPipeBufferList*> m_pEventPipeBufferList;
+
+    // Whether or not the thread is currently writing an event.
+    Volatile<bool> m_eventWriteInProgress;
 
 public:
     EventPipeBufferList* GetEventPipeBufferList()
@@ -5354,6 +5357,18 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         m_pEventPipeBufferList = pList;
+    }
+
+    bool GetEventWriteInProgress() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_eventWriteInProgress;
+    }
+
+    void SetEventWriteInProgress(bool value)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_eventWriteInProgress = value;
     }
 #endif // FEATURE_PERFTRACING
 

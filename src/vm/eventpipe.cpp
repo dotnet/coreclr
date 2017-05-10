@@ -69,7 +69,7 @@ void EventPipe::EnableOnStartup()
     CONTRACTL_END;
 
     // Test COMPLUS variable to enable tracing at start-up.
-    if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) != 0)
+    if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) & 1) == 1)
     {
         Enable();
     }
@@ -109,7 +109,8 @@ void EventPipe::Enable()
     }
     CONTRACTL_END;
 
-    if(!s_tracingInitialized)
+    // If tracing is not initialized or is already enabled, bail here.
+    if(!s_tracingInitialized || s_pConfig->Enabled())
     {
         return;
     }
@@ -123,7 +124,7 @@ void EventPipe::Enable()
     s_pFile = new EventPipeFile(eventPipeFileOutputPath);
 
 #ifdef _DEBUG
-    if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) == 2)
+    if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) & 2) == 2)
     {
         // Create a synchronous file.
         SString eventPipeSyncFileOutputPath;
@@ -163,41 +164,41 @@ void EventPipe::Disable()
     // Take the lock before disabling tracing.
     CrstHolder _crst(GetLock());
 
-    // Disable the profiler.
-    SampleProfiler::Disable();
-
-    // Disable tracing.
-    s_pConfig->Disable();
-
-    // Write to the file.
-    LARGE_INTEGER disableTimeStamp;
-    QueryPerformanceCounter(&disableTimeStamp);
-    s_pBufferManager->WriteAllBuffersToFile(s_pFile, disableTimeStamp);
-
-    if(s_pFile != NULL)
+    if(s_pConfig->Enabled())
     {
-        delete(s_pFile);
-        s_pFile = NULL;
-    }
+        // Disable the profiler.
+        SampleProfiler::Disable();
 
+        // Disable tracing.
+        s_pConfig->Disable();
+
+        // Flush all write buffers to make sure that all threads see the change.
+        FlushProcessWriteBuffers();
+
+        // Write to the file.
+        LARGE_INTEGER disableTimeStamp;
+        QueryPerformanceCounter(&disableTimeStamp);
+        s_pBufferManager->WriteAllBuffersToFile(s_pFile, disableTimeStamp);
+        if(s_pFile != NULL)
+        {
+            delete(s_pFile);
+            s_pFile = NULL;
+        }
 #ifdef _DEBUG
-    if(s_pSyncFile != NULL)
-    {
-        delete(s_pSyncFile);
-        s_pSyncFile = NULL;
-    }
-
-    if(s_pJsonFile != NULL)
-    {
-        delete(s_pJsonFile);
-        s_pJsonFile = NULL;
-    }
+        if(s_pSyncFile != NULL)
+        {
+            delete(s_pSyncFile);
+            s_pSyncFile = NULL;
+        }
+        if(s_pJsonFile != NULL)
+        {
+            delete(s_pJsonFile);
+            s_pJsonFile = NULL;
+        }
 #endif // _DEBUG
 
-    if(s_pConfig != NULL)
-    {
-        delete(s_pConfig);
-        s_pConfig = NULL;
+        // De-allocate buffers.
+        s_pBufferManager->DeAllocateBuffers();
     }
 }
 
@@ -378,6 +379,24 @@ CrstStatic* EventPipe::GetLock()
     LIMITED_METHOD_CONTRACT;
 
     return &s_configCrst;
+}
+
+void QCALLTYPE EventPipeInternal::Enable()
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    EventPipe::Enable();
+    END_QCALL;
+}
+
+void QCALLTYPE EventPipeInternal::Disable()
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    EventPipe::Disable();
+    END_QCALL;
 }
 
 INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(

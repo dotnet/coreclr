@@ -43,6 +43,9 @@ public:
     // Disable the event pipe.
     void Disable();
 
+    // Get the status of the event pipe.
+    bool Enabled() const;
+
     // Get the event used to write metadata to the event stream.
     EventPipeEventInstance* BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, BYTE *pPayloadData = NULL, unsigned int payloadLength = 0);
 

@@ -145,6 +145,8 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent,
     }
     CONTRACTL_END;
 
+    _ASSERTE(EnsureConsistency());
+
     EventPipeEventInstance *pNextInstance = NULL;
     // If input is NULL, return the first event if there is one.
     if(pEvent == NULL)
@@ -165,14 +167,12 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent,
 
         // We have a pointer within the bounds of the buffer.
         // Find the next event by skipping the current event with it's data payload immediately after the instance.
-        // If there is no data payload, then just skip the event instance.
-        if(pEvent->GetData() != NULL)
+        pNextInstance = (EventPipeEventInstance *)(pEvent->GetData() + pEvent->GetLength());
+
+        // Check to see if we've reached the end of the written portion of the buffer.
+        if((BYTE*)pNextInstance >= m_pCurrent)
         {
-            pNextInstance = (EventPipeEventInstance *)(pEvent->GetData() + pEvent->GetLength());
-        }
-        else
-        {
-            pNextInstance = pEvent + 1;
+            return NULL;
         }
     }
 
@@ -188,6 +188,8 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent,
     {
         return NULL;
     }
+
+    _ASSERTE(EnsureConsistency());
 
     return pNextInstance;
 }
@@ -224,6 +226,12 @@ EventPipeEventInstance* EventPipeBuffer::PopNext(LARGE_INTEGER beforeTimeStamp)
     }
 
     return pNext;
+}
+
+bool EventPipeBuffer::HasBeenDrained(LARGE_INTEGER beforeTimeStamp)
+{
+    LIMITED_METHOD_CONTRACT;
+    return PeekNext(beforeTimeStamp);
 }
 
 #ifdef _DEBUG

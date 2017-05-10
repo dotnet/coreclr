@@ -205,6 +205,10 @@ class EventPipeInternal
 
 public:
 
+    static void QCALLTYPE Enable();
+
+    static void QCALLTYPE Disable();
+
     static INT_PTR QCALLTYPE CreateProvider(
         GUID providerID,
         EventPipeCallback pCallbackFunc);

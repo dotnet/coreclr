@@ -19,7 +19,7 @@ EventPipeConfiguration::EventPipeConfiguration()
     STANDARD_VM_CONTRACT;
 
     m_enabled = false;
-    m_circularBufferSizeInBytes = 1024 * 1024 * 10; // 10MB
+    m_circularBufferSizeInBytes = 1024 * 1024 * 1000; // 1000MB
     m_pProviderList = new SList<SListElem<EventPipeProvider*>>();
 }
 
@@ -237,6 +237,12 @@ void EventPipeConfiguration::Disable()
     }
 
     m_enabled = false;
+}
+
+bool EventPipeConfiguration::Enabled() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_enabled;
 }
 
 EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, BYTE *pPayloadData, unsigned int payloadLength)

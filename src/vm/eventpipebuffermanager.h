@@ -15,6 +15,10 @@ class EventPipeBufferList;
 
 class EventPipeBufferManager
 {
+
+    // Declare friends.
+    friend class EventPipeBufferList;
+
 private:
 
     // A list of linked-lists of buffer objects.
@@ -48,6 +52,9 @@ private:
     // Find the thread that owns the oldest buffer that is eligible to be stolen.
     EventPipeBufferList* FindThreadToStealFrom();
 
+    // De-allocates the input buffer.
+    void DeAllocateBuffer(EventPipeBuffer *pBuffer);
+
 public:
 
     EventPipeBufferManager();
@@ -63,12 +70,24 @@ public:
     // The stopTimeStamp is used to determine when tracing was stopped to ensure that we
     // skip any events that might be partially written due to races when tracing is stopped.
     void WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp);
+
+    // Attempt to de-allocate resources as best we can.  It is possible for some buffers to leak because
+    // threads can be in the middle of a write operation and get blocked, and we may not get an opportunity
+    // to free their buffer for a very long time.
+    void DeAllocateBuffers();
+
+#ifdef _DEBUG
+    bool EnsureConsistency();
+#endif // _DEBUG
 };
 
 // Represents a list of buffers associated with a specific thread.
 class EventPipeBufferList
 {
 private:
+
+    // The buffer manager that owns this list.
+    EventPipeBufferManager *m_pManager;
 
     // Buffers are stored in an intrusive linked-list from oldest to newest.
     // Head is the oldest buffer.  Tail is the newest (and currently used) buffer.
@@ -88,8 +107,7 @@ private:
 
 public:
 
-    EventPipeBufferList();
-    ~EventPipeBufferList();
+    EventPipeBufferList(EventPipeBufferManager *pManager);
 
     // Get the head node of the list.
     EventPipeBuffer* GetHead();
