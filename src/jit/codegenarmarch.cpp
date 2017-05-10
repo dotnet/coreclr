@@ -1339,52 +1339,6 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
     genConsumeAddress(tree->Addr());
     emit->emitInsLoadStoreOp(ins_Load(targetType), emitTypeSize(tree), targetReg, tree);
     genProduceReg(tree);
-        unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
-
-        unsigned i = 0;
-        while (i < slots)
-        {
-            switch (gcPtrs[i])
-            {
-                case TYPE_GC_NONE:
-#if defined(_TARGET_ARM_)
-                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
-                                        INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
-                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
-                                        INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
-#elif defined(_TARGET_ARM64_)
-                    // TODO-ARM64-CQ: Consider using LDP/STP to save codesize in case of contigous NON-GC slots.
-                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
-                                        INS_OPTS_POST_INDEX);
-                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
-                                        INS_OPTS_POST_INDEX);
-#endif
-                    break;
-
-                default:
-                    // In the case of a GC-Pointer we'll call the ByRef write barrier helper
-                    genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
-
-                    gcPtrCount--;
-                    break;
-            }
-            ++i;
-        }
-        assert(gcPtrCount == 0);
-    }
-
-    // Clear the gcInfo for registers of source and dest.
-    // While we normally update GC info prior to the last instruction that uses them,
-    // these actually live into the helper call.
-    regMaskTP sourceRegMask, destRegMask;
-#if defined(_TARGET_ARM_)
-    destRegMask   = RBM_ARG_0;
-    sourceRegMask = RBM_ARG_1;
-#elif defined(_TARGET_ARM64_)
-    destRegMask   = RBM_WRITE_BARRIER_DST_BYREF;
-    sourceRegMask = RBM_WRITE_BARRIER_SRC_BYREF;
-#endif
-    gcInfo.gcMarkRegSetNpt(sourceRegMask | destRegMask);
 }
 
 // Generate code for a CpBlk node by the means of the VM memcpy helper call
