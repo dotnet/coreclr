@@ -26,6 +26,8 @@ EventPipeBufferManager::EventPipeBufferManager()
 #ifdef _DEBUG
     m_numBuffersAllocated = 0;
     m_numBuffersStolen = 0;
+    m_numEventsStored = 0;
+    m_numEventsWritten = 0;
 #endif // _DEBUG
 }
 
@@ -278,6 +280,8 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
     // Check to see if we need to allocate a new buffer, and if so, do it here.
     if(allocNewBuffer)
     {
+        GCX_PREEMP();
+
         unsigned int requestSize = sizeof(EventPipeEventInstance) + length;
         pBuffer = AllocateBufferForThread(pThread, requestSize);
     }
@@ -293,6 +297,12 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
     // Mark that the thread is no longer writing an event.
      pThread->SetEventWriteInProgress(false);
 
+#ifdef _DEBUG
+    if(!allocNewBuffer)
+    {
+        InterlockedIncrement(&m_numEventsStored);
+    }
+#endif // _DEBUG
     return !allocNewBuffer;
 }
 
@@ -361,6 +371,9 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
 
         // Write the oldest event.
         pFile->WriteEvent(*pOldestInstance);
+#ifdef _DEBUG
+        m_numEventsWritten++;
+#endif // _DEBUG
 
         // Pop the event from the buffer.
         pOldestContainingList->PopNextEvent(stopTimeStamp);

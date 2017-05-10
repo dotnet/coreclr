@@ -39,6 +39,8 @@ private:
     // For debugging purposes.
     unsigned int m_numBuffersAllocated;
     unsigned int m_numBuffersStolen;
+    Volatile<LONG> m_numEventsStored;
+    LONG m_numEventsWritten;
 #endif // _DEBUG
 
     // Allocate a new buffer for the specified thread.

@@ -230,27 +230,35 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
     // Write the event to the thread's buffer.
     if(s_pBufferManager != NULL)
     {
-        s_pBufferManager->WriteEvent(pThread, event, pData, length);
+        if(!s_pBufferManager->WriteEvent(pThread, event, pData, length))
+        {
+            // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
+            return;
+        }
     }
 
 #ifdef _DEBUG
-    // Create an instance of the event for the synchronous path.
-    EventPipeEventInstance instance(
-        event,
-        pThread->GetOSThreadId(),
-        pData,
-        length);
+    {
+        GCX_PREEMP();
 
-    // Write to the EventPipeFile if it exists.
-    if(s_pSyncFile != NULL)
-    {
-        s_pSyncFile->WriteEvent(instance);
-    }
+        // Create an instance of the event for the synchronous path.
+        EventPipeEventInstance instance(
+            event,
+            pThread->GetOSThreadId(),
+            pData,
+            length);
+
+        // Write to the EventPipeFile if it exists.
+        if(s_pSyncFile != NULL)
+        {
+            s_pSyncFile->WriteEvent(instance);
+        }
  
-    // Write to the EventPipeJsonFile if it exists.
-    if(s_pJsonFile != NULL)
-    {
-        s_pJsonFile->WriteEvent(instance);
+        // Write to the EventPipeJsonFile if it exists.
+        if(s_pJsonFile != NULL)
+        {
+            s_pJsonFile->WriteEvent(instance);
+        }
     }
 #endif // _DEBUG
 }
@@ -270,24 +278,32 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, Thread *pTarget
     {
         // Specify the sampling thread as the "current thread", so that we select the right buffer.
         // Specify the target thread so that the event gets properly attributed.
-        s_pBufferManager->WriteEvent(pSamplingThread, *SampleProfiler::s_pThreadTimeEvent, NULL, 0, pTargetThread, &stackContents);
+        if(!s_pBufferManager->WriteEvent(pSamplingThread, *SampleProfiler::s_pThreadTimeEvent, NULL, 0, pTargetThread, &stackContents))
+        {
+            // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
+            return;
+        }
     }
 
 #ifdef _DEBUG
-    // Create an instance for the synchronous path.
-    SampleProfilerEventInstance instance(pTargetThread);
-    stackContents.CopyTo(instance.GetStack());
-
-    // Write to the EventPipeFile.
-    if(s_pSyncFile != NULL)
     {
-        s_pSyncFile->WriteEvent(instance);
-    }
+        GCX_PREEMP();
 
-    // Write to the EventPipeJsonFile if it exists.
-    if(s_pJsonFile != NULL)
-    {
-        s_pJsonFile->WriteEvent(instance);
+        // Create an instance for the synchronous path.
+        SampleProfilerEventInstance instance(pTargetThread);
+        stackContents.CopyTo(instance.GetStack());
+
+        // Write to the EventPipeFile.
+        if(s_pSyncFile != NULL)
+        {
+            s_pSyncFile->WriteEvent(instance);
+        }
+
+        // Write to the EventPipeJsonFile if it exists.
+        if(s_pJsonFile != NULL)
+        {
+            s_pJsonFile->WriteEvent(instance);
+        }
     }
 #endif // _DEBUG
 }

@@ -7,6 +7,7 @@
 
 #ifdef FEATURE_PERFTRACING
 
+#include "eventpipeconfiguration.h"
 #include "slist.h"
 
 class EventPipeEvent;
@@ -58,6 +59,9 @@ private:
 
     // The optional provider callback data pointer.
     void *m_pCallbackData;
+
+    // The configuration object.
+    EventPipeConfiguration *m_pConfig;
 
 public:
 
