@@ -337,7 +337,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
 
     _ASSERTE(EnsureConsistency());
 
-    // Niavely walk the circular buffer, writing the event stream in timestamp order.
+    // Naively walk the circular buffer, writing the event stream in timestamp order.
     while(true)
     {
         EventPipeEventInstance *pOldestInstance = NULL;

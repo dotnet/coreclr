@@ -53,9 +53,9 @@ public:
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(pDest != NULL);
 
-        memcpy(pDest->m_stackFrames, m_stackFrames, sizeof(UINT_PTR) * m_nextAvailableFrame);
+        memcpy_s(pDest->m_stackFrames, MAX_STACK_DEPTH * sizeof(UINT_PTR), m_stackFrames, sizeof(UINT_PTR) * m_nextAvailableFrame);
 #ifdef _DEBUG
-        memcpy(pDest->m_methods, m_methods, sizeof(MethodDesc*) * m_nextAvailableFrame);
+        memcpy_s(pDest->m_methods, MAX_STACK_DEPTH * sizeof(MethodDesc*), m_methods, sizeof(MethodDesc*) * m_nextAvailableFrame);
 #endif
         pDest->m_nextAvailableFrame = m_nextAvailableFrame;
     }
