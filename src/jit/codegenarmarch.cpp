@@ -344,7 +344,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             genPendingCallLabel       = genCreateTempLabel();
             treeNode->gtLabel.gtLabBB = genPendingCallLabel;
 #if defined(_TARGET_ARM_)
-            emit->emitIns_J_R(INS_adr, EA_PTRSIZE, genPendingCallLabel, treeNode->gtRegNum);
+            emit->emitIns_J_R(INS_adr, EA_PTRSIZE, genPendingCallLabel, targetReg);
 #elif defined(_TARGET_ARM64_)
             emit->emitIns_R_L(INS_adr, EA_PTRSIZE, genPendingCallLabel, targetReg);
 #endif
