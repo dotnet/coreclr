@@ -19,9 +19,9 @@
 
 CrstStatic EventPipe::s_configCrst;
 bool EventPipe::s_tracingInitialized = false;
-EventPipeConfiguration* EventPipe::s_pConfig = NULL;
-EventPipeFile* EventPipe::s_pFile = NULL;
-EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
+EventPipeConfiguration *EventPipe::s_pConfig = NULL;
+EventPipeFile *EventPipe::s_pFile = NULL;
+EventPipeJsonFile *EventPipe::s_pJsonFile = NULL;
 
 #ifdef FEATURE_PAL
 // This function is auto-generated from /src/scripts/genEventPipe.py
@@ -57,7 +57,7 @@ void EventPipe::EnableOnStartup()
     CONTRACTL_END;
 
     // Test COMPLUS variable to enable tracing at start-up.
-    if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) != 0)
+    if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) != 0)
     {
         Enable();
     }
@@ -86,7 +86,7 @@ void EventPipe::Enable()
     }
     CONTRACTL_END;
 
-    if(!s_tracingInitialized)
+    if (!s_tracingInitialized)
     {
         return;
     }
@@ -99,7 +99,7 @@ void EventPipe::Enable()
     eventPipeFileOutputPath.Printf("Process-%d.netperf", GetCurrentProcessId());
     s_pFile = new EventPipeFile(eventPipeFileOutputPath);
 
-    if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) == 2)
+    if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) == 2)
     {
         // File placed in current working directory.
         SString outputFilePath;
@@ -139,21 +139,21 @@ void EventPipe::Disable()
     // Disable tracing.
     s_pConfig->Disable();
 
-    if(s_pJsonFile != NULL)
+    if (s_pJsonFile != NULL)
     {
-        delete(s_pJsonFile);
+        delete (s_pJsonFile);
         s_pJsonFile = NULL;
     }
 
-    if(s_pFile != NULL)
+    if (s_pFile != NULL)
     {
-        delete(s_pFile);
+        delete (s_pFile);
         s_pFile = NULL;
     }
 
-    if(s_pConfig != NULL)
+    if (s_pConfig != NULL)
     {
-        delete(s_pConfig);
+        delete (s_pConfig);
         s_pConfig = NULL;
     }
 }
@@ -169,7 +169,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
     CONTRACTL_END;
 
     // Exit early if the event is not enabled.
-    if(!event.IsEnabled())
+    if (!event.IsEnabled())
     {
         return;
     }
@@ -184,11 +184,13 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         length);
 
     // Write to the EventPipeFile.
-    _ASSERTE(s_pFile != NULL);
-    s_pFile->WriteEvent(instance);
+    if (s_pFile != NULL)
+    {
+        s_pFile->WriteEvent(instance);
+    }
 
     // Write to the EventPipeJsonFile if it exists.
-    if(s_pJsonFile != NULL)
+    if (s_pJsonFile != NULL)
     {
         s_pJsonFile->WriteEvent(instance);
     }
@@ -205,13 +207,13 @@ void EventPipe::WriteSampleProfileEvent(SampleProfilerEventInstance &instance)
     CONTRACTL_END;
 
     // Write to the EventPipeFile.
-    if(s_pFile != NULL)
+    if (s_pFile != NULL)
     {
         s_pFile->WriteEvent(instance);
     }
 
     // Write to the EventPipeJsonFile if it exists.
-    if(s_pJsonFile != NULL)
+    if (s_pJsonFile != NULL)
     {
         s_pJsonFile->WriteEvent(instance);
     }
@@ -228,7 +230,7 @@ bool EventPipe::WalkManagedStackForCurrentThread(StackContents &stackContents)
     CONTRACTL_END;
 
     Thread *pThread = GetThread();
-    if(pThread != NULL)
+    if (pThread != NULL)
     {
         return WalkManagedStackForThread(pThread, stackContents);
     }
@@ -250,7 +252,7 @@ bool EventPipe::WalkManagedStackForThread(Thread *pThread, StackContents &stackC
     stackContents.Reset();
 
     StackWalkAction swaRet = pThread->StackWalkFrames(
-        (PSTACKWALKFRAMESCALLBACK) &StackWalkCallback,
+        (PSTACKWALKFRAMESCALLBACK)&StackWalkCallback,
         &stackContents,
         ALLOW_ASYNC_STACK_WALK | FUNCTIONSONLY | HANDLESKIPPEDFRAMES);
 
@@ -271,9 +273,9 @@ StackWalkAction EventPipe::StackWalkCallback(CrawlFrame *pCf, StackContents *pDa
 
     // Get the IP.
     UINT_PTR controlPC = (UINT_PTR)pCf->GetRegisterSet()->ControlPC;
-    if(controlPC == 0)
+    if (controlPC == 0)
     {
-        if(pData->GetLength() == 0)
+        if (pData->GetLength() == 0)
         {
             // This happens for pinvoke stubs on the top of the stack.
             return SWA_CONTINUE;
@@ -285,25 +287,126 @@ StackWalkAction EventPipe::StackWalkCallback(CrawlFrame *pCf, StackContents *pDa
     // Add the IP to the captured stack.
     pData->Append(
         controlPC,
-        pCf->GetFunction()
-        );
+        pCf->GetFunction());
 
     // Continue the stack walk.
     return SWA_CONTINUE;
 }
 
-EventPipeConfiguration* EventPipe::GetConfiguration()
+EventPipeConfiguration *EventPipe::GetConfiguration()
 {
     LIMITED_METHOD_CONTRACT;
 
     return s_pConfig;
 }
 
-CrstStatic* EventPipe::GetLock()
+CrstStatic *EventPipe::GetLock()
 {
     LIMITED_METHOD_CONTRACT;
 
     return &s_configCrst;
+}
+
+INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
+    GUID providerID,
+    EventPipeCallback pCallbackFunc)
+{
+    QCALL_CONTRACT;
+
+    EventPipeProvider *pProvider = NULL;
+
+    BEGIN_QCALL;
+
+    pProvider = new EventPipeProvider(providerID, pCallbackFunc, NULL);
+
+    END_QCALL;
+
+    return reinterpret_cast<INT_PTR>(pProvider);
+}
+
+INT_PTR QCALLTYPE EventPipeInternal::AddEvent(
+    INT_PTR provHandle,
+    __int64 keywords,
+    unsigned int eventID,
+    unsigned int eventVersion,
+    unsigned int level,
+    bool needStack)
+{
+    QCALL_CONTRACT;
+
+    EventPipeEvent *pEvent = NULL;
+
+    BEGIN_QCALL;
+
+    _ASSERTE(provHandle != NULL);
+    EventPipeProvider *pProvider = reinterpret_cast<EventPipeProvider *>(provHandle);
+    pEvent = pProvider->AddEvent(keywords, eventID, eventVersion, (EventPipeEventLevel)level, needStack);
+    _ASSERTE(pEvent != NULL);
+
+    END_QCALL;
+
+    return reinterpret_cast<INT_PTR>(pEvent);
+}
+
+void QCALLTYPE EventPipeInternal::DeleteProvider(
+    INT_PTR provHandle)
+{
+    QCALL_CONTRACT;
+    BEGIN_QCALL;
+
+    if (provHandle != NULL)
+    {
+        EventPipeProvider *pProvider = reinterpret_cast<EventPipeProvider *>(provHandle);
+        delete pProvider;
+    }
+
+    END_QCALL;
+}
+
+struct EventProviderEventData
+{
+    unsigned long Ptr;
+    unsigned int Size;
+    unsigned int Reserved;
+};
+
+void QCALLTYPE EventPipeInternal::WriteEvent(
+    INT_PTR eventHandle,
+    void *pData,
+    unsigned int dataCount)
+{
+    QCALL_CONTRACT;
+    BEGIN_QCALL;
+
+    _ASSERTE(eventHandle != NULL);
+
+    EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
+    if (pData == NULL)
+    {
+        EventPipe::WriteEvent(*pEvent, NULL, 0);
+    }
+    else
+    {
+        EventProviderEventData *pNativeData = (EventProviderEventData *)pData;
+        unsigned int length = 0;
+        for (int i = 0; i < dataCount; i++)
+        {
+            length += pNativeData->Size;
+        }
+
+        BYTE *buffer = new BYTE[length];
+        unsigned int offset = 0;
+        for (int i = 0; i < dataCount; i++)
+        {
+            memcpy(buffer + offset, (BYTE *)pNativeData->Ptr, pNativeData->Size);
+            offset += pNativeData->Size;
+        }
+
+        EventPipe::WriteEvent(*pEvent, buffer, length);
+        delete[] buffer;
+    }
+
+    END_QCALL;
 }
 
 #endif // FEATURE_PERFTRACING

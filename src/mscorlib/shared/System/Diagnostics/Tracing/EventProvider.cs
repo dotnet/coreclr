@@ -54,6 +54,7 @@ namespace System.Diagnostics.Tracing
         // subclasses of EventProvider use when creating efficient (but unsafe) version of
         // EventWrite.   We do make it a nested type because we really don't expect anyone to use 
         // it except subclasses (and then only rarely).  
+        [StructLayout(LayoutKind.Sequential)]
         public struct EventData
         {
             internal unsafe ulong Ptr;
@@ -78,6 +79,7 @@ namespace System.Diagnostics.Tracing
 
         private static bool m_setInformationMissing;
 
+        private IEventProvider m_eventProvider;          // The interface that implements the specific logging mechanism functions.
         UnsafeNativeMethods.ManifestEtw.EtwEnableCallback m_etwCallback;     // Trace Callback function
         private long m_regHandle;                        // Trace Registration Handle
         private byte m_level;                            // Tracing Level
@@ -119,6 +121,11 @@ namespace System.Diagnostics.Tracing
         // EventSource has special logic to do this, no one else should be calling EventProvider.  
         internal EventProvider()
         {
+#if PLATFORM_WINDOWS
+            m_eventProvider = new EtwEventProvider();
+#elif FEATURE_PERFTRACING
+            m_eventProvider = new EventPipeEventProvider();
+#endif
         }
 
         /// <summary>
@@ -143,6 +150,14 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentException(Win32Native.GetMessage(unchecked((int)status)));
             }
         }
+
+#if FEATURE_PERFTRACING
+        // Add EventPipeEvent to this EventProvider
+        internal unsafe void AddEventPipeEvent(Int64 keywords, uint eventID, uint eventVersion, uint level, bool needStack)
+        {
+            m_eventProvider.AddEventHandle(keywords, eventID, eventVersion, level, needStack);
+        }
+#endif
 
         //
         // implement Dispose Pattern to early deregister from ETW insted of waiting for 
@@ -429,7 +444,7 @@ namespace System.Diagnostics.Tracing
 
             // However the framework version of EventSource DOES have ES_SESSION_INFO defined and thus
             // does not have this issue.  
-#if ES_SESSION_INFO || !ES_BUILD_STANDALONE  
+#if (PLATFORM_WINDOWS && (ES_SESSION_INFO || !ES_BUILD_STANDALONE))
             int buffSize = 256;     // An initial guess that probably works most of the time.  
             byte* buffer;
             for (; ; )
@@ -1056,7 +1071,7 @@ namespace System.Diagnostics.Tracing
                                 userDataPtr[refObjPosition[7]].Ptr = (ulong)v7;
                             }
 
-                            status = UnsafeNativeMethods.ManifestEtw.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, activityID, childActivityID, argCount, userData);
+                            status = m_eventProvider.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, activityID, childActivityID, argCount, userData);
                         }
                     }
                     else
@@ -1082,7 +1097,7 @@ namespace System.Diagnostics.Tracing
                             }
                         }
 
-                        status = UnsafeNativeMethods.ManifestEtw.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, activityID, childActivityID, argCount, userData);
+                        status = m_eventProvider.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, activityID, childActivityID, argCount, userData);
 
                         for (int i = 0; i < refObjIndex; ++i)
                         {
@@ -1135,7 +1150,7 @@ namespace System.Diagnostics.Tracing
                                 (EventOpcode)eventDescriptor.Opcode == EventOpcode.Stop);
             }
 
-            int status = UnsafeNativeMethods.ManifestEtw.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, activityID, childActivityID, dataCount, (EventData*)data);
+            int status = m_eventProvider.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, activityID, childActivityID, dataCount, (EventData*)data);
 
             if (status != 0)
             {
@@ -1155,7 +1170,7 @@ namespace System.Diagnostics.Tracing
         {
             int status;
 
-            status = UnsafeNativeMethods.ManifestEtw.EventWriteTransferWrapper(
+            status = m_eventProvider.EventWriteTransferWrapper(
                 m_regHandle,
                 ref eventDescriptor,
                 activityID,
@@ -1178,12 +1193,12 @@ namespace System.Diagnostics.Tracing
         {
             m_providerId = providerId;
             m_etwCallback = enableCallback;
-            return UnsafeNativeMethods.ManifestEtw.EventRegister(ref providerId, enableCallback, null, ref m_regHandle);
+            return m_eventProvider.EventRegister(ref providerId, enableCallback, null, ref m_regHandle);
         }
 
         private uint EventUnregister(long registrationHandle)
         {
-            return UnsafeNativeMethods.ManifestEtw.EventUnregister(registrationHandle);
+            return m_eventProvider.EventUnregister(registrationHandle);
         }
 
         static int[] nibblebits = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
@@ -1203,5 +1218,65 @@ namespace System.Diagnostics.Tracing
             return idx;
         }
     }
+
+#if PLATFORM_WINDOWS
+
+    // A wrapper around the ETW-specific API calls.
+    internal sealed class EtwEventProvider : IEventProvider
+    {
+        // Register an event provider.
+        unsafe uint IEventProvider.EventRegister(
+            ref Guid providerId,
+            UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
+            void* callbackContext,
+            ref long registrationHandle)
+        {
+            return UnsafeNativeMethods.ManifestEtw.EventRegister(
+                ref providerId,
+                enableCallback,
+                callbackContext,
+                ref registrationHandle);
+        }
+
+        // Unregister an event provider.
+        uint IEventProvider.EventUnregister(long registrationHandle)
+        {
+            return UnsafeNativeMethods.ManifestEtw.EventUnregister(registrationHandle);
+        }
+
+        // Write an event.
+        unsafe int IEventProvider.EventWriteTransferWrapper(
+            long registrationHandle,
+            ref EventDescriptor eventDescriptor,
+            Guid* activityId,
+            Guid* relatedActivityId,
+            int userDataCount,
+            EventProvider.EventData* userData)
+        {
+            return UnsafeNativeMethods.ManifestEtw.EventWriteTransferWrapper(
+                registrationHandle,
+                ref eventDescriptor,
+                activityId,
+                relatedActivityId,
+                userDataCount,
+                userData);
+        }
+
+        // Get or set the per-thread activity ID.
+        int IEventProvider.EventActivityIdControl(UnsafeNativeMethods.ManifestEtw.ActivityControl ControlCode, ref Guid ActivityId)
+        {
+            return UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
+                ControlCode,
+                ref ActivityId);
+        }
+
+        // Register an EventPipeEvent handle to this EventPipeEventProvider.
+        unsafe void IEventProvider.AddEventHandle(Int64 keywords, uint eventID, uint eventVersion, uint level, bool needStack)
+        {
+            throw new System.NotSupportedException();
+        }
+    }
+
+#endif
 }
 

@@ -4,15 +4,9 @@
 
 // This program uses code hyperlinks available as part of the HyperAddin Visual Studio plug-in.
 // It is available from http://www.codeplex.com/hyperAddin 
-#if PLATFORM_WINDOWS
-
-#define FEATURE_MANAGED_ETW
-
 #if !ES_BUILD_STANDALONE && !CORECLR && !ES_BUILD_PN
 #define FEATURE_ACTIVITYSAMPLING
 #endif // !ES_BUILD_STANDALONE
-
-#endif // PLATFORM_WINDOWS
 
 #if ES_BUILD_STANDALONE
 #define FEATURE_MANAGED_ETW_CHANNELS
@@ -640,6 +634,9 @@ namespace System.Diagnostics.Tracing
         protected EventSource()
             : this(EventSourceSettings.EtwManifestEventFormat)
         {
+#if FEATURE_PERFTRACING
+            GenerateEventPipeEvent();
+#endif
         }
 
         /// <summary>
@@ -691,6 +688,35 @@ namespace System.Diagnostics.Tracing
 
             Initialize(eventSourceGuid, eventSourceName, traits);
         }
+
+#if FEATURE_PERFTRACING
+        // Generate all EventPipeEvent instances which belong to this EventProvider
+        private unsafe void GenerateEventPipeEvent()
+        {
+            List<uint> allEvents = new List<uint>();
+            Debug.Assert(m_eventData != null);
+            int cnt = m_eventData.Length;
+            for (int i = 0; i < cnt; i++)
+            {
+                Int64 keywords = m_eventData[i].Descriptor.Keywords;
+                uint eventID = (uint)m_eventData[i].Descriptor.EventId;
+                uint eventVersion = m_eventData[i].Descriptor.Version;
+                uint level = m_eventData[i].Descriptor.Level;
+                // TODO: what's the value of needStack?
+                bool needStack = false;
+                
+                // Note: it's not clear that elements in m_eventData are unique or not
+                // so that we use a list allEvents to record the unique elements. 
+                if(allEvents.Contains(eventID))
+                {
+                    continue;
+                }
+
+                allEvents.Add(eventID);
+                m_provider.AddEventPipeEvent(keywords, eventID, eventVersion, level, needStack);
+            }
+        }
+#endif
 
         internal virtual void GetMetadata(out Guid eventSourceGuid, out string eventSourceName, out EventMetadata[] eventData, out byte[] manifestBytes)
         {
@@ -1474,7 +1500,7 @@ namespace System.Diagnostics.Tracing
                 // Set m_provider, which allows this.  
                 m_provider = provider;
 
-#if (!ES_BUILD_STANDALONE && !ES_BUILD_PN)
+#if (!ES_BUILD_STANDALONE && !ES_BUILD_PN && !PLATFORM_UNIX)
                 // API available on OS >= Win 8 and patched Win 7.
                 // Disable only for FrameworkEventSource to avoid recursion inside exception handling.
                 if (this.Name != "System.Diagnostics.Eventing.FrameworkEventSource" || Environment.IsWindows8OrAbove)
