@@ -579,37 +579,18 @@ namespace System
                 throw new ArgumentNullException(nameof(name));
             Contract.EndContractBlock();
 
-            int key = AppDomainSetup.Locate(name);
-            if (key == -1)
-            {
-                if (name.Equals(AppDomainSetup.LoaderOptimizationKey))
-                    return FusionStore.LoaderOptimization;
-                else
-                {
-                    object data;
-                    lock (((ICollection)LocalStore).SyncRoot)
-                    {
-                        LocalStore.TryGetValue(name, out data);
-                    }
-                    if (data == null)
-                        return null;
-                    return data;
-                }
-            }
+            if (name.Equals(AppDomainSetup.LoaderOptimizationKey))
+                return FusionStore.LoaderOptimization;
             else
             {
-                // Be sure to call these properties, not Value, so
-                // that the appropriate permission demand will be done
-                switch (key)
+                object data;
+                lock (((ICollection)LocalStore).SyncRoot)
                 {
-                    case (int)AppDomainSetup.LoaderInformation.ApplicationBaseValue:
-                        return FusionStore.ApplicationBase;
-                    case (int)AppDomainSetup.LoaderInformation.ApplicationNameValue:
-                        return FusionStore.ApplicationName;
-                    default:
-                        Debug.Assert(false, "Need to handle new LoaderInformation value in AppDomain.GetData()");
-                        return null;
+                    LocalStore.TryGetValue(name, out data);
                 }
+                if (data == null)
+                    return null;
+                return data;
             }
         }
 

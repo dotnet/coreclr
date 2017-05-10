@@ -29,7 +29,7 @@ namespace System
         internal enum LoaderInformation
         {
             // If you add a new value, add the corresponding property
-            // to AppDomain.GetData() and SetData()'s switch statements,
+            // to AppDomain.pa() and SetData()'s switch statements,
             // as well as fusionsetup.h.
             ApplicationBaseValue = 0,  // LOADER_APPLICATION_BASE
             ConfigurationFileValue = 1,  // LOADER_CONFIGURATION_BASE
@@ -336,18 +336,6 @@ namespace System
             {
                 return LOADER_OPTIMIZATION;
             }
-        }
-
-        static internal int Locate(String s)
-        {
-            if (String.IsNullOrEmpty(s))
-                return -1;
-
-            Debug.Assert('A' == ACTAG_APP_BASE_URL[0], "Assumption violated");
-            if (s[0] == 'A' && s == ACTAG_APP_BASE_URL)
-                return (int)LoaderInformation.ApplicationBaseValue;
-
-            return -1;
         }
 
 #if FEATURE_COMINTEROP
