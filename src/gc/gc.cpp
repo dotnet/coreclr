@@ -3777,7 +3777,7 @@ public:
         _ASSERTE(pMT->SanityCheck());
 
         bool noRangeChecks =
-            (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_NO_RANGE_CHECKS) == EEConfig::HEAPVERIFY_NO_RANGE_CHECKS;
+            (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_NO_RANGE_CHECKS) == GCConfig::HEAPVERIFY_NO_RANGE_CHECKS;
 
         BOOL fSmallObjectHeapPtr = FALSE, fLargeObjectHeapPtr = FALSE;
         if (!noRangeChecks)
@@ -3801,7 +3801,7 @@ public:
 #endif // FEATURE_64BIT_ALIGNMENT
 
 #ifdef VERIFY_HEAP
-        if (bDeep && (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC))
+        if (bDeep && (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC))
             g_theGCHeap->ValidateObjectMember(this);
 #endif
         if (fSmallObjectHeapPtr)
@@ -3892,7 +3892,7 @@ public:
         //This introduces a bug in the free list management. 
         //((void**) this)[-1] = 0;    // clear the sync block,
         assert (*numComponentsPtr >= 0);
-        if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+        if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
             memset (((uint8_t*)this)+sizeof(ArrayBase), 0xcc, *numComponentsPtr);
 #endif //VERIFY_HEAP
     }
@@ -11912,7 +11912,7 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
 #ifdef VERIFY_HEAP
     // since we filled in 0xcc for free object when we verify heap,
     // we need to make sure we clear those bytes.
-    if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+    if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
     {
         if (size_to_clear < saved_size_to_clear)
         {
@@ -13121,7 +13121,7 @@ int gc_heap::try_allocate_more_space (alloc_context* acontext, size_t size,
 #ifdef SYNCHRONIZATION_STATS
         good_suspension++;
 #endif //SYNCHRONIZATION_STATS
-        BOOL fStress = (g_pConfig->GetGCStressLevel() & EEConfig::GCSTRESS_TRANSITION) != 0;
+        BOOL fStress = (g_pConfig->GetGCStressLevel() & GCConfig::GCSTRESS_TRANSITION) != 0;
         if (!fStress)
         {
             //Rendez vous early (MP scaling issue)
@@ -15566,7 +15566,7 @@ void gc_heap::gc1()
         // value. If we ever allow randomly adjusting this as the process runs,
         // we cannot call it this way as joins need to match - we must have the same
         // value for all heaps like we do with bgc_heap_walk_for_etw_p.
-        || (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+        || (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
 #endif
 #if defined(FEATURE_EVENT_TRACE) && defined(BACKGROUND_GC)
         || (bgc_heap_walk_for_etw_p && settings.concurrent)
@@ -15628,7 +15628,7 @@ void gc_heap::gc1()
 #endif //BACKGROUND_GC
 
 #ifdef VERIFY_HEAP
-        if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+        if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
             verify_heap (FALSE);
 #endif // VERIFY_HEAP
 
@@ -16734,12 +16734,12 @@ int gc_heap::garbage_collect (int n)
 #endif //NO_WRITE_BARRIER
 
 #ifdef VERIFY_HEAP
-    if ((GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC) &&
-       !(GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_POST_GC_ONLY))
+    if ((GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC) &&
+       !(GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_POST_GC_ONLY))
     {
         verify_heap (TRUE);
     }
-    if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_BARRIERCHECK)
+    if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_BARRIERCHECK)
         checkGCWriteBarrier();
 
 #endif // VERIFY_HEAP
@@ -23810,7 +23810,7 @@ void gc_heap::relocate_survivor_helper (uint8_t* plug, uint8_t* plug_end)
 void gc_heap::verify_pins_with_post_plug_info (const char* msg)
 {
 #if defined  (_DEBUG) && defined (VERIFY_HEAP)
-    if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+    if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
     {
         if (!verify_pinned_queue_p)
             return;
@@ -29294,7 +29294,7 @@ gc_heap::realloc_plugs (generation* consing_gen, heap_segment* seg,
 void gc_heap::verify_no_pins (uint8_t* start, uint8_t* end)
 {
 #ifdef VERIFY_HEAP
-    if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+    if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
     {
         BOOL contains_pinned_plugs = FALSE;
         size_t mi = 0;
@@ -30924,8 +30924,8 @@ void gc_heap::set_mem_verify (uint8_t* start, uint8_t* end, uint8_t b)
 #ifdef VERIFY_HEAP
     if (end > start)
     {
-        if ((GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC) &&
-           !(GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_NO_MEM_FILL))
+        if ((GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC) &&
+           !(GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_NO_MEM_FILL))
         {
             dprintf (3, ("setting mem to %c [%Ix, [%Ix", b, start, end));
             memset (start, b, (end - start));
@@ -31284,7 +31284,7 @@ void gc_heap::background_ephemeral_sweep()
                 // the following line is temporary.
                 heap_segment_saved_bg_allocated (ephemeral_heap_segment) = plug_end;
 #ifdef VERIFY_HEAP
-                if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+                if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
                 {
                     make_unused_array (plug_end, (end - plug_end));
                 }
@@ -32467,7 +32467,7 @@ BOOL gc_heap::bgc_mark_array_range (heap_segment* seg,
 void gc_heap::bgc_verify_mark_array_cleared (heap_segment* seg)
 {
 #if defined (VERIFY_HEAP) && defined (MARK_ARRAY)
-    if (recursive_gc_sync::background_running_p() && GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+    if (recursive_gc_sync::background_running_p() && GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
     {
         uint8_t* range_beg = 0;
         uint8_t* range_end = 0;
@@ -32651,7 +32651,7 @@ void gc_heap::verify_mark_array_cleared (heap_segment* seg)
 void gc_heap::verify_mark_array_cleared ()
 {
 #if defined (VERIFY_HEAP) && defined (MARK_ARRAY)
-    if (recursive_gc_sync::background_running_p() && GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+    if (recursive_gc_sync::background_running_p() && GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
     {
         generation* gen = generation_of (max_generation);
         heap_segment* seg = heap_segment_rw (generation_start_segment (gen));
@@ -32681,7 +32681,7 @@ void gc_heap::verify_mark_array_cleared ()
 void gc_heap::verify_seg_end_mark_array_cleared()
 {
 #if defined (VERIFY_HEAP) && defined (MARK_ARRAY)
-    if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+    if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
     {
         generation* gen = generation_of (max_generation);
         heap_segment* seg = heap_segment_rw (generation_start_segment (gen));
@@ -32743,7 +32743,7 @@ void gc_heap::verify_seg_end_mark_array_cleared()
 void gc_heap::verify_soh_segment_list()
 {
 #ifdef VERIFY_HEAP
-    if (GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
+    if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
     {
         generation* gen = generation_of (max_generation);
         heap_segment* seg = heap_segment_rw (generation_start_segment (gen));
@@ -32991,7 +32991,7 @@ gc_heap::verify_heap (BOOL begin_gc_p)
     if (!settings.concurrent)
 #endif //BACKGROUND_GC
     {
-        if (!(heap_verify_level & EEConfig::HEAPVERIFY_NO_MEM_FILL))
+        if (!(heap_verify_level & GCConfig::HEAPVERIFY_NO_MEM_FILL))
         {
             //uninit the unused portions of segments.
             generation* gen1 = large_object_generation;
@@ -33271,7 +33271,7 @@ gc_heap::verify_heap (BOOL begin_gc_p)
 #endif //BACKGROUND_GC
 
             BOOL deep_verify_obj = can_verify_deep;
-            if ((heap_verify_level & EEConfig::HEAPVERIFY_DEEP_ON_COMPACT) && !settings.compaction)
+            if ((heap_verify_level & GCConfig::HEAPVERIFY_DEEP_ON_COMPACT) && !settings.compaction)
                 deep_verify_obj = FALSE;
 
             ((CObjectHeader*)curr_object)->ValidateHeap((Object*)curr_object, deep_verify_obj);
@@ -36570,7 +36570,7 @@ void deleteGCShadow()
     // Called at startup and right after a GC, get a snapshot of the GC Heap
 void initGCShadow()
 {
-    if (!(GCConfig::GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_BARRIERCHECK))
+    if (!(GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_BARRIERCHECK))
         return;
 
     size_t len = g_gc_highest_address - g_gc_lowest_address;

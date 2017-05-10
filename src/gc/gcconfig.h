@@ -10,24 +10,6 @@
 // This file and the GCConfig class are designed to be the primary entry point
 // for querying configuration information from within the GC.
 
-// Flags that may inhabit the number returned for the HeapVerifyLevel config option.
-// Keep this in sync with vm\eeconfig.h if this ever changes.
-enum HeapVerifyFlags {
-    HEAPVERIFY_NONE             = 0,
-    HEAPVERIFY_GC               = 1,   // Verify the heap at beginning and end of GC
-    HEAPVERIFY_BARRIERCHECK     = 2,   // Verify the brick table
-    HEAPVERIFY_SYNCBLK          = 4,   // Verify sync block scanning
-
-    // the following options can be used to mitigate some of the overhead introduced
-    // by heap verification.  some options might cause heap verifiction to be less
-    // effective depending on the scenario.
-
-    HEAPVERIFY_NO_RANGE_CHECKS  = 0x10,   // Excludes checking if an OBJECTREF is within the bounds of the managed heap
-    HEAPVERIFY_NO_MEM_FILL      = 0x20,   // Excludes filling unused segment portions with fill pattern
-    HEAPVERIFY_POST_GC_ONLY     = 0x40,   // Performs heap verification post-GCs only (instead of before and after each GC)
-    HEAPVERIFY_DEEP_ON_COMPACT  = 0x80    // Performs deep object verfication only on compacting GCs.
-};
-
 // GCConfigStringHolder is a wrapper around a configuration string obtained
 // from the EE. Such strings must be disposed using GCToEEInterface::FreeStringConfigValue,
 // so this class ensures that is done correctly.
@@ -125,6 +107,25 @@ GC_CONFIGURATION_KEYS
 #undef BOOL_CONFIG
 #undef INT_CONFIG
 #undef STRING_CONFIG
+
+// Flags that may inhabit the number returned for the HeapVerifyLevel config option.
+// Keep this in sync with vm\eeconfig.h if this ever changes.
+enum HeapVerifyFlags {
+    HEAPVERIFY_NONE             = 0,
+    HEAPVERIFY_GC               = 1,   // Verify the heap at beginning and end of GC
+    HEAPVERIFY_BARRIERCHECK     = 2,   // Verify the brick table
+    HEAPVERIFY_SYNCBLK          = 4,   // Verify sync block scanning
+
+    // the following options can be used to mitigate some of the overhead introduced
+    // by heap verification.  some options might cause heap verifiction to be less
+    // effective depending on the scenario.
+
+    HEAPVERIFY_NO_RANGE_CHECKS  = 0x10,   // Excludes checking if an OBJECTREF is within the bounds of the managed heap
+    HEAPVERIFY_NO_MEM_FILL      = 0x20,   // Excludes filling unused segment portions with fill pattern
+    HEAPVERIFY_POST_GC_ONLY     = 0x40,   // Performs heap verification post-GCs only (instead of before and after each GC)
+    HEAPVERIFY_DEEP_ON_COMPACT  = 0x80    // Performs deep object verfication only on compacting GCs.
+};
+
 };
 
 #endif // __GCCONFIG_H__
