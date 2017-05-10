@@ -18,6 +18,8 @@ EventPipeConfiguration::EventPipeConfiguration()
 {
     STANDARD_VM_CONTRACT;
 
+    m_enabled = false;
+    m_circularBufferSizeInBytes = 1024 * 1024 * 10; // 10MB
     m_pProviderList = new SList<SListElem<EventPipeProvider*>>();
 }
 
@@ -169,6 +171,23 @@ EventPipeProvider* EventPipeConfiguration::GetProviderNoLock(const GUID &provide
     return NULL;
 }
 
+size_t EventPipeConfiguration::GetCircularBufferSize() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_circularBufferSizeInBytes;
+}
+
+void EventPipeConfiguration::SetCircularBufferSize(size_t circularBufferSize)
+{
+    LIMITED_METHOD_CONTRACT;
+    
+    if(!m_enabled)
+    {
+        m_circularBufferSizeInBytes = circularBufferSize;
+    }
+}
+
 void EventPipeConfiguration::Enable()
 {
     CONTRACTL
@@ -180,6 +199,8 @@ void EventPipeConfiguration::Enable()
         PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
+
+    m_enabled = true;
 
     SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
     while(pElem != NULL)
@@ -213,9 +234,11 @@ void EventPipeConfiguration::Disable()
 
         pElem = m_pProviderList->GetNext(pElem);
     }
+
+    m_enabled = false;
 }
 
-EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEvent &sourceEvent, BYTE *pPayloadData, unsigned int payloadLength)
+EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, BYTE *pPayloadData, unsigned int payloadLength)
 {
     CONTRACTL
     {
@@ -232,6 +255,7 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     // - Optional event description payload.
 
     // Calculate the size of the event.
+    EventPipeEvent &sourceEvent = *sourceInstance.GetEvent();
     const GUID &providerID = sourceEvent.GetProvider()->GetProviderID();
     unsigned int eventID = sourceEvent.GetEventID();
     unsigned int eventVersion = sourceEvent.GetEventVersion();
@@ -264,6 +288,10 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
         GetCurrentThreadId(),
         pInstancePayload,
         instancePayloadSize);
+
+    // Set the timestamp to match the source event, because the metadata event
+    // will be emitted right before the source event.
+    pInstance->SetTimeStamp(sourceInstance.GetTimeStamp());
 
     return pInstance;
 }

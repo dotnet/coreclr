@@ -158,19 +158,18 @@ void SampleProfiler::WalkManagedThreads()
     }
     CONTRACTL_END;
 
-    Thread *pThread = NULL;
+    Thread *pTargetThread = NULL;
 
     // Iterate over all managed threads.
     // Assumes that the ThreadStoreLock is held because we've suspended all threads.
-    while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
+    while ((pTargetThread = ThreadStore::GetThreadList(pTargetThread)) != NULL)
     {
-        SampleProfilerEventInstance instance(pThread);
-        StackContents &stackContents = *(instance.GetStack());
+        StackContents stackContents;
 
         // Walk the stack and write it out as an event.
-        if(EventPipe::WalkManagedStackForThread(pThread, stackContents) && !stackContents.IsEmpty())
+        if(EventPipe::WalkManagedStackForThread(pTargetThread, stackContents) && !stackContents.IsEmpty())
         {
-            EventPipe::WriteSampleProfileEvent(instance);
+            EventPipe::WriteSampleProfileEvent(s_pSamplingThread, pTargetThread, stackContents);
         }
     }
 }
