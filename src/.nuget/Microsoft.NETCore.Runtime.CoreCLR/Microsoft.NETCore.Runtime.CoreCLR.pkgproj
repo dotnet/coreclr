@@ -18,11 +18,4 @@
   <Import Condition="'$(_packageTargetOSGroup)' != ''"  Project="$(MSBuildThisFileDirectory)runtime.$(_packageTargetOSGroup).$(MSBuildProjectName).props" />
   
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
-  <ItemGroup>
-    <!-- Add version file to packages -->
-    <File Condition="Exists('$(SyncInfoFile)')"
-          Include="$(SyncInfoFile)">
-          <SkipPackageFileCheck>true</SkipPackageFileCheck>
-    </File>
-  </ItemGroup>
 </Project>
