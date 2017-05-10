@@ -579,19 +579,14 @@ namespace System
                 throw new ArgumentNullException(nameof(name));
             Contract.EndContractBlock();
 
-            if (name.Equals(AppDomainSetup.LoaderOptimizationKey))
-                return FusionStore.LoaderOptimization;
-            else
+            object data;
+            lock (((ICollection)LocalStore).SyncRoot)
             {
-                object data;
-                lock (((ICollection)LocalStore).SyncRoot)
-                {
-                    LocalStore.TryGetValue(name, out data);
-                }
-                if (data == null)
-                    return null;
-                return data;
+                LocalStore.TryGetValue(name, out data);
             }
+            if (data == null)
+                return null;
+            return data;
         }
 
         [Obsolete("AppDomain.GetCurrentThreadId has been deprecated because it does not provide a stable Id when managed threads are running on fibers (aka lightweight threads). To get a stable identifier for a managed thread, use the ManagedThreadId property on Thread.  http://go.microsoft.com/fwlink/?linkid=14202", false)]
