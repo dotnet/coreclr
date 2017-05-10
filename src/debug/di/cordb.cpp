@@ -21,10 +21,10 @@
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
 
 #if defined(PLATFORM_UNIX) || defined(__ANDROID__)
-// _aligned_malloc and _aligned_free are unavailable on POSIX and Android
-#define HAVE_ALIGNED_MALLOC 0
+// Local (in-process) debugging is not supported for UNIX and Android.
+#define SUPPORT_LOCAL_DEBUGGING 0
 #else
-#define HAVE_ALIGNED_MALLOC 1
+#define SUPPORT_LOCAL_DEBUGGING 1
 #endif
 
 //********** Globals. *********************************************************
@@ -506,7 +506,7 @@ DbiGetThreadContext(HANDLE hThread,
     DT_CONTEXT *lpContext)
 {
     // if we aren't local debugging this isn't going to work
-#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !HAVE_ALIGNED_MALLOC
+#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !SUPPORT_LOCAL_DEBUGGING
     _ASSERTE(!"Can't use local GetThreadContext remotely, this needed to go to datatarget");
     return FALSE;
 #else
@@ -545,7 +545,7 @@ BOOL
 DbiSetThreadContext(HANDLE hThread,
     const DT_CONTEXT *lpContext)
 {
-#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !HAVE_ALIGNED_MALLOC
+#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !SUPPORT_LOCAL_DEBUGGING
     _ASSERTE(!"Can't use local GetThreadContext remotely, this needed to go to datatarget");
     return FALSE;
 #else
