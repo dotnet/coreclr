@@ -6099,7 +6099,7 @@ GenTreePtr Compiler::fgMorphStackArgForVarArgs(unsigned lclNum, var_types varTyp
  *  Transform the given GT_LCL_VAR tree for code generation.
  */
 
-GenTreePtr Compiler::fgMorphLocalVar(GenTreePtr tree, bool force)
+GenTreePtr Compiler::fgMorphLocalVar(GenTreePtr tree, bool forceRemorph)
 {
     noway_assert(tree->gtOper == GT_LCL_VAR);
 
@@ -6129,7 +6129,7 @@ GenTreePtr Compiler::fgMorphLocalVar(GenTreePtr tree, bool force)
 
     /* If not during the global morphing phase bail */
 
-    if (!fgGlobalMorph && !force)
+    if (!fgGlobalMorph && !forceRemorph)
     {
         return tree;
     }
@@ -8522,7 +8522,8 @@ GenTreePtr Compiler::fgMorphLeaf(GenTreePtr tree)
 
     if (tree->gtOper == GT_LCL_VAR)
     {
-        return fgMorphLocalVar(tree, false);
+        const bool forceRemorph = false;
+        return fgMorphLocalVar(tree, forceRemorph);
     }
 #ifdef _TARGET_X86_
     else if (tree->gtOper == GT_LCL_FLD)
@@ -13204,10 +13205,12 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                         // and the node in question must have this bit set (as it has already been morphed).
                         temp->gtDebugFlags &= ~GTF_DEBUG_NODE_MORPHED;
 #endif // DEBUG
-                        temp = fgMorphLocalVar(temp, true);
+                        const bool forceRemorph = true;
+                        temp = fgMorphLocalVar(temp, forceRemorph);
 #ifdef DEBUG
-                        // We then set this flag on `temp` because `fgMorhpLocalVar` may not set it itself, and the caller
-                        // of `fgMorphSmpOp` may assert that this flag is set on `temp` once this function returns.
+                        // We then set this flag on `temp` because `fgMorhpLocalVar` may not set it itself, and the
+                        // caller of `fgMorphSmpOp` may assert that this flag is set on `temp` once this function
+                        // returns.
                         temp->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
 #endif // DEBUG
                     }
