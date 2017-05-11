@@ -13195,6 +13195,19 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                     DEBUG_DESTROY_NODE(op1);  // GT_ADD or GT_ADDR
                     DEBUG_DESTROY_NODE(tree); // GT_IND
 
+                    // If the result of the fold is a local var, we may need to perform further adjustments e.g. for
+                    // normalization.
+                    if (temp->OperIs(GT_LCL_VAR))
+                    {
+#ifdef DEBUG
+                        temp->gtDebugFlags &= ~GTF_DEBUG_NODE_MORPHED;
+#endif // DEBUG
+                        temp = fgMorphLocalVar(temp);
+#ifdef DEBUG
+                        temp->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
+#endif // DEBUG
+                    }
+
                     return temp;
                 }
 
