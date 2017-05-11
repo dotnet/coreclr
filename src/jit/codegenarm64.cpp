@@ -2522,6 +2522,12 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode)
 
     genConsumeOperands(initBlkNode);
 
+    if (initBlkNode->gtFlags & GTF_BLK_VOLATILE)
+    {
+        // issue a full memory barrier before volatile an initBlockUnroll operation
+        instGen_MemoryBarrier();
+    }
+
     regNumber valReg = initVal->IsIntegralConst(0) ? REG_ZR : initVal->gtRegNum;
 
     assert(!initVal->IsIntegralConst(0) || (valReg == REG_ZR));
@@ -2597,9 +2603,7 @@ void CodeGen::genCodeForLoadPairOffset(regNumber dst, regNumber dst2, GenTree* b
         if (base->gtOper == GT_LCL_FLD_ADDR)
             offset += base->gtLclFld.gtLclOffs;
 
-        // TODO-ARM64-CQ: Implement support for using a ldp instruction with a varNum (see emitIns_R_S)
-        emit->emitIns_R_S(INS_ldr, EA_8BYTE, dst, base->gtLclVarCommon.gtLclNum, offset);
-        emit->emitIns_R_S(INS_ldr, EA_8BYTE, dst2, base->gtLclVarCommon.gtLclNum, offset + REGSIZE_BYTES);
+        emit->emitIns_R_R_S_S(INS_ldp, EA_8BYTE, EA_8BYTE, dst, dst2, base->gtLclVarCommon.gtLclNum, offset);
     }
     else
     {
@@ -2638,9 +2642,7 @@ void CodeGen::genCodeForStorePairOffset(regNumber src, regNumber src2, GenTree* 
         if (base->gtOper == GT_LCL_FLD_ADDR)
             offset += base->gtLclFld.gtLclOffs;
 
-        // TODO-ARM64-CQ: Implement support for using a stp instruction with a varNum (see emitIns_S_R)
-        emit->emitIns_S_R(INS_str, EA_8BYTE, src, base->gtLclVarCommon.gtLclNum, offset);
-        emit->emitIns_S_R(INS_str, EA_8BYTE, src2, base->gtLclVarCommon.gtLclNum, offset + REGSIZE_BYTES);
+        emit->emitIns_S_S_R_R(INS_stp, EA_8BYTE, EA_8BYTE, src, src2, base->gtLclVarCommon.gtLclNum, offset);
     }
     else
     {
@@ -2663,6 +2665,12 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode)
     assert((size != 0) && (size <= CPBLK_UNROLL_LIMIT));
 
     emitter* emit = getEmitter();
+
+    if (cpBlkNode->gtFlags & GTF_BLK_VOLATILE)
+    {
+        // issue a full memory barrier before & after a volatile CpBlkUnroll operation
+        instGen_MemoryBarrier();
+    }
 
     if (source->gtOper == GT_IND)
     {
@@ -2742,6 +2750,12 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode)
             genCodeForStoreOffset(INS_strb, EA_1BYTE, tmpReg, dstAddr, offset);
         }
     }
+
+    if (cpBlkNode->gtFlags & GTF_BLK_VOLATILE)
+    {
+        // issue a full memory barrier before & after a volatile CpBlkUnroll operation
+        instGen_MemoryBarrier();
+    }
 }
 
 // Generate code for CpObj nodes wich copy structs that have interleaved
@@ -2820,6 +2834,12 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
         assert(tmpReg2 != REG_WRITE_BARRIER_SRC_BYREF);
     }
 
+    if (cpObjNode->gtFlags & GTF_BLK_VOLATILE)
+    {
+        // issue a full memory barrier before & after a volatile CpObj operation
+        instGen_MemoryBarrier();
+    }
+
     emitter* emit = getEmitter();
 
     BYTE* gcPtrs = cpObjNode->gtGcPtrs;
@@ -2890,6 +2910,12 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
             ++i;
         }
         assert(gcPtrCount == 0);
+    }
+
+    if (cpObjNode->gtFlags & GTF_BLK_VOLATILE)
+    {
+        // issue a full memory barrier before & after a volatile CpObj operation
+        instGen_MemoryBarrier();
     }
 
     // Clear the gcInfo for REG_WRITE_BARRIER_SRC_BYREF and REG_WRITE_BARRIER_DST_BYREF.
@@ -3562,6 +3588,12 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
         {
             assert(!data->isContained());
             dataReg = data->gtRegNum;
+        }
+
+        if (tree->gtFlags & GTF_IND_VOLATILE)
+        {
+            // issue a full memory barrier a before volatile StInd
+            instGen_MemoryBarrier();
         }
 
         emit->emitInsLoadStoreOp(ins_Store(targetType), emitTypeSize(tree), dataReg, tree);

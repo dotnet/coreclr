@@ -238,7 +238,6 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         return;
     }
 
-    // Write the event to the thread's buffer.
     if(s_pBufferManager != NULL)
     {
         if(!s_pBufferManager->WriteEvent(pThread, event, pData, length))
