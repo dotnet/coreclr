@@ -992,6 +992,16 @@ void DestroyThread(Thread *th)
         th->SetThreadState(Thread::TS_ReportDead);
         th->OnThreadTerminate(FALSE);
     }
+
+#ifdef FEATURE_PERFTRACING
+    // Before the thread dies, mark its buffers as no longer owned
+    // so that they can be cleaned up after the thread dies.
+    EventPipeBufferList *pBufferList = th->GetEventPipeBufferList();
+    if(pBufferList != NULL)
+    {
+        pBufferList->SetOwnedByThread(false);
+    }
+#endif // FEATURE_PERFTRACING
 }
 
 //-------------------------------------------------------------------------
@@ -1091,9 +1101,10 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
 #ifdef FEATURE_PERFTRACING
     // Before the thread dies, mark its buffers as no longer owned
     // so that they can be cleaned up after the thread dies.
-    if(((EventPipeBufferList*)m_pEventPipeBufferList) != NULL)
+    EventPipeBufferList *pBufferList = m_pEventPipeBufferList.Load();
+    if(pBufferList != NULL)
     {
-        ((EventPipeBufferList*)m_pEventPipeBufferList)->SetOwnedByThread(false);
+        pBufferList->SetOwnedByThread(false);
     }
 #endif // FEATURE_PERFTRACING
 

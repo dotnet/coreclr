@@ -137,14 +137,6 @@ DWORD WINAPI SampleProfiler::ThreadProc(void *args)
         }
     }
 
-    // Before destroying the sampling thread, mark its buffer list as no longer
-    // owned by a thread, so that it can be freed.
-    EventPipeBufferList *pBufferList = s_pSamplingThread->GetEventPipeBufferList();
-    if(pBufferList != NULL)
-    {
-        pBufferList->SetOwnedByThread(false);
-    }
-
     // Destroy the sampling thread when it is done running.
     DestroyThread(s_pSamplingThread);
     s_pSamplingThread = NULL;
