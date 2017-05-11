@@ -8,9 +8,22 @@
 
 #include "slist.h"
 
+class EventPipeEnabledProvider;
+class EventPipeEnabledProviderList;
 class EventPipeEvent;
 class EventPipeEventInstance;
 class EventPipeProvider;
+struct EventPipeProviderConfiguration;
+
+enum class EventPipeEventLevel
+{
+    LogAlways,
+    Critical,
+    Error,
+    Warning,
+    Informational,
+    Verbose
+};
 
 class EventPipeConfiguration
 {
@@ -38,7 +51,11 @@ public:
     void SetCircularBufferSize(size_t circularBufferSize);
 
     // Enable the event pipe.
-    void Enable();
+    void Enable(
+        uint circularBufferSizeInMB,
+        uint loggingLevel,
+        EventPipeProviderConfiguration *pProviders,
+        int numProviders);
 
     // Disable the event pipe.
     void Disable();
@@ -60,6 +77,13 @@ private:
     // The configured size of the circular buffer.
     size_t m_circularBufferSizeInBytes;
 
+    // The verbosity of the tracing session.
+    EventPipeEventLevel m_loggingLevel;
+
+    // EventPipeConfiguration only supports a single session.
+    // This is the set of configurations for each enabled provider.
+    EventPipeEnabledProviderList *m_pEnabledProviderList;
+
     // The list of event pipe providers.
     SList<SListElem<EventPipeProvider*>> *m_pProviderList;
 
@@ -72,6 +96,44 @@ private:
     // The provider ID for the configuration event pipe provider.
     // This provider is used to emit configuration events.
     static const GUID s_configurationProviderID;
+};
+
+class EventPipeEnabledProviderList
+{
+
+private:
+
+    unsigned int m_numProviders;
+    EventPipeEnabledProvider *m_pProviders;
+
+public:
+
+    // Create a new list based on the input.
+    EventPipeEnabledProviderList(EventPipeProviderConfiguration *pConfigs, unsigned int numConfigs);
+    ~EventPipeEnabledProviderList();
+
+    // Get the enabled provider for the specified provider.
+    // Return NULL if one doesn't exist.
+    EventPipeEnabledProvider* GetEnabledProvider(EventPipeProvider *pProvider);
+};
+
+class EventPipeEnabledProvider
+{
+private:
+
+    WCHAR *m_pProviderName;
+    UINT64 m_keywords;
+
+public:
+
+    EventPipeEnabledProvider();
+    ~EventPipeEnabledProvider();
+
+    void Set(LPCWSTR providerName, UINT64 keywords);
+
+    LPCWSTR GetProviderName() const;
+
+    UINT64 GetKeywords() const;
 };
 
 #endif // FEATURE_PERFTRACING

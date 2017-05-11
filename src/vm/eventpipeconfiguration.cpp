@@ -19,7 +19,9 @@ EventPipeConfiguration::EventPipeConfiguration()
     STANDARD_VM_CONTRACT;
 
     m_enabled = false;
-    m_circularBufferSizeInBytes = 1024 * 1024 * 1000; // 1000MB
+    m_circularBufferSizeInBytes = 1024 * 1024 * 1000; // Default to 1000MB.
+    m_loggingLevel = EventPipeEventLevel::Verbose;
+    m_pEnabledProviderList = NULL;
     m_pProviderList = new SList<SListElem<EventPipeProvider*>>();
 }
 
@@ -32,6 +34,12 @@ EventPipeConfiguration::~EventPipeConfiguration()
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    if(m_pEnabledProviderList != NULL)
+    {
+        delete(m_pEnabledProviderList);
+        m_pEnabledProviderList = NULL;
+    }
 
     if(m_pProviderList != NULL)
     {
@@ -58,7 +66,7 @@ void EventPipeConfiguration::Initialize()
         0,      /* keywords */
         0,      /* eventID */
         0,      /* eventVersion */
-        EventPipeEventLevel::Critical,
+        EventPipeEventLevel::LogAlways,
         false); /* needStack */
 }
 
@@ -85,9 +93,18 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
     // The provider has not been registered, so register it.
     m_pProviderList->InsertTail(new SListElem<EventPipeProvider*>(&provider));
 
-    // TODO: Set the provider configuration and enable it if we know
-    // anything about the provider before it is registered.
-    provider.SetConfiguration(true /* providerEnabled */, 0xFFFFFFFFFFFFFFFF /* keywords */, EventPipeEventLevel::Verbose /* level */);
+    // Set the provider configuration and enable it if we know anything about the provider before it is registered.
+    if(m_pEnabledProviderList != NULL)
+    {
+        EventPipeEnabledProvider *pEnabledProvider = m_pEnabledProviderList->GetEnabledProvider(&provider);
+        if(pEnabledProvider != NULL)
+        {
+            provider.SetConfiguration(
+                true /* providerEnabled */,
+                pEnabledProvider->GetKeywords(),
+                m_loggingLevel);
+        }
+    }
 
     return true;
 }
@@ -189,7 +206,11 @@ void EventPipeConfiguration::SetCircularBufferSize(size_t circularBufferSize)
     }
 }
 
-void EventPipeConfiguration::Enable()
+void EventPipeConfiguration::Enable(
+    uint circularBufferSizeInMB,
+    uint loggingLevel,
+    EventPipeProviderConfiguration *pProviders,
+    int numProviders)
 {
     CONTRACTL
     {
@@ -201,14 +222,25 @@ void EventPipeConfiguration::Enable()
     }
     CONTRACTL_END;
 
+    m_circularBufferSizeInBytes = circularBufferSizeInMB * 1024 * 1024;
+    m_loggingLevel = static_cast<EventPipeEventLevel>(loggingLevel);
+    m_pEnabledProviderList = new EventPipeEnabledProviderList(pProviders, static_cast<unsigned int>(numProviders));
     m_enabled = true;
 
     SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
     while(pElem != NULL)
     {
-        // TODO: Only enable the providers that have been explicitly enabled with specified keywords/level.
         EventPipeProvider *pProvider = pElem->GetValue();
-        pProvider->SetConfiguration(true /* providerEnabled */, 0xFFFFFFFFFFFFFFFF /* keywords */, EventPipeEventLevel::Verbose /* level */);
+
+        // Enable the provider if it has been configured.
+        EventPipeEnabledProvider *pEnabledProvider = m_pEnabledProviderList->GetEnabledProvider(pProvider);
+        if(pEnabledProvider != NULL)
+        {
+            pProvider->SetConfiguration(
+                true /* providerEnabled */,
+                pEnabledProvider->GetKeywords(),
+                m_loggingLevel);
+        }
 
         pElem = m_pProviderList->GetNext(pElem);
     }
@@ -237,6 +269,13 @@ void EventPipeConfiguration::Disable()
     }
 
     m_enabled = false;
+
+    // Free the enabled providers list.
+    if(m_pEnabledProviderList != NULL)
+    {
+        delete(m_pEnabledProviderList);
+        m_pEnabledProviderList = NULL;
+    }
 }
 
 bool EventPipeConfiguration::Enabled() const
@@ -301,6 +340,155 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     pInstance->SetTimeStamp(sourceInstance.GetTimeStamp());
 
     return pInstance;
+}
+
+EventPipeEnabledProviderList::EventPipeEnabledProviderList(
+    EventPipeProviderConfiguration *pConfigs,
+    unsigned int numConfigs)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    m_numProviders = numConfigs;
+    if(m_numProviders == 0)
+    {
+        return;
+    }
+
+    m_pProviders = new EventPipeEnabledProvider[m_numProviders];
+    for(int i=0; i<m_numProviders; i++)
+    {
+        m_pProviders[i].Set(
+            pConfigs[i].GetProviderName(),
+            pConfigs[i].GetKeywords());
+    }
+}
+
+EventPipeEnabledProviderList::~EventPipeEnabledProviderList()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if(m_pProviders != NULL)
+    {
+        delete[] m_pProviders;
+        m_pProviders = NULL;
+    }
+}
+
+EventPipeEnabledProvider* EventPipeEnabledProviderList::GetEnabledProvider(
+    EventPipeProvider *pProvider)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // TODO: Handle environment variable case - always return a provider.
+
+    if(m_pProviders == NULL)
+    {
+        return NULL;
+    }
+
+    // TEMPORARY: Convert the provider GUID to a string.
+    const unsigned int guidSize = 39;
+    WCHAR wszProviderID[guidSize];
+    if(!StringFromGUID2(pProvider->GetProviderID(), wszProviderID, guidSize))
+    {
+        wszProviderID[0] = '\0';
+    }
+
+    // Strip off the {}.
+    SString providerNameStr(&wszProviderID[1], guidSize-3);
+    LPCWSTR providerName = providerNameStr.GetUnicode();
+
+    EventPipeEnabledProvider *pEnabledProvider = NULL;
+    for(int i=0; i<m_numProviders; i++)
+    {
+        EventPipeEnabledProvider *pCandidate = &m_pProviders[i];
+        if(pCandidate != NULL)
+        {
+            if(wcscmp(providerName, pCandidate->GetProviderName()) == 0)
+            {
+                pEnabledProvider = pCandidate;
+                break;
+            }
+        }
+    }
+
+    return pEnabledProvider;
+}
+
+EventPipeEnabledProvider::EventPipeEnabledProvider()
+{
+    LIMITED_METHOD_CONTRACT;
+    m_pProviderName = NULL;
+    m_keywords = 0;
+}
+
+EventPipeEnabledProvider::~EventPipeEnabledProvider()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if(m_pProviderName != NULL)
+    {
+        delete[] m_pProviderName;
+        m_pProviderName = NULL;
+    }
+}
+
+void EventPipeEnabledProvider::Set(LPCWSTR providerName, UINT64 keywords)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if(m_pProviderName != NULL)
+    {
+        delete(m_pProviderName);
+        m_pProviderName = NULL;
+    }
+
+    unsigned int bufSize = wcslen(providerName) + 1;
+    m_pProviderName = new WCHAR[bufSize];
+    wcscpy_s(m_pProviderName, bufSize, providerName);
+    m_keywords = keywords;
+}
+
+LPCWSTR EventPipeEnabledProvider::GetProviderName() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_pProviderName;
+}
+
+UINT64 EventPipeEnabledProvider::GetKeywords() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_keywords;
 }
 
 #endif // FEATURE_PERFTRACING

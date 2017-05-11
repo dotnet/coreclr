@@ -159,7 +159,12 @@ class EventPipe
         static void EnableOnStartup();
 
         // Enable tracing via the event pipe.
-        static void Enable();
+        static void Enable(
+            LPCWSTR strOutputPath,
+            uint circularBufferSizeInMB,
+            uint loggingLevel,
+            EventPipeProviderConfiguration *pProviders,
+            int numProviders);
 
         // Disable tracing via the event pipe.
         static void Disable();
@@ -202,9 +207,25 @@ class EventPipe
 
 struct EventPipeProviderConfiguration
 {
+
+private:
+
+    LPCWSTR m_pProviderName;
+    UINT64 m_keywords;
+
 public:
-    LPCWSTR ProviderName;
-    UINT64 Keywords;
+
+    LPCWSTR GetProviderName() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pProviderName;
+    }
+
+    UINT64 GetKeywords() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_keywords;
+    }
 };
 
 class EventPipeInternal

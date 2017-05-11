@@ -71,7 +71,8 @@ void EventPipe::EnableOnStartup()
     // Test COMPLUS variable to enable tracing at start-up.
     if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) & 1) == 1)
     {
-        Enable();
+        // TODO
+        //Enable();
     }
 }
 
@@ -99,7 +100,12 @@ void EventPipe::Shutdown()
     }
 }
 
-void EventPipe::Enable()
+void EventPipe::Enable(
+    LPCWSTR strOutputPath,
+    uint circularBufferSizeInMB,
+    uint loggingLevel,
+    EventPipeProviderConfiguration *pProviders,
+    int numProviders)
 {
     CONTRACTL
     {
@@ -119,8 +125,7 @@ void EventPipe::Enable()
     CrstHolder _crst(GetLock());
 
     // Create the event pipe file.
-    SString eventPipeFileOutputPath;
-    eventPipeFileOutputPath.Printf("Process-%d.netperf", GetCurrentProcessId());
+    SString eventPipeFileOutputPath(strOutputPath);
     s_pFile = new EventPipeFile(eventPipeFileOutputPath);
 
 #ifdef _DEBUG
@@ -139,7 +144,7 @@ void EventPipe::Enable()
 #endif // _DEBUG
 
     // Enable tracing.
-    s_pConfig->Enable();
+    s_pConfig->Enable(circularBufferSizeInMB, loggingLevel, pProviders, numProviders);
 
     // Enable the sample profiler
     SampleProfiler::Enable();
@@ -407,7 +412,7 @@ void QCALLTYPE EventPipeInternal::Enable(
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
-    EventPipe::Enable();
+    EventPipe::Enable(outputFile, circularBufferSizeInMB, level, pProviders, numProviders);
     END_QCALL;
 }
 

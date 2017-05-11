@@ -22,16 +22,6 @@ typedef void (*EventPipeCallback)(
     void *FilterData,
     void *CallbackContext);
 
-enum class EventPipeEventLevel
-{
-    LogAlways,
-    Critical,
-    Error,
-    Warning,
-    Informational,
-    Verbose
-};
-
 class EventPipeProvider
 {
     // Declare friends.
