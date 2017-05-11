@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -8,11 +9,109 @@ using Microsoft.Win32;
 
 namespace System.Diagnostics.Tracing
 {
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct EventPipeProviderConfiguration
+    {
+        [MarshalAs(UnmanagedType.LPWStr)]
+        private string m_providerName;
+        private UInt64 m_keywords;
+
+        internal EventPipeProviderConfiguration(
+            string providerName,
+            UInt64 keywords)
+        {
+            if(string.IsNullOrEmpty(providerName))
+            {
+                throw new ArgumentNullException(nameof(providerName));
+            }
+            m_providerName = providerName;
+            m_keywords = keywords;
+        }
+
+        internal string ProviderName
+        {
+            get { return m_providerName; }
+        }
+
+        internal UInt64 Keywords
+        {
+            get { return m_keywords; }
+        }
+    }
+
+    internal sealed class EventPipeConfiguration
+    {
+        private string m_outputFile;
+        private uint m_circularBufferSizeInMB;
+        private uint m_level;
+        private List<EventPipeProviderConfiguration> m_providers;
+
+        internal EventPipeConfiguration(
+            string outputFile,
+            uint circularBufferSizeInMB,
+            uint level)
+        {
+            if(string.IsNullOrEmpty(outputFile))
+            {
+                throw new ArgumentNullException(nameof(outputFile));
+            }
+            if(circularBufferSizeInMB == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(circularBufferSizeInMB));
+            }
+            // TODO: Validate level.
+            // TODO: Consider using an enum.
+            m_outputFile = outputFile;
+            m_circularBufferSizeInMB = circularBufferSizeInMB;
+            m_level = level;
+            m_providers = new List<EventPipeProviderConfiguration>();
+        }
+
+        internal string OutputFile
+        {
+            get { return m_outputFile; }
+        }
+
+        internal uint CircularBufferSizeInMB
+        {
+            get { return m_circularBufferSizeInMB; }
+        }
+
+        internal uint Level
+        {
+            get { return m_level; }
+        }
+
+        internal EventPipeProviderConfiguration[] Providers
+        {
+            get { return m_providers.ToArray(); }
+        }
+
+        internal void EnableProvider(string providerName, UInt64 keywords)
+        {
+            m_providers.Add(new EventPipeProviderConfiguration(
+                providerName,
+                keywords));
+        }
+    }
+
     internal static class EventPipe
     {
-        internal static void Enable()
+        internal static void Enable(EventPipeConfiguration configuration)
         {
-            EventPipeInternal.Enable();
+            if(configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            EventPipeProviderConfiguration[] providers = configuration.Providers;
+
+            EventPipeInternal.Enable(
+                configuration.OutputFile,
+                configuration.CircularBufferSizeInMB,
+                configuration.Level,
+                providers,
+                providers.Length);
         }
 
         internal static void Disable()
@@ -28,7 +127,7 @@ namespace System.Diagnostics.Tracing
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        internal static extern void Enable();
+        internal static extern void Enable(string outputFile, uint circularBufferSizeInMB, uint level, EventPipeProviderConfiguration[] providers, int numProviders);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]

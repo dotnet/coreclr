@@ -397,7 +397,12 @@ CrstStatic* EventPipe::GetLock()
     return &s_configCrst;
 }
 
-void QCALLTYPE EventPipeInternal::Enable()
+void QCALLTYPE EventPipeInternal::Enable(
+        __in_z LPCWSTR outputFile,
+        unsigned int circularBufferSizeInMB,
+        unsigned int level,
+        EventPipeProviderConfiguration *pProviders,
+        int numProviders)
 {
     QCALL_CONTRACT;
 

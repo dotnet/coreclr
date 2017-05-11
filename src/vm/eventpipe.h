@@ -200,12 +200,24 @@ class EventPipe
 #endif // _DEBUG
 };
 
+struct EventPipeProviderConfiguration
+{
+public:
+    LPCWSTR ProviderName;
+    UINT64 Keywords;
+};
+
 class EventPipeInternal
 {
 
 public:
 
-    static void QCALLTYPE Enable();
+    static void QCALLTYPE Enable(
+        __in_z LPCWSTR outputFile,
+        unsigned int circularBufferSizeInMB,
+        unsigned int level,
+        EventPipeProviderConfiguration *pProviders,
+        int numProviders);
 
     static void QCALLTYPE Disable();
 
