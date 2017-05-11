@@ -335,8 +335,6 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
     // Take the lock before walking the buffer list.
     SpinLockHolder _slh(&m_lock);
 
-    _ASSERTE(EnsureConsistency());
-
     // Naively walk the circular buffer, writing the event stream in timestamp order.
     while(true)
     {
@@ -381,8 +379,6 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
         // Pop the event from the buffer.
         pOldestContainingList->PopNextEvent(stopTimeStamp);
     }
-
-    _ASSERTE(EnsureConsistency());
 }
 
 void EventPipeBufferManager::DeAllocateBuffers()

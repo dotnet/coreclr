@@ -145,8 +145,6 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent,
     }
     CONTRACTL_END;
 
-    _ASSERTE(EnsureConsistency());
-
     EventPipeEventInstance *pNextInstance = NULL;
     // If input is NULL, return the first event if there is one.
     if(pEvent == NULL)
@@ -189,8 +187,6 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent,
     {
         return NULL;
     }
-
-    _ASSERTE(EnsureConsistency());
 
     return pNextInstance;
 }
