@@ -37,7 +37,25 @@ namespace System.Reflection.Runtime.Assemblies
                 if (canonicalizedVersion.Major != ushort.MaxValue)
                 {
                     sb.Append(", Version=");
-                    sb.Append(a.Version.ToString());
+                    sb.Append(canonicalizedVersion.Major);
+
+                    if(canonicalizedVersion.Minor != ushort.MaxValue)
+                    {
+                        sb.Append('.');
+                        sb.Append(canonicalizedVersion.Minor);
+
+                        if(canonicalizedVersion.Build != ushort.MaxValue)
+                        {
+                            sb.Append('.');
+                            sb.Append(canonicalizedVersion.Build);
+
+                            if(canonicalizedVersion.Revision != ushort.MaxValue)
+                            {
+                                sb.Append('.');
+                                sb.Append(canonicalizedVersion.Revision);
+                            }
+                        }
+                    }
                 }
             }
 
