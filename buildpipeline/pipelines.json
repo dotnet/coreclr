@@ -12,7 +12,7 @@
         {
           "Name": "DotNet-CoreClr-Trusted-Linux",
           "Parameters": {
-            "DockerTag": "debian82_prereqs_2",
+            "DockerTag": "debian-8.2-b859ec3-20175311125317",
             "Rid": "debian.8"
           },
           "ReportingParameters": {
@@ -38,7 +38,7 @@
         {
           "Name": "DotNet-CoreClr-Trusted-Linux",
           "Parameters": {
-            "DockerTag": "ubuntu1404_prereqs_v3",
+            "DockerTag": "ubuntu-14.04-b859ec3-20175311125317",
             "Rid": "ubuntu.14.04"
           },
           "ReportingParameters": {
@@ -51,7 +51,7 @@
         {
           "Name": "DotNet-CoreClr-Trusted-Linux",
           "Parameters": {
-            "DockerTag": "ubuntu1604_prereqs",
+            "DockerTag": "ubuntu-16.04-b859ec3-20175311125317",
             "Rid": "ubuntu.16.04"
           },
           "ReportingParameters": {
@@ -64,7 +64,7 @@
         {
           "Name": "DotNet-CoreClr-Trusted-Linux",
           "Parameters": {
-            "DockerTag": "ubuntu1610_prereqs_v2",
+            "DockerTag": "ubuntu-16.10-b859ec3-20175311125317",
             "Rid": "ubuntu.16.10"
           },
           "ReportingParameters": {
