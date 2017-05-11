@@ -22,7 +22,7 @@ LPTSTR verbMerge::MergePathStrings(LPCTSTR dir, LPCTSTR file)
     size_t newlen  = dirlen + 1 /* slash */ + filelen + 1 /* null */;
     LPTSTR newpath = new WCHAR[newlen];
     wcscpy(newpath, dir);
-    wcscat(newpath, DIRECTORY_SEPARATOR_STR_A);
+    wcscat(newpath, DIRECTORY_SEPARATOR_STR_W);
     wcscat(newpath, file);
     return newpath;
 }

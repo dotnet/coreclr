@@ -88,6 +88,9 @@
 #ifndef DIRECTORY_SEPARATOR_STR_A
 #define DIRECTORY_SEPARATOR_STR_A "\\"
 #endif
+#ifndef DIRECTORY_SEPARATOR_STR_W
+#define DIRECTORY_SEPARATOR_STR_W W("\\")
+#endif
 
 #ifndef W
 #ifdef PLATFORM_UNIX
