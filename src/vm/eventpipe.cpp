@@ -71,8 +71,14 @@ void EventPipe::EnableOnStartup()
     // Test COMPLUS variable to enable tracing at start-up.
     if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) & 1) == 1)
     {
-        // TODO
-        //Enable();
+        SString outputPath;
+        outputPath.Printf("Process-%d.netperf", GetCurrentProcessId());
+        Enable(
+            outputPath.GetUnicode(),
+            1024 /* 1 GB circular buffer */,
+            5 /* verbose */,
+            NULL /* pProviders */,
+            0 /* numProviders */);
     }
 }
 

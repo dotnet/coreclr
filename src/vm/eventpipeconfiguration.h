@@ -103,8 +103,15 @@ class EventPipeEnabledProviderList
 
 private:
 
+    // The number of providers in the list.
     unsigned int m_numProviders;
+
+    // The list of providers.
     EventPipeEnabledProvider *m_pProviders;
+
+    // A catch-all provider used when tracing is enabled at start-up
+    // under (COMPlus_PerformanceTracing & 1) == 1.
+    EventPipeEnabledProvider *m_pCatchAllProvider;
 
 public:
 
@@ -121,7 +128,10 @@ class EventPipeEnabledProvider
 {
 private:
 
+    // The provider name.
     WCHAR *m_pProviderName;
+
+    // The enabled keywords.
     UINT64 m_keywords;
 
 public:

@@ -354,6 +354,18 @@ EventPipeEnabledProviderList::EventPipeEnabledProviderList(
     }
     CONTRACTL_END;
 
+    // Test COMPLUS variable to enable tracing at start-up.
+    // If tracing is enabled at start-up create the catch-all provider and always return it.
+    if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) & 1) == 1)
+    {
+        m_pCatchAllProvider = new EventPipeEnabledProvider();
+        m_pCatchAllProvider->Set(NULL, 0xFFFFFFFF);
+        m_pProviders = NULL;
+        m_numProviders = 0;
+        return;
+    }
+
+    m_pCatchAllProvider = NULL;
     m_numProviders = numConfigs;
     if(m_numProviders == 0)
     {
@@ -384,6 +396,11 @@ EventPipeEnabledProviderList::~EventPipeEnabledProviderList()
         delete[] m_pProviders;
         m_pProviders = NULL;
     }
+    if(m_pCatchAllProvider != NULL);
+    {
+        delete(m_pCatchAllProvider);
+        m_pCatchAllProvider = NULL;
+    }
 }
 
 EventPipeEnabledProvider* EventPipeEnabledProviderList::GetEnabledProvider(
@@ -397,7 +414,11 @@ EventPipeEnabledProvider* EventPipeEnabledProviderList::GetEnabledProvider(
     }
     CONTRACTL_END;
 
-    // TODO: Handle environment variable case - always return a provider.
+    // If tracing was enabled on start-up, all events should be on (this is a diagnostic config).
+    if(m_pCatchAllProvider != NULL)
+    {
+        return m_pCatchAllProvider;
+    }
 
     if(m_pProviders == NULL)
     {
@@ -473,9 +494,12 @@ void EventPipeEnabledProvider::Set(LPCWSTR providerName, UINT64 keywords)
         m_pProviderName = NULL;
     }
 
-    unsigned int bufSize = wcslen(providerName) + 1;
-    m_pProviderName = new WCHAR[bufSize];
-    wcscpy_s(m_pProviderName, bufSize, providerName);
+    if(providerName != NULL)
+    {
+        unsigned int bufSize = wcslen(providerName) + 1;
+        m_pProviderName = new WCHAR[bufSize];
+        wcscpy_s(m_pProviderName, bufSize, providerName);
+    }
     m_keywords = keywords;
 }
 
