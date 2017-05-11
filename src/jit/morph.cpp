@@ -13206,7 +13206,7 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                         temp->gtDebugFlags &= ~GTF_DEBUG_NODE_MORPHED;
 #endif // DEBUG
                         const bool forceRemorph = true;
-                        temp = fgMorphLocalVar(temp, forceRemorph);
+                        temp                    = fgMorphLocalVar(temp, forceRemorph);
 #ifdef DEBUG
                         // We then set this flag on `temp` because `fgMorhpLocalVar` may not set it itself, and the
                         // caller of `fgMorphSmpOp` may assert that this flag is set on `temp` once this function
