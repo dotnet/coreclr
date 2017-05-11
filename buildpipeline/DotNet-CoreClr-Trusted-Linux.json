@@ -342,7 +342,7 @@
       "value": "microsoft/dotnet-buildtools-prereqs"
     },
     "DockerTag": {
-      "value": "debian82_prereqs_2",
+      "value": "debian-8.2-b859ec3-20175311125317",
       "allowOverride": true
     },
     "CloudDropAccountName": {
