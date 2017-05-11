@@ -156,6 +156,10 @@ InitializeGarbageCollector(
     assert(gcHeap != nullptr);
     assert(gcHandleManager != nullptr);
 
+    // Initialize GCConfig before anything else - initialization of our
+    // various components may want to query the current configuration.
+    GCConfig::Initialize();
+
     IGCHandleManager* handleManager = CreateGCHandleManager();
     if (handleManager == nullptr)
     {

@@ -96,18 +96,20 @@ public:
 // for how the GC should operate.
 class GCConfig
 {
-public:
 #define BOOL_CONFIG(name, unused_key, unused_default, unused_doc) \
-  static bool Get##name();
+  public: static bool Get##name();                                \
+  private: static bool s_##name;
 #define INT_CONFIG(name, unused_key, unused_default, unused_doc) \
-  static int64_t Get##name();
+  public: static int64_t Get##name();                            \
+  private: static int64_t s_##name;
 #define STRING_CONFIG(name, unused_key, unused_doc) \
-  static GCConfigStringHolder Get##name();
+  public: static GCConfigStringHolder Get##name();
 GC_CONFIGURATION_KEYS
 #undef BOOL_CONFIG
 #undef INT_CONFIG
 #undef STRING_CONFIG
 
+public:
 // Flags that may inhabit the number returned for the HeapVerifyLevel config option.
 // Keep this in sync with vm\eeconfig.h if this ever changes.
 enum HeapVerifyFlags {
@@ -125,6 +127,10 @@ enum HeapVerifyFlags {
     HEAPVERIFY_POST_GC_ONLY     = 0x40,   // Performs heap verification post-GCs only (instead of before and after each GC)
     HEAPVERIFY_DEEP_ON_COMPACT  = 0x80    // Performs deep object verfication only on compacting GCs.
 };
+
+// Initializes the GCConfig subsystem. Must be called before accessing any
+// configuration information.
+static void Initialize();
 
 };
 

@@ -7,30 +7,12 @@
 #include "gc.h"
 
 #define BOOL_CONFIG(name, key, default, unused_doc)            \
-  bool GCConfig::Get##name()                                   \
-  {                                                            \
-      static bool hasCachedValue = false;                      \
-      static bool cachedValue = false;                         \
-      if (hasCachedValue) return cachedValue;                  \
-      bool result = default;                                   \
-      GCToEEInterface::GetBooleanConfigValue(key, &result);    \
-      cachedValue = result;                                    \
-      hasCachedValue = true;                                   \
-      return result;                                           \
-  }
+  bool GCConfig::Get##name() { return s_##name; }              \
+  bool GCConfig::s_##name = default;
 
 #define INT_CONFIG(name, key, default, unused_doc)             \
-  int64_t GCConfig::Get##name()                                \
-  {                                                            \
-      static bool hasCachedValue = false;                      \
-      static int64_t cachedValue = 0;                          \
-      if (hasCachedValue) return cachedValue;                  \
-      int64_t result = default;                                \
-      GCToEEInterface::GetIntConfigValue(key, &result);        \
-      cachedValue = result;                                    \
-      hasCachedValue = true;                                   \
-      return result;                                           \
-  }
+  int64_t GCConfig::Get##name() { return s_##name; }           \
+  int64_t GCConfig::s_##name = default;
 
 // String configs are not cached because 1) they are rare and
 // not on hot paths and 2) they involve transfers of ownership
@@ -48,3 +30,19 @@ GC_CONFIGURATION_KEYS
 #undef BOOL_CONFIG
 #undef INT_CONFIG
 #undef STRING_CONFIG
+
+void GCConfig::Initialize()
+{
+#define BOOL_CONFIG(name, key, default, unused_doc)          \
+    GCToEEInterface::GetBooleanConfigValue(key, &s_##name);
+
+#define INT_CONFIG(name, key, default, unused_doc)           \
+    GCToEEInterface::GetIntConfigValue(key, &s_##name);
+
+#define STRING_CONFIG(unused_name, unused_key, unused_doc)
+
+GC_CONFIGURATION_KEYS
+
+#undef BOOL_CONFIG
+#undef INT_CONFIG
+}

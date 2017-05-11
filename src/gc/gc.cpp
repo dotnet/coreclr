@@ -33565,6 +33565,7 @@ HRESULT GCHeap::Initialize ()
         return E_FAIL;
     }
 
+
     g_gc_pFreeObjectMethodTable = GCToEEInterface::GetFreeObjectMethodTable();
 
 //Initialize the static members.
