@@ -396,7 +396,7 @@ EventPipeEnabledProviderList::~EventPipeEnabledProviderList()
         delete[] m_pProviders;
         m_pProviders = NULL;
     }
-    if(m_pCatchAllProvider != NULL);
+    if(m_pCatchAllProvider != NULL)
     {
         delete(m_pCatchAllProvider);
         m_pCatchAllProvider = NULL;
