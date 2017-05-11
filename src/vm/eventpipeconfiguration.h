@@ -55,7 +55,7 @@ private:
     EventPipeProvider* GetProviderNoLock(const GUID &providerID);
 
     // Determines whether or not the event pipe is enabled.
-    bool m_enabled;
+    Volatile<bool> m_enabled;
 
     // The configured size of the circular buffer.
     size_t m_circularBufferSizeInBytes;
