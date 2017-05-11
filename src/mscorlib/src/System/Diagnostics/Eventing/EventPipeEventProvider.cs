@@ -6,6 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
 using Microsoft.Win32;
+using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace System.Diagnostics.Tracing
 {
@@ -49,11 +51,17 @@ namespace System.Diagnostics.Tracing
         unsafe int IEventProvider.EventWriteTransferWrapper(
             long registrationHandle,
             ref EventDescriptor eventDescriptor,
+            IntPtr eventHanlde,
             Guid* activityId,
             Guid* relatedActivityId,
             int userDataCount,
             EventProvider.EventData* userData)
         {
+            uint eventID = (uint)eventDescriptor.EventId;
+            if(eventID != 0)
+            {
+                EventPipeInternal.WriteEvent(eventHanlde, eventID, userData, (uint)userDataCount);
+            }
             return 0;
         }
 
@@ -61,6 +69,13 @@ namespace System.Diagnostics.Tracing
         int IEventProvider.EventActivityIdControl(UnsafeNativeMethods.ManifestEtw.ActivityControl ControlCode, ref Guid ActivityId)
         {
             return 0;
+        }
+
+        // Define an EventPipeEvent handle.
+        unsafe IntPtr IEventProvider.DefineEventHandle(uint eventID, string eventName, Int64 keywords, uint eventVersion, uint level, byte *pMetadata, uint metadataLength)
+        {
+            IntPtr eventHandlePtr = EventPipeInternal.DefineEvent(m_provHandle, eventID, keywords, eventVersion, level, pMetadata, metadataLength);
+            return eventHandlePtr;
         }
     }
 }

@@ -441,22 +441,31 @@ INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
     return reinterpret_cast<INT_PTR>(pProvider);
 }
 
-INT_PTR QCALLTYPE EventPipeInternal::AddEvent(
+INT_PTR QCALLTYPE EventPipeInternal::DefineEvent(
     INT_PTR provHandle,
-    __int64 keywords,
     unsigned int eventID,
+    __int64 keywords,
     unsigned int eventVersion,
     unsigned int level,
-    bool needStack)
+    void *pMetadata,
+    unsigned int metadataLength)
 {
     QCALL_CONTRACT;
+
+    EventPipeEvent *pEvent = NULL;
+
     BEGIN_QCALL;
 
-    // TODO
+    _ASSERTE(provHandle != NULL);
+    _ASSERTE(pMetadata != NULL);
+    _ASSERTE(metadataLength >= 20);
+    EventPipeProvider *pProvider = reinterpret_cast<EventPipeProvider *>(provHandle);
+    pEvent = pProvider->AddEvent(keywords, eventID, eventVersion, (EventPipeEventLevel)level, (BYTE *)pMetadata, metadataLength);
+    _ASSERTE(pEvent != NULL);
 
     END_QCALL;
 
-    return 0;
+    return reinterpret_cast<INT_PTR>(pEvent);
 }
 
 void QCALLTYPE EventPipeInternal::DeleteProvider(
@@ -474,15 +483,51 @@ void QCALLTYPE EventPipeInternal::DeleteProvider(
     END_QCALL;
 }
 
+struct EventProviderEventData
+{
+    unsigned long Ptr;
+    unsigned int Size;
+    unsigned int Reserved;
+};
+
 void QCALLTYPE EventPipeInternal::WriteEvent(
     INT_PTR eventHandle,
+    unsigned int eventID,
     void *pData,
-    unsigned int length)
+    unsigned int dataCount)
 {
     QCALL_CONTRACT;
     BEGIN_QCALL;
 
-    // TODO
+    _ASSERTE(eventHandle != NULL);
+    EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
+
+    if (pData == NULL)
+    {
+        EventPipe::WriteEvent(*pEvent, NULL, 0);
+    }
+    else
+    {
+        // pData is an array of pointers to blobs with Ptr of objects and Size of objects
+        // and we merge them here
+        EventProviderEventData *pNativeData = (EventProviderEventData *)pData;
+        unsigned int length = 0;
+        for (int i = 0; i < dataCount; i++)
+        {
+            length += pNativeData->Size;
+        }
+
+        BYTE *buffer = new BYTE[length];
+        unsigned int offset = 0;
+        for (int i = 0; i < dataCount; i++)
+        {
+            memcpy(buffer + offset, (BYTE *)pNativeData->Ptr, pNativeData->Size);
+            offset += pNativeData->Size;
+        }
+
+        EventPipe::WriteEvent(*pEvent, buffer, length);
+        delete[] buffer;
+    }
 
     END_QCALL;
 }
