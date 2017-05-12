@@ -7,20 +7,11 @@
 
 #ifdef FEATURE_PERFTRACING
 
+#include "eventpipe.h"
 #include "eventpipeconfiguration.h"
 #include "slist.h"
 
 class EventPipeEvent;
-
-// Define the event pipe callback to match the ETW callback signature.
-typedef void (*EventPipeCallback)(
-    LPCGUID SourceID,
-    ULONG IsEnabled,
-    UCHAR Level,
-    ULONGLONG MatchAnyKeywords,
-    ULONGLONG MatchAllKeywords,
-    void *FilterData,
-    void *CallbackContext);
 
 class EventPipeProvider
 {

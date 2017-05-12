@@ -19,6 +19,7 @@ EventPipeConfiguration::EventPipeConfiguration()
     STANDARD_VM_CONTRACT;
 
     m_enabled = false;
+    m_rundownEnabled = false;
     m_circularBufferSizeInBytes = 1024 * 1024 * 1000; // Default to 1000MB.
     m_loggingLevel = EventPipeEventLevel::Verbose;
     m_pEnabledProviderList = NULL;
@@ -269,6 +270,7 @@ void EventPipeConfiguration::Disable()
     }
 
     m_enabled = false;
+    m_rundownEnabled = false;
 
     // Free the enabled providers list.
     if(m_pEnabledProviderList != NULL)
@@ -282,6 +284,37 @@ bool EventPipeConfiguration::Enabled() const
 {
     LIMITED_METHOD_CONTRACT;
     return m_enabled;
+}
+
+bool EventPipeConfiguration::RundownEnabled() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_rundownEnabled;
+}
+
+void EventPipeConfiguration::EnableRundown()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        // Lock must be held by EventPipe::Disable.
+        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    // Build the rundown configuration.
+    _ASSERTE(m_pEnabledProviderList == NULL);
+    const unsigned int numRundownProviders = 2;
+    EventPipeProviderConfiguration rundownProviders[numRundownProviders];
+    rundownProviders[0] = EventPipeProviderConfiguration(W("e13c0d23-ccbc-4e12-931b-d9cc2eee27e4"), 0x80020138); // Public provider.
+    rundownProviders[1] = EventPipeProviderConfiguration(W("a669021c-c450-4609-a035-5af59af4df18"), 0x80020138); // Rundown provider.
+
+    // Enable rundown.
+    m_rundownEnabled = true;
+
+    Enable(1 /* circularBufferSizeInMB */, 5 /* verbose loggingLevel */, rundownProviders, numRundownProviders);
 }
 
 EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, BYTE *pPayloadData, unsigned int payloadLength)
@@ -354,18 +387,20 @@ EventPipeEnabledProviderList::EventPipeEnabledProviderList(
     }
     CONTRACTL_END;
 
+    m_pProviders = NULL;
+    m_pCatchAllProvider = NULL;
+    m_numProviders = 0;
+
     // Test COMPLUS variable to enable tracing at start-up.
     // If tracing is enabled at start-up create the catch-all provider and always return it.
     if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) & 1) == 1)
     {
         m_pCatchAllProvider = new EventPipeEnabledProvider();
         m_pCatchAllProvider->Set(NULL, 0xFFFFFFFF);
-        m_pProviders = NULL;
-        m_numProviders = 0;
         return;
     }
 
-    m_pCatchAllProvider = NULL;
+    // If we don't enable everything, then respect the input configuration.
     m_numProviders = numConfigs;
     if(m_numProviders == 0)
     {

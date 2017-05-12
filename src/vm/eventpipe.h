@@ -7,10 +7,7 @@
 
 #ifdef FEATURE_PERFTRACING
 
-#include "crst.h"
-#include "eventpipeprovider.h"
-#include "stackwalk.h"
-
+class CrstStatic;
 class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeFile;
@@ -19,6 +16,17 @@ class EventPipeBuffer;
 class EventPipeBufferManager;
 class MethodDesc;
 class SampleProfilerEventInstance;
+struct EventPipeProviderConfiguration;
+
+// Define the event pipe callback to match the ETW callback signature.
+typedef void (*EventPipeCallback)(
+    LPCGUID SourceID,
+    ULONG IsEnabled,
+    UCHAR Level,
+    ULONGLONG MatchAnyKeywords,
+    ULONGLONG MatchAllKeywords,
+    void *FilterData,
+    void *CallbackContext);
 
 class StackContents
 {
@@ -169,6 +177,9 @@ class EventPipe
         // Disable tracing via the event pipe.
         static void Disable();
 
+        // Specifies whether or not the event pipe is enabled.
+        static bool Enabled();
+
         // Write out an event.
         // Data is written as a serialized blob matching the ETW serialization conventions.
         static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length);
@@ -215,6 +226,19 @@ private:
 
 public:
 
+    EventPipeProviderConfiguration()
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+
+    EventPipeProviderConfiguration(
+        LPCWSTR pProviderName,
+        UINT64 keywords)
+    {
+        m_pProviderName = pProviderName;
+        m_keywords = keywords;
+    }
+
     LPCWSTR GetProviderName() const
     {
         LIMITED_METHOD_CONTRACT;
@@ -241,32 +265,6 @@ public:
         int numProviders);
 
     static void QCALLTYPE Disable();
-
-    static INT_PTR QCALLTYPE CreateProvider(
-        GUID providerID,
-        EventPipeCallback pCallbackFunc);
-
-    static INT_PTR QCALLTYPE AddEvent(
-        INT_PTR provHandle,
-        __int64 keywords,
-        unsigned int eventID,
-        unsigned int eventVersion,
-        unsigned int level,
-        bool needStack);
-
-    static void QCALLTYPE DeleteProvider(
-        INT_PTR provHandle);
-
-    static void QCALLTYPE WriteEvent(
-        INT_PTR eventHandle,
-        void *pData,
-        unsigned int length);
-};
-
-class EventPipeInternal
-{
-
-public:
 
     static INT_PTR QCALLTYPE CreateProvider(
         GUID providerID,
