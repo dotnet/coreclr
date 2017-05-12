@@ -5159,6 +5159,7 @@ public:
 struct GenTreeCC final : public GenTree
 {
     GenCondition gtCondition;
+    GenTree*     gtConditionDef;
 
     GenTreeCC(genTreeOps oper, GenCondition condition, var_types type = TYP_VOID)
         : GenTree(oper, type DEBUGARG(/*largeNode*/ FALSE)), gtCondition(condition)
@@ -5175,6 +5176,7 @@ struct GenTreeCC final : public GenTree
 struct GenTreeOpCC final : public GenTreeOp
 {
     GenCondition gtCondition;
+    GenTree*     gtConditionDef;
 
     GenTreeOpCC(genTreeOps oper, GenCondition condition, var_types type, GenTree* op1, GenTree* op2)
         : GenTreeOp(oper, type, op1, op2 DEBUGARG(/*largeNode*/ FALSE)), gtCondition(condition)
