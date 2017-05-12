@@ -650,7 +650,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                 structSize = varDsc->lvSize(); // This yields the roundUp size, but that is fine
                                                // as that is how much stack is allocated for this LclVar
-                isHfa  = varDsc->lvIsHfa();
+                isHfa = varDsc->lvIsHfa();
 #ifdef _TARGET_ARM64_
                 gcPtrs     = gcPtrArray;
                 gcPtrCount = varDsc->lvStructGcCount;
