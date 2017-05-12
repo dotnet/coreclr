@@ -587,9 +587,9 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // in ARM64/ARM
             // Setup loReg (and hiReg) from the internal registers that we reserved in lower.
             //
-            regNumber loReg   = treeNode->ExtractTempReg();
+            regNumber loReg = treeNode->ExtractTempReg();
 #ifdef _TARGET_ARM64_
-            regNumber hiReg   = treeNode->GetSingleTempReg();
+            regNumber hiReg = treeNode->GetSingleTempReg();
 #endif // _TARGET_ARM64_
             regNumber addrReg = REG_NA;
 
@@ -626,10 +626,10 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // the xor ensures that only one of the two is setup, not both
             assert((varNode != nullptr) ^ (addrNode != nullptr));
 
-            BYTE*    gcPtrs = nullptr;
-            BYTE     gcPtrArray[MAX_ARG_REG_COUNT] = {}; // TYPE_GC_NONE = 0
+            BYTE* gcPtrs                        = nullptr;
+            BYTE  gcPtrArray[MAX_ARG_REG_COUNT] = {}; // TYPE_GC_NONE = 0
 
-            unsigned gcPtrCount;                     // The count of GC pointers in the struct
+            unsigned gcPtrCount; // The count of GC pointers in the struct
             int      structSize;
             bool     isHfa;
 
@@ -650,14 +650,14 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                 structSize = varDsc->lvSize(); // This yields the roundUp size, but that is fine
                                                // as that is how much stack is allocated for this LclVar
-                isHfa      = varDsc->lvIsHfa();
+                isHfa  = varDsc->lvIsHfa();
 #ifdef _TARGET_ARM64_
-                gcPtrs = gcPtrArray;
+                gcPtrs     = gcPtrArray;
                 gcPtrCount = varDsc->lvStructGcCount;
                 for (unsigned i = 0; i < gcPtrCount; ++i)
                     gcPtrs[i]   = varDsc->lvGcLayout[i];
 #else // _TARGET_ARM_
-                gcPtrs = treeNode->gtGcPtrs;
+                gcPtrs     = treeNode->gtGcPtrs;
                 gcPtrCount = treeNode->gtNumSlots;
 #endif // _TARGET_ARM_
             }
@@ -683,7 +683,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                 structSize = compiler->info.compCompHnd->getClassSize(objClass);
                 isHfa      = compiler->IsHfa(objClass);
-                gcPtrs = gcPtrArray;
+                gcPtrs     = gcPtrArray;
                 gcPtrCount = compiler->info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
             }
 
@@ -743,7 +743,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 structOffset += (2 * TARGET_POINTER_SIZE);
                 nextIndex += 2;
             }
-#else // _TARGET_ARM_
+#else  // _TARGET_ARM_
             // For a >= 4 byte structSize we will generate a ldr and str instruction each loop
             //             ldr     r2, [r0]
             //             str     r2, [sp, #16]
