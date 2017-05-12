@@ -1346,8 +1346,13 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
 
     if (tree->gtFlags & GTF_IND_VOLATILE)
     {
+#ifdef _TARGET_ARM64_
+        // issue a INS_BARRIER_LD after a volatile LdInd operation
+        instGen_MemoryBarrier(INS_BARRIER_LD);
+#else
         // issue a full memory barrier after a volatile LdInd operation
         instGen_MemoryBarrier();
+#endif // _TARGET_ARM64_
     }
 }
 
@@ -1373,7 +1378,7 @@ void CodeGen::genCodeForCpBlk(GenTreeBlk* cpBlkNode)
 
     if (cpBlkNode->gtFlags & GTF_BLK_VOLATILE)
     {
-        // issue a full memory barrier before & after a volatile CpBlkUnroll operation
+        // issue a full memory barrier before a volatile CpBlk operation
         instGen_MemoryBarrier();
     }
 
@@ -1381,8 +1386,13 @@ void CodeGen::genCodeForCpBlk(GenTreeBlk* cpBlkNode)
 
     if (cpBlkNode->gtFlags & GTF_BLK_VOLATILE)
     {
-        // issue a full memory barrier before & after a volatile CpBlkUnroll operation
+#ifdef _TARGET_ARM64_
+        // issue a INS_BARRIER_LD after a volatile CpBlk operation
+        instGen_MemoryBarrier(INS_BARRIER_LD);
+#else
+        // issue a full memory barrier after a volatile CpBlk operation
         instGen_MemoryBarrier();
+#endif // _TARGET_ARM64_
     }
 }
 
