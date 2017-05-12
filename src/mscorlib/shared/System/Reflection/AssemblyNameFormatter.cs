@@ -2,54 +2,47 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-  Type:  AssemblyNameHelpers
-**
-==============================================================*/
-
-using System;
-using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Globalization;
 using System.Collections.Generic;
 
-namespace System.Reflection.Runtime.Assemblies
+namespace System.Reflection
 {
-    internal static class AssemblyNameHelpers
+    internal static class AssemblyNameFormatter
     {
-        private const int PUBLIC_KEY_TOKEN_LEN = 8;
-
-        public static String ComputeDisplayName(AssemblyName a)
+        public static string ComputeDisplayName(string name, Version version, string cultureName, byte[] pkt, AssemblyNameFlags flags, AssemblyContentType contentType)
         {
-            if (a.Name == String.Empty)
+            const int PUBLIC_KEY_TOKEN_LEN = 8;
+
+            if (name == string.Empty)
                 throw new FileLoadException();
 
             StringBuilder sb = new StringBuilder();
-            if (a.Name != null)
+            if (name != null)
             {
-                sb.AppendQuoted(a.Name);
+                sb.AppendQuoted(name);
             }
 
-            if (a.Version != null)
+            if (version != null)
             {
-                Version canonicalizedVersion = a.Version.CanonicalizeVersion();
+                Version canonicalizedVersion = version.CanonicalizeVersion();
                 if (canonicalizedVersion.Major != ushort.MaxValue)
                 {
                     sb.Append(", Version=");
                     sb.Append(canonicalizedVersion.Major);
 
-                    if(canonicalizedVersion.Minor != ushort.MaxValue)
+                    if (canonicalizedVersion.Minor != ushort.MaxValue)
                     {
                         sb.Append('.');
                         sb.Append(canonicalizedVersion.Minor);
 
-                        if(canonicalizedVersion.Build != ushort.MaxValue)
+                        if (canonicalizedVersion.Build != ushort.MaxValue)
                         {
                             sb.Append('.');
                             sb.Append(canonicalizedVersion.Build);
 
-                            if(canonicalizedVersion.Revision != ushort.MaxValue)
+                            if (canonicalizedVersion.Revision != ushort.MaxValue)
                             {
                                 sb.Append('.');
                                 sb.Append(canonicalizedVersion.Revision);
@@ -59,16 +52,14 @@ namespace System.Reflection.Runtime.Assemblies
                 }
             }
 
-            String cultureName = a.CultureName;
             if (cultureName != null)
             {
-                if (cultureName == String.Empty)
+                if (cultureName == string.Empty)
                     cultureName = "neutral";
                 sb.Append(", Culture=");
                 sb.AppendQuoted(cultureName);
             }
 
-            byte[] pkt = a.GetPublicKeyToken();
             if (pkt != null)
             {
                 if (pkt.Length > PUBLIC_KEY_TOKEN_LEN)
@@ -86,10 +77,9 @@ namespace System.Reflection.Runtime.Assemblies
                 }
             }
 
-            if (0 != (a.Flags & AssemblyNameFlags.Retargetable))
+            if (0 != (flags & AssemblyNameFlags.Retargetable))
                 sb.Append(", Retargetable=Yes");
 
-            AssemblyContentType contentType = a.ContentType;
             if (contentType == AssemblyContentType.WindowsRuntime)
                 sb.Append(", ContentType=WindowsRuntime");
 
@@ -98,7 +88,7 @@ namespace System.Reflection.Runtime.Assemblies
             return sb.ToString();
         }
 
-        private static void AppendQuoted(this StringBuilder sb, String s)
+        private static void AppendQuoted(this StringBuilder sb, string s)
         {
             bool needsQuoting = false;
             const char quoteChar = '\"';
@@ -114,14 +104,14 @@ namespace System.Reflection.Runtime.Assemblies
             for (int i = 0; i < s.Length; i++)
             {
                 bool addedEscape = false;
-                foreach (KeyValuePair<char, String> kv in AssemblyNameLexer.EscapeSequences)
+                foreach (KeyValuePair<char, string> kv in EscapeSequences)
                 {
-                    String escapeReplacement = kv.Value;
+                    string escapeReplacement = kv.Value;
                     if (!(s[i] == escapeReplacement[0]))
                         continue;
                     if ((s.Length - i) < escapeReplacement.Length)
                         continue;
-                    String prefix = s.Substring(i, escapeReplacement.Length);
+                    string prefix = s.Substring(i, escapeReplacement.Length);
                     if (prefix == escapeReplacement)
                     {
                         sb.Append('\\');
@@ -138,7 +128,7 @@ namespace System.Reflection.Runtime.Assemblies
                 sb.Append(quoteChar);
         }
 
-        public static Version CanonicalizeVersion(this Version version)
+        private static Version CanonicalizeVersion(this Version version)
         {
             ushort major = (ushort)version.Major;
             ushort minor = (ushort)version.Minor;
@@ -151,24 +141,16 @@ namespace System.Reflection.Runtime.Assemblies
             return new Version(major, minor, build, revision);
         }
 
-        internal static AssemblyContentType ExtractAssemblyContentType(this AssemblyNameFlags flags)
+        public static KeyValuePair<char, string>[] EscapeSequences =
         {
-            return (AssemblyContentType)((((int)flags) >> 9) & 0x7);
-        }
-
-        internal static ProcessorArchitecture ExtractProcessorArchitecture(this AssemblyNameFlags flags)
-        {
-            return (ProcessorArchitecture)((((int)flags) >> 4) & 0x7);
-        }
-
-        public static AssemblyNameFlags ExtractAssemblyNameFlags(this AssemblyNameFlags combinedFlags)
-        {
-            return combinedFlags & unchecked((AssemblyNameFlags)0xFFFFF10F);
-        }
-
-        internal static AssemblyNameFlags CombineAssemblyNameFlags(AssemblyNameFlags flags, AssemblyContentType contentType, ProcessorArchitecture processorArchitecture)
-        {
-            return (AssemblyNameFlags)(((int)flags) | (((int)contentType) << 9) | ((int)processorArchitecture << 4));
-        }
+            new KeyValuePair<char, string>('\\', "\\"),
+            new KeyValuePair<char, string>(',', ","),
+            new KeyValuePair<char, string>('=', "="),
+            new KeyValuePair<char, string>('\'', "'"),
+            new KeyValuePair<char, string>('\"', "\""),
+            new KeyValuePair<char, string>('n', Environment.NewLine),
+            new KeyValuePair<char, string>('t', "\t"),
+        };
     }
 }
+

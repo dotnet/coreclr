@@ -170,7 +170,6 @@ class EventPipe
         static void Enable(
             LPCWSTR strOutputPath,
             uint circularBufferSizeInMB,
-            uint loggingLevel,
             EventPipeProviderConfiguration *pProviders,
             int numProviders);
 
@@ -223,20 +222,27 @@ private:
 
     LPCWSTR m_pProviderName;
     UINT64 m_keywords;
+    unsigned int m_loggingLevel;
 
 public:
 
     EventPipeProviderConfiguration()
     {
         LIMITED_METHOD_CONTRACT;
+        m_pProviderName = NULL;
+        m_keywords = NULL;
+        m_loggingLevel = 0;
     }
 
     EventPipeProviderConfiguration(
         LPCWSTR pProviderName,
-        UINT64 keywords)
+        UINT64 keywords,
+        unsigned int loggingLevel)
     {
+        LIMITED_METHOD_CONTRACT;
         m_pProviderName = pProviderName;
         m_keywords = keywords;
+        m_loggingLevel = loggingLevel;
     }
 
     LPCWSTR GetProviderName() const
@@ -250,6 +256,12 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_keywords;
     }
+
+    unsigned int GetLevel() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_loggingLevel;
+    }
 };
 
 class EventPipeInternal
@@ -260,7 +272,6 @@ public:
     static void QCALLTYPE Enable(
         __in_z LPCWSTR outputFile,
         unsigned int circularBufferSizeInMB,
-        unsigned int level,
         EventPipeProviderConfiguration *pProviders,
         int numProviders);
 
