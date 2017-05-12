@@ -20,7 +20,6 @@ EventPipeConfiguration::EventPipeConfiguration()
 
     m_enabled = false;
     m_circularBufferSizeInBytes = 1024 * 1024 * 1000; // Default to 1000MB.
-    m_loggingLevel = EventPipeEventLevel::Verbose;
     m_pEnabledProviderList = NULL;
     m_pProviderList = new SList<SListElem<EventPipeProvider*>>();
 }
@@ -102,7 +101,7 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
             provider.SetConfiguration(
                 true /* providerEnabled */,
                 pEnabledProvider->GetKeywords(),
-                m_loggingLevel);
+                pEnabledProvider->GetLevel());
         }
     }
 
@@ -208,7 +207,6 @@ void EventPipeConfiguration::SetCircularBufferSize(size_t circularBufferSize)
 
 void EventPipeConfiguration::Enable(
     uint circularBufferSizeInMB,
-    uint loggingLevel,
     EventPipeProviderConfiguration *pProviders,
     int numProviders)
 {
@@ -223,7 +221,6 @@ void EventPipeConfiguration::Enable(
     CONTRACTL_END;
 
     m_circularBufferSizeInBytes = circularBufferSizeInMB * 1024 * 1024;
-    m_loggingLevel = static_cast<EventPipeEventLevel>(loggingLevel);
     m_pEnabledProviderList = new EventPipeEnabledProviderList(pProviders, static_cast<unsigned int>(numProviders));
     m_enabled = true;
 
@@ -239,7 +236,7 @@ void EventPipeConfiguration::Enable(
             pProvider->SetConfiguration(
                 true /* providerEnabled */,
                 pEnabledProvider->GetKeywords(),
-                m_loggingLevel);
+                pEnabledProvider->GetLevel());
         }
 
         pElem = m_pProviderList->GetNext(pElem);
@@ -359,7 +356,7 @@ EventPipeEnabledProviderList::EventPipeEnabledProviderList(
     if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) & 1) == 1)
     {
         m_pCatchAllProvider = new EventPipeEnabledProvider();
-        m_pCatchAllProvider->Set(NULL, 0xFFFFFFFF);
+        m_pCatchAllProvider->Set(NULL, 0xFFFFFFFF, EventPipeEventLevel::Verbose);
         m_pProviders = NULL;
         m_numProviders = 0;
         return;
@@ -377,7 +374,8 @@ EventPipeEnabledProviderList::EventPipeEnabledProviderList(
     {
         m_pProviders[i].Set(
             pConfigs[i].GetProviderName(),
-            pConfigs[i].GetKeywords());
+            pConfigs[i].GetKeywords(),
+            (EventPipeEventLevel)pConfigs[i].GetLevel());
     }
 }
 
@@ -478,7 +476,7 @@ EventPipeEnabledProvider::~EventPipeEnabledProvider()
     }
 }
 
-void EventPipeEnabledProvider::Set(LPCWSTR providerName, UINT64 keywords)
+void EventPipeEnabledProvider::Set(LPCWSTR providerName, UINT64 keywords, EventPipeEventLevel loggingLevel)
 {
     CONTRACTL
     {
@@ -501,6 +499,7 @@ void EventPipeEnabledProvider::Set(LPCWSTR providerName, UINT64 keywords)
         wcscpy_s(m_pProviderName, bufSize, providerName);
     }
     m_keywords = keywords;
+    m_loggingLevel = loggingLevel;
 }
 
 LPCWSTR EventPipeEnabledProvider::GetProviderName() const
@@ -513,6 +512,12 @@ UINT64 EventPipeEnabledProvider::GetKeywords() const
 {
     LIMITED_METHOD_CONTRACT;
     return m_keywords;
+}
+
+EventPipeEventLevel EventPipeEnabledProvider::GetLevel() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_loggingLevel;
 }
 
 #endif // FEATURE_PERFTRACING

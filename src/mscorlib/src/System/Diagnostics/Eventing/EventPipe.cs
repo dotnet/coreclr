@@ -15,17 +15,24 @@ namespace System.Diagnostics.Tracing
         [MarshalAs(UnmanagedType.LPWStr)]
         private string m_providerName;
         private UInt64 m_keywords;
+        private uint m_loggingLevel;
 
         internal EventPipeProviderConfiguration(
             string providerName,
-            UInt64 keywords)
+            UInt64 keywords,
+            uint loggingLevel)
         {
             if(string.IsNullOrEmpty(providerName))
             {
                 throw new ArgumentNullException(nameof(providerName));
             }
+            if(loggingLevel > 5) // 5 == Verbose, the highest value in EventPipeLoggingLevel.
+            {
+                throw new ArgumentOutOfRangeException(nameof(loggingLevel));
+            }
             m_providerName = providerName;
             m_keywords = keywords;
+            m_loggingLevel = loggingLevel;
         }
 
         internal string ProviderName
@@ -37,19 +44,22 @@ namespace System.Diagnostics.Tracing
         {
             get { return m_keywords; }
         }
+
+        internal uint LoggingLevel
+        {
+            get { return m_loggingLevel; }
+        }
     }
 
     internal sealed class EventPipeConfiguration
     {
         private string m_outputFile;
         private uint m_circularBufferSizeInMB;
-        private uint m_level;
         private List<EventPipeProviderConfiguration> m_providers;
 
         internal EventPipeConfiguration(
             string outputFile,
-            uint circularBufferSizeInMB,
-            uint level)
+            uint circularBufferSizeInMB)
         {
             if(string.IsNullOrEmpty(outputFile))
             {
@@ -59,11 +69,8 @@ namespace System.Diagnostics.Tracing
             {
                 throw new ArgumentOutOfRangeException(nameof(circularBufferSizeInMB));
             }
-            // TODO: Validate level.
-            // TODO: Consider using an enum.
             m_outputFile = outputFile;
             m_circularBufferSizeInMB = circularBufferSizeInMB;
-            m_level = level;
             m_providers = new List<EventPipeProviderConfiguration>();
         }
 
@@ -77,21 +84,17 @@ namespace System.Diagnostics.Tracing
             get { return m_circularBufferSizeInMB; }
         }
 
-        internal uint Level
-        {
-            get { return m_level; }
-        }
-
         internal EventPipeProviderConfiguration[] Providers
         {
             get { return m_providers.ToArray(); }
         }
 
-        internal void EnableProvider(string providerName, UInt64 keywords)
+        internal void EnableProvider(string providerName, UInt64 keywords, uint loggingLevel)
         {
             m_providers.Add(new EventPipeProviderConfiguration(
                 providerName,
-                keywords));
+                keywords,
+                loggingLevel));
         }
     }
 
@@ -109,7 +112,6 @@ namespace System.Diagnostics.Tracing
             EventPipeInternal.Enable(
                 configuration.OutputFile,
                 configuration.CircularBufferSizeInMB,
-                configuration.Level,
                 providers,
                 providers.Length);
         }
@@ -127,7 +129,7 @@ namespace System.Diagnostics.Tracing
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        internal static extern void Enable(string outputFile, uint circularBufferSizeInMB, uint level, EventPipeProviderConfiguration[] providers, int numProviders);
+        internal static extern void Enable(string outputFile, uint circularBufferSizeInMB, EventPipeProviderConfiguration[] providers, int numProviders);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]

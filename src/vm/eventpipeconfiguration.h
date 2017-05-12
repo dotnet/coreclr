@@ -53,7 +53,6 @@ public:
     // Enable the event pipe.
     void Enable(
         uint circularBufferSizeInMB,
-        uint loggingLevel,
         EventPipeProviderConfiguration *pProviders,
         int numProviders);
 
@@ -76,9 +75,6 @@ private:
 
     // The configured size of the circular buffer.
     size_t m_circularBufferSizeInBytes;
-
-    // The verbosity of the tracing session.
-    EventPipeEventLevel m_loggingLevel;
 
     // EventPipeConfiguration only supports a single session.
     // This is the set of configurations for each enabled provider.
@@ -134,16 +130,21 @@ private:
     // The enabled keywords.
     UINT64 m_keywords;
 
+    // The loging level.
+    EventPipeEventLevel m_loggingLevel;
+
 public:
 
     EventPipeEnabledProvider();
     ~EventPipeEnabledProvider();
 
-    void Set(LPCWSTR providerName, UINT64 keywords);
+    void Set(LPCWSTR providerName, UINT64 keywords, EventPipeEventLevel loggingLevel);
 
     LPCWSTR GetProviderName() const;
 
     UINT64 GetKeywords() const;
+
+    EventPipeEventLevel GetLevel() const;
 };
 
 #endif // FEATURE_PERFTRACING

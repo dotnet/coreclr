@@ -76,7 +76,6 @@ void EventPipe::EnableOnStartup()
         Enable(
             outputPath.GetUnicode(),
             1024 /* 1 GB circular buffer */,
-            5 /* verbose */,
             NULL /* pProviders */,
             0 /* numProviders */);
     }
@@ -109,7 +108,6 @@ void EventPipe::Shutdown()
 void EventPipe::Enable(
     LPCWSTR strOutputPath,
     uint circularBufferSizeInMB,
-    uint loggingLevel,
     EventPipeProviderConfiguration *pProviders,
     int numProviders)
 {
@@ -150,13 +148,10 @@ void EventPipe::Enable(
 #endif // _DEBUG
 
     // Enable tracing.
-    s_pConfig->Enable(circularBufferSizeInMB, loggingLevel, pProviders, numProviders);
+    s_pConfig->Enable(circularBufferSizeInMB, pProviders, numProviders);
 
     // Enable the sample profiler
     SampleProfiler::Enable();
-
-    // TODO: Iterate through the set of providers, enable them as appropriate.
-    // This in-turn will iterate through all of the events and set their isEnabled bits.
 }
 
 void EventPipe::Disable()
@@ -410,14 +405,13 @@ CrstStatic* EventPipe::GetLock()
 void QCALLTYPE EventPipeInternal::Enable(
         __in_z LPCWSTR outputFile,
         unsigned int circularBufferSizeInMB,
-        unsigned int level,
         EventPipeProviderConfiguration *pProviders,
         int numProviders)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
-    EventPipe::Enable(outputFile, circularBufferSizeInMB, level, pProviders, numProviders);
+    EventPipe::Enable(outputFile, circularBufferSizeInMB, pProviders, numProviders);
     END_QCALL;
 }
 
