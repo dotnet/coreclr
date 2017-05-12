@@ -197,7 +197,10 @@ BOOL IsRundownNgenKeywordEnabledAndNotSuppressed()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return EventPipeHelper::Enabled() ||
+    return
+#ifdef FEATURE_PERFTRACING
+        EventPipeHelper::Enabled() ||
+#endif // FEATURE_PERFTRACING
     (
         ETW_TRACING_CATEGORY_ENABLED(
             MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, 
