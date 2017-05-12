@@ -1704,6 +1704,7 @@ public:
     }
 #endif // !DACCESS_COMPILE
     void AddChunk (MethodDescChunk* pNewChunk);
+    void ReverseChunks();
 
     void AddChunkIfItHasNotBeenAdded (MethodDescChunk* pNewChunk);
 
