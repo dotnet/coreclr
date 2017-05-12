@@ -156,6 +156,14 @@ InitializeGarbageCollector(
     assert(gcHeap != nullptr);
     assert(gcHandleManager != nullptr);
 
+#ifdef BUILD_AS_STANDALONE
+    assert(clrToGC != nullptr);
+    g_theGCToCLR = clrToGC;
+#else
+    UNREFERENCED_PARAMETER(clrToGC);
+    assert(clrToGC == nullptr);
+#endif
+
     // Initialize GCConfig before anything else - initialization of our
     // various components may want to query the current configuration.
     GCConfig::Initialize();
@@ -165,14 +173,6 @@ InitializeGarbageCollector(
     {
         return false;
     }
-
-#ifdef BUILD_AS_STANDALONE
-    assert(clrToGC != nullptr);
-    g_theGCToCLR = clrToGC;
-#else
-    UNREFERENCED_PARAMETER(clrToGC);
-    assert(clrToGC == nullptr);
-#endif
 
 #ifdef FEATURE_SVR_GC
     if (GCConfig::GetServerGC())
