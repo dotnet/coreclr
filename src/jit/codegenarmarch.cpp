@@ -580,18 +580,17 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
         {
             noway_assert((source->OperGet() == GT_LCL_VAR) || (source->OperGet() == GT_OBJ));
 
-            NYI_ARM("genPutArgStk: GT_OBJ or GT_LCL_VAR source of struct type");
-
-#ifdef _TARGET_ARM64_
-
             var_types targetType = source->TypeGet();
             noway_assert(varTypeIsStruct(targetType));
 
-            // We will copy this struct to the stack, possibly using a ldp instruction
-            // Setup loReg and hiReg from the internal registers that we reserved in lower.
+            // We will copy this struct to the stack, possibly using a ldp/ldr instruction
+            // in ARM64/ARM
+            // Setup loReg (and hiReg) from the internal registers that we reserved in lower.
             //
             regNumber loReg   = treeNode->ExtractTempReg();
+#ifdef _TARGET_ARM64_
             regNumber hiReg   = treeNode->GetSingleTempReg();
+#endif // _TARGET_ARM64_
             regNumber addrReg = REG_NA;
 
             GenTreeLclVarCommon* varNode  = nullptr;
@@ -627,7 +626,9 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // the xor ensures that only one of the two is setup, not both
             assert((varNode != nullptr) ^ (addrNode != nullptr));
 
-            BYTE     gcPtrs[MAX_ARG_REG_COUNT] = {}; // TYPE_GC_NONE = 0
+            BYTE*    gcPtrs = nullptr;
+            BYTE     gcPtrArray[MAX_ARG_REG_COUNT] = {}; // TYPE_GC_NONE = 0
+
             unsigned gcPtrCount;                     // The count of GC pointers in the struct
             int      structSize;
             bool     isHfa;
@@ -650,9 +651,15 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 structSize = varDsc->lvSize(); // This yields the roundUp size, but that is fine
                                                // as that is how much stack is allocated for this LclVar
                 isHfa      = varDsc->lvIsHfa();
+#ifdef _TARGET_ARM64_
+                gcPtrs = gcPtrArray;
                 gcPtrCount = varDsc->lvStructGcCount;
                 for (unsigned i = 0; i < gcPtrCount; ++i)
                     gcPtrs[i]   = varDsc->lvGcLayout[i];
+#else // _TARGET_ARM_
+                gcPtrs = treeNode->gtGcPtrs;
+                gcPtrCount = treeNode->gtNumSlots;
+#endif // _TARGET_ARM_
             }
             else // addrNode is used
             {
@@ -662,6 +669,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 genConsumeAddress(addrNode);
                 addrReg = addrNode->gtRegNum;
 
+#ifdef _TARGET_ARM64_
                 // If addrReg equal to loReg, swap(loReg, hiReg)
                 // This reduces code complexity by only supporting one addrReg overwrite case
                 if (loReg == addrReg)
@@ -669,11 +677,13 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     loReg = hiReg;
                     hiReg = addrReg;
                 }
+#endif // _TARGET_ARM64_
 
                 CORINFO_CLASS_HANDLE objClass = source->gtObj.gtClass;
 
                 structSize = compiler->info.compCompHnd->getClassSize(objClass);
                 isHfa      = compiler->IsHfa(objClass);
+                gcPtrs = gcPtrArray;
                 gcPtrCount = compiler->info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
             }
 
@@ -683,20 +693,23 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             {
                 noway_assert(gcPtrCount == 0);
             }
+#ifdef _TARGET_ARM64_
             else
             {
                 noway_assert(structSize <= 2 * TARGET_POINTER_SIZE);
             }
 
             noway_assert(structSize <= MAX_PASS_MULTIREG_BYTES);
-
-            // For a >= 16-byte structSize we will generate a ldp and stp instruction each loop
-            //             ldp     x2, x3, [x0]
-            //             stp     x2, x3, [sp, #16]
+#endif // _TARGET_ARM64_
 
             int      remainingSize = structSize;
             unsigned structOffset  = 0;
             unsigned nextIndex     = 0;
+
+#ifdef _TARGET_ARM64_
+            // For a >= 16-byte structSize we will generate a ldp and stp instruction each loop
+            //             ldp     x2, x3, [x0]
+            //             stp     x2, x3, [sp, #16]
 
             while (remainingSize >= 2 * TARGET_POINTER_SIZE)
             {
@@ -730,6 +743,44 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 structOffset += (2 * TARGET_POINTER_SIZE);
                 nextIndex += 2;
             }
+#else // _TARGET_ARM_
+            // For a >= 4 byte structSize we will generate a ldr and str instruction each loop
+            //             ldr     r2, [r0]
+            //             str     r2, [sp, #16]
+            while (remainingSize >= TARGET_POINTER_SIZE)
+            {
+                var_types type = compiler->getJitGCType(gcPtrs[nextIndex]);
+
+                if (varNode != nullptr)
+                {
+                    // Load from our varNumImp source
+                    emit->emitIns_R_S(INS_ldr, emitTypeSize(type), loReg, varNumInp, 0);
+                }
+                else
+                {
+                    // check for case of destroying the addrRegister while we still need it
+                    assert(loReg != addrReg);
+                    noway_assert(remainingSize == TARGET_POINTER_SIZE);
+
+                    // Load from our address expression source
+                    emit->emitIns_R_R_I(INS_ldr, emitTypeSize(type), loReg, addrReg, structOffset);
+                }
+
+                // Emit str instruction to store the register into the outgoing argument area
+                emit->emitIns_S_R(INS_str, emitTypeSize(type), loReg, varNumOut, argOffsetOut);
+                argOffsetOut += TARGET_POINTER_SIZE;  // We stored 4-bytes of the struct
+                assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
+
+                remainingSize -= TARGET_POINTER_SIZE; // We loaded 4-bytes of the struct
+                structOffset += TARGET_POINTER_SIZE;
+                nextIndex += 1;
+            }
+
+            if (remainingSize == 0)
+            {
+                return;
+            }
+#endif // _TARGET_ARM_
 
             // For a 12-byte structSize we will we will generate two load instructions
             //             ldr     x2, [x0]
@@ -807,8 +858,6 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
                 }
             }
-
-#endif // _TARGET_ARM64_
         }
     }
 }
