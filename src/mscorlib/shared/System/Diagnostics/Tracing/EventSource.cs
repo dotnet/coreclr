@@ -634,9 +634,6 @@ namespace System.Diagnostics.Tracing
         protected EventSource()
             : this(EventSourceSettings.EtwManifestEventFormat)
         {
-#if FEATURE_PERFTRACING
-            GenerateEventPipeEvents();
-#endif            
         }
 
         /// <summary>
@@ -1545,7 +1542,6 @@ namespace System.Diagnostics.Tracing
                     metadataHandle.Free();
                 }
 #endif // FEATURE_MANAGED_ETW
-
                 Debug.Assert(!m_eventSourceEnabled);     // We can't be enabled until we are completely initted.  
                 // We are logically completely initialized at this point.  
                 m_completelyInited = true;
@@ -3122,6 +3118,10 @@ namespace System.Diagnostics.Tracing
                         dispatcher.m_EventEnabled = new bool[m_eventData.Length];
                     dispatcher = dispatcher.m_Next;
                 }
+#if FEATURE_PERFTRACING
+                // Initialize the EventPipe event handles.
+                GenerateEventPipeEvents();
+#endif
             }
             if (s_currentPid == 0)
             {
@@ -3654,7 +3654,11 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentException(msg, exception);
             }
 
+#if FEATURE_PERFTRACING
+            return null;
+#else
             return bNeedsManifest ? res : null;
+#endif
         }
 
         private static bool RemoveFirstArgIfRelatedActivityId(ref ParameterInfo[] args)
