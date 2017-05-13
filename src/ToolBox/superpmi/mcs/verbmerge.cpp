@@ -15,19 +15,19 @@
 // The caller must delete the returned string with delete[].
 //
 // static
-LPTSTR verbMerge::MergePathStrings(LPCTSTR dir, LPCTSTR file)
+LPWSTR verbMerge::MergePathStrings(LPCWSTR dir, LPCWSTR file)
 {
     size_t dirlen  = wcslen(dir);
     size_t filelen = wcslen(file);
     size_t newlen  = dirlen + 1 /* slash */ + filelen + 1 /* null */;
-    LPTSTR newpath = new WCHAR[newlen];
+    LPWSTR newpath = new WCHAR[newlen];
     wcscpy(newpath, dir);
     wcscat(newpath, DIRECTORY_SEPARATOR_STR_W);
     wcscat(newpath, file);
     return newpath;
 }
 
-char* verbMerge::ConvertUTF8ToMultiByte(LPCTSTR wstr)
+char* verbMerge::ConvertUTF8ToMultiByte(LPCWSTR wstr)
 {
     unsigned int codePage   = CP_UTF8;
     int          sizeNeeded = WideCharToMultiByte(codePage, 0, wstr, -1, NULL, 0, NULL, NULL);
@@ -42,7 +42,7 @@ char* verbMerge::ConvertUTF8ToMultiByte(LPCTSTR wstr)
 // 'buffer' is memory that can be used to do reading/buffering.
 //
 // static
-int verbMerge::AppendFile(HANDLE hFileOut, LPCTSTR fileName, unsigned char* buffer, size_t bufferSize)
+int verbMerge::AppendFile(HANDLE hFileOut, LPCWSTR fileName, unsigned char* buffer, size_t bufferSize)
 {
     int result = 0; // default to zero == success
 
@@ -126,9 +126,9 @@ bool verbMerge::DirectoryFilterDirectories(WIN32_FIND_DATAW* findData)
         if ((findData->dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0)
             return false;
 
-        if (wcscmp(findData->cFileName, L".") == 0)
+        if (wcscmp(findData->cFileName, W(".")) == 0)
             return false;
-        if (wcscmp(findData->cFileName, L"..") == 0)
+        if (wcscmp(findData->cFileName, W("..")) == 0)
             return false;
 
         return true;
@@ -167,7 +167,7 @@ int __cdecl verbMerge::WIN32_FIND_DATAW_qsort_helper(const void* p1, const void*
 // If success, fileArray and elemCount are set.
 //
 // static
-int verbMerge::FilterDirectory(LPCTSTR                      searchPattern,
+int verbMerge::FilterDirectory(LPCWSTR                      searchPattern,
                                DirectoryFilterFunction_t    filter,
                                /* out */ WIN32_FIND_DATAW** ppFileArray,
                                int*                         pElemCount)
@@ -206,7 +206,7 @@ int verbMerge::FilterDirectory(LPCTSTR                      searchPattern,
     // PAL doesn't have FindFirstFileEx(). So just use FindFirstFile(). The only reason we use
     // the Ex version is potentially better performance (don't populate short name; use large fetch),
     // not functionality.
-    hSearch = FindFirstFileA(searchPattern, &findData);
+    hSearch = FindFirstFileW(searchPattern, &findData);
 #else  // !FEATURE_PAL
     hSearch = FindFirstFileExW(searchPattern,
                                FindExInfoBasic, // We don't care about the short names
@@ -287,8 +287,8 @@ CLEAN_UP:
 //
 // static
 int verbMerge::AppendAllInDir(HANDLE              hFileOut,
-                              LPCTSTR             dir,
-                              LPCTSTR             file,
+                              LPCWSTR             dir,
+                              LPCWSTR             file,
                               unsigned char*      buffer,
                               size_t              bufferSize,
                               bool                recursive,
@@ -297,7 +297,7 @@ int verbMerge::AppendAllInDir(HANDLE              hFileOut,
     int      result    = 0; // default to zero == success
     LONGLONG totalSize = 0;
 
-    LPTSTR searchPattern = MergePathStrings(dir, file);
+    LPWSTR searchPattern = MergePathStrings(dir, file);
 
     _WIN32_FIND_DATAW* fileArray = nullptr;
     int                elemCount = 0;
@@ -310,17 +310,17 @@ int verbMerge::AppendAllInDir(HANDLE              hFileOut,
     for (int i = 0; i < elemCount; i++)
     {
         const _WIN32_FIND_DATAW& findData     = fileArray[i];
-        LPTSTR                   fileFullPath = MergePathStrings(dir, findData.cFileName);
+        LPWSTR                   fileFullPath = MergePathStrings(dir, findData.cFileName);
 
         if (wcslen(fileFullPath) > 260) // It is too long path, use \\?\ to access it.
         {
-            LPTSTR newBuffer = new WCHAR[wcslen(fileFullPath) + 30];
-            wcscpy(newBuffer, L"\\\\?\\");
-            if (*fileFullPath == L'\\') // It is UNC path, use \\?\UNC\serverName to access it.
+            LPWSTR newBuffer = new WCHAR[wcslen(fileFullPath) + 30];
+            wcscpy(newBuffer, W("\\\\?\\"));
+            if (*fileFullPath == '\\') // It is UNC path, use \\?\UNC\serverName to access it.
             {
-                LPTSTR serverName = fileFullPath;
-                wcscat(newBuffer, L"UNC\\");
-                while (*serverName == L'\\')
+                LPWSTR serverName = fileFullPath;
+                wcscat(newBuffer, W("UNC\\"));
+                while (*serverName == '\\')
                 {
                     serverName++;
                 }
@@ -339,8 +339,7 @@ int verbMerge::AppendAllInDir(HANDLE              hFileOut,
         if ((findData.nFileSizeLow == 0) && (findData.nFileSizeHigh == 0))
         {
             char* fileFullPathAsChar = ConvertUTF8ToMultiByte(fileFullPath);
-
-            LogInfo("Skipping zero-length file '%s'", fileFullPath);
+            LogInfo("Skipping zero-length file '%s'", fileFullPathAsChar);
             delete[] fileFullPathAsChar;
         }
         else
@@ -364,7 +363,7 @@ int verbMerge::AppendAllInDir(HANDLE              hFileOut,
         delete[] searchPattern;
         delete[] fileArray;
 
-        searchPattern = MergePathStrings(dir, L"*");
+        searchPattern = MergePathStrings(dir, W("*"));
         fileArray     = nullptr;
         elemCount     = 0;
         result        = FilterDirectory(searchPattern, DirectoryFilterDirectories, &fileArray, &elemCount);
@@ -378,7 +377,7 @@ int verbMerge::AppendAllInDir(HANDLE              hFileOut,
         {
             const _WIN32_FIND_DATAW& findData = fileArray[i];
 
-            LPTSTR fileFullPath = MergePathStrings(dir, findData.cFileName);
+            LPWSTR fileFullPath = MergePathStrings(dir, findData.cFileName);
             result              = AppendAllInDir(hFileOut, fileFullPath, file, buffer, bufferSize, recursive, &dirSize);
             delete[] fileFullPath;
             if (result != 0)
@@ -423,11 +422,11 @@ int verbMerge::DoWork(const char* nameOfOutputFile, const char* pattern, bool re
     LogInfo("Merging files matching '%s' into '%s'", pattern, nameOfOutputFile);
 
     const size_t nameLength                = strlen(nameOfOutputFile) + 1;
-    LPTSTR       nameOfOutputFileAsUnicode = new TCHAR[nameLength];
+    LPWSTR       nameOfOutputFileAsUnicode = new WCHAR[nameLength];
     mbstowcs(nameOfOutputFileAsUnicode, nameOfOutputFile, nameLength);
 
     const size_t patternLength    = strlen(pattern) + 1;
-    LPTSTR       patternAsUnicode = new TCHAR[patternLength];
+    LPWSTR       patternAsUnicode = new WCHAR[patternLength];
     mbstowcs(patternAsUnicode, pattern, patternLength);
 
     HANDLE hFileOut = CreateFileW(nameOfOutputFileAsUnicode, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
@@ -440,33 +439,33 @@ int verbMerge::DoWork(const char* nameOfOutputFile, const char* pattern, bool re
 
     // Create a buffer we can use for all the copies.
     unsigned char* buffer = new unsigned char[BUFFER_SIZE];
-    LPTSTR         dir    = nullptr;
-    LPCTSTR        file   = nullptr;
+    LPWSTR         dir    = nullptr;
+    LPCWSTR        file   = nullptr;
 
     dir              = _wcsdup(patternAsUnicode);
-    LPTSTR lastSlash = wcsrchr(dir, DIRECTORY_SEPARATOR_CHAR_A);
+    LPWSTR lastSlash = wcsrchr(dir, DIRECTORY_SEPARATOR_CHAR_A);
     if (lastSlash == NULL)
     {
         // The user may have passed a relative path without a slash, or the current directory.
         // If there is a wildcard, we use it as the file pattern. If there isn't, we assume it's a relative directory
         // name and use it as a directory, with "*" as the file pattern.
-        LPCTSTR wildcard = wcschr(dir, '*');
+        LPCWSTR wildcard = wcschr(dir, '*');
         if (wildcard == NULL)
         {
-            file = L"*";
+            file = W("*");
         }
         else
         {
             file = dir;
-            dir  = _wcsdup(L".");
+            dir  = _wcsdup(W("."));
         }
     }
     else
     {
-        LPCTSTR wildcard = wcschr(lastSlash, '*');
+        LPCWSTR wildcard = wcschr(lastSlash, '*');
         if (wildcard == NULL)
         {
-            file = L"*";
+            file = W("*");
 
             // Minor canonicalization: if there is a trailing last slash, strip it (probably should do this in a
             // loop...)

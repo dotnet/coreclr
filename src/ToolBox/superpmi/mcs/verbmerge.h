@@ -20,19 +20,19 @@ private:
     static bool DirectoryFilterDirectories(WIN32_FIND_DATAW* findData);
     static bool DirectoryFilterFile(WIN32_FIND_DATAW* findData);
     static int __cdecl WIN32_FIND_DATAW_qsort_helper(const void* p1, const void* p2);
-    static int FilterDirectory(LPCTSTR                      searchPattern,
+    static int FilterDirectory(LPCWSTR                      searchPattern,
                                DirectoryFilterFunction_t    filter,
                                /* out */ WIN32_FIND_DATAW** ppFileArray,
                                int*                         pElemCount);
 
-    static LPTSTR MergePathStrings(LPCTSTR dir, LPCTSTR file);
+    static LPWSTR MergePathStrings(LPCWSTR dir, LPCWSTR file);
 
-    static char* ConvertUTF8ToMultiByte(LPCTSTR wstr);
+    static char* ConvertUTF8ToMultiByte(LPCWSTR wstr);
 
-    static int AppendFile(HANDLE hFileOut, LPCTSTR fileName, unsigned char* buffer, size_t bufferSize);
+    static int AppendFile(HANDLE hFileOut, LPCWSTR fileName, unsigned char* buffer, size_t bufferSize);
     static int AppendAllInDir(HANDLE              hFileOut,
-                              LPCTSTR             dir,
-                              LPCTSTR             file,
+                              LPCWSTR             dir,
+                              LPCWSTR             file,
                               unsigned char*      buffer,
                               size_t              bufferSize,
                               bool                recursive,
