@@ -8,7 +8,7 @@
 
 #ifdef FEATURE_PERFTRACING
 
-EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack)
+EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata, unsigned int metadataLength)
 {
     CONTRACTL
     {
@@ -25,6 +25,8 @@ EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsi
     m_level = level;
     m_needStack = needStack;
     m_enabled = false;
+    m_pMetadata = pMetadata;
+    m_metadataLength = metadataLength;
 }
 
 EventPipeProvider* EventPipeEvent::GetProvider() const
@@ -74,6 +76,20 @@ bool EventPipeEvent::IsEnabled() const
     LIMITED_METHOD_CONTRACT;
 
     return m_enabled;
+}
+
+BYTE *EventPipeEvent::GetMetadata() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_pMetadata;
+}
+
+unsigned int EventPipeEvent::GetMetadataLength() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_metadataLength;
 }
 
 void EventPipeEvent::RefreshState()

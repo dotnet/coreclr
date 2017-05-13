@@ -634,6 +634,9 @@ namespace System.Diagnostics.Tracing
         protected EventSource()
             : this(EventSourceSettings.EtwManifestEventFormat)
         {
+#if FEATURE_PERFTRACING
+            GenerateEventPipeEvents();
+#endif            
         }
 
         /// <summary>
@@ -685,6 +688,61 @@ namespace System.Diagnostics.Tracing
 
             Initialize(eventSourceGuid, eventSourceName, traits);
         }
+
+#if FEATURE_PERFTRACING
+        // Generate all EventPipeEvent instances which belong to this EventProvider
+        private unsafe void GenerateEventPipeEvents()
+        {
+            Debug.Assert(m_eventData != null);
+            Debug.Assert(m_provider != null);
+            int cnt = m_eventData.Length;
+            for (int i = 0; i < cnt; i++)
+            {
+                uint eventID = (uint)m_eventData[i].Descriptor.EventId;
+                if (eventID == 0)
+                    continue;
+
+                string eventName = m_eventData[i].Name;
+                Int64 keywords = m_eventData[i].Descriptor.Keywords;
+                uint eventVersion = m_eventData[i].Descriptor.Version;
+                uint level = m_eventData[i].Descriptor.Level;
+                byte[] eventNameBytes = Encoding.ASCII.GetBytes(eventName);
+                uint eventNameLength = (uint)eventNameBytes.Length + 1;
+
+                // evnetID          : 4 bytes
+                // eventName        : eventNameLength
+                // keywords         : 8 bytes
+                // eventVersion     : 4 bytes
+                // level            : 4 bytes
+                uint metadataLength = 20 + eventNameLength;
+                metadataLength += (uint)m_eventData[i].Parameters.Length * 4;
+                byte[] metadata = new byte[metadataLength];
+
+                fixed (byte *pMetadata = metadata, pEventNameBytes = eventNameBytes)
+                {
+                    *(uint *)pMetadata = eventID;
+
+                    for (int j = 0; j < eventNameBytes.Length; j++)
+                    {
+                        *(byte *)(pMetadata + 4 + j) = *(byte *)(pEventNameBytes + j);
+                    }
+                    *(byte *)(pMetadata + 4 + eventNameBytes.Length) = (byte)0;
+
+                    *(long *)(pMetadata + eventNameLength + 4) = keywords;
+                    *(uint *)(pMetadata + eventNameLength + 12) = eventVersion;
+                    *(uint *)(pMetadata + eventNameLength + 16) = level;
+                    
+                    uint idx = 0;
+                    foreach (var parameter in m_eventData[i].Parameters)
+                    {
+                        *(uint *)(pMetadata + 20 + eventNameLength + idx * 4) = (uint)Type.GetTypeCode(parameter.ParameterType);
+                    }
+                    IntPtr eventHandle = m_provider.m_eventProvider.DefineEventHandle(eventID, eventName, keywords, eventVersion, level, pMetadata, metadataLength);
+                    m_eventData[i].EventHandle = eventHandle; 
+                }
+            }
+        }
+#endif
 
         internal virtual void GetMetadata(out Guid eventSourceGuid, out string eventSourceName, out EventMetadata[] eventData, out byte[] manifestBytes)
         {
@@ -1229,7 +1287,7 @@ namespace System.Diagnostics.Tracing
 #else
                         if (!SelfDescribingEvents)
                         {
-                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
+                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
                                 ThrowEventSourceException(m_eventData[eventId].Name);
                         }
                         else
@@ -2515,6 +2573,7 @@ namespace System.Diagnostics.Tracing
         partial struct EventMetadata
         {
             public EventDescriptor Descriptor;
+            public IntPtr EventHandle;              // EventPipeEvent handle.
             public EventTags Tags;
             public bool EnabledForAnyListener;      // true if any dispatcher has this event turned on
             public bool EnabledForETW;              // is this event on for the OS ETW data dispatcher?
@@ -3684,6 +3743,7 @@ namespace System.Diagnostics.Tracing
             eventData[eventAttribute.EventId].Message = eventAttribute.Message;
             eventData[eventAttribute.EventId].ActivityOptions = eventAttribute.ActivityOptions;
             eventData[eventAttribute.EventId].HasRelatedActivityID = hasRelatedActivityID;
+            eventData[eventAttribute.EventId].EventHandle = IntPtr.Zero;
         }
 
         // Helper used by code:CreateManifestAndDescriptors that trims the m_eventData array to the correct
