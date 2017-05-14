@@ -152,6 +152,6 @@ namespace System.Diagnostics.Tracing
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        internal static extern unsafe void WriteEvent(IntPtr eventHandle, uint eventID, void* data, uint dataCount);
+        internal static extern unsafe void WriteEvent(IntPtr eventHandle, uint eventID, void* pData, uint length);
     }
 }

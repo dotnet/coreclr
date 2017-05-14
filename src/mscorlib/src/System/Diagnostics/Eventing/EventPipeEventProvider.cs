@@ -60,7 +60,34 @@ namespace System.Diagnostics.Tracing
             uint eventID = (uint)eventDescriptor.EventId;
             if(eventID != 0 && eventHanlde != IntPtr.Zero)
             {
-                EventPipeInternal.WriteEvent(eventHanlde, eventID, userData, (uint)userDataCount);
+                if (userDataCount == 0)
+                {
+                    EventPipeInternal.WriteEvent(eventHanlde, eventID, null, 0);
+                    return 0;
+                }
+
+                uint length = 0;
+                for (int i = 0; i < userDataCount; i++)
+                {
+                    length += userData[i].Size;
+                }
+
+                byte[] data = new byte[length];
+                fixed (byte *pData = data)
+                {
+                    uint offset = 0;
+                    for (int i = 0; i < userDataCount; i++)
+                    {
+                        byte * singleUserDataPtr = (byte *)(userData[i].Ptr);
+                        uint singleUserDataSize = userData[i].Size;
+                        for (uint j = 0; j < singleUserDataSize; j++)
+                        {
+                            *(byte *)(pData + offset + j) = *(byte *)(singleUserDataPtr + j);
+                        }
+                        offset += userData[i].Size;
+                    }
+                    EventPipeInternal.WriteEvent(eventHanlde, eventID, pData, length);
+                }
             }
             return 0;
         }

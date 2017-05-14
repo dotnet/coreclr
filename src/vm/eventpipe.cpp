@@ -524,51 +524,18 @@ void QCALLTYPE EventPipeInternal::DeleteProvider(
     END_QCALL;
 }
 
-struct EventProviderEventData
-{
-    unsigned long Ptr;
-    unsigned int Size;
-    unsigned int Reserved;
-};
-
 void QCALLTYPE EventPipeInternal::WriteEvent(
     INT_PTR eventHandle,
     unsigned int eventID,
     void *pData,
-    unsigned int dataCount)
+    unsigned int length)
 {
     QCALL_CONTRACT;
     BEGIN_QCALL;
 
     _ASSERTE(eventHandle != NULL);
     EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
-
-    if (pData == NULL)
-    {
-        EventPipe::WriteEvent(*pEvent, NULL, 0);
-    }
-    else
-    {
-        // pData is an array of pointers to blobs with Ptr of objects and Size of objects
-        // and we merge them here
-        EventProviderEventData *pNativeData = (EventProviderEventData *)pData;
-        unsigned int length = 0;
-        for (int i = 0; i < dataCount; i++)
-        {
-            length += pNativeData->Size;
-        }
-
-        BYTE *buffer = new BYTE[length];
-        unsigned int offset = 0;
-        for (int i = 0; i < dataCount; i++)
-        {
-            memcpy(buffer + offset, (BYTE *)pNativeData->Ptr, pNativeData->Size);
-            offset += pNativeData->Size;
-        }
-
-        EventPipe::WriteEvent(*pEvent, buffer, length);
-        delete[] buffer;
-    }
+    EventPipe::WriteEvent(*pEvent, (BYTE *)pData, length);
 
     END_QCALL;
 }

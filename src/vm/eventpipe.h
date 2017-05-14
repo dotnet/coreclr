@@ -297,7 +297,7 @@ public:
         INT_PTR eventHandle,
         unsigned int eventID,
         void *pData,
-        unsigned int dataCount);
+        unsigned int length);
 };
 
 #endif // FEATURE_PERFTRACING

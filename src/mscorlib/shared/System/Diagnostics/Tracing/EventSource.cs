@@ -687,39 +687,6 @@ namespace System.Diagnostics.Tracing
         }
 
 #if FEATURE_PERFTRACING
-        // Generate EventMetadata if it is null
-        private void GenerateEventMetadataIfNeeded()
-        {
-            if (m_eventData == null)
-            {
-                Guid eventSourceGuid = Guid.Empty;
-                string eventSourceName = null;
-                EventMetadata[] eventData = null;
-                byte[] manifest = null;
-
-                // Try the GetMetadata provided by the ILTransform in ProjectN. The default sets all to null, and in that case we fall back
-                // to the reflection approach.
-                GetMetadata(out eventSourceGuid, out eventSourceName, out eventData, out manifest);
-
-                if (eventSourceGuid.Equals(Guid.Empty) || eventSourceName == null || eventData == null || manifest == null)
-                {
-                    // GetMetadata failed, so we have to set it via reflection.
-                    Debug.Assert(m_rawManifest == null);
-                    m_rawManifest = CreateManifestAndDescriptors(this.GetType(), Name, this);
-                    Debug.Assert(m_eventData != null);
-
-                }
-                else
-                {
-                    // GetMetadata worked, so set the fields as appropriate.
-                    m_name = eventSourceName;
-                    m_guid = eventSourceGuid;
-                    m_eventData = eventData;
-                    m_rawManifest = manifest;
-                }
-            }
-        }
-
         // Generate all EventPipeEvent instances which belong to this EventProvider
         private unsafe void GenerateEventPipeEvents()
         {
@@ -1287,7 +1254,7 @@ namespace System.Diagnostics.Tracing
                                         m_eventData[eventId].Descriptor.Task,
                                         unchecked((long)etwSessions.ToEventKeywords() | origKwd));
 
-                                    if (!m_provider.WriteEvent(ref desc, IntPtr.Zero, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
+                                    if (!m_provider.WriteEvent(ref desc, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                             }
@@ -1585,12 +1552,6 @@ namespace System.Diagnostics.Tracing
                     m_constructionException = e;
                 ReportOutOfBandMessage("ERROR: Exception during construction of EventSource " + Name + ": " + e.Message, true);
             }
-
-#if FEATURE_PERFTRACING
-            // Initialize the EventPipe event handles.
-            GenerateEventMetadataIfNeeded();
-            GenerateEventPipeEvents();
-#endif
 
             // Once m_completelyInited is set, you can have concurrency, so all work is under the lock.  
             lock (EventListener.EventListenersLock)
@@ -2049,7 +2010,7 @@ namespace System.Diagnostics.Tracing
                                         m_eventData[eventId].Descriptor.Task,
                                         unchecked((long)etwSessions.ToEventKeywords() | origKwd));
 
-                                    if (!m_provider.WriteEvent(ref desc, IntPtr.Zero, pActivityId, childActivityID, args))
+                                    if (!m_provider.WriteEvent(ref desc, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                             }
@@ -3157,6 +3118,10 @@ namespace System.Diagnostics.Tracing
                         dispatcher.m_EventEnabled = new bool[m_eventData.Length];
                     dispatcher = dispatcher.m_Next;
                 }
+#if FEATURE_PERFTRACING
+                // Initialize the EventPipe event handles.
+                GenerateEventPipeEvents();
+#endif                
             }
             if (s_currentPid == 0)
             {
