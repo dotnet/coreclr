@@ -937,7 +937,7 @@ namespace System.Diagnostics.Tracing
         // </SecurityKernel>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Justification = "Performance-critical code")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
-        internal unsafe bool WriteEvent(ref EventDescriptor eventDescriptor, Guid* activityID, Guid* childActivityID, params object[] eventPayload)
+        internal unsafe bool WriteEvent(ref EventDescriptor eventDescriptor, IntPtr eventHandle, Guid* activityID, Guid* childActivityID, params object[] eventPayload)
         {
             int status = 0;
 
@@ -1065,7 +1065,7 @@ namespace System.Diagnostics.Tracing
                                 userDataPtr[refObjPosition[7]].Ptr = (ulong)v7;
                             }
 
-                            status = m_eventProvider.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, IntPtr.Zero, activityID, childActivityID, argCount, userData);
+                            status = m_eventProvider.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, eventHandle, activityID, childActivityID, argCount, userData);
                         }
                     }
                     else
@@ -1091,7 +1091,7 @@ namespace System.Diagnostics.Tracing
                             }
                         }
 
-                        status = m_eventProvider.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, IntPtr.Zero, activityID, childActivityID, argCount, userData);
+                        status = m_eventProvider.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, eventHandle, activityID, childActivityID, argCount, userData);
 
                         for (int i = 0; i < refObjIndex; ++i)
                         {
@@ -1132,28 +1132,6 @@ namespace System.Diagnostics.Tracing
         // <SecurityKernel Critical="True" Ring="0">
         // <CallsSuppressUnmanagedCode Name="UnsafeNativeMethods.ManifestEtw.EventWrite(System.Int64,EventDescriptor&,System.UInt32,System.Void*):System.UInt32" />
         // </SecurityKernel>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
-        internal unsafe protected bool WriteEvent(ref EventDescriptor eventDescriptor, Guid* activityID, Guid* childActivityID, int dataCount, IntPtr data)
-        {
-            if (childActivityID != null)
-            {
-                // activity transfers are supported only for events that specify the Send or Receive opcode
-                Debug.Assert((EventOpcode)eventDescriptor.Opcode == EventOpcode.Send ||
-                                (EventOpcode)eventDescriptor.Opcode == EventOpcode.Receive ||
-                                (EventOpcode)eventDescriptor.Opcode == EventOpcode.Start ||
-                                (EventOpcode)eventDescriptor.Opcode == EventOpcode.Stop);
-            }
-
-            int status = m_eventProvider.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, IntPtr.Zero, activityID, childActivityID, dataCount, (EventData*)data);
-
-            if (status != 0)
-            {
-                SetLastError(status);
-                return false;
-            }
-            return true;
-        }
-
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
         internal unsafe protected bool WriteEvent(ref EventDescriptor eventDescriptor, IntPtr eventHandle, Guid* activityID, Guid* childActivityID, int dataCount, IntPtr data)
         {

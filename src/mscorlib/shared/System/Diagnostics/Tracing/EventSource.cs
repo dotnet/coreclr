@@ -687,6 +687,39 @@ namespace System.Diagnostics.Tracing
         }
 
 #if FEATURE_PERFTRACING
+        // Generate EventMetadata if it is null
+        private void GenerateEventMetadataIfNeeded()
+        {
+            if (m_eventData == null)
+            {
+                Guid eventSourceGuid = Guid.Empty;
+                string eventSourceName = null;
+                EventMetadata[] eventData = null;
+                byte[] manifest = null;
+
+                // Try the GetMetadata provided by the ILTransform in ProjectN. The default sets all to null, and in that case we fall back
+                // to the reflection approach.
+                GetMetadata(out eventSourceGuid, out eventSourceName, out eventData, out manifest);
+
+                if (eventSourceGuid.Equals(Guid.Empty) || eventSourceName == null || eventData == null || manifest == null)
+                {
+                    // GetMetadata failed, so we have to set it via reflection.
+                    Debug.Assert(m_rawManifest == null);
+                    m_rawManifest = CreateManifestAndDescriptors(this.GetType(), Name, this);
+                    Debug.Assert(m_eventData != null);
+
+                }
+                else
+                {
+                    // GetMetadata worked, so set the fields as appropriate.
+                    m_name = eventSourceName;
+                    m_guid = eventSourceGuid;
+                    m_eventData = eventData;
+                    m_rawManifest = manifest;
+                }
+            }
+        }
+
         // Generate all EventPipeEvent instances which belong to this EventProvider
         private unsafe void GenerateEventPipeEvents()
         {
@@ -1234,7 +1267,7 @@ namespace System.Diagnostics.Tracing
                                     // by default the Descriptor.Keyword will have the perEventSourceSessionId bit 
                                     // mask set to 0x0f so, when all ETW sessions want the event we don't need to 
                                     // synthesize a new one
-                                    if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
+                                    if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                                 else
@@ -1254,7 +1287,7 @@ namespace System.Diagnostics.Tracing
                                         m_eventData[eventId].Descriptor.Task,
                                         unchecked((long)etwSessions.ToEventKeywords() | origKwd));
 
-                                    if (!m_provider.WriteEvent(ref desc, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
+                                    if (!m_provider.WriteEvent(ref desc, IntPtr.Zero, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                             }
@@ -1552,6 +1585,12 @@ namespace System.Diagnostics.Tracing
                     m_constructionException = e;
                 ReportOutOfBandMessage("ERROR: Exception during construction of EventSource " + Name + ": " + e.Message, true);
             }
+
+#if FEATURE_PERFTRACING
+            // Initialize the EventPipe event handles.
+            GenerateEventMetadataIfNeeded();
+            GenerateEventPipeEvents();
+#endif
 
             // Once m_completelyInited is set, you can have concurrency, so all work is under the lock.  
             lock (EventListener.EventListenersLock)
@@ -1993,7 +2032,7 @@ namespace System.Diagnostics.Tracing
                                     // by default the Descriptor.Keyword will have the perEventSourceSessionId bit 
                                     // mask set to 0x0f so, when all ETW sessions want the event we don't need to 
                                     // synthesize a new one
-                                    if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, pActivityId, childActivityID, args))
+                                    if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                                 else
@@ -2010,7 +2049,7 @@ namespace System.Diagnostics.Tracing
                                         m_eventData[eventId].Descriptor.Task,
                                         unchecked((long)etwSessions.ToEventKeywords() | origKwd));
 
-                                    if (!m_provider.WriteEvent(ref desc, pActivityId, childActivityID, args))
+                                    if (!m_provider.WriteEvent(ref desc, IntPtr.Zero, pActivityId, childActivityID, args))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                             }
@@ -2040,7 +2079,7 @@ namespace System.Diagnostics.Tracing
 #else
                         if (!SelfDescribingEvents)
                         {
-                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, pActivityId, childActivityID, args))
+                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
                                 ThrowEventSourceException(m_eventData[eventId].Name);
                         }
                         else
@@ -2284,7 +2323,7 @@ namespace System.Diagnostics.Tracing
                         data.Ptr = (ulong)msgStringPtr;
                         data.Size = (uint)(2 * (msgString.Length + 1));
                         data.Reserved = 0;
-                        m_provider.WriteEvent(ref descr, null, null, 1, (IntPtr)((void*)&data));
+                        m_provider.WriteEvent(ref descr, IntPtr.Zero, null, null, 1, (IntPtr)((void*)&data));
                     }
                 }
             }
@@ -3118,10 +3157,6 @@ namespace System.Diagnostics.Tracing
                         dispatcher.m_EventEnabled = new bool[m_eventData.Length];
                     dispatcher = dispatcher.m_Next;
                 }
-#if FEATURE_PERFTRACING
-                // Initialize the EventPipe event handles.
-                GenerateEventPipeEvents();
-#endif
             }
             if (s_currentPid == 0)
             {
@@ -3176,7 +3211,7 @@ namespace System.Diagnostics.Tracing
                     dataDescrs[1].Size = (uint)Math.Min(dataLeft, chunkSize);
                     if (m_provider != null)
                     {
-                        if (!m_provider.WriteEvent(ref manifestDescr, null, null, 2, (IntPtr)dataDescrs))
+                        if (!m_provider.WriteEvent(ref manifestDescr, IntPtr.Zero, null, null, 2, (IntPtr)dataDescrs))
                         {
                             // Turns out that if users set the BufferSize to something less than 64K then WriteEvent
                             // can fail.   If we get this failure on the first chunk try again with something smaller
