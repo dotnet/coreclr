@@ -394,7 +394,7 @@ EventPipeEnabledProviderList::EventPipeEnabledProviderList(
     if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) & 1) == 1)
     {
         m_pCatchAllProvider = new EventPipeEnabledProvider();
-        m_pCatchAllProvider->Set(NULL, 0xFFFFFFFF, EventPipeEventLevel::Verbose);
+        m_pCatchAllProvider->Set(NULL, 0xFFFFFFFFFFFFFFFF, EventPipeEventLevel::Verbose);
         return;
     }
 
