@@ -58,7 +58,7 @@ namespace System.Diagnostics.Tracing
             EventProvider.EventData* userData)
         {
             uint eventID = (uint)eventDescriptor.EventId;
-            if(eventID != 0)
+            if(eventID != 0 && eventHanlde != IntPtr.Zero)
             {
                 EventPipeInternal.WriteEvent(eventHanlde, eventID, userData, (uint)userDataCount);
             }
