@@ -80,11 +80,7 @@ namespace System.Diagnostics.Tracing
                     {
                         byte * singleUserDataPtr = (byte *)(userData[i].Ptr);
                         uint singleUserDataSize = userData[i].Size;
-                        for (uint j = 0; j < singleUserDataSize; j++)
-                        {
-                            *(byte *)(pData + offset + j) = *(byte *)(singleUserDataPtr + j);
-                        }
-                        offset += userData[i].Size;
+                        WriteToBuffer(pData, length, ref offset, singleUserDataPtr, singleUserDataSize);
                     }
                     EventPipeInternal.WriteEvent(eventHanlde, eventID, pData, length);
                 }
@@ -103,6 +99,18 @@ namespace System.Diagnostics.Tracing
         {
             IntPtr eventHandlePtr = EventPipeInternal.DefineEvent(m_provHandle, eventID, keywords, eventVersion, level, pMetadata, metadataLength);
             return eventHandlePtr;
+        }
+
+        // Copy src to buffer and modify the offset.
+        // Note: We know the buffer size ahead of time to make sure no buffer overflow.
+        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte *src, uint srcLength)
+        {
+            Debug.Assert(bufferLength >= (offset + srcLength));
+            for (int i = 0; i < srcLength; i++)
+            {
+                *(byte *)(buffer + offset + i) = *(byte *)(src + i);
+            }
+            offset += srcLength;
         }
     }
 }
