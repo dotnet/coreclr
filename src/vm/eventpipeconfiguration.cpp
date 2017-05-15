@@ -338,7 +338,7 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     unsigned int eventVersion = sourceEvent.GetEventVersion();
     BYTE *pPayloadData = sourceEvent.GetMetadata();
     unsigned int payloadLength = sourceEvent.GetMetadataLength();
-    unsigned int instancePayloadSize = sizeof(providerID) + sizeof(eventID) + sizeof(eventVersion) + payloadLength;
+    unsigned int instancePayloadSize = sizeof(providerID) + sizeof(eventID) + sizeof(eventVersion) + sizeof(payloadLength) + payloadLength;
 
     // Allocate the payload.
     BYTE *pInstancePayload = new BYTE[instancePayloadSize];
@@ -357,6 +357,10 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     // Write the event version.
     memcpy(currentPtr, &eventVersion, sizeof(eventVersion));
     currentPtr += sizeof(eventVersion);
+
+    // Write the size of the metadata.
+    memcpy(currentPtr, &payloadLength, sizeof(payloadLength));
+    currentPtr += sizeof(payloadLength);
 
     // Write the incoming payload data.
     memcpy(currentPtr, pPayloadData, payloadLength);

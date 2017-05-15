@@ -1577,7 +1577,8 @@ namespace System.Diagnostics.Tracing
                 // Set m_provider, which allows this.  
                 m_provider = provider;
 
-#if (!ES_BUILD_STANDALONE && !ES_BUILD_PN && !PLATFORM_UNIX)
+#if PLATFORM_WINDOWS
+#if (!ES_BUILD_STANDALONE && !ES_BUILD_PN)
                 // API available on OS >= Win 8 and patched Win 7.
                 // Disable only for FrameworkEventSource to avoid recursion inside exception handling.
                 if (this.Name != "System.Diagnostics.Eventing.FrameworkEventSource" || Environment.IsWindows8OrAbove)
@@ -1595,6 +1596,7 @@ namespace System.Diagnostics.Tracing
 
                     metadataHandle.Free();
                 }
+#endif // PLATFORM_WINDOWS
 #endif // FEATURE_MANAGED_ETW
                 Debug.Assert(!m_eventSourceEnabled);     // We can't be enabled until we are completely initted.  
                 // We are logically completely initialized at this point.  
