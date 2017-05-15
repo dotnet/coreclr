@@ -25,8 +25,14 @@ EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsi
     m_level = level;
     m_needStack = needStack;
     m_enabled = false;
-    m_pMetadata = pMetadata;
+    m_pMetadata = new BYTE[metadataLength];
+    memcpy(m_pMetadata, pMetadata, metadataLength);
     m_metadataLength = metadataLength;
+}
+
+EventPipeEvent::~EventPipeEvent()
+{
+    delete[] m_pMetadata;
 }
 
 EventPipeProvider* EventPipeEvent::GetProvider() const

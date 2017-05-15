@@ -725,7 +725,7 @@ namespace System.Diagnostics.Tracing
 
                 byte[] metadata = new byte[metadataLength];
 
-                // Write metadata: evnetID, eventName, keywords, eventVersion, level, param1 size, param1 name...
+                // Write metadata: evnetID, eventName, keywords, eventVersion, level, param1 type, param1 name...
                 fixed (byte *pMetadata = metadata, pEventNameBytes = eventNameBytes)
                 {
                     uint offset = 0;

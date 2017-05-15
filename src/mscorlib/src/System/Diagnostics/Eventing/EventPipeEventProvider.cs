@@ -51,18 +51,18 @@ namespace System.Diagnostics.Tracing
         unsafe int IEventProvider.EventWriteTransferWrapper(
             long registrationHandle,
             ref EventDescriptor eventDescriptor,
-            IntPtr eventHanlde,
+            IntPtr eventHandle,
             Guid* activityId,
             Guid* relatedActivityId,
             int userDataCount,
             EventProvider.EventData* userData)
         {
             uint eventID = (uint)eventDescriptor.EventId;
-            if(eventID != 0 && eventHanlde != IntPtr.Zero)
+            if(eventID != 0 && eventHandle != IntPtr.Zero)
             {
                 if (userDataCount == 0)
                 {
-                    EventPipeInternal.WriteEvent(eventHanlde, eventID, null, 0);
+                    EventPipeInternal.WriteEvent(eventHandle, eventID, null, 0);
                     return 0;
                 }
 
@@ -82,7 +82,7 @@ namespace System.Diagnostics.Tracing
                         uint singleUserDataSize = userData[i].Size;
                         WriteToBuffer(pData, length, ref offset, singleUserDataPtr, singleUserDataSize);
                     }
-                    EventPipeInternal.WriteEvent(eventHanlde, eventID, pData, length);
+                    EventPipeInternal.WriteEvent(eventHandle, eventID, pData, length);
                 }
             }
             return 0;

@@ -501,11 +501,8 @@ INT_PTR QCALLTYPE EventPipeInternal::DefineEvent(
     _ASSERTE(pMetadata != NULL);
     _ASSERTE(metadataLength >= 20);
     EventPipeProvider *pProvider = reinterpret_cast<EventPipeProvider *>(provHandle);
-    BYTE *buffer = new BYTE[metadataLength];
-    memcpy(buffer, (BYTE *)pMetadata, metadataLength);
-    pEvent = pProvider->AddEvent(keywords, eventID, eventVersion, (EventPipeEventLevel)level, buffer, metadataLength);
+    pEvent = pProvider->AddEvent(keywords, eventID, eventVersion, (EventPipeEventLevel)level, (BYTE *)pMetadata, metadataLength);
     _ASSERTE(pEvent != NULL);
-    delete[] buffer;
 
     END_QCALL;
 
@@ -538,10 +535,7 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
 
     _ASSERTE(eventHandle != NULL);
     EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
-    BYTE *buffer = new BYTE[length];
-    memcpy(buffer, (BYTE *)pData, length);
-    EventPipe::WriteEvent(*pEvent, buffer, length);
-    delete[] buffer;
+    EventPipe::WriteEvent(*pEvent, (BYTE *)pData, length);
 
     END_QCALL;
 }
