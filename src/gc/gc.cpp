@@ -753,7 +753,7 @@ public:
             if (color == join_struct.lock_color)
             {
 respin:
-                int spin_count = 4096 * g_SystemInfo.dwNumberOfProcessors;
+                int spin_count = 4096 * g_num_processors;
                 for (int j = 0; j < spin_count; j++)
                 {
                     if (color != join_struct.lock_color)
@@ -854,7 +854,7 @@ respin:
                 if (!join_struct.wait_done)
                 {
         respin:
-                    int spin_count = 2 * 4096 * g_SystemInfo.dwNumberOfProcessors;
+                    int spin_count = 2 * 4096 * g_num_processors;
                     for (int j = 0; j < spin_count; j++)
                     {
                         if (join_struct.wait_done)
@@ -1047,7 +1047,7 @@ class exclusive_sync
 public:
     void init()
     {
-        spin_count = 32 * (g_SystemInfo.dwNumberOfProcessors - 1);
+        spin_count = 32 * (g_num_processors - 1);
         rwp_object = 0;
         needs_checking = 0;
         for (int i = 0; i < max_pending_allocs; i++)
@@ -1512,7 +1512,7 @@ void WaitLongerNoInstru (int i)
     // if we're waiting for gc to finish, we should block immediately
     if (!g_TrapReturningThreads)
     {
-        if  (g_SystemInfo.dwNumberOfProcessors > 1)
+        if  (g_num_processors > 1)
         {
             YieldProcessor();           // indicate to the processor that we are spining
             if  (i & 0x01f)
@@ -1584,12 +1584,12 @@ retry:
         {
             if ((++i & 7) && !IsGCInProgress())
             {
-                if  (g_SystemInfo.dwNumberOfProcessors > 1)
+                if  (g_num_processors > 1)
                 {
 #ifndef MULTIPLE_HEAPS
-                    int spin_count = 1024 * g_SystemInfo.dwNumberOfProcessors;
+                    int spin_count = 1024 * g_num_processors;
 #else //!MULTIPLE_HEAPS
-                    int spin_count = 32 * g_SystemInfo.dwNumberOfProcessors;
+                    int spin_count = 32 * g_num_processors;
 #endif //!MULTIPLE_HEAPS
                     for (int j = 0; j < spin_count; j++)
                     {
@@ -1700,7 +1700,7 @@ void WaitLonger (int i
 #ifdef SYNCHRONIZATION_STATS
         (spin_lock->num_switch_thread_w)++;
 #endif //SYNCHRONIZATION_STATS
-        if  (g_SystemInfo.dwNumberOfProcessors > 1)
+        if  (g_num_processors > 1)
         {
             YieldProcessor();           // indicate to the processor that we are spining
             if  (i & 0x01f)
@@ -1745,12 +1745,12 @@ retry:
         {
             if ((++i & 7) && !gc_heap::gc_started)
             {
-                if  (g_SystemInfo.dwNumberOfProcessors > 1)
+                if  (g_num_processors > 1)
                 {
 #ifndef MULTIPLE_HEAPS
-                    int spin_count = 1024 * g_SystemInfo.dwNumberOfProcessors;
+                    int spin_count = 1024 * g_num_processors;
 #else //!MULTIPLE_HEAPS
-                    int spin_count = 32 * g_SystemInfo.dwNumberOfProcessors;
+                    int spin_count = 32 * g_num_processors;
 #endif //!MULTIPLE_HEAPS
                     for (int j = 0; j < spin_count; j++)
                     {
@@ -4401,9 +4401,9 @@ static size_t get_valid_segment_size (BOOL large_seg=FALSE)
     if (!large_seg)
 #endif // BIT64
     {
-        if (g_SystemInfo.dwNumberOfProcessors > 4)
+        if (g_num_processors > 4)
             initial_seg_size /= 2;
-        if (g_SystemInfo.dwNumberOfProcessors > 8)
+        if (g_num_processors > 8)
             initial_seg_size /= 2;
     }
 #endif //MULTIPLE_HEAPS
@@ -5334,7 +5334,7 @@ void gc_heap::gc_thread_function ()
         }
         else
         {
-            int spin_count = 32 * (g_SystemInfo.dwNumberOfProcessors - 1);
+            int spin_count = 32 * (g_num_processors - 1);
 
             // wait until RestartEE has progressed to a stage where we can restart user threads
             while (!gc_heap::internal_gc_done && !GCHeap::SafeToRestartManagedThreads())
@@ -10272,9 +10272,9 @@ retry:
     {
         while (gc_done_event_lock >= 0)
         {
-            if  (g_SystemInfo.dwNumberOfProcessors > 1)
+            if  (g_num_processors > 1)
             {
-                int spin_count = 32 * g_SystemInfo.dwNumberOfProcessors;
+                int spin_count = 32 * g_num_processors;
                 for (int j = 0; j < spin_count; j++)
                 {
                     if  (gc_done_event_lock < 0)
@@ -33623,6 +33623,8 @@ HRESULT GCHeap::Initialize ()
     }
 
     g_gc_pFreeObjectMethodTable = GCToEEInterface::GetFreeObjectMethodTable();
+    g_num_processors = GCToOSInterface::GetCurrentProcessCpuCount();
+    assert(g_num_processors != 0);
 
 //Initialize the static members.
 #ifdef TRACE_GC
@@ -33661,7 +33663,7 @@ HRESULT GCHeap::Initialize ()
 
     gc_heap::mem_one_percent = gc_heap::total_physical_mem / 100;
 #ifndef MULTIPLE_HEAPS
-    gc_heap::mem_one_percent /= g_SystemInfo.dwNumberOfProcessors;
+    gc_heap::mem_one_percent /= g_num_processors;
 #endif //!MULTIPLE_HEAPS
 
     // We should only use this if we are in the "many process" mode which really is only applicable
@@ -33673,7 +33675,7 @@ HRESULT GCHeap::Initialize ()
     int available_mem_th = 10;
     if (gc_heap::total_physical_mem >= ((uint64_t)80 * 1024 * 1024 * 1024))
     {
-        int adjusted_available_mem_th = 3 + (int)((float)47 / (float)(g_SystemInfo.dwNumberOfProcessors));
+        int adjusted_available_mem_th = 3 + (int)((float)47 / (float)(g_num_processors));
         available_mem_th = min (available_mem_th, adjusted_available_mem_th);
     }
 
