@@ -25,6 +25,8 @@ public:
 
     virtual void RelocateAsyncPinnedHandles(IGCHandleStore* pTarget);
 
+    virtual bool HandleAsyncPinnedHandles(bool (*callback)(Object*, void*), void* context);
+
     virtual ~GCHandleStore();
 
     HandleTableBucket _underlyingBucket;
@@ -66,8 +68,6 @@ public:
     virtual Object* GetDependentHandleSecondary(OBJECTHANDLE handle);
 
     virtual Object* InterlockedCompareExchangeObjectInHandle(OBJECTHANDLE handle, Object* object, Object* comparandObject);
-
-    virtual bool HandleAsyncPinnedHandles();
 };
 
 #endif  // GCHANDLETABLE_H_

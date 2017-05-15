@@ -1286,7 +1286,7 @@ uint32_t HndCountAllHandles(BOOL fUseLocks)
     return uCount;
 }
 
-BOOL  Ref_HandleAsyncPinHandles()
+BOOL  Ref_HandleAsyncPinHandles(bool (*asyncPinCallback)(Object*, void*), void* context)
 {
 #ifndef FEATURE_REDHAWK
     CONTRACTL
@@ -1297,12 +1297,13 @@ BOOL  Ref_HandleAsyncPinHandles()
     }
     CONTRACTL_END;
 
+    AsyncPinCallbackContext callbackCtx(asyncPinCallback, context);
     HandleTableBucket *pBucket = g_HandleTableMap.pBuckets[0];
     BOOL result = FALSE;
     int limit = getNumberOfSlots();
     for (int n = 0; n < limit; n ++ )
     {
-        if (TableHandleAsyncPinHandles(Table(pBucket->pTable[n])))
+        if (TableHandleAsyncPinHandles(Table(pBucket->pTable[n]), callbackCtx))
         {
             result = TRUE;
         }

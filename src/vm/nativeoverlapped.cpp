@@ -211,6 +211,33 @@ FCIMPL1(OverlappedDataObject*, GetOverlappedFromNative, LPOVERLAPPED lpOverlappe
 }
 FCIMPLEND
 
+namespace
+{
+
+// Sets up an enumeration of all async pinned handles, such that all enumerated
+// async pinned handles are processed by calling HandleAsyncPinHandle on the
+// underlying overlapped instance.
+BOOL HandleAsyncPinHandles()
+{
+    auto callback = [](Object* value, void*) 
+    {
+        _ASSERTE (value->GetMethodTable() == g_pOverlappedDataClass);
+        OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF(value));
+        if (overlapped->GetAppDomainId() != DefaultADID && overlapped->HasCompleted())
+        {
+            overlapped->HandleAsyncPinHandle();
+            return true;
+        }
+
+        return false;
+    };
+
+    IGCHandleManager* mgr = GCHandleUtilities::GetGCHandleManager();
+    return mgr->GetGlobalHandleStore()->HandleAsyncPinnedHandles(callback, nullptr);
+}
+
+} // anonymous namespace
+
 void OverlappedDataObject::FreeAsyncPinHandles()
 {
     CONTRACTL
@@ -262,7 +289,7 @@ void OverlappedDataObject::StartCleanup()
     if (FastInterlockExchange((LONG*)&s_CleanupInProgress, TRUE) == FALSE)
     {
         {
-            bool HasJob = GCHandleUtilities::GetGCHandleManager()->HandleAsyncPinnedHandles();
+            BOOL HasJob = HandleAsyncPinHandles();
             if (!HasJob)
             {
                 s_CleanupInProgress = FALSE;
@@ -292,7 +319,7 @@ void OverlappedDataObject::FinishCleanup(bool wasDrained)
         GCX_COOP();
 
         s_CleanupFreeHandle = TRUE;
-        GCHandleUtilities::GetGCHandleManager()->HandleAsyncPinnedHandles();
+        HandleAsyncPinHandles();
         s_CleanupFreeHandle = FALSE;
 
         s_CleanupInProgress = FALSE;

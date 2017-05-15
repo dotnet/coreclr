@@ -63,6 +63,11 @@ void GCHandleStore::RelocateAsyncPinnedHandles(IGCHandleStore* pTarget)
     ::Ref_RelocateAsyncPinHandles(&_underlyingBucket, &other->_underlyingBucket);
 }
 
+bool GCHandleStore::HandleAsyncPinnedHandles(bool (*callback)(Object*, void*), void* context)
+{
+    return !!::Ref_HandleAsyncPinHandles(callback, context);
+}
+
 GCHandleStore::~GCHandleStore()
 {
     ::Ref_DestroyHandleTableBucket(&_underlyingBucket);
@@ -167,9 +172,4 @@ Object* GCHandleManager::GetDependentHandleSecondary(OBJECTHANDLE handle)
 Object* GCHandleManager::InterlockedCompareExchangeObjectInHandle(OBJECTHANDLE handle, Object* object, Object* comparandObject)
 {
     return (Object*)::HndInterlockedCompareExchangeHandle(handle, ObjectToOBJECTREF(object), ObjectToOBJECTREF(comparandObject));
-}
-
-bool GCHandleManager::HandleAsyncPinnedHandles()
-{
-    return !!::Ref_HandleAsyncPinHandles();
 }

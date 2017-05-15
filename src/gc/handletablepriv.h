@@ -341,6 +341,36 @@ struct HandleTypeCache
     int32_t lFreeIndex;
 };
 
+/*
+ * Async pin EE callback context, used to call back tot he EE when enumerating
+ * over async pinned handles.
+ */
+class AsyncPinCallbackContext
+{
+private:
+    bool (*m_callback)(Object*, void*);
+    void* m_context;
+
+public:
+    /*
+     * Constructs a new AsyncPinCallbackContext from a callback and a context,
+     * which will be passed to the callback as its second parameter every time
+     * it is invoked.
+     */
+    AsyncPinCallbackContext(bool (*callback)(Object*, void*), void* context)
+        : m_callback(callback), m_context(context)
+    {}
+
+    /*
+     * Invokes the callback with the given argument, returning the callback's
+     * result.'
+     */
+    bool Invoke(Object* argument) const
+    {
+        return m_callback(argument, m_context);
+    }
+};
+
 
 /*---------------------------------------------------------------------------*/
 
@@ -759,7 +789,7 @@ void SegmentFree(TableSegment *pSegment);
  * Mark ready for all non-pending OverlappedData that get moved to default domain.
  *
  */
-BOOL TableHandleAsyncPinHandles(HandleTable *pTable);
+BOOL TableHandleAsyncPinHandles(HandleTable *pTable, const AsyncPinCallbackContext& callbackCtx);
 
 /*
  * TableRelocateAsyncPinHandles
