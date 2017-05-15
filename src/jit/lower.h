@@ -64,6 +64,7 @@ private:
     // ------------------------------
     void LowerCall(GenTree* call);
     void LowerCompare(GenTree* tree);
+    bool TryRangeCompare(GenTreeOp* cmp, GenTreeCC* jcc);
     bool TryReuseCompare(GenTree* cmp, GenTree* cc);
     GenTree* LowerJCC(GenTreeCC* jcc);
     GenTree* LowerSELCC(GenTreeOpCC* selcc);

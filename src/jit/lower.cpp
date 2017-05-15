@@ -2747,6 +2747,11 @@ void Lowering::LowerCompare(GenTree* cmp)
             {
                 BlockRange().Remove(cmp);
             }
+            else if (cmp->gtGetOp2()->IsCnsIntOrI())
+            {
+                cmp->SetOper(oper);
+                TryRangeCompare(cmp->AsOp(), jcc);
+            }
         }
         else if (oper == GT_NONE)
         {
@@ -2775,6 +2780,177 @@ void Lowering::LowerCompare(GenTree* cmp)
         cmp->gtFlags &= ~(GTF_UNSIGNED | GTF_RELOP_NAN_UN | GTF_RELOP_JMP_USED);
     }
 #endif // _TARGET_XARCH_
+}
+
+bool Lowering::TryRangeCompare(GenTreeOp* cmp, GenTreeCC* jcc)
+{
+    // We're looking for code like
+    // if (3 < x && x < 10) { ... }
+    // in asm this would look like
+    // pred:
+    //     cmp x, 3
+    //     jle out_of_range
+    // m_block:
+    //     cmp x, 10
+    //     jge out_of_range
+    //
+    // TODO What if we have if (x < 3 || 10 < x) { ... }?
+
+    BasicBlock* pred = m_block->GetUniquePred(comp);
+
+    if ((pred == nullptr) || (pred->bbJumpKind != BBJ_COND))
+    {
+        return false;
+    }
+
+    if ((pred->bbNext != m_block) || (m_block->bbJumpDest != pred->bbJumpDest))
+    {
+        return false;
+    }
+
+    GenTree* predJcc = pred->lastNode();
+
+    if (!predJcc->OperIs(GT_JCC))
+    {
+        // It looks like the predecessor hasn't been lowered yet.
+        return false;
+    }
+
+    GenTree* predCmp = predJcc->AsCC()->gtConditionDef;
+
+    if ((predCmp == nullptr) || !predCmp->OperIs(GT_CMP))
+    {
+        // Can't find the compare instruction. One reason may be that we
+        // already reused a compare in the predecessor. Now what? We need
+        // to store the flags definition in the jcc node it seems.
+        return false;
+    }
+
+    if (predCmp->OperGet() != cmp->OperGet())
+    {
+        return false;
+    }
+
+    GenTree* predCmpOp1 = predCmp->gtGetOp1();
+    GenTree* predCmpOp2 = predCmp->gtGetOp2();
+
+    if (!predCmpOp2->IsCnsIntOrI())
+    {
+        return false;
+    }
+
+    GenTree* cmpOp1 = cmp->gtGetOp1();
+    GenTree* cmpOp2 = cmp->gtGetOp2();
+
+    if (!cmpOp1->OperIs(GT_LCL_VAR))
+    {
+        return false;
+    }
+
+    if (!comp->gtCompareTree(cmpOp1, predCmpOp1))
+    {
+        return false;
+    }
+
+    assert(cmpOp2->IsCnsIntOrI());
+
+    // The code in this block needs to executed unconditionally (with respect to
+    // predecessor's condition). Make sure we don't have any side effects.
+    // TODO Can we use the tree side effects here?
+    // TODO Can we allow indirs here? Probably we could if the address does not
+    // depend on the lclvar tested by the predecessor condition.
+    for (GenTree* prev = cmp->gtPrev; prev != nullptr; prev = prev->gtPrev)
+    {
+        if (!prev->OperIs(GT_IL_OFFSET, GT_PHI, GT_PHI_ARG, GT_LCL_VAR, GT_LEA, GT_CNS_INT, GT_CNS_DBL))
+        {
+            return false;
+        }
+    }
+
+    GenCondition   lCond    = predJcc->AsCC()->gtCondition;
+    GenTreeIntCon* lLimitOp = predCmp->gtGetOp2()->AsIntCon();
+
+    GenCondition   uCond    = jcc->gtCondition;
+    GenTreeIntCon* uLimitOp = cmp->gtGetOp2()->AsIntCon();
+
+    if (lLimitOp->IconValue() > uLimitOp->IconValue())
+    {
+        // The limit tests are reveresed, swap limits and conditions.
+        std::swap(lLimitOp, uLimitOp);
+        std::swap(lCond, uCond);
+    }
+
+    ssize_t lLimit = lLimitOp->IconValue();
+    ssize_t uLimit = uLimitOp->IconValue();
+
+    // printf("---------------------------------------\n");
+    // printf("x %s %I64d || x %s %I64d\n", lCond.Name(), lLimit, uCond.Name(), uLimit);
+
+    // For clarity change the conditions so we get the cannonical form
+    // (lLimit < x && x < uLimit) rather than (!(x > lLimit) && !(x < uLimit)).
+    lCond.Reverse();
+    lCond.Swap();
+    uCond.Reverse();
+
+    // printf("%I64d %s x && x %s %I64d\n", lLimit, lCond.Name(), uCond.Name(), uLimit);
+
+    // TODO Handle unsigned compares
+    // TODO Watch out for integer overflow
+    if (lCond.Is(GenCondition::SLT))
+    {
+        lLimit++;
+    }
+    else if (!lCond.Is(GenCondition::SLE))
+    {
+        return false;
+    }
+
+    if (uCond.Is(GenCondition::SLT))
+    {
+        uLimit--;
+    }
+    else if (!uCond.Is(GenCondition::SLE))
+    {
+        return false;
+    }
+
+    // printf("%I64d %s x && x %s %I64d\n", lLimit, lCond.Name(), uCond.Name(), uLimit);
+    // printf("---------------------------------------\n");
+
+    comp->lvaDecRefCnts(predCmpOp1);
+
+    LIR::Range& predRange = LIR::AsRange(pred);
+    predRange.Remove(predCmpOp1);
+    predRange.Remove(predCmpOp2);
+    predRange.Remove(predCmp);
+    predRange.Remove(predJcc);
+
+    comp->fgRemoveRefPred(pred->bbJumpDest, pred);
+    pred->bbJumpKind = BBJ_ALWAYS;
+    pred->bbJumpDest = m_block;
+    m_block->bbFlags |= BBF_JMP_TARGET;
+
+    if (lLimit != 0)
+    {
+        BlockRange().Remove(cmpOp2);
+
+        uLimitOp->SetIconValue(uLimit - lLimit);
+        lLimitOp->SetIconValue(-lLimit);
+
+        GenTree* sub = comp->gtNewOperNode(GT_ADD, cmpOp1->TypeGet(), cmpOp1, lLimitOp);
+        cmp->gtOp1   = sub;
+        cmp->gtOp2   = uLimitOp;
+
+        BlockRange().InsertBefore(cmp, lLimitOp, sub, uLimitOp);
+    }
+    else
+    {
+        cmp->gtGetOp2()->AsIntCon()->SetIconValue(uLimit);
+    }
+
+    jcc->gtCondition = GenCondition::UGT;
+
+    return true;
 }
 
 class IfConversion
