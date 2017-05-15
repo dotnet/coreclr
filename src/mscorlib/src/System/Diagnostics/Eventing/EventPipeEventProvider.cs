@@ -51,18 +51,18 @@ namespace System.Diagnostics.Tracing
         unsafe int IEventProvider.EventWriteTransferWrapper(
             long registrationHandle,
             ref EventDescriptor eventDescriptor,
-            IntPtr eventHanlde,
+            IntPtr eventHandle,
             Guid* activityId,
             Guid* relatedActivityId,
             int userDataCount,
             EventProvider.EventData* userData)
         {
             uint eventID = (uint)eventDescriptor.EventId;
-            if(eventID != 0 && eventHanlde != IntPtr.Zero)
+            if(eventID != 0 && eventHandle != IntPtr.Zero)
             {
                 if (userDataCount == 0)
                 {
-                    EventPipeInternal.WriteEvent(eventHanlde, eventID, null, 0);
+                    EventPipeInternal.WriteEvent(eventHandle, eventID, null, 0);
                     return 0;
                 }
 
@@ -80,13 +80,9 @@ namespace System.Diagnostics.Tracing
                     {
                         byte * singleUserDataPtr = (byte *)(userData[i].Ptr);
                         uint singleUserDataSize = userData[i].Size;
-                        for (uint j = 0; j < singleUserDataSize; j++)
-                        {
-                            *(byte *)(pData + offset + j) = *(byte *)(singleUserDataPtr + j);
-                        }
-                        offset += userData[i].Size;
+                        WriteToBuffer(pData, length, ref offset, singleUserDataPtr, singleUserDataSize);
                     }
-                    EventPipeInternal.WriteEvent(eventHanlde, eventID, pData, length);
+                    EventPipeInternal.WriteEvent(eventHandle, eventID, pData, length);
                 }
             }
             return 0;
@@ -103,6 +99,18 @@ namespace System.Diagnostics.Tracing
         {
             IntPtr eventHandlePtr = EventPipeInternal.DefineEvent(m_provHandle, eventID, keywords, eventVersion, level, pMetadata, metadataLength);
             return eventHandlePtr;
+        }
+
+        // Copy src to buffer and modify the offset.
+        // Note: We know the buffer size ahead of time to make sure no buffer overflow.
+        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte *src, uint srcLength)
+        {
+            Debug.Assert(bufferLength >= (offset + srcLength));
+            for (int i = 0; i < srcLength; i++)
+            {
+                *(byte *)(buffer + offset + i) = *(byte *)(src + i);
+            }
+            offset += srcLength;
         }
     }
 }

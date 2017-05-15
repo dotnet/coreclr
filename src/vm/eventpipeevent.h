@@ -52,6 +52,7 @@ private:
     EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata = NULL, unsigned int metadataLength = 0);
 
   public:
+    ~EventPipeEvent();
 
     // Get the provider associated with this event.
     EventPipeProvider* GetProvider() const;

@@ -704,41 +704,95 @@ namespace System.Diagnostics.Tracing
                 uint eventVersion = m_eventData[i].Descriptor.Version;
                 uint level = m_eventData[i].Descriptor.Level;
                 byte[] eventNameBytes = Encoding.ASCII.GetBytes(eventName);
-                uint eventNameLength = (uint)eventNameBytes.Length + 1;
 
                 // evnetID          : 4 bytes
-                // eventName        : eventNameLength
+                // eventName        : eventNameBytes.Length + 1
                 // keywords         : 8 bytes
                 // eventVersion     : 4 bytes
                 // level            : 4 bytes
-                uint metadataLength = 20 + eventNameLength;
+                uint metadataLength = 21 + (uint)eventNameBytes.Length;
+
+                // Increase the metadataLength for the types of all parameters.
                 metadataLength += (uint)m_eventData[i].Parameters.Length * 4;
+
+                // Increase the metadataLength for the names of all parameters.
+                foreach (var parameter in m_eventData[i].Parameters)
+                {
+                    string parameterName = parameter.Name;
+                    byte[] parameterNameBytes = Encoding.ASCII.GetBytes(parameterName);
+                    metadataLength = metadataLength + (uint)parameterNameBytes.Length + 1;
+                }
+
                 byte[] metadata = new byte[metadataLength];
 
+                // Write metadata: evnetID, eventName, keywords, eventVersion, level, param1 type, param1 name...
                 fixed (byte *pMetadata = metadata, pEventNameBytes = eventNameBytes)
                 {
-                    *(uint *)pMetadata = eventID;
-
-                    for (int j = 0; j < eventNameBytes.Length; j++)
-                    {
-                        *(byte *)(pMetadata + 4 + j) = *(byte *)(pEventNameBytes + j);
-                    }
-                    *(byte *)(pMetadata + 4 + eventNameBytes.Length) = (byte)0;
-
-                    *(long *)(pMetadata + eventNameLength + 4) = keywords;
-                    *(uint *)(pMetadata + eventNameLength + 12) = eventVersion;
-                    *(uint *)(pMetadata + eventNameLength + 16) = level;
-                    
-                    uint idx = 0;
+                    uint offset = 0;
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, eventID);
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, pEventNameBytes, (uint)eventNameBytes.Length);
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, (byte)0);
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, keywords);
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, eventVersion);
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, level);
                     foreach (var parameter in m_eventData[i].Parameters)
                     {
-                        *(uint *)(pMetadata + 20 + eventNameLength + idx * 4) = (uint)Type.GetTypeCode(parameter.ParameterType);
+                        // Write parameter type.
+                        WriteToBuffer(pMetadata, metadataLength, ref offset, (uint)Type.GetTypeCode(parameter.ParameterType));
+                        
+                        // Write parameter name.
+                        string parameterName = parameter.Name;
+                        byte[] parameterNameBytes = Encoding.ASCII.GetBytes(parameterName);
+                        fixed (byte *pParameterNameBytes = parameterNameBytes)
+                        {
+                            WriteToBuffer(pMetadata, metadataLength, ref offset, pParameterNameBytes, (uint)parameterNameBytes.Length);
+                        }
+
+                        // Write terminated 0.
+                        WriteToBuffer(pMetadata, metadataLength, ref offset, (byte)0);
                     }
+
                     IntPtr eventHandle = m_provider.m_eventProvider.DefineEventHandle(eventID, eventName, keywords, eventVersion, level, pMetadata, metadataLength);
                     m_eventData[i].EventHandle = eventHandle; 
                 }
             }
         }
+
+        // Copy src to buffer and modify the offset.
+        // Note: We know the buffer size ahead of time to make sure no buffer overflow.
+        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte *src, uint srcLength)
+        {
+            Debug.Assert(bufferLength >= (offset + srcLength));
+            for (int i = 0; i < srcLength; i++)
+            {
+                *(byte *)(buffer + offset + i) = *(byte *)(src + i);
+            }
+            offset += srcLength;
+        }
+
+        // Copy byte value to buffer.
+        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte value)
+        {
+            Debug.Assert(bufferLength >= (offset + 1));
+            *(byte *)(buffer + offset) = value;
+            offset += 1;
+        }
+
+        // Copy uint value to buffer.
+        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, uint value)
+        {
+            Debug.Assert(bufferLength >= (offset + 4));
+            *(uint *)(buffer + offset) = value;
+            offset += 4;
+        }
+
+        // Copy long value to buffer.
+        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, long value)
+        {
+            Debug.Assert(bufferLength >= (offset + 8));
+            *(long *)(buffer + offset) = value;
+            offset += 8;
+        }                
 #endif
 
         internal virtual void GetMetadata(out Guid eventSourceGuid, out string eventSourceName, out EventMetadata[] eventData, out byte[] manifestBytes)
