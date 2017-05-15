@@ -657,7 +657,7 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntr
 #ifdef _TARGET_ARM64_
             // We could use a ldp/stp sequence so we need two internal registers
             argNode->gtLsraInfo.internalIntCount = 2;
-#else // _TARGET_ARM_
+#else  // _TARGET_ARM_
             // We could use a ldr/str sequence so we need a internal register
             argNode->gtLsraInfo.internalIntCount = 1;
 #endif // _TARGET_ARM_
