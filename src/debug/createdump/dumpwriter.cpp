@@ -212,7 +212,7 @@ DumpWriter::WriteDump()
     // Write all the thread's state and registers
     for (const ThreadInfo* thread : m_crashInfo.Threads()) 
     {
-        if (!WriteThread(*thread, 0)) {
+        if (!WriteThread(*thread, SIGABRT)) {
             return false;
         }
     }
