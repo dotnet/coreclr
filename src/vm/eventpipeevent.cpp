@@ -25,14 +25,26 @@ EventPipeEvent::EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsi
     m_level = level;
     m_needStack = needStack;
     m_enabled = false;
-    m_pMetadata = new BYTE[metadataLength];
-    memcpy(m_pMetadata, pMetadata, metadataLength);
-    m_metadataLength = metadataLength;
+    if (pMetadata != NULL)
+    {
+        m_pMetadata = new BYTE[metadataLength];
+        memcpy(m_pMetadata, pMetadata, metadataLength);
+        m_metadataLength = metadataLength;
+    }
+    else
+    {
+        m_pMetadata = NULL;
+        m_metadataLength = 0;
+    }
 }
 
 EventPipeEvent::~EventPipeEvent()
 {
-    delete[] m_pMetadata;
+    if (m_pMetadata != NULL)
+    {
+        delete[] m_pMetadata;
+        m_pMetadata = NULL;
+    }
 }
 
 EventPipeProvider* EventPipeEvent::GetProvider() const
