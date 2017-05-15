@@ -128,7 +128,7 @@ void EventPipeProvider::SetConfiguration(bool providerEnabled, INT64 keywords, E
     InvokeCallback();
 }
 
-EventPipeEvent* EventPipeProvider::AddEvent(INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, BYTE *pMetadata, unsigned int metadataLength)
+EventPipeEvent* EventPipeProvider::AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, BYTE *pMetadata, unsigned int metadataLength)
 {
     CONTRACTL
     {
@@ -138,10 +138,10 @@ EventPipeEvent* EventPipeProvider::AddEvent(INT64 keywords, unsigned int eventID
     }
     CONTRACTL_END;
 
-    return AddEvent(keywords, eventID, eventVersion, level, true /* needStack */, pMetadata, metadataLength);
+    return AddEvent(eventID, keywords, eventVersion, level, true /* needStack */, pMetadata, metadataLength);
 }
 
-EventPipeEvent* EventPipeProvider::AddEvent(INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata, unsigned int metadataLength)
+EventPipeEvent* EventPipeProvider::AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata, unsigned int metadataLength)
 {
     CONTRACTL
     {

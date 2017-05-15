@@ -73,7 +73,7 @@ public:
     bool EventEnabled(INT64 keywords, EventPipeEventLevel eventLevel) const;
 
     // Create a new event.
-    EventPipeEvent* AddEvent(INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, BYTE *pMetadata = NULL, unsigned int metadataLength = 0);
+    EventPipeEvent* AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, BYTE *pMetadata = NULL, unsigned int metadataLength = 0);
 
   private:
 
@@ -82,7 +82,7 @@ public:
     // However, there are a couple of cases that we know we don't want to do a stackwalk that would affect performance significantly:
     // 1. Sample profiler events: The sample profiler already does a stack walk of the target thread.  Doing one of the sampler thread is a waste.
     // 2. Metadata events: These aren't as painful but because we have to keep this functionality around, might as well use it.
-    EventPipeEvent* AddEvent(INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata = NULL, unsigned int metadataLength = 0);
+    EventPipeEvent* AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata = NULL, unsigned int metadataLength = 0);
 
     // Add an event to the provider.
     void AddEvent(EventPipeEvent &event);

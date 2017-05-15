@@ -63,8 +63,8 @@ void EventPipeConfiguration::Initialize()
 
     // Create the metadata event.
     m_pMetadataEvent = m_pConfigProvider->AddEvent(
-        0,      /* keywords */
         0,      /* eventID */
+        0,      /* keywords */
         0,      /* eventVersion */
         EventPipeEventLevel::LogAlways,
         false); /* needStack */
