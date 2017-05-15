@@ -171,13 +171,18 @@ void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t fl
     LIMITED_METHOD_CONTRACT;
 
     DWORD memFlags = (flags & VirtualReserveFlags::WriteWatch) ? (MEM_RESERVE | MEM_WRITE_WATCH) : MEM_RESERVE;
+
+    // This is not strictly necessary for a correctness standpoint. Windows already guarantees
+    // allocation granularity alignment when using MEM_RESERVE, so aligning the size here has no effect.
+    // However, ClrVirtualAlloc does expect the size to be aligned to the allocation granularity.
+    size_t aligned_size = (size + g_SystemInfo.dwAllocationGranularity - 1) & ~static_cast<size_t>(g_SystemInfo.dwAllocationGranularity - 1);
     if (alignment == 0)
     {
-        return ::ClrVirtualAlloc(0, size, memFlags, PAGE_READWRITE);
+        return ::ClrVirtualAlloc(0, aligned_size, memFlags, PAGE_READWRITE);
     }
     else
     {
-        return ::ClrVirtualAllocAligned(0, size, memFlags, PAGE_READWRITE, alignment);
+        return ::ClrVirtualAllocAligned(0, aligned_size, memFlags, PAGE_READWRITE, alignment);
     }
 }
 
