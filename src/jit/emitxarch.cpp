@@ -4824,7 +4824,7 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int va
 #ifdef _TARGET_X86_
     if (attr == EA_1BYTE)
     {
-        noway_assert(isByteReg(ireg));
+        assert(isByteReg(ireg));
     }
 #endif
     // 16-bit operand instructions will need a prefix
