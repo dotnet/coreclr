@@ -687,8 +687,9 @@ namespace System.Diagnostics.Tracing
         }
 
 #if FEATURE_PERFTRACING
-        // Generate all EventPipeEvent instances which belong to this EventProvider
-        private unsafe void GenerateEventPipeEvents()
+        // Generate the serialized blobs that describe events for all strongly typed events (that is events that define strongly
+        // typed event methods. Dynamically defined events (that use Write) hare defined on the fly and are handled elsewhere.
+        private unsafe void DefineEventPipeEvents()
         {
             Debug.Assert(m_eventData != null);
             Debug.Assert(m_provider != null);
@@ -703,14 +704,14 @@ namespace System.Diagnostics.Tracing
                 Int64 keywords = m_eventData[i].Descriptor.Keywords;
                 uint eventVersion = m_eventData[i].Descriptor.Version;
                 uint level = m_eventData[i].Descriptor.Level;
-                byte[] eventNameBytes = Encoding.ASCII.GetBytes(eventName);
 
                 // evnetID          : 4 bytes
-                // eventName        : eventNameBytes.Length + 1
+                // eventName        : (eventName.Length + 1) * 2 bytes
                 // keywords         : 8 bytes
                 // eventVersion     : 4 bytes
                 // level            : 4 bytes
-                uint metadataLength = 21 + (uint)eventNameBytes.Length;
+                // parameterCount   : 4 bytes
+                uint metadataLength = 24 + ((uint)eventName.Length + 1) * 2;
 
                 // Increase the metadataLength for the types of all parameters.
                 metadataLength += (uint)m_eventData[i].Parameters.Length * 4;
@@ -719,22 +720,24 @@ namespace System.Diagnostics.Tracing
                 foreach (var parameter in m_eventData[i].Parameters)
                 {
                     string parameterName = parameter.Name;
-                    byte[] parameterNameBytes = Encoding.ASCII.GetBytes(parameterName);
-                    metadataLength = metadataLength + (uint)parameterNameBytes.Length + 1;
+                    metadataLength = metadataLength + ((uint)parameterName.Length + 1) * 2;
                 }
 
                 byte[] metadata = new byte[metadataLength];
 
-                // Write metadata: evnetID, eventName, keywords, eventVersion, level, param1 type, param1 name...
-                fixed (byte *pMetadata = metadata, pEventNameBytes = eventNameBytes)
+                // Write metadata: evnetID, eventName, keywords, eventVersion, level, parameterCount, param1 type, param1 name...
+                fixed (byte *pMetadata = metadata)
                 {
                     uint offset = 0;
                     WriteToBuffer(pMetadata, metadataLength, ref offset, eventID);
-                    WriteToBuffer(pMetadata, metadataLength, ref offset, pEventNameBytes, (uint)eventNameBytes.Length);
-                    WriteToBuffer(pMetadata, metadataLength, ref offset, (byte)0);
+                    fixed(char *pEventName = eventName)
+                    {
+                        WriteToBuffer(pMetadata, metadataLength, ref offset, (byte *)pEventName, ((uint)eventName.Length + 1) * 2);
+                    }
                     WriteToBuffer(pMetadata, metadataLength, ref offset, keywords);
                     WriteToBuffer(pMetadata, metadataLength, ref offset, eventVersion);
                     WriteToBuffer(pMetadata, metadataLength, ref offset, level);
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, (uint)m_eventData[i].Parameters.Length);
                     foreach (var parameter in m_eventData[i].Parameters)
                     {
                         // Write parameter type.
@@ -742,16 +745,12 @@ namespace System.Diagnostics.Tracing
                         
                         // Write parameter name.
                         string parameterName = parameter.Name;
-                        byte[] parameterNameBytes = Encoding.ASCII.GetBytes(parameterName);
-                        fixed (byte *pParameterNameBytes = parameterNameBytes)
+                        fixed (char *pParameterName = parameterName)
                         {
-                            WriteToBuffer(pMetadata, metadataLength, ref offset, pParameterNameBytes, (uint)parameterNameBytes.Length);
+                            WriteToBuffer(pMetadata, metadataLength, ref offset, (byte *)pParameterName, ((uint)parameterName.Length + 1) * 2);
                         }
-
-                        // Write terminated 0.
-                        WriteToBuffer(pMetadata, metadataLength, ref offset, (byte)0);
                     }
-
+                    Debug.Assert(metadataLength == offset);
                     IntPtr eventHandle = m_provider.m_eventProvider.DefineEventHandle(eventID, eventName, keywords, eventVersion, level, pMetadata, metadataLength);
                     m_eventData[i].EventHandle = eventHandle; 
                 }
@@ -770,16 +769,8 @@ namespace System.Diagnostics.Tracing
             offset += srcLength;
         }
 
-        // Copy byte value to buffer.
-        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte value)
-        {
-            Debug.Assert(bufferLength >= (offset + 1));
-            *(byte *)(buffer + offset) = value;
-            offset += 1;
-        }
-
         // Copy uint value to buffer.
-        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, uint value)
+        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, uint value)
         {
             Debug.Assert(bufferLength >= (offset + 4));
             *(uint *)(buffer + offset) = value;
@@ -787,12 +778,12 @@ namespace System.Diagnostics.Tracing
         }
 
         // Copy long value to buffer.
-        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, long value)
+        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, long value)
         {
             Debug.Assert(bufferLength >= (offset + 8));
             *(long *)(buffer + offset) = value;
             offset += 8;
-        }                
+        }           
 #endif
 
         internal virtual void GetMetadata(out Guid eventSourceGuid, out string eventSourceName, out EventMetadata[] eventData, out byte[] manifestBytes)
@@ -2340,7 +2331,7 @@ namespace System.Diagnostics.Tracing
                         data.Ptr = (ulong)msgStringPtr;
                         data.Size = (uint)(2 * (msgString.Length + 1));
                         data.Reserved = 0;
-                        m_provider.WriteEvent(ref descr, IntPtr.Zero, null, null, 1, (IntPtr)((void*)&data));
+                        m_provider.WriteEvent(ref descr, m_eventData[0].EventHandle, null, null, 1, (IntPtr)((void*)&data));
                     }
                 }
             }
@@ -3176,7 +3167,7 @@ namespace System.Diagnostics.Tracing
                 }
 #if FEATURE_PERFTRACING
                 // Initialize the EventPipe event handles.
-                GenerateEventPipeEvents();
+                DefineEventPipeEvents();
 #endif                
             }
             if (s_currentPid == 0)

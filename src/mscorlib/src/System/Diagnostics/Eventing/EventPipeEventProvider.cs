@@ -103,7 +103,7 @@ namespace System.Diagnostics.Tracing
 
         // Copy src to buffer and modify the offset.
         // Note: We know the buffer size ahead of time to make sure no buffer overflow.
-        private unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte *src, uint srcLength)
+        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte *src, uint srcLength)
         {
             Debug.Assert(bufferLength >= (offset + srcLength));
             for (int i = 0; i < srcLength; i++)
