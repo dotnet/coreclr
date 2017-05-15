@@ -428,7 +428,7 @@ public:
 
     virtual void RelocateAsyncPinnedHandles(IGCHandleStore* pTarget) = 0;
 
-    virtual bool HandleAsyncPinnedHandles(bool (*callback)(Object*, void*), void* context) = 0;
+    virtual bool EnumerateAsyncPinnedHandles(bool (*callback)(Object*, void*), void* context) = 0;
 
     virtual ~IGCHandleStore() {};
 };

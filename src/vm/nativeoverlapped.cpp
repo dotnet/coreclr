@@ -233,7 +233,7 @@ BOOL HandleAsyncPinHandles()
     };
 
     IGCHandleManager* mgr = GCHandleUtilities::GetGCHandleManager();
-    return mgr->GetGlobalHandleStore()->HandleAsyncPinnedHandles(callback, nullptr);
+    return mgr->GetGlobalHandleStore()->EnumerateAsyncPinnedHandles(callback, nullptr);
 }
 
 } // anonymous namespace

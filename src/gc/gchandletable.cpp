@@ -63,7 +63,7 @@ void GCHandleStore::RelocateAsyncPinnedHandles(IGCHandleStore* pTarget)
     ::Ref_RelocateAsyncPinHandles(&_underlyingBucket, &other->_underlyingBucket);
 }
 
-bool GCHandleStore::HandleAsyncPinnedHandles(bool (*callback)(Object*, void*), void* context)
+bool GCHandleStore::EnumerateAsyncPinnedHandles(bool (*callback)(Object*, void*), void* context)
 {
     return !!::Ref_HandleAsyncPinHandles(callback, context);
 }

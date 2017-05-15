@@ -25,7 +25,7 @@ public:
 
     virtual void RelocateAsyncPinnedHandles(IGCHandleStore* pTarget);
 
-    virtual bool HandleAsyncPinnedHandles(bool (*callback)(Object*, void*), void* context);
+    virtual bool EnumerateAsyncPinnedHandles(bool (*callback)(Object*, void*), void* context);
 
     virtual ~GCHandleStore();
 
