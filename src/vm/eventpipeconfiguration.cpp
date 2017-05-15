@@ -315,7 +315,7 @@ void EventPipeConfiguration::EnableRundown()
     Enable(1 /* circularBufferSizeInMB */, rundownProviders, numRundownProviders);
 }
 
-EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, BYTE *pPayloadData, unsigned int payloadLength)
+EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance)
 {
     CONTRACTL
     {
@@ -336,6 +336,8 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     const GUID &providerID = sourceEvent.GetProvider()->GetProviderID();
     unsigned int eventID = sourceEvent.GetEventID();
     unsigned int eventVersion = sourceEvent.GetEventVersion();
+    BYTE *pPayloadData = sourceEvent.GetMetadata();
+    unsigned int payloadLength = sourceEvent.GetMetadataLength();
     unsigned int instancePayloadSize = sizeof(providerID) + sizeof(eventID) + sizeof(eventVersion) + payloadLength;
 
     // Allocate the payload.
