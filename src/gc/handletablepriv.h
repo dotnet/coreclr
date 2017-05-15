@@ -348,7 +348,7 @@ struct HandleTypeCache
 class AsyncPinCallbackContext
 {
 private:
-    bool (*m_callback)(Object*, void*);
+    async_pin_enum_fn m_callback;
     void* m_context;
 
 public:
@@ -357,7 +357,7 @@ public:
      * which will be passed to the callback as its second parameter every time
      * it is invoked.
      */
-    AsyncPinCallbackContext(bool (*callback)(Object*, void*), void* context)
+    AsyncPinCallbackContext(async_pin_enum_fn callback, void* context)
         : m_callback(callback), m_context(context)
     {}
 
@@ -367,6 +367,7 @@ public:
      */
     bool Invoke(Object* argument) const
     {
+        assert(m_callback != nullptr);
         return m_callback(argument, m_context);
     }
 };

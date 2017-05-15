@@ -1286,7 +1286,7 @@ uint32_t HndCountAllHandles(BOOL fUseLocks)
     return uCount;
 }
 
-BOOL  Ref_HandleAsyncPinHandles(bool (*asyncPinCallback)(Object*, void*), void* context)
+BOOL  Ref_HandleAsyncPinHandles(async_pin_enum_fn asyncPinCallback, void* context)
 {
 #ifndef FEATURE_REDHAWK
     CONTRACTL
