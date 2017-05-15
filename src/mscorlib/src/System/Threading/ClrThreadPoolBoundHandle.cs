@@ -77,6 +77,12 @@ namespace System.Threading
         /// </remarks>
         public static ThreadPoolBoundHandle BindHandle(SafeHandle handle)
         {
+            if (handle == null)
+                throw new ArgumentNullException(nameof(handle));
+
+            if (handle.IsClosed || handle.IsInvalid)
+                throw new ArgumentException(SR.Argument_InvalidHandle, nameof(handle));
+
             return BindHandleCore(handle);
         }
 

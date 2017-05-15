@@ -11,11 +11,9 @@ namespace System.Threading
     {
         private static ThreadPoolBoundHandle BindHandleCore(SafeHandle handle)
         {
-            if (handle == null)
-                throw new ArgumentNullException(nameof(handle));
-
-            if (handle.IsClosed || handle.IsInvalid)
-                throw new ArgumentException(SR.Argument_InvalidHandle, nameof(handle));
+            Debug.Assert(handle != null);
+            Debug.Assert(!handle.IsClosed);
+            Debug.Assert(!handle.IsInvalid);
 
             try
             {
