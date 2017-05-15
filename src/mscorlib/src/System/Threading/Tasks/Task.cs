@@ -6011,8 +6011,7 @@ namespace System.Threading.Tasks
 
             // Make a defensive copy, as the user may manipulate the tasks array
             // after we return but before the WhenAny asynchronously completes.
-            int taskCount = tasks.Length;
-            Task[] tasksCopy = new Task[taskCount];
+            Task[] tasksCopy = new Task[tasks.Length];
             for (int i = 0; i < taskCount; i++)
             {
                 Task task = tasks[i];
