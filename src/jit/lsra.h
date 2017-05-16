@@ -943,7 +943,7 @@ private:
     void setOutVarRegForBB(unsigned int bbNum, unsigned int varNum, regNumber reg);
     VarToRegMap getInVarToRegMap(unsigned int bbNum);
     VarToRegMap getOutVarToRegMap(unsigned int bbNum);
-    regNumber getVarReg(VarToRegMap map, unsigned int varNum);
+    regNumber getVarReg(VarToRegMap map, unsigned int trackedVarIndex);
     // Initialize the incoming VarToRegMap to the given map values (generally a predecessor of
     // the block)
     VarToRegMap setInVarToRegMap(unsigned int bbNum, VarToRegMap srcVarToRegMap);

@@ -1810,7 +1810,7 @@ void LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
     {
         unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
         LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
-        regNumber  regNum = getVarReg(map, varNum);
+        regNumber  regNum = getVarReg(map, varIndex);
 
         regNumber oldRegNum = varDsc->lvRegNum;
         regNumber newRegNum = regNum;
@@ -2450,10 +2450,10 @@ VarToRegMap LinearScan::getOutVarToRegMap(unsigned int bbNum)
     return outVarToRegMaps[bbNum];
 }
 
-regNumber LinearScan::getVarReg(VarToRegMap bbVarToRegMap, unsigned int varNum)
+regNumber LinearScan::getVarReg(VarToRegMap bbVarToRegMap, unsigned int trackedVarIndex)
 {
-    assert(compiler->lvaTable[varNum].lvTracked);
-    return bbVarToRegMap[compiler->lvaTable[varNum].lvVarIndex];
+    assert(trackedVarIndex < compiler->lvaTrackedCount);
+    return bbVarToRegMap[trackedVarIndex];
 }
 
 // Initialize the incoming VarToRegMap to the given map values (generally a predecessor of
@@ -9186,8 +9186,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
     VARSET_ITER_INIT(compiler, iter1, block->bbLiveOut, varIndex1);
     while (iter1.NextElem(compiler, &varIndex1))
     {
-        unsigned  varNum  = compiler->lvaTrackedToVarNum[varIndex1];
-        regNumber fromReg = getVarReg(outVarToRegMap, varNum);
+        regNumber fromReg = getVarReg(outVarToRegMap, varIndex1);
         if (fromReg != REG_STK)
         {
             liveOutRegs |= genRegMask(fromReg);
@@ -9229,8 +9228,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
     VARSET_ITER_INIT(compiler, iter, outResolutionSet, varIndex);
     while (iter.NextElem(compiler, &varIndex))
     {
-        unsigned  varNum              = compiler->lvaTrackedToVarNum[varIndex];
-        regNumber fromReg             = getVarReg(outVarToRegMap, varNum);
+        regNumber fromReg             = getVarReg(outVarToRegMap, varIndex);
         bool      isMatch             = true;
         bool      isSame              = false;
         bool      maybeSingleTarget   = false;
@@ -9251,7 +9249,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
                 liveOnlyAtSplitEdge = ((succBlock->bbPreds->flNext == nullptr) && (succBlock != compiler->fgFirstBB));
             }
 
-            regNumber toReg = getVarReg(getInVarToRegMap(succBlock->bbNum), varNum);
+            regNumber toReg = getVarReg(getInVarToRegMap(succBlock->bbNum), varIndex);
             if (sameToReg == REG_NA)
             {
                 sameToReg = toReg;
@@ -9357,10 +9355,8 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
             VARSET_ITER_INIT(compiler, iter, edgeResolutionSet, varIndex);
             while (iter.NextElem(compiler, &varIndex))
             {
-                unsigned  varNum   = compiler->lvaTrackedToVarNum[varIndex];
-                Interval* interval = getIntervalForLocalVar(varNum);
-                regNumber fromReg  = getVarReg(outVarToRegMap, varNum);
-                regNumber toReg    = getVarReg(succInVarToRegMap, varNum);
+                regNumber fromReg = getVarReg(outVarToRegMap, varIndex);
+                regNumber toReg   = getVarReg(succInVarToRegMap, varIndex);
 
                 if (fromReg == toReg)
                 {
@@ -9562,19 +9558,18 @@ void LinearScan::resolveEdges()
             VARSET_ITER_INIT(compiler, iter, block->bbLiveIn, varIndex);
             while (iter.NextElem(compiler, &varIndex))
             {
-                unsigned  varNum  = compiler->lvaTrackedToVarNum[varIndex];
-                regNumber fromReg = getVarReg(fromVarToRegMap, varNum);
-                regNumber toReg   = getVarReg(toVarToRegMap, varNum);
+                regNumber fromReg = getVarReg(fromVarToRegMap, varIndex);
+                regNumber toReg   = getVarReg(toVarToRegMap, varIndex);
                 if (fromReg != toReg)
                 {
-                    Interval* interval = getIntervalForLocalVar(varNum);
                     if (!foundMismatch)
                     {
                         foundMismatch = true;
                         printf("Found mismatched var locations after resolution!\n");
                     }
-                    printf(" V%02u: BB%02u to BB%02u: ", varNum, predBlock->bbNum, block->bbNum);
-                    printf("%s to %s\n", getRegName(fromReg), getRegName(toReg));
+                    unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
+                    printf(" V%02u: BB%02u to BB%02u: %s to %s\n", varNum, predBlock->bbNum, block->bbNum,
+                           getRegName(fromReg), getRegName(toReg));
                 }
             }
         }
@@ -9721,8 +9716,8 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
         unsigned  varNum    = compiler->lvaTrackedToVarNum[varIndex];
         bool      isSpilled = false;
         Interval* interval  = getIntervalForLocalVar(varNum);
-        regNumber fromReg   = getVarReg(fromVarToRegMap, varNum);
-        regNumber toReg     = getVarReg(toVarToRegMap, varNum);
+        regNumber fromReg   = getVarReg(fromVarToRegMap, varIndex);
+        regNumber toReg     = getVarReg(toVarToRegMap, varIndex);
         if (fromReg == toReg)
         {
             continue;
@@ -11798,7 +11793,7 @@ void LinearScan::verifyFinalAllocation()
                     while (iter.NextElem(compiler, &varIndex))
                     {
                         unsigned  varNum = compiler->lvaTrackedToVarNum[varIndex];
-                        regNumber regNum = getVarReg(outVarToRegMap, varNum);
+                        regNumber regNum = getVarReg(outVarToRegMap, varIndex);
                         interval         = getIntervalForLocalVar(varNum);
                         assert(interval->physReg == regNum || (interval->physReg == REG_NA && regNum == REG_STK));
                         interval->physReg     = REG_NA;
@@ -11824,7 +11819,7 @@ void LinearScan::verifyFinalAllocation()
                     while (iter.NextElem(compiler, &varIndex))
                     {
                         unsigned  varNum                  = compiler->lvaTrackedToVarNum[varIndex];
-                        regNumber regNum                  = getVarReg(inVarToRegMap, varNum);
+                        regNumber regNum                  = getVarReg(inVarToRegMap, varIndex);
                         interval                          = getIntervalForLocalVar(varNum);
                         interval->physReg                 = regNum;
                         interval->assignedReg             = &(physRegs[regNum]);
@@ -12066,7 +12061,7 @@ void LinearScan::verifyFinalAllocation()
             while (iter.NextElem(compiler, &varIndex))
             {
                 unsigned  varNum                  = compiler->lvaTrackedToVarNum[varIndex];
-                regNumber regNum                  = getVarReg(inVarToRegMap, varNum);
+                regNumber regNum                  = getVarReg(inVarToRegMap, varIndex);
                 Interval* interval                = getIntervalForLocalVar(varNum);
                 interval->physReg                 = regNum;
                 interval->assignedReg             = &(physRegs[regNum]);
@@ -12094,7 +12089,7 @@ void LinearScan::verifyFinalAllocation()
                 while (iter.NextElem(compiler, &varIndex))
                 {
                     unsigned  varNum   = compiler->lvaTrackedToVarNum[varIndex];
-                    regNumber regNum   = getVarReg(outVarToRegMap, varNum);
+                    regNumber regNum   = getVarReg(outVarToRegMap, varIndex);
                     Interval* interval = getIntervalForLocalVar(varNum);
                     assert(interval->physReg == regNum || (interval->physReg == REG_NA && regNum == REG_STK));
                     interval->physReg     = REG_NA;
