@@ -314,6 +314,7 @@ int verbMerge::AppendAllInDir(HANDLE              hFileOut,
 
         if (wcslen(fileFullPath) > MAX_PATH) // It is too long path, use \\?\ to access it.
         {
+            assert(wcscmp(dir, W(".")) != 0 && "can't access the relative path with UNC");
             LPWSTR newBuffer = new WCHAR[wcslen(fileFullPath) + 30];
             wcscpy(newBuffer, W("\\\\?\\"));
             if (*fileFullPath == '\\') // It is UNC path, use \\?\UNC\serverName to access it.
@@ -421,29 +422,28 @@ int verbMerge::DoWork(const char* nameOfOutputFile, const char* pattern, bool re
 
     LogInfo("Merging files matching '%s' into '%s'", pattern, nameOfOutputFile);
 
-    const size_t nameLength                = strlen(nameOfOutputFile) + 1;
-    LPWSTR       nameOfOutputFileAsUnicode = new WCHAR[nameLength];
-    mbstowcs(nameOfOutputFileAsUnicode, nameOfOutputFile, nameLength);
+    int    nameLength              = (int)strlen(nameOfOutputFile) + 1;
+    LPWSTR nameOfOutputFileAsWchar = new WCHAR[nameLength];
+    MultiByteToWideChar(CP_ACP, 0, nameOfOutputFile, -1, nameOfOutputFileAsWchar, nameLength);
 
-    const size_t patternLength    = strlen(pattern) + 1;
-    LPWSTR       patternAsUnicode = new WCHAR[patternLength];
-    mbstowcs(patternAsUnicode, pattern, patternLength);
+    int    patternLength  = (int)strlen(pattern) + 1;
+    LPWSTR patternAsWchar = new WCHAR[patternLength];
+    MultiByteToWideChar(CP_ACP, 0, pattern, -1, patternAsWchar, patternLength);
 
-    HANDLE hFileOut = CreateFileW(nameOfOutputFileAsUnicode, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+    HANDLE hFileOut = CreateFileW(nameOfOutputFileAsWchar, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
                                   FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     if (hFileOut == INVALID_HANDLE_VALUE)
     {
-        LogError("Failed to open output file '%s'. GetLastError()=%u", nameOfOutputFileAsUnicode, GetLastError());
+        LogError("Failed to open output file '%s'. GetLastError()=%u", nameOfOutputFile, GetLastError());
         return -1;
     }
 
     // Create a buffer we can use for all the copies.
     unsigned char* buffer = new unsigned char[BUFFER_SIZE];
-    LPWSTR         dir    = nullptr;
+    LPCWSTR        dir    = nullptr;
     LPCWSTR        file   = nullptr;
 
-    dir              = _wcsdup(patternAsUnicode);
-    LPWSTR lastSlash = wcsrchr(dir, DIRECTORY_SEPARATOR_CHAR_A);
+    LPWSTR lastSlash = wcsrchr(patternAsWchar, DIRECTORY_SEPARATOR_CHAR_A);
     if (lastSlash == NULL)
     {
         // The user may have passed a relative path without a slash, or the current directory.
@@ -453,15 +453,17 @@ int verbMerge::DoWork(const char* nameOfOutputFile, const char* pattern, bool re
         if (wildcard == NULL)
         {
             file = W("*");
+            dir  = patternAsWchar;
         }
         else
         {
-            file = dir;
-            dir  = _wcsdup(W("."));
+            file = patternAsWchar;
+            dir  = W(".");
         }
     }
     else
     {
+        dir              = patternAsWchar;
         LPCWSTR wildcard = wcschr(lastSlash, '*');
         if (wildcard == NULL)
         {
@@ -514,7 +516,7 @@ CLEAN_UP:
     if (result != 0)
     {
         // There was a failure. Delete the output file, to avoid leaving some half-created file.
-        BOOL ok = DeleteFileW(nameOfOutputFileAsUnicode);
+        BOOL ok = DeleteFileW(nameOfOutputFileAsWchar);
         if (!ok)
         {
             LogError("Failed to delete file after MCS /merge failed. GetLastError()=%u", GetLastError());
