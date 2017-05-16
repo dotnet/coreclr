@@ -140,6 +140,7 @@
   <PropertyGroup>
     <LicenseUrl>https://github.com/dotnet/coreclr/blob/master/LICENSE.TXT</LicenseUrl>
     <PreReleaseLabel>preview2</PreReleaseLabel>
+    <IncludeBuildNumberInPackageVersion Condition="'$(IncludeBuildNumberInPackageVersion)' == ''">true</IncludeBuildNumberInPackageVersion>
     <PackageDescriptionFile>$(SourceDir).nuget/descriptions.json</PackageDescriptionFile>
     <PackageLicenseFile>$(ProjectDir)LICENSE.TXT</PackageLicenseFile>
     <PackageThirdPartyNoticesFile>$(ProjectDir)THIRD-PARTY-NOTICES.TXT</PackageThirdPartyNoticesFile>
