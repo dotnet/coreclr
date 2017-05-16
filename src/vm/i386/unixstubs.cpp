@@ -50,9 +50,3 @@ EXTERN_C VOID JIT_TailCallLeave()
 {
   PORTABILITY_ASSERT("JIT_TailCallLeave");
 }
-
-PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(T_DISPATCHER_CONTEXT * pDispatcherContext)
-{
-    PORTABILITY_ASSERT("GetCONTEXTFromRedirectedStubStackFrame");
-    return NULL;
-}
