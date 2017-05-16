@@ -27,7 +27,7 @@ private:
 
     static LPWSTR MergePathStrings(LPCWSTR dir, LPCWSTR file);
 
-    static char* ConvertUTF8ToMultiByte(LPCWSTR wstr);
+    static char* ConvertWideCharToMultiByte(LPCWSTR wstr);
 
     static int AppendFile(HANDLE hFileOut, LPCWSTR fileName, unsigned char* buffer, size_t bufferSize);
     static int AppendAllInDir(HANDLE              hFileOut,

@@ -88,9 +88,6 @@
 #ifndef DIRECTORY_SEPARATOR_STR_A
 #define DIRECTORY_SEPARATOR_STR_A "\\"
 #endif
-#ifndef DIRECTORY_SEPARATOR_STR_W
-#define DIRECTORY_SEPARATOR_STR_W W("\\")
-#endif
 
 #ifndef W
 #ifdef PLATFORM_UNIX
@@ -99,6 +96,10 @@
 #define W(str) L##str
 #endif // PLATFORM_UNIX
 #endif // !W
+
+#ifndef DIRECTORY_SEPARATOR_STR_W
+#define DIRECTORY_SEPARATOR_STR_W W("\\")
+#endif
 
 #ifdef FEATURE_PAL
 #define PLATFORM_SHARED_LIB_SUFFIX_A PAL_SHLIB_SUFFIX

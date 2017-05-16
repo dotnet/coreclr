@@ -27,7 +27,7 @@ LPWSTR verbMerge::MergePathStrings(LPCWSTR dir, LPCWSTR file)
     return newpath;
 }
 
-char* verbMerge::ConvertUTF8ToMultiByte(LPCWSTR wstr)
+char* verbMerge::ConvertWideCharToMultiByte(LPCWSTR wstr)
 {
     unsigned int codePage   = CP_UTF8;
     int          sizeNeeded = WideCharToMultiByte(codePage, 0, wstr, -1, NULL, 0, NULL, NULL);
@@ -46,7 +46,7 @@ int verbMerge::AppendFile(HANDLE hFileOut, LPCWSTR fileName, unsigned char* buff
 {
     int result = 0; // default to zero == success
 
-    char* fileNameAsChar = ConvertUTF8ToMultiByte(fileName);
+    char* fileNameAsChar = ConvertWideCharToMultiByte(fileName);
     LogInfo("Appending file '%s'", fileNameAsChar);
 
     HANDLE hFileIn = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
@@ -312,7 +312,7 @@ int verbMerge::AppendAllInDir(HANDLE              hFileOut,
         const _WIN32_FIND_DATAW& findData     = fileArray[i];
         LPWSTR                   fileFullPath = MergePathStrings(dir, findData.cFileName);
 
-        if (wcslen(fileFullPath) > 260) // It is too long path, use \\?\ to access it.
+        if (wcslen(fileFullPath) > MAX_PATH) // It is too long path, use \\?\ to access it.
         {
             LPWSTR newBuffer = new WCHAR[wcslen(fileFullPath) + 30];
             wcscpy(newBuffer, W("\\\\?\\"));
@@ -338,7 +338,7 @@ int verbMerge::AppendAllInDir(HANDLE              hFileOut,
         // Is it zero length? If so, skip it.
         if ((findData.nFileSizeLow == 0) && (findData.nFileSizeHigh == 0))
         {
-            char* fileFullPathAsChar = ConvertUTF8ToMultiByte(fileFullPath);
+            char* fileFullPathAsChar = ConvertWideCharToMultiByte(fileFullPath);
             LogInfo("Skipping zero-length file '%s'", fileFullPathAsChar);
             delete[] fileFullPathAsChar;
         }
