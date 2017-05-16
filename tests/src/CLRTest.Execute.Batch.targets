@@ -79,7 +79,7 @@ IF NOT "%COMPlus_GCStress%"=="" (
       <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'"><![CDATA[
 $(BatchCLRTestEnvironmentCompatibilityCheck)
 IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMinOpts%"=="" IF "%COMPlus_TailcallStress%"=="" goto :Compatible1
-  ECHO SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts) IS SET
+  ECHO SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress) IS SET
   popd
   Exit /b 0
 :Compatible1
