@@ -42,7 +42,7 @@ if "%COMPlus_ZapDisable%"=="" set COMPlus_TailcallStress=1
 ]]></CLRTestBatchPreCommands>
   <BashCLRTestPreCommands><![CDATA[
 $(BashCLRTestPreCommands)
-if [ -z $COMPlus_ZapDisable ] then
+if [ -z $COMPlus_ZapDisable ]; then
     export COMPlus_TailcallStress=1
 fi
 ]]></BashCLRTestPreCommands>
