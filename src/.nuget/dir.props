@@ -23,7 +23,7 @@
 
     <RuntimeOS Condition="'$(RuntimeOS)' == ''">$(OSRid)</RuntimeOS>
 
-    <SupportedPackageOSGroups Condition="'$(SupportedPackageOSGroups)' == ''">Windows_NT;OSX;Linux</SupportedPackageOSGroups>
+    <SupportedPackageOSGroups Condition="'$(SupportedPackageOSGroups)' == ''">Windows_NT;OSX;Android;Linux</SupportedPackageOSGroups>
     <SupportedPackageOSGroups>;$(SupportedPackageOSGroups);</SupportedPackageOSGroups>
 
     <_runtimeOSVersionIndex>$(RuntimeOS.IndexOfAny(".-0123456789"))</_runtimeOSVersionIndex>
@@ -34,6 +34,7 @@
   <!-- derive an OS Group based on the OS Family -->
   <PropertyGroup>
     <_derivedPackageTargetOSGroup Condition="'$(_derivedPackageTargetOSGroup)' == '' and '$(_runtimeOSFamily)' == 'osx'">OSX</_derivedPackageTargetOSGroup>
+    <_derivedPackageTargetOSGroup Condition="'$(_derivedPackageTargetOSGroup)' == '' and '$(_runtimeOSFamily)' == 'android'">Android</_derivedPackageTargetOSGroup>
     <_derivedPackageTargetOSGroup Condition="'$(_derivedPackageTargetOSGroup)' == '' and '$(_runtimeOSFamily)' == 'win'">Windows_NT</_derivedPackageTargetOSGroup>
     <_derivedPackageTargetOSGroup Condition="'$(_derivedPackageTargetOSGroup)' == '' and '$(__BuildOS)' != ''">$(__BuildOS)</_derivedPackageTargetOSGroup>
     <_derivedPackageTargetOSGroup Condition="'$(_derivedPackageTargetOSGroup)' == ''">Linux</_derivedPackageTargetOSGroup>
@@ -77,6 +78,11 @@
         <PackageRID Condition="'$(PortableBuild)' == '1'">osx-$(ArchGroup)</PackageRID>
       </PropertyGroup>
     </When>
+    <When Condition="'$(_runtimeOSFamily)' == 'android'">
+      <PropertyGroup>
+        <PackageRID>android.21-$(ArchGroup)</PackageRID>
+      </PropertyGroup>
+    </When>
     <When Condition="'$(_runtimeOSFamily)' == 'rhel'">
       <PropertyGroup>
         <PackageRID>rhel.7-$(ArchGroup)</PackageRID>
@@ -100,6 +106,13 @@
       <PropertyGroup>
         <LibraryFileExtension>.dylib</LibraryFileExtension>
         <SymbolFileExtension>.dwarf</SymbolFileExtension>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(_runtimeOSFamily)' == 'android'">
+      <PropertyGroup>
+        <LibraryFileExtension>.so</LibraryFileExtension>
+<!--symbols included in .so, like Linux, but can be generated externally and if so, uses .debug ext-->
+        <SymbolFileExtension>.debug</SymbolFileExtension>
       </PropertyGroup>
     </When>
     <Otherwise>
@@ -161,6 +174,14 @@
     </OfficialBuildRID>
     <OfficialBuildRID Include="win-arm64">
       <Platform>arm64</Platform>
+    </OfficialBuildRID>
+  </ItemGroup>
+  <ItemGroup Condition="$(SupportedPackageOSGroups.Contains(';Android;'))">
+    <OfficialBuildRID Include="android.21-arm64">
+      <Platform>arm64</Platform>
+    </OfficialBuildRID>
+    <OfficialBuildRID Include="android.21-arm">
+      <Platform>arm</Platform>
     </OfficialBuildRID>
   </ItemGroup>
   <ItemGroup>
