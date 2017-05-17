@@ -818,9 +818,6 @@ private:
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
         );
     friend FCDECL0(VOID, JIT_StressGC);
-#ifdef _DEBUG
-    friend LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo);
-#endif // _DEBUG
 #ifdef _WIN64
     friend Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubSecretArg);
 #endif
