@@ -332,16 +332,9 @@ bool IsXMMReg(regNumber reg)
 unsigned RegEncoding(regNumber reg)
 {
 #ifndef LEGACY_BACKEND
-    // XMM registers do not share the same reg numbers as integer registers.
-    // But register encoding of integer and XMM registers is the same.
-    // Therefore, subtract XMMBASE from regNumber to get the register encoding
-    // in case of XMM registers.
-    return (unsigned)((IsXMMReg(reg) ? reg - XMMBASE : reg) & 0x7);
-#else  // LEGACY_BACKEND
-    // Legacy X86: XMM registers share the same reg numbers as integer registers and
-    // hence nothing to do to get reg encoding.
+    static_assert((REG_XMM0 & 0x7) == 0, "bad XMMBASE");
+#endif
     return (unsigned)(reg & 0x7);
-#endif // LEGACY_BACKEND
 }
 
 // Utility routines that abstract the logic of adding REX.W, REX.R, REX.X, REX.B and REX prefixes
@@ -4828,6 +4821,12 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int va
     UNATIVE_OFFSET sz  = emitInsSizeSV(insCodeMR(ins), varx, offs);
     insFormat      fmt = emitInsModeFormat(ins, IF_SRD_RRD);
 
+#ifdef _TARGET_X86_
+    if (attr == EA_1BYTE)
+    {
+        assert(isByteReg(ireg));
+    }
+#endif
     // 16-bit operand instructions will need a prefix
     if (EA_SIZE(attr) == EA_2BYTE)
     {

@@ -1628,9 +1628,6 @@
   <data name="ArgumentOutOfRange_ArrayLBAndLength" xml:space="preserve">
     <value>Higher indices will exceed Int32.MaxValue because of large lower bound and/or length.</value>
   </data>
-  <data name="ArgumentOutOfRange_ArrayListInsert" xml:space="preserve">
-    <value>Insertion index was out of range. Must be non-negative and less than or equal to size.</value>
-  </data>
   <data name="ArgumentOutOfRange_BadHourMinuteSecond" xml:space="preserve">
     <value>Hour, Minute, and Second parameters describe an un-representable DateTime.</value>
   </data>
@@ -3184,6 +3181,9 @@
   </data>
   <data name="PlatformNotSupported_WinRT" xml:space="preserve">
     <value>Windows Runtime is not supported on this operating system.</value>
+  </data>
+  <data name="PlatformNotSupported_OverlappedIO" xml:space="preserve">
+    <value>This API is specific to the way in which Windows handles asynchronous I/O, and is not supported on this platform.</value>
   </data>
   <data name="Policy_CannotLoadSemiTrustAssembliesDuringInit" xml:space="preserve">
     <value>All assemblies loaded as part of AppDomain initialization must be fully trusted.</value>

@@ -5,11 +5,18 @@
 #ifndef __SAMPLEPROFILER_H__
 #define __SAMPLEPROFILER_H__
 
+#ifdef FEATURE_PERFTRACING
+
 #include "common.h"
 #include "eventpipe.h"
 
 class SampleProfiler
 {
+
+    // Declare friends.
+    friend class EventPipe;
+    friend class SampleProfilerEventInstance;
+
     public:
 
         // Enable profiling.
@@ -18,13 +25,16 @@ class SampleProfiler
         // Disable profiling.
         static void Disable();
 
+        // Set the sampling rate.
+        static void SetSamplingRate(long nanoseconds);
+
     private:
 
         // Iterate through all managed threads and walk all stacks.
         static void WalkManagedThreads();
 
         // Profiling thread proc.  Invoked on a new thread when profiling is enabled.
-        static DWORD WINAPI SampleProfiler::ThreadProc(void *args);
+        static DWORD WINAPI ThreadProc(void *args);
 
         // True when profiling is enabled.
         static Volatile<BOOL> s_profilingEnabled;
@@ -32,13 +42,18 @@ class SampleProfiler
         // The sampling thread.
         static Thread *s_pSamplingThread;
 
+        // The provider and event emitted by the profiler.
+        static const GUID s_providerID;
+        static EventPipeProvider *s_pEventPipeProvider;
+        static EventPipeEvent *s_pThreadTimeEvent;
+
         // Thread shutdown event for synchronization between Disable() and the sampling thread.
         static CLREventStatic s_threadShutdownEvent;
 
-#ifdef FEATURE_PAL
         // The sampling rate.
         static long s_samplingRateInNs;
-#endif
 };
+
+#endif // FEATURE_PERFTRACING
 
 #endif // __SAMPLEPROFILER_H__

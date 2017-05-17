@@ -51,6 +51,7 @@ function print_usage {
     echo '  --jitforcerelocs                 : Runs the tests with COMPlus_ForceRelocs=1'
     echo '  --jitdisasm                      : Runs jit-dasm on the tests'
     echo '  --gcstresslevel=<n>              : Runs the tests with COMPlus_GCStress=n'
+    echo '  --ilasmroundtrip                 : Runs ilasm round trip on the tests'
     echo '    0: None                                1: GC on all allocs and '"'easy'"' places'
     echo '    2: GC on transitions to preemptive GC  4: GC on every allowable JITed instr'
     echo '    8: GC on every allowable NGEN instr   16: GC only on a unique stack trace'
@@ -406,7 +407,7 @@ function precompile_overlay_assemblies {
                 $overlayDir/crossgen /Platform_Assemblies_Paths $overlayDir $filename 1> $filename.stdout 2>$filename.stderr
                 local exitCode=$?
                 if [[ $exitCode != 0 ]]; then
-                    if grep -q -e '(COR_E_ASSEMBLYEXPECTED)' $filename.stderr; then
+                    if grep -q -e '0x80131018' $filename.stderr; then
                         printf "\n\t$filename is not a managed assembly.\n\n"
                     else
                         echo Unable to precompile $filename.
@@ -975,6 +976,7 @@ illinker=
 verbose=0
 doCrossgen=0
 jitdisasm=0
+ilasmroundtrip=
 
 for i in "$@"
 do
@@ -1007,6 +1009,9 @@ do
             ;;
         --jitdisasm)
             jitdisasm=1
+            ;;
+        --ilasmroundtrip)
+            ((ilasmroundtrip = 1))
             ;;
         --testRootDir=*)
             testRootDir=${i#*=}
@@ -1139,6 +1144,11 @@ if [[ ! "$jitdisasm" -eq 0 ]]; then
     export RunningJitDisasm=1
 fi
 
+if [ ! -z "$ilasmroundtrip" ]; then
+    echo "Running Ilasm round trip"
+    export RunningIlasmRoundTrip=1
+fi
+
 # If this is a coverage run, make sure the appropriate args have been passed
 if [ "$CoreClrCoverage" == "ON" ]
 then
@@ -1190,18 +1200,6 @@ then
 else
     load_unsupported_tests
     load_failing_tests
-fi
-
-# Other architectures are not supported yet.
-if [ "$ARCH" == "x64" ]
-then
-    scriptPath=$(dirname $0)
-    ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$coreOverlayDir
-else
-    if [ "$ARCH" != "arm64" ]
-    then
-        echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
-    fi
 fi
 
 export __TestEnv=$testEnv

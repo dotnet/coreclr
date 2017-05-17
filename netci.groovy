@@ -137,6 +137,7 @@ class Constants {
                'gcsimulator',
                'jitdiff',              
                'standalone_gc',
+               'gc_reliability_framework',
                'illink'] + r2rJitStressScenarios
 
     def static configurationList = ['Debug', 'Checked', 'Release']
@@ -205,6 +206,14 @@ def static isJitDiff(def scenario) {
     return (scenario == 'jitdiff')
 }
 
+def static isGcReliabilityFramework(def scenario) {
+    return (scenario == 'gc_reliability_framework')
+}
+
+def static scenarioNeedsPri1Build(def scenario) {
+    return (scenario == 'pri1' || scenario == 'pri1r2r' || scenario == 'gcstress15_pri1r2r'|| scenario == 'coverage' || isGcReliabilityFramework(scenario))
+}
+
 def static setTestJobTimeOut(newJob, scenario) {
     if (isGCStressRelatedTesting(scenario)) {
         Utilities.setJobTimeout(newJob, 4320)
@@ -226,6 +235,9 @@ def static setTestJobTimeOut(newJob, scenario) {
     }
     else if (isJitDiff(scenario)) {
         Utilities.setJobTimeout(newJob, 240)
+    }
+    else if (isGcReliabilityFramework(scenario)) {
+        Utilities.setJobTimeout(newJob, 1440)
     }
     // Non-test jobs use the default timeout value.
 }
@@ -497,6 +509,11 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             // addEmailPublisher(job, 'dotnetgctests@microsoft.com')
             Utilities.addPeriodicTrigger(job, '@weekly')
             break
+        case 'gc_reliability_framework':
+            assert (os == 'Ubuntu' || os == 'Windows_NT' || os == 'OSX10.12')
+            assert (configuration == 'Release' || configuration == 'Checked')
+            // Only triggered by phrase.
+            break
         case 'ilrt':
             assert !(os in bidailyCrossList)
             // ILASM/ILDASM roundtrip one gets a daily build, and only for release
@@ -766,6 +783,16 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GC Simulator", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
                             }
                             break
+                        case 'standalone_gc':
+                            if (configuration == 'Release' || configuration == 'Checked') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Standalone GC", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
+                        case 'gc_reliability_framework':
+                            if (configuration == 'Release' || configuration == 'Checked') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GC Reliability Framework", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
                         case 'minopts':
                         case 'forcerelocs':
                         case 'jitstress1':
@@ -937,6 +964,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'standalone_gc':
                             if (configuration == 'Release' || configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Standalone GC", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
+                        case 'gc_reliability_framework':
+                            if (configuration == 'Release' || configuration == 'Checked') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GC Reliability Framework", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
                             }
                             break
                         case 'minopts':
@@ -1294,6 +1326,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             scenario == 'default' ||
                             scenario == 'r2r' ||
                             scenario == 'jitdiff' ||
+                            scenario == 'ilrt' ||
                             scenario == 'illink' ||
                             Constants.r2rJitStressScenarios.indexOf(scenario) != -1) {
                         buildOpts += enableCorefxTesting ? ' skiptests' : ''
@@ -1306,13 +1339,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // binaries are sent to a default directory whose name is about
                     // 35 characters long.
 
-                    else if (scenario == 'pri1' || scenario == 'pri1r2r' || scenario == 'gcstress15_pri1r2r'|| scenario == 'coverage') {
+                    else if (scenarioNeedsPri1Build(scenario)) {
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts} -priority=1"
-                    }
-                    else if (scenario == 'ilrt') {
-                        // First do the build with skiptests and then build the tests with ilasm roundtrip
-                        buildCommands += "build.cmd ${lowerConfiguration} ${arch} ${buildOpts} skiptests"
-                        buildCommands += "set __TestIntermediateDir=int&&build-test.cmd ${lowerConfiguration} ${arch} -ilasmroundtrip"
                     }
                     else if (isLongGc(scenario)) {
                         buildCommands += "build.cmd ${lowerConfiguration} ${arch} ${buildOpts} skiptests"
@@ -1343,6 +1371,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def runjitmioptsStr = ''
                         def runjitforcerelocsStr = ''
                         def runjitdisasmStr = ''
+                        def runilasmroundtripStr = ''
                         def gcstressStr = ''
                         def runtestArguments = ''
                         def gcTestArguments = ''
@@ -1402,6 +1431,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             runjitdisasmStr = 'jitdisasm crossgen'
                         }
 
+                        if (scenario == 'ilrt')
+                        {
+                            runilasmroundtripStr = 'ilasmroundtrip'
+                        }
+
                         if (isLongGc(scenario)) {
                             gcTestArguments = "${scenario} sequential"
                         }
@@ -1411,7 +1445,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             illinkArguments = "link %WORKSPACE%\\linker\\linker\\bin\\netcore_Release\\netcoreapp2.0\\win10-${arch}\\publish\\illink.exe"
                         }
 
-                        runtestArguments = "${lowerConfiguration} ${arch} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${gcTestArguments} ${illinkArguments} collectdumps"
+                        runtestArguments = "${lowerConfiguration} ${arch} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${runilasmroundtripStr} ${gcTestArguments} ${illinkArguments} collectdumps"
 
                         if (Constants.jitStressModeScenarios.containsKey(scenario)) {
                             def stepScriptLocation = "%WORKSPACE%\\SetStressModes.bat"
@@ -1432,6 +1466,12 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             else {
                                 buildCommands += "%WORKSPACE%\\tests\\runtest.cmd ${runtestArguments} TestEnv ${stepScriptLocation}"
                             }
+                        }
+                        else if (isGcReliabilityFramework(scenario)) {
+                            buildCommands += "tests\\runtest.cmd ${runtestArguments} GenerateLayoutOnly"
+                            buildCommands += "tests\\scripts\\run-gc-reliability-framework.cmd ${arch} ${configuration}"
+                            Utilities.addArchival(newJob, "stdout.txt")
+                            Utilities.addArchival(newJob, "Logs/**")
                         }
                         else if (architecture == 'x64' || architecture == 'x86') {
                             buildCommands += "tests\\runtest.cmd ${runtestArguments}"
@@ -1505,7 +1545,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                            Utilities.setJobTimeout(newJob, 240)
                        }
 
-                       buildCommands += "set __TestIntermediateDir=int&&build.cmd skiptests ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2"
+                       buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2 -priority=1"
                        // Test build and run are launched together.
                        buildCommands += "python tests\\scripts\\arm64_post_build.py -repo_root %WORKSPACE% -arch ${architecture} -build_type ${lowerConfiguration} -scenario ${scenario} -key_location C:\\tools\\key.txt"
                        //Utilities.addXUnitDotNETResults(newJob, 'bin/tests/testResults.xml')
@@ -1852,7 +1892,7 @@ combinedScenarios.each { scenario ->
                                 if (os != 'Windows_NT') {
                                     return
                                 }
-                                if (architecture != 'x64') {
+                                if (architecture != 'x64' && architecture != 'x86') {
                                     return
                                 }
                                 break
@@ -1868,6 +1908,7 @@ combinedScenarios.each { scenario ->
                                     return
                                 }
                                 break
+                            case 'gc_reliability_framework':
                             case 'standalone_gc':
                                 if (os != 'Windows_NT' && os != 'Ubuntu' && os != 'OSX10.12') {
                                     return
@@ -2118,10 +2159,12 @@ combinedScenarios.each { scenario ->
                                     return
                                 }
                                 break
+                            case 'gc_reliability_framework':
                             case 'standalone_gc':
                                 if (configuration != 'Release' && configuration != 'Checked') {
                                     return
                                 }
+                                break
                             case 'coverage':
                                 //We only want Ubuntu Release for coverage
                                 if (os != 'Ubuntu') {
@@ -2162,10 +2205,10 @@ combinedScenarios.each { scenario ->
                     // so we didn't create a build only job for windows_nt specific to that stress mode.  Just copy
                     // from the default scenario
                     def testBuildScenario = scenario
-                    if (testBuildScenario == 'coverage' || testBuildScenario == 'pri1r2r'|| testBuildScenario == 'gcstress15_pri1r2r') {
+                    if (scenarioNeedsPri1Build(scenario)) {
                         testBuildScenario = 'pri1'
                     }
-                    else if ( testBuildScenario == 'r2r' || isLongGc(testBuildScenario)) {
+                    else if ( testBuildScenario == 'r2r' || Constants.r2rJitStressScenarios.indexOf(testBuildScenario) != -1 || isLongGc(testBuildScenario)) {
                         testBuildScenario = 'default'
                     }
                     def inputWindowTestsBuildName = ''
@@ -2205,8 +2248,10 @@ combinedScenarios.each { scenario ->
                     def runjitmioptsStr = ''
                     def runjitforcerelocsStr = ''
                     def runjitdisasmStr = ''
+                    def runilasmroundtripStr = ''
                     def gcstressStr = ''
                     def illinkStr = ''
+                    def layoutOnlyStr =''
 
                     if (scenario == 'r2r' ||
                         scenario == 'pri1r2r' ||
@@ -2281,6 +2326,10 @@ combinedScenarios.each { scenario ->
                         else if (scenario == 'gcsimulator') {
                             playlistString = '--gcsimulator --playlist=./tests/gcSimulatorTests.txt'
                         }
+                    }
+
+                    if (isGcReliabilityFramework(scenario)) {
+                        layoutOnlyStr = '--build-overlay-only'
                     }
 
                     def folder = getJobFolder(scenario)
@@ -2435,9 +2484,27 @@ combinedScenarios.each { scenario ->
                 --mscorlibDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
                 --coreFxBinDir=\"\${WORKSPACE}/bin/CoreFxBinDir\" \\
                 --limitedDumpGeneration \\
-                ${testEnvOpt} ${serverGCString} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${illinkStr} ${sequentialString} ${playlistString}""")
+                ${testEnvOpt} ${serverGCString} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} \\
+                ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${runilasmroundtripStr} \\
+                ${illinkStr} ${sequentialString} ${playlistString} ${layoutOnlyStr}""")
+
+                                if (isGcReliabilityFramework(scenario)) {
+                                    // runtest.sh doesn't actually execute the reliability framework - do it here.
+                                    if (serverGCString != '') {
+                                        shell("export COMPlus_gcServer=1")
+                                    }
+
+                                    shell("./tests/scripts/run-gc-reliability-framework.sh ${architecture} ${configuration}")
+                                }
                             }
                         }
+                    }
+
+                    if (isGcReliabilityFramework(scenario))
+                    {
+                        // Both of these are emitted by the RF
+                        Utilities.addArchival(newJob, "stdout.txt")
+                        Utilities.addArchival(newJob, "Logs/**")
                     }
 
                     if (scenario == 'coverage') {

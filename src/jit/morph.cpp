@@ -3785,7 +3785,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #ifndef LEGACY_BACKEND
                 else if (size > 4 && passUsingIntRegs)
                 {
-                    NYI("Struct can be split between registers and stack");
+                    NYI_ARM("Struct can be split between registers and stack");
                 }
 #endif // !LEGACY_BACKEND
 #endif // _TARGET_ARM_
@@ -4080,6 +4080,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #ifdef _TARGET_ARM_
                         if (fltArgRegNum > MAX_FLOAT_REG_ARG)
                         {
+#ifndef LEGACY_BACKEND
+                            NYI_ARM("Struct split between float registers and stack");
+#endif // !LEGACY_BACKEND
                             // This indicates a partial enregistration of a struct type
                             assert(varTypeIsStruct(argx));
                             unsigned numRegsPartial = size - (fltArgRegNum - MAX_FLOAT_REG_ARG);
@@ -4109,6 +4112,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #ifdef _TARGET_ARM_
                         if (intArgRegNum > MAX_REG_ARG)
                         {
+#ifndef LEGACY_BACKEND
+                            NYI_ARM("Struct split between integer registers and stack");
+#endif // !LEGACY_BACKEND
                             // This indicates a partial enregistration of a struct type
                             assert((isStructArg) || argx->OperIsCopyBlkOp() ||
                                    (argx->gtOper == GT_COMMA && (args->gtFlags & GTF_ASG)));
@@ -4208,7 +4214,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         }
 #endif // !LEGACY_BACKEND
 
-#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
+#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
         if (isStructArg)
         {
             GenTree* lclNode = fgIsIndirOfAddrOfLocal(argx);
@@ -4243,7 +4249,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 }
             }
         }
-#endif // defined (_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
+#endif // _TARGET_X86_ && !LEGACY_BACKEND
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
         if (isStructArg && !isRegArg)
@@ -4799,10 +4805,9 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
 #elif defined(_TARGET_ARM_)
         BYTE gcPtrs[4] = {TYPE_GC_NONE, TYPE_GC_NONE, TYPE_GC_NONE, TYPE_GC_NONE};
         elemCount      = (unsigned)roundUp(structSize, TARGET_POINTER_SIZE) / TARGET_POINTER_SIZE;
+        info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
         for (unsigned inx = 0; inx < elemCount; inx++)
         {
-            gcPtrs[inx] = TYPE_GC_NONE;
-            info.compCompHnd->getClassGClayout(objClass, &gcPtrs[inx]);
             type[inx] = getJitGCType(gcPtrs[inx]);
         }
 #endif // _TARGET_ARM_
@@ -4998,7 +5003,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
 
                 for (unsigned inx = 0; inx < elemCount; inx++)
                 {
-                    varDscs[inx] = &lvaTable[inx];
+                    varDscs[inx] = &lvaTable[varNums[inx]];
                     varType[inx] = varDscs[inx]->lvType;
                     if (varTypeIsFloating(varType[inx]))
                     {
@@ -6094,7 +6099,7 @@ GenTreePtr Compiler::fgMorphStackArgForVarArgs(unsigned lclNum, var_types varTyp
  *  Transform the given GT_LCL_VAR tree for code generation.
  */
 
-GenTreePtr Compiler::fgMorphLocalVar(GenTreePtr tree)
+GenTreePtr Compiler::fgMorphLocalVar(GenTreePtr tree, bool forceRemorph)
 {
     noway_assert(tree->gtOper == GT_LCL_VAR);
 
@@ -6124,7 +6129,7 @@ GenTreePtr Compiler::fgMorphLocalVar(GenTreePtr tree)
 
     /* If not during the global morphing phase bail */
 
-    if (!fgGlobalMorph)
+    if (!fgGlobalMorph && !forceRemorph)
     {
         return tree;
     }
@@ -6623,9 +6628,10 @@ GenTreePtr Compiler::fgMorphField(GenTreePtr tree, MorphAddrContext* mac)
                 else
 #endif // _TARGET_64BIT_
                 {
-                    // Only volatile could be set, and it maps over
-                    noway_assert((tree->gtFlags & ~(GTF_FLD_VOLATILE | GTF_COMMON_MASK)) == 0);
-                    noway_assert(GTF_FLD_VOLATILE == GTF_IND_VOLATILE);
+                    // Only volatile or classinit could be set, and they map over
+                    noway_assert((tree->gtFlags & ~(GTF_FLD_VOLATILE | GTF_FLD_INITCLASS | GTF_COMMON_MASK)) == 0);
+                    static_assert_no_msg(GTF_FLD_VOLATILE == GTF_CLS_VAR_VOLATILE);
+                    static_assert_no_msg(GTF_FLD_INITCLASS == GTF_CLS_VAR_INITCLASS);
                     tree->SetOper(GT_CLS_VAR);
                     tree->gtClsVar.gtClsVarHnd = symHnd;
                     FieldSeqNode* fieldSeq =
@@ -7977,7 +7983,7 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
         // the call.
         GenTreeStmt* nextMorphStmt = fgMorphStmt->gtNextStmt;
 
-#ifdef _TARGET_AMD64_
+#if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
         // Legacy Jit64 Compat:
         // There could be any number of GT_NOPs between tail call and GT_RETURN.
         // That is tail call pattern could be one of the following:
@@ -8044,7 +8050,7 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
                 fgRemoveStmt(compCurBB, morphStmtToRemove);
             }
         }
-#endif // _TARGET_AMD64_
+#endif // !FEATURE_CORECLR && _TARGET_AMD64_
 
         // Delete GT_RETURN  if any
         if (nextMorphStmt != nullptr)
@@ -8517,7 +8523,8 @@ GenTreePtr Compiler::fgMorphLeaf(GenTreePtr tree)
 
     if (tree->gtOper == GT_LCL_VAR)
     {
-        return fgMorphLocalVar(tree);
+        const bool forceRemorph = false;
+        return fgMorphLocalVar(tree, forceRemorph);
     }
 #ifdef _TARGET_X86_
     else if (tree->gtOper == GT_LCL_FLD)
@@ -13190,6 +13197,25 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                     DEBUG_DESTROY_NODE(op1);  // GT_ADD or GT_ADDR
                     DEBUG_DESTROY_NODE(tree); // GT_IND
 
+                    // If the result of the fold is a local var, we may need to perform further adjustments e.g. for
+                    // normalization.
+                    if (temp->OperIs(GT_LCL_VAR))
+                    {
+#ifdef DEBUG
+                        // We clear this flag on `temp` because `fgMorphLocalVar` may assert that this bit is clear
+                        // and the node in question must have this bit set (as it has already been morphed).
+                        temp->gtDebugFlags &= ~GTF_DEBUG_NODE_MORPHED;
+#endif // DEBUG
+                        const bool forceRemorph = true;
+                        temp                    = fgMorphLocalVar(temp, forceRemorph);
+#ifdef DEBUG
+                        // We then set this flag on `temp` because `fgMorhpLocalVar` may not set it itself, and the
+                        // caller of `fgMorphSmpOp` may assert that this flag is set on `temp` once this function
+                        // returns.
+                        temp->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
+#endif // DEBUG
+                    }
+
                     return temp;
                 }
 
@@ -13639,7 +13665,7 @@ GenTree* Compiler::fgMorphSmpOpOptional(GenTreeOp* tree)
     GenTree*   op2  = tree->gtOp2;
     var_types  typ  = tree->TypeGet();
 
-    if (GenTree::OperIsCommutative(oper))
+    if (fgGlobalMorph && GenTree::OperIsCommutative(oper))
     {
         /* Swap the operands so that the more expensive one is 'op1' */
 
@@ -13677,7 +13703,7 @@ GenTree* Compiler::fgMorphSmpOpOptional(GenTreeOp* tree)
     /* Change "((x+icon)+y)" to "((x+y)+icon)"
        Don't reorder floating-point operations */
 
-    if ((oper == GT_ADD) && !tree->gtOverflow() && (op1->gtOper == GT_ADD) && !op1->gtOverflow() &&
+    if (fgGlobalMorph && (oper == GT_ADD) && !tree->gtOverflow() && (op1->gtOper == GT_ADD) && !op1->gtOverflow() &&
         varTypeIsIntegralOrI(typ))
     {
         GenTreePtr ad2 = op1->gtOp.gtOp2;

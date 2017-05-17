@@ -279,7 +279,11 @@ namespace System.Reflection
         {
             get
             {
-                return nToString();
+                if (this.Name == null)
+                    return string.Empty;
+                // Do not call GetPublicKeyToken() here - that latches the result into AssemblyName which isn't a side effect we want.
+                byte[] pkt = _PublicKeyToken ?? nGetPublicKeyToken();
+                return AssemblyNameFormatter.ComputeDisplayName(Name, Version, CultureName, pkt, Flags, ContentType);
             }
         }
 

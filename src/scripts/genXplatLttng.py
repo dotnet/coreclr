@@ -593,7 +593,8 @@ bool ResizeBuffer(char *&buffer, int& size, int currLen, int newSize, bool &fixe
 
 bool WriteToBuffer(const BYTE *src, int len, char *&buffer, int& offset, int& size, bool &fixedBuffer)
 {
-	if (offset + len)
+    if (!src) return true;
+	if (offset + len > size)
 	{
 		if (!ResizeBuffer(buffer, size, offset, size + len, fixedBuffer))
 			return false;
@@ -606,9 +607,10 @@ bool WriteToBuffer(const BYTE *src, int len, char *&buffer, int& offset, int& si
 
 bool WriteToBuffer(PCWSTR str, char *&buffer, int& offset, int& size, bool &fixedBuffer)
 {
+    if (!str) return true;
 	int byteCount = (PAL_wcslen(str) + 1) * sizeof(*str);
 
-	if (offset + byteCount)
+	if (offset + byteCount > size)
 	{
 		if (!ResizeBuffer(buffer, size, offset, size + byteCount, fixedBuffer))
 			return false;
@@ -621,8 +623,9 @@ bool WriteToBuffer(PCWSTR str, char *&buffer, int& offset, int& size, bool &fixe
 
 bool WriteToBuffer(const char *str, char *&buffer, int& offset, int& size, bool &fixedBuffer)
 {
+    if (!str) return true;
 	int len = strlen(str) + 1;
-	if (offset + len)
+	if (offset + len > size)
 	{
 		if (!ResizeBuffer(buffer, size, offset, size + len, fixedBuffer))
 			return false;

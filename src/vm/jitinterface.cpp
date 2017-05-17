@@ -360,7 +360,7 @@ CorInfoType CEEInfo::asCorInfoType(CorElementType eeType,
     _ASSERTE((CorInfoType) map[ELEMENT_TYPE_PTR] == CORINFO_TYPE_PTR);
     _ASSERTE((CorInfoType) map[ELEMENT_TYPE_TYPEDBYREF] == CORINFO_TYPE_REFANY);
 
-    CorInfoType res = (eeType < ELEMENT_TYPE_MAX) ? ((CorInfoType) map[eeType]) : CORINFO_TYPE_UNDEF;
+    CorInfoType res = ((unsigned)eeType < ELEMENT_TYPE_MAX) ? ((CorInfoType) map[(unsigned)eeType]) : CORINFO_TYPE_UNDEF;
 
     if (clsRet)
         *clsRet = CORINFO_CLASS_HANDLE(typeHndUpdated.AsPtr());
@@ -12608,13 +12608,6 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
         // Don't want to throw InvalidProgram from here.
         EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, W("Failed to load JIT compiler"));
 #endif // ALLOW_SXS_JIT
-    }
-
-    // If no compatjit wasn't used, but the user (normally a test case) requires that one is used, then fail.
-    // This is analogous to ZapRequire.
-    if (!jitMgr->m_fLegacyJitUsed && (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_RequireLegacyJit) == 1))
-    {
-        EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, W("Failed to use legacy JIT compiler with RequireLegacyJit set"));
     }
 #endif // CROSSGEN_COMPILE
 

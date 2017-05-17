@@ -2894,7 +2894,7 @@ PROCAbortInitialize()
             return FALSE;
         }
         const char* DumpGeneratorName = "createdump";
-        int programLen = strlen(g_szCoreCLRPath) + strlen(DumpGeneratorName);
+        int programLen = strlen(g_szCoreCLRPath) + strlen(DumpGeneratorName) + 1;
         char* program = (char*)InternalMalloc(programLen);
         if (program == nullptr)
         {
@@ -2949,7 +2949,7 @@ PROCAbortInitialize()
             }
             else if (strcmp(envvar, "3") == 0)
             {
-                *argv++ = "--micro";
+                *argv++ = "--triage";
             }
         }
 
@@ -2981,7 +2981,7 @@ PROCAbort()
     // Do any shutdown cleanup before aborting or creating a core dump
     PROCNotifyProcessShutdown();
 
-#if HAVE_PRCTL_H
+#if HAVE_PRCTL_H && HAVE_PR_SET_PTRACER
     // If enabled, launch the create minidump utility and wait until it completes
     if (g_argvCreateDump[0] != nullptr)
     {
@@ -3018,7 +3018,7 @@ PROCAbort()
             }
         }
     }
-#endif // HAVE_PRCTL_H
+#endif // HAVE_PRCTL_H && HAVE_PR_SET_PTRACER
     // Abort the process after waiting for the core dump to complete
     abort();
 }
