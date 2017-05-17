@@ -1964,6 +1964,19 @@ PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(CONTEXT * pContext)
     return *ppContext;
 }
 
+#ifdef WIN64EXCEPTIONS
+PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(T_DISPATCHER_CONTEXT * pDispatcherContext)
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    // EstablisherFrame is Caller-SP
+    UINT_PTR stackFP = pDispatcherContext->EstablisherFrame - 8;
+    UINT_PTR stackSlot = stackFP + REDIRECTSTUB_EBP_OFFSET_CONTEXT;
+    PTR_PTR_CONTEXT ppContext = dac_cast<PTR_PTR_CONTEXT>((TADDR)stackSlot);
+    return *ppContext;
+}
+#endif // WIN64EXCEPTIONS
+
 #if !defined(DACCESS_COMPILE)
 PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord()
 {
