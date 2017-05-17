@@ -131,7 +131,14 @@ OOPStackUnwinderX86::VirtualUnwind(
 
 BOOL DacUnwindStackFrame(T_CONTEXT* pContextRecord, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers)
 {
-    return OOPStackUnwinderX86::Unwind(pContextRecord, pContextPointers);
+    BOOL res = OOPStackUnwinderX86::Unwind(pContextRecord, NULL);
+
+    if (res && pContextPointers)
+    {
+        FillContextPointers(pContextPointers, pContextRecord);
+    }
+
+    return res;
 }
 
 //---------------------------------------------------------------------------------------
