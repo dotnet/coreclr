@@ -39,8 +39,6 @@ ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord,
                  UINT_PTR          TargetFrameSp);
 #endif // !FEATURE_PAL
 
-typedef DWORD_PTR   (HandlerFn)(UINT_PTR uStackFrame, Object* pExceptionObj);
-
 enum CLRUnwindStatus { UnwindPending, FirstPassComplete, SecondPassComplete };
 
 enum TrackerMemoryType
