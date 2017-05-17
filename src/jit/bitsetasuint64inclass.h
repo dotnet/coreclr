@@ -162,6 +162,13 @@ private:
         return res;
     }
 
+    inline bool IsEmptyUnion(Env env, const BitSetUint64& bs2) const
+    {
+        CheckEpoch(env);
+        bs2.CheckEpoch(env);
+        return Uint64BitSetOps::IsEmptyUnion(env, m_bits, bs2.m_bits);
+    }
+
     inline void UnionD(Env env, const BitSetUint64& bs2)
     {
         CheckEpoch(env);
@@ -198,6 +205,15 @@ private:
     {
         CheckEpoch(env);
         return Uint64BitSetOps::IsEmpty(env, m_bits);
+    }
+
+    inline void LivenessD(Env env, const BitSetUint64& def, const BitSetUint64& use, const BitSetUint64& out)
+    {
+        CheckEpoch(env);
+        def.CheckEpoch(env);
+        use.CheckEpoch(env);
+        out.CheckEpoch(env);
+        return Uint64BitSetOps::LivenessD(env, m_bits, def.m_bits, use.m_bits, out.m_bits);
     }
 
     inline bool IsSubset(Env env, const BitSetUint64& bs2) const
@@ -406,6 +422,11 @@ public:
         return bs.Count(env);
     }
 
+    static bool IsEmptyUnion(Env env, BSTValArg bs1, BSTValArg bs2)
+    {
+        return bs1.IsEmptyUnion(env, bs2);
+    }
+
     static void UnionD(Env env, BST& bs1, BSTValArg bs2)
     {
         bs1.UnionD(env, bs2);
@@ -471,6 +492,10 @@ public:
         return bs1.IsEmptyIntersection(env, bs2);
     }
 
+    static void LivenessD(Env env, BST& in, BSTValArg def, BSTValArg use, BSTValArg out)
+    {
+        in.LivenessD(env, def, use, out);
+    }
     static bool IsSubset(Env env, BSTValArg bs1, BSTValArg bs2)
     {
         return bs1.IsSubset(env, bs2);
