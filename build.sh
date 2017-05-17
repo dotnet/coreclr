@@ -154,15 +154,27 @@ generate_event_logging_sources()
 # Event Logging Infrastructure
    __GeneratedIntermediate="$__IntermediatesDir/Generated"
    __GeneratedIntermediateEventProvider="$__GeneratedIntermediate/eventprovider_new"
+   __GeneratedIntermediateEventPipe="$__GeneratedIntermediate/eventpipe_new"
+
     if [[ -d "$__GeneratedIntermediateEventProvider" ]]; then
         rm -rf  "$__GeneratedIntermediateEventProvider"
+    fi
+
+    if [[ -d "$__GeneratedIntermediateEventPipe" ]]; then
+        rm -rf  "$__GeneratedIntermediateEventPipe"
     fi
 
     if [[ ! -d "$__GeneratedIntermediate/eventprovider" ]]; then
         mkdir -p "$__GeneratedIntermediate/eventprovider"
     fi
 
+    if [[ ! -d "$__GeneratedIntermediate/eventpipe" ]]; then
+        mkdir -p "$__GeneratedIntermediate/eventpipe"
+    fi
+
     mkdir -p "$__GeneratedIntermediateEventProvider"
+    mkdir -p "$__GeneratedIntermediateEventPipe"
+    
     if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
         echo "Laying out dynamically generated files consumed by the build system "
         echo "Laying out dynamically generated Event Logging Test files"
@@ -171,6 +183,18 @@ generate_event_logging_sources()
         if  [[ $? != 0 ]]; then
             exit
         fi
+
+        case $__BuildOS in
+            Linux)
+                echo "Laying out dynamically generated EventPipe Implementation"
+                $PYTHON -B -Wall -Werror "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventPipe" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst"
+                if  [[ $? != 0 ]]; then
+                    exit
+                fi
+                ;;
+            *)
+                ;;
+        esac
 
         #determine the logging system
         case $__BuildOS in
@@ -193,6 +217,14 @@ generate_event_logging_sources()
     fi
 
     rm -rf "$__GeneratedIntermediateEventProvider"
+
+    echo "Cleaning the temp folder of dynamically generated EventPipe files"
+    $PYTHON -B -Wall -Werror -c "import sys;sys.path.insert(0,\"$__ProjectRoot/src/scripts\"); from Utilities import *;UpdateDirectory(\"$__GeneratedIntermediate/eventpipe\",\"$__GeneratedIntermediateEventPipe\")"
+    if  [[ $? != 0 ]]; then
+        exit
+    fi
+
+    rm -rf "$__GeneratedIntermediateEventPipe"
 }
 
 build_native()
@@ -379,7 +411,7 @@ build_CoreLib_ni()
 {
     if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
         echo "Generating native image for System.Private.CoreLib."
-        $__BinDir/crossgen $__IbcTuning $__BinDir/System.Private.CoreLib.dll
+        $__BinDir/crossgen /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll
         if [ $? -ne 0 ]; then
             echo "Failed to generate native image for System.Private.CoreLib."
             exit 1
@@ -387,7 +419,7 @@ build_CoreLib_ni()
 
         if [ "$__BuildOS" == "Linux" ]; then
             echo "Generating symbol file for System.Private.CoreLib."
-            $__BinDir/crossgen /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.ni.dll
+            $__BinDir/crossgen /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll
             if [ $? -ne 0 ]; then
                 echo "Failed to generate symbol file for System.Private.CoreLib."
                 exit 1
@@ -677,6 +709,11 @@ while :; do
         clang3.9)
             __ClangMajorVersion=3
             __ClangMinorVersion=9
+            ;;
+
+        clang4.0)
+            __ClangMajorVersion=4
+            __ClangMinorVersion=0
             ;;
 
         ninja)

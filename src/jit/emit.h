@@ -718,7 +718,7 @@ protected:
 #define ID_EXTRA_BITFIELD_BITS (16)
 
 #elif defined(_TARGET_ARM64_)
-// For Arm64, we have used 15 bits from the second DWORD.
+// For Arm64, we have used 16 bits from the second DWORD.
 #define ID_EXTRA_BITFIELD_BITS (16)
 #elif defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
 // For xarch !LEGACY_BACKEND, we have used 14 bits from the second DWORD.
@@ -882,14 +882,16 @@ protected:
         void checkSizes();
 
         union idAddrUnion {
-            // TODO-Cleanup: We should really add a DEBUG-only tag to this union so we can add asserts
-            // about reading what we think is here, to avoid unexpected corruption issues.
+// TODO-Cleanup: We should really add a DEBUG-only tag to this union so we can add asserts
+// about reading what we think is here, to avoid unexpected corruption issues.
 
+#ifndef _TARGET_ARM64_
             emitLclVarAddr iiaLclVar;
-            BasicBlock*    iiaBBlabel;
-            insGroup*      iiaIGlabel;
-            BYTE*          iiaAddr;
-            emitAddrMode   iiaAddrMode;
+#endif
+            BasicBlock*  iiaBBlabel;
+            insGroup*    iiaIGlabel;
+            BYTE*        iiaAddr;
+            emitAddrMode iiaAddrMode;
 
             CORINFO_FIELD_HANDLE iiaFieldHnd; // iiaFieldHandle is also used to encode
                                               // an offset into the JIT data constant area
@@ -920,11 +922,14 @@ protected:
 
             struct
             {
+#ifdef _TARGET_ARM64_
+                // For 64-bit architecture this 32-bit structure can pack with these unsigned bit fields
+                emitLclVarAddr iiaLclVar;
+                unsigned       _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
+                GCtype         _idGCref2 : 2;
+#endif
                 regNumber _idReg3 : REGNUM_BITS;
                 regNumber _idReg4 : REGNUM_BITS;
-#ifdef _TARGET_ARM64_
-                unsigned _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
-#endif
             };
 #elif defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
             struct
@@ -1071,6 +1076,21 @@ protected:
             _idReg1 = reg;
             assert(reg == _idReg1);
         }
+
+#ifdef _TARGET_ARM64_
+        GCtype idGCrefReg2() const
+        {
+            assert(!idIsTiny());
+            assert(!idIsSmallDsc());
+            return (GCtype)idAddr()->_idGCref2;
+        }
+        void idGCrefReg2(GCtype gctype)
+        {
+            assert(!idIsTiny());
+            assert(!idIsSmallDsc());
+            idAddr()->_idGCref2 = gctype;
+        }
+#endif // _TARGET_ARM64_
 
         regNumber idReg2() const
         {
@@ -2006,6 +2026,9 @@ public:
 
     // Returns true if the instruction may write to more than one register.
     bool emitInsMayWriteMultipleRegs(instrDesc* id);
+
+    // Returns "true" if instruction "id->idIns()" writes to a LclVar stack slot pair.
+    bool emitInsWritesToLclVarStackLocPair(instrDesc* id);
 #endif // _TARGET_ARMARCH_
 
     /************************************************************************/

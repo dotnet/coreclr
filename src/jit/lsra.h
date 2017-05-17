@@ -694,6 +694,10 @@ private:
     void processBlockStartLocations(BasicBlock* current, bool allocationPass);
     void processBlockEndLocations(BasicBlock* current);
 
+#ifdef _TARGET_ARM_
+    bool isSecondHalfReg(RegRecord* regRec, Interval* interval);
+#endif
+
     RefType CheckBlockType(BasicBlock* block, BasicBlock* prevBlock);
 
     // insert refpositions representing prolog zero-inits which will be added later
@@ -1131,7 +1135,7 @@ private:
     int compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block2, bool useBlockWeights);
     BasicBlockList* blockSequenceWorkList;
     bool            blockSequencingDone;
-    void addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block);
+    void addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block, BlockSet& predSet);
     void removeFromBlockSequenceWorkList(BasicBlockList* listNode, BasicBlockList* prevNode);
     BasicBlock* getNextCandidateFromWorkList();
 

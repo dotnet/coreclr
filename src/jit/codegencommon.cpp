@@ -631,6 +631,8 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
             return RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF | RBM_CALLEE_TRASH_NOGC;
 #elif defined(_TARGET_X86_)
             return RBM_ESI | RBM_EDI | RBM_ECX;
+#elif defined(_TARGET_ARM_)
+            return RBM_ARG_1 | RBM_ARG_0 | RBM_CALLEE_TRASH_NOGC;
 #else
             NYI("Model kill set for CORINFO_HELP_ASSIGN_BYREF on target arch");
             return RBM_CALLEE_TRASH;
@@ -7444,7 +7446,17 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 
             var_types storeType = varDsc->lvaArgType();
             regNumber argReg    = varDsc->lvArgReg;
-            getEmitter()->emitIns_S_R(ins_Store(storeType), emitTypeSize(storeType), argReg, varNum, 0);
+
+            instruction store_ins = ins_Store(storeType);
+
+#ifdef FEATURE_SIMD
+            if ((storeType == TYP_SIMD8) && genIsValidIntReg(argReg))
+            {
+                store_ins = INS_mov;
+            }
+#endif // FEATURE_SIMD
+
+            getEmitter()->emitIns_S_R(store_ins, emitTypeSize(storeType), argReg, varNum, 0);
         }
     }
 
@@ -7507,7 +7519,17 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 
         var_types loadType = varDsc->lvaArgType();
         regNumber argReg   = varDsc->lvArgReg;
-        getEmitter()->emitIns_R_S(ins_Load(loadType), emitTypeSize(loadType), argReg, varNum, 0);
+
+        instruction load_ins = ins_Load(loadType);
+
+#ifdef FEATURE_SIMD
+        if ((loadType == TYP_SIMD8) && genIsValidIntReg(argReg))
+        {
+            load_ins = INS_mov;
+        }
+#endif // FEATURE_SIMD
+
+        getEmitter()->emitIns_R_S(load_ins, emitTypeSize(loadType), argReg, varNum, 0);
 
 #if FEATURE_VARARG
         if (compiler->info.compIsVarArgs && varTypeIsFloating(loadType))
@@ -9893,7 +9915,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 #endif
 
     assert(block != NULL);
-    assert(block->bbFlags && BBF_FUNCLET_BEG);
+    assert(block->bbFlags & BBF_FUNCLET_BEG);
 
     ScopedSetVariable<bool> _setGeneratingProlog(&compiler->compGeneratingProlog, true);
 

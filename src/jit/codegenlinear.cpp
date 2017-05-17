@@ -1087,7 +1087,11 @@ void CodeGen::genCheckConsumeNode(GenTree* const node)
 
     if (verbose)
     {
-        if ((node->gtDebugFlags & GTF_DEBUG_NODE_CG_CONSUMED) != 0)
+        if (node->gtUseNum == -1)
+        {
+            // nothing wrong if the node was not consumed
+        }
+        else if ((node->gtDebugFlags & GTF_DEBUG_NODE_CG_CONSUMED) != 0)
         {
             printf("Node was consumed twice:\n");
             compiler->gtDispTree(node, nullptr, nullptr, true);
@@ -1224,7 +1228,7 @@ void CodeGen::genConsumeRegs(GenTree* tree)
             genConsumeAddress(tree->AsIndir()->Addr());
         }
 #ifdef _TARGET_XARCH_
-        else if (tree->OperGet() == GT_LCL_VAR)
+        else if (tree->OperIsLocalRead())
         {
             // A contained lcl var must be living on stack and marked as reg optional, or not be a
             // register candidate.

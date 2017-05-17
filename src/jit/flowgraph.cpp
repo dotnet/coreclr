@@ -1815,9 +1815,9 @@ void Compiler::fgComputeReachabilitySets()
 
     for (block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        // Initialize the per-block bbReach sets. (Note that we can't just call BlockSetOps::ClearD()
-        // when re-running this computation, because if the epoch changes, the size and representation of the
-        // sets might change).
+        // Initialize the per-block bbReach sets. It creates a new empty set,
+        // because the block epoch could change since the previous initialization
+        // and the old set could have wrong size.
         block->bbReach = BlockSetOps::MakeEmpty(this);
 
         /* Mark block as reaching itself */
@@ -3189,9 +3189,15 @@ void Compiler::fgComputePreds()
         if (ehDsc->HasFilter())
         {
             ehDsc->ebdFilter->bbFlags |= BBF_JMP_TARGET | BBF_HAS_LABEL;
+
+            // The first block of a filter has an artifical extra refcount.
+            ehDsc->ebdFilter->bbRefs++;
         }
 
         ehDsc->ebdHndBeg->bbFlags |= BBF_JMP_TARGET | BBF_HAS_LABEL;
+
+        // The first block of a handler has an artificial extra refcount.
+        ehDsc->ebdHndBeg->bbRefs++;
     }
 
     fgModified         = false;
@@ -4329,7 +4335,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
 
     DECODE_OPCODE:
 
-        if (opcode >= CEE_COUNT)
+        if ((unsigned)opcode >= CEE_COUNT)
         {
             BADCODE3("Illegal opcode", ": %02X", (int)opcode);
         }
@@ -5225,7 +5231,7 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, B
 
         /* Get the size of additional parameters */
 
-        noway_assert(opcode < CEE_COUNT);
+        noway_assert((unsigned)opcode < CEE_COUNT);
 
         sz = opcodeSizes[opcode];
 
@@ -5455,15 +5461,15 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, B
                     if (!impIsTailCallILPattern(tailCall, opcode, codeAddr + sz, codeEndp, isRecursive,
                                                 &isCallPopAndRet))
                     {
-#ifdef _TARGET_AMD64_
+#if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
                         BADCODE3("tail call not followed by ret or pop+ret", " at offset %04X",
                                  (IL_OFFSET)(codeAddr - codeBegp));
 #else
                         BADCODE3("tail call not followed by ret", " at offset %04X", (IL_OFFSET)(codeAddr - codeBegp));
-#endif //_TARGET_AMD64_
+#endif // !FEATURE_CORECLR && _TARGET_AMD64_
                     }
 
-#ifdef _TARGET_AMD64_
+#if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
                     if (isCallPopAndRet)
                     {
                         // By breaking here, we let pop and ret opcodes to be
@@ -5472,7 +5478,7 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, B
                         // in fgMorphCall().
                         break;
                     }
-#endif //_TARGET_AMD64_
+#endif // !FEATURE_CORECLR && _TARGET_AMD64_
                 }
                 else
                 {
@@ -10005,7 +10011,7 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
     if (fgDomsComputed && block->bbNum > fgDomBBcount)
     {
         BlockSetOps::Assign(this, block->bbReach, bNext->bbReach);
-        BlockSetOps::ClearD(this, bNext->bbReach);
+        BlockSetOps::OldStyleClearD(this, bNext->bbReach);
 
         block->bbIDom = bNext->bbIDom;
         bNext->bbIDom = nullptr;
@@ -12081,12 +12087,6 @@ void Compiler::fgInsertFuncletPrologBlock(BasicBlock* block)
     fgExtendEHRegionBefore(block);    // Update the EH table to make the prolog block the first block in the block's EH
                                       // block.
 
-    // fgExtendEHRegionBefore mucks with the bbRefs without updating the pred list, which we will
-    // do below for this block. So, undo that change.
-    assert(newHead->bbRefs > 0);
-    newHead->bbRefs--;
-    block->bbRefs++;
-
     // Distribute the pred list between newHead and block. Incoming edges coming from outside
     // the handler go to the prolog. Edges coming from with the handler are back-edges, and
     // go to the existing 'block'.
@@ -12618,10 +12618,8 @@ bool Compiler::fgMightHaveLoop()
     {
         BitVecOps::AddElemD(&blockVecTraits, blocksSeen, block->bbNum);
 
-        AllSuccessorIter succsEnd = block->GetAllSuccs(this).end();
-        for (AllSuccessorIter succs = block->GetAllSuccs(this).begin(); succs != succsEnd; ++succs)
+        for (BasicBlock* succ : block->GetAllSuccs(this))
         {
-            BasicBlock* succ = (*succs);
             if (BitVecOps::IsMember(&blockVecTraits, blocksSeen, succ->bbNum))
             {
                 return true;
@@ -16569,6 +16567,7 @@ void Compiler::fgExtendEHRegionBefore(BasicBlock* block)
 #endif // DEBUG
             HBtab->ebdTryBeg = bPrev;
             bPrev->bbFlags |= BBF_TRY_BEG | BBF_DONT_REMOVE | BBF_HAS_LABEL;
+
             // clear the TryBeg flag unless it begins another try region
             if (!bbIsTryBeg(block))
             {
@@ -16591,6 +16590,16 @@ void Compiler::fgExtendEHRegionBefore(BasicBlock* block)
 
             HBtab->ebdHndBeg = bPrev;
             bPrev->bbFlags |= BBF_DONT_REMOVE | BBF_HAS_LABEL;
+
+#if FEATURE_EH_FUNCLETS
+            if (fgFuncletsCreated)
+            {
+                assert((block->bbFlags & BBF_FUNCLET_BEG) != 0);
+                bPrev->bbFlags |= BBF_FUNCLET_BEG;
+                block->bbFlags &= ~BBF_FUNCLET_BEG;
+            }
+#endif // FEATURE_EH_FUNCLETS
+
             bPrev->bbRefs++;
 
             // If this is a handler for a filter, the last block of the filter will end with
@@ -16630,6 +16639,16 @@ void Compiler::fgExtendEHRegionBefore(BasicBlock* block)
 
             HBtab->ebdFilter = bPrev;
             bPrev->bbFlags |= BBF_DONT_REMOVE | BBF_HAS_LABEL;
+
+#if FEATURE_EH_FUNCLETS
+            if (fgFuncletsCreated)
+            {
+                assert((block->bbFlags & BBF_FUNCLET_BEG) != 0);
+                bPrev->bbFlags |= BBF_FUNCLET_BEG;
+                block->bbFlags &= ~BBF_FUNCLET_BEG;
+            }
+#endif // FEATURE_EH_FUNCLETS
+
             bPrev->bbRefs++;
         }
     }
@@ -17037,7 +17056,7 @@ bool Compiler::fgCheckEHCanInsertAfterBlock(BasicBlock* blk, unsigned regionInde
 // Return Value:
 //    A block with the desired characteristics, so the new block will be inserted after this one.
 //    If there is no suitable location, return nullptr. This should basically never happen.
-
+//
 BasicBlock* Compiler::fgFindInsertPoint(unsigned    regionIndex,
                                         bool        putInTryRegion,
                                         BasicBlock* startBlk,
@@ -17068,6 +17087,13 @@ BasicBlock* Compiler::fgFindInsertPoint(unsigned    regionIndex,
             "jumpBlk=BB%02u, runRarely=%s)\n",
             regionIndex, dspBool(putInTryRegion), startBlk->bbNum, (endBlk == nullptr) ? 0 : endBlk->bbNum,
             (nearBlk == nullptr) ? 0 : nearBlk->bbNum, (jumpBlk == nullptr) ? 0 : jumpBlk->bbNum, dspBool(runRarely));
+
+    bool insertingIntoFilter = false;
+    if (!putInTryRegion)
+    {
+        EHblkDsc* const dsc = ehGetDsc(regionIndex - 1);
+        insertingIntoFilter = dsc->HasFilter() && (startBlk == dsc->ebdFilter) && (endBlk == dsc->ebdHndBeg);
+    }
 
     bool        reachedNear = false; // Have we reached 'nearBlk' in our search? If not, we'll keep searching.
     bool        inFilter    = false; // Are we in a filter region that we need to skip?
@@ -17110,9 +17136,7 @@ BasicBlock* Compiler::fgFindInsertPoint(unsigned    regionIndex,
         {
             // Record the fact that we entered a filter region, so we don't insert into filters...
             // Unless the caller actually wanted the block inserted in this exact filter region.
-            // Detect this by the fact that startBlk and endBlk point to the filter begin and end.
-            if (putInTryRegion || (blk != startBlk) || (startBlk != ehGetDsc(regionIndex - 1)->ebdFilter) ||
-                (endBlk != ehGetDsc(regionIndex - 1)->ebdHndBeg))
+            if (!insertingIntoFilter || (blk != startBlk))
             {
                 inFilter = true;
             }
@@ -17258,7 +17282,23 @@ BasicBlock* Compiler::fgFindInsertPoint(unsigned    regionIndex,
         bestBlk = goodBlk;
     }
 
-DONE:;
+DONE:
+
+#if defined(JIT32_GCENCODER)
+    // If we are inserting into a filter and the best block is the end of the filter region, we need to
+    // insert after its predecessor instead: the JIT32 GC encoding used by the x86 CLR ABI  states that the
+    // terminal block of a filter region is its exit block. If the filter region consists of a single block,
+    // a new block cannot be inserted without either splitting the single block before inserting a new block
+    // or inserting the new block before the single block and updating the filter description such that the
+    // inserted block is marked as the entry block for the filter. Becuase this sort of split can be complex
+    // (especially given that it must ensure that the liveness of the exception object is properly tracked),
+    // we avoid this situation by never generating single-block filters on x86 (see impPushCatchArgOnStack).
+    if (insertingIntoFilter && (bestBlk == endBlk->bbPrev))
+    {
+        assert(bestBlk != startBlk);
+        bestBlk = bestBlk->bbPrev;
+    }
+#endif // defined(JIT32_GCENCODER)
 
     return bestBlk;
 }
@@ -17735,10 +17775,12 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
 
 #if defined(UNIX_X86_ABI)
         codeGen->setFrameRequired(true);
+        codeGen->setFramePointerRequiredGCInfo(true);
 #else  // !defined(UNIX_X86_ABI)
         if (add->acdStkLvl != stkDepth)
         {
             codeGen->setFrameRequired(true);
+            codeGen->setFramePointerRequiredGCInfo(true);
         }
 #endif // !defined(UNIX_X86_ABI)
 #endif // _TARGET_X86_
@@ -20508,7 +20550,28 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
         }
 
         /* Check the bbRefs */
-        noway_assert(!checkBBRefs || block->bbRefs == blockRefs);
+        if (checkBBRefs)
+        {
+            if (block->bbRefs != blockRefs)
+            {
+                // Check to see if this block is the beginning of a filter or a handler and adjust the ref count
+                // appropriately.
+                for (EHblkDsc *HBtab = compHndBBtab, *HBtabEnd = &compHndBBtab[compHndBBtabCount]; HBtab != HBtabEnd;
+                     HBtab++)
+                {
+                    if (HBtab->ebdHndBeg == block)
+                    {
+                        blockRefs++;
+                    }
+                    if (HBtab->HasFilter() && (HBtab->ebdFilter == block))
+                    {
+                        blockRefs++;
+                    }
+                }
+            }
+
+            assert(block->bbRefs == blockRefs);
+        }
 
         /* Check that BBF_HAS_HANDLER is valid bbTryIndex */
         if (block->hasTryIndex())
@@ -21809,8 +21872,8 @@ void Compiler::fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* inlineRe
     noway_assert(opts.OptEnabled(CLFLG_INLINING));
 
     // This is the InlineInfo struct representing a method to be inlined.
-    InlineInfo inlineInfo = {nullptr};
-
+    InlineInfo inlineInfo;
+    memset(&inlineInfo, 0, sizeof(inlineInfo));
     CORINFO_METHOD_HANDLE fncHandle = call->gtCallMethHnd;
 
     inlineInfo.fncHandle             = fncHandle;
@@ -21850,7 +21913,8 @@ void Compiler::fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* inlineRe
         CORINFO_METHOD_HANDLE fncHandle;
         InlineCandidateInfo*  inlineCandidateInfo;
         InlineInfo*           inlineInfo;
-    } param = {nullptr};
+    } param;
+    memset(&param, 0, sizeof(param));
 
     param.pThis               = this;
     param.call                = call;

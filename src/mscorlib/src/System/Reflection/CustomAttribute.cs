@@ -965,7 +965,6 @@ namespace System.Reflection
         internal MetadataToken tkCtor;
     }
 
-    [Serializable]
     internal enum CustomAttributeEncoding : int
     {
         Undefined = 0,
@@ -2040,7 +2039,7 @@ namespace System.Reflection
             count = 0;
 
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
-            if (!all && s_pca.GetValueOrDefault(caType) == null && !IsSecurityAttribute(caType))
+            if (!all && !s_pca.ContainsKey(caType) && !IsSecurityAttribute(caType))
                 return Array.Empty<Attribute>();
 
             List<Attribute> pcas = new List<Attribute>();
@@ -2078,7 +2077,7 @@ namespace System.Reflection
         internal static bool IsDefined(RuntimeType type, RuntimeType caType)
         {
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
-            if (!all && s_pca.GetValueOrDefault(caType) == null && !IsSecurityAttribute(caType))
+            if (!all && !s_pca.ContainsKey(caType) && !IsSecurityAttribute(caType))
                 return false;
 
             if (all || caType == (RuntimeType)typeof(SerializableAttribute))
@@ -2107,7 +2106,7 @@ namespace System.Reflection
             count = 0;
 
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
-            if (!all && s_pca.GetValueOrDefault(caType) == null && !IsSecurityAttribute(caType))
+            if (!all && !s_pca.ContainsKey(caType) && !IsSecurityAttribute(caType))
                 return Array.Empty<Attribute>();
 
             List<Attribute> pcas = new List<Attribute>();
@@ -2140,7 +2139,7 @@ namespace System.Reflection
         internal static bool IsDefined(RuntimeMethodInfo method, RuntimeType caType)
         {
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
-            if (!all && s_pca.GetValueOrDefault(caType) == null)
+            if (!all && !s_pca.ContainsKey(caType))
                 return false;
 
             if (all || caType == (RuntimeType)typeof(DllImportAttribute))
@@ -2170,7 +2169,7 @@ namespace System.Reflection
             count = 0;
 
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
-            if (!all && s_pca.GetValueOrDefault(caType) == null)
+            if (!all && !s_pca.ContainsKey(caType))
                 return null;
 
             Attribute[] pcas = new Attribute[s_pcasCount];
@@ -2201,7 +2200,7 @@ namespace System.Reflection
         internal static bool IsDefined(RuntimeParameterInfo parameter, RuntimeType caType)
         {
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
-            if (!all && s_pca.GetValueOrDefault(caType) == null)
+            if (!all && !s_pca.ContainsKey(caType))
                 return false;
 
 
@@ -2231,7 +2230,7 @@ namespace System.Reflection
 
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
 
-            if (!all && s_pca.GetValueOrDefault(caType) == null && !IsSecurityAttribute(caType))
+            if (!all && !s_pca.ContainsKey(caType) && !IsSecurityAttribute(caType))
                 return Array.Empty<Attribute>();
 
             List<Attribute> pcas = new List<Attribute>();
@@ -2283,7 +2282,7 @@ namespace System.Reflection
             count = 0;
 
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
-            if (!all && s_pca.GetValueOrDefault(caType) == null)
+            if (!all && !s_pca.ContainsKey(caType))
                 return null;
 
             Attribute[] pcas = new Attribute[s_pcasCount];
@@ -2309,7 +2308,7 @@ namespace System.Reflection
         internal static bool IsDefined(RuntimeFieldInfo field, RuntimeType caType)
         {
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
-            if (!all && s_pca.GetValueOrDefault(caType) == null)
+            if (!all && !s_pca.ContainsKey(caType))
                 return false;
 
             if (all || caType == (RuntimeType)typeof(MarshalAsAttribute))
@@ -2334,7 +2333,7 @@ namespace System.Reflection
 
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
 
-            if (!all && s_pca.GetValueOrDefault(caType) == null && !IsSecurityAttribute(caType))
+            if (!all && !s_pca.ContainsKey(caType) && !IsSecurityAttribute(caType))
                 return Array.Empty<Attribute>();
 
             List<Attribute> pcas = new List<Attribute>();
@@ -2357,7 +2356,7 @@ namespace System.Reflection
         {
             bool all = caType == (RuntimeType)typeof(object) || caType == (RuntimeType)typeof(Attribute);
 
-            if (!all && s_pca.GetValueOrDefault(caType) == null)
+            if (!all && !s_pca.ContainsKey(caType))
                 return false;
 
             if (all || IsSecurityAttribute(caType))

@@ -3187,7 +3187,7 @@ private:
     static fgWalkPreFn impFindValueClasses;
     void impSpillLclRefs(ssize_t lclNum);
 
-    BasicBlock* impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_HANDLE clsHnd);
+    BasicBlock* impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_HANDLE clsHnd, bool isSingleBlockFilter);
 
     void impImportBlockCode(BasicBlock* block);
 
@@ -4719,7 +4719,7 @@ private:
                                          const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structDescPtr));
 
     void fgFixupStructReturn(GenTreePtr call);
-    GenTreePtr fgMorphLocalVar(GenTreePtr tree);
+    GenTreePtr fgMorphLocalVar(GenTreePtr tree, bool forceRemorph);
     bool fgAddrCouldBeNull(GenTreePtr addr);
     GenTreePtr fgMorphField(GenTreePtr tree, MorphAddrContext* mac);
     bool fgCanFastTailCall(GenTreeCall* call);
@@ -5005,7 +5005,8 @@ protected:
                                   unsigned          lnum,
                                   LoopHoistContext* hoistCtxt,
                                   bool*             firstBlockAndBeforeSideEffect,
-                                  bool*             pHoistable);
+                                  bool*             pHoistable,
+                                  bool*             pCctorDependent);
 
     // Performs the hoisting 'tree' into the PreHeader for loop 'lnum'
     void optHoistCandidate(GenTreePtr tree, unsigned lnum, LoopHoistContext* hoistCtxt);
@@ -9070,6 +9071,10 @@ public:
 
     // Is the compilation in a full trust context?
     bool compIsFullTrust();
+
+#if MEASURE_NOWAY
+    void RecordNowayAssert(const char* filename, unsigned line, const char* condStr);
+#endif // MEASURE_NOWAY
 
 #ifndef FEATURE_TRACELOGGING
     // Should we actually fire the noway assert body and the exception handler?

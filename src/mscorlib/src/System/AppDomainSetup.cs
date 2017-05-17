@@ -25,7 +25,6 @@ namespace System
     [Serializable]
     internal sealed class AppDomainSetup
     {
-        [Serializable]
         internal enum LoaderInformation
         {
             // If you add a new value, add the corresponding property
@@ -336,18 +335,6 @@ namespace System
             {
                 return LOADER_OPTIMIZATION;
             }
-        }
-
-        static internal int Locate(String s)
-        {
-            if (String.IsNullOrEmpty(s))
-                return -1;
-
-            Debug.Assert('A' == ACTAG_APP_BASE_URL[0], "Assumption violated");
-            if (s[0] == 'A' && s == ACTAG_APP_BASE_URL)
-                return (int)LoaderInformation.ApplicationBaseValue;
-
-            return -1;
         }
 
 #if FEATURE_COMINTEROP

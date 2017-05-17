@@ -93,7 +93,6 @@ namespace Microsoft.Win32
     using System.Security;
     using System.Text;
     using System.Configuration.Assemblies;
-    using System.Runtime.Remoting;
     using System.Runtime.InteropServices;
     using System.Threading;
     using Microsoft.Win32.SafeHandles;
@@ -461,13 +460,11 @@ namespace Microsoft.Win32
         internal const String USER32 = "user32.dll";
         internal const String OLE32 = "ole32.dll";
         internal const String OLEAUT32 = "oleaut32.dll";
-        internal const String NTDLL = "ntdll.dll";
 #else //FEATURE_PAL
         internal const String KERNEL32 = "libcoreclr";
         internal const String USER32   = "libcoreclr";
         internal const String OLE32    = "libcoreclr";
         internal const String OLEAUT32 = "libcoreclr";
-        internal const String NTDLL    = "libcoreclr";
 #endif //FEATURE_PAL         
         internal const String ADVAPI32 = "advapi32.dll";
         internal const String SHELL32 = "shell32.dll";
@@ -475,9 +472,6 @@ namespace Microsoft.Win32
         internal const String CRYPT32 = "crypt32.dll";
         internal const String SECUR32 = "secur32.dll";
         internal const String MSCORWKS = "coreclr.dll";
-
-        // From WinBase.h
-        internal const int SEM_FAILCRITICALERRORS = 1;
 
         [DllImport(KERNEL32, CharSet = CharSet.Auto, BestFitMapping = true)]
         internal static extern int FormatMessage(int dwFlags, IntPtr lpSource,
@@ -508,10 +502,6 @@ namespace Microsoft.Win32
 
         [DllImport(KERNEL32, SetLastError = true)]
         internal static extern IntPtr LocalFree(IntPtr handle);
-
-        // MSDN says the length is a SIZE_T.
-        [DllImport(NTDLL, EntryPoint = "RtlZeroMemory")]
-        internal static extern void ZeroMemory(IntPtr address, UIntPtr length);
 
         internal static bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX buffer)
         {
@@ -782,18 +772,6 @@ namespace Microsoft.Win32
 
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern bool SetCurrentDirectory(String path);
-
-        [DllImport(KERNEL32, SetLastError = false, EntryPoint = "SetErrorMode", ExactSpelling = true)]
-        private static extern int SetErrorMode_VistaAndOlder(int newMode);
-
-        // RTM versions of Win7 and Windows Server 2008 R2
-        private static readonly Version ThreadErrorModeMinOsVersion = new Version(6, 1, 7600);
-
-        // this method uses the thread-safe version of SetErrorMode on Windows 7 / Windows Server 2008 R2 operating systems.
-        internal static int SetErrorMode(int newMode)
-        {
-            return SetErrorMode_VistaAndOlder(newMode);
-        }
 
         internal const int LCID_SUPPORTED = 0x00000002;  // supported locale ids
 
