@@ -1065,7 +1065,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
             }
         }
 
-#ifndef FEATURE_PAL // Watson is on Windows only
+#ifdef WATSON_SUPPORTED
         // Setup bucketing details for nested exceptions (rethrow and non-rethrow) only if we are in the first pass
         if (!(dwExceptionFlags & EXCEPTION_UNWINDING))
         {
@@ -1075,7 +1075,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
                 SetStateForWatsonBucketing((STState == ExceptionTracker::STS_FirstRethrowFrame), pPrevEHTracker->GetThrowableAsHandle());
             }
         }
-#endif //!FEATURE_PAL
+#endif // WATSON_SUPPORTED
 
         CLRUnwindStatus                     status;
         
@@ -7061,16 +7061,18 @@ void ExceptionTracker::ReleaseResources()
     }
     m_StackTraceInfo.FreeStackTrace();
 
-#ifndef FEATURE_PAL 
+#ifdef WATSON_SUPPORTED
     // Clear any held Watson Bucketing details
     GetWatsonBucketTracker()->ClearWatsonBucketDetails();
-#else // !FEATURE_PAL
+#endif // WATSON_SUPPORTED
+
+#ifdef FEATURE_PAL
     if (m_fOwnsExceptionPointers)
     {
         PAL_FreeExceptionRecords(m_ptrs.ExceptionRecord, m_ptrs.ContextRecord);
         m_fOwnsExceptionPointers = FALSE;
     }
-#endif // !FEATURE_PAL
+#endif // FEATURE_PAL
 #endif // DACCESS_COMPILE
 }
 
