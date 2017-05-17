@@ -33620,7 +33620,7 @@ HRESULT GCHeap::Initialize ()
     }
 
     g_gc_pFreeObjectMethodTable = GCToEEInterface::GetFreeObjectMethodTable();
-    g_num_processors = GCToOSInterface::GetCurrentProcessCpuCount();
+    g_num_processors = GCToOSInterface::GetTotalProcessorCount();
     assert(g_num_processors != 0);
 
 //Initialize the static members.

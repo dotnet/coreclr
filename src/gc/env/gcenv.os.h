@@ -366,6 +366,12 @@ public:
     // Return:
     //  Time stamp in milliseconds
     static uint32_t GetLowPrecisionTimeStamp();
+
+    // Gets the total number of processors on the machine, not taking
+    // into account current process affinity.
+    // Return:
+    //  Number of processors on the machine
+    static uint32_t GetTotalProcessorCount();
 };
 
 #endif // __GCENV_OS_H__
