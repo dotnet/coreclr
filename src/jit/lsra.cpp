@@ -1837,11 +1837,15 @@ void LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
     JITDUMP("\n");
 }
 
-void Interval::setLocalNumber(unsigned lclNum, LinearScan* linScan)
+void Interval::setLocalNumber(Compiler* compiler, unsigned lclNum, LinearScan* linScan)
 {
-    linScan->localVarIntervals[lclNum] = this;
+    LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
+    assert(varDsc->lvTracked);
+    assert(varDsc->lvVarIndex < compiler->lvaTrackedCount);
 
-    assert(linScan->getIntervalForLocalVar(lclNum) == this);
+    linScan->localVarIntervals[varDsc->lvVarIndex] = this;
+
+    assert(linScan->getIntervalForLocalVar(varDsc->lvVarIndex) == this);
     this->isLocalVar = true;
     this->varNum     = lclNum;
 }
@@ -1968,9 +1972,6 @@ void LinearScan::identifyCandidates()
         identifyCandidatesExceptionDataflow();
     }
 
-    // initialize mapping from local to interval
-    localVarIntervals = new (compiler, CMK_LSRA) Interval*[compiler->lvaCount];
-
     unsigned   lclNum;
     LclVarDsc* varDsc;
 
@@ -2036,14 +2037,27 @@ void LinearScan::identifyCandidates()
     }
 #endif // DOUBLE_ALIGN
 
+    // initialize mapping from tracked local to interval
+    if (compiler->lvaTrackedCount > 0)
+    {
+        localVarIntervals = new (compiler, CMK_LSRA) Interval*[compiler->lvaTrackedCount];
+    }
+
     for (lclNum = 0, varDsc = compiler->lvaTable; lclNum < compiler->lvaCount; lclNum++, varDsc++)
     {
-        // Assign intervals to all the variables - this makes it easier to map
-        // them back
-        var_types intervalType = (var_types)varDsc->lvType;
-        Interval* newInt       = newInterval(intervalType);
+        Interval* newInt;
 
-        newInt->setLocalNumber(lclNum, this);
+        if (varDsc->lvTracked)
+        {
+            // Create an interval for all tracked variables, even if the tracked variable is not
+            // a register candidate. This is probably just done for consistency (e.g., code that
+            // simply walks over all tracked variables don't need to check if they are register
+            // candidates, or if the interval exists). It might be possible to only allocate
+            // intervals for register candidate tracked variables.
+
+            newInt = newInterval((var_types)varDsc->lvType);
+            newInt->setLocalNumber(compiler, lclNum, this);
+        }
 
 #if DOUBLE_ALIGN
         if (checkDoubleAlign)
@@ -2070,11 +2084,6 @@ void LinearScan::identifyCandidates()
         }
 #endif // DOUBLE_ALIGN
 
-        if (varDsc->lvIsStructField)
-        {
-            newInt->isStructField = true;
-        }
-
         // Initialize all variables to REG_STK
         varDsc->lvRegNum = REG_STK;
 #ifndef _TARGET_64BIT_
@@ -2082,7 +2091,7 @@ void LinearScan::identifyCandidates()
 #endif // _TARGET_64BIT_
 
 #if !defined(_TARGET_64BIT_)
-        if (intervalType == TYP_LONG)
+        if (varDsc->lvType == TYP_LONG)
         {
             // Long variables should not be register candidates.
             // Lowering will have split any candidate lclVars into lo/hi vars.
@@ -2093,12 +2102,19 @@ void LinearScan::identifyCandidates()
 
         /* Track all locals that can be enregistered */
 
-        varDsc->lvLRACandidate = 1;
-
         if (!isRegCandidate(varDsc))
         {
             varDsc->lvLRACandidate = 0;
             continue;
+        }
+
+        assert(varDsc->lvTracked);
+
+        varDsc->lvLRACandidate = 1;
+
+        if (varDsc->lvIsStructField)
+        {
+            newInt->isStructField = true;
         }
 
         // Start with lvRegister as false - set it true only if the variable gets
@@ -2907,7 +2923,7 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
                 {
                     continue;
                 }
-                Interval* interval = getIntervalForLocalVar(varNum);
+                Interval* interval = getIntervalForLocalVar(varIndex);
                 if (isCallKill)
                 {
                     interval->preferCalleeSave = true;
@@ -3333,8 +3349,7 @@ LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation current
             VARSET_ITER_INIT(compiler, iter, liveLargeVectors, varIndex);
             while (iter.NextElem(compiler, &varIndex))
             {
-                unsigned  varNum         = compiler->lvaTrackedToVarNum[varIndex];
-                Interval* varInterval    = getIntervalForLocalVar(varNum);
+                Interval* varInterval    = getIntervalForLocalVar(varIndex);
                 Interval* tempInterval   = newInterval(LargeVectorType);
                 tempInterval->isInternal = true;
                 RefPosition* pos =
@@ -3360,8 +3375,7 @@ void LinearScan::buildUpperVectorRestoreRefPositions(GenTree*         tree,
         VARSET_ITER_INIT(compiler, iter, liveLargeVectors, varIndex);
         while (iter.NextElem(compiler, &varIndex))
         {
-            unsigned  varNum       = compiler->lvaTrackedToVarNum[varIndex];
-            Interval* varInterval  = getIntervalForLocalVar(varNum);
+            Interval* varInterval  = getIntervalForLocalVar(varIndex);
             Interval* tempInterval = varInterval->relatedInterval;
             assert(tempInterval->isInternal == true);
             RefPosition* pos =
@@ -3529,7 +3543,10 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
         // is processed, unless this is marked "isLocalDefUse" because it is a stack-based argument
         // to a call
 
-        Interval* interval        = getIntervalForLocalVar(tree->gtLclVarCommon.gtLclNum);
+        LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
+        assert(varDsc->lvTracked);
+        unsigned  varIndex        = varDsc->lvVarIndex;
+        Interval* interval        = getIntervalForLocalVar(varIndex);
         regMaskTP candidates      = getUseCandidates(tree);
         regMaskTP fixedAssignment = fixedCandidateMask(tree->TypeGet(), candidates);
 
@@ -3545,8 +3562,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
         // we can update currentLiveVars at the same place that we create the RefPosition.
         if ((tree->gtFlags & GTF_VAR_DEATH) != 0)
         {
-            VarSetOps::RemoveElemD(compiler, currentLiveVars,
-                                   compiler->lvaTable[tree->gtLclVarCommon.gtLclNum].lvVarIndex);
+            VarSetOps::RemoveElemD(compiler, currentLiveVars, varIndex);
         }
 
         JITDUMP("t%u (i:%u)\n", currentLoc, interval->intervalIndex);
@@ -3644,7 +3660,10 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
         if (isCandidateLocalRef(tree))
         {
             // We always push the tracked lclVar intervals
-            varDefInterval = getIntervalForLocalVar(tree->gtLclVarCommon.gtLclNum);
+            LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
+            assert(varDsc->lvTracked);
+            unsigned varIndex = varDsc->lvVarIndex;
+            varDefInterval = getIntervalForLocalVar(varIndex);
             defRefType     = refTypeForLocalRefNode(tree);
             defNode        = tree;
             if (produce == 0)
@@ -4186,7 +4205,7 @@ void LinearScan::insertZeroInitRefPositions()
         if (!varDsc->lvIsParam && isCandidateVar(varDsc))
         {
             JITDUMP("V%02u was live in to first block:", varNum);
-            Interval* interval = getIntervalForLocalVar(varNum);
+            Interval* interval = getIntervalForLocalVar(varIndex);
             if (compiler->info.compInitMem || varTypeIsGC(varDsc->TypeGet()))
             {
                 JITDUMP(" creating ZeroInit\n");
@@ -4520,7 +4539,7 @@ void LinearScan::buildIntervals()
 
         if (isCandidateVar(argDsc))
         {
-            Interval* interval = getIntervalForLocalVar(lclNum);
+            Interval* interval = getIntervalForLocalVar(varIndex);
             regMaskTP mask     = allRegs(TypeGet(argDsc));
             if (argDsc->lvIsRegArg)
             {
@@ -4540,7 +4559,8 @@ void LinearScan::buildIntervals()
                 LclVarDsc* fieldVarDsc = &(compiler->lvaTable[fieldVarNum]);
                 if (fieldVarDsc->lvLRACandidate)
                 {
-                    Interval*    interval = getIntervalForLocalVar(fieldVarNum);
+                    assert(fieldVarDsc->lvTracked);
+                    Interval*    interval = getIntervalForLocalVar(fieldVarDsc->lvVarIndex);
                     RefPosition* pos =
                         newRefPosition(interval, MinLocation, RefTypeParamDef, nullptr, allRegs(TypeGet(fieldVarDsc)));
                 }
@@ -4645,7 +4665,7 @@ void LinearScan::buildIntervals()
                 // If this is the entry block, don't add any incoming parameters (they're handled with ParamDefs).
                 if (isCandidateVar(varDsc) && (predBlock != nullptr || !varDsc->lvIsParam))
                 {
-                    Interval*    interval = getIntervalForLocalVar(varNum);
+                    Interval*    interval = getIntervalForLocalVar(varIndex);
                     RefPosition* pos =
                         newRefPosition(interval, currentLoc, RefTypeDummyDef, nullptr, allRegs(interval->registerType));
                 }
@@ -4735,7 +4755,7 @@ void LinearScan::buildIntervals()
                 LclVarDsc* varDsc = compiler->lvaTable + varNum;
                 if (isCandidateVar(varDsc))
                 {
-                    Interval*    interval = getIntervalForLocalVar(varNum);
+                    Interval*    interval = getIntervalForLocalVar(varIndex);
                     RefPosition* pos =
                         newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
                     JITDUMP(" V%02u", varNum);
@@ -4753,7 +4773,7 @@ void LinearScan::buildIntervals()
                 LclVarDsc* const varDsc = &compiler->lvaTable[varNum];
                 if (isCandidateVar(varDsc))
                 {
-                    RefPosition* const lastRP = getIntervalForLocalVar(varNum)->lastRefPosition;
+                    RefPosition* const lastRP = getIntervalForLocalVar(varIndex)->lastRefPosition;
                     if ((lastRP != nullptr) && (lastRP->bbNum == block->bbNum))
                     {
                         lastRP->lastUse = false;
@@ -4783,10 +4803,11 @@ void LinearScan::buildIntervals()
     {
         unsigned keepAliveVarNum = compiler->info.compThisArg;
         assert(compiler->info.compIsStatic == false);
-        if (isCandidateVar(&compiler->lvaTable[keepAliveVarNum]))
+        LclVarDsc* varDsc = compiler->lvaTable + keepAliveVarNum;
+        if (isCandidateVar(varDsc))
         {
             JITDUMP("Adding exposed use of this, for lvaKeepAliveAndReportThis\n");
-            Interval*    interval = getIntervalForLocalVar(keepAliveVarNum);
+            Interval*    interval = getIntervalForLocalVar(varDsc->lvVarIndex);
             RefPosition* pos =
                 newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
         }
@@ -4801,7 +4822,7 @@ void LinearScan::buildIntervals()
             if (varDsc->lvLRACandidate)
             {
                 JITDUMP("Adding exposed use of V%02u for LsraExtendLifetimes\n", lclNum);
-                Interval*    interval = getIntervalForLocalVar(lclNum);
+                Interval*    interval = getIntervalForLocalVar(varDsc->lvVarIndex);
                 RefPosition* pos =
                     newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
             }
@@ -4840,12 +4861,16 @@ void LinearScan::dumpVarRefPositions(const char* title)
 
     for (unsigned i = 0; i < compiler->lvaCount; i++)
     {
-        Interval* interval = getIntervalForLocalVar(i);
         printf("--- V%02u\n", i);
 
-        for (RefPosition* ref = interval->firstRefPosition; ref != nullptr; ref = ref->nextRefPosition)
+        LclVarDsc* varDsc = compiler->lvaTable + i;
+        if (varDsc->lvTracked)
         {
-            ref->dump();
+            Interval* interval = getIntervalForLocalVar(varDsc->lvVarIndex);
+            for (RefPosition* ref = interval->firstRefPosition; ref != nullptr; ref = ref->nextRefPosition)
+            {
+                ref->dump();
+            }
         }
     }
 
@@ -4854,7 +4879,7 @@ void LinearScan::dumpVarRefPositions(const char* title)
 
 void LinearScan::validateIntervals()
 {
-    for (unsigned i = 0; i < compiler->lvaCount; i++)
+    for (unsigned i = 0; i < compiler->lvaTrackedCount; i++)
     {
         Interval* interval = getIntervalForLocalVar(i);
 
@@ -4870,7 +4895,7 @@ void LinearScan::validateIntervals()
                 {
                     printf("%s: ", compiler->info.compMethodName);
                 }
-                printf("LocalVar V%02u: undefined use at %u\n", i, ref->nodeLocation);
+                printf("LocalVar V%02u: undefined use at %u\n", interval->varNum, ref->nodeLocation);
             }
             // Note that there can be multiple last uses if they are on disjoint paths,
             // so we can't really check the lastUse flag
@@ -6560,7 +6585,7 @@ void LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool alloc
             continue;
         }
         regNumber    targetReg;
-        Interval*    interval        = getIntervalForLocalVar(varNum);
+        Interval*    interval        = getIntervalForLocalVar(varIndex);
         RefPosition* nextRefPosition = interval->getNextRefPosition();
         assert(nextRefPosition != nullptr);
 
@@ -6768,8 +6793,7 @@ void LinearScan::processBlockEndLocations(BasicBlock* currentBlock)
     VARSET_ITER_INIT(compiler, iter, liveOut, varIndex);
     while (iter.NextElem(compiler, &varIndex))
     {
-        unsigned  varNum   = compiler->lvaTrackedToVarNum[varIndex];
-        Interval* interval = getIntervalForLocalVar(varNum);
+        Interval* interval = getIntervalForLocalVar(varIndex);
         if (interval->isActive)
         {
             assert(interval->physReg != REG_NA && interval->physReg != REG_STK);
@@ -8355,10 +8379,10 @@ void LinearScan::resolveRegisters()
     }
 
     // Clear "recentRefPosition" for lclVar intervals
-    for (unsigned lclNum = 0; lclNum < compiler->lvaCount; lclNum++)
+    for (unsigned varIndex = 0; varIndex < compiler->lvaTrackedCount; varIndex++)
     {
-        localVarIntervals[lclNum]->recentRefPosition = nullptr;
-        localVarIntervals[lclNum]->isActive          = false;
+        localVarIntervals[varIndex]->recentRefPosition = nullptr;
+        localVarIntervals[varIndex]->isActive          = false;
     }
 
     // handle incoming arguments and special temps
@@ -8716,7 +8740,7 @@ void LinearScan::resolveRegisters()
         }
         else
         {
-            Interval* interval = getIntervalForLocalVar(lclNum);
+            Interval* interval = getIntervalForLocalVar(varDsc->lvVarIndex);
 
             // Determine initial position for parameters
 
@@ -9713,11 +9737,8 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
     VARSET_ITER_INIT(compiler, iter, liveSet, varIndex);
     while (iter.NextElem(compiler, &varIndex))
     {
-        unsigned  varNum    = compiler->lvaTrackedToVarNum[varIndex];
-        bool      isSpilled = false;
-        Interval* interval  = getIntervalForLocalVar(varNum);
-        regNumber fromReg   = getVarReg(fromVarToRegMap, varIndex);
-        regNumber toReg     = getVarReg(toVarToRegMap, varIndex);
+        regNumber fromReg = getVarReg(fromVarToRegMap, varIndex);
+        regNumber toReg   = getVarReg(toVarToRegMap, varIndex);
         if (fromReg == toReg)
         {
             continue;
@@ -9736,28 +9757,25 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
 
         assert(fromReg < UCHAR_MAX && toReg < UCHAR_MAX);
 
-        bool done = false;
+        Interval* interval  = getIntervalForLocalVar(varIndex);
 
-        if (fromReg != toReg)
+        if (fromReg == REG_STK)
         {
-            if (fromReg == REG_STK)
-            {
-                stackToRegIntervals[toReg] = interval;
-                targetRegsFromStack |= genRegMask(toReg);
-            }
-            else if (toReg == REG_STK)
-            {
-                // Do the reg to stack moves now
-                addResolution(block, insertionPoint, interval, REG_STK, fromReg);
-                JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
-            }
-            else
-            {
-                location[fromReg]        = (regNumberSmall)fromReg;
-                source[toReg]            = (regNumberSmall)fromReg;
-                sourceIntervals[fromReg] = interval;
-                targetRegsToDo |= genRegMask(toReg);
-            }
+            stackToRegIntervals[toReg] = interval;
+            targetRegsFromStack |= genRegMask(toReg);
+        }
+        else if (toReg == REG_STK)
+        {
+            // Do the reg to stack moves now
+            addResolution(block, insertionPoint, interval, REG_STK, fromReg);
+            JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
+        }
+        else
+        {
+            location[fromReg]        = (regNumberSmall)fromReg;
+            source[toReg]            = (regNumberSmall)fromReg;
+            sourceIntervals[fromReg] = interval;
+            targetRegsToDo |= genRegMask(toReg);
         }
     }
 
@@ -10515,7 +10533,7 @@ void LinearScan::lsraDispNode(GenTreePtr tree, LsraTupleDumpMode mode, bool hasD
         {
             if (mode == LSRA_DUMP_REFPOS)
             {
-                printf("  V%02u(L%d)", varNum, getIntervalForLocalVar(varNum)->intervalIndex);
+                printf("  V%02u(L%d)", varNum, getIntervalForLocalVar(varDsc->lvVarIndex)->intervalIndex);
             }
             else
             {
@@ -11792,9 +11810,8 @@ void LinearScan::verifyFinalAllocation()
                     VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveOut, varIndex);
                     while (iter.NextElem(compiler, &varIndex))
                     {
-                        unsigned  varNum = compiler->lvaTrackedToVarNum[varIndex];
                         regNumber regNum = getVarReg(outVarToRegMap, varIndex);
-                        interval         = getIntervalForLocalVar(varNum);
+                        interval         = getIntervalForLocalVar(varIndex);
                         assert(interval->physReg == regNum || (interval->physReg == REG_NA && regNum == REG_STK));
                         interval->physReg     = REG_NA;
                         interval->assignedReg = nullptr;
@@ -11818,9 +11835,8 @@ void LinearScan::verifyFinalAllocation()
                     VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveIn, varIndex);
                     while (iter.NextElem(compiler, &varIndex))
                     {
-                        unsigned  varNum                  = compiler->lvaTrackedToVarNum[varIndex];
                         regNumber regNum                  = getVarReg(inVarToRegMap, varIndex);
-                        interval                          = getIntervalForLocalVar(varNum);
+                        interval                          = getIntervalForLocalVar(varIndex);
                         interval->physReg                 = regNum;
                         interval->assignedReg             = &(physRegs[regNum]);
                         interval->isActive                = true;
@@ -12060,9 +12076,8 @@ void LinearScan::verifyFinalAllocation()
             VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveIn, varIndex);
             while (iter.NextElem(compiler, &varIndex))
             {
-                unsigned  varNum                  = compiler->lvaTrackedToVarNum[varIndex];
                 regNumber regNum                  = getVarReg(inVarToRegMap, varIndex);
-                Interval* interval                = getIntervalForLocalVar(varNum);
+                Interval* interval                = getIntervalForLocalVar(varIndex);
                 interval->physReg                 = regNum;
                 interval->assignedReg             = &(physRegs[regNum]);
                 interval->isActive                = true;
@@ -12088,9 +12103,8 @@ void LinearScan::verifyFinalAllocation()
                 VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveOut, varIndex);
                 while (iter.NextElem(compiler, &varIndex))
                 {
-                    unsigned  varNum   = compiler->lvaTrackedToVarNum[varIndex];
                     regNumber regNum   = getVarReg(outVarToRegMap, varIndex);
-                    Interval* interval = getIntervalForLocalVar(varNum);
+                    Interval* interval = getIntervalForLocalVar(varIndex);
                     assert(interval->physReg == regNum || (interval->physReg == REG_NA && regNum == REG_STK));
                     interval->physReg     = REG_NA;
                     interval->assignedReg = nullptr;
@@ -12126,8 +12140,10 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
         GenTreeLclVarCommon* right         = dst->gtGetOp2()->AsLclVarCommon();
         regNumber            leftRegNum    = left->gtRegNum;
         regNumber            rightRegNum   = right->gtRegNum;
-        Interval*            leftInterval  = getIntervalForLocalVar(left->gtLclNum);
-        Interval*            rightInterval = getIntervalForLocalVar(right->gtLclNum);
+        LclVarDsc*           leftVarDsc    = compiler->lvaTable + left->gtLclNum;
+        LclVarDsc*           rightVarDsc   = compiler->lvaTable + right->gtLclNum;
+        Interval*            leftInterval  = getIntervalForLocalVar(leftVarDsc->lvVarIndex);
+        Interval*            rightInterval = getIntervalForLocalVar(rightVarDsc->lvVarIndex);
         assert(leftInterval->physReg == leftRegNum && rightInterval->physReg == rightRegNum);
         leftInterval->physReg                  = rightRegNum;
         rightInterval->physReg                 = leftRegNum;
@@ -12172,7 +12188,8 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
             dstRegNum = REG_STK;
         }
     }
-    Interval* interval = getIntervalForLocalVar(lcl->gtLclNum);
+
+    Interval* interval = getIntervalForLocalVar(compiler->lvaTable[lcl->gtLclNum].lvVarIndex);
     assert(interval->physReg == srcRegNum || (srcRegNum == REG_STK && interval->physReg == REG_NA));
     if (srcRegNum != REG_STK)
     {

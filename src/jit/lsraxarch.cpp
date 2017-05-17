@@ -2106,7 +2106,6 @@ void Lowering::TreeNodeInfoInitLclHeap(GenTree* tree)
 void Lowering::TreeNodeInfoInitLogicalOp(GenTree* tree)
 {
     TreeNodeInfo* info = &(tree->gtLsraInfo);
-    LinearScan*   l    = m_lsra;
 
     // We're not marking a constant hanging on the left of the add
     // as containable so we assign it to a register having CQ impact.
