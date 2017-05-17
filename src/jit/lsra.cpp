@@ -3663,9 +3663,9 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
             LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
             assert(varDsc->lvTracked);
             unsigned varIndex = varDsc->lvVarIndex;
-            varDefInterval = getIntervalForLocalVar(varIndex);
-            defRefType     = refTypeForLocalRefNode(tree);
-            defNode        = tree;
+            varDefInterval    = getIntervalForLocalVar(varIndex);
+            defRefType        = refTypeForLocalRefNode(tree);
+            defNode           = tree;
             if (produce == 0)
             {
                 produce = 1;
@@ -9757,7 +9757,7 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
 
         assert(fromReg < UCHAR_MAX && toReg < UCHAR_MAX);
 
-        Interval* interval  = getIntervalForLocalVar(varIndex);
+        Interval* interval = getIntervalForLocalVar(varIndex);
 
         if (fromReg == REG_STK)
         {
