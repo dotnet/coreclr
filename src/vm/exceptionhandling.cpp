@@ -41,6 +41,14 @@
 #define ESTABLISHER_FRAME_ADDRESS_IS_CALLER_SP
 #endif // _TARGET_ARM_ || _TARGET_ARM64_ || _TARGET_X86_
 
+#ifndef FEATURE_PAL
+void __declspec(noinline)
+ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord,
+                 UINT_PTR          ReturnValue,
+                 UINT_PTR          TargetIP,
+                 UINT_PTR          TargetFrameSp);
+#endif // !FEATURE_PAL
+
 #ifdef USE_CURRENT_CONTEXT_IN_FILTER
 inline void CaptureNonvolatileRegisters(PKNONVOLATILE_CONTEXT pNonvolatileContext, PCONTEXT pContext)
 {
