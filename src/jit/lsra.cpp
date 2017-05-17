@@ -1806,7 +1806,7 @@ void LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
     unsigned    count = 0;
 
     VARSET_ITER_INIT(compiler, iter, bb->bbLiveIn, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    while (iter.NextElem(&varIndex))
     {
         unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
         LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
@@ -1899,7 +1899,7 @@ void LinearScan::identifyCandidatesExceptionDataflow()
         'explicitly initialized' (volatile and must-init) for GC-ref types */
 
     VARSET_ITER_INIT(compiler, iter, exceptVars, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    while (iter.NextElem(&varIndex))
     {
         unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
         LclVarDsc* varDsc = compiler->lvaTable + varNum;
@@ -2616,7 +2616,7 @@ void LinearScan::checkLastUses(BasicBlock* block)
 
     {
         VARSET_ITER_INIT(compiler, iter, temp, varIndex);
-        while (iter.NextElem(compiler, &varIndex))
+        while (iter.NextElem(&varIndex))
         {
             unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
             if (compiler->lvaTable[varNum].lvLRACandidate)
@@ -2629,7 +2629,7 @@ void LinearScan::checkLastUses(BasicBlock* block)
 
     {
         VARSET_ITER_INIT(compiler, iter, temp2, varIndex);
-        while (iter.NextElem(compiler, &varIndex))
+        while (iter.NextElem(&varIndex))
         {
             unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
             if (compiler->lvaTable[varNum].lvLRACandidate)
@@ -2888,7 +2888,7 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
         {
 
             VARSET_ITER_INIT(compiler, iter, currentLiveVars, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            while (iter.NextElem(&varIndex))
             {
                 unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
                 LclVarDsc* varDsc = compiler->lvaTable + varNum;
@@ -3331,7 +3331,7 @@ LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation current
             VarSetOps::AssignNoCopy(compiler, liveLargeVectors,
                                     VarSetOps::Intersection(compiler, currentLiveVars, largeVectorVars));
             VARSET_ITER_INIT(compiler, iter, liveLargeVectors, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            while (iter.NextElem(&varIndex))
             {
                 unsigned  varNum         = compiler->lvaTrackedToVarNum[varIndex];
                 Interval* varInterval    = getIntervalForLocalVar(varNum);
@@ -3358,7 +3358,7 @@ void LinearScan::buildUpperVectorRestoreRefPositions(GenTree*         tree,
     if (!VarSetOps::IsEmpty(compiler, liveLargeVectors))
     {
         VARSET_ITER_INIT(compiler, iter, liveLargeVectors, varIndex);
-        while (iter.NextElem(compiler, &varIndex))
+        while (iter.NextElem(&varIndex))
         {
             unsigned  varNum       = compiler->lvaTrackedToVarNum[varIndex];
             Interval* varInterval  = getIntervalForLocalVar(varNum);
@@ -4179,7 +4179,7 @@ void LinearScan::insertZeroInitRefPositions()
     // insert defs for this, then a block boundary
 
     VARSET_ITER_INIT(compiler, iter, compiler->fgFirstBB->bbLiveIn, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    while (iter.NextElem(&varIndex))
     {
         unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
         LclVarDsc* varDsc = compiler->lvaTable + varNum;
@@ -4637,7 +4637,7 @@ void LinearScan::buildIntervals()
 
             JITDUMP("Creating dummy definitions\n");
             VARSET_ITER_INIT(compiler, iter, newLiveIn, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            while (iter.NextElem(&varIndex))
             {
                 unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
                 LclVarDsc* varDsc = compiler->lvaTable + varNum;
@@ -4729,7 +4729,7 @@ void LinearScan::buildIntervals()
         {
             JITDUMP("Exposed uses:");
             VARSET_ITER_INIT(compiler, iter, expUseSet, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            while (iter.NextElem(&varIndex))
             {
                 unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
                 LclVarDsc* varDsc = compiler->lvaTable + varNum;
@@ -4747,7 +4747,7 @@ void LinearScan::buildIntervals()
         // Clear the "last use" flag on any vars that are live-out from this block.
         {
             VARSET_ITER_INIT(compiler, iter, block->bbLiveOut, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            while (iter.NextElem(&varIndex))
             {
                 unsigned         varNum = compiler->lvaTrackedToVarNum[varIndex];
                 LclVarDsc* const varDsc = &compiler->lvaTable[varNum];
@@ -6552,7 +6552,7 @@ void LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool alloc
 #endif // DEBUG
     regMaskTP liveRegs = RBM_NONE;
     VARSET_ITER_INIT(compiler, iter, liveIn, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    while (iter.NextElem(&varIndex))
     {
         unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
         if (!compiler->lvaTable[varNum].lvLRACandidate)
@@ -6766,7 +6766,7 @@ void LinearScan::processBlockEndLocations(BasicBlock* currentBlock)
 #endif // DEBUG
     regMaskTP liveRegs = RBM_NONE;
     VARSET_ITER_INIT(compiler, iter, liveOut, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    while (iter.NextElem(&varIndex))
     {
         unsigned  varNum   = compiler->lvaTrackedToVarNum[varIndex];
         Interval* interval = getIntervalForLocalVar(varNum);
@@ -9066,7 +9066,7 @@ regNumber LinearScan::getTempRegForResolution(BasicBlock* fromBlock, BasicBlock*
 
     // We are only interested in the variables that are live-in to the "to" block.
     VARSET_ITER_INIT(compiler, iter, toBlock->bbLiveIn, varIndex);
-    while (iter.NextElem(compiler, &varIndex) && freeRegs != RBM_NONE)
+    while (iter.NextElem(&varIndex) && freeRegs != RBM_NONE)
     {
         regNumber fromReg = fromVarToRegMap[varIndex];
         regNumber toReg   = toVarToRegMap[varIndex];
@@ -9184,7 +9184,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
     // even the registers that remain the same across the edge are preserved correctly.
     regMaskTP liveOutRegs = RBM_NONE;
     VARSET_ITER_INIT(compiler, iter1, block->bbLiveOut, varIndex1);
-    while (iter1.NextElem(compiler, &varIndex1))
+    while (iter1.NextElem(&varIndex1))
     {
         unsigned  varNum  = compiler->lvaTrackedToVarNum[varIndex1];
         regNumber fromReg = getVarReg(outVarToRegMap, varNum);
@@ -9227,7 +9227,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
     //     sameResolutionSet
 
     VARSET_ITER_INIT(compiler, iter, outResolutionSet, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    while (iter.NextElem(&varIndex))
     {
         unsigned  varNum              = compiler->lvaTrackedToVarNum[varIndex];
         regNumber fromReg             = getVarReg(outVarToRegMap, varNum);
@@ -9355,7 +9355,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
             VARSET_TP   VARSET_INIT_NOCOPY(edgeResolutionSet,
                                          VarSetOps::Intersection(compiler, diffResolutionSet, succBlock->bbLiveIn));
             VARSET_ITER_INIT(compiler, iter, edgeResolutionSet, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            while (iter.NextElem(&varIndex))
             {
                 unsigned  varNum   = compiler->lvaTrackedToVarNum[varIndex];
                 Interval* interval = getIntervalForLocalVar(varNum);
@@ -9560,7 +9560,7 @@ void LinearScan::resolveEdges()
             BasicBlock* predBlock       = pred->flBlock;
             VarToRegMap fromVarToRegMap = getOutVarToRegMap(predBlock->bbNum);
             VARSET_ITER_INIT(compiler, iter, block->bbLiveIn, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            while (iter.NextElem(&varIndex))
             {
                 unsigned  varNum  = compiler->lvaTrackedToVarNum[varIndex];
                 regNumber fromReg = getVarReg(fromVarToRegMap, varNum);
@@ -9716,7 +9716,7 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
     // that will scale better than the live variables
 
     VARSET_ITER_INIT(compiler, iter, liveSet, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    while (iter.NextElem(&varIndex))
     {
         unsigned  varNum    = compiler->lvaTrackedToVarNum[varIndex];
         bool      isSpilled = false;
@@ -11795,7 +11795,7 @@ void LinearScan::verifyFinalAllocation()
                     // Validate the locations at the end of the previous block.
                     VarToRegMap outVarToRegMap = outVarToRegMaps[currentBlock->bbNum];
                     VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveOut, varIndex);
-                    while (iter.NextElem(compiler, &varIndex))
+                    while (iter.NextElem(&varIndex))
                     {
                         unsigned  varNum = compiler->lvaTrackedToVarNum[varIndex];
                         regNumber regNum = getVarReg(outVarToRegMap, varNum);
@@ -11821,7 +11821,7 @@ void LinearScan::verifyFinalAllocation()
                 {
                     VarToRegMap inVarToRegMap = inVarToRegMaps[currentBlock->bbNum];
                     VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveIn, varIndex);
-                    while (iter.NextElem(compiler, &varIndex))
+                    while (iter.NextElem(&varIndex))
                     {
                         unsigned  varNum                  = compiler->lvaTrackedToVarNum[varIndex];
                         regNumber regNum                  = getVarReg(inVarToRegMap, varNum);
@@ -12063,7 +12063,7 @@ void LinearScan::verifyFinalAllocation()
             // Set the incoming register assignments
             VarToRegMap inVarToRegMap = getInVarToRegMap(currentBlock->bbNum);
             VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveIn, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            while (iter.NextElem(&varIndex))
             {
                 unsigned  varNum                  = compiler->lvaTrackedToVarNum[varIndex];
                 regNumber regNum                  = getVarReg(inVarToRegMap, varNum);
@@ -12091,7 +12091,7 @@ void LinearScan::verifyFinalAllocation()
             {
                 VarToRegMap outVarToRegMap = getOutVarToRegMap(currentBlock->bbNum);
                 VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveOut, varIndex);
-                while (iter.NextElem(compiler, &varIndex))
+                while (iter.NextElem(&varIndex))
                 {
                     unsigned  varNum   = compiler->lvaTrackedToVarNum[varIndex];
                     regNumber regNum   = getVarReg(outVarToRegMap, varNum);

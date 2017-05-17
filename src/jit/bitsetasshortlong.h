@@ -467,24 +467,23 @@ public:
         unsigned m_bitNum; // The number of bits that have already been iterated over (set or clear).  If you
         // add this to the bit number of the next bit in "m_bits", you get the proper bit number of that
         // bit in "m_bs".
+        Env m_env;
 
     public:
-        Iter(Env env, const BitSetShortLongRep& bs) : m_bs(bs), m_bitNum(0)
+        Iter(Env env, const BitSetShortLongRep& bs) : m_env(env), m_bs(bs), m_bitNum(0), m_index(0)
         {
             if (BitSetOps::IsShort(env))
             {
-                m_index = 0;
                 m_bits  = (size_t)bs;
             }
             else
             {
                 assert(bs != BitSetOps::UninitVal());
-                m_index = 0;
                 m_bits  = bs[0];
             }
         }
 
-        bool NextElem(Env env, unsigned* pElem)
+        bool NextElem(unsigned* pElem)
         {
 #if BITSET_TRACK_OPCOUNTS
             BitSetStaticsImpl::RecordOp(BitSetStaticsImpl::BSOP_NextBit);
@@ -505,15 +504,12 @@ public:
                 if (hasBit)
                 {
                     *pElem = m_bitNum + nextBit;
-                    m_bitNum += nextBit + 1;
-                    m_bits >>= nextBit;
-                    m_bits >>= 1; // Have to do these separately -- if we have 0x80000000, nextBit == 31, and shifting
-                                  // by 32 bits does nothing.
+                    m_bits &= ~(((size_t)1) << nextBit); // clear bit we just found so we don't find it again
                     return true;
                 }
                 else
                 {
-                    unsigned len = BitSetTraits::GetArrSize(env, sizeof(size_t));
+                    unsigned len = BitSetTraits::GetArrSize(m_env, sizeof(size_t));
                     if (len <= 1)
                     {
                         return false;
@@ -526,7 +522,7 @@ public:
                             return false;
                         }
                         // Otherwise...
-                        m_bitNum = m_index * sizeof(size_t) * BitSetSupport::BitsInByte;
+                        m_bitNum += sizeof(size_t) * BitSetSupport::BitsInByte;
                         m_bits   = m_bs[m_index];
                         continue;
                     }

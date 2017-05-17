@@ -213,8 +213,11 @@ public:
         {
         }
 
-        bool NextElem(Env env, unsigned* pElem)
+        bool NextElem(unsigned* pElem)
         {
+            // TODO-Throughtput: use BitScanForward64() intrinsic (see short/long implementation).
+            // REVIEW-Bug: This assumes *pElem comes in as the last bit numbered returned, or zero to start.
+            // This doesn't seem right; the current position should be carried with the iterator.
             if (m_bits)
             {
                 unsigned bitNum = *pElem;
