@@ -474,12 +474,12 @@ public:
         {
             if (BitSetOps::IsShort(env))
             {
-                m_bits  = (size_t)bs;
+                m_bits = (size_t)bs;
             }
             else
             {
                 assert(bs != BitSetOps::UninitVal());
-                m_bits  = bs[0];
+                m_bits = bs[0];
             }
         }
 
@@ -523,7 +523,7 @@ public:
                         }
                         // Otherwise...
                         m_bitNum += sizeof(size_t) * BitSetSupport::BitsInByte;
-                        m_bits   = m_bs[m_index];
+                        m_bits = m_bs[m_index];
                         continue;
                     }
                 }
