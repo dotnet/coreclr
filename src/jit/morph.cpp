@@ -3207,10 +3207,17 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         }
 
         // We don't use the "size" return value from InferOpSizeAlign().
-        codeGen->InferOpSizeAlign(curArg, &argAlign);
+        if (reMorphing)
+        {
+            argAlign = argEntry->alignment;
+        }
+        else
+        {
+            codeGen->InferOpSizeAlign(curArg, &argAlign);
 
-        argAlign = roundUp(argAlign, TARGET_POINTER_SIZE);
-        argAlign /= TARGET_POINTER_SIZE;
+            argAlign = roundUp(argAlign, TARGET_POINTER_SIZE);
+            argAlign /= TARGET_POINTER_SIZE;
+        }
 
         if (argAlign == 2)
         {
