@@ -2049,11 +2049,12 @@ void LinearScan::identifyCandidates()
 
         if (varDsc->lvTracked)
         {
-            // Create an interval for all tracked variables, even if the tracked variable is not
-            // a register candidate. This is probably just done for consistency (e.g., code that
-            // simply walks over all tracked variables don't need to check if they are register
-            // candidates, or if the interval exists). It might be possible to only allocate
-            // intervals for register candidate tracked variables.
+            // Create an interval for all tracked variables, even if the tracked variable
+            // is not a register candidate. This is probably just done for consistency
+            // (e.g., code that simply walks over all tracked variables don't need to check if
+            // they are register candidates, or if the interval exists). It might be possible to
+            // only allocate intervals for register candidate tracked variables, if all the code
+            // that depends on every tracked variable having a non-null Interval was fixed.
 
             newInt = newInterval((var_types)varDsc->lvType);
             newInt->setLocalNumber(compiler, lclNum, this);
@@ -3718,8 +3719,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
 
             if ((tree->gtFlags & GTF_VAR_DEATH) == 0)
             {
-                VarSetOps::AddElemD(compiler, currentLiveVars,
-                                    compiler->lvaTable[tree->gtLclVarCommon.gtLclNum].lvVarIndex);
+                VarSetOps::AddElemD(compiler, currentLiveVars, varIndex);
             }
         }
     }
@@ -12189,7 +12189,7 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
         }
     }
 
-    Interval* interval = getIntervalForLocalVar(compiler->lvaTable[lcl->gtLclNum].lvVarIndex);
+    Interval* interval = getIntervalForLocalVarNode(lcl);
     assert(interval->physReg == srcRegNum || (srcRegNum == REG_STK && interval->physReg == REG_NA));
     if (srcRegNum != REG_STK)
     {

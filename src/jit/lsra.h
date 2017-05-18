@@ -850,6 +850,14 @@ private:
         assert(varIndex < compiler->lvaTrackedCount);
         return localVarIntervals[varIndex];
     }
+
+    Interval* getIntervalForLocalVarNode(GenTreeLclVarCommon* tree)
+    {
+        LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclNum];
+        assert(varDsc->lvTracked);
+        return getIntervalForLocalVar(varDsc->lvVarIndex);
+    }
+
     RegRecord* getRegisterRecord(regNumber regNum);
 
     RefPosition* newRefPositionRaw(LsraLocation nodeLocation, GenTree* treeNode, RefType refType);
