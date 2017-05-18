@@ -1824,9 +1824,8 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
     GenTreePtr tree;
     unsigned   lclNum;
 
-    VARSET_TP life(VarSetOps::MakeCopy(this, lifeArg)); // lifeArg is const ref; copy to allow modification.
-    VARSET_TP keepAliveVars(VarSetOps::MakeCopy(this, volatileVars));
-    VarSetOps::UnionD(this, keepAliveVars, compCurBB->bbScope); // Don't kill vars in scope
+    // Don't kill vars in scope
+    VARSET_TP keepAliveVars(VarSetOps::Union(this, volatileVars, compCurBB->bbScope));
 
     noway_assert(VarSetOps::IsSubset(this, keepAliveVars, life));
     noway_assert(compCurStmt->gtOper == GT_STMT);
@@ -1868,8 +1867,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
 
 void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars)
 {
-    VARSET_TP keepAliveVars(VarSetOps::MakeCopy(this, volatileVars));
-    VarSetOps::UnionD(this, keepAliveVars, block->bbScope); // Don't kill vars in scope
+    VARSET_TP keepAliveVars = VarSetOps::Union(this, volatileVars, block->bbScope); // Don't kill vars in scope
 
     noway_assert(VarSetOps::IsSubset(this, keepAliveVars, life));
 
@@ -1923,8 +1921,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
     VARSET_TP  gtColonLiveSet(VarSetOps::MakeFull(this)); // liveness when we see gtColon
     GenTreePtr gtColon = NULL;
 
-    VARSET_TP keepAliveVars(VarSetOps::MakeCopy(this, volatileVars));
-    VarSetOps::UnionD(this, keepAliveVars, compCurBB->bbScope); /* Dont kill vars in scope */
+    VARSET_TP keepAliveVars(VarSetOps::Union(this, volatileVars, compCurBB->bbScope)); /* Dont kill vars in scope */
 
     noway_assert(VarSetOps::Equal(this, VarSetOps::Intersection(this, keepAliveVars, life), keepAliveVars));
     noway_assert(compCurStmt->gtOper == GT_STMT);

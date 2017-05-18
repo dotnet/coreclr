@@ -1068,12 +1068,10 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree)
     /* Figure out which variables are becoming live/dead at this point */
 
     // deadSet = compCurLife - newLife
-    VARSET_TP deadSet(VarSetOps::MakeCopy(this, compCurLife));
-    VarSetOps::DiffD(this, deadSet, newLife);
+    VARSET_TP deadSet(VarSetOps::Diff(this, compCurLife, newLife));
 
     // bornSet = newLife - compCurLife
-    VARSET_TP bornSet(VarSetOps::MakeCopy(this, newLife));
-    VarSetOps::DiffD(this, bornSet, compCurLife);
+    VARSET_TP bornSet(VarSetOps::Diff(this, newLife, compCurLife));
 
     /* Can't simultaneously become live and dead at the same time */
 
