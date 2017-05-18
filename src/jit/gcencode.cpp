@@ -161,9 +161,13 @@ void GCInfo::gcMarkFilterVarsPinned()
                     continue;
                 }
 
+#ifndef JIT32_GCENCODER
                 // Because there is no nesting within filters, nothing
                 // should be already pinned.
+                // For JIT32_GCENCODER, we should not do this check as gcVarPtrList are always sorted by vpdBegOfs
+                // which means that we could see some varPtrDsc that were already pinned by previous splitting.
                 assert((lowBits & pinned_OFFSET_FLAG) == 0);
+#endif // JIT32_GCENCODER
 
                 if (begOffs < filterBeg)
                 {
@@ -196,9 +200,9 @@ void GCInfo::gcMarkFilterVarsPinned()
                         desc2->vpdEndOfs = endOffs;
 
 #ifndef JIT32_GCENCODER
-                        desc1->vpdNext   = gcVarPtrList;
-                        desc2->vpdNext   = desc1;
-                        gcVarPtrList     = desc2;
+                        desc1->vpdNext = gcVarPtrList;
+                        desc2->vpdNext = desc1;
+                        gcVarPtrList   = desc2;
 #else
                         gcInsertVarPtrDscSplit(desc1, varTmp);
                         gcInsertVarPtrDscSplit(desc2, varTmp);
@@ -241,8 +245,8 @@ void GCInfo::gcMarkFilterVarsPinned()
                         desc->vpdEndOfs = endOffs;
 
 #ifndef JIT32_GCENCODER
-                        desc->vpdNext   = gcVarPtrList;
-                        gcVarPtrList    = desc;
+                        desc->vpdNext = gcVarPtrList;
+                        gcVarPtrList  = desc;
 #else
                         gcInsertVarPtrDscSplit(desc, varTmp);
 #endif
@@ -347,19 +351,19 @@ void GCInfo::gcInsertVarPtrDscSplit(varPtrDsc* desc, varPtrDsc* begin)
     // since we will search for insertion point from "begin"
     assert(desc->vpdBegOfs >= begin->vpdBegOfs);
 
-    varPtrDsc* varTmp = begin->vpdNext;
+    varPtrDsc* varTmp    = begin->vpdNext;
     varPtrDsc* varInsert = begin;
 
     while (varTmp != nullptr && varTmp->vpdBegOfs < desc->vpdBegOfs)
     {
         varInsert = varTmp;
-        varTmp = varTmp->vpdNext;
+        varTmp    = varTmp->vpdNext;
     }
 
      // Insert point cannot be null
     assert(varInsert != nullptr);
 
-    desc->vpdNext = varInsert->vpdNext;
+    desc->vpdNext      = varInsert->vpdNext;
     varInsert->vpdNext = desc;
 }
 
@@ -2256,6 +2260,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                     }
                 }
 
+#ifndef WIN64EXCEPTIONS
                 if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
                 {
                     // Encoding of untracked variables does not support reporting
@@ -2265,6 +2270,10 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                     thisKeptAliveIsInUntracked = true;
                     continue;
                 }
+
+                // For WIN64EXCEPTIONS, "this" must always be in tracked variables
+                // so we cannot have "this" in variable lifetimes
+#endif
 
                 if (pass == 0)
                     count++;

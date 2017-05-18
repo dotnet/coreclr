@@ -3293,6 +3293,13 @@ void Compiler::lvaSortByRefCount()
         {
             varDsc->lvTracked = 0;
         }
+#if defined(JIT32_GCENCODER) && defined(WIN64EXCEPTIONS)
+        else if (lvaIsOriginalThisArg(lclNum))
+        {
+            // For x86/Linux, we cannot have this pointer in tracked variables, so we set this pointer untracked
+            varDsc->lvTracked = 0;
+        }
+#endif
 
         //  Are we not optimizing and we have exception handlers?
         //   if so mark all args and locals "do not enregister".
