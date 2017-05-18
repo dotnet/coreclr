@@ -181,11 +181,6 @@ const unsigned lclMAX_ALLSET_TRACKED = UInt64Bits;
 typedef AllVarSetOps::ValArgType ALLVARSET_VALARG_TP;
 typedef AllVarSetOps::RetValType ALLVARSET_VALRET_TP;
 
-// Initialize "varName" to "initVal."  Copies contents, not references; if "varName" is uninitialized, allocates a var
-// set for it (using "comp" for any necessary allocation), and copies the contents of "initVal" into it.
-#define VARSET_INIT(comp, varName, initVal) varName(VarSetOps::MakeCopy(comp, initVal))
-#define ALLVARSET_INIT(comp, varName, initVal) varName(AllVarSetOps::MakeCopy(comp, initVal))
-
 // The iterator pattern.
 
 // Use this to initialize an iterator "iterName" to iterate over a VARSET_TP "vs".

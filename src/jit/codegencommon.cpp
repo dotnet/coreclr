@@ -476,7 +476,7 @@ void CodeGenInterface::genUpdateLife(VARSET_VALARG_TP newLife)
 //
 VARSET_VALRET_TP CodeGen::genUpdateLiveSetForward(GenTreePtr tree)
 {
-    VARSET_TP  VARSET_INIT(compiler, startLiveSet, compiler->compCurLife);
+    VARSET_TP  startLiveSet(VarSetOps::MakeCopy(compiler, compiler->compCurLife));
     GenTreePtr startNode;
     assert(tree != compiler->compCurLifeTree);
     if (compiler->compCurLifeTree == nullptr)
@@ -775,7 +775,7 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
 #endif // DEBUG
 
     compCurLifeTree = tree;
-    VARSET_TP VARSET_INIT(this, newLife, compCurLife);
+    VARSET_TP newLife(VarSetOps::MakeCopy(this, compCurLife));
 
     // By codegen, a struct may not be TYP_STRUCT, so we have to
     // check lvPromoted, for the case where the fields are being
@@ -1068,11 +1068,11 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree)
     /* Figure out which variables are becoming live/dead at this point */
 
     // deadSet = compCurLife - newLife
-    VARSET_TP VARSET_INIT(this, deadSet, compCurLife);
+    VARSET_TP deadSet(VarSetOps::MakeCopy(this, compCurLife));
     VarSetOps::DiffD(this, deadSet, newLife);
 
     // bornSet = newLife - compCurLife
-    VARSET_TP VARSET_INIT(this, bornSet, newLife);
+    VARSET_TP bornSet(VarSetOps::MakeCopy(this, newLife));
     VarSetOps::DiffD(this, bornSet, compCurLife);
 
     /* Can't simultaneously become live and dead at the same time */
@@ -8052,7 +8052,7 @@ void CodeGen::genReserveProlog(BasicBlock* block)
 
 void CodeGen::genReserveEpilog(BasicBlock* block)
 {
-    VARSET_TP VARSET_INIT(compiler, gcrefVarsArg, getEmitter()->emitThisGCrefVars);
+    VARSET_TP gcrefVarsArg(VarSetOps::MakeCopy(compiler, getEmitter()->emitThisGCrefVars));
     regMaskTP gcrefRegsArg = gcInfo.gcRegGCrefSetCur;
     regMaskTP byrefRegsArg = gcInfo.gcRegByrefSetCur;
 

@@ -2549,7 +2549,7 @@ void LinearScan::checkLastUses(BasicBlock* block)
     // block that we've already seen).  When we encounter a use, if it's
     // not in that set, then it's a last use.
 
-    VARSET_TP VARSET_INIT(compiler, temp, block->bbLiveOut);
+    VARSET_TP temp(VarSetOps::MakeCopy(compiler, block->bbLiveOut));
 
     bool foundDiff          = false;
     auto currentRefPosition = refPositions.rbegin();
@@ -2615,7 +2615,7 @@ void LinearScan::checkLastUses(BasicBlock* block)
         ++currentRefPosition;
     }
 
-    VARSET_TP VARSET_INIT(compiler, temp2, block->bbLiveIn);
+    VARSET_TP temp2(VarSetOps::MakeCopy(compiler, block->bbLiveIn));
     VarSetOps::DiffD(compiler, temp2, temp);
     VarSetOps::DiffD(compiler, temp, block->bbLiveIn);
 
@@ -4624,7 +4624,7 @@ void LinearScan::buildIntervals()
         // TODO-CQ: Consider how best to tune this.  Currently, if we create DummyDefs for uninitialized
         // variables (which may actually be initialized along the dynamically executed paths, but not
         // on all static paths), we wind up with excessive liveranges for some of these variables.
-        VARSET_TP VARSET_INIT(compiler, newLiveIn, block->bbLiveIn);
+        VARSET_TP newLiveIn(VarSetOps::MakeCopy(compiler, block->bbLiveIn));
         if (predBlock)
         {
             JITDUMP("\n\nSetting BB%02u as the predecessor for determining incoming variable registers of BB%02u\n",
@@ -4713,7 +4713,7 @@ void LinearScan::buildIntervals()
         // Note that a block ending with GT_JMP has no successors and hence the variables
         // for which dummy use ref positions are added are arguments of the method.
 
-        VARSET_TP   VARSET_INIT(compiler, expUseSet, block->bbLiveOut);
+        VARSET_TP   expUseSet(VarSetOps::MakeCopy(compiler, block->bbLiveOut));
         BasicBlock* nextBlock = getNextBlock();
         if (nextBlock != nullptr)
         {

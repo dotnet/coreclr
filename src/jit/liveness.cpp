@@ -1435,7 +1435,7 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet)
 
 VARSET_VALRET_TP Compiler::fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTreePtr tree)
 {
-    VARSET_TP VARSET_INIT(this, newLiveSet, liveSet);
+    VARSET_TP newLiveSet(VarSetOps::MakeCopy(this, liveSet));
     assert(fgLocalVarLivenessDone == true);
     GenTreePtr lclVarTree = tree; // After the tests below, "lclVarTree" will be the local variable.
     if (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD || tree->gtOper == GT_REG_VAR ||
@@ -1824,9 +1824,9 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
     GenTreePtr tree;
     unsigned   lclNum;
 
-    VARSET_TP VARSET_INIT(this, life, lifeArg); // lifeArg is const ref; copy to allow modification.
+    VARSET_TP life(VarSetOps::MakeCopy(this, lifeArg)); // lifeArg is const ref; copy to allow modification.
 
-    VARSET_TP VARSET_INIT(this, keepAliveVars, volatileVars);
+    VARSET_TP keepAliveVars(VarSetOps::MakeCopy(this, volatileVars));
     VarSetOps::UnionD(this, keepAliveVars, compCurBB->bbScope); // Don't kill vars in scope
 
     noway_assert(VarSetOps::IsSubset(this, keepAliveVars, life));
@@ -1872,9 +1872,9 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
 
 VARSET_VALRET_TP Compiler::fgComputeLifeLIR(VARSET_VALARG_TP lifeArg, BasicBlock* block, VARSET_VALARG_TP volatileVars)
 {
-    VARSET_TP VARSET_INIT(this, life, lifeArg); // lifeArg is const ref; copy to allow modification.
+    VARSET_TP life(VarSetOps::MakeCopy(this, lifeArg)); // lifeArg is const ref; copy to allow modification.
 
-    VARSET_TP VARSET_INIT(this, keepAliveVars, volatileVars);
+    VARSET_TP keepAliveVars(VarSetOps::MakeCopy(this, volatileVars));
     VarSetOps::UnionD(this, keepAliveVars, block->bbScope); // Don't kill vars in scope
 
     noway_assert(VarSetOps::IsSubset(this, keepAliveVars, life));
@@ -1928,14 +1928,14 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
     GenTreePtr nextColonExit = 0;    // gtQMark->gtOp.gtOp2 while walking the 'else' branch.
                                      // gtQMark->gtOp.gtOp1 while walking the 'then' branch
 
-    VARSET_TP VARSET_INIT(this, life, lifeArg); // lifeArg is const ref; copy to allow modification.
+    VARSET_TP life(VarSetOps::MakeCopy(this, lifeArg)); // lifeArg is const ref; copy to allow modification.
 
     // TBD: This used to be an initialization to VARSET_NOT_ACCEPTABLE.  Try to figure out what's going on here.
     VARSET_TP  entryLiveSet(VarSetOps::MakeFull(this));   // liveness when we see gtQMark
     VARSET_TP  gtColonLiveSet(VarSetOps::MakeFull(this)); // liveness when we see gtColon
     GenTreePtr gtColon = NULL;
 
-    VARSET_TP VARSET_INIT(this, keepAliveVars, volatileVars);
+    VARSET_TP keepAliveVars(VarSetOps::MakeCopy(this, volatileVars));
     VarSetOps::UnionD(this, keepAliveVars, compCurBB->bbScope); /* Dont kill vars in scope */
 
     noway_assert(VarSetOps::Equal(this, VarSetOps::Intersection(this, keepAliveVars, life), keepAliveVars));
@@ -2916,7 +2916,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 
         /* Start with the variables live on exit from the block */
 
-        VARSET_TP VARSET_INIT(this, life, block->bbLiveOut);
+        VARSET_TP life(VarSetOps::MakeCopy(this, block->bbLiveOut));
 
         /* Mark any interference we might have at the end of the block */
 

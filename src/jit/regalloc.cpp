@@ -474,7 +474,7 @@ void Compiler::raDispFPlifeInfo()
         dispLifeSet(this, optAllFloatVars, block->bbLiveIn);
         printf("]\n\n");
 
-        VARSET_TP VARSET_INIT(this, life, block->bbLiveIn);
+        VARSET_TP life(VarSetOps::MakeCopy(this, block->bbLiveIn));
         for (stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
         {
             GenTreePtr tree;
@@ -2443,7 +2443,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
         if (lastUse)
         {
             VarSetOps::UnionD(this, rpLastUseVars, lastUseVarBits);
-            VARSET_TP VARSET_INIT(this, varAsSet, lastUseVarBits);
+            VARSET_TP varAsSet(VarSetOps::MakeCopy(this, lastUseVarBits));
 
             /*
              *  Add interference from any previously locked temps into this last use variable.
@@ -3216,7 +3216,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
             case GT_NULLCHECK: // At this point, nullcheck is just like an IND...
             {
                 bool      intoReg = true;
-                VARSET_TP VARSET_INIT(this, startIndUseInPlaceVars, rpUseInPlace);
+                VARSET_TP startIndUseInPlaceVars(VarSetOps::MakeCopy(this, rpUseInPlace));
 
                 if (fgIsIndirOfAddrOfLocal(tree) != NULL)
                 {
@@ -3961,7 +3961,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                         //     we add an interference with REG_SHIFT for any other LclVars alive at op2
                         if (REG_SHIFT != REG_NA)
                         {
-                            VARSET_TP VARSET_INIT(this, liveSet, compCurLife);
+                            VARSET_TP liveSet(VarSetOps::MakeCopy(this, compCurLife));
 
                             while (op2->gtOper == GT_COMMA)
                             {
@@ -4111,7 +4111,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     lockedRegs &= ~tmpMask;
                 }
                 {
-                    VARSET_TP VARSET_INIT(this, startQmarkCondUseInPlaceVars, rpUseInPlace);
+                    VARSET_TP startQmarkCondUseInPlaceVars(VarSetOps::MakeCopy(this, rpUseInPlace));
 
                     /* Evaluate the <cond> subtree */
                     rpPredictTreeRegUse(op1, PREDICT_NONE, lockedRegs, RBM_LASTUSE);
@@ -4171,7 +4171,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef DEBUG
-                    VARSET_TP VARSET_INIT(this, postThenLive, compCurLife);
+                    VARSET_TP postThenLive(VarSetOps::MakeCopy(this, compCurLife));
 #endif
 
                     VarSetOps::Assign(this, compCurLife, tree->gtQmark.gtElseLiveSet);
