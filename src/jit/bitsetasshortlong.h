@@ -525,7 +525,9 @@ public:
                     // and exit.
                     ++m_bs;
                     if (m_bs == m_bsEnd)
+                    {
                         return false;
+                    }
 
                     // If we get here, it's not a short type, so get the next size_t element.
                     m_bitNum += sizeof(size_t) * BitSetSupport::BitsInByte;
