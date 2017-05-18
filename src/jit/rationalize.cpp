@@ -577,7 +577,7 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                     storeOper = GT_STORE_OBJ;
                     break;
                 case GT_DYN_BLK:
-                    storeOper = GT_STORE_DYN_BLK;
+                    storeOper                             = GT_STORE_DYN_BLK;
                     storeBlk->AsDynBlk()->gtEvalSizeFirst = false;
                     break;
                 default:
@@ -587,8 +587,8 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                     GenTree::NodeName(storeOper));
             storeBlk->SetOperRaw(storeOper);
             storeBlk->gtFlags &= ~GTF_DONT_CSE;
-            storeBlk->gtFlags |= (assignment->gtFlags & (GTF_ALL_EFFECT | GTF_BLK_VOLATILE |
-                                                         GTF_BLK_UNALIGNED | GTF_DONT_CSE));
+            storeBlk->gtFlags |=
+                (assignment->gtFlags & (GTF_ALL_EFFECT | GTF_BLK_VOLATILE | GTF_BLK_UNALIGNED | GTF_DONT_CSE));
             storeBlk->gtBlk.Data() = value;
 
             // Replace the assignment node with the store

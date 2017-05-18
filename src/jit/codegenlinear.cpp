@@ -1514,7 +1514,7 @@ void CodeGen::genConsumeBlockOp(GenTreeBlk* blkNode, regNumber dstReg, regNumber
     // to the REQUIRED register (if a fixed register requirement) in execution order.  This requires,
     // then, that we first consume all the operands, then do any necessary moves.
 
-    GenTree* const dstAddr  = blkNode->Addr();
+    GenTree* const dstAddr = blkNode->Addr();
 
     // First, consume all the sources in order.
     genConsumeReg(dstAddr);
