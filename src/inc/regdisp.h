@@ -323,6 +323,7 @@ inline void SyncRegDisplayToCurrentContext(REGDISPLAY* pRD)
 
 typedef REGDISPLAY *PREGDISPLAY;
 
+#ifdef WIN64EXCEPTIONS
 inline void FillContextPointers(PT_KNONVOLATILE_CONTEXT_POINTERS pCtxPtrs, PT_CONTEXT pCtx)
 {
 #ifdef _TARGET_AMD64_
@@ -350,6 +351,7 @@ inline void FillContextPointers(PT_KNONVOLATILE_CONTEXT_POINTERS pCtxPtrs, PT_CO
     PORTABILITY_ASSERT("FillContextPointers");
 #endif // _TARGET_???_ (ELSE)
 }
+#endif // WIN64EXCEPTIONS
 
 inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pCallerCtx = NULL)
 {
