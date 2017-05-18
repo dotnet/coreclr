@@ -436,15 +436,16 @@ public:
     class Iter
     {
         BaseIter m_iter;
+        Env      m_env;
 
     public:
-        Iter(Env env, BitSetValueArgType bs) : m_iter(env, bs)
+        Iter(Env env, BitSetValueArgType bs) : m_iter(env, bs), m_env(env)
         {
         }
 
         bool NextElem(unsigned* pElem)
         {
-            BitSetTraits::GetOpCounter(env)->RecordOp(BitSetSupport::BSOP_NextBit);
+            BitSetTraits::GetOpCounter(m_env)->RecordOp(BitSetSupport::BSOP_NextBit);
             return m_iter.NextElem(pElem);
         }
     };

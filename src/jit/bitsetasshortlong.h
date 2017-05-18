@@ -457,20 +457,29 @@ public:
 
     class Iter
     {
-        BitSetShortLongRep m_bs;   // The BitSet that we're iterating over.
-        size_t             m_bits; // The "current" bits remaining to be iterated over.
+        // The BitSet that we're iterating over.
+        BitSetShortLongRep m_bs;
+
+        // The "current" bits remaining to be iterated over.
         // In the "short" case, these are all the remaining bits.
         // In the "long" case, these are remaining bits in element "m_index";
         // these and the bits in the remaining elements comprise the remaining bits.
-        unsigned m_index; // If "m_bs" uses the long (indirect) representation, the current index in the array.
+        size_t m_bits;
+
+        // If "m_bs" uses the long (indirect) representation, the current index in the array.
         // the index of the element in A(bs) that is currently being iterated.
-        unsigned m_bitNum; // The number of bits that have already been iterated over (set or clear).  If you
+        unsigned m_index;
+
+        // The number of bits that have already been iterated over (set or clear).  If you
         // add this to the bit number of the next bit in "m_bits", you get the proper bit number of that
         // bit in "m_bs".
-        Env m_env;
+        unsigned m_bitNum;
+
+        // Cached array size, as returned by BitSetTraits::GetArrSize().
+        unsigned m_arraySize;
 
     public:
-        Iter(Env env, const BitSetShortLongRep& bs) : m_env(env), m_bs(bs), m_bitNum(0), m_index(0)
+        Iter(Env env, const BitSetShortLongRep& bs) : m_bs(bs), m_index(0), m_bitNum(0)
         {
             if (BitSetOps::IsShort(env))
             {
@@ -481,6 +490,8 @@ public:
                 assert(bs != BitSetOps::UninitVal());
                 m_bits = bs[0];
             }
+
+            m_arraySize = BitSetTraits::GetArrSize(env, sizeof(size_t));
         }
 
         bool NextElem(unsigned* pElem)
@@ -509,15 +520,14 @@ public:
                 }
                 else
                 {
-                    unsigned len = BitSetTraits::GetArrSize(m_env, sizeof(size_t));
-                    if (len <= 1)
+                    if (m_arraySize <= 1)
                     {
                         return false;
                     }
                     else
                     {
                         m_index++;
-                        if (m_index == len)
+                        if (m_index == m_arraySize)
                         {
                             return false;
                         }
