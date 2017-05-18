@@ -457,41 +457,42 @@ public:
 
     class Iter
     {
-        // The BitSet that we're iterating over.
+        // The BitSet that we're iterating over. This is updated to point at the current
+        // size_t set of bits.
         BitSetShortLongRep m_bs;
 
-        // The "current" bits remaining to be iterated over.
+        // The end of the iteration.
+        BitSetShortLongRep m_bsEnd;
+
+        // The remaining bits to be iterated over in the current size_t set of bits.
         // In the "short" case, these are all the remaining bits.
-        // In the "long" case, these are remaining bits in element "m_index";
+        // In the "long" case, these are remaining bits in the current element;
         // these and the bits in the remaining elements comprise the remaining bits.
         size_t m_bits;
 
-        // If "m_bs" uses the long (indirect) representation, the current index in the array.
-        // the index of the element in A(bs) that is currently being iterated.
-        unsigned m_index;
-
-        // The number of bits that have already been iterated over (set or clear).  If you
+        // The number of bits that have already been iterated over (set or clear). If you
         // add this to the bit number of the next bit in "m_bits", you get the proper bit number of that
-        // bit in "m_bs".
+        // bit in "m_bs". This is only updated when we increment m_bs.
         unsigned m_bitNum;
 
-        // Cached array size, as returned by BitSetTraits::GetArrSize().
-        unsigned m_arraySize;
-
     public:
-        Iter(Env env, const BitSetShortLongRep& bs) : m_bs(bs), m_index(0), m_bitNum(0)
+        Iter(Env env, const BitSetShortLongRep& bs) : m_bs(bs), m_bitNum(0)
         {
             if (BitSetOps::IsShort(env))
             {
                 m_bits = (size_t)bs;
+
+                // Set the iteration end condition, valid even though this is not a pointer in the short case.
+                m_bsEnd = bs + 1;
             }
             else
             {
                 assert(bs != BitSetOps::UninitVal());
                 m_bits = bs[0];
-            }
 
-            m_arraySize = BitSetTraits::GetArrSize(env, sizeof(size_t));
+                unsigned len = BitSetTraits::GetArrSize(env, sizeof(size_t));
+                m_bsEnd = bs + len;
+            }
         }
 
         bool NextElem(unsigned* pElem)
@@ -520,22 +521,15 @@ public:
                 }
                 else
                 {
-                    if (m_arraySize <= 1)
-                    {
+                    // Go to the next size_t bit element. For short bitsets, this will hit the end condition
+                    // and exit.
+                    ++m_bs;
+                    if (m_bs == m_bsEnd)
                         return false;
-                    }
-                    else
-                    {
-                        m_index++;
-                        if (m_index == m_arraySize)
-                        {
-                            return false;
-                        }
-                        // Otherwise...
-                        m_bitNum += sizeof(size_t) * BitSetSupport::BitsInByte;
-                        m_bits = m_bs[m_index];
-                        continue;
-                    }
+
+                    // If we get here, it's not a short type, so get the next size_t element.
+                    m_bitNum += sizeof(size_t) * BitSetSupport::BitsInByte;
+                    m_bits = *m_bs;
                 }
             }
         }
