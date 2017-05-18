@@ -505,7 +505,11 @@ Thread * GetThread();
 
 typedef void (CALLBACK *HANDLESCANPROC)(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2);
 
-bool IsGCSpecialThread();
+inline bool IsGCSpecialThread()
+{
+    // [LOCALGC TODO] this is not correct
+    return false;
+}
 
 inline bool dbgOnly_IsSpecialEEThread()
 {
@@ -545,7 +549,11 @@ void LogSpewAlways(const char *fmt, ...);
 
 // -----------------------------------------------------------------------------------------------------------
 
-bool IsGCThread();
+inline bool IsGCThread()
+{
+    // [LOCALGC TODO] this is not correct
+    return false;
+}
 
 class CLRConfig
 {
