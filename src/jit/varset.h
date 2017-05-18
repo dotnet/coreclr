@@ -188,17 +188,10 @@ typedef AllVarSetOps::RetValType ALLVARSET_VALRET_TP;
 
 // Initializes "varName" to "initVal", without copying: if "initVal" is an indirect representation, copies its
 // pointer into "varName".
-#if defined(DEBUG) && VARSET_REP_IS_CLASS
-#define VARSET_INIT_NOCOPY(varName, initVal) varName(initVal, 0)
-#else
-#define VARSET_INIT_NOCOPY(varName, initVal) varName(initVal)
-#endif
 
-#if defined(DEBUG) && ALLVARSET_REP_IS_CLASS
-#define ALLVARSET_INIT_NOCOPY(varName, initVal) varName(initVal, 0)
-#else
+#define VARSET_INIT_NOCOPY(varName, initVal) varName(initVal)
+
 #define ALLVARSET_INIT_NOCOPY(varName, initVal) varName(initVal)
-#endif
 
 // The iterator pattern.
 
