@@ -45,7 +45,7 @@ class AppDomain;
  #endif 
 #endif // _TARGET_X86_ && !FEATURE_PAL
 
-#if !defined(_TARGET_X86_)
+#if defined(WIN64EXCEPTIONS)
 #define RECORD_RESUMABLE_FRAME_SP
 #endif
 
