@@ -88,7 +88,7 @@ void Compiler::fgMarkUseDef(GenTreeLclVarCommon* tree)
 
             if (promotionType != PROMOTION_TYPE_NONE)
             {
-                VARSET_TP VARSET_INIT_NOCOPY(bitMask, VarSetOps::MakeEmpty(this));
+                VARSET_TP bitMask(VarSetOps::MakeEmpty(this));
 
                 for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
                 {
@@ -189,7 +189,7 @@ void Compiler::fgLocalVarLivenessInit()
     /* If we're not optimizing at all, things are simple */
     if (opts.MinOpts())
     {
-        VARSET_TP VARSET_INIT_NOCOPY(allOnes, VarSetOps::MakeFull(this));
+        VARSET_TP allOnes(VarSetOps::MakeFull(this));
         for (unsigned i = 0; i < lvaTrackedCount; i++)
         {
             VarSetOps::Assign(this, lvaVarIntf[i], allOnes);
@@ -431,7 +431,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
         unsigned   lclNum;
         LclVarDsc* varDsc;
 
-        VARSET_TP VARSET_INIT_NOCOPY(liveAll, VarSetOps::MakeEmpty(this));
+        VARSET_TP liveAll(VarSetOps::MakeEmpty(this));
 
         /* We simply make everything live everywhere */
 
@@ -549,7 +549,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
 #ifdef DEBUG
         if (verbose)
         {
-            VARSET_TP VARSET_INIT_NOCOPY(allVars, VarSetOps::Union(this, fgCurUseSet, fgCurDefSet));
+            VARSET_TP allVars(VarSetOps::Union(this, fgCurUseSet, fgCurDefSet));
             printf("BB%02u", block->bbNum);
             printf(" USE(%d)=", VarSetOps::Count(this, fgCurUseSet));
             lvaDispVarSet(fgCurUseSet, allVars);
@@ -712,7 +712,7 @@ void Compiler::fgExtendDbgScopes()
     }
 #endif // DEBUG
 
-    VARSET_TP VARSET_INIT_NOCOPY(inScope, VarSetOps::MakeEmpty(this));
+    VARSET_TP inScope(VarSetOps::MakeEmpty(this));
 
     // Mark all tracked LocalVars live over their scope - walk the blocks
     // keeping track of the current life, and assign it to the blocks.
@@ -762,7 +762,7 @@ void Compiler::fgExtendDbgScopes()
     }
 #endif // DEBUG
 
-    VARSET_TP VARSET_INIT_NOCOPY(inScope, VarSetOps::MakeEmpty(this));
+    VARSET_TP inScope(VarSetOps::MakeEmpty(this));
     compProcessScopesUntil(0, &inScope, &Compiler::fgBeginScopeLife, &Compiler::fgEndScopeLife);
 
     IL_OFFSET lastEndOffs = 0;
@@ -865,7 +865,7 @@ void Compiler::fgExtendDbgLifetimes()
 
     assert(fgFirstBBisScratch());
 
-    VARSET_TP VARSET_INIT_NOCOPY(trackedArgs, VarSetOps::MakeEmpty(this));
+    VARSET_TP trackedArgs(VarSetOps::MakeEmpty(this));
 
     for (unsigned argNum = 0; argNum < info.compArgsCount; argNum++)
     {
@@ -892,7 +892,7 @@ void Compiler::fgExtendDbgLifetimes()
     }
 
     // Don't unmark struct locals, either.
-    VARSET_TP VARSET_INIT_NOCOPY(noUnmarkVars, trackedArgs);
+    VARSET_TP noUnmarkVars(trackedArgs);
 
     for (unsigned i = 0; i < lvaCount; i++)
     {
@@ -911,7 +911,7 @@ void Compiler::fgExtendDbgLifetimes()
      * garbage until they are initialized by the IL code.
      */
 
-    VARSET_TP VARSET_INIT_NOCOPY(initVars, VarSetOps::MakeEmpty(this)); // Vars which are artificially made alive
+    VARSET_TP initVars(VarSetOps::MakeEmpty(this)); // Vars which are artificially made alive
 
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
@@ -1086,7 +1086,7 @@ VARSET_VALRET_TP Compiler::fgGetHandlerLiveVars(BasicBlock* block)
     noway_assert(block);
     noway_assert(ehBlockHasExnFlowDsc(block));
 
-    VARSET_TP VARSET_INIT_NOCOPY(liveVars, VarSetOps::MakeEmpty(this));
+    VARSET_TP liveVars(VarSetOps::MakeEmpty(this));
     EHblkDsc* HBtab = ehGetBlockExnFlowDsc(block);
 
     do
@@ -1200,7 +1200,7 @@ class LiveVarAnalysis
 
         if (m_compiler->ehBlockHasExnFlowDsc(block))
         {
-            VARSET_TP VARSET_INIT_NOCOPY(liveVars, m_compiler->fgGetHandlerLiveVars(block));
+            const VARSET_TP& liveVars(m_compiler->fgGetHandlerLiveVars(block));
 
             VarSetOps::UnionD(m_compiler, m_liveIn, liveVars);
             VarSetOps::UnionD(m_compiler, m_liveOut, liveVars);
@@ -1365,7 +1365,7 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet1, VARSET_VALARG_TP varSet2)
         if (VarSetOps::IsMember(this, varSet1, refIndex))
         {
             // Calculate the set of new interference to add
-            VARSET_TP VARSET_INIT_NOCOPY(newIntf, VarSetOps::Diff(this, varSet2, lvaVarIntf[refIndex]));
+            VARSET_TP newIntf(VarSetOps::Diff(this, varSet2, lvaVarIntf[refIndex]));
             if (!VarSetOps::IsEmpty(this, newIntf))
             {
                 addedIntf = true;
@@ -1377,7 +1377,7 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet1, VARSET_VALARG_TP varSet2)
         if (VarSetOps::IsMember(this, varSet2, refIndex))
         {
             // Calculate the set of new interference to add
-            VARSET_TP VARSET_INIT_NOCOPY(newIntf, VarSetOps::Diff(this, varSet1, lvaVarIntf[refIndex]));
+            VARSET_TP newIntf(VarSetOps::Diff(this, varSet1, lvaVarIntf[refIndex]));
             if (!VarSetOps::IsEmpty(this, newIntf))
             {
                 addedIntf = true;
@@ -1415,7 +1415,7 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet)
     while (iter.NextElem(&refIndex))
     {
         // Calculate the set of new interference to add
-        VARSET_TP VARSET_INIT_NOCOPY(newIntf, VarSetOps::Diff(this, varSet, lvaVarIntf[refIndex]));
+        VARSET_TP newIntf(VarSetOps::Diff(this, varSet, lvaVarIntf[refIndex]));
         if (!VarSetOps::IsEmpty(this, newIntf))
         {
             addedIntf = true;
@@ -1441,7 +1441,7 @@ VARSET_VALRET_TP Compiler::fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTreePtr 
     if (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD || tree->gtOper == GT_REG_VAR ||
         (lclVarTree = fgIsIndirOfAddrOfLocal(tree)) != nullptr)
     {
-        VARSET_TP VARSET_INIT_NOCOPY(varBits, fgGetVarBits(lclVarTree));
+        const VARSET_TP& varBits(fgGetVarBits(lclVarTree));
 
         if (!VarSetOps::IsEmpty(this, varBits))
         {
@@ -1512,7 +1512,7 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
 
             if (frameVarDsc->lvTracked)
             {
-                VARSET_TP VARSET_INIT_NOCOPY(varBit, VarSetOps::MakeSingleton(this, frameVarDsc->lvVarIndex));
+                VARSET_TP varBit(VarSetOps::MakeSingleton(this, frameVarDsc->lvVarIndex));
 
                 VarSetOps::AddElemD(this, life, frameVarDsc->lvVarIndex);
 
@@ -1564,7 +1564,7 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
 
                 // Record an interference with the other live variables
                 //
-                VARSET_TP VARSET_INIT_NOCOPY(varBit, VarSetOps::MakeSingleton(this, varIndex));
+                VARSET_TP varBit(VarSetOps::MakeSingleton(this, varIndex));
                 fgMarkIntf(life, varBit);
             }
         }
@@ -1931,8 +1931,8 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
     VARSET_TP VARSET_INIT(this, life, lifeArg); // lifeArg is const ref; copy to allow modification.
 
     // TBD: This used to be an initialization to VARSET_NOT_ACCEPTABLE.  Try to figure out what's going on here.
-    VARSET_TP  VARSET_INIT_NOCOPY(entryLiveSet, VarSetOps::MakeFull(this));   // liveness when we see gtQMark
-    VARSET_TP  VARSET_INIT_NOCOPY(gtColonLiveSet, VarSetOps::MakeFull(this)); // liveness when we see gtColon
+    VARSET_TP  entryLiveSet(VarSetOps::MakeFull(this));   // liveness when we see gtQMark
+    VARSET_TP  gtColonLiveSet(VarSetOps::MakeFull(this)); // liveness when we see gtColon
     GenTreePtr gtColon = NULL;
 
     VARSET_TP VARSET_INIT(this, keepAliveVars, volatileVars);
@@ -2089,7 +2089,7 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
                     gtReverseCond(tree);
 
                     // Remember to also swap the live sets of the two branches.
-                    VARSET_TP VARSET_INIT_NOCOPY(tmpVS, gtQMark->gtQmark.gtElseLiveSet);
+                    const VARSET_TP& tmpVS(gtQMark->gtQmark.gtElseLiveSet);
                     VarSetOps::AssignNoCopy(this, gtQMark->gtQmark.gtElseLiveSet, gtQMark->gtQmark.gtThenLiveSet);
                     VarSetOps::AssignNoCopy(this, gtQMark->gtQmark.gtThenLiveSet, tmpVS);
 
@@ -2786,9 +2786,9 @@ void Compiler::fgInterBlockLocalVarLiveness()
      */
     BasicBlock* block;
 
-    VARSET_TP VARSET_INIT_NOCOPY(exceptVars, VarSetOps::MakeEmpty(this));  // vars live on entry to a handler
-    VARSET_TP VARSET_INIT_NOCOPY(finallyVars, VarSetOps::MakeEmpty(this)); // vars live on exit of a 'finally' block
-    VARSET_TP VARSET_INIT_NOCOPY(filterVars, VarSetOps::MakeEmpty(this));  // vars live on exit from a 'filter'
+    VARSET_TP exceptVars(VarSetOps::MakeEmpty(this));  // vars live on entry to a handler
+    VARSET_TP finallyVars(VarSetOps::MakeEmpty(this)); // vars live on exit of a 'finally' block
+    VARSET_TP filterVars(VarSetOps::MakeEmpty(this));  // vars live on exit from a 'filter'
 
     for (block = fgFirstBB; block; block = block->bbNext)
     {
@@ -2904,7 +2904,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
         /* Remember those vars live on entry to exception handlers */
         /* if we are part of a try block */
 
-        VARSET_TP VARSET_INIT_NOCOPY(volatileVars, VarSetOps::MakeEmpty(this));
+        VARSET_TP volatileVars(VarSetOps::MakeEmpty(this));
 
         if (ehBlockHasExnFlowDsc(block))
         {
@@ -3016,7 +3016,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 
 void Compiler::fgDispBBLiveness(BasicBlock* block)
 {
-    VARSET_TP VARSET_INIT_NOCOPY(allVars, VarSetOps::Union(this, block->bbLiveIn, block->bbLiveOut));
+    VARSET_TP allVars(VarSetOps::Union(this, block->bbLiveIn, block->bbLiveOut));
     printf("BB%02u", block->bbNum);
     printf(" IN (%d)=", VarSetOps::Count(this, block->bbLiveIn));
     lvaDispVarSet(block->bbLiveIn, allVars);

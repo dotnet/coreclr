@@ -799,7 +799,7 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
     // For RyuJIT backend, since all tracked vars are register candidates, but not all are in registers at all times,
     // we maintain two separate sets of variables - the total set of variables that are either
     // born or dying here, and the subset of those that are on the stack
-    VARSET_TP VARSET_INIT_NOCOPY(stackVarDeltaSet, VarSetOps::MakeEmpty(this));
+    VARSET_TP stackVarDeltaSet(VarSetOps::MakeEmpty(this));
 #endif // !LEGACY_BACKEND
 
     if (isBorn || isDying)
@@ -807,7 +807,7 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
         bool hasDeadTrackedFieldVars = false; // If this is true, then, for a LDOBJ(ADDR(<promoted struct local>)),
         VARSET_TP* deadTrackedFieldVars =
             nullptr; // *deadTrackedFieldVars indicates which tracked field vars are dying.
-        VARSET_TP VARSET_INIT_NOCOPY(varDeltaSet, VarSetOps::MakeEmpty(this));
+        VARSET_TP varDeltaSet(VarSetOps::MakeEmpty(this));
 
         if (varDsc->lvTracked)
         {
@@ -953,9 +953,8 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
             // Only add vars to the gcInfo.gcVarPtrSetCur if they are currently on stack, since the
             // gcInfo.gcTrkStkPtrLcls
             // includes all TRACKED vars that EVER live on the stack (i.e. are not always in a register).
-            VARSET_TP VARSET_INIT_NOCOPY(gcTrkStkDeltaSet,
-                                         VarSetOps::Intersection(this, codeGen->gcInfo.gcTrkStkPtrLcls,
-                                                                 stackVarDeltaSet));
+            VARSET_TP gcTrkStkDeltaSet(
+                VarSetOps::Intersection(this, codeGen->gcInfo.gcTrkStkPtrLcls, stackVarDeltaSet));
             if (!VarSetOps::IsEmpty(this, gcTrkStkDeltaSet))
             {
 #ifdef DEBUG
@@ -990,8 +989,7 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
 #ifdef DEBUG
             if (verbose)
             {
-                VARSET_TP VARSET_INIT_NOCOPY(gcVarPtrSetNew,
-                                             VarSetOps::Intersection(this, newLife, codeGen->gcInfo.gcTrkStkPtrLcls));
+                VARSET_TP gcVarPtrSetNew(VarSetOps::Intersection(this, newLife, codeGen->gcInfo.gcTrkStkPtrLcls));
                 if (!VarSetOps::Equal(this, codeGen->gcInfo.gcVarPtrSetCur, gcVarPtrSetNew))
                 {
                     printf("\t\t\t\t\t\t\tGCvars: ");
