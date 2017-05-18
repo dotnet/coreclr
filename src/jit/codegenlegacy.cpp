@@ -5626,7 +5626,7 @@ void CodeGen::genCodeForQmark(GenTreePtr tree, regMaskTP destReg, regMaskTP best
             // If any candidates are not alive at the GT_QMARK node, then they
             // need to be spilled
 
-            VARSET_TP rsLiveNow(VarSetOps::MakeCopy(compiler, compiler->compCurLife));
+            VARSET_VALARG_TP rsLiveNow(compiler->compCurLife);
             VARSET_TP rsLiveAfter(compiler->fgUpdateLiveSet(compiler->compCurLife, compiler->compCurLifeTree, tree));
 
             VARSET_TP regVarLiveNow(VarSetOps::Intersection(compiler, compiler->raRegVarsMask, rsLiveNow));
@@ -20615,6 +20615,7 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
     GenTreePtr tree;
 
     VARSET_TP defSet_BeforeSplit(VarSetOps::MakeCopy(this, fgCurDefSet)); // Store the current fgCurDefSet and
+                                                                          // fgCurUseSet so
     VARSET_TP useSet_BeforeSplit(VarSetOps::MakeCopy(this, fgCurUseSet)); // we can restore then before entering the
                                                                           // elseTree.
 

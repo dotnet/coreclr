@@ -1200,7 +1200,7 @@ class LiveVarAnalysis
 
         if (m_compiler->ehBlockHasExnFlowDsc(block))
         {
-            const VARSET_TP& liveVars(m_compiler->fgGetHandlerLiveVars(block));
+            VARSET_VALARG_TP liveVars(m_compiler->fgGetHandlerLiveVars(block));
 
             VarSetOps::UnionD(m_compiler, m_liveIn, liveVars);
             VarSetOps::UnionD(m_compiler, m_liveOut, liveVars);
@@ -1441,7 +1441,7 @@ VARSET_VALRET_TP Compiler::fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTreePtr 
     if (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD || tree->gtOper == GT_REG_VAR ||
         (lclVarTree = fgIsIndirOfAddrOfLocal(tree)) != nullptr)
     {
-        const VARSET_TP& varBits(fgGetVarBits(lclVarTree));
+        VARSET_VALARG_TP varBits(fgGetVarBits(lclVarTree));
 
         if (!VarSetOps::IsEmpty(this, varBits))
         {
@@ -1626,7 +1626,7 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
 //    `true` if the local var node corresponds to a dead store; `false`
 //    otherwise.
 //
-bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_TP& keepAliveVars, GenTree* lclVarNode, GenTree* node)
+bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode, GenTree* node)
 {
     unsigned lclNum = lclVarNode->gtLclVarCommon.gtLclNum;
 
@@ -1870,10 +1870,8 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
     return life;
 }
 
-VARSET_VALRET_TP Compiler::fgComputeLifeLIR(VARSET_VALARG_TP lifeArg, BasicBlock* block, VARSET_VALARG_TP volatileVars)
+void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars)
 {
-    VARSET_TP life(VarSetOps::MakeCopy(this, lifeArg)); // lifeArg is const ref; copy to allow modification.
-
     VARSET_TP keepAliveVars(VarSetOps::MakeCopy(this, volatileVars));
     VarSetOps::UnionD(this, keepAliveVars, block->bbScope); // Don't kill vars in scope
 
@@ -1881,31 +1879,27 @@ VARSET_VALRET_TP Compiler::fgComputeLifeLIR(VARSET_VALARG_TP lifeArg, BasicBlock
 
     LIR::Range& blockRange      = LIR::AsRange(block);
     GenTree*    firstNonPhiNode = blockRange.FirstNonPhiNode();
-    if (firstNonPhiNode == nullptr)
+    if (firstNonPhiNode != nullptr)
     {
-        return life;
-    }
-
-    for (GenTree *node = blockRange.LastNode(), *next = nullptr, *end = firstNonPhiNode->gtPrev; node != end;
-         node = next)
-    {
-        next = node->gtPrev;
-
-        if (node->OperGet() == GT_CALL)
+        for (GenTree *node = blockRange.LastNode(), *next = nullptr, *end = firstNonPhiNode->gtPrev; node != end;
+             node = next)
         {
-            fgComputeLifeCall(life, node->AsCall());
-        }
-        else if (node->OperIsNonPhiLocal() || node->OperIsLocalAddr())
-        {
-            bool isDeadStore = fgComputeLifeLocal(life, keepAliveVars, node, node);
-            if (isDeadStore && fgTryRemoveDeadLIRStore(blockRange, node, &next))
+            next = node->gtPrev;
+
+            if (node->OperGet() == GT_CALL)
             {
-                fgStmtRemoved = true;
+                fgComputeLifeCall(life, node->AsCall());
+            }
+            else if (node->OperIsNonPhiLocal() || node->OperIsLocalAddr())
+            {
+                bool isDeadStore = fgComputeLifeLocal(life, keepAliveVars, node, node);
+                if (isDeadStore && fgTryRemoveDeadLIRStore(blockRange, node, &next))
+                {
+                    fgStmtRemoved = true;
+                }
             }
         }
     }
-
-    return life;
 }
 
 #else // LEGACY_BACKEND
@@ -2089,7 +2083,7 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
                     gtReverseCond(tree);
 
                     // Remember to also swap the live sets of the two branches.
-                    const VARSET_TP& tmpVS(gtQMark->gtQmark.gtElseLiveSet);
+                    VARSET_VALARG_TP tmpVS(gtQMark->gtQmark.gtElseLiveSet);
                     VarSetOps::AssignNoCopy(this, gtQMark->gtQmark.gtElseLiveSet, gtQMark->gtQmark.gtThenLiveSet);
                     VarSetOps::AssignNoCopy(this, gtQMark->gtQmark.gtThenLiveSet, tmpVS);
 
@@ -2346,8 +2340,11 @@ bool Compiler::fgTryRemoveDeadLIRStore(LIR::Range& blockRange, GenTree* node, Ge
 //
 // Returns: true if we should skip the rest of the statement, false if we should continue
 
-bool Compiler::fgRemoveDeadStore(
-    GenTree** pTree, LclVarDsc* varDsc, VARSET_TP life, bool* doAgain, bool* pStmtInfoDirty DEBUGARG(bool* treeModf))
+bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
+                                 LclVarDsc*       varDsc,
+                                 VARSET_VALARG_TP life,
+                                 bool*            doAgain,
+                                 bool* pStmtInfoDirty DEBUGARG(bool* treeModf))
 {
     assert(!compRationalIRForm);
 
@@ -2975,7 +2972,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 #ifdef LEGACY_BACKEND
             unreached();
 #else  // !LEGACY_BACKEND
-            VarSetOps::AssignNoCopy(this, life, fgComputeLifeLIR(life, block, volatileVars));
+            fgComputeLifeLIR(life, block, volatileVars);
 #endif // !LEGACY_BACKEND
         }
 

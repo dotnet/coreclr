@@ -3753,7 +3753,7 @@ public:
 
     void fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call);
 
-    bool fgComputeLifeLocal(VARSET_TP& life, VARSET_TP& keepAliveVars, GenTree* lclVarNode, GenTree* node);
+    bool fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode, GenTree* node);
 
     VARSET_VALRET_TP fgComputeLife(VARSET_VALARG_TP life,
                                    GenTreePtr       startNode,
@@ -3761,12 +3761,12 @@ public:
                                    VARSET_VALARG_TP volatileVars,
                                    bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
 
-    VARSET_VALRET_TP fgComputeLifeLIR(VARSET_VALARG_TP life, BasicBlock* block, VARSET_VALARG_TP volatileVars);
+    void fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars);
 
-    bool fgRemoveDeadStore(GenTree**  pTree,
-                           LclVarDsc* varDsc,
-                           VARSET_TP  life,
-                           bool*      doAgain,
+    bool fgRemoveDeadStore(GenTree**        pTree,
+                           LclVarDsc*       varDsc,
+                           VARSET_VALARG_TP life,
+                           bool*            doAgain,
                            bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
 
     bool fgTryRemoveDeadLIRStore(LIR::Range& blockRange, GenTree* node, GenTree** next);

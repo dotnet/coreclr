@@ -8052,7 +8052,6 @@ void CodeGen::genReserveProlog(BasicBlock* block)
 
 void CodeGen::genReserveEpilog(BasicBlock* block)
 {
-    VARSET_TP gcrefVarsArg(VarSetOps::MakeCopy(compiler, getEmitter()->emitThisGCrefVars));
     regMaskTP gcrefRegsArg = gcInfo.gcRegGCrefSetCur;
     regMaskTP byrefRegsArg = gcInfo.gcRegByrefSetCur;
 
@@ -8085,7 +8084,8 @@ void CodeGen::genReserveEpilog(BasicBlock* block)
     JITDUMP("Reserving epilog IG for block BB%02u\n", block->bbNum);
 
     assert(block != nullptr);
-    bool last = (block->bbNext == nullptr);
+    VARSET_VALARG_TP gcrefVarsArg(getEmitter()->emitThisGCrefVars);
+    bool             last = (block->bbNext == nullptr);
     getEmitter()->emitCreatePlaceholderIG(IGPT_EPILOG, block, gcrefVarsArg, gcrefRegsArg, byrefRegsArg, last);
 }
 
