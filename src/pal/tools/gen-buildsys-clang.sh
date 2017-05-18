@@ -110,6 +110,8 @@ locate_llvm_exec() {
 
 llvm_ar="$(locate_llvm_exec ar)"
 [[ $? -eq 0 ]] || { echo "Unable to locate llvm-ar"; exit 1; }
+llvm_ranlib="$(locate_llvm_exec ranlib)"
+[[ $? -eq 0 ]] || { echo "Unable to locate llvm-ranlib"; exit 1; }
 llvm_link="$(locate_llvm_exec link)"
 [[ $? -eq 0 ]] || { echo "Unable to locate llvm-link"; exit 1; }
 llvm_nm="$(locate_llvm_exec nm)"
@@ -169,6 +171,7 @@ cmake \
   -G "$generator" \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=$1/src/pal/tools/$overridefile" \
   "-DCMAKE_AR=$llvm_ar" \
+  "-DCMAKE_RANLIB=$llvm_ranlib" \
   "-DCMAKE_LINKER=$llvm_link" \
   "-DCMAKE_NM=$llvm_nm" \
   "-DCMAKE_OBJDUMP=$llvm_objdump" \
