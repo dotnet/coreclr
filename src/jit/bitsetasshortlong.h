@@ -491,7 +491,7 @@ public:
                 m_bits = bs[0];
 
                 unsigned len = BitSetTraits::GetArrSize(env, sizeof(size_t));
-                m_bsEnd = bs + len;
+                m_bsEnd      = bs + len;
             }
         }
 

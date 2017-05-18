@@ -227,7 +227,7 @@ public:
                     bitNum++;
                     m_bits >>= 1;
                 }
-                *pElem = bitNum;
+                *pElem   = bitNum;
                 m_bitNum = bitNum + 1;
                 m_bits >>= 1;
                 return true;
