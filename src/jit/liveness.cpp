@@ -1815,17 +1815,16 @@ bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVar
  */
 
 #ifndef LEGACY_BACKEND
-VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
-                                         GenTreePtr       startNode,
-                                         GenTreePtr       endNode,
-                                         VARSET_VALARG_TP volatileVars,
-                                         bool* pStmtInfoDirty DEBUGARG(bool* treeModf))
+void Compiler::fgComputeLife(VARSET_TP&       life,
+                             GenTreePtr       startNode,
+                             GenTreePtr       endNode,
+                             VARSET_VALARG_TP volatileVars,
+                             bool* pStmtInfoDirty DEBUGARG(bool* treeModf))
 {
     GenTreePtr tree;
     unsigned   lclNum;
 
     VARSET_TP life(VarSetOps::MakeCopy(this, lifeArg)); // lifeArg is const ref; copy to allow modification.
-
     VARSET_TP keepAliveVars(VarSetOps::MakeCopy(this, volatileVars));
     VarSetOps::UnionD(this, keepAliveVars, compCurBB->bbScope); // Don't kill vars in scope
 
@@ -1865,9 +1864,6 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
             }
         }
     }
-
-    // Return the set of live variables out of this statement
-    return life;
 }
 
 void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars)
@@ -1909,11 +1905,11 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
 #pragma warning(disable : 21000) // Suppress PREFast warning about overly large function
 #endif
 
-VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
-                                         GenTreePtr       startNode,
-                                         GenTreePtr       endNode,
-                                         VARSET_VALARG_TP volatileVars,
-                                         bool* pStmtInfoDirty DEBUGARG(bool* treeModf))
+void Compiler::fgComputeLife(VARSET_TP&       life,
+                             GenTreePtr       startNode,
+                             GenTreePtr       endNode,
+                             VARSET_VALARG_TP volatileVars,
+                             bool* pStmtInfoDirty DEBUGARG(bool* treeModf))
 {
     GenTreePtr tree;
     unsigned   lclNum;
@@ -1921,8 +1917,6 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
     GenTreePtr gtQMark       = NULL; // current GT_QMARK node (walking the trees backwards)
     GenTreePtr nextColonExit = 0;    // gtQMark->gtOp.gtOp2 while walking the 'else' branch.
                                      // gtQMark->gtOp.gtOp1 while walking the 'then' branch
-
-    VARSET_TP life(VarSetOps::MakeCopy(this, lifeArg)); // lifeArg is const ref; copy to allow modification.
 
     // TBD: This used to be an initialization to VARSET_NOT_ACCEPTABLE.  Try to figure out what's going on here.
     VARSET_TP  entryLiveSet(VarSetOps::MakeFull(this));   // liveness when we see gtQMark
@@ -2211,8 +2205,7 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
                     noway_assert(nextColonExit &&
                                  (nextColonExit == gtQMark->gtOp.gtOp1 || nextColonExit == gtQMark->gtOp.gtOp2));
 
-                    VarSetOps::AssignNoCopy(this, life, fgComputeLife(life, tree, nextColonExit, volatileVars,
-                                                                      pStmtInfoDirty DEBUGARG(treeModf)));
+                    fgComputeLife(life, tree, nextColonExit, volatileVars, pStmtInfoDirty DEBUGARG(treeModf));
 
                     /* Continue with exit node (the last node in the enclosing colon branch) */
 
@@ -2242,8 +2235,6 @@ VARSET_VALRET_TP Compiler::fgComputeLife(VARSET_VALARG_TP lifeArg,
     }
 
     /* Return the set of live variables out of this statement */
-
-    return life;
 }
 
 #ifdef _PREFAST_
@@ -2948,8 +2939,8 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 /* Compute the liveness for each tree node in the statement */
                 bool stmtInfoDirty = false;
 
-                VarSetOps::AssignNoCopy(this, life, fgComputeLife(life, compCurStmt->gtStmt.gtStmtExpr, nullptr,
-                                                                  volatileVars, &stmtInfoDirty DEBUGARG(&treeModf)));
+                fgComputeLife(life, compCurStmt->gtStmt.gtStmtExpr, nullptr, volatileVars,
+                              &stmtInfoDirty DEBUGARG(&treeModf));
 
                 if (stmtInfoDirty)
                 {

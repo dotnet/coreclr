@@ -3755,11 +3755,11 @@ public:
 
     bool fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode, GenTree* node);
 
-    VARSET_VALRET_TP fgComputeLife(VARSET_VALARG_TP life,
-                                   GenTreePtr       startNode,
-                                   GenTreePtr       endNode,
-                                   VARSET_VALARG_TP volatileVars,
-                                   bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
+    void fgComputeLife(VARSET_TP&       life,
+                       GenTreePtr       startNode,
+                       GenTreePtr       endNode,
+                       VARSET_VALARG_TP volatileVars,
+                       bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
 
     void fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars);
 
