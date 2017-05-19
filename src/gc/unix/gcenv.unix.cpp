@@ -77,14 +77,7 @@ static size_t g_RestrictedPhysicalMemoryLimit = 0;
 //  true if it has succeeded, false if it has failed
 bool GCToOSInterface::Initialize()
 {
-    // Calculate and cache the number of processors on this machine
-    int cpuCount = sysconf(_SC_NPROCESSORS_ONLN);
-    if (cpuCount == -1)
-    {
-        return false;
-    }
-
-    g_logicalCpuCount = cpuCount;
+    g_logicalCpuCount = PAL_GetLogicalCpuCountFromOS();
 
     // Verify that the s_helperPage is really aligned to the g_SystemInfo.dwPageSize
     assert((((size_t)g_helperPage) & (OS_PAGE_SIZE - 1)) == 0);
@@ -419,8 +412,7 @@ size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
 //  specify a 1 bit for a processor when the system affinity mask specifies a 0 bit for that processor.
 bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uintptr_t* systemMask)
 {
-    // TODO(segilles) processor detection
-    return false;
+    return !!::GetProcessAffinityMask(::GetCurrentProcess(), (PDWORD_PTR)processMask, (PDWORD_PTR)systemMask);
 }
 
 // Get number of processors assigned to the current process
@@ -428,7 +420,7 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uint
 //  The number of processors
 uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 {
-    return g_logicalCpuCount;
+    return ::GetCurrentProcessCpuCount();
 }
 
 // Return the size of the user-mode portion of the virtual address space of this process.

@@ -94,13 +94,13 @@ SET_DEFAULT_DEBUG_CHANNEL(MISC);
 #endif
 #endif // __APPLE__
 
-/*++
-Function:
-    GetNumberOfProcessors
+#if HAVE_CPUSET_T
+typedef cpuset_t cpu_set_t;
+#endif
 
-Return number of processors available for the current process
---*/
-int GetNumberOfProcessors()
+DWORD
+PALAPI
+PAL_GetLogicalCpuCountFromOS()
 {
     int nrcpus = 0;
 
@@ -126,6 +126,92 @@ int GetNumberOfProcessors()
 #endif // HAVE_SYSCONF
 
     return nrcpus;
+}
+
+//******************************************************************************
+// Returns the number of processors that a process has been configured to run on
+//******************************************************************************
+int
+PALAPI
+GetCurrentProcessCpuCount()
+{
+    static int cCPUs = 0;
+
+    if (cCPUs != 0)
+        return cCPUs;
+
+#ifndef FEATURE_PAL
+
+    DWORD_PTR pmask, smask;
+
+    if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
+        return 1;
+
+    if (pmask == 1)
+        return 1;
+
+    pmask &= smask;
+
+    int count = 0;
+    while (pmask)
+    {
+        if (pmask & 1)
+            count++;
+
+        pmask >>= 1;
+    }
+
+    // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
+    // than 64 processors, which would leave us with a count of 0.  Since the GC
+    // expects there to be at least one processor to run on (and thus at least one
+    // heap), we'll return 64 here if count is 0, since there are likely a ton of
+    // processors available in that case.  The GC also cannot (currently) handle
+    // the case where there are more than 64 processors, so we will return a
+    // maximum of 64 here.
+    if (count == 0 || count > 64)
+        count = 64;
+
+    cCPUs = count;
+
+    return count;
+
+#elif HAVE_SCHED_GETAFFINITY
+
+    int pid = getpid();
+    size_t setsize;
+    cpu_set_t* set;
+    int ncpus = CPU_SETSIZE;
+    int rv;
+    do
+    {
+        setsize = CPU_ALLOC_SIZE(ncpus);
+        set = CPU_ALLOC(ncpus);
+        if (set == nullptr)
+            return 1;
+
+        rv = sched_getaffinity(pid, setsize, set);
+        if (rv != 0)
+        {
+            CPU_FREE(set);
+
+            if (errno != EINVAL)
+                return 1;
+
+            ncpus = ncpus + CPU_SETSIZE;
+        }
+    } while (rv != 0);
+
+    cCPUs = CPU_COUNT_S(setsize, set);
+    CPU_FREE(set);
+
+    return cCPUs;
+
+#else
+
+    cCPUs = PAL_GetLogicalCpuCountFromOS();
+    return cCPUs;
+
+#endif
 }
 
 /*++
@@ -170,7 +256,7 @@ GetSystemInfo(
     lpSystemInfo->dwPageSize = pagesize;
     lpSystemInfo->dwActiveProcessorMask_PAL_Undefined = 0;
 
-    nrcpus = GetNumberOfProcessors();
+    nrcpus = PAL_GetLogicalCpuCountFromOS();
     TRACE("dwNumberOfProcessors=%d\n", nrcpus);
     lpSystemInfo->dwNumberOfProcessors = nrcpus;
 
@@ -385,19 +471,6 @@ PALAPI
 PAL_HasGetCurrentProcessorNumber()
 {
     return HAVE_SCHED_GETCPU;
-}
-
-DWORD
-PALAPI
-PAL_GetLogicalCpuCountFromOS()
-{
-    DWORD numLogicalCores = 0;
-
-#if HAVE_SYSCONF
-    numLogicalCores = sysconf(_SC_NPROCESSORS_ONLN);
-#endif
-
-    return numLogicalCores;
 }
 
 size_t

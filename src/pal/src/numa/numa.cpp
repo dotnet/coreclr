@@ -42,8 +42,6 @@ using namespace CorUnix;
 typedef cpuset_t cpu_set_t;
 #endif
 
-int GetNumberOfProcessors();
-
 // CPU affinity descriptor
 struct CpuAffinity
 {
@@ -208,7 +206,7 @@ NUMASupportInitialize()
 #endif // HAVE_NUMA_H
     {
         // No NUMA
-        g_cpuCount = GetNumberOfProcessors();
+        g_cpuCount = PAL_GetLogicalCpuCountFromOS();
         g_groupCount = 1;
         g_highestNumaNode = 0;
 
@@ -598,6 +596,14 @@ GetProcessAffinityMask(
 
             *lpProcessAffinityMask = processMask;
             *lpSystemAffinityMask = systemMask;
+        }
+        else if (errno == EINVAL)
+        {
+            // There are more processors than can fit in a cpu_set_t
+            // return zero in both masks.
+            *lpProcessAffinityMask = 0;
+            *lpSystemAffinityMask = 0;
+            success = TRUE;
         }
         else
         {

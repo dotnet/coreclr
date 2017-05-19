@@ -4986,6 +4986,11 @@ GetProcessAffinityMask(
   OUT PDWORD_PTR lpSystemAffinityMask
 );
 
+PALIMPORT
+int
+PALAPI
+GetCurrentProcessCpuCount();
+
 //
 // The types of events that can be logged.
 //
