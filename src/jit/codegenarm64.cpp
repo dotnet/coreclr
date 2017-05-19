@@ -2707,6 +2707,11 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode)
 
     emitter* emit = getEmitter();
 
+    if (dstAddr->isUsedFromReg())
+    {
+        genConsumeReg(dstAddr);
+    }
+
     if (cpBlkNode->gtFlags & GTF_BLK_VOLATILE)
     {
         // issue a full memory barrier before & after a volatile CpBlkUnroll operation
@@ -2736,11 +2741,6 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode)
             source->SetOper(GT_LCL_FLD_ADDR);
         }
         srcAddr = source;
-    }
-
-    if (dstAddr->isUsedFromReg())
-    {
-        genConsumeReg(dstAddr);
     }
 
     unsigned offset = 0;
