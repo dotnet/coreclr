@@ -70,7 +70,7 @@ void ValidateObjectAndAppDomain(OBJECTREF objRef, ADIndex appDomainIndex)
 
 void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef)
 {
-#ifdef _DEBUG_IMPL
+#if 0 // [LOCALGC TODO] re-enable this by adding HndGetHandleADIndex to interface
     _ASSERTE(handle);
 
 #ifdef DEBUG_DestroyedHandleValue
