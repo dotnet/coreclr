@@ -18602,8 +18602,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
         // the method can't be inlined, so there's no danger here in
         // seeing this particular flag bit in different states between
         // the cached and fresh values.
-        if ((freshBaseMethodAttribs & ~CORINFO_FLG_DONT_INLINE) !=
-            (baseMethodAttribs & ~CORINFO_FLG_DONT_INLINE))
+        if ((freshBaseMethodAttribs & ~CORINFO_FLG_DONT_INLINE) != (baseMethodAttribs & ~CORINFO_FLG_DONT_INLINE))
         {
             assert(!"mismatched method attributes");
         }
