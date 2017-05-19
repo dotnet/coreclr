@@ -39,7 +39,7 @@ const unsigned UInt64Bits = sizeof(UINT64) * 8;
 // This #define chooses the BitSet representation used for VARSET.
 // The choices are defined in "bitset.h"; they currently include
 // BSUInt64, BSShortLong, and BSUInt64Class.
-#define VARSET_REP BSUInt64
+#define VARSET_REP BSUInt64Class
 
 #if VARSET_REP == BSUInt64
 
