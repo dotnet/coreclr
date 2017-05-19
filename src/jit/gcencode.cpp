@@ -210,7 +210,6 @@ void GCInfo::gcMarkFilterVarsPinned()
 
                         varTmp->vpdEndOfs = filterBeg;
 
-
 #ifdef DEBUG
                         if (compiler->verbose)
                         {
@@ -360,7 +359,7 @@ void GCInfo::gcInsertVarPtrDscSplit(varPtrDsc* desc, varPtrDsc* begin)
         varTmp    = varTmp->vpdNext;
     }
 
-     // Insert point cannot be null
+    // Insert point cannot be null
     assert(varInsert != nullptr);
 
     desc->vpdNext      = varInsert->vpdNext;
@@ -2262,6 +2261,12 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
 #ifndef WIN64EXCEPTIONS
                 if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
+#else
+                // For WIN64EXCEPTIONS, "this" must always be in untracked variables
+                // so we cannot have "this" in variable lifetimes
+                if (false)
+#endif
+
                 {
                     // Encoding of untracked variables does not support reporting
                     // "this". So report it as a tracked variable with a liveness
@@ -2270,10 +2275,6 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                     thisKeptAliveIsInUntracked = true;
                     continue;
                 }
-
-                // For WIN64EXCEPTIONS, "this" must always be in tracked variables
-                // so we cannot have "this" in variable lifetimes
-#endif
 
                 if (pass == 0)
                     count++;
