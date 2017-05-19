@@ -133,49 +133,9 @@ PAL_GetLogicalCpuCountFromOS()
 //******************************************************************************
 int
 PALAPI
-GetCurrentProcessCpuCount()
+PAL_GetCurrentProcessCpuCount()
 {
-    static int cCPUs = 0;
-
-    if (cCPUs != 0)
-        return cCPUs;
-
-#ifndef FEATURE_PAL
-
-    DWORD_PTR pmask, smask;
-
-    if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
-        return 1;
-
-    if (pmask == 1)
-        return 1;
-
-    pmask &= smask;
-
-    int count = 0;
-    while (pmask)
-    {
-        if (pmask & 1)
-            count++;
-
-        pmask >>= 1;
-    }
-
-    // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
-    // than 64 processors, which would leave us with a count of 0.  Since the GC
-    // expects there to be at least one processor to run on (and thus at least one
-    // heap), we'll return 64 here if count is 0, since there are likely a ton of
-    // processors available in that case.  The GC also cannot (currently) handle
-    // the case where there are more than 64 processors, so we will return a
-    // maximum of 64 here.
-    if (count == 0 || count > 64)
-        count = 64;
-
-    cCPUs = count;
-
-    return count;
-
-#elif HAVE_SCHED_GETAFFINITY
+#ifdef HAVE_SCHED_GETAFFINITY
 
     int pid = getpid();
     size_t setsize;
@@ -201,17 +161,17 @@ GetCurrentProcessCpuCount()
         }
     } while (rv != 0);
 
-    cCPUs = CPU_COUNT_S(setsize, set);
+    int count = CPU_COUNT_S(setsize, set);
+
     CPU_FREE(set);
 
-    return cCPUs;
+    return count;
 
 #else
 
-    cCPUs = PAL_GetLogicalCpuCountFromOS();
-    return cCPUs;
+    return PAL_GetLogicalCpuCountFromOS();
 
-#endif
+#endif // HAVE_SCHED_GETAFFINITY
 }
 
 /*++

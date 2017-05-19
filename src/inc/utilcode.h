@@ -1487,6 +1487,7 @@ public:
 #endif
 };
 
+int GetCurrentProcessCpuCount();
 DWORD_PTR GetCurrentProcessCpuMask();
 
 //*****************************************************************************

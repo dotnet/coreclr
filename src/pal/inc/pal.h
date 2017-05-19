@@ -4989,7 +4989,7 @@ GetProcessAffinityMask(
 PALIMPORT
 int
 PALAPI
-GetCurrentProcessCpuCount();
+PAL_GetCurrentProcessCpuCount();
 
 //
 // The types of events that can be logged.
