@@ -9348,6 +9348,10 @@ public:
     void fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgument);
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
+#ifdef FEATURE_UNIX_X86_STRUCT_PASSING
+    void fgMorphUnixX86StructArgs(GenTreeCall* call);
+#endif
+
     void fgMorphMultiregStructArgs(GenTreeCall* call);
     GenTreePtr fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr fgEntryPtr);
 

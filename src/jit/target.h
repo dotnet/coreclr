@@ -422,6 +422,13 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
                                            // frames for most methods
   #define CSE_CONSTS               1       // Enable if we want to CSE constants
 
+#if defined(UNIX_X86_ABI)
+  #define FEATURE_UNIX_X86_STRUCT_PASSING 1
+  //#define FEATURE_UNIX_X86_STRUCT_PASSING 0
+#else
+  #define FEATURE_UNIX_X86_STRUCT_PASSING 0
+#endif // !UNIX_X86_ABI
+
 #ifndef LEGACY_BACKEND
   // The following defines are useful for iterating a regNumber
   #define REG_FIRST                REG_EAX

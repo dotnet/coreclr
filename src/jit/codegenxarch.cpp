@@ -5044,6 +5044,31 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         }
         args = args->gtOp.gtOp2;
     }
+
+#if defined(FEATURE_UNIX_X86_STRUCT_PASSING)
+    for (GenTreePtr list = call->gtCallLateArgs; list; list = list->MoveNext())
+    {
+        assert(list->OperIsList());
+
+        GenTreePtr argNode = list->Current();
+
+        fgArgTabEntryPtr curArgTabEntry = compiler->gtArgEntryByNode(call, argNode->gtSkipReloadOrCopy());
+        assert(curArgTabEntry);
+
+        if (curArgTabEntry->regNum != REG_STK)
+        {
+            continue;
+        }
+
+        assert(curArgTabEntry->regNum == REG_STK);
+
+        if (argNode->OperGet() == GT_PUTARG_STK)
+        {
+            stackArgBytes += curArgTabEntry->numSlots * TARGET_POINTER_SIZE;
+        }
+    }
+#endif // defined(FEATURE_UNIX_X86_STRUCT_PASSING)
+
 #endif // defined(_TARGET_X86_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
     // Insert a null check on "this" pointer if asked.

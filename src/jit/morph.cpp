@@ -1328,7 +1328,7 @@ void fgArgInfo::RemorphStkArg(
     assert(curArgTabEntry->parent == parent);
     assert(parent->OperIsList());
 
-#if FEATURE_FIXED_OUT_ARGS
+#if FEATURE_FIXED_OUT_ARGS || FEATURE_UNIX_X86_STRUCT_PASSING
     if (curArgTabEntry->node != node)
     {
         if (isRegArg)
@@ -1431,12 +1431,19 @@ void fgArgInfo::ArgsComplete()
         if (curArgTabEntry->regNum == REG_STK)
         {
             hasStackArgs = true;
+
 #if !FEATURE_FIXED_OUT_ARGS
+#if FEATURE_UNIX_X86_STRUCT_PASSING
+            if (argx->TypeGet() != TYP_STRUCT)
+            {
+                continue;
+            }
+#else // FEATURE_UNIX_X86_STRUCT_PASSING
             // On x86 we use push instructions to pass arguments:
             //   The non-register arguments are evaluated and pushed in order
             //   and they are never evaluated into temps
-            //
             continue;
+#endif
 #endif
         }
 #if defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND)
@@ -1496,7 +1503,7 @@ void fgArgInfo::ArgsComplete()
             }
         }
 
-#if FEATURE_FIXED_OUT_ARGS
+#if FEATURE_FIXED_OUT_ARGS || FEATURE_UNIX_X86_STRUCT_PASSING
         // Like calls, if this argument has a tree that will do an inline throw,
         // a call to a jit helper, then we need to treat it like a call (but only
         // if there are/were any stack args).
@@ -1521,7 +1528,7 @@ void fgArgInfo::ArgsComplete()
                 }
             }
         }
-#endif // FEATURE_FIXED_OUT_ARGS
+#endif // FEATURE_FIXED_OUT_ARGS || FEATURE_UNIX_X86_STRUCT_PASSING
 
         /* If it contains a call (GTF_CALL) then itself and everything before the call
            with a GLOB_EFFECT must eval to temp (this is because everything with SIDE_EFFECT
@@ -2131,6 +2138,10 @@ GenTreePtr Compiler::fgMakeTmpArgNode(
         // other targets, we pass the struct by value
         assert(varTypeIsStruct(type));
 
+#if !FEATURE_FIXED_OUT_ARGS && FEATURE_UNIX_X86_STRUCT_PASSING
+        arg->gtFlags |= GTF_DONT_CSE;
+#endif
+
         addrNode = gtNewOperNode(GT_ADDR, TYP_BYREF, arg);
 
         // Get a new Obj node temp to use it as a call argument.
@@ -2178,9 +2189,19 @@ void fgArgInfo::EvalArgsToTemps()
         //   Only the register arguments need to be replaced with placeholder nodes.
         //   Stacked arguments are evaluated and pushed (or stored into the stack) in order.
         //
+        
         if (curArgTabEntry->regNum == REG_STK)
+        {
+#if FEATURE_UNIX_X86_STRUCT_PASSING
+            if (argx->TypeGet() != TYP_STRUCT)
+            {
+                continue;
+            }
+#else
             continue;
-#endif
+#endif  // FEATURE_UNIX_X86_STRUCT_PASSING
+        }
+#endif  // !FEATURE_FIXED_OUT_ARGS
 
         if (curArgTabEntry->needTmp)
         {
@@ -3152,7 +3173,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     {
         GenTreePtr* parentArgx = &args->gtOp.gtOp1;
 
-#if FEATURE_MULTIREG_ARGS
+#if FEATURE_MULTIREG_ARGS || FEATURE_UNIX_X86_STRUCT_PASSING
         if (!hasStructArgument)
         {
             hasStructArgument = varTypeIsStruct(args->gtOp.gtOp1);
@@ -4399,9 +4420,69 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         // This is the first time that we morph this call AND it has register arguments.
         // Follow into the code below and do the 'defer or eval to temp' analysis.
 
+#if FEATURE_UNIX_X86_STRUCT_PASSING
+        if (hasStructArgument)
+        {
+#ifdef DEBUG
+            if (verbose)
+            {
+                printf("\nbefore SortArgs()\n");
+                for (unsigned curInx = 0; curInx < call->fgArgInfo->ArgCount(); curInx++)
+                {
+                    fgArgTabEntryPtr curArgTabEntry = call->fgArgInfo->ArgTable()[curInx];
+                    curArgTabEntry->Dump();
+                }
+            }
+#endif
+        }
+#endif
+
         call->fgArgInfo->SortArgs();
 
+#if FEATURE_UNIX_X86_STRUCT_PASSING
+        if (hasStructArgument)
+        {
+#ifdef DEBUG
+            if (verbose)
+            {
+                printf("\nafter SortArgs()\n");
+                for (unsigned curInx = 0; curInx < call->fgArgInfo->ArgCount(); curInx++)
+                {
+                    fgArgTabEntryPtr curArgTabEntry = call->fgArgInfo->ArgTable()[curInx];
+                    curArgTabEntry->Dump();
+                }
+            }
+#endif
+        }
+#endif
+
+#if FEATURE_UNIX_X86_STRUCT_PASSING
+        if (hasStructArgument)
+        {
+#ifdef DEBUG
+            if (verbose)
+            {
+                printf("\nbefore EvalArgsToTemps()\n");
+                gtDispTree(call);
+            }
+#endif
+        }
+#endif
+
         call->fgArgInfo->EvalArgsToTemps();
+
+#if FEATURE_UNIX_X86_STRUCT_PASSING
+        if (hasStructArgument)
+        {
+#ifdef DEBUG
+            if (verbose)
+            {
+                printf("\nafter EvalArgsToTemps()\n");
+                gtDispTree(call);
+            }
+#endif
+        }
+#endif
 
         // We may have updated the arguments
         if (call->gtCallArgs)
@@ -4415,7 +4496,39 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     // Rewrite the struct args to be passed by value on stack or in registers.
     fgMorphSystemVStructArgs(call, hasStructArgument);
 
-#else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#elif FEATURE_UNIX_X86_STRUCT_PASSING
+    if (hasStructArgument)
+    {
+
+#ifdef DEBUG
+        if (verbose)
+        {
+            printf("\nbefore fgMorphUnixX86StructArgs()\n");
+            gtDispTree(call);
+            for (unsigned curInx = 0; curInx < call->fgArgInfo->ArgCount(); curInx++)
+            {
+                fgArgTabEntryPtr curArgTabEntry = call->fgArgInfo->ArgTable()[curInx];
+                curArgTabEntry->Dump();
+            }
+        }
+#endif
+
+        fgMorphUnixX86StructArgs(call);
+
+#ifdef DEBUG
+        if (verbose)
+        {
+            printf("\nafter fgMorphUnixX86StructArgs()\n");
+            gtDispTree(call);
+            for (unsigned curInx = 0; curInx < call->fgArgInfo->ArgCount(); curInx++)
+            {
+                fgArgTabEntryPtr curArgTabEntry = call->fgArgInfo->ArgTable()[curInx];
+                curArgTabEntry->Dump();
+            }
+        }
+#endif
+    }
+#else
 
 #ifndef LEGACY_BACKEND
     // In the future we can migrate UNIX_AMD64 to use this
@@ -4447,6 +4560,116 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #ifdef _PREFAST_
 #pragma warning(pop)
 #endif
+
+#if FEATURE_UNIX_X86_STRUCT_PASSING
+// fgMorphUnixX86StructArgs:
+//   Rewrite the struct args to be passed by value on stack.
+//
+// args:
+//   call: The call whose arguments need to be morphed.
+//
+void Compiler::fgMorphUnixX86StructArgs(GenTreeCall* call)
+{
+    unsigned   flagsSummary = 0;
+    GenTreePtr args;
+    GenTreePtr argx;
+
+    fgArgInfoPtr allArgInfo = call->fgArgInfo;
+
+    for (args = call->gtCallArgs; args != nullptr; args = args->gtOp.gtOp2)
+    {
+        // For late arguments the arg tree that is overridden is in the gtCallLateArgs list.
+        // For such late args the gtCallArgList contains the setup arg node (evaluating the arg.)
+        // The tree from the gtCallLateArgs list is passed to the callee. The fgArgEntry node contains the mapping
+        // between the nodes in both lists. If the arg is not a late arg, the fgArgEntry->node points to itself,
+        // otherwise points to the list in the late args list.
+
+        fgArgTabEntryPtr fgEntryPtr = gtArgEntryByNode(call, args->gtOp.gtOp1);
+        assert(fgEntryPtr != nullptr);
+        
+        GenTreePtr argx = fgEntryPtr->node;
+        GenTreePtr arg  = argx;
+
+        var_types type = arg->TypeGet();
+
+        if (varTypeIsStruct(type))
+        {
+            var_types originalType = type;
+            // If we have already processed the arg...
+            if (arg->OperGet() == GT_FIELD_LIST && varTypeIsStruct(arg))
+            {
+                continue;
+            }
+
+            // If already OBJ it is set properly already.
+            if (arg->OperGet() == GT_OBJ)
+            {
+                continue;
+            }
+
+#if !FEATURE_FIXED_OUT_ARGS
+            if (fgEntryPtr->isTmp && arg->OperGet() == GT_COMMA)
+            {
+                continue;
+            }
+#endif
+
+            assert(arg->OperGet() == GT_LCL_VAR || arg->OperGet() == GT_LCL_FLD ||
+                   (arg->OperGet() == GT_ADDR &&
+                    (arg->gtOp.gtOp1->OperGet() == GT_LCL_FLD || arg->gtOp.gtOp1->OperGet() == GT_LCL_VAR)));
+
+            GenTreeLclVarCommon* lclCommon =
+                arg->OperGet() == GT_ADDR ? arg->gtOp.gtOp1->AsLclVarCommon() : arg->AsLclVarCommon();
+
+            // If we didn't change the type of the struct, it means
+            // its classification doesn't support to be passed directly through a
+            // register, so we need to pass a pointer to the destination where
+            // where we copied the struct to.
+            // Make sure this is an addr node.
+            if (arg->OperGet() != GT_ADDR && arg->OperGet() != GT_LCL_VAR_ADDR)
+            {
+                arg = gtNewOperNode(GT_ADDR, TYP_I_IMPL, arg);
+            }
+
+            assert(arg->OperGet() == GT_ADDR || arg->OperGet() == GT_LCL_VAR_ADDR);
+
+            // Create an Obj of the temp to use it as a call argument.
+            arg = gtNewObjNode(lvaGetStruct(lclCommon->gtLclNum), arg);
+        }
+
+        if (argx != arg)
+        {
+            fgEntryPtr->node = arg;
+            
+            GenTreePtr lateList = nullptr;
+            if ((args->gtOp.gtOp1->gtFlags & GTF_LATE_ARG) != 0)
+            {
+                for (GenTreePtr list = call->gtCallLateArgs; list; list = list->MoveNext())
+                {
+                    assert(list->OperIsList());
+
+                    GenTreePtr argNode = list->Current();
+                    if (argx == argNode)
+                    {
+                        lateList = list;
+                        break;
+                    }
+                }
+                assert(lateList != nullptr);
+
+                lateList->gtOp.gtOp1 = arg;
+            }
+            else
+            {
+                args->gtOp.gtOp1 = arg;
+            }
+        }
+    }
+
+    // Update the flags
+    call->gtFlags |= (flagsSummary & GTF_ALL_EFFECT);
+}
+#endif // FEATURE_UNIX_X86_STRUCT_PASSING
 
 #ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
 // fgMorphSystemVStructArgs:
@@ -5366,7 +5589,6 @@ void Compiler::fgMakeOutgoingStructArgCopy(
     GenTreePtr arg = copyBlk;
 
 #else // FEATURE_FIXED_OUT_ARGS
-
     // Structs are always on the stack, and thus never need temps
     // so we have to put the copy and temp all into one expression
     GenTreePtr arg = fgMakeTmpArgNode(tmp FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(structDescPtr->passedInRegisters));
