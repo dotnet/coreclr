@@ -2,8 +2,8 @@
 
 Microsoft Corporation and its affiliates ("Microsoft") promise not to assert 
 any .NET Patents against you for making, using, selling, offering for sale, 
-importing, or distributing Covered Code, as part of either a .NET Runtime or 
-as part of any application designed to run on a .NET Runtime. 
+importing, or distributing Covered Code, a portion thereof, or a 
+derivative work thereof.
 
 If you file, maintain, or voluntarily participate in any claim in a lawsuit 
 alleging direct or contributory patent infringement by any Covered Code, or 
@@ -32,14 +32,6 @@ Patents do not include any patent claims that are infringed by any Enabling
 Technology, that are infringed only as a consequence of modification of 
 Covered Code, or that are infringed only by the combination of Covered Code 
 with third party code. 
-
-".NET Runtime" means any compliant implementation in software of (a) all of 
-the required parts of the mandatory provisions of Standard ECMA-335 – Common 
-Language Infrastructure (CLI); and (b) if implemented, any additional 
-functionality in Microsoft's .NET Framework, as described in Microsoft's API 
-documentation on its MSDN website. For example, .NET Runtimes include 
-Microsoft's .NET Framework and those portions of the Mono Project compliant 
-with (a) and (b). 
 
 "Enabling Technology" means underlying or enabling technology that may be 
 used, combined, or distributed in connection with Microsoft's .NET Framework 
