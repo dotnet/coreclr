@@ -3142,6 +3142,34 @@ bool ValueNumStore::IsVNInt32Constant(ValueNum vn)
     return TypeOfVN(vn) == TYP_INT;
 }
 
+bool ValueNumStore::IsVNNonZeroIntConstant(ValueNum vn)
+{
+    if (!IsVNConstant(vn))
+    {
+        return false;
+    }
+
+    switch (TypeOfVN(vn))
+    {
+        case TYP_BOOL:
+        case TYP_BYTE:
+        case TYP_UBYTE:
+        case TYP_CHAR:
+        case TYP_SHORT:
+        case TYP_USHORT:
+        case TYP_INT:
+        case TYP_UINT:
+            return ConstantValue<int>(vn) != 0;
+
+        case TYP_LONG:
+        case TYP_ULONG:
+            return ConstantValue<INT64>(vn) != 0;
+
+        default:
+            return false;
+    }
+}
+
 unsigned ValueNumStore::GetHandleFlags(ValueNum vn)
 {
     assert(IsVNHandle(vn));
@@ -6577,6 +6605,17 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
             ValueNumPair addrXvnp = ValueNumPair(ValueNumStore::VNForEmptyExcSet(), ValueNumStore::VNForEmptyExcSet());
             vnStore->VNPUnpackExc(addr->gtVNPair, &addrNvnp, &addrXvnp);
 
+            // See if the load has any exceptional part.
+            ValueNumPair excSetVnp = addrXvnp;
+            if (tree->OperMayThrow())
+            {
+                ValueNum nullRefExcLib  = vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_NullPtrExc, addrNvnp.GetLiberal()));
+                excSetVnp.SetLiberal(vnStore->VNExcSetUnion(excSetVnp.GetLiberal(), nullRefExcLib));
+
+                ValueNum nullRefExcCons = vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_NullPtrExc, addrNvnp.GetConservative()));
+                excSetVnp.SetConservative(vnStore->VNExcSetUnion(excSetVnp.GetConservative(), nullRefExcCons));
+            }
+
             // Is the dereference immutable?  If so, model it as referencing the read-only heap.
             if (tree->gtFlags & GTF_IND_INVARIANT)
             {
@@ -6586,7 +6625,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                                                          addrNvnp.GetLiberal()),
                                  vnStore->VNForMapSelect(VNK_Conservative, TYP_REF, ValueNumStore::VNForROH(),
                                                          addrNvnp.GetConservative()));
-                tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
+                tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, excSetVnp);
             }
             else if (isVolatile)
             {
@@ -6595,7 +6634,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
 
                 // The value read by the GT_IND can immediately change
                 ValueNum newUniq = vnStore->VNForExpr(compCurBB, tree->TypeGet());
-                tree->gtVNPair   = vnStore->VNPWithExc(ValueNumPair(newUniq, newUniq), addrXvnp);
+                tree->gtVNPair   = vnStore->VNPWithExc(ValueNumPair(newUniq, newUniq), excSetVnp);
             }
             // We always want to evaluate the LHS when the GT_IND node is marked with GTF_IND_ARR_INDEX
             // as this will relabel the GT_IND child correctly using the VNF_PtrToArrElem
@@ -6663,7 +6702,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 //
                 if (evalAsgLhsInd || ((tree->gtFlags & GTF_IND_ASG_LHS) == 0))
                 {
-                    fgValueNumberArrIndexVal(tree, elemTypeEq, arrVN, inxVN, addrXvnp.GetLiberal(), fldSeq);
+                    fgValueNumberArrIndexVal(tree, elemTypeEq, arrVN, inxVN, excSetVnp.GetLiberal(), fldSeq);
                 }
             }
             else if (tree->gtFlags & GTF_IND_ARR_LEN)
@@ -6727,7 +6766,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                         tree->gtVNPair         = vnStore->VNPairApplySelectors(lclVNPair, localFldSeq, indType);
                         ;
                     }
-                    tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
+                    tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, excSetVnp);
                 }
                 else if (vnStore->GetVNFunc(addrNvnp.GetLiberal(), &funcApp) && funcApp.m_func == VNF_PtrToStatic)
                 {
@@ -6753,11 +6792,11 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                         JITDUMP("    *** Missing field sequence info for VNF_PtrToStatic value GT_IND\n");
                         tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, indType)); //  a new unique value number
                     }
-                    tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
+                    tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, excSetVnp);
                 }
                 else if (vnStore->GetVNFunc(addrNvnp.GetLiberal(), &funcApp) && (funcApp.m_func == VNF_PtrToArrElem))
                 {
-                    fgValueNumberArrIndexVal(tree, &funcApp, addrXvnp.GetLiberal());
+                    fgValueNumberArrIndexVal(tree, &funcApp, excSetVnp.GetLiberal());
                 }
                 else if (addr->IsFieldAddr(this, &obj, &staticOffset, &fldSeq2))
                 {
@@ -6820,14 +6859,14 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
 
                         // The conservative value is a new, unique VN.
                         tree->gtVNPair.SetConservative(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
-                        tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
+                        tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, excSetVnp);
                     }
                     else
                     {
                         // Occasionally we do an explicit null test on a REF, so we just dereference it with no
                         // field sequence.  The result is probably unused.
                         tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
-                        tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
+                        tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, excSetVnp);
                     }
                 }
                 else // We don't know where the address points, so it is an ByrefExposed load.
@@ -6836,7 +6875,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                     ValueNum loadVN = fgValueNumberByrefExposedLoad(typ, addrVN);
                     tree->gtVNPair.SetLiberal(loadVN);
                     tree->gtVNPair.SetConservative(vnStore->VNForExpr(compCurBB, tree->TypeGet()));
-                    tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, addrXvnp);
+                    tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, excSetVnp);
                 }
             }
         }
@@ -6936,6 +6975,28 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                             vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_OverflowExc));
                         excSet = vnStore->VNPExcSetUnion(excSet, ValueNumPair(overflowExcSet, overflowExcSet));
                     }
+
+                    // Integer divides add a divide-by-zero exception unless the dividend is a constant that is not zero.
+                    if (!varTypeIsFloating(tree) && tree->OperIs(GT_DIV, GT_UDIV, GT_MOD, GT_UMOD))
+                    {
+                        ValueNumPair xvnp = ValueNumStore::VNPForEmptyExcSet();
+                        if (!vnStore->IsVNNonZeroIntConstant(op2vnp.GetLiberal()))
+                        {
+                            ValueNum divideByZeroExcSet =
+                                vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_DivideByZeroExc));
+                            xvnp.SetLiberal(divideByZeroExcSet);
+                        }
+
+                        if (!vnStore->IsVNNonZeroIntConstant(op2vnp.GetConservative()))
+                        {
+                            ValueNum divideByZeroExcSet =
+                                vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_DivideByZeroExc));
+                            xvnp.SetConservative(divideByZeroExcSet);
+                        }
+
+                        excSet = vnStore->VNPExcSetUnion(excSet, xvnp);
+                    }
+
                     tree->gtVNPair = vnStore->VNPWithExc(normalRes, excSet);
                 }
             }
