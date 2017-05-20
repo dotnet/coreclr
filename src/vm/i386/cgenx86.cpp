@@ -1732,7 +1732,6 @@ DWORD getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16])
 
 #pragma warning(pop)
 
-
 // This function returns the number of logical processors on a given physical chip.  If it cannot
 // determine the number of logical cpus, or the machine is not populated uniformly with the same
 // type of processors, this function returns 1.
