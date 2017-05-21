@@ -138,7 +138,6 @@ dpkg -x $__Android_Cross_Dir/deb/libunwind_1.2.20170304_$__AndroidArch.deb $__An
 cp -R $__Android_Cross_Dir/tmp/$__AndroidArch/data/data/com.termux/files/usr/* $__ToolchainDir/sysroot/usr/
 
 # Generate platform file for build.sh script to assign to __DistroRid
-# TODO: replace with logic that generates RID based on $__ApiLevel and $__BuildArch
 echo "Generating platform file..."
 
 echo "RID=android.21-arm64" > $__ToolchainDir/sysroot/android_platform
