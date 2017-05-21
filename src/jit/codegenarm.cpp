@@ -1347,12 +1347,12 @@ void CodeGen::genCodeForCompare(GenTreeOp* tree)
 // Arguments:
 //    tree - the node
 //
-void CodeGen::genCodeForJcc(GenTreeJumpCC* tree)
+void CodeGen::genCodeForJcc(GenTreeCC* tree)
 {
     assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
 
-    CompareKind  compareKind = ((tree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-    emitJumpKind jumpKind    = genJumpKindForOper(tree->gtCondition, compareKind);
+    CompareKind  compareKind = tree->gtCondition.IsUnsigned() ? CK_UNSIGNED : CK_SIGNED;
+    emitJumpKind jumpKind    = genJumpKindForOper(tree->gtCondition.Oper(), compareKind);
 
     inst_JMP(jumpKind, compiler->compCurBB->bbJumpDest);
 }

@@ -257,82 +257,52 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_JTRUE:
-        {
-            info->srcCount = 0;
-            info->dstCount = 0;
-
-            GenTree* cmp = tree->gtGetOp1();
-            l->clearDstCount(cmp);
-
-#ifdef FEATURE_SIMD
-            // Say we have the following IR
-            //   simdCompareResult = GT_SIMD((In)Equality, v1, v2)
-            //   integerCompareResult = GT_EQ/NE(simdCompareResult, true/false)
-            //   GT_JTRUE(integerCompareResult)
-            //
-            // In this case we don't need to generate code for GT_EQ_/NE, since SIMD (In)Equality
-            // intrinsic will set or clear the Zero flag.
-
-            genTreeOps cmpOper = cmp->OperGet();
-            if (cmpOper == GT_EQ || cmpOper == GT_NE)
-            {
-                GenTree* cmpOp1 = cmp->gtGetOp1();
-                GenTree* cmpOp2 = cmp->gtGetOp2();
-
-                if (cmpOp1->IsSIMDEqualityOrInequality() && (cmpOp2->IsIntegralConst(0) || cmpOp2->IsIntegralConst(1)))
-                {
-                    // We always generate code for a SIMD equality comparison, but the compare
-                    // is contained (evaluated as part of the GT_JTRUE).
-                    // Neither the SIMD node nor the immediate need to be evaluated into a register.
-                    l->clearOperandCounts(cmp);
-                    l->clearDstCount(cmpOp1);
-                    l->clearOperandCounts(cmpOp2);
-
-                    // Codegen of SIMD (in)Equality uses target integer reg only for setting flags.
-                    // A target reg is not needed on AVX when comparing against Vector Zero.
-                    // In all other cases we need to reserve an int type internal register, since we
-                    // have cleared dstCount.
-                    if (!compiler->canUseAVX() || !cmpOp1->gtGetOp2()->IsIntegralConstVector(0))
-                    {
-                        ++(cmpOp1->gtLsraInfo.internalIntCount);
-                        regMaskTP internalCandidates = cmpOp1->gtLsraInfo.getInternalCandidates(l);
-                        internalCandidates |= l->allRegs(TYP_INT);
-                        cmpOp1->gtLsraInfo.setInternalCandidates(l, internalCandidates);
-                    }
-
-                    // We have to reverse compare oper in the following cases:
-                    // 1) SIMD Equality: Sets Zero flag on equal otherwise clears it.
-                    //    Therefore, if compare oper is == or != against false(0), we will
-                    //    be checking opposite of what is required.
-                    //
-                    // 2) SIMD inEquality: Clears Zero flag on true otherwise sets it.
-                    //    Therefore, if compare oper is == or != against true(1), we will
-                    //    be checking opposite of what is required.
-                    GenTreeSIMD* simdNode = cmpOp1->AsSIMD();
-                    if (simdNode->gtSIMDIntrinsicID == SIMDIntrinsicOpEquality)
-                    {
-                        if (cmpOp2->IsIntegralConst(0))
-                        {
-                            cmp->SetOper(GenTree::ReverseRelop(cmpOper));
-                        }
-                    }
-                    else
-                    {
-                        assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicOpInEquality);
-                        if (cmpOp2->IsIntegralConst(1))
-                        {
-                            cmp->SetOper(GenTree::ReverseRelop(cmpOper));
-                        }
-                    }
-                }
-            }
-#endif // FEATURE_SIMD
-        }
-        break;
+            unreached();
+            break;
 
         case GT_JCC:
             info->srcCount = 0;
             info->dstCount = 0;
+            break;
+
+        case GT_SELCC:
+            TreeNodeInfoInitSELCC(tree->AsOpCC());
+            break;
+
+        case GT_SETCC:
+            info->srcCount = 0;
+            info->dstCount = 1;
+#ifdef _TARGET_X86_
+            info->setDstCandidates(m_lsra, RBM_BYTE_REGS);
+#endif // _TARGET_X86_
+            break;
+
+        case GT_BT:
+        case GT_BTC:
+        case GT_BTR:
+        case GT_BTS:
+            info->srcCount = 2;
+            info->dstCount = tree->OperIs(GT_BT) ? 0 : 1;
+
+            // BT supports "reg/mem,reg" and "reg/mem,imm" forms.
+            // The "mem,reg" form has bad performance so it should be avoided.
+
+            if (tree->gtGetOp2()->IsIntegralConst())
+            {
+                MakeSrcContained(tree, tree->gtGetOp2());
+
+                if (tree->OperIs(GT_BT))
+                {
+                    if (tree->gtGetOp1()->isMemoryOp())
+                    {
+                        MakeSrcContained(tree, tree->gtGetOp1());
+                    }
+                    else if (!tree->gtGetOp1()->IsIntegralConst())
+                    {
+                        SetRegOptional(tree->gtGetOp1());
+                    }
+                }
+            }
             break;
 
         case GT_JMP:
@@ -491,11 +461,6 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
                 info->internalFloatCount = 1;
                 info->setInternalCandidates(l, l->internalFloatRegCandidates());
             }
-            else
-            {
-                // Codegen of this tree node sets ZF and SF flags.
-                tree->gtFlags |= GTF_ZSF_SET;
-            }
             break;
 
         case GT_NOT:
@@ -521,9 +486,16 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_LE:
         case GT_GE:
         case GT_GT:
-        case GT_TEST_EQ:
-        case GT_TEST_NE:
-            TreeNodeInfoInitCmp(tree);
+            unreached();
+            break;
+
+        case GT_CMP:
+        case GT_TEST:
+            TreeNodeInfoInitCMP(tree->AsOp());
+            break;
+
+        case GT_FCMP:
+            TreeNodeInfoInitFCMP(tree->AsOp());
             break;
 
         case GT_CKFINITE:
@@ -2132,9 +2104,6 @@ void Lowering::TreeNodeInfoInitLogicalOp(GenTree* tree)
         // as reg optional.
         SetRegOptionalForBinOp(tree);
     }
-
-    // Codegen of this tree node sets ZF and SF flags.
-    tree->gtFlags |= GTF_ZSF_SET;
 }
 
 //------------------------------------------------------------------------
@@ -3024,95 +2993,19 @@ void Lowering::TreeNodeInfoInitIndir(GenTreePtr indirTree)
 // Return Value:
 //    None.
 //
-void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
+void Lowering::TreeNodeInfoInitCMP(GenTreeOp* tree)
 {
-    assert(tree->OperIsCompare());
+    assert(tree->OperIs(GT_CMP, GT_TEST));
 
     TreeNodeInfo* info = &(tree->gtLsraInfo);
 
     info->srcCount = 2;
-    info->dstCount = 1;
-
-#ifdef _TARGET_X86_
-    // If the compare is used by a jump, we just need to set the condition codes. If not, then we need
-    // to store the result into the low byte of a register, which requires the dst be a byteable register.
-    // We always set the dst candidates, though, because if this is compare is consumed by a jump, they
-    // won't be used. We might be able to use GTF_RELOP_JMP_USED to determine this case, but it's not clear
-    // that flag is maintained until this location (especially for decomposed long compares).
-    info->setDstCandidates(m_lsra, RBM_BYTE_REGS);
-#endif // _TARGET_X86_
+    info->dstCount = 0;
 
     GenTreePtr op1     = tree->gtOp.gtOp1;
     GenTreePtr op2     = tree->gtOp.gtOp2;
     var_types  op1Type = op1->TypeGet();
     var_types  op2Type = op2->TypeGet();
-
-#if !defined(_TARGET_64BIT_)
-    // Long compares will consume GT_LONG nodes, each of which produces two results.
-    // Thus for each long operand there will be an additional source.
-    // TODO-X86-CQ: Mark hiOp2 and loOp2 as contained if it is a constant or a memory op.
-    if (varTypeIsLong(op1Type))
-    {
-        info->srcCount++;
-    }
-    if (varTypeIsLong(op2Type))
-    {
-        info->srcCount++;
-    }
-#endif // !defined(_TARGET_64BIT_)
-
-    // If either of op1 or op2 is floating point values, then we need to use
-    // ucomiss or ucomisd to compare, both of which support the following form:
-    //     ucomis[s|d] xmm, xmm/mem
-    // That is only the second operand can be a memory op.
-    //
-    // Second operand is a memory Op:  Note that depending on comparison operator,
-    // the operands of ucomis[s|d] need to be reversed.  Therefore, either op1 or
-    // op2 can be a memory op depending on the comparison operator.
-    if (varTypeIsFloating(op1Type))
-    {
-        // The type of the operands has to be the same and no implicit conversions at this stage.
-        assert(op1Type == op2Type);
-
-        bool reverseOps;
-        if ((tree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-        {
-            // Unordered comparison case
-            reverseOps = tree->OperIs(GT_GT, GT_GE);
-        }
-        else
-        {
-            reverseOps = tree->OperIs(GT_LT, GT_LE);
-        }
-
-        GenTreePtr otherOp;
-        if (reverseOps)
-        {
-            otherOp = op1;
-        }
-        else
-        {
-            otherOp = op2;
-        }
-
-        assert(otherOp != nullptr);
-        if (otherOp->IsCnsNonZeroFltOrDbl())
-        {
-            MakeSrcContained(tree, otherOp);
-        }
-        else if (otherOp->isMemoryOp() && ((otherOp == op2) || IsSafeToContainMem(tree, otherOp)))
-        {
-            MakeSrcContained(tree, otherOp);
-        }
-        else
-        {
-            // SSE2 allows only otherOp to be a memory-op. Since otherOp is not
-            // contained, we can mark it reg-optional.
-            SetRegOptional(otherOp);
-        }
-
-        return;
-    }
 
     // TODO-XArch-CQ: factor out cmp optimization in 'genCondSetFlags' to be used here
     // or in other backend.
@@ -3126,40 +3019,6 @@ void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
             if (op1->isMemoryOp())
             {
                 MakeSrcContained(tree, op1);
-            }
-            // If op1 codegen sets ZF and SF flags and ==/!= against
-            // zero, we don't need to generate test instruction,
-            // provided we don't have another GenTree node between op1
-            // and tree that could potentially modify flags.
-            //
-            // TODO-CQ: right now the below peep is inexpensive and
-            // gets the benefit in most of cases because in majority
-            // of cases op1, op2 and tree would be in that order in
-            // execution.  In general we should be able to check that all
-            // the nodes that come after op1 in execution order do not
-            // modify the flags so that it is safe to avoid generating a
-            // test instruction.  Such a check requires that on each
-            // GenTree node we need to set the info whether its codegen
-            // will modify flags.
-            //
-            // TODO-CQ: We can optimize compare against zero in the
-            // following cases by generating the branch as indicated
-            // against each case.
-            //  1) unsigned compare
-            //        < 0  - always FALSE
-            //       <= 0  - ZF=1 and jne
-            //        > 0  - ZF=0 and je
-            //       >= 0  - always TRUE
-            //
-            // 2) signed compare
-            //        < 0  - SF=1 and js
-            //       >= 0  - SF=0 and jns
-            else if (tree->OperIs(GT_EQ, GT_NE) && op1->gtSetZSFlags() && op2->IsIntegralConst(0) &&
-                     (op1->gtNext == op2) && (op2->gtNext == tree))
-            {
-                // Require codegen of op1 to set the flags.
-                assert(!op1->gtSetFlags());
-                op1->gtFlags |= GTF_SET_FLAGS;
             }
             else
             {
@@ -3194,6 +3053,74 @@ void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
             // if one of them is on stack.
             SetRegOptional(PreferredRegOptionalOperand(tree));
         }
+    }
+}
+
+void Lowering::TreeNodeInfoInitFCMP(GenTreeOp* cmp)
+{
+    assert(cmp->OperIs(GT_FCMP));
+
+    TreeNodeInfo* info = &(cmp->gtLsraInfo);
+
+    info->srcCount = 2;
+    info->dstCount = 0;
+
+    //
+    // We need to use ucomiss or ucomisd to compare, both of which support the following form:
+    //     ucomis[s|d] xmm, xmm/mem
+    // That is only the second operand can be a memory op.
+    //
+
+    GenTree* op2 = cmp->gtOp.gtOp2;
+
+    if (op2->IsCnsNonZeroFltOrDbl())
+    {
+        MakeSrcContained(cmp, op2);
+    }
+    else if (op2->isMemoryOp() && IsSafeToContainMem(cmp, op2))
+    {
+        MakeSrcContained(cmp, op2);
+    }
+    else
+    {
+        // SSE2 allows only otherOp to be a memory-op. Since otherOp is not
+        // contained, we can mark it reg-optional.
+        SetRegOptional(op2);
+    }
+}
+
+//------------------------------------------------------------------------
+// TreeNodeInfoInitSELCC: Set the NodeInfo for a GT_SELCC
+//
+// Arguments:
+//    select - the select node
+//
+
+void Lowering::TreeNodeInfoInitSELCC(GenTreeOpCC* selcc)
+{
+    TreeNodeInfo* info = &(selcc->gtLsraInfo);
+
+    info->srcCount = 2;
+    info->dstCount = 1;
+
+    GenTree* op2 = selcc->gtGetOp2();
+
+    if (op2->isMemoryOp())
+    {
+        //
+        // There's no byte-sized CMOV so we can't contain a memory operand unless it's
+        // TYP_INT (and TYP_LONG on x64). There's a word-sized CMOV but to use it we
+        // we would likely need to widen the result of CMOV the same way a GT_IND does.
+        //
+
+        if (varTypeIsIntOrI(op2))
+        {
+            MakeSrcContained(selcc, op2);
+        }
+    }
+    else
+    {
+        SetRegOptional(op2);
     }
 }
 
@@ -3561,7 +3488,7 @@ bool Lowering::ExcludeNonByteableRegisters(GenTree* tree)
     {
         return true;
     }
-    else if (tree->OperIsCompare())
+    else if (tree->OperIs(GT_CMP, GT_TEST))
     {
         GenTree* op1 = tree->gtGetOp1();
         GenTree* op2 = tree->gtGetOp2();
@@ -3600,11 +3527,6 @@ bool Lowering::ExcludeNonByteableRegisters(GenTree* tree)
         GenTreeSIMD* simdNode = tree->AsSIMD();
         switch (simdNode->gtSIMDIntrinsicID)
         {
-            case SIMDIntrinsicOpEquality:
-            case SIMDIntrinsicOpInEquality:
-                // We manifest it into a byte register, so the target must be byteable.
-                return true;
-
             case SIMDIntrinsicGetItem:
             {
                 // This logic is duplicated from genSIMDIntrinsicGetItem().

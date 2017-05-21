@@ -101,7 +101,8 @@ GTSTRUCT_1(PhysReg     , GT_PHYSREG)
 GTSTRUCT_1(SIMD        , GT_SIMD) 
 #endif // FEATURE_SIMD
 GTSTRUCT_1(AllocObj    , GT_ALLOCOBJ)
-GTSTRUCT_1(JumpCC      , GT_JCC)
+GTSTRUCT_2(CC          , GT_JCC, GT_SETCC)
+GTSTRUCT_1(OpCC        , GT_SELCC)
 /*****************************************************************************/
 #undef  GTSTRUCT_0
 #undef  GTSTRUCT_1

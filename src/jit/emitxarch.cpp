@@ -1897,11 +1897,18 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
     }
     else if (code & 0x00FF0000)
     {
-        assert((attrSize == EA_4BYTE) || (attrSize == EA_PTRSIZE) // Only for x64
-               || (attrSize == EA_16BYTE)                         // only for x64
-               || (ins == INS_movzx) || (ins == INS_movsx));
+        if ((ins == INS_bt) || (ins == INS_btc) || (ins == INS_btr) || (ins == INS_bts))
+        {
+            size = (attrSize == EA_2BYTE) ? 4 : 3;
+        }
+        else
+        {
+            assert((attrSize == EA_4BYTE) || (attrSize == EA_PTRSIZE) // Only for x64
+                   || (attrSize == EA_16BYTE)                         // only for x64
+                   || (ins == INS_movzx) || (ins == INS_movsx));
 
-        size = 3;
+            size = 3;
+        }
     }
     else
     {
@@ -2062,8 +2069,9 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
 inline UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code, int val)
 {
     instruction    ins       = id->idIns();
+    bool           isBTx     = (ins == INS_bt) || (ins == INS_btc) || (ins == INS_btr) || (ins == INS_bts);
     UNATIVE_OFFSET valSize   = EA_SIZE_IN_BYTES(id->idOpSize());
-    bool           valInByte = ((signed char)val == val) && (ins != INS_mov) && (ins != INS_test);
+    bool           valInByte = (((signed char)val == val) && (ins != INS_mov) && (ins != INS_test)) || isBTx;
 
 #ifdef _TARGET_AMD64_
     // mov reg, imm64 is the only opcode which takes a full 8 byte immediate
@@ -3481,6 +3489,15 @@ void emitter::emitIns_R_I(instruction ins, emitAttr attr, regNumber reg, ssize_t
             sz  = 3;
             val &= 0x7F;
             valInByte = true; // shift amount always placed in a byte
+            break;
+
+        case INS_bt:
+        case INS_btc:
+        case INS_btr:
+        case INS_bts:
+            sz = 4;
+            val &= 0xFF;
+            valInByte = true;
             break;
 
         default:
@@ -7594,6 +7611,29 @@ BYTE* emitter::emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
             code &= 0x0000FFFF;
         }
     }
+    else if ((ins == INS_bt) || (ins == INS_btc) || (ins == INS_btr) || (ins == INS_bts))
+    {
+        if (size == EA_2BYTE)
+        {
+            dst += emitOutputByte(dst, 0x66);
+        }
+#ifdef _TARGET_AMD64_
+        else if (size == EA_8BYTE)
+        {
+            code = AddRexWPrefix(ins, code);
+        }
+#endif
+        else
+        {
+            assert(size == EA_4BYTE);
+        }
+
+        dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
+        dst += emitOutputByte(dst, code >> 16);
+        code &= 0x0000FFFF;
+
+        opsz = 1;
+    }
     else if (code & 0x00FF0000)
     {
         // Output the REX prefix
@@ -8185,6 +8225,29 @@ BYTE* emitter::emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
             code &= 0x0000FFFF;
         }
     }
+    else if ((ins == INS_bt) || (ins == INS_btc) || (ins == INS_btr) || (ins == INS_bts))
+    {
+        if (size == EA_2BYTE)
+        {
+            dst += emitOutputByte(dst, 0x66);
+        }
+#ifdef _TARGET_AMD64_
+        else if (size == EA_8BYTE)
+        {
+            code = AddRexWPrefix(ins, code);
+        }
+#endif
+        else
+        {
+            assert(size == EA_4BYTE);
+        }
+
+        dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
+        dst += emitOutputByte(dst, code >> 16);
+        code &= 0x0000FFFF;
+
+        opsz = 1;
+    }
     else if (code & 0x00FF0000)
     {
         // Output the REX prefix
@@ -8627,8 +8690,7 @@ BYTE* emitter::emitOutputCV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
             code &= 0x0000FFFF;
         }
 
-        if ((ins == INS_movsx || ins == INS_movzx || ins == INS_cmpxchg || ins == INS_xchg || ins == INS_xadd ||
-             insIsCMOV(ins)) &&
+        if ((ins == INS_movsx || ins == INS_movzx || ins == INS_cmpxchg || ins == INS_xchg || ins == INS_xadd) &&
             size != EA_1BYTE)
         {
             // movsx and movzx are 'big' opcodes but also have the 'w' bit
@@ -9170,6 +9232,34 @@ BYTE* emitter::emitOutputRR(BYTE* dst, instrDesc* id)
 
 #endif // _TARGET_AMD64_
     }
+    else if ((ins == INS_bt) || (ins == INS_btc) || (ins == INS_btr) || (ins == INS_bts))
+    {
+        code = insEncodeMRreg(ins, code);
+        code |= insEncodeReg012(ins, reg1, size, &code) << 8;
+        code |= insEncodeReg345(ins, reg2, size, &code) << 8;
+
+        if (size == EA_2BYTE)
+        {
+            dst += emitOutputByte(dst, 0x66);
+        }
+#ifdef _TARGET_AMD64_
+        else if (size == EA_8BYTE)
+        {
+            code = AddRexWPrefix(ins, code);
+        }
+#endif
+        else
+        {
+            assert(size == EA_4BYTE);
+        }
+
+        dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
+        dst += emitOutputByte(dst, code >> 16);
+        dst += emitOutputWord(dst, code & 0xFFFF);
+
+        assert(!id->idGCref());
+        return dst;
+    }
     else
     {
         code = insEncodeMRreg(ins, insCodeMR(ins));
@@ -9674,6 +9764,35 @@ BYTE* emitter::emitOutputRI(BYTE* dst, instrDesc* id)
             emitRecordRelocation((void*)(dst - (unsigned)EA_SIZE(size)), (void*)(size_t)val, IMAGE_REL_BASED_MOFFSET);
         }
 
+        goto DONE;
+    }
+
+    if ((ins == INS_bt) || (ins == INS_btc) || (ins == INS_btr) || (ins == INS_bts))
+    {
+        code = insCodeMI(ins);
+        code = insEncodeMIreg(ins, reg, size, code);
+
+        if (size == EA_2BYTE)
+        {
+            dst += emitOutputByte(dst, 0x66);
+        }
+#ifdef _TARGET_AMD64_
+        else if (size == EA_8BYTE)
+        {
+            code = AddRexWPrefix(ins, code);
+        }
+#endif
+        else
+        {
+            assert(size == EA_4BYTE);
+        }
+
+        dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
+        dst += emitOutputByte(dst, code >> 16);
+        dst += emitOutputWord(dst, code & 0xFFFF);
+        dst += emitOutputByte(dst, val & 0xFF);
+
+        assert(!id->idIsCnsReloc());
         goto DONE;
     }
 

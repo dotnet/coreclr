@@ -48,12 +48,27 @@ unsigned getFirstArgWithStackSlot();
 void genCompareFloat(GenTreePtr treeNode);
 void genCompareInt(GenTreePtr treeNode);
 
-#if !defined(_TARGET_64BIT_)
-void genCompareLong(GenTreePtr treeNode);
 #if defined(_TARGET_ARM_)
+void genCompareLong(GenTreePtr treeNode);
 void genJccLongHi(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse, bool isUnsigned = false);
 void genJccLongLo(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse);
 #endif // defined(_TARGET_ARM_)
+
+#if defined(_TARGET_XARCH_)
+struct GenConditionDesc
+{
+    emitJumpKind jmpKind[2];
+    bool         jmpToTrueLabel[2];
+};
+
+static const GenConditionDesc& GetConditionDesc(GenCondition condition);
+
+void genCMP(GenTreeOp* cmp);
+void genFCMP(GenTreeOp* fcmp);
+void genBTx(GenTreeOp* btx, instruction ins);
+void genSETCC(GenTreeCC* setcc);
+void genJCC(GenTreeCC* jcc);
+void genSELCC(GenTreeOpCC* selcc);
 #endif
 
 #ifdef FEATURE_SIMD
@@ -167,7 +182,7 @@ void genCodeForLclFld(GenTreeLclFld* tree);
 void genCodeForStoreLclFld(GenTreeLclFld* tree);
 void genCodeForStoreLclVar(GenTreeLclVar* tree);
 void genCodeForReturnTrap(GenTreeOp* tree);
-void genCodeForJcc(GenTreeJumpCC* tree);
+void genCodeForJcc(GenTreeCC* tree);
 void genCodeForStoreInd(GenTreeStoreInd* tree);
 void genCodeForSwap(GenTreeOp* tree);
 void genCodeForCpObj(GenTreeObj* cpObjNode);

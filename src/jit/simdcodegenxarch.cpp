@@ -2148,7 +2148,7 @@ void CodeGen::genSIMDIntrinsicRelOp(GenTreeSIMD* simdNode)
                 getEmitter()->emitIns_R_I(INS_cmp, EA_4BYTE, intReg, mask);
             }
 
-            if (targetReg != REG_NA)
+            if (targetReg != REG_NA && (simdNode->gtFlags & GTF_SET_FLAGS) == 0)
             {
                 // If we need to materialize result into a register,  targetReg needs to
                 // be set to 1 on true and zero on false.

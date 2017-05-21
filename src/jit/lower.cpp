@@ -122,6 +122,11 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_ADD:
             return LowerAdd(node);
 
+        case GT_AND:
+        case GT_OR:
+        case GT_XOR:
+            return LowerBitwise(node->AsOp());
+
         case GT_UDIV:
         case GT_UMOD:
             LowerUnsignedDivOrMod(node);
@@ -146,6 +151,12 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_NE:
             LowerCompare(node);
             break;
+
+        case GT_JCC:
+            return LowerJCC(node->AsCC());
+
+        case GT_SELCC:
+            return LowerSELCC(node->AsOpCC());
 
         case GT_JMP:
             LowerJmpMethod(node);
@@ -475,23 +486,18 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     // the default case.  As stated above, this conditional is being shared between
     // both GT_SWITCH lowering code paths.
     // This condition is of the form: if (temp > jumpTableLength - 2){ goto jumpTable[jumpTableLength - 1]; }
-    GenTreePtr gtDefaultCaseCond = comp->gtNewOperNode(GT_GT, TYP_INT, comp->gtNewLclvNode(tempLclNum, tempLclType),
-                                                       comp->gtNewIconNode(jumpCnt - 2, tempLclType));
-
-    // Make sure we perform an unsigned comparison, just in case the switch index in 'temp'
-    // is now less than zero 0 (that would also hit the default case).
-    gtDefaultCaseCond->gtFlags |= GTF_UNSIGNED;
-
-    /* Increment the lvRefCnt and lvRefCntWtd for temp */
+    GenTree* switchValue = comp->gtNewLclvNode(tempLclNum, tempLclType);
     tempVarDsc->incRefCnts(blockWeight, comp);
+    GenTree* switchLimit    = comp->gtNewIconNode(jumpCnt - 2, tempLclType);
+    GenTree* defaultCaseCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, switchValue, switchLimit);
 
-    GenTreePtr gtDefaultCaseJump = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, gtDefaultCaseCond);
-    gtDefaultCaseJump->gtFlags   = node->gtFlags;
+    GenTreeCC* defaultCaseJcc      = new (comp, GT_JCC) GenTreeCC(GT_JCC, GenCondition::UGT);
+    defaultCaseJcc->gtFlags        = node->gtFlags;
+    defaultCaseJcc->gtConditionDef = defaultCaseCmp;
 
-    LIR::Range condRange = LIR::SeqTree(comp, gtDefaultCaseJump);
-    switchBBRange.InsertAtEnd(std::move(condRange));
+    switchBBRange.InsertAfter(node, switchValue, switchLimit, defaultCaseCmp, defaultCaseJcc);
 
-    BasicBlock* afterDefaultCondBlock = comp->fgSplitBlockAfterNode(originalSwitchBB, condRange.LastNode());
+    BasicBlock* afterDefaultCondBlock = comp->fgSplitBlockAfterNode(originalSwitchBB, defaultCaseJcc);
 
     // afterDefaultCondBlock is now the switch, and all the switch targets have it as a predecessor.
     // originalSwitchBB is now a BBJ_NONE, and there is a predecessor edge in afterDefaultCondBlock
@@ -636,20 +642,15 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
 
                 // Now, build the conditional statement for the current case that is
                 // being evaluated:
-                // GT_JTRUE
-                //   |__ GT_COND
-                //          |____GT_EQ
-                //                 |____ (switchIndex) (The temp variable)
-                //                 |____ (ICon)        (The actual case constant)
-                GenTreePtr gtCaseCond =
-                    comp->gtNewOperNode(GT_EQ, TYP_INT, comp->gtNewLclvNode(tempLclNum, tempLclType),
-                                        comp->gtNewIconNode(i, TYP_INT));
-                /* Increment the lvRefCnt and lvRefCntWtd for temp */
+                // GT_CMP switchValue, caseValue
+                // GT_JCC(EQ)
+                GenTree* switchValue = comp->gtNewLclvNode(tempLclNum, tempLclType);
                 tempVarDsc->incRefCnts(blockWeight, comp);
-
-                GenTreePtr gtCaseBranch = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, gtCaseCond);
-                LIR::Range caseRange    = LIR::SeqTree(comp, gtCaseBranch);
-                currentBBRange->InsertAtEnd(std::move(caseRange));
+                GenTree*   caseValue    = comp->gtNewIconNode(i, TYP_INT);
+                GenTree*   caseCmp      = comp->gtNewOperNode(GT_CMP, TYP_VOID, switchValue, caseValue);
+                GenTreeCC* caseJcc      = new (comp, GT_JCC) GenTreeCC(GT_JCC, GenCondition::EQ);
+                caseJcc->gtConditionDef = caseCmp;
+                currentBBRange->InsertAfter(currentBBRange->LastNode(), switchValue, caseValue, caseCmp, caseJcc);
             }
         }
 
@@ -676,6 +677,91 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     }
     else
     {
+#ifdef _TARGET_XARCH_
+        if ((targetCnt == 2 || targetCnt == 3) && (jumpCnt - 1 <= genTypeSize(TYP_I_IMPL) * 8))
+        {
+            BasicBlock* bbCase0  = nullptr;
+            BasicBlock* bbCase1  = jumpTab[0];
+            size_t      bitTable = 0;
+            bool        tooMany  = false;
+
+            for (unsigned i = 0; i < jumpCnt - 1; i++)
+            {
+                if (jumpTab[i] == bbCase1)
+                {
+                    bitTable |= (1 << i);
+                }
+                else if (bbCase0 == nullptr)
+                {
+                    bbCase0 = jumpTab[i];
+                }
+                else if (jumpTab[i] != bbCase0)
+                {
+                    tooMany = true;
+                    break;
+                }
+            }
+
+            if (!tooMany)
+            {
+                if (~bitTable <= UINT32_MAX)
+                {
+                    bitTable = ~bitTable;
+                    std::swap(bbCase0, bbCase1);
+                }
+
+                BasicBlock* bbSwitch = afterDefaultCondBlock;
+                BasicBlock* bbNext   = bbSwitch->bbNext;
+
+                GenTree*   switchValue = comp->gtNewLclvNode(tempLclNum, tempLclType);
+                GenTree*   switchMask  = comp->gtNewIconNode(bitTable, bitTable > UINT32_MAX ? TYP_LONG : TYP_INT);
+                GenTree*   bt          = comp->gtNewOperNode(GT_BT, TYP_VOID, switchMask, switchValue);
+                GenTreeCC* jcc         = new (comp, GT_JCC) GenTreeCC(GT_JCC, GenCondition::C);
+                jcc->gtConditionDef    = bt;
+
+                LIR::AsRange(bbSwitch).InsertAfter(nullptr, switchValue, switchMask, bt, jcc);
+                tempVarDsc->incRefCnts(blockWeight, comp);
+
+                bbSwitch->bbJumpKind = BBJ_COND;
+
+                comp->fgRemoveAllRefPreds(bbCase1, bbSwitch);
+                comp->fgRemoveAllRefPreds(bbCase0, bbSwitch);
+
+                if (bbCase0 == bbNext)
+                {
+                    bbSwitch->bbJumpDest = bbCase1;
+
+                    comp->fgAddRefPred(bbCase0, bbSwitch);
+                    comp->fgAddRefPred(bbCase1, bbSwitch);
+                }
+                else if (bbCase1 == bbNext)
+                {
+                    jcc->gtCondition.Reverse();
+                    bbSwitch->bbJumpDest = bbCase0;
+
+                    comp->fgAddRefPred(bbCase0, bbSwitch);
+                    comp->fgAddRefPred(bbCase1, bbSwitch);
+                }
+                else
+                {
+                    BasicBlock* bbJump   = comp->fgNewBBafter(BBJ_ALWAYS, bbSwitch, true);
+                    bbJump->bbJumpDest   = bbCase0;
+                    bbSwitch->bbJumpDest = bbCase1;
+
+                    comp->fgAddRefPred(bbJump, bbSwitch);
+                    comp->fgAddRefPred(bbCase0, bbJump);
+                    comp->fgAddRefPred(bbCase1, bbSwitch);
+                }
+
+                comp->fgInvalidateSwitchDescMapEntry(bbSwitch);
+                GenTree* next = node->gtNext;
+                switchBBRange.Remove(node->gtGetOp1());
+                switchBBRange.Remove(node);
+                return next;
+            }
+        }
+#endif
+
         // Lower the switch into an indirect branch using a jump table:
         //
         // 1. Create the constant for the default case
@@ -1998,6 +2084,7 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 //
 // Notes:
 //    - Decomposes long comparisons that feed a GT_JTRUE (32 bit specific).
+//    - Decomposes long comparisons that produce a value (X86 specific).
 //    - Ensures that we don't have a mix of int/long operands (XARCH specific).
 //    - Narrow operands to enable memory operand containment (XARCH specific).
 //    - Transform cmp(and(x, y), 0) into test(x, y) (XARCH specific but could
@@ -2005,12 +2092,142 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 
 void Lowering::LowerCompare(GenTree* cmp)
 {
-#ifndef _TARGET_64BIT_
-    LIR::Use cmpUse;
+    LIR::Use     cmpUse;
+    bool         isUsed    = BlockRange().TryGetUse(cmp, &cmpUse);
+    GenCondition condition = GenCondition::FromCompareTree(cmp);
 
-    if ((cmp->gtGetOp1()->TypeGet() == TYP_LONG) && BlockRange().TryGetUse(cmp, &cmpUse) &&
-        cmpUse.User()->OperIs(GT_JTRUE))
+#ifndef _TARGET_64BIT_
+    if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
     {
+// TODO-ARM: This code should be enabled for ARM32 once support for GT_CMP and GT_SETCC is added.
+#if _TARGET_X86_
+        if (!isUsed || !cmpUse.User()->OperIs(GT_JTRUE))
+        {
+            GenTree* src1 = cmp->gtGetOp1();
+            GenTree* src2 = cmp->gtGetOp2();
+            assert(src1->OperIs(GT_LONG));
+            assert(src2->OperIs(GT_LONG));
+            GenTree* loSrc1 = src1->gtGetOp1();
+            GenTree* hiSrc1 = src1->gtGetOp2();
+            GenTree* loSrc2 = src2->gtGetOp1();
+            GenTree* hiSrc2 = src2->gtGetOp2();
+            BlockRange().Remove(src1);
+            BlockRange().Remove(src2);
+
+            GenCondition condition = GenCondition::FromCompareTree(cmp);
+            GenTree*     loCmp;
+            GenTree*     hiCmp;
+
+            if (cmp->OperIs(GT_EQ, GT_NE))
+            {
+                //
+                // Transform (x EQ|NE y) into (((x.lo SUB y.lo) OR (x.hi SUB y.hi)) EQ|NE 0). If y is 0 then this can
+                // be reduced to just ((x.lo OR x.hi) EQ|NE 0). The OR is expected to set the condition flags so we
+                // don't need to generate a redundant compare against 0, we only generate a SETCC|JCC instruction.
+                //
+
+                if (loSrc2->IsIntegralConst(0))
+                {
+                    BlockRange().Remove(loSrc2);
+                    loCmp = loSrc1;
+                }
+                else
+                {
+                    loCmp = comp->gtNewOperNode(GT_SUB, TYP_INT, loSrc1, loSrc2);
+                    BlockRange().InsertBefore(cmp, loCmp);
+                }
+
+                if (hiSrc2->IsIntegralConst(0))
+                {
+                    BlockRange().Remove(hiSrc2);
+                    hiCmp = hiSrc1;
+                }
+                else
+                {
+                    hiCmp = comp->gtNewOperNode(GT_SUB, TYP_INT, hiSrc1, hiSrc2);
+                    BlockRange().InsertBefore(cmp, hiCmp);
+                }
+
+                hiCmp = comp->gtNewOperNode(GT_OR, TYP_INT, loCmp, hiCmp);
+                BlockRange().InsertBefore(cmp, hiCmp);
+            }
+            else
+            {
+                assert(cmp->OperIs(GT_LT, GT_LE, GT_GE, GT_GT));
+
+                //
+                // If the compare is signed then (x LT|GE y) can be transformed into ((x SUB y) LT|GE 0).
+                // If the compare is unsigned we can still use SUB but we need to check the Carry flag,
+                // not the actual result. In both cases we can simply check the appropiate condition flags
+                // and ignore the actual result:
+                //     SUB_LO loSrc1, loSrc2
+                //     SUB_HI hiSrc1, hiSrc2
+                //     SETCC|JCC (signed|unsigned LT|GE)
+                // If loSrc1 happens to be 0 then the first SUB can be eliminated and the second one can
+                // be turned into a CMP because the first SUB would have set carry to 0. This effectively
+                // transforms a long compare against 0 into an int compare of the high part against 0.
+                //
+                // (x LE|GT y) can to be transformed into ((x SUB y) LE|GT 0) but checking that a long value
+                // is greater than 0 is not so easy. We need to turn this into a positive/negative check
+                // like the one we get for LT|GE compares, this can be achieved by swapping the compare:
+                //     (x LE|GT y) becomes (y GE|LT x)
+                //
+
+                if (cmp->OperIs(GT_LE, GT_GT))
+                {
+                    std::swap(loSrc1, loSrc2);
+                    std::swap(hiSrc1, hiSrc2);
+                    condition.Swap();
+                }
+
+                assert(condition.Is(GenCondition::SLT, GenCondition::ULT, GenCondition::SGE, GenCondition::UGE));
+
+                if (loSrc2->IsIntegralConst(0))
+                {
+                    BlockRange().Remove(loSrc2);
+
+                    hiCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, hiSrc1, hiSrc2);
+                    BlockRange().InsertBefore(cmp, hiCmp);
+                }
+                else
+                {
+                    loCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, loSrc1, loSrc2);
+                    hiCmp = comp->gtNewOperNode(GT_SUB_HI, TYP_INT, hiSrc1, hiSrc2);
+                    BlockRange().InsertBefore(cmp, loCmp, hiCmp);
+                }
+            }
+
+            hiCmp->gtFlags |= GTF_SET_FLAGS;
+
+// TODO-CQ: We could also lower comparisons that feed a GT_JTRUE. Doing that brings
+// a ~8KB improvement in fx jit-diff but there's also a ~700 bytes regression that
+// should be investigated before enabling this.
+#if 0
+            LIR::Use cmpUse;
+            if (BlockRange().TryGetUse(cmp, &cmpUse) && cmpUse.User()->OperIs(GT_JTRUE))
+            {
+                BlockRange().Remove(cmp);
+
+                GenTree* jcc    = cmpUse.User();
+                jcc->gtOp.gtOp1 = nullptr;
+                jcc->ChangeOper(GT_JCC);
+                jcc->gtFlags |= (cmp->gtFlags & GTF_UNSIGNED);
+                jcc->AsCC()->gtCondition    = condition;
+                jcc->AsCC()->gtConditionDef = hiCmp;
+            }
+            else
+#endif
+            {
+                cmp->gtOp.gtOp1 = nullptr;
+                cmp->gtOp.gtOp2 = nullptr;
+                cmp->ChangeOper(GT_SETCC);
+                cmp->AsCC()->gtCondition = condition;
+            }
+
+            return;
+        }
+#endif
+
         // For 32-bit targets any comparison that feeds a `GT_JTRUE` node must be lowered such that
         // the liveness of the operands to the comparison is properly visible to the rest of the
         // backend. As such, a 64-bit comparison is lowered from something like this:
@@ -2186,39 +2403,44 @@ void Lowering::LowerCompare(GenTree* cmp)
             // performs the necessary mapping.
             //
 
-            genTreeOps hiCmpOper;
-            genTreeOps loCmpOper;
+            GenCondition hiCmpOper;
+            genTreeOps   loCmpOper;
 
             switch (cmp->OperGet())
             {
                 case GT_LT:
                     cmp->gtOper = GT_GT;
-                    hiCmpOper   = GT_LT;
+                    hiCmpOper   = GenCondition::SLT;
                     loCmpOper   = GT_LT;
                     break;
                 case GT_LE:
                     cmp->gtOper = GT_GT;
-                    hiCmpOper   = GT_LT;
+                    hiCmpOper   = GenCondition::SLT;
                     loCmpOper   = GT_LE;
                     break;
                 case GT_GT:
                     cmp->gtOper = GT_LT;
-                    hiCmpOper   = GT_GT;
+                    hiCmpOper   = GenCondition::SGT;
                     loCmpOper   = GT_GT;
                     break;
                 case GT_GE:
                     cmp->gtOper = GT_LT;
-                    hiCmpOper   = GT_GT;
+                    hiCmpOper   = GenCondition::SGT;
                     loCmpOper   = GT_GE;
                     break;
                 default:
                     unreached();
             }
 
+            if (cmp->IsUnsigned())
+            {
+                hiCmpOper.MakeUnsigned();
+            }
+
             BasicBlock* newBlock2 = comp->fgSplitBlockAtEnd(newBlock);
 
-            GenTree* hiJcc = new (comp, GT_JCC) GenTreeJumpCC(hiCmpOper);
-            hiJcc->gtFlags = cmp->gtFlags;
+            GenTreeCC* hiJcc      = new (comp, GT_JCC) GenTreeCC(GT_JCC, hiCmpOper);
+            hiJcc->gtConditionDef = nullptr;
             LIR::AsRange(newBlock).InsertAfter(nullptr, hiJcc);
 
             BlockRange().Remove(loSrc1.Def());
@@ -2243,6 +2465,8 @@ void Lowering::LowerCompare(GenTree* cmp)
 
         BlockRange().Remove(src1);
         BlockRange().Remove(src2);
+
+        condition = GenCondition::FromCompareTree(cmp);
     }
 #endif
 
@@ -2289,6 +2513,8 @@ void Lowering::LowerCompare(GenTree* cmp)
         }
     }
 #endif // _TARGET_AMD64_
+
+    genTreeOps oper = GT_CMP;
 
     if (cmp->gtGetOp2()->IsIntegralConst())
     {
@@ -2359,7 +2585,7 @@ void Lowering::LowerCompare(GenTree* cmp)
                 {
                     op2Value = 0;
                     op2->SetIconValue(0);
-                    cmp->SetOperRaw(GenTree::ReverseRelop(cmp->OperGet()));
+                    condition.Reverse();
                 }
             }
 
@@ -2368,7 +2594,7 @@ void Lowering::LowerCompare(GenTree* cmp)
                 BlockRange().Remove(op1);
                 BlockRange().Remove(op2);
 
-                cmp->SetOperRaw(cmp->OperIs(GT_EQ) ? GT_TEST_EQ : GT_TEST_NE);
+                oper            = GT_TEST;
                 cmp->gtOp.gtOp1 = andOp1;
                 cmp->gtOp.gtOp2 = andOp2;
 
@@ -2403,6 +2629,50 @@ void Lowering::LowerCompare(GenTree* cmp)
                         andOp2->gtType = TYP_CHAR;
                     }
                 }
+
+#ifdef _TARGET_XARCH_
+                if (andOp2->IsIntegralConst())
+                {
+                    size_t mask = static_cast<size_t>(andOp2->AsIntCon()->IconValue());
+
+                    if ((andOp1->TypeGet() == TYP_LONG) && (mask > UINT32_MAX) && isPow2(mask))
+                    {
+                        // Transform (x TEST 2^n) into (x BT n) to avoid an 8 byte immediate
+                        oper      = GT_BT;
+                        condition = condition.Is(GenCondition::EQ) ? GenCondition::NC : GenCondition::C;
+                        andOp2->AsIntCon()->SetIconValue(genLog2(mask));
+                    }
+                    else if ((mask == 1) && andOp1->OperIs(GT_RSZ))
+                    {
+                        // Transform ((x RSZ y) TEST 1) into (x BT y)
+                        oper            = GT_BT;
+                        condition       = condition.Is(GenCondition::EQ) ? GenCondition::NC : GenCondition::C;
+                        cmp->gtOp.gtOp1 = andOp1->gtGetOp1();
+                        cmp->gtOp.gtOp2 = andOp1->gtGetOp2();
+                        BlockRange().Remove(andOp1);
+                        BlockRange().Remove(andOp2);
+                    }
+                }
+                else if (andOp2->OperIs(GT_LSH) && andOp2->gtGetOp1()->IsIntegralConst(1))
+                {
+                    // Transform (x TEST (1 LSH y)) into (x BT y)
+                    oper            = GT_BT;
+                    condition       = condition.Is(GenCondition::EQ) ? GenCondition::NC : GenCondition::C;
+                    cmp->gtOp.gtOp2 = andOp2->gtGetOp2();
+                    BlockRange().Remove(andOp2->gtGetOp1());
+                    BlockRange().Remove(andOp2);
+                }
+                else if (andOp1->OperIs(GT_LSH) && andOp1->gtGetOp1()->IsIntegralConst(1))
+                {
+                    // Transform ((1 LSH y) TEST x) into (x BT y)
+                    oper      = GT_BT;
+                    condition = condition.Is(GenCondition::EQ) ? GenCondition::NC : GenCondition::C;
+                    std::swap(cmp->gtOp.gtOp1, cmp->gtOp.gtOp2);
+                    cmp->gtOp.gtOp2 = andOp1->gtGetOp2();
+                    BlockRange().Remove(andOp1->gtGetOp1());
+                    BlockRange().Remove(andOp1);
+                }
+#endif
             }
         }
     }
@@ -2419,10 +2689,1096 @@ void Lowering::LowerCompare(GenTree* cmp)
             // has to generate a small comparison, it can still correctly generate a TYP_INT comparison.
             //
 
-            cmp->gtFlags |= GTF_UNSIGNED;
+            condition.MakeUnsigned();
         }
     }
+
+    GenTree* conditionDef = cmp;
+
+    if (condition.IsFloat())
+    {
+        oper = GT_FCMP;
+
+        if (condition.IsUnordered() ? cmp->OperIs(GT_GT, GT_GE) : cmp->OperIs(GT_LT, GT_LE))
+        {
+            std::swap(cmp->gtOp.gtOp1, cmp->gtOp.gtOp2);
+            cmp->gtFlags ^= GTF_REVERSE_OPS;
+            condition.Swap();
+        }
+    }
+    else if (condition.Is(GenCondition::EQ, GenCondition::NE) && cmp->gtGetOp2()->IsIntegralConst(0) &&
+             cmp->gtGetOp1()->OperIs(GT_ADD, GT_SUB, GT_NEG, GT_AND, GT_OR, GT_XOR) &&
+             cmp->gtGetOp1()->gtNext == cmp->gtGetOp2() && cmp->gtGetOp2()->gtNext == cmp)
+    {
+        oper         = GT_NONE;
+        conditionDef = cmp->gtGetOp1();
+
+#if 0 // Minimize diffs
+        if (cmp->gtGetOp1()->OperIs(GT_SUB))
+        {
+            cmp->gtGetOp1()->SetOper(GT_CMP);
+        }
+#endif
+
+        cmp->gtGetOp1()->gtFlags |= GTF_SET_FLAGS;
+    }
+#ifdef FEATURE_SIMD
+    else if (condition.Is(GenCondition::EQ, GenCondition::NE) && cmp->gtGetOp1()->IsSIMDEqualityOrInequality() &&
+             (cmp->gtGetOp2()->IsIntegralConst(0) || cmp->gtGetOp2()->IsIntegralConst(1)))
+    {
+        oper         = GT_NONE;
+        conditionDef = cmp->gtGetOp1();
+
+        cmp->gtGetOp1()->gtFlags |= GTF_SET_FLAGS;
+
+        GenTreeSIMD* simd = cmp->gtGetOp1()->AsSIMD();
+
+        if (((simd->gtSIMDIntrinsicID == SIMDIntrinsicOpEquality) && cmp->gtGetOp2()->IsIntegralConst(0)) ||
+            ((simd->gtSIMDIntrinsicID == SIMDIntrinsicOpInEquality) && cmp->gtGetOp2()->IsIntegralConst(1)))
+        {
+            condition.Reverse();
+        }
+    }
+#endif
+
+    if (isUsed)
+    {
+        if (cmpUse.User()->OperIs(GT_JTRUE))
+        {
+            GenTree* jtrue = cmpUse.User();
+            jtrue->ChangeOper(GT_JCC);
+            GenTreeCC* jcc      = jtrue->AsCC();
+            jcc->gtCondition    = condition;
+            jcc->gtConditionDef = conditionDef;
+
+            if (oper == GT_NONE)
+            {
+                BlockRange().Remove(cmp);
+            }
+            else if (cmp->gtGetOp2()->IsCnsIntOrI())
+            {
+                cmp->SetOper(oper);
+                TryRangeCompare(cmp->AsOp(), jcc);
+            }
+        }
+        else if (oper == GT_NONE)
+        {
+            BlockRange().Remove(cmp->gtGetOp2());
+            cmp->ChangeOper(GT_SETCC);
+            cmp->AsCC()->gtCondition = condition;
+        }
+        else
+        {
+            GenTree* setcc = new (comp, GT_SETCC) GenTreeCC(GT_SETCC, condition, cmp->TypeGet());
+            BlockRange().InsertAfter(cmp, setcc);
+            cmpUse.ReplaceWith(comp, setcc);
+        }
+    }
+
+    if (oper == GT_NONE)
+    {
+        if (!cmp->OperIs(GT_SETCC))
+        {
+            BlockRange().Remove(cmp->gtGetOp2());
+        }
+    }
+    else
+    {
+        cmp->SetOper(oper);
+        cmp->gtFlags &= ~(GTF_UNSIGNED | GTF_RELOP_NAN_UN | GTF_RELOP_JMP_USED);
+    }
 #endif // _TARGET_XARCH_
+}
+
+bool Lowering::TryRangeCompare(GenTreeOp* cmp, GenTreeCC* jcc)
+{
+    // We're looking for code like
+    // if (3 < x && x < 10) { ... }
+    // in asm this would look like
+    // pred:
+    //     cmp x, 3
+    //     jle out_of_range
+    // m_block:
+    //     cmp x, 10
+    //     jge out_of_range
+    //
+    // TODO What if we have if (x < 3 || 10 < x) { ... }?
+
+    BasicBlock* pred = m_block->GetUniquePred(comp);
+
+    if ((pred == nullptr) || (pred->bbJumpKind != BBJ_COND))
+    {
+        return false;
+    }
+
+    if ((pred->bbNext != m_block) || (m_block->bbJumpDest != pred->bbJumpDest))
+    {
+        return false;
+    }
+
+    GenTree* predJcc = pred->lastNode();
+
+    if (!predJcc->OperIs(GT_JCC))
+    {
+        // It looks like the predecessor hasn't been lowered yet.
+        return false;
+    }
+
+    GenTree* predCmp = predJcc->AsCC()->gtConditionDef;
+
+    if ((predCmp == nullptr) || !predCmp->OperIs(GT_CMP))
+    {
+        // Can't find the compare instruction. One reason may be that we
+        // already reused a compare in the predecessor. Now what? We need
+        // to store the flags definition in the jcc node it seems.
+        return false;
+    }
+
+    if (predCmp->OperGet() != cmp->OperGet())
+    {
+        return false;
+    }
+
+    GenTree* predCmpOp1 = predCmp->gtGetOp1();
+    GenTree* predCmpOp2 = predCmp->gtGetOp2();
+
+    if (!predCmpOp2->IsCnsIntOrI())
+    {
+        return false;
+    }
+
+    GenTree* cmpOp1 = cmp->gtGetOp1();
+    GenTree* cmpOp2 = cmp->gtGetOp2();
+
+    if (!cmpOp1->OperIs(GT_LCL_VAR))
+    {
+        return false;
+    }
+
+    if (!comp->gtCompareTree(cmpOp1, predCmpOp1))
+    {
+        return false;
+    }
+
+    assert(cmpOp2->IsCnsIntOrI());
+
+    // The code in this block needs to executed unconditionally (with respect to
+    // predecessor's condition). Make sure we don't have any side effects.
+    // TODO Can we use the tree side effects here?
+    // TODO Can we allow indirs here? Probably we could if the address does not
+    // depend on the lclvar tested by the predecessor condition.
+    for (GenTree* prev = cmp->gtPrev; prev != nullptr; prev = prev->gtPrev)
+    {
+        if (!prev->OperIs(GT_IL_OFFSET, GT_PHI, GT_PHI_ARG, GT_LCL_VAR, GT_LEA, GT_CNS_INT, GT_CNS_DBL))
+        {
+            return false;
+        }
+    }
+
+    GenCondition   lCond    = predJcc->AsCC()->gtCondition;
+    GenTreeIntCon* lLimitOp = predCmp->gtGetOp2()->AsIntCon();
+
+    GenCondition   uCond    = jcc->gtCondition;
+    GenTreeIntCon* uLimitOp = cmp->gtGetOp2()->AsIntCon();
+
+    if (lLimitOp->IconValue() > uLimitOp->IconValue())
+    {
+        // The limit tests are reveresed, swap limits and conditions.
+        std::swap(lLimitOp, uLimitOp);
+        std::swap(lCond, uCond);
+    }
+
+    ssize_t lLimit = lLimitOp->IconValue();
+    ssize_t uLimit = uLimitOp->IconValue();
+
+    // printf("---------------------------------------\n");
+    // printf("x %s %I64d || x %s %I64d\n", lCond.Name(), lLimit, uCond.Name(), uLimit);
+
+    // For clarity change the conditions so we get the cannonical form
+    // (lLimit < x && x < uLimit) rather than (!(x > lLimit) && !(x < uLimit)).
+    lCond.Reverse();
+    lCond.Swap();
+    uCond.Reverse();
+
+    // printf("%I64d %s x && x %s %I64d\n", lLimit, lCond.Name(), uCond.Name(), uLimit);
+
+    // TODO Handle unsigned compares
+    // TODO Watch out for integer overflow
+    if (lCond.Is(GenCondition::SLT))
+    {
+        lLimit++;
+    }
+    else if (!lCond.Is(GenCondition::SLE))
+    {
+        return false;
+    }
+
+    if (uCond.Is(GenCondition::SLT))
+    {
+        uLimit--;
+    }
+    else if (!uCond.Is(GenCondition::SLE))
+    {
+        return false;
+    }
+
+    // printf("%I64d %s x && x %s %I64d\n", lLimit, lCond.Name(), uCond.Name(), uLimit);
+    // printf("---------------------------------------\n");
+
+    comp->lvaDecRefCnts(predCmpOp1);
+
+    LIR::Range& predRange = LIR::AsRange(pred);
+    predRange.Remove(predCmpOp1);
+    predRange.Remove(predCmpOp2);
+    predRange.Remove(predCmp);
+    predRange.Remove(predJcc);
+
+    comp->fgRemoveRefPred(pred->bbJumpDest, pred);
+    pred->bbJumpKind = BBJ_ALWAYS;
+    pred->bbJumpDest = m_block;
+    m_block->bbFlags |= BBF_JMP_TARGET;
+
+    if (lLimit != 0)
+    {
+        BlockRange().Remove(cmpOp2);
+
+        uLimitOp->SetIconValue(uLimit - lLimit);
+        lLimitOp->SetIconValue(-lLimit);
+
+        GenTree* sub = comp->gtNewOperNode(GT_ADD, cmpOp1->TypeGet(), cmpOp1, lLimitOp);
+        cmp->gtOp1   = sub;
+        cmp->gtOp2   = uLimitOp;
+
+        BlockRange().InsertBefore(cmp, lLimitOp, sub, uLimitOp);
+    }
+    else
+    {
+        cmp->gtGetOp2()->AsIntCon()->SetIconValue(uLimit);
+    }
+
+    jcc->gtCondition = GenCondition::UGT;
+
+    return true;
+}
+
+class IfConversion
+{
+    Compiler*   m_comp;
+    BasicBlock* m_block;
+    GenTreeCC*  m_jcc;
+    BasicBlock* m_falseBlock;
+    BasicBlock* m_trueBlock;
+    BasicBlock* m_joinBlock;
+
+public:
+    static GenTree* FirstInstruction(BasicBlock* block)
+    {
+        GenTree* first = LIR::AsRange(block).FirstNonPhiNode();
+
+        while ((first != nullptr) && first->OperIs(GT_IL_OFFSET))
+        {
+            first = first->gtNext;
+        }
+
+        return first;
+    }
+
+    static GenTree* NextInstruction(GenTree* node)
+    {
+        node = node->gtNext;
+
+        while ((node != nullptr) && node->OperIs(GT_IL_OFFSET))
+        {
+            node = node->gtNext;
+        }
+
+        return node;
+    }
+
+    static GenTree* PreviousInstruction(GenTree* node)
+    {
+        node = node->gtPrev;
+
+        while ((node != nullptr) && node->OperIs(GT_IL_OFFSET))
+        {
+            node = node->gtPrev;
+        }
+
+        return node;
+    }
+
+    static GenTree* LastInstruction(BasicBlock* block)
+    {
+        GenTree* last = block->lastNode();
+
+        while ((last != nullptr) && last->OperIs(GT_IL_OFFSET))
+        {
+            last = last->gtPrev;
+        }
+
+        return last;
+    }
+
+    static BasicBlock* SingleSuccessorBlock(BasicBlock* block)
+    {
+        if (block->bbJumpKind == BBJ_NONE)
+        {
+            return block->bbNext;
+        }
+
+        if (block->bbJumpKind == BBJ_ALWAYS)
+        {
+            return block->bbJumpDest;
+        }
+
+        return nullptr;
+    }
+
+    static GenTree* CloneNode(Compiler* comp, GenTree* node)
+    {
+        if (node->OperIs(GT_STORE_LCL_VAR))
+        {
+            GenTreeLclVar* clone = new (comp, GT_STORE_LCL_VAR)
+                GenTreeLclVar(GT_STORE_LCL_VAR, node->TypeGet(), node->AsLclVar()->GetLclNum(), -1);
+            clone->gtFlags = node->gtFlags & GTF_LIVENESS_MASK;
+            comp->lvaIncRefCnts(clone);
+            return clone;
+        }
+        else if (node->OperIs(GT_LCL_VAR))
+        {
+            GenTree* clone = comp->gtClone(node);
+            comp->lvaIncRefCnts(clone);
+            return clone;
+        }
+        else if (node->OperIs(GT_RETURN))
+        {
+            return comp->gtNewOperNode(GT_RETURN, node->TypeGet(), node->gtGetOp1());
+        }
+        else
+        {
+            assert(node->OperIs(GT_CNS_INT));
+            return comp->gtClone(node);
+        }
+    }
+
+    void UnlinkBlocks(BasicBlock* falseBlock) const
+    {
+        assert(m_joinBlock != nullptr);
+
+        m_comp->fgRemoveRefPred(falseBlock, m_block);
+
+        m_block->bbJumpKind = BBJ_ALWAYS;
+        m_block->bbJumpDest = m_joinBlock;
+
+        m_comp->fgAddRefPred(m_joinBlock, m_block);
+    }
+
+    void UnlinkBlocks(BasicBlock* falseBlock, BasicBlock* trueBlock) const
+    {
+        m_comp->fgRemoveRefPred(falseBlock, m_block);
+        m_comp->fgRemoveRefPred(trueBlock, m_block);
+
+        if (m_joinBlock == nullptr)
+        {
+            m_block->bbJumpKind = BBJ_RETURN;
+        }
+        else
+        {
+            m_block->bbJumpKind = BBJ_ALWAYS;
+            m_block->bbJumpDest = m_joinBlock;
+            m_joinBlock->bbFlags |= BBF_JMP_TARGET;
+            m_comp->fgAddRefPred(m_joinBlock, m_block);
+        }
+    }
+
+    LIR::Range& BlockRange() const
+    {
+        return LIR::AsRange(m_block);
+    }
+
+    enum class HammockKind
+    {
+        None,
+        Half,
+        Full
+    };
+
+    HammockKind MakeHammock()
+    {
+        m_falseBlock = m_block->bbNext;
+        m_trueBlock  = m_block->bbJumpDest;
+
+        BasicBlock* joinBlock = SingleSuccessorBlock(m_falseBlock);
+
+        if (joinBlock == m_block->bbJumpDest)
+        {
+            if (m_falseBlock->lastNode() == nullptr)
+            {
+                // The block is empty, fg optimizations should have taken care of this.
+                return HammockKind::None;
+            }
+
+            if (m_comp->fgInDifferentRegions(m_block, m_falseBlock) || !BasicBlock::sameEHRegion(m_block, m_falseBlock))
+            {
+                return HammockKind::None;
+            }
+
+            // We have something like "if (cond) { falseBlock: ... } joinBlock: ..."
+
+            m_joinBlock = joinBlock;
+            return HammockKind::Half;
+        }
+        else
+        {
+            if ((m_falseBlock->lastNode() == nullptr) || (m_trueBlock->lastNode() == nullptr))
+            {
+                // Either or both blocks are empty, fg optimizations should have taken care of this.
+                // If only one block is empty we actually have a half hammock but to keep things
+                // simple this special case is not handled.
+                return HammockKind::None;
+            }
+
+            if ((m_falseBlock->bbJumpKind == BBJ_RETURN) && (m_trueBlock->bbJumpKind == BBJ_RETURN))
+            {
+#ifdef JIT32_GCENCODER
+                // If the return blocks have other predecessors we won't be able to remove them and
+                // instead of replacing 2 return blocks with a single one we may end up creating an
+                // additional return block. In turn this may result in reaching the 4 return block
+                // limit imposed by the x86 GC encoding.
+                return HammockKind::None;
+#endif
+                m_joinBlock = nullptr;
+            }
+            else if ((joinBlock != nullptr) && (joinBlock == SingleSuccessorBlock(m_trueBlock)))
+            {
+                m_joinBlock = joinBlock;
+            }
+            else
+            {
+                return HammockKind::None;
+            }
+
+            if (m_comp->fgInDifferentRegions(m_block, m_falseBlock) ||
+                m_comp->fgInDifferentRegions(m_block, m_trueBlock))
+            {
+                return HammockKind::None;
+            }
+
+            if (!BasicBlock::sameEHRegion(m_block, m_falseBlock) || !BasicBlock::sameEHRegion(m_block, m_trueBlock))
+            {
+                return HammockKind::None;
+            }
+
+            // We have something like "if (cond) { falseBlock: ... } else { trueBlock: ... } joinBlock: ..."
+
+            return HammockKind::Full;
+        }
+    }
+
+    class BlockSummary
+    {
+        BasicBlock*  m_block;
+        GenTreeUnOp* m_op;    // The operation performed by this block - RETURN or STORE_LCL_VAR
+        GenTree*     m_opSrc; // The operation source - LCL_VAR or CNS_INT
+        unsigned     m_copyCount;
+
+        LIR::Range& BlockRange(Compiler* comp) const
+        {
+            return LIR::AsRange(comp->compCurBB);
+        }
+
+    public:
+        BlockSummary(BasicBlock* block) : m_block(block)
+        {
+        }
+
+        bool Summarize(HammockKind kind)
+        {
+            // A suitable block should consist of a single assignment involving local variables and constants.
+            // For full hammocks it's also possible to have a return of a local variable or a constant.
+            // Examples:
+            //     - if (cond) { lcl1 = lclX; } else { lcl1 = lclY; }
+            //     - if (cond) { return lclX; } else { return 42; }
+            //     - if (cond) { lcl1 = 42; }
+
+            GenTree* op = LastInstruction(m_block);
+
+            if ((kind == HammockKind::Half) && op->OperIs(GT_RETURN))
+            {
+                return false;
+            }
+
+            if ((op == nullptr) || !op->OperIs(GT_STORE_LCL_VAR, GT_RETURN))
+            {
+                // TODO Indirs would also work provided that both blocks store to the same address.
+                // How to detect that?
+                return false;
+            }
+
+            if (!varTypeIsIntOrI(op))
+            {
+                // SSE doesn't have a conditional move instruction. In some cases it may be possible
+                // to simulate one by using SSE bitwise ops.
+                return false;
+            }
+
+            GenTree* opSrc = op->gtGetOp1();
+
+            if (!opSrc->OperIs(GT_LCL_VAR, GT_CNS_INT))
+            {
+                // TODO Indirs might be valid sources if we know that the addresses are valid.
+                // Perhaps we can handle "if (cond) { lcl = obj.fld1; } else { lcl = obj.fld2; }" ?
+                return false;
+            }
+
+            if (PreviousInstruction(op) != opSrc)
+            {
+                // There's some other instruction between the lclvar store and its source operand.
+                return false;
+            }
+
+            GenTree* first = FirstInstruction(m_block);
+
+            if (opSrc == first)
+            {
+                m_copyCount = 0;
+            }
+            else
+            {
+                if (kind == HammockKind::Half)
+                {
+                    return false;
+                }
+
+                // It's possible that both blocks of a full hammock to start with a series of lclvar
+                // copies that are generated when the importer spills a non-empty stack at the start
+                // of a block. Try to identify and clone such copies.
+
+                GenTree* copyDst   = PreviousInstruction(opSrc);
+                unsigned copyCount = 0;
+
+                while (true)
+                {
+                    if (!copyDst->OperIs(GT_STORE_LCL_VAR))
+                    {
+                        return false;
+                    }
+
+#ifndef _TARGET_64BIT_
+                    if (varTypeIsLong(copyDst))
+                    {
+                        // Can't clone 64 bit copies on 32 bit targets. They need decomposition but
+                        // decomposition has already ran on the current block.
+                        return false;
+                    }
+#endif
+
+                    GenTree* copySrc = copyDst->gtGetOp1();
+
+                    if (!copySrc->OperIs(GT_LCL_VAR))
+                    {
+                        return false;
+                    }
+
+                    if (PreviousInstruction(copyDst) != copySrc)
+                    {
+                        return false;
+                    }
+
+                    copyCount++;
+
+                    if (copySrc == first)
+                    {
+                        break;
+                    }
+
+                    copyDst = PreviousInstruction(copySrc);
+
+                    if (copyDst == nullptr)
+                    {
+                        return false;
+                    }
+                }
+
+                m_copyCount = copyCount;
+            }
+
+            m_opSrc = opSrc;
+            m_op    = op->AsUnOp();
+            return true;
+        }
+
+        bool OpEqual(const BlockSummary& other) const
+        {
+            GenTreeUnOp* falseOp = m_op;
+            GenTreeUnOp* trueOp  = other.m_op;
+
+            assert((falseOp != nullptr) && (trueOp != nullptr));
+
+            if (falseOp->OperGet() != trueOp->OperGet())
+            {
+                return false;
+            }
+
+            if (falseOp->TypeGet() != trueOp->TypeGet())
+            {
+                return false;
+            }
+
+            if (falseOp->OperIs(GT_STORE_LCL_VAR))
+            {
+                if (falseOp->AsLclVar()->GetLclNum() != trueOp->AsLclVar()->GetLclNum())
+                {
+                    return false;
+                }
+            }
+
+            if (m_copyCount != other.m_copyCount)
+            {
+                return false;
+            }
+
+            if (m_copyCount > 0)
+            {
+                GenTree* falseCopyDst = PreviousInstruction(m_opSrc);
+                GenTree* trueCopyDst  = PreviousInstruction(other.m_opSrc);
+
+                for (unsigned i = 0; i < m_copyCount; i++)
+                {
+                    if (falseCopyDst->TypeGet() != trueCopyDst->TypeGet() ||
+                        falseCopyDst->AsLclVar()->GetLclNum() != trueCopyDst->AsLclVar()->GetLclNum())
+                    {
+                        return false;
+                    }
+
+                    GenTree* falseCopySrc = falseCopyDst->gtGetOp1();
+                    GenTree* trueCopySrc  = trueCopyDst->gtGetOp1();
+
+                    if (falseCopySrc->TypeGet() != trueCopySrc->TypeGet() ||
+                        falseCopySrc->AsLclVar()->GetLclNum() != trueCopySrc->AsLclVar()->GetLclNum())
+                    {
+                        return false;
+                    }
+
+                    if (i != m_copyCount - 1)
+                    {
+                        falseCopyDst = PreviousInstruction(falseCopySrc);
+                        trueCopyDst  = PreviousInstruction(trueCopySrc);
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        void CloneCopies(Compiler* comp, GenTree* insertBefore) const
+        {
+            if (m_copyCount == 0)
+            {
+                return;
+            }
+
+            GenTree* copyDst = PreviousInstruction(m_opSrc);
+            assert(copyDst->OperIs(GT_STORE_LCL_VAR));
+
+            for (unsigned i = 0; i < m_copyCount; i++)
+            {
+                GenTree* copySrc         = copyDst->gtGetOp1();
+                GenTree* copyDstClone    = CloneNode(comp, copyDst);
+                GenTree* copySrcClone    = CloneNode(comp, copySrc);
+                copyDstClone->gtOp.gtOp1 = copySrcClone;
+
+                BlockRange(comp).InsertBefore(insertBefore, copySrcClone, copyDstClone);
+                insertBefore = copySrcClone;
+
+                if (i != m_copyCount - 1)
+                {
+                    copyDst = PreviousInstruction(copySrc);
+                    assert(copyDst->OperIs(GT_STORE_LCL_VAR));
+                }
+            }
+        }
+
+        GenTree* CloneOpSrc(Compiler* comp, GenTree* insertBefore) const
+        {
+            GenTree* clone = CloneNode(comp, m_opSrc);
+            BlockRange(comp).InsertBefore(insertBefore, clone);
+            return clone;
+        }
+
+        GenTreeUnOp* CloneOp(Compiler* comp, GenTree* insertAfter) const
+        {
+            GenTreeUnOp* clone = CloneNode(comp, m_op)->AsUnOp();
+            BlockRange(comp).InsertAfter(insertAfter, clone);
+            return clone;
+        }
+
+        GenTreeLclVar* CloneOpAsLclVar(Compiler* comp, GenTree* insertBefore) const
+        {
+            assert(m_op->OperIs(GT_STORE_LCL_VAR));
+
+            GenTreeLclVar* clone = comp->gtNewLclvNode(m_op->AsLclVar()->GetLclNum(), m_op->TypeGet())->AsLclVar();
+            comp->lvaIncRefCnts(clone);
+            BlockRange(comp).InsertBefore(insertBefore, clone);
+            return clone;
+        }
+    };
+
+public:
+    IfConversion(Compiler* comp, BasicBlock* block, GenTreeCC* jcc) : m_comp(comp), m_block(block), m_jcc(jcc)
+    {
+        assert(m_block->bbJumpKind == BBJ_COND);
+        assert(jcc->OperIs(GT_JCC));
+    }
+
+    GenTreeOpCC* TryIfConversion()
+    {
+        GenCondition condition    = m_jcc->gtCondition;
+        GenTree*     conditionDef = m_jcc->gtConditionDef;
+        HammockKind  kind         = MakeHammock();
+
+        if (kind == HammockKind::Half)
+        {
+            BlockSummary summary(m_falseBlock);
+
+            if (!summary.Summarize(kind))
+            {
+                return nullptr;
+            }
+
+            condition.Reverse();
+
+            m_jcc->ChangeOper(GT_SELCC);
+            GenTreeOpCC* selcc = m_jcc->AsOpCC();
+
+            GenTree* trueSrc  = summary.CloneOpSrc(m_comp, selcc);
+            GenTree* falseSrc = summary.CloneOpAsLclVar(m_comp, selcc);
+
+            selcc->gtCondition    = condition;
+            selcc->gtConditionDef = conditionDef;
+            selcc->gtType         = falseSrc->TypeGet();
+            selcc->gtOp1          = falseSrc;
+            selcc->gtOp2          = trueSrc;
+
+            GenTreeUnOp* op = summary.CloneOp(m_comp, selcc);
+            assert(op->OperIs(GT_STORE_LCL_VAR));
+            op->gtOp1 = selcc;
+
+            UnlinkBlocks(m_falseBlock);
+
+            return selcc;
+        }
+
+        if (kind == HammockKind::Full)
+        {
+            BlockSummary falseSummary(m_falseBlock);
+            BlockSummary trueSummary(m_trueBlock);
+
+            if (!falseSummary.Summarize(kind) || !trueSummary.Summarize(kind))
+            {
+                return nullptr;
+            }
+
+            if (!falseSummary.OpEqual(trueSummary))
+            {
+                return nullptr;
+            }
+
+            m_jcc->ChangeOper(GT_SELCC);
+            GenTreeOpCC* selcc = m_jcc->AsOpCC();
+
+            falseSummary.CloneCopies(m_comp, selcc);
+
+            GenTree* falseSrc = falseSummary.CloneOpSrc(m_comp, selcc);
+            GenTree* trueSrc  = trueSummary.CloneOpSrc(m_comp, selcc);
+
+            selcc->gtCondition    = condition;
+            selcc->gtConditionDef = conditionDef;
+            selcc->gtType         = falseSrc->TypeGet();
+            selcc->gtOp1          = falseSrc;
+            selcc->gtOp2          = trueSrc;
+
+            GenTreeUnOp* op = trueSummary.CloneOp(m_comp, selcc);
+            op->gtOp1       = selcc;
+
+            UnlinkBlocks(m_falseBlock, m_trueBlock);
+
+            return selcc;
+        }
+
+        return nullptr;
+    }
+};
+
+bool Lowering::TryReuseCompare(GenTree* cmp, GenTree* cc)
+{
+    // Handle only a single predecessor for now. It may be useful to handle
+    // 2 predecessors for code like:
+    //   if (x < y) blah1;
+    //   if (x > y) blah2;
+    // but that's rather expensive, not only that we need to match multiple
+    // compare instructions but we also need to ensure that blah1 doesn't
+    // interfere with flags.
+
+    BasicBlock* pred = m_block->GetUniquePred(comp);
+
+    if ((pred == nullptr) || (pred->bbJumpKind != BBJ_COND))
+    {
+        return false;
+    }
+
+    GenTree* predJcc = pred->lastNode();
+
+    if (!predJcc->OperIs(GT_JCC))
+    {
+        // It looks like the predecessor hasn't been lowered yet.
+        return false;
+    }
+
+    GenTree* predCmp = predJcc->AsCC()->gtConditionDef;
+
+    if ((predCmp == nullptr) || !predCmp->OperIs(GT_CMP, GT_TEST, GT_BT))
+    {
+        // Can't find the compare instruction. One reason may be that we
+        // already reused a compare in the predecessor. Now what? We need
+        // to store the flags definition in the jcc node it seems.
+        return false;
+    }
+
+    if (predCmp->OperGet() != cmp->OperGet())
+    {
+        return false;
+    }
+
+    GenTree* cmpOp1 = cmp->gtGetOp1();
+    GenTree* cmpOp2 = cmp->gtGetOp2();
+
+    // Poor's man flags interference - the block should contain only
+    // instructions that do not change flags - lcl load/stores, constants,
+    // indirs and LEAs.
+    // TODO Limit search distance to something reasonable...
+
+    for (GenTree* prev = cmp->gtPrev; prev != nullptr; prev = prev->gtPrev)
+    {
+        // Constants are an interesting case - 0 can generate
+        // "xor reg, reg" when it is not contained. But containment is done after
+        // lowering so we'll have to assume the worst, that it is not contained,
+        // except if it's the second cmp argument.
+        if (prev->IsIntegralConst(0) && (prev != cmpOp2))
+        {
+            return false;
+        }
+
+        // TODO There are a lot more...
+        if (!prev->OperIs(GT_IL_OFFSET, GT_PHI, GT_PHI_ARG, GT_LCL_VAR, GT_IND, GT_LEA, GT_CNS_INT, GT_CNS_DBL))
+        {
+            return false;
+        }
+    }
+
+    GenTree* predCmpOp1 = predCmp->gtGetOp1();
+    GenTree* predCmpOp2 = predCmp->gtGetOp2();
+
+    if (!comp->gtCompareTree(predCmpOp1, cmpOp1) || !comp->gtCompareTree(predCmpOp2, cmpOp2))
+    {
+        if (!comp->gtCompareTree(predCmpOp1, cmpOp2) || !comp->gtCompareTree(predCmpOp2, cmpOp1))
+        {
+            return false;
+        }
+
+        if (cc->OperIs(GT_JCC, GT_SETCC))
+        {
+            cc->AsCC()->gtCondition.Swap();
+        }
+        else if (cc->OperIs(GT_SELCC))
+        {
+            cc->AsOpCC()->gtCondition.Swap();
+        }
+    }
+
+    if (cc->OperIs(GT_JCC, GT_SETCC))
+    {
+        cc->AsCC()->gtConditionDef = predJcc->AsCC()->gtConditionDef;
+    }
+
+    if (cmpOp1->OperIs(GT_LCL_VAR))
+    {
+        comp->lvaDecRefCnts(cmpOp1);
+    }
+
+    if (cmpOp2->OperIs(GT_LCL_VAR))
+    {
+        comp->lvaDecRefCnts(cmpOp2);
+    }
+
+    BlockRange().Remove(cmp);
+    BlockRange().Remove(cmpOp1);
+    BlockRange().Remove(cmpOp2);
+
+    return true;
+}
+
+GenTree* Lowering::LowerJCC(GenTreeCC* jcc)
+{
+    GenTree* next = jcc->gtNext;
+
+    if (jcc->gtCondition.IsFloat())
+    {
+        // TODO If-conversion should work for float compares too, at least for those that
+        // do not require checking the P flag.
+        return next;
+    }
+
+    GenTree* conditionDef = jcc->gtConditionDef;
+
+    // On 32 bit arches 64 bit compares produce a jcc where conditionDef is null because the
+    // definition is in another block. If-converting those is problematic because we may need
+    // to insert code before the compare but that means inserting code in a different block.
+    // Doable, but questionable.
+    if (conditionDef != nullptr)
+    {
+        IfConversion ifc(comp, m_block, jcc);
+        GenTreeOpCC* selcc = ifc.TryIfConversion();
+
+        if (selcc != nullptr)
+        {
+            next = LowerSELCC(selcc);
+        }
+
+        TryReuseCompare(conditionDef, jcc);
+    }
+
+    // TODO We've cloned a bunch of stuff from blocks that may have not been lowered yet
+    // so we should actually return prev->gtNext for cloned nodes to be lowered. But then
+    // we may end up doing double lowering...
+    return next;
+}
+
+GenTree* Lowering::LowerSELCC(GenTreeOpCC* selcc)
+{
+    GenTree* falseOp = selcc->gtGetOp1();
+    GenTree* trueOp  = selcc->gtGetOp2();
+
+    if (falseOp->OperIs(GT_CNS_INT) && trueOp->OperIs(GT_CNS_INT))
+    {
+        // SELCC(c1, c2) can sometimes be replaced with SETCC which avoids the need for 2 registers
+        // to load the constants:
+        //     - SELCC(0, 1)  -> SETCC
+        //     - SELCC(0, -1) -> NEG(SETCC)
+        //     - SELCC(3, 4)  -> SETCC + 3
+        //     - SELCC(0, 2)  -> RSH(SETCC, 1)
+
+        var_types    type       = genActualType(selcc->TypeGet());
+        GenCondition condition  = selcc->gtCondition;
+        size_t       falseValue = static_cast<size_t>(falseOp->AsIntCon()->IconValue());
+        size_t       trueValue  = static_cast<size_t>(trueOp->AsIntCon()->IconValue());
+
+        if (falseValue > trueValue)
+        {
+            std::swap(falseValue, trueValue);
+            condition.Reverse();
+        }
+
+        LIR::Use use;
+        bool     isUsed = BlockRange().TryGetUse(selcc, &use);
+        GenTree* result = nullptr;
+
+        if ((falseValue == 0) && (trueValue == SIZE_T_MAX))
+        {
+            result = comp->gtNewOperNode(GT_NEG, type, selcc);
+            BlockRange().InsertAfter(selcc, result);
+        }
+        else
+        {
+            size_t zeroOffset = 0;
+
+            if (falseValue != 0)
+            {
+                zeroOffset = falseValue;
+                falseValue = 0;
+                trueValue -= zeroOffset;
+            }
+
+            if (isPow2(trueValue) && ((zeroOffset == 0) || (genLog2(trueValue) <= 3)))
+            {
+                if (zeroOffset > 0)
+                {
+                    if (trueValue == 1)
+                    {
+                        GenTree* offset = comp->gtNewIconNode(zeroOffset, type);
+                        result          = comp->gtNewOperNode(GT_ADD, type, selcc, offset);
+                        BlockRange().InsertAfter(selcc, offset, result);
+                    }
+                    else
+                    {
+                        result =
+                            new (comp, GT_LEA) GenTreeAddrMode(type, nullptr, selcc, static_cast<unsigned>(trueValue),
+                                                               static_cast<unsigned>(zeroOffset));
+                        BlockRange().InsertAfter(selcc, result);
+                    }
+                }
+                else if (trueValue > 1)
+                {
+                    GenTree* shiftBy = comp->gtNewIconNode(genLog2(trueValue), type);
+                    result           = comp->gtNewOperNode(GT_LSH, type, selcc, shiftBy);
+                    BlockRange().InsertAfter(selcc, shiftBy, result);
+                }
+                else
+                {
+                    result = selcc;
+                }
+            }
+        }
+
+        if (result != nullptr)
+        {
+            selcc->ChangeOper(GT_SETCC);
+
+            GenTreeCC* setcc   = selcc->AsCC();
+            setcc->gtType      = type;
+            setcc->gtCondition = condition;
+
+            BlockRange().Remove(falseOp);
+            BlockRange().Remove(trueOp);
+
+            if (isUsed && (result != selcc))
+            {
+                use.ReplaceWith(comp, result);
+            }
+        }
+    }
+
+    if (selcc->OperIs(GT_SELCC))
+    {
+        // Put constants in the second operand, this appears to improve register allocation.
+
+        if (falseOp->IsIntegralConst() && !trueOp->IsIntegralConst())
+        {
+            std::swap(selcc->gtOp1, selcc->gtOp2);
+            selcc->gtCondition.Reverse();
+        }
+
+        // CMOV doesn't support immediate operands so constants need to be loaded in registers.
+        // Attempting to load a 0 in a register usually results in a "xor reg, reg" instruction
+        // which changes EFLAGS. Avoid this by moving the constant node before the compare node:
+        //     xor eax, eax
+        //     cmp ebx, ecx
+        //     cmove edx, eax
+
+        if (falseOp->IsIntegralConst(0))
+        {
+            BlockRange().Remove(falseOp);
+            BlockRange().InsertBefore(selcc->gtConditionDef, falseOp);
+        }
+
+        if (trueOp->IsIntegralConst(0))
+        {
+            BlockRange().Remove(trueOp);
+            BlockRange().InsertBefore(selcc->gtConditionDef, trueOp);
+        }
+    }
+
+    return selcc->gtNext;
 }
 
 // Lower "jmp <method>" tail call to insert PInvoke method epilog if required.
@@ -3828,6 +5184,98 @@ GenTree* Lowering::LowerAdd(GenTree* node)
 #endif // !_TARGET_ARMARCH_
 }
 
+GenTree* Lowering::LowerBitwise(GenTreeOp* node)
+{
+    GenTree* op1 = node->gtGetOp1();
+    GenTree* op2 = node->gtGetOp2();
+
+#ifdef _TARGET_AMD64_
+    if (varTypeIsLong(op1) && op2->IsCnsIntOrI() && !FitsIn<INT32>(op2->AsIntCon()->IconValue()))
+    {
+        // When the second operand is a constant that doesn't fit in 32 bit
+        // we can avoid loading a 64 bit immediate in a register by replacing
+        // AND/OR/XOR with BTR/BTS/BTC.
+
+        size_t mask = static_cast<size_t>(op2->AsIntCon()->IconValue());
+
+        if (node->OperIs(GT_OR, GT_XOR) && isPow2(mask))
+        {
+            // (x OR|XOR 2^N) = (x BTS|BTC N)
+            op2->AsIntCon()->SetIconValue(genLog2(mask));
+            node->SetOperRaw(node->OperIs(GT_OR) ? GT_BTS : GT_BTC);
+        }
+        else if (node->OperIs(GT_AND) && isPow2(~mask))
+        {
+            // (x AND ~2^N) = (x BTR N)
+            op2->AsIntCon()->SetIconValue(genLog2(~mask));
+            node->SetOperRaw(GT_BTR);
+        }
+
+        return node->gtNext;
+    }
+#endif
+#ifdef _TARGET_XARCH_
+    if (node->OperIs(GT_OR, GT_XOR))
+    {
+        // Transform (x OR|XOR (1 LSH y)) into (x BTS|BTC y)
+        GenTree* shift = nullptr;
+
+        if (op2->OperIs(GT_LSH) && op2->gtGetOp1()->IsIntegralConst(1))
+        {
+            shift = op2;
+        }
+        else if (op1->OperIs(GT_LSH) && op1->gtGetOp1()->IsIntegralConst(1))
+        {
+            shift = op1;
+        }
+
+        if (shift != nullptr)
+        {
+            node->SetOper(node->OperIs(GT_OR) ? GT_BTS : GT_BTC);
+            if (op1 == shift)
+            {
+                node->gtOp1 = op2;
+            }
+            node->gtOp2 = shift->gtGetOp2();
+            BlockRange().Remove(shift->gtGetOp1());
+            BlockRange().Remove(shift);
+        }
+    }
+    else
+    {
+        assert(node->OperIs(GT_AND));
+
+        // Transform (x AND NOT(1 LSH y)) into (x BTR y)
+        GenTree* notOp = nullptr;
+
+        if (op2->OperIs(GT_NOT) && op2->gtGetOp1()->OperIs(GT_LSH) && op2->gtGetOp1()->gtGetOp1()->IsIntegralConst(1))
+        {
+            notOp = op2;
+        }
+        else if (op1->OperIs(GT_NOT) && op1->gtGetOp1()->OperIs(GT_LSH) &&
+                 op1->gtGetOp1()->gtGetOp1()->IsIntegralConst(1))
+        {
+            notOp = op1;
+        }
+
+        if (notOp != nullptr)
+        {
+            node->SetOper(GT_BTR);
+            if (op1 == notOp)
+            {
+                node->gtOp1 = op2;
+            }
+            node->gtOp2 = notOp->gtGetOp1()->gtGetOp2();
+            BlockRange().Remove(notOp->gtGetOp1()->gtGetOp1());
+            BlockRange().Remove(notOp->gtGetOp1());
+            BlockRange().Remove(notOp);
+        }
+    }
+#endif
+
+    return node->gtNext;
+}
+
 //------------------------------------------------------------------------
 // LowerUnsignedDivOrMod: transform GT_UDIV/GT_UMOD nodes with a const power of 2
 // divisor into GT_RSZ/GT_AND nodes.
@@ -4016,7 +5464,10 @@ GenTree* Lowering::LowerSignedDivOrMod(GenTreePtr node)
         {
             // If the divisor is the minimum representable integer value then we can use a compare,
             // the result is 1 iff the dividend equals divisor.
-            divMod->SetOper(GT_EQ);
+            GenTree* cmp = comp->gtNewOperNode(GT_CMP, type, dividend, divisor);
+            BlockRange().InsertBefore(divMod, cmp);
+            divMod->ChangeOper(GT_SETCC);
+            divMod->AsCC()->gtCondition = GenCondition::EQ;
             return next;
         }
     }

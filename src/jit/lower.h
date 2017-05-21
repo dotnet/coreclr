@@ -64,6 +64,10 @@ private:
     // ------------------------------
     void LowerCall(GenTree* call);
     void LowerCompare(GenTree* tree);
+    bool TryRangeCompare(GenTreeOp* cmp, GenTreeCC* jcc);
+    bool TryReuseCompare(GenTree* cmp, GenTree* cc);
+    GenTree* LowerJCC(GenTreeCC* jcc);
+    GenTree* LowerSELCC(GenTreeOpCC* selcc);
     void LowerJmpMethod(GenTree* jmp);
     void LowerRet(GenTree* ret);
     GenTree* LowerDelegateInvoke(GenTreeCall* call);
@@ -199,6 +203,9 @@ private:
         GenTreeUnOp* node, regNumber argReg, TreeNodeInfo& info, bool isVarArgs, bool* callHasFloatRegArgs);
     void TreeNodeInfoInitCall(GenTreeCall* call);
     void TreeNodeInfoInitCmp(GenTreePtr tree);
+    void TreeNodeInfoInitCMP(GenTreeOp* cmp);
+    void TreeNodeInfoInitFCMP(GenTreeOp* cmp);
+    void TreeNodeInfoInitSELCC(GenTreeOpCC* selcc);
     void TreeNodeInfoInitStructArg(GenTreePtr structArg);
     void TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode);
     void TreeNodeInfoInitLogicalOp(GenTree* tree);
@@ -233,6 +240,7 @@ private:
     // Per tree node member functions
     void LowerStoreInd(GenTree* node);
     GenTree* LowerAdd(GenTree* node);
+    GenTree* LowerBitwise(GenTreeOp* node);
     void LowerUnsignedDivOrMod(GenTree* node);
     GenTree* LowerSignedDivOrMod(GenTree* node);
     void LowerBlockStore(GenTreeBlk* blkNode);

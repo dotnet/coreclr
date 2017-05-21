@@ -1234,66 +1234,6 @@ void CodeGen::genReturn(GenTreePtr treeNode)
 #endif
 }
 
-//------------------------------------------------------------------------
-// genCodeForJumpTrue: Generates code for jmpTrue statement.
-//
-// Arguments:
-//    tree - The GT_JTRUE tree node.
-//
-// Return Value:
-//    None
-//
-void CodeGen::genCodeForJumpTrue(GenTreePtr tree)
-{
-    GenTree* cmp = tree->gtOp.gtOp1;
-
-    assert(cmp->OperIsCompare());
-    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
-
-#if !defined(_TARGET_64BIT_)
-    // Long-typed compares should have been handled by Lowering::LowerCompare.
-    assert(!varTypeIsLong(cmp->gtGetOp1()));
-#endif
-
-    // Get the "kind" and type of the comparison.  Note that whether it is an unsigned cmp
-    // is governed by a flag NOT by the inherent type of the node
-    // TODO-XArch-CQ: Check if we can use the currently set flags.
-    emitJumpKind jumpKind[2];
-    bool         branchToTrueLabel[2];
-    genJumpKindsForTree(cmp, jumpKind, branchToTrueLabel);
-
-    BasicBlock* skipLabel = nullptr;
-    if (jumpKind[0] != EJ_NONE)
-    {
-        BasicBlock* jmpTarget;
-        if (branchToTrueLabel[0])
-        {
-            jmpTarget = compiler->compCurBB->bbJumpDest;
-        }
-        else
-        {
-            // This case arises only for ordered GT_EQ right now
-            assert((cmp->gtOper == GT_EQ) && ((cmp->gtFlags & GTF_RELOP_NAN_UN) == 0));
-            skipLabel = genCreateTempLabel();
-            jmpTarget = skipLabel;
-        }
-
-        inst_JMP(jumpKind[0], jmpTarget);
-    }
-
-    if (jumpKind[1] != EJ_NONE)
-    {
-        // the second conditional branch always has to be to the true label
-        assert(branchToTrueLabel[1]);
-        inst_JMP(jumpKind[1], compiler->compCurBB->bbJumpDest);
-    }
-
-    if (skipLabel != nullptr)
-    {
-        genDefineTempLabel(skipLabel);
-    }
-}
-
 /*****************************************************************************
  *
  * Generate code for a single node in the tree.
@@ -1866,61 +1806,49 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_LE:
         case GT_GE:
         case GT_GT:
-        case GT_TEST_EQ:
-        case GT_TEST_NE:
-        {
-            // TODO-XArch-CQ: Check if we can use the currently set flags.
-            // TODO-XArch-CQ: Check for the case where we can simply transfer the carry bit to a register
-            //         (signed < or >= where targetReg != REG_NA)
+            unreached();
+            break;
 
-            GenTreePtr op1     = treeNode->gtGetOp1();
-            var_types  op1Type = op1->TypeGet();
+        case GT_CMP:
+        case GT_TEST:
+            genCMP(treeNode->AsOp());
+            break;
 
-            if (varTypeIsFloating(op1Type))
-            {
-                genCompareFloat(treeNode);
-            }
-#if !defined(_TARGET_64BIT_)
-            // X86 Long comparison
-            else if (varTypeIsLong(op1Type))
-            {
-#ifdef DEBUG
-                // The result of an unlowered long compare on a 32-bit target must either be
-                // a) materialized into a register, or
-                // b) unused.
-                //
-                // A long compare that has a result that is used but not materialized into a register should
-                // have been handled by Lowering::LowerCompare.
-
-                LIR::Use use;
-                assert((treeNode->gtRegNum != REG_NA) || !LIR::AsRange(compiler->compCurBB).TryGetUse(treeNode, &use));
-#endif
-                genCompareLong(treeNode);
-            }
-#endif // !defined(_TARGET_64BIT_)
-            else
-            {
-                genCompareInt(treeNode);
-            }
-        }
-        break;
+        case GT_FCMP:
+            genFCMP(treeNode->AsOp());
+            break;
 
         case GT_JTRUE:
-            genCodeForJumpTrue(treeNode);
+            unreached();
             break;
 
         case GT_JCC:
-        {
-            GenTreeJumpCC* jcc = treeNode->AsJumpCC();
+            genJCC(treeNode->AsCC());
+            break;
 
-            assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
+        case GT_SETCC:
+            genSETCC(treeNode->AsCC());
+            break;
 
-            CompareKind  compareKind = ((jcc->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-            emitJumpKind jumpKind    = genJumpKindForOper(jcc->gtCondition, compareKind);
+        case GT_SELCC:
+            genSELCC(treeNode->AsOpCC());
+            break;
 
-            inst_JMP(jumpKind, compiler->compCurBB->bbJumpDest);
-        }
-        break;
+        case GT_BT:
+            genBTx(treeNode->AsOp(), INS_bt);
+            break;
+
+        case GT_BTC:
+            genBTx(treeNode->AsOp(), INS_btc);
+            break;
+
+        case GT_BTR:
+            genBTx(treeNode->AsOp(), INS_btr);
+            break;
+
+        case GT_BTS:
+            genBTx(treeNode->AsOp(), INS_bts);
+            break;
 
         case GT_RETURNTRAP:
         {
@@ -5633,368 +5561,6 @@ void CodeGen::genLeaInstruction(GenTreeAddrMode* lea)
     genProduceReg(lea);
 }
 
-//-------------------------------------------------------------------------------------------
-// genJumpKindsForTree:  Determine the number and kinds of conditional branches
-//                       necessary to implement the given GT_CMP node
-//
-// Arguments:
-//    cmpTree          - (input) The GenTree node that is used to set the Condition codes
-//                     - The GenTree Relop node that was used to set the Condition codes
-//   jmpKind[2]        - (output) One or two conditional branch instructions
-//   jmpToTrueLabel[2] - (output) When true we branch to the true case
-//                       When false we create a second label and branch to the false case
-//                       Only GT_EQ for a floating point compares can have a false value.
-//
-// Return Value:
-//    Sets the proper values into the array elements of jmpKind[] and jmpToTrueLabel[]
-//
-// Assumptions:
-//    At least one conditional branch instruction will be returned.
-//    Typically only one conditional branch is needed
-//     and the second jmpKind[] value is set to EJ_NONE
-//
-// Notes:
-//    jmpToTrueLabel[i]= true  implies branch when the compare operation is true.
-//    jmpToTrueLabel[i]= false implies branch when the compare operation is false.
-//-------------------------------------------------------------------------------------------
-
-// static
-void CodeGen::genJumpKindsForTree(GenTreePtr cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2])
-{
-    // Except for BEQ (=  ordered GT_EQ) both jumps are to the true label.
-    jmpToTrueLabel[0] = true;
-    jmpToTrueLabel[1] = true;
-
-    // For integer comparisons just use genJumpKindForOper
-    if (!varTypeIsFloating(cmpTree->gtOp.gtOp1->gtEffectiveVal()))
-    {
-        CompareKind compareKind = ((cmpTree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-        jmpKind[0]              = genJumpKindForOper(cmpTree->gtOper, compareKind);
-        jmpKind[1]              = EJ_NONE;
-    }
-    else
-    {
-        assert(cmpTree->OperIsCompare());
-
-        // For details on how we arrived at this mapping, see the comment block in genCodeForTreeNode()
-        // while generating code for compare opererators (e.g. GT_EQ etc).
-        if ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-        {
-            // Must branch if we have an NaN, unordered
-            switch (cmpTree->gtOper)
-            {
-                case GT_LT:
-                case GT_GT:
-                    jmpKind[0] = EJ_jb;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_LE:
-                case GT_GE:
-                    jmpKind[0] = EJ_jbe;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_NE:
-                    jmpKind[0] = EJ_jpe;
-                    jmpKind[1] = EJ_jne;
-                    break;
-
-                case GT_EQ:
-                    jmpKind[0] = EJ_je;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                default:
-                    unreached();
-            }
-        }
-        else // ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) == 0)
-        {
-            // Do not branch if we have an NaN, unordered
-            switch (cmpTree->gtOper)
-            {
-                case GT_LT:
-                case GT_GT:
-                    jmpKind[0] = EJ_ja;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_LE:
-                case GT_GE:
-                    jmpKind[0] = EJ_jae;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_NE:
-                    jmpKind[0] = EJ_jne;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_EQ:
-                    jmpKind[0]        = EJ_jpe;
-                    jmpKind[1]        = EJ_je;
-                    jmpToTrueLabel[0] = false;
-                    break;
-
-                default:
-                    unreached();
-            }
-        }
-    }
-}
-
-#if !defined(_TARGET_64BIT_)
-//------------------------------------------------------------------------
-// genJumpKindsForTreeLongHi: Generate the jump types for compare
-// operators of the high parts of a compare with long type operands
-// on x86 for the case where rel-op result needs to be materialized into a
-// register.
-//
-// Arguments:
-//    cmpTree - The GT_CMP node
-//    jmpKind - Return array of jump kinds
-//    jmpToTrueLabel - Return array of if the jump is going to true label
-//
-// Return Value:
-//    None.
-//
-void CodeGen::genJumpKindsForTreeLongHi(GenTreePtr cmpTree, emitJumpKind jmpKind[2])
-{
-    assert(cmpTree->OperIsCompare());
-    CompareKind compareKind = ((cmpTree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-
-    switch (cmpTree->gtOper)
-    {
-        case GT_LT:
-        case GT_LE:
-            if (compareKind == CK_SIGNED)
-            {
-                jmpKind[0] = EJ_jl;
-                jmpKind[1] = EJ_jg;
-            }
-            else
-            {
-                jmpKind[0] = EJ_jb;
-                jmpKind[1] = EJ_ja;
-            }
-            break;
-
-        case GT_GT:
-        case GT_GE:
-            if (compareKind == CK_SIGNED)
-            {
-                jmpKind[0] = EJ_jg;
-                jmpKind[1] = EJ_jl;
-            }
-            else
-            {
-                jmpKind[0] = EJ_ja;
-                jmpKind[1] = EJ_jb;
-            }
-            break;
-
-        case GT_EQ:
-            // GT_EQ will not jump to the true label if the hi parts are equal
-            jmpKind[0] = EJ_NONE;
-            jmpKind[1] = EJ_jne;
-            break;
-
-        case GT_NE:
-            // GT_NE will always jump to the true label if the high parts are not equal
-            jmpKind[0] = EJ_jne;
-            jmpKind[1] = EJ_NONE;
-            break;
-
-        default:
-            unreached();
-    }
-}
-
-//------------------------------------------------------------------------
-// genCompareLong: Generate code for comparing two longs on x86 when the result of the compare
-// is manifested in a register.
-//
-// Arguments:
-//    treeNode - the compare tree
-//
-// Return Value:
-//    None.
-// Comments:
-// For long compares, we need to compare the high parts of operands first, then the low parts.
-// If the high compare is false, we do not need to compare the low parts. For less than and
-// greater than, if the high compare is true, we can assume the entire compare is true. For
-// compares that are realized in a register, we will generate:
-//
-//    Opcode            x86 equivalent          Comment
-//    ------            --------------          -------
-//    GT_EQ             cmp hiOp1,hiOp2         If any part is not equal, the entire compare
-//                      jne label               is false.
-//                      cmp loOp1,loOp2
-//                      label: sete
-//
-//    GT_NE             cmp hiOp1,hiOp2         If any part is not equal, the entire compare
-//                      jne label               is true.
-//                      cmp loOp1,loOp2
-//                      label: setne
-//
-//    GT_LT; unsigned   cmp hiOp1,hiOp2         If hiOp1 is not equal to hiOp2, the flags are set
-//                      jne label               correctly and we do not need to check lo. Otherwise,
-//                      cmp loOp1,loOp2         we need to compare the lo halves
-//                      label: setb
-//
-//    GT_LE; unsigned   cmp hiOp1,hiOp2         If hiOp1 is not equal to hiOp2, the flags are set
-//                      jne label               correctly and we do not need to check lo. Otherwise,
-//                      cmp loOp1,loOp2         we need to compare the lo halves
-//                      label: setbe
-//
-//    GT_GT; unsigned   cmp hiOp1,hiOp2         If hiOp1 is not equal to hiOp2, the flags are set
-//                      jne label               correctly and we do not need to check lo. Otherwise,
-//                      cmp loOp1,loOp2         we need to compare the lo halves
-//                      label: seta
-//
-//    GT_GE; unsigned   cmp hiOp1,hiOp2         If hiOp1 is not equal to hiOp2, the flags are set
-//                      jne label               correctly and we do not need to check lo. Otherwise,
-//                      cmp loOp1,loOp2         we need to compare the lo halves
-//                      label: setae
-//
-// For signed long comparisons, we need additional labels, as we need to use signed conditions on the
-// "set" instruction:
-//
-//    GT_LT; signed     cmp hiOp1,hiOp2         If hiOp1 is not equal to hiOp2, the flags are set
-//                      jne labelHi             correctly and we do not need to check lo. Otherwise,
-//                      cmp loOp1,loOp2         we need to compare the lo halves
-//                      setb                    Unsigned set for lo compare
-//                      jmp labelFinal
-//                      labelHi: setl           Signed set for high compare
-//                      labelFinal:
-//
-//    GT_LE; signed     cmp hiOp1,hiOp2         If hiOp1 is not equal to hiOp2, the flags are set
-//                      jne labelHi             correctly and we do not need to check lo. Otherwise,
-//                      cmp loOp1,loOp2         we need to compare the lo halves
-//                      setbe                   Unsigend set for lo compare
-//                      jmp labelFinal
-//                      labelHi: setle          Signed set for hi compare
-//                      labelFinal:
-//
-//    GT_GT; signed     cmp hiOp1,hiOp2         If hiOp1 is not equal to hiOp2, the flags are set
-//                      jne labelHi             correctly and we do not need to check lo. Otherwise,
-//                      cmp loOp1,loOp2         we need to compare the lo halves
-//                      seta                    Unsigned set for lo compare
-//                      jmp labelFinal
-//                      labelHi: setg           Signed set for high compare
-//                      labelFinal
-//
-//    GT_GE; signed     cmp hiOp1,hiOp2         If hiOp1 is not equal to hiOp2, the flags are set
-//                      jne labelHi             correctly and we do not need to check lo. Otherwise,
-//                      cmp loOp1,loOp2         we need to compare the lo halves
-//                      setae                   Unsigned set for lo compare
-//                      jmp labelFinal
-//                      labelHi: setge          Signed set for hi compare
-//                      labelFinal:
-//
-// TODO-X86-CQ: Check if hi or lo parts of op2 are 0 and change the compare to a test.
-void CodeGen::genCompareLong(GenTreePtr treeNode)
-{
-    assert(treeNode->OperIsCompare());
-
-    GenTreeOp* tree = treeNode->AsOp();
-    GenTreePtr op1  = tree->gtOp1;
-    GenTreePtr op2  = tree->gtOp2;
-
-    assert(varTypeIsLong(op1->TypeGet()));
-    assert(varTypeIsLong(op2->TypeGet()));
-
-    regNumber targetReg = treeNode->gtRegNum;
-
-    genConsumeOperands(tree);
-
-    GenTreePtr loOp1 = op1->gtGetOp1();
-    GenTreePtr hiOp1 = op1->gtGetOp2();
-    GenTreePtr loOp2 = op2->gtGetOp1();
-    GenTreePtr hiOp2 = op2->gtGetOp2();
-
-    // Create compare for the high parts
-    instruction ins     = INS_cmp;
-    var_types   cmpType = TYP_INT;
-    emitAttr    cmpAttr = emitTypeSize(cmpType);
-
-    // Emit the compare instruction
-    getEmitter()->emitInsBinary(ins, cmpAttr, hiOp1, hiOp2);
-
-    // If the result is not being materialized in a register, we're done.
-    if (targetReg == REG_NA)
-    {
-        return;
-    }
-
-    // Generate the first jump for the high compare
-    CompareKind compareKind = ((tree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-
-    BasicBlock* labelHi    = genCreateTempLabel();
-    BasicBlock* labelFinal = genCreateTempLabel();
-
-    if (compareKind == CK_SIGNED && (tree->gtOper != GT_NE && tree->gtOper != GT_EQ))
-    {
-        // If we are doing a signed comparison, we need to do a signed set if the high compare is true,
-        // but an unsigned set if we fall through to the low compare. If we have a GT_NE or GT_EQ, we do not
-        // need to worry about the sign of the comparison, so we can use the simplified case.
-
-        // We only have to check for equality for the hi comparison. If they are not equal, then the set will
-        // do the right thing. If they are equal, we have to check the lo halves.
-        inst_JMP(EJ_jne, labelHi);
-
-        // Emit the comparison. Perform the set for the lo. Jump to labelFinal
-        getEmitter()->emitInsBinary(ins, cmpAttr, loOp1, loOp2);
-
-        // The low set must be unsigned
-        emitJumpKind jumpKindLo = genJumpKindForOper(tree->gtOper, CK_UNSIGNED);
-
-        inst_SET(jumpKindLo, targetReg);
-        inst_JMP(EJ_jmp, labelFinal);
-
-        // Define the label for hi jump target here. If we have jumped here, we want to set
-        // the target register based on the jump kind of the actual compare type.
-
-        genDefineTempLabel(labelHi);
-        inst_SET(genJumpKindForOper(tree->gtOper, compareKind), targetReg);
-
-        genDefineTempLabel(labelFinal);
-        // Set the higher bytes to 0
-        inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), targetReg, targetReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
-        genProduceReg(tree);
-    }
-    else
-    {
-        // If the compare is unsigned, or if the sign doesn't change the set instruction, we can use
-        // the same set logic for both the hi and lo compare, so we don't need to jump to a high label,
-        // we can just jump to the set that the lo compare will use.
-
-        // We only have to check for equality for the hi comparison. If they are not equal, then the set will
-        // do the right thing. If they are equal, we have to check the lo halves.
-        inst_JMP(EJ_jne, labelFinal);
-
-        // Emit the comparison
-        getEmitter()->emitInsBinary(ins, cmpAttr, loOp1, loOp2);
-
-        // Define the label for hi jump target here. If we have jumped here, we want to set
-        // the target register based on the jump kind of the lower half (the actual compare
-        // type). If we have fallen through, then we are doing a normal int compare for the
-        // lower parts
-
-        genDefineTempLabel(labelFinal);
-
-        // The low set must be unsigned
-        emitJumpKind jumpKindLo = genJumpKindForOper(tree->gtOper, CK_UNSIGNED);
-
-        inst_SET(jumpKindLo, targetReg);
-        // Set the higher bytes to 0
-        inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), targetReg, targetReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
-        genProduceReg(tree);
-    }
-}
-#endif //! defined(_TARGET_64BIT_)
-
 //------------------------------------------------------------------------
 // genCompareFloat: Generate code for comparing two floating point values
 //
@@ -6062,54 +5628,20 @@ void CodeGen::genCompareLong(GenTreePtr treeNode)
 //
 // As we can see from the above equalities that the operands of a compare operator need to be
 // reveresed in case of BLT/CLT, BGT.UN/CGT.UN, BLE/CLE, BGE.UN/CGE.UN.
-void CodeGen::genCompareFloat(GenTreePtr treeNode)
+void CodeGen::genFCMP(GenTreeOp* tree)
 {
-    assert(treeNode->OperIsCompare());
+    assert(tree->OperIs(GT_FCMP));
 
-    GenTreeOp* tree    = treeNode->AsOp();
-    GenTreePtr op1     = tree->gtOp1;
-    GenTreePtr op2     = tree->gtOp2;
-    var_types  op1Type = op1->TypeGet();
-    var_types  op2Type = op2->TypeGet();
+    GenTreePtr op1  = tree->gtOp1;
+    GenTreePtr op2  = tree->gtOp2;
+    var_types  type = op1->TypeGet();
 
     genConsumeOperands(tree);
 
-    assert(varTypeIsFloating(op1Type));
-    assert(op1Type == op2Type);
+    assert(varTypeIsFloating(type));
+    assert(type == op2->TypeGet());
 
-    regNumber   targetReg = treeNode->gtRegNum;
-    instruction ins;
-    emitAttr    cmpAttr;
-
-    bool reverseOps;
-    if ((tree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-    {
-        // Unordered comparison case
-        reverseOps = (tree->gtOper == GT_GT || tree->gtOper == GT_GE);
-    }
-    else
-    {
-        reverseOps = (tree->gtOper == GT_LT || tree->gtOper == GT_LE);
-    }
-
-    if (reverseOps)
-    {
-        GenTreePtr tmp = op1;
-        op1            = op2;
-        op2            = tmp;
-    }
-
-    ins     = ins_FloatCompare(op1Type);
-    cmpAttr = emitTypeSize(op1Type);
-
-    getEmitter()->emitInsBinary(ins, cmpAttr, op1, op2);
-
-    // Are we evaluating this into a register?
-    if (targetReg != REG_NA)
-    {
-        genSetRegToCond(targetReg, tree);
-        genProduceReg(tree);
-    }
+    getEmitter()->emitInsBinary(ins_FloatCompare(type), emitTypeSize(type), op1, op2);
 }
 
 //------------------------------------------------------------------------
@@ -6120,72 +5652,15 @@ void CodeGen::genCompareFloat(GenTreePtr treeNode)
 //
 // Return Value:
 //    None.
-void CodeGen::genCompareInt(GenTreePtr treeNode)
+void CodeGen::genCMP(GenTreeOp* tree)
 {
-    assert(treeNode->OperIsCompare());
+    assert(tree->OperIs(GT_CMP, GT_TEST));
 
-    GenTreeOp* tree      = treeNode->AsOp();
     GenTreePtr op1       = tree->gtOp1;
     GenTreePtr op2       = tree->gtOp2;
     var_types  op1Type   = op1->TypeGet();
     var_types  op2Type   = op2->TypeGet();
     regNumber  targetReg = tree->gtRegNum;
-
-    // Case of op1 == 0 or op1 != 0:
-    // Optimize generation of 'test' instruction if op1 sets flags.
-    //
-    // Note that if LSRA has inserted any GT_RELOAD/GT_COPY before
-    // op1, it will not modify the flags set by codegen of op1.
-    // Similarly op1 could also be reg-optional at its use and
-    // it was spilled after producing its result in a register.
-    // Spill code too will not modify the flags set by op1.
-    GenTree* realOp1 = op1->gtSkipReloadOrCopy();
-    if (realOp1->gtSetFlags())
-    {
-        // op1 must set ZF and SF flags
-        assert(realOp1->gtSetZSFlags());
-
-        // Must be (in)equality against zero.
-        assert(tree->OperIs(GT_EQ, GT_NE));
-        assert(op2->IsIntegralConst(0));
-        assert(op2->isContained());
-
-        // Just consume the operands
-        genConsumeOperands(tree);
-
-        // No need to generate test instruction since
-        // op1 sets flags
-
-        // Are we evaluating this into a register?
-        if (targetReg != REG_NA)
-        {
-            genSetRegToCond(targetReg, tree);
-            genProduceReg(tree);
-        }
-
-        return;
-    }
-
-#ifdef FEATURE_SIMD
-    // If we have GT_JTRUE(GT_EQ/NE(GT_SIMD((in)Equality, v1, v2), true/false)),
-    // then we don't need to generate code for GT_EQ/GT_NE, since SIMD (in)Equality intrinsic
-    // would set or clear Zero flag.
-    if ((targetReg == REG_NA) && tree->OperIs(GT_EQ, GT_NE))
-    {
-        // Is it a SIMD (in)Equality that doesn't need to materialize result into a register?
-        if ((op1->gtRegNum == REG_NA) && op1->IsSIMDEqualityOrInequality())
-        {
-            // Must be comparing against true or false.
-            assert(op2->IsIntegralConst(0) || op2->IsIntegralConst(1));
-            assert(op2->isContainedIntOrIImmed());
-
-            // In this case SIMD (in)Equality will set or clear
-            // Zero flag, based on which GT_JTRUE would generate
-            // the right conditional jump.
-            return;
-        }
-    }
-#endif // FEATURE_SIMD
 
     genConsumeOperands(tree);
 
@@ -6196,7 +5671,7 @@ void CodeGen::genCompareInt(GenTreePtr treeNode)
 
     instruction ins;
 
-    if (tree->OperIs(GT_TEST_EQ, GT_TEST_NE))
+    if (tree->OperIs(GT_TEST))
     {
         ins = INS_test;
     }
@@ -6240,8 +5715,6 @@ void CodeGen::genCompareInt(GenTreePtr treeNode)
     assert(genTypeSize(type) >= max(genTypeSize(op1Type), genTypeSize(op2Type)));
     // TYP_UINT and TYP_ULONG should not appear here, only small types can be unsigned
     assert(!varTypeIsUnsigned(type) || varTypeIsSmall(type));
-    // Small unsigned int types (TYP_BOOL can use anything) should use unsigned comparisons
-    assert(!(varTypeIsSmallInt(type) && varTypeIsUnsigned(type)) || ((tree->gtFlags & GTF_UNSIGNED) != 0));
     // If op1 is smaller then it cannot be in memory, we're probably missing a cast
     assert((genTypeSize(op1Type) >= genTypeSize(type)) || !op1->isUsedFromMemory());
     // If op2 is smaller then it cannot be in memory, we're probably missing a cast
@@ -6250,96 +5723,6 @@ void CodeGen::genCompareInt(GenTreePtr treeNode)
     assert(!op2->IsCnsIntOrI() || genTypeCanRepresentValue(type, op2->AsIntCon()->IconValue()));
 
     getEmitter()->emitInsBinary(ins, emitTypeSize(type), op1, op2);
-
-    // Are we evaluating this into a register?
-    if (targetReg != REG_NA)
-    {
-        genSetRegToCond(targetReg, tree);
-        genProduceReg(tree);
-    }
-}
-
-//-------------------------------------------------------------------------------------------
-// genSetRegToCond:  Set a register 'dstReg' to the appropriate one or zero value
-//                   corresponding to a binary Relational operator result.
-//
-// Arguments:
-//   dstReg          - The target register to set to 1 or 0
-//   tree            - The GenTree Relop node that was used to set the Condition codes
-//
-// Return Value:     none
-//
-// Notes:
-//    A full 64-bit value of either 1 or 0 is setup in the 'dstReg'
-//-------------------------------------------------------------------------------------------
-
-void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
-{
-    noway_assert((genRegMask(dstReg) & RBM_BYTE_REGS) != 0);
-
-    emitJumpKind jumpKind[2];
-    bool         branchToTrueLabel[2];
-    genJumpKindsForTree(tree, jumpKind, branchToTrueLabel);
-
-    if (jumpKind[1] == EJ_NONE)
-    {
-        // Set (lower byte of) reg according to the flags
-        inst_SET(jumpKind[0], dstReg);
-    }
-    else
-    {
-#ifdef DEBUG
-        // jmpKind[1] != EJ_NONE implies BEQ and BEN.UN of floating point values.
-        // These are represented by two conditions.
-        if (tree->gtOper == GT_EQ)
-        {
-            // This must be an ordered comparison.
-            assert((tree->gtFlags & GTF_RELOP_NAN_UN) == 0);
-        }
-        else
-        {
-            // This must be BNE.UN
-            assert((tree->gtOper == GT_NE) && ((tree->gtFlags & GTF_RELOP_NAN_UN) != 0));
-        }
-#endif
-
-        // Here is the sample code generated in each case:
-        // BEQ ==  cmp, jpe <false label>, je <true label>
-        // That is, to materialize comparison reg needs to be set if PF=0 and ZF=1
-        //      setnp reg  // if (PF==0) reg = 1 else reg = 0
-        //      jpe L1     // Jmp if PF==1
-        //      sete reg
-        //  L1:
-        //
-        // BNE.UN == cmp, jpe <true label>, jne <true label>
-        // That is, to materialize the comparison reg needs to be set if either PF=1 or ZF=0;
-        //     setp reg
-        //     jpe L1
-        //     setne reg
-        //  L1:
-
-        // reverse the jmpkind condition before setting dstReg if it is to false label.
-        inst_SET(branchToTrueLabel[0] ? jumpKind[0] : emitter::emitReverseJumpKind(jumpKind[0]), dstReg);
-
-        BasicBlock* label = genCreateTempLabel();
-        inst_JMP(jumpKind[0], label);
-
-        // second branch is always to true label
-        assert(branchToTrueLabel[1]);
-        inst_SET(jumpKind[1], dstReg);
-        genDefineTempLabel(label);
-    }
-
-    var_types treeType = tree->TypeGet();
-    if (treeType == TYP_INT || treeType == TYP_LONG)
-    {
-        // Set the higher bytes to 0
-        inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), dstReg, dstReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
-    }
-    else
-    {
-        noway_assert(treeType == TYP_BYTE);
-    }
 }
 
 #if !defined(_TARGET_64BIT_)
@@ -8740,5 +8123,217 @@ void CodeGen::genAmd64EmitterUnitTests()
 #endif // defined(DEBUG) && defined(LATE_DISASM) && defined(_TARGET_AMD64_)
 
 #endif // _TARGET_AMD64_
+
+void CodeGen::genBTx(GenTreeOp* btx, instruction ins)
+{
+    GenTree*  op1  = btx->gtGetOp1();
+    GenTree*  op2  = btx->gtGetOp2();
+    var_types type = btx->OperIs(GT_BT) ? op1->TypeGet() : btx->TypeGet();
+
+    assert(op1->isUsedFromReg() || op1->isUsedFromMemory());
+    assert(op2->isUsedFromReg() || op2->isContainedIntOrIImmed());
+    assert((genTypeSize(type) > 1) && (genTypeSize(type) <= genTypeSize(TYP_I_IMPL)));
+
+    genConsumeOperands(btx);
+
+    if ((ins != INS_bt) && op1->isUsedFromReg() && (btx->gtRegNum != op1->gtRegNum))
+    {
+        inst_RV_RV(INS_mov, btx->gtRegNum, op1->gtRegNum, type);
+        op1 = btx;
+    }
+
+    getEmitter()->emitInsBinary(ins, emitTypeSize(type), op1, op2);
+
+    if (ins != INS_bt)
+    {
+        genProduceReg(btx);
+    }
+}
+
+const CodeGen::GenConditionDesc& CodeGen::GetConditionDesc(GenCondition condition)
+{
+    // clang-format off
+    static constexpr GenConditionDesc map[32]
+    {
+        { { EJ_je,  EJ_NONE }, { true,  true } }, // EQ
+        { { EJ_jne, EJ_NONE }, { true,  true } }, // NE
+        { { EJ_jl,  EJ_NONE }, { true,  true } }, // SLT
+        { { EJ_jle, EJ_NONE }, { true,  true } }, // SLE
+        { { EJ_jge, EJ_NONE }, { true,  true } }, // SGE
+        { { EJ_jg,  EJ_NONE }, { true,  true } }, // SGT
+        { { EJ_js,  EJ_NONE }, { true,  true } }, // S
+        { { EJ_jns, EJ_NONE }, { true,  true } }, // NS
+
+        { { EJ_je,  EJ_NONE }, { true,  true } }, // EQ
+        { { EJ_jne, EJ_NONE }, { true,  true } }, // NE
+        { { EJ_jb,  EJ_NONE }, { true,  true } }, // ULT
+        { { EJ_jbe, EJ_NONE }, { true,  true } }, // ULE
+        { { EJ_jae, EJ_NONE }, { true,  true } }, // UGE
+        { { EJ_ja,  EJ_NONE }, { true,  true } }, // UGT
+        { { EJ_jb,  EJ_NONE }, { true,  true } }, // C
+        { { EJ_jae, EJ_NONE }, { true,  true } }, // NC
+
+        { { EJ_jpe, EJ_je   }, { false, true } }, // FEQ
+        { { EJ_jne, EJ_NONE }, { true,  true } }, // FNE
+        { },                                      // FLT
+        { },                                      // FLE
+        { { EJ_jae, EJ_NONE }, { true,  true } }, // FGE
+        { { EJ_ja,  EJ_NONE }, { true,  true } }, // FGT
+        { { EJ_jo,  EJ_NONE }, { true,  true } }, // O
+        { { EJ_jno, EJ_NONE }, { true,  true } }, // NO
+
+        { { EJ_je,  EJ_NONE }, { true,  true } }, // FEQU
+        { { EJ_jpe, EJ_jne  }, { true,  true } }, // FNEU
+        { { EJ_jb,  EJ_NONE }, { true,  true } }, // FLTU
+        { { EJ_jbe, EJ_NONE }, { true,  true } }, // FLEU
+        { },                                      // FGEU
+        { },                                      // FGTU
+        { { EJ_jpe, EJ_NONE }, { true,  true } }, // P
+        { { EJ_jpo, EJ_NONE }, { true,  true } }, // NP
+    };
+    // clang-format on
+
+    assert(condition.Value() < COUNTOF(map));
+    const GenConditionDesc& desc = map[condition.Value()];
+    assert(desc.jmpKind[0] != EJ_NONE);
+    return desc;
+}
+
+void CodeGen::genSETCC(GenTreeCC* setcc)
+{
+    assert(setcc->OperIs(GT_SETCC));
+
+    regNumber dstReg = setcc->gtRegNum;
+
+    assert(genIsValidIntReg(dstReg) && isByteReg(dstReg));
+
+    const GenConditionDesc& desc = GetConditionDesc(setcc->gtCondition);
+
+    if (desc.jmpKind[1] == EJ_NONE)
+    {
+        inst_SET(desc.jmpKind[0], dstReg);
+    }
+    else
+    {
+        inst_SET(desc.jmpToTrueLabel[0] ? desc.jmpKind[0] : emitter::emitReverseJumpKind(desc.jmpKind[0]), dstReg);
+        BasicBlock* skipLabel = genCreateTempLabel();
+        inst_JMP(desc.jmpKind[0], skipLabel);
+        inst_SET(desc.jmpKind[1], dstReg);
+        genDefineTempLabel(skipLabel);
+    }
+
+    if (genTypeSize(setcc) > sizeof(BYTE))
+    {
+        inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), dstReg, dstReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
+    }
+
+    genProduceReg(setcc);
+}
+
+void CodeGen::genJCC(GenTreeCC* jcc)
+{
+    assert(jcc->OperIs(GT_JCC));
+    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
+
+    const GenConditionDesc& desc = GetConditionDesc(jcc->gtCondition);
+
+    if (desc.jmpKind[1] == EJ_NONE)
+    {
+        inst_JMP(desc.jmpKind[0], compiler->compCurBB->bbJumpDest);
+    }
+    else
+    {
+        BasicBlock* jmpTarget = compiler->compCurBB->bbJumpDest;
+        BasicBlock* skipLabel = nullptr;
+
+        if (!desc.jmpToTrueLabel[0])
+        {
+            skipLabel = genCreateTempLabel();
+            jmpTarget = skipLabel;
+        }
+
+        inst_JMP(desc.jmpKind[0], jmpTarget);
+        inst_JMP(desc.jmpKind[1], compiler->compCurBB->bbJumpDest);
+
+        if (skipLabel != nullptr)
+        {
+            genDefineTempLabel(skipLabel);
+        }
+    }
+}
+
+//------------------------------------------------------------------------
+// genSELCC: Generate code for selecting a value based on a condition.
+//
+// Arguments:
+//    select - A GT_SELCC node
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    CMOV is used if available, otherwise a conditional branch and a normal
+//    MOV is used instead.
+
+void CodeGen::genSELCC(GenTreeOpCC* selcc)
+{
+    assert(selcc->OperIs(GT_SELCC));
+
+    genConsumeOperands(selcc);
+
+    GenTree* op1 = selcc->gtGetOp1();
+    GenTree* op2 = selcc->gtGetOp2();
+
+    var_types srcType = op1->TypeGet();
+    var_types dstType = selcc->TypeGet();
+
+    assert(varTypeIsIntOrI(dstType));
+    assert(srcType == op2->TypeGet());
+    assert(op1->isUsedFromReg());
+    assert(op2->isUsedFromReg() || op2->isUsedFromMemory());
+
+    regNumber srcReg1 = op1->gtRegNum;
+    regNumber srcReg2 = op2->isUsedFromReg() ? op2->gtRegNum : REG_NA;
+    regNumber dstReg  = selcc->gtRegNum;
+
+    assert(genIsValidIntReg(srcReg1));
+    assert(op2->isUsedFromMemory() || genIsValidIntReg(srcReg2));
+    assert(genIsValidIntReg(dstReg));
+
+    if (dstReg != srcReg1)
+    {
+        inst_RV_RV(INS_mov, dstReg, srcReg1, dstType);
+        op1 = selcc;
+    }
+
+    if (compiler->opts.compUseCMOV)
+    {
+        const GenConditionDesc& desc = GetConditionDesc(selcc->gtCondition);
+        assert(desc.jmpKind[1] == EJ_NONE);
+
+        constexpr instruction EJtoCMOV[]{INS_nop,    INS_nop,    INS_cmovo,  INS_cmovno, INS_cmovb,  INS_cmovae,
+                                         INS_cmove,  INS_cmovne, INS_cmovbe, INS_cmova,  INS_cmovs,  INS_cmovns,
+                                         INS_cmovpe, INS_cmovpo, INS_cmovl,  INS_cmovge, INS_cmovle, INS_cmovg};
+        noway_assert((unsigned)desc.jmpKind[0] < COUNTOF(EJtoCMOV));
+        instruction ins = EJtoCMOV[desc.jmpKind[0]];
+        noway_assert(insIsCMOV(ins));
+
+        getEmitter()->emitInsBinary(ins, emitTypeSize(dstType), op1, op2);
+    }
+    else
+    {
+        GenCondition condition = selcc->gtCondition;
+        condition.Reverse();
+        const GenConditionDesc& desc = GetConditionDesc(condition);
+        assert(desc.jmpKind[1] == EJ_NONE);
+
+        BasicBlock* label = genCreateTempLabel();
+        inst_JMP(desc.jmpKind[0], label);
+        getEmitter()->emitInsBinary(INS_mov, emitTypeSize(dstType), op1, op2);
+        genDefineTempLabel(label);
+    }
+
+    genProduceReg(selcc);
+}
 
 #endif // !LEGACY_BACKEND

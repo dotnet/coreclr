@@ -13775,18 +13775,21 @@ bool Compiler::fgOptimizeSwitchBranches(BasicBlock* block)
         }
 #endif // DEBUG
 
-        switchTree->ChangeOper(GT_JTRUE);
         GenTree* zeroConstNode = gtNewZeroConNode(genActualType(switchVal->TypeGet()));
-        GenTree* condNode      = gtNewOperNode(GT_EQ, TYP_INT, switchVal, zeroConstNode);
-        switchTree->gtOp.gtOp1 = condNode;
-        switchTree->gtOp.gtOp1->gtFlags |= (GTF_RELOP_JMP_USED | GTF_DONT_CSE);
 
         if (block->IsLIR())
         {
-            blockRange->InsertAfter(switchVal, zeroConstNode, condNode);
+            blockRange->InsertAfter(switchVal, zeroConstNode,
+                                    gtNewOperNode(GT_CMP, TYP_VOID, switchVal, zeroConstNode));
+            switchTree->ChangeOper(GT_JCC);
+            switchTree->AsCC()->gtCondition = GenCondition::EQ;
         }
         else
         {
+            switchTree->ChangeOper(GT_JTRUE);
+            GenTree* condNode      = gtNewOperNode(GT_EQ, TYP_INT, switchVal, zeroConstNode);
+            switchTree->gtOp.gtOp1 = condNode;
+            switchTree->gtOp.gtOp1->gtFlags |= (GTF_RELOP_JMP_USED | GTF_DONT_CSE);
             // Re-link the nodes for this statement.
             fgSetStmtSeq(switchStmt);
         }

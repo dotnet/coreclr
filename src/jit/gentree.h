@@ -4961,18 +4961,231 @@ struct GenTreeAllocObj final : public GenTreeUnOp
 #endif
 };
 
-struct GenTreeJumpCC final : public GenTree
+struct GenCondition
 {
-    genTreeOps gtCondition; // any relop
-
-    GenTreeJumpCC(genTreeOps condition)
-        : GenTree(GT_JCC, TYP_VOID DEBUGARG(/*largeNode*/ FALSE)), gtCondition(condition)
+    enum Code : unsigned char
     {
-        assert(OperIsCompare(condition));
+        OperMask  = 7,
+        Unsigned  = 8,
+        Unordered = Unsigned,
+        Float     = 16,
+
+        EQ = 0,
+        NE = 1,
+
+        SLT = 2,
+        SLE = 3,
+        SGE = 4,
+        SGT = 5,
+        S   = 6,
+        NS  = 7,
+
+        ULT = Unsigned | SLT,
+        ULE = Unsigned | SLE,
+        UGE = Unsigned | SGE,
+        UGT = Unsigned | SGT,
+        C   = Unsigned | S,
+        NC  = Unsigned | NS,
+
+        FEQ = Float | EQ,
+        FNE = Float | NE,
+        FLT = Float | SLT,
+        FLE = Float | SLE,
+        FGE = Float | SGE,
+        FGT = Float | SGT,
+        O   = Float | S,
+        NO  = Float | NS,
+
+        FEQU = FEQ | Unordered,
+        FNEU = FNE | Unordered,
+        FLTU = FLT | Unordered,
+        FLEU = FLE | Unordered,
+        FGEU = FGE | Unordered,
+        FGTU = FGT | Unordered,
+        P    = O | Unordered,
+        NP   = NO | Unordered
+    };
+
+private:
+    Code m_code;
+
+public:
+    genTreeOps Oper() const
+    {
+        assert(!IsFlag());
+
+        return static_cast<genTreeOps>(GT_EQ + (m_code & OperMask));
+    }
+
+    Code Value() const
+    {
+        return m_code;
+    }
+
+    bool IsFlag() const
+    {
+        return (m_code & OperMask) >= S;
+    }
+
+    bool IsUnsigned() const
+    {
+        return !IsFlag() && (m_code & (Float | Unsigned)) == Unsigned;
+    }
+
+    bool IsFloat() const
+    {
+        return !IsFlag() && (m_code & Float) != 0;
+    }
+
+    bool IsUnordered() const
+    {
+        return !IsFlag() && (m_code & (Float | Unsigned)) == (Float | Unsigned);
+    }
+
+    bool Is(Code cond) const
+    {
+        return m_code == cond;
+    }
+
+    template <typename... TRest>
+    bool Is(Code c, TRest... rest) const
+    {
+        return Is(c) || Is(rest...);
+    }
+
+    void MakeUnsigned()
+    {
+        assert(!IsFlag() && !IsFloat());
+
+        if ((m_code != EQ) && (m_code != NE))
+        {
+            m_code = static_cast<Code>(m_code | Unsigned);
+        }
+    }
+
+    void Reverse()
+    {
+        // clang-format off
+        static const Code reverse[]
+        {
+        //  EQ    NE    LT    LE    GE    GT    F   NF
+            NE,   EQ,   SGE,  SGT,  SLT,  SLE,  NS, S,
+            NE,   EQ,   UGE,  UGT,  ULT,  ULE,  NC, C,
+            FNEU, FEQU, FGEU, FGTU, FLTU, FLEU, NO, O,
+            FNE,  FEQ,  FGE,  FGT,  FLT,  FGT,  NP, P
+        };
+        // clang-format on
+
+        assert(m_code < COUNTOF(reverse));
+        m_code = reverse[m_code];
+    }
+
+    void Swap()
+    {
+        // clang-format off
+        static const Code swap[]
+        {
+        //  EQ    NE    LT    LE    GE    GT    F  NF
+            EQ,   NE,   SGT,  SGE,  SLE,  SLT,  S, NS,
+            EQ,   NE,   UGT,  UGE,  ULE,  ULT,  C, NC,
+            FEQ,  FNE,  FGT,  FGE,  FLE,  FLT,  O, NO,
+            FEQU, FNEU, FGTU, FGEU, FLEU, FLTU, P, NP
+        };
+        // clang-format on
+
+        assert(m_code < COUNTOF(swap));
+        m_code = swap[m_code];
+    }
+
+    const char* Name() const
+    {
+        // clang-format off
+        static const char* names[]
+        {
+            "EQ",   "NE",   "SLT",  "SLE",  "SGE",  "SGT",  "S", "NS",
+            "UEQ",  "UNE",  "ULT",  "ULE",  "UGE",  "UGT",  "C", "NC",
+            "FEQ",  "FNE",  "FLT",  "FLE",  "FGE",  "FGT",  "O", "NO",
+            "FEQU", "FNEU", "FLTU", "FLEU", "FGEU", "FGTU", "P", "NP"
+        };
+        // clang-format on
+
+        assert(m_code < COUNTOF(names));
+        return names[m_code];
+    }
+
+    GenCondition() : m_code()
+    {
+    }
+
+    GenCondition(Code cond) : m_code(cond)
+    {
+    }
+
+    static GenCondition FromCompareTree(GenTree* cmp)
+    {
+        assert(cmp->OperIsCompare());
+
+        static_assert(GT_EQ - GT_EQ == EQ, "bad relop");
+        static_assert(GT_NE - GT_EQ == NE, "bad relop");
+        static_assert(GT_LT - GT_EQ == SLT, "bad relop");
+        static_assert(GT_LE - GT_EQ == SLE, "bad relop");
+        static_assert(GT_GE - GT_EQ == SGE, "bad relop");
+        static_assert(GT_GT - GT_EQ == SGT, "bad relop");
+
+        unsigned value = cmp->OperGet() - GT_EQ;
+
+        assert(value <= SGT);
+
+        if (varTypeIsFloating(cmp->gtGetOp1()))
+        {
+            value |= Float;
+
+            if ((cmp->gtFlags & GTF_RELOP_NAN_UN) != 0)
+            {
+                value |= Unordered;
+            }
+        }
+        else
+        {
+            if (((cmp->gtFlags & GTF_UNSIGNED) != 0) && (value > NE))
+            {
+                value |= Unsigned;
+            }
+        }
+
+        return GenCondition{static_cast<Code>(value)};
+    }
+};
+
+struct GenTreeCC final : public GenTree
+{
+    GenCondition gtCondition;
+    GenTree*     gtConditionDef;
+
+    GenTreeCC(genTreeOps oper, GenCondition condition, var_types type = TYP_VOID)
+        : GenTree(oper, type DEBUGARG(/*largeNode*/ FALSE)), gtCondition(condition)
+    {
     }
 
 #if DEBUGGABLE_GENTREE
-    GenTreeJumpCC() : GenTree()
+    GenTreeCC() : GenTree()
+    {
+    }
+#endif // DEBUGGABLE_GENTREE
+};
+
+struct GenTreeOpCC final : public GenTreeOp
+{
+    GenCondition gtCondition;
+    GenTree*     gtConditionDef;
+
+    GenTreeOpCC(genTreeOps oper, GenCondition condition, var_types type, GenTree* op1, GenTree* op2)
+        : GenTreeOp(oper, type, op1, op2 DEBUGARG(/*largeNode*/ FALSE)), gtCondition(condition)
+    {
+    }
+
+#if DEBUGGABLE_GENTREE
+    GenTreeOpCC() : GenTreeOp()
     {
     }
 #endif // DEBUGGABLE_GENTREE

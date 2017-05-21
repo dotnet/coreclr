@@ -951,8 +951,8 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
 #endif // FEATURE_SIMD
 
         default:
-            // JCC nodes should not be present in HIR.
-            assert(node->OperGet() != GT_JCC);
+            // CMP, TEST, FCMP, SETCC and JCC nodes should not be present in HIR.
+            assert(!node->OperIs(GT_CMP, GT_TEST, GT_FCMP, GT_SETCC, GT_JCC));
             break;
     }
 
@@ -984,6 +984,12 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
 void Rationalizer::DoPhase()
 {
     DBEXEC(TRUE, SanityCheck());
+
+    if (!comp->opts.MinOpts() && !comp->opts.compDbgCode)
+    {
+        comp->optLoopsMarked = false;
+        comp->fgUpdateFlowGraph();
+    }
 
     comp->compCurBB = nullptr;
     comp->fgOrder   = Compiler::FGOrderLinear;

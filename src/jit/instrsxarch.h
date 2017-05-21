@@ -82,6 +82,11 @@ INST4(lea    , "lea"          , 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, 0x00008D, B
 
 //    enum     name            FP  updmode rf wf R/M,R/M[reg]  R/M,icon  reg,R/M
 
+INST3(bt     , "bt"           , 0, IUM_RD, 0, 1, 0x0F00A3, 0x0F20BA, 0x0F00A3)
+INST3(btc    , "btc"          , 0, IUM_RW, 0, 1, 0x0F00BB, 0x0F38BA, 0x0F00BB)
+INST3(btr    , "btr"          , 0, IUM_RW, 0, 1, 0x0F00B3, 0x0F30BA, 0x0F00B3)
+INST3(bts    , "bts"          , 0, IUM_RW, 0, 1, 0x0F00AB, 0x0F28BA, 0x0F00AB)
+
 INST3(movsx  , "movsx"        , 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, 0x0F00BE)
 #ifdef _TARGET_AMD64_
 INST3(movsxd , "movsxd"       , 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, 0x4800000063LL )

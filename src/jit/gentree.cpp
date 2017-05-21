@@ -209,7 +209,7 @@ static void printIndent(IndentStack* indentStack)
 }
 
 static const char* nodeNames[] = {
-#define GTNODE(en, sn, st, cm, ok) sn,
+#define GTNODE(en, sn, st, cm, ok) #en,
 #include "gtlist.h"
 };
 
@@ -366,7 +366,8 @@ void GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeLclVar)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeLclFld)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeRegVar)       <= TREE_NODE_SZ_SMALL);
-    static_assert_no_msg(sizeof(GenTreeJumpCC)       <= TREE_NODE_SZ_SMALL);
+    static_assert_no_msg(sizeof(GenTreeCC)           <= TREE_NODE_SZ_SMALL);
+    static_assert_no_msg(sizeof(GenTreeOpCC)         <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeCast)         <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeBox)          <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeField)        <= TREE_NODE_SZ_LARGE); // *** large node
@@ -3362,10 +3363,6 @@ genTreeOps GenTree::ReverseRelop(genTreeOps relop)
         GT_GT, // GT_LE
         GT_LT, // GT_GE
         GT_LE, // GT_GT
-#ifndef LEGACY_BACKEND
-        GT_TEST_NE, // GT_TEST_EQ
-        GT_TEST_EQ, // GT_TEST_NE
-#endif
     };
 
     assert(reverseOps[GT_EQ - GT_EQ] == GT_NE);
@@ -3375,11 +3372,6 @@ genTreeOps GenTree::ReverseRelop(genTreeOps relop)
     assert(reverseOps[GT_LE - GT_EQ] == GT_GT);
     assert(reverseOps[GT_GE - GT_EQ] == GT_LT);
     assert(reverseOps[GT_GT - GT_EQ] == GT_LE);
-
-#ifndef LEGACY_BACKEND
-    assert(reverseOps[GT_TEST_EQ - GT_EQ] == GT_TEST_NE);
-    assert(reverseOps[GT_TEST_NE - GT_EQ] == GT_TEST_EQ);
-#endif
 
     assert(OperIsCompare(relop));
     assert(relop >= GT_EQ && (unsigned)(relop - GT_EQ) < sizeof(reverseOps));
@@ -3402,10 +3394,6 @@ genTreeOps GenTree::SwapRelop(genTreeOps relop)
         GT_GE, // GT_LE
         GT_LE, // GT_GE
         GT_LT, // GT_GT
-#ifndef LEGACY_BACKEND
-        GT_TEST_EQ, // GT_TEST_EQ
-        GT_TEST_NE, // GT_TEST_NE
-#endif
     };
 
     assert(swapOps[GT_EQ - GT_EQ] == GT_EQ);
@@ -3415,11 +3403,6 @@ genTreeOps GenTree::SwapRelop(genTreeOps relop)
     assert(swapOps[GT_LE - GT_EQ] == GT_GE);
     assert(swapOps[GT_GE - GT_EQ] == GT_LE);
     assert(swapOps[GT_GT - GT_EQ] == GT_LT);
-
-#ifndef LEGACY_BACKEND
-    assert(swapOps[GT_TEST_EQ - GT_EQ] == GT_TEST_EQ);
-    assert(swapOps[GT_TEST_NE - GT_EQ] == GT_TEST_NE);
-#endif
 
     assert(OperIsCompare(relop));
     assert(relop >= GT_EQ && (unsigned)(relop - GT_EQ) < sizeof(swapOps));
@@ -3447,10 +3430,9 @@ GenTreePtr Compiler::gtReverseCond(GenTree* tree)
             tree->gtFlags ^= GTF_RELOP_NAN_UN;
         }
     }
-    else if (tree->OperGet() == GT_JCC)
+    else if (tree->OperIs(GT_JCC, GT_SETCC))
     {
-        GenTreeJumpCC* jcc = tree->AsJumpCC();
-        jcc->gtCondition   = GenTree::ReverseRelop(jcc->gtCondition);
+        tree->AsCC()->gtCondition.Reverse();
     }
     else
     {
@@ -9200,6 +9182,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_MEMORYBARRIER:
         case GT_JMP:
         case GT_JCC:
+        case GT_SETCC:
         case GT_NO_OP:
         case GT_START_NONGC:
         case GT_PROF_HOOK:
@@ -10273,10 +10256,6 @@ void Compiler::gtDispNode(GenTreePtr tree, IndentStack* indentStack, __in __in_z
             case GT_LE:
             case GT_GE:
             case GT_GT:
-#ifndef LEGACY_BACKEND
-            case GT_TEST_EQ:
-            case GT_TEST_NE:
-#endif
                 if (tree->gtFlags & GTF_RELOP_NAN_UN)
                 {
                     printf("N");
@@ -11182,7 +11161,8 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
             break;
 
         case GT_JCC:
-            printf(" cond=%s", GenTree::NodeName(tree->AsJumpCC()->gtCondition));
+        case GT_SETCC:
+            printf(" cond=%s", tree->AsCC()->gtCondition.Name());
             break;
 
         default:
