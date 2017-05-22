@@ -3149,11 +3149,6 @@ struct GenTreeCall final : public GenTree
                                     //             - that were evaluated into a temp LclVar
     fgArgInfoPtr fgArgInfo;
 
-#if !FEATURE_FIXED_OUT_ARGS
-    int     regArgListCount;
-    regList regArgList;
-#endif
-
     // TODO-Throughput: Revisit this (this used to be only defined if
     // FEATURE_FIXED_OUT_ARGS was enabled, so this makes GenTreeCall 4 bytes bigger on x86).
     CORINFO_SIG_INFO* callSig; // Used by tail calls and to register callsites with the EE
