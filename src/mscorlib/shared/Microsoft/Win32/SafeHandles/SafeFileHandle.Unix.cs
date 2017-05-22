@@ -43,6 +43,7 @@ namespace Microsoft.Win32.SafeHandles
 
             if (handle.IsInvalid)
             {
+                handle.Dispose();
                 Interop.ErrorInfo error = Interop.Sys.GetLastErrorInfo();
 
                 // If we fail to open the file due to a path not existing, we need to know whether to blame
@@ -54,7 +55,7 @@ namespace Microsoft.Win32.SafeHandles
 
                 bool isDirectory = (error.Error == Interop.Error.ENOENT) &&
                     ((flags & Interop.Sys.OpenFlags.O_CREAT) != 0
-                    || !DirectoryExists(Path.GetDirectoryName(path.TrimEnd(Path.DirectorySeparatorChar))));
+                    || !DirectoryExists(Path.GetDirectoryName(PathInternal.TrimEndingDirectorySeparator(path))));
 
                 Interop.CheckIo(
                     error.Error,
