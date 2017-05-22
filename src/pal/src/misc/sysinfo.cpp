@@ -135,7 +135,7 @@ int
 PALAPI
 PAL_GetCurrentProcessCpuCount()
 {
-#ifdef HAVE_SCHED_GETAFFINITY
+#if HAVE_SCHED_GETAFFINITY
 
     int pid = getpid();
     size_t setsize;

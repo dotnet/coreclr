@@ -428,7 +428,7 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uint
 //  The number of processors
 uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 {
-#ifdef HAVE_SCHED_GETAFFINITY
+#if HAVE_SCHED_GETAFFINITY
 
     int pid = getpid();
     size_t setsize;
