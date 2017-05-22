@@ -77,7 +77,14 @@ static size_t g_RestrictedPhysicalMemoryLimit = 0;
 //  true if it has succeeded, false if it has failed
 bool GCToOSInterface::Initialize()
 {
-    g_logicalCpuCount = PAL_GetLogicalCpuCountFromOS();
+    // Calculate and cache the number of processors on this machine
+    int cpuCount = sysconf(_SC_NPROCESSORS_ONLN);
+    if (cpuCount == -1)
+    {
+        return false;
+    }
+
+    g_logicalCpuCount = cpuCount;
 
     // Verify that the s_helperPage is really aligned to the g_SystemInfo.dwPageSize
     assert((((size_t)g_helperPage) & (OS_PAGE_SIZE - 1)) == 0);
@@ -412,7 +419,8 @@ size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
 //  specify a 1 bit for a processor when the system affinity mask specifies a 0 bit for that processor.
 bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uintptr_t* systemMask)
 {
-    return !!::GetProcessAffinityMask(::GetCurrentProcess(), (PDWORD_PTR)processMask, (PDWORD_PTR)systemMask);
+    // TODO(segilles) processor detection
+    return false;
 }
 
 // Get number of processors assigned to the current process
@@ -420,7 +428,43 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uint
 //  The number of processors
 uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 {
-    return ::GetCurrentProcessCpuCount();
+#ifdef HAVE_SCHED_GETAFFINITY
+
+    int pid = getpid();
+    size_t setsize;
+    cpu_set_t* set;
+    int ncpus = CPU_SETSIZE;
+    int rv;
+    do
+    {
+        setsize = CPU_ALLOC_SIZE(ncpus);
+        set = CPU_ALLOC(ncpus);
+        if (set == nullptr)
+            return 1;
+
+        rv = sched_getaffinity(pid, setsize, set);
+        if (rv != 0)
+        {
+            CPU_FREE(set);
+
+            if (errno != EINVAL)
+                return 1;
+
+            ncpus += CPU_SETSIZE;
+        }
+    } while (rv != 0);
+
+    uint32_t count = CPU_COUNT_S(setsize, set);
+
+    CPU_FREE(set);
+
+    return count;
+
+#else // HAVE_SCHED_GETAFFINITY
+
+    return g_logicalCpuCount;
+
+#endif // HAVE_SCHED_GETAFFINITY
 }
 
 // Return the size of the user-mode portion of the virtual address space of this process.
