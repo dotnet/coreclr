@@ -1867,7 +1867,8 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
 
 void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars)
 {
-    VARSET_TP keepAliveVars = VarSetOps::Union(this, volatileVars, block->bbScope); // Don't kill vars in scope
+    // Don't kill volatile vars and vars in scope.
+    VARSET_TP keepAliveVars(VarSetOps::Union(this, volatileVars, block->bbScope));
 
     noway_assert(VarSetOps::IsSubset(this, keepAliveVars, life));
 
