@@ -556,7 +556,7 @@ VOID SetCurrentSEHRecord(EXCEPTION_REGISTRATION_RECORD *pSEH);
 #define STACK_OVERWRITE_BARRIER_VALUE 0xabcdefab
 
 #ifdef _DEBUG
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 struct FrameHandlerExRecordWithBarrier {
     DWORD m_StackOverwriteBarrier[STACK_OVERWRITE_BARRIER_SIZE];
     FrameHandlerExRecord m_ExRecord;
