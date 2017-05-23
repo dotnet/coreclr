@@ -7052,8 +7052,11 @@ BOOL MethodTable::FindDefaultMethod(
                         }
                         else
                         {
-                            // not good. we have a conflict
-                            COMPlusThrow(kNotSupportedException);
+                            if (!pBestCandidateMT->CanCastToInterface(pCurMT))
+                            {
+                                // not good. we have a conflict 
+                                COMPlusThrow(kNotSupportedException);
+                            }
                         }
                     }
                 }
