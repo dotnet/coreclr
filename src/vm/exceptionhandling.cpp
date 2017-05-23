@@ -212,9 +212,11 @@ void InitializeExceptionHandling()
 {
     EH_LOG((LL_INFO100, "InitializeExceptionHandling(): ExceptionTracker size: 0x%x bytes\n", sizeof(ExceptionTracker)));
 
+#ifndef FEATURE_PAL
     InitSavedExceptionInfo();
 
     CLRAddVectoredHandlers();
+#endif // !FEATURE_PAL
 
     g_theTrackerAllocator.Init();
 

@@ -125,8 +125,10 @@ struct ThrowCallbackType
 struct EE_ILEXCEPTION_CLAUSE;
 
 void InitializeExceptionHandling();
+#ifndef FEATURE_PAL
 void CLRAddVectoredHandlers(void);
 void CLRRemoveVectoredHandlers(void);
+#endif // !FEATURE_PAL
 void TerminateExceptionHandling();
 
 // Prototypes
@@ -768,7 +770,9 @@ void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThr
 DWORD GetGcMarkerExceptionCode(LPVOID ip);
 bool IsGcMarker(DWORD exceptionCode, T_CONTEXT *pContext);
 
+#ifndef FEATURE_PAL
 void InitSavedExceptionInfo();
+#endif // !FEATURE_PAL
 
 bool ShouldHandleManagedFault(
                         EXCEPTION_RECORD*               pExceptionRecord,

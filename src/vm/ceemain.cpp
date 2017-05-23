@@ -1910,6 +1910,7 @@ part2:
 
                 TerminateStackProbes();
 
+#ifndef FEATURE_PAL
                 // Unregister our vectored exception and continue handlers from the OS.
                 // This will ensure that if any other DLL unload (after ours) has an exception,
                 // we wont attempt to process that exception (which could lead to various
@@ -1922,6 +1923,7 @@ part2:
                 //
                 // 2) Only when the runtime is processing DLL_PROCESS_DETACH. 
                 CLRRemoveVectoredHandlers();
+#endif // !FEATURE_PAL
 
 #if USE_DISASSEMBLER
                 Disassembler::StaticClose();
@@ -2597,10 +2599,12 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
                     LOG((LF_STARTUP, INFO3, "EEShutDown invoked from EEDllMain"));
                     EEShutDown(TRUE); // shut down EE if it was started up
                 }
+#ifndef FEATURE_PAL
                 else
                 {
                     CLRRemoveVectoredHandlers();
                 }
+#endif // !FEATURE_PAL
                 break;
             }
 
