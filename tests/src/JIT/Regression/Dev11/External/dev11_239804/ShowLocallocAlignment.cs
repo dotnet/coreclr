@@ -48,8 +48,11 @@ namespace ShowLocallocAlignment
             address1 = unchecked((UInt64)(new IntPtr(ptr1)).ToInt64());
             address2 = unchecked((UInt64)(new IntPtr(ptr2)).ToInt64());
 
-            fAligned1 = ((address1 % 8) == 0);
-            fAligned2 = ((address2 % 8) == 0);
+            bool is64 = (sizeof(int*) == 8) ? true : false;
+            ulong alignment = is64 ? 8UL : 4UL;
+
+            fAligned1 = ((address1 % alignment) == 0);
+            fAligned2 = ((address2 % alignment) == 0);
 
             Console.Write(
                 "\r\n" +
