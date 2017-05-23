@@ -3515,7 +3515,7 @@ DWORD MapWin32FaultToCOMPlusException(EXCEPTION_RECORD *pExceptionRecord)
 }
 
 #ifdef _DEBUG
-#ifndef WIN64EXCEPTIONS
+#if !defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
 // check if anyone has written to the stack above the handler which would wipe out the EH registration
 void CheckStackBarrier(EXCEPTION_REGISTRATION_RECORD *exRecord)
 {
@@ -3532,7 +3532,7 @@ void CheckStackBarrier(EXCEPTION_REGISTRATION_RECORD *exRecord)
         }
     }
 }
-#endif // WIN64EXCEPTIONS
+#endif // !defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
 #endif // _DEBUG
 
 //-------------------------------------------------------------------------
