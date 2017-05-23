@@ -128,52 +128,6 @@ PAL_GetLogicalCpuCountFromOS()
     return nrcpus;
 }
 
-//******************************************************************************
-// Returns the number of processors that a process has been configured to run on
-//******************************************************************************
-int
-PALAPI
-PAL_GetCurrentProcessCpuCount()
-{
-#if HAVE_SCHED_GETAFFINITY
-
-    int pid = getpid();
-    size_t setsize;
-    cpu_set_t* set;
-    int ncpus = CPU_SETSIZE;
-    int rv;
-    do
-    {
-        setsize = CPU_ALLOC_SIZE(ncpus);
-        set = CPU_ALLOC(ncpus);
-        if (set == nullptr)
-            return 1;
-
-        rv = sched_getaffinity(pid, setsize, set);
-        if (rv != 0)
-        {
-            CPU_FREE(set);
-
-            if (errno != EINVAL)
-                return 1;
-
-            ncpus = ncpus + CPU_SETSIZE;
-        }
-    } while (rv != 0);
-
-    int count = CPU_COUNT_S(setsize, set);
-
-    CPU_FREE(set);
-
-    return count;
-
-#else
-
-    return PAL_GetLogicalCpuCountFromOS();
-
-#endif // HAVE_SCHED_GETAFFINITY
-}
-
 /*++
 Function:
   GetSystemInfo

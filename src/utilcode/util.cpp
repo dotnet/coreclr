@@ -1266,8 +1266,6 @@ int GetCurrentProcessCpuCount()
     if (cCPUs != 0)
         return cCPUs;
 
-#ifndef FEATURE_PAL
-
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
@@ -1300,13 +1298,6 @@ int GetCurrentProcessCpuCount()
     cCPUs = count;
             
     return count;
-
-#else // !FEATURE_PAL
-
-    cCPUs = PAL_GetCurrentProcessCpuCount();
-    return cCPUs;
-
-#endif // !FEATURE_PAL
 }
 
 DWORD_PTR GetCurrentProcessCpuMask()
