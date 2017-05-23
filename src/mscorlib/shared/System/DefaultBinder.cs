@@ -8,7 +8,6 @@ using CultureInfo = System.Globalization.CultureInfo;
 
 namespace System
 {
-    //Marked serializable even though it has no state.
 #if CORECLR
     internal
 #else
