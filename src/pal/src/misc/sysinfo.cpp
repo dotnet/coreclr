@@ -94,9 +94,6 @@ SET_DEFAULT_DEBUG_CHANNEL(MISC);
 #endif
 #endif // __APPLE__
 
-#if HAVE_CPUSET_T
-typedef cpuset_t cpu_set_t;
-#endif
 
 DWORD
 PALAPI
