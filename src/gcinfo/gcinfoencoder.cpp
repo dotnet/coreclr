@@ -1187,7 +1187,7 @@ void GcInfoEncoder::Build()
         // (after, of course, adding the size of the call instruction to get the return PC).
         callSite += m_pCallSiteSizes[callSiteIndex] - 1;
 
-        _ASSERTE(DENORMALIZE_CODE_OFFSET(NORMALIZE_CODE_OFFSET(callSite)) == callSite);
+        _ASSERTE(DENORMALIZE_CODE_OFFSET(NORMALIZE_CODE_OFFSET(callSite + 1)) == (callSite + 1));
         UINT32 normOffset = NORMALIZE_CODE_OFFSET(callSite);
 
         BOOL keepIt = TRUE;
