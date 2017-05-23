@@ -1109,11 +1109,13 @@ public:
     }
 #endif
 
+#if (defined(_TARGET_X86_) && !defined(FEATURE_PAL)) || defined(WIN64EXCEPTIONS)
     virtual TADDR GetReturnAddressPtr()
     {
         LIMITED_METHOD_DAC_CONTRACT;
         return PTR_HOST_MEMBER_TADDR(FaultingExceptionFrame, this, m_ReturnAddress);
     }
+#endif
 
     void Init(T_CONTEXT *pContext);
     void InitAndLink(T_CONTEXT *pContext);
