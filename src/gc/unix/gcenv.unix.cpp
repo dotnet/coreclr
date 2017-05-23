@@ -429,12 +429,12 @@ static uintptr_t GetFullAffinityMask(int cpuCount)
 //  A process affinity mask is a subset of the system affinity mask. A process is only allowed
 //  to run on the processors configured into a system. Therefore, the process affinity mask cannot
 //  specify a 1 bit for a processor when the system affinity mask specifies a 0 bit for that processor.
-bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* lpProcessAffinityMask, uintptr_t* lpSystemAffinityMask)
+bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processAffinityMask, uintptr_t* systemAffinityMask)
 {
     if (g_logicalCpuCount > 64)
     {
-        *lpProcessAffinityMask = 0;
-        *lpSystemAffinityMask = 0;
+        *processAffinityMask = 0;
+        *systemAffinityMask = 0;
         return true;
     }
 
@@ -457,16 +457,16 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* lpProcessAffinity
             }
         }
 
-        *lpProcessAffinityMask = processMask;
-        *lpSystemAffinityMask = systemMask;
+        *processAffinityMask = processMask;
+        *systemAffinityMask = systemMask;
         return true;
     }
     else if (errno == EINVAL)
     {
         // There are more processors than can fit in a cpu_set_t
         // return zero in both masks.
-        *lpProcessAffinityMask = 0;
-        *lpSystemAffinityMask = 0;
+        *processAffinityMask = 0;
+        *systemAffinityMask = 0;
         return true;
     }
     else
@@ -480,8 +480,8 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* lpProcessAffinity
 
     // There is no API to manage thread affinity, so let's return both affinity masks
     // with all the CPUs on the system set.
-    *lpSystemAffinityMask = systemMask;
-    *lpProcessAffinityMask = systemMask;
+    *systemAffinityMask = systemMask;
+    *processAffinityMask = systemMask;
     return true;
 
 #endif // HAVE_SCHED_GETAFFINITY
@@ -497,18 +497,13 @@ uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
     if (!GetCurrentProcessAffinityMask(&pmask, &smask))
         return 1;
 
-    if (pmask == 1)
-        return 1;
-
     pmask &= smask;
 
     int count = 0;
     while (pmask)
     {
-        if (pmask & 1)
-            count++;
-
-        pmask >>= 1;
+        pmask &= (pmask - 1);
+        count++;
     }
 
     // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more

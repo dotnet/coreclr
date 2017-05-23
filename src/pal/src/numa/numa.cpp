@@ -215,6 +215,7 @@ NUMASupportInitialize()
         for (int i = 0; i < g_cpuCount; i++)
         {
             g_cpuToAffinity[i].Number = i;
+            g_cpuToAffinity[i].Group = 0;
         }
     }
 

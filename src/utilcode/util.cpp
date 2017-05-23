@@ -1271,20 +1271,15 @@ int GetCurrentProcessCpuCount()
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
         return 1;
 
-    if (pmask == 1)
-        return 1;
-
     pmask &= smask;
-        
+
     int count = 0;
     while (pmask)
     {
-        if (pmask & 1)
-            count++;
-                
-        pmask >>= 1;
+        pmask &= (pmask - 1);
+        count++;
     }
-        
+
     // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
     // than 64 processors, which would leave us with a count of 0.  Since the GC
     // expects there to be at least one processor to run on (and thus at least one
