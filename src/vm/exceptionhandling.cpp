@@ -5807,6 +5807,83 @@ void CleanUpForSecondPass(Thread* pThread, bool fIsSO, LPVOID MemoryStackFpForFr
 }
 
 #ifdef FEATURE_PAL
+#ifdef _ARM_
+namespace std
+{
+    struct type_info;
+}
+
+static void UMThunkStubCatch(_Unwind_Control_Block *ucbp)
+{
+    PAL_SEHException ex;
+
+    PAL_SEHException *exp = (PAL_SEHException *) __cxa_begin_catch(ucbp);
+    ex = std::move(*exp);
+    __cxa_end_catch();
+
+    DispatchManagedException(ex, false);
+}
+
+EXTERN_C _Unwind_Reason_Code
+UMThunkStubHandler(IN _Unwind_State state,
+                   IN _Unwind_Control_Block *ucbp,
+                   IN _Unwind_Context *ucp
+                  )
+{
+    _Unwind_Reason_Code res = _URC_FAILURE;
+
+    if ( strncmp(ucbp->exception_class + 4, "C++", 4) != 0 )
+    {
+        return res;
+    }
+
+    if ( state == _US_VIRTUAL_UNWIND_FRAME )
+    {
+        void *exp = nullptr;
+
+        if ( ctm_failed != __cxa_type_match(ucbp, (void *) &typeid(PAL_SEHException), false, &exp) )
+        {
+            ucbp->barrier_cache.bitpattern[0] = (unsigned int) exp;
+
+            res = _URC_HANDLER_FOUND;
+        }
+        else
+        {
+            ucbp->barrier_cache.bitpattern[0] = 0;
+        }
+    }
+    else if ( state == _US_UNWIND_FRAME_STARTING )
+    {
+        if ( ucbp->barrier_cache.bitpattern[0] != 0 )
+        {
+            unsigned int arg0 = (unsigned int) ucbp;
+            unsigned int code = (unsigned int) UMThunkStubCatch;
+
+            _Unwind_VRS_Set(ucp, _UVRSC_CORE, 0,  _UVRSD_UINT32, &arg0);
+            _Unwind_VRS_Set(ucp, _UVRSC_CORE, 15, _UVRSD_UINT32, &code);
+
+            res = _URC_INSTALL_CONTEXT;
+        }
+    }
+
+    return res;
+}
+
+EXTERN_C _Unwind_Reason_Code
+UnhandledExceptionHandlerUnix(IN _Unwind_State state,
+                              IN _Unwind_Control_Block *ucbp,
+                              IN _Unwind_Context *ucp
+                             )
+{
+    // Unhandled exception happened, so dump the managed stack trace and terminate the process
+
+    DefaultCatchHandler(NULL /*pExceptionInfo*/, NULL /*Throwable*/, TRUE /*useLastThrownObject*/,
+        TRUE /*isTerminating*/, FALSE /*isThreadBaseFIlter*/, FALSE /*sendAppDomainEvents*/);
+
+    EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+    return _URC_FAILURE;
+}
+#else // __ARM__
 
 // This is a personality routine for TheUMEntryPrestub and UMThunkStub Unix asm stubs.
 // An exception propagating through these stubs is an unhandled exception.
@@ -5828,6 +5905,7 @@ UnhandledExceptionHandlerUnix(
     EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
     return _URC_FATAL_PHASE1_ERROR;
 }
+#endif
 
 #else // FEATURE_PAL
 

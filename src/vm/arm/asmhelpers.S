@@ -309,7 +309,7 @@ LOCAL_LABEL(LNullThis):
 //
 // r12 = UMEntryThunk*
 //
-        NESTED_ENTRY UMThunkStub,_TEXT,UnhandledExceptionHandlerUnix
+        NESTED_ENTRY UMThunkStub,_TEXT,UMThunkStubHandler
         PROLOG_PUSH         "{r4,r5,r7,r11,lr}"
         PROLOG_STACK_SAVE_OFFSET   r7, #8
 
