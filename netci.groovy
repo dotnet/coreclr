@@ -1430,7 +1430,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "build.cmd ${lowerConfiguration} ${arch} osxmscorlib"
                        
                         if (arch == "x64") {
-                            buildCommands += "build.cmd ${lowerConfiguration} ${arch} linuxmscorlib"
+                            buildCommands += "build.cmd ${lowerConfiguration} arm64 linuxmscorlib"
                         }
 
                         // Zip up the tests directory so that we don't use so much space/time copying
