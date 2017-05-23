@@ -136,6 +136,7 @@ else(WIN32)
     dbgutil
     # share the PAL in the dac module
     mscordaccore
+    coreclrpal
     palrt
   )
 
