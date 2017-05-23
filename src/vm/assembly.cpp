@@ -1704,6 +1704,7 @@ HRESULT RunMain(MethodDesc *pFD ,
             // Set the return value to 0 instead of returning random junk
             *pParam->piRetVal = 0;
             threadStart.Call(&stackVar);
+            *pParam->piRetVal = GetLatchedExitCode();
         }
         else 
         {
