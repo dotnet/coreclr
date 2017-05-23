@@ -975,7 +975,11 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
 {
     LIMITED_METHOD_CONTRACT;
 
-#if defined(_TARGET_AMD64_)
+#if defined(_TARGET_X86_)
+    _ASSERTE("NYI");
+    return NULL;
+
+#elif defined(_TARGET_AMD64_)
     PTR_UNWIND_INFO pUnwindInfo(dac_cast<PTR_UNWIND_INFO>(moduleBase + RUNTIME_FUNCTION__GetUnwindInfoAddress(pRuntimeFunction)));
 
     *pSize = ALIGN_UP(offsetof(UNWIND_INFO, UnwindCode) +
