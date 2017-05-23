@@ -211,6 +211,11 @@ NUMASupportInitialize()
         g_highestNumaNode = 0;
 
         AllocateLookupArrays();
+
+        for (int i = 0; i < g_cpuCount; i++)
+        {
+            g_cpuToAffinity[i].Number = i;
+        }
     }
 
     return TRUE;
