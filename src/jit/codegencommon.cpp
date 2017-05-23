@@ -9601,6 +9601,28 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         {
             bool needLea = false;
 
+#ifdef UNIX_X86_ABI
+            if (compiler->ehAnyFunclets())
+            {
+                //
+                // ESP may be variable when UNIX_X86_ABI is used.
+                //
+                // UNIX_X86_ABI often generates call sequence of the following form:
+                //    sub  esp, PAD
+                //    push arg_N
+                //    ...
+                //    push arg_0
+                //    call func
+                //    add  esp, PAD
+                //
+                // When an exception is thrown inside func and its handler leaves
+                // the current function, EE will invoke epilog, but ESP will be
+                // Initial-SP - PAD instead of Initial-SP.
+                //
+                needLea = true;
+            }
+#endif // UNIX_X86_ABI
+
             if (compiler->compLocallocUsed)
             {
                 // ESP may be variable if a localloc was actually executed. Reset it.
