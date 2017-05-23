@@ -404,6 +404,18 @@ size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
     return 0;
 }
 
+/*++
+Function:
+  GetFullAffinityMask
+
+Get affinity mask for the specified number of processors with all
+the processors enabled.
+--*/
+static uintptr_t GetFullAffinityMask(int cpuCount)
+{
+    return ((uintptr_t)1 << (cpuCount)) - 1;
+}
+
 // Get affinity mask of the current process
 // Parameters:
 //  processMask - affinity mask for the specified process
@@ -417,10 +429,62 @@ size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
 //  A process affinity mask is a subset of the system affinity mask. A process is only allowed
 //  to run on the processors configured into a system. Therefore, the process affinity mask cannot
 //  specify a 1 bit for a processor when the system affinity mask specifies a 0 bit for that processor.
-bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uintptr_t* systemMask)
+bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* lpProcessAffinityMask, uintptr_t* lpSystemAffinityMask)
 {
-    // TODO(segilles) processor detection
-    return false;
+    if (g_logicalCpuCount > 64)
+    {
+        *lpProcessAffinityMask = 0;
+        *lpSystemAffinityMask = 0;
+        return true;
+    }
+
+    uintptr_t systemMask = GetFullAffinityMask(g_logicalCpuCount);
+
+#if HAVE_SCHED_GETAFFINITY
+
+    int pid = getpid();
+    cpu_set_t cpuSet;
+    int st = sched_getaffinity(pid, sizeof(cpu_set_t), &cpuSet);
+    if (st == 0)
+    {
+        uintptr_t processMask = 0;
+
+        for (int i = 0; i < g_logicalCpuCount; i++)
+        {
+            if (CPU_ISSET(i, &cpuSet))
+            {
+                processMask |= ((uintptr_t)1) << i;
+            }
+        }
+
+        *lpProcessAffinityMask = processMask;
+        *lpSystemAffinityMask = systemMask;
+        return true;
+    }
+    else if (errno == EINVAL)
+    {
+        // There are more processors than can fit in a cpu_set_t
+        // return zero in both masks.
+        *lpProcessAffinityMask = 0;
+        *lpSystemAffinityMask = 0;
+        return true;
+    }
+    else
+    {
+        // We should not get any of the errors that the sched_getaffinity can return since none
+        // of them applies for the current thread, so this is an unexpected kind of failure.
+        return false;
+    }
+
+#else // HAVE_SCHED_GETAFFINITY
+
+    // There is no API to manage thread affinity, so let's return both affinity masks
+    // with all the CPUs on the system set.
+    *lpSystemAffinityMask = systemMask;
+    *lpProcessAffinityMask = systemMask;
+    return true;
+
+#endif // HAVE_SCHED_GETAFFINITY
 }
 
 // Get number of processors assigned to the current process
@@ -428,43 +492,36 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uint
 //  The number of processors
 uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 {
-#if HAVE_SCHED_GETAFFINITY
+    uintptr_t pmask, smask;
 
-    int pid = getpid();
-    size_t setsize;
-    cpu_set_t* set;
-    int ncpus = CPU_SETSIZE;
-    int rv;
-    do
+    if (!GetCurrentProcessAffinityMask(&pmask, &smask))
+        return 1;
+
+    if (pmask == 1)
+        return 1;
+
+    pmask &= smask;
+
+    int count = 0;
+    while (pmask)
     {
-        setsize = CPU_ALLOC_SIZE(ncpus);
-        set = CPU_ALLOC(ncpus);
-        if (set == nullptr)
-            return 1;
+        if (pmask & 1)
+            count++;
 
-        rv = sched_getaffinity(pid, setsize, set);
-        if (rv != 0)
-        {
-            CPU_FREE(set);
+        pmask >>= 1;
+    }
 
-            if (errno != EINVAL)
-                return 1;
-
-            ncpus += CPU_SETSIZE;
-        }
-    } while (rv != 0);
-
-    uint32_t count = CPU_COUNT_S(setsize, set);
-
-    CPU_FREE(set);
+    // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
+    // than 64 processors, which would leave us with a count of 0.  Since the GC
+    // expects there to be at least one processor to run on (and thus at least one
+    // heap), we'll return 64 here if count is 0, since there are likely a ton of
+    // processors available in that case.  The GC also cannot (currently) handle
+    // the case where there are more than 64 processors, so we will return a
+    // maximum of 64 here.
+    if (count == 0 || count > 64)
+        count = 64;
 
     return count;
-
-#else // HAVE_SCHED_GETAFFINITY
-
-    return g_logicalCpuCount;
-
-#endif // HAVE_SCHED_GETAFFINITY
 }
 
 // Return the size of the user-mode portion of the virtual address space of this process.
