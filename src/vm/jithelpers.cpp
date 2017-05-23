@@ -4273,7 +4273,7 @@ NOINLINE HCIMPL1(Object*, JIT_GetRuntimeType_Framed, CORINFO_CLASS_HANDLE type)
 HCIMPLEND
 
 #include <optsmallperfcritical.h>
-HCIMPL1(Object*, JIT_GetRuntimeType, CORINFO_CLASS_HANDLE type)
+EXTERN_C HCIMPL1(Object*, JIT_GetRuntimeType, CORINFO_CLASS_HANDLE type)
 {
     FCALL_CONTRACT;
 
@@ -4293,6 +4293,10 @@ HCIMPL1(Object*, JIT_GetRuntimeType, CORINFO_CLASS_HANDLE type)
     return HCCALL1(JIT_GetRuntimeType_Framed, type);
 }
 HCIMPLEND
+
+#ifdef UNIX_X86_ABI
+EXTERN_C FCDECL1(Object*, JIT_GetRuntimeType_Safe, CORINFO_CLASS_HANDLE type);
+#endif
 
 HCIMPL1(Object*, JIT_GetRuntimeType_MaybeNull, CORINFO_CLASS_HANDLE type)
 {
