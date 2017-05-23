@@ -652,22 +652,6 @@ HRESULT CEECompileInfo::SetCompilationTarget(CORINFO_ASSEMBLY_HANDLE     assembl
         }
     }
 
-#ifdef FEATURE_READYTORUN_COMPILER
-    if (IsReadyToRunCompilation() && !pModule->IsILOnly())
-    {
-        GetSvcLogger()->Printf(LogLevel_Error, W("Error: /readytorun not supported for mixed mode assemblies\n"));
-        return E_FAIL;
-    }
-#endif
-
-#ifdef FEATURE_READYTORUN_COMPILER
-    if (IsReadyToRunCompilation() && !pModule->IsILOnly())
-    {
-        GetSvcLogger()->Printf(LogLevel_Error, W("Error: /readytorun not supported for mixed mode assemblies\n"));
-        return E_FAIL;
-    }
-#endif
-
     return S_OK;
 }
 
@@ -6809,7 +6793,7 @@ void CEEPreloader::GetRVAFieldData(mdFieldDef fd, PVOID * ppData, DWORD * pcbSiz
     if (pFD == NULL)
         ThrowHR(COR_E_TYPELOAD);
 
-    _ASSERTE(pFD->IsILOnlyRVAField());
+    _ASSERTE(pFD->IsRVA());
 
     UINT size = pFD->LoadSize();
 
