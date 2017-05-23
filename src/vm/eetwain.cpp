@@ -5324,64 +5324,67 @@ OBJECTREF EECodeManager::GetInstance( PREGDISPLAY    pContext,
     _ASSERTE(*castto(table, unsigned short *)++ == 0xBEEF);
 #endif
 
-#ifndef WIN64EXCEPTIONS
-    /* Parse the untracked frame variable table */
-
-    /* The 'this' pointer can never be located in the untracked table */
-    /* as we only allow pinned and byrefs in the untracked table      */
-
-    count = info.untrackedCnt;
-    while (count-- > 0)
+#ifdef WIN64EXCEPTIONS
+    if (pCodeInfo->GetMethodDesc()->AcquiresInstMethodTableFromThis()) // Generic Context is "this"
     {
-        fastSkipSigned(table);
+        // Untracked table must have at least one entry - this pointer
+        _ASSERTE(info.untrackedCnt > 0);
+
+        // The first entry must be "this" pointer
+        int stkOffs = fastDecodeSigned(table);
+        taArgBase -= stkOffs & ~OFFSET_MASK;
+        return (OBJECTREF)(size_t)(*PTR_DWORD(taArgBase));
     }
-
-    /* Look for the 'this' pointer in the frame variable lifetime table     */
-
-    count = info.varPtrTableSize;
-    unsigned tmpOffs = 0;
-    while (count-- > 0)
+    else
+#endif // WIN64EXCEPTIONS
     {
-        unsigned varOfs = fastDecodeUnsigned(table);
-        unsigned begOfs = tmpOffs + fastDecodeUnsigned(table);
-        unsigned endOfs = begOfs + fastDecodeUnsigned(table);
-        _ASSERTE(!info.ebpFrame || (varOfs!=0));
-        /* Is this variable live right now? */
-        if (((unsigned)relOffset >= begOfs) && ((unsigned)relOffset < endOfs))
+        /* Parse the untracked frame variable table */
+
+        /* The 'this' pointer can never be located in the untracked table */
+        /* as we only allow pinned and byrefs in the untracked table      */
+
+        count = info.untrackedCnt;
+        while (count-- > 0)
         {
-            /* Does it contain the 'this' pointer */
-            if (varOfs & this_OFFSET_FLAG)
-            {
-                unsigned ofs = varOfs & ~OFFSET_MASK;
-
-                /* Tracked locals for EBP frames are always at negative offsets */
-
-                if (info.ebpFrame)
-                    taArgBase -= ofs;
-                else
-                    taArgBase += ofs;
-
-                return (OBJECTREF)(size_t)(*PTR_DWORD(taArgBase));
-            }
+            fastSkipSigned(table);
         }
-        tmpOffs = begOfs;
-    }
+
+        /* Look for the 'this' pointer in the frame variable lifetime table     */
+
+        count = info.varPtrTableSize;
+        unsigned tmpOffs = 0;
+        while (count-- > 0)
+        {
+            unsigned varOfs = fastDecodeUnsigned(table);
+            unsigned begOfs = tmpOffs + fastDecodeUnsigned(table);
+            unsigned endOfs = begOfs + fastDecodeUnsigned(table);
+            _ASSERTE(!info.ebpFrame || (varOfs!=0));
+            /* Is this variable live right now? */
+            if (((unsigned)relOffset >= begOfs) && ((unsigned)relOffset < endOfs))
+            {
+                /* Does it contain the 'this' pointer */
+                if (varOfs & this_OFFSET_FLAG)
+                {
+                    unsigned ofs = varOfs & ~OFFSET_MASK;
+
+                    /* Tracked locals for EBP frames are always at negative offsets */
+
+                    if (info.ebpFrame)
+                        taArgBase -= ofs;
+                    else
+                        taArgBase += ofs;
+
+                    return (OBJECTREF)(size_t)(*PTR_DWORD(taArgBase));
+                }
+            }
+            tmpOffs = begOfs;
+        }
 
 #if VERIFY_GC_TABLES
-    _ASSERTE(*castto(table, unsigned short *) == 0xBABE);
+        _ASSERTE(*castto(table, unsigned short *) == 0xBABE);
 #endif
 
-#else // WIN64EXCEPTIONS
-
-    // Untracked table must have at least one entry - this pointer
-    _ASSERTE(info.untrackedCnt > 0);
-
-    // The first entry must be "this" pointer
-    int stkOffs = fastDecodeSigned(table);
-    taArgBase -= stkOffs & ~OFFSET_MASK;
-    return (OBJECTREF)(size_t)(*PTR_DWORD(taArgBase));
-
-#endif // WIN64EXCEPTIONS
+    }
 
     return NULL;
 #else // !USE_GC_INFO_DECODER

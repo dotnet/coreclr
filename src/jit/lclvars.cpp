@@ -3294,9 +3294,10 @@ void Compiler::lvaSortByRefCount()
             varDsc->lvTracked = 0;
         }
 #if defined(JIT32_GCENCODER) && defined(WIN64EXCEPTIONS)
-        else if (lvaIsOriginalThisArg(lclNum))
+        else if (lvaIsOriginalThisArg(lclNum) && (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) != 0)
         {
-            // For x86/Linux, we cannot have this pointer in tracked variables, so we set this pointer untracked
+            // For x86/Linux, we need to track "this".
+            // However we cannot have it in tracked variables, so we set "this" pointer always untracked
             varDsc->lvTracked = 0;
         }
 #endif

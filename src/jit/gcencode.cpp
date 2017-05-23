@@ -199,16 +199,10 @@ void GCInfo::gcMarkFilterVarsPinned()
                         desc2->vpdBegOfs = filterEnd;
                         desc2->vpdEndOfs = endOffs;
 
-#ifndef JIT32_GCENCODER
-                        desc1->vpdNext = gcVarPtrList;
-                        desc2->vpdNext = desc1;
-                        gcVarPtrList   = desc2;
-#else
+                        varTmp->vpdEndOfs = filterBeg;
+
                         gcInsertVarPtrDscSplit(desc1, varTmp);
                         gcInsertVarPtrDscSplit(desc2, varTmp);
-#endif
-
-                        varTmp->vpdEndOfs = filterBeg;
 
 #ifdef DEBUG
                         if (compiler->verbose)
@@ -243,14 +237,9 @@ void GCInfo::gcMarkFilterVarsPinned()
                         desc->vpdBegOfs = filterBeg;
                         desc->vpdEndOfs = endOffs;
 
-#ifndef JIT32_GCENCODER
-                        desc->vpdNext = gcVarPtrList;
-                        gcVarPtrList  = desc;
-#else
-                        gcInsertVarPtrDscSplit(desc, varTmp);
-#endif
-
                         varTmp->vpdEndOfs = filterBeg;
+
+                        gcInsertVarPtrDscSplit(desc, varTmp);
 
 #ifdef DEBUG
                         if (compiler->verbose)
@@ -286,8 +275,6 @@ void GCInfo::gcMarkFilterVarsPinned()
                         desc->vpdVarNum = varTmp->vpdVarNum | pinned_OFFSET_FLAG;
                         desc->vpdBegOfs = begOffs;
                         desc->vpdEndOfs = filterEnd;
-                        desc->vpdNext   = gcVarPtrList;
-                        gcVarPtrList    = desc;
 
                         varTmp->vpdBegOfs = filterEnd;
 #else
@@ -296,11 +283,12 @@ void GCInfo::gcMarkFilterVarsPinned()
                         desc->vpdVarNum = varTmp->vpdVarNum;
                         desc->vpdBegOfs = filterEnd;
                         desc->vpdEndOfs = endOffs;
-                        gcInsertVarPtrDscSplit(desc, varTmp);
 
                         varTmp->vpdVarNum = varTmp->vpdVarNum | pinned_OFFSET_FLAG;
                         varTmp->vpdEndOfs = filterEnd;
 #endif
+
+                        gcInsertVarPtrDscSplit(desc, varTmp);
 
 #ifdef DEBUG
                         if (compiler->verbose)
@@ -340,8 +328,25 @@ void GCInfo::gcMarkFilterVarsPinned()
     }     // Foreach EH
 }
 
+// gcInsertVarPtrDscSplit - Insert varPtrDsc that were created by splitting lifetimes
+//     From gcMarkFilterVarsPinned, we may have created one or two `varPtrDsc`s due to splitting lifetimes
+//     and these newly created `varPtrDsc`s should be inserted in gcVarPtrList.
+//     However the semantics of this call depend on the architecture.
+//
+//     x86-GCInfo requires gcVarPtrList to be sorted by vpdBegOfs.
+//     Every time inserting an entry we should keep the order of entries.
+//     So this function searches for a proper insertion point from "begin" then "desc" gets inserted.
+//
+//     For other architectures(ones that uses GCInfo{En|De}coder), we don't need any sort.
+//     So the argument "begin" is unused and "desc" will be inserted at the front of the list.
+
 void GCInfo::gcInsertVarPtrDscSplit(varPtrDsc* desc, varPtrDsc* begin)
 {
+#ifndef JIT32_GCENCODER
+    (void)begin;
+    desc->vpdNext = gcVarPtrList;
+    gcVarPtrList  = desc;
+#else  // JIT32_GCENCODER
     // "desc" and "begin" must not be null
     assert(desc != nullptr);
     assert(begin != nullptr);
@@ -364,6 +369,7 @@ void GCInfo::gcInsertVarPtrDscSplit(varPtrDsc* desc, varPtrDsc* begin)
 
     desc->vpdNext      = varInsert->vpdNext;
     varInsert->vpdNext = desc;
+#endif // JIT32_GCENCODER
 }
 
 #ifdef DEBUG
@@ -2260,12 +2266,9 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                 }
 
 #ifndef WIN64EXCEPTIONS
-                if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
-#else
                 // For WIN64EXCEPTIONS, "this" must always be in untracked variables
                 // so we cannot have "this" in variable lifetimes
-                if (false)
-#endif
+                if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
 
                 {
                     // Encoding of untracked variables does not support reporting
@@ -2275,6 +2278,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                     thisKeptAliveIsInUntracked = true;
                     continue;
                 }
+#endif
 
                 if (pass == 0)
                     count++;
