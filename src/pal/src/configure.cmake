@@ -396,6 +396,9 @@ check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
+#ifdef __linux__
+#include <linux/sys/time.h>
+#endif
 
 int main()
 {
