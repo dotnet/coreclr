@@ -4796,7 +4796,12 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
                 if (dspPtr) {
                     printf("    Frame %s%s local at [E",
                            (lowBits & byref_OFFSET_FLAG) ? "byref "   : "",
+#ifndef WIN64EXCEPTIONS
                            (lowBits & this_OFFSET_FLAG)  ? "this-ptr" : "");
+#else
+                           (lowBits & pinned_OFFSET_FLAG)  ? "pinned" : "");
+#endif
+
                     
                     int  dspOffs = ptrAddr;
                     char frameType;
@@ -5324,7 +5329,54 @@ OBJECTREF EECodeManager::GetInstance( PREGDISPLAY    pContext,
     _ASSERTE(*castto(table, unsigned short *)++ == 0xBEEF);
 #endif
 
-#ifdef WIN64EXCEPTIONS
+#ifndef WIN64EXCEPTIONS
+    /* Parse the untracked frame variable table */
+
+    /* The 'this' pointer can never be located in the untracked table */
+    /* as we only allow pinned and byrefs in the untracked table      */
+
+    count = info.untrackedCnt;
+    while (count-- > 0)
+    {
+        fastSkipSigned(table);
+    }
+
+    /* Look for the 'this' pointer in the frame variable lifetime table     */
+
+    count = info.varPtrTableSize;
+    unsigned tmpOffs = 0;
+    while (count-- > 0)
+    {
+        unsigned varOfs = fastDecodeUnsigned(table);
+        unsigned begOfs = tmpOffs + fastDecodeUnsigned(table);
+        unsigned endOfs = begOfs + fastDecodeUnsigned(table);
+        _ASSERTE(!info.ebpFrame || (varOfs!=0));
+        /* Is this variable live right now? */
+        if (((unsigned)relOffset >= begOfs) && ((unsigned)relOffset < endOfs))
+        {
+            /* Does it contain the 'this' pointer */
+            if (varOfs & this_OFFSET_FLAG)
+            {
+                unsigned ofs = varOfs & ~OFFSET_MASK;
+
+                /* Tracked locals for EBP frames are always at negative offsets */
+
+                if (info.ebpFrame)
+                    taArgBase -= ofs;
+                else
+                    taArgBase += ofs;
+
+                return (OBJECTREF)(size_t)(*PTR_DWORD(taArgBase));
+            }
+        }
+        tmpOffs = begOfs;
+    }
+
+#if VERIFY_GC_TABLES
+    _ASSERTE(*castto(table, unsigned short *) == 0xBABE);
+#endif
+
+#else // WIN64EXCEPTIONS
     if (pCodeInfo->GetMethodDesc()->AcquiresInstMethodTableFromThis()) // Generic Context is "this"
     {
         // Untracked table must have at least one entry - this pointer
@@ -5335,56 +5387,7 @@ OBJECTREF EECodeManager::GetInstance( PREGDISPLAY    pContext,
         taArgBase -= stkOffs & ~OFFSET_MASK;
         return (OBJECTREF)(size_t)(*PTR_DWORD(taArgBase));
     }
-    else
 #endif // WIN64EXCEPTIONS
-    {
-        /* Parse the untracked frame variable table */
-
-        /* The 'this' pointer can never be located in the untracked table */
-        /* as we only allow pinned and byrefs in the untracked table      */
-
-        count = info.untrackedCnt;
-        while (count-- > 0)
-        {
-            fastSkipSigned(table);
-        }
-
-        /* Look for the 'this' pointer in the frame variable lifetime table     */
-
-        count = info.varPtrTableSize;
-        unsigned tmpOffs = 0;
-        while (count-- > 0)
-        {
-            unsigned varOfs = fastDecodeUnsigned(table);
-            unsigned begOfs = tmpOffs + fastDecodeUnsigned(table);
-            unsigned endOfs = begOfs + fastDecodeUnsigned(table);
-            _ASSERTE(!info.ebpFrame || (varOfs!=0));
-            /* Is this variable live right now? */
-            if (((unsigned)relOffset >= begOfs) && ((unsigned)relOffset < endOfs))
-            {
-                /* Does it contain the 'this' pointer */
-                if (varOfs & this_OFFSET_FLAG)
-                {
-                    unsigned ofs = varOfs & ~OFFSET_MASK;
-
-                    /* Tracked locals for EBP frames are always at negative offsets */
-
-                    if (info.ebpFrame)
-                        taArgBase -= ofs;
-                    else
-                        taArgBase += ofs;
-
-                    return (OBJECTREF)(size_t)(*PTR_DWORD(taArgBase));
-                }
-            }
-            tmpOffs = begOfs;
-        }
-
-#if VERIFY_GC_TABLES
-        _ASSERTE(*castto(table, unsigned short *) == 0xBABE);
-#endif
-
-    }
 
     return NULL;
 #else // !USE_GC_INFO_DECODER

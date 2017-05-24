@@ -2438,6 +2438,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
     varPtrDsc* varTmp;
     count = 0;
 
+#ifndef WIN64EXCEPTIONS
     if (thisKeptAliveIsInUntracked)
     {
         count = 1;
@@ -2464,6 +2465,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
         dest += (sz & mask);
         totalSize += sz;
     }
+#endif
 
     for (pass = 0; pass < 2; pass++)
     {
