@@ -23,7 +23,6 @@ using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 using System.Security;
 using System.Text;
-using System.Runtime.Remoting;
 using MdSigCallingConvention = System.Signature.MdSigCallingConvention;
 using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 using System.Runtime.InteropServices;
@@ -72,7 +71,6 @@ namespace System
         FullName,
     }
 
-    [Serializable]
     internal class RuntimeType :
         System.Reflection.TypeInfo, ISerializable, ICloneable
     {
@@ -1200,7 +1198,7 @@ namespace System
                         {
                             string name = eventInfo.Name;
 
-                            if (csEventInfos.GetValueOrDefault(name) != null)
+                            if (csEventInfos.ContainsKey(name))
                                 continue;
 
                             csEventInfos[name] = eventInfo;
@@ -1355,10 +1353,8 @@ namespace System
                             if (csPropertyInfos != null)
                             {
                                 string name = propertyInfo.Name;
-
-                                List<RuntimePropertyInfo> cache = csPropertyInfos.GetValueOrDefault(name);
-
-                                if (cache == null)
+                                List<RuntimePropertyInfo> cache;
+                                if (!csPropertyInfos.TryGetValue(name, out cache))
                                 {
                                     cache = new List<RuntimePropertyInfo>(1);
                                     csPropertyInfos[name] = cache;
@@ -3510,15 +3506,15 @@ namespace System
 
         public override bool IsSecurityCritical
         {
-            get { return new RuntimeTypeHandle(this).IsSecurityCritical(); }
+            get { return true; }
         }
         public override bool IsSecuritySafeCritical
         {
-            get { return new RuntimeTypeHandle(this).IsSecuritySafeCritical(); }
+            get { return false; }
         }
         public override bool IsSecurityTransparent
         {
-            get { return new RuntimeTypeHandle(this).IsSecurityTransparent(); }
+            get { return false; }
         }
         #endregion
 
@@ -3792,6 +3788,13 @@ namespace System
         #endregion
 
         #region Misc
+        public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeType>(other);
+
+        public override bool IsTypeDefinition
+        {
+            get { return RuntimeTypeHandle.IsTypeDefinition(this); }
+        }
+
         public override Type MakePointerType() { return new RuntimeTypeHandle(this).MakePointer(); }
         public override Type MakeByRefType() { return new RuntimeTypeHandle(this).MakeByRef(); }
         public override Type MakeArrayType() { return new RuntimeTypeHandle(this).MakeSZArray(); }
@@ -4908,7 +4911,6 @@ namespace System
     // method (RuntimeType) and an instance of this type will work around the reason to have this type in the 
     // first place. However given RuntimeType is not public all its methods are protected and require full trust
     // to be accessed
-    [Serializable]
     internal class ReflectionOnlyType : RuntimeType
     {
         private ReflectionOnlyType() { }

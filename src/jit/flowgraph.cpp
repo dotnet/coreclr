@@ -1815,9 +1815,9 @@ void Compiler::fgComputeReachabilitySets()
 
     for (block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        // Initialize the per-block bbReach sets. (Note that we can't just call BlockSetOps::ClearD()
-        // when re-running this computation, because if the epoch changes, the size and representation of the
-        // sets might change).
+        // Initialize the per-block bbReach sets. It creates a new empty set,
+        // because the block epoch could change since the previous initialization
+        // and the old set could have wrong size.
         block->bbReach = BlockSetOps::MakeEmpty(this);
 
         /* Mark block as reaching itself */
@@ -1936,7 +1936,7 @@ void Compiler::fgComputeEnterBlocksSet()
     {
         printf("Enter blocks: ");
         BLOCKSET_ITER_INIT(this, iter, fgEnterBlks, bbNum);
-        while (iter.NextElem(this, &bbNum))
+        while (iter.NextElem(&bbNum))
         {
             printf("BB%02u ", bbNum);
         }
@@ -2286,7 +2286,7 @@ BlockSet_ValRet_T Compiler::fgDomFindStartNodes()
     {
         printf("\nDominator computation start blocks (those blocks with no incoming edges):\n");
         BLOCKSET_ITER_INIT(this, iter, startNodes, bbNum);
-        while (iter.NextElem(this, &bbNum))
+        while (iter.NextElem(&bbNum))
         {
             printf("BB%02u ", bbNum);
         }
@@ -3863,9 +3863,9 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
     {
         createdPollBlocks = false;
         GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
-#if GTF_CALL_REG_SAVE
-        call->gtCallMoreFlags |= GTF_CALL_REG_SAVE;
-#endif // GTF_CALL_REG_SAVE
+#ifdef LEGACY_BACKEND
+        call->gtFlags |= GTF_CALL_REG_SAVE;
+#endif // LEGACY_BACKEND
 
         // for BBJ_ALWAYS I don't need to insert it before the condition.  Just append it.
         if (block->bbJumpKind == BBJ_ALWAYS)
@@ -3944,9 +3944,9 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
 
         //  2) Add a GC_CALL node to Poll.
         GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
-#if GTF_CALL_REG_SAVE
-        call->gtCallMoreFlags |= GTF_CALL_REG_SAVE;
-#endif // GTF_CALL_REG_SAVE
+#ifdef LEGACY_BACKEND
+        call->gtFlags |= GTF_CALL_REG_SAVE;
+#endif // LEGACY_BACKEND
         fgInsertStmtAtEnd(poll, call);
 
         //  3) Remove the last statement from Top and add it to Bottom.
@@ -4335,7 +4335,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
 
     DECODE_OPCODE:
 
-        if (opcode >= CEE_COUNT)
+        if ((unsigned)opcode >= CEE_COUNT)
         {
             BADCODE3("Illegal opcode", ": %02X", (int)opcode);
         }
@@ -5231,7 +5231,7 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, B
 
         /* Get the size of additional parameters */
 
-        noway_assert(opcode < CEE_COUNT);
+        noway_assert((unsigned)opcode < CEE_COUNT);
 
         sz = opcodeSizes[opcode];
 
@@ -10011,7 +10011,7 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
     if (fgDomsComputed && block->bbNum > fgDomBBcount)
     {
         BlockSetOps::Assign(this, block->bbReach, bNext->bbReach);
-        BlockSetOps::ClearD(this, bNext->bbReach);
+        BlockSetOps::OldStyleClearD(this, bNext->bbReach);
 
         block->bbIDom = bNext->bbIDom;
         bNext->bbIDom = nullptr;
@@ -17055,8 +17055,8 @@ bool Compiler::fgCheckEHCanInsertAfterBlock(BasicBlock* blk, unsigned regionInde
 //
 // Return Value:
 //    A block with the desired characteristics, so the new block will be inserted after this one.
-//    If there is no suitable location, return nullptr. This should basically never happen except in the case of
-//    single-block filters.
+//    If there is no suitable location, return nullptr. This should basically never happen.
+//
 BasicBlock* Compiler::fgFindInsertPoint(unsigned    regionIndex,
                                         bool        putInTryRegion,
                                         BasicBlock* startBlk,
@@ -17284,19 +17284,21 @@ BasicBlock* Compiler::fgFindInsertPoint(unsigned    regionIndex,
 
 DONE:
 
+#if defined(JIT32_GCENCODER)
     // If we are inserting into a filter and the best block is the end of the filter region, we need to
-    // insert after its predecessor instead: the CLR ABI states that the terminal block of a filter region
-    // is its exit block. If the filter region consists of a single block, a new block cannot be inserted
-    // without either splitting the single block before inserting a new block or inserting the new block
-    // before the single block and updating the filter description such that the inserted block is marked
-    // as the entry block for the filter. This work must be done by the caller; this function returns
-    // `nullptr` to indicate this case.
-    if (insertingIntoFilter && (bestBlk == endBlk->bbPrev) && (bestBlk == startBlk))
+    // insert after its predecessor instead: the JIT32 GC encoding used by the x86 CLR ABI  states that the
+    // terminal block of a filter region is its exit block. If the filter region consists of a single block,
+    // a new block cannot be inserted without either splitting the single block before inserting a new block
+    // or inserting the new block before the single block and updating the filter description such that the
+    // inserted block is marked as the entry block for the filter. Becuase this sort of split can be complex
+    // (especially given that it must ensure that the liveness of the exception object is properly tracked),
+    // we avoid this situation by never generating single-block filters on x86 (see impPushCatchArgOnStack).
+    if (insertingIntoFilter && (bestBlk == endBlk->bbPrev))
     {
-        assert(bestBlk != nullptr);
-        assert(bestBlk->bbJumpKind == BBJ_EHFILTERRET);
-        bestBlk = nullptr;
+        assert(bestBlk != startBlk);
+        bestBlk = bestBlk->bbPrev;
     }
+#endif // defined(JIT32_GCENCODER)
 
     return bestBlk;
 }
@@ -17474,21 +17476,6 @@ BasicBlock* Compiler::fgNewBBinRegion(BBjumpKinds jumpKind,
 
     // Now find the insertion point.
     afterBlk = fgFindInsertPoint(regionIndex, putInTryRegion, startBlk, endBlk, nearBlk, nullptr, runRarely);
-
-    // If afterBlk is nullptr, we must be inserting into a single-block filter region. Because the CLR ABI requires
-    // that control exits a filter via the last instruction in the filter range, this situation requires logically
-    // splitting the single block. In practice, we simply insert a new block at the beginning of the filter region
-    // that transfers control flow to the existing single block.
-    if (afterBlk == nullptr)
-    {
-        assert(putInFilter);
-
-        BasicBlock* newFilterEntryBlock = fgNewBBbefore(BBJ_ALWAYS, startBlk, true);
-        newFilterEntryBlock->bbJumpDest = startBlk;
-        fgAddRefPred(startBlk, newFilterEntryBlock);
-
-        afterBlk = newFilterEntryBlock;
-    }
 
 _FoundAfterBlk:;
 
@@ -18353,10 +18340,13 @@ void Compiler::fgSetTreeSeqHelper(GenTreePtr tree, bool isLIR)
 
 void Compiler::fgSetTreeSeqFinish(GenTreePtr tree, bool isLIR)
 {
-    // If we are sequencing a node that does not appear in LIR,
-    // do not add it to the list.
+    // If we are sequencing for LIR:
+    // - Clear the reverse ops flag
+    // - If we are processing a node that does not appear in LIR, do not add it to the list.
     if (isLIR)
     {
+        tree->gtFlags &= ~GTF_REVERSE_OPS;
+
         if ((tree->OperGet() == GT_LIST) || (tree->OperGet() == GT_ARGPLACE) ||
             (tree->OperGet() == GT_FIELD_LIST && !tree->AsFieldList()->IsFieldListHead()))
         {
@@ -19607,7 +19597,7 @@ void Compiler::fgDispReach()
     {
         printf("BB%02u : ", block->bbNum);
         BLOCKSET_ITER_INIT(this, iter, block->bbReach, bbNum);
-        while (iter.NextElem(this, &bbNum))
+        while (iter.NextElem(&bbNum))
         {
             printf("BB%02u ", bbNum);
         }
@@ -21661,9 +21651,14 @@ void Compiler::fgAttachStructInlineeToAsg(GenTreePtr tree, GenTreePtr child, COR
     assert(tree->gtOper == GT_ASG);
 
     // We have an assignment, we codegen only V05 = call().
-    // However, if it is a multireg return on x64/ux we want to assign it to a temp.
-    if (child->gtOper == GT_CALL && tree->gtOp.gtOp1->gtOper == GT_LCL_VAR && !child->AsCall()->HasMultiRegRetVal())
+    if (child->gtOper == GT_CALL && tree->gtOp.gtOp1->gtOper == GT_LCL_VAR)
     {
+        // If it is a multireg return on x64/ux, the local variable should be marked as lvIsMultiRegRet
+        if (child->AsCall()->HasMultiRegRetVal())
+        {
+            unsigned lclNum                  = tree->gtOp.gtOp1->gtLclVarCommon.gtLclNum;
+            lvaTable[lclNum].lvIsMultiRegRet = true;
+        }
         return;
     }
 

@@ -6,8 +6,12 @@
 #ifndef __EVENTPIPE_JSONFILE_H__
 #define __EVENTPIPE_JSONFILE_H__
 
+#ifdef _DEBUG
+#ifdef FEATURE_PERFTRACING
+
 #include "common.h"
 #include "eventpipe.h"
+#include "eventpipeeventinstance.h"
 #include "fstream.h"
 
 class EventPipeJsonFile
@@ -16,8 +20,11 @@ class EventPipeJsonFile
         EventPipeJsonFile(SString &outFilePath);
         ~EventPipeJsonFile();
 
+        // Write an event instance.
+        void WriteEvent(EventPipeEventInstance &instance);
+
         // Write an event with the specified message and stack.
-        void WriteEvent(CommonEventFields &commonFields, SString &message, StackContents &stackContents);
+        void WriteEvent(LARGE_INTEGER timeStamp, DWORD threadID, SString &message, StackContents &stackContents);
 
     private:
 
@@ -36,5 +43,8 @@ class EventPipeJsonFile
         // File-open timestamp for use when calculating event timestamps.
         LARGE_INTEGER m_fileOpenTimeStamp;
 };
+
+#endif // FEATURE_PERFTRACING
+#endif // _DEBUG
 
 #endif // __EVENTPIPE_JSONFILE_H__

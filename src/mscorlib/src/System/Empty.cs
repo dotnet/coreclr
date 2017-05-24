@@ -9,12 +9,10 @@
 using System.Diagnostics.Contracts;
 
 using System;
-using System.Runtime.Remoting;
 using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     internal sealed class Empty : ISerializable
     {
         private Empty()

@@ -175,11 +175,6 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
         if (blkNode->OperGet() == GT_STORE_OBJ)
         {
             // CopyObj
-
-            NYI_ARM("Lowering for GT_STORE_OBJ isn't implemented");
-
-#ifdef _TARGET_ARM64_
-
             GenTreeObj* objNode = blkNode->AsObj();
 
             unsigned slots = objNode->gtSlots;
@@ -205,15 +200,9 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 #endif
 
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
-
-#endif // _TARGET_ARM64_
         }
-        else
+        else // CopyBlk
         {
-            // CopyBlk
-            short     internalIntCount      = 0;
-            regMaskTP internalIntCandidates = RBM_NONE;
-
 #ifdef _TARGET_ARM64_
             // In case of a CpBlk with a constant size and less than CPBLK_UNROLL_LIMIT size
             // we should unroll the loop to improve CQ.
@@ -283,7 +272,6 @@ void Lowering::LowerCast(GenTree* tree)
     // Case of src is a small type and dst is a floating point type.
     if (varTypeIsSmall(srcType) && varTypeIsFloating(dstType))
     {
-        NYI_ARM("Lowering for cast from small type to float"); // Not tested yet.
         // These conversions can never be overflow detecting ones.
         noway_assert(!tree->gtOverflow());
         tmpType = TYP_INT;
@@ -307,7 +295,7 @@ void Lowering::LowerCast(GenTree* tree)
 }
 
 //------------------------------------------------------------------------
-// LowerRotate: Lower GT_ROL and GT_ROL nodes.
+// LowerRotate: Lower GT_ROL and GT_ROR nodes.
 //
 // Arguments:
 //    tree - the node to lower

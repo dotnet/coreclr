@@ -53,7 +53,7 @@ void CodeGen::genDyingVars(VARSET_VALARG_TP beforeSet, VARSET_VALARG_TP afterSet
     /* iterate through the dead variables */
 
     VARSET_ITER_INIT(compiler, iter, deadSet, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    while (iter.NextElem(&varIndex))
     {
         varNum = compiler->lvaTrackedToVarNum[varIndex];
         varDsc = compiler->lvaTable + varNum;
@@ -5054,27 +5054,7 @@ void CodeGen::genCodeForTreeLeaf(GenTreePtr tree, regMaskTP destReg, regMaskTP b
             break;
 
         case GT_NO_OP:
-            // The VM does certain things with actual NOP instructions
-            // so generate something small that has no effect, but isn't
-            // a typical NOP
-            if (tree->gtFlags & GTF_NO_OP_NO)
-            {
-#ifdef _TARGET_XARCH_
-                // The VM expects 0x66 0x90 for a 2-byte NOP, not 0x90 0x90
-                instGen(INS_nop);
-                instGen(INS_nop);
-#elif defined(_TARGET_ARM_)
-                // The VM isn't checking yet, when it does, hopefully it will
-                // get fooled by the wider variant.
-                instGen(INS_nopw);
-#else
-                NYI("Non-nop NO_OP");
-#endif
-            }
-            else
-            {
-                instGen(INS_nop);
-            }
+            instGen(INS_nop);
             reg = REG_STK;
             break;
 
@@ -5654,7 +5634,7 @@ void CodeGen::genCodeForQmark(GenTreePtr tree, regMaskTP destReg, regMaskTP best
                                          VarSetOps::Intersection(compiler, compiler->raRegVarsMask, rsLiveNow));
 
             VARSET_ITER_INIT(compiler, iter, regVarLiveNow, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            while (iter.NextElem(&varIndex))
             {
                 // Find the variable in compiler->lvaTable
                 unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
@@ -12602,7 +12582,7 @@ void CodeGen::genCodeForBBlist()
         noway_assert((specialUseMask & regSet.rsMaskVars) == 0);
 
         VARSET_ITER_INIT(compiler, iter, liveSet, varIndex);
-        while (iter.NextElem(compiler, &varIndex))
+        while (iter.NextElem(&varIndex))
         {
             varNum = compiler->lvaTrackedToVarNum[varIndex];
             varDsc = compiler->lvaTable + varNum;
@@ -13083,22 +13063,11 @@ void CodeGen::genCodeForBBlist()
                 bbFinallyRet = block->bbNext->bbJumpDest;
                 bbFinallyRet->bbFlags |= BBF_JMP_TARGET;
 
-#if 0
-            // We don't know the address of finally funclet yet.  But adr requires the offset
-            // to finally funclet from current IP is within 4095 bytes. So this code is disabled
-            // for now.
-            getEmitter()->emitIns_J_R (INS_adr,
-                                     EA_4BYTE,
-                                     bbFinallyRet,
-                                     REG_LR);
-#else  // 0
                 // Load the address where the finally funclet should return into LR.
                 // The funclet prolog/epilog will do "push {lr}" / "pop {pc}" to do
                 // the return.
-                getEmitter()->emitIns_R_L(INS_movw, EA_4BYTE_DSP_RELOC, bbFinallyRet, REG_LR);
-                getEmitter()->emitIns_R_L(INS_movt, EA_4BYTE_DSP_RELOC, bbFinallyRet, REG_LR);
+                genMov32RelocatableDisplacement(bbFinallyRet, REG_LR);
                 regTracker.rsTrackRegTrash(REG_LR);
-#endif // 0
 
                 // Jump to the finally BB
                 inst_JMP(EJ_jmp, block->bbJumpDest);
@@ -13123,8 +13092,7 @@ void CodeGen::genCodeForBBlist()
 
             case BBJ_EHCATCHRET:
                 // set r0 to the address the VM should return to after the catch
-                getEmitter()->emitIns_R_L(INS_movw, EA_4BYTE_DSP_RELOC, block->bbJumpDest, REG_R0);
-                getEmitter()->emitIns_R_L(INS_movt, EA_4BYTE_DSP_RELOC, block->bbJumpDest, REG_R0);
+                genMov32RelocatableDisplacement(block->bbJumpDest, REG_R0);
                 regTracker.rsTrackRegTrash(REG_R0);
 
                 __fallthrough;
@@ -15272,7 +15240,7 @@ unsigned CodeGen::genRegCountForLiveIntEnregVars(GenTreePtr tree)
     unsigned regCount = 0;
 
     VARSET_ITER_INIT(compiler, iter, compiler->compCurLife, varNum);
-    while (iter.NextElem(compiler, &varNum))
+    while (iter.NextElem(&varNum))
     {
         unsigned   lclNum = compiler->lvaTrackedToVarNum[varNum];
         LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
@@ -15509,8 +15477,7 @@ void CodeGen::genTableSwitch(regNumber reg, unsigned jumpCnt, BasicBlock** jumpT
     // Pick any register except the index register.
     //
     regNumber regTabBase = regSet.rsGrabReg(RBM_ALLINT & ~genRegMask(reg));
-    getEmitter()->emitIns_R_D(INS_movw, EA_HANDLE_CNS_RELOC, jmpTabBase, regTabBase);
-    getEmitter()->emitIns_R_D(INS_movt, EA_HANDLE_CNS_RELOC, jmpTabBase, regTabBase);
+    genMov32RelocatableDataLabel(jmpTabBase, regTabBase);
     regTracker.rsTrackRegTrash(regTabBase);
 
     // LDR PC, [regTableBase + reg * 4] (encoded as LDR PC, [regTableBase, reg, LSL 2]
@@ -21384,7 +21351,7 @@ regNumber CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
 
 #if CPU_LOAD_STORE_ARCH
     regNumber tmpReg = regSet.rsGrabReg(RBM_ALLINT & ~genRegMask(tcbReg));
-    getEmitter()->emitIns_J_R(INS_adr, EA_PTRSIZE, returnLabel, tmpReg);
+    getEmitter()->emitIns_R_L(INS_adr, EA_PTRSIZE, returnLabel, tmpReg);
     regTracker.rsTrackRegTrash(tmpReg);
     getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, tmpReg, compiler->lvaInlinedPInvokeFrameVar,
                               pInfo->inlinedCallFrameInfo.offsetOfReturnAddress);

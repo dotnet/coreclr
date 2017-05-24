@@ -2900,17 +2900,15 @@ void CodeGen::inst_mov_RV_ST(regNumber reg, GenTreePtr tree)
 
     if (size < EA_4BYTE)
     {
-        if ((tree->gtFlags & GTF_SMALL_OK) && (size == EA_1BYTE)
-#if CPU_HAS_BYTE_REGS
-            && (genRegMask(reg) & RBM_BYTE_REGS)
-#endif
-                )
+#if CPU_HAS_BYTE_REGS && defined(LEGACY_BACKEND)
+        if ((tree->gtFlags & GTF_SMALL_OK) && (size == EA_1BYTE) && (genRegMask(reg) & RBM_BYTE_REGS))
         {
             /* We only need to load the actual size */
 
             inst_RV_TT(INS_mov, reg, tree, 0, EA_1BYTE);
         }
         else
+#endif // CPU_HAS_BYTE_REGS && defined(LEGACY_BACKEND)
         {
             /* Generate the "movsx/movzx" opcode */
 
@@ -3915,8 +3913,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
 
         if (EA_IS_RELOC(size))
         {
-            getEmitter()->emitIns_R_I(INS_movw, size, reg, imm);
-            getEmitter()->emitIns_R_I(INS_movt, size, reg, imm);
+            genMov32RelocatableImmediate(size, imm, reg);
         }
         else if (arm_Valid_Imm_For_Mov(imm))
         {

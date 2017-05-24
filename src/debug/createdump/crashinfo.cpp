@@ -155,33 +155,68 @@ CrashInfo::GatherCrashInfo(const char* programPath, MINIDUMP_TYPE minidumpType)
     {
         return false;
     }
-    // Get shared module debug info
-    if (!GetDSOInfo())
-    {
-        return false;
-    }
     // Gather all the module memory mappings (from /dev/$pid/maps)
     if (!EnumerateModuleMappings())
     {
         return false;
     }
-    // Gather all the useful memory regions from the DAC
-    if (!EnumerateMemoryRegionsWithDAC(programPath, minidumpType))
+    // Get shared module debug info
+    if (!GetDSOInfo())
     {
         return false;
     }
-    // Add the thread's stack and some code memory to core
-    for (ThreadInfo* thread : m_threads)
+    // If full memory dump, include everything regardless of permissions
+    if (minidumpType & MiniDumpWithFullMemory)
     {
-        uint64_t start;
-        size_t size;
+       for (const MemoryRegion& region : m_moduleMappings)
+       {
+            if (ValidRegion(region))
+            {
+                InsertMemoryRegion(region);
+            }
+        }
+        for (const MemoryRegion& region : m_otherMappings)
+        {
+            if (ValidRegion(region))
+            {
+                InsertMemoryRegion(region);
+            }
+        }
+    }
+    else
+    {
+        // Add all the heap (read/write) memory regions but not the modules' r/w data segments
+        if (minidumpType & MiniDumpWithPrivateReadWriteMemory)
+        {
+            for (const MemoryRegion& region : m_otherMappings)
+            {
+                if (region.Permissions() == (PF_R | PF_W))
+                {
+                    if (ValidRegion(region))
+                    {
+                        InsertMemoryRegion(region);
+                    }
+                }
+            }
+        }
+        // Gather all the useful memory regions from the DAC
+        if (!EnumerateMemoryRegionsWithDAC(programPath, minidumpType))
+        {
+            return false;
+        }
+        // Add the thread's stack and some code memory to core
+        for (ThreadInfo* thread : m_threads)
+        {
+            uint64_t start;
+            size_t size;
 
-        // Add the thread's stack and some of the code 
-        thread->GetThreadStack(*this, &start, &size); 
-        InsertMemoryRegion(start, size);
+            // Add the thread's stack and some of the code 
+            thread->GetThreadStack(*this, &start, &size);
+            InsertMemoryRegion(start, size);
 
-        thread->GetThreadCode(&start, &size);
-        InsertMemoryRegion(start, size);
+            thread->GetThreadCode(&start, &size);
+            InsertMemoryRegion(start, size);
+        }
     }
     // Join all adjacent memory regions
     CombineMemoryRegions();
@@ -240,7 +275,7 @@ CrashInfo::EnumerateModuleMappings()
     // Here we read /proc/<pid>/maps file in order to parse it and figure out what it says 
     // about a library we are looking for. This file looks something like this:
     //
-    // [address]      [perms] [offset] [dev] [inode]     [pathname] - HEADER is not preset in an actual file
+    // [address]          [perms] [offset] [dev] [inode] [pathname] - HEADER is not preset in an actual file
     //
     // 35b1800000-35b1820000 r-xp 00000000 08:02 135522  /usr/lib64/ld-2.15.so
     // 35b1a1f000-35b1a20000 r--p 0001f000 08:02 135522  /usr/lib64/ld-2.15.so
@@ -282,8 +317,8 @@ CrashInfo::EnumerateModuleMappings()
         char* permissions = nullptr;
         char* moduleName = nullptr;
 
-        int c = 0;
-        if ((c = sscanf(line, "%lx-%lx %m[-rwxsp] %lx %*[:0-9a-f] %*d %ms\n", &start, &end, &permissions, &offset, &moduleName)) == 5)
+        int c = sscanf(line, "%lx-%lx %m[-rwxsp] %lx %*[:0-9a-f] %*d %ms\n", &start, &end, &permissions, &offset, &moduleName);
+        if (c == 4 || c == 5)
         {
             if (linuxGateAddress != nullptr && reinterpret_cast<void*>(start) == linuxGateAddress)
             {
@@ -332,60 +367,6 @@ CrashInfo::EnumerateModuleMappings()
     fclose(mapsFile);
 
     return true;
-}
-
-bool
-CrashInfo::EnumerateMemoryRegionsWithDAC(const char* programPath, MINIDUMP_TYPE minidumpType)
-{
-    PFN_CLRDataCreateInstance pfnCLRDataCreateInstance = nullptr;
-    ICLRDataEnumMemoryRegions *clrDataEnumRegions = nullptr;
-    HMODULE hdac = nullptr;
-    HRESULT hr = S_OK;
-    bool result = false;
-
-    // We assume that the DAC is in the same location as this createdump exe
-    std::string dacPath;
-    dacPath.append(programPath);
-    dacPath.append("/");
-    dacPath.append(MAKEDLLNAME_A("mscordaccore"));
-    
-    // Load and initialize the DAC
-    hdac = LoadLibraryA(dacPath.c_str());
-    if (hdac == nullptr)
-    {
-        fprintf(stderr, "LoadLibraryA(%s) FAILED %d\n", dacPath.c_str(), GetLastError());
-        goto exit;
-    }
-    pfnCLRDataCreateInstance = (PFN_CLRDataCreateInstance)GetProcAddress(hdac, "CLRDataCreateInstance");
-    if (pfnCLRDataCreateInstance == nullptr)
-    {
-        fprintf(stderr, "GetProcAddress(CLRDataCreateInstance) FAILED %d\n", GetLastError());
-        goto exit;
-    }
-    hr = pfnCLRDataCreateInstance(__uuidof(ICLRDataEnumMemoryRegions), m_dataTarget, (void**)&clrDataEnumRegions);
-    if (FAILED(hr))
-    {
-        fprintf(stderr, "CLRDataCreateInstance(ICLRDataEnumMemoryRegions) FAILED %08x\n", hr);
-        goto exit;
-    }
-    // Calls CrashInfo::EnumMemoryRegion for each memory region found by the DAC
-    hr = clrDataEnumRegions->EnumMemoryRegions(this, minidumpType, CLRDATA_ENUM_MEM_DEFAULT);
-    if (FAILED(hr))
-    {
-        fprintf(stderr, "EnumMemoryRegions FAILED %08x\n", hr);
-        goto exit;
-    }
-    result = true;
-exit:
-    if (clrDataEnumRegions != nullptr)
-    {
-        clrDataEnumRegions->Release();
-    }
-    if (hdac != nullptr)
-    {
-        FreeLibrary(hdac);
-    }
-    return result;
 }
 
 bool
@@ -453,22 +434,85 @@ CrashInfo::GetDSOInfo()
     }
 
     // Add the DSO link_map entries
+    ArrayHolder<char> moduleName = new char[PATH_MAX];
     for (struct link_map* linkMapAddr = debugEntry.r_map; linkMapAddr != nullptr;) {
         struct link_map map;
         if (!ReadMemory(linkMapAddr, &map, sizeof(map))) {
             return false;
         }
-        char moduleName[257] = { 0 };
+        int i = 0;
         if (map.l_name != nullptr) {
-            if (!ReadMemory(map.l_name, &moduleName, sizeof(moduleName) - 1)) {
-                return false;
+            for (; i < PATH_MAX; i++)
+            {
+                if (!ReadMemory(map.l_name + i, &moduleName[i], 1)) {
+                    TRACE("DSO: ReadMemory link_map name %p + %d FAILED\n", map.l_name, i);
+                    break;
+                }
+                if (moduleName[i] == '\0') {
+                    break;
+                }
             }
         }
-        TRACE("DSO: link_map entry %p l_ld %p l_addr %lx %s\n", linkMapAddr, map.l_ld, map.l_addr, moduleName);
+        moduleName[i] = '\0';
+        TRACE("DSO: link_map entry %p l_ld %p l_addr %lx %s\n", linkMapAddr, map.l_ld, map.l_addr, (char*)moduleName);
         linkMapAddr = map.l_next;
     }
 
     return true;
+}
+
+bool
+CrashInfo::EnumerateMemoryRegionsWithDAC(const char* programPath, MINIDUMP_TYPE minidumpType)
+{
+    PFN_CLRDataCreateInstance pfnCLRDataCreateInstance = nullptr;
+    ICLRDataEnumMemoryRegions *clrDataEnumRegions = nullptr;
+    HMODULE hdac = nullptr;
+    HRESULT hr = S_OK;
+    bool result = false;
+
+    // We assume that the DAC is in the same location as this createdump exe
+    std::string dacPath;
+    dacPath.append(programPath);
+    dacPath.append("/");
+    dacPath.append(MAKEDLLNAME_A("mscordaccore"));
+    
+    // Load and initialize the DAC
+    hdac = LoadLibraryA(dacPath.c_str());
+    if (hdac == nullptr)
+    {
+        fprintf(stderr, "LoadLibraryA(%s) FAILED %d\n", dacPath.c_str(), GetLastError());
+        goto exit;
+    }
+    pfnCLRDataCreateInstance = (PFN_CLRDataCreateInstance)GetProcAddress(hdac, "CLRDataCreateInstance");
+    if (pfnCLRDataCreateInstance == nullptr)
+    {
+        fprintf(stderr, "GetProcAddress(CLRDataCreateInstance) FAILED %d\n", GetLastError());
+        goto exit;
+    }
+    hr = pfnCLRDataCreateInstance(__uuidof(ICLRDataEnumMemoryRegions), m_dataTarget, (void**)&clrDataEnumRegions);
+    if (FAILED(hr))
+    {
+        fprintf(stderr, "CLRDataCreateInstance(ICLRDataEnumMemoryRegions) FAILED %08x\n", hr);
+        goto exit;
+    }
+    // Calls CrashInfo::EnumMemoryRegion for each memory region found by the DAC
+    hr = clrDataEnumRegions->EnumMemoryRegions(this, minidumpType, CLRDATA_ENUM_MEM_DEFAULT);
+    if (FAILED(hr))
+    {
+        fprintf(stderr, "EnumMemoryRegions FAILED %08x\n", hr);
+        goto exit;
+    }
+    result = true;
+exit:
+    if (clrDataEnumRegions != nullptr)
+    {
+        clrDataEnumRegions->Release();
+    }
+    if (hdac != nullptr)
+    {
+        FreeLibrary(hdac);
+    }
+    return result;
 }
 
 //
@@ -480,6 +524,7 @@ CrashInfo::ReadMemory(void* address, void* buffer, size_t size)
     uint32_t read = 0;
     if (FAILED(m_dataTarget->ReadVirtual(reinterpret_cast<CLRDATA_ADDRESS>(address), reinterpret_cast<PBYTE>(buffer), size, &read)))
     {
+        fprintf(stderr, "ReadMemory(%p, %lx) FAILED\n", address, size);
         return false;
     }
     InsertMemoryRegion(reinterpret_cast<uint64_t>(address), size);
@@ -501,36 +546,65 @@ CrashInfo::InsertMemoryRegion(uint64_t address, size_t size)
     uint64_t end = ((address + size) + (PAGE_SIZE - 1)) & PAGE_MASK;
     assert(end > 0);
 
-    MemoryRegion memoryRegionFull(start, end);
+    MemoryRegion region(start, end);
+    InsertMemoryRegion(region);
+}
 
+//
+// Add a memory region to the list
+//
+void
+CrashInfo::InsertMemoryRegion(const MemoryRegion& region)
+{
     // First check if the full memory region can be added without conflicts
-    const auto& found = m_memoryRegions.find(memoryRegionFull);
+    const auto& found = m_memoryRegions.find(region);
     if (found == m_memoryRegions.end())
     {
         // Add full memory region
-        m_memoryRegions.insert(memoryRegionFull);
+        m_memoryRegions.insert(region);
     }
     else
     {
         // The memory region is not wholely contained in region found
-        if (!found->Contains(memoryRegionFull))
+        if (!found->Contains(region))
         {
+            uint64_t start = region.StartAddress();
+
             // The region overlaps/conflicts with one already in the set so 
             // add one page at a time to avoid the overlapping pages.
-            uint64_t numberPages = (end - start) >> PAGE_SHIFT;
+            uint64_t numberPages = region.Size() >> PAGE_SHIFT;
 
             for (int p = 0; p < numberPages; p++, start += PAGE_SIZE)
             {
-                MemoryRegion memoryRegion(start, start + PAGE_SIZE);
+                MemoryRegion memoryRegionPage(start, start + PAGE_SIZE);
 
-                const auto& found = m_memoryRegions.find(memoryRegion);
+                const auto& found = m_memoryRegions.find(memoryRegionPage);
                 if (found == m_memoryRegions.end())
                 {
-                    m_memoryRegions.insert(memoryRegion);
+                    m_memoryRegions.insert(memoryRegionPage);
                 }
             }
         }
     }
+}
+
+bool
+CrashInfo::ValidRegion(const MemoryRegion& region)
+{
+    uint64_t start = region.StartAddress();
+    uint64_t numberPages = region.Size() >> PAGE_SHIFT;
+
+    for (int p = 0; p < numberPages; p++, start += PAGE_SIZE)
+    {
+        BYTE buffer[1];
+        uint32_t read;
+
+        if (FAILED(m_dataTarget->ReadVirtual(start, buffer, 1, &read)))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 //

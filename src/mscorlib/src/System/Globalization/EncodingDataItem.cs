@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Text;
-using System.Runtime.Remoting;
 using System;
 using System.Security;
 
@@ -18,7 +17,6 @@ namespace System.Globalization
     // immediately because they don't require creating an object.  Creating any of the string
     // names is delayed until somebody actually asks for them and the names are then cached.
 
-    [Serializable]
     internal class CodePageDataItem
     {
         internal int m_dataIndex;

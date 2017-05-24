@@ -1818,7 +1818,7 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
         shouldPromote = false;
     }
 #endif // _TARGET_AMD64_ || _TARGET_ARM64_
-    else if (varDsc->lvIsParam)
+    else if (varDsc->lvIsParam && !lvaIsImplicitByRefLocal(lclNum))
     {
 #if FEATURE_MULTIREG_STRUCT_PROMOTE
         // Is this a variable holding a value with exactly two fields passed in
@@ -1833,7 +1833,10 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
 
             // TODO-PERF - Implement struct promotion for incoming multireg structs
             //             Currently it hits assert(lvFieldCnt==1) in lclvar.cpp line 4417
-
+            //             Also the implementation of jmp uses the 4 byte move to store
+            //             byte parameters to the stack, so that if we have a byte field
+            //             with something else occupying the same 4-byte slot, it will
+            //             overwrite other fields.
             if (structPromotionInfo->fieldCnt != 1)
         {
             JITDUMP("Not promoting promotable struct local V%02u, because lvIsParam is true and #fields = "
@@ -1921,6 +1924,7 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* Stru
         fieldVarDsc->lvType          = pFieldInfo->fldType;
         fieldVarDsc->lvExactSize     = pFieldInfo->fldSize;
         fieldVarDsc->lvIsStructField = true;
+        fieldVarDsc->lvFieldHnd      = pFieldInfo->fldHnd;
         fieldVarDsc->lvFldOffset     = pFieldInfo->fldOffset;
         fieldVarDsc->lvFldOrdinal    = pFieldInfo->fldOrdinal;
         fieldVarDsc->lvParentLcl     = lclNum;
@@ -3403,6 +3407,12 @@ var_types LclVarDsc::lvaArgType()
     var_types type = TypeGet();
 
 #ifdef _TARGET_AMD64_
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    if (type == TYP_STRUCT)
+    {
+        NYI("lvaArgType");
+    }
+#else  //! FEATURE_UNIX_AMD64_STRUCT_PASSING
     if (type == TYP_STRUCT)
     {
         switch (lvExactSize)
@@ -3440,6 +3450,12 @@ var_types LclVarDsc::lvaArgType()
                 type = TYP_BYREF;
                 break;
         }
+    }
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#elif defined(_TARGET_ARM64_)
+    if (type == TYP_STRUCT)
+    {
+        NYI("lvaArgType");
     }
 #elif defined(_TARGET_X86_)
 // Nothing to do; use the type as is.

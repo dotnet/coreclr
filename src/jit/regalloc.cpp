@@ -986,7 +986,7 @@ bool Compiler::rpRecordRegIntf(regMaskTP regMask, VARSET_VALARG_TP life DEBUGARG
                     if (verbose)
                     {
                         VARSET_ITER_INIT(this, newIntfIter, newIntf, varNum);
-                        while (newIntfIter.NextElem(this, &varNum))
+                        while (newIntfIter.NextElem(&varNum))
                         {
                             unsigned   lclNum = lvaTrackedToVarNum[varNum];
                             LclVarDsc* varDsc = &lvaTable[varNum];
@@ -1337,10 +1337,10 @@ RET:
 
         VARSET_TP VARSET_INIT_NOCOPY(varAsSet, VarSetOps::MakeEmpty(this));
         VARSET_ITER_INIT(this, iter, useUnion, varNum);
-        while (iter.NextElem(this, &varNum))
+        while (iter.NextElem(&varNum))
         {
             // We'll need this for one of the calls...
-            VarSetOps::ClearD(this, varAsSet);
+            VarSetOps::OldStyleClearD(this, varAsSet);
             VarSetOps::AddElemD(this, varAsSet, varNum);
 
             // If this varBit and lastUse?
@@ -5656,7 +5656,7 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
                 VARSET_TP VARSET_INIT_NOCOPY(pscVarSet, VarSetOps::Diff(this, unprocessedVars, lvaVarIntf[varIndex]));
 
                 VARSET_ITER_INIT(this, pscIndexIter, pscVarSet, pscIndex);
-                while (pscIndexIter.NextElem(this, &pscIndex))
+                while (pscIndexIter.NextElem(&pscIndex))
                 {
                     LclVarDsc* pscVar = lvaTable + lvaTrackedToVarNum[pscIndex];
                     totalRefCntWtd += pscVar->lvRefCntWtd;
@@ -5739,7 +5739,7 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
             {
                 regNumber secondHalf = REG_NEXT(regNum);
                 VARSET_ITER_INIT(this, iter, lvaVarIntf[varIndex], intfIndex);
-                while (iter.NextElem(this, &intfIndex))
+                while (iter.NextElem(&intfIndex))
                 {
                     VarSetOps::AddElemD(this, raLclRegIntf[secondHalf], intfIndex);
                 }
@@ -6348,7 +6348,7 @@ void Compiler::rpPredictRegUse()
         /*  Zero the variable/register interference graph */
         for (unsigned i = 0; i < REG_COUNT; i++)
         {
-            VarSetOps::ClearD(this, raLclRegIntf[i]);
+            VarSetOps::OldStyleClearD(this, raLclRegIntf[i]);
         }
 
         // if there are PInvoke calls and compLvFrameListRoot is enregistered,

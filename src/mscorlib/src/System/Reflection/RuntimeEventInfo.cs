@@ -10,7 +10,6 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    [Serializable]
     internal unsafe sealed class RuntimeEventInfo : EventInfo, ISerializable
     {
         #region Private Data Members
@@ -135,6 +134,7 @@ namespace System.Reflection
             }
         }
         public override Type DeclaringType { get { return m_declaringType; } }
+        public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeEventInfo>(other);
         public override Type ReflectedType
         {
             get

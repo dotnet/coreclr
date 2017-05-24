@@ -20,7 +20,6 @@
 #include "cgensys.h"
 #include "asmconstants.h"
 #include "security.h"
-#include "securitydescriptor.h"
 #include "virtualcallstub.h"
 #include "gcdump.h"
 #include "rtlfunctions.h"
@@ -1332,6 +1331,13 @@ void ResolveHolder::Initialize(PCODE resolveWorkerTarget, PCODE patcherTarget,
 BOOL DoesSlotCallPrestub(PCODE pCode)
 {
     PTR_WORD pInstr = dac_cast<PTR_WORD>(PCODEToPINSTR(pCode));
+
+#ifdef HAS_COMPACT_ENTRYPOINTS
+    if (MethodDescChunk::GetMethodDescFromCompactEntryPoint(pCode, TRUE) != NULL)
+    {
+        return TRUE;
+    }
+#endif // HAS_COMPACT_ENTRYPOINTS
 
     // FixupPrecode
     if (pInstr[0] == 0x46fc && // // mov r12, pc

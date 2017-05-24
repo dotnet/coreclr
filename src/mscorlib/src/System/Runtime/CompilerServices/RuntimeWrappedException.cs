@@ -13,12 +13,10 @@
 
 using System;
 using System.Runtime.Serialization;
-using System.Runtime.Remoting;
 using System.Diagnostics.Contracts;
 
 namespace System.Runtime.CompilerServices
 {
-    [Serializable]
     public sealed class RuntimeWrappedException : Exception
     {
         private RuntimeWrappedException(Object thrownObject)

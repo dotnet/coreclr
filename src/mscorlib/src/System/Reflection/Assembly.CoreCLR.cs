@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Security.Policy;
 using System.IO;
 using System.Configuration.Assemblies;
 using StackCrawlMark = System.Threading.StackCrawlMark;
@@ -15,34 +14,78 @@ namespace System.Reflection
 {
     public abstract partial class Assembly : ICustomAttributeProvider, ISerializable
     {
+        private static volatile bool s_LoadFromResolveHandlerSetup = false;
+        private static object s_syncRootLoadFrom = new object();
+        private static List<string> s_LoadFromAssemblyList = new List<string>();
+        private static object s_syncLoadFromAssemblyList = new object();
+
+        private static Assembly LoadFromResolveHandler(object sender, ResolveEventArgs args)
+        {
+            Assembly requestingAssembly = args.RequestingAssembly;
+            
+            // Requesting assembly for LoadFrom is always loaded in defaultContext - proceed only if that
+            // is the case.
+            if (AssemblyLoadContext.Default != AssemblyLoadContext.GetLoadContext(requestingAssembly))
+                return null;
+
+            // Get the path where requesting assembly lives and check if it is in the list
+            // of assemblies for which LoadFrom was invoked.
+            bool fRequestorLoadedViaLoadFrom = false;
+            string requestorPath = Path.GetFullPath(requestingAssembly.Location);
+            if (string.IsNullOrEmpty(requestorPath))
+                return null;
+
+            lock(s_syncLoadFromAssemblyList)
+            {
+                fRequestorLoadedViaLoadFrom = s_LoadFromAssemblyList.Contains(requestorPath);
+            }
+            
+            // If the requestor assembly was not loaded using LoadFrom, exit.
+            if (!fRequestorLoadedViaLoadFrom)
+                return null;
+
+            // Requestor assembly was loaded using loadFrom, so look for its dependencies
+            // in the same folder as it.
+            // Form the name of the assembly using the path of the assembly that requested its load.
+            AssemblyName requestedAssemblyName = new AssemblyName(args.Name);
+            string requestedAssemblyPath = Path.Combine(Path.GetDirectoryName(requestorPath), requestedAssemblyName.Name+".dll");
+
+            // Load the dependency via LoadFrom so that it goes through the same path of being in the LoadFrom list.
+            return Assembly.LoadFrom(requestedAssemblyPath);
+        }
+
         public static Assembly LoadFrom(String assemblyFile)
         {
             if (assemblyFile == null)
                 throw new ArgumentNullException(nameof(assemblyFile));
+            
             string fullPath = Path.GetFullPath(assemblyFile);
+
+            if (!s_LoadFromResolveHandlerSetup)
+            {
+                lock (s_syncRootLoadFrom)
+                {
+                    if (!s_LoadFromResolveHandlerSetup)
+                    {
+                        AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(LoadFromResolveHandler);
+                        s_LoadFromResolveHandlerSetup = true;
+                    }
+                }
+            }
+
+            // Add the path to the LoadFrom path list which we will consult
+            // before handling the resolves in our handler.
+            lock(s_syncLoadFromAssemblyList)
+            {
+                if (!s_LoadFromAssemblyList.Contains(fullPath))
+                {
+                    s_LoadFromAssemblyList.Add(fullPath);
+                }
+            }
+
             return AssemblyLoadContext.Default.LoadFromAssemblyPath(fullPath);
         }
 
-        // Evidence is protected in Assembly.Load()
-        [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. Please use an overload of LoadFrom which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        internal static Assembly LoadFrom(String assemblyFile,
-                                        Evidence securityEvidence)
-        {
-            Contract.Ensures(Contract.Result<Assembly>() != null);
-
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-
-            return RuntimeAssembly.InternalLoadFrom(
-                assemblyFile,
-                securityEvidence,
-                null, // hashValue
-                AssemblyHashAlgorithm.None,
-                false,// forIntrospection);
-                ref stackMark);
-        }
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Assembly LoadFrom(String assemblyFile,
                                         byte[] hashValue,
                                         AssemblyHashAlgorithm hashAlgorithm)
@@ -59,7 +102,7 @@ namespace System.Reflection
             Contract.Ensures(!Contract.Result<Assembly>().ReflectionOnly);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeAssembly.InternalLoad(assemblyString, null, ref stackMark, false /*forIntrospection*/);
+            return RuntimeAssembly.InternalLoad(assemblyString, ref stackMark);
         }
 
         // Returns type from the assembly while keeping compatibility with Assembly.Load(assemblyString).GetType(typeName) for managed types.
@@ -77,7 +120,6 @@ namespace System.Reflection
             RuntimeAssembly assembly;
             AssemblyName assemblyName = RuntimeAssembly.CreateAssemblyName(
                 assemblyString,
-                false /*forIntrospection*/,
                 out assembly);
 
             if (assembly == null)
@@ -88,8 +130,8 @@ namespace System.Reflection
                 }
 
                 assembly = RuntimeAssembly.InternalLoadAssemblyName(
-                    assemblyName, null, null, ref stackMark,
-                    true /*thrownOnFileNotFound*/, false /*forIntrospection*/);
+                    assemblyName, null, ref stackMark,
+                    true /*thrownOnFileNotFound*/);
             }
             return assembly.GetType(typeName, true /*throwOnError*/, false /*ignoreCase*/);
         }
@@ -114,7 +156,7 @@ namespace System.Reflection
             }
             
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, null, null, ref stackMark, true /*thrownOnFileNotFound*/, false /*forIntrospection*/);
+            return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, null, ref stackMark, true /*thrownOnFileNotFound*/);
         }
 
         // Locate an assembly by its name. The name can be strong or
@@ -137,7 +179,7 @@ namespace System.Reflection
             }
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, null, null, ref stackMark, true /*thrownOnFileNotFound*/, false /*forIntrospection*/, ptrLoadContextBinder);
+            return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, null, ref stackMark, true /*thrownOnFileNotFound*/, ptrLoadContextBinder);
         }
 
         // Loads the assembly with a COFF based IMAGE containing

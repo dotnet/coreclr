@@ -11,7 +11,6 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    [Serializable]
     internal sealed class RuntimeConstructorInfo : ConstructorInfo, ISerializable, IRuntimeMethodInfo
     {
         #region Private Data Members
@@ -217,6 +216,8 @@ namespace System.Reflection
                 return m_reflectedTypeCache.IsGlobal ? null : m_declaringType;
             }
         }
+
+        public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeConstructorInfo>(other);
 
         public override Type ReflectedType
         {

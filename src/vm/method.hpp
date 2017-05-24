@@ -1224,12 +1224,6 @@ public:
     //==================================================================
     // Security...
 
-    DWORD GetSecurityFlagsDuringPreStub();
-    DWORD GetSecurityFlagsDuringClassLoad(IMDInternalImport *pInternalImport,
-                           mdToken tkMethod, mdToken tkClass,
-                           DWORD *dwClassDeclFlags, DWORD *dwClassNullDeclFlags,
-                           DWORD *dwMethDeclFlags, DWORD *dwMethNullDeclFlags);
-
     inline DWORD RequiresLinktimeCheck()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2031,23 +2025,18 @@ public:
     // direct call to direct jump.
     //
     // We use (1) for x86 and (2) for 64-bit to get the best performance on each platform.
-    //
+    // For ARM (1) is used.
 
     TADDR AllocateCompactEntryPoints(LoaderAllocator *pLoaderAllocator, AllocMemTracker *pamTracker);
 
     static MethodDesc* GetMethodDescFromCompactEntryPoint(PCODE addr, BOOL fSpeculative = FALSE);
     static SIZE_T SizeOfCompactEntryPoints(int count);
 
-    static BOOL IsCompactEntryPointAtAddress(PCODE addr)
-    {
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-        // Compact entrypoints start at odd addresses
-        LIMITED_METHOD_DAC_CONTRACT;
-        return (addr & 1) != 0;
-#else
-        #error Unsupported platform
-#endif
-    }
+    static BOOL IsCompactEntryPointAtAddress(PCODE addr);
+
+#ifdef _TARGET_ARM_
+    static int GetCompactEntryPointMaxCount ();
+#endif // _TARGET_ARM_
 #endif // HAS_COMPACT_ENTRYPOINTS
 
     FORCEINLINE PTR_MethodTable GetMethodTable()
@@ -2446,16 +2435,18 @@ public:
     bool IsDelegateCOMStub() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdDelegateCOMStub));  }
     bool IsSignatureNeedsRestore() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdSignatureNeedsRestore)); }
     bool IsStubNeedsCOMStarted()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStubNeedsCOMStarted)); }
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
+    bool IsMulticastStub() {
+        LIMITED_METHOD_DAC_CONTRACT;
+        _ASSERTE(IsILStub());
+        return !!(m_dwExtendedFlags & nomdMulticastStub);
+    }
+#endif
 #ifdef FEATURE_STUBS_AS_IL
     bool IsSecureDelegateStub() {
         LIMITED_METHOD_DAC_CONTRACT;
         _ASSERTE(IsILStub());
         return !!(m_dwExtendedFlags & nomdSecureDelegateStub);
-    }
-    bool IsMulticastStub() { 
-        LIMITED_METHOD_DAC_CONTRACT; 
-        _ASSERTE(IsILStub());
-        return !!(m_dwExtendedFlags & nomdMulticastStub);
     }
     bool IsUnboxingILStub() { 
         LIMITED_METHOD_DAC_CONTRACT; 

@@ -77,7 +77,6 @@ if /i "%1" == "release"               (set __BuildType=Release&set processedArgs
 if /i "%1" == "checked"               (set __BuildType=Checked&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
 if /i "%1" == "skipmanaged"           (set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "updateinvalidpackages" (set __UpdateInvalidPackagesArg=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "toolset_dir"           (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "buildagainstpackages"  (set __ZipTests=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "ziptests"              (set __ZipTests=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -145,17 +144,6 @@ REM === Restore Build Tools
 REM ===
 REM =========================================================================================
 call "%__ProjectDir%\init-tools.cmd"
-
-REM =========================================================================================
-REM ===
-REM === Resolve runtime dependences
-REM ===
-REM =========================================================================================
-call "%__TestDir%\setup-runtime-dependencies.cmd" /arch %__BuildArch% /outputdir %__BinDir%
-
-if defined __UpdateInvalidPackagesArg (
-  goto skipnative
-)
 
 REM =========================================================================================
 REM ===
@@ -240,7 +228,7 @@ REM ============================================================================
 if not defined XunitTestBinBase       set  XunitTestBinBase=%__TestWorkingDir%
 set "CORE_ROOT=%XunitTestBinBase%\Tests\Core_Root"
 
-call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj  -UpdateDependencies -BatchRestorePackages -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
+call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -BatchRestorePackages -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
 
 set __BuildLogRootName=Tests_GenerateRuntimeLayout
 
@@ -277,11 +265,7 @@ if not defined VSINSTALLDIR (
     exit /b 1
 )
 
-if defined __UpdateInvalidPackagesArg (
-  set __up=-updateinvalidpackageversions
-)
-
-call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__up% %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
+call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -428,7 +412,6 @@ echo.
 echo. -? -h -help: view this message.
 echo Build architecture: -buildArch: only x64 is currently allowed ^(default: x64^).
 echo Build type: -buildType: one of Debug, Checked, Release ^(default: Debug^).
-echo updateinvalidpackageversions: Runs the target to update package versions.
 echo buildagainstpackages: builds tests against restored packages, instead of against a built product.
 echo runtimeid ^<ID^>: Builds a test overlay for the specified OS (Only supported when building against packages). Supported IDs are:
 echo     alpine.3.4.3-x64: Builds overlay for Alpine 3.4.3
@@ -512,7 +495,7 @@ if /I "%2" == "mscorlib.ni.dll" exit /b 0
 REM don't precompile anything from CoreCLR
 if /I exist %CORE_ROOT_STAGE%\%2 exit /b 0
 
-"%CORE_ROOT_STAGE%\crossgen.exe" /Platform_Assemblies_Paths "%CORE_ROOT%" "%1" >nul 2>nul
+"%CORE_ROOT_STAGE%\crossgen.exe" /Platform_Assemblies_Paths "%CORE_ROOT%" /in "%1" /out "%CORE_ROOT%/temp.ni.dll" >nul 2>nul
 set /a __exitCode = %errorlevel%
 if "%__exitCode%" == "-2146230517" (
     echo %2 is not a managed assembly.
@@ -523,6 +506,10 @@ if %__exitCode% neq 0 (
     echo Unable to precompile %2
     exit /b 0
 )
+
+:: Delete original .dll & replace it with the Crossgened .dll
+del %1
+ren "%CORE_ROOT%\temp.ni.dll" %2
     
 echo Successfully precompiled %2
 exit /b 0

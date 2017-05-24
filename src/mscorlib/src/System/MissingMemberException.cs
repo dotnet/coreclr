@@ -13,7 +13,6 @@
 
 
 using System;
-using System.Runtime.Remoting;
 using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 using System.Globalization;
@@ -22,7 +21,6 @@ using System.Diagnostics.Contracts;
 
 namespace System
 {
-    [Serializable]
     public class MissingMemberException : MemberAccessException, ISerializable
     {
         public MissingMemberException()

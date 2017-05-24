@@ -93,8 +93,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     precode.cpp
     prestub.cpp
     rejit.cpp
-    securitydescriptor.cpp
-    securitydescriptorassembly.cpp
+    security.cpp
     sigformat.cpp
     siginfo.cpp
     spinlock.cpp
@@ -133,7 +132,6 @@ set(VM_SOURCES_DAC
 set(VM_SOURCES_WKS
     ${VM_SOURCES_DAC_AND_WKS_COMMON}
     appdomainnative.cpp
-    appdomainstack.cpp
     assemblyname.cpp
     assemblynative.cpp
     assemblyspec.cpp
@@ -155,7 +153,6 @@ set(VM_SOURCES_WKS
     comthreadpool.cpp
     comutilnative.cpp
     comwaithandle.cpp
-    coverage.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
     dllimportcallback.cpp
@@ -165,8 +162,16 @@ set(VM_SOURCES_WKS
     eepolicy.cpp
     eetoprofinterfaceimpl.cpp
     eventpipe.cpp
+    eventpipeconfiguration.cpp
+    eventpipeevent.cpp
+    eventpipeeventinstance.cpp
+    eventpipefile.cpp
     eventpipejsonfile.cpp
+    eventpipeprovider.cpp
+    eventpipebuffer.cpp
+    eventpipebuffermanager.cpp
     eventstore.cpp
+    fastserializer.cpp
     fcall.cpp
     fieldmarshaler.cpp
     finalizerthread.cpp
@@ -214,14 +219,6 @@ set(VM_SOURCES_WKS
     runtimehandles.cpp
     safehandle.cpp
     sampleprofiler.cpp
-    security.cpp
-    securityattributes.cpp
-    securitydeclarative.cpp
-    securitydeclarativecache.cpp
-    securitydescriptorappdomain.cpp
-    securitymeta.cpp
-    securitypolicy.cpp
-    securitytransparentassembly.cpp
     sha1.cpp
     simplerwlock.cpp
     sourceline.cpp
@@ -238,7 +235,6 @@ set(VM_SOURCES_WKS
     threaddebugblockinginfo.cpp
     threadsuspend.cpp
     typeparse.cpp
-    verifier.cpp
     weakreferencenative.cpp
     ${VM_SOURCES_GDBJIT}
 )
@@ -482,3 +478,7 @@ convert_to_absolute_path(VM_SOURCES_DAC ${VM_SOURCES_DAC})
 
 add_subdirectory(dac)
 add_subdirectory(wks)
+
+if(CLR_CMAKE_PLATFORM_LINUX)
+    add_subdirectory($ENV{__IntermediatesDir}/Generated/eventpipe ${CMAKE_CURRENT_BINARY_DIR}/eventpipe)
+endif(CLR_CMAKE_PLATFORM_LINUX)

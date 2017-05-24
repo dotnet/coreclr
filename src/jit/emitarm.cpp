@@ -4241,24 +4241,29 @@ void emitter::emitIns_J(instruction ins, BasicBlock* dst, int instrCount /* = 0 
 
 void emitter::emitIns_R_L(instruction ins, emitAttr attr, BasicBlock* dst, regNumber reg)
 {
-    insFormat fmt = IF_NONE;
-
     assert(dst->bbFlags & BBF_JMP_TARGET);
+
+    insFormat     fmt = IF_NONE;
+    instrDescJmp* id;
 
     /* Figure out the encoding format of the instruction */
     switch (ins)
     {
+        case INS_adr:
+            id  = emitNewInstrLbl();
+            fmt = IF_T2_M1;
+            break;
         case INS_movt:
         case INS_movw:
+            id  = emitNewInstrJmp();
             fmt = IF_T2_N1;
             break;
         default:
             unreached();
     }
-    assert(fmt == IF_T2_N1);
+    assert((fmt == IF_T2_M1) || (fmt == IF_T2_N1));
 
-    instrDescJmp* id  = emitNewInstrJmp();
-    insSize       isz = emitInsSize(fmt);
+    insSize isz = emitInsSize(fmt);
 
     id->idIns(ins);
     id->idReg1(reg);
@@ -4275,7 +4280,16 @@ void emitter::emitIns_R_L(instruction ins, emitAttr attr, BasicBlock* dst, regNu
 
     id->idAddr()->iiaBBlabel = dst;
     id->idjShort             = false;
-    id->idjKeepLong          = true;
+
+    if (ins == INS_adr)
+    {
+        id->idReg2(REG_PC);
+        id->idjKeepLong = emitComp->fgInDifferentRegions(emitComp->compCurBB, dst);
+    }
+    else
+    {
+        id->idjKeepLong = true;
+    }
 
     /* Record the jump's IG and offset within it */
 
@@ -4332,39 +4346,30 @@ void emitter::emitIns_J_R(instruction ins, emitAttr attr, BasicBlock* dst, regNu
 {
     assert(dst->bbFlags & BBF_JMP_TARGET);
 
-    instrDescJmp* id;
-    if (ins == INS_adr)
+    insFormat fmt = IF_NONE;
+    switch (ins)
     {
-        id = emitNewInstrLbl();
-
-        id->idIns(INS_adr);
-        id->idInsFmt(IF_T2_M1);
-        id->idInsSize(emitInsSize(IF_T2_M1));
-        id->idAddr()->iiaBBlabel = dst;
-        id->idReg1(reg);
-        id->idReg2(REG_PC);
-
-        /* Assume the label reference will be long */
-
-        id->idjShort    = 0;
-        id->idjKeepLong = emitComp->fgInDifferentRegions(emitComp->compCurBB, dst);
+        case INS_cbz:
+        case INS_cbnz:
+            fmt = IF_T1_I;
+            break;
+        default:
+            unreached();
     }
-    else
-    {
-        assert(ins == INS_cbz || INS_cbnz);
-        assert(isLowRegister(reg));
-        id = emitNewInstrJmp();
+    assert(fmt == IF_T1_I);
 
-        id->idIns(ins);
-        id->idInsFmt(IF_T1_I);
-        id->idInsSize(emitInsSize(IF_T1_I));
-        id->idReg1(reg);
+    assert(isLowRegister(reg));
 
-        /* This jump better be short or-else! */
-        id->idjShort             = true;
-        id->idAddr()->iiaBBlabel = dst;
-        id->idjKeepLong          = false;
-    }
+    instrDescJmp* id = emitNewInstrJmp();
+    id->idIns(ins);
+    id->idInsFmt(IF_T1_I);
+    id->idInsSize(emitInsSize(IF_T1_I));
+    id->idReg1(reg);
+
+    /* This jump better be short or-else! */
+    id->idjShort             = true;
+    id->idAddr()->iiaBBlabel = dst;
+    id->idjKeepLong          = false;
 
     /* Record the jump's IG and offset within it */
 
@@ -5387,7 +5392,7 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
             {
                 assert(ins == INS_movt || ins == INS_movw);
                 if ((ins == INS_movt) && emitComp->info.compMatchedVM)
-                    emitRecordRelocation((void*)(dst - 8), (void*)distVal, IMAGE_REL_BASED_THUMB_MOV32);
+                    emitHandlePCRelativeMov32((void*)(dst - 8), (void*)distVal);
             }
         }
         else
@@ -6011,7 +6016,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 assert((ins == INS_movt) || (ins == INS_movw));
                 dst += emitOutput_Thumb2Instr(dst, code);
                 if ((ins == INS_movt) && emitComp->info.compMatchedVM)
-                    emitRecordRelocation((void*)(dst - 8), (void*)imm, IMAGE_REL_BASED_THUMB_MOV32);
+                    emitHandlePCRelativeMov32((void*)(dst - 8), (void*)imm);
             }
             else
             {
@@ -7570,6 +7575,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
             {
                 regNumber tmpReg = indir->GetSingleTempReg();
 
+                NYI_IF(varTypeIsFloating(indir), "vldr/vstr encoding is not available.");
                 if (emitIns_valid_imm_for_add(offset, INS_FLAGS_DONT_CARE))
                 {
                     if (lsl > 0)
@@ -7610,18 +7616,54 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 if (lsl > 0)
                 {
                     // Then load/store dataReg from/to [memBase + index*scale]
-                    emitIns_R_R_R_I(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum, lsl, INS_FLAGS_DONT_CARE,
-                                    INS_OPTS_LSL);
+                    if (varTypeIsFloating(indir))
+                    {
+                        // We require a tmpReg to hold memBase + index*scale
+                        regNumber tmpReg = indir->GetSingleTempReg();
+
+                        // add tmpReg, memBase, index << lsl
+                        emitIns_R_R_R_I(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
+                                        INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
+
+                        // vldr/vstr
+                        assert(ins == INS_vldr || ins == INS_vstr);
+                        emitIns_R_R(ins, attr, dataReg, tmpReg);
+                    }
+                    else
+                    {
+                        emitIns_R_R_R_I(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum, lsl,
+                                        INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
+                    }
                 }
                 else // no scale
                 {
                     // Then load/store dataReg from/to [memBase + index]
-                    emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum);
+                    if (varTypeIsFloating(indir))
+                    {
+                        NYI_ARM("vldr/vstr not test yet!"); // Not tested yet! Please remove it and verify
+                                                            // implemenation.
+
+                        // We require a tmpReg to hold memBase + index*scale
+                        regNumber tmpReg = indir->GetSingleTempReg();
+
+                        // add tmpReg, memBase, index
+                        emitIns_R_R_R(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum,
+                                      INS_FLAGS_DONT_CARE);
+
+                        // vldr/vstr
+                        assert(ins == INS_vldr || ins == INS_vstr);
+                        emitIns_R_R(ins, attr, dataReg, tmpReg);
+                    }
+                    else
+                    {
+                        emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum);
+                    }
                 }
             }
         }
         else // no Index
         {
+            NYI_IF(varTypeIsFloating(indir), "vldr/vstr encoding is not available.");
             if (emitIns_valid_imm_for_ldst_offset(offset, attr))
             {
                 // Then load/store dataReg from/to [memBase + offset]

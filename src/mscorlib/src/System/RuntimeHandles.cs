@@ -23,7 +23,6 @@ namespace System
     using System.Diagnostics.Contracts;
     using StackCrawlMark = System.Threading.StackCrawlMark;
 
-    [Serializable]
     public unsafe struct RuntimeTypeHandle : ISerializable
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
@@ -125,6 +124,24 @@ namespace System
         internal RuntimeTypeHandle(RuntimeType type)
         {
             m_type = type;
+        }
+
+        internal static bool IsTypeDefinition(RuntimeType type)
+        {
+            CorElementType corElemType = GetCorElementType(type);
+            if (!((corElemType >= CorElementType.Void && corElemType < CorElementType.Ptr) ||
+                    corElemType == CorElementType.ValueType ||
+                    corElemType == CorElementType.Class ||
+                    corElemType == CorElementType.TypedByRef ||
+                    corElemType == CorElementType.I ||
+                    corElemType == CorElementType.U ||
+                    corElemType == CorElementType.Object))
+                return false;
+
+            if (HasInstantiation(type) && !IsGenericTypeDefinition(type))
+                return false;
+
+            return true;
         }
 
         internal static bool IsPrimitive(RuntimeType type)
@@ -368,37 +385,6 @@ namespace System
         internal static bool IsVisible(RuntimeType type)
         {
             return _IsVisible(new RuntimeTypeHandle(type));
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecurityCritical(RuntimeTypeHandle typeHandle);
-
-        internal bool IsSecurityCritical()
-        {
-            return IsSecurityCritical(GetNativeHandle());
-        }
-
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecuritySafeCritical(RuntimeTypeHandle typeHandle);
-
-        internal bool IsSecuritySafeCritical()
-        {
-            return IsSecuritySafeCritical(GetNativeHandle());
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecurityTransparent(RuntimeTypeHandle typeHandle);
-
-        internal bool IsSecurityTransparent()
-        {
-            return IsSecurityTransparent(GetNativeHandle());
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -766,7 +752,6 @@ namespace System
         }
     }
 
-    [Serializable]
     public unsafe struct RuntimeMethodHandle : ISerializable
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
@@ -879,9 +864,6 @@ namespace System
             GC.KeepAlive(m_value);
             return ptr;
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal unsafe extern static void CheckLinktimeDemands(IRuntimeMethodInfo method, RuntimeModule module, bool isDecoratedTargetSecurityTransparent);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -1149,7 +1131,6 @@ namespace System
         }
     }
 
-    [Serializable]
     public unsafe struct RuntimeFieldHandle : ISerializable
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
@@ -1261,40 +1242,6 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool AcquiresContextFromThis(RuntimeFieldHandleInternal field);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecurityCritical(RuntimeFieldHandle fieldHandle);
-
-        internal bool IsSecurityCritical()
-        {
-            return IsSecurityCritical(GetNativeHandle());
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecuritySafeCritical(RuntimeFieldHandle fieldHandle);
-
-        internal bool IsSecuritySafeCritical()
-        {
-            return IsSecuritySafeCritical(GetNativeHandle());
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecurityTransparent(RuntimeFieldHandle fieldHandle);
-
-        internal bool IsSecurityTransparent()
-        {
-            return IsSecurityTransparent(GetNativeHandle());
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        internal static extern void CheckAttributeAccess(RuntimeFieldHandle fieldHandle, RuntimeModule decoratedTarget);
 
         // ISerializable interface
         private RuntimeFieldHandle(SerializationInfo info, StreamingContext context)

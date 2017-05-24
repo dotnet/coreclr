@@ -719,7 +719,7 @@ PEAssembly *AssemblySpec::ResolveAssemblyFile(AppDomain *pDomain, BOOL fPreBind)
 }
 
 
-Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, AssemblyLoadSecurity *pLoadSecurity, BOOL fThrowOnFileNotFound, BOOL fRaisePrebindEvents, StackCrawlMark *pCallerStackMark)
+Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, BOOL fThrowOnFileNotFound, BOOL fRaisePrebindEvents, StackCrawlMark *pCallerStackMark)
 {
     CONTRACTL
     {
@@ -729,7 +729,7 @@ Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, AssemblyLoadSecu
     }
     CONTRACTL_END;
  
-    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, pLoadSecurity, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark);
+    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark);
     if (pDomainAssembly == NULL) {
         _ASSERTE(!fThrowOnFileNotFound);
         return NULL;
@@ -785,15 +785,6 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
         
         // ICLRPrivAssembly implements ICLRPrivBinder and thus, "is a" binder in a manner of semantics.
         pParentAssemblyBinder = pParentPEAssembly->GetBindingContext();
-        if (pParentAssemblyBinder == NULL)
-        {
-            if (pParentPEAssembly->IsDynamic())
-            {
-                // If the parent assembly is dynamically generated, then use its fallback load context
-                // as the binder.
-                pParentAssemblyBinder = pParentPEAssembly->GetFallbackLoadContextBinder();
-            }
-        }
     }
 
     if (GetPreferFallbackLoadContextBinder())
@@ -811,13 +802,12 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
         //
         // 1) Domain Neutral assembly
         // 2) Entrypoint assembly
-        // 3) RefEmitted assembly
-        // 4) AssemblyLoadContext.LoadFromAssemblyName
+        // 3) AssemblyLoadContext.LoadFromAssemblyName
         //
         // For (1) and (2), we will need to bind against the DefaultContext binder (aka TPA Binder). This happens
         // below if we do not find the parent assembly binder.
         //
-        // For (3) and (4), fetch the fallback load context binder reference.
+        // For (3), fetch the fallback load context binder reference.
         
         pParentAssemblyBinder = GetFallbackLoadContextBinderForRequestingAssembly();
     }
@@ -867,7 +857,6 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
 }
 
 DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
-                                                 AssemblyLoadSecurity *pLoadSecurity,
                                                  BOOL fThrowOnFileNotFound,
                                                  BOOL fRaisePrebindEvents,
                                                  StackCrawlMark *pCallerStackMark)
@@ -922,11 +911,11 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
     }
 
 
-    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark, pLoadSecurity));
+    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark));
     if (pFile == NULL)
         RETURN NULL;
 
-    pAssembly = pDomain->LoadDomainAssembly(this, pFile, targetLevel, pLoadSecurity);
+    pAssembly = pDomain->LoadDomainAssembly(this, pFile, targetLevel);
 
     RETURN pAssembly;
 }

@@ -694,6 +694,10 @@ private:
     void processBlockStartLocations(BasicBlock* current, bool allocationPass);
     void processBlockEndLocations(BasicBlock* current);
 
+#ifdef _TARGET_ARM_
+    bool isSecondHalfReg(RegRecord* regRec, Interval* interval);
+#endif
+
     RefType CheckBlockType(BasicBlock* block, BasicBlock* prevBlock);
 
     // insert refpositions representing prolog zero-inits which will be added later
@@ -845,10 +849,19 @@ public:
 private:
     Interval* newInterval(RegisterType regType);
 
-    Interval* getIntervalForLocalVar(unsigned varNum)
+    Interval* getIntervalForLocalVar(unsigned varIndex)
     {
-        return localVarIntervals[varNum];
+        assert(varIndex < compiler->lvaTrackedCount);
+        return localVarIntervals[varIndex];
     }
+
+    Interval* getIntervalForLocalVarNode(GenTreeLclVarCommon* tree)
+    {
+        LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclNum];
+        assert(varDsc->lvTracked);
+        return getIntervalForLocalVar(varDsc->lvVarIndex);
+    }
+
     RegRecord* getRegisterRecord(regNumber regNum);
 
     RefPosition* newRefPositionRaw(LsraLocation nodeLocation, GenTree* treeNode, RefType refType);
@@ -943,7 +956,7 @@ private:
     void setOutVarRegForBB(unsigned int bbNum, unsigned int varNum, regNumber reg);
     VarToRegMap getInVarToRegMap(unsigned int bbNum);
     VarToRegMap getOutVarToRegMap(unsigned int bbNum);
-    regNumber getVarReg(VarToRegMap map, unsigned int varNum);
+    regNumber getVarReg(VarToRegMap map, unsigned int trackedVarIndex);
     // Initialize the incoming VarToRegMap to the given map values (generally a predecessor of
     // the block)
     VarToRegMap setInVarToRegMap(unsigned int bbNum, VarToRegMap srcVarToRegMap);
@@ -1096,6 +1109,7 @@ private:
 
     RegRecord physRegs[REG_COUNT];
 
+    // Map from tracked variable index to Interval*.
     Interval** localVarIntervals;
 
     // Set of blocks that have been visited.
@@ -1131,7 +1145,7 @@ private:
     int compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block2, bool useBlockWeights);
     BasicBlockList* blockSequenceWorkList;
     bool            blockSequencingDone;
-    void addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block);
+    void addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block, BlockSet& predSet);
     void removeFromBlockSequenceWorkList(BasicBlockList* listNode, BasicBlockList* prevNode);
     BasicBlock* getNextCandidateFromWorkList();
 
@@ -1238,7 +1252,7 @@ public:
     void microDump();
 #endif // DEBUG
 
-    void setLocalNumber(unsigned localNum, LinearScan* l);
+    void setLocalNumber(Compiler* compiler, unsigned lclNum, LinearScan* l);
 
     // Fixed registers for which this Interval has a preference
     regMaskTP registerPreferences;

@@ -171,44 +171,8 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             TreeNodeInfoInitStoreLoc(tree->AsLclVarCommon());
             break;
 
-        case GT_BOX:
-            noway_assert(!"box should not exist here");
-            // The result of 'op1' is also the final result
-            info->srcCount = 0;
-            info->dstCount = 0;
-            break;
-
         case GT_PHYSREGDST:
             info->srcCount = 1;
-            info->dstCount = 0;
-            break;
-
-        case GT_COMMA:
-        {
-            GenTreePtr firstOperand;
-            GenTreePtr secondOperand;
-            if (tree->gtFlags & GTF_REVERSE_OPS)
-            {
-                firstOperand  = tree->gtOp.gtOp2;
-                secondOperand = tree->gtOp.gtOp1;
-            }
-            else
-            {
-                firstOperand  = tree->gtOp.gtOp1;
-                secondOperand = tree->gtOp.gtOp2;
-            }
-            if (firstOperand->TypeGet() != TYP_VOID)
-            {
-                firstOperand->gtLsraInfo.isLocalDefUse = true;
-                firstOperand->gtLsraInfo.dstCount      = 0;
-            }
-            if (tree->TypeGet() == TYP_VOID && secondOperand->TypeGet() != TYP_VOID)
-            {
-                secondOperand->gtLsraInfo.isLocalDefUse = true;
-                secondOperand->gtLsraInfo.dstCount      = 0;
-            }
-        }
-            info->srcCount = 0;
             info->dstCount = 0;
             break;
 
@@ -246,6 +210,8 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
 
 #endif // !defined(_TARGET_64BIT_)
 
+        case GT_BOX:
+        case GT_COMMA:
         case GT_QMARK:
         case GT_COLON:
             info->srcCount = 0;
@@ -367,6 +333,14 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_JCC:
             info->srcCount = 0;
             info->dstCount = 0;
+            break;
+
+        case GT_SETCC:
+            info->srcCount = 0;
+            info->dstCount = 1;
+#ifdef _TARGET_X86_
+            info->setDstCandidates(m_lsra, RBM_BYTE_REGS);
+#endif // _TARGET_X86_
             break;
 
         case GT_JMP:
@@ -557,6 +531,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_GT:
         case GT_TEST_EQ:
         case GT_TEST_NE:
+        case GT_CMP:
             TreeNodeInfoInitCmp(tree);
             break;
 
@@ -2106,7 +2081,6 @@ void Lowering::TreeNodeInfoInitLclHeap(GenTree* tree)
 void Lowering::TreeNodeInfoInitLogicalOp(GenTree* tree)
 {
     TreeNodeInfo* info = &(tree->gtLsraInfo);
-    LinearScan*   l    = m_lsra;
 
     // We're not marking a constant hanging on the left of the add
     // as containable so we assign it to a register having CQ impact.
@@ -2676,6 +2650,90 @@ void Lowering::TreeNodeInfoInitSIMD(GenTree* tree)
             info->srcCount = 1;
             break;
 
+        case SIMDIntrinsicConvertToSingle:
+            info->srcCount = 1;
+            if (simdTree->gtSIMDBaseType == TYP_UINT)
+            {
+                // We need an internal register different from targetReg.
+                info->isInternalRegDelayFree = true;
+                info->internalIntCount       = 1;
+                info->internalFloatCount     = 2;
+                info->setInternalCandidates(lsra, lsra->allSIMDRegs() | lsra->allRegs(TYP_INT));
+            }
+            break;
+
+        case SIMDIntrinsicConvertToUInt32:
+        case SIMDIntrinsicConvertToInt32:
+            info->srcCount = 1;
+            break;
+
+        case SIMDIntrinsicWidenLo:
+        case SIMDIntrinsicWidenHi:
+            info->srcCount = 1;
+            if (varTypeIsIntegral(simdTree->gtSIMDBaseType))
+            {
+                // We need an internal register different from targetReg.
+                info->isInternalRegDelayFree = true;
+                info->internalFloatCount     = 1;
+                info->setInternalCandidates(lsra, lsra->allSIMDRegs());
+            }
+            break;
+
+        case SIMDIntrinsicConvertToInt64:
+        case SIMDIntrinsicConvertToUInt64:
+            // We need an internal register different from targetReg.
+            info->isInternalRegDelayFree = true;
+            info->srcCount               = 1;
+            info->internalIntCount       = 1;
+            if (comp->getSIMDInstructionSet() == InstructionSet_AVX)
+            {
+                info->internalFloatCount = 2;
+            }
+            else
+            {
+                info->internalFloatCount = 1;
+            }
+            info->setInternalCandidates(lsra, lsra->allSIMDRegs() | lsra->allRegs(TYP_INT));
+            break;
+
+        case SIMDIntrinsicConvertToDouble:
+            // We need an internal register different from targetReg.
+            info->isInternalRegDelayFree = true;
+            info->srcCount               = 1;
+            info->internalIntCount       = 1;
+#ifdef _TARGET_X86_
+            if (simdTree->gtSIMDBaseType == TYP_LONG)
+            {
+                info->internalFloatCount = 3;
+            }
+            else
+#endif
+                if ((comp->getSIMDInstructionSet() == InstructionSet_AVX) || (simdTree->gtSIMDBaseType == TYP_ULONG))
+            {
+                info->internalFloatCount = 2;
+            }
+            else
+            {
+                info->internalFloatCount = 1;
+            }
+            info->setInternalCandidates(lsra, lsra->allSIMDRegs() | lsra->allRegs(TYP_INT));
+            break;
+
+        case SIMDIntrinsicNarrow:
+            // We need an internal register different from targetReg.
+            info->isInternalRegDelayFree = true;
+            info->srcCount               = 2;
+            if ((comp->getSIMDInstructionSet() == InstructionSet_AVX) && (simdTree->gtSIMDBaseType != TYP_DOUBLE))
+            {
+                info->internalFloatCount = 2;
+            }
+            else
+            {
+                info->internalFloatCount = 1;
+            }
+            info->setInternalCandidates(lsra, lsra->allSIMDRegs());
+            break;
+
         case SIMDIntrinsicShuffleSSE2:
             info->srcCount = 2;
             // Second operand is an integer constant and marked as contained.
@@ -2977,12 +3035,12 @@ void Lowering::TreeNodeInfoInitIndir(GenTreePtr indirTree)
 //
 void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
 {
-    assert(tree->OperIsCompare());
+    assert(tree->OperIsCompare() || tree->OperIs(GT_CMP));
 
     TreeNodeInfo* info = &(tree->gtLsraInfo);
 
     info->srcCount = 2;
-    info->dstCount = 1;
+    info->dstCount = tree->OperIs(GT_CMP) ? 0 : 1;
 
 #ifdef _TARGET_X86_
     // If the compare is used by a jump, we just need to set the condition codes. If not, then we need
@@ -2997,20 +3055,6 @@ void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
     GenTreePtr op2     = tree->gtOp.gtOp2;
     var_types  op1Type = op1->TypeGet();
     var_types  op2Type = op2->TypeGet();
-
-#if !defined(_TARGET_64BIT_)
-    // Long compares will consume GT_LONG nodes, each of which produces two results.
-    // Thus for each long operand there will be an additional source.
-    // TODO-X86-CQ: Mark hiOp2 and loOp2 as contained if it is a constant or a memory op.
-    if (varTypeIsLong(op1Type))
-    {
-        info->srcCount++;
-    }
-    if (varTypeIsLong(op2Type))
-    {
-        info->srcCount++;
-    }
-#endif // !defined(_TARGET_64BIT_)
 
     // If either of op1 or op2 is floating point values, then we need to use
     // ucomiss or ucomisd to compare, both of which support the following form:
@@ -3512,7 +3556,7 @@ bool Lowering::ExcludeNonByteableRegisters(GenTree* tree)
     {
         return true;
     }
-    else if (tree->OperIsCompare())
+    else if (tree->OperIsCompare() || tree->OperIs(GT_CMP))
     {
         GenTree* op1 = tree->gtGetOp1();
         GenTree* op2 = tree->gtGetOp2();

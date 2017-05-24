@@ -175,7 +175,7 @@ GTNODE(LEA              , "lea"          ,GenTreeAddrMode    ,0,GTK_BINOP|GTK_EX
 // nodes such as calls, returns and stores of long lclVars.
 GTNODE(LONG             , "gt_long"      ,GenTreeOp          ,0,GTK_BINOP)
 
-// The following are nodes representing x86 specific long operators, including
+// The following are nodes representing x86/arm32 specific long operators, including
 // high operators of a 64-bit operations that requires a carry/borrow, which are
 // named GT_XXX_HI for consistency, low operators of 64-bit operations that need
 // to not be modified in phases post-decompose, and operators that return 64-bit
@@ -186,12 +186,17 @@ GTNODE(SUB_LO           , "-Lo"          ,GenTreeOp          ,0,GTK_BINOP)
 GTNODE(SUB_HI           , "-Hi"          ,GenTreeOp          ,0,GTK_BINOP)
 GTNODE(DIV_HI           , "/Hi"          ,GenTreeOp          ,0,GTK_BINOP)
 GTNODE(MOD_HI           , "%Hi"          ,GenTreeOp          ,0,GTK_BINOP)
-GTNODE(MUL_LONG         , "*long"        ,GenTreeOp          ,1,GTK_BINOP) // A mul that returns the 2N bit result of an NxN multiply. This op
-                                                                           // is used for x86 multiplies that take two ints and return a long
-                                                                           // result. All other multiplies with long results are morphed into
-                                                                           // helper calls. It is similar to GT_MULHI, the difference being that
-                                                                           // GT_MULHI drops the lo part of the result, whereas GT_MUL_LONG keeps
-                                                                           // both parts of the result.
+
+// A mul that returns the 2N bit result of an NxN multiply. This op is used for
+// multiplies that take two ints and return a long result. All other multiplies
+// with long results are morphed into helper calls. It is similar to GT_MULHI,
+// the difference being that GT_MULHI drops the lo part of the result, whereas
+// GT_MUL_LONG keeps both parts of the result.
+#if defined(_TARGET_X86_)
+GTNODE(MUL_LONG         , "*long"        ,GenTreeOp          ,1,GTK_BINOP)
+#elif defined (_TARGET_ARM_)
+GTNODE(MUL_LONG         , "*long"        ,GenTreeMulLong     ,1,GTK_BINOP)
+#endif
 
 // The following are nodes that specify shifts that take a GT_LONG op1. The GT_LONG
 // contains the hi and lo parts of three operand shift form where one op will be
@@ -209,11 +214,21 @@ GTNODE(SIMD             , "simd"         ,GenTreeSIMD        ,0,GTK_BINOP|GTK_EX
 #endif // FEATURE_SIMD
 
 //-----------------------------------------------------------------------------
+//  LIR specific compare and conditional branch/set nodes:
+//-----------------------------------------------------------------------------
+
+GTNODE(CMP              , "cmp"          ,GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)  // Sets the condition flags according to the compare result. 
+                                                                                        // N.B. Not a relop, it does not produce a value and it cannot be reversed.
+GTNODE(JCC              , "jcc"          ,GenTreeCC          ,0,GTK_LEAF|GTK_NOVALUE)   // Checks the condition flags and branch if the condition specified
+                                                                                        // by GenTreeCC::gtCondition is true.
+GTNODE(SETCC            , "setcc"        ,GenTreeCC          ,0,GTK_LEAF)               // Checks the condition flags and produces 1 if the condition specified 
+                                                                                        // by GenTreeCC::gtCondition is true and 0 otherwise.
+
+//-----------------------------------------------------------------------------
 //  Other nodes that look like unary/binary operators:
 //-----------------------------------------------------------------------------
 
 GTNODE(JTRUE            , "jmpTrue"      ,GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)
-GTNODE(JCC              , "jcc"          ,GenTreeJumpCC      ,0,GTK_LEAF|GTK_NOVALUE)
 
 GTNODE(LIST             , "<list>"       ,GenTreeArgList     ,0,GTK_BINOP|GTK_NOVALUE)
 GTNODE(FIELD_LIST       , "<fldList>"    ,GenTreeFieldList   ,0,GTK_BINOP) // List of fields of a struct, when passed as an argument
