@@ -61,6 +61,7 @@ INLINE_OBSERVATION(THROW_WITH_INVALID_STACK,  bool,   "throw with invalid stack"
 INLINE_OBSERVATION(TOO_MANY_ARGUMENTS,        bool,   "too many arguments",            FATAL,       CALLEE)
 INLINE_OBSERVATION(TOO_MANY_LOCALS,           bool,   "too many locals",               FATAL,       CALLEE)
 INLINE_OBSERVATION(EXPLICIT_TAIL_PREFIX,      bool,   "explicit tail prefix in callee",FATAL,       CALLEE)
+INLINE_OBSERVATION(STRUCT_RETURN,             bool,   "return struct type",            FATAL,       CALLEE)
 
 // ------ Callee Performance ------- 
 

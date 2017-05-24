@@ -22047,6 +22047,15 @@ void Compiler::fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* inlineRe
         return;
     }
 
+#ifdef _TARGET_ARM_
+    // When inlining methods that return type is struct, 
+    // legacy JIT for ARM fails to assign correct value for struct return
+    if (inlineCandidateInfo->fncRetType == TYP_STRUCT) {
+        inlineResult->NoteFatal(InlineObservation::CALLEE_STRUCT_RETURN);
+        return;
+    }
+#endif
+
     if (inlineCandidateInfo->initClassResult & CORINFO_INITCLASS_SPECULATIVE)
     {
         // we defer the call to initClass() until inlining is completed in case it fails. If inlining succeeds,
