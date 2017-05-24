@@ -213,7 +213,7 @@ coreClrBinDir=
 mscorlibDir=
 coreFxBinDir=
 uploadToBenchview=
-benchViewOS=`uname -s`
+benchViewOS=`lsb_release -i -s``lsb_release -r -s`
 runType=local
 BENCHVIEW_TOOLS_PATH=
 benchViewGroup=CoreCLR
@@ -336,8 +336,20 @@ for testcase in ${tests[@]}; do
     run_command ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
 
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
-        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "Perf-$filename.xml" --better desc $hasWarmupRun --append || {
-            echo ERROR;
+        args=
+        args+=" --build ../../../../../build.json"
+        args+=" --machine-data ../../../../../machinedata.json"
+        args+=" --metadata ../../../../../submission-metadata.json"
+        args+=" --group $benchViewGroup"
+        args+=" --type $runType"
+        args+=" --config-name Release"
+        args+=" --config Configuration Release"
+        args+=" --config OS $benchViewOS"
+        args+=" --config Profile $perfCollection"
+        args+=" --arch x64"
+        args+=" --machinepool Perfsnake"
+        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit $args || {
+            echo [ERROR] Failed to generate BenchView data;
             exit 1;
         }
     fi
