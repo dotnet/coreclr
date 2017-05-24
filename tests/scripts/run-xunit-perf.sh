@@ -336,19 +336,7 @@ for testcase in ${tests[@]}; do
     run_command ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
 
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
-        args=
-        args+=" --build ../../../../../build.json"
-        args+=" --machine-data ../../../../../machinedata.json"
-        args+=" --metadata ../../../../../submission-metadata.json"
-        args+=" --group $benchViewGroup"
-        args+=" --type $runType"
-        args+=" --config-name Release"
-        args+=" --config Configuration Release"
-        args+=" --config OS $benchViewOS"
-        args+=" --config Profile $perfCollection"
-        args+=" --arch x64"
-        args+=" --machinepool Perfsnake"
-        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit $args || {
+        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "Perf-$filename.xml" --better desc $hasWarmupRun --append || {
             echo [ERROR] Failed to generate BenchView data;
             exit 1;
         }
@@ -356,7 +344,22 @@ for testcase in ${tests[@]}; do
 done
 
 if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
-    run_command python3.5 "$BENCHVIEW_TOOLS_PATH/submission.py" measurement.json --build ../../../../../build.json --machine-data ../../../../../machinedata.json --metadata ../../../../../submission-metadata.json --group "$benchViewGroup" --type "$runType" --config-name "Release" --config Configuration "Release" --config OS "$benchViewOS" --config Profile "$perfCollection" --arch "x64" --machinepool "Perfsnake"
+    args=measurement.json
+    args+=" --build ../../../../../build.json"
+    args+=" --machine-data ../../../../../machinedata.json"
+    args+=" --metadata ../../../../../submission-metadata.json"
+    args+=" --group $benchViewGroup"
+    args+=" --type $runType"
+    args+=" --config-name Release"
+    args+=" --config Configuration Release"
+    args+=" --config OS $benchViewOS"
+    args+=" --config Profile $perfCollection"
+    args+=" --arch x64"
+    args+=" --machinepool Perfsnake"
+    run_command python3.5 "$BENCHVIEW_TOOLS_PATH/submission.py" $args || {
+        echo [ERROR] Failed to generate BenchView submission data;
+        exit 1;
+    }
 fi
 
 if [ "$uploadToBenchview" == "TRUE" ]; then
