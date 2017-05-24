@@ -330,8 +330,7 @@ for testcase in ${tests[@]}; do
     run_command ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
 
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
-        xUnitMeasurementArgs="Perf-$filename.xml" --better desc $hasWarmupRun --append
-        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit $xUnitMeasurementArgs
+        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "Perf-$filename.xml" --better desc $hasWarmupRun --append
     fi
 done
 
