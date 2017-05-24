@@ -104,14 +104,7 @@ namespace System
 
         protected TypeLoadException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            ClassName = info.GetString("TypeLoadClassName");
-            AssemblyName = info.GetString("TypeLoadAssemblyName");
-            MessageArg = info.GetString("TypeLoadMessageArg");
-            ResourceId = info.GetInt32("TypeLoadResourceID");
+            throw new PlatformNotSupportedException();
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -122,15 +115,7 @@ namespace System
         //we need to add a few fields of our own.
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            base.GetObjectData(info, context);
-            info.AddValue("TypeLoadClassName", ClassName, typeof(String));
-            info.AddValue("TypeLoadAssemblyName", AssemblyName, typeof(String));
-            info.AddValue("TypeLoadMessageArg", MessageArg, typeof(String));
-            info.AddValue("TypeLoadResourceID", ResourceId);
+            throw new PlatformNotSupportedException();
         }
 
         // If ClassName != null, GetMessage will construct on the fly using it

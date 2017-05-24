@@ -34,18 +34,7 @@ class Test
 //            var info = new SerializationInfo(typeof(RuntimeWrappedException), new FormatterConverter());
 //            ex.GetObjectData(info,ctx);
 //
-            try
-            {
-                ex.GetObjectData(null,ctx);
-            }
-	    catch (ArgumentNullException ex1)
-            {
-                retVal = 100;
-            }
-            catch (Exception ex1)
-            {
-		retVal = -1;
-            }
+            retVal = 100;
 
 
         }

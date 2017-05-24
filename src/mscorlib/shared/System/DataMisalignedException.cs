@@ -33,6 +33,9 @@ namespace System
             HResult = __HResults.COR_E_DATAMISALIGNED;
         }
 
-        internal DataMisalignedException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        internal DataMisalignedException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }
