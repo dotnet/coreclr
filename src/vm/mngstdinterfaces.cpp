@@ -994,8 +994,12 @@ FCIMPL1(Object*, StdMngIEnumerable::GetEnumerator, Object* refThisUNSAFE)
 
     if (retVal == NULL)
     {
+#ifndef FEATURE_CORECLR
         // classic COM interop scenario
         retVal = ObjectToOBJECTREF((Object*)GetEnumeratorWorker(args));
+#else
+        COMPlusThrow(kPlatformNotSupportedException, IDS_EE_ERROR_IDISPATCH);
+#endif // FEATURE_CORECLR
     }
 
     GCPROTECT_END();
