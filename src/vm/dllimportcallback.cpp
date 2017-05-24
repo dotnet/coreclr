@@ -1183,10 +1183,15 @@ UMThunkMarshInfo::~UMThunkMarshInfo()
     }
     CONTRACTL_END;
 
-#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
+#if defined(_TARGET_X86_)
+#if defined(FEATURE_STUBS_AS_IL)
+    if (m_pShuffleDescr)
+        delete[] m_pShuffleDescr;
+#else // FEATURE_STUBS_AS_IL
     if (m_pExecStub)
         m_pExecStub->DecRef();
-#endif
+#endif // !FEATURE_STUBS_AS_IL
+#endif // _TARGET_X86_
 
 #ifdef _DEBUG
     FillMemory(this, sizeof(*this), 0xcc);
@@ -1388,6 +1393,37 @@ VOID UMThunkMarshInfo::RunTimeInit()
 
     int offs = 0;
 
+    m_nShuffleDescr = sig.NumFixedArgs();
+
+#ifdef UNIX_X86_ABI
+    if (HasRetBuffArgUnmanagedFixup(&sig))
+    {
+        m_nShuffleDescr += 1;
+    }
+#endif // UNIX_X86_ABI
+
+    //
+    // x86 native uses the following stack layout:
+    // | saved eip |
+    // | --------- | <- CFA
+    // | stkarg 0  |
+    // | stkarg 1  |
+    // | ...       |
+    // | stkarg N  |
+    //
+    // x86 managed, however, uses a bit different stack layout:
+    // | saved eip |
+    // | --------- | <- CFA
+    // | stkarg M  | (NATIVE/MANAGE may have different number of stack arguments)
+    // | ...       |
+    // | stkarg 1  |
+    // | stkarg 0  |
+    //
+    // m_pShuffleDescr will describes how to bridge the gap between them.
+    //
+    m_pShuffleDescr = new ShuffleDescription[m_nShuffleDescr];
+    ShuffleDescription *curShuffleDescr = m_pShuffleDescr;
+
 #ifdef UNIX_X86_ABI
     if (HasRetBuffArgUnmanagedFixup(&sig))
     {
@@ -1395,6 +1431,10 @@ VOID UMThunkMarshInfo::RunTimeInit()
         numRegistersUsed += 1;
         offs += STACK_ELEM_SIZE;
         cbRetPop += STACK_ELEM_SIZE;
+
+        curShuffleDescr->elemDest = ShuffleDescription::Destination::TO_ECX;
+        curShuffleDescr->elemSize = STACK_ELEM_SIZE;
+        curShuffleDescr++;
     }
 #endif // UNIX_X86_ABI
 
@@ -1406,14 +1446,34 @@ VOID UMThunkMarshInfo::RunTimeInit()
         if (ArgIterator::IsArgumentInRegister(&numRegistersUsed, type))
         {
             offs += STACK_ELEM_SIZE;
+
+            _ASSERTE(numRegistersUsed == 1 || numRegistersUsed == 2);
+
+            ShuffleDescription::Destination elemDest;
+
+            elemDest = (numRegistersUsed == 1)
+                     ? ShuffleDescription::Destination::TO_ECX
+                     : ShuffleDescription::Destination::TO_EDX;
+
+            curShuffleDescr->elemDest = elemDest;
+            curShuffleDescr->elemSize = STACK_ELEM_SIZE;
+            curShuffleDescr++;
         }
         else
         {
-            offs += StackElemSize(cbSize);
-            m_cbStackArgSize += StackElemSize(cbSize);
+            int elemSize = StackElemSize(cbSize);
+
+            offs += elemSize;
+            m_cbStackArgSize += elemSize;
+
+            curShuffleDescr->elemDest = ShuffleDescription::Destination::TO_STK;
+            curShuffleDescr->elemSize = elemSize;
+            curShuffleDescr++;
         }
     }
     m_cbActualArgSize = (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : offs;
+
+    _ASSERTE(curShuffleDescr == m_pShuffleDescr + m_nShuffleDescr);
 
     PInvokeStaticSigInfo sigInfo;
     if (pMD != NULL)
@@ -1445,82 +1505,58 @@ VOID UMThunkMarshInfo::RunTimeInit()
 }
 
 #if defined(_TARGET_X86_) && defined(FEATURE_STUBS_AS_IL)
-VOID UMThunkMarshInfo::SetupArguments(char *pSrc, ArgumentRegisters *pArgRegs, char *pDst)
+VOID UMThunkMarshInfo::ShuffleDescription::Shuffle(char **ppSrc,
+                                                   ArgumentRegisters *pArgRegs,
+                                                   char **ppDst) const
 {
-    MethodDesc *pMD = GetMethod();
+    _ASSERTE(ppSrc);
+    _ASSERTE(ppDst);
 
-    _ASSERTE(pMD);
+    switch (elemDest)
+    {
+        case Destination::TO_ECX:
+            _ASSERTE(elemSize == STACK_ELEM_SIZE);
+            pArgRegs->Ecx = *((UINT32 *)*ppSrc);
+            *ppSrc += elemSize;
+            break;
 
-    //
-    // x86 native uses the following stack layout:
-    // | saved eip |
-    // | --------- | <- CFA
-    // | stkarg 0  |
-    // | stkarg 1  |
-    // | ...       |
-    // | stkarg N  |
-    //
-    // x86 managed, however, uses a bit different stack layout:
-    // | saved eip |
-    // | --------- | <- CFA
-    // | stkarg M  | (NATIVE/MANAGE may have different number of stack arguments)
-    // | ...       |
-    // | stkarg 1  |
-    // | stkarg 0  |
-    //
-    // This stub bridges the gap between them.
-    //
+        case Destination::TO_EDX:
+            _ASSERTE(elemSize == STACK_ELEM_SIZE);
+            pArgRegs->Edx = *((UINT32 *)*ppSrc);
+            *ppSrc += elemSize;
+            break;
+
+        case Destination::TO_STK:
+            *ppDst -= elemSize;
+            memcpy(*ppDst, *ppSrc, elemSize);
+            *ppSrc += elemSize;
+            break;
+
+        default:
+            _ASSERTE(!"Invalid destination");
+            break;
+    }
+}
+
+VOID UMThunkMarshInfo::ShuffleArguments(char *pSrc, ArgumentRegisters *pArgRegs, char *pDst)
+{
     char *pCurSrc = pSrc;
     char *pCurDst = pDst + m_cbStackArgSize;
 
-    MetaSig sig(pMD);
-
-    int numRegistersUsed = 0;
-
-#ifdef UNIX_X86_ABI
-    if (HasRetBuffArgUnmanagedFixup(&sig))
+    for (int i = 0; i < m_nShuffleDescr; ++i)
     {
-        // Pass retbuf via Ecx
-        numRegistersUsed += 1;
-        pArgRegs->Ecx = *((UINT32 *)pCurSrc);
-        pCurSrc += STACK_ELEM_SIZE;
-    }
-#endif // UNIX_X86_ABI
-
-    for (UINT i = 0 ; i < sig.NumFixedArgs(); i++)
-    {
-        TypeHandle thValueType;
-        CorElementType type = sig.NextArgNormalized(&thValueType);
-        int cbSize = sig.GetElemSize(type, thValueType);
-        int elemSize = StackElemSize(cbSize);
-
-        if (ArgIterator::IsArgumentInRegister(&numRegistersUsed, type))
-        {
-            _ASSERTE(elemSize == STACK_ELEM_SIZE);
-
-            if (numRegistersUsed == 1)
-                pArgRegs->Ecx = *((UINT32 *)pCurSrc);
-            else if (numRegistersUsed == 2)
-                pArgRegs->Edx = *((UINT32 *)pCurSrc);
-        }
-        else
-        {
-            pCurDst -= elemSize;
-            memcpy(pCurDst, pCurSrc, elemSize);
-        }
-
-        pCurSrc += elemSize;
+        m_pShuffleDescr[i].Shuffle(&pCurSrc, pArgRegs, &pCurDst);
     }
 
     _ASSERTE(pDst == pCurDst);
 }
 
-EXTERN_C VOID STDCALL UMThunkStubSetupArgumentsWorker(UMThunkMarshInfo *pMarshInfo,
-                                                      char *pSrc,
-                                                      UMThunkMarshInfo::ArgumentRegisters *pArgRegs,
-                                                      char *pDst)
+EXTERN_C VOID STDCALL UMArgumentShuffleWorker(UMThunkMarshInfo *pMarshInfo,
+                                              char *pSrc,
+                                              UMThunkMarshInfo::ArgumentRegisters *pArgRegs,
+                                              char *pDst)
 {
-    pMarshInfo->SetupArguments(pSrc, pArgRegs, pDst);
+    pMarshInfo->ShuffleArguments(pSrc, pArgRegs, pDst);
 }
 #endif // _TARGET_X86_ && FEATURE_STUBS_AS_IL
 

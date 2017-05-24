@@ -156,10 +156,10 @@ LOCAL_LABEL(UMThunkStub_CopyStackArgs):
     lea     esi, [ebp + 0x8]  // esi = src
 
     //
-    // EXTERN_C VOID STDCALL UMThunkStubSetupArgumentsWorker(UMThunkMarshInfo *pMarshInfo,
-    //                                                       char *pSrc,
-    //                                                       UMThunkMarshInfo::ArgumentRegisters *pArgRegs,
-    //                                                       char *pDst)
+    // EXTERN_C VOID STDCALL UMArgumentShuffleWorker(UMThunkMarshInfo *pMarshInfo,
+    //                                               char *pSrc,
+    //                                               UMThunkMarshInfo::ArgumentRegisters *pArgRegs,
+    //                                               char *pDst)
     push    edx
     push    ecx
     lea     ecx, [esp]
@@ -172,7 +172,7 @@ LOCAL_LABEL(UMThunkStub_CopyStackArgs):
     mov     ecx, dword ptr [ecx + UMEntryThunk__m_pUMThunkMarshInfo]
     push    ecx     // pMarshInfo
     CHECK_STACK_ALIGNMENT
-    call    C_FUNC(UMThunkStubSetupArgumentsWorker)
+    call    C_FUNC(UMArgumentShuffleWorker)
     add     esp, 8
     pop     ecx
     pop     edx

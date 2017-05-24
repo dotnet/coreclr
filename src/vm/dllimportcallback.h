@@ -212,7 +212,7 @@ public:
         UINT32 Edx;
     };
 
-    VOID SetupArguments(char *pSrc, ArgumentRegisters *pArgRegs, char *pDst);
+    VOID ShuffleArguments(char *pSrc, ArgumentRegisters *pArgRegs, char *pDst);
 #endif // _TARGET_X86_ && FEATURE_STUBS_AS_IL
 
 private:
@@ -225,6 +225,24 @@ private:
     UINT16            m_cbRetPop;           // stack bytes popped by callee (for UpdateRegDisplay)
 #if defined(FEATURE_STUBS_AS_IL)
     UINT32            m_cbStackArgSize;     // stack bytes pushed for managed code
+
+    struct ShuffleDescription
+    {
+        enum Destination
+        {
+            TO_ECX,
+            TO_EDX,
+            TO_STK
+        };
+
+        Destination elemDest;
+        int         elemSize;
+
+        VOID Shuffle(char **ppSrc, ArgumentRegisters *pArgRegs, char **ppDst) const;
+    };
+
+    int                  m_nShuffleDescr;
+    ShuffleDescription  *m_pShuffleDescr;
 #else
     Stub*             m_pExecStub;          // UMEntryThunk jumps directly here
     UINT16            m_callConv;           // unmanaged calling convention and flags (CorPinvokeMap)
