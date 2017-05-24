@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+function run_command {
+    echo $USER@`hostname` "$PWD"
+    echo `date +"[%m/%d/%Y %H:%M:%S]"`" $ $@"
+    $@
+    return $?
+}
+
 function print_usage {
     echo ''
     echo 'CoreCLR perf test script on Linux.'
@@ -271,7 +278,6 @@ create_core_overlay                 || { echo "Creating core overlay failed."; e
 precompile_overlay_assemblies       || { echo "Precompiling overlay assemblies failed."; exit 1; }
 
 # Deploy xunit performance packages
-# TODO: Why? Aren't we already in CORE_ROOT?
 cd $CORE_ROOT
 
 DO_SETUP=TRUE
@@ -305,20 +311,18 @@ for testcase in ${tests[@]}; do
         cp "$directory/$filename"*.txt .  || exit 1
     fi
 
+    # TODO: Do we need this here.
     chmod u+x ./corerun
 
-    echo ""
-    echo $USER@`hostname` "$PWD"
-    echo "$ ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch"
-    ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
+    run_command ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
 
     if [ "$uploadToBenchview" == "TRUE" ]; then
-        echo "python3.5 $BENCHVIEW_TOOLS/measurement.py xunit Perf-$testname.xml --better desc --drop-first-value --append"
+        run_command python3.5 "$BENCHVIEW_TOOLS/measurement.py" xunit "Perf-$filename.xml" --better desc --drop-first-value --append
     fi
 done
 
 if [ "$uploadToBenchview" == "TRUE" ]; then
-    echo python3.5 $BENCHVIEW_TOOLS/submission.py measurement.json --build ../../../../../build.json --machine-data ../../../../../machinedata.json --metadata ../../../../../submission-metadata.json --group "CoreCLR" --type "$runType" --config-name "Release" --config Configuration "Release" --config OS "$benchViewOS" --arch "x64" --machinepool "Perfsnake"
-    echo python3.5 $BENCHVIEW_TOOLS/upload.py submission.json --container coreclr
+    run_command python3.5 "$BENCHVIEW_TOOLS/submission.py" measurement.json --build ../../../../../build.json --machine-data ../../../../../machinedata.json --metadata ../../../../../submission-metadata.json --group "CoreCLR" --type "$runType" --config-name "Release" --config Configuration "Release" --config OS "$benchViewOS" --arch "x64" --machinepool "Perfsnake"
+    echo python3.5 "$BENCHVIEW_TOOLS/upload.py" submission.json --container coreclr
 fi
 
