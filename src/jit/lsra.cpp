@@ -6668,18 +6668,18 @@ void LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool alloc
     VarToRegMap inVarToRegMap     = getInVarToRegMap(currentBlock->bbNum);
     bool        hasCriticalInEdge = blockInfo[currentBlock->bbNum].hasCriticalInEdge;
 
-    VARSET_TP& liveIn(currentBlock->bbLiveIn);
+    const VARSET_TP* liveIn = &currentBlock->bbLiveIn;
 #ifdef DEBUG
     if (getLsraExtendLifeTimes())
     {
-        VarSetOps::AssignNoCopy(compiler, liveIn, compiler->lvaTrackedVars);
+        liveIn = &compiler->lvaTrackedVars;
     }
     // If we are rotating register assignments at block boundaries, we want to make the
     // inactive registers available for the rotation.
     regMaskTP inactiveRegs = RBM_NONE;
 #endif // DEBUG
     regMaskTP liveRegs = RBM_NONE;
-    VARSET_ITER_INIT(compiler, iter, liveIn, varIndex);
+    VARSET_ITER_INIT(compiler, iter, *liveIn, varIndex);
     while (iter.NextElem(&varIndex))
     {
         unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
@@ -6893,15 +6893,15 @@ void LinearScan::processBlockEndLocations(BasicBlock* currentBlock)
     assert(currentBlock != nullptr && currentBlock->bbNum == curBBNum);
     VarToRegMap outVarToRegMap = getOutVarToRegMap(curBBNum);
 
-    VARSET_TP& liveOut(currentBlock->bbLiveOut);
+    const VARSET_TP* liveOut = &currentBlock->bbLiveOut;
 #ifdef DEBUG
     if (getLsraExtendLifeTimes())
     {
-        VarSetOps::AssignNoCopy(compiler, liveOut, compiler->lvaTrackedVars);
+        liveOut = &compiler->lvaTrackedVars;
     }
 #endif // DEBUG
     regMaskTP liveRegs = RBM_NONE;
-    VARSET_ITER_INIT(compiler, iter, liveOut, varIndex);
+    VARSET_ITER_INIT(compiler, iter, *liveOut, varIndex);
     while (iter.NextElem(&varIndex))
     {
         Interval* interval = getIntervalForLocalVar(varIndex);
