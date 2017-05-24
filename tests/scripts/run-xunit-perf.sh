@@ -22,23 +22,23 @@ function print_usage {
     echo '    --coreFxBinDir="corefx/bin/Linux.AnyCPU.Debug"'
     echo ''
     echo 'Required arguments:'
-    echo '  --testRootDir=<path>             : Root directory of the test build (e.g. coreclr/bin/tests/Windows_NT.x64.Debug).'
-    echo '  --testNativeBinDir=<path>        : Directory of the native CoreCLR test build (e.g. coreclr/bin/obj/Linux.x64.Debug/tests).'
+    echo '  --testRootDir=<path>              : Root directory of the test build (e.g. coreclr/bin/tests/Windows_NT.x64.Debug).'
+    echo '  --testNativeBinDir=<path>         : Directory of the native CoreCLR test build (e.g. coreclr/bin/obj/Linux.x64.Debug/tests).'
     echo '  (Also required: Either --coreOverlayDir, or all of the switches --coreOverlayDir overrides)'
     echo ''
     echo 'Optional arguments:'
-    echo '  --coreOverlayDir=<path>          : Directory containing core binaries and test dependencies. If not specified, the'
-    echo '                                     default is testRootDir/Tests/coreoverlay. This switch overrides --coreClrBinDir,'
-    echo '                                     --mscorlibDir, and --coreFxBinDir.'
-    echo '  --coreClrBinDir=<path>           : Directory of the CoreCLR build (e.g. coreclr/bin/Product/Linux.x64.Debug).'
-    echo '  --mscorlibDir=<path>             : Directory containing the built mscorlib.dll. If not specified, it is expected to be'
+    echo '  --coreOverlayDir=<path>           : Directory containing core binaries and test dependencies. If not specified, the'
+    echo '                                      default is testRootDir/Tests/coreoverlay. This switch overrides --coreClrBinDir,'
+    echo '                                      --mscorlibDir, and --coreFxBinDir.'
+    echo '  --coreClrBinDir=<path>            : Directory of the CoreCLR build (e.g. coreclr/bin/Product/Linux.x64.Debug).'
+    echo '  --mscorlibDir=<path>              : Directory containing the built mscorlib.dll. If not specified, it is expected to be'
     echo '                                       in the directory specified by --coreClrBinDir.'
-    echo '  --coreFxBinDir="<path>"          : The path to the unpacked runtime folder that is produced as part of a CoreFX build'
-    echo '  --uploadToBenchview              : Specify this flag in order to have the results of the run uploaded to Benchview.'
-    echo '                                     This also requires that the os flag and runtype flag to be set.  Lastly you must'
-    echo '                                     also have the BV_UPLOAD_SAS_TOKEN set to a SAS token for the Benchview upload container'
-    echo '  --benchViewOS=<os>               : Specify the os that will be used to insert data into Benchview.'
-    echo '  --runType=<private|rolling>      : Specify the runType for Benchview.'
+    echo '  --coreFxBinDir="<path>"           : The path to the unpacked runtime folder that is produced as part of a CoreFX build'
+    echo '  --uploadToBenchview               : Specify this flag in order to have the results of the run uploaded to Benchview.'
+    echo '                                      This also requires that the os flag and runtype flag to be set.  Lastly you must'
+    echo '                                      also have the BV_UPLOAD_SAS_TOKEN set to a SAS token for the Benchview upload container'
+    echo '  --benchViewOS=<os>                : Specify the os that will be used to insert data into Benchview.'
+    echo '  --runType=<local|private|rolling> : Specify the runType for Benchview.'
 }
 
 # libExtension determines extension for dynamic library files
@@ -251,10 +251,10 @@ do
         --runType=*)
             runType=${i#*=}
             ;;
-        --collectionflags)
+        --collectionflags=*)
             collectionflags=${i#*=}
             ;;
-        --generatebenchviewdata)
+        --generatebenchviewdata=*)
             BENCHVIEW_TOOLS_PATH=${i#*=}
             ;;
         --uploadToBenchview)
