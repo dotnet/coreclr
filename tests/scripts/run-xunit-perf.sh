@@ -33,10 +33,6 @@ function print_usage {
     echo '  --runType=<private|rolling>      : Specify the runType for Benchview.'
 }
 
-# Variables for xUnit-style XML output. XML format: https://xunit.github.io/docs/format-xml-v2.html
-xunitOutputPath=
-xunitTestOutputPath=
-
 # libExtension determines extension for dynamic library files
 OSName=$(uname -s)
 libExtension=
@@ -72,6 +68,8 @@ function exit_with_error {
     if ((printUsage != 0)); then
         print_usage
     fi
+
+    echo "Exiting script with error code: $EXIT_CODE_EXCEPTION"
     exit $EXIT_CODE_EXCEPTION
 }
 
@@ -95,7 +93,7 @@ function create_core_overlay {
 
     if [ -n "$coreOverlayDir" ]; then
         export CORE_ROOT="$coreOverlayDir"
-        return
+        return 0
     fi
 
     # Check inputs to make sure we have enough information to create the core
@@ -119,13 +117,16 @@ function create_core_overlay {
     coreOverlayDir=$testRootDir/Tests/coreoverlay
     export CORE_ROOT="$coreOverlayDir"
     if [ -e "$coreOverlayDir" ]; then
-        rm -f -r "$coreOverlayDir"
+        rm -rf "$coreOverlayDir"
     fi
+
     mkdir "$coreOverlayDir"
 
-    cp -f -v "$coreFxBinDir"/* "$coreOverlayDir/" 2>/dev/null
-    cp -f -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
-    cp -n -v "$testDependenciesDir"/* "$coreOverlayDir/" 2>/dev/null
+    rsync -avz "$coreFxBinDir"/ "$coreOverlayDir" 1>copyCoreFxBinDir.log 2>&1                  || { echo "Copying CoreFx failed."; return 1; }
+    rsync -avz "$coreClrBinDir"/ "$coreOverlayDir" 1>copyCoreClrBinDir.log 2>&1                || { echo "Copying CoreClr bin dir failed."; return 1; }
+    rsync -avz "$testDependenciesDir"/ "$coreOverlayDir" 1>copyTestDependenciesDir.log 2>&1    || { echo "Copying test dependencies failed."; return 1; }
+
+    return 0
 }
 
 function precompile_overlay_assemblies {
@@ -138,19 +139,19 @@ function precompile_overlay_assemblies {
         for fileToPrecompile in ${filesToPrecompile}
         do
             local filename=${fileToPrecompile}
-            echo Precompiling $filename
+            echo "Precompiling $filename"
             $overlayDir/crossgen /Platform_Assemblies_Paths $overlayDir $filename 2>/dev/null
             local exitCode=$?
             if [ $exitCode == -2146230517 ]; then
-                echo $filename is not a managed assembly.
+                echo "$filename is not a managed assembly."
             elif [ $exitCode != 0 ]; then
-                echo Unable to precompile $filename.
+                echo "Unable to precompile $filename."
             else
-                echo Successfully precompiled $filename
+                echo "Successfully precompiled $filename"
             fi
         done
     else
-        echo Skipping crossgen of FX assemblies.
+        echo "Skipping crossgen of FX assemblies."
     fi
 }
 
@@ -259,55 +260,61 @@ CORECLR_REPO=$testNativeBinDir/../../../..
 DOTNETCLI_PATH=$CORECLR_REPO/Tools/dotnetcli
 
 export NUGET_PACKAGES=$CORECLR_REPO/packages
-echo "NUGET_PACKAGES = $NUGET_PACKAGES"
-
-pushd $CORECLR_REPO/tests/scripts
-    $DOTNETCLI_PATH/dotnet restore --fallbacksource https://dotnet.myget.org/F/dotnet-buildtools/ --fallbacksource https://dotnet.myget.org/F/dotnet-core/
-popd
 
 # Creat coreoverlay dir which contains all dependent binaries
-create_core_overlay                 || exit 1
-precompile_overlay_assemblies       || exit 1
-copy_test_native_bin_to_test_root   || exit 1
+create_core_overlay                 || { echo "Creating core overlay failed."; exit 1; }
+precompile_overlay_assemblies       || { echo "Precompiling overlay assemblies failed."; exit 1; }
+copy_test_native_bin_to_test_root   || { echo "Copying native bin to test root failed."; exit 1; }
 
 # Deploy xunit performance packages
 # TODO: Why? Aren't we already in CORE_ROOT?
 cd $CORE_ROOT
-echo "CORE_ROOT=$CORE_ROOT"
 
 DO_SETUP=TRUE
 if [ ${DO_SETUP} == "TRUE" ]; then
-    $DOTNETCLI_PATH/dotnet restore $CORECLR_REPO/tests/src/Common/PerfHarness/PerfHarness.csproj
-    $DOTNETCLI_PATH/dotnet publish $CORECLR_REPO/tests/src/Common/PerfHarness/PerfHarness.csproj -c Release -o .
+    $DOTNETCLI_PATH/dotnet restore $CORECLR_REPO/tests/src/Common/PerfHarness/PerfHarness.csproj                                    || { echo "dotnet restore failed."; exit 1; }
+    $DOTNETCLI_PATH/dotnet publish $CORECLR_REPO/tests/src/Common/PerfHarness/PerfHarness.csproj -c Release -o "$coreOverlayDir"    || { echo "dotnet publish failed."; exit 1; }
 fi
 
 # Run coreclr performance tests
-echo "Test root dir is: $testRootDir"
+echo "Test root dir: $testRootDir"
 tests=($(find $testRootDir/JIT/Performance/CodeQuality -name '*.exe') $(find $testRootDir/performance/perflab/PerfLab -name '*.dll'))
 
-echo "current dir is $PWD"
 if [ -f measurement.json ]; then
-    rm measurement.json || exit $EXIT_CODE_EXCEPTION
+    rm measurement.json || exit $EXIT_CODE_EXCEPTION;
 fi
 
+BENCHVIEW_TOOLS=$CORECLR_REPO/tests/scripts/Microsoft.BenchView.JSONFormat/tools
+
 for testcase in ${tests[@]}; do
+    directory=$(dirname "$testcase")
+    filename=$(basename "$testcase")
+    filename="${filename%.*}"
+
     test=$(basename $testcase)
     testname=$(basename $testcase .exe)
-    echo "....Running $testname"
-    cp $testcase .
-    cp $testcase-*.txt .
+
+    echo "Running $testname"
+
+    cp $testcase .                    || exit 1
+    if [ stat -t "$directory/$filename"*.txt 1>/dev/null 2>&1 ]; then
+        cp "$directory/$filename"*.txt .  || exit 1
+    fi
 
     chmod u+x ./corerun
-    echo "./corerun PerfHarness.dll $test -perf:runid Perf"
-    ./corerun PerfHarness.dll $test -perf:runid Perf
-    if [ "$uploadToBenchview" == "TRUE" ] then
-        python3.5 ../../../../../tests/scripts/Microsoft.BenchView.JSONFormat/tools/measurement.py xunit Perf-$testname.xml --better desc --drop-first-value --append
+
+    echo ""
+    echo $USER@`hostname` "$PWD"
+    echo "$ ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch"
+    ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
+
+    if [ "$uploadToBenchview" == "TRUE" ]; then
+        echo "python3.5 $BENCHVIEW_TOOLS/measurement.py xunit Perf-$testname.xml --better desc --drop-first-value --append"
     fi
 done
 
 if [ "$uploadToBenchview" == "TRUE" ]; then
-    python3.5 ../../../../../tests/scripts/Microsoft.BenchView.JSONFormat/tools/submission.py measurement.json --build ../../../../../build.json --machine-data ../../../../../machinedata.json --metadata ../../../../../submission-metadata.json --group "CoreCLR" --type "$runType" --config-name "Release" --config Configuration "Release" --config OS "$benchViewOS" --arch "x64" --machinepool "Perfsnake"
-    python3.5 ../../../../../tests/scripts/Microsoft.BenchView.JSONFormat/tools/upload.py submission.json --container coreclr
+    echo python3.5 $BENCHVIEW_TOOLS/submission.py measurement.json --build ../../../../../build.json --machine-data ../../../../../machinedata.json --metadata ../../../../../submission-metadata.json --group "CoreCLR" --type "$runType" --config-name "Release" --config Configuration "Release" --config OS "$benchViewOS" --arch "x64" --machinepool "Perfsnake"
+    echo python3.5 $BENCHVIEW_TOOLS/upload.py submission.json --container coreclr
 fi
-mkdir ../../../../../sandbox
-cp *.xml ../../../../../sandbox
+
