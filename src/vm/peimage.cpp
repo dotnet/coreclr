@@ -1104,7 +1104,10 @@ void PEImage::Load()
 
     SimpleWriteLockHolder lock(m_pLayoutLock);
 
-    _ASSERTE(m_pLayouts[IMAGE_LOADED] == NULL);
+    if (m_pLayouts[IMAGE_LOADED] != NULL)
+    {
+        return;
+    }
 
 #ifdef PLATFORM_UNIX
     if (m_pLayouts[IMAGE_FLAT] != NULL
