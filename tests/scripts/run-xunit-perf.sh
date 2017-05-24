@@ -220,6 +220,7 @@ benchViewGroup=CoreCLR
 perfCollection=
 collectionflags=stopwatch
 hasWarmupRun=--drop-first-value
+stabilityPrefix=
 
 for i in "$@"
 do
@@ -257,6 +258,9 @@ do
             ;;
         --generatebenchviewdata=*)
             BENCHVIEW_TOOLS_PATH=${i#*=}
+            ;;
+        --stabilityPrefix=*)
+            stabilityPrefix=${i#*=}
             ;;
         --uploadToBenchview)
             uploadToBenchview=TRUE
@@ -333,7 +337,7 @@ for testcase in ${tests[@]}; do
     # TODO: Do we need this here.
     chmod u+x ./corerun
 
-    run_command ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
+    run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
 
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
         run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "Perf-$filename.xml" --better desc $hasWarmupRun --append || {
