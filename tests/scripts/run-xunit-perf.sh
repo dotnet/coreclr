@@ -34,11 +34,12 @@ function print_usage {
     echo '  --mscorlibDir=<path>              : Directory containing the built mscorlib.dll. If not specified, it is expected to be'
     echo '                                       in the directory specified by --coreClrBinDir.'
     echo '  --coreFxBinDir="<path>"           : The path to the unpacked runtime folder that is produced as part of a CoreFX build'
+    echo '  --generatebenchviewdata           : BenchView tools directory.'
     echo '  --uploadToBenchview               : Specify this flag in order to have the results of the run uploaded to Benchview.'
-    echo '                                      This also requires that the os flag and runtype flag to be set.  Lastly you must'
+    echo '                                      This requires that the generatebenchviewdata, os and runtype flags to be set, and'
     echo '                                      also have the BV_UPLOAD_SAS_TOKEN set to a SAS token for the Benchview upload container'
     echo '  --benchViewOS=<os>                : Specify the os that will be used to insert data into Benchview.'
-    echo '  --runType=<local|private|rolling> : Specify the runType for Benchview.'
+    echo '  --runType=<local|private|rolling> : Specify the runType for Benchview. [Default: local]'
 }
 
 # libExtension determines extension for dynamic library files
@@ -327,8 +328,6 @@ for testcase in ${tests[@]}; do
     test=$(basename $testcase)
     testname=$(basename $testcase .exe)
 
-    echo "Running $testname"
-
     cp $testcase .                    || exit 1
     if [ stat -t "$directory/$filename"*.txt 1>/dev/null 2>&1 ]; then
         cp "$directory/$filename"*.txt .  || exit 1
@@ -337,6 +336,7 @@ for testcase in ${tests[@]}; do
     # TODO: Do we need this here.
     chmod u+x ./corerun
 
+    echo "Running $testname"
     run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
 
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
@@ -366,6 +366,6 @@ if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
     }
 fi
 
-if [ "$uploadToBenchview" == "TRUE" ]; then
+if [ -d "$BENCHVIEW_TOOLS_PATH" ] && { [ "$uploadToBenchview" == "TRUE" ]; }; then
     run_command python3.5 "$BENCHVIEW_TOOLS_PATH/upload.py" submission.json --container coreclr
 fi
