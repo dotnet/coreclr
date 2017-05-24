@@ -278,7 +278,7 @@ if [ ! -d "$testRootDir" ]; then
     echo "Directory specified by --testRootDir does not exist: $testRootDir"
     exit $EXIT_CODE_EXCEPTION
 fi
-if [ ! -z "$BENCHVIEW_TOOLS_PATH" && ! -d "$BENCHVIEW_TOOLS_PATH" ]; then
+if [ ! -z "$BENCHVIEW_TOOLS_PATH" ] && { [ ! -d "$BENCHVIEW_TOOLS_PATH" ]; }; then
     echo BenchView path: "$BENCHVIEW_TOOLS_PATH" was specified, but it does not exist.
     exit $EXIT_CODE_EXCEPTION
 fi
