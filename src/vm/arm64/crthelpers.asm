@@ -141,11 +141,11 @@
 
     orr         w8, w8, w8, lsl #8
     and         x5, x3, #0xf                       ; x5 = dczid_el0.bs
-    csel        x11, x11, xzr, eq                  ; x11 = (val == 0) ? count >> 3 : 0
+    cseleq      x11, x11, xzr                      ; x11 = (val == 0) ? count >> 3 : 0
     tst         x3, (1 << 4)
 
     orr         w8, w8, w8, lsl #0x10
-    csel        x11, x11, xzr, eq                  ; x11 = (val == 0) && !DCZID_EL0.p ? count >> 3 : 0
+    cseleq      x11, x11, xzr                      ; x11 = (val == 0) && !DCZID_EL0.p ? count >> 3 : 0
     ands        x3, x0, #7                         ; x3 = dst & 7
     lsl         x9, x6, x5                         ; x9 = size
 
