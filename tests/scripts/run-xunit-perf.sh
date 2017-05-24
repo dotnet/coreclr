@@ -215,6 +215,10 @@ coreFxBinDir=
 uploadToBenchview=
 benchViewOS=
 runType=
+BENCHVIEW_TOOLS_PATH=
+benchViewGroup=CoreCLR
+collectionflags=stopwatch
+hasWarmupRun=--drop-first-value
 
 for i in "$@"
 do
@@ -247,6 +251,12 @@ do
         --runType=*)
             runType=${i#*=}
             ;;
+        --collectionflags)
+            collectionflags=${i#*=}
+            ;;
+        --generatebenchviewdata)
+            BENCHVIEW_TOOLS_PATH=${i#*=}
+            ;;
         --uploadToBenchview)
             uploadToBenchview=TRUE
             ;;
@@ -265,6 +275,10 @@ if [ -z "$testRootDir" ]; then
 fi
 if [ ! -d "$testRootDir" ]; then
     echo "Directory specified by --testRootDir does not exist: $testRootDir"
+    exit $EXIT_CODE_EXCEPTION
+fi
+if [ ! -z "$BENCHVIEW_TOOLS_PATH" && ! -d "$BENCHVIEW_TOOLS_PATH" ]; then
+    echo BenchView path: "$BENCHVIEW_TOOLS_PATH" was specified, but it does not exist.
     exit $EXIT_CODE_EXCEPTION
 fi
 
@@ -295,8 +309,6 @@ if [ -f measurement.json ]; then
     rm measurement.json || exit $EXIT_CODE_EXCEPTION;
 fi
 
-BENCHVIEW_TOOLS=$CORECLR_REPO/tests/scripts/Microsoft.BenchView.JSONFormat/tools
-
 for testcase in ${tests[@]}; do
     directory=$(dirname "$testcase")
     filename=$(basename "$testcase")
@@ -317,13 +329,16 @@ for testcase in ${tests[@]}; do
 
     run_command ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
 
-    if [ "$uploadToBenchview" == "TRUE" ]; then
-        run_command python3.5 "$BENCHVIEW_TOOLS/measurement.py" xunit "Perf-$filename.xml" --better desc --drop-first-value --append
+    if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
+        xUnitMeasurementArgs="Perf-$filename.xml" --better desc $hasWarmupRun --append
+        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit $xUnitMeasurementArgs
     fi
 done
 
-if [ "$uploadToBenchview" == "TRUE" ]; then
-    run_command python3.5 "$BENCHVIEW_TOOLS/submission.py" measurement.json --build ../../../../../build.json --machine-data ../../../../../machinedata.json --metadata ../../../../../submission-metadata.json --group "CoreCLR" --type "$runType" --config-name "Release" --config Configuration "Release" --config OS "$benchViewOS" --arch "x64" --machinepool "Perfsnake"
-    echo python3.5 "$BENCHVIEW_TOOLS/upload.py" submission.json --container coreclr
+if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
+    run_command python3.5 "$BENCHVIEW_TOOLS_PATH/submission.py" measurement.json --build ../../../../../build.json --machine-data ../../../../../machinedata.json --metadata ../../../../../submission-metadata.json --group "$benchViewGroup" --type "$runType" --config-name "Release" --config Configuration "Release" --config OS "$benchViewOS" --arch "x64" --machinepool "Perfsnake"
 fi
 
+if [ "$uploadToBenchview" == "TRUE" ]; then
+    run_command python3.5 "$BENCHVIEW_TOOLS_PATH/upload.py" submission.json --container coreclr
+fi
