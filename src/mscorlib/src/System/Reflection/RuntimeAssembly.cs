@@ -18,7 +18,6 @@ using System.Diagnostics.Contracts;
 
 namespace System.Reflection
 {
-    [Serializable]
     internal class RuntimeAssembly : Assembly
     {
 #if FEATURE_APPX
