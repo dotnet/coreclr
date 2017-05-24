@@ -18244,6 +18244,14 @@ void Compiler::impMarkInlineCandidate(GenTreePtr             callNode,
     GenTreeCall* call = callNode->AsCall();
     InlineResult inlineResult(this, call, nullptr, "impMarkInlineCandidate");
 
+#ifdef _TARGET_ARM_
+    // When inlining methods that return type is struct, 
+    // legacy JIT for ARM fails to assign correct value for struct return
+    if (call->gtReturnType == TYP_STRUCT) {
+        return;
+    }
+#endif
+
     // Don't inline if not optimizing root method
     if (opts.compDbgCode)
     {
