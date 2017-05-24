@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 function run_command {
+    echo ""
     echo $USER@`hostname` "$PWD"
     echo `date +"[%m/%d/%Y %H:%M:%S]"`" $ $@"
     $@
