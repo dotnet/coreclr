@@ -130,23 +130,23 @@ function create_core_overlay {
 
     mkdir "$coreOverlayDir"
 
-    cp -f -v "$coreFxBinDir/"* "$coreOverlayDir/" 2>/dev/null                || exit 2
-    cp -f -p -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null            # || exit 3
+    cp -f -v "$coreFxBinDir/"* "$coreOverlayDir/"               || exit 2
+    cp -f -p -v "$coreClrBinDir/"* "$coreOverlayDir/"           # || exit 3
     if [ -d "$mscorlibDir/bin" ]; then
-        cp -f -v "$mscorlibDir/bin/"* "$coreOverlayDir/" 2>/dev/null         || exit 4
+        cp -f -v "$mscorlibDir/bin/"* "$coreOverlayDir/"        || exit 4
     fi
-    cp -f -v "$testDependenciesDir/"xunit* "$coreOverlayDir/" 2>/dev/null    || exit 5
-    cp -n -v "$testDependenciesDir/"* "$coreOverlayDir/" 2>/dev/null         # || exit 6
+    cp -f -v "$testDependenciesDir/"xunit* "$coreOverlayDir/"   || exit 5
+    cp -n -v "$testDependenciesDir/"* "$coreOverlayDir/"        # || exit 6
     if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
         # Test dependencies come from a Windows build, and mscorlib.ni.dll would be the one from Windows
-        rm -f "$coreOverlayDir/mscorlib.ni.dll"                              || exit 7
+        rm -f "$coreOverlayDir/mscorlib.ni.dll"                 || exit 7
     fi
     if [ -f "$coreOverlayDir/System.Private.CoreLib.ni.dll" ]; then
         # Test dependencies come from a Windows build, and System.Private.CoreLib.ni.dll would be the one from Windows
-        rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"                || exit 8
+        rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"   || exit 8
     fi
 
-    copy_test_native_bin_to_test_root                                        || exit 9
+    copy_test_native_bin_to_test_root                           || exit 9
 
     return 0
 }
@@ -213,10 +213,11 @@ coreClrBinDir=
 mscorlibDir=
 coreFxBinDir=
 uploadToBenchview=
-benchViewOS=
-runType=
+benchViewOS=`uname -s`
+runType=local
 BENCHVIEW_TOOLS_PATH=
 benchViewGroup=CoreCLR
+perfCollection=
 collectionflags=stopwatch
 hasWarmupRun=--drop-first-value
 
@@ -281,6 +282,11 @@ if [ ! -z "$BENCHVIEW_TOOLS_PATH" && ! -d "$BENCHVIEW_TOOLS_PATH" ]; then
     echo BenchView path: "$BENCHVIEW_TOOLS_PATH" was specified, but it does not exist.
     exit $EXIT_CODE_EXCEPTION
 fi
+if [ "$collectionflags" == "stopwatch" ]; then
+    perfCollection=Off
+else
+    perfCollection=On
+fi
 
 # Install xunit performance packages
 CORECLR_REPO=$testNativeBinDir/../../../..
@@ -330,12 +336,15 @@ for testcase in ${tests[@]}; do
     run_command ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
 
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
-        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "Perf-$filename.xml" --better desc $hasWarmupRun --append
+        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "Perf-$filename.xml" --better desc $hasWarmupRun --append || {
+            echo ERROR;
+            exit 1;
+        }
     fi
 done
 
 if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
-    run_command python3.5 "$BENCHVIEW_TOOLS_PATH/submission.py" measurement.json --build ../../../../../build.json --machine-data ../../../../../machinedata.json --metadata ../../../../../submission-metadata.json --group "$benchViewGroup" --type "$runType" --config-name "Release" --config Configuration "Release" --config OS "$benchViewOS" --arch "x64" --machinepool "Perfsnake"
+    run_command python3.5 "$BENCHVIEW_TOOLS_PATH/submission.py" measurement.json --build ../../../../../build.json --machine-data ../../../../../machinedata.json --metadata ../../../../../submission-metadata.json --group "$benchViewGroup" --type "$runType" --config-name "Release" --config Configuration "Release" --config OS "$benchViewOS" --config Profile "$perfCollection" --arch "x64" --machinepool "Perfsnake"
 fi
 
 if [ "$uploadToBenchview" == "TRUE" ]; then
