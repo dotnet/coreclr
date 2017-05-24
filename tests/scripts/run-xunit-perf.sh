@@ -117,14 +117,28 @@ function create_core_overlay {
     coreOverlayDir=$testRootDir/Tests/coreoverlay
     export CORE_ROOT="$coreOverlayDir"
     if [ -e "$coreOverlayDir" ]; then
-        rm -rf "$coreOverlayDir"
+        rm -rf "$coreOverlayDir" || exit 1
     fi
 
     mkdir "$coreOverlayDir"
 
-    rsync -avz "$coreFxBinDir"/ "$coreOverlayDir" 1>copyCoreFxBinDir.log 2>&1                  || { echo "Copying CoreFx failed."; return 1; }
-    rsync -avz "$coreClrBinDir"/ "$coreOverlayDir" 1>copyCoreClrBinDir.log 2>&1                || { echo "Copying CoreClr bin dir failed."; return 1; }
-    rsync -avz "$testDependenciesDir"/ "$coreOverlayDir" 1>copyTestDependenciesDir.log 2>&1    || { echo "Copying test dependencies failed."; return 1; }
+    cp -f -v "$coreFxBinDir/"* "$coreOverlayDir/" 2>/dev/null                || exit 2
+    cp -f -p -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null            # || exit 3
+    if [ -d "$mscorlibDir/bin" ]; then
+        cp -f -v "$mscorlibDir/bin/"* "$coreOverlayDir/" 2>/dev/null         || exit 4
+    fi
+    cp -f -v "$testDependenciesDir/"xunit* "$coreOverlayDir/" 2>/dev/null    || exit 5
+    cp -n -v "$testDependenciesDir/"* "$coreOverlayDir/" 2>/dev/null         # || exit 6
+    if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
+        # Test dependencies come from a Windows build, and mscorlib.ni.dll would be the one from Windows
+        rm -f "$coreOverlayDir/mscorlib.ni.dll"                              || exit 7
+    fi
+    if [ -f "$coreOverlayDir/System.Private.CoreLib.ni.dll" ]; then
+        # Test dependencies come from a Windows build, and System.Private.CoreLib.ni.dll would be the one from Windows
+        rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"                || exit 8
+    fi
+
+    copy_test_native_bin_to_test_root                                        || exit 9
 
     return 0
 }
@@ -246,15 +260,6 @@ if [ ! -d "$testRootDir" ]; then
     exit $EXIT_CODE_EXCEPTION
 fi
 
-# Copy native interop test libraries over to the mscorlib path in
-# order for interop tests to run on linux.
-if [ -z "$mscorlibDir" ]; then
-    mscorlibDir=$coreClrBinDir
-fi
-if [ -d "$mscorlibDir" ] && [ -d "$mscorlibDir/bin" ]; then
-    cp $mscorlibDir/bin/* $mscorlibDir
-fi
-
 # Install xunit performance packages
 CORECLR_REPO=$testNativeBinDir/../../../..
 DOTNETCLI_PATH=$CORECLR_REPO/Tools/dotnetcli
@@ -264,7 +269,6 @@ export NUGET_PACKAGES=$CORECLR_REPO/packages
 # Creat coreoverlay dir which contains all dependent binaries
 create_core_overlay                 || { echo "Creating core overlay failed."; exit 1; }
 precompile_overlay_assemblies       || { echo "Precompiling overlay assemblies failed."; exit 1; }
-copy_test_native_bin_to_test_root   || { echo "Copying native bin to test root failed."; exit 1; }
 
 # Deploy xunit performance packages
 # TODO: Why? Aren't we already in CORE_ROOT?
