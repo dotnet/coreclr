@@ -127,7 +127,8 @@ namespace System
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            _pointer = new ByReference<T>(ref Unsafe.As<byte, T>(ref *(byte*)pointer));
+            ref byte p = ref *(byte*)pointer; // Spill the byref into local to workaround https://github.com/dotnet/coreclr/issues/11211
+            _pointer = new ByReference<T>(ref Unsafe.As<byte, T>(ref p));
             _length = length;
         }
 
