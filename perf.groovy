@@ -273,7 +273,7 @@ def static getOSGroup(def os) {
                 --coreFxBinDir=\"\${WORKSPACE}/corefx\" \\
                 --runType=\"${runType}\" \\
                 --benchViewOS=\"${os}\" \\
-                --generatebenchviewdata=\"${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" \\
+                --generatebenchviewdata=\"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" \\
                 --stabilityPrefix=\"taskset 0x00000002 nice --adjustment=-10\" \\
                 --uploadToBenchview""")
             }
