@@ -3,34 +3,25 @@ Contributing to .NET Core
 
 The .NET Core team maintains several guidelines for contributing to the .NET Core repos, which are provided below. Many of these are straightforward, while others may seem subjective. A .NET Core team member will be happy to explain why a guideline is defined as it is.
 
-Contribution Guidelines
-=======================
+General contribution guidance is included in this document. Additional guidance is defined in the documents linked below.
 
-- [Copyright](#copyright) describes the licensing practices for the project.
-- [General Contribution Guidance](#general-contribution-guidance) describes general contribution guidance, including more subjective stylistic guidelines.
-- [Contribution Bar](#contribution-bar) describes the bar that the team uses to accept changes.
+- [Copyright](copyright.md) describes the licensing practices for the project.
 - [Contribution Workflow](contributing-workflow.md) describes the workflow that the team uses for considering and accepting changes.
 - [Garbage Collection Guidelines](garbage-collector-guidelines.md) for changes that affect the GC.
 - [Performance Guidelines](performance-guidelines.md) for changes in performance critical code or that otherwise affect performance.
 - [Porting the JIT](https://github.com/dotnet/coreclr/pull/2214#issuecomment-161850464) to other chip architectures.
 
-General Contribution Guidance
-=============================
+## Managed Code Compatibility
 
-There are several issues to keep in mind when making a change.
+Contributions should maintain [API signature](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md#bucket-1-public-contract) and behavioral compatibility. Contributions that include [breaking changes](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md) will be rejected. Please file an issue to discuss your idea or change if you believe that it may affect managed code compatibility.
 
-Managed Code Compatibility
---------------------------
-Please review [Breaking Changes](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md) before making changes to managed code. Please pay the most attention to changes that affect the [Public Contract](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md#bucket-1-public-contract).
+## Typos
 
-Typos
------
-Typos are embarrassing! We will accept most PRs that fix typos. In order to make it easier to review your PR, please focus on a given component with your fixes or on one type of typo across the entire repository. If it's going to take >30 mins to review your PR, then we will probably ask you to chunk it up.
+Typos are embarrassing! Please focus on a given component with your fixes or on one type of typo across the entire repository. If it's going to take >30 mins to review your PR, then you will probably be asked you to chunk it up.
 
-Commit Messages
----------------
+## Commit Messages
 
-Please format commit messages as follows (based on this [excellent post](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html)):
+Please format commit messages as follows (based on [A Note About Git Commit Messages](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html)):
 
 ```
 Summarize change in 50 characters or less
@@ -96,27 +87,6 @@ Most managed code changes should be made in the [CoreFX](https://github.com/dotn
 
 Please see [Breaking Changes](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md) to understand our requirements on changes that could impact compatibility. Please pay the most attention to changes that affect the [Public Contract](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md#bucket-1-public-contract). We will not accept changes that break compatibility.
 
-Copyright
-=========
-
-The .NET Core copyright is held by ".NET Foundation and Contributors". See [.NET Foundation](http://www.dotnetfoundation.org/).
-
-Source License
---------------
-
-The .NET Core project uses multiple licenses for the various project repositories.  Most projects use the [MIT License](https://opensource.org/licenses/MIT) for code and the [Creative Commons Attribution 4.0 International Public License (CC-BY)](https://creativecommons.org/licenses/by/4.0/) license for documentation. The  [Apache 2 License](https://opensource.org/licenses/Apache-2.0) is also used. 
-
-See the license file at the root of project repositories for the specific license, such as with the following examples:
-
-- [CoreCLR](https://github.com/dotnet/coreclr/blob/master/LICENSE.TXT) [(MIT)](https://opensource.org/licenses/MIT).
-- [Roslyn](https://github.com/dotnet/roslyn/blob/master/License.txt) [(Apache 2)](https://opensource.org/licenses/Apache-2.0).
-- [core-docs](https://github.com/dotnet/core-docs/blob/master/license.txt) [(CC-BY)](https://creativecommons.org/licenses/by/4.0/).
-
-Binary License
---------------
-
-Microsoft produces a distribution of .NET Core licensed under the [.NET Library License](https://www.microsoft.com/net/dotnet_library_license.htm). Other groups or companies may produce their own distributions of .NET Core.
-
 File Headers
 ------------
 
@@ -159,8 +129,3 @@ You must sign a [.NET Foundation Contribution License Agreement (CLA)](http://cl
 The agreement: [net-foundation-contribution-license-agreement.pdf](https://cla2.dotnetfoundation.org/cladoc/net-foundation-contribution-license-agreement.pdf)
 
 You don't have to do this up-front. You can simply clone, fork, and submit your pull-request as usual. When your pull-request is created, it is classified by a CLA bot. If the change is trivial (e.g. you just fixed a typo), then the PR is labelled with `cla-not-required`. Otherwise it's classified as `cla-required`. Once you signed a CLA, the current and all future pull-requests will be labelled as `cla-signed`.
-
-Patents
-=======
-
-Microsoft has issued a [Patent Promise for .NET Libraries and Runtime Components](https://github.com/dotnet/coreclr/blob/master/PATENTS.TXT).
