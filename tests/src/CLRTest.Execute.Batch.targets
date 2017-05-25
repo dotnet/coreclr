@@ -132,6 +132,15 @@ Exit /b 2
 :ReleaseLock
 if exist %lockFolder% rd /s /q %lockFolder%
 Exit /b 0
+
+
+:CheckForCrossgenMarker
+if not exist %markerFile% (
+timeout /t 1 /nobreak
+goto :CheckForCrossgenMarker
+)
+Exit /b 0
+
       ]]></BatchCLRTestExitCodeCheck>
     </PropertyGroup>
   
@@ -268,6 +277,9 @@ $(BatchLinkerTestCleanupCmds)
       ]]></BatchCLRTestLaunchCmds>
 
       <BatchCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'RunOnly'"><![CDATA[
+if defined RunCrossGen (
+goto :CheckForCrossgenMarker
+)
 $(BatchCLRTestLaunchCmds)
 ECHO  cmd /c $(InputAssemblyName)
 cmd /c $(InputAssemblyName)
@@ -352,6 +364,7 @@ $(BatchCLRTestArgPrep)
 @ECHO OFF
 setlocal ENABLEDELAYEDEXPANSION
 set "lockFolder=%~dp0\lock"
+set "markerFile=$(BuildProjectRelativeDir)\crossgen.mrk"
 pushd %~dp0
 
 $(BatchCLRTestArgPrep)
