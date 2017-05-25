@@ -89,7 +89,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     if (architecture == 'arm64' && os == 'Windows_NT') {
         Utilities.setMachineAffinity(job, os, 'latest-arm64');
     } else if (architecture == 'arm64' && os != 'Windows_NT' && options == null) {
-        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size');
+        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size-cross');
     } else if (architecture == 'arm64' && os != 'Windows_NT' && options['large_pages'] == true) {
         Utilities.setMachineAffinity(job, os, 'arm64-huge-page-size');
     } else if (architecture == 'arm64' && os != 'Windows_NT' && options['is_build_only'] == true) {
