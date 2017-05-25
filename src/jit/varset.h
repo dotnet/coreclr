@@ -106,6 +106,7 @@ const unsigned lclMAX_TRACKED = UInt64Bits;
 #endif
 
 // These types should be used as the types for VARSET_TP arguments and return values, respectively.
+// Arg type represent the read only argument type, that can't be modified.
 typedef VarSetOpsRaw::ValArgType VARSET_VALARG_TP;
 typedef VarSetOpsRaw::RetValType VARSET_VALRET_TP;
 
@@ -177,7 +178,7 @@ const unsigned lclMAX_ALLSET_TRACKED = UInt64Bits;
 #error "Unrecognized BitSet implemention for AllVarSet."
 #endif
 
-// These types should be used as the types for VARSET_TP arguments and return values, respectively.
+// These types should be used as the types for ALLVARSET_TP arguments and return values, respectively.
 typedef AllVarSetOps::ValArgType ALLVARSET_VALARG_TP;
 typedef AllVarSetOps::RetValType ALLVARSET_VALRET_TP;
 

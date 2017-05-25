@@ -248,8 +248,8 @@ public:
         }
     };
 
-    typedef UINT64 ValArgType;
-    typedef UINT64 RetValType;
+    typedef const UINT64 ValArgType;
+    typedef UINT64       RetValType;
 };
 
 #endif // bitSetAsUint64_DEFINED
