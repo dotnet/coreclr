@@ -202,7 +202,7 @@ namespace System
         private Func<T> _factory;
 
         // _value eventually stores the lazily created value. It is valid when _state = null.
-        private T _value;
+        private T m_value; // Do not rename (binary serialization)
 
         /// <summary>
         /// Initializes a new instance of the <see cref="T:System.Threading.Lazy{T}"/> class that 
@@ -226,7 +226,7 @@ namespace System
         /// </remarks>
         public Lazy(T value)
         {
-            _value = value;
+            m_value = value;
         }
 
         /// <summary>
@@ -312,7 +312,7 @@ namespace System
 
         private void ViaConstructor()
         {
-            _value = CreateViaDefaultConstructor();
+            m_value = CreateViaDefaultConstructor();
             _state = null; // volatile write, must occur after setting _value
         }
 
@@ -325,7 +325,7 @@ namespace System
                     throw new InvalidOperationException(SR.Lazy_Value_RecursiveCallsToValue);
                 _factory = null;
 
-                _value = factory();
+                m_value = factory();
                 _state = null; // volatile write, must occur after setting _value
             }
             catch (Exception exception)
@@ -361,7 +361,7 @@ namespace System
             if (previous == publicationOnly)
             {
                 _factory = null;
-                _value = possibleValue;
+                m_value = possibleValue;
                 _state = null; // volatile write, must occur after setting _value
             }
         }
@@ -469,7 +469,7 @@ namespace System
                 {
                     return default(T);
                 }
-                return _value;
+                return m_value;
             }
         }
 
@@ -516,7 +516,7 @@ namespace System
         /// from initialization delegate.
         /// </remarks>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public T Value => _state == null ? _value : CreateValue();
+        public T Value => _state == null ? m_value : CreateValue();
     }
 
     /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
