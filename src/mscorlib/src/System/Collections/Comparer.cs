@@ -43,11 +43,6 @@ namespace System.Collections
             m_compareInfo = culture.CompareInfo;
         }
 
-        private Comparer(SerializationInfo info, StreamingContext context)
-        {
-            throw new PlatformNotSupportedException();
-        }
-
         // Compares two Objects by calling CompareTo.  If a == 
         // b,0 is returned.  If a implements 
         // IComparable, a.CompareTo(b) is returned.  If a 

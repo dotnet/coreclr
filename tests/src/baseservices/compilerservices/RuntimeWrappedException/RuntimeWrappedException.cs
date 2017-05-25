@@ -25,15 +25,11 @@ class Test
 	    {
 //		Console.WriteLine("Incorrect exception and/or message. Expected RuntimeWrappedException: An object that does not derive "+
 //				  "from System.Exception has been wrapped in a RuntimeWrappedException.\n But actually got: " + ex.InnerException);
-		retVal = -1;
+		return -1;
 	    }
             
             StreamingContext ctx;
-
-//            TODO: Expose once we have access to FormatterConverter
-//            var info = new SerializationInfo(typeof(RuntimeWrappedException), new FormatterConverter());
-//            ex.GetObjectData(info,ctx);
-//
+            
             retVal = 100;
 
 

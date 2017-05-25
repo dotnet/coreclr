@@ -847,12 +847,6 @@ namespace System.Text
                 // base calls reset
             }
 
-            // Constructor called by serialization, have to handle deserializing from Everett
-            internal Decoder(SerializationInfo info, StreamingContext context)
-            {
-                throw new PlatformNotSupportedException();
-            }
-
             // ISerializable implementation, get data for this object
             void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {
