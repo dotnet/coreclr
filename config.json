@@ -24,6 +24,12 @@
       "values": [],
       "defaultValue": ""
     },
+    "__Container": {
+      "description": "Container name for Azure upload.",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
     "MsBuildFileLogging": {
       "description": "MsBuild logging options.",
       "valueType": "passThrough",
@@ -392,6 +398,12 @@
           "description": "Account name to connect to Azure Blob storage.",
           "settings": {
             "CloudDropAccountName": "default"
+          }
+        },
+        "container": {
+          "description": "Container name to download from in Azure Blob storage.",
+          "settings": {
+            "__Container": "default"
           }
         },
         "verbose": {
