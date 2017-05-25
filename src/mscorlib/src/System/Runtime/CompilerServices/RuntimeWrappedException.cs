@@ -35,7 +35,7 @@ namespace System.Runtime.CompilerServices
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            throw new PlatformNotSupportedException();
+            base.GetObjectData(info, context);
         }
     }
 }

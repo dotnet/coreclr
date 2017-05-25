@@ -111,11 +111,9 @@ namespace System
         [SuppressUnmanagedCodeSecurity]
         private static extern void GetTypeLoadExceptionMessage(int resourceId, StringHandleOnStack retString);
 
-        //We can rely on the serialization mechanism on Exception to handle most of our needs, but
-        //we need to add a few fields of our own.
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            throw new PlatformNotSupportedException();
+            base.GetObjectData(info, context);
         }
 
         // If ClassName != null, GetMessage will construct on the fly using it

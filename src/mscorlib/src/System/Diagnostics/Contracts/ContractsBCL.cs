@@ -219,7 +219,7 @@ namespace System.Diagnostics.Contracts
 
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
         {
-            throw new PlatformNotSupportedException();
+            base.GetObjectData(info, context);
         }
     }
 }
