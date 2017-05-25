@@ -353,7 +353,7 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal class EnumEqualityComparer<T> : EqualityComparer<T> where T : struct
+    internal class EnumEqualityComparer<T> : EqualityComparer<T>, ISerializable where T : struct
     {
         [Pure]
         public override bool Equals(T x, T y)
@@ -439,7 +439,7 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class LongEnumEqualityComparer<T> : EqualityComparer<T> where T : struct
+    internal sealed class LongEnumEqualityComparer<T> : EqualityComparer<T>, ISerializable where T : struct
     {
         [Pure]
         public override bool Equals(T x, T y)
