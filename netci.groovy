@@ -89,9 +89,9 @@ def static setMachineAffinity(def job, def os, def architecture) {
     if (architecture == 'arm64' && os == 'Windows_NT') {
         Utilities.setMachineAffinity(job, os, 'latest-arm64');
     } else if (architecture == 'arm64' && os == 'Ubuntu') {
-        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size');
+        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size-cross');
     } else if (architecture == 'arm64' && os == 'Ubuntu16.04') {
-        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size');
+        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size-cross');
     } else if ((architecture == 'arm') && (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen')) {
         Utilities.setMachineAffinity(job, 'Ubuntu', 'arm-cross-latest');
     } else {
@@ -1641,7 +1641,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
 
                     if (!enableCorefxTesting) {
-                        buildCommands += "./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture} ${standaloneGc}"
+                        buildCommands += "./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture} clang3.8 skipnuget ${standaloneGc}"
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Set time out
