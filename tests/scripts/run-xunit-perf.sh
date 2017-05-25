@@ -336,10 +336,11 @@ for testcase in ${tests[@]}; do
     # TODO: Do we need this here.
     chmod u+x ./corerun
 
+    echo ""
     echo "----------"
     echo "  Running $testname"
     echo "----------"
-    run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
+    run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect $collectionflags || exit 1
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
         run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "Perf-$filename.xml" --better desc $hasWarmupRun --append || {
             echo [ERROR] Failed to generate BenchView data;
