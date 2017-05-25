@@ -1874,24 +1874,25 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
 
     LIR::Range& blockRange      = LIR::AsRange(block);
     GenTree*    firstNonPhiNode = blockRange.FirstNonPhiNode();
-    if (firstNonPhiNode != nullptr)
+    if (firstNonPhiNode == nullptr)
     {
-        for (GenTree *node = blockRange.LastNode(), *next = nullptr, *end = firstNonPhiNode->gtPrev; node != end;
-             node = next)
-        {
-            next = node->gtPrev;
+        return;
+    }
+    for (GenTree *node = blockRange.LastNode(), *next = nullptr, *end = firstNonPhiNode->gtPrev; node != end;
+         node = next)
+    {
+        next = node->gtPrev;
 
-            if (node->OperGet() == GT_CALL)
+        if (node->OperGet() == GT_CALL)
+        {
+            fgComputeLifeCall(life, node->AsCall());
+        }
+        else if (node->OperIsNonPhiLocal() || node->OperIsLocalAddr())
+        {
+            bool isDeadStore = fgComputeLifeLocal(life, keepAliveVars, node, node);
+            if (isDeadStore && fgTryRemoveDeadLIRStore(blockRange, node, &next))
             {
-                fgComputeLifeCall(life, node->AsCall());
-            }
-            else if (node->OperIsNonPhiLocal() || node->OperIsLocalAddr())
-            {
-                bool isDeadStore = fgComputeLifeLocal(life, keepAliveVars, node, node);
-                if (isDeadStore && fgTryRemoveDeadLIRStore(blockRange, node, &next))
-                {
-                    fgStmtRemoved = true;
-                }
+                fgStmtRemoved = true;
             }
         }
     }
