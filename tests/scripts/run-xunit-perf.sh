@@ -336,15 +336,22 @@ for testcase in ${tests[@]}; do
     # TODO: Do we need this here.
     chmod u+x ./corerun
 
-    echo "Running $testname"
+    echo "----------"
+    echo "  Running $testname"
+    echo "----------"
     run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect stopwatch || exit 1
-
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
         run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "Perf-$filename.xml" --better desc $hasWarmupRun --append || {
             echo [ERROR] Failed to generate BenchView data;
             exit 1;
         }
     fi
+
+    # Rename file to be archived by Jenkins.
+    mv -f "Perf-$filename.xml" "$CORECLR_REPO/Perf-$filename-$perfCollection.xml" || {
+        echo [ERROR] Failed to move "Perf-$filename.xml" to "$CORECLR_REPO".
+        exit 1;
+    }
 done
 
 if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
