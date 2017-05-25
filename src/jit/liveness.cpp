@@ -418,6 +418,8 @@ void Compiler::fgPerBlockLocalVarLiveness()
     }
 #endif // DEBUG
 
+    unsigned livenessVarEpoch = GetCurLVEpoch();
+
     BasicBlock* block;
 
 #if CAN_DISABLE_DFA
@@ -587,6 +589,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
         block->bbMemoryLiveIn = emptyMemoryKindSet;
     }
 
+    noway_assert(livenessVarEpoch == GetCurLVEpoch());
 #ifdef DEBUG
     if (verbose)
     {
@@ -983,7 +986,7 @@ void Compiler::fgExtendDbgLifetimes()
         unsigned blockWeight = block->getBBWeight(this);
 
         VARSET_ITER_INIT(this, iter, initVars, varIndex);
-        while (iter.NextElem(this, &varIndex))
+        while (iter.NextElem(&varIndex))
         {
             /* Create initialization tree */
 
@@ -1167,12 +1170,10 @@ class LiveVarAnalysis
         }
 
         // Additionally, union in all the live-in tracked vars of successors.
-        AllSuccessorIter succsEnd = block->GetAllSuccs(m_compiler).end();
-        for (AllSuccessorIter succs = block->GetAllSuccs(m_compiler).begin(); succs != succsEnd; ++succs)
+        for (BasicBlock* succ : block->GetAllSuccs(m_compiler))
         {
-            BasicBlock* succ = (*succs);
             VarSetOps::UnionD(m_compiler, m_liveOut, succ->bbLiveIn);
-            m_memoryLiveOut |= (*succs)->bbMemoryLiveIn;
+            m_memoryLiveOut |= succ->bbMemoryLiveIn;
             if (succ->bbNum <= block->bbNum)
             {
                 m_hasPossibleBackEdge = true;
@@ -1358,7 +1359,7 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet1, VARSET_VALARG_TP varSet2)
     VarSetOps::UnionD(this, fgMarkIntfUnionVS, varSet2);
 
     VARSET_ITER_INIT(this, iter, fgMarkIntfUnionVS, refIndex);
-    while (iter.NextElem(this, &refIndex))
+    while (iter.NextElem(&refIndex))
     {
         // if varSet1 has this bit set then it interferes with varSet2
         if (VarSetOps::IsMember(this, varSet1, refIndex))
@@ -1411,7 +1412,7 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet)
     bool addedIntf = false; // This is set to true if we add any new interferences
 
     VARSET_ITER_INIT(this, iter, varSet, refIndex);
-    while (iter.NextElem(this, &refIndex))
+    while (iter.NextElem(&refIndex))
     {
         // Calculate the set of new interference to add
         VARSET_TP VARSET_INIT_NOCOPY(newIntf, VarSetOps::Diff(this, varSet, lvaVarIntf[refIndex]));

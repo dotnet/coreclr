@@ -8,6 +8,49 @@
 #include "unwinder_i386.h"
 
 #ifdef WIN64EXCEPTIONS
+BOOL OOPStackUnwinderX86::Unwind(T_CONTEXT* pContextRecord, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers)
+{
+    REGDISPLAY rd;
+
+    FillRegDisplay(&rd, pContextRecord);
+
+    rd.SP = pContextRecord->Esp;
+    rd.PCTAddr = (UINT_PTR)&(pContextRecord->Eip);
+
+    if (pContextPointers)
+    {
+        rd.pCurrentContextPointers = pContextPointers;
+    }
+
+    CodeManState codeManState;
+    codeManState.dwIsSet = 0;
+
+    DWORD ControlPc = pContextRecord->Eip;
+
+    EECodeInfo codeInfo;
+    codeInfo.Init((PCODE) ControlPc);
+
+    if (!UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL))
+    {
+        return FALSE;
+    }
+
+    pContextRecord->ContextFlags |= CONTEXT_UNWOUND_TO_CALL;
+
+#define ARGUMENT_AND_SCRATCH_REGISTER(reg) if (rd.pCurrentContextPointers->reg) pContextRecord->reg = *rd.pCurrentContextPointers->reg;
+    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
+#undef ARGUMENT_AND_SCRATCH_REGISTER
+
+#define CALLEE_SAVED_REGISTER(reg) if (rd.pCurrentContextPointers->reg) pContextRecord->reg = *rd.pCurrentContextPointers->reg;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    pContextRecord->Esp = rd.SP - codeInfo.GetCodeManager()->GetStackParameterSize(&codeInfo);
+    pContextRecord->Eip = rd.ControlPC;
+
+    return TRUE;
+}
+
 /*++
 
 Routine Description:
@@ -72,61 +115,30 @@ OOPStackUnwinderX86::VirtualUnwind(
         *HandlerRoutine = NULL;
     }
 
-    REGDISPLAY rd;
+    _ASSERTE(ContextRecord->Eip == ControlPc);
 
-    FillRegDisplay(&rd, ContextRecord);
-
-    rd.SP = ContextRecord->Esp;
-    rd.PCTAddr = (UINT_PTR)&(ContextRecord->Eip);
-
-    if (ContextPointers)
-    {
-        rd.pCurrentContextPointers = ContextPointers;
-    }
-
-    CodeManState codeManState;
-    codeManState.dwIsSet = 0;
-
-    EECodeInfo codeInfo;
-    codeInfo.Init((PCODE) ControlPc);
-
-    if (!UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL))
+    if (!OOPStackUnwinderX86::Unwind(ContextRecord, ContextPointers))
     {
         return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
     }
-
-    ContextRecord->ContextFlags |= CONTEXT_UNWOUND_TO_CALL;
-
-#define ARGUMENT_AND_SCRATCH_REGISTER(reg) if (rd.pCurrentContextPointers->reg) ContextRecord->reg = *rd.pCurrentContextPointers->reg;
-    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
-#undef ARGUMENT_AND_SCRATCH_REGISTER
-
-#define CALLEE_SAVED_REGISTER(reg) if (rd.pCurrentContextPointers->reg) ContextRecord->reg = *rd.pCurrentContextPointers->reg;
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-
-    SIZE_T paramSize = codeInfo.GetCodeManager()->GetStackParameterSize(&codeInfo);
-    SIZE_T paddingSize = 0;
-
-#ifdef UNIX_X86_ABI
-    // On UNIX_X86_ABI, function call may have stack alignment padding.
-    if (paramSize % 16 != 0)
-    {
-        paddingSize += 16 - (paramSize % 16);
-    }
-#endif // UNIX_X86_ABI
-
-    ContextRecord->Esp = rd.SP - paramSize;
-    ContextRecord->ResumeEsp = ExecutionManager::IsManagedCode((PCODE) rd.ControlPC)
-                             ? rd.SP + paddingSize
-                             : ContextRecord->Esp;
-    ContextRecord->Eip = rd.ControlPC;
 
     // For x86, the value of Establisher Frame Pointer is Caller SP
     //
     // (Please refers to CLR ABI for details)
     *EstablisherFrame = ContextRecord->Esp;
     return S_OK;
+}
+
+BOOL DacUnwindStackFrame(T_CONTEXT* pContextRecord, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers)
+{
+    BOOL res = OOPStackUnwinderX86::Unwind(pContextRecord, NULL);
+
+    if (res && pContextPointers)
+    {
+        FillContextPointers(pContextPointers, pContextRecord);
+    }
+
+    return res;
 }
 
 //---------------------------------------------------------------------------------------

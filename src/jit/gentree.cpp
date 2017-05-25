@@ -366,7 +366,7 @@ void GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeLclVar)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeLclFld)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeRegVar)       <= TREE_NODE_SZ_SMALL);
-    static_assert_no_msg(sizeof(GenTreeJumpCC)       <= TREE_NODE_SZ_SMALL);
+    static_assert_no_msg(sizeof(GenTreeCC)           <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeCast)         <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeBox)          <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeField)        <= TREE_NODE_SZ_LARGE); // *** large node
@@ -3447,10 +3447,10 @@ GenTreePtr Compiler::gtReverseCond(GenTree* tree)
             tree->gtFlags ^= GTF_RELOP_NAN_UN;
         }
     }
-    else if (tree->OperGet() == GT_JCC)
+    else if (tree->OperIs(GT_JCC, GT_SETCC))
     {
-        GenTreeJumpCC* jcc = tree->AsJumpCC();
-        jcc->gtCondition   = GenTree::ReverseRelop(jcc->gtCondition);
+        GenTreeCC* cc   = tree->AsCC();
+        cc->gtCondition = GenTree::ReverseRelop(cc->gtCondition);
     }
     else
     {
@@ -5249,6 +5249,13 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             // so if possible it was set above.
             tryToSwap = false;
         }
+        else if ((oper == GT_INTRINSIC) &&
+                 Compiler::IsIntrinsicImplementedByUserCall(tree->AsIntrinsic()->gtIntrinsicId))
+        {
+            // We do not swap operand execution order for intrinsics that are implemented by user calls
+            // because of trickiness around ensuring the execution order does not change during rationalization.
+            tryToSwap = false;
+        }
         else
         {
             if (tree->gtFlags & GTF_REVERSE_OPS)
@@ -5286,15 +5293,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     case GT_GT:
                         if (GenTree::SwapRelop(oper) != oper)
                         {
-                            // SetOper will obliterate the VN for the underlying expression.
-                            // If we're in VN CSE phase, we don't want to lose that information,
-                            // so save the value numbers and put them back after the SetOper.
-                            ValueNumPair vnp = tree->gtVNPair;
-                            tree->SetOper(GenTree::SwapRelop(oper));
-                            if (optValnumCSE_phase)
-                            {
-                                tree->gtVNPair = vnp;
-                            }
+                            tree->SetOper(GenTree::SwapRelop(oper), GenTree::PRESERVE_VN);
                         }
 
                         __fallthrough;
@@ -5532,14 +5531,14 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 #endif
 #endif
 
-#if GTF_CALL_REG_SAVE
+#ifdef LEGACY_BACKEND
             // Normally function calls don't preserve caller save registers
             //   and thus are much more expensive.
             // However a few function calls do preserve these registers
             //   such as the GC WriteBarrier helper calls.
 
             if (!(tree->gtFlags & GTF_CALL_REG_SAVE))
-#endif
+#endif // LEGACY_BACKEND
             {
                 level += 5;
                 costEx += 3 * IND_COST_EX;
@@ -6952,7 +6951,11 @@ GenTreePtr Compiler::gtNewLclvNode(unsigned lnum, var_types type, IL_OFFSETX ILo
     // It might be nice to assert this in general, but we have assignments of int to long.
     if (varTypeIsStruct(type))
     {
-        assert(type == lvaTable[lnum].lvType);
+        // Make an exception for implicit by-ref parameters during global morph, since
+        // their lvType has been updated to byref but their appearances have not yet all
+        // been rewritten and so may have struct type still.
+        assert(type == lvaTable[lnum].lvType ||
+               (lvaIsImplicitByRefLocal(lnum) && fgGlobalMorph && (lvaTable[lnum].lvType == TYP_BYREF)));
     }
     GenTreePtr node = new (this, GT_LCL_VAR) GenTreeLclVar(type, lnum, ILoffs);
 
@@ -6970,7 +6973,11 @@ GenTreePtr Compiler::gtNewLclLNode(unsigned lnum, var_types type, IL_OFFSETX ILo
     // It might be nice to assert this in general, but we have assignments of int to long.
     if (varTypeIsStruct(type))
     {
-        assert(type == lvaTable[lnum].lvType);
+        // Make an exception for implicit by-ref parameters during global morph, since
+        // their lvType has been updated to byref but their appearances have not yet all
+        // been rewritten and so may have struct type still.
+        assert(type == lvaTable[lnum].lvType ||
+               (lvaIsImplicitByRefLocal(lnum) && fgGlobalMorph && (lvaTable[lnum].lvType == TYP_BYREF)));
     }
 #if SMALL_TREE_NODES
     /* This local variable node may later get transformed into a large node */
@@ -9201,6 +9208,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_MEMORYBARRIER:
         case GT_JMP:
         case GT_JCC:
+        case GT_SETCC:
         case GT_NO_OP:
         case GT_START_NONGC:
         case GT_PROF_HOOK:
@@ -10209,7 +10217,7 @@ void Compiler::gtDispNode(GenTreePtr tree, IndentStack* indentStack, __in __in_z
                 goto DASH;
 
             case GT_MUL:
-#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
             case GT_MUL_LONG:
 #endif
                 if (tree->gtFlags & GTF_MUL_64RSLT)
@@ -10424,8 +10432,17 @@ void Compiler::gtDispNode(GenTreePtr tree, IndentStack* indentStack, __in __in_z
                 }
                 else if (varDsc->lvPromoted)
                 {
-                    assert(varTypeIsPromotable(varDsc));
-                    printf("(P)"); // Promoted struct
+                    if (varTypeIsPromotable(varDsc))
+                    {
+                        printf("(P)"); // Promoted struct
+                    }
+                    else
+                    {
+                        // Promoted implicit by-refs can have this state during
+                        // global morph while they are being rewritten
+                        assert(fgGlobalMorph);
+                        printf("(P?!)"); // Promoted struct
+                    }
                 }
             }
 
@@ -11010,44 +11027,51 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
 
             if (varDsc->lvPromoted)
             {
-                assert(varTypeIsPromotable(varDsc) || varDsc->lvUnusedStruct);
-
-                CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-                CORINFO_FIELD_HANDLE fldHnd;
-
-                for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
+                if (!varTypeIsPromotable(varDsc) && !varDsc->lvUnusedStruct)
                 {
-                    LclVarDsc*  fieldVarDsc = &lvaTable[i];
-                    const char* fieldName;
+                    // Promoted implicit byrefs can get in this state while they are being rewritten
+                    // in global morph.
+                    assert(fgGlobalMorph);
+                }
+                else
+                {
+                    CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
+                    CORINFO_FIELD_HANDLE fldHnd;
+
+                    for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
+                    {
+                        LclVarDsc*  fieldVarDsc = &lvaTable[i];
+                        const char* fieldName;
 #if !defined(_TARGET_64BIT_)
-                    if (varTypeIsLong(varDsc))
-                    {
-                        fieldName = (i == 0) ? "lo" : "hi";
-                    }
-                    else
+                        if (varTypeIsLong(varDsc))
+                        {
+                            fieldName = (i == 0) ? "lo" : "hi";
+                        }
+                        else
 #endif // !defined(_TARGET_64BIT_)
-                    {
-                        fldHnd    = info.compCompHnd->getFieldInClass(typeHnd, fieldVarDsc->lvFldOrdinal);
-                        fieldName = eeGetFieldName(fldHnd);
-                    }
+                        {
+                            fldHnd    = info.compCompHnd->getFieldInClass(typeHnd, fieldVarDsc->lvFldOrdinal);
+                            fieldName = eeGetFieldName(fldHnd);
+                        }
 
-                    printf("\n");
-                    printf("                                                  ");
-                    printIndent(indentStack);
-                    printf("    %-6s V%02u.%s (offs=0x%02x) -> ", varTypeName(fieldVarDsc->TypeGet()),
-                           tree->gtLclVarCommon.gtLclNum, fieldName, fieldVarDsc->lvFldOffset);
-                    gtDispLclVar(i);
+                        printf("\n");
+                        printf("                                                  ");
+                        printIndent(indentStack);
+                        printf("    %-6s V%02u.%s (offs=0x%02x) -> ", varTypeName(fieldVarDsc->TypeGet()),
+                               tree->gtLclVarCommon.gtLclNum, fieldName, fieldVarDsc->lvFldOffset);
+                        gtDispLclVar(i);
 
-                    if (fieldVarDsc->lvRegister)
-                    {
-                        printf(" ");
-                        fieldVarDsc->PrintVarReg();
-                    }
+                        if (fieldVarDsc->lvRegister)
+                        {
+                            printf(" ");
+                            fieldVarDsc->PrintVarReg();
+                        }
 
-                    if (fieldVarDsc->lvTracked && fgLocalVarLivenessDone && // Includes local variable liveness
-                        ((tree->gtFlags & GTF_VAR_DEATH) != 0))
-                    {
-                        printf(" (last use)");
+                        if (fieldVarDsc->lvTracked && fgLocalVarLivenessDone && // Includes local variable liveness
+                            ((tree->gtFlags & GTF_VAR_DEATH) != 0))
+                        {
+                            printf(" (last use)");
+                        }
                     }
                 }
             }
@@ -11162,12 +11186,13 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
             }
             else
             {
-                printf("%d", jitGetILoffs(tree->gtStmt.gtStmtILoffsx));
+                printf("0x%x", jitGetILoffs(tree->gtStmt.gtStmtILoffsx));
             }
             break;
 
         case GT_JCC:
-            printf(" cond=%s", GenTree::NodeName(tree->AsJumpCC()->gtCondition));
+        case GT_SETCC:
+            printf(" cond=%s", GenTree::NodeName(tree->AsCC()->gtCondition));
             break;
 
         default:
@@ -15023,390 +15048,6 @@ bool Compiler::gtComplexityExceeds(GenTreePtr* tree, unsigned limit)
     else
     {
         return false;
-    }
-}
-
-/*
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XX                                                                           XX
-XX                          BasicBlock                                       XX
-XX                                                                           XX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-*/
-
-#if MEASURE_BLOCK_SIZE
-/* static  */
-size_t BasicBlock::s_Size;
-/* static */
-size_t BasicBlock::s_Count;
-#endif // MEASURE_BLOCK_SIZE
-
-#ifdef DEBUG
-// The max # of tree nodes in any BB
-/* static */
-unsigned BasicBlock::s_nMaxTrees;
-#endif // DEBUG
-
-/*****************************************************************************
- *
- *  Allocate a basic block but don't append it to the current BB list.
- */
-
-BasicBlock* Compiler::bbNewBasicBlock(BBjumpKinds jumpKind)
-{
-    BasicBlock* block;
-
-    /* Allocate the block descriptor and zero it out */
-    assert(fgSafeBasicBlockCreation);
-
-    block = new (this, CMK_BasicBlock) BasicBlock;
-
-#if MEASURE_BLOCK_SIZE
-    BasicBlock::s_Count += 1;
-    BasicBlock::s_Size += sizeof(*block);
-#endif
-
-#ifdef DEBUG
-    // fgLookupBB() is invalid until fgInitBBLookup() is called again.
-    fgBBs = (BasicBlock**)0xCDCD;
-#endif
-
-    // TODO-Throughput: The following memset is pretty expensive - do something else?
-    // Note that some fields have to be initialized to 0 (like bbFPStateX87)
-    memset(block, 0, sizeof(*block));
-
-    // scopeInfo needs to be able to differentiate between blocks which
-    // correspond to some instrs (and so may have some LocalVarInfo
-    // boundaries), or have been inserted by the JIT
-    block->bbCodeOffs    = BAD_IL_OFFSET;
-    block->bbCodeOffsEnd = BAD_IL_OFFSET;
-
-    /* Give the block a number, set the ancestor count and weight */
-
-    ++fgBBcount;
-
-    if (compIsForInlining())
-    {
-        block->bbNum = ++impInlineInfo->InlinerCompiler->fgBBNumMax;
-    }
-    else
-    {
-        block->bbNum = ++fgBBNumMax;
-    }
-
-#ifndef LEGACY_BACKEND
-    if (compRationalIRForm)
-    {
-        block->bbFlags |= BBF_IS_LIR;
-    }
-#endif // !LEGACY_BACKEND
-
-    block->bbRefs   = 1;
-    block->bbWeight = BB_UNITY_WEIGHT;
-
-    block->bbStkTempsIn  = NO_BASE_TMP;
-    block->bbStkTempsOut = NO_BASE_TMP;
-
-    block->bbEntryState = nullptr;
-
-    /* Record the jump kind in the block */
-
-    block->bbJumpKind = jumpKind;
-
-    if (jumpKind == BBJ_THROW)
-    {
-        block->bbSetRunRarely();
-    }
-
-#ifdef DEBUG
-    if (verbose)
-    {
-        printf("New Basic Block BB%02u [%p] created.\n", block->bbNum, dspPtr(block));
-    }
-#endif
-
-    // We will give all the blocks var sets after the number of tracked variables
-    // is determined and frozen.  After that, if we dynamically create a basic block,
-    // we will initialize its var sets.
-    if (fgBBVarSetsInited)
-    {
-        VarSetOps::AssignNoCopy(this, block->bbVarUse, VarSetOps::MakeEmpty(this));
-        VarSetOps::AssignNoCopy(this, block->bbVarDef, VarSetOps::MakeEmpty(this));
-        VarSetOps::AssignNoCopy(this, block->bbLiveIn, VarSetOps::MakeEmpty(this));
-        VarSetOps::AssignNoCopy(this, block->bbLiveOut, VarSetOps::MakeEmpty(this));
-        VarSetOps::AssignNoCopy(this, block->bbScope, VarSetOps::MakeEmpty(this));
-    }
-    else
-    {
-        VarSetOps::AssignNoCopy(this, block->bbVarUse, VarSetOps::UninitVal());
-        VarSetOps::AssignNoCopy(this, block->bbVarDef, VarSetOps::UninitVal());
-        VarSetOps::AssignNoCopy(this, block->bbLiveIn, VarSetOps::UninitVal());
-        VarSetOps::AssignNoCopy(this, block->bbLiveOut, VarSetOps::UninitVal());
-        VarSetOps::AssignNoCopy(this, block->bbScope, VarSetOps::UninitVal());
-    }
-
-    block->bbMemoryUse     = emptyMemoryKindSet;
-    block->bbMemoryDef     = emptyMemoryKindSet;
-    block->bbMemoryLiveIn  = emptyMemoryKindSet;
-    block->bbMemoryLiveOut = emptyMemoryKindSet;
-
-    for (MemoryKind memoryKind : allMemoryKinds())
-    {
-        block->bbMemorySsaPhiFunc[memoryKind] = nullptr;
-        block->bbMemorySsaNumIn[memoryKind]   = 0;
-        block->bbMemorySsaNumOut[memoryKind]  = 0;
-    }
-
-    // Make sure we reserve a NOT_IN_LOOP value that isn't a legal table index.
-    static_assert_no_msg(MAX_LOOP_NUM < BasicBlock::NOT_IN_LOOP);
-
-    block->bbNatLoopNum = BasicBlock::NOT_IN_LOOP;
-
-    return block;
-}
-
-//------------------------------------------------------------------------------
-// containsStatement - return true if the block contains the given statement
-//------------------------------------------------------------------------------
-
-bool BasicBlock::containsStatement(GenTree* statement)
-{
-    assert(statement->gtOper == GT_STMT);
-
-    GenTree* curr = bbTreeList;
-    do
-    {
-        if (curr == statement)
-        {
-            break;
-        }
-        curr = curr->gtNext;
-    } while (curr);
-    return curr != nullptr;
-}
-
-GenTreeStmt* BasicBlock::FirstNonPhiDef()
-{
-    GenTreePtr stmt = bbTreeList;
-    if (stmt == nullptr)
-    {
-        return nullptr;
-    }
-    GenTreePtr tree = stmt->gtStmt.gtStmtExpr;
-    while ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_PHI) ||
-           (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_PHI))
-    {
-        stmt = stmt->gtNext;
-        if (stmt == nullptr)
-        {
-            return nullptr;
-        }
-        tree = stmt->gtStmt.gtStmtExpr;
-    }
-    return stmt->AsStmt();
-}
-
-GenTreePtr BasicBlock::FirstNonPhiDefOrCatchArgAsg()
-{
-    GenTreePtr stmt = FirstNonPhiDef();
-    if (stmt == nullptr)
-    {
-        return nullptr;
-    }
-    GenTreePtr tree = stmt->gtStmt.gtStmtExpr;
-    if ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_CATCH_ARG) ||
-        (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_CATCH_ARG))
-    {
-        stmt = stmt->gtNext;
-    }
-    return stmt;
-}
-
-/*****************************************************************************
- *
- *  Mark a block as rarely run, we also don't want to have a loop in a
- *   rarely run block, and we set it's weight to zero.
- */
-
-void BasicBlock::bbSetRunRarely()
-{
-    setBBWeight(BB_ZERO_WEIGHT);
-    if (bbWeight == BB_ZERO_WEIGHT)
-    {
-        bbFlags |= BBF_RUN_RARELY; // This block is never/rarely run
-    }
-}
-
-/*****************************************************************************
- *
- *  Can a BasicBlock be inserted after this without altering the flowgraph
- */
-
-bool BasicBlock::bbFallsThrough()
-{
-    switch (bbJumpKind)
-    {
-
-        case BBJ_THROW:
-        case BBJ_EHFINALLYRET:
-        case BBJ_EHFILTERRET:
-        case BBJ_EHCATCHRET:
-        case BBJ_RETURN:
-        case BBJ_ALWAYS:
-        case BBJ_LEAVE:
-        case BBJ_SWITCH:
-            return false;
-
-        case BBJ_NONE:
-        case BBJ_COND:
-            return true;
-
-        case BBJ_CALLFINALLY:
-            return ((bbFlags & BBF_RETLESS_CALL) == 0);
-
-        default:
-            assert(!"Unknown bbJumpKind in bbFallsThrough()");
-            return true;
-    }
-}
-
-unsigned BasicBlock::NumSucc(Compiler* comp)
-{
-    // As described in the spec comment of NumSucc at its declaration, whether "comp" is null determines
-    // whether NumSucc and GetSucc yield successors of finally blocks.
-
-    switch (bbJumpKind)
-    {
-
-        case BBJ_THROW:
-        case BBJ_RETURN:
-            return 0;
-
-        case BBJ_EHFILTERRET:
-            if (comp == nullptr)
-            {
-                return 0;
-            }
-            else
-            {
-                return 1;
-            }
-
-        case BBJ_EHFINALLYRET:
-        {
-            if (comp == nullptr)
-            {
-                return 0;
-            }
-            else
-            {
-                // The first block of the handler is labelled with the catch type.
-                BasicBlock* hndBeg = comp->fgFirstBlockOfHandler(this);
-                if (hndBeg->bbCatchTyp == BBCT_FINALLY)
-                {
-                    return comp->fgNSuccsOfFinallyRet(this);
-                }
-                else
-                {
-                    assert(hndBeg->bbCatchTyp == BBCT_FAULT); // We can only BBJ_EHFINALLYRET from FINALLY and FAULT.
-                    // A FAULT block has no successors.
-                    return 0;
-                }
-            }
-        }
-        case BBJ_CALLFINALLY:
-        case BBJ_ALWAYS:
-        case BBJ_EHCATCHRET:
-        case BBJ_LEAVE:
-        case BBJ_NONE:
-            return 1;
-        case BBJ_COND:
-            if (bbJumpDest == bbNext)
-            {
-                return 1;
-            }
-            else
-            {
-                return 2;
-            }
-        case BBJ_SWITCH:
-            if (comp == nullptr)
-            {
-                return bbJumpSwt->bbsCount;
-            }
-            else
-            {
-                Compiler::SwitchUniqueSuccSet sd = comp->GetDescriptorForSwitch(this);
-                return sd.numDistinctSuccs;
-            }
-
-        default:
-            unreached();
-    }
-}
-
-BasicBlock* BasicBlock::GetSucc(unsigned i, Compiler* comp)
-{
-    // As described in the spec comment of GetSucc at its declaration, whether "comp" is null determines
-    // whether NumSucc and GetSucc yield successors of finally blocks.
-
-    assert(i < NumSucc(comp)); // Index bounds check.
-    // printf("bbjk=%d\n", bbJumpKind);
-    switch (bbJumpKind)
-    {
-
-        case BBJ_THROW:
-        case BBJ_RETURN:
-            unreached(); // Should have been covered by assert above.
-
-        case BBJ_EHFILTERRET:
-        {
-            assert(comp != nullptr); // Or else we're not looking for successors.
-            BasicBlock* result = comp->fgFirstBlockOfHandler(this);
-            noway_assert(result == bbJumpDest);
-            // Handler is the (sole) normal successor of the filter.
-            return result;
-        }
-
-        case BBJ_EHFINALLYRET:
-            return comp->fgSuccOfFinallyRet(this, i);
-
-        case BBJ_CALLFINALLY:
-        case BBJ_ALWAYS:
-        case BBJ_EHCATCHRET:
-        case BBJ_LEAVE:
-            return bbJumpDest;
-
-        case BBJ_NONE:
-            return bbNext;
-        case BBJ_COND:
-            if (i == 0)
-            {
-                return bbNext;
-            }
-            else
-            {
-                assert(i == 1);
-                return bbJumpDest;
-            };
-        case BBJ_SWITCH:
-            if (comp == nullptr)
-            {
-                assert(i < bbJumpSwt->bbsCount); // Range check.
-                return bbJumpSwt->bbsDstTab[i];
-            }
-            else
-            {
-                // Remove duplicates.
-                Compiler::SwitchUniqueSuccSet sd = comp->GetDescriptorForSwitch(this);
-                assert(i < sd.numDistinctSuccs); // Range check.
-                return sd.nonDuplicates[i];
-            }
-
-        default:
-            unreached();
     }
 }
 

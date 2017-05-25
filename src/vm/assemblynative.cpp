@@ -35,15 +35,12 @@
 
 
 
-FCIMPL10(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE, 
+FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE, 
         StringObject* codeBaseUNSAFE, 
-        Object* securityUNSAFE, 
         AssemblyBaseObject* requestingAssemblyUNSAFE,
         StackCrawlMark* stackMark,
         ICLRPrivBinder * pPrivHostBinder,
         CLR_BOOL fThrowOnFileNotFound,
-        CLR_BOOL fForIntrospection,
-        CLR_BOOL fSuppressSecurityChecks,
         INT_PTR ptrLoadContextBinder)
 {
     FCALL_CONTRACT;
@@ -53,26 +50,18 @@ FCIMPL10(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSA
         ASSEMBLYNAMEREF assemblyName;
         STRINGREF       codeBase;
         ASSEMBLYREF     requestingAssembly; 
-        OBJECTREF       security;
         ASSEMBLYREF     rv;
     } gc;
 
     gc.assemblyName    = (ASSEMBLYNAMEREF) assemblyNameUNSAFE;
     gc.codeBase        = (STRINGREF)       codeBaseUNSAFE;
     gc.requestingAssembly    = (ASSEMBLYREF)     requestingAssemblyUNSAFE;
-    gc.security        = (OBJECTREF)       securityUNSAFE;
     gc.rv              = NULL;
 
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
 
     if (gc.assemblyName == NULL)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_AssemblyName"));
-
-    if (fForIntrospection)
-    {
-        if (!GetThread()->GetDomain()->IsVerificationDomain())
-            GetThread()->GetDomain()->SetIllegalVerificationDomain();
-    }
 
     Thread * pThread = GetThread();
     CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
@@ -84,10 +73,8 @@ FCIMPL10(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSA
     {
         if (gc.codeBase == NULL)
             COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
-        if ((!fForIntrospection) && CorHost2::IsLoadFromBlocked())
-            COMPlusThrow(kFileLoadException, FUSION_E_LOADFROM_BLOCKED);
     }
-    else if (!fForIntrospection)
+    else
     {
         // name specified, if immersive ignore the codebase
         if (GetThread()->GetDomain()->HasLoadContextHostBinder())
@@ -122,7 +109,7 @@ FCIMPL10(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSA
     spec.InitializeSpec(&(pThread->m_MarshalAlloc), 
                         &gc.assemblyName,
                         FALSE,
-                        fForIntrospection);
+                        FALSE);
     
     if (!spec.HasUniqueIdentity())
     {   // Insuficient assembly name for binding (e.g. ContentType=WindowsRuntime cannot bind by assembly name)
@@ -156,25 +143,11 @@ FCIMPL10(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSA
         spec.SetFallbackLoadContextBinderForRequestingAssembly(pRefAssemblyManifestFile->GetFallbackLoadContextBinder());
     }
 
-    AssemblyLoadSecurity loadSecurity;
-    loadSecurity.m_pAdditionalEvidence = &gc.security;
-    loadSecurity.m_fCheckLoadFromRemoteSource = !!(gc.codeBase != NULL);
-    loadSecurity.m_fSuppressSecurityChecks = !!fSuppressSecurityChecks;
-
-    // If we're in an APPX domain, then all loads from the application will find themselves within the APPX package
-    // graph or from a trusted location.   However, assemblies within the package may have been marked by Windows as
-    // not being from the MyComputer zone, which can trip the LoadFromRemoteSources check.  Since we do not need to
-    // defend against accidental loads from HTTP for APPX applications, we simply suppress the remote load check.
-    if (AppX::IsAppXProcess())
-    {
-        loadSecurity.m_fCheckLoadFromRemoteSource = false;
-    }
-
     Assembly *pAssembly;
     
     {
         GCX_PREEMP();
-        pAssembly = spec.LoadAssembly(FILE_LOADED, &loadSecurity, fThrowOnFileNotFound, FALSE /*fRaisePrebindEvents*/, stackMark);
+        pAssembly = spec.LoadAssembly(FILE_LOADED, fThrowOnFileNotFound, FALSE /*fRaisePrebindEvents*/, stackMark);
     }
 
     if (pAssembly != NULL)
@@ -185,250 +158,6 @@ FCIMPL10(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSA
     return OBJECTREFToObject(gc.rv);
 }
 FCIMPLEND
-
-Assembly* AssemblyNative::LoadFromBuffer(BOOL fForIntrospection, const BYTE* pAssemblyData,  UINT64 uAssemblyLength, const BYTE* pPDBData,  UINT64 uPDBLength, StackCrawlMark* stackMark, Object * securityUNSAFE, SecurityContextSource securityContextSource)
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    Assembly *pAssembly;
-    
-    struct _gc {
-        OBJECTREF orefSecurity;
-        OBJECTREF granted;
-        OBJECTREF denied;
-    } gc;
-    
-    ZeroMemory(&gc, sizeof(gc));
-
-    GCPROTECT_BEGIN(gc);
-    
-    gc.orefSecurity = (OBJECTREF) securityUNSAFE;
-
-    if((!fForIntrospection) && CorHost2::IsLoadFromBlocked())
-        COMPlusThrow(kFileLoadException, FUSION_E_LOADFROM_BLOCKED);
-
-    if (pAssemblyData == NULL)
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Array"));
-
-    if (fForIntrospection) {
-        if (!GetThread()->GetDomain()->IsVerificationDomain())
-            GetThread()->GetDomain()->SetIllegalVerificationDomain();
-    }
-
-    // Get caller's assembly so we can extract their codebase and propagate it
-    // into the new assembly (which obviously doesn't have one of its own).
-
-    AppDomain *pCallersDomain = NULL;
-    MethodDesc* pCallerMD = SystemDomain::GetCallersMethod (stackMark, &pCallersDomain);
-    Assembly *pCallersAssembly = (pCallerMD ? pCallerMD->GetAssembly() : NULL);
-    BOOL fPropagateIdentity = ((!fForIntrospection) && (gc.orefSecurity == NULL));
-
-    // Callers assembly can be null if caller is interop
-    // @todo: we really don't want to call this assembly "mscorlib" to anyone who asks
-    // for its code base.  But the required effect here is that it recieves full trust
-    // as far as its codebase goes so this should be OK.  We really need to allow a 
-    // "no code base" condition to avoid confusion
-    if (pCallersAssembly == NULL) {
-        pCallersAssembly = SystemDomain::System()->SystemAssembly();
-    } else {
-    }
-
-    if ((COUNT_T)uAssemblyLength !=uAssemblyLength)  // overflow
-        ThrowOutOfMemory();
-
-    PEAssemblyHolder pFile;
-    
-    {
-        GCX_PREEMP();
-
-        CLRPrivBinderLoadFile* pBinderToUse = NULL;
-
-        pFile = PEAssembly::OpenMemory(pCallersAssembly->GetManifestFile(),
-                                                  pAssemblyData, (COUNT_T)uAssemblyLength, 
-                                                  fForIntrospection,
-                                                  pBinderToUse);
-    }
-
-    fPropagateIdentity = (fPropagateIdentity && pCallersDomain && pCallersAssembly);
-
-    AssemblyLoadSecurity loadSecurity;
-    loadSecurity.m_pEvidence = &gc.orefSecurity;
-    if (fPropagateIdentity)
-    {
-        DWORD dwSpecialFlags = 0;
-
-        {
-            IApplicationSecurityDescriptor *pDomainSecDesc = pCallersDomain->GetSecurityDescriptor();
-
-
-
-            gc.granted = pDomainSecDesc->GetGrantedPermissionSet();
-            dwSpecialFlags = pDomainSecDesc->GetSpecialFlags();
-        }
-
-
-        // Instead of resolving policy, the loader should use an inherited grant set
-        loadSecurity.m_pGrantSet = &gc.granted;
-        loadSecurity.m_pRefusedSet = &gc.denied;
-        loadSecurity.m_dwSpecialFlags = dwSpecialFlags;
-
-        // if the caller is from another appdomain we wil not be able to get the ssembly's security descriptor
-        // but that is ok, since getting a pointer to our AppDomain required full trust
-        if (!pCallersDomain->GetSecurityDescriptor()->IsFullyTrusted() ||
-            ( pCallersAssembly->FindDomainAssembly(::GetAppDomain()) != NULL && !pCallersAssembly->GetSecurityDescriptor()->IsFullyTrusted())   )
-            pFile->VerifyStrongName();
-    }
-    pAssembly = GetPostPolicyAssembly(pFile, fForIntrospection, &loadSecurity, TRUE);
-
-    // perform necessary Transparency checks for this Load(byte[]) call (based on the calling method).
-    if (pCallerMD)
-    {
-        Security::PerformTransparencyChecksForLoadByteArray(pCallerMD, pAssembly->GetSecurityDescriptor());
-    }
-
-    // In order to assign the PDB image (if present),
-    // the resulting assembly's image needs to be exactly the one
-    // we created above. We need pointer comparison instead of pe image equivalence
-    // to avoid mixed binaries/PDB pairs of other images.
-    // This applies to both Desktop CLR and CoreCLR, with or without fusion.
-    BOOL fIsSameAssembly = (pAssembly->GetManifestFile()->GetILimage() == pFile->GetILimage());
-
-
-    LOG((LF_CLASSLOADER, 
-         LL_INFO100, 
-         "\tLoaded in-memory module\n"));
-
-    // Setting the PDB info is only applicable for our original assembly.
-    // This applies to both Desktop CLR and CoreCLR, with or without fusion.
-    if (fIsSameAssembly)
-    {
-#ifdef DEBUGGING_SUPPORTED
-        // If we were given symbols, save a copy of them.
-                // the debugger, load them now).
-        if (pPDBData != NULL)
-        {
-            GCX_PREEMP();
-            if ((DWORD)uPDBLength != uPDBLength) // overflow
-                ThrowOutOfMemory();
-            pAssembly->GetManifestModule()->SetSymbolBytes(pPDBData, (DWORD)uPDBLength);
-        }
-#endif // DEBUGGING_SUPPORTED
-    }
-
-    GCPROTECT_END();
-
-    return pAssembly;
-}
-
-FCIMPL6(Object*, AssemblyNative::LoadImage, U1Array* PEByteArrayUNSAFE,
-        U1Array* SymByteArrayUNSAFE, Object* securityUNSAFE,
-        StackCrawlMark* stackMark, CLR_BOOL fForIntrospection, SecurityContextSource securityContextSource)
-{
-    FCALL_CONTRACT;
-
-    struct _gc
-    {
-        U1ARRAYREF PEByteArray;
-        U1ARRAYREF SymByteArray;
-        OBJECTREF  security;
-        OBJECTREF Throwable;
-        OBJECTREF refRetVal;
-    } gc;
-
-    gc.PEByteArray  = (U1ARRAYREF) PEByteArrayUNSAFE;
-    gc.SymByteArray = (U1ARRAYREF) SymByteArrayUNSAFE;
-    gc.security     = (OBJECTREF)  securityUNSAFE;
-    gc.Throwable = NULL;
-    gc.refRetVal = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-
-    if (gc.PEByteArray == NULL)
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Array"));
-
-    NewArrayHolder<BYTE> pbSyms;
-    DWORD cbSyms = 0;
-
-#ifdef DEBUGGING_SUPPORTED
-    // If we were given symbols, save a copy of them.
-            // the debugger, load them now).
-    if (gc.SymByteArray != NULL)
-    {
-        Security::CopyByteArrayToEncoding(&gc.SymByteArray,
-                                                    &pbSyms, &cbSyms);
-
-    }
-#endif // DEBUGGING_SUPPORTED
-
-    Assembly* pAssembly = NULL;
-    // Pin byte array for loading
-    {
-        Wrapper<OBJECTHANDLE, DoNothing, DestroyPinningHandle> handle(
-            GetAppDomain()->CreatePinningHandle(gc.PEByteArray));
-
-        const BYTE *pbImage = gc.PEByteArray->GetDirectConstPointerToNonObjectElements();
-        DWORD cbImage = gc.PEByteArray->GetNumComponents();
-        pAssembly = LoadFromBuffer(fForIntrospection, pbImage, cbImage, pbSyms, cbSyms, stackMark, OBJECTREFToObject(gc.security), securityContextSource);
-    }
-
-
-    if (pAssembly != NULL)
-        gc.refRetVal = pAssembly->GetExposedObject();
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(gc.refRetVal);
-}
-FCIMPLEND
-
-FCIMPL2(Object*, AssemblyNative::LoadFile, StringObject* pathUNSAFE, Object* securityUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    struct _gc {
-        OBJECTREF refRetVal;
-        OBJECTREF refSecurity;
-        STRINGREF strPath;
-    } gc;
-    
-    gc.refRetVal = NULL;
-    gc.refSecurity = ObjectToOBJECTREF(securityUNSAFE);
-    gc.strPath = ObjectToSTRINGREF(pathUNSAFE);
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-    if(CorHost2::IsLoadFromBlocked())
-        COMPlusThrow(kFileLoadException, FUSION_E_LOADFROM_BLOCKED);
-
-    if (pathUNSAFE == NULL)
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Path"));
-
-    StackSString path;
-    gc.strPath->GetSString(path);
-
-    Assembly *pAssembly = AssemblySpec::LoadAssembly(path);
-
-    LOG((LF_CLASSLOADER, 
-         LL_INFO100, 
-         "\tLoaded assembly from a file\n"));
-
-
-    if (pAssembly != NULL)
-        gc.refRetVal = (ASSEMBLYREF) pAssembly->GetExposedObject();
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(gc.refRetVal);
-}
-FCIMPLEND
-
 
 /* static */
 Assembly* AssemblyNative::LoadFromPEImage(ICLRPrivBinder* pBinderContext, PEImage *pILImage, PEImage *pNIImage)
@@ -513,64 +242,9 @@ Assembly* AssemblyNative::LoadFromPEImage(ICLRPrivBinder* pBinderContext, PEImag
     
     PEAssemblyHolder pPEAssembly(PEAssembly::Open(pParentAssembly, assem->GetPEImage(), assem->GetNativePEImage(), pAssembly, FALSE));
 
-    GCX_COOP();
-    
-    IApplicationSecurityDescriptor *pDomainSecDesc = pCurDomain->GetSecurityDescriptor();
-    
-    OBJECTREF refGrantedPermissionSet = NULL;
-    AssemblyLoadSecurity loadSecurity;
-    DomainAssembly *pDomainAssembly = NULL;
-    
-    // Setup the AssemblyLoadSecurity to perform the assembly load
-    GCPROTECT_BEGIN(refGrantedPermissionSet);
-    
-    loadSecurity.m_dwSpecialFlags = pDomainSecDesc->GetSpecialFlags();
-    refGrantedPermissionSet = pDomainSecDesc->GetGrantedPermissionSet();
-    loadSecurity.m_pGrantSet = &refGrantedPermissionSet;
-        
-    pDomainAssembly = pCurDomain->LoadDomainAssembly(&spec, pPEAssembly, FILE_LOADED, &loadSecurity);
-    pLoadedAssembly = pDomainAssembly->GetAssembly();
-
-    GCPROTECT_END();
-    
-    RETURN pLoadedAssembly;
+    DomainAssembly *pDomainAssembly = pCurDomain->LoadDomainAssembly(&spec, pPEAssembly, FILE_LOADED);
+    RETURN pDomainAssembly->GetAssembly();
 }
-
-/* static */ 
-void QCALLTYPE AssemblyNative::GetLoadedAssembliesInternal(QCall::ObjectHandleOnStack assemblies)
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    
-    MethodTable * pAssemblyClass = MscorlibBinder::GetClass(CLASS__ASSEMBLY);
-    
-    PTR_AppDomain pCurDomain = GetAppDomain();
-
-    SetSHash<PTR_DomainAssembly> assemblySet;
-    pCurDomain->GetCacheAssemblyList(assemblySet);
-    size_t nArrayElems = assemblySet.GetCount();    
-    PTRARRAYREF     AsmArray = NULL;
-
-    GCX_COOP();
-    
-    GCPROTECT_BEGIN(AsmArray); 
-    AsmArray = (PTRARRAYREF) AllocateObjectArray( (DWORD)nArrayElems, pAssemblyClass);
-    for(auto it = assemblySet.Begin(); it != assemblySet.End(); it++)
-    {
-        PTR_DomainAssembly assem = *it;
-        OBJECTREF o = (OBJECTREF)assem->GetExposedAssemblyObject();
-        _ASSERTE(o != NULL);
-        _ASSERTE(nArrayElems > 0);
-        AsmArray->SetAt(--nArrayElems, o);
-    }        
-
-    assemblies.Set(AsmArray);
-    
-    GCPROTECT_END();    
-    
-    END_QCALL;    
-} 
 
 /* static */
 void QCALLTYPE AssemblyNative::LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext, LPCWSTR pwzILPath, LPCWSTR pwzNIPath, QCall::ObjectHandleOnStack retLoadedAssembly)
@@ -711,55 +385,6 @@ void QCALLTYPE AssemblyNative::LoadFromStream(INT_PTR ptrNativeAssemblyLoadConte
     END_QCALL;
 }
 
-
-/* static */
-Assembly* AssemblyNative::GetPostPolicyAssembly(PEAssembly *pFile,
-                                                BOOL fForIntrospection,
-                                                AssemblyLoadSecurity *pLoadSecurity,
-                                                BOOL fIsLoadByteArray /* = FALSE */)
-{
-    CONTRACT(Assembly*)
-    {
-        MODE_ANY;
-        THROWS;
-        GC_TRIGGERS;
-        PRECONDITION(CheckPointer(pFile));
-        PRECONDITION(CheckPointer(pLoadSecurity));
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END;
-
-    GCX_PREEMP();
-
-    if (fIsLoadByteArray)
-    {
-        PEImage *pPEImage = pFile->GetILimage();
-        HRESULT hr = S_OK;
-        PTR_AppDomain pCurDomain = GetAppDomain();
-        CLRPrivBinderCoreCLR *pTPABinder = pCurDomain->GetTPABinderContext();
-
-        _ASSERTE(pCurDomain->GetFusionContext() == pTPABinder);
-        hr = pTPABinder->PreBindByteArray(pPEImage, fForIntrospection);
-        if (hr == S_OK)
-        {
-            AssemblySpec spec;
-            spec.InitializeSpec(pFile);
-            
-            // Set the binder associated with the AssemblySpec
-            spec.SetBindingContext(pTPABinder);
-            RETURN spec.LoadAssembly(FILE_LOADED, pLoadSecurity);
-        }
-        else
-        {
-            _ASSERTE(hr != S_FALSE);
-            ThrowHR(hr);
-        }
-    }   
-
-    RETURN GetAppDomain()->LoadAssembly(NULL, pFile, FILE_LOADED, pLoadSecurity);
-}
-
-
 void QCALLTYPE AssemblyNative::GetLocation(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack retString)
 {
     QCALL_CONTRACT;
@@ -772,19 +397,6 @@ void QCALLTYPE AssemblyNative::GetLocation(QCall::AssemblyHandle pAssembly, QCal
     
     END_QCALL;
 }
-
-FCIMPL1(FC_BOOL_RET, AssemblyNative::IsReflectionOnly, AssemblyBaseObject *pAssemblyUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    ASSEMBLYREF refAssembly = (ASSEMBLYREF)ObjectToOBJECTREF(pAssemblyUNSAFE);
-    
-    if (refAssembly == NULL)
-        FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
-
-    FC_RETURN_BOOL(refAssembly->GetDomainAssembly()->IsIntrospectionOnly());
-}
-FCIMPLEND
 
 void QCALLTYPE AssemblyNative::GetType(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType, QCall::ObjectHandleOnStack keepAlive)
 {
@@ -1558,99 +1170,6 @@ void QCALLTYPE AssemblyNative::GetEntryAssembly(QCall::ObjectHandleOnStack retAs
     END_QCALL;
 
     return;
-}
-
-
-void QCALLTYPE AssemblyNative::GetGrantSet(QCall::AssemblyHandle pAssembly, QCall::ObjectHandleOnStack retGranted, QCall::ObjectHandleOnStack retDenied)
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-
-    IAssemblySecurityDescriptor *pSecDesc = pAssembly->GetSecurityDescriptor();
-
-    {
-        GCX_COOP();
-
-        pSecDesc->Resolve();
-
-        OBJECTREF granted, denied;
-
-        granted = pSecDesc->GetGrantedPermissionSet(&denied);
-
-        retGranted.Set(granted);
-        retDenied.Set(denied);
-    }
-
-    END_QCALL;
-}
-
-//
-// QCalls to determine if everything introduced by the assembly is either security critical or safe critical
-//
-
-// static
-BOOL QCALLTYPE AssemblyNative::IsAllSecurityCritical(QCall::AssemblyHandle pAssembly)
-{
-    QCALL_CONTRACT;
-
-    BOOL fIsCritical = FALSE;
-
-    BEGIN_QCALL;
-
-    fIsCritical = pAssembly->GetSecurityDescriptor()->IsAllCritical();
-
-    END_QCALL;
-
-    return fIsCritical;
-}
-
-// static
-BOOL QCALLTYPE AssemblyNative::IsAllSecuritySafeCritical(QCall::AssemblyHandle pAssembly)
-{
-    QCALL_CONTRACT;
-
-    BOOL fIsSafeCritical = FALSE;
-
-    BEGIN_QCALL;
-
-    fIsSafeCritical = pAssembly->GetSecurityDescriptor()->IsAllSafeCritical();
-
-    END_QCALL;
-
-    return fIsSafeCritical;
-}
-
-// static
-BOOL QCALLTYPE AssemblyNative::IsAllPublicAreaSecuritySafeCritical(QCall::AssemblyHandle pAssembly)
-{
-    QCALL_CONTRACT;
-
-    BOOL fIsAllPublicAreaSafeCritical = FALSE;
-
-    BEGIN_QCALL;
-
-    fIsAllPublicAreaSafeCritical = pAssembly->GetSecurityDescriptor()->IsAllPublicAreaSafeCritical();
-
-    END_QCALL;
-
-    return fIsAllPublicAreaSafeCritical;
-}
-
-// static
-BOOL QCALLTYPE AssemblyNative::IsAllSecurityTransparent(QCall::AssemblyHandle pAssembly)
-{
-    QCALL_CONTRACT;
-
-    BOOL fIsTransparent = FALSE;
-
-    BEGIN_QCALL;
-
-    fIsTransparent = pAssembly->GetSecurityDescriptor()->IsAllTransparent();
-
-    END_QCALL;
-
-    return fIsTransparent;
 }
 
 // return the on disk assembly module for reflection emit. This only works for dynamic assembly.

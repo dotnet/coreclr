@@ -23,13 +23,31 @@
 // There are several flavors of conversions from/to RelativePointer:
 //  - GetValue/SetValue: The most common version. Assumes that the pointer is not NULL.
 //  - GetValueMaybeNull/SetValueMaybeNull: Pointer can be NULL.
-//  - GetValueAtPtr/SetValueAtPtr: Static version of GetValue/SetValue. It is 
+//  - GetValueAtPtr: Static version of GetValue. It is
 //    meant to simplify access to arrays of RelativePointers.
-//  - GetValueMaybeNullAtPtr/SetValueMaybeNullAtPtr
+//  - GetValueMaybeNullAtPtr
 template<typename PTR_TYPE>
 class RelativePointer
 {
 public:
+#ifndef DACCESS_COMPILE
+    RelativePointer()
+    {
+        m_delta = (TADDR)NULL;
+
+        _ASSERTE (IsNull());
+    }
+#else // DACCESS_COMPILE
+    RelativePointer() =delete;
+#endif // DACCESS_COMPILE
+
+    // Implicit copy/move is not allowed
+    // Bitwise copy is implemented by BitwiseCopyTo method
+    RelativePointer<PTR_TYPE>(const RelativePointer<PTR_TYPE> &) =delete;
+    RelativePointer<PTR_TYPE>(RelativePointer<PTR_TYPE> &&) =delete;
+    RelativePointer<PTR_TYPE>& operator = (const RelativePointer<PTR_TYPE> &) =delete;
+    RelativePointer<PTR_TYPE>& operator = (RelativePointer<PTR_TYPE> &&) =delete;
+
     // Returns whether the encoded pointer is NULL.
     BOOL IsNull() const
     {
@@ -94,54 +112,39 @@ public:
         return dac_cast<DPTR(RelativePointer<PTR_TYPE>)>(base)->GetValueMaybeNull(base);
     }
 
-    // Set encoded value of the pointer. Assumes that the value is not NULL.
-    void SetValue(TADDR base, PTR_TYPE addr)
-    {
-        LIMITED_METHOD_CONTRACT;
-        PRECONDITION(addr != NULL);
-        m_delta = dac_cast<TADDR>(addr) - base;
-    }
-
 #ifndef DACCESS_COMPILE
     // Set encoded value of the pointer. Assumes that the value is not NULL.
-    // Does not need explicit base and thus can be used in non-DAC builds only.
     FORCEINLINE void SetValue(PTR_TYPE addr)
     {
         LIMITED_METHOD_CONTRACT;
-        return SetValue((TADDR)this, addr);
-    }
-#endif
-
-    // Static version of SetValue. It is meant to simplify access to arrays of pointers.
-    FORCEINLINE static void SetValueAtPtr(TADDR base, PTR_TYPE addr)
-    {
-        LIMITED_METHOD_CONTRACT;
-        dac_cast<DPTR(RelativePointer<PTR_TYPE>)>(base)->SetValue(base, addr);
+        PRECONDITION(addr != NULL);
+        m_delta = (TADDR)addr - (TADDR)this;
     }
 
     // Set encoded value of the pointer. The value can be NULL.
     void SetValueMaybeNull(TADDR base, PTR_TYPE addr)
     {
         LIMITED_METHOD_CONTRACT;
-        if (addr == NULL) m_delta = NULL; else SetValue(base, addr);
+        if (addr == NULL)
+            m_delta = NULL;
+        else
+            m_delta = (TADDR)addr - (TADDR)base;
     }
 
-#ifndef DACCESS_COMPILE
     // Set encoded value of the pointer. The value can be NULL.
-    // Does not need explicit base and thus can be used in non-DAC builds only.
     FORCEINLINE void SetValueMaybeNull(PTR_TYPE addr)
     {
         LIMITED_METHOD_CONTRACT;
-        return SetValueMaybeNull((TADDR)this, addr);
+        SetValueMaybeNull((TADDR)this, addr);
     }
 #endif
 
-    // Static version of SetValueMaybeNull. It is meant to simplify access to arrays of pointers.
-    FORCEINLINE static void SetValueMaybeNullAtPtr(TADDR base, PTR_TYPE addr)
+#ifndef DACCESS_COMPILE
+    void BitwiseCopyTo(RelativePointer<PTR_TYPE> &dest) const
     {
-        LIMITED_METHOD_CONTRACT;
-        dac_cast<DPTR(RelativePointer<PTR_TYPE>)>(base)->SetValueMaybeNull(base, addr);
+        dest.m_delta = m_delta;
     }
+#endif // DACCESS_COMPILE
 
 private:
 #ifndef DACCESS_COMPILE
@@ -234,6 +237,12 @@ template<typename PTR_TYPE>
 class RelativeFixupPointer
 {
 public:
+    // Implicit copy/move is not allowed
+    RelativeFixupPointer<PTR_TYPE>(const RelativeFixupPointer<PTR_TYPE> &) =delete;
+    RelativeFixupPointer<PTR_TYPE>(RelativeFixupPointer<PTR_TYPE> &&) =delete;
+    RelativeFixupPointer<PTR_TYPE>& operator = (const RelativeFixupPointer<PTR_TYPE> &) =delete;
+    RelativeFixupPointer<PTR_TYPE>& operator = (RelativeFixupPointer<PTR_TYPE> &&) =delete;
+
     // Returns whether the encoded pointer is NULL.
     BOOL IsNull() const
     {
@@ -316,54 +325,32 @@ public:
         return dac_cast<DPTR(RelativeFixupPointer<PTR_TYPE>)>(base)->GetValueMaybeNull(base);
     }
 
-    // Set encoded value of the pointer. Assumes that the value is not NULL.
-    void SetValue(TADDR base, PTR_TYPE addr)
-    {
-        LIMITED_METHOD_CONTRACT;
-        PRECONDITION(addr != NULL);
-        m_delta = dac_cast<TADDR>(addr) - base;
-    }
-
 #ifndef DACCESS_COMPILE
     // Set encoded value of the pointer. Assumes that the value is not NULL.
-    // Does not need explicit base and thus can be used in non-DAC builds only.
     FORCEINLINE void SetValue(PTR_TYPE addr)
     {
         LIMITED_METHOD_CONTRACT;
-        return SetValue((TADDR)this, addr);
-    }
-#endif
-
-    // Static version of SetValue. It is meant to simplify access to arrays of pointers.
-    FORCEINLINE static void SetValueAtPtr(TADDR base, PTR_TYPE addr)
-    {
-        LIMITED_METHOD_CONTRACT;
-        dac_cast<DPTR(RelativeFixupPointer<PTR_TYPE>)>(base)->SetValue(base, addr);
+        PRECONDITION(addr != NULL);
+        m_delta = (TADDR)addr - (TADDR)this;
     }
 
     // Set encoded value of the pointer. The value can be NULL.
     void SetValueMaybeNull(TADDR base, PTR_TYPE addr)
     {
         LIMITED_METHOD_CONTRACT;
-        if (addr == NULL) m_delta = NULL; else SetValue(base, addr);
+        if (addr == NULL)
+            m_delta = NULL;
+        else
+            m_delta = (TADDR)addr - (TADDR)base;
     }
 
-#ifndef DACCESS_COMPILE
     // Set encoded value of the pointer. The value can be NULL.
-    // Does not need explicit base and thus can be used in non-DAC builds only.
     FORCEINLINE void SetValueMaybeNull(PTR_TYPE addr)
     {
         LIMITED_METHOD_CONTRACT;
-        return SetValueMaybeNull((TADDR)this, addr);
+        SetValueMaybeNull((TADDR)this, addr);
     }
 #endif
-
-    // Static version of SetValueMaybeNull. It is meant to simplify access to arrays of pointers.
-    FORCEINLINE static void SetValueMaybeNullAtPtr(TADDR base, PTR_TYPE addr)
-    {
-        LIMITED_METHOD_CONTRACT;
-        dac_cast<DPTR(RelativeFixupPointer<PTR_TYPE>)>(base)->SetValueMaybeNull(base, addr);
-    }
 
     // Returns the pointer to the indirection cell.
     PTR_TYPE * GetValuePtr(TADDR base) const

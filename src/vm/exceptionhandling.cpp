@@ -25,17 +25,29 @@
 #define VSD_STUB_CAN_THROW_AV
 #endif // _TARGET_ARM_ || _TARGET_X86_
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+// ARM/ARM64 uses Caller-SP to locate PSPSym in the funclet frame.
+#define USE_CALLER_SP_IN_FUNCLET
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
+
 #if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_) || defined(_TARGET_X86_)
 #define ADJUST_PC_UNWOUND_TO_CALL
 #define STACK_RANGE_BOUNDS_ARE_CALLER_SP
 #define USE_FUNCLET_CALL_HELPER
-#define USE_CALLER_SP_IN_FUNCLET
 // For ARM/ARM64, EstablisherFrame is Caller-SP (SP just before executing call instruction).
 // This has been confirmed by AaronGi from the kernel team for Windows.
 //
 // For x86/Linux, RtlVirtualUnwind sets EstablisherFrame as Caller-SP.
 #define ESTABLISHER_FRAME_ADDRESS_IS_CALLER_SP
 #endif // _TARGET_ARM_ || _TARGET_ARM64_ || _TARGET_X86_
+
+#ifndef FEATURE_PAL
+void __declspec(noinline)
+ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord,
+                 UINT_PTR          ReturnValue,
+                 UINT_PTR          TargetIP,
+                 UINT_PTR          TargetFrameSp);
+#endif // !FEATURE_PAL
 
 #ifdef USE_CURRENT_CONTEXT_IN_FILTER
 inline void CaptureNonvolatileRegisters(PKNONVOLATILE_CONTEXT pNonvolatileContext, PCONTEXT pContext)
@@ -135,7 +147,7 @@ void FixContext(PCONTEXT pContextRecord)
 
 #ifdef _TARGET_X86_
     size_t resumeSp = EECodeManager::GetResumeSp(pContextRecord);
-    FIXUPREG(ResumeEsp, resumeSp);
+    FIXUPREG(Esp, resumeSp);
 #endif // _TARGET_X86_
 
 #undef FIXUPREG
@@ -3270,6 +3282,8 @@ lExit:
 #undef OPTIONAL_SO_CLEANUP_UNWIND
 
 #define OPTIONAL_SO_CLEANUP_UNWIND(pThread, pFrame)  if (pThread->GetFrame() < pFrame) { UnwindFrameChain(pThread, pFrame); }
+
+typedef DWORD_PTR (HandlerFn)(UINT_PTR uStackFrame, Object* pExceptionObj);
 
 #ifdef USE_FUNCLET_CALL_HELPER
 // This is an assembly helper that enables us to call into EH funclets.

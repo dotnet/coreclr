@@ -265,7 +265,9 @@ function cross_build_coreclr_with_docker {
         # For armel Tizen, we are going to construct RootFS on the fly.
         case $__linuxCodeName in
         tizen)
-            __dockerImage=" t2wish/dotnetcore:ubuntu1404_cross_prereqs_v4"
+            __dockerImage=" hqueue/dotnetcore:ubuntu1404_cross_prereqs_v4-tizen_rootfs"
+            __skipRootFS=1
+            __dockerEnvironmentVariables+=" -e ROOTFS_DIR=/crossrootfs/armel.tizen.build"
             __runtimeOS="tizen.4.0.0"
         ;;
         *)
@@ -287,9 +289,14 @@ function cross_build_coreclr_with_docker {
         sudo chown -R $(id -u -n) cross/rootfs
     fi
 
+    __extraArgs=""
+    if [[ "$__buildArch" == "armel" && "$__linuxCodeName" == "tizen" ]]; then
+        __extraArgs="cmakeargs -DFEATURE_GDBJIT=TRUE"
+    fi
+
     # Cross building coreclr with rootfs in Docker
     (set +x; echo "Start cross build coreclr for $__buildArch $__linuxCodeName")
-    __buildCmd="./build.sh $__buildArch cross $__verboseFlag $__skipMscorlib $__buildConfig -rebuild clang3.9"
+    __buildCmd="./build.sh $__buildArch cross $__verboseFlag $__skipMscorlib $__buildConfig $__extraArgs -rebuild"
     $__dockerCmd $__buildCmd
     sudo chown -R $(id -u -n) ./bin
 }
@@ -381,7 +388,9 @@ function run_tests_using_docker {
     elif [ "$__buildArch" == "armel" ]; then
         case $__linuxCodeName in
         tizen)
-            __dockerImage=" t2wish/dotnetcore:ubuntu1404_cross_prereqs_v3"
+            __dockerImage=" hqueue/dotnetcore:ubuntu1404_cross_prereqs_v4-tizen_rootfs"
+            __skipRootFS=1
+            __dockerEnvironmentVariables=" -e ROOTFS_DIR=/crossrootfs/armel.tizen.test"
         ;;
         *)
             exit_with_error "ERROR: $__linuxCodeName is not a supported linux name for $__buildArch" false

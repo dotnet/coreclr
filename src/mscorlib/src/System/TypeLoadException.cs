@@ -13,7 +13,6 @@
 
 using System;
 using System.Globalization;
-using System.Runtime.Remoting;
 using System.Runtime.Serialization;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -23,7 +22,6 @@ using System.Diagnostics.Contracts;
 
 namespace System
 {
-    [Serializable]
     public class TypeLoadException : SystemException, ISerializable
     {
         public TypeLoadException()

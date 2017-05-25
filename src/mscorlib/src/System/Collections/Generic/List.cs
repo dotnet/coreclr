@@ -350,6 +350,7 @@ namespace System.Collections.Generic
 
 
         // Clears the contents of List.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
@@ -1253,7 +1254,6 @@ namespace System.Collections.Generic
             }
         }
 
-        [Serializable]
         public struct Enumerator : IEnumerator<T>, System.Collections.IEnumerator
         {
             private List<T> list;

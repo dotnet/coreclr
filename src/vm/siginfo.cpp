@@ -1199,7 +1199,10 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
             
             PREFIX_ASSUME(pZapSigContext != NULL);
             pModule = pZapSigContext->GetZapSigModule()->GetModuleFromIndex(ix);
-            if (pModule != NULL)
+
+            // For ReadyToRunCompilation we return a null TypeHandle when we reference a non-local module
+            //
+            if ((pModule != NULL) && pModule->IsInCurrentVersionBubble())
             {
                 thRet = psig.GetTypeHandleThrowing(pModule, 
                                                    pTypeContext, 
@@ -3241,10 +3244,6 @@ BOOL IsTypeDefEquivalent(mdToken tk, Module *pModule)
         // its module might be not fully initialized in this domain
         // take care of that possibility
         pModule->EnsureAllocated();
-
-        // 5. Type is in a fully trusted assembly
-        if (!pModule->GetSecurityDescriptor()->IsFullyTrusted())
-            return FALSE;
 
         // 6. If type is nested, nesting type must be equivalent.
         if (IsTdNested(dwAttrType))

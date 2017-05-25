@@ -9,7 +9,6 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    [Serializable]
     internal abstract class RuntimeFieldInfo : FieldInfo, ISerializable
     {
         #region Private Data Members
@@ -67,6 +66,8 @@ namespace System.Reflection
                 return m_reflectedTypeCache.IsGlobal ? null : m_declaringType;
             }
         }
+
+        public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeFieldInfo>(other);
 
         public override Module Module { get { return GetRuntimeModule(); } }
         #endregion

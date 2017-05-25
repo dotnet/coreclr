@@ -118,6 +118,14 @@ check_prereqs()
     # Check presence of CMake on the path
     hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
 
+
+    # Minimum required version of clang is version 3.9 for arm/armel cross build
+    if [[ $__CrossBuild == 1 && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
+        if ! [[ "$__ClangMajorVersion" -gt "3" || ( $__ClangMajorVersion == 3 && $__ClangMinorVersion == 9 ) ]]; then
+            echo "Please install clang3.9 or latest for arm/armel cross build"; exit 1;
+        fi
+    fi
+
     # Check for clang
     hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang-$__ClangMajorVersion.$__ClangMinorVersion before running this script"; exit 1; }
 
@@ -146,15 +154,27 @@ generate_event_logging_sources()
 # Event Logging Infrastructure
    __GeneratedIntermediate="$__IntermediatesDir/Generated"
    __GeneratedIntermediateEventProvider="$__GeneratedIntermediate/eventprovider_new"
+   __GeneratedIntermediateEventPipe="$__GeneratedIntermediate/eventpipe_new"
+
     if [[ -d "$__GeneratedIntermediateEventProvider" ]]; then
         rm -rf  "$__GeneratedIntermediateEventProvider"
+    fi
+
+    if [[ -d "$__GeneratedIntermediateEventPipe" ]]; then
+        rm -rf  "$__GeneratedIntermediateEventPipe"
     fi
 
     if [[ ! -d "$__GeneratedIntermediate/eventprovider" ]]; then
         mkdir -p "$__GeneratedIntermediate/eventprovider"
     fi
 
+    if [[ ! -d "$__GeneratedIntermediate/eventpipe" ]]; then
+        mkdir -p "$__GeneratedIntermediate/eventpipe"
+    fi
+
     mkdir -p "$__GeneratedIntermediateEventProvider"
+    mkdir -p "$__GeneratedIntermediateEventPipe"
+    
     if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
         echo "Laying out dynamically generated files consumed by the build system "
         echo "Laying out dynamically generated Event Logging Test files"
@@ -163,6 +183,18 @@ generate_event_logging_sources()
         if  [[ $? != 0 ]]; then
             exit
         fi
+
+        case $__BuildOS in
+            Linux)
+                echo "Laying out dynamically generated EventPipe Implementation"
+                $PYTHON -B -Wall -Werror "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventPipe" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst"
+                if  [[ $? != 0 ]]; then
+                    exit
+                fi
+                ;;
+            *)
+                ;;
+        esac
 
         #determine the logging system
         case $__BuildOS in
@@ -185,6 +217,14 @@ generate_event_logging_sources()
     fi
 
     rm -rf "$__GeneratedIntermediateEventProvider"
+
+    echo "Cleaning the temp folder of dynamically generated EventPipe files"
+    $PYTHON -B -Wall -Werror -c "import sys;sys.path.insert(0,\"$__ProjectRoot/src/scripts\"); from Utilities import *;UpdateDirectory(\"$__GeneratedIntermediate/eventpipe\",\"$__GeneratedIntermediateEventPipe\")"
+    if  [[ $? != 0 ]]; then
+        exit
+    fi
+
+    rm -rf "$__GeneratedIntermediateEventPipe"
 }
 
 build_native()
@@ -371,7 +411,7 @@ build_CoreLib_ni()
 {
     if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
         echo "Generating native image for System.Private.CoreLib."
-        $__BinDir/crossgen $__IbcTuning $__BinDir/System.Private.CoreLib.dll
+        $__BinDir/crossgen /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll
         if [ $? -ne 0 ]; then
             echo "Failed to generate native image for System.Private.CoreLib."
             exit 1
@@ -379,7 +419,7 @@ build_CoreLib_ni()
 
         if [ "$__BuildOS" == "Linux" ]; then
             echo "Generating symbol file for System.Private.CoreLib."
-            $__BinDir/crossgen /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.ni.dll
+            $__BinDir/crossgen /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll
             if [ $? -ne 0 ]; then
                 echo "Failed to generate symbol file for System.Private.CoreLib."
                 exit 1
@@ -671,6 +711,11 @@ while :; do
             __ClangMinorVersion=9
             ;;
 
+        clang4.0)
+            __ClangMajorVersion=4
+            __ClangMinorVersion=0
+            ;;
+
         ninja)
             __UseNinja=1
             ;;
@@ -780,8 +825,13 @@ fi
 # Set default clang version
 if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
     if [ $__CrossBuild == 1 ]; then
-        __ClangMajorVersion=3
-        __ClangMinorVersion=6
+        if [[ "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ]]; then
+            __ClangMajorVersion=3
+            __ClangMinorVersion=9
+        else
+            __ClangMajorVersion=3
+            __ClangMinorVersion=6
+        fi
     else
         __ClangMajorVersion=3
         __ClangMinorVersion=5

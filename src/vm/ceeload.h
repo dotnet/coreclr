@@ -52,7 +52,6 @@ class Stub;
 class MethodDesc;
 class FieldDesc;
 class Crst;
-class IAssemblySecurityDescriptor;
 class ClassConverter;
 class RefClassWriter;
 class ReflectionModule;
@@ -73,7 +72,6 @@ class MethodTable;
 class AppDomain;
 class DynamicMethodTable;
 struct CerPrepInfo;
-class ModuleSecurityDescriptor;
 #ifdef FEATURE_PREJIT
 class CerNgenRootTable;
 struct MethodContextElement;
@@ -311,7 +309,10 @@ template <typename TYPE>
 struct LookupMap : LookupMapBase
 {
     static TYPE GetValueAt(PTR_TADDR pValue, TADDR* pFlags, TADDR supportedFlags);
+
+#ifndef DACCESS_COMPILE
     static void SetValueAt(PTR_TADDR pValue, TYPE value, TADDR flags);
+#endif // DACCESS_COMPILE
 
     TYPE GetElement(DWORD rid, TADDR* pFlags);
     void SetElement(DWORD rid, TYPE value, TADDR flags);
@@ -368,6 +369,7 @@ public:
         SetElement(rid, value, flags);
     }
 
+#ifndef DACCESS_COMPILE
     void AddFlag(DWORD rid, TADDR flag)
     {
         WRAPPER_NO_CONTRACT;
@@ -388,6 +390,7 @@ public:
         TYPE existingValue = GetValueAt(pElement, &existingFlags, supportedFlags);
         SetValueAt(pElement, existingValue, existingFlags | flag);
     }
+#endif // DACCESS_COMPILE
 
     //
     // Try to store an association in a map. Will never throw or fail.
@@ -1884,7 +1887,6 @@ protected:
     ClassLoader *GetClassLoader();
     PTR_BaseDomain GetDomain();
     ReJitManager * GetReJitManager();
-    IAssemblySecurityDescriptor* GetSecurityDescriptor();
 
     mdFile GetModuleRef()
     {
@@ -3420,8 +3422,6 @@ private:
 #endif // defined(FEATURE_PREJIT)
 
 public:
-    ModuleSecurityDescriptor* m_pModuleSecurityDescriptor;
-
 #if !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
     PTR_Assembly GetNativeMetadataAssemblyRefFromCache(DWORD rid)
     {

@@ -663,7 +663,7 @@ SystemVClassificationType CorInfoType2UnixAmd64Classification(CorElementType eeT
     _ASSERTE((SystemVClassificationType)toSystemVAmd64ClassificationTypeMap[ELEMENT_TYPE_TYPEDBYREF] == SystemVClassificationTypeTypedReference);
     _ASSERTE((SystemVClassificationType)toSystemVAmd64ClassificationTypeMap[ELEMENT_TYPE_BYREF] == SystemVClassificationTypeIntegerByRef);
 
-    return (((int)eeType) < ELEMENT_TYPE_MAX) ? (toSystemVAmd64ClassificationTypeMap[eeType]) : SystemVClassificationTypeUnknown;
+    return (((unsigned)eeType) < ELEMENT_TYPE_MAX) ? (toSystemVAmd64ClassificationTypeMap[(unsigned)eeType]) : SystemVClassificationTypeUnknown;
 };
 
 #define SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES                    8 // Size of an eightbyte in bytes.
@@ -1671,12 +1671,13 @@ public:
     }
 
 #ifndef DACCESS_COMPILE
-    inline void SetNonVirtualSlotsArray(PTR_PCODE slots)
+    inline void SetNonVirtualSlotsArray(PCODE *slots)
     {
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(HasNonVirtualSlotsArray());
-        
-        RelativePointer<PTR_PCODE>::SetValueAtPtr(GetNonVirtualSlotsPtr(), slots);
+
+        RelativePointer<PCODE *> *pRelPtr = (RelativePointer<PCODE *> *)GetNonVirtualSlotsPtr();
+        pRelPtr->SetValue(slots);
     }
 
     inline void SetHasSingleNonVirtualSlot()
@@ -2456,7 +2457,9 @@ public:
         _ASSERTE(HasDispatchMapSlot());
 
         TADDR pSlot = GetMultipurposeSlotPtr(enum_flag_HasDispatchMapSlot, c_DispatchMapSlotOffsets);
-        RelativePointer<PTR_DispatchMap>::SetValueAtPtr(pSlot, pDispatchMap);
+
+        RelativePointer<DispatchMap *> *pRelPtr = (RelativePointer<DispatchMap *> *)pSlot;
+        pRelPtr->SetValue(pDispatchMap);
     }
 #endif // !DACCESS_COMPILE
 
@@ -3076,19 +3079,6 @@ public:
     //-------------------------------------------------------------------
     // SECURITY SEMANTICS 
     //
-
-
-    BOOL IsNoSecurityProperties()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return GetFlag(enum_flag_NoSecurityProperties);
-    }
-
-    void SetNoSecurityProperties()
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetFlag(enum_flag_NoSecurityProperties);
-    }
 
     void SetIsAsyncPinType()
     {
@@ -3935,8 +3925,7 @@ private:
 
         enum_flag_HasModuleDependencies     = 0x0080,
 
-        enum_flag_NoSecurityProperties      = 0x0100, // Class does not have security properties (that is,
-                                                      // GetClass()->GetSecurityProperties will return 0).
+        // enum_Unused                      = 0x0100,
 
         enum_flag_RequiresDispatchTokenFat  = 0x0200,
 

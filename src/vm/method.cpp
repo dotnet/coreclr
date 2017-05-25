@@ -13,7 +13,6 @@
 
 #include "common.h"
 #include "security.h"
-#include "verifier.hpp"
 #include "excep.h"
 #include "dbginterface.h"
 #include "ecall.h"
@@ -2493,162 +2492,11 @@ void MethodDesc::Reset()
     }
 
     if (HasNativeCodeSlot())
-        NativeCodeSlot::SetValueMaybeNullAtPtr(GetAddrOfNativeCodeSlot(), NULL);
+    {
+        RelativePointer<TADDR> *pRelPtr = (RelativePointer<TADDR> *)GetAddrOfNativeCodeSlot();
+        pRelPtr->SetValueMaybeNull(NULL);
+    }
     _ASSERTE(!HasNativeCode());
-}
-
-//*******************************************************************************
-DWORD MethodDesc::GetSecurityFlagsDuringPreStub()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END
-
-
-    DWORD dwMethDeclFlags       = 0;
-    DWORD dwMethNullDeclFlags   = 0;
-    DWORD dwClassDeclFlags      = 0;
-    DWORD dwClassNullDeclFlags  = 0;
-
-    if (IsInterceptedForDeclSecurity())
-    {
-        HRESULT hr;
-
-        BOOL fHasSuppressUnmanagedCodeAccessAttr = HasSuppressUnmanagedCodeAccessAttr();;
-
-        hr = Security::GetDeclarationFlags(GetMDImport(),
-                                           GetMemberDef(),
-                                           &dwMethDeclFlags,
-                                           &dwMethNullDeclFlags,
-                                           &fHasSuppressUnmanagedCodeAccessAttr);
-        if (FAILED(hr))
-            COMPlusThrowHR(hr);
-
-        // We only care about runtime actions, here.
-        // Don't add security interceptors for anything else!
-        dwMethDeclFlags     &= DECLSEC_RUNTIME_ACTIONS;
-        dwMethNullDeclFlags &= DECLSEC_RUNTIME_ACTIONS;
-    }
-
-    MethodTable *pMT = GetMethodTable();
-    if (!pMT->IsNoSecurityProperties())
-    {
-        PSecurityProperties pSecurityProperties = pMT->GetClass()->GetSecurityProperties();
-        _ASSERTE(pSecurityProperties);
-
-        dwClassDeclFlags    = pSecurityProperties->GetRuntimeActions();
-        dwClassNullDeclFlags= pSecurityProperties->GetNullRuntimeActions();
-    }
-    else
-    {
-        _ASSERTE( pMT->GetClass()->GetSecurityProperties() == NULL ||
-                  ( pMT->GetClass()->GetSecurityProperties()->GetRuntimeActions() == 0
-                    && pMT->GetClass()->GetSecurityProperties()->GetNullRuntimeActions() == 0 ) );
-    }
-
-
-    // Build up a set of flags to indicate the actions, if any,
-    // for which we will need to set up an interceptor.
-
-    // Add up the total runtime declarative actions so far.
-    DWORD dwSecurityFlags = dwMethDeclFlags | dwClassDeclFlags;
-
-    // Add in a declarative demand for NDirect.
-    // If this demand has been overridden by a declarative check
-    // on a class or method, then the bit won't change. If it's
-    // overridden by an empty check, then it will be reset by the
-    // subtraction logic below.
-    if (IsNDirect())
-    {
-        dwSecurityFlags |= DECLSEC_UNMNGD_ACCESS_DEMAND;
-    }
-
-    if (dwSecurityFlags)
-    {
-        // If we've found any declarative actions at this point,
-        // try to subtract any actions that are empty.
-
-            // Subtract out any empty declarative actions on the method.
-        dwSecurityFlags &= ~dwMethNullDeclFlags;
-
-        // Finally subtract out any empty declarative actions on the class,
-        // but only those actions that are not also declared by the method.
-        dwSecurityFlags &= ~(dwClassNullDeclFlags & ~dwMethDeclFlags);
-    }
-
-    return dwSecurityFlags;
-}
-
-//*******************************************************************************
-DWORD MethodDesc::GetSecurityFlagsDuringClassLoad(IMDInternalImport *pInternalImport,
-                                                  mdToken tkMethod,
-                                                  mdToken tkClass,
-                                                  DWORD *pdwClassDeclFlags,
-                                                  DWORD *pdwClassNullDeclFlags,
-                                                  DWORD *pdwMethDeclFlags,
-                                                  DWORD *pdwMethNullDeclFlags)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END
-
-    HRESULT hr;
-
-    hr = Security::GetDeclarationFlags(pInternalImport,
-                                               tkMethod,
-                                               pdwMethDeclFlags,
-                                               pdwMethNullDeclFlags);
-    if (FAILED(hr))
-          COMPlusThrowHR(hr);
-
-
-    if (!IsNilToken(tkClass) && (*pdwClassDeclFlags == 0xffffffff || *pdwClassNullDeclFlags == 0xffffffff))
-    {
-        hr = Security::GetDeclarationFlags(pInternalImport,
-                                           tkClass,
-                                           pdwClassDeclFlags,
-                                           pdwClassNullDeclFlags);
-        if (FAILED(hr))
-            COMPlusThrowHR(hr);
-
-    }
-
-    // Build up a set of flags to indicate the actions, if any,
-    // for which we will need to set up an interceptor.
-
-    // Add up the total runtime declarative actions so far.
-    DWORD dwSecurityFlags = *pdwMethDeclFlags | *pdwClassDeclFlags;
-
-    // Add in a declarative demand for NDirect.
-    // If this demand has been overridden by a declarative check
-    // on a class or method, then the bit won't change. If it's
-    // overridden by an empty check, then it will be reset by the
-    // subtraction logic below.
-    if (IsNDirect())
-    {
-        dwSecurityFlags |= DECLSEC_UNMNGD_ACCESS_DEMAND;
-    }
-
-    if (dwSecurityFlags)
-    {
-        // If we've found any declarative actions at this point,
-        // try to subtract any actions that are empty.
-
-            // Subtract out any empty declarative actions on the method.
-        dwSecurityFlags &= ~*pdwMethNullDeclFlags;
-
-        // Finally subtract out any empty declarative actions on the class,
-        // but only those actions that are not also declared by the method.
-        dwSecurityFlags &= ~(*pdwClassNullDeclFlags & ~*pdwMethDeclFlags);
-    }
-
-    return dwSecurityFlags;
 }
 
 //*******************************************************************************
@@ -4571,6 +4419,35 @@ c_CentralJumpCode = {
 };
 #include <poppack.h>
 
+#elif defined(_TARGET_ARM_)
+
+#include <pshpack1.h>
+struct CentralJumpCode {
+    BYTE m_ldrPC[4];
+    BYTE m_short[2];
+    MethodDescChunk *m_pChunk;
+    PCODE m_target;
+
+    inline void Setup(PCODE target, MethodDescChunk *pChunk) {
+        WRAPPER_NO_CONTRACT;
+
+        m_target = target;
+        m_pChunk = pChunk;
+    }
+
+    inline BOOL CheckTarget(TADDR target) {
+        WRAPPER_NO_CONTRACT;
+        return ((TADDR)m_target == target);
+    }
+}
+c_CentralJumpCode = {
+    { 0xDF, 0xF8, 0x08, 0xF0 },                         //   ldr pc, =pTarget
+    { 0x00, 0x00 },                                     //   short offset for alignment
+    0,                                                  //   pChunk
+    0                                                   //   pTarget
+};
+#include <poppack.h>
+
 #else
 #error Unsupported platform
 #endif
@@ -4580,9 +4457,91 @@ typedef DPTR(struct CentralJumpCode) PTR_CentralJumpCode;
 static_assert_no_msg((TEP_CENTRAL_JUMP_SIZE & 1) == 0);
 
 #define TEP_ENTRY_SIZE          4
+
+#ifdef _TARGET_ARM_
+
+#define TEP_HALF_ENTRY_SIZE (TEP_ENTRY_SIZE / 2)
+
+// Compact entry point on arm consists of two thumb instructions:
+//   mov r12, pc
+//   b CentralJumpCode
+
+// First instruction 0x46fc
+#define TEP_ENTRY_INSTR1_BYTE1 0xFC
+#define TEP_ENTRY_INSTR1_BYTE2 0x46
+
+// Mask for unconditional branch opcode
+#define TEP_ENTRY_INSTR2_MASK1 0xE0
+
+// Mask for opcode
+#define TEP_ENTRY_INSTR2_MASK2 0xF8
+
+// Bit used for ARM to identify compact entry points
+#define COMPACT_ENTRY_ARM_CODE 0x2
+
+/* static */ int MethodDescChunk::GetCompactEntryPointMaxCount ()
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    return MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB / TEP_ENTRY_SIZE;
+}
+
+// Get offset from the start of current compact entry point to the CentralJumpCode
+static uint16_t DecodeOffsetFromBranchToCentralJump (uint16_t instr)
+{
+    int16_t offset = decodeUnconditionalBranchThumb ((LPBYTE) &instr);
+
+    offset += PC_REG_RELATIVE_OFFSET + TEP_HALF_ENTRY_SIZE;
+
+    _ASSERTE (offset >= TEP_ENTRY_SIZE && (offset % TEP_ENTRY_SIZE == 0));
+
+    return (uint16_t) offset;
+}
+
+#ifndef DACCESS_COMPILE
+
+// Encode branch instruction to central jump for current compact entry point
+static uint16_t EncodeBranchToCentralJump (int16_t offset)
+{
+    _ASSERTE (offset >= 0 && (offset % TEP_ENTRY_SIZE == 0));
+
+    offset += TEP_HALF_ENTRY_SIZE - PC_REG_RELATIVE_OFFSET;
+
+    uint16_t instr;
+    emitUnconditionalBranchThumb ((LPBYTE) &instr, offset);
+
+    return instr;
+}
+
+#endif // DACCESS_COMPILE
+
+#else // _TARGET_ARM_
+
 #define TEP_MAX_BEFORE_INDEX    (1 + (127 / TEP_ENTRY_SIZE))
 #define TEP_MAX_BLOCK_INDEX     (TEP_MAX_BEFORE_INDEX + (128 - TEP_CENTRAL_JUMP_SIZE) / TEP_ENTRY_SIZE)
 #define TEP_FULL_BLOCK_SIZE     (TEP_MAX_BLOCK_INDEX * TEP_ENTRY_SIZE + TEP_CENTRAL_JUMP_SIZE)
+
+#endif // _TARGET_ARM_
+
+BOOL MethodDescChunk::IsCompactEntryPointAtAddress(PCODE addr)
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+
+    // Compact entrypoints start at odd addresses
+    return (addr & 1) != 0;
+
+#elif defined(_TARGET_ARM_)
+
+    // Compact entrypoints start at odd addresses (thumb) with second bit set to 1
+    uint8_t compactEntryPointMask = THUMB_CODE | COMPACT_ENTRY_ARM_CODE;
+    return (addr & compactEntryPointMask) == compactEntryPointMask;
+
+#else
+    #error Unsupported platform
+#endif
+}
 
 //*******************************************************************************
 /* static */ MethodDesc* MethodDescChunk::GetMethodDescFromCompactEntryPoint(PCODE addr, BOOL fSpeculative /*=FALSE*/)
@@ -4597,17 +4556,38 @@ static_assert_no_msg((TEP_CENTRAL_JUMP_SIZE & 1) == 0);
     // Always do consistency check in debug
     if (fSpeculative INDEBUG(|| TRUE))
     {
+#ifdef _TARGET_ARM_
+        if (!IsCompactEntryPointAtAddress(addr))
+#else // _TARGET_ARM_
         if ((addr & 3) != 1 ||
             *PTR_BYTE(addr) != X86_INSTR_MOV_AL ||
             *PTR_BYTE(addr+2) != X86_INSTR_JMP_REL8)
+#endif // _TARGET_ARM_
         {
             if (fSpeculative) return NULL;
             _ASSERTE(!"Unexpected code in temporary entrypoint");
         }
     }
 
+#ifdef _TARGET_ARM_
+
+    // On ARM compact entry points are thumb
+    _ASSERTE ((addr & THUMB_CODE) != 0);
+    addr = addr - THUMB_CODE;
+
+    // Get offset for CentralJumpCode from current compact entry point
+    PTR_UINT16 pBranchInstr = (PTR_UINT16(addr)) + 1;
+    uint16_t offset = DecodeOffsetFromBranchToCentralJump (*pBranchInstr);
+
+    TADDR centralJump = addr + offset;
+    int index = (centralJump - addr - TEP_ENTRY_SIZE) / TEP_ENTRY_SIZE;
+
+#else // _TARGET_ARM_
+
     int index = *PTR_BYTE(addr+1);
     TADDR centralJump = addr + 4 + *PTR_SBYTE(addr+3);
+
+#endif // _TARGET_ARM_
 
     CentralJumpCode* pCentralJumpCode = PTR_CentralJumpCode(centralJump);
 
@@ -4625,10 +4605,42 @@ static_assert_no_msg((TEP_CENTRAL_JUMP_SIZE & 1) == 0);
             }
         }
 
+#ifdef _TARGET_ARM_
+
+        _ASSERTE_IMPL(pCentralJumpCode->CheckTarget(GetPreStubCompactARMEntryPoint()));
+
+#else // _TARGET_ARM_
+
         _ASSERTE_IMPL(pCentralJumpCode->CheckTarget(GetPreStubEntryPoint()));
+
+#endif // _TARGET_ARM_
     }
 
+#ifdef _TARGET_ARM_
+    // Go through all MethodDesc in MethodDescChunk and find the one with the required index
+    PTR_MethodDescChunk pChunk = *((DPTR(PTR_MethodDescChunk))(centralJump + offsetof(CentralJumpCode, m_pChunk)));
+    TADDR pMD = PTR_HOST_TO_TADDR (pChunk->GetFirstMethodDesc ());
+
+    _ASSERTE (index >= 0 && index < ((int) pChunk->GetCount ()));
+
+    index = ((int) pChunk->GetCount ()) - 1 - index;
+
+    SIZE_T totalSize = 0;
+    int curIndex = 0;
+
+    while (index != curIndex)
+    {
+        SIZE_T sizeCur = (PTR_MethodDesc (pMD))->SizeOf ();
+        totalSize += sizeCur;
+
+        pMD += sizeCur;
+        ++curIndex;
+    }
+
+    return PTR_MethodDesc (pMD);
+#else // _TARGET_ARM_
     return PTR_MethodDesc((TADDR)pCentralJumpCode->m_pBaseMD + index * MethodDesc::ALIGNMENT);
+#endif // _TARGET_ARM_
 }
 
 //*******************************************************************************
@@ -4636,11 +4648,19 @@ SIZE_T MethodDescChunk::SizeOfCompactEntryPoints(int count)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
+#ifdef _TARGET_ARM_
+
+    return COMPACT_ENTRY_ARM_CODE + count * TEP_ENTRY_SIZE + TEP_CENTRAL_JUMP_SIZE;
+
+#else // _TARGET_ARM_
+
     int fullBlocks = count / TEP_MAX_BLOCK_INDEX;
     int remainder = count % TEP_MAX_BLOCK_INDEX;
 
     return 1 + (fullBlocks * TEP_FULL_BLOCK_SIZE) +
         (remainder * TEP_ENTRY_SIZE) + ((remainder != 0) ? TEP_CENTRAL_JUMP_SIZE : 0);
+
+#endif // _TARGET_ARM_
 }
 
 #ifndef DACCESS_COMPILE
@@ -4657,16 +4677,37 @@ TADDR MethodDescChunk::AllocateCompactEntryPoints(LoaderAllocator *pLoaderAlloca
 
     TADDR temporaryEntryPoints = (TADDR)pamTracker->Track(pLoaderAllocator->GetPrecodeHeap()->AllocAlignedMem(size, sizeof(TADDR)));
 
+#ifdef _TARGET_ARM_
+    BYTE* p = (BYTE*)temporaryEntryPoints + COMPACT_ENTRY_ARM_CODE;
+    int relOffset        = count * TEP_ENTRY_SIZE - TEP_ENTRY_SIZE; // relative offset for the short jump
+
+    _ASSERTE (relOffset < MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB);
+#else // _TARGET_ARM_
     // make the temporary entrypoints unaligned, so they are easy to identify
     BYTE* p = (BYTE*)temporaryEntryPoints + 1;
+    int indexInBlock     = TEP_MAX_BLOCK_INDEX;         // recompute relOffset in first iteration
+    int relOffset        = 0;                           // relative offset for the short jump
+#endif // _TARGET_ARM_
 
-    int indexInBlock     = TEP_MAX_BLOCK_INDEX; // recompute relOffset in first iteration
-    int relOffset        = 0;                   // relative offset for the short jump
     MethodDesc * pBaseMD = 0;                   // index of the start of the block
 
     MethodDesc * pMD = GetFirstMethodDesc();
     for (int index = 0; index < count; index++)
     {
+#ifdef _TARGET_ARM_
+
+        uint8_t *pMovInstrByte1 = (uint8_t *)p;
+        uint8_t *pMovInstrByte2 = (uint8_t *)p+1;
+        uint16_t *pBranchInstr = ((uint16_t *)p)+1;
+
+        *pMovInstrByte1 = TEP_ENTRY_INSTR1_BYTE1;
+        *pMovInstrByte2 = TEP_ENTRY_INSTR1_BYTE2;
+        *pBranchInstr = EncodeBranchToCentralJump ((int16_t) relOffset);
+
+        p += TEP_ENTRY_SIZE;
+
+#else // _TARGET_ARM_
+
         if (indexInBlock == TEP_MAX_BLOCK_INDEX)
         {
             relOffset = (min(count - index, TEP_MAX_BEFORE_INDEX) - 1) * TEP_ENTRY_SIZE;
@@ -4698,13 +4739,27 @@ TADDR MethodDescChunk::AllocateCompactEntryPoints(LoaderAllocator *pLoaderAlloca
             relOffset -= TEP_CENTRAL_JUMP_SIZE;
         }
 
-        relOffset -= TEP_ENTRY_SIZE;
         indexInBlock++;
 
+#endif // _TARGET_ARM_
+
+        relOffset -= TEP_ENTRY_SIZE;
         pMD = (MethodDesc *)((BYTE *)pMD + pMD->SizeOf());
     }
 
+#ifdef _TARGET_ARM_
+
+    CentralJumpCode* pCode = (CentralJumpCode*)p;
+    memcpy(pCode, &c_CentralJumpCode, TEP_CENTRAL_JUMP_SIZE);
+    pCode->Setup (GetPreStubCompactARMEntryPoint(), this);
+
+    _ASSERTE(p + TEP_CENTRAL_JUMP_SIZE == (BYTE*)temporaryEntryPoints + size);
+
+#else // _TARGET_ARM_
+
     _ASSERTE(p == (BYTE*)temporaryEntryPoints + size);
+
+#endif // _TARGET_ARM_
 
     ClrFlushInstructionCache((LPVOID)temporaryEntryPoints, size);
 
@@ -4725,11 +4780,19 @@ PCODE MethodDescChunk::GetTemporaryEntryPoint(int index)
 #ifdef HAS_COMPACT_ENTRYPOINTS
     if (HasCompactEntryPoints())
     {
+#ifdef _TARGET_ARM_
+
+        return GetTemporaryEntryPoints() + COMPACT_ENTRY_ARM_CODE + THUMB_CODE + index * TEP_ENTRY_SIZE;
+
+#else // _TARGET_ARM_
+
         int fullBlocks = index / TEP_MAX_BLOCK_INDEX;
         int remainder = index % TEP_MAX_BLOCK_INDEX;
 
         return GetTemporaryEntryPoints() + 1 + (fullBlocks * TEP_FULL_BLOCK_SIZE) +
             (remainder * TEP_ENTRY_SIZE) + ((remainder >= TEP_MAX_BEFORE_INDEX) ? TEP_CENTRAL_JUMP_SIZE : 0);
+
+#endif // _TARGET_ARM_
     }
 #endif // HAS_COMPACT_ENTRYPOINTS
 

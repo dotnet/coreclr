@@ -255,7 +255,8 @@ public:
     unsigned char lvHasILStoreOp : 1;         // there is at least one STLOC or STARG on this local
     unsigned char lvHasMultipleILStoreOp : 1; // there is more than one STLOC on this local
 
-    unsigned char lvIsTemp : 1; // Short-lifetime compiler temp
+    unsigned char lvIsTemp : 1; // Short-lifetime compiler temp (if lvIsParam is false), or implicit byref parameter
+                                // (if lvIsParam is true)
 #if OPT_BOOL_OPS
     unsigned char lvIsBoolean : 1; // set if variable is boolean
 #endif
@@ -286,7 +287,9 @@ public:
                                // checks)
     unsigned char lvIsUnsafeBuffer : 1; // Does this contain an unsafe buffer requiring buffer overflow security checks?
     unsigned char lvPromoted : 1; // True when this local is a promoted struct, a normed struct, or a "split" long on a
-                                  // 32-bit target.
+                                  // 32-bit target.  For implicit byref parameters, this gets hijacked between
+                                  // fgRetypeImplicitByRefArgs and fgMarkDemotedImplicitByRefArgs to indicate whether
+                                  // references to the arg are being rewritten as references to a promoted shadow local.
     unsigned char lvIsStructField : 1;          // Is this local var a field of a promoted struct local?
     unsigned char lvContainsFloatingFields : 1; // Does this struct contains floating point fields?
     unsigned char lvOverlappingFields : 1;      // True when we have a struct with possibly overlapping fields
@@ -332,7 +335,9 @@ public:
 
     union {
         unsigned lvFieldLclStart; // The index of the local var representing the first field in the promoted struct
-                                  // local.
+                                  // local.  For implicit byref parameters, this gets hijacked between
+                                  // fgRetypeImplicitByRefArgs and fgMarkDemotedImplicitByRefArgs to point to the
+                                  // struct local created to model the parameter's struct promotion, if any.
         unsigned lvParentLcl; // The index of the local var representing the parent (i.e. the promoted struct local).
                               // Valid on promoted struct local fields.
     };
@@ -386,10 +391,10 @@ public:
 #endif
     }
 
-    void lvSetIsHfaRegArg()
+    void lvSetIsHfaRegArg(bool value = true)
     {
 #ifdef FEATURE_HFA
-        _lvIsHfaRegArg = true;
+        _lvIsHfaRegArg = value;
 #endif
     }
 
@@ -656,11 +661,16 @@ public:
 
     regMaskSmall lvPrefReg; // set of regs it prefers to live in
 
-    unsigned short lvVarIndex;  // variable tracking index
-    unsigned short lvRefCnt;    // unweighted (real) reference count
-    unsigned       lvRefCntWtd; // weighted reference count
-    int            lvStkOffs;   // stack offset of home
-    unsigned       lvExactSize; // (exact) size of the type in bytes
+    unsigned short lvVarIndex; // variable tracking index
+    unsigned short lvRefCnt;   // unweighted (real) reference count.  For implicit by reference
+                               // parameters, this gets hijacked from fgMarkImplicitByRefArgs
+                               // through fgMarkDemotedImplicitByRefArgs, to provide a static
+                               // appearance count (computed during address-exposed analysis)
+                               // that fgMakeOutgoingStructArgCopy consults during global morph
+                               // to determine if eliding its copy is legal.
+    unsigned lvRefCntWtd;      // weighted reference count
+    int      lvStkOffs;        // stack offset of home
+    unsigned lvExactSize;      // (exact) size of the type in bytes
 
     // Is this a promoted struct?
     // This method returns true only for structs (including SIMD structs), not for
@@ -713,6 +723,8 @@ public:
     typeInfo lvVerTypeInfo; // type info needed for verification
 
     CORINFO_CLASS_HANDLE lvClassHnd; // class handle for the local, or null if not known
+
+    CORINFO_FIELD_HANDLE lvFieldHnd; // field handle for promoted struct fields
 
     BYTE* lvGcLayout; // GC layout info for structs
 
@@ -1218,13 +1230,13 @@ struct fgArgTabEntry
     regNumber otherRegNum; // The (second) register to use when passing this argument.
 
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-#elif defined(_TARGET_X86_)
+#elif !defined(_TARGET_64BIT_)
     __declspec(property(get = getIsStruct)) bool isStruct;
     bool getIsStruct()
     {
         return varTypeIsStruct(node);
     }
-#endif // _TARGET_X86_
+#endif // !_TARGET_64BIT_
 
 #ifdef _TARGET_ARM_
     void SetIsHfaRegArg(bool hfaRegArg)
@@ -2668,7 +2680,7 @@ public:
         LclVarDsc* varDsc = &(lvaTable[varNum]);
         if (varDsc->lvIsParam && varDsc->lvIsTemp)
         {
-            assert((varDsc->lvType == TYP_STRUCT) || (varDsc->lvType == TYP_BYREF));
+            assert(varTypeIsStruct(varDsc) || (varDsc->lvType == TYP_BYREF));
             return true;
         }
 #endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
@@ -3187,7 +3199,7 @@ private:
     static fgWalkPreFn impFindValueClasses;
     void impSpillLclRefs(ssize_t lclNum);
 
-    BasicBlock* impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_HANDLE clsHnd);
+    BasicBlock* impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_HANDLE clsHnd, bool isSingleBlockFilter);
 
     void impImportBlockCode(BasicBlock* block);
 
@@ -4719,7 +4731,7 @@ private:
                                          const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structDescPtr));
 
     void fgFixupStructReturn(GenTreePtr call);
-    GenTreePtr fgMorphLocalVar(GenTreePtr tree);
+    GenTreePtr fgMorphLocalVar(GenTreePtr tree, bool forceRemorph);
     bool fgAddrCouldBeNull(GenTreePtr addr);
     GenTreePtr fgMorphField(GenTreePtr tree, MorphAddrContext* mac);
     bool fgCanFastTailCall(GenTreeCall* call);
@@ -4865,8 +4877,21 @@ private:
     void         fgPromoteStructs();
     fgWalkResult fgMorphStructField(GenTreePtr tree, fgWalkData* fgWalkPre);
     fgWalkResult fgMorphLocalField(GenTreePtr tree, fgWalkData* fgWalkPre);
+
+    // Identify which parameters are implicit byrefs, and flag their LclVarDscs.
     void fgMarkImplicitByRefArgs();
-    bool fgMorphImplicitByRefArgs(GenTree** pTree, fgWalkData* fgWalkPre);
+
+    // Change implicit byrefs' types from struct to pointer, and for any that were
+    // promoted, create new promoted struct temps.
+    void fgRetypeImplicitByRefArgs();
+
+    // Rewrite appearances of implicit byrefs (manifest the implied additional level of indirection).
+    bool fgMorphImplicitByRefArgs(GenTreePtr tree);
+    GenTreePtr fgMorphImplicitByRefArgs(GenTreePtr tree, bool isAddr);
+
+    // Clear up annotations for any struct promotion temps created for implicit byrefs.
+    void fgMarkDemotedImplicitByRefArgs();
+
     static fgWalkPreFn  fgMarkAddrTakenLocalsPreCB;
     static fgWalkPostFn fgMarkAddrTakenLocalsPostCB;
     void                fgMarkAddressExposedLocals();
@@ -5005,7 +5030,8 @@ protected:
                                   unsigned          lnum,
                                   LoopHoistContext* hoistCtxt,
                                   bool*             firstBlockAndBeforeSideEffect,
-                                  bool*             pHoistable);
+                                  bool*             pHoistable,
+                                  bool*             pCctorDependent);
 
     // Performs the hoisting 'tree' into the PreHeader for loop 'lnum'
     void optHoistCandidate(GenTreePtr tree, unsigned lnum, LoopHoistContext* hoistCtxt);
@@ -5492,11 +5518,11 @@ protected:
 
     typedef SimplerHashTable<GenTreePtr, PtrKeyFuncs<GenTree>, GenTreePtr, JitSimplerHashBehavior> NodeToNodeMap;
 
-    NodeToNodeMap* optCseArrLenMap; // Maps array length nodes to ancestor compares that should be
-                                    // re-numbered with the array length to improve range check elimination
+    NodeToNodeMap* optCseCheckedBoundMap; // Maps bound nodes to ancestor compares that should be
+                                          // re-numbered with the bound to improve range check elimination
 
-    // Given a compare, look for a cse candidate arrlen feeding it and add a map entry if found.
-    void optCseUpdateArrLenMap(GenTreePtr compare);
+    // Given a compare, look for a cse candidate checked bound feeding it and add a map entry if found.
+    void optCseUpdateCheckedBoundMap(GenTreePtr compare);
 
     void optCSEstop();
 
@@ -5725,8 +5751,8 @@ public:
         O1K_INVALID,
         O1K_LCLVAR,
         O1K_ARR_BND,
-        O1K_ARRLEN_OPER_BND,
-        O1K_ARRLEN_LOOP_BND,
+        O1K_BOUND_OPER_BND,
+        O1K_BOUND_LOOP_BND,
         O1K_CONSTANT_LOOP_BND,
         O1K_EXACT_TYPE,
         O1K_SUBTYPE,
@@ -5791,13 +5817,13 @@ public:
             };
         } op2;
 
-        bool IsArrLenArithBound()
+        bool IsCheckedBoundArithBound()
         {
-            return ((assertionKind == OAK_EQUAL || assertionKind == OAK_NOT_EQUAL) && op1.kind == O1K_ARRLEN_OPER_BND);
+            return ((assertionKind == OAK_EQUAL || assertionKind == OAK_NOT_EQUAL) && op1.kind == O1K_BOUND_OPER_BND);
         }
-        bool IsArrLenBound()
+        bool IsCheckedBoundBound()
         {
-            return ((assertionKind == OAK_EQUAL || assertionKind == OAK_NOT_EQUAL) && op1.kind == O1K_ARRLEN_LOOP_BND);
+            return ((assertionKind == OAK_EQUAL || assertionKind == OAK_NOT_EQUAL) && op1.kind == O1K_BOUND_LOOP_BND);
         }
         bool IsConstantBound()
         {
@@ -9070,6 +9096,10 @@ public:
 
     // Is the compilation in a full trust context?
     bool compIsFullTrust();
+
+#if MEASURE_NOWAY
+    void RecordNowayAssert(const char* filename, unsigned line, const char* condStr);
+#endif // MEASURE_NOWAY
 
 #ifndef FEATURE_TRACELOGGING
     // Should we actually fire the noway assert body and the exception handler?

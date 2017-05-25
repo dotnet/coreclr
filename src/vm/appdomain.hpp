@@ -60,7 +60,6 @@ class EEMarshalingData;
 class Context;
 class GlobalStringLiteralMap;
 class StringLiteralMap;
-struct SecurityContext;
 class MngStdInterfacesInfo;
 class DomainModule;
 class DomainAssembly;
@@ -68,10 +67,7 @@ struct InteropMethodTableData;
 class LoadLevelLimiter;
 class UMEntryThunkCache;
 class TypeEquivalenceHashTable;
-class IApplicationSecurityDescriptor;
 class StringArrayList;
-
-typedef VPTR(IApplicationSecurityDescriptor) PTR_IApplicationSecurityDescriptor;
 
 extern INT64 g_PauseTime;  // Total time in millisecond the CLR has been paused
 
@@ -1244,7 +1240,14 @@ public:
     OBJECTHANDLE CreateTypedHandle(OBJECTREF object, int type)
     {
         WRAPPER_NO_CONTRACT;
-        return m_handleStore->CreateHandleOfType(OBJECTREFToObject(object), type);
+
+        OBJECTHANDLE hnd = m_handleStore->CreateHandleOfType(OBJECTREFToObject(object), type);
+        if (!hnd)
+        {
+            COMPlusThrowOM();
+        }
+
+        return hnd;
     }
 
     OBJECTHANDLE CreateHandle(OBJECTREF object)
@@ -1317,7 +1320,7 @@ public:
     {
         CONTRACTL
         {
-            THROWS;
+            NOTHROW;
             GC_NOTRIGGER;
             MODE_COOPERATIVE;
         }
@@ -1337,13 +1340,19 @@ public:
     {
         CONTRACTL
         {
-            THROWS;
+            NOTHROW;
             GC_NOTRIGGER;
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
 
-        return m_handleStore->CreateDependentHandle(OBJECTREFToObject(primary), OBJECTREFToObject(secondary));
+        OBJECTHANDLE hnd = m_handleStore->CreateDependentHandle(OBJECTREFToObject(primary), OBJECTREFToObject(secondary));
+        if (!hnd)
+        {
+            COMPlusThrowOM();
+        }
+
+        return hnd;
     }
 #endif // DACCESS_COMPILE && !CROSSGEN_COMPILE
 
@@ -1970,11 +1979,6 @@ public:
 
     // creates only unamaged part
     static void CreateUnmanagedObject(AppDomainCreationHolder<AppDomain>& result);
-    inline void SetAppDomainManagerInfo(LPCWSTR szAssemblyName, LPCWSTR szTypeName, EInitializeNewDomainFlags dwInitializeDomainFlags);
-    inline BOOL HasAppDomainManagerInfo();
-    inline LPCWSTR GetAppDomainManagerAsm();
-    inline LPCWSTR GetAppDomainManagerType();
-    inline EInitializeNewDomainFlags GetAppDomainManagerInitializeNewDomainFlags();
 
 
 #if defined(FEATURE_COMINTEROP)
@@ -2354,8 +2358,7 @@ public:
 
     Assembly *LoadAssembly(AssemblySpec* pIdentity,
                            PEAssembly *pFile,
-                           FileLoadLevel targetLevel,
-                           AssemblyLoadSecurity *pLoadSecurity = NULL);
+                           FileLoadLevel targetLevel);
 
     // this function does not provide caching, you must use LoadDomainAssembly
     // unless the call is guaranteed to succeed or you don't need the caching 
@@ -2365,13 +2368,11 @@ public:
     //which is violating our internal assumptions
     DomainAssembly *LoadDomainAssemblyInternal( AssemblySpec* pIdentity,
                                                 PEAssembly *pFile,
-                                                FileLoadLevel targetLevel,
-                                                AssemblyLoadSecurity *pLoadSecurity = NULL);
+                                                FileLoadLevel targetLevel);
 
     DomainAssembly *LoadDomainAssembly( AssemblySpec* pIdentity,
                                         PEAssembly *pFile,
-                                        FileLoadLevel targetLevel,
-                                        AssemblyLoadSecurity *pLoadSecurity = NULL);
+                                        FileLoadLevel targetLevel);
 
 
     CHECK CheckValidModule(Module *pModule);
@@ -2438,25 +2439,8 @@ public:
         SHARE_POLICY_DEFAULT = SHARE_POLICY_NEVER,
     };
 
-    void SetSharePolicy(SharePolicy policy);
     SharePolicy GetSharePolicy();
-    BOOL ReduceSharePolicyFromAlways();
-
-    //****************************************************************************************
-    // Determines if the image is to be loaded into the shared assembly or an individual
-    // appdomains.
 #endif // FEATURE_LOADER_OPTIMIZATION
-
-    BOOL HasSetSecurityPolicy();
-
-    FORCEINLINE IApplicationSecurityDescriptor* GetSecurityDescriptor()
-    {
-        LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
-        return static_cast<IApplicationSecurityDescriptor*>(m_pSecDesc);
-    }
-
-    void CreateSecurityDescriptor();
 
     //****************************************************************************************
     //
@@ -2486,7 +2470,6 @@ public:
         BOOL fThrowOnFileNotFound,
         BOOL fRaisePrebindEvents,
         StackCrawlMark *pCallerStackMark = NULL,
-        AssemblyLoadSecurity *pLoadSecurity = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
 
     HRESULT BindAssemblySpecForHostedBinder(
@@ -3352,8 +3335,6 @@ private:
 
     void InitializeDefaultDomainManager ();
 
-
-    void InitializeDefaultDomainSecurity();
 public:
 
 protected:
@@ -3576,8 +3557,6 @@ private:
     // by one. For it to hit zero an explicit close must have happened.
     LONG        m_cRef;                    // Ref count.
 
-    PTR_IApplicationSecurityDescriptor m_pSecDesc;  // Application Security Descriptor
-
     OBJECTHANDLE    m_ExposedObject;
 
 #ifdef FEATURE_LOADER_OPTIMIZATION
@@ -3765,16 +3744,9 @@ public:
         DISABLE_TRANSPARENCY_ENFORCEMENT= 0x800000, // Disable enforcement of security transparency rules
     };
 
-    SecurityContext *m_pSecContext;
-
     AssemblySpecBindingCache  m_AssemblyCache;
     DomainAssemblyCache       m_UnmanagedCache;
     size_t                    m_MemoryPressure;
-
-    SString m_AppDomainManagerAssembly;
-    SString m_AppDomainManagerType;
-    BOOL    m_fAppDomainManagerSetInConfig;
-    EInitializeNewDomainFlags m_dwAppDomainManagerInitializeDomainFlags;
 
     ArrayList m_NativeDllSearchDirectories;
     BOOL m_ReversePInvokeCanEnter;
@@ -3805,7 +3777,6 @@ public:
     }
 
     BOOL IsImageFromTrustedPath(PEImage* pImage);
-    BOOL IsImageFullyTrusted(PEImage* pImage);
 
 #ifdef FEATURE_TYPEEQUIVALENCE
 private:
@@ -5195,5 +5166,8 @@ public:
     }
 };
 #endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
+
+#define INVALID_APPDOMAIN_ID ((DWORD)-1)
+#define CURRENT_APPDOMAIN_ID ((ADID)(DWORD)0)
 
 #endif

@@ -263,9 +263,6 @@ CHECK PEDecoder::CheckNTHeaders() const
     CHECK(CheckAligned((UINT)VAL32(pNT->OptionalHeader.FileAlignment), 512));
     CHECK(CheckAligned((UINT)VAL32(pNT->OptionalHeader.SectionAlignment), VAL32(pNT->OptionalHeader.FileAlignment)));
 
-    // INVESTIGATE: this doesn't seem to be necessary on Win64 - why??
-    //CHECK(CheckAligned((UINT)VAL32(pNT->OptionalHeader.SectionAlignment), OS_PAGE_SIZE));
-    CHECK(CheckAligned((UINT)VAL32(pNT->OptionalHeader.SectionAlignment), 0x1000)); // for base relocs logic
     CHECK(CheckAligned((UINT)VAL32(pNT->OptionalHeader.SizeOfImage), VAL32(pNT->OptionalHeader.SectionAlignment)));
     CHECK(CheckAligned((UINT)VAL32(pNT->OptionalHeader.SizeOfHeaders), VAL32(pNT->OptionalHeader.FileAlignment)));
 
@@ -441,6 +438,37 @@ CHECK PEDecoder::CheckSection(COUNT_T previousAddressEnd, COUNT_T addressStart, 
     CHECK(offsetSize <= alignedAddressSize);
 
     CHECK_OK;
+}
+
+BOOL PEDecoder::HasWriteableSections() const
+{
+    CONTRACT_CHECK
+    {
+        INSTANCE_CHECK;
+        PRECONDITION(CheckFormat());
+        NOTHROW;
+        GC_NOTRIGGER;
+        SUPPORTS_DAC;
+        SO_TOLERANT;
+    }
+    CONTRACT_CHECK_END;
+
+    PTR_IMAGE_SECTION_HEADER pSection = FindFirstSection(FindNTHeaders());
+    _ASSERTE(pSection != NULL);
+
+    PTR_IMAGE_SECTION_HEADER pSectionEnd = pSection + VAL16(FindNTHeaders()->FileHeader.NumberOfSections);
+
+    while (pSection < pSectionEnd)
+    {
+        if ((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_WRITE)) != 0)
+        {
+            return TRUE;
+        }
+
+        pSection++;
+    }
+
+    return FALSE;
 }
 
 CHECK PEDecoder::CheckDirectoryEntry(int entry, int forbiddenFlags, IsNullOK ok) const

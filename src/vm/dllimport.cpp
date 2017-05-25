@@ -5938,19 +5938,7 @@ HMODULE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pD
     //        The Binding Context can be null or an overridden TPA context
     if (pBindingContext == NULL)
     {
-        pBindingContext = nullptr;
-
-        // If the assembly does not have a binder associated with it explicitly, then check if it is
-        // a dynamic assembly, or not, since they can have a fallback load context associated with them.
-        if (pManifestFile->IsDynamic())
-        {
-            pBindingContext = pManifestFile->GetFallbackLoadContextBinder();
-        } 
-    }
-
-    // If we do not have any binder associated, then return to the default resolution mechanism.
-    if (pBindingContext == nullptr)
-    {
+        // If we do not have any binder associated, then return to the default resolution mechanism.
         return NULL;
     }    
 
@@ -6430,9 +6418,6 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
             //
             // With IL stubs, we don't have to do anything but ensure the DLL is loaded.
             //
-
-            if (!pMD->GetModule()->GetSecurityDescriptor()->CanCallUnmanagedCode())
-                Security::ThrowSecurityException(g_SecurityPermissionClassName, SPFLAGSUNMANAGEDCODE);
 
             if (!pMD->IsZapped())
             {

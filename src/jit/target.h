@@ -1357,6 +1357,13 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_WRITE_BARRIER        RBM_R1
 #endif
 
+  //In the ARM case, registers of write barrier use the normal argument registers.
+  #define REG_WRITE_BARRIER_SRC_BYREF    REG_ARG_1
+  #define RBM_WRITE_BARRIER_SRC_BYREF    RBM_ARG_1
+
+  #define REG_WRITE_BARRIER_DST_BYREF    REG_ARG_0
+  #define RBM_WRITE_BARRIER_DST_BYREF    RBM_ARG_0
+
   // GenericPInvokeCalliHelper VASigCookie Parameter 
   #define REG_PINVOKE_COOKIE_PARAM          REG_R4
   #define RBM_PINVOKE_COOKIE_PARAM          RBM_R4
@@ -1520,7 +1527,7 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
   #define FEATURE_MULTIREG_STRUCT_PROMOTE 1  // True when we want to promote fields of a multireg struct into registers
   #define FEATURE_FASTTAILCALL     1       // Tail calls made as epilog+jmp
-  #define FEATURE_TAILCALL_OPT     0       // opportunistic Tail calls (i.e. without ".tail" prefix) made as fast tail calls.
+  #define FEATURE_TAILCALL_OPT     1       // opportunistic Tail calls (i.e. without ".tail" prefix) made as fast tail calls.
   #define FEATURE_SET_FLAGS        1       // Set to true to force the JIT to mark the trees with GTF_SET_FLAGS when the flags need to be set
   #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register  
   #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register  
@@ -1573,7 +1580,7 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
 
   #define RBM_CALLEE_SAVED        (RBM_INT_CALLEE_SAVED | RBM_FLT_CALLEE_SAVED)
   #define RBM_CALLEE_TRASH        (RBM_INT_CALLEE_TRASH | RBM_FLT_CALLEE_TRASH)
-  #define RBM_CALLEE_TRASH_NOGC   (RBM_R12|RBM_R13|RBM_R14|RBM_R15)
+  #define RBM_CALLEE_TRASH_NOGC   (RBM_R12|RBM_R13|RBM_R14|RBM_R15|RBM_IP1)
   #define REG_DEFAULT_HELPER_CALL_TARGET REG_R12
 
   #define RBM_ALLINT              (RBM_INT_CALLEE_SAVED | RBM_INT_CALLEE_TRASH)
@@ -1950,7 +1957,7 @@ inline bool genIsValidFloatReg(regNumber reg)
     return reg >= REG_FP_FIRST && reg <= REG_FP_LAST;
 }
 
-#if defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+#ifdef _TARGET_ARM_
 
 /*****************************************************************************
  * Return true if the register is a valid floating point double register
@@ -1960,7 +1967,7 @@ inline bool genIsValidDoubleReg(regNumber reg)
     return genIsValidFloatReg(reg) && (((reg - REG_FP_FIRST) & 0x1) == 0);
 }
 
-#endif // defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+#endif // _TARGET_ARM_
 
 //-------------------------------------------------------------------------------------------
 // hasFixedRetBuffReg:

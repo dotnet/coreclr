@@ -305,6 +305,14 @@ void Lowering::TreeNodeInfoInitIndir(GenTreePtr indirTree)
         // This offset can't be contained in the ldr/str instruction, so we need an internal register
         info->internalIntCount = 1;
     }
+    else if (varTypeIsFloating(indirTree))
+    {
+        // TODO-ARM: We can narrow the condition where an internal register is really required.
+        //           For example, we don't need an internal regsiter where offset can be contained.
+
+        // For float ldr/str(vldr/vstr), we need an internal register to compute address.
+        info->internalIntCount = 1;
+    }
 }
 
 //------------------------------------------------------------------------
@@ -654,8 +662,13 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntr
         }
         else
         {
+#ifdef _TARGET_ARM64_
             // We could use a ldp/stp sequence so we need two internal registers
             argNode->gtLsraInfo.internalIntCount = 2;
+#else  // _TARGET_ARM_
+            // We could use a ldr/str sequence so we need a internal register
+            argNode->gtLsraInfo.internalIntCount = 1;
+#endif // _TARGET_ARM_
 
             if (putArgChild->OperGet() == GT_OBJ)
             {
@@ -784,15 +797,24 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
         if (blkNode->OperGet() == GT_STORE_OBJ)
         {
             // CopyObj
-            NYI_ARM("GT_STORE_OBJ is needed of write barriers implementation");
-
-#ifdef _TARGET_ARM64_
-
             // We don't need to materialize the struct size but we still need
             // a temporary register to perform the sequence of loads and stores.
             blkNode->gtLsraInfo.internalIntCount = 1;
 
+            if (size >= 2 * REGSIZE_BYTES)
+            {
+                // We will use ldp/stp to reduce code size and improve performance
+                // so we need to reserve an extra internal register
+                blkNode->gtLsraInfo.internalIntCount++;
+            }
+
+            // We can't use the special Write Barrier registers, so exclude them from the mask
+            regMaskTP internalIntCandidates = RBM_ALLINT & ~(RBM_WRITE_BARRIER_DST_BYREF | RBM_WRITE_BARRIER_SRC_BYREF);
+            blkNode->gtLsraInfo.setInternalCandidates(l, internalIntCandidates);
+
+            // If we have a dest address we want it in RBM_WRITE_BARRIER_DST_BYREF.
             dstAddr->gtLsraInfo.setSrcCandidates(l, RBM_WRITE_BARRIER_DST_BYREF);
+
             // If we have a source address we want it in REG_WRITE_BARRIER_SRC_BYREF.
             // Otherwise, if it is a local, codegen will put its address in REG_WRITE_BARRIER_SRC_BYREF,
             // which is killed by a StoreObj (and thus needn't be reserved).
@@ -800,8 +822,6 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
             {
                 srcAddrOrFill->gtLsraInfo.setSrcCandidates(l, RBM_WRITE_BARRIER_SRC_BYREF);
             }
-
-#endif // _TARGET_ARM64_
         }
         else
         {
@@ -824,7 +844,8 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
 
                 if (size >= 2 * REGSIZE_BYTES)
                 {
-                    // Use ldp/stp to reduce code size and improve performance
+                    // We will use ldp/stp to reduce code size and improve performance
+                    // so we need to reserve an extra internal register
                     internalIntCount++;
                 }
 

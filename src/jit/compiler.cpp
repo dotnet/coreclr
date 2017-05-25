@@ -1134,6 +1134,170 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     return useType;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//
+// MEASURE_NOWAY: code to measure and rank dynamic occurences of noway_assert.
+// (Just the appearances of noway_assert, whether the assert is true or false.)
+// This might help characterize the cost of noway_assert in non-DEBUG builds,
+// or determine which noway_assert should be simple DEBUG-only asserts.
+//
+///////////////////////////////////////////////////////////////////////////////
+
+#if MEASURE_NOWAY
+
+struct FileLine
+{
+    char*    m_file;
+    unsigned m_line;
+    char*    m_condStr;
+
+    FileLine() : m_file(nullptr), m_line(0), m_condStr(nullptr)
+    {
+    }
+
+    FileLine(const char* file, unsigned line, const char* condStr) : m_line(line)
+    {
+        size_t newSize = (strlen(file) + 1) * sizeof(char);
+        m_file         = (char*)HostAllocator::getHostAllocator()->Alloc(newSize);
+        strcpy_s(m_file, newSize, file);
+
+        newSize   = (strlen(condStr) + 1) * sizeof(char);
+        m_condStr = (char*)HostAllocator::getHostAllocator()->Alloc(newSize);
+        strcpy_s(m_condStr, newSize, condStr);
+    }
+
+    FileLine(const FileLine& other)
+    {
+        m_file    = other.m_file;
+        m_line    = other.m_line;
+        m_condStr = other.m_condStr;
+    }
+
+    // GetHashCode() and Equals() are needed by SimplerHashTable
+
+    static unsigned GetHashCode(FileLine fl)
+    {
+        assert(fl.m_file != nullptr);
+        unsigned code = fl.m_line;
+        for (const char* p = fl.m_file; *p != '\0'; p++)
+        {
+            code += *p;
+        }
+        // Could also add condStr.
+        return code;
+    }
+
+    static bool Equals(FileLine fl1, FileLine fl2)
+    {
+        return (fl1.m_line == fl2.m_line) && (0 == strcmp(fl1.m_file, fl2.m_file));
+    }
+};
+
+typedef SimplerHashTable<FileLine, FileLine, size_t, JitSimplerHashBehavior> FileLineToCountMap;
+FileLineToCountMap* NowayAssertMap;
+
+void Compiler::RecordNowayAssert(const char* filename, unsigned line, const char* condStr)
+{
+    if (NowayAssertMap == nullptr)
+    {
+        NowayAssertMap = new (HostAllocator::getHostAllocator()) FileLineToCountMap(HostAllocator::getHostAllocator());
+    }
+    FileLine fl(filename, line, condStr);
+    size_t*  pCount = NowayAssertMap->LookupPointer(fl);
+    if (pCount == nullptr)
+    {
+        NowayAssertMap->Set(fl, 1);
+    }
+    else
+    {
+        ++(*pCount);
+    }
+}
+
+void RecordNowayAssertGlobal(const char* filename, unsigned line, const char* condStr)
+{
+    if ((JitConfig.JitMeasureNowayAssert() == 1) && (JitTls::GetCompiler() != nullptr))
+    {
+        JitTls::GetCompiler()->RecordNowayAssert(filename, line, condStr);
+    }
+}
+
+struct NowayAssertCountMap
+{
+    size_t   count;
+    FileLine fl;
+
+    NowayAssertCountMap() : count(0)
+    {
+    }
+
+    static int __cdecl compare(const void* elem1, const void* elem2)
+    {
+        NowayAssertCountMap* e1 = (NowayAssertCountMap*)elem1;
+        NowayAssertCountMap* e2 = (NowayAssertCountMap*)elem2;
+        return (int)((ssize_t)e2->count - (ssize_t)e1->count); // sort in descending order
+    }
+};
+
+void DisplayNowayAssertMap()
+{
+    if (NowayAssertMap != nullptr)
+    {
+        FILE* fout;
+
+        LPCWSTR strJitMeasureNowayAssertFile = JitConfig.JitMeasureNowayAssertFile();
+        if (strJitMeasureNowayAssertFile != nullptr)
+        {
+            fout = _wfopen(strJitMeasureNowayAssertFile, W("a"));
+            if (fout == nullptr)
+            {
+                fprintf(jitstdout, "Failed to open JitMeasureNowayAssertFile \"%ws\"\n", strJitMeasureNowayAssertFile);
+                return;
+            }
+        }
+        else
+        {
+            fout = jitstdout;
+        }
+
+        // Iterate noway assert map, create sorted table by occurrence, dump it.
+        unsigned             count = NowayAssertMap->GetCount();
+        NowayAssertCountMap* nacp  = new NowayAssertCountMap[count];
+        unsigned             i     = 0;
+
+        for (FileLineToCountMap::KeyIterator iter = NowayAssertMap->Begin(), end = NowayAssertMap->End();
+             !iter.Equal(end); ++iter)
+        {
+            nacp[i].count = iter.GetValue();
+            nacp[i].fl    = iter.Get();
+            ++i;
+        }
+
+        qsort(nacp, count, sizeof(nacp[0]), NowayAssertCountMap::compare);
+
+        if (fout == jitstdout)
+        {
+            // Don't output the header if writing to a file, since we'll be appending to existing dumps in that case.
+            fprintf(fout, "\nnoway_assert counts:\n");
+            fprintf(fout, "count, file, line, text\n");
+        }
+
+        for (i = 0; i < count; i++)
+        {
+            fprintf(fout, "%u, %s, %u, \"%s\"\n", nacp[i].count, nacp[i].fl.m_file, nacp[i].fl.m_line,
+                    nacp[i].fl.m_condStr);
+        }
+
+        if (fout != jitstdout)
+        {
+            fclose(fout);
+            fout = nullptr;
+        }
+    }
+}
+
+#endif // MEASURE_NOWAY
+
 /*****************************************************************************
  * variables to keep track of how many iterations we go in a dataflow pass
  */
@@ -1221,6 +1385,10 @@ void Compiler::compShutdown()
         s_pAltJitExcludeAssembliesList = nullptr;
     }
 #endif // ALT_JIT
+
+#if MEASURE_NOWAY
+    DisplayNowayAssertMap();
+#endif // MEASURE_NOWAY
 
     ArenaAllocator::shutdown();
 
@@ -2414,6 +2582,7 @@ bool Compiler::compShouldThrowOnNoway(
 #ifdef FEATURE_TRACELOGGING
     compJitTelemetry.NotifyNowayAssert(filename, line);
 #endif
+
     // In min opts, we don't want the noway assert to go through the exception
     // path. Instead we want it to just silently go through codegen for
     // compat reasons.
@@ -8118,7 +8287,7 @@ void dumpConvertedVarSet(Compiler* comp, VARSET_VALARG_TP vars)
     memset(pVarNumSet, 0, varNumSetBytes); // empty the set
 
     VARSET_ITER_INIT(comp, iter, vars, varIndex);
-    while (iter.NextElem(comp, &varIndex))
+    while (iter.NextElem(&varIndex))
     {
         unsigned varNum = comp->lvaTrackedToVarNum[varIndex];
         assert(varNum < comp->lvaCount);
@@ -9063,11 +9232,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 break;
 
             case GT_NO_OP:
-
-                if (tree->gtFlags & GTF_NO_OP_NO)
-                {
-                    chars += printf("[NO_OP_NO]");
-                }
                 break;
 
             case GT_FIELD:
@@ -9152,7 +9316,7 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 break;
 
             case GT_MUL:
-#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
             case GT_MUL_LONG:
 #endif
 
@@ -9185,10 +9349,13 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
             case GT_MOD:
             case GT_UMOD:
 
+#ifdef LEGACY_BACKEND
                 if (tree->gtFlags & GTF_MOD_INT_RESULT)
                 {
                     chars += printf("[MOD_INT_RESULT]");
                 }
+#endif // LEGACY_BACKEND
+
                 break;
 
             case GT_EQ:
@@ -9376,10 +9543,12 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 {
                     chars += printf("[CALL_HOISTABLE]");
                 }
+#ifdef LEGACY_BACKEND
                 if (tree->gtFlags & GTF_CALL_REG_SAVE)
                 {
                     chars += printf("[CALL_REG_SAVE]");
                 }
+#endif // LEGACY_BACKEND
 
                 // More flags associated with calls.
 
@@ -9575,10 +9744,12 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
         {
             chars += printf("[BOOLEAN]");
         }
+#if CPU_HAS_BYTE_REGS && defined(LEGACY_BACKEND)
         if (tree->gtFlags & GTF_SMALL_OK)
         {
             chars += printf("[SMALL_OK]");
         }
+#endif
         if (tree->gtFlags & GTF_UNSIGNED)
         {
             chars += printf("[SMALL_UNSIGNED]");
@@ -9590,10 +9761,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
         if (tree->gtFlags & GTF_SPILL)
         {
             chars += printf("[SPILL]");
-        }
-        if (tree->gtFlags & GTF_SPILL_HIGH)
-        {
-            chars += printf("[SPILL_HIGH]");
         }
         if (tree->gtFlags & GTF_REUSE_REG_VAL)
         {

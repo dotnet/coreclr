@@ -442,6 +442,31 @@
       ]
     },
     {
+      "Name": "Publish Symbols - Release",
+      "Parameters": {
+        "TreatWarningsAsErrors": "false"
+      },
+      "BuildParameters": {
+        "PB_BuildType": "Release"
+      },
+      "Definitions": [
+        {
+          "Name": "DotNet-Trusted-Publish-Symbols",
+          "Parameters": {
+          },
+          "ReportingParameters": {
+            "TaskName": "Symbol Publish",
+            "Type": "build/publish/",
+            "ConfigurationGroup": "Release - Publish Symbols"
+          }
+        }
+      ],
+      "DependsOn": [
+        "Trusted-All-Release",
+        "Trusted-Crossbuild-Release"
+      ]
+    },
+    {
       "Name": "Publish Packages to Drop - Checked",
       "Parameters": {
         "TreatWarningsAsErrors": "false"
@@ -530,6 +555,24 @@
         {
           "Name": "Dotnet-CoreClr-Trusted-BuildTests",
           "Parameters": {
+            "HelixJobType": "test/functional/r2r/cli/",
+            "TargetsWindows": "false",
+            "Rid": "osx-x64",
+            "TargetQueues": "osx.1012.amd64",
+            "TestContainerSuffix": "osx-r2r",
+            "CrossgenArg": "Crossgen ",
+            "TargetsNonWindowsArg": "TargetsNonWindows "
+          },
+          "ReportingParameters": {
+            "OperatingSystem": "OSX",
+            "SubType":  "Build-Tests-R2R",
+            "Type": "build/product/",
+            "PB_BuildType": "Release"
+          }
+        },
+        {
+          "Name": "Dotnet-CoreClr-Trusted-BuildTests",
+          "Parameters": {
             "HelixJobType": "test/functional/cli/",
             "TargetsWindows": "false",
             "Rid": "linux-x64",
@@ -540,6 +583,24 @@
           "ReportingParameters": {
             "OperatingSystem": "RedHat 7",
             "SubType":  "Build-Tests",
+            "Type": "build/product/",
+            "PB_BuildType": "Release"
+          }
+        },
+        {
+          "Name": "Dotnet-CoreClr-Trusted-BuildTests",
+          "Parameters": {
+            "HelixJobType": "test/functional/r2r/cli/",
+            "TargetsWindows": "false",
+            "Rid": "linux-x64",
+            "TargetQueues": "debian.82.amd64,fedora.25.amd64,redhat.72.amd64,ubuntu.1404.amd64,ubuntu.1604.amd64,ubuntu.1610.amd64",
+            "TestContainerSuffix": "linux-r2r",
+            "CrossgenArg": "Crossgen ",
+            "TargetsNonWindowsArg": "TargetsNonWindows "
+          },
+          "ReportingParameters": {
+            "OperatingSystem": "RedHat 7",
+            "SubType":  "Build-Tests-R2R",
             "Type": "build/product/",
             "PB_BuildType": "Release"
           }

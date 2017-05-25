@@ -30,7 +30,8 @@ private:
     GCHandleUtilities() = delete;
 };
 
-void ValidateHandleAndAppDomain(OBJECTHANDLE handle);
+void ValidateObjectAndAppDomain(OBJECTREF objRef, ADIndex appDomainIndex);
+void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef);
 
 // Given a handle, returns an OBJECTREF for the object it refers to.
 inline OBJECTREF ObjectFromHandle(OBJECTHANDLE handle)
@@ -38,7 +39,10 @@ inline OBJECTREF ObjectFromHandle(OBJECTHANDLE handle)
     _ASSERTE(handle);
 
 #ifdef _DEBUG_IMPL
-    ValidateHandleAndAppDomain(handle);
+    DWORD context = (DWORD)GCHandleUtilities::GetGCHandleManager()->GetHandleContext(handle);
+    OBJECTREF objRef = ObjectToOBJECTREF(*(Object**)handle);
+
+    ValidateObjectAndAppDomain(objRef, ADIndex(context));
 #endif // _DEBUG_IMPL
 
     // Wrap the raw OBJECTREF and return it
@@ -66,52 +70,112 @@ inline BOOL ObjectHandleIsNull(OBJECTHANDLE handle)
 
 inline OBJECTHANDLE CreateHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_DEFAULT);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_DEFAULT);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateWeakHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_DEFAULT);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_DEFAULT);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateShortWeakHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_SHORT);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_SHORT);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateLongWeakHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_LONG);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_LONG);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateStrongHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_STRONG);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_STRONG);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreatePinningHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_PINNED);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_PINNED);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateAsyncPinningHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_ASYNCPINNED);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_ASYNCPINNED);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateRefcountedHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_REFCOUNTED);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_REFCOUNTED);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateSizedRefHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_SIZEDREF);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_SIZEDREF);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateSizedRefHandle(IGCHandleStore* store, OBJECTREF object, int heapToAffinitizeTo)
 {
-    return store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_SIZEDREF, heapToAffinitizeTo);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_SIZEDREF, heapToAffinitizeTo);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 // Global handle creation convenience functions
@@ -119,39 +183,81 @@ inline OBJECTHANDLE CreateSizedRefHandle(IGCHandleStore* store, OBJECTREF object
 inline OBJECTHANDLE CreateGlobalHandle(OBJECTREF object)
 {
     CONDITIONAL_CONTRACT_VIOLATION(ModeViolation, object == NULL);
-    return GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_DEFAULT);
+    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_DEFAULT);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateGlobalWeakHandle(OBJECTREF object)
 {
-    return GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_DEFAULT);
+    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_DEFAULT);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateGlobalShortWeakHandle(OBJECTREF object)
 {
     CONDITIONAL_CONTRACT_VIOLATION(ModeViolation, object == NULL);
-    return GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_SHORT);
+    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_SHORT);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateGlobalLongWeakHandle(OBJECTREF object)
 {
-    return GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_LONG);
+    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_LONG);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateGlobalStrongHandle(OBJECTREF object)
 {
     CONDITIONAL_CONTRACT_VIOLATION(ModeViolation, object == NULL);
-    return GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_STRONG);
+    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_STRONG);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateGlobalPinningHandle(OBJECTREF object)
 {
-    return GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_PINNED);
+    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_PINNED);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 inline OBJECTHANDLE CreateGlobalRefcountedHandle(OBJECTREF object)
 {
-    return GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_REFCOUNTED);
+    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_REFCOUNTED);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 
 // Special handle creation convenience functions
@@ -159,14 +265,54 @@ inline OBJECTHANDLE CreateGlobalRefcountedHandle(OBJECTREF object)
 #ifdef FEATURE_COMINTEROP
 inline OBJECTHANDLE CreateWinRTWeakHandle(IGCHandleStore* store, OBJECTREF object, IWeakReference* pWinRTWeakReference)
 {
-    return store->CreateHandleWithExtraInfo(OBJECTREFToObject(object), HNDTYPE_WEAK_WINRT, (void*)pWinRTWeakReference);
+    OBJECTHANDLE hnd = store->CreateHandleWithExtraInfo(OBJECTREFToObject(object), HNDTYPE_WEAK_WINRT, (void*)pWinRTWeakReference);
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
 }
 #endif // FEATURE_COMINTEROP
 
 // Creates a variable-strength handle
 inline OBJECTHANDLE CreateVariableHandle(IGCHandleStore* store, OBJECTREF object, uint32_t type)
 {
-    return store->CreateHandleWithExtraInfo(OBJECTREFToObject(object), HNDTYPE_VARIABLE, (void*)((uintptr_t)type));
+    OBJECTHANDLE hnd = store->CreateHandleWithExtraInfo(OBJECTREFToObject(object), HNDTYPE_VARIABLE, (void*)((uintptr_t)type));
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    return hnd;
+}
+
+// Handle object manipulation convenience functions
+
+inline void StoreObjectInHandle(OBJECTHANDLE handle, OBJECTREF object)
+{
+    ValidateHandleAssignment(handle, object);
+
+    GCHandleUtilities::GetGCHandleManager()->StoreObjectInHandle(handle, OBJECTREFToObject(object));
+}
+
+inline bool StoreFirstObjectInHandle(OBJECTHANDLE handle, OBJECTREF object)
+{
+    ValidateHandleAssignment(handle, object);
+
+    return GCHandleUtilities::GetGCHandleManager()->StoreObjectInHandleIfNull(handle, OBJECTREFToObject(object));
+}
+
+inline void* InterlockedCompareExchangeObjectInHandle(OBJECTHANDLE handle, OBJECTREF object, OBJECTREF comparandObject)
+{
+    ValidateHandleAssignment(handle, object);
+
+    return GCHandleUtilities::GetGCHandleManager()->InterlockedCompareExchangeObjectInHandle(handle, OBJECTREFToObject(object), OBJECTREFToObject(comparandObject));
+}
+
+inline void ResetOBJECTHANDLE(OBJECTHANDLE handle)
+{
+    GCHandleUtilities::GetGCHandleManager()->StoreObjectInHandle(handle, NULL);
 }
 
 // Handle destruction convenience functions
@@ -309,6 +455,7 @@ typedef Wrapper<OBJECTHANDLE, DoNothing<OBJECTHANDLE>, DestroyRefcountedHandle> 
 typedef Holder<OBJECTHANDLE, DoNothing<OBJECTHANDLE>, DestroyLongWeakHandle>            LongWeakHandleHolder;
 typedef Holder<OBJECTHANDLE, DoNothing<OBJECTHANDLE>, DestroyGlobalStrongHandle>        GlobalStrongHandleHolder;
 typedef Holder<OBJECTHANDLE, DoNothing<OBJECTHANDLE>, DestroyGlobalShortWeakHandle>     GlobalShortWeakHandleHolder;
+typedef Holder<OBJECTHANDLE, DoNothing<OBJECTHANDLE>, ResetOBJECTHANDLE>                ObjectInHandleHolder;
 
 class RCOBJECTHANDLEHolder : public RefCountedOHWrapper
 {

@@ -155,6 +155,17 @@ void PEImageLayout::ApplyBaseRelocations()
     {
         PIMAGE_BASE_RELOCATION r = (PIMAGE_BASE_RELOCATION)(dir + dirPos);
 
+        COUNT_T fixupsSize = VAL32(r->SizeOfBlock);
+
+        USHORT *fixups = (USHORT *) (r + 1);
+
+        _ASSERTE(fixupsSize > sizeof(IMAGE_BASE_RELOCATION));
+        _ASSERTE((fixupsSize - sizeof(IMAGE_BASE_RELOCATION)) % 2 == 0);
+
+        COUNT_T fixupsCount = (fixupsSize - sizeof(IMAGE_BASE_RELOCATION)) / 2;
+
+        _ASSERTE((BYTE *)(fixups + fixupsCount) <= (BYTE *)(dir + dirSize));
+
         DWORD rva = VAL32(r->VirtualAddress);
 
         BYTE * pageAddress = (BYTE *)GetBase() + rva;
@@ -172,7 +183,9 @@ void PEImageLayout::ApplyBaseRelocations()
                 dwOldProtection = 0;
             }
 
-            IMAGE_SECTION_HEADER *pSection = RvaToSection(rva);
+            USHORT fixup = VAL16(fixups[0]);
+
+            IMAGE_SECTION_HEADER *pSection = RvaToSection(rva + (fixup & 0xfff));
             PREFIX_ASSUME(pSection != NULL);
 
             pWriteableRegion = (BYTE*)GetRvaData(VAL32(pSection->VirtualAddress));
@@ -198,17 +211,6 @@ void PEImageLayout::ApplyBaseRelocations()
 #endif // FEATURE_PAL
             }
         }
-
-        COUNT_T fixupsSize = VAL32(r->SizeOfBlock);
-
-        USHORT *fixups = (USHORT *) (r + 1);
-
-        _ASSERTE(fixupsSize > sizeof(IMAGE_BASE_RELOCATION));
-        _ASSERTE((fixupsSize - sizeof(IMAGE_BASE_RELOCATION)) % 2 == 0);
-
-        COUNT_T fixupsCount = (fixupsSize - sizeof(IMAGE_BASE_RELOCATION)) / 2;
-
-        _ASSERTE((BYTE *)(fixups + fixupsCount) <= (BYTE *)(dir + dirSize));
 
         for (COUNT_T fixupIndex = 0; fixupIndex < fixupsCount; fixupIndex++)
         {
@@ -390,10 +392,21 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     {
 #ifndef CROSSGEN_COMPILE
 
+        // Capture last error as it may get reset below.
+        
+        DWORD dwLastError = GetLastError();
         // There is no reflection-only load on CoreCLR and so we can always throw an error here.
         // It is important on Windows Phone. All assemblies that we load must have SEC_IMAGE set
         // so that the OS can perform signature verification.
-        ThrowLastError();
+        if (pOwner->IsFile())
+        {
+            EEFileLoadException::Throw(pOwner->GetPathForErrorMessages(), HRESULT_FROM_WIN32(dwLastError));
+        }
+        else
+        {
+            // Throw generic exception.
+            ThrowWin32(dwLastError);
+        }
 
 #endif // CROSSGEN_COMPILE
 

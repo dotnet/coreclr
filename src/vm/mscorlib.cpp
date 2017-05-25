@@ -72,8 +72,6 @@
 #include "mdaassistants.h"
 #endif
 
-#include "coverage.h"
-
 #ifdef FEATURE_COMINTEROP
 #include "variant.h"
 #include "oavariant.h"
@@ -95,6 +93,7 @@
 
 #if defined(FEATURE_EVENTSOURCE_XPLAT)
 #include "nativeeventsource.h"
+#include "eventpipe.h"
 #endif //defined(FEATURE_EVENTSOURCE_XPLAT)
 
 #endif // CROSSGEN_MSCORLIB

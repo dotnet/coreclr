@@ -168,7 +168,7 @@ void CodeGen::genCodeForBBlist()
         VARSET_TP VARSET_INIT_NOCOPY(addedGCVars, VarSetOps::MakeEmpty(compiler));
 #endif
         VARSET_ITER_INIT(compiler, iter, block->bbLiveIn, varIndex);
-        while (iter.NextElem(compiler, &varIndex))
+        while (iter.NextElem(&varIndex))
         {
             unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
             LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
@@ -500,7 +500,7 @@ void CodeGen::genCodeForBBlist()
         VARSET_TP VARSET_INIT_NOCOPY(extraLiveVars, VarSetOps::Diff(compiler, block->bbLiveOut, compiler->compCurLife));
         VarSetOps::UnionD(compiler, extraLiveVars, VarSetOps::Diff(compiler, compiler->compCurLife, block->bbLiveOut));
         VARSET_ITER_INIT(compiler, extraLiveVarIter, extraLiveVars, extraLiveVarIndex);
-        while (extraLiveVarIter.NextElem(compiler, &extraLiveVarIndex))
+        while (extraLiveVarIter.NextElem(&extraLiveVarIndex))
         {
             unsigned   varNum = compiler->lvaTrackedToVarNum[extraLiveVarIndex];
             LclVarDsc* varDsc = compiler->lvaTable + varNum;
@@ -1087,7 +1087,11 @@ void CodeGen::genCheckConsumeNode(GenTree* const node)
 
     if (verbose)
     {
-        if ((node->gtDebugFlags & GTF_DEBUG_NODE_CG_CONSUMED) != 0)
+        if (node->gtUseNum == -1)
+        {
+            // nothing wrong if the node was not consumed
+        }
+        else if ((node->gtDebugFlags & GTF_DEBUG_NODE_CG_CONSUMED) != 0)
         {
             printf("Node was consumed twice:\n");
             compiler->gtDispTree(node, nullptr, nullptr, true);
@@ -1224,7 +1228,7 @@ void CodeGen::genConsumeRegs(GenTree* tree)
             genConsumeAddress(tree->AsIndir()->Addr());
         }
 #ifdef _TARGET_XARCH_
-        else if (tree->OperGet() == GT_LCL_VAR)
+        else if (tree->OperIsLocalRead())
         {
             // A contained lcl var must be living on stack and marked as reg optional, or not be a
             // register candidate.
@@ -1278,12 +1282,7 @@ void CodeGen::genConsumeOperands(GenTreeOp* tree)
 {
     GenTree* firstOp  = tree->gtOp1;
     GenTree* secondOp = tree->gtOp2;
-    if ((tree->gtFlags & GTF_REVERSE_OPS) != 0)
-    {
-        assert(secondOp != nullptr);
-        firstOp  = secondOp;
-        secondOp = tree->gtOp1;
-    }
+
     if (firstOp != nullptr)
     {
         genConsumeRegs(firstOp);
@@ -1507,71 +1506,28 @@ void CodeGen::genSetBlockSrc(GenTreeBlk* blkNode, regNumber srcReg)
 
 void CodeGen::genConsumeBlockOp(GenTreeBlk* blkNode, regNumber dstReg, regNumber srcReg, regNumber sizeReg)
 {
-    // We have to consume the registers, and perform any copies, in the actual execution order.
-    // The nominal order is: dst, src, size.  However this may have been changed
-    // with reverse flags on the blkNode and the setting of gtEvalSizeFirst in the case of a dynamic
-    // block size.
+    // We have to consume the registers, and perform any copies, in the actual execution order: dst, src, size.
+    //
     // Note that the register allocator ensures that the registers ON THE NODES will not interfere
     // with one another if consumed (i.e. reloaded or moved to their ASSIGNED reg) in execution order.
     // Further, it ensures that they will not interfere with one another if they are then copied
     // to the REQUIRED register (if a fixed register requirement) in execution order.  This requires,
     // then, that we first consume all the operands, then do any necessary moves.
 
-    GenTree* dstAddr       = blkNode->Addr();
-    GenTree* src           = nullptr;
-    unsigned blockSize     = blkNode->Size();
-    GenTree* size          = nullptr;
-    bool     evalSizeFirst = true;
+    GenTree* const dstAddr = blkNode->Addr();
 
-    // First, consume all the sources in order
+    // First, consume all the sources in order.
+    genConsumeReg(dstAddr);
+    genConsumeBlockSrc(blkNode);
     if (blkNode->OperGet() == GT_STORE_DYN_BLK)
     {
-        size = blkNode->AsDynBlk()->gtDynamicSize;
-        if (blkNode->AsDynBlk()->gtEvalSizeFirst)
-        {
-            genConsumeReg(size);
-        }
-        else
-        {
-            evalSizeFirst = false;
-        }
-    }
-    if (blkNode->IsReverseOp())
-    {
-
-        genConsumeBlockSrc(blkNode);
-        genConsumeReg(dstAddr);
-    }
-    else
-    {
-        genConsumeReg(dstAddr);
-        genConsumeBlockSrc(blkNode);
-    }
-    if (!evalSizeFirst)
-    {
-        noway_assert(size != nullptr);
-        genConsumeReg(size);
+        genConsumeReg(blkNode->AsDynBlk()->gtDynamicSize);
     }
 
     // Next, perform any necessary moves.
-    if (evalSizeFirst)
-    {
-        genSetBlockSize(blkNode, sizeReg);
-    }
-    if (blkNode->IsReverseOp())
-    {
-        genSetBlockSrc(blkNode, srcReg);
-        genCopyRegIfNeeded(dstAddr, dstReg);
-    }
-    else
-    {
-        genCopyRegIfNeeded(dstAddr, dstReg);
-        genSetBlockSrc(blkNode, srcReg);
-    }
-    if (!evalSizeFirst)
-    {
-        genSetBlockSize(blkNode, sizeReg);
-    }
+    genCopyRegIfNeeded(dstAddr, dstReg);
+    genSetBlockSrc(blkNode, srcReg);
+    genSetBlockSize(blkNode, sizeReg);
 }
 
 //-------------------------------------------------------------------------
@@ -1803,5 +1759,40 @@ void CodeGen::genEmitCall(int                   callType,
                                indir->Offset());
 }
 // clang-format on
+
+//------------------------------------------------------------------------
+// genCodeForCast: Generates the code for GT_CAST.
+//
+// Arguments:
+//    tree - the GT_CAST node.
+//
+void CodeGen::genCodeForCast(GenTreeOp* tree)
+{
+    assert(tree->OperIs(GT_CAST));
+
+    var_types targetType = tree->TypeGet();
+
+    if (varTypeIsFloating(targetType) && varTypeIsFloating(tree->gtOp1))
+    {
+        // Casts float/double <--> double/float
+        genFloatToFloatCast(tree);
+    }
+    else if (varTypeIsFloating(tree->gtOp1))
+    {
+        // Casts float/double --> int32/int64
+        genFloatToIntCast(tree);
+    }
+    else if (varTypeIsFloating(targetType))
+    {
+        // Casts int32/uint32/int64/uint64 --> float/double
+        genIntToFloatCast(tree);
+    }
+    else
+    {
+        // Casts int <--> int
+        genIntToIntCast(tree);
+    }
+    // The per-case functions call genProduceReg()
+}
 
 #endif // !LEGACY_BACKEND

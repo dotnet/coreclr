@@ -1472,8 +1472,8 @@ void emitter::emitBegProlog()
     /* Nothing is live on entry to the prolog */
 
     // These were initialized to Empty at the start of compilation.
-    VarSetOps::ClearD(emitComp, emitInitGCrefVars);
-    VarSetOps::ClearD(emitComp, emitPrevGCrefVars);
+    VarSetOps::OldStyleClearD(emitComp, emitInitGCrefVars);
+    VarSetOps::OldStyleClearD(emitComp, emitPrevGCrefVars);
     emitInitGCrefRegs = RBM_NONE;
     emitPrevGCrefRegs = RBM_NONE;
     emitInitByrefRegs = RBM_NONE;
@@ -4564,7 +4564,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     /* Assume no live GC ref variables on entry */
 
-    VarSetOps::ClearD(emitComp, emitThisGCrefVars); // This is initialized to Empty at the start of codegen.
+    VarSetOps::OldStyleClearD(emitComp, emitThisGCrefVars); // This is initialized to Empty at the start of codegen.
     emitThisGCrefRegs = emitThisByrefRegs = RBM_NONE;
     emitThisGCrefVset                     = true;
 
@@ -7102,6 +7102,29 @@ void emitter::emitRecordRelocation(void* location,            /* IN */
     codeGen->getDisAssembler().disRecordRelocation((size_t)location, (size_t)target);
 #endif // defined(LATE_DISASM)
 }
+
+#ifdef _TARGET_ARM_
+/*****************************************************************************
+ *  A helper for handling a Thumb-Mov32 of position-independent (PC-relative) value
+ *
+ *  This routine either records relocation for the location with the EE,
+ *  or creates a virtual relocation entry to perform offset fixup during
+ *  compilation without recording it with EE - depending on which of
+ *  absolute/relocative relocations mode are used for code section.
+ */
+void emitter::emitHandlePCRelativeMov32(void* location, /* IN */
+                                        void* target)   /* IN */
+{
+    if (emitComp->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_RELATIVE_CODE_RELOCS))
+    {
+        emitRecordRelocation(location, target, IMAGE_REL_BASED_REL_THUMB_MOV32_PCREL);
+    }
+    else
+    {
+        emitRecordRelocation(location, target, IMAGE_REL_BASED_THUMB_MOV32);
+    }
+}
+#endif // _TARGET_ARM_
 
 /*****************************************************************************
  *  A helper for recording a call site with the EE.

@@ -235,25 +235,15 @@ HRESULT EEConfig::Init()
     fLegacyComVTableLayout = false;
     fLegacyVirtualMethodCallVerification = false;
     fNewComVTableLayout = false;
-    iImpersonationPolicy = IMP_DEFAULT;
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
     // By default, there is not pre-V4 CSE policy
     fLegacyCorruptedStateExceptionsPolicy = false;
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-#ifdef _DEBUG
-    fLogTransparencyErrors = false;
-#endif // _DEBUG
-    fLegacyLoadMscorsnOnStartup = false;
-    fBypassStrongNameVerification = true;
-    fGeneratePublisherEvidence = true;
-    fEnforceFIPSPolicy = true;
-    fLegacyHMACMode = false;
     fNgenBindOptimizeNonGac = false;
     fStressLog = false;
     fCacheBindingFailures = true;
-    fDisableFusionUpdatesFromADManager = false;
     fDisableCommitThreadStack = false;
     fProbeForStackOverflow = true;
     
@@ -293,9 +283,6 @@ HRESULT EEConfig::Init()
     // LS in DAC builds. Initialized via the environment variable TestDataConsistency
     fTestDataConsistency = false;
 #endif
-    
-    // TlbImp Stuff
-    fTlbImpSkipLoading = false;
 
     // In Thread::SuspendThread(), default the timeout to 2 seconds.  If the suspension
     // takes longer, assert (but keep trying).
@@ -326,10 +313,6 @@ HRESULT EEConfig::Init()
 #endif
 
     iRequireZaps = REQUIRE_ZAPS_NONE;
-
-#ifdef _TARGET_AMD64_
-    pDisableNativeImageLoadList = NULL;
-#endif
 
     // new loader behavior switches
 
@@ -487,11 +470,6 @@ HRESULT EEConfig::Cleanup()
     
     if (pForbidZapsExcludeList)
         delete pForbidZapsExcludeList;
-#endif
-
-#ifdef _TARGET_AMD64_
-    if (pDisableNativeImageLoadList)
-        delete pDisableNativeImageLoadList;
 #endif
 
 #ifdef FEATURE_COMINTEROP
@@ -996,16 +974,6 @@ HRESULT EEConfig::sync()
     }
 #endif
 
-#ifdef _TARGET_AMD64_
-    if (!IsCompilationProcess())
-    {
-        NewArrayHolder<WCHAR> wszDisableNativeImageLoadList;
-        IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_DisableNativeImageLoadList, &wszDisableNativeImageLoadList));
-        if (wszDisableNativeImageLoadList)
-            pDisableNativeImageLoadList = new AssemblyNamesList(wszDisableNativeImageLoadList);
-    }
-#endif
-
 #ifdef FEATURE_LOADER_OPTIMIZATION
     dwSharePolicy           = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_LoaderOptimization, dwSharePolicy);
 #endif
@@ -1123,11 +1091,6 @@ HRESULT EEConfig::sync()
     fVerifierOff    = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_VerifierOff, fVerifierOff) != 0);
 
     fJitVerificationDisable = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_JitVerificationDisable, fJitVerificationDisable)         != 0);
-
-    fLogTransparencyErrors = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_Security_LogTransparencyErrors) != 0;
-
-    // TlbImp stuff
-    fTlbImpSkipLoading = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_TlbImpSkipLoading, fTlbImpSkipLoading) != 0);
 
     iExposeExceptionsInCOM = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_ExposeExceptionsInCOM, iExposeExceptionsInCOM);
 #endif
@@ -1400,19 +1363,6 @@ HRESULT EEConfig::GetConfiguration_DontUse_(__in_z LPCWSTR pKey, ConfigSearch di
     }
 }        
 
-LPCWSTR EEConfig::GetProcessBindingFile()
-{
-    LIMITED_METHOD_CONTRACT;
-    return g_pszHostConfigFile;
-}
-
-SIZE_T EEConfig::GetSizeOfProcessBindingFile()
-{
-    LIMITED_METHOD_CONTRACT;
-    return g_dwHostConfigFile;
-}
-
-
 bool EEConfig::RequireZap(LPCUTF8 assemblyName) const
 {
     LIMITED_METHOD_CONTRACT;
@@ -1454,18 +1404,6 @@ bool EEConfig::ExcludeReadyToRun(LPCUTF8 assemblyName) const
 
     return false;
 }
-
-#ifdef _TARGET_AMD64_
-bool EEConfig::DisableNativeImageLoad(LPCUTF8 assemblyName) const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (pDisableNativeImageLoadList != NULL && pDisableNativeImageLoadList->IsInList(assemblyName))
-        return true;
-
-    return false;
-}
-#endif
 
 /**************************************************************/
 #ifdef _DEBUG

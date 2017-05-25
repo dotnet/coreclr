@@ -192,6 +192,18 @@
       "values": [ true, false ],
       "defaultValue": false
     },
+    "RestoreDefaultOptimizationDataPackage": {
+      "description": "Instructs BuildTools to restore the default OptimizationData package.",
+      "valueType": "property",
+      "values": [ true, false ],
+      "defaultValue": true
+    },
+    "UsePartialNGENOptimization": {
+      "description": "Adds the `-partialNGEN -minify` arguments when invoking IBCMerge.",
+      "valueType": "property",
+      "values": [ true, false ],
+      "defaultValue": true
+    },
     "OptimizationDataDir": {
       "description": "Sets the path where the build should look for IBC profile data.",
       "valueType": "property",
@@ -257,12 +269,6 @@
       "valueType": "property",
       "values": [],
       "defaultValue": ""
-    },
-    "IlasmRoundTrip": {
-      "description": "Sets ilasm round trip property.",
-      "valueType": "property",
-      "values": [ true, false ],
-      "defaultValue": true
     },
     "CreateTestOverlay": {
       "description": "Runs CreateTestOverlay target.",
@@ -341,12 +347,6 @@
       "valueType": "property",
       "values": [ "debian.8-x64", "fedora.24-x64", "fedora.25-x64", "opensuse.42.1-x64", "osx.10.12-x64", "rhel.7-x64", "ubuntu.14.04-x64", "ubuntu.16.04-x64", "ubuntu.16.10-x64" ],
       "defaultValue": "${__RuntimeId}"
-    },
-    "UpdateDependencies": {
-      "description": "MsBuild target that updates project.json dependencies.",
-      "valueType": "target",
-      "values": [],
-      "defaultValue": ""
     },
     "BatchRestorePackages": {
       "description": "MsBuild target that restores the packages.",
@@ -481,7 +481,9 @@
           "MsBuildLog": "default",
           "MsBuildWrn": "default",
           "MsBuildErr": "default",
-          "MsBuildEventLogging": "default"
+          "MsBuildEventLogging": "default",
+          "RestoreDefaultOptimizationDataPackage": "false",
+          "UsePartialNGENOptimization": "false"
         }
       }
     },
@@ -620,6 +622,7 @@
       "defaultValues": {
         "toolName": "msbuild",
         "settings": {
+          "__BuildOS": "default",
           "Project": "./src/publish.proj",
           "MsBuildFileLogging": "/flp:v=detailed;LogFile=publish-packages.log"
         }

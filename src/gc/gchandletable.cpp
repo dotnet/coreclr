@@ -47,8 +47,12 @@ OBJECTHANDLE GCHandleStore::CreateDependentHandle(Object* primary, Object* secon
 {
     HHANDLETABLE handletable = _underlyingBucket.pTable[GetCurrentThreadHomeHeapNumber()];
     OBJECTHANDLE handle = ::HndCreateHandle(handletable, HNDTYPE_DEPENDENT, ObjectToOBJECTREF(primary));
-    ::SetDependentHandleSecondary(handle, ObjectToOBJECTREF(secondary));
+    if (!handle)
+    {
+        return nullptr;
+    }
 
+    ::SetDependentHandleSecondary(handle, ObjectToOBJECTREF(secondary));
     return handle;
 }
 
@@ -131,4 +135,19 @@ void GCHandleManager::DestroyHandleOfUnknownType(OBJECTHANDLE handle)
 void* GCHandleManager::GetExtraInfoFromHandle(OBJECTHANDLE handle)
 {
     return (void*)::HndGetHandleExtraInfo(handle);
+}
+
+void GCHandleManager::StoreObjectInHandle(OBJECTHANDLE handle, Object* object)
+{
+    ::HndAssignHandle(handle, ObjectToOBJECTREF(object));
+}
+
+bool GCHandleManager::StoreObjectInHandleIfNull(OBJECTHANDLE handle, Object* object)
+{
+    return !!::HndFirstAssignHandle(handle, ObjectToOBJECTREF(object));
+}
+
+Object* GCHandleManager::InterlockedCompareExchangeObjectInHandle(OBJECTHANDLE handle, Object* object, Object* comparandObject)
+{
+    return (Object*)::HndInterlockedCompareExchangeHandle(handle, ObjectToOBJECTREF(object), ObjectToOBJECTREF(comparandObject));
 }

@@ -761,7 +761,7 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
 
         // For each local var number "lclNum" that "block" assigns to...
         VARSET_ITER_INIT(m_pCompiler, defVars, block->bbVarDef, varIndex);
-        while (defVars.NextElem(m_pCompiler, &varIndex))
+        while (defVars.NextElem(&varIndex))
         {
             unsigned lclNum = m_pCompiler->lvaTrackedToVarNum[varIndex];
             DBG_SSA_JITDUMP("  Considering local var V%02u:\n", lclNum);
@@ -1391,11 +1391,8 @@ void SsaBuilder::BlockRenameVariables(BasicBlock* block, SsaRenameState* pRename
  */
 void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pRenameState)
 {
-    BasicBlock::AllSuccs allSuccs    = block->GetAllSuccs(m_pCompiler);
-    AllSuccessorIter     allSuccsEnd = allSuccs.end();
-    for (AllSuccessorIter allSuccsIter = allSuccs.begin(); allSuccsIter != allSuccsEnd; ++allSuccsIter)
+    for (BasicBlock* succ : block->GetAllSuccs(m_pCompiler))
     {
-        BasicBlock* succ = (*allSuccsIter);
         // Walk the statements for phi nodes.
         for (GenTreePtr stmt = succ->bbTreeList; stmt != nullptr && stmt->IsPhiDefnStmt(); stmt = stmt->gtNext)
         {

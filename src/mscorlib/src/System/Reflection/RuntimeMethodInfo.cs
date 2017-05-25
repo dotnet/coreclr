@@ -14,7 +14,6 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    [Serializable]
     internal sealed class RuntimeMethodInfo : MethodInfo, ISerializable, IRuntimeMethodInfo
     {
         #region Private Data Members
@@ -334,6 +333,8 @@ namespace System.Reflection
                 return m_declaringType;
             }
         }
+
+        public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeMethodInfo>(other);
 
         public override Type ReflectedType
         {

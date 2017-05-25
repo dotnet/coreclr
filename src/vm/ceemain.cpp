@@ -282,12 +282,6 @@ BOOL    g_fSuspendOnShutdown = FALSE;
 // Flag indicating if the finalizer thread should be suspended on shutdown.
 BOOL    g_fSuspendFinalizerOnShutdown = FALSE;
 
-// Flag indicating if the EE was started up by an managed exe.
-BOOL    g_fEEManagedEXEStartup = FALSE;
-
-// Flag indicating if the EE was started up by an IJW dll.
-BOOL    g_fEEIJWStartup = FALSE;
-
 // Flag indicating if the EE was started up by COM.
 extern BOOL g_fEEComActivatedStartup;
 
@@ -306,7 +300,7 @@ HRESULT InitializeEE(COINITIEE flags)
 {
     WRAPPER_NO_CONTRACT;
 #ifdef FEATURE_EVENT_TRACE
-    if(!(g_fEEComActivatedStartup || g_fEEManagedEXEStartup || g_fEEIJWStartup))
+    if(!g_fEEComActivatedStartup)
         g_fEEOtherStartup = TRUE;
 #endif // FEATURE_EVENT_TRACE
     return EnsureEEStarted(flags);
@@ -486,10 +480,6 @@ void InitializeStartupFlags()
 
     InitializeHeapType((flags & STARTUP_SERVER_GC) != 0);
     g_heap_type = (flags & STARTUP_SERVER_GC) == 0 ? GC_HEAP_WKS : GC_HEAP_SVR;
-
-#ifdef FEATURE_LOADER_OPTIMIZATION            
-    g_dwGlobalSharePolicy = (flags&STARTUP_LOADER_OPTIMIZATION_MASK)>>1;
-#endif
 }
 #endif // CROSSGEN_COMPILE
 
@@ -692,6 +682,11 @@ void EEStartupHelper(COINITIEE fFlags)
 
         InitThreadManager();
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "Returned successfully from InitThreadManager");
+
+#ifdef FEATURE_PERFTRACING
+        // Initialize the event pipe.
+        EventPipe::Initialize();
+#endif // FEATURE_PERFTRACING
 
 #ifdef FEATURE_EVENT_TRACE        
         // Initialize event tracing early so we can trace CLR startup time events.
@@ -1001,9 +996,6 @@ void EEStartupHelper(COINITIEE fFlags)
 
         StackwalkCache::Init();
 
-        // Start up security
-        Security::Start();
-
         AppDomain::CreateADUnloadStartEvent();
 
         // In coreclr, clrjit is compiled into it, but SO work in clrjit has not been done.
@@ -1036,8 +1028,7 @@ void EEStartupHelper(COINITIEE fFlags)
 #endif
 
 #ifdef FEATURE_PERFTRACING
-        // Initialize the event pipe and start it if requested.
-        EventPipe::Initialize();
+        // Start the event pipe if requested.
         EventPipe::EnableOnStartup();
 #endif // FEATURE_PERFTRACING
 
@@ -1099,10 +1090,6 @@ void EEStartupHelper(COINITIEE fFlags)
         g_MiniMetaDataBuffAddress = (TADDR) ClrVirtualAlloc(NULL, 
                                                 g_MiniMetaDataBuffMaxSize, MEM_COMMIT, PAGE_READWRITE);
 #endif // FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
-
-        // Load mscorsn.dll if the app requested the legacy mode in its configuration file.
-        if (g_pConfig->LegacyLoadMscorsnOnStartup())
-            IfFailGo(LoadMscorsn());
 
 #endif // CROSSGEN_COMPILE
 
@@ -2386,7 +2373,7 @@ BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
 //  no longer maintains a ref count since the EE doesn't support being
 //  unloaded and re-loaded. It simply ensures the EE has been started.
 // ---------------------------------------------------------------------------
-HRESULT STDMETHODCALLTYPE CoInitializeEE(DWORD fFlags)
+HRESULT STDAPICALLTYPE CoInitializeEE(DWORD fFlags)
 {
     CONTRACTL
     {
@@ -2417,7 +2404,7 @@ HRESULT STDMETHODCALLTYPE CoInitializeEE(DWORD fFlags)
 // Description:
 //  Must be called by client on shut down in order to free up the system.
 // ---------------------------------------------------------------------------
-void STDMETHODCALLTYPE CoUninitializeEE(BOOL fIsDllUnloading)
+void STDAPICALLTYPE CoUninitializeEE(BOOL fIsDllUnloading)
 {
     LIMITED_METHOD_CONTRACT;
     //BEGIN_ENTRYPOINT_VOIDRET;

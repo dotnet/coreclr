@@ -1783,8 +1783,6 @@ typedef struct _CONTEXT {
     ULONG   SegSs;
 
     UCHAR   ExtendedRegisters[MAXIMUM_SUPPORTED_EXTENSION];
-
-    ULONG   ResumeEsp;
 } CONTEXT, *PCONTEXT, *LPCONTEXT;
 
 // To support saving and loading xmm register context we need to know the offset in the ExtendedRegisters
@@ -2851,6 +2849,14 @@ GetModuleFileNameExW(
 PALAPI
 LPCVOID
 PAL_GetSymbolModuleBase(void *symbol);
+
+PALIMPORT
+LPVOID
+PALAPI
+PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(
+    IN LPCVOID lpBeginAddress,
+    IN LPCVOID lpEndAddress,
+    IN SIZE_T dwSize);
 
 PALIMPORT
 LPVOID
@@ -4826,6 +4832,161 @@ RegisterEventSourceW (
 #endif // !UNICODE
 
 //
+// NUMA related APIs
+//
+
+typedef enum _PROCESSOR_CACHE_TYPE { 
+  CacheUnified,
+  CacheInstruction,
+  CacheData,
+  CacheTrace
+} PROCESSOR_CACHE_TYPE;
+
+typedef struct _PROCESSOR_NUMBER {
+  WORD Group;
+  BYTE Number;
+  BYTE Reserved;
+} PROCESSOR_NUMBER, *PPROCESSOR_NUMBER;
+
+typedef enum _LOGICAL_PROCESSOR_RELATIONSHIP { 
+  RelationProcessorCore,
+  RelationNumaNode,
+  RelationCache,
+  RelationProcessorPackage,
+  RelationGroup,
+  RelationAll               = 0xffff
+} LOGICAL_PROCESSOR_RELATIONSHIP;
+
+typedef ULONG_PTR KAFFINITY;
+
+#define ANYSIZE_ARRAY 1
+
+typedef struct _GROUP_AFFINITY {
+  KAFFINITY Mask;
+  WORD      Group;
+  WORD      Reserved[3];
+} GROUP_AFFINITY, *PGROUP_AFFINITY;
+
+typedef struct _PROCESSOR_GROUP_INFO {
+  BYTE      MaximumProcessorCount;
+  BYTE      ActiveProcessorCount;
+  BYTE      Reserved[38];
+  KAFFINITY ActiveProcessorMask;
+} PROCESSOR_GROUP_INFO, *PPROCESSOR_GROUP_INFO;
+
+typedef struct _PROCESSOR_RELATIONSHIP {
+  BYTE           Flags;
+  BYTE           EfficiencyClass;
+  BYTE           Reserved[21];
+  WORD           GroupCount;
+  GROUP_AFFINITY GroupMask[ANYSIZE_ARRAY];
+} PROCESSOR_RELATIONSHIP, *PPROCESSOR_RELATIONSHIP;
+
+typedef struct _GROUP_RELATIONSHIP {
+  WORD                 MaximumGroupCount;
+  WORD                 ActiveGroupCount;
+  BYTE                 Reserved[20];
+  PROCESSOR_GROUP_INFO GroupInfo[ANYSIZE_ARRAY];
+} GROUP_RELATIONSHIP, *PGROUP_RELATIONSHIP;
+
+typedef struct _NUMA_NODE_RELATIONSHIP {
+  DWORD          NodeNumber;
+  BYTE           Reserved[20];
+  GROUP_AFFINITY GroupMask;
+} NUMA_NODE_RELATIONSHIP, *PNUMA_NODE_RELATIONSHIP;
+
+typedef struct _CACHE_RELATIONSHIP {
+  BYTE                 Level;
+  BYTE                 Associativity;
+  WORD                 LineSize;
+  DWORD                CacheSize;
+  PROCESSOR_CACHE_TYPE Type;
+  BYTE                 Reserved[20];
+  GROUP_AFFINITY       GroupMask;
+} CACHE_RELATIONSHIP, *PCACHE_RELATIONSHIP;
+
+typedef struct _SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX {
+  LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
+  DWORD                          Size;
+  union {
+    PROCESSOR_RELATIONSHIP Processor;
+    NUMA_NODE_RELATIONSHIP NumaNode;
+    CACHE_RELATIONSHIP     Cache;
+    GROUP_RELATIONSHIP     Group;
+  };
+} SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, *PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX;
+
+
+PALIMPORT
+BOOL
+PALAPI
+GetNumaHighestNodeNumber(
+  OUT PULONG HighestNodeNumber
+);
+
+PALIMPORT
+BOOL
+PALAPI
+GetNumaProcessorNodeEx(
+  IN  PPROCESSOR_NUMBER Processor,
+  OUT PUSHORT NodeNumber
+);
+
+PALIMPORT
+LPVOID
+PALAPI
+VirtualAllocExNuma(
+  IN HANDLE hProcess,
+  IN OPTIONAL LPVOID lpAddress,
+  IN SIZE_T dwSize,
+  IN DWORD flAllocationType,
+  IN DWORD flProtect,
+  IN DWORD nndPreferred
+);
+
+PALIMPORT
+BOOL
+PALAPI
+GetLogicalProcessorInformationEx(
+  IN LOGICAL_PROCESSOR_RELATIONSHIP RelationshipType,
+  OUT OPTIONAL PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX Buffer,
+  IN OUT PDWORD ReturnedLength
+);
+
+PALIMPORT
+BOOL
+PALAPI
+SetThreadGroupAffinity(
+  IN HANDLE hThread,
+  IN const GROUP_AFFINITY *GroupAffinity,
+  OUT OPTIONAL PGROUP_AFFINITY PreviousGroupAffinity
+);
+
+PALIMPORT
+BOOL
+PALAPI
+GetThreadGroupAffinity(
+  IN HANDLE hThread,
+  OUT PGROUP_AFFINITY GroupAffinity
+);
+
+PALIMPORT
+VOID
+PALAPI
+GetCurrentProcessorNumberEx(
+  OUT PPROCESSOR_NUMBER ProcNumber
+);
+
+PALIMPORT
+BOOL
+PALAPI
+GetProcessAffinityMask(
+  IN HANDLE hProcess,
+  OUT PDWORD_PTR lpProcessAffinityMask,
+  OUT PDWORD_PTR lpSystemAffinityMask
+);
+
+//
 // The types of events that can be logged.
 //
 #define EVENTLOG_SUCCESS                0x0000
@@ -5148,6 +5309,7 @@ inline WCHAR *PAL_wcsstr(WCHAR *_S, const WCHAR *_P)
 }
 #endif
 
+#if !__has_builtin(_rotl)
 /*++
 Function:
 _rotl
@@ -5165,11 +5327,14 @@ unsigned int __cdecl _rotl(unsigned int value, int shift)
     retval = (value << shift) | (value >> (sizeof(int) * CHAR_BIT - shift));
     return retval;
 }
+#endif // !__has_builtin(_rotl)
 
 // On 64 bit unix, make the long an int.
 #ifdef BIT64
 #define _lrotl _rotl
 #endif // BIT64
+
+#if !__has_builtin(_rotr)
 
 /*++
 Function:
@@ -5188,6 +5353,8 @@ unsigned int __cdecl _rotr(unsigned int value, int shift)
     retval = (value >> shift) | (value << (sizeof(int) * CHAR_BIT - shift));
     return retval;
 }
+
+#endif // !__has_builtin(_rotr)
 
 PALIMPORT int __cdecl abs(int);
 #ifndef PAL_STDCPP_COMPAT

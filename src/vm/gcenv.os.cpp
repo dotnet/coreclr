@@ -329,11 +329,7 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uint
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifndef FEATURE_PAL
     return !!::GetProcessAffinityMask(GetCurrentProcess(), (PDWORD_PTR)processMask, (PDWORD_PTR)systemMask);
-#else
-    return false;
-#endif
 }
 
 // Get number of processors assigned to the current process
@@ -795,12 +791,6 @@ public:
 GCEvent::GCEvent()
   : m_impl(nullptr)
 {
-}
-
-GCEvent::~GCEvent()
-{
-    delete m_impl;
-    m_impl = nullptr;
 }
 
 void GCEvent::CloseEvent()

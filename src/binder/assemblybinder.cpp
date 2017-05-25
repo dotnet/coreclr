@@ -685,26 +685,21 @@ namespace BINDER_SPACE
 
         StackSString sCoreLib;
 
-        // At run-time, System.Private.CoreLib.ni.dll is typically always available, and
-        // System.Private.CoreLib.dll is typically not.  So check for the NI first.
+        // At run-time, System.Private.CoreLib.dll is expected to be the NI image.
         sCoreLib = sCoreLibDir;
-        sCoreLib.Append(CoreLibName_NI_W);
-        if (!fBindToNativeImage || FAILED(AssemblyBinder::GetAssembly(sCoreLib,
-                                               FALSE /* fInspectionOnly */,
-                                               TRUE /* fIsInGAC */,
-                                               TRUE /* fExplicitBindToNativeImage */,
-                                               &pSystemAssembly)))
-        {
-            // If System.Private.CoreLib.ni.dll is unavailable, look for System.Private.CoreLib.dll instead
-            sCoreLib = sCoreLibDir;
-            sCoreLib.Append(CoreLibName_IL_W);
-            IF_FAIL_GO(AssemblyBinder::GetAssembly(sCoreLib,
+        sCoreLib.Append(CoreLibName_IL_W);
+        BOOL fExplicitBindToNativeImage = (fBindToNativeImage == true)? TRUE:FALSE;
+#ifdef FEATURE_NI_BIND_FALLBACK
+        // Some non-Windows platforms do not automatically generate the NI image as CoreLib.dll.
+        // If those platforms also do not support automatic fallback from NI to IL, bind as IL.
+        fExplicitBindToNativeImage = FALSE;
+#endif // FEATURE_NI_BIND_FALLBACK
+        IF_FAIL_GO(AssemblyBinder::GetAssembly(sCoreLib,
                                                    FALSE /* fInspectionOnly */,
                                                    TRUE /* fIsInGAC */,
-                                                   FALSE /* fExplicitBindToNativeImage */,
+                                                   fExplicitBindToNativeImage,
                                                    &pSystemAssembly));
-        }
-
+        
         *ppSystemAssembly = pSystemAssembly.Extract();
 
     Exit:
@@ -1601,8 +1596,13 @@ namespace BINDER_SPACE
                 IF_FAIL_GO(BinderHasNativeHeader(pNativePEImage, &hasHeader));
                 if (!hasHeader)
                 {
-                     pPEImage = pNativePEImage;
-                     pNativePEImage = NULL;
+                    BinderReleasePEImage(pPEImage);
+                    BinderReleasePEImage(pNativePEImage);
+
+                    BINDER_LOG_ENTER(W("BinderAcquirePEImageIL"));
+                    hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, false);
+                    BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImageIL"), hr);
+                    IF_FAIL_GO(hr);
                 }
             }
 

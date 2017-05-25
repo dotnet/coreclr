@@ -173,49 +173,9 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
 
         ENTER_DOMAIN_PTR(pCompilationDomain,ADV_COMPILATION)
         {
-            if (fForceFulltrustDomain)
-                ((ApplicationSecurityDescriptor *)pCompilationDomain->GetSecurityDescriptor())->SetGrantedPermissionSet(NULL, NULL, 0xFFFFFFFF);
-
-#ifndef CROSSGEN_COMPILE
-#endif
             pCompilationDomain->InitializeDomainContext(TRUE, NULL, NULL);
 
-#ifndef CROSSGEN_COMPILE
-
-            if (!NingenEnabled())
-            {
-                APPDOMAINREF adRef = (APPDOMAINREF)pCompilationDomain->GetExposedObject();
-                GCPROTECT_BEGIN(adRef);
-                MethodDescCallSite initializeSecurity(METHOD__APP_DOMAIN__INITIALIZE_DOMAIN_SECURITY);
-                ARG_SLOT args[] =
-                {
-                    ObjToArgSlot(adRef),
-                    ObjToArgSlot(NULL),
-                    ObjToArgSlot(NULL),
-                    ObjToArgSlot(NULL),
-                    static_cast<ARG_SLOT>(FALSE)
-                };
-                initializeSecurity.Call(args);
-                GCPROTECT_END();
-            }
-#endif
-
-            {
-                GCX_PREEMP();
-
-                // We load assemblies as domain-bound (However, they're compiled as domain neutral)
-#ifdef FEATURE_LOADER_OPTIMIZATION
-                pCompilationDomain->SetSharePolicy(AppDomain::SHARE_POLICY_NEVER);
-#endif // FEATURE_LOADER_OPTIMIZATION
-
-            }
-
             pCompilationDomain->SetFriendlyName(W("Compilation Domain"));
-            if (!NingenEnabled())
-            {
-                Security::SetDefaultAppDomainProperty(pCompilationDomain->GetSecurityDescriptor());
-                pCompilationDomain->GetSecurityDescriptor()->FinishInitialization();
-            }
             SystemDomain::System()->LoadDomain(pCompilationDomain);
 
 #ifndef CROSSGEN_COMPILE
@@ -355,8 +315,7 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                 wzPath,
 
                 // If we're explicitly binding to an NGEN image, we do not want the cache
-                // this PEImage for use later, as pointers that need fixup (e.g.,
-                // Module::m_pModuleSecurityDescriptor) will not be valid for use later. 
+                // this PEImage for use later, as pointers that need fixup
                 // Normal caching is done when we open it "for real" further down when we
                 // call LoadDomainAssembly().
                 fExplicitBindToNativeImage ? MDInternalImport_NoCache : MDInternalImport_Default);
@@ -651,22 +610,6 @@ HRESULT CEECompileInfo::SetCompilationTarget(CORINFO_ASSEMBLY_HANDLE     assembl
             }
         }
     }
-
-#ifdef FEATURE_READYTORUN_COMPILER
-    if (IsReadyToRunCompilation() && !pModule->IsILOnly())
-    {
-        GetSvcLogger()->Printf(LogLevel_Error, W("Error: /readytorun not supported for mixed mode assemblies\n"));
-        return E_FAIL;
-    }
-#endif
-
-#ifdef FEATURE_READYTORUN_COMPILER
-    if (IsReadyToRunCompilation() && !pModule->IsILOnly())
-    {
-        GetSvcLogger()->Printf(LogLevel_Error, W("Error: /readytorun not supported for mixed mode assemblies\n"));
-        return E_FAIL;
-    }
-#endif
 
     return S_OK;
 }
@@ -1723,6 +1666,12 @@ mdToken CEECompileInfo::TryEncodeMethodAsToken(
         if (!pReferencingModule->IsInCurrentVersionBubble())
             return mdTokenNil;
 
+        // If this is a MemberRef with TypeSpec, we might come to here because we resolved the method
+        // into a non-generic base class in the same version bubble. However, since we don't have the
+        // proper type context during ExternalMethodFixupWorker, we can't really encode using token
+        if (pResolvedToken->pTypeSpec != NULL)
+            return mdTokenNil;
+            
         unsigned methodToken = pResolvedToken->token;
 
         switch (TypeFromToken(methodToken))
@@ -3140,8 +3089,8 @@ HRESULT NGenModulePdbWriter::WritePDBData()
 	SString dllPath = pLoadedLayout->GetPath();
 	if (!dllPath.EndsWithCaseInsensitive(L".ni.dll") && !dllPath.EndsWithCaseInsensitive(L".ni.exe"))
 	{
-		SString::Iterator fileNameStart = dllPath.Begin();
-		dllPath.FindBack(fileNameStart, '\\');
+		SString::Iterator fileNameStart = dllPath.End();
+		dllPath.FindBack(fileNameStart, DIRECTORY_SEPARATOR_STR_W);
 
 		SString::Iterator ext = dllPath.End();
 		dllPath.FindBack(ext, '.');
@@ -6660,6 +6609,41 @@ CORINFO_METHOD_HANDLE CEEPreloader::LookupMethodDef(mdMethodDef token)
     return CORINFO_METHOD_HANDLE(pMD);
 }
 
+static BOOL MethodIsVisibleOutsideItsAssembly(DWORD dwMethodAttr)
+{
+    LIMITED_METHOD_CONTRACT;
+    return (IsMdPublic(dwMethodAttr) ||
+        IsMdFamORAssem(dwMethodAttr) ||
+        IsMdFamily(dwMethodAttr));
+}
+
+static BOOL ClassIsVisibleOutsideItsAssembly(DWORD dwClassAttr, BOOL fIsGlobalClass)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    if (fIsGlobalClass)
+    {
+        return TRUE;
+    }
+
+    return (IsTdPublic(dwClassAttr) ||
+        IsTdNestedPublic(dwClassAttr) ||
+        IsTdNestedFamily(dwClassAttr) ||
+        IsTdNestedFamORAssem(dwClassAttr));
+}
+
+static BOOL MethodIsVisibleOutsideItsAssembly(MethodDesc * pMD)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    MethodTable * pMT = pMD->GetMethodTable();
+
+    if (!ClassIsVisibleOutsideItsAssembly(pMT->GetAttrClass(), pMT->IsGlobalClass()))
+        return FALSE;
+
+    return MethodIsVisibleOutsideItsAssembly(pMD->GetAttrs());
+}
+
 CorCompileILRegion CEEPreloader::GetILRegion(mdMethodDef token)
 {
     STANDARD_VM_CONTRACT;
@@ -6696,7 +6680,7 @@ CorCompileILRegion CEEPreloader::GetILRegion(mdMethodDef token)
                 }
             }
             else
-            if (Security::MethodIsVisibleOutsideItsAssembly(pMD))
+            if (MethodIsVisibleOutsideItsAssembly(pMD))
             {
                 // We are inlining only leaf methods, except for mscorlib. Thus we can assume that only methods
                 // visible outside its assembly are likely to be inlined.
@@ -6803,7 +6787,7 @@ void CEEPreloader::GetRVAFieldData(mdFieldDef fd, PVOID * ppData, DWORD * pcbSiz
     if (pFD == NULL)
         ThrowHR(COR_E_TYPELOAD);
 
-    _ASSERTE(pFD->IsILOnlyRVAField());
+    _ASSERTE(pFD->IsRVA());
 
     UINT size = pFD->LoadSize();
 
@@ -6975,7 +6959,6 @@ void CompilationDomain::Init()
     InitVSD();
 #endif
 
-    Security::SetDefaultAppDomainProperty(GetSecurityDescriptor());
     SetCompilationDomain();
 
 
@@ -7043,7 +7026,7 @@ HRESULT CompilationDomain::AddDependencyEntry(PEAssembly *pFile,
 
     if (pFile)
     {
-        DomainAssembly *pAssembly = GetAppDomain()->LoadDomainAssembly(NULL, pFile, FILE_LOAD_CREATE, NULL);
+        DomainAssembly *pAssembly = GetAppDomain()->LoadDomainAssembly(NULL, pFile, FILE_LOAD_CREATE);
         // Note that this can trigger an assembly load (of mscorlib)
         pAssembly->GetOptimizedIdentitySignature(&pDependency->signAssemblyDef);
 
@@ -7296,7 +7279,6 @@ PEAssembly *CompilationDomain::BindAssemblySpec(
     BOOL fThrowOnFileNotFound,
     BOOL fRaisePrebindEvents,
     StackCrawlMark *pCallerStackMark,
-    AssemblyLoadSecurity *pLoadSecurity,
     BOOL fUseHostBinderIfAvailable)
 {
     PEAssembly *pFile = NULL;
@@ -7315,7 +7297,6 @@ PEAssembly *CompilationDomain::BindAssemblySpec(
             fThrowOnFileNotFound,
             fRaisePrebindEvents,
             pCallerStackMark,
-            pLoadSecurity,
             fUseHostBinderIfAvailable);
     }
     EX_HOOK
