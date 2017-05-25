@@ -124,6 +124,7 @@ def static getOSGroup(def os) {
                 def archiveSettings = new ArchivalSettings()
                 archiveSettings.addFiles('Perf-*.xml')
                 archiveSettings.addFiles('Perf-*.etl')
+                archiveSettings.addFiles('machinedata.json')
                 Utilities.addArchival(newJob, archiveSettings)
 
                 Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
@@ -280,7 +281,7 @@ def static getOSGroup(def os) {
 
         // Save machinedata.json to /artifact/bin/ Jenkins dir
         def archiveSettings = new ArchivalSettings()
-        archiveSettings.addFiles('sandbox/perf-*.xml')
+        archiveSettings.addFiles('Perf-*.xml')
         archiveSettings.addFiles('machinedata.json')
         Utilities.addArchival(newJob, archiveSettings)
 
