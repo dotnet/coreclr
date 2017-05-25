@@ -3726,7 +3726,7 @@ VOID FieldMarshaler_SafeArray::UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNa
     pSafeArray = (LPSAFEARRAY*)pNativeValue;
 
     VARTYPE vt = m_vt;
-    MethodTable* pMT = m_pMT.GetValue();
+    MethodTable* pMT = m_pMT.GetValueMaybeNull();
 
     GCPROTECT_BEGIN(pArray)
     {
@@ -3771,7 +3771,7 @@ VOID FieldMarshaler_SafeArray::UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF
     }
 
     VARTYPE vt = m_vt;
-    MethodTable* pMT = m_pMT.GetValue();
+    MethodTable* pMT = m_pMT.GetValueMaybeNull();
 
     // If we have an empty vartype, get it from the safearray vartype
     if (vt == VT_EMPTY)
@@ -4868,3 +4868,10 @@ IMPLEMENT_FieldMarshaler_METHOD(void, Restore,
     (),
     ,
     ())
+
+#ifndef DACCESS_COMPILE
+IMPLEMENT_FieldMarshaler_METHOD(VOID, CopyTo,
+    (VOID *pDest, SIZE_T destSize) const,
+    ,
+    (pDest, destSize))
+#endif // !DACCESS_COMPILE
