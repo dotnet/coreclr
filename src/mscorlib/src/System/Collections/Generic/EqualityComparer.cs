@@ -10,6 +10,7 @@ using System.Security;
 using System.Globalization;
 using System.Runtime;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
 using System.Diagnostics.Contracts;
 
 namespace System.Collections.Generic
@@ -401,6 +402,14 @@ namespace System.Collections.Generic
             }
             return -1;
         }
+
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            // For back-compat we need to serialize the comparers for enums with underlying types other than int as ObjectEqualityComparer 
+            if (Type.GetTypeCode(Enum.GetUnderlyingType(typeof(T))) != TypeCode.Int32) {
+                info.SetType(typeof(ObjectEqualityComparer<T>));
+            }
+        }
     }
 
     [Serializable]
@@ -478,6 +487,13 @@ namespace System.Collections.Generic
                 if (toFind == current) return i;
             }
             return -1;
+        }
+
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            // The LongEnumEqualityComparer does not exist on 4.0 so we need to serialize this comparer as ObjectEqualityComparer
+            // to allow for roundtrip between 4.0 and 4.5.
+            info.SetType(typeof(ObjectEqualityComparer<T>));
         }
     }
 }
