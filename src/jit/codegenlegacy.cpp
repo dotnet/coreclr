@@ -5626,7 +5626,7 @@ void CodeGen::genCodeForQmark(GenTreePtr tree, regMaskTP destReg, regMaskTP best
             // If any candidates are not alive at the GT_QMARK node, then they
             // need to be spilled
 
-            VARSET_VALARG_TP rsLiveNow(compiler->compCurLife);
+            const VARSET_TP& rsLiveNow(compiler->compCurLife);
             VARSET_TP rsLiveAfter(compiler->fgUpdateLiveSet(compiler->compCurLife, compiler->compCurLifeTree, tree));
 
             VARSET_TP regVarLiveNow(VarSetOps::Intersection(compiler, compiler->raRegVarsMask, rsLiveNow));

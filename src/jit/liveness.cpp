@@ -1200,7 +1200,7 @@ class LiveVarAnalysis
 
         if (m_compiler->ehBlockHasExnFlowDsc(block))
         {
-            VARSET_VALARG_TP liveVars(m_compiler->fgGetHandlerLiveVars(block));
+            const VARSET_TP& liveVars(m_compiler->fgGetHandlerLiveVars(block));
 
             VarSetOps::UnionD(m_compiler, m_liveIn, liveVars);
             VarSetOps::UnionD(m_compiler, m_liveOut, liveVars);
@@ -1441,7 +1441,7 @@ VARSET_VALRET_TP Compiler::fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTreePtr 
     if (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD || tree->gtOper == GT_REG_VAR ||
         (lclVarTree = fgIsIndirOfAddrOfLocal(tree)) != nullptr)
     {
-        VARSET_VALARG_TP varBits(fgGetVarBits(lclVarTree));
+        const VARSET_TP& varBits(fgGetVarBits(lclVarTree));
 
         if (!VarSetOps::IsEmpty(this, varBits))
         {
@@ -2075,7 +2075,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
                     gtReverseCond(tree);
 
                     // Remember to also swap the live sets of the two branches.
-                    VARSET_VALARG_TP tmpVS(gtQMark->gtQmark.gtElseLiveSet);
+                    const VARSET_TP& tmpVS(gtQMark->gtQmark.gtElseLiveSet);
                     VarSetOps::AssignNoCopy(this, gtQMark->gtQmark.gtElseLiveSet, gtQMark->gtQmark.gtThenLiveSet);
                     VarSetOps::AssignNoCopy(this, gtQMark->gtQmark.gtThenLiveSet, tmpVS);
 

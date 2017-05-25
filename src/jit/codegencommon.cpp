@@ -8082,7 +8082,7 @@ void CodeGen::genReserveEpilog(BasicBlock* block)
     JITDUMP("Reserving epilog IG for block BB%02u\n", block->bbNum);
 
     assert(block != nullptr);
-    VARSET_VALARG_TP gcrefVarsArg(getEmitter()->emitThisGCrefVars);
+    const VARSET_TP& gcrefVarsArg(getEmitter()->emitThisGCrefVars);
     bool             last = (block->bbNext == nullptr);
     getEmitter()->emitCreatePlaceholderIG(IGPT_EPILOG, block, gcrefVarsArg, gcrefRegsArg, byrefRegsArg, last);
 }
