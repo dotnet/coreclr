@@ -8451,7 +8451,7 @@ NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
                                      VERBOSE_TYPES );
         DisplayWriteFieldInt( m_numCTMFields, eecli->m_numCTMFields,
                               EEClassLayoutInfo, VERBOSE_TYPES );
-        PTR_FieldMarshaler fmArray( TO_TADDR(eecli->m_pFieldMarshalers) );
+        PTR_FieldMarshaler fmArray = eecli->GetFieldMarshalers();
         DisplayWriteFieldAddress( m_pFieldMarshalers,
                                   DPtrToPreferredAddr(fmArray),
                                   eecli->m_numCTMFields

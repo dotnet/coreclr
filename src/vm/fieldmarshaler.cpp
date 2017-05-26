@@ -1318,7 +1318,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     }
 
     pEEClassLayoutInfoOut->m_numCTMFields        = fHasNonTrivialParent ? pParentMT->GetLayoutInfo()->m_numCTMFields : 0;
-    pEEClassLayoutInfoOut->m_pFieldMarshalers    = NULL;
+    pEEClassLayoutInfoOut->SetFieldMarshalers(NULL);
     pEEClassLayoutInfoOut->SetIsBlittable(TRUE);
     if (fHasNonTrivialParent)
         pEEClassLayoutInfoOut->SetIsBlittable(pParentMT->IsBlittable());
@@ -1599,7 +1599,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
 
     if (pEEClassLayoutInfoOut->m_numCTMFields)
     {
-        pEEClassLayoutInfoOut->m_pFieldMarshalers = (FieldMarshaler*)(pamTracker->Track(pAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(MAXFIELDMARSHALERSIZE) * S_SIZE_T(pEEClassLayoutInfoOut->m_numCTMFields))));
+        pEEClassLayoutInfoOut->SetFieldMarshalers((FieldMarshaler*)(pamTracker->Track(pAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(MAXFIELDMARSHALERSIZE) * S_SIZE_T(pEEClassLayoutInfoOut->m_numCTMFields)))));
 
         // Bring in the parent's fieldmarshalers
         if (fHasNonTrivialParent)
@@ -1608,8 +1608,8 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             PREFAST_ASSUME(pParentLayoutInfo != NULL);  // See if (fParentHasLayout) branch above
             
             UINT numChildCTMFields = pEEClassLayoutInfoOut->m_numCTMFields - pParentLayoutInfo->m_numCTMFields;
-            memcpyNoGCRefs( ((BYTE*)pEEClassLayoutInfoOut->m_pFieldMarshalers) + MAXFIELDMARSHALERSIZE*numChildCTMFields,
-                            pParentLayoutInfo->m_pFieldMarshalers,
+            memcpyNoGCRefs( ((BYTE*)pEEClassLayoutInfoOut->GetFieldMarshalers()) + MAXFIELDMARSHALERSIZE*numChildCTMFields,
+                            pParentLayoutInfo->GetFieldMarshalers(),
                             MAXFIELDMARSHALERSIZE * (pParentLayoutInfo->m_numCTMFields) );
         }
 
