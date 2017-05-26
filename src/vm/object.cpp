@@ -2355,11 +2355,9 @@ INT32 StringObject::FastCompareStringHelper(DWORD* strAChars, INT32 countA, DWOR
 }
 
 
-/*=============================InternalHasHighChars=============================
+/*=============================InternalCheckHighChars=============================
 **Action:  Checks if the string can be sorted quickly.  The requirements are that
-**         the string contain no character greater than 0x80 and that the string not
-**         contain an apostrophe or a hypen.  Apostrophe and hyphen are excluded so that
-**         words like co-op and coop sort together.
+**         the string contain no character greater than or equal to 0x80.
 **Returns: Void.  The side effect is to set a bit on the string indicating whether or not
 **         the string contains high chars.
 **Arguments: The String to be checked.
@@ -2369,29 +2367,19 @@ DWORD StringObject::InternalCheckHighChars() {
     WRAPPER_NO_CONTRACT;
 
     WCHAR *chars;
-    WCHAR c;
     INT32 length;
 
     RefInterpretGetStringValuesDangerousForGC((WCHAR **) &chars, &length);
 
-    DWORD stringState = STRING_STATE_FAST_OPS;
-
     for (int i=0; i<length; i++) {
-        c = chars[i];
-        if (c>=0x80) {
+        if (chars[i] >= 0x80) {
             SetHighCharState(STRING_STATE_HIGH_CHARS);
             return STRING_STATE_HIGH_CHARS;
-        } else if (HighCharHelper::IsHighChar((int)c)) {
-            //This means that we have a character which forces special sorting,
-            //but doesn't necessarily force slower casing and indexing.  We'll
-            //set a value to remember this, but we need to check the rest of
-            //the string because we may still find a charcter greater than 0x7f.
-            stringState = STRING_STATE_SPECIAL_SORT;
         }
     }
 
-    SetHighCharState(stringState);
-    return stringState;
+    SetHighCharState(STRING_STATE_FAST_OPS);
+    return STRING_STATE_FAST_OPS;
 }
 
 #ifdef VERIFY_HEAP
@@ -2415,24 +2403,15 @@ BOOL StringObject::ValidateHighChars()
     INT32 length;
     RefInterpretGetStringValuesDangerousForGC((WCHAR **) &chars, &length);
 
-    DWORD stringState = STRING_STATE_FAST_OPS;
     for (int i=0; i<length; i++) {
-        WCHAR c = chars[i];
-        if (c>=0x80) 
+        if (chars[i] >= 0x80)
         {
             // if there is a high char in the string, the state has to be STRING_STATE_HIGH_CHARS
             return curStringState == STRING_STATE_HIGH_CHARS;
-        } 
-        else if (HighCharHelper::IsHighChar((int)c)) {
-            //This means that we have a character which forces special sorting,
-            //but doesn't necessarily force slower casing and indexing.  We'll
-            //set a value to remember this, but we need to check the rest of
-            //the string because we may still find a charcter greater than 0x7f.
-            stringState = STRING_STATE_SPECIAL_SORT;
         }
     }
     
-    return stringState == curStringState;
+    return curStringState == STRING_STATE_FAST_OPS;
 }
 
 #endif //VERIFY_HEAP

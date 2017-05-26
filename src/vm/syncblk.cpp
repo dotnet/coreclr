@@ -2453,7 +2453,6 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
     //for string objects:
     //         BIT_SBLK_STRING_HAS_NO_HIGH_CHARS   0x80000000
     //         BIT_SBLK_STRING_HIGH_CHARS_KNOWN    0x40000000
-    //         BIT_SBLK_STRING_HAS_SPECIAL_SORT    0xC0000000
     //for other objects:
     //         BIT_SBLK_AGILE_IN_PROGRESS          0x80000000
     //         BIT_SBLK_FINALIZER_RUN              0x40000000

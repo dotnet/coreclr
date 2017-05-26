@@ -106,7 +106,6 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
 // and object 2 has a ref to object 1.  The agile checker will infinitely loop on these references.
 #define BIT_SBLK_AGILE_IN_PROGRESS          0x80000000
 #define BIT_SBLK_STRING_HIGH_CHARS_KNOWN    0x40000000
-#define BIT_SBLK_STRING_HAS_SPECIAL_SORT    0xC0000000
 #define BIT_SBLK_STRING_HIGH_CHAR_MASK      0xC0000000
 
 #define BIT_SBLK_FINALIZER_RUN              0x40000000
