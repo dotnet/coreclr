@@ -85,13 +85,15 @@ class Constants {
     def static architectureList = ['arm', 'arm64', 'x64', 'x86']
 }
 
-def static setMachineAffinity(def job, def os, def architecture) {
+def static setMachineAffinity(def job, def os, def architecture, def options = null) {
     if (architecture == 'arm64' && os == 'Windows_NT') {
         Utilities.setMachineAffinity(job, os, 'latest-arm64');
-    } else if (architecture == 'arm64' && os == 'Ubuntu') {
-        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size-cross');
-    } else if (architecture == 'arm64' && os == 'Ubuntu16.04') {
-        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size-cross');
+    } else if (architecture == 'arm64' && os != 'Windows_NT' && options == null) {
+        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size');
+    } else if (architecture == 'arm64' && os != 'Windows_NT' && options['large_pages'] == true) {
+        Utilities.setMachineAffinity(job, os, 'arm64-huge-page-size');
+    } else if (architecture == 'arm64' && os != 'Windows_NT' && options['is_build_only'] == true) {
+        Utilities.setMachineAffinity(job, os, 'arm64-cross-latest');
     } else if ((architecture == 'arm') && (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen')) {
         Utilities.setMachineAffinity(job, 'Ubuntu', 'arm-cross-latest');
     } else {
@@ -1641,7 +1643,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
 
                     if (!enableCorefxTesting) {
-                        buildCommands += "./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture} clang3.8 skipnuget ${standaloneGc}"
+                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs ./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture} clang3.8 skipnuget ${standaloneGc}"
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Set time out
@@ -1978,7 +1980,8 @@ combinedScenarios.each { scenario ->
                     // Create the new job
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR, folderName)) {}
 
-                    setMachineAffinity(newJob, os, architecture)
+                    def machineAffinityOptions = architecture == 'arm64' ? ['is_build_only': true] : null
+                    setMachineAffinity(newJob, os, architecture, machineAffinityOptions)
 
                     // Add all the standard options
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
@@ -2476,6 +2479,14 @@ combinedScenarios.each { scenario ->
                                 shell ("mkdir ./bin/CoreFxBinDir")
                                 // Unpack the corefx binaries
                                 shell("tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir")
+
+                                // HACK -- Arm64 does not have corefx jobs yet.
+                                // Clone corefx and build the native packages overwriting the x64 packages.
+                                if (architecture == 'arm64') {
+                                    shell("git clone https://github.com/dotnet/corefx fx")
+                                    shell("ROOTFS_DIR=/opt/arm64-xenial-rootfs ./fx/build.sh -release -buildArch=arm64 -- verbose cross clang3.8")
+                                    shell("cp fx/bin/Linux.${architecture}.Release/native/* ./bin/CoreFxBinDir/")
+                                }
 
                                 // Unzip the tests first.  Exit with 0
                                 shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
