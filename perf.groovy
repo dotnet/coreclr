@@ -239,11 +239,11 @@ def static getOSGroup(def os) {
         def newJob = job(Utilities.getFullJobName(project, "perf_${os}", isPR)) {
 
             label('linux_clr_perf')
-                wrappers {
-                    credentialsBinding {
-                        string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
-                    }
+            wrappers {
+                credentialsBinding {
+                    string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
                 }
+            }
 
             if (isPR)
             {
@@ -252,6 +252,13 @@ def static getOSGroup(def os) {
                     stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
                 }
             }
+
+            // Cap the maximum number of iterations to 21.
+            parameters {
+                stringParam('XUNIT_PERFORMANCE_MAX_ITERATION', '21', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enought to get a good sample')
+                stringParam('XUNIT_PERFORMANCE_MAX_ITERATION_INNER_SPECIFIED', '21', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enought to get a good sample')
+            }
+
             def osGroup = getOSGroup(os)
             def architecture = 'x64'
             def configuration = 'Release'
