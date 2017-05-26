@@ -89,7 +89,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     if (architecture == 'arm64' && os == 'Windows_NT') {
         Utilities.setMachineAffinity(job, os, 'latest-arm64');
     } else if (architecture == 'arm64' && os != 'Windows_NT' && options == null) {
-        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size-cross');
+        Utilities.setMachineAffinity(job, os, 'arm64-huge-page-size');
     } else if (architecture == 'arm64' && os != 'Windows_NT' && options['large_pages'] == true) {
         Utilities.setMachineAffinity(job, os, 'arm64-huge-page-size');
     } else if (architecture == 'arm64' && os != 'Windows_NT' && options['is_build_only'] == true) {
@@ -2585,6 +2585,14 @@ combinedScenarios.each { scenario ->
                                 shell ("mkdir ./bin/CoreFxBinDir")
                                 // Unpack the corefx binaries
                                 shell("tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir")
+
+                                // HACK -- Arm64 does not have corefx jobs yet.
+                                // Clone corefx and build the native packages overwriting the x64 packages.
+                                if (architecture == 'arm64') {
+                                    shell("git clone https://github.com/dotnet/corefx fx")
+                                    shell("ROOTFS_DIR=/opt/arm64-xenial-rootfs ./fx/build.sh -release -buildArch=arm64 -- verbose cross clang3.8")
+                                    shell("cp fx/bin/Linux.${architecture}.Release/native/* ./bin/CoreFxBinDir/")
+                                }
 
                                 // HACK -- Arm64 does not have corefx jobs yet.
                                 // Clone corefx and build the native packages overwriting the x64 packages.
