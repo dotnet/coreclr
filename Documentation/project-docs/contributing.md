@@ -11,6 +11,12 @@ General contribution guidance is included in this document. Additional guidance 
 - [Performance Guidelines](performance-guidelines.md) for changes in performance critical code or that otherwise affect performance.
 - [Porting the JIT](https://github.com/dotnet/coreclr/pull/2214#issuecomment-161850464) to other chip architectures.
 
+## Contribution "Bar"
+
+Project maintainers will merge changes that align with [project priorities](project-priorities.md) and/or improve the product significantly for a broad set of apps. Proposals must also satisfy the other published guidelines defined in this document.
+
+Maintainers will not merge changes that have narrowly-defined benefits, due to compatibility risk. The CoreCLR codebase is used by several Microsoft products (e.g. Windows Phone, ASP.NET Core, .NET Framework 4.x) to enable execution of managed code. Changes to the open source codebase can become part of these products, but are first reviewed and tested to ensure they are correct for those products and will not inadvertently break applications. We may revert changes if they are found to be breaking.
+
 ## Managed Code Compatibility
 
 Contributions should maintain [API signature](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md#bucket-1-public-contract) and behavioral compatibility. Contributions that include [breaking changes](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md) will be rejected. Please file an issue to discuss your idea or change if you believe that it may affect managed code compatibility.
@@ -60,13 +66,6 @@ DOs and DON'Ts
 * **DON'T** commit code that you didn't write. If you find code that you think is a good fit to add to .NET Core, file an issue and start a discussion before proceeding.
 * **DON'T** submit PRs that alter licensing related files or headers. If you believe there's a problem with them, file an issue and we'll be happy to discuss it.
 * **DON'T** add API additions without filing an issue and discussing with us first. See [API Review Process](https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/api-review-process.md).
-
-Contribution "Bar"
-==================
-
-Project maintainers will merge changes that align with [project priorities](project-priorities.md) and/or improve the product significantly for a broad set of apps. Proposals must also satisfy the published [guidelines for .NET Core](#contribution-guidelines).
-
-Maintainers will not merge changes that have narrowly-defined benefits, due to compatibility risk. The CoreCLR codebase is used by several Microsoft products (e.g. Windows Phone, ASP.NET Core, .NET Framework 4.x) to enable execution of managed code. Changes to the open source codebase can become part of these products, but are first reviewed and tested to ensure they are correct for those products and will not inadvertently break applications. We may revert changes if they are found to be breaking.
 
 Contributing Ports
 ------------------
