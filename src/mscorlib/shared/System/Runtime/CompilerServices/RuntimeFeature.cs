@@ -7,13 +7,17 @@ namespace System.Runtime.CompilerServices
     public static class RuntimeFeature
     {
         /// <summary>
+        /// Indicates that this version of runtime supports default interface method implementations.
+        /// </summary>
+        public const string DefaultImplementationsOfInterfaces = nameof(DefaultImplementationsOfInterfaces);
+
+        /// <summary>
         /// Checks whether a certain feature is supported by the Runtime.
         /// </summary>
         public static bool IsSupported(string feature)
         {
-            // No features are supported for now.
-            // These features should be added as public const string fields in the same class.
-            // Example: public const string FeatureName = nameof(FeatureName);
+            if (feature == DefaultImplementationsOfInterfaces)
+                return true;
 
             return false;
         }
