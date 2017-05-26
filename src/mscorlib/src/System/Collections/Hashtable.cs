@@ -1335,7 +1335,7 @@ namespace System.Collections
             ==============================================================================*/
             public override void OnDeserialization(Object sender)
             {
-                return;
+                throw new PlatformNotSupportedException();
             }
         }
 

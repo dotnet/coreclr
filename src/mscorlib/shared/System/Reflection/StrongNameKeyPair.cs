@@ -68,6 +68,9 @@ namespace System.Reflection
             info.AddValue("_publicKey", _publicKey);
         }
 
-        void IDeserializationCallback.OnDeserialization(object sender) { }
+        void IDeserializationCallback.OnDeserialization(object sender)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }
