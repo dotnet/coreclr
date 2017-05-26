@@ -11,21 +11,30 @@ General contribution guidance is included in this document. Additional guidance 
 - [Performance Guidelines](performance-guidelines.md) for changes in performance critical code or that otherwise affect performance.
 - [Porting the JIT](https://github.com/dotnet/coreclr/pull/2214#issuecomment-161850464) to other chip architectures.
 
-## Contribution "Bar"
+Up for Grabs
+------------
 
-Project maintainers will merge changes that align with [project priorities](project-priorities.md) and/or improve the product significantly for a broad set of apps. Proposals must also satisfy the other published guidelines defined in this document.
+The team marks the most straightforward issues as "up for grabs". This set of issues is the place to start if you are interested in contributing but new to the codebase.
 
-Maintainers will not merge changes that have narrowly-defined benefits, due to compatibility risk. The CoreCLR codebase is used by several Microsoft products (e.g. Windows Phone, ASP.NET Core, .NET Framework 4.x) to enable execution of managed code. Changes to the open source codebase can become part of these products, but are first reviewed and tested to ensure they are correct for those products and will not inadvertently break applications. We may revert changes if they are found to be breaking.
+- [dotnet/corefx - "up for grabs"](https://github.com/dotnet/corefx/labels/up-for-grabs)
+- [dotnet/coreclr - "up for grabs"](https://github.com/dotnet/coreclr/labels/up-for-grabs)
 
-## Managed Code Compatibility
+Contribution "Bar"
+------------------
 
-Contributions should maintain [API signature](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md#bucket-1-public-contract) and behavioral compatibility. Contributions that include [breaking changes](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md) will be rejected. Please file an issue to discuss your idea or change if you believe that it may affect managed code compatibility.
+Project maintainers will merge changes that improve the product significantly and broadly and that align with the [.NET Core roadmap](https://github.com/dotnet/core/blob/master/roadmap.md). 
 
-## Typos
+Maintainers will not merge changes that have narrowly-defined benefits, due to compatibility risk. The .NET Core codebase is used by several Microsoft products (for example, ASP.NET Core, .NET Framework 4.x, Windows Universal Apps) to enable execution of managed code. Other companies are building products on top of .NET Core, too. We may revert changes if they are found to be breaking.
 
-Typos are embarrassing! Please focus on a given component with your fixes or on one type of typo across the entire repository. If it's going to take >30 mins to review your PR, then you will probably be asked you to chunk it up.
+Contributions must also satisfy the other published guidelines defined in this document.
 
-## Commit Messages
+Managed Code Compatibility
+--------------------------
+
+Contributions must maintain [API signature](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md#bucket-1-public-contract) and behavioral compatibility. Contributions that include [breaking changes](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md) will be rejected. Please file an issue to discuss your idea or change if you believe that it may affect managed code compatibility.
+
+Commit Messages
+---------------
 
 Please format commit messages as follows (based on [A Note About Git Commit Messages](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html)):
 
@@ -48,8 +57,19 @@ times in N different commits. If there was some accidental reformatting or white
 changes during the course of your commits, please rebase them away before submitting
 the PR.
 
+Contributor License Agreement
+-----------------------------
+
+You must sign a [.NET Foundation Contribution License Agreement (CLA)](http://cla2.dotnetfoundation.org) before your PR will be merged. This is a one-time requirement for projects in the .NET Foundation. You can read more about [Contribution License Agreements (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) on Wikipedia.
+
+The agreement: [net-foundation-contribution-license-agreement.pdf](https://cla2.dotnetfoundation.org/cladoc/net-foundation-contribution-license-agreement.pdf)
+
+You don't have to do this up-front. You can simply clone, fork, and submit your pull-request as usual. When your pull-request is created, it is classified by a CLA bot. If the change is trivial (for example, you just fixed a typo), then the PR is labelled with `cla-not-required`. Otherwise it's classified as `cla-required`. Once you signed a CLA, the current and all future pull-requests will be labelled as `cla-signed`.
+
 DOs and DON'Ts
 --------------
+
+Please do:
 
 * **DO** follow our [coding style](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/coding-style.md) (C# code-specific)
 * **DO** give priority to the current style of the project or file you're changing even if it diverges from the general guidelines.
@@ -59,7 +79,9 @@ DOs and DON'Ts
   it's often better to create new issue than to side track the discussion.
 * **DO** blog and tweet (or whatever) about your contributions, frequently!
 
-* **DO NOT** send PRs for style changes. 
+Please do not:
+
+* **DON'T** make PRs for style changes. 
 * **DON'T** surprise us with big pull requests. Instead, file an issue and start
   a discussion so we can agree on a direction before you invest a large amount
   of time.
@@ -70,9 +92,22 @@ DOs and DON'Ts
 Contributing Ports
 ------------------
 
-We encourage ports of CoreCLR to other platforms. Linux and OS X ports are in progress and have a lot of momentum behind them. There is also interest in a [FreeBSD port](https://github.com/dotnet/coreclr/issues/455) (and OpenBSD and NetBSD).
+We encourage ports of CoreCLR to other platforms. There are multiple ports ongoing at any one time. You may be interested in one of the following ports:
 
-Ports have a weaker contribution bar, since they do not contribute to compatibility risk with existing Microsoft products on Windows. For ports, we are primarily looking for functionally correct implementations.
+Chips:
+
+- [ARM32](https://github.com/dotnet/coreclr/labels/arch-arm32)
+- [ARM64](https://github.com/dotnet/coreclr/labels/arch-arm64)
+- [X86](https://github.com/dotnet/coreclr/labels/arch-x86)
+
+Operating System:
+
+- [Linux](https://github.com/dotnet/coreclr/labels/os-linux)
+- [macOS](https://github.com/dotnet/coreclr/labels/os-mac-os-x)
+- [Windows Subsystem for Linux](https://github.com/dotnet/coreclr/labels/os-windows-wsl)
+- [FreeBSD](https://github.com/dotnet/coreclr/labels/os-freebsd)
+
+Ports have a weaker contribution bar, at least initially. A functionally correct implementation is considered an important first goal. Performance, reliability and compatibility are all important concerns after that.
 
 Contributing to mscorlib library
 --------------------------------
@@ -83,8 +118,6 @@ Most managed code changes should be made in the [CoreFX](https://github.com/dotn
 - The type exists in both CoreCLR and CoreFX repo -> choose CoreFX.
 - The type exists in CoreCLR only -> choose CoreCLR.
 - In doubt -> choose CoreFX.
-
-Please see [Breaking Changes](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md) to understand our requirements on changes that could impact compatibility. Please pay the most attention to changes that affect the [Public Contract](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md#bucket-1-public-contract). We will not accept changes that break compatibility.
 
 File Headers
 ------------
@@ -119,12 +152,3 @@ Porting Files from Other Projects
 There are many good algorithms implemented in other languages that would benefit the .NET Core project. The rules for porting a Java file to C# , for example, are the same as would be used for copying the same file, as described above.
 
 [Clean-room](https://en.wikipedia.org/wiki/Clean_room_design) implementations of existing algorithms that are not permissively licensed will generally not be accepted. If you want to create or nominate such an implementation, please create an issue to discuss the idea.
-
-Contributor License Agreement
------------------------------
-
-You must sign a [.NET Foundation Contribution License Agreement (CLA)](http://cla2.dotnetfoundation.org) before your PR will be merged. This is a one-time requirement for projects in the .NET Foundation. You can read more about [Contribution License Agreements (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) on Wikipedia.
-
-The agreement: [net-foundation-contribution-license-agreement.pdf](https://cla2.dotnetfoundation.org/cladoc/net-foundation-contribution-license-agreement.pdf)
-
-You don't have to do this up-front. You can simply clone, fork, and submit your pull-request as usual. When your pull-request is created, it is classified by a CLA bot. If the change is trivial (e.g. you just fixed a typo), then the PR is labelled with `cla-not-required`. Otherwise it's classified as `cla-required`. Once you signed a CLA, the current and all future pull-requests will be labelled as `cla-signed`.
