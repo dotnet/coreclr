@@ -9,6 +9,13 @@ namespace System
 {
     internal static partial class AppContextDefaultValues
     {
+        // For parsing a target Framework moniker, from the FrameworkName class
+        private const char c_componentSeparator = ',';
+        private const char c_keyValueSeparator = '=';
+        private const char c_versionValuePrefix = 'v';
+        private const String c_versionKey = "Version";
+        private const String c_profileKey = "Profile";
+
         public static void PopulateDefaultValues()
         {
             string platformIdentifier, profile;
@@ -48,13 +55,6 @@ namespace System
         //  - The version string must be in the System.Version format; an optional "v" or "V" prefix is allowed
         private static bool TryParseFrameworkName(String frameworkName, out String identifier, out int version, out String profile)
         {
-            // For parsing a target Framework moniker, from the FrameworkName class
-            const char c_componentSeparator = ',';
-            const char c_keyValueSeparator = '=';
-            const char c_versionValuePrefix = 'v';
-            const String c_versionKey = "Version";
-            const String c_profileKey = "Profile";
-
             identifier = profile = string.Empty;
             version = 0;
 
@@ -62,88 +62,126 @@ namespace System
             {
                 return false;
             }
-
-            String[] components = frameworkName.Split(c_componentSeparator);
+            
             version = 0;
 
             // Identifer and Version are required, Profile is optional.
-            if (components.Length < 2 || components.Length > 3)
+            int firstSeparatorIndex = frameworkName.IndexOf(c_componentSeparator);
+            if (firstSeparatorIndex == -1) // No commas
             {
                 return false;
+            }
+            
+            int lastSeparatorIndex = frameworkName.LastIndexOf(c_componentSeparator);
+            bool twoComponents = firstSeparatorIndex == lastSeparatorIndex;
+            
+            if (!twoComponents)
+            {
+                // Find the next comma after the first one
+                int middleSeparatorIndex = frameworkName.IndexOf(c_componentSeparator, firstSeparatorIndex + 1);
+                if (middleSeparatorIndex != lastSeparatorIndex) // More than 4 components
+                {
+                    return false;
+                }
             }
 
             //
             // 1) Parse the "Identifier", which must come first. Trim any whitespace
             //
-            identifier = components[0].Trim();
+            identifier = frameworkName.Substring(0, firstSeparatorIndex).Trim();
 
             if (identifier.Length == 0)
             {
                 return false;
             }
-
-            bool versionFound = false;
-            profile = null;
-
-            // 
-            // The required "Version" and optional "Profile" component can be in any order
-            //
-            for (int i = 1; i < components.Length; i++)
+            
+            string secondComponent;
+            int secondComponentIndex = firstSeparatorIndex + 1;
+            
+            if (twoComponents) // Second string must be the version
             {
-                // Get the key/value pair separated by '='
-                string[] keyValuePair = components[i].Split(c_keyValueSeparator);
-
-                if (keyValuePair.Length != 2)
-                {
-                    return false;
-                }
-
-                // Get the key and value, trimming any whitespace
-                string key = keyValuePair[0].Trim();
-                string value = keyValuePair[1].Trim();
-
-                //
-                // 2) Parse the required "Version" key value
-                //
-                if (key.Equals(c_versionKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    versionFound = true;
-
-                    // Allow the version to include a 'v' or 'V' prefix...
-                    if (value.Length > 0 && (value[0] == c_versionValuePrefix || value[0] == 'V'))
-                    {
-                        value = value.Substring(1);
-                    }
-                    Version realVersion = new Version(value);
-                    // The version class will represent some unset values as -1 internally (instead of 0).
-                    version = realVersion.Major * 10000;
-                    if (realVersion.Minor > 0)
-                        version += realVersion.Minor * 100;
-                    if (realVersion.Build > 0)
-                        version += realVersion.Build;
-                }
-                //
-                // 3) Parse the optional "Profile" key value
-                //
-                else if (key.Equals(c_profileKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!String.IsNullOrEmpty(value))
-                    {
-                        profile = value;
-                    }
-                }
-                else
-                {
-                    return false;
-                }
+                secondComponent = frameworkName.Substring(secondComponentIndex);
+                return TryParseVersion(secondComponent, out version);
             }
-
-            if (!versionFound)
+            
+            // Version and profile were provided (or 2 versions)
+            secondComponent = frameworkName.Substring(secondComponentIndex, lastSeparatorIndex - secondComponentIndex);
+            string thirdComponent = frameworkName.Substring(lastSeparatorIndex + 1);
+            
+            if (TryParseVersion(secondComponent, out version))
+            {
+                // Third component has to be a profile or another version
+                if (TryParseProfile(thirdComponent, out profile))
+                {
+                    return true;
+                }
+                return TryParseVersion(thirdComponent, out version);
+            }
+            
+            // Second component has to be a profile
+            if (!TryParseProfile(secondComponent, out profile))
             {
                 return false;
             }
+            
+            // and the third has to be a version
+            return TryParseVersion(thirdComponent, out version);
+        }
+        
+        private static bool TryParseVersion(string input, out int version)
+        {
+            // Get the key/value pair separated by '='
+            int separatorIndex = input.IndexOf(c_keyValueSeparator);
+            if (separatorIndex != input.LastIndexOf(c_keyValueSeparator))
+            {
+                version = 0;
+                return false;
+            }
+            
+            // Get the key and value, trimming any whitespace
+            string key = input.Substring(0, separatorIndex).Trim();
+            string value = input.Substring(separatorIndex + 1).Trim();
 
+            if (!key.Equals(c_versionKey, StringComparison.OrdinalIgnoreCase))
+            {
+                version = 0;
+                return false;
+            }
+            
+            // Allow the version to include a 'v' or 'V' prefix...
+            if (value.Length > 0 && (value[0] == c_versionValuePrefix || value[0] == 'V'))
+            {
+                value = value.Substring(1);
+            }
+            
+            Version realVersion = new Version(value);
+            // The version class will represent some unset values as -1 internally (instead of 0).
+            version = realVersion.Major * 10000;
+            if (realVersion.Minor > 0)
+                version += realVersion.Minor * 100;
+            if (realVersion.Build > 0)
+                version += realVersion.Build;
+            
             return true;
+        }
+        
+        private static bool TryParseProfile(string input, out string profile)
+        {
+            // Get the key/value pair separated by '='
+            int separatorIndex = input.IndexOf(c_keyValueSeparator);
+            if (separatorIndex != input.LastIndexOf(c_keyValueSeparator))
+            {
+                profile = string.Empty;
+                return false;
+            }
+            
+            // Get the key and value, trimming any whitespace
+            string key = input.Substring(0, separatorIndex).Trim();
+            string value = input.Substring(separatorIndex + 1).Trim();
+            
+            bool validProfile = key.Equals(c_profileKey, StringComparison.OrdinalIgnoreCase);
+            profile = validProfile ? value : string.Empty;
+            return validProfile;
         }
 
         // This is a partial method. Platforms (such as Desktop) can provide an implementation of it that will read override value
