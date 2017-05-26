@@ -240,14 +240,11 @@ WRITE_BARRIER_END JIT_ByRefWriteBarrier
 //   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 //
 WRITE_BARRIER_ENTRY JIT_CheckedWriteBarrier
-    PREPARE_EXTERNAL_VAR g_lowest_address, x12
-    ldr  x12,  [x12]
+    ldr  x12,  LOCAL_LABEL(wbs_lowest_address)
     cmp  x14,  x12
-    blt  LOCAL_LABEL(NotInHeap)
 
-    PREPARE_EXTERNAL_VAR g_highest_address, x12
-    ldr  x12, [x12] 
-    cmp  x14, x12
+    ldr  x12, LOCAL_LABEL(wbs_highest_address)
+    ccmp x14, x12, #0x0, ge
     blt  C_FUNC(JIT_WriteBarrier)
 
 LOCAL_LABEL(NotInHeap):
@@ -272,16 +269,19 @@ WRITE_BARRIER_ENTRY JIT_WriteBarrier
 #ifdef WRITE_BARRIER_CHECK
     // Update GC Shadow Heap
 
-    // need temporary registers. Save them before using.
-    stp  x12, x13, [sp, #-16]!
+    // Do not perform the work if g_GCShadow is 0
+    ldr  x12, LOCAL_LABEL(wbs_GCShadow)
+    cbz  x12, LOCAL_LABEL(shadowupdatedisabled)
+
+    // need temporary register. Save before using.
+    str  x13, [sp, #-16]!
+
+    mov  x13, x12
 
     // Compute address of shadow heap location:
     //   pShadow = g_GCShadow + (x14 - g_lowest_address)
-    PREPARE_EXTERNAL_VAR g_lowest_address, x12
-    ldr  x12, [x12]
+    ldr  x12, LOCAL_LABEL(wbs_lowest_address)
     sub  x12, x14, x12
-    PREPARE_EXTERNAL_VAR g_GCShadow, x13
-    ldr  x13, [x13]
     add  x12, x13, x12
 
     // if (pShadow >= g_GCShadowEnd) goto end
@@ -303,22 +303,19 @@ WRITE_BARRIER_ENTRY JIT_WriteBarrier
     beq LOCAL_LABEL(shadowupdateend)
 
     // *pShadow = INVALIDGCVALUE (0xcccccccd)
-    mov  x13, #0
-    movk x13, #0xcccd
+    movz x13, #0xcccd
     movk x13, #0xcccc, LSL #16
     str  x13, [x12]
 
 LOCAL_LABEL(shadowupdateend):
-    ldp  x12, x13, [sp],#16
+    ldr  x13, [sp],#16
+LOCAL_LABEL(shadowupdatedisabled):
 #endif
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
     // Update the write watch table if necessary
-    PREPARE_EXTERNAL_VAR g_sw_ww_enabled_for_gc_heap, x12
-    ldrb w12, [x12]
+    ldr  x12, LOCAL_LABEL(wbs_sw_ww_table)
     cbz  x12, LOCAL_LABEL(CheckCardTable)
-    PREPARE_EXTERNAL_VAR g_sw_ww_table, x12
-    ldr  x12, [x12]
     add  x12, x12, x14, lsr #0xc  // SoftwareWriteWatch::AddressToTableByteIndexShift
     ldrb w17, [x12]
     cbnz x17, LOCAL_LABEL(CheckCardTable)
@@ -329,20 +326,18 @@ LOCAL_LABEL(shadowupdateend):
 LOCAL_LABEL(CheckCardTable):
     // Branch to Exit if the reference is not in the Gen0 heap
     //
-    PREPARE_EXTERNAL_VAR g_ephemeral_low, x12
-    ldr  x12,  [x12]
+    ldr  x12,  LOCAL_LABEL(wbs_ephemeral_low)
+    cbz  x12, LOCAL_LABEL(SkipEphemeralCheck)
     cmp  x15,  x12
-    blt  LOCAL_LABEL(Exit)
 
-    PREPARE_EXTERNAL_VAR g_ephemeral_high, x12
-    ldr  x12, [x12]
-    cmp  x15,  x12
+    ldr  x12, LOCAL_LABEL(wbs_ephemeral_high)
+    ccmp x15, x12, 0x0, ge
     bgt  LOCAL_LABEL(Exit)
 
+LOCAL_LABEL(SkipEphemeralCheck):
     // Check if we need to update the card table
-    PREPARE_EXTERNAL_VAR g_card_table, x12
-    ldr  x12, [x12]
-    add  x15,  x12, x14, lsr #11
+    ldr  x12, LOCAL_LABEL(wbs_card_table)
+    add  x15, x12, x14, lsr #11
     ldrb w12, [x15]
     cmp  x12, 0xFF
     beq  LOCAL_LABEL(Exit)
@@ -353,9 +348,8 @@ LOCAL_LABEL(UpdateCardTable):
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
     // Check if we need to update the card table
-    PREPARE_EXTERNAL_VAR g_card_bundle_table, x12
-    ldr  x12, [x12]
-    add  x15,  x12, x14, lsr #21
+    ldr  x12, LOCAL_LABEL(wbs_card_bundle_table)
+    add  x15, x12, x14, lsr #21
     ldrb w12, [x15]
     cmp  x12, 0xFF
     beq  LOCAL_LABEL(Exit)
@@ -375,6 +369,100 @@ WRITE_BARRIER_END JIT_WriteBarrier
 LEAF_ENTRY JIT_PatchedCodeStart, _TEXT
     ret  lr
 LEAF_END JIT_PatchedCodeStart, _TEXT
+
+// void JIT_UpdateWriteBarrierState(bool skipEphemeralCheck)
+//
+// Update shadow copies of the various state info required for barrier
+//
+// State info is contained in a literal pool at the end of the function
+// Placed in text section so that it is close enough to use ldr literal and still
+// be relocatable. Eliminates need for PREPARE_EXTERNAL_VAR in hot code.
+//
+// Align and group state info together so it fits in a single cache line
+// and each entry can be written atomically
+//
+WRITE_BARRIER_ENTRY JIT_UpdateWriteBarrierState
+    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -16
+
+    // x0-x7 will contain intended new state
+    // x8 will preserve skipEphemeralCheck
+    // x12 will be used for pointers
+
+    mov x8, x0
+
+    PREPARE_EXTERNAL_VAR g_lowest_address, x12
+    ldr  x0, [x12]
+
+    PREPARE_EXTERNAL_VAR g_highest_address, x12
+    ldr  x1, [x12]
+
+#ifdef WRITE_BARRIER_CHECK
+    PREPARE_EXTERNAL_VAR g_GCShadow, x12
+    ldr  x2, [x12]
+#endif
+
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    PREPARE_EXTERNAL_VAR g_sw_ww_enabled_for_gc_heap, x12
+    ldrb w3, [x12]
+    cbz  x3, LOCAL_LABEL(SOFTWARE_WRITE_WATCH_DISABLED)
+    PREPARE_EXTERNAL_VAR g_sw_ww_table, x12
+    ldr  x3, [x12]
+LOCAL_LABEL(SOFTWARE_WRITE_WATCH_DISABLED):
+#endif
+
+    PREPARE_EXTERNAL_VAR g_ephemeral_low, x12
+    ldr  x4, [x12]
+
+    PREPARE_EXTERNAL_VAR g_ephemeral_high, x12
+    ldr  x5, [x12]
+
+    cbz  x8, LOCAL_LABEL(EphemeralCheckEnabled)
+    movz x4, #0
+    movn x5, #0
+LOCAL_LABEL(EphemeralCheckEnabled):
+
+    PREPARE_EXTERNAL_VAR g_card_table, x12
+    ldr  x6, [x12]
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+    PREPARE_EXTERNAL_VAR g_card_bundle_table, x12
+    ldr  x7, [x12]
+#endif
+
+    // Update wbs state
+    adr  x12, LOCAL_LABEL(wbs_begin)
+    stp  x0, x1, [x12], 16
+    stp  x2, x3, [x12], 16
+    stp  x4, x5, [x12], 16
+    stp  x6, x7, [x12], 16
+
+    // Force updates to be visible other processors
+    dmb ishst
+
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 16
+    EPILOG_RETURN
+
+    // Begin patchable literal pool
+    .balign 64  // Align to power of two at least as big as patchable literal pool so that it fits optimally in cache line
+LOCAL_LABEL(wbs_begin):
+LOCAL_LABEL(wbs_lowest_address):
+    .quad 0
+LOCAL_LABEL(wbs_highest_address):
+    .quad 0
+LOCAL_LABEL(wbs_GCShadow):
+    .quad 0
+LOCAL_LABEL(wbs_sw_ww_table):
+    .quad 0
+LOCAL_LABEL(wbs_ephemeral_low):
+    .quad 0
+LOCAL_LABEL(wbs_ephemeral_high):
+    .quad 0
+LOCAL_LABEL(wbs_card_table):
+    .quad 0
+LOCAL_LABEL(wbs_card_bundle_table):
+    .quad 0
+WRITE_BARRIER_END JIT_UpdateWriteBarrierState
+
 
 // ------------------------------------------------------------------
 // End of the writeable code region
