@@ -1580,6 +1580,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         ETW::EnumerationLog::ProcessShutdown();
     }
 
+#ifdef FEATURE_PERFTRACING
+    // Shutdown the event pipe.
+    EventPipe::Shutdown();
+#endif // FEATURE_PERFTRACING
+
 #if defined(FEATURE_COMINTEROP)
     // Get the current thread.
     Thread * pThisThread = GetThread();
@@ -1711,11 +1716,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // Flush and close the perf map file.
         PerfMap::Destroy();
 #endif
-
-#ifdef FEATURE_PERFTRACING
-        // Shutdown the event pipe.
-        EventPipe::Shutdown();
-#endif // FEATURE_PERFTRACING
 
 #ifdef FEATURE_PREJIT
         {
