@@ -8,7 +8,11 @@ The [.NET Foundation](http://www.dotnetfoundation.org/) is an independent organi
 Source License
 --------------
 
-The .NET Core project uses multiple licenses for the various project repositories.  Most projects use the [MIT License](https://opensource.org/licenses/MIT) for [code](https://github.com/dotnet/coreclr/) and the [Creative Commons Attribution 4.0 International Public License (CC-BY)](https://creativecommons.org/licenses/by/4.0/) license for [documentation](https://github.com/dotnet/docs/) and [swag](https://github.com/dotnet/swag). The  [Apache 2 License](https://opensource.org/licenses/Apache-2.0) is [also used](https://github.com/dotnet/roslyn/). 
+The .NET Core project uses multiple licenses for the various project repositories.  
+
+- The [MIT License](https://opensource.org/licenses/MIT) is used by most repositories for [code](https://github.com/dotnet/coreclr/). 
+- The  [Apache 2 License](https://opensource.org/licenses/Apache-2.0) is also used by some projects for [code](https://github.com/dotnet/roslyn/). 
+- The [Creative Commons Attribution 4.0 International Public License (CC-BY)](https://creativecommons.org/licenses/by/4.0/) license is used for [documentation](https://github.com/dotnet/docs/) and [swag](https://github.com/dotnet/swag). 
 
 Binary License
 --------------
