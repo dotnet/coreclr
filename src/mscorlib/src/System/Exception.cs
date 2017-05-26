@@ -467,7 +467,7 @@ namespace System
             info.AddValue("StackTraceString", tempStackTraceString, typeof(String));
             info.AddValue("RemoteStackTraceString", _remoteStackTraceString, typeof(String));
             info.AddValue("RemoteStackIndex", _remoteStackIndex, typeof(Int32));
-            info.AddValue("ExceptionMethod", String.Empty, typeof(String));
+            info.AddValue("ExceptionMethod", null, typeof(String));
             info.AddValue("HResult", HResult);
             info.AddValue("Source", _source, typeof(String));
 
