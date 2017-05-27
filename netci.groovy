@@ -1643,15 +1643,18 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
 
                     if (!enableCorefxTesting) {
-                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs ./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture} clang3.8 skipnuget ${standaloneGc}"
-                        buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
+                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs ./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture} cross clang3.8 skipnuget ${standaloneGc}"
+                        
+                        // HACK -- Arm64 does not have corefx jobs yet.
+                        buildCommands += "git clone https://github.com/dotnet/corefx fx"
+                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs-corefx ./fx/build-native.sh -release -buildArch=arm64 -- verbose cross clang3.8"
+                        buildCommands += "mkdir ./bin/Product/Linux.arm64.Checked/corefxNative"
+                        buildCommands += "cp fx/bin/Linux.arm64.Release/native/* ./bin/Product/Linux.arm64.Checked/corefxNative"
 
                         // Set time out
                         setTestJobTimeOut(newJob, scenario)
                         // Basic archiving of the build
                         Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
-                        // And pal tests
-                        Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
                     break
                 case 'arm':
@@ -2483,9 +2486,8 @@ combinedScenarios.each { scenario ->
                                 // HACK -- Arm64 does not have corefx jobs yet.
                                 // Clone corefx and build the native packages overwriting the x64 packages.
                                 if (architecture == 'arm64') {
-                                    shell("git clone https://github.com/dotnet/corefx fx")
-                                    shell("ROOTFS_DIR=/opt/arm64-xenial-rootfs ./fx/build.sh -release -buildArch=arm64 -- verbose cross clang3.8")
-                                    shell("cp fx/bin/Linux.${architecture}.Release/native/* ./bin/CoreFxBinDir/")
+                                    shell("cp ./bin/Product/Linux.arm64.Checked/corefxNative/* ./bin/CoreFxBinDir")
+                                    shell("chmod +x ./bin/Product/Linux.arm64.Checked/corerun")
                                 }
 
                                 // Unzip the tests first.  Exit with 0
