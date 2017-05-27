@@ -4445,11 +4445,7 @@ namespace System
         #region ISerializable
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            UnitySerializationHolder.GetUnitySerializationInfo(info, this);
+            throw new PlatformNotSupportedException();
         }
         #endregion
 
