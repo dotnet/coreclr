@@ -282,12 +282,6 @@ BOOL    g_fSuspendOnShutdown = FALSE;
 // Flag indicating if the finalizer thread should be suspended on shutdown.
 BOOL    g_fSuspendFinalizerOnShutdown = FALSE;
 
-// Flag indicating if the EE was started up by an managed exe.
-BOOL    g_fEEManagedEXEStartup = FALSE;
-
-// Flag indicating if the EE was started up by an IJW dll.
-BOOL    g_fEEIJWStartup = FALSE;
-
 // Flag indicating if the EE was started up by COM.
 extern BOOL g_fEEComActivatedStartup;
 
@@ -306,7 +300,7 @@ HRESULT InitializeEE(COINITIEE flags)
 {
     WRAPPER_NO_CONTRACT;
 #ifdef FEATURE_EVENT_TRACE
-    if(!(g_fEEComActivatedStartup || g_fEEManagedEXEStartup || g_fEEIJWStartup))
+    if(!g_fEEComActivatedStartup)
         g_fEEOtherStartup = TRUE;
 #endif // FEATURE_EVENT_TRACE
     return EnsureEEStarted(flags);
@@ -1569,6 +1563,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         ETW::EnumerationLog::ProcessShutdown();
     }
 
+#ifdef FEATURE_PERFTRACING
+    // Shutdown the event pipe.
+    EventPipe::Shutdown();
+#endif // FEATURE_PERFTRACING
+
 #if defined(FEATURE_COMINTEROP)
     // Get the current thread.
     Thread * pThisThread = GetThread();
@@ -1700,11 +1699,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // Flush and close the perf map file.
         PerfMap::Destroy();
 #endif
-
-#ifdef FEATURE_PERFTRACING
-        // Shutdown the event pipe.
-        EventPipe::Shutdown();
-#endif // FEATURE_PERFTRACING
 
 #ifdef FEATURE_PREJIT
         {

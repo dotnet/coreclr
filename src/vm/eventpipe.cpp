@@ -44,7 +44,7 @@ void EventPipe::Initialize()
 
     s_tracingInitialized = s_configCrst.InitNoThrow(
         CrstEventPipe,
-        (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN));
+        (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN | CRST_HOST_BREAKABLE));
 
     s_pConfig = new EventPipeConfiguration();
     s_pConfig->Initialize();
@@ -107,7 +107,7 @@ void EventPipe::Shutdown()
 
 void EventPipe::Enable(
     LPCWSTR strOutputPath,
-    uint circularBufferSizeInMB,
+    unsigned int circularBufferSizeInMB,
     EventPipeProviderConfiguration *pProviders,
     int numProviders)
 {
@@ -282,7 +282,7 @@ void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
     }
 }
 
-void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length)
+void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
 {
     CONTRACTL
     {
@@ -309,7 +309,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
 
     if(!s_pConfig->RundownEnabled() && s_pBufferManager != NULL)
     {
-        if(!s_pBufferManager->WriteEvent(pThread, event, pData, length))
+        if(!s_pBufferManager->WriteEvent(pThread, event, pData, length, pActivityId, pRelatedActivityId))
         {
             // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
             return;
@@ -323,7 +323,9 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
             event,
             pThread->GetOSThreadId(),
             pData,
-            length);
+            length,
+            pActivityId,
+            pRelatedActivityId);
 
         if(s_pFile != NULL)
         {
@@ -340,7 +342,9 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
             event,
             pThread->GetOSThreadId(),
             pData,
-            length);
+            length,
+            pActivityId,
+            pRelatedActivityId);
 
         // Write to the EventPipeFile if it exists.
         if(s_pSyncFile != NULL)
@@ -357,7 +361,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
 #endif // _DEBUG
 }
 
-void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, Thread *pTargetThread, StackContents &stackContents)
+void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData, unsigned int length)
 {
     CONTRACTL
     {
@@ -372,7 +376,7 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, Thread *pTarget
     {
         // Specify the sampling thread as the "current thread", so that we select the right buffer.
         // Specify the target thread so that the event gets properly attributed.
-        if(!s_pBufferManager->WriteEvent(pSamplingThread, *SampleProfiler::s_pThreadTimeEvent, NULL, 0, pTargetThread, &stackContents))
+        if(!s_pBufferManager->WriteEvent(pSamplingThread, *pEvent, pData, length, NULL /* pActivityId */, NULL /* pRelatedActivityId */, pTargetThread, &stackContents))
         {
             // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
             return;
@@ -384,7 +388,7 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, Thread *pTarget
         GCX_PREEMP();
 
         // Create an instance for the synchronous path.
-        SampleProfilerEventInstance instance(pTargetThread);
+        SampleProfilerEventInstance instance(*pEvent, pTargetThread, pData, length);
         stackContents.CopyTo(instance.GetStack());
 
         // Write to the EventPipeFile.
@@ -577,14 +581,16 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
     INT_PTR eventHandle,
     unsigned int eventID,
     void *pData,
-    unsigned int length)
+    unsigned int length,
+    LPCGUID pActivityId,
+    LPCGUID pRelatedActivityId)
 {
     QCALL_CONTRACT;
     BEGIN_QCALL;
 
     _ASSERTE(eventHandle != NULL);
     EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
-    EventPipe::WriteEvent(*pEvent, (BYTE *)pData, length);
+    EventPipe::WriteEvent(*pEvent, (BYTE *)pData, length, pActivityId, pRelatedActivityId);
 
     END_QCALL;
 }

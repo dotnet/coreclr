@@ -467,6 +467,7 @@ void Module::InitializeForProfiling()
     }
     else // ReadyToRun image
     {
+#ifdef FEATURE_READYTORUN_COMPILER
         // We already setup the m_methodProfileList in the ReadyToRunInfo constructor
         if (m_methodProfileList != nullptr)
         {
@@ -476,6 +477,7 @@ void Module::InitializeForProfiling()
             // Enable profiling if the ZapBBInstr value says to
             m_nativeImageProfiling = GetAssembly()->IsInstrumented();
         }
+#endif
     }
 
 #ifdef FEATURE_LAZY_COW_PAGES
@@ -13659,7 +13661,10 @@ void LookupMapBase::CreateHotItemList(DataImage *image, CorProfileData *profileD
                 for (DWORD ii = 0; ii < numItems; ii++)
                 {
                     if (itemList[ii].value != NULL)
-                        RelativePointer<TADDR>::SetValueMaybeNullAtPtr(dac_cast<TADDR>(&itemList[ii].value), itemList[ii].value);
+                    {
+                        RelativePointer<TADDR> *pRelPtr = (RelativePointer<TADDR> *)&itemList[ii].value;
+                        pRelPtr->SetValueMaybeNull(itemList[ii].value);
+                    }
                 }
 
                 if (itemList != NULL)

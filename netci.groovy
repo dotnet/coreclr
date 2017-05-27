@@ -1504,9 +1504,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         }
 
                         if (!isBuildOnly) {
-                            if (architecture == 'x64' || !isPR) {
-                                Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml')
-                            }
+                            Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml', true)
                             setTestJobTimeOut(newJob, scenario)
                         }
                     }
@@ -2012,7 +2010,7 @@ combinedScenarios.each { scenario ->
 
                                     // Copy the Windows test binaries and the Corefx build binaries
                                     copyArtifacts(WindowTestsName) {
-                                        excludePatterns('**/testResults.xml', '**/*.ni.dll')
+                                        includePatterns('bin/tests/tests.zip')
                                         buildSelector {
                                             latestSuccessful(true)
                                         }

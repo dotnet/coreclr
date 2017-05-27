@@ -1419,25 +1419,6 @@ namespace System.Text
                 m_encoding = encoding;
                 m_hasInitializedEncoding = true;
             }
-
-            // Constructor called by serialization, have to handle deserializing from Everett
-            internal DefaultEncoder(SerializationInfo info, StreamingContext context)
-            {
-                if (info == null) throw new ArgumentNullException(nameof(info));
-                Contract.EndContractBlock();
-
-                // All we have is our encoding
-                m_encoding = (Encoding)info.GetValue("encoding", typeof(Encoding));
-
-                try
-                {
-                    this.m_fallback = (EncoderFallback)info.GetValue("m_fallback", typeof(EncoderFallback));
-                    this.charLeftOver = (Char)info.GetValue("charLeftOver", typeof(Char));
-                }
-                catch (SerializationException)
-                {
-                }
-            }
             
             public Object GetRealObject(StreamingContext context)
             {
@@ -1447,12 +1428,7 @@ namespace System.Text
             // ISerializable implementation, get data for this object
             void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {
-                // Any info?
-                if (info == null) throw new ArgumentNullException(nameof(info));
-                Contract.EndContractBlock();
-
-                // All we have is our encoding
-                info.AddValue("encoding", m_encoding);
+                throw new PlatformNotSupportedException();
             }
 
             // Returns the number of bytes the next call to GetBytes will
@@ -1520,40 +1496,15 @@ namespace System.Text
                 m_hasInitializedEncoding = true;
             }
 
-            // Constructor called by serialization, have to handle deserializing from Everett
-            internal DefaultDecoder(SerializationInfo info, StreamingContext context)
-            {
-                // Any info?
-                if (info == null) throw new ArgumentNullException(nameof(info));
-                Contract.EndContractBlock();
-
-                // All we have is our encoding
-                m_encoding = (Encoding)info.GetValue("encoding", typeof(Encoding));
-
-                try
-                {
-                    this.m_fallback = (DecoderFallback)info.GetValue("m_fallback", typeof(DecoderFallback));
-                }
-                catch (SerializationException)
-                {
-                    m_fallback = null;
-                }
-            }
-            
             public Object GetRealObject(StreamingContext context)
             {
                 throw new PlatformNotSupportedException();
             }
 
-            // ISerializable implementation, get data for this object
+            // ISerializable implementation
             void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {
-                // Any info?
-                if (info == null) throw new ArgumentNullException(nameof(info));
-                Contract.EndContractBlock();
-
-                // All we have is our encoding
-                info.AddValue("encoding", m_encoding);
+                throw new PlatformNotSupportedException();
             }
 
             // Returns the number of characters the next call to GetChars will
