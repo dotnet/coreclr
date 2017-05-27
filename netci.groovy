@@ -2594,9 +2594,8 @@ combinedScenarios.each { scenario ->
                                 // HACK -- Arm64 does not have corefx jobs yet.
                                 // Clone corefx and build the native packages overwriting the x64 packages.
                                 if (architecture == 'arm64') {
-                                    shell("git clone https://github.com/dotnet/corefx fx")
-                                    shell("ROOTFS_DIR=/opt/arm64-xenial-rootfs ./fx/build.sh -release -buildArch=arm64 -- verbose cross clang3.8")
-                                    shell("cp fx/bin/Linux.${architecture}.Release/native/* ./bin/CoreFxBinDir/")
+                                    shell("cp ./bin/Product/Linux.arm64.Checked/corefxNative/* ./bin/CoreFxBinDir")
+                                    shell("chmod +x ./bin/Product/Linux.arm64.Checked/corerun")
                                 }
 
                                 // HACK -- Arm64 does not have corefx jobs yet.
