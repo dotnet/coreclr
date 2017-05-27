@@ -84,11 +84,7 @@ below.
 Fix #42
 ```
 
-Also do your best to factor commits appropriately, i.e not too large with unrelated
-things in the same commit, and not too small with the same small change applied N
-times in N different commits. If there was some accidental reformatting or whitespace
-changes during the course of your commits, please rebase them away before submitting
-the PR.
+Also do your best to factor commits appropriately, not too large with unrelated things in the same commit, and not too small with the same small change applied N times in N different commits.
 
 Contributor License Agreement
 -----------------------------
