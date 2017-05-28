@@ -1648,8 +1648,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // HACK -- Arm64 does not have corefx jobs yet.
                         buildCommands += "git clone https://github.com/dotnet/corefx fx"
                         buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs-corefx ./fx/build-native.sh -release -buildArch=arm64 -- verbose cross clang3.8"
-                        buildCommands += "mkdir ./bin/Product/Linux.arm64.Checked/corefxNative"
-                        buildCommands += "cp fx/bin/Linux.arm64.Release/native/* ./bin/Product/Linux.arm64.Checked/corefxNative"
+                        buildCommands += "mkdir ./bin/Product/Linux.arm64.${configuration}/corefxNative"
+                        buildCommands += "cp fx/bin/Linux.arm64.Release/native/* ./bin/Product/Linux.arm64.${configuration}/corefxNative"
 
                         // Set time out
                         setTestJobTimeOut(newJob, scenario)
@@ -2486,8 +2486,8 @@ combinedScenarios.each { scenario ->
                                 // HACK -- Arm64 does not have corefx jobs yet.
                                 // Clone corefx and build the native packages overwriting the x64 packages.
                                 if (architecture == 'arm64') {
-                                    shell("cp ./bin/Product/Linux.arm64.Checked/corefxNative/* ./bin/CoreFxBinDir")
-                                    shell("chmod +x ./bin/Product/Linux.arm64.Checked/corerun")
+                                    shell("cp ./bin/Product/Linux.arm64.${configuration}/corefxNative/* ./bin/CoreFxBinDir")
+                                    shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
                                 }
 
                                 // Unzip the tests first.  Exit with 0
@@ -2559,6 +2559,11 @@ combinedScenarios.each { scenario ->
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
                     // Set timeouts to 240.
                     setTestJobTimeOut(newJob, scenario)
+
+                    if (architecture == 'arm64') {
+                        Utilities.setJobTimeout(newJob, 480)
+                    }
+
                     Utilities.addXUnitDotNETResults(newJob, '**/coreclrtests.xml')
 
                     // Create a build flow to join together the build and tests required to run this
