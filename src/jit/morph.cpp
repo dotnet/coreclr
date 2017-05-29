@@ -16526,6 +16526,11 @@ void Compiler::fgSetOptions()
         codeGen->setFramePointerRequiredGCInfo(true);
     }
 
+#ifdef UNIX_X86_ABI
+    // TODO Remove this line once SP restored by unwinder becomes reliable.
+    codeGen->setFramePointerRequired(true);
+#endif // UNIX_X86_ABI
+
     // printf("method will %s be fully interruptible\n", genInterruptible ? "   " : "not");
 }
 
