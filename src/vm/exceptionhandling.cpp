@@ -17,6 +17,10 @@
 #include "eventtrace.h"
 #include "virtualcallstub.h"
 
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#define MAY_THROW_DBZ_ON_OVF
+#endif
+
 #if defined(_TARGET_X86_)
 #define USE_CURRENT_CONTEXT_IN_FILTER
 #endif // _TARGET_X86_
@@ -4796,7 +4800,7 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHar
     throw std::move(ex);
 }
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
+#ifdef MAY_THROW_DBZ_ON_OVF
 
 /*++
 Function :
@@ -5122,7 +5126,7 @@ bool IsDivByZeroAnIntegerOverflow(PCONTEXT pContext)
     // must have been an overflow.
     return divisor != 0;
 }
-#endif // _TARGET_AMD64_ || _TARGET_X86_
+#endif // MAY_THROW_DBZ_ON_OVF
 
 BOOL IsSafeToCallExecutionManager()
 {
@@ -5202,7 +5206,7 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
             return TRUE;
         }
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
+#ifdef MAY_THROW_DBZ_ON_OVF
         // It is possible that an overflow was mapped to a divide-by-zero exception. 
         // This happens when we try to divide the maximum negative value of a
         // signed integer with -1. 
@@ -5215,7 +5219,7 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
             // The exception was an integer overflow, so augment the exception code.
             ex->GetExceptionRecord()->ExceptionCode = EXCEPTION_INT_OVERFLOW;
         }
-#endif // _TARGET_AMD64_ || _TARGET_X86_
+#endif // MAY_THROW_DBZ_ON_OVF
 
         // Create frame necessary for the exception handling
         FrameWithCookie<FaultingExceptionFrame> fef;
