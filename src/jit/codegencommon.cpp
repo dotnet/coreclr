@@ -1642,6 +1642,14 @@ void CodeGen::genAdjustStackLevel(BasicBlock* block)
 {
 #if !FEATURE_FIXED_OUT_ARGS
     // Check for inserted throw blocks and adjust genStackLevel.
+#if defined(UNIX_X86_ABI)
+    if (isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block))
+    {
+        int offset = compiler->compCalleeRegsPushed * REGSIZE_BYTES + compiler->compLclFrameSize;
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, -offset);
+        SetStackLevel(0);
+    }
+#endif
 
     if (!isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block))
     {
@@ -2698,7 +2706,14 @@ void CodeGen::genExitCode(BasicBlock* block)
 
 void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTreePtr failBlk)
 {
-    if (!compiler->opts.compDbgCode)
+    bool useThrowHlpBlk = !compiler->opts.compDbgCode;
+
+#if defined(UNIX_X86_ABI) && FEATURE_EH_FUNCLETS
+    // Inline exception-throwing code in funclet to make it possible to unwind funclet frames.
+    useThrowHlpBlk = useThrowHlpBlk && !siInFuncletRegion;
+#endif // UNIX_X86_ABI && FEATURE_EH_FUNCLETS
+
+    if (useThrowHlpBlk)
     {
         /* For non-debuggable code, find and use the helper block for
            raising the exception. The block may be shared by other trees too. */
