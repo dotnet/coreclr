@@ -400,7 +400,14 @@ namespace System.Reflection.Emit
                         fixed (byte* pData = &JitHelpers.GetPinningHelper(value).m_data)
                             SetConstantValue(module.GetNativeHandle(), tk, (int)corType, pData);
                         break;
-
+                    case CorElementType.I:
+                        long longRepresentation = ((IntPtr)value).ToInt64();
+                        SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.I8, &longRepresentation);
+                        break;
+                    case CorElementType.U:
+                        ulong ulongRepresentation = ((UIntPtr)value).ToUInt64();
+                        SetConstantValue(module.GetNativeHandle(), tk, (int)CorElementType.U8, &ulongRepresentation);
+                        break;
                     default:
                         if (type == typeof(String))
                         {
