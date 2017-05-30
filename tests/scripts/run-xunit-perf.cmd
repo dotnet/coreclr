@@ -106,13 +106,6 @@ setlocal
     call :generate_results_for_benchview || exit /b 1
   )
 
-  rem Save off the results to the root directory for recovery later in Jenkins
-  for %%e in (xml etl log) do (
-    IF EXIST "Perf-*%BENCHNAME%.%%e" (
-      call :run_cmd copy "Perf-*%BENCHNAME%.%%e" "%CORECLR_REPO%\Perf-%BENCHNAME%-%ETW_COLLECTION%.%%e" || exit /b 1
-    )
-  )
-
   exit /b 0
 
 :parse_command_line_arguments
