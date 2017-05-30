@@ -372,6 +372,9 @@ namespace System.Collections.Generic
 
         public EnumEqualityComparer() { }
 
+        // This is used by the serialization engine.
+        protected EnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
+
         // Equals method for the comparer itself.
         public override bool Equals(Object obj) =>
             obj != null && GetType() == obj.GetType();
@@ -417,6 +420,9 @@ namespace System.Collections.Generic
     {
         public SByteEnumEqualityComparer() { }
 
+        // This is used by the serialization engine.
+        public SByteEnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
+
         [Pure]
         public override int GetHashCode(T obj)
         {
@@ -426,9 +432,12 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class ShortEnumEqualityComparer<T> : EnumEqualityComparer<T> where T : struct
+    internal sealed class ShortEnumEqualityComparer<T> : EnumEqualityComparer<T>, ISerializable where T : struct
     {
         public ShortEnumEqualityComparer() { }
+
+        // This is used by the serialization engine.
+        public ShortEnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
 
         [Pure]
         public override int GetHashCode(T obj)
@@ -488,6 +497,9 @@ namespace System.Collections.Generic
             }
             return -1;
         }
+
+        // This is used by the serialization engine.
+        public LongEnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
