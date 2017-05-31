@@ -120,12 +120,79 @@ inline void RestoreNonvolatileRegisterPointers(PT_KNONVOLATILE_CONTEXT_POINTERS 
 //    Unfortunately, I cannot articulate why at the moment.
 //
 #ifdef _DEBUG
-void DumpClauses(IJitManager* pJitMan, const METHODTOKEN& MethToken, UINT_PTR uMethodStartPC, UINT_PTR dwControlPc);
-static void DoEHLog(DWORD lvl, __in_z const char *fmt, ...);
+#define STACK_ALLOC_ARRAY(numElements, type) \
+    ((type *)_alloca((numElements)*(sizeof(type))))
+
+static void DoEHLog(
+    DWORD lvl,
+    __in_z const char *fmt,
+    ...
+    )
+{
+    if (!LoggingOn(LF_EH, lvl))
+        return;
+
+    va_list  args;
+    va_start(args, fmt);
+
+    UINT_PTR nestinglevel = ExceptionTracker::DebugComputeNestingLevel();
+    if (nestinglevel)
+    {
+        _ASSERTE(FitsIn<UINT_PTR>(2 * nestinglevel));
+        UINT_PTR   cch      = 2 * nestinglevel;
+        char* pPadding = STACK_ALLOC_ARRAY(cch + 1, char);
+        memset(pPadding, '.', cch);
+        pPadding[cch] = 0;
+
+        LOG((LF_EH, lvl, pPadding));
+    }
+
+    LogSpewValist(LF_EH, lvl, fmt, args);
+    va_end(args);
+}
+
 #define EH_LOG(expr)  { DoEHLog expr ; }
-#else
+#else // _DEBUG
 #define EH_LOG(expr)
-#endif
+#endif // !_DEBUG
+
+#ifdef _DEBUG
+void DumpClauses(IJitManager* pJitMan, const METHODTOKEN& MethToken, UINT_PTR uMethodStartPC, UINT_PTR dwControlPc)
+{
+    EH_CLAUSE_ENUMERATOR    EnumState;
+    unsigned                EHCount;
+
+    EH_LOG((LL_INFO1000, "  | uMethodStartPC: %p, ControlPc at offset %x\n", uMethodStartPC, dwControlPc - uMethodStartPC));
+
+    EHCount = pJitMan->InitializeEHEnumeration(MethToken, &EnumState);
+    for (unsigned i = 0; i < EHCount; i++)
+    {
+        EE_ILEXCEPTION_CLAUSE EHClause;
+        pJitMan->GetNextEHClause(&EnumState, &EHClause);
+
+        EH_LOG((LL_INFO1000, "  | %s clause [%x, %x], handler: [%x, %x] %s",
+                (IsFault(&EHClause)         ? "fault"   :
+                (IsFinally(&EHClause)       ? "finally" :
+                (IsFilterHandler(&EHClause) ? "filter"  :
+                (IsTypedHandler(&EHClause)  ? "typed"   : "unknown")))),
+                EHClause.TryStartPC       , // + uMethodStartPC,
+                EHClause.TryEndPC         , // + uMethodStartPC,
+                EHClause.HandlerStartPC   , // + uMethodStartPC,
+                EHClause.HandlerEndPC     , // + uMethodStartPC
+                (IsDuplicateClause(&EHClause) ? "[duplicate]" : "")
+                ));
+
+        if (IsFilterHandler(&EHClause))
+        {
+            LOG((LF_EH, LL_INFO1000, " filter: [%x, ...]",
+                    EHClause.FilterOffset));// + uMethodStartPC
+        }
+
+        LOG((LF_EH, LL_INFO1000, "\n"));
+    }
+
+}
+#endif // _DEBUG
 
 TrackerAllocator    g_theTrackerAllocator;
 
@@ -4324,72 +4391,6 @@ UINT_PTR ExceptionTracker::DebugComputeNestingLevel()
     }
 
     return uNestingLevel;
-}
-void DumpClauses(IJitManager* pJitMan, const METHODTOKEN& MethToken, UINT_PTR uMethodStartPC, UINT_PTR dwControlPc)
-{
-    EH_CLAUSE_ENUMERATOR    EnumState;
-    unsigned                EHCount;
-
-    EH_LOG((LL_INFO1000, "  | uMethodStartPC: %p, ControlPc at offset %x\n", uMethodStartPC, dwControlPc - uMethodStartPC));
-
-    EHCount = pJitMan->InitializeEHEnumeration(MethToken, &EnumState);
-    for (unsigned i = 0; i < EHCount; i++)
-    {
-        EE_ILEXCEPTION_CLAUSE EHClause;
-        pJitMan->GetNextEHClause(&EnumState, &EHClause);
-
-        EH_LOG((LL_INFO1000, "  | %s clause [%x, %x], handler: [%x, %x] %s",
-                (IsFault(&EHClause)         ? "fault"   :
-                (IsFinally(&EHClause)       ? "finally" :
-                (IsFilterHandler(&EHClause) ? "filter"  :
-                (IsTypedHandler(&EHClause)  ? "typed"   : "unknown")))),
-                EHClause.TryStartPC       , // + uMethodStartPC,
-                EHClause.TryEndPC         , // + uMethodStartPC,
-                EHClause.HandlerStartPC   , // + uMethodStartPC,
-                EHClause.HandlerEndPC     , // + uMethodStartPC
-                (IsDuplicateClause(&EHClause) ? "[duplicate]" : "")
-                ));
-
-        if (IsFilterHandler(&EHClause))
-        {
-            LOG((LF_EH, LL_INFO1000, " filter: [%x, ...]",
-                    EHClause.FilterOffset));// + uMethodStartPC
-        }
-
-        LOG((LF_EH, LL_INFO1000, "\n"));
-    }
-
-}
-
-#define STACK_ALLOC_ARRAY(numElements, type) \
-    ((type *)_alloca((numElements)*(sizeof(type))))
-
-static void DoEHLog(
-    DWORD lvl,
-    __in_z const char *fmt,
-    ...
-    )
-{
-    if (!LoggingOn(LF_EH, lvl))
-        return;
-
-    va_list  args;
-    va_start(args, fmt);
-
-    UINT_PTR nestinglevel = ExceptionTracker::DebugComputeNestingLevel();
-    if (nestinglevel)
-    {
-        _ASSERTE(FitsIn<UINT_PTR>(2 * nestinglevel));
-        UINT_PTR   cch      = 2 * nestinglevel;
-        char* pPadding = STACK_ALLOC_ARRAY(cch + 1, char);
-        memset(pPadding, '.', cch);
-        pPadding[cch] = 0;
-
-        LOG((LF_EH, lvl, pPadding));
-    }
-
-    LogSpewValist(LF_EH, lvl, fmt, args);
-    va_end(args);
 }
 #endif // _DEBUG
 
