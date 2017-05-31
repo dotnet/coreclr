@@ -76,8 +76,6 @@ setlocal
     call :run_cmd xcopy /s %BENCHDIR%*.txt . >> %RUNLOG%  || exit /b 1
   )
 
-  set CORE_ROOT=%CORECLR_REPO%\sandbox
-
   rem setup additional environment variables
   if DEFINED TEST_ENV (
     if EXIST "%TEST_ENV%" (
@@ -85,13 +83,12 @@ setlocal
     )
   )
 
-  set LV_RUNID=Perf
+  set LV_RUNID=Perf-%ETW_COLLECTION%
   set BENCHNAME_LOG_FILE_NAME=%LV_RUNID%-%BENCHNAME%.log
   if defined IS_SCENARIO_TEST (
     call :run_cmd corerun.exe "%CORECLR_REPO%\sandbox\%BENCHNAME%.%TEST_FILE_EXT%" --perf:runid "%LV_RUNID%" 1>"%BENCHNAME_LOG_FILE_NAME%" 2>&1
   ) else (
     set "LV_CMD=%STABILITY_PREFIX% corerun.exe PerfHarness.dll "%CORECLR_REPO%\sandbox\%BENCHNAME%.%TEST_FILE_EXT%" --perf:runid "%LV_RUNID%" --perf:collect %COLLECTION_FLAGS%"
-    call :print_to_console $ !LV_CMD!
     call :run_cmd !LV_CMD! 1>"%BENCHNAME_LOG_FILE_NAME%" 2>&1
   )
 
@@ -370,9 +367,6 @@ rem   Sends text to the console screen, no matter what (even when the script's
 rem   output is redirected). This can be useful to provide information on where
 rem   the script is executing.
 rem ****************************************************************************
-  if defined _debug (
-    echo [%DATE%][%TIME:~0,-3%] %* >CON
-  )
   echo [%DATE%][%TIME:~0,-3%] %*
   exit /b %ERRORLEVEL%
 
@@ -386,7 +380,10 @@ rem ****************************************************************************
     exit /b 1
   )
 
-  call :print_to_console $ %*
+  echo/ 1>CON
+  echo/%USERNAME%@%COMPUTERNAME% "%CD%" 1>CON
+  echo/[%DATE%][%TIME:~0,-3%] $ %* 1>CON
+
   call %*
   exit /b %ERRORLEVEL%
 
