@@ -20,6 +20,8 @@ function(add_pgo TargetName)
         "${CLR_CMAKE_PACKAGES_DIR}/${CLR_CMAKE_OPTDATA_PACKAGEWITHRID}/${CLR_CMAKE_OPTDATA_VERSION}/data/${ProfileFileName}"
         ProfilePath
     )
+    # NuGet packages are restored to lowercase paths
+    string(TOLOWER "${ProfilePath}" ProfilePath)
 
     if(CLR_CMAKE_PGO_INSTRUMENT)
         if(WIN32)
