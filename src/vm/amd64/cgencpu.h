@@ -268,6 +268,14 @@ struct CalleeSavedRegistersPointers {
 #define THIS_kREG kRCX
 #endif
 
+#ifdef PLATFORM_UNIX
+#define ARG1_kREG kRDI
+#define ARG2_kREG kRSI
+#else // PLATFORM_UNIX
+#define ARG1_kREG kRCX
+#define ARG2_kREG kRDX
+#endif // !PLATFORM_UNIX
+
 #ifdef UNIX_AMD64_ABI
 
 #define NUM_FLOAT_ARGUMENT_REGISTERS 8
