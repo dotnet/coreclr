@@ -97,9 +97,7 @@ setlocal
     set "LV_CMD=%STABILITY_PREFIX% corerun.exe PerfHarness.dll "%CORECLR_REPO%\sandbox\%BENCHNAME%.%TEST_FILE_EXT%" --perf:runid "%LV_RUNID%" --perf:collect %COLLECTION_FLAGS%"
   )
 
-  echo/
-  echo/%USERNAME%@%COMPUTERNAME% "%CD%"
-  echo/[%DATE%][%TIME:~0,-3%] $ !LV_CMD!
+  call :print_to_console $ !LV_CMD!
   call :run_cmd !LV_CMD! 1>"%BENCHNAME_LOG_FILE_NAME%" 2>&1
 
   IF %ERRORLEVEL% NEQ 0 (
@@ -375,7 +373,7 @@ rem ****************************************************************************
 rem   Function wrapper that unifies how errors are output by the script.
 rem   Functions output to the standard error.
 rem ****************************************************************************
-  echo [%DATE%][%TIME:~0,-3%][ERROR] %*   1>&2
+  call :print_to_console [ERROR] %*   1>&2
   exit /b %ERRORLEVEL%
 
 :print_to_console
@@ -384,7 +382,9 @@ rem   Sends text to the console screen, no matter what (even when the script's
 rem   output is redirected). This can be useful to provide information on where
 rem   the script is executing.
 rem ****************************************************************************
-  echo [%DATE%][%TIME:~0,-3%] %*
+  echo/
+  echo/%USERNAME%@%COMPUTERNAME% "%CD%"
+  echo/[%DATE%][%TIME:~0,-3%] %*
   exit /b %ERRORLEVEL%
 
 :run_cmd
@@ -397,9 +397,6 @@ rem ****************************************************************************
     exit /b 1
   )
 
-  echo/
-  echo/%USERNAME%@%COMPUTERNAME% "%CD%"
-  echo/[%DATE%][%TIME:~0,-3%] $ %*
-
+  call :print_to_console $ %*
   call %*
   exit /b %ERRORLEVEL%
