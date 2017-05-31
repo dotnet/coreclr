@@ -4747,7 +4747,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
 #ifdef _TARGET_ARM_
     if (fgEntryPtr->isSplit)
     {
-        if(fgEntryPtr->isHfaRegArg)
+        if (fgEntryPtr->isHfaRegArg)
         {
             NYI_ARM("HFA struct splitted between float registers and stack");
         }
