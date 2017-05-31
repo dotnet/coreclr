@@ -369,6 +369,9 @@ function create_core_overlay {
         # Test dependencies come from a Windows build, and System.Private.CoreLib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"
     fi
+
+    chmod +x $coreOverlayDir/corerun
+
     copy_test_native_bin_to_test_root
 }
 
