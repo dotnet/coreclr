@@ -378,9 +378,8 @@ rem ****************************************************************************
 
 :print_to_console
 rem ****************************************************************************
-rem   Sends text to the console screen, no matter what (even when the script's
-rem   output is redirected). This can be useful to provide information on where
-rem   the script is executing.
+rem   Sends text to the console screen. This can be useful to provide
+rem   information on where the script is executing.
 rem ****************************************************************************
   echo/
   echo/%USERNAME%@%COMPUTERNAME% "%CD%"
