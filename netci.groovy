@@ -1085,7 +1085,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             break
         // editor brace matching: }
         case 'arm64': // editor brace matching: {
-            assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc')
+            assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc') || isGcReliabilityFramework(scenario)
 
             // Set up a private trigger
             def contextString = "${os} ${architecture} Cross ${configuration}"
