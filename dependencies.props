@@ -2,7 +2,7 @@
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
     <CoreFxCurrentRef>dc69ed86c605f44414f54f1c666f41d2e73476bb</CoreFxCurrentRef>
-    <CoreClrCurrentRef>dc69ed86c605f44414f54f1c666f41d2e73476bb</CoreClrCurrentRef>
+    <CoreClrCurrentRef>d4c4cab71dcbceecaf848b2e767b94d36229b763</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
@@ -12,7 +12,7 @@
 
   <!-- Full package version strings that are used in other parts of the build. -->
   <PropertyGroup>
-    <CoreClrPackageVersion>1.1.3-servicing-25330-01</CoreClrPackageVersion>
+    <CoreClrPackageVersion>1.1.3-servicing-25331-01</CoreClrPackageVersion>
     <XunitPackageVersion>2.1.0</XunitPackageVersion>
 
     <!-- Runtime package versions from projectk-tfs/release/1.0.0 -->
