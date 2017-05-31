@@ -88,6 +88,9 @@ setlocal
   echo/  Running %BENCHNAME%
   echo/  ----------
 
+  rem CORE_ROOT environment variable is used by some benchmarks such as Roslyn / CscBench.
+  set CORE_ROOT=%CORECLR_REPO%\sandbox
+
   set LV_RUNID=Perf-%ETW_COLLECTION%
   set BENCHNAME_LOG_FILE_NAME=%LV_RUNID%-%BENCHNAME%.log
   set LV_CMD=
