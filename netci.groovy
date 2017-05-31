@@ -2060,7 +2060,7 @@ combinedScenarios.each { scenario ->
 combinedScenarios.each { scenario ->
     [true, false].each { isPR ->
         // Architectures.  x64 only at this point
-        ['x64'].each { architecture ->
+        ['x64', 'arm64'].each { architecture ->
             // Put the OS's supported for coreclr cross testing here
             Constants.crossList.each { os ->
                 Constants.configurationList.each { configuration ->
