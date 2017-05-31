@@ -71,9 +71,9 @@ setlocal
   set BENCHDIR=%~p1
 
   rem copy benchmark and any input files
-  call :run_cmd xcopy /s %~1 . >> %RUNLOG%  || exit /b 1
+  call :run_cmd xcopy /sy %~1 . >> %RUNLOG%  || exit /b 1
   if exist "%BENCHDIR%*.txt" (
-    call :run_cmd xcopy /s %BENCHDIR%*.txt . >> %RUNLOG%  || exit /b 1
+    call :run_cmd xcopy /sy %BENCHDIR%*.txt . >> %RUNLOG%  || exit /b 1
   )
 
   rem setup additional environment variables
@@ -83,14 +83,24 @@ setlocal
     )
   )
 
+  echo/
+  echo/  ----------
+  echo/  Running %BENCHNAME%
+  echo/  ----------
+
   set LV_RUNID=Perf-%ETW_COLLECTION%
   set BENCHNAME_LOG_FILE_NAME=%LV_RUNID%-%BENCHNAME%.log
+  set LV_CMD=
   if defined IS_SCENARIO_TEST (
-    call :run_cmd corerun.exe "%CORECLR_REPO%\sandbox\%BENCHNAME%.%TEST_FILE_EXT%" --perf:runid "%LV_RUNID%" 1>"%BENCHNAME_LOG_FILE_NAME%" 2>&1
+    set "LV_CMD=corerun.exe "%CORECLR_REPO%\sandbox\%BENCHNAME%.%TEST_FILE_EXT%" --perf:runid "%LV_RUNID%""
   ) else (
     set "LV_CMD=%STABILITY_PREFIX% corerun.exe PerfHarness.dll "%CORECLR_REPO%\sandbox\%BENCHNAME%.%TEST_FILE_EXT%" --perf:runid "%LV_RUNID%" --perf:collect %COLLECTION_FLAGS%"
-    call :run_cmd !LV_CMD! 1>"%BENCHNAME_LOG_FILE_NAME%" 2>&1
   )
+
+  echo/
+  echo/%USERNAME%@%COMPUTERNAME% "%CD%"
+  echo/[%DATE%][%TIME:~0,-3%] $ !LV_CMD!
+  call :run_cmd !LV_CMD! 1>"%BENCHNAME_LOG_FILE_NAME%" 2>&1
 
   IF %ERRORLEVEL% NEQ 0 (
     call :print_error corerun.exe exited with %ERRORLEVEL% code.
@@ -101,6 +111,13 @@ setlocal
   rem optionally generate results for benchview
   if exist "%BENCHVIEW_PATH%" (
     call :generate_results_for_benchview || exit /b 1
+  )
+
+  rem Save off the results to the root directory for recovery later in Jenkins
+  for %%e in (xml etl log) do (
+    IF EXIST ".\%LV_RUNID%-%BENCHNAME%.%%e" (
+      call :run_cmd xcopy /vy ".\%LV_RUNID%-%BENCHNAME%.%%e" .. || exit /b 1
+    )
   )
 
   exit /b 0
@@ -261,7 +278,7 @@ rem ****************************************************************************
 rem   Creates the sandbox folder used by the script to copy binaries locally,
 rem   and execute benchmarks.
 rem ****************************************************************************
-  if exist sandbox rd /s /q sandbox
+  if exist sandbox rmdir /s /q sandbox
   if exist sandbox call :print_error Failed to remove the sandbox folder& exit /b 1
   if not exist sandbox mkdir sandbox
   if not exist sandbox call :print_error Failed to create the sandbox folder& exit /b 1
@@ -380,10 +397,9 @@ rem ****************************************************************************
     exit /b 1
   )
 
-  echo/ 1>CON
-  echo/%USERNAME%@%COMPUTERNAME% "%CD%" 1>CON
-  echo/[%DATE%][%TIME:~0,-3%] $ %* 1>CON
+  echo/
+  echo/%USERNAME%@%COMPUTERNAME% "%CD%"
+  echo/[%DATE%][%TIME:~0,-3%] $ %*
 
   call %*
   exit /b %ERRORLEVEL%
-
