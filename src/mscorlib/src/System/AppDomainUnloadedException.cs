@@ -16,7 +16,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     internal class AppDomainUnloadedException : SystemException
     {
         public AppDomainUnloadedException()
@@ -30,6 +29,7 @@ namespace System
         //
         protected AppDomainUnloadedException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

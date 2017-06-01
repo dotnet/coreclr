@@ -8,7 +8,6 @@ using System.Runtime.Serialization;
 
 namespace System.IO
 {
-    [Serializable]
     public class PathTooLongException : IOException
     {
         public PathTooLongException()
@@ -32,6 +31,7 @@ namespace System.IO
         protected PathTooLongException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

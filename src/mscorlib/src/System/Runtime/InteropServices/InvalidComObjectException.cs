@@ -17,7 +17,6 @@ using System.Runtime.Serialization;
 
 namespace System.Runtime.InteropServices
 {
-    [Serializable]
     public class InvalidComObjectException : SystemException
     {
         public InvalidComObjectException()
@@ -40,6 +39,7 @@ namespace System.Runtime.InteropServices
 
         protected InvalidComObjectException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

@@ -12,7 +12,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class InvalidCastException : SystemException
     {
         public InvalidCastException()
@@ -39,6 +38,9 @@ namespace System
             HResult = errorCode;
         }
 
-        protected InvalidCastException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected InvalidCastException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

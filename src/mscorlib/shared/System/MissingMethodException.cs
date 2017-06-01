@@ -15,7 +15,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class MissingMethodException : MissingMemberException
     {
         public MissingMethodException()
@@ -45,6 +44,7 @@ namespace System
         protected MissingMethodException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
 
         public override string Message

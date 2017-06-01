@@ -16,7 +16,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class AccessViolationException : SystemException
     {
         public AccessViolationException()
@@ -37,7 +36,10 @@ namespace System
             HResult = __HResults.E_POINTER;
         }
 
-        protected AccessViolationException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected AccessViolationException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
 
 #pragma warning disable 169  // Field is not used from managed.
         private IntPtr _ip;             // Address of faulting instruction.

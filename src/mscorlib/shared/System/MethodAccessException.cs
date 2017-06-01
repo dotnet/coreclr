@@ -13,7 +13,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class MethodAccessException : MemberAccessException
     {
         public MethodAccessException()
@@ -34,6 +33,9 @@ namespace System
             HResult = __HResults.COR_E_METHODACCESS;
         }
 
-        protected MethodAccessException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected MethodAccessException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

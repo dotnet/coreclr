@@ -7,7 +7,6 @@ using System.Runtime.Serialization;
 
 namespace System.Reflection
 {
-    [Serializable]
     public class StrongNameKeyPair : IDeserializationCallback, ISerializable
     {
         private bool _keyPairExported;
@@ -42,10 +41,7 @@ namespace System.Reflection
 
         protected StrongNameKeyPair(SerializationInfo info, StreamingContext context)
         {
-            _keyPairExported = (bool)info.GetValue("_keyPairExported", typeof(bool));
-            _keyPairArray = (byte[])info.GetValue("_keyPairArray", typeof(byte[]));
-            _keyPairContainer = (string)info.GetValue("_keyPairContainer", typeof(string));
-            _publicKey = (byte[])info.GetValue("_publicKey", typeof(byte[]));
+            throw new PlatformNotSupportedException();
         }
 
         public StrongNameKeyPair(string keyPairContainer)
@@ -63,12 +59,12 @@ namespace System.Reflection
 
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            info.AddValue("_keyPairExported", _keyPairExported);
-            info.AddValue("_keyPairArray", _keyPairArray);
-            info.AddValue("_keyPairContainer", _keyPairContainer);
-            info.AddValue("_publicKey", _publicKey);
+            throw new PlatformNotSupportedException();
         }
 
-        void IDeserializationCallback.OnDeserialization(object sender) { }
+        void IDeserializationCallback.OnDeserialization(object sender)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

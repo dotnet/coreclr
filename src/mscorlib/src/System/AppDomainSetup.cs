@@ -22,7 +22,6 @@ namespace System
     using System.Diagnostics.Contracts;
     using System.Collections.Generic;
 
-    [Serializable]
     internal sealed class AppDomainSetup
     {
         internal enum LoaderInformation

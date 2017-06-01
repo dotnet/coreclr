@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 
 namespace System.Runtime.Serialization
 {
-    [Serializable]
     public class SerializationException : SystemException
     {
         private static String s_nullMessage = SR.SerializationException;
@@ -34,6 +33,7 @@ namespace System.Runtime.Serialization
         protected SerializationException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

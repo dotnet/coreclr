@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 
 namespace System.Reflection
 {
-    [Serializable]
     public class InvalidFilterCriteriaException : ApplicationException
     {
         public InvalidFilterCriteriaException()
@@ -28,6 +27,7 @@ namespace System.Reflection
         protected InvalidFilterCriteriaException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

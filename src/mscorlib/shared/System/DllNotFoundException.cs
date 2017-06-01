@@ -16,7 +16,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class DllNotFoundException : TypeLoadException
     {
         public DllNotFoundException()
@@ -39,6 +38,7 @@ namespace System
 
         protected DllNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

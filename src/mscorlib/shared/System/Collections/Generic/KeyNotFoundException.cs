@@ -7,7 +7,6 @@ using System.Runtime.Serialization;
 
 namespace System.Collections.Generic
 {
-    [Serializable]
     public class KeyNotFoundException : SystemException
     {
         public KeyNotFoundException()
@@ -28,6 +27,9 @@ namespace System.Collections.Generic
             HResult = __HResults.COR_E_KEYNOTFOUND;
         }
 
-        protected KeyNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected KeyNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

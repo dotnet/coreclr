@@ -17,7 +17,6 @@ using System.Globalization;
 
 namespace System
 {
-    [Serializable]
     public class MissingFieldException : MissingMemberException, ISerializable
     {
         public MissingFieldException()
@@ -40,6 +39,7 @@ namespace System
 
         protected MissingFieldException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
 
         public override String Message

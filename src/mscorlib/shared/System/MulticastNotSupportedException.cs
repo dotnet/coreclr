@@ -11,7 +11,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public sealed class MulticastNotSupportedException : SystemException
     {
         public MulticastNotSupportedException()
@@ -31,7 +30,5 @@ namespace System
         {
             HResult = __HResults.COR_E_MULTICASTNOTSUPPORTED;
         }
-
-        internal MulticastNotSupportedException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }

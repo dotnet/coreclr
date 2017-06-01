@@ -15,7 +15,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public sealed class IndexOutOfRangeException : SystemException
     {
         public IndexOutOfRangeException()
@@ -35,7 +34,5 @@ namespace System
         {
             HResult = __HResults.COR_E_INDEXOUTOFRANGE;
         }
-
-        internal IndexOutOfRangeException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }
