@@ -150,9 +150,6 @@ BOOL isCompatibleDelegate(CORINFO_CLASS_HANDLE  objCls,          /* type of the 
                           BOOL*                 pfIsOpenDelegate /* is the delegate open */
                           );
 
-// Determines whether the delegate creation obeys security transparency rules
-BOOL isDelegateCreationAllowed(CORINFO_CLASS_HANDLE delegateHnd, CORINFO_METHOD_HANDLE calleeHnd);
-
 // Indicates if the method is an instance of the generic
 // method that passes (or has passed) verification
 CorInfoInstantiationVerification isInstantiationOfVerifiedGeneric(CORINFO_METHOD_HANDLE method /* IN  */

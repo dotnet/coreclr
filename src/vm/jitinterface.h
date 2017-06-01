@@ -777,11 +777,6 @@ public:
             CORINFO_CLASS_HANDLE        delegateCls,
             BOOL*                       pfIsOpenDelegate);
 
-    // Determines whether the delegate creation obeys security transparency rules
-    BOOL isDelegateCreationAllowed (
-            CORINFO_CLASS_HANDLE        delegateHnd,
-            CORINFO_METHOD_HANDLE       calleeHnd);
-
     // ICorFieldInfo stuff
     const char* getFieldName (CORINFO_FIELD_HANDLE field,
                               const char** scopeName);

@@ -189,17 +189,6 @@ BOOL WrapICorJitInfo::isCompatibleDelegate(
     return temp;
 }
 
-BOOL WrapICorJitInfo::isDelegateCreationAllowed(
-            CORINFO_CLASS_HANDLE        delegateHnd,
-            CORINFO_METHOD_HANDLE       calleeHnd)
-{
-    API_ENTER(isDelegateCreationAllowed);
-    BOOL temp = wrapHnd->isDelegateCreationAllowed(delegateHnd, calleeHnd);
-    API_LEAVE(isDelegateCreationAllowed);
-    return temp;
-}
-
-
 CorInfoInstantiationVerification WrapICorJitInfo::isInstantiationOfVerifiedGeneric(
             CORINFO_METHOD_HANDLE   method /* IN  */)
 {

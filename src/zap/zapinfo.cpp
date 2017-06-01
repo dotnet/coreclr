@@ -3778,13 +3778,6 @@ BOOL ZapInfo::isCompatibleDelegate(
     return m_pEEJitInfo->isCompatibleDelegate(objCls, methodParentCls, method, delegateCls, pfIsOpenDelegate);
 }
 
-BOOL ZapInfo::isDelegateCreationAllowed (
-        CORINFO_CLASS_HANDLE        delegateHnd,
-        CORINFO_METHOD_HANDLE       calleeHnd)
-{
-    return m_pEEJitInfo->isDelegateCreationAllowed(delegateHnd, calleeHnd);
-}
-
 //
 // ICorErrorInfo
 //

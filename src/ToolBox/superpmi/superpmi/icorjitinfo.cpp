@@ -238,13 +238,6 @@ BOOL MyICJI::isCompatibleDelegate(CORINFO_CLASS_HANDLE  objCls,          /* type
     return jitInstance->mc->repIsCompatibleDelegate(objCls, methodParentCls, method, delegateCls, pfIsOpenDelegate);
 }
 
-// Determines whether the delegate creation obeys security transparency rules
-BOOL MyICJI::isDelegateCreationAllowed(CORINFO_CLASS_HANDLE delegateHnd, CORINFO_METHOD_HANDLE calleeHnd)
-{
-    jitInstance->mc->cr->AddCall("isDelegateCreationAllowed");
-    return jitInstance->mc->repIsDelegateCreationAllowed(delegateHnd, calleeHnd);
-}
-
 // Indicates if the method is an instance of the generic
 // method that passes (or has passed) verification
 CorInfoInstantiationVerification MyICJI::isInstantiationOfVerifiedGeneric(CORINFO_METHOD_HANDLE method /* IN  */

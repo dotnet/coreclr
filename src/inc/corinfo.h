@@ -2111,13 +2111,6 @@ public:
             BOOL                        *pfIsOpenDelegate /* is the delegate open */
             ) = 0;
 
-    // Determines whether the delegate creation obeys security transparency rules
-    virtual BOOL isDelegateCreationAllowed (
-            CORINFO_CLASS_HANDLE        delegateHnd,
-            CORINFO_METHOD_HANDLE       calleeHnd
-            ) = 0;
-
-
     // Indicates if the method is an instance of the generic
     // method that passes (or has passed) verification
     virtual CorInfoInstantiationVerification isInstantiationOfVerifiedGeneric (

@@ -303,15 +303,6 @@ BOOL interceptor_ICJI::isCompatibleDelegate(
     return temp;
 }
 
-// Determines whether the delegate creation obeys security transparency rules
-BOOL interceptor_ICJI::isDelegateCreationAllowed(CORINFO_CLASS_HANDLE delegateHnd, CORINFO_METHOD_HANDLE calleeHnd)
-{
-    mc->cr->AddCall("isDelegateCreationAllowed");
-    BOOL temp = original_ICorJitInfo->isDelegateCreationAllowed(delegateHnd, calleeHnd);
-    mc->recIsDelegateCreationAllowed(delegateHnd, calleeHnd, temp);
-    return temp;
-}
-
 // Indicates if the method is an instance of the generic
 // method that passes (or has passed) verification
 CorInfoInstantiationVerification interceptor_ICJI::isInstantiationOfVerifiedGeneric(CORINFO_METHOD_HANDLE method /* IN

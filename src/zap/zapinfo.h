@@ -688,9 +688,6 @@ public:
                               CORINFO_CLASS_HANDLE delegateCls,
                               BOOL* pfIsOpenDelegate);
 
-    BOOL isDelegateCreationAllowed(CORINFO_CLASS_HANDLE        delegateHnd,
-                                   CORINFO_METHOD_HANDLE       calleeHnd);
-
     void getGSCookie(GSCookie * pCookieVal, 
                      GSCookie** ppCookieVal);
     // ICorErrorInfo
