@@ -1432,7 +1432,7 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
         sl.X86EmitReturn(static_cast<WORD>(argState.callerArgStackSlots * sizeof(void*)));
 #elif defined(_AMD64_)
         // Pass "ilArgs", i.e. just the point where registers have been homed, as 2nd arg
-        sl.X86EmitIndexLeaRSP(ARG2_kREG, static_cast<X86Reg>(kESP_Unsafe), 8);
+        sl.X86EmitIndexLeaRSP(ARGUMENT_kREG2, static_cast<X86Reg>(kESP_Unsafe), 8);
 
         // Allocate space for homing callee's (InterpretMethod's) arguments.
         // Calling convention requires a default allocation space of 4,
@@ -1450,10 +1450,10 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
 #endif
         {
             // For a non-ILStub method, push NULL as the StubContext argument.
-            sl.X86EmitZeroOutReg(ARG1_kREG);
-            sl.X86EmitMovRegReg(kR8, ARG1_kREG);
+            sl.X86EmitZeroOutReg(ARGUMENT_kREG1);
+            sl.X86EmitMovRegReg(kR8, ARGUMENT_kREG1);
         }
-        sl.X86EmitRegLoad(ARG1_kREG, reinterpret_cast<UINT_PTR>(interpMethInfo));
+        sl.X86EmitRegLoad(ARGUMENT_kREG1, reinterpret_cast<UINT_PTR>(interpMethInfo));
         sl.X86EmitCall(sl.NewExternalCodeLabel(interpretMethodFunc), 0);
         sl.X86EmitAddEsp(interpMethodArgSize);
         sl.X86EmitReturn(0);

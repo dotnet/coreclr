@@ -263,18 +263,16 @@ struct CalleeSavedRegistersPointers {
 #ifdef UNIX_AMD64_ABI
 #define THIS_REG RDI
 #define THIS_kREG kRDI
+
+#define ARGUMENT_kREG1 kRDI
+#define ARGUMENT_kREG2 kRSI
 #else
 #define THIS_REG RCX
 #define THIS_kREG kRCX
-#endif
 
-#ifdef PLATFORM_UNIX
-#define ARG1_kREG kRDI
-#define ARG2_kREG kRSI
-#else // PLATFORM_UNIX
-#define ARG1_kREG kRCX
-#define ARG2_kREG kRDX
-#endif // !PLATFORM_UNIX
+#define ARGUMENT_kREG1 kRCX
+#define ARGUMENT_kREG2 kRDX
+#endif
 
 #ifdef UNIX_AMD64_ABI
 
