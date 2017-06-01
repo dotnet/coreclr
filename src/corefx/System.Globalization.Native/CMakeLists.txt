@@ -95,5 +95,7 @@ verify_dependencies(
 
 # add the install targets
 install_clr(System.Globalization.Native)
-install(TARGETS System.Globalization.Native_Static DESTINATION .)
 
+if(FEATURE_COREFX_GLOBALIZATION_STATIC)
+  install(TARGETS System.Globalization.Native_Static DESTINATION .)
+endif(FEATURE_COREFX_GLOBALIZATION_STATIC)

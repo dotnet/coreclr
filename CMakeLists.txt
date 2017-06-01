@@ -537,6 +537,11 @@ endif(CLR_CROSS_COMPONENTS_BUILD)
 #-------------------
 include(pgosupport.cmake)
 
+#-------------------
+# Define features
+#-------------------
+include(clrfeatures.cmake)
+
 #-----------------------------------------
 # Add Projects
 #     - project which require platform header not clr's
