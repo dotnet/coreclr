@@ -1111,6 +1111,8 @@ if ((disableEventLogging == 0)); then
     export COMPlus_EnableEventLog=1
 fi
 
+export COMPlus_JitDump=AppendFormatHelper
+
 export CORECLR_SERVER_GC="$serverGC"
 
 if [ -z "$testRootDir" ]; then
