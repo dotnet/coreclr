@@ -45,6 +45,8 @@ int LoadNativeStringResource(const NativeStringResourceTable &nativeStringResour
                 // Tell the caller if the buffer isn't big enough
                 if (hr == ERROR_INSUFFICIENT_BUFFER && pcwchUsed)
                     *pcwchUsed = iMax;
+                    
+                return hr;
             }
         }
         else
