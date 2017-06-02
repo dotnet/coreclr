@@ -741,6 +741,10 @@ public:
         CORINFO_CONTEXT_HANDLE ownerType
         );
 
+    void expandRawHandleIntrinsic(
+        CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+        CORINFO_GENERICHANDLE_RESULT *  pResult);
+
     CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                      bool * pMustExpand = NULL);
 

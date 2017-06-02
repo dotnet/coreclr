@@ -184,6 +184,15 @@ CORINFO_METHOD_HANDLE MyICJI::resolveVirtualMethod(CORINFO_METHOD_HANDLE  virtua
     return result;
 }
 
+void MyICJI::expandRawHandleIntrinsic(
+    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+    CORINFO_GENERICHANDLE_RESULT *  pResult)
+{
+    jitInstance->mc->cr->AddCall("expandRawHandleIntrinsic");
+    LogError("Hit unimplemented expandRawHandleIntrinsic");
+    DebugBreakorAV(129);
+}
+
 // If a method's attributes have (getMethodAttribs) CORINFO_FLG_INTRINSIC set,
 // getIntrinsicID() returns the intrinsic ID.
 CorInfoIntrinsics MyICJI::getIntrinsicID(CORINFO_METHOD_HANDLE method, bool* pMustExpand /* OUT */

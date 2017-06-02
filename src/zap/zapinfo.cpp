@@ -3723,6 +3723,13 @@ CORINFO_METHOD_HANDLE ZapInfo::resolveVirtualMethod(
     return m_pEEJitInfo->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
 }
 
+void ZapInfo::expandRawHandleIntrinsic(
+    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+    CORINFO_GENERICHANDLE_RESULT *  pResult)
+{
+    m_pEEJitInfo->expandRawHandleIntrinsic(pResolvedToken, pResult);
+}
+
 CorInfoIntrinsics ZapInfo::getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                           bool * pMustExpand)
 {

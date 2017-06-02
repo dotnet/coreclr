@@ -118,6 +118,10 @@ CORINFO_METHOD_HANDLE resolveVirtualMethod(CORINFO_METHOD_HANDLE  virtualMethod,
                                            CORINFO_CLASS_HANDLE   implementingClass,
                                            CORINFO_CONTEXT_HANDLE ownerType);
 
+void expandRawHandleIntrinsic(
+    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+    CORINFO_GENERICHANDLE_RESULT *  pResult);
+
 // If a method's attributes have (getMethodAttribs) CORINFO_FLG_INTRINSIC set,
 // getIntrinsicID() returns the intrinsic ID.
 // *pMustExpand tells whether or not JIT must expand the intrinsic.

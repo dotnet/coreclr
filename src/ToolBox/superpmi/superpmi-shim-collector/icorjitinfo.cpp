@@ -235,6 +235,14 @@ CORINFO_METHOD_HANDLE interceptor_ICJI::resolveVirtualMethod(CORINFO_METHOD_HAND
     return result;
 }
 
+void interceptor_ICJI::expandRawHandleIntrinsic(
+    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+    CORINFO_GENERICHANDLE_RESULT *  pResult)
+{
+    mc->cr->AddCall("expandRawHandleIntrinsic");
+    original_ICorJitInfo->expandRawHandleIntrinsic(pResolvedToken, pResult);
+}
+
 // If a method's attributes have (getMethodAttribs) CORINFO_FLG_INTRINSIC set,
 // getIntrinsicID() returns the intrinsic ID.
 CorInfoIntrinsics interceptor_ICJI::getIntrinsicID(CORINFO_METHOD_HANDLE method, bool* pMustExpand /* OUT */

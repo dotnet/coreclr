@@ -8731,6 +8731,14 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethod(CORINFO_METHOD_HANDLE method
     return result;
 }
 
+void CEEInfo::expandRawHandleIntrinsic(
+    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+    CORINFO_GENERICHANDLE_RESULT *  pResult)
+{
+    LIMITED_METHOD_CONTRACT;
+    UNREACHABLE();      // only called with CoreRT.
+}
+
 /*********************************************************************/
 void CEEInfo::getFunctionEntryPoint(CORINFO_METHOD_HANDLE  ftnHnd,
                                     CORINFO_CONST_LOOKUP * pResult,
