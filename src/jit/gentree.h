@@ -1293,6 +1293,15 @@ public:
         return OperIsStoreBlk(OperGet());
     }
 
+    bool OperIsPutArgSplit() const
+    {
+#ifdef _TARGET_ARM_
+        return gtOper == GT_PUTARG_SPLIT;
+#else
+        return false;
+#endif
+    }
+
     bool OperIsPutArgStk() const
     {
         return gtOper == GT_PUTARG_STK;
@@ -1305,7 +1314,7 @@ public:
 
     bool OperIsPutArg() const
     {
-        return OperIsPutArgStk() || OperIsPutArgReg();
+        return OperIsPutArgStk() || OperIsPutArgReg() || OperIsPutArgSplit();
     }
 
     bool OperIsAddrMode() const
@@ -4901,6 +4910,9 @@ struct GenTreePutArgStk : public GenTreeUnOp
     unsigned gtNumSlots;             // Number of slots for the argument to be passed on stack
     unsigned gtNumberReferenceSlots; // Number of reference slots.
     BYTE*    gtGcPtrs;               // gcPointers
+#ifdef _TARGET_ARM_
+    bool gtIsHfa; // isHfa
+#endif
 
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
@@ -4914,6 +4926,94 @@ struct GenTreePutArgStk : public GenTreeUnOp
     }
 #endif
 };
+
+#ifdef _TARGET_ARM_
+// Represent the struct argument: value is splitted in register(s) and stack
+struct GenTreePutArgSplit : public GenTreePutArgStk
+{
+    unsigned gtNumRegs;
+
+    GenTreePutArgSplit(GenTreePtr op1,
+                       unsigned slotNum PUT_STRUCT_ARG_STK_ONLY_ARG(unsigned numSlots),
+                       unsigned     numRegs,
+                       bool         isHfa,
+                       bool         putIncomingArgArea = false,
+                       GenTreeCall* callNode           = nullptr)
+        : GenTreePutArgStk(GT_PUTARG_SPLIT,
+                           TYP_STRUCT,
+                           op1,
+                           slotNum PUT_STRUCT_ARG_STK_ONLY_ARG(numSlots),
+                           putIncomingArgArea,
+                           callNode)
+        , gtNumRegs(numRegs)
+    {
+#ifdef FEATURE_PUT_STRUCT_ARG_STK
+        gtIsHfa = isHfa;
+#endif
+    }
+
+    // HFA args is not yet handled
+    regNumber gtOtherRegs[MAX_REG_ARG - 1];
+
+    //---------------------------------------------------------------------------
+    // GetRegNumByIdx: get ith register allocated to this struct argument.
+    //
+    // Arguments:
+    //     idx   -   index of the struct
+    //
+    // Return Value:
+    //     Return regNumber of ith register of this struct argument
+    //
+    regNumber GetRegNumByIdx(unsigned idx) const
+    {
+        assert(idx < MAX_REG_ARG);
+
+        if (idx == 0)
+        {
+            return gtRegNum;
+        }
+
+        return gtOtherRegs[idx - 1];
+    }
+
+    //----------------------------------------------------------------------
+    // SetRegNumByIdx: set ith register of this struct argument
+    //
+    // Arguments:
+    //    reg    -   reg number
+    //    idx    -   index of the struct
+    //
+    // Return Value:
+    //    None
+    //
+    void SetRegNumByIdx(regNumber reg, unsigned idx)
+    {
+        assert(idx < MAX_REG_ARG);
+        if (idx == 0)
+        {
+            gtRegNum = reg;
+        }
+        else
+        {
+            gtOtherRegs[idx - 1] = reg;
+            assert(gtOtherRegs[idx - 1] == reg);
+        }
+    }
+
+#ifdef FEATURE_PUT_STRUCT_ARG_STK
+    unsigned getArgSize()
+    {
+        return (gtNumSlots + gtNumRegs) * TARGET_POINTER_SIZE;
+    }
+#endif // FEATURE_PUT_STRUCT_ARG_STK
+
+#if DEBUGGABLE_GENTREE
+    GenTreePutArgSplit() : GenTreePutArgStk()
+    {
+    }
+#endif
+};
+#endif // _TARGET_ARM_
 
 // Represents GT_COPY or GT_RELOAD node
 struct GenTreeCopyOrReload : public GenTreeUnOp
@@ -5470,7 +5570,7 @@ inline bool GenTree::IsMultiRegNode() const
     }
 
 #if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
-    if (gtOper == GT_MUL_LONG)
+    if (gtOper == GT_MUL_LONG || OperIsPutArgSplit())
     {
         return true;
     }

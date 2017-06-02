@@ -747,8 +747,7 @@ void Lowering::ReplaceArgWithPutArgOrCopy(GenTree** argSlot, GenTree* putArgOrCo
 {
     assert(argSlot != nullptr);
     assert(*argSlot != nullptr);
-    assert(putArgOrCopy->OperGet() == GT_PUTARG_REG || putArgOrCopy->OperGet() == GT_PUTARG_STK ||
-           putArgOrCopy->OperGet() == GT_COPY);
+    assert(putArgOrCopy->OperIsPutArg() || putArgOrCopy->OperIs(GT_COPY));
 
     GenTree* arg = *argSlot;
 
@@ -808,6 +807,40 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
 #else  // !FEATURE_UNIX_AMD64_STRUCT_PASSING
     isOnStack = info->regNum == REG_STK;
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+#ifdef _TARGET_ARM_
+    // Strcut can be split into register(s) and stack on ARM
+    if (info->isSplit)
+    {
+        if (arg->OperGet() != GT_OBJ)
+        {
+            NYI_ARM("Lowering: Oper for struct argument is not GT_OBJ");
+        }
+
+        putArg = new (comp, GT_PUTARG_SPLIT)
+            GenTreePutArgSplit(arg, info->slotNum PUT_STRUCT_ARG_STK_ONLY_ARG(info->numSlots), info->numRegs,
+                               info->isHfaRegArg, call->IsFastTailCall(), call);
+        if (arg->gtFlags & GTF_LATE_ARG)
+        {
+            putArg->gtFlags |= GTF_LATE_ARG;
+        }
+        else
+        {
+            info->node = putArg;
+        }
+
+        // Set GC Pointer info
+        BYTE*    gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots + info->numRegs];
+        unsigned numRefs  = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
+        putArg->AsPutArgSplit()->setGcPointers(numRefs, gcLayout);
+
+        JITDUMP("new node is : ");
+        DISPNODE(putArg);
+        JITDUMP("\n");
+
+        return putArg;
+    }
+#endif
 
     if (!isOnStack)
     {

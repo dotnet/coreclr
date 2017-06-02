@@ -45,6 +45,9 @@ void genCodeForCompare(GenTreeOp* tree);
 void genIntrinsic(GenTreePtr treeNode);
 void genPutArgStk(GenTreePutArgStk* treeNode);
 void genPutArgReg(GenTreeOp* tree);
+#ifdef _TARGET_ARM_
+void genPutArgSplit(GenTreePutArgSplit* treeNode);
+#endif
 
 #if defined(_TARGET_XARCH_)
 unsigned getBaseVarForPutArgStk(GenTreePtr treeNode);

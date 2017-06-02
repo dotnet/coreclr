@@ -328,6 +328,9 @@ void GenTree::InitNodeSize()
     // TODO-Throughput: This should not need to be a large node. The object info should be
     // obtained from the child node.
     GenTree::s_gtNodeSizes[GT_PUTARG_STK]       = TREE_NODE_SZ_LARGE;
+#ifdef _TARGET_ARM_
+    GenTree::s_gtNodeSizes[GT_PUTARG_SPLIT]     = TREE_NODE_SZ_LARGE;
+#endif
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
     assert(GenTree::s_gtNodeSizes[GT_RETURN] == GenTree::s_gtNodeSizes[GT_ASG]);
@@ -390,6 +393,9 @@ void GenTree::InitNodeSize()
     // TODO-Throughput: This should not need to be a large node. The object info should be
     // obtained from the child node.
     static_assert_no_msg(sizeof(GenTreePutArgStk)    <= TREE_NODE_SZ_LARGE);
+#ifdef _TARGET_ARM_
+    static_assert_no_msg(sizeof(GenTreePutArgSplit)  <= TREE_NODE_SZ_LARGE);
+#endif
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
 #ifdef FEATURE_SIMD
@@ -9245,6 +9251,9 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_PHYSREGDST:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
+#ifdef _TARGET_ARM_
+        case GT_PUTARG_SPLIT:
+#endif
         case GT_RETURNTRAP:
             m_edge = &m_node->AsUnOp()->gtOp1;
             assert(*m_edge != nullptr);
@@ -11833,6 +11842,41 @@ void Compiler::gtGetArgMsg(
         }
         else
         {
+#ifdef _TARGET_ARM_
+            if (curArgTabEntry->isSplit)
+            {
+                regNumber argReg = curArgTabEntry->regNum;
+                if (listCount == -1)
+                {
+                    if (curArgTabEntry->numRegs == 1)
+                    {
+                        sprintf_s(bufp, bufLength, "arg%d %s out+%02x%c", argNum, compRegVarName(argReg),
+                                  (curArgTabEntry->slotNum) * TARGET_POINTER_SIZE, 0);
+                    }
+                    else
+                    {
+                        regNumber otherRegNum = (regNumber)((unsigned)(argReg) + curArgTabEntry->numRegs - 1);
+                        char      seperator   = (curArgTabEntry->numRegs == 2) ? ',' : '-';
+                        sprintf_s(bufp, bufLength, "arg%d %s%c%s out+%02x%c", argNum, compRegVarName(argReg), seperator,
+                                  compRegVarName(otherRegNum), (curArgTabEntry->slotNum) * TARGET_POINTER_SIZE, 0);
+                    }
+                }
+                else
+                {
+                    regNumber curReg = (regNumber)((unsigned)(argReg) + listCount);
+                    if (((unsigned)(curReg)) <= MAX_ARG_REG_COUNT)
+                    {
+                        sprintf_s(bufp, bufLength, "arg%d m%d %s%c", argNum, listCount, compRegVarName(curReg), 0);
+                    }
+                    else
+                    {
+                        unsigned curSlot = (unsigned)(curReg)-MAX_ARG_REG_COUNT;
+                        sprintf_s(bufp, bufLength, "arg%d m%d out+%s%c", argNum, listCount, curSlot, 0);
+                    }
+                }
+                return;
+            }
+#endif
 #if FEATURE_FIXED_OUT_ARGS
             if (listCount == -1)
             {
