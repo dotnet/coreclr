@@ -43,7 +43,7 @@ int LoadNativeStringResource(const NativeStringResourceTable &nativeStringResour
                 int hr = HRESULT_FROM_GetLastError();
 
                 // Tell the caller if the buffer isn't big enough
-                if (hr == ERROR_INSUFFICIENT_BUFFER && pcwchUsed)
+                if (hr == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER) && pcwchUsed)
                     *pcwchUsed = iMax;
                     
                 return hr;
