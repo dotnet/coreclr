@@ -93,6 +93,7 @@ namespace Microsoft.Internal
     }
 
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     internal class Tuple<T1>
     {
         private readonly T1 m_Item1;
@@ -123,6 +124,7 @@ namespace Microsoft.Internal
     }
 
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class Tuple<T1, T2>
     {
         private readonly T1 m_Item1;
