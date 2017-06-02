@@ -38,6 +38,8 @@ int LoadNativeStringResource(const NativeStringResourceTable &nativeStringResour
         if (resourceEntry != NULL)
         {
             len = PAL_GetResourceString(NULL, resourceEntry->resourceString, szBuffer, iMax);
+            if (len == 0)
+                return HRESULT_FROM_GetLastError();
         }
         else
         {
@@ -47,6 +49,8 @@ int LoadNativeStringResource(const NativeStringResourceTable &nativeStringResour
             {   
                 // The only possible failure is that that string didn't fit the buffer. So the buffer contains 
                 // partial string terminated by '\0'
+                // We could return ERROR_INSUFFICIENT_BUFFER, but we'll error on the side of caution here and
+                // actually show something (given that this is likely a scenario involving a bug/deployment issue)
                 len = iMax - 1;
             }
         }
