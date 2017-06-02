@@ -39,7 +39,13 @@ int LoadNativeStringResource(const NativeStringResourceTable &nativeStringResour
         {
             len = PAL_GetResourceString(NULL, resourceEntry->resourceString, szBuffer, iMax);
             if (len == 0)
-                return HRESULT_FROM_GetLastError();
+            {
+                int hr = HRESULT_FROM_GetLastError();
+
+                // Tell the caller if the buffer isn't big enough
+                if (hr == ERROR_INSUFFICIENT_BUFFER && pcwchUsed)
+                    *pcwchUsed = iMax;
+            }
         }
         else
         {
