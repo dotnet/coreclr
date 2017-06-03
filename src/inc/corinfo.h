@@ -960,6 +960,7 @@ enum CorInfoIntrinsics
     CORINFO_INTRINSIC_ByReference_Value,
     CORINFO_INTRINSIC_Span_GetItem,
     CORINFO_INTRINSIC_ReadOnlySpan_GetItem,
+    CORINFO_INTRINSIC_GetRawHandle,
 
     CORINFO_INTRINSIC_Count,
     CORINFO_INTRINSIC_Illegal = -1,         // Not a true intrinsic,
