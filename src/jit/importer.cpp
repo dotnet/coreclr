@@ -3730,7 +3730,9 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             GenTreePtr eeTypePtrOfNode = impLookupToTree(&resolvedToken, &embedInfo.lookup,
                                                          gtTokenToIconFlags(memberRef), embedInfo.compileTimeHandle);
             if (eeTypePtrOfNode == nullptr)
+            {
                 return nullptr;
+            }
 
             unsigned eeSlot = lvaGrabTemp(true DEBUGARG("eeTypePtrOf"));
             impAssignTempGen(eeSlot, eeTypePtrOfNode, clsHnd, (unsigned)CHECK_SPILL_NONE);
