@@ -3718,7 +3718,6 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
         {
             assert(IsTargetAbi(CORINFO_CORERT_ABI)); // Only CoreRT supports it.
             CORINFO_RESOLVED_TOKEN resolvedToken;
-            resolvedToken.hMethod      = method;
             resolvedToken.tokenContext = MAKE_METHODCONTEXT(info.compMethodHnd);
             resolvedToken.tokenScope   = info.compScopeHnd;
             resolvedToken.token        = memberRef;
@@ -3734,13 +3733,16 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
                 return nullptr;
             }
 
+            noway_assert(genTypeSize(eeTypePtrOfNode->TypeGet()) == genTypeSize(TYP_I_IMPL));
+
             unsigned eeSlot = lvaGrabTemp(true DEBUGARG("eeTypePtrOf"));
             impAssignTempGen(eeSlot, eeTypePtrOfNode, clsHnd, (unsigned)CHECK_SPILL_NONE);
+
             GenTreePtr lclVar     = gtNewLclvNode(eeSlot, TYP_I_IMPL);
             GenTreePtr lclVarAddr = gtNewOperNode(GT_ADDR, TYP_I_IMPL, lclVar);
             var_types  resultType = JITtype2varType(sig->retType);
+            retNode               = gtNewOperNode(GT_IND, resultType, lclVarAddr);
 
-            retNode = gtNewOperNode(GT_IND, resultType, lclVarAddr);
             break;
         }
 
