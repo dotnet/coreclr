@@ -213,11 +213,11 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* f00b3f49-ddd2-49be-ba43-6e49ffa66959 */
-    0xf00b3f49,
-    0xddd2,
-    0x49be,
-    { 0xba, 0x43, 0x6e, 0x49, 0xff, 0xa6, 0x69, 0x59 }
+SELECTANY const GUID JITEEVersionIdentifier = { /* e5708e9e-dd18-4287-8745-5d10ff2697cf */
+    0xe5708e9e,
+    0xdd18,
+    0x4287,
+    { 0x87, 0x45, 0x5d, 0x10, 0xff, 0x26, 0x97, 0xcf }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
