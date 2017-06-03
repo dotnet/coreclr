@@ -1086,14 +1086,6 @@ LONG * WrapICorJitInfo::getAddrOfCaptureThreadGlobal(
     return temp;
 }
 
-SIZE_T*       WrapICorJitInfo::getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module)
-{
-    API_ENTER(getAddrModuleDomainID);
-    SIZE_T* result = wrapHnd->getAddrModuleDomainID(module);
-    API_LEAVE(getAddrModuleDomainID);
-    return result;
-}
-
 void* WrapICorJitInfo::getHelperFtn(
                 CorInfoHelpFunc         ftnNum,
                 void                  **ppIndirection)

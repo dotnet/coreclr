@@ -326,7 +326,6 @@ public:
     DWORD getThreadTLSIndex(void **ppIndirection);
     const void * getInlinedCallFrameVptr(void **ppIndirection);
     LONG * getAddrOfCaptureThreadGlobal(void **ppIndirection);
-    SIZE_T* getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module);
 
     // get slow lazy string literal helper to use (CORINFO_HELP_STRCNS*). 
     // Returns CORINFO_HELP_UNDEF if lazy string literal helper cannot be used.

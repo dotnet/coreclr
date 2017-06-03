@@ -9847,29 +9847,6 @@ const void * CEEInfo::getInlinedCallFrameVptr(void **ppIndirection)
     return result;
 }
 
-
-SIZE_T * CEEInfo::getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module)
-{
-    CONTRACTL {
-        SO_TOLERANT;
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-    } CONTRACTL_END;
-
-    SIZE_T * result = NULL;
-
-    JIT_TO_EE_TRANSITION_LEAF();
-
-    Module* pModule = GetModule(module);
-
-    result = pModule->GetAddrModuleID();
-
-    EE_TO_JIT_TRANSITION_LEAF();
-
-    return result;
-}
-
 LONG * CEEInfo::getAddrOfCaptureThreadGlobal(void **ppIndirection)
 {
     CONTRACTL {

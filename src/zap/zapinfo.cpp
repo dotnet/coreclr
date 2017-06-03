@@ -1411,11 +1411,6 @@ const void * ZapInfo::getInlinedCallFrameVptr(void **ppIndirection)
     return NULL;
 }
 
-SIZE_T* ZapInfo::getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module)
-{
-    return m_pEEJitInfo->getAddrModuleDomainID(module);
-}
-
 LONG * ZapInfo::getAddrOfCaptureThreadGlobal(void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);

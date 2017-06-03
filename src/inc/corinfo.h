@@ -2841,8 +2841,6 @@ public:
                     void                  **ppIndirection = NULL
                     ) = 0;
 
-    virtual SIZE_T*       getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module) = 0;
-
     // return the native entry point to an EE helper (see CorInfoHelpFunc)
     virtual void* getHelperFtn (
                     CorInfoHelpFunc         ftnNum,

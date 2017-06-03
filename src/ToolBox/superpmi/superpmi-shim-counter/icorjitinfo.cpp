@@ -1127,12 +1127,6 @@ LONG* interceptor_ICJI::getAddrOfCaptureThreadGlobal(void** ppIndirection)
     return original_ICorJitInfo->getAddrOfCaptureThreadGlobal(ppIndirection);
 }
 
-SIZE_T* interceptor_ICJI::getAddrModuleDomainID(CORINFO_MODULE_HANDLE module)
-{
-    mcs->AddCall("getAddrModuleDomainID");
-    return original_ICorJitInfo->getAddrModuleDomainID(module);
-}
-
 // return the native entry point to an EE helper (see CorInfoHelpFunc)
 void* interceptor_ICJI::getHelperFtn(CorInfoHelpFunc ftnNum, void** ppIndirection)
 {

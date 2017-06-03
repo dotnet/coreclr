@@ -897,10 +897,6 @@ public:
     DWORD getThreadTLSIndex(void **ppIndirection);
     const void * getInlinedCallFrameVptr(void **ppIndirection);
 
-    // Returns the address of the domain neutral module id. This only makes sense for domain neutral (shared)
-    // modules
-    SIZE_T* getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module);
-
     LONG * getAddrOfCaptureThreadGlobal(void **ppIndirection);
     void* getHelperFtn(CorInfoHelpFunc    ftnNum,                 /* IN  */
                        void **            ppIndirection);         /* OUT */

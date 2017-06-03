@@ -1230,14 +1230,6 @@ LONG* MyICJI::getAddrOfCaptureThreadGlobal(void** ppIndirection)
     return jitInstance->mc->repGetAddrOfCaptureThreadGlobal(ppIndirection);
 }
 
-SIZE_T* MyICJI::getAddrModuleDomainID(CORINFO_MODULE_HANDLE module)
-{
-    jitInstance->mc->cr->AddCall("getAddrModuleDomainID");
-    LogError("Hit unimplemented getAddrModuleDomainID");
-    DebugBreakorAV(88);
-    return 0;
-}
-
 // return the native entry point to an EE helper (see CorInfoHelpFunc)
 void* MyICJI::getHelperFtn(CorInfoHelpFunc ftnNum, void** ppIndirection)
 {

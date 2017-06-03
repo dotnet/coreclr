@@ -721,8 +721,6 @@ const void* getInlinedCallFrameVptr(void** ppIndirection = NULL);
 
 LONG* getAddrOfCaptureThreadGlobal(void** ppIndirection = NULL);
 
-SIZE_T* getAddrModuleDomainID(CORINFO_MODULE_HANDLE module);
-
 // return the native entry point to an EE helper (see CorInfoHelpFunc)
 void* getHelperFtn(CorInfoHelpFunc ftnNum, void** ppIndirection = NULL);
 
