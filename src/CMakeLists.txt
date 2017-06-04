@@ -109,7 +109,9 @@ if(CLR_CMAKE_PLATFORM_UNIX)
   endif(CLR_CMAKE_PLATFORM_LINUX)
 
   add_subdirectory(ToolBox/SOS/Strike)
-
+if(FEATURE_LINUX_PROFILER)
+  add_subdirectory(linux-profiler)
+endif()
   # Include the dummy c++ include files
   include_directories("pal/inc/rt/cpp")
 
