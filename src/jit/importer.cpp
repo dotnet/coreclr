@@ -6707,9 +6707,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             call = impIntrinsic(newobjThis, clsHnd, methHnd, sig, pResolvedToken->token, readonlyCall,
                                 (canTailCall && (tailCall != 0)), &intrinsicID);
 
-            if (compInlineResult->IsFailure())
+            if (compIsForInlining() && compInlineResult->IsFailure())
             {
-                assert(compIsForInlining());
                 return callRetTyp;
             }
 
