@@ -1036,10 +1036,19 @@ bool Lowering::isRMWRegOper(GenTreePtr tree)
     }
 }
 
-// anything is in range for AMD64
+// Everything is in range for x86.
+// For AMD64, if we have overflowed the rel32 space at least once, and are forcing indirect data
+// accesses to 64-bit, then also force code addresses to 64-bit. This means we will not create jump
+// stubs. Not using jump stubs means the code is quite a bit bigger (12 byte calls versus 5 byte calls),
+// but we avoid the fatal problem of being unable to allocate jump stubs in very large, constrained
+// memory situations.
 bool Lowering::IsCallTargetInRange(void* addr)
 {
+#ifdef _TARGET_AMD64_
+    return (comp->eeGetRelocTypeHint(addr) == IMAGE_REL_BASED_REL32);
+#else  // _TARGET_X86_
     return true;
+#endif // _TARGET_X86_
 }
 
 // return true if the immediate can be folded into an instruction, for example small enough and non-relocatable
