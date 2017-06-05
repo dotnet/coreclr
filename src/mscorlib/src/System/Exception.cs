@@ -165,7 +165,6 @@ namespace System
         // Once the exception is serialized to debugger, debugger only needs the error reference string
         //
         [Serializable]
-        [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
         internal class __RestrictedErrorObject
         {
             // Hold the error object instance but don't serialize/deserialize it

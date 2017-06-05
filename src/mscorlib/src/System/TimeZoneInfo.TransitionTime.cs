@@ -10,7 +10,6 @@ namespace System
     public sealed partial class TimeZoneInfo
     {
         [Serializable]
-        [System.Runtime.CompilerServices.TypeForwardedFrom("System.Core, Version=3.5.0.0, Culture=Neutral, PublicKeyToken=b77a5c561934e089")]
         public struct TransitionTime : IEquatable<TransitionTime>, ISerializable, IDeserializationCallback
         {
             private readonly DateTime _timeOfDay;
