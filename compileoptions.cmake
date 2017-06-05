@@ -100,7 +100,7 @@ if (WIN32)
   endif (CLR_CMAKE_PLATFORM_ARCH_I386)
 
   add_compile_options($<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/GL>)
-  add_compile_options($<$<OR:$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>,$<CONFIG:Checked>>:/O1>)
+  add_compile_options($<$<OR:$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>,$<CONFIG:Checked>>:/O2>)
 
   if (CLR_CMAKE_PLATFORM_ARCH_AMD64)
   # The generator expression in the following command means that the /homeparams option is added only for debug builds
