@@ -403,5 +403,8 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
     cacheSize = max(cacheSize, sysconf(_SC_LEVEL4_CACHE_SIZE));
 #endif
 
+    if(cacheSize == 0)
+      cacheSize = 8ULL << 20;  // sysconf currently only reports cache size info for x86.
+
     return cacheSize;
 }
