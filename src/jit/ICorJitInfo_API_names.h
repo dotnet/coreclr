@@ -165,5 +165,7 @@ DEF_CLR_API(recordRelocation)
 DEF_CLR_API(getRelocTypeHint)
 DEF_CLR_API(getModuleNativeEntryPointRange)
 DEF_CLR_API(getExpectedTargetArchitecture)
+DEF_CLR_API(resolveVirtualMethod)
+DEF_CLR_API(expandRawHandleIntrinsic)
 
 #undef DEF_CLR_API

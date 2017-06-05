@@ -1596,6 +1596,27 @@ DWORD WrapICorJitInfo::getExpectedTargetArchitecture()
     return result;
 }
 
+CORINFO_METHOD_HANDLE WrapICorJitInfo::resolveVirtualMethod(
+    CORINFO_METHOD_HANDLE       virtualMethod,          /* IN */
+    CORINFO_CLASS_HANDLE        implementingClass,      /* IN */
+    CORINFO_CONTEXT_HANDLE      ownerType = NULL        /* IN */
+)
+{
+    API_ENTER(resolveVirtualMethod);
+    CORINFO_METHOD_HANDLE result = wrapHnd->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
+    API_LEAVE(resolveVirtualMethod);
+    return result;
+}
+
+void WrapICorJitInfo::expandRawHandleIntrinsic(
+    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+    CORINFO_GENERICHANDLE_RESULT *  pResult)
+{
+    API_ENTER(expandRawHandleIntrinsic);
+    wrapHnd->expandRawHandleIntrinsic(pResolvedToken, pResult);
+    API_LEAVE(expandRawHandleIntrinsic);
+}
+
 /**********************************************************************************/
 // clang-format on
 /**********************************************************************************/
