@@ -126,8 +126,16 @@ mdToken Assembler::ResolveClassRef(mdToken tkResScope, __in __nullterminated con
             }
             return tkRet;
         }
-        else  // needs to be resolved
-            if(!m_fIsMscorlib) tkResScope = GetBaseAsmRef();
+        else
+        { // needs to be resolved
+            if((TypeFromToken(tkResScope) == mdtAssemblyRef) && !IsNilToken(tkResScope))
+            {
+                // considering the aliased case '[' dottedName ']' slashedName
+                AsmManAssembly* assembly = m_pManifest->m_AsmRefLst.PEEK(RidFromToken(tkResScope) - 1);
+                tkResScope = GetAsmRef(assembly->szAlias);
+            }
+            if(IsNilToken(tkResScope) && !m_fIsMscorlib) tkResScope = GetBaseAsmRef();
+        }
     }
     if(tkResScope == 1)
     {
