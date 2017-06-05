@@ -3726,19 +3726,19 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             CORINFO_GENERICHANDLE_RESULT embedInfo;
             info.compCompHnd->expandRawHandleIntrinsic(&resolvedToken, &embedInfo);
 
-            GenTreePtr eeTypePtrOfNode = impLookupToTree(&resolvedToken, &embedInfo.lookup,
-                                                         gtTokenToIconFlags(memberRef), embedInfo.compileTimeHandle);
-            if (eeTypePtrOfNode == nullptr)
+            GenTreePtr rawHandle = impLookupToTree(&resolvedToken, &embedInfo.lookup, gtTokenToIconFlags(memberRef),
+                                                   embedInfo.compileTimeHandle);
+            if (rawHandle == nullptr)
             {
                 return nullptr;
             }
 
-            noway_assert(genTypeSize(eeTypePtrOfNode->TypeGet()) == genTypeSize(TYP_I_IMPL));
+            noway_assert(genTypeSize(rawHandle->TypeGet()) == genTypeSize(TYP_I_IMPL));
 
-            unsigned eeSlot = lvaGrabTemp(true DEBUGARG("eeTypePtrOf"));
-            impAssignTempGen(eeSlot, eeTypePtrOfNode, clsHnd, (unsigned)CHECK_SPILL_NONE);
+            unsigned rawHandleSlot = lvaGrabTemp(true DEBUGARG("rawHandle"));
+            impAssignTempGen(rawHandleSlot, rawHandle, clsHnd, (unsigned)CHECK_SPILL_NONE);
 
-            GenTreePtr lclVar     = gtNewLclvNode(eeSlot, TYP_I_IMPL);
+            GenTreePtr lclVar     = gtNewLclvNode(rawHandleSlot, TYP_I_IMPL);
             GenTreePtr lclVarAddr = gtNewOperNode(GT_ADDR, TYP_I_IMPL, lclVar);
             var_types  resultType = JITtype2varType(sig->retType);
             retNode               = gtNewOperNode(GT_IND, resultType, lclVarAddr);
