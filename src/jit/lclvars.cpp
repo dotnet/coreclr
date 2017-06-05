@@ -235,6 +235,53 @@ void Compiler::lvaInitTypeRef()
 
     lvaInitArgs(&varDscInfo);
 
+#if FEATURE_FASTTAILCALL
+
+    //-------------------------------------------------------------------------
+    // Calculate the argument register usage.
+    //
+    // This will later be used for fastTailCall determination
+    //-------------------------------------------------------------------------
+
+    unsigned   argRegCount      = 0;
+    unsigned   floatingRegCount = 0;
+    unsigned   stackArgCount    = 0;
+    size_t     stackSize        = 0;
+    unsigned   compArgCount     = info.compArgsCount;
+
+    auto incrementRegCount = [&floatingRegCount, &argRegCount](LclVarDsc* varDsc)
+    {
+        varDsc->IsFloatRegType() ? ++floatingRegCount : ++argRegCount;
+    };
+
+    unsigned   argNum;
+    LclVarDsc* curDsc;
+
+    for (curDsc = lvaTable, argNum = 0; argNum < varDscInfo.varNum; argNum++, curDsc++)
+    {
+        if (curDsc->lvIsRegArg)
+        {
+            incrementRegCount(curDsc);
+
+#if defined(FEATURE_MULTIREG_ARGS) && defined(UNIX_AMD64_ABI)
+            if (curDsc->lvOtherArgReg != REG_NA)
+            {
+                incrementRegCount(curDsc);
+            }
+#endif // defined(FEATURE_MULTIREG_ARGS) && defined(UNIX_AMD64_ABI)
+        }
+        else if (varTypeIsStruct(curDsc))
+        {
+            stackSize += curDsc->lvSize();
+        }
+        else
+        {
+            stackSize += TARGET_POINTER_SIZE;
+        }
+    }
+
+#endif // FEATURE_FASTTAILCALL
+
     //-------------------------------------------------------------------------
     // Finally the local variables
     //-------------------------------------------------------------------------
@@ -247,20 +294,34 @@ void Compiler::lvaInitTypeRef()
          i++, varNum++, varDsc++, localsSig = info.compCompHnd->getArgNext(localsSig))
     {
         CORINFO_CLASS_HANDLE typeHnd;
-        CorInfoTypeWithMod   corInfoType =
+        CorInfoTypeWithMod corInfoTypeWithMod =
             info.compCompHnd->getArgType(&info.compMethodInfo->locals, localsSig, &typeHnd);
+        CorInfoType corInfoType = strip(corInfoTypeWithMod);
 
-        lvaInitVarDsc(varDsc, varNum, strip(corInfoType), typeHnd, localsSig, &info.compMethodInfo->locals);
+        lvaInitVarDsc(varDsc, varNum, corInfoType, typeHnd, localsSig, &info.compMethodInfo->locals);
 
-        varDsc->lvPinned  = ((corInfoType & CORINFO_TYPE_MOD_PINNED) != 0);
+        varDsc->lvPinned  = ((corInfoTypeWithMod & CORINFO_TYPE_MOD_PINNED) != 0);
         varDsc->lvOnFrame = true; // The final home for this local variable might be our local stack frame
 
-        if (strip(corInfoType) == CORINFO_TYPE_CLASS)
+        if (corInfoType == CORINFO_TYPE_CLASS)
         {
             CORINFO_CLASS_HANDLE clsHnd = info.compCompHnd->getArgClass(&info.compMethodInfo->locals, localsSig);
             lvaSetClass(varNum, clsHnd);
         }
     }
+
+#if FEATURE_FASTTAILCALL
+    //-------------------------------------------------------------------------
+    // Save the register usage information and stack size.
+    //-------------------------------------------------------------------------
+
+    stackSize += stackArgCount * REGSIZE_BYTES;
+
+    info.compArgRegCount = argRegCount;
+    info.compFloatArgRegCount = floatingRegCount;
+    info.compStackSize = stackSize;
+
+#endif //FEATURE_FASTTAILCALL
 
     if ( // If there already exist unsafe buffers, don't mark more structs as unsafe
         // as that will cause them to be placed along with the real unsafe buffers,
@@ -1253,6 +1314,10 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
 #ifdef DEBUG
     varDsc->lvStkOffs = BAD_STK_OFFS;
 #endif
+
+#if defined(FEATURE_MULTIREG_ARGS) && !defined(WINDOWS_AMD64_ABI)
+    varDsc->lvOtherArgReg = REG_NA;
+#endif // defined(FEATURE_MULTIREG_ARGS) && !defined(WINDOWS_AMD64_ABI)
 }
 
 /*****************************************************************************

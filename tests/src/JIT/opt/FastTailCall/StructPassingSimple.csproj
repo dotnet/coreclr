@@ -10,7 +10,6 @@
     <OutputType>Exe</OutputType>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <IlasmRoundTrip>true</IlasmRoundTrip>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -22,19 +21,8 @@
       <Visible>False</Visible>
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
-  <PropertyGroup>
-    <!-- Set to 'Full' if the Debug? column is marked in the spreadsheet. Leave blank otherwise. -->
-    <DebugType>None</DebugType>
-    <NoLogo>True</NoLogo>
-    <NoStandardLib>True</NoStandardLib>
-    <Noconfig>True</Noconfig>
-    <Optimize>True</Optimize>
-    <JitOptimizationSensitive>True</JitOptimizationSensitive>
-    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    <DefineConstants>$(DefineConstants);CORECLR</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
-    <Compile Include="FastTailCallStackFixup.cs" />
+    <Compile Include="StructPassingSimple.cs" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
