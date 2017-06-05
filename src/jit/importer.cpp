@@ -3716,7 +3716,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
 
         case CORINFO_INTRINSIC_GetRawHandle:
         {
-            assert(IsTargetAbi(CORINFO_CORERT_ABI)); // Only CoreRT supports it.
+            noway_assert(IsTargetAbi(CORINFO_CORERT_ABI)); // Only CoreRT supports it.
             CORINFO_RESOLVED_TOKEN resolvedToken;
             resolvedToken.tokenContext = MAKE_METHODCONTEXT(info.compMethodHnd);
             resolvedToken.tokenScope   = info.compScopeHnd;
