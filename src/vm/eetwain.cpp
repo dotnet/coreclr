@@ -3134,7 +3134,7 @@ void EECodeManager::QuickUnwindStackFrame(PREGDISPLAY pRD, StackwalkCacheEntry *
     _ASSERTE(pCacheEntry);
     _ASSERTE(GetControlPC(pRD) == (PCODE)(pCacheEntry->IP));
 
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
     _ASSERTE(flag == UnwindCurrentStackFrame);
 
     _ASSERTE(!pCacheEntry->fUseEbp || pCacheEntry->fUseEbpAsFrameReg);
@@ -3157,7 +3157,57 @@ void EECodeManager::QuickUnwindStackFrame(PREGDISPLAY pRD, StackwalkCacheEntry *
     pRD->PCTAddr  = (TADDR)pRD->SP;
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->SP     += sizeof(void*) + pCacheEntry->argSize;
+#elif defined(_TARGET_X86_)
+    if (pRD->IsCallerContextValid)
+    {
+        pRD->pCurrentContext->Ebp = pRD->pCallerContext->Ebp;
+        pRD->pCurrentContext->Esp = pRD->pCallerContext->Esp;
+        pRD->pCurrentContext->Eip = pRD->pCallerContext->Eip;
+    }
+    else
+    {
+        PCONTEXT pSourceCtx = NULL;
+        PCONTEXT pTargetCtx = NULL;
 
+        if (flag == UnwindCurrentStackFrame)
+        {
+            pTargetCtx = pRD->pCurrentContext;
+            pSourceCtx = pRD->pCurrentContext;
+        }
+        else
+        {
+            pTargetCtx = pRD->pCallerContext;
+            pSourceCtx = pRD->pCurrentContext;
+        }
+
+        if (pCacheEntry->fUseEbpAsFrameReg)
+        {
+            _ASSERTE(pCacheEntry->fUseEbp);
+            TADDR curEBP = pSourceCtx->Ebp;
+
+            pTargetCtx->Ebp = *PTR_DWORD(curEBP);
+            pTargetCtx->Esp = curEBP + sizeof(void *);
+        }
+        else
+        {
+            _ASSERTE(!pCacheEntry->fUseEbp);
+
+            pTargetCtx->Esp = pSourceCtx->Esp + pCacheEntry->ESPOffset;
+        }
+
+        pTargetCtx->Eip = *PTR_PCODE(pTargetCtx->Esp);
+        pTargetCtx->Esp += sizeof(void*);
+    }
+
+    if (flag == UnwindCurrentStackFrame)
+    {
+        pRD->PCTAddr = (TADDR)pRD->pCurrentContext->Esp - sizeof(void *);
+
+        SyncRegDisplayToCurrentContext(pRD);
+
+        pRD->IsCallerContextValid = FALSE;
+        pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+    }
 #elif defined(_TARGET_AMD64_)
     if (pRD->IsCallerContextValid)
     {
