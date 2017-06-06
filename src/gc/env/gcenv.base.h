@@ -643,17 +643,47 @@ public:
 class NumaNodeInfo
 {
 public:
-    static bool CanEnableGCNumaAware();
-    static void GetGroupForProcessor(uint16_t processor_number, uint16_t * group_number, uint16_t * group_processor_number);
-    static bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t * node_no);
+    static bool CanEnableGCNumaAware()
+    {
+        // [LOCALGC TODO] enable NUMA node support
+        return false;
+    }
+
+    static void GetGroupForProcessor(uint16_t processor_number, uint16_t * group_number, uint16_t * group_processor_number)
+    {
+        // [LOCALGC TODO] enable NUMA node support
+        assert(!"should not be called");
+    }
+
+    static bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t * node_no)
+    {
+        // [LOCALGC TODO] enable NUMA node support
+        assert(!"should not be called");
+        return false;
+    }
 };
 
 class CPUGroupInfo
 {
 public:
-    static bool CanEnableGCCPUGroups();
-    static uint32_t GetNumActiveProcessors();
-    static void GetGroupForProcessor(uint16_t processor_number, uint16_t * group_number, uint16_t * group_processor_number);
+    static bool CanEnableGCCPUGroups()
+    {
+        // [LOCALGC TODO] enable CPU group support
+        return false;
+    }
+
+    static uint32_t GetNumActiveProcessors()
+    {
+        // [LOCALGC TODO] enable CPU group support
+        assert(!"should not be called");
+        return 0;
+    }
+
+    static void GetGroupForProcessor(uint16_t processor_number, uint16_t * group_number, uint16_t * group_processor_number)
+    {
+        // [LOCALGC TODO] enable CPU group support
+        assert(!"should not be called");
+    }
 };
 
 
