@@ -17,7 +17,7 @@
  */
 #include "handletable.h"
 
-#ifdef FEATURE_COMINTEROP
+#if 0 // [LOCALGC TODO] WinRT weak references
 #include <weakreference.h>
 #endif // FEATURE_COMINTEROP
 

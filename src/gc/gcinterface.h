@@ -154,7 +154,8 @@ struct segment_info
 };
 
 #ifdef PROFILING_SUPPORTED
-#define GC_PROFILING       //Turn on profiling
+// [LOCALGC TODO] Enable profiling (GitHub #11515)
+//#define GC_PROFILING       //Turn on profiling
 #endif // PROFILING_SUPPORTED
 
 #define LARGE_OBJECT_SIZE ((size_t)(85000))

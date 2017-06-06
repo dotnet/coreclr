@@ -3622,7 +3622,7 @@ protected:
 }; // class gc_heap
 
 #define ASSERT_OFFSETS_MATCH(field) \
-  static_assert_no_msg(offsetof(dac_gc_heap, field) == offsetof(gc_heap, field))
+  static_assert(offsetof(dac_gc_heap, field) == offsetof(gc_heap, field), #field " offset mismatch")
 
 #ifdef MULTIPLE_HEAPS
 ASSERT_OFFSETS_MATCH(alloc_allocated);

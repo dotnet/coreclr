@@ -21,10 +21,10 @@
 
 #include "gchandletableimpl.h"
 
-#ifdef FEATURE_COMINTEROP
+#if 0 // [LOCALGC TODO] CCW
 #include "comcallablewrapper.h"
 #endif // FEATURE_COMINTEROP
-#ifndef FEATURE_REDHAWK
+#if 0 // [LOCALGC TODO] native overlapped
 #include "nativeoverlapped.h"
 #endif // FEATURE_REDHAWK
 
