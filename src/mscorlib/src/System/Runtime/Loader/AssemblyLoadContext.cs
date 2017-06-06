@@ -90,6 +90,10 @@ namespace System.Runtime.Loader
                 throw new ArgumentException(SR.Argument_AbsolutePathRequired, nameof(assemblyPath));
             }
 
+             if (!File.Exists(assemblyPath)) {
+                throw new FileNotFoundException(SR.Format(SR.IO_FileNotFound_FileName, assemblyPath), assemblyPath);
+            }
+
             RuntimeAssembly loadedAssembly = null;
             LoadFromPath(m_pNativeAssemblyLoadContext, assemblyPath, null, JitHelpers.GetObjectHandleOnStack(ref loadedAssembly));
             return loadedAssembly;
@@ -107,9 +111,18 @@ namespace System.Runtime.Loader
                 throw new ArgumentException(SR.Argument_AbsolutePathRequired, nameof(nativeImagePath));
             }
 
-            if (assemblyPath != null && PathInternal.IsPartiallyQualified(assemblyPath))
+            if (!File.Exists(nativeImagePath)) {
+                throw new FileNotFoundException(SR.Format(SR.IO_FileNotFound_FileName, nativeImagePath), nativeImagePath);
+            }
+
+            if (assemblyPath != null)
             {
-                throw new ArgumentException(SR.Argument_AbsolutePathRequired, nameof(assemblyPath));
+                if (PathInternal.IsPartiallyQualified(assemblyPath))
+                    throw new ArgumentException(SR.Argument_AbsolutePathRequired, nameof(assemblyPath));
+
+                if (!File.Exists(assemblyPath)) {
+                    throw new FileNotFoundException(SR.Format(SR.IO_FileNotFound_FileName, assemblyPath), assemblyPath);
+                }   
             }
 
             // Basic validation has succeeded - lets try to load the NI image.
