@@ -6860,7 +6860,7 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
     else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_AS)->GetMemberDef())
     {
         // Return the argument that was passed in.
-        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_RET };
+        static const BYTE ilcode[] = { CEE_LDC_I4_0, CEE_LDARG_0, CEE_STLOC_0, CEE_LDLOC_0, CEE_RET };
         methInfo->ILCode = const_cast<BYTE*>(ilcode);
         methInfo->ILCodeSize = sizeof(ilcode);
         methInfo->maxStack = 1;
