@@ -8,9 +8,6 @@
 //
 
 #define FEATURE_REDHAWK 1
-#define FEATURE_CONSERVATIVE_GC 1
-
-#define GCENV_INCLUDED
 
 #define REDHAWK_PALIMPORT extern "C"
 #define REDHAWK_PALAPI __stdcall
@@ -22,7 +19,11 @@
 #else // __clang__
 #define __forceinline inline
 #endif // __clang__
-#endif // !_MSC_VER
+// [LOCALGC TODO] is there a better place for this?
+#define NOINLINE __attribute__((noinline))
+#else // !_MSC_VER
+#define NOINLINE __declspec(noinline)
+#endif // _MSC_VER
 
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t)-1)
@@ -175,7 +176,43 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
  #endif
 #else // _MSC_VER
 
+// Only clang defines __has_builtin, so we first test for a GCC define
+// before using __has_builtin.
+
+#if defined(__i386__) || defined(__x86_64__)
+
+#if (__GNUC__ > 4 && __GNUC_MINOR > 7) || __has_builtin(__builtin_ia32_pause)
+ // clang added this intrinsic in 3.8
+ // gcc added this intrinsic by 4.7.1
+ #define YieldProcessor __builtin_ia32_pause
+#endif // __has_builtin(__builtin_ia32_pause)
+
+#if defined(__GNUC__) || __has_builtin(__builtin_ia32_mfence)
+ // clang has had this intrinsic since at least 3.0
+ // gcc has had this intrinsic since forever
+ #define MemoryBarrier __builtin_ia32_mfence
+#endif // __has_builtin(__builtin_ia32_mfence)
+
+// If we don't have intrinsics, we can do some inline asm instead.
+#ifndef YieldProcessor
+ #define YieldProcessor() asm volatile ("pause")
+#endif // YieldProcessor
+
+#ifndef MemoryBarrier
+ #define MemoryBarrier() asm volatile ("mfence")
+#endif // MemoryBarrier
+
+#endif // defined(__i386__) || defined(__x86_64__)
+
 #endif // _MSC_VER
+
+#ifndef YieldProcessor
+ #error "Don't know how to YieldProcessor on this architecture"
+#endif
+
+#ifndef MemoryBarrier
+ #error "Don't know how to MemoryBarrier on this architecture"
+#endif
 
 typedef struct _PROCESSOR_NUMBER {
     uint16_t Group;
@@ -331,7 +368,7 @@ typedef PTR_PTR_Object PTR_UNCHECKED_OBJECTREF;
 #define ObjectToOBJECTREF(_obj) (OBJECTREF)(_obj)
 #define OBJECTREFToObject(_obj) (Object*)(_obj)
 
-#define VALIDATEOBJECTREF(_objref) _objref;
+#define VALIDATEOBJECTREF(_objref) (void)_objref;
 
 #define VOLATILE(T) T volatile
 
@@ -532,7 +569,7 @@ public:
     typedef CLRConfigTypes ConfigStringInfo;
 
     static uint32_t GetConfigValue(ConfigDWORDInfo eType);
-    static HRESULT GetConfigValue(ConfigStringInfo /*eType*/, __out_z TCHAR * * outVal);
+    static HRESULT GetConfigValue(ConfigStringInfo /*eType*/, /* __out_z */ TCHAR * * outVal);
 };
 
 inline bool FitsInU1(uint64_t val)

@@ -37,6 +37,9 @@ static_assert(sizeof(ObjHeader) == sizeof(uintptr_t), "this assumption is made b
 #define MTFlag_HasFinalizer 2
 #define MTFlag_IsArray 4
 
+// TODO(segilles) get the correct value for this
+#define MTFlag_Collectible 8
+
 class MethodTable
 {
 public:
@@ -64,6 +67,11 @@ public:
         return m_componentSize;
     }
 
+    bool Collectible()
+    {
+        return (m_flags & MTFlag_Collectible) != 0;
+    }
+
     bool ContainsPointers()
     {
         return (m_flags & MTFlag_ContainsPointers) != 0;
@@ -71,7 +79,7 @@ public:
 
     bool ContainsPointersOrCollectible()
     {
-        return ContainsPointers();
+        return ContainsPointers() || Collectible();
     }
 
     bool HasComponentSize()
@@ -103,6 +111,12 @@ public:
     bool SanityCheck()
     {
         return true;
+    }
+
+    uint8_t* GetLoaderAllocatorObjectForGC()
+    {
+        // [LOCALGC TODO] this is not correct
+        return nullptr;
     }
 };
 
