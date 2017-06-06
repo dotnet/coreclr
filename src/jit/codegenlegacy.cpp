@@ -19209,8 +19209,9 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                     else
                     {
                         void* pAddr;
-                        addr = compiler->compGetHelperFtn(helperNum, (void**)&pAddr);
+
                         accessType = IAT_VALUE;
+                        addr       = compiler->compGetHelperFtn(helperNum, (void**)&pAddr);
 
                         if (!addr)
                         {
