@@ -54,21 +54,6 @@ if(NOT ENABLE_LLDBPLUGIN)
     return()
 endif()
 
-# Check for LLDB library
-find_library(LLDB NAMES LLDB lldb lldb-4.0 lldb-3.9 lldb-3.8 lldb-3.7 lldb-3.6 lldb-3.5 PATHS "${WITH_LLDB_LIBS}" PATH_SUFFIXES llvm NO_DEFAULT_PATH)
-find_library(LLDB NAMES LLDB lldb lldb-4.0 lldb-3.9 lldb-3.8 lldb-3.7 lldb-3.6 lldb-3.5 PATH_SUFFIXES llvm)
-if(LLDB STREQUAL LLDB-NOTFOUND)
-    if(REQUIRE_LLDBPLUGIN)
-        set(MESSAGE_MODE FATAL_ERROR)
-    else()
-        set(MESSAGE_MODE WARNING)
-    endif()
-    message(${MESSAGE_MODE} "Cannot find lldb-3.5, lldb-3.6, lldb-3.8, lldb-3.9 or lldb-4.0. Try installing lldb-3.6-dev (or the appropriate package for your platform)")
-    return()
-endif()
-
-message(STATUS "LLDB: ${LLDB}")
-
 # Check for LLDB headers
 # Multiple versions of LLDB can install side-by-side, so we need to check for lldb in various locations.
 # If the file in a directory is found the result is stored in the variable and the search will not be repeated unless the variable is cleared.
@@ -111,10 +96,6 @@ set(SOURCES
 
 _add_library(sosplugin SHARED ${SOURCES})
 add_dependencies(sosplugin sos)
-
-if (CLR_CMAKE_PLATFORM_UNIX)
-    target_link_libraries(sosplugin ${LLDB})
-endif()
 
 # add the install targets
 install_clr(sosplugin)
