@@ -3955,12 +3955,29 @@ void CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf)
         }
 #endif // DEBUG
 #endif // 0
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+        unsigned baseVarNum = getBaseVarForPutArgStk(tgt);
+
+        getEmitter()->emitIns_S_I(ins_Store(TYP_INT), EA_PTRSIZE, baseVarNum, 0, wbKind);
+        // TODO-FOA: remove this after we meet this block and it's tested
+        instGen(INS_nop);
+        instGen(INS_nop);
+        instGen(INS_nop);
+        assert(false);
+
+        genEmitHelperCall(helper,
+                          4,           // argSize
+                          EA_PTRSIZE); // retSize
+        // Restore ESP for stdcall callee pop
+        inst_RV_IV(INS_sub, REG_SPBASE, 4, EA_PTRSIZE);
+#else  // !(UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS)
         AddStackLevel(4);
         inst_IV(INS_push, wbKind);
         genEmitHelperCall(helper,
                           4,           // argSize
                           EA_PTRSIZE); // retSize
         SubtractStackLevel(4);
+#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
     }
     else
     {
@@ -7595,6 +7612,10 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     unsigned saveStackLvl2 = genStackLevel;
 
 #if defined(_TARGET_X86_)
+#if FEATURE_FIXED_OUT_ARGS
+    // TODO-FOA: Fix here
+    assert(false);
+#else
     // Important note: when you change enter probe layout, you must also update SKIP_ENTER_PROF_CALLBACK()
     // for x86 stack unwinding
 
@@ -7607,6 +7628,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     {
         inst_IV(INS_push, (size_t)compiler->compProfilerMethHnd);
     }
+#endif // !FEATURE_FIXED_OUT_ARGS
 #elif defined(_TARGET_ARM_)
     // On Arm arguments are prespilled on stack, which frees r0-r3.
     // For generating Enter callout we would need two registers and one of them has to be r0 to pass profiler handle.
@@ -7783,6 +7805,10 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
 
 #elif defined(_TARGET_X86_)
 
+#if FEATURE_FIXED_OUT_ARGS
+    // TODO-FOA: Fix here
+    assert(false);
+#else
     //
     // Push the profilerHandle
     //
@@ -7809,6 +7835,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
         JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", compiler->fgPtrArgCntMax);
         compiler->fgPtrArgCntMax = 1;
     }
+#endif // FEATURE_FIXED_OUT_ARGS
 
 #elif defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
 
@@ -11264,7 +11291,12 @@ unsigned CodeGen::getFirstArgWithStackSlot()
 //
 void CodeGen::genSinglePush()
 {
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+    // genSinglePush shouldn't be called
+    assert(false);
+#else
     AddStackLevel(REGSIZE_BYTES);
+#endif
 }
 
 //------------------------------------------------------------------------
@@ -11272,7 +11304,12 @@ void CodeGen::genSinglePush()
 //
 void CodeGen::genSinglePop()
 {
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+    // genSinglePop shouldn't be called
+    assert(false);
+#else
     SubtractStackLevel(REGSIZE_BYTES);
+#endif
 }
 
 //------------------------------------------------------------------------

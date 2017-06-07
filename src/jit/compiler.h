@@ -1424,6 +1424,10 @@ public:
     {
         alignmentDone = true;
     }
+#if FEATURE_FIXED_OUT_ARGS
+    void     ReverseArgumentSlot();
+    unsigned GetCalleePop();
+#endif // FEATURE_FIXED_OUT_ARGS
 #endif // defined(UNIX_X86_ABI)
 
     // Get the late arg for arg at position argIndex.  Caller must ensure this position has a late arg.

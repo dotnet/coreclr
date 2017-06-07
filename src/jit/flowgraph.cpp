@@ -9175,6 +9175,10 @@ void Compiler::fgSimpleLowering()
                     case GT_CALL:
                     {
                         GenTreeCall* call = tree->AsCall();
+#if defined(UNIX_X86_ABI)
+                        // Reverse arguments order after morph and optimization and before lowering.
+                        call->fgArgInfo->ReverseArgumentSlot();
+#endif
                         // Fast tail calls use the caller-supplied scratch
                         // space so have no impact on this method's outgoing arg size.
                         if (!call->IsFastTailCall())

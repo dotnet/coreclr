@@ -2466,6 +2466,68 @@ void fgArgInfo::EvalArgsToTemps()
 #endif
 }
 
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+// Reverse slot number for each arguments so that arguments will be placed
+// in the same order when changed from 'push' to 'move' instruction.
+// It would be better not to do this if possible.
+void fgArgInfo::ReverseArgumentSlot()
+{
+    unsigned curInx;
+    unsigned numStackArgs = 0;
+
+    for (curInx = 0; curInx < argCount; curInx++)
+    {
+        fgArgTabEntryPtr curArgTabEntry = argTable[curInx];
+        if (curArgTabEntry->numSlots > 0)
+        {
+            // The argument may be REG_STK or constant or register that goes to stack
+            assert(nextSlotNum >= curArgTabEntry->slotNum);
+
+            numStackArgs++;
+        }
+    }
+
+    if (numStackArgs > 1)
+    {
+        for (curInx = 0; curInx < argCount; curInx++)
+        {
+            fgArgTabEntryPtr curArgTabEntry = argTable[curInx];
+            if (curArgTabEntry->numSlots > 0)
+            {
+                curArgTabEntry->slotNum = (nextSlotNum - 1) - curArgTabEntry->slotNum;
+                // Consider 2 or more slots used for the argument
+                // For example, if there is 4 arguments with numSlots value 1, 2, 1, 1 each
+                // nextSlotNum will be 5 and slot number will be like this
+                //     before: [O] [1][ ] [3] [4]
+                //      after: [4] [3] [2][ ] [0]
+                curArgTabEntry->slotNum -= (curArgTabEntry->numSlots - 1);
+            }
+        }
+    }
+}
+
+// Return number of slots to adjust ESP for callee pop
+unsigned fgArgInfo::GetCalleePop()
+{
+    unsigned curInx;
+    unsigned numSlots = 0;
+
+    for (curInx = 0; curInx < argCount; curInx++)
+    {
+        fgArgTabEntryPtr curArgTabEntry = argTable[curInx];
+        if (curArgTabEntry->numSlots > 0)
+        {
+            // The argument may be REG_STK or constant or register that goes to stack
+            assert(nextSlotNum >= curArgTabEntry->slotNum);
+
+            numSlots += curArgTabEntry->numSlots;
+        }
+    }
+
+    return numSlots;
+}
+#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
+
 // Get the late arg for arg at position argIndex.
 // argIndex - 0-based position to get late arg for.
 //            Caller must ensure this position has a late arg.

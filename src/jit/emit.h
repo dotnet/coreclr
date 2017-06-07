@@ -1888,7 +1888,9 @@ private:
 #endif
 
 #ifdef _TARGET_X86_
+#if !FEATURE_FIXED_OUT_ARGS
     void emitMarkStackLvl(unsigned stackLevel);
+#endif // !FEATURE_FIXED_OUT_ARGS
 #endif
 
     int emitNextRandomNop();

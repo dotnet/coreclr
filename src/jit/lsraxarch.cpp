@@ -1385,6 +1385,13 @@ void Lowering::TreeNodeInfoInitCall(GenTreeCall* call)
 
         if (curArgTabEntry->regNum == REG_STK)
         {
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+            // srcCount and dstCount are set to correct value in
+            // TreeNodeInfoInitPutArgStk(). Below code will set to '1'
+            // for case of LONG type where srcCount should be '2'
+            continue;
+#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
+
             // late arg that is not passed in a register
             DISPNODE(argNode);
             assert(argNode->gtOper == GT_PUTARG_STK);
@@ -1860,6 +1867,11 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTreePutArgStk* putArgStk)
             info->addInternalCandidates(l, l->allSIMDRegs());
         }
 #endif // defined(FEATURE_SIMD)
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+        // to allocate scratch register to copy from lclvars to stack args
+        info->internalIntCount += 1;
+        info->addInternalCandidates(l, l->allRegs(TYP_INT));
+#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
 
         return;
     }
@@ -1943,6 +1955,14 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTreePutArgStk* putArgStk)
                 info->addInternalCandidates(l, l->internalFloatRegCandidates());
                 SetContainsAVXFlags();
             }
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+            // to allocate scratch register to copy from lclvars to stack args
+            if (info->internalIntCount == 0)
+            {
+                info->internalIntCount = 1;
+                info->addInternalCandidates(l, l->allRegs(TYP_INT));
+            }
+#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
             break;
 
         case GenTreePutArgStk::Kind::RepInstr:

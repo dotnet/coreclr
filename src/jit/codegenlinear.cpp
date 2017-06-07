@@ -491,6 +491,9 @@ void CodeGen::genCodeForBBlist()
         }
 
         SubtractStackLevel(savedStkLvl);
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+        assert(genStackLevel == 0);
+#endif
 
 #ifdef DEBUG
         // compCurLife should be equal to the liveOut set, except that we don't keep

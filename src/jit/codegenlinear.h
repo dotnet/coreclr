@@ -221,7 +221,9 @@ void AddNestedAlignment(unsigned adjustment)
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
 #ifdef _TARGET_X86_
 bool genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk);
+#if !FEATURE_FIXED_OUT_ARGS
 void genPushReg(var_types type, regNumber srcReg);
+#endif // !FEATURE_FIXED_OUT_ARGS
 void genPutArgStkFieldList(GenTreePutArgStk* putArgStk);
 #endif // _TARGET_X86_
 
@@ -290,8 +292,8 @@ bool genIsRegCandidateLocal(GenTreePtr tree)
 bool m_pushStkArg;
 #else  // !_TARGET_X86_
 unsigned m_stkArgVarNum;
-unsigned m_stkArgOffset;
 #endif // !_TARGET_X86_
+unsigned m_stkArgOffset;
 #endif // !FEATURE_PUT_STRUCT_ARG_STK
 
 #ifdef DEBUG
