@@ -564,10 +564,10 @@ namespace System
             StringBuilder sb = StringBuilderCache.Acquire(128); // A somewhat reasonable default size
             int requiredSize = Win32Native.GetEnvironmentVariable(variable, sb, sb.Capacity);
 
-            if (requiredSize == 0 && Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND)
+            if (requiredSize == 0)
             {
                 StringBuilderCache.Release(sb);
-                return null;
+                return Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND ? null : string.Empty;
             }
 
             while (requiredSize > sb.Capacity)
