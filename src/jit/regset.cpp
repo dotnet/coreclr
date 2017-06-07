@@ -3578,16 +3578,20 @@ regNumber genRegArgNext(regNumber argReg)
 #ifdef _TARGET_AMD64_
 #ifdef UNIX_AMD64_ABI
 
-        // Linux x64 ABI: REG_EDI, REG_ESI, REG_ECX, REG_EDX, REG_R8, REG_R9
-        case REG_ARG_1:       // REG_ESI
-            return REG_ARG_2; // REG_ECX
-        case REG_ARG_3:       // REG_EDX
+        // Linux x64 ABI: REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9
+        case REG_ARG_0:       // REG_RDI
+            return REG_ARG_1; // REG_RSI
+        case REG_ARG_1:       // REG_RSI
+            return REG_ARG_2; // REG_RDX
+        case REG_ARG_2:       // REG_RDX
+            return REG_ARG_3; // REG_RCX
+        case REG_ARG_3:       // REG_RCX
             return REG_ARG_4; // REG_R8
 
 #else // !UNIX_AMD64_ABI
 
-        // Windows x64 ABI: REG_ECX, REG_EDX, REG_R8, REG_R9
-        case REG_ARG_1:       // REG_EDX
+        // Windows x64 ABI: REG_RCX, REG_RDX, REG_R8, REG_R9
+        case REG_ARG_1:       // REG_RDX
             return REG_ARG_2; // REG_R8
 
 #endif // !UNIX_AMD64_ABI
