@@ -3570,49 +3570,38 @@ bool genIsProperRegPair(regPairNo regPair)
 
 regNumber genRegArgNext(regNumber argReg)
 {
-    regNumber result = REG_NA;
+    assert(isValidIntArgReg(argReg) || isValidFloatArgReg(argReg));
 
-    if (isValidFloatArgReg(argReg))
-    {
-        // We can iterate the floating point argument registers by using +1
-        result = REG_NEXT(argReg);
-    }
-    else
-    {
-        assert(isValidIntArgReg(argReg));
+    regNumber result = REG_NA;
 
 #ifdef _TARGET_AMD64_
 #ifdef UNIX_AMD64_ABI
-        // Windows X64 ABI:
-        //     REG_EDI, REG_ESI, REG_ECX, REG_EDX, REG_R8, REG_R9
-        //
-        if (argReg == REG_ARG_1) // REG_ESI
-        {
-            result = REG_ARG_2; // REG_ECX
-        }
-        else if (argReg == REG_ARG_3) // REG_EDX
-        {
-            result = REG_ARG_4; // REG_R8
-        }
+    // Windows X64 ABI:
+    //     REG_EDI, REG_ESI, REG_ECX, REG_EDX, REG_R8, REG_R9
+    //
+    if (argReg == REG_ARG_1) // REG_ESI
+    {
+        result = REG_ARG_2; // REG_ECX
+    }
+    else if (argReg == REG_ARG_3) // REG_EDX
+    {
+        result = REG_ARG_4; // REG_R8
+    }
+    else
 #else  // Windows ABI
-        // Windows X64 ABI:
-        //     REG_ECX, REG_EDX, REG_R8, REG_R9
-        //
-        if (argReg == REG_ARG_1) // REG_EDX
-        {
-            result = REG_ARG_2; // REG_R8
-        }
+    // Windows X64 ABI:
+    //     REG_ECX, REG_EDX, REG_R8, REG_R9
+    //
+    if (argReg == REG_ARG_1) // REG_EDX
+    {
+        result = REG_ARG_2; // REG_R8
+    }
+    else
 #endif // UNIX or Windows ABI
 #endif // _TARGET_AMD64_
-
-        // If we didn't set 'result' to valid register above
-        // then we will just iterate 'argReg' using REG_NEXT
-        //
-        if (result == REG_NA)
-        {
-            // Otherwise we just iterate the argument registers by using REG_NEXT
-            result = REG_NEXT(argReg);
-        }
+    {
+        // Otherwise, we just iterate 'argReg' using REG_NEXT.
+        result = REG_NEXT(argReg);
     }
 
     return result;
