@@ -678,6 +678,8 @@ protected:
         unsigned _idTinyDsc : 1;  // is this a "tiny"  descriptor?
         unsigned _idSmallDsc : 1; // is this a "small" descriptor?
 
+#define ID_EXTRA_RELOC_BITS (0)
+
 #else // !HAS_TINY_DESC
 
         //
