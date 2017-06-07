@@ -7038,7 +7038,11 @@ void LinearScan::freeRegister(RegRecord* physRegRecord)
     // It may have already been freed by a "Kill"
     if (assignedInterval != nullptr)
     {
-        assignedInterval->isActive = false;
+        if (assignedInterval->assignedReg == physRegRecord)
+        {
+            assignedInterval->isActive = false;
+        }
+
         // If this is a constant node, that we may encounter again (e.g. constant),
         // don't unassign it until we need the register.
         if (!assignedInterval->isConstant)
