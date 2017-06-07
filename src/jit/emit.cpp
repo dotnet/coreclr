@@ -4896,6 +4896,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
         emitCurIG = ig;
 
+#ifndef _TARGET_ARM_
         for (unsigned cnt = ig->igInsCnt; cnt; cnt--)
         {
             castto(id, BYTE*) += emitIssue1Instr(ig, id, &cp);
@@ -4905,6 +4906,82 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
         assert(ig->igSize >= cp - bp);
         ig->igSize = (unsigned short)(cp - bp);
+#else // _TARGET_ARM_
+        instrDescCns idBL;
+        instrDescCns* pidBL = &idBL;
+        memset(pidBL, 0, sizeof(idBL));
+        pidBL->idIns(INS_bl);
+        pidBL->idInsFmt(IF_T2_J3);
+        pidBL->idInsSize(emitInsSize(IF_T2_J3));
+        pidBL->idSetIsNoGC(false);
+
+        /*
+        BYTE idNOPW[SMALL_IDSC_SIZE];
+        instrDesc* pidNOPW = (instrDesc*) &idNOPW;
+        memset(pidNOPW, 0, sizeof(idNOPW));
+        pidNOPW->idSetIsSmallDsc();
+        pidNOPW->idIns(INS_nopw);
+        pidNOPW->idInsFmt(IF_T2_A);
+        pidNOPW->idInsSize(emitInsSize(IF_T2_A));
+
+        BYTE idNOP[SMALL_IDSC_SIZE];
+        instrDesc* pidNOP = (instrDesc*) &idNOP;
+        memset(pidNOP, 0, sizeof(idNOP));
+        pidNOP->idSetIsSmallDsc();
+        pidNOP->idIns(INS_nop);
+        pidNOP->idInsFmt(IF_T1_A);
+        pidNOP->idInsSize(emitInsSize(IF_T1_A));
+        */
+
+        instrDesc* idNext1 = id;
+        instrDesc* idNext2 = ig->igInsCnt < 2 ? nullptr : (instrDesc*)(castto(id, BYTE*) + emitSizeOfInsDsc(id));
+
+        for (unsigned cnt = ig->igInsCnt; cnt; cnt--)
+        {
+            idNext1 = cnt < 2 ? nullptr : (instrDesc*)(castto(idNext1, BYTE*) + emitSizeOfInsDsc(idNext1));
+            idNext2 = cnt < 3 ? nullptr : (instrDesc*)(castto(idNext2, BYTE*) + emitSizeOfInsDsc(idNext2));
+
+            // If a direct call
+            if ((id      && id->idIns()      == INS_movw) &&
+                (idNext1 && idNext1->idIns() == INS_movt) &&
+                (idNext2 && idNext2->idIns() == INS_blx)  &&
+                (id->idReg1() == idNext1->idReg1() && id->idReg1() == idNext2->idReg3()))
+            {
+                ssize_t target = emitGetInsSC(id) | (emitGetInsSC(idNext1) << 16);
+                ssize_t pc = (ssize_t)cp;
+                ssize_t dist = pc > target ? pc - target : target - pc;
+
+                // Direct call to indirect call (direct call range is [PC +-imm24])
+                if (dist < (ssize_t)(1 << 20))
+                {
+                    pidBL->idAddr()->iiaAddr = (BYTE*)target;
+#ifdef DEBUG
+//                    pidNOPW->idDebugOnlyInfo(idNext2->idDebugOnlyInfo());
+//                    pidNOP->idDebugOnlyInfo(idNext2->idDebugOnlyInfo());
+                    pidBL->idDebugOnlyInfo(idNext2->idDebugOnlyInfo());
+#endif
+
+//                    emitIssue1Instr(ig, pidNOPW, &cp);
+//                    emitIssue1Instr(ig, pidNOP, &cp);
+                    emitIssue1Instr(ig, pidBL, &cp);
+                    castto(id, BYTE*) += emitSizeOfInsDsc(id) + emitSizeOfInsDsc(idNext1) + emitSizeOfInsDsc(idNext2);
+                    cnt -= 2;
+                    continue;
+                }
+            }
+
+            castto(id, BYTE*) += emitIssue1Instr(ig, id, &cp);
+        }
+
+        emitCurIG = nullptr;
+
+        assert(ig->igSize >= cp - bp);
+        if (ig->igSize != (unsigned short)(cp - bp))
+        {
+            ig->igSize = (unsigned short)(cp - bp);
+            emitRecomputeIGoffsets();
+        }
+#endif // _TARGET_ARM_
     }
 
 #if EMIT_TRACK_STACK_DEPTH
