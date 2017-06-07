@@ -3572,39 +3572,30 @@ regNumber genRegArgNext(regNumber argReg)
 {
     assert(isValidIntArgReg(argReg) || isValidFloatArgReg(argReg));
 
-    regNumber result = REG_NA;
+    switch (argReg)
+    {
 
 #ifdef _TARGET_AMD64_
 #ifdef UNIX_AMD64_ABI
-    // Windows X64 ABI:
-    //     REG_EDI, REG_ESI, REG_ECX, REG_EDX, REG_R8, REG_R9
-    //
-    if (argReg == REG_ARG_1) // REG_ESI
-    {
-        result = REG_ARG_2; // REG_ECX
-    }
-    else if (argReg == REG_ARG_3) // REG_EDX
-    {
-        result = REG_ARG_4; // REG_R8
-    }
-    else
-#else  // Windows ABI
-    // Windows X64 ABI:
-    //     REG_ECX, REG_EDX, REG_R8, REG_R9
-    //
-    if (argReg == REG_ARG_1) // REG_EDX
-    {
-        result = REG_ARG_2; // REG_R8
-    }
-    else
-#endif // UNIX or Windows ABI
-#endif // _TARGET_AMD64_
-    {
-        // Otherwise, we just iterate 'argReg' using REG_NEXT.
-        result = REG_NEXT(argReg);
-    }
 
-    return result;
+        // Linux x64 ABI: REG_EDI, REG_ESI, REG_ECX, REG_EDX, REG_R8, REG_R9
+        case REG_ARG_1:       // REG_ESI
+            return REG_ARG_2; // REG_ECX
+        case REG_ARG_3:       // REG_EDX
+            return REG_ARG_4; // REG_R8
+
+#else // !UNIX_AMD64_ABI
+
+        // Windows x64 ABI: REG_ECX, REG_EDX, REG_R8, REG_R9
+        case REG_ARG_1:       // REG_EDX
+            return REG_ARG_2; // REG_R8
+
+#endif // !UNIX_AMD64_ABI
+#endif // _TARGET_AMD64_
+
+        default:
+            return REG_NEXT(argReg);
+    }
 }
 
 /*****************************************************************************
