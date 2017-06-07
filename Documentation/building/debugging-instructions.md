@@ -1,7 +1,9 @@
 Debugging CoreCLR
 =================
 
-These instructions will lead you through debugging CoreCLR on Windows and Linux. They will be expanded to support OS X when we have good instructions for that.
+These instructions will lead you through debugging CoreCLR on Windows and Linux. They will be expanded to support OS X when we have good instructions for that. 
+
+Debugging CoreCLR is done with `corerun.exe`. Please have a look at [Using CoreRun To Run .NET Core Application](UsingCoreRun.md) for more information, especially on setting up the necessary environment variables.
 
 Debugging CoreCLR on Windows
 ============================
