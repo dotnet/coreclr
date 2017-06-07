@@ -8737,6 +8737,7 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
 
     unsigned             size;
     CORINFO_CLASS_HANDLE clsHnd = NO_CLASS_HANDLE;
+
 #ifdef FEATURE_SIMD
     // importer introduces cpblk nodes with src = GT_ADDR(GT_SIMD)
     // The SIMD type in question could be Vector2f which is 8-bytes in size.
@@ -8753,6 +8754,131 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
         return nullptr;
     }
 #endif
+
+    // The below logic is meant for reducing copyblk into a scalar assignment
+    // when copy blk involves promoted structs containing fields of struct 
+    // with a single field.  
+    //
+    // Consider the following fast Span<T> example:
+    // Fast Span<T> is a struct containg ByReference<T> struct type field.
+    // i.e. Fast Span<T> = struct { ByReference<T>  pointer, int length }
+    //      ByReference<T> = struct { byref value }
+    //   
+    // Ex1:
+    //   Span<T> foo = ..
+    //   ByReference<T> temp = ..
+    // 
+    //   foo.pointer = temp
+    // 
+    //   The above assignment is a copy blk with following IR form
+    //   post importation.
+    //   lhs = GT_OBJ(GT_ADDR(GT_FIELD(GT_ADDR(foo))))
+    //   rhs = GT_LCL_VAR temp
+    //   GT_ASG(lhs, rhs)
+    //
+    //   Say both foo and temp are struct promoted.  That is
+    //   foo = { byref v1, int v2 } where v1 is a new promoted local for field 'pointer'
+    //   temp = { byref v3 }
+    //
+    //   After promoted field replacement, lhs will become 
+    //   lhs = GT_OBJ(GT_ADDR(GT_LCL_VAR v1))
+    //   rhs = GT_LCL_VAR temp (with promoted field local v3)
+    //   Note that the type of GT_OBJ still is TYP_STRUCT but the type of v1 is byref.
+    //
+    //   The below logic is meant to recognize such a copy blk that can be
+    //   reduced to the following scalar assignment
+    //   v1 = v3
+    //
+    //   Otherwise fgMorphCopyblock() not only generates indirect store on v1
+    //   but also marks v1 as do-not-enregister.
+    //
+    //   The following are other copy-blk examples that could be reduced
+    //   to scalar assignments.
+    //
+    // Ex2:
+    //   temp = foo.pointer  -- same as Ex1 with lhs and rhs swapped
+    //
+    // Ex3:
+    //   foo.pointer = bar.pointer -- foo and bar are promoted Span<T>
+    if (isCopyBlock)
+    {
+        // Is it a copy blk with src and dst being LclVars?
+        GenTreeLclVarCommon* dstLcl = nullptr;
+        size = 0;
+        if (dest->OperGet() == GT_LCL_VAR)
+        {
+            dstLcl = dest->AsLclVarCommon();
+            destVarDsc = &lvaTable[dstLcl->GetLclNum()];
+            clsHnd = destVarDsc->lvVerTypeInfo.GetClassHandle();
+            size = info.compCompHnd->getClassSize(clsHnd);
+        }
+        else if (dest->OperGet() == GT_OBJ)
+        {
+            GenTreeBlk* destBlkNode = dest->AsBlk();
+            if (destBlkNode->Addr()->OperGet() == GT_ADDR &&
+                destBlkNode->Addr()->gtGetOp1()->OperGet() == GT_LCL_VAR)
+            {
+                dstLcl = destBlkNode->Addr()->gtGetOp1()->AsLclVarCommon();
+            }
+            size = destBlkNode->Size();
+        }
+
+        if (dstLcl != nullptr)
+        {
+            GenTreeLclVarCommon* srcLcl = nullptr;
+            if (src->OperGet() == GT_LCL_VAR)
+            {
+                srcLcl = src->AsLclVarCommon();
+            }
+            else if (src->OperGet() == GT_OBJ)
+            {
+                GenTreeBlk* srcBlkNode = src->AsBlk();
+                if (srcBlkNode->Addr()->OperGet() == GT_ADDR &&
+                    srcBlkNode->Addr()->gtGetOp1()->OperGet() == GT_LCL_VAR)
+                {
+                    srcLcl = srcBlkNode->Addr()->gtGetOp1()->AsLclVarCommon();
+                }
+            }
+
+            if (srcLcl != nullptr)
+            {
+                LclVarDsc* srcVarDsc = &lvaTable[srcLcl->GetLclNum()];
+
+                bool srcIsScalar = !varTypeIsStruct(srcLcl);
+                bool dstIsScalar = !varTypeIsStruct(dstLcl);
+                unsigned srcSize = srcIsScalar ? genTypeSize(srcLcl) : srcVarDsc->lvExactSize;
+                unsigned dstSize = dstIsScalar ? genTypeSize(dstLcl) : destVarDsc->lvExactSize;
+
+                // Does width of block matches the size of dstLcl and 
+                // size of dstLcl and srcLcl are the same?
+                if (dstSize == size && dstSize == srcSize)
+                {
+                    if (dstIsScalar)
+                    {
+                        if (srcIsScalar)
+                        {
+                            return gtNewAssignNode(dstLcl, srcLcl);
+                        }
+                        else if (srcVarDsc->lvPromoted && srcVarDsc->lvFieldCnt == 1)
+                        {
+                            unsigned srcFieldLclNum = srcVarDsc->lvFieldLclStart;
+                            GenTree* newSrcLcl = gtNewLclvNode(srcFieldLclNum, lvaTable[srcFieldLclNum].TypeGet());
+                            return gtNewAssignNode(dstLcl, newSrcLcl);
+                        }
+                    }
+                    else if (srcIsScalar)
+                    {
+                        if (destVarDsc->lvPromoted && destVarDsc->lvFieldCnt == 1)
+                        {
+                            unsigned dstFieldLclNum = destVarDsc->lvFieldLclStart;
+                            GenTree* newDstLcl = gtNewLclvNode(dstFieldLclNum, lvaTable[dstFieldLclNum].TypeGet());
+                            return gtNewAssignNode(newDstLcl, srcLcl);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (dest->gtEffectiveVal()->OperIsBlk())
     {
