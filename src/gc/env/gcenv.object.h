@@ -33,12 +33,13 @@ public:
 
 static_assert(sizeof(ObjHeader) == sizeof(uintptr_t), "this assumption is made by the VM!");
 
-#define MTFlag_ContainsPointers 1
-#define MTFlag_HasFinalizer 2
-#define MTFlag_IsArray 4
+#define MTFlag_ContainsPointers 0x0100
+#define MTFlag_HasFinalizer     0x0010
+#define MTFlag_IsArray          0x0008
 
 // TODO(segilles) get the correct value for this
-#define MTFlag_Collectible 8
+#define MTFlag_Collectible      0x1000
+#define MTFlag_HasComponentSize 0x8000
 
 class MethodTable
 {
@@ -84,7 +85,14 @@ public:
 
     bool HasComponentSize()
     {
-        return m_componentSize != 0;
+        // Note that we can't just check m_componentSize != 0 here. The VM 
+        // may still construct a method table that does not have a component 
+        // size, according to this method, but still has a number in the low 
+        // 16 bits of the method table flags parameter.
+        //
+        // The solution here is to do what the VM does and check the
+        // HasComponentSize flag so that we're on the same page.
+        return (m_flags & MTFlag_HasComponentSize) != 0;
     }
 
     bool HasFinalizer()
