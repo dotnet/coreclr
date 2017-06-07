@@ -1,0 +1,4 @@
+LIBRARY CEE
+
+EXPORTS 
+	Satellite_Initialize
