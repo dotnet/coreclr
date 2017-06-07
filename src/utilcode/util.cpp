@@ -1266,6 +1266,11 @@ int GetCurrentProcessCpuCount()
     if (cCPUs != 0)
         return cCPUs;
 
+#if defined(_TARGET_AMD64_) && defined(FEATURE_PAL)
+    int count = GetCurrentProcessActiveCpuCount(GetCurrentProcess());
+    if (count == 0 || count > 1024)
+        count = 1024;
+#else
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
@@ -1288,13 +1293,6 @@ int GetCurrentProcessCpuCount()
     // the case where there are more than 64 processors, so we will return a
     // maximum of 64 here.
     if (count == 0 || count > 64)
-#if defined(_TARGET_AMD64_) && defined(FEATURE_PAL)
-    {
-        count = GetCurrentProcessActiveCpuCount(GetCurrentProcess());
-        if (count == 0 || count > 1024)
-            count = 1024;
-    }
-#else
         count = 64;
 #endif
 
