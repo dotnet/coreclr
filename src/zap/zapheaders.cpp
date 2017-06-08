@@ -34,11 +34,14 @@ void ZapImage::SaveCorHeader()
     corHeader.MinorRuntimeVersion = VAL16(COR_VERSION_MINOR);
     corHeader.Flags = VAL32(COMIMAGE_FLAGS_IL_LIBRARY);
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     if (IsReadyToRunCompilation())
     {
         // Mark the ready-to-run image as x86-specific
         corHeader.Flags |= VAL32(COMIMAGE_FLAGS_32BITREQUIRED);
+#ifdef _TARGET_ARM_
+        corHeader.Flags |= VAL32(COMIMAGE_FLAGS_32BITPREFERRED);
+#endif
     }
 #endif
 
