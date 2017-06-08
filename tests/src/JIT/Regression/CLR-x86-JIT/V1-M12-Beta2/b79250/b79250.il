@@ -89,7 +89,7 @@ Start_Orphan_8:
          stind.i4
 End_Orphan_8:
            ldloc LOCAL_0x0
-          conv.ovf.i1.un
+          conv.i1
 Start_Orphan_9:
           nop
 End_Orphan_9:

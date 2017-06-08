@@ -6237,9 +6237,18 @@ bool Compiler::optHoistLoopExprsForTree(GenTreePtr        tree,
             }
         }
 
-        // Is the value of the whole tree loop invariant?
-        treeIsInvariant =
-            optVNIsLoopInvariant(tree->gtVNPair.GetLiberal(), lnum, &hoistCtxt->m_curLoopVnInvariantCache);
+        if (tree->OperGet() == GT_CLS_VAR)
+        {
+            // It is unsafe to mark this as invariant,
+            // as we currently don't prevent it from being hoisted above the call to the class initializer.
+            treeIsInvariant = false;
+        }
+        else
+        {
+            // Is the value of the whole tree loop invariant?
+            treeIsInvariant =
+                optVNIsLoopInvariant(tree->gtVNPair.GetLiberal(), lnum, &hoistCtxt->m_curLoopVnInvariantCache);
+        }
 
         // Is the value of the whole tree loop invariant?
         if (!treeIsInvariant)
