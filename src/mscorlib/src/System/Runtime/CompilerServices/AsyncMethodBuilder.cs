@@ -42,6 +42,7 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Initializes a new <see cref="AsyncVoidMethodBuilder"/>.</summary>
         /// <returns>The initialized <see cref="AsyncVoidMethodBuilder"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AsyncVoidMethodBuilder Create()
         {
             // Capture the current sync context.  If there isn't one, use the dummy s_noContextCaptured
@@ -58,6 +59,7 @@ namespace System.Runtime.CompilerServices
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         /// <exception cref="System.ArgumentNullException">The <paramref name="stateMachine"/> argument was null (Nothing in Visual Basic).</exception>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
         {
             // See comment on AsyncMethodBuilderCore.Start
@@ -72,15 +74,9 @@ namespace System.Runtime.CompilerServices
 
             Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
-            try
-            {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
-                stateMachine.MoveNext();
-            }
-            finally
-            {
-                ecs.Undo(currentThread);
-            }
+            ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
+            stateMachine.MoveNext();
+            ecs.Undo(currentThread);
         }
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
@@ -178,10 +174,11 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <summary>Completes the method builder successfully.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetResult()
         {
             if (AsyncCausalityTracer.LoggingOn)
-                AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, this.Task.Id, AsyncCausalityStatus.Completed);
+                TraceCompletion(AsyncCausalityStatus.Completed);
 
             if (m_synchronizationContext != null)
             {
@@ -199,7 +196,7 @@ namespace System.Runtime.CompilerServices
             Contract.EndContractBlock();
 
             if (AsyncCausalityTracer.LoggingOn)
-                AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, this.Task.Id, AsyncCausalityStatus.Error);
+                TraceCompletion(AsyncCausalityStatus.Error);
 
             if (m_synchronizationContext != null)
             {
@@ -221,6 +218,12 @@ namespace System.Runtime.CompilerServices
                 // file or a CLR host.
                 AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void TraceCompletion(AsyncCausalityStatus status)
+        {
+            AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, this.Task.Id, status);
         }
 
         /// <summary>Notifies the current synchronization context that the operation completed.</summary>
@@ -271,6 +274,7 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Initializes a new <see cref="AsyncTaskMethodBuilder"/>.</summary>
         /// <returns>The initialized <see cref="AsyncTaskMethodBuilder"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AsyncTaskMethodBuilder Create()
         {
             return default(AsyncTaskMethodBuilder);
@@ -282,6 +286,7 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
         {
             // See comment on AsyncMethodBuilderCore.Start
@@ -296,15 +301,9 @@ namespace System.Runtime.CompilerServices
 
             Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
-            try
-            {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
-                stateMachine.MoveNext();
-            }
-            finally
-            {
-                ecs.Undo(currentThread);
-            }
+            ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
+            stateMachine.MoveNext();
+            ecs.Undo(currentThread);
         }
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
@@ -428,6 +427,7 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Initializes a new <see cref="AsyncTaskMethodBuilder"/>.</summary>
         /// <returns>The initialized <see cref="AsyncTaskMethodBuilder"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AsyncTaskMethodBuilder<TResult> Create()
         {
             return default(AsyncTaskMethodBuilder<TResult>);
@@ -439,6 +439,7 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
         {
             // See comment on AsyncMethodBuilderCore.Start
@@ -453,15 +454,10 @@ namespace System.Runtime.CompilerServices
 
             Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
-            try
-            {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
-                stateMachine.MoveNext();
-            }
-            finally
-            {
-                ecs.Undo(currentThread);
-            }
+
+            ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
+            stateMachine.MoveNext();
+            ecs.Undo(currentThread);
         }
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
@@ -571,6 +567,7 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         /// <param name="result">The result to use to complete the task.</param>
         /// <exception cref="System.InvalidOperationException">The task has already completed.</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetResult(TResult result)
         {
             // Get the currently stored task, which will be non-null if get_Task has already been accessed.
@@ -627,6 +624,7 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         /// <param name="completedTask">A task already completed with the value default(TResult).</param>
         /// <exception cref="System.InvalidOperationException">The task has already completed.</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetResult(Task<TResult> completedTask)
         {
             Contract.Requires(completedTask != null, "Expected non-null task");
