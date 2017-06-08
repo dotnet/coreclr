@@ -14,6 +14,10 @@
 #define USE_PER_FRAME_PINVOKE_INIT
 #endif // _TARGET_ARM_ || _TARGET_X86_
 
+#ifndef FEATURE_PAL
+// Watson is on Windows only
+#define WATSON_SUPPORTED
+#endif
 
 // This address lies in the NULL pointer partition of the process memory.
 // Accessing it will result in AV.
@@ -69,10 +73,10 @@ public:
         m_StackTraceInfo.Init();
 #endif //  DACCESS_COMPILE
 
-#ifndef FEATURE_PAL        
+#ifdef WATSON_SUPPORTED
         // Init the WatsonBucketTracker
         m_WatsonBucketTracker.Init();
-#endif // !FEATURE_PAL        
+#endif // WATSON_SUPPORTED
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
         // Initialize the default exception severity to NotCorrupting
@@ -129,10 +133,10 @@ public:
 
         m_StackTraceInfo.Init();
 
-#ifndef FEATURE_PAL        
+#ifdef WATSON_SUPPORTED
         // Init the WatsonBucketTracker
         m_WatsonBucketTracker.Init();
-#endif // !FEATURE_PAL        
+#endif // WATSON_SUPPORTED
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
         // Initialize the default exception severity to NotCorrupting
@@ -581,7 +585,7 @@ public:
         return m_EnclosingClauseInfoOfCollapsedTracker.GetEnclosingClauseCallerSP();
     }
 
-#ifndef FEATURE_PAL
+#ifdef WATSON_SUPPORTED
 private:
     EHWatsonBucketTracker m_WatsonBucketTracker;
 public:
@@ -590,7 +594,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return PTR_EHWatsonBucketTracker(PTR_HOST_MEMBER_TADDR(ExceptionTracker, this, m_WatsonBucketTracker));
     }
-#endif // !FEATURE_PAL        
+#endif // WATSON_SUPPORTED
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
 private:
