@@ -370,6 +370,7 @@ function create_core_overlay {
         rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"
     fi
     copy_test_native_bin_to_test_root
+    rm -f -v "$coreOverlayDir/libcoreclrtraceptprovider.so"
 }
 
 declare -a skipCrossGenFiles
