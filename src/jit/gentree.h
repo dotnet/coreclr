@@ -74,13 +74,13 @@ enum genTreeOps : BYTE
     GT_COUNT,
 
 #ifdef _TARGET_64BIT_
-        // GT_CNS_NATIVELONG is the gtOper symbol for GT_CNS_LNG or GT_CNS_INT, depending on the target.
-        // For the 64-bit targets we will only use GT_CNS_INT as it used to represent all the possible sizes
-        GT_CNS_NATIVELONG = GT_CNS_INT,
+    // GT_CNS_NATIVELONG is the gtOper symbol for GT_CNS_LNG or GT_CNS_INT, depending on the target.
+    // For the 64-bit targets we will only use GT_CNS_INT as it used to represent all the possible sizes
+    GT_CNS_NATIVELONG = GT_CNS_INT,
 #else
-        // For the 32-bit targets we use a GT_CNS_LNG to hold a 64-bit integer constant and GT_CNS_INT for all others.
-        // In the future when we retarget the JIT for x86 we should consider eliminating GT_CNS_LNG
-        GT_CNS_NATIVELONG = GT_CNS_LNG,
+    // For the 32-bit targets we use a GT_CNS_LNG to hold a 64-bit integer constant and GT_CNS_INT for all others.
+    // In the future when we retarget the JIT for x86 we should consider eliminating GT_CNS_LNG
+    GT_CNS_NATIVELONG = GT_CNS_LNG,
 #endif
 };
 
@@ -134,11 +134,11 @@ enum genTreeKinds
 
 enum gtCallTypes : BYTE
 {
-    CT_USER_FUNC,    // User function
-        CT_HELPER,   // Jit-helper
-        CT_INDIRECT, // Indirect call
+    CT_USER_FUNC, // User function
+    CT_HELPER,    // Jit-helper
+    CT_INDIRECT,  // Indirect call
 
-        CT_COUNT // fake entry (must be last)
+    CT_COUNT // fake entry (must be last)
 };
 
 /*****************************************************************************/

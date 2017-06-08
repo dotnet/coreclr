@@ -223,9 +223,10 @@ private:
 enum insGroupPlaceholderType : unsigned char
 {
     IGPT_PROLOG, // currently unused
-        IGPT_EPILOG,
+    IGPT_EPILOG,
 #if FEATURE_EH_FUNCLETS
-        IGPT_FUNCLET_PROLOG, IGPT_FUNCLET_EPILOG,
+    IGPT_FUNCLET_PROLOG,
+    IGPT_FUNCLET_EPILOG,
 #endif // FEATURE_EH_FUNCLETS
 };
 
@@ -453,7 +454,13 @@ protected:
 
     enum opSize : unsigned
     {
-        OPSZ1 = 0, OPSZ2 = 1, OPSZ4 = 2, OPSZ8 = 3, OPSZ16 = 4, OPSZ32 = 5, OPSZ_COUNT = 6,
+        OPSZ1      = 0,
+        OPSZ2      = 1,
+        OPSZ4      = 2,
+        OPSZ8      = 3,
+        OPSZ16     = 4,
+        OPSZ32     = 5,
+        OPSZ_COUNT = 6,
 #ifdef _TARGET_AMD64_
         OPSZP = OPSZ8,
 #else
@@ -552,8 +559,10 @@ protected:
 
     enum insSize : unsigned
     {
-        ISZ_16BIT, ISZ_32BIT, ISZ_48BIT // pseudo-instruction for conditional branch with imm24 range,
-                                        // encoded as IT of condition followed by an unconditional branch
+        ISZ_16BIT,
+        ISZ_32BIT,
+        ISZ_48BIT // pseudo-instruction for conditional branch with imm24 range,
+                  // encoded as IT of condition followed by an unconditional branch
     };
 
     unsigned insEncodeShiftOpts(insOpts opt);

@@ -28,7 +28,7 @@ enum var_types : BYTE
 
     TYP_COUNT,
 
-        TYP_lastIntrins = TYP_DOUBLE
+    TYP_lastIntrins = TYP_DOUBLE
 };
 
 /*****************************************************************************

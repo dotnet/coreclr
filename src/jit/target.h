@@ -53,7 +53,9 @@ enum _regNumber_enum : unsigned
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT, ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
 };
 
 enum _regMask_enum : unsigned __int64
@@ -72,7 +74,9 @@ enum _regNumber_enum : unsigned
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT, ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
 };
 
 enum _regMask_enum : unsigned __int64
@@ -91,7 +95,9 @@ enum _regNumber_enum : unsigned
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT, ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
 };
 
 enum _regMask_enum : unsigned
@@ -112,7 +118,9 @@ enum _regNumber_enum : unsigned
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT, ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
 };
 
 enum _regMask_enum : unsigned
@@ -131,18 +139,20 @@ enum _regNumber_enum : unsigned
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT,
-               ACTUAL_REG_COUNT = REG_COUNT - 1, // everything but REG_STK (only real regs)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1, // everything but REG_STK (only real regs)
 
 #define REGDEF(name, rnum, mask, sname) REG_##name = rnum,
 #include "registerfp.h"
 
-        REG_FPCOUNT, REG_FPNONE = REG_FPCOUNT,
+    REG_FPCOUNT,
+    REG_FPNONE = REG_FPCOUNT,
 
 #define REGDEF(name, rnum, mask, sname) REG_##name = rnum,
 #include "registerxmm.h"
 
-               REG_XMMCOUNT
+    REG_XMMCOUNT
 };
 
 enum _regMask_enum : unsigned
