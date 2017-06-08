@@ -954,6 +954,8 @@ namespace System.Collections.Concurrent
                             }
                             return true;
                         }
+                        // Slightly lost race. Loop and try again.
+                        continue;
                     }
                     else if (diff < 0)
                     {
@@ -1080,6 +1082,8 @@ namespace System.Collections.Concurrent
                             Volatile.Write(ref _slots[slotsIndex].SequenceNumber, currentTail + 1);
                             return true;
                         }
+                        // Slightly lost race. Loop and try again.
+                        continue;
                     }
                     else if (diff < 0)
                     {
