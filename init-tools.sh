@@ -110,6 +110,7 @@ if [ ! -e $__INIT_TOOLS_DONE_MARKER ]; then
 
     Tools/crossgen.sh $__scriptpath/Tools
 
+    mkdir -p "$(dirname "$__INIT_TOOLS_DONE_MARKER")"
     touch $__INIT_TOOLS_DONE_MARKER
 
     echo "Done initializing tools."
