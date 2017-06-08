@@ -227,9 +227,8 @@ NOINLINE Object* LoadWinRTWeakReferenceTarget(WEAKREFERENCEREF weakReference, Ty
                 // it's always set to NULL here and there's nothing for it to release.
                 _ASSERTE(pWinRTWeakReference.IsNull());
                 CONTRACT_VIOLATION(GCViolation);
-#if 0 // [LOCALGC TODO] HndSetHandleExtraInfo
-                pWinRTWeakReference = reinterpret_cast<IWeakReference*>(HndGetHandleExtraInfo(handle.Handle));
-#endif
+                IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+                pWinRTWeakReference = reinterpret_cast<IWeakReference*>(mgr->GetExtraInfoFromHandle(handle.Handle));
                 if (!pWinRTWeakReference.IsNull())
                 {
                     pWinRTWeakReference->AddRef();
@@ -757,12 +756,9 @@ NOINLINE void SetWeakReferenceTarget(WEAKREFERENCEREF weakReference, OBJECTREF t
         // and update it with the new weak reference pointer.  If the incoming object is not an RCW that can
         // use IWeakReference, then pTargetWeakReference will be null.  Therefore, no matter what the incoming
         // object type is, we can unconditionally store pTargetWeakReference to the object handle's extra data.
-#if 0 // [LOCALGC TODO] HndSetHandleExtraInfo
-        IWeakReference* pExistingWeakReference = reinterpret_cast<IWeakReference*>(HndGetHandleExtraInfo(handle.Handle));
-        HndSetHandleExtraInfo(handle.Handle, HNDTYPE_WEAK_WINRT, reinterpret_cast<LPARAM>(pTargetWeakReference.GetValue()));
-#else
-        IWeakReference* pExistingWeakReference = nullptr;
-#endif
+        IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+        IWeakReference* pExistingWeakReference = reinterpret_cast<IWeakReference*>(mgr->GetExtraInfoFromHandle(handle.Handle));
+        mgr->SetExtraInfoForHandle(handle.Handle, HNDTYPE_WEAK_WINRT, reinterpret_cast<void*>(pTargetWeakReference.GetValue()));
         StoreObjectInHandle(handle.Handle, target);
 
         if (pExistingWeakReference != nullptr)

@@ -57,6 +57,8 @@ public:
 
     virtual void DestroyHandleOfUnknownType(OBJECTHANDLE handle);
 
+    virtual void SetExtraInfoForHandle(OBJECTHANDLE handle, int type, void* pExtraInfo);
+
     virtual void* GetExtraInfoFromHandle(OBJECTHANDLE handle);
 
     virtual void StoreObjectInHandle(OBJECTHANDLE handle, Object* object);

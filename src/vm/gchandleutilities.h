@@ -417,13 +417,6 @@ inline void DestroyTypedHandle(OBJECTHANDLE handle)
     GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfUnknownType(handle);
 }
 
-inline uint32_t HandleFetchType(OBJECTHANDLE handle)
-{
-    // [LOCALGC TODO] NYI
-    assert(!"NYI");
-    return HNDTYPE_DEFAULT;
-}
-
 #ifdef FEATURE_COMINTEROP
 inline void DestroyWinRTWeakHandle(OBJECTHANDLE handle)
 {

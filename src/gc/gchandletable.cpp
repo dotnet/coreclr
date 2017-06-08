@@ -144,6 +144,11 @@ void GCHandleManager::DestroyHandleOfUnknownType(OBJECTHANDLE handle)
     ::HndDestroyHandleOfUnknownType(::HndGetHandleTable(handle), handle);
 }
 
+void GCHandleManager::SetExtraInfoForHandle(OBJECTHANDLE  handle, int type, void* pExtraInfo)
+{
+    ::HndSetHandleExtraInfo(handle, type, (uintptr_t)pExtraInfo);
+}
+
 void* GCHandleManager::GetExtraInfoFromHandle(OBJECTHANDLE handle)
 {
     return (void*)::HndGetHandleExtraInfo(handle);
