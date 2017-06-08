@@ -12,6 +12,8 @@
     <NoStdLib>true</NoStdLib>
     <NoCompilerStandardLib>true</NoCompilerStandardLib>
     <UseOpenKey Condition="'$(UseOpenKey)'==''">true</UseOpenKey>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>true</DelaySign>
   </PropertyGroup>
 
   <!-- Default configurations to help VS understand the options -->
