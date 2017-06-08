@@ -66,7 +66,7 @@ enum SpecialCodeKind
 
 /*****************************************************************************/
 
-DECLARE_TYPED_ENUM(genTreeOps, BYTE)
+enum genTreeOps : BYTE
 {
 #define GTNODE(en, sn, st, cm, ok) GT_##en,
 #include "gtlist.h"
@@ -82,8 +82,7 @@ DECLARE_TYPED_ENUM(genTreeOps, BYTE)
         // In the future when we retarget the JIT for x86 we should consider eliminating GT_CNS_LNG
         GT_CNS_NATIVELONG = GT_CNS_LNG,
 #endif
-}
-END_DECLARE_TYPED_ENUM(genTreeOps, BYTE)
+};
 
 /*****************************************************************************
  *
@@ -133,15 +132,14 @@ enum genTreeKinds
 
 /*****************************************************************************/
 
-DECLARE_TYPED_ENUM(gtCallTypes, BYTE)
+enum gtCallTypes : BYTE
 {
     CT_USER_FUNC,    // User function
         CT_HELPER,   // Jit-helper
         CT_INDIRECT, // Indirect call
 
         CT_COUNT // fake entry (must be last)
-}
-END_DECLARE_TYPED_ENUM(gtCallTypes, BYTE)
+};
 
 /*****************************************************************************/
 
