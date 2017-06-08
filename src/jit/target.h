@@ -328,6 +328,8 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define ROUND_FLOAT              1       // round intermed float expression results
   #define CPU_HAS_BYTE_REGS        1
   #define CPU_USES_BLOCK_MOVE      1 
+  #define CPU_HAS_MASKED_SHIFT32   1
+  #define CPU_HAS_MASKED_SHIFT64   0       // x86's 64 bit shift helpers do not mask the shift count
 
 #ifndef LEGACY_BACKEND
   // TODO-CQ: Fine tune the following xxBlk threshold values:
@@ -709,6 +711,8 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define ROUND_FLOAT              0       // Do not round intermed float expression results
   #define CPU_HAS_BYTE_REGS        0
   #define CPU_USES_BLOCK_MOVE      1 
+  #define CPU_HAS_MASKED_SHIFT32   1
+  #define CPU_HAS_MASKED_SHIFT64   1
 
   #define CPBLK_MOVS_LIMIT         16      // When generating code for CpBlk, this is the buffer size 
                                            // threshold to stop generating rep movs and switch to the helper call.
@@ -1177,6 +1181,8 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define ROUND_FLOAT              0       // Do not round intermed float expression results
   #define CPU_HAS_BYTE_REGS        0
   #define CPU_USES_BLOCK_MOVE      0
+  #define CPU_HAS_MASKED_SHIFT32   0
+  #define CPU_HAS_MASKED_SHIFT64   0
   #define FEATURE_WRITE_BARRIER    1       // Generate the proper WriteBarrier calls for GC    
   #define FEATURE_FIXED_OUT_ARGS   1       // Preallocate the outgoing arg area in the prolog
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
@@ -2344,6 +2350,26 @@ inline bool isFloatRegType(int /* s/b "var_types" */ type)
 #else
     return false;
 #endif
+}
+
+template <typename TSize>
+inline TSize getShiftCountMask(size_t operandByteSize)
+{
+    switch (operandByteSize)
+    {
+#if CPU_HAS_MASKED_SHIFT64
+        case 8:
+            return static_cast<TSize>(0x3f);
+#endif
+
+#if CPU_HAS_MASKED_SHIFT32
+        case 4:
+            return static_cast<TSize>(0x1f);
+#endif
+
+        default:
+            return static_cast<TSize>(-1);
+    }
 }
 
 // If the WINDOWS_AMD64_ABI is defined make sure that _TARGET_AMD64_ is also defined.

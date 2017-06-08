@@ -14245,7 +14245,13 @@ GenTree* Compiler::fgMorphSmpOpOptional(GenTreeOp* tree)
 
             break;
 
+        case GT_RSH:
+        case GT_RSZ:
+            op2 = fgMorphShiftCount(tree);
+            break;
+
         case GT_LSH:
+            op2 = fgMorphShiftCount(tree);
 
             /* Check for the case "(val + icon) << icon" */
 
@@ -14662,6 +14668,42 @@ GenTreePtr Compiler::fgRecognizeAndMorphBitwiseRotation(GenTreePtr tree)
     }
 #endif // LEGACY_BACKEND
     return tree;
+}
+
+//------------------------------------------------------------------------------
+// fgMorphShiftCount : Removes unnecessary shift count masking on architectures
+//                     (x86, x64) which do masking in their shift instructions.
+//
+// Arguments:
+//    shift - Shift operator node
+//
+// Return Value:
+//    The updated shift count operand or the original operand if the optimization
+//    could not be performed.
+//
+// Assumption:
+//    The input node operator is a shift (GT_LSH, GT_RSH, GT_RSZ).
+//
+// Notes:
+//    The shift node count operand is updated if the optimization is performed.
+//    The shift node type is used to determine the appropiate mask.
+
+GenTree* Compiler::fgMorphShiftCount(GenTreeOp* shift)
+{
+    assert(shift->OperGet() == GT_LSH || shift->OperGet() == GT_RSH || shift->OperGet() == GT_RSZ);
+
+    GenTree* shiftCount = shift->gtGetOp2();
+    size_t   mask       = getShiftCountMask<size_t>(genTypeSize(shift));
+
+    while ((shiftCount->OperGet() == GT_AND) && shiftCount->gtGetOp2()->IsCnsIntOrI() &&
+           ((mask & static_cast<size_t>(shiftCount->gtGetOp2()->AsIntCon()->IconValue())) == mask))
+    {
+        shift->gtOp2 = shiftCount->gtGetOp1();
+        DEBUG_DESTROY_NODE(shiftCount);
+        shiftCount = shift->gtGetOp2();
+    }
+
+    return shiftCount;
 }
 
 #if !CPU_HAS_FP_SUPPORT

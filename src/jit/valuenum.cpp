@@ -416,17 +416,17 @@ T ValueNumStore::EvalOpIntegral(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
         case GT_AND:
             return v0 & v1;
         case GT_LSH:
-            return v0 << v1;
+            return v0 << (v1 & getShiftCountMask<T>(sizeof(T)));
         case GT_RSH:
-            return v0 >> v1;
+            return v0 >> (v1 & getShiftCountMask<T>(sizeof(T)));
         case GT_RSZ:
             if (sizeof(T) == 8)
             {
-                return UINT64(v0) >> v1;
+                return UINT64(v0) >> (v1 & getShiftCountMask<T>(sizeof(T)));
             }
             else
             {
-                return UINT32(v0) >> v1;
+                return UINT32(v0) >> (v1 & getShiftCountMask<T>(sizeof(T)));
             }
         case GT_ROL:
             if (sizeof(T) == 8)

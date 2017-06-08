@@ -4773,6 +4773,7 @@ private:
 
     GenTreePtr fgMorphToEmulatedFP(GenTreePtr tree);
     GenTreePtr fgMorphConst(GenTreePtr tree);
+    GenTree* fgMorphShiftCount(GenTreeOp* shift);
 
 public:
     GenTreePtr fgMorphTree(GenTreePtr tree, MorphAddrContext* mac = nullptr);
