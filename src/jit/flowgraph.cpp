@@ -14632,11 +14632,18 @@ void Compiler::fgReorderBlocks()
             continue;
         }
 
-        bool        reorderBlock   = true; // This is set to false if we decide not to reorder 'block'
-        bool        isRare         = block->isRunRarely();
+        bool       reorderBlock = true; // This is set to false if we decide not to reorder 'block'
+        const bool isRare       = block->isRunRarely();
+        const bool isReturn     = (block->bbJumpKind == BBJ_RETURN) && (bPrev->bbJumpKind == BBJ_COND) &&
+                              ((block->bbFlags & BBF_BACKWARD_JUMP) != 0);
         BasicBlock* bDest          = nullptr;
         bool        forwardBranch  = false;
         bool        backwardBranch = false;
+
+        if (isRare || isReturn)
+        {
+            JITDUMP("*** BB%02u is %s %s\n", block->bbNum, isRare ? "rare" : "", isReturn ? "return" : "");
+        }
 
         // Setup bDest
         if ((bPrev->bbJumpKind == BBJ_COND) || (bPrev->bbJumpKind == BBJ_ALWAYS))
@@ -14942,14 +14949,14 @@ void Compiler::fgReorderBlocks()
 
         CHECK_FOR_RARE:;
 
-            /* We only want to reorder when we have a rarely run   */
+            /* We only want to reorder when we have a rarely run or return */
             /* block right after a normal block,                   */
             /* (bPrev is known to be a normal block at this point) */
-            if (!isRare)
+            if (!isRare && !isReturn)
             {
                 reorderBlock = false;
             }
-            else
+            else if (isRare)
             {
                 /* If the jump target bDest is also a rarely run block then we don't want to do the reversal */
                 if (bDest && bDest->isRunRarely())
@@ -14959,6 +14966,18 @@ void Compiler::fgReorderBlocks()
                 else
                 {
                     // We will move any rarely run blocks blocks
+                    profHotWeight = 0;
+                }
+            }
+            else
+            {
+                if (bDest && bDest->bbJumpKind == BBJ_RETURN)
+                {
+                    reorderBlock = false; /* Both block and bDest are returns */
+                }
+                else
+                {
+                    // We will move any rarely run returns
                     profHotWeight = 0;
                 }
             }
@@ -15009,6 +15028,7 @@ void Compiler::fgReorderBlocks()
         if ((backwardBranch && !isRare) ||
             ((block->bbFlags & BBF_DONT_REMOVE) != 0)) // Don't choose option #1 when block is the start of a try region
         {
+            JITDUMP(" ... at BB%02u, kibosh option 1\n", block->bbNum);
             bStart = nullptr;
             bEnd   = nullptr;
         }
@@ -15068,6 +15088,11 @@ void Compiler::fgReorderBlocks()
                         break;
                     }
                 }
+                else if (isReturn)
+                {
+                    // Just one block to move for returns.
+                    break;
+                }
                 else
                 {
                     // If we are moving blocks that are hot then all
@@ -15111,7 +15136,7 @@ void Compiler::fgReorderBlocks()
         BasicBlock* bPrev2  = nullptr;
 
         // If option #1 didn't connect bDest and bDest isn't NULL
-        if ((connected_bDest == false) && (bDest != nullptr) &&
+        if (!isReturn && (connected_bDest == false) && (bDest != nullptr) &&
             //  The jump target cannot be moved if it has the BBF_DONT_REMOVE flag set
             ((bDest->bbFlags & BBF_DONT_REMOVE) == 0))
         {
@@ -15251,18 +15276,18 @@ void Compiler::fgReorderBlocks()
                 {
                     if (bPrev->bbFallsThrough())
                     {
-                        printf("since it falls into a rarely run block\n");
+                        printf("since it falls into a %s block\n", isRare ? "rarely run" : "return");
                     }
                     else
                     {
-                        printf("since it is succeeded by a rarely run block\n");
+                        printf("since it is succeeded by a %s block\n", isRare ? "rarely run" : "return");
                     }
                 }
             }
             else
             {
                 printf("Decided to relocate block(s) after block BB%02u since they are %s block(s)\n", bPrev->bbNum,
-                       block->isRunRarely() ? "rarely run" : "uncommonly run");
+                       isRare ? "rarely run" : (isReturn ? "return" : "uncommonly run"));
             }
         }
 #endif // DEBUG
@@ -15551,6 +15576,10 @@ void Compiler::fgReorderBlocks()
                 if (isRare)
                 {
                     msg = "rarely run";
+                }
+                else if (isReturn)
+                {
+                    msg = "return";
                 }
                 else
                 {
