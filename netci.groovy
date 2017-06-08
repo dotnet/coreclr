@@ -505,6 +505,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'standalone_gc':
             assert (os == 'Ubuntu' || os == 'Windows_NT' || os == 'OSX10.12')
             assert (configuration == 'Release' || configuration == 'Checked')
+            assert architecture == 'x64'
             // TODO: Add once external email sending is available again
             // addEmailPublisher(job, 'dotnetgctests@microsoft.com')
             Utilities.addPeriodicTrigger(job, '@weekly')
@@ -512,6 +513,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'gc_reliability_framework':
             assert (os == 'Ubuntu' || os == 'Windows_NT' || os == 'OSX10.12')
             assert (configuration == 'Release' || configuration == 'Checked')
+            assert (architecture == 'x64' || architecture == 'arm64')
             // Only triggered by phrase.
             break
         case 'ilrt':
@@ -790,7 +792,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             break
                         case 'gc_reliability_framework':
                             if (configuration == 'Release' || configuration == 'Checked') {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GC Reliability Framework", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GC Reliability Framework", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                             }
                             break
                         case 'minopts':
@@ -968,7 +970,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             break
                         case 'gc_reliability_framework':
                             if (configuration == 'Release' || configuration == 'Checked') {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GC Reliability Framework", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GC Reliability Framework", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                             }
                             break
                         case 'minopts':
@@ -1083,7 +1085,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             break
         // editor brace matching: }
         case 'arm64': // editor brace matching: {
-            assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc')
+            assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc') || isGcReliabilityFramework(scenario)
 
             // Set up a private trigger
             def contextString = "${os} ${architecture} Cross ${configuration}"
@@ -1141,6 +1143,14 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'gcstress0xc':
                             Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
                             "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*", null, arm64Users)
+                            break
+                        case 'gc_reliability_framework':
+                            if (configuration == 'Release' || configuration == 'Checked') {
+                                Utilities.addPrivateGithubPRTriggerForBranch(job, branch,
+                                  "${os} ${architecture} ${configuration} GC Reliability Framework",
+                                  "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*",
+                                  null, arm64Users)
+                            }
                             break
                     }
                     break
@@ -1524,7 +1534,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/**/.nuget/**")
                     break
                 case 'arm64':
-                    assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc')
+                    assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc') || isGcReliabilityFramework(scenario)
                    
                     // Set time out
                     setTestJobTimeOut(newJob, scenario)
@@ -1542,9 +1552,15 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                        }
 
                        buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2 -priority=1"
-                       // Test build and run are launched together.
-                       buildCommands += "python tests\\scripts\\arm64_post_build.py -repo_root %WORKSPACE% -arch ${architecture} -build_type ${lowerConfiguration} -scenario ${scenario} -key_location C:\\tools\\key.txt"
-                       //Utilities.addXUnitDotNETResults(newJob, 'bin/tests/testResults.xml')
+
+                       if (isGcReliabilityFramework(scenario)) {
+                           buildCommands += "tests\\runtest.cmd ${architecture} ${configuration} GenerateLayoutOnly"
+                           buildCommands += "tests\\scripts\\run-gc-reliability-framework.cmd ${architecture} ${configuration}"
+                       } else {
+                           // Test build and run are launched together.
+                           buildCommands += "python tests\\scripts\\arm64_post_build.py -repo_root %WORKSPACE% -arch ${architecture} -build_type ${lowerConfiguration} -scenario ${scenario} -key_location C:\\tools\\key.txt"
+                           //Utilities.addXUnitDotNETResults(newJob, 'bin/tests/testResults.xml')
+                       }
                     }
 
                     // Add archival.
@@ -1905,6 +1921,22 @@ combinedScenarios.each { scenario ->
                                 }
                                 break
                             case 'gc_reliability_framework':
+                                if (os != 'Windows_NT' && os != 'Ubuntu' && os != 'OSX10.12') {
+                                    return
+                                }
+
+                                if (architecture != 'x64' && architecture != 'arm64') {
+                                    return
+                                }
+
+                                if (architecture == 'arm64' && os != 'Windows_NT') {
+                                    return
+                                }
+
+                                if (configuration != 'Release' && configuration != 'Checked') {
+                                    return
+                                }
+                                break
                             case 'standalone_gc':
                                 if (os != 'Windows_NT' && os != 'Ubuntu' && os != 'OSX10.12') {
                                     return
