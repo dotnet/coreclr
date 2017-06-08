@@ -59,7 +59,7 @@ function print_usage {
     echo '  --gcsimulator                    : Runs the GCSimulator tests'
     echo '  --link <ILlink>                  : Runs the tests after linking via ILlink'
     echo '  --show-time                      : Print execution sequence and running time for each test'
-    echo '  --no-lf-conversion               : Do not execute LF conversion before running test script'
+    echo '  --lf-conversion                  : Execute LF conversion before running test script'
     echo '  --build-overlay-only             : Exit after overlay directory is populated'
     echo '  --limitedDumpGeneration          : Enables the generation of a limited number of core dumps if test(s) crash, even if ulimit'
     echo '                                     is zero when launching this script. This option is intended for use in CI.'
@@ -321,6 +321,16 @@ function handle_ctrl_c {
 # Register the Ctrl-C handler
 trap handle_ctrl_c INT
 
+# Handle USR1. We will print the results that we gathered so far and continue.
+function handle_usr1 {
+    echo ""
+    print_results
+    echo ""
+}
+
+# Register the USR1 handler
+trap handle_usr1 USR1
+
 function create_core_overlay {
     local errorSource='create_core_overlay'
     local printUsage=1
@@ -485,30 +495,15 @@ function load_playlist_tests {
 }
 
 function is_unsupported_test {
-    for unsupportedTest in "${unsupportedTests[@]}"; do
-        if [ "$1" == "$unsupportedTest" ]; then
-            return 0
-        fi
-    done
-    return 1
+    return test -v unsupportedTests[$1]
 }
 
 function is_failing_test {
-    for failingTest in "${failingTests[@]}"; do
-        if [ "$1" == "$failingTest" ]; then
-            return 0
-        fi
-    done
-    return 1
+    return test -v failingTests[$1]
 }
 
 function is_playlist_test {
-    for playlistTest in "${playlistTests[@]}"; do
-        if [ "$1" == "$playlistTest" ]; then
-            return 0
-        fi
-    done
-    return 1
+    return test -v playlistTests[$1]
 }
 
 function skip_unsupported_test {
@@ -700,7 +695,7 @@ function run_test {
         set_up_core_dump_generation
     fi
 
-    "./$scriptFileName" >"$outputFileName" 2>&1
+    nice "./$scriptFileName" >"$outputFileName" 2>&1
     local testScriptExitCode=$?
 
     # We will try to print some information from generated core dumps if a debugger
@@ -801,7 +796,7 @@ function prep_test {
 
     test "$verbose" == 1 && echo "Preparing $scriptFilePath"
 
-    if [ ! "$noLFConversion" == "ON" ]; then
+    if [ "$LFConversion" == "ON" ]; then
         # Convert DOS line endings to Unix if needed
         perl -pi -e 's/\r\n|\n|\r/\n/g' "$scriptFilePath"
     fi
@@ -963,7 +958,7 @@ coverageOutputDir=
 testEnv=
 playlistFile=
 showTime=
-noLFConversion=
+LFConversion=
 buildOverlayOnly=
 gcsimulator=
 longgc=
@@ -1082,8 +1077,8 @@ do
         --show-time)
             showTime=ON
             ;;
-        --no-lf-conversion)
-            noLFConversion=ON
+        --lf-conversion)
+            LFConversion=ON
             ;;
         --build-overlay-only)
             buildOverlayOnly=ON
