@@ -7592,9 +7592,18 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 {
                     if (lsl > 0)
                     {
-                        // Generate code to set tmpReg = base + index*scale
-                        emitIns_R_R_R_I(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
-                                        INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
+                        if (memBase != nullptr)
+                        {
+                            // Generate code to set tmpReg = base + index*scale
+                            emitIns_R_R_R_I(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
+                                            INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
+                        }
+                        else
+                        {
+                            // No base register. Generate code to set tmpReg = index*scale
+                            emitIns_R_R_I(INS_lsl, EA_PTRSIZE, tmpReg, index->gtRegNum, lsl, INS_FLAGS_DONT_CARE,
+                                          INS_OPTS_NONE);
+                        }
                     }
                     else // no scale
                     {
