@@ -262,6 +262,9 @@ $(BashLinkerTestCleanupCmds)
       ]]></BashCLRTestLaunchCmds>
       <BashCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'RunOnly'"><![CDATA[
 $(BashCLRTestLaunchCmds)
+if [ ! -z ${RunCrossGen+x} ]%3B then
+  CheckForCrossgenMarker
+fi
 echo export CDPATH="$%28dirname "$0")"
 export CDPATH="$%28dirname "$0")"
 echo /bin/sh -c  $(InputAssemblyName) 
@@ -352,8 +355,20 @@ ReleaseLock()
         return 3
     fi
 }
+
+CheckForCrossgenMarker()
+{
+    echo "in CheckForCrossgenMarker"
+    if [ ! -f "$MarkerFile" ]%3B then
+        sleep 1
+        CheckForCrossgenMarker
+    fi
+    echo "exiting CheckForCrossgenMarker"
+}
+
 cd "$%28dirname "$0")"
 LockFile="lock"
+MarkerFile="$(BuildProjectRelativeDir)\crossgen.mrk"
 
 
 # The __TestEnv variable may be used to specify a script to source before the test.
