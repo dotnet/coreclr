@@ -136,32 +136,7 @@ inline void LazyMachState::setLazyStateFromUnwind(MachState* copy)
     this->m_Unwound = copy->m_Unwound;
 #endif
 
-    // Capture* has already been set, so there is no need to touch it
-
-    // loop over the nonvolatile context pointers and make 
-    // sure to properly copy interior pointers into the 
-    // new struct
-    
-    PULONG64* pSrc = (PULONG64 *)&copy->m_Ptrs;
-    PULONG64* pDst = (PULONG64 *)&this->m_Ptrs;
-
-    const PULONG64 LowerBoundDst = (PULONG64) this;
-    const PULONG64 LowerBoundSrc = (PULONG64) copy;
-
-    const PULONG64 UpperBoundSrc = (PULONG64) ((BYTE*)LowerBoundSrc + sizeof(*copy));
-
-    for (int i = 0; i < NUM_CALLEE_SAVED_REGISTERS; i++)
-    {
-        PULONG64 valueSrc = *pSrc++;
-
-        if ((LowerBoundSrc <= valueSrc) && (valueSrc < UpperBoundSrc))
-        {
-            // make any pointer interior to 'src' interior to 'dst'
-            valueSrc = (PULONG64)((BYTE*)valueSrc - (BYTE*)LowerBoundSrc + (BYTE*)LowerBoundDst);
-        }
-
-        *pDst++ = valueSrc;
-    }
+    memcpy(&this->m_Ptrs, &copy->m_Ptrs, sizeof(CalleeSavedRegistersPointers));
 
     // this has to be last because we depend on write ordering to 
     // synchronize the race implicit in updating this struct
