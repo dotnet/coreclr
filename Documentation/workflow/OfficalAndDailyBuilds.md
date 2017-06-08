@@ -19,7 +19,8 @@ repositories.  You can see what is available from
 Thus if your goal is just to get the latest bug fixes and features, you don't need to build CoreCLR yourself you 
 can simply add <https://dotnet.myget.org/F/dotnet-core/api/v3/index.json> to your Nuget Feed list and set the
 `RuntimeFrameworkVersion` in your project file to a `Microsoft.NETCore.App` version. You need to restore
-and publish your application so it includes the runtime (`self-contained`).
+and publish your application so it includes the runtime (`self-contained`). This is done by setting the
+`RuntimeIdentifier` (e.g. `linux-x64`, `win7-x64`).
 
 ```
 <?xml version="1.0" encoding="utf-8"?>
@@ -34,13 +35,15 @@ and publish your application so it includes the runtime (`self-contained`).
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
-    <RuntimeFrameworkVersion>2.0.0-preview2-*/RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>2.0.0-preview2-*</RuntimeFrameworkVersion>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
 </Project>
 ```
 ```
-$ dotnet restore -r linux-x64
-$ dotnet publish -r linux-x64 --self-contained true
+$ dotnet restore
+$ dotnet publish
+$ dotnet bin/Debug/netcoreapp2.0/linux-x64/publish/<app>.dll
 ```
 
 ## Package Version Numbers
