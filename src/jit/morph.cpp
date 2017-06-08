@@ -5891,7 +5891,7 @@ GenTreePtr Compiler::fgMorphArrayIndex(GenTreePtr tree)
         }
         else
         {
-            index = gtNewCastNode(TYP_I_IMPL, index, TYP_I_IMPL);
+            index = gtNewCastNode(TYP_I_IMPL, index, TYP_U_IMPL);
         }
     }
 #endif // _TARGET_64BIT_
