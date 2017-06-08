@@ -1390,14 +1390,20 @@ namespace System.Threading.Tasks
         /// </summary>
         internal bool IsCancellationRequested
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 // check both the internal cancellation request flag and the CancellationToken attached to this task
                 var props = Volatile.Read(ref m_contingentProperties);
-                return props != null &&
-                    (props.m_internalCancellationRequested == CANCELLATION_REQUESTED ||
-                     props.m_cancellationToken.IsCancellationRequested);
+                return props == null ? false : IsCancellationRequestedOnProperties(props);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static bool IsCancellationRequestedOnProperties(ContingentProperties props)
+        {
+            return (props.m_internalCancellationRequested == CANCELLATION_REQUESTED ||
+                     props.m_cancellationToken.IsCancellationRequested);
         }
 
         /// <summary>
@@ -2370,9 +2376,16 @@ namespace System.Threading.Tasks
                 return false;
             }
 
-            if (!IsCancellationRequested & !IsCanceled)
+            if (!IsCancellationRequested && !IsCanceled)
             {
-                ExecuteWithThreadLocal(ref t_currentTask);
+                if (!TplEtwProvider.Log.IsEnabled())
+                {
+                    ExecuteWithThreadLocal(ref t_currentTask);
+                }
+                else
+                {
+                    ExecuteWithThreadLocalAndEtw(ref t_currentTask);
+                }
             }
             else
             {
@@ -2387,9 +2400,16 @@ namespace System.Threading.Tasks
             // Remember that we started running the task delegate.
             m_stateFlags |= TASK_STATE_DELEGATE_INVOKED;
 
-            if (!IsCancellationRequested & !IsCanceled)
+            if (!IsCancellationRequested && !IsCanceled)
             {
-                ExecuteWithThreadLocal(ref t_currentTask);
+                if (!TplEtwProvider.Log.IsEnabled())
+                {
+                    ExecuteWithThreadLocal(ref t_currentTask);
+                }
+                else
+                {
+                    ExecuteWithThreadLocalAndEtw(ref t_currentTask);
+                }
             }
             else
             {
@@ -2397,6 +2417,7 @@ namespace System.Threading.Tasks
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal void ExecuteEntryCancellationRequestedOrCanceled()
         {
             if (!IsCanceled)
@@ -2410,7 +2431,7 @@ namespace System.Threading.Tasks
         }
 
         // A trick so we can refer to the TLS slot with a byref.
-        private void ExecuteWithThreadLocal(ref Task currentTaskSlot)
+        private void ExecuteWithThreadLocalAndEtw(ref Task currentTaskSlot)
         {
             // Remember the current task so we can restore it after running, and then
             Task previousTask = currentTaskSlot;
@@ -2418,21 +2439,75 @@ namespace System.Threading.Tasks
             // ETW event for Task Started
             var etwLog = TplEtwProvider.Log;
             Guid savedActivityID = new Guid();
-            bool etwIsEnabled = etwLog.IsEnabled();
-            if (etwIsEnabled)
-            {
-                if (etwLog.TasksSetActivityIds)
-                    EventSource.SetCurrentThreadActivityId(TplEtwProvider.CreateGuidForTaskID(this.Id), out savedActivityID);
-                // previousTask holds the actual "current task" we want to report in the event
-                if (previousTask != null)
-                    etwLog.TaskStarted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id);
-                else
-                    etwLog.TaskStarted(TaskScheduler.Current.Id, 0, this.Id);
-            }
+            if (etwLog.TasksSetActivityIds)
+                EventSource.SetCurrentThreadActivityId(TplEtwProvider.CreateGuidForTaskID(this.Id), out savedActivityID);
+            // previousTask holds the actual "current task" we want to report in the event
+            if (previousTask != null)
+                etwLog.TaskStarted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id);
+            else
+                etwLog.TaskStarted(TaskScheduler.Current.Id, 0, this.Id);
 
             bool loggingOn = AsyncCausalityTracer.LoggingOn;
             if (loggingOn)
-                AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, this.Id, CausalitySynchronousWork.Execution);
+                RecordExecuteWithTLCausalityTracerStart();
+
+            try
+            {
+                // place the current task into TLS.
+                currentTaskSlot = this;
+
+                // Execute the task body
+                try
+                {
+                    ExecutionContext ec = CapturedContext;
+                    if (ec == null)
+                    {
+                        // No context, just run the task directly.
+                        InnerInvoke();
+                    }
+                    else
+                    {
+                        // Invoke it under the captured ExecutionContext
+                        ExecutionContext.Run(ec, s_ecCallback, this);
+                    }
+                }
+                catch (Exception exn)
+                {
+                    // Record this exception in the task's exception list
+                    HandleException(exn);
+                }
+
+                if (loggingOn)
+                    RecordExecuteWithTLCausalityTracerComplete();
+
+                Finish(true);
+            }
+            finally
+            {
+                currentTaskSlot = previousTask;
+
+                // ETW event for Task Completed
+                // previousTask holds the actual "current task" we want to report in the event
+                if (previousTask != null)
+                    etwLog.TaskCompleted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id, IsFaulted);
+                else
+                    etwLog.TaskCompleted(TaskScheduler.Current.Id, 0, this.Id, IsFaulted);
+
+                if (etwLog.TasksSetActivityIds)
+                    EventSource.SetCurrentThreadActivityId(savedActivityID);
+            }
+        }
+
+        // A trick so we can refer to the TLS slot with a byref.
+        private void ExecuteWithThreadLocal(ref Task currentTaskSlot)
+        {
+            // Remember the current task so we can restore it after running, and then
+            Task previousTask = currentTaskSlot;
+
+            bool loggingOn = AsyncCausalityTracer.LoggingOn;
+
+            if (loggingOn)
+                RecordExecuteWithTLCausalityTracerStart();
 
             try
             {
@@ -2468,27 +2543,26 @@ namespace System.Threading.Tasks
                 }
 
                 if (loggingOn)
-                    AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.Execution);
+                    RecordExecuteWithTLCausalityTracerComplete();
 
                 Finish(true);
             }
             finally
             {
                 currentTaskSlot = previousTask;
-
-                // ETW event for Task Completed
-                if (etwIsEnabled)
-                {
-                    // previousTask holds the actual "current task" we want to report in the event
-                    if (previousTask != null)
-                        etwLog.TaskCompleted(previousTask.m_taskScheduler.Id, previousTask.Id, this.Id, IsFaulted);
-                    else
-                        etwLog.TaskCompleted(TaskScheduler.Current.Id, 0, this.Id, IsFaulted);
-
-                    if (etwLog.TasksSetActivityIds)
-                        EventSource.SetCurrentThreadActivityId(savedActivityID);
-                }
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void RecordExecuteWithTLCausalityTracerStart()
+        {
+            AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, this.Id, CausalitySynchronousWork.Execution);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void RecordExecuteWithTLCausalityTracerComplete()
+        {
+            AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.Execution);
         }
 
         private static readonly ContextCallback s_ecCallback = obj => ((Task)obj).InnerInvoke();
