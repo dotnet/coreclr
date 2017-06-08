@@ -174,8 +174,8 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     internal sealed class CultureAwareComparer : StringComparer
     {
-        private readonly CompareInfo _compareInfo;
-        private readonly CompareOptions _options;
+        private readonly CompareInfo _compareInfo; // Do not rename (binary serialization)
+        private readonly CompareOptions _options; // Do not rename (binary serialization)
 
         internal CultureAwareComparer(CultureInfo culture, bool ignoreCase)
         {
