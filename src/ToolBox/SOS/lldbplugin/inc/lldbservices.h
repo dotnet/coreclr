@@ -516,7 +516,7 @@ public:
         /* [out, size_is(contextSize)] */ PBYTE context) = 0;
 
     //------------------------------------------------
-    // IDebugRegister
+    // IDebugRegisters
     //------------------------------------------------
 
     // This is the combination of dbgeng's GetIndexByName and GetValue and not
@@ -542,6 +542,34 @@ public:
         PULONG64 offset) = 0;
 };
 
+
+//----------------------------------------------------------------------------
+// ILLDBServices2
+//----------------------------------------------------------------------------
+
+MIDL_INTERFACE("B426A6BF-31D7-9D1E-8776-E9FEF9E7A6A2")
+ILLDBServices2 : public IUnknown
+{
+public:
+
+    //------------------------------------------------
+    // IDebugRegisters
+    //------------------------------------------------
+
+    virtual HRESULT GetIndexByName(
+        PCSTR name,
+        PULONG index) = 0;
+
+    virtual HRESULT SetValue(
+        ULONG regIndex,
+        PULONG Value) = 0;
+
+    virtual HRESULT SetValues(
+        ULONG Count,
+        PULONG Indices,
+        ULONG Start,
+        PULONG Values) = 0;
+};
 #ifdef __cplusplus
 };
 #endif

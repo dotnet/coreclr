@@ -7,6 +7,7 @@
 #include "sosplugin.h"
 #include <string.h>
 #include <string>
+#include <assert.h>
 
 ULONG g_currentThreadIndex = -1;
 ULONG g_currentThreadSystemId = -1;
@@ -37,9 +38,10 @@ LLDBServices::QueryInterface(
     )
 {
     if (InterfaceId == __uuidof(IUnknown) ||
-        InterfaceId == __uuidof(ILLDBServices))
+        InterfaceId == __uuidof(ILLDBServices) ||
+        InterfaceId == __uuidof(ILLDBServices2))
     {
-        *Interface = (ILLDBServices*)this;
+        *Interface = this;
         AddRef();
         return S_OK;
     }
@@ -211,7 +213,6 @@ LLDBServices::VirtualUnwind(
     }
 
     GetContextFromFrame(frameFound, dtcontext);
-
     return S_OK;
 }
 
@@ -1576,6 +1577,36 @@ LLDBServices::GetRegister(
 //----------------------------------------------------------------------------
 
 HRESULT
+LLDBServices::GetIndexByName(
+    PCSTR name,
+    PULONG index)
+{
+    lldb::SBValueList regSets;
+    lldb::SBFrame frame = GetCurrentFrame();
+    if (frame.IsValid())
+    {
+        regSets = frame.GetRegisters();
+        uint32_t regSetsCnt = regSets.GetSize();
+        ULONG regIndex = 0;
+        for (int32_t rs = 0; rs < regSetsCnt; rs++)
+        {
+            lldb::SBValue regSet = regSets.GetValueAtIndex(rs);
+            uint32_t regCnt = regSet.GetNumChildren();
+            for (int32_t r = 0; r < regCnt; r++, regIndex++) {
+                lldb::SBValue reg = regSet.GetChildAtIndex(r);
+                const char *regName = reg.GetName();
+                if (!strcmp(regName, name))
+                {
+                    *index = regIndex;
+                    return S_OK;
+                }
+            }
+        }
+    }
+    return E_FAIL;
+}
+
+HRESULT
 LLDBServices::GetValueByName(
     PCSTR name,
     PDWORD_PTR debugValue)
@@ -1643,6 +1674,49 @@ LLDBServices::GetFrameOffset(
     return S_OK;
 }
 
+HRESULT
+LLDBServices::SetValue(
+    ULONG regIndex,
+    PULONG regValue)
+{
+    #define REGISTER_NAME_LENGTH 16
+    char regName[REGISTER_NAME_LENGTH];
+    GetNameByIndex(regIndex, regName, REGISTER_NAME_LENGTH);
+    #undef REGISTER_NAME_LENGTH
+
+    #define DEBUGGER_COMMAND_LENGTH 64
+    char debuggerCommand[DEBUGGER_COMMAND_LENGTH];
+    sprintf(debuggerCommand, "register write %s 0x%x", regName, *regValue);
+    m_debugger.HandleCommand(debuggerCommand);
+    #undef DEBUGGER_COMMAND_LENGTH
+
+    return S_OK;
+}
+
+HRESULT
+LLDBServices::SetValues(
+    ULONG count,
+    PULONG indices,
+    ULONG start,
+    PULONG values)
+{
+    if (indices)
+    {
+        for (size_t i = 0; i < count; i++)
+        {
+            SetValue(indices[i], values + i);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < count; i++)
+        {
+            SetValue(start + i, values + i);
+        }
+    }
+    return S_OK;
+}
+
 //----------------------------------------------------------------------------
 // Helper functions
 //----------------------------------------------------------------------------
@@ -1701,4 +1775,37 @@ LLDBServices::GetCurrentFrame()
     }
 
     return frame;
+}
+
+HRESULT
+LLDBServices::GetNameByIndex(ULONG index, char *name, size_t namelen)
+{
+    lldb::SBValueList regSets;
+    lldb::SBFrame frame = GetCurrentFrame();
+    if (frame.IsValid())
+    {
+        regSets = frame.GetRegisters();
+        uint32_t regSetsCnt = regSets.GetSize();
+        ULONG regIndex = 0;
+        for (int32_t rs = 0; rs < regSetsCnt; rs++)
+        {
+            lldb::SBValue regSet = regSets.GetValueAtIndex(rs);
+            uint32_t regCnt = regSet.GetNumChildren();
+            assert(regIndex <= index);
+            if (regIndex+regCnt > index)
+            {
+                uint32_t r = index - regIndex;
+                lldb::SBValue reg = regSet.GetChildAtIndex(r);
+                const char *regName = reg.GetName();
+                if (strlen(regName) < namelen)
+                {
+                    strcpy(name, regName);
+                    return S_OK;
+                }
+                break;
+            }
+            regIndex += regCnt;
+        }
+    }
+    return E_FAIL;
 }
