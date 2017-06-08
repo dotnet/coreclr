@@ -1961,6 +1961,17 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             // Do nothing; these nodes are simply markers for debug info.
             break;
 
+#if defined(_TARGET_X86_)
+        case GT_OBJ:
+        {
+            // This happens for IL_STUB_UnboxingStub
+            assert(treeNode->gtOp.gtOp1->isUsedFromReg());
+            regNumber reg = genConsumeReg(treeNode->gtOp.gtOp1);
+            emit->emitIns_R_AR(INS_mov, EA_PTRSIZE, reg, reg, 0);
+        }
+        break;
+#endif
+
         default:
         {
 #ifdef DEBUG
