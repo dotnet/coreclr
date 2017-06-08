@@ -135,7 +135,10 @@ namespace System.Text
             }
             Contract.EndContractBlock();
 
-            value = value ?? string.Empty;
+            if (value == null)
+            {
+                value = string.Empty;
+            }
             if (startIndex > value.Length - length)
             {
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_IndexLength);
@@ -226,7 +229,10 @@ namespace System.Text
             }
 
             // Check values and set defaults
-            persistedString = persistedString ?? string.Empty;
+            if (persistedString == null)
+            {
+                persistedString = string.Empty;
+            }
             if (persistedMaxCapacity < 1 || persistedString.Length > persistedMaxCapacity)
             {
                 throw new SerializationException(SR.Serialization_StringBuilderMaxCapacity);
@@ -235,9 +241,7 @@ namespace System.Text
             if (!capacityPresent)
             {
                 // StringBuilder in V1.X did not persist the Capacity, so this is a valid legacy code path.
-                persistedCapacity = DefaultCapacity;
-                persistedCapacity = Math.Max(persistedCapacity, persistedString.Length);
-                persistedCapacity = Math.Min(persistedCapacity, persistedMaxCapacity);
+                persistedCapacity = Math.Min(Math.Max(DefaultCapacity, persistedString.Length), persistedMaxCapacity);
             }
 
             if (persistedCapacity < 0 || persistedCapacity < persistedString.Length || persistedCapacity > persistedMaxCapacity)
