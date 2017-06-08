@@ -606,7 +606,6 @@ typedef struct _DacGlobals
 
 // These will define all of the dac related mscorwks static and global variables    
 #define DEFINE_DACVAR(id_type, size, id, var)                 id_type id;
-#define DEFINE_DACVAR_SVR(id_type, size, id, var)             id_type id;
 #define DEFINE_DACVAR_NO_DUMP(id_type, size, id, var)         id_type id;
 #include "dacvars.h"
 
