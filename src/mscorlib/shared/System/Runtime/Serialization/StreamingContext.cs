@@ -26,7 +26,7 @@ namespace System.Runtime.Serialization
                 return false;
             }
             StreamingContext ctx = (StreamingContext)obj;
-            return ctx._additionalContext == _additionalContext && ctx._state == _state;
+            return Object.Equals(ctx._additionalContext, _additionalContext) && ctx._state == _state;
         }
 
         public override int GetHashCode() => (int)_state;
