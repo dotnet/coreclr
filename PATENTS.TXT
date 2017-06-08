@@ -5,6 +5,8 @@ any .NET Patents against you for making, using, selling, offering for sale,
 importing, or distributing Covered Code, as part of either a .NET Runtime or 
 as part of any application designed to run on a .NET Runtime. 
 
+TEST
+
 If you file, maintain, or voluntarily participate in any claim in a lawsuit 
 alleging direct or contributory patent infringement by any Covered Code, or 
 inducement of patent infringement by any Covered Code, then your rights under 
