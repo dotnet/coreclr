@@ -7773,7 +7773,17 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
 
     if (intConst != nullptr)
     {
-        emitIns_R_R_I(ins, attr, dst->gtRegNum, nonIntReg->gtRegNum, intConst->IconValue(), flags);
+        int iconValue = intConst->IconValue();
+
+        if (emitIns_valid_imm_for_add(iconValue, flags))
+        {
+            emitIns_R_R_I(ins, attr, dst->gtRegNum, nonIntReg->gtRegNum, iconValue, flags);
+        }
+        else
+        {
+            codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, dst->gtRegNum, iconValue);
+            emitIns_R_R_R(ins, attr, dst->gtRegNum, dst->gtRegNum, nonIntReg->gtRegNum, flags);
+        }
     }
     else
     {
