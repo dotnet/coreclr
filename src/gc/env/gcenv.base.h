@@ -396,7 +396,7 @@ T VolatileLoad(T const * pt)
 {
 #if defined(_ARM64_) && defined(__clang__)
     T val;
-    unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
+    static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
     if((1 << sizeof(T)) & lockFreeAtomicSizeMask)
     {
         __atomic_load((T volatile const *)pt, &val, __ATOMIC_ACQUIRE);
@@ -437,7 +437,7 @@ inline
 void VolatileStore(T* pt, T val)
 {
 #if defined(_ARM64_) && defined(__clang__)
-    unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
+    static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
     if((1 << sizeof(T)) & lockFreeAtomicSizeMask)
     {
         __atomic_store((T volatile *)pt, &val, __ATOMIC_RELEASE);
