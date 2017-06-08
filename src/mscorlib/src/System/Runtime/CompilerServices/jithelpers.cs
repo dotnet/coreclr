@@ -223,5 +223,10 @@ namespace System.Runtime.CompilerServices
             typeof(ArrayPinningHelper).ToString(); // Type used by the actual method body
             throw new InvalidOperationException();
         }
+
+        // Allows automatic range checks to be skipped when they are manually checked for other reasons 
+        // https://github.com/dotnet/coreclr/pull/9773
+        static internal bool IndexInRange<T>(this T[] array, int index) => (uint)index < (uint)array.Length;
+        static internal bool IndexOutOfRange<T>(this T[] array, int index) => (uint)index >= (uint)array.Length;
     }
 }

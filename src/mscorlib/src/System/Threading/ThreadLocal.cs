@@ -18,6 +18,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
 
 namespace System.Threading
 {
@@ -271,8 +272,7 @@ namespace System.Threading
                 // Attempt to get the value using the fast path
                 //
                 if (slotArray != null   // Has the slot array been initialized?
-                    && id >= 0   // Is the ID non-negative (i.e., instance is not disposed)?
-                    && id < slotArray.Length   // Is the table large enough?
+                    && slotArray.IndexInRange(id)   // Is the table large enough and the ID non-negative (i.e., instance is not disposed)? 
                     && (slot = slotArray[id].Value) != null   // Has a LinkedSlot object has been allocated for this ID?
                     && m_initialized // Has the instance *still* not been disposed (important for a race condition with Dispose)?
                 )
@@ -297,8 +297,7 @@ namespace System.Threading
                 // Attempt to set the value using the fast path
                 //
                 if (slotArray != null   // Has the slot array been initialized?
-                    && id >= 0   // Is the ID non-negative (i.e., instance is not disposed)?
-                    && id < slotArray.Length   // Is the table large enough?
+                    && slotArray.IndexInRange(id)  // Is the table large enough and the ID non-negative (i.e., instance is not disposed)? 
                     && (slot = slotArray[id].Value) != null   // Has a LinkedSlot object has been allocated for this ID?
                     && m_initialized // Has the instance *still* not been disposed (important for a race condition with Dispose)?
                     )
@@ -368,7 +367,7 @@ namespace System.Threading
             }
 
             // If the slot array is not big enough to hold this ID, increase the table size.
-            if (id >= slotArray.Length)
+            if (slotArray.IndexOutOfRange(id))
             {
                 GrowTable(ref slotArray, id + 1);
                 ts_finalizationHelper.SlotArray = slotArray;
@@ -515,7 +514,7 @@ namespace System.Threading
                 }
 
                 LinkedSlotVolatile[] slotArray = ts_slotArray;
-                return slotArray != null && id < slotArray.Length && slotArray[id].Value != null;
+                return slotArray != null && slotArray.IndexInRange(id) && slotArray[id].Value != null;
             }
         }
 
@@ -530,7 +529,7 @@ namespace System.Threading
                 int id = ~m_idComplement;
 
                 LinkedSlot slot;
-                if (slotArray == null || id >= slotArray.Length || (slot = slotArray[id].Value) == null || !m_initialized)
+                if (slotArray == null || slotArray.IndexOutOfRange(id) || (slot = slotArray[id].Value) == null || !m_initialized)
                     return default(T);
                 return slot.Value;
             }

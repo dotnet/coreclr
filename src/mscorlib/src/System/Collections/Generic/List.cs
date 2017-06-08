@@ -190,7 +190,6 @@ namespace System.Collections.Generic
         {
             get
             {
-                // Following trick can reduce the range check by one
                 if ((uint)index >= (uint)_size)
                 {
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
@@ -248,7 +247,7 @@ namespace System.Collections.Generic
             var array = _items;
             var size = _size;
             _version++;
-            if ((uint)size < (uint)array.Length)
+            if (array.IndexInRange(size))
             {
                 _size = size + 1;
                 array[size] = item;

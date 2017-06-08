@@ -88,9 +88,9 @@ namespace System.Buffers
 
             // Get the bucket number for the array length
             int bucketIndex = Utilities.SelectBucketIndex(minimumLength);
-
+            var buckets = _buckets;
             // If the array could come from a bucket...
-            if (bucketIndex < _buckets.Length)
+            if (buckets.IndexInRange(bucketIndex))
             {
                 // First try to get it from TLS if possible.
                 T[][] tlsBuckets = t_tlsBuckets;
@@ -109,7 +109,7 @@ namespace System.Buffers
                 }
 
                 // We couldn't get a buffer from TLS, so try the global stack.
-                PerCoreLockedStacks b = _buckets[bucketIndex];
+                PerCoreLockedStacks b = buckets[bucketIndex];
                 if (b != null)
                 {
                     buffer = b.TryPop();
@@ -137,7 +137,7 @@ namespace System.Buffers
             {
                 int bufferId = buffer.GetHashCode(), bucketId = -1; // no bucket for an on-demand allocated buffer
                 log.BufferRented(bufferId, buffer.Length, Id, bucketId);
-                log.BufferAllocated(bufferId, buffer.Length, Id, bucketId, bucketIndex >= _buckets.Length ?
+                log.BufferAllocated(bufferId, buffer.Length, Id, bucketId, bucketIndex >= buckets.Length ?
                     ArrayPoolEventSource.BufferAllocatedReason.OverMaximumSize :
                     ArrayPoolEventSource.BufferAllocatedReason.PoolExhausted);
             }
@@ -154,9 +154,9 @@ namespace System.Buffers
 
             // Determine with what bucket this array length is associated
             int bucketIndex = Utilities.SelectBucketIndex(array.Length);
-
+            var buckets = _buckets;
             // If we can tell that the buffer was allocated (or empty), drop it. Otherwise, check if we have space in the pool.
-            if (bucketIndex < _buckets.Length)
+            if (buckets.IndexInRange(bucketIndex))
             {
                 // Clear the array if the user requests.
                 if (clearArray)
@@ -231,7 +231,7 @@ namespace System.Buffers
                 int index = Environment.CurrentExecutionId % stacks.Length;
                 for (int i = 0; i < stacks.Length; i++)
                 {
-                    if (stacks[index].TryPush(array)) return;
+                    if (stacks[index].TryPush(array)) break;
                     if (++index == stacks.Length) index = 0;
                 }
             }
@@ -242,15 +242,15 @@ namespace System.Buffers
             {
                 // Try to pop from the associated stack first.  If that fails,
                 // round-robin through the other stacks.
-                T[] arr;
+                T[] arr = null;
                 LockedStack[] stacks = _perCoreStacks;
                 int index = Environment.CurrentExecutionId % stacks.Length;
                 for (int i = 0; i < stacks.Length; i++)
                 {
-                    if ((arr = stacks[index].TryPop()) != null) return arr;
+                    if ((arr = stacks[index].TryPop()) != null) break;
                     if (++index == stacks.Length) index = 0;
                 }
-                return null;
+                return arr;
             }
         }
 
