@@ -144,16 +144,11 @@ namespace System.Threading
                 ExecutionContext.Restore(currentThread, executionContext);
                 callback(state);
             }
-            catch
+            finally
             {
-                // Note: we have a "catch" rather than a "finally" because we want
-                // to stop the first pass of EH here.  That way we can restore the previous
-                // context before any of our callers' EH filters run.  That means we need to
-                // end the scope separately in the non-exceptional case below.
+                // Restore the previous context before returning
                 ecsw.Undo(currentThread);
-                throw;
             }
-            ecsw.Undo(currentThread);
         }
 
         internal static void Restore(Thread currentThread, ExecutionContext executionContext)
