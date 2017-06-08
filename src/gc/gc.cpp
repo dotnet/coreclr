@@ -2162,6 +2162,19 @@ uint8_t* align_lower_page (uint8_t* add)
 }
 
 inline
+size_t align_write_watch_lower_page (size_t add)
+{
+    return (add & ~(WRITE_WATCH_UNIT_SIZE - 1));
+}
+
+inline
+uint8_t* align_write_watch_lower_page (uint8_t* add)
+{
+    return (uint8_t*)align_lower_page ((size_t)add);
+}
+
+
+inline
 BOOL power_of_two_p (size_t integer)
 {
     return !(integer & (integer-1));
@@ -26319,7 +26332,7 @@ end_limit:
     }
 
     dprintf (3,("Last object: %Ix", (size_t)last_object));
-    last_page = align_lower_page (o);
+    last_page = align_write_watch_lower_page (o);
 }
 
 // When reset_only_p is TRUE, we should only reset pages that are in range
