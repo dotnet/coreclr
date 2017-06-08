@@ -1525,7 +1525,7 @@ void STDCALL CopyValueClassUnchecked(void* dest, void* src, MethodTable *pMT)
     switch (pMT->GetNumInstanceFieldBytes())
     {        
     case 1:
-        VolatileStore((UINT8*)dest, *(UINT8*)src);
+        *(UINT8*)dest = *(UINT8*)src;
         break;
 #ifndef ALIGN_ACCESS
         // we can hit an alignment fault if the value type has multiple 
@@ -1533,13 +1533,13 @@ void STDCALL CopyValueClassUnchecked(void* dest, void* src, MethodTable *pMT)
         // value class can be aligned to 4-byte boundaries, yet the 
         // NumInstanceFieldBytes is 8
     case 2:
-        VolatileStore((UINT16*)dest, *(UINT16*)src);
+        *(UINT16*)dest = *(UINT16*)src;
         break;
     case 4:
-        VolatileStore((UINT32*)dest, *(UINT32*)src);
+        *(UINT32*)dest = *(UINT32*)src;
         break;
     case 8:
-        VolatileStore((UINT64*)dest, *(UINT64*)src);
+        *(UINT64*)dest = *(UINT64*)src;
         break;
 #endif // !ALIGN_ACCESS
     default:
