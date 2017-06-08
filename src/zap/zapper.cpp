@@ -42,6 +42,7 @@ extern const WCHAR g_pwBaseLibrary[];
 extern bool g_fAllowNativeImages;
 bool g_fNGenMissingDependenciesOk;
 bool g_fNGenWinMDResilient;
+bool g_fCompilationWarnings;
 
 #ifdef FEATURE_READYTORUN_COMPILER
 bool g_fReadyToRunCompilation;
@@ -168,6 +169,7 @@ STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembl
 #ifdef FEATURE_READYTORUN_COMPILER
         g_fReadyToRunCompilation = !!(dwFlags & NGENWORKER_FLAGS_READYTORUN);
 #endif
+        g_fCompilationWarnings = !!(dwFlags & NGENWORKER_FLAGS_NOWARNINGS) == 0;
 
         if (pLogger != NULL)
         {
@@ -624,7 +626,7 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
     if (memcmp(&versionId, &JITEEVersionIdentifier, sizeof(GUID)) != 0)
     {
         // Mismatched version ID. Fail the load.
-        Error(W("Jit Compiler has wrong version identifier\r\n"));
+        Error(W("Jit/EE Version Identifier mismatch\r\n"));
         ThrowHR(E_FAIL);
     }
 

@@ -109,6 +109,7 @@ void PrintUsageHelper()
        W("    /? or /help          - Display this screen\n")
        W("    /nologo              - Prevents displaying the logo\n")
        W("    /silent              - Do not display completion message\n")
+       W("    /warnings            - Display additional warning messages\n")
        W("    @response.rsp        - Process command line arguments from specified\n")
        W("                           response file\n")
        W("    /partialtrust        - Assembly will be run in a partial trust domain.\n")
@@ -465,8 +466,11 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     // By default, Crossgen will assume code-generation for fulltrust domains unless /PartialTrust switch is specified
     dwFlags |= NGENWORKER_FLAGS_FULLTRUSTDOMAIN;
 
-    // By default, Crossgen will generate readytorun images unless /FragileNonVersionable switch is specified
+    // By default, Crossgen will generate readytorun images unless the /FragileNonVersionable switch is specified
     dwFlags |= NGENWORKER_FLAGS_READYTORUN;
+
+    // By default, Crossgen will suppress warnings messages unless the /warnings switch is specified
+    dwFlags |= NGENWORKER_FLAGS_NOWARNINGS;
 
     while (argc > 0)
     {
@@ -483,6 +487,11 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         else if (MatchParameter(*argv, W("silent")))
         {
             dwFlags |= NGENWORKER_FLAGS_SILENT;
+        }
+        else if (MatchParameter(*argv, W("warnings")))
+        {
+            // Clear the no warnings flag
+            dwFlags = dwFlags & ~NGENWORKER_FLAGS_NOWARNINGS;
         }
         else if (MatchParameter(*argv, W("Tuning")))
         {
@@ -620,8 +629,9 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argv++;
             argc--;
 
-            // Clear the /fulltrust flag - /CreatePDB does not work with any other flags.
-            dwFlags = dwFlags & ~(NGENWORKER_FLAGS_FULLTRUSTDOMAIN | NGENWORKER_FLAGS_READYTORUN);
+            // Clear some non-essential flags otherwise we reach - /CreatePDB does not work with any other flags.
+            dwFlags = dwFlags & ~(NGENWORKER_FLAGS_FULLTRUSTDOMAIN | NGENWORKER_FLAGS_READYTORUN | NGENWORKER_FLAGS_NOWARNINGS);
+
 
             // Parse: <directory to store PDB>
             wzDirectoryToStorePDB.Set(argv[0]);
