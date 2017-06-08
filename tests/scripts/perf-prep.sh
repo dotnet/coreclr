@@ -73,7 +73,7 @@ if [ $throughput -eq 1 ]; then
     cd _/fx
 
     # Checkout the specific commit we want
-    git checkout f0b9e238c08f62a1db90ef0378980ac771204d35
+    git checkout cbb9ee1c0f33803a8a71488efe910ca4da70dd6d
 
     # Build
     ./build.sh -release
