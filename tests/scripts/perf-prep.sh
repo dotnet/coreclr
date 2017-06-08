@@ -80,11 +80,11 @@ if [ $throughput -eq 1 ]; then
 else
     # Set up the copies
     # Coreclr build containing the tests and mscorlib
-    curl https://ci.dot.net/job/$perfBranch/job/master/job/release_windows_nt/lastSuccessfulBuild/artifact/bin/tests/tests.zip -o tests.zip
+    curl https://ci.dot.net/job/$perfBranch/job/release_2.0.0/job/release_windows_nt/lastSuccessfulBuild/artifact/bin/tests/tests.zip -o tests.zip
 
     # Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
     mkdir corefx
-    curl https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu14.04_release/lastSuccessfulBuild/artifact/bin/build.tar.gz -o ./corefx/build.tar.gz
+    curl https://ci.dot.net/job/dotnet_corefx/job/release_2.0.0/job/ubuntu14.04_release/lastSuccessfulBuild/artifact/bin/build.tar.gz -o ./corefx/build.tar.gz
 
     # Unpack the corefx binaries
     pushd corefx > /dev/null
