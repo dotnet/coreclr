@@ -8088,6 +8088,17 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
         if (interval->assignedReg != nullptr && interval->assignedReg->assignedInterval == interval)
         {
             interval->assignedReg->assignedInterval = nullptr;
+#ifdef _TARGET_ARM_
+            // Update overlapping floating point register for TYP_DOUBLE
+            if (interval->registerType == TYP_DOUBLE)
+            {
+                assert(genIsValidDoubleReg(interval->assignedReg->regNum));
+
+                RegRecord* nextPhysRegRecord = findAnotherHalfRegRec(interval->assignedReg);
+
+                nextPhysRegRecord->assignedInterval = nullptr;
+            }
+#endif
         }
         interval->assignedReg = nullptr;
         interval->physReg     = REG_NA;
@@ -8116,6 +8127,17 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
             if (oldRegRecord->assignedInterval == interval)
             {
                 oldRegRecord->assignedInterval = nullptr;
+#ifdef _TARGET_ARM_
+                // Update overlapping floating point register for TYP_DOUBLE
+                if (interval->registerType == TYP_DOUBLE)
+                {
+                    assert(genIsValidDoubleReg(oldRegRecord->regNum));
+
+                    RegRecord* nextPhysRegRecord = findAnotherHalfRegRec(oldRegRecord);
+
+                    nextPhysRegRecord->assignedInterval = nullptr;
+                }
+#endif
             }
         }
     }
@@ -8270,6 +8292,17 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
         interval->assignedReg           = nullptr;
         interval->physReg               = REG_NA;
         interval->isActive              = false;
+#ifdef _TARGET_ARM_
+        // Update overlapping floating point register for TYP_DOUBLE
+        if (interval->registerType == TYP_DOUBLE)
+        {
+            assert(genIsValidDoubleReg(physRegRecord->regNum));
+
+            RegRecord* nextPhysRegRecord = findAnotherHalfRegRec(physRegRecord);
+
+            nextPhysRegRecord->assignedInterval = nullptr;
+        }
+#endif
     }
     else
     {
@@ -8280,10 +8313,9 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
         // Update overlapping floating point register for TYP_DOUBLE
         if (interval->registerType == TYP_DOUBLE)
         {
-            assert(isFloatRegType(physRegRecord->registerType));
+            assert(genIsValidDoubleReg(physRegRecord->regNum));
 
-            regNumber  nextRegNum        = REG_NEXT(physRegRecord->regNum);
-            RegRecord* nextPhysRegRecord = getRegisterRecord(nextRegNum);
+            RegRecord* nextPhysRegRecord = findAnotherHalfRegRec(physRegRecord);
 
             nextPhysRegRecord->assignedInterval = interval;
         }
