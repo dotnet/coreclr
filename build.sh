@@ -52,6 +52,7 @@ usage()
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "buildstandalonegc - builds the GC in a standalone mode. Can't be used with \"cmakeargs\"."
     echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
+    echo "numproc - set the number of build processes."
     exit 1
 }
 
@@ -817,6 +818,15 @@ while :; do
             ;;
         msbuildonunsupportedplatform)
             __msbuildonunsupportedplatform=1
+            ;;
+        numproc)
+            if [ -n "$2" ]; then
+              NumProc="$2"
+              shift
+            else
+              echo "ERROR: 'numproc' requires a non-empty option argument"
+              exit 1
+            fi
             ;;
         *)
             __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
