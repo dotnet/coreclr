@@ -640,64 +640,6 @@ GetProcessAffinityMask(
 
 /*++
 Function:
-  GetCurrentProcessActiveCpuCount
-
-Get the number of logical cores that current process can use.
---*/
-INT
-PALAPI
-GetCurrentProcessActiveCpuCount(
-  IN HANDLE hProcess)
-{
-    int count = 0;
-    if (hProcess == GetCurrentProcess())
-    {
-#if HAVE_SCHED_GETAFFINITY
-        int pid = getpid();
-        cpu_set_t cpuSet;
-        int st = sched_getaffinity(pid, sizeof(cpu_set_t), &cpuSet);
-        if (st == 0)
-        {
-            for (int i = 0; i < g_cpuCount; i++)
-            {
-                if (CPU_ISSET(i, &cpuSet))
-                {
-                    count++;
-                }
-            }
-        }
-        else if (errno == EINVAL)
-        {
-            // There are more processors than can fit in a cpu_set_t
-            // return the number of all the processors.
-            SYSTEM_INFO sysInfo;
-            ::GetSystemInfo(&sysInfo);
-            count = sysInfo.dwNumberOfProcessors;
-        }
-        else
-        {
-            // We should not get any of the errors that the sched_getaffinity can return since none
-            // of them applies for the current thread, so this is an unexpected kind of failure.
-            SetLastError(ERROR_GEN_FAILURE);
-        }
-#else  // HAVE_SCHED_GETAFFINITY
-        // There is no API to manage thread affinity, so let's return the number of all the processors.
-        SYSTEM_INFO sysInfo;
-        ::GetSystemInfo(&sysInfo);
-        count = sysInfo.dwNumberOfProcessors;
-#endif // HAVE_SCHED_GETAFFINITY
-    }
-    else
-    {
-        // PAL supports getting affinity mask for the current process only
-        SetLastError(ERROR_INVALID_PARAMETER);
-    }
-
-    return count;
-}
-
-/*++
-Function:
   VirtualAllocExNuma
 
 See MSDN doc.
