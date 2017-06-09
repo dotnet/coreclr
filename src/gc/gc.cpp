@@ -33439,12 +33439,6 @@ HRESULT GCHeap::Initialize ()
 {
     HRESULT hr = S_OK;
 
-    if (!GCToOSInterface::Initialize())
-    {
-        return E_FAIL;
-    }
-
-
     g_gc_pFreeObjectMethodTable = GCToEEInterface::GetFreeObjectMethodTable();
     g_num_processors = GCToOSInterface::GetTotalProcessorCount();
     assert(g_num_processors != 0);
