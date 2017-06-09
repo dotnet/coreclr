@@ -175,12 +175,14 @@ namespace System
     internal sealed class CultureAwareComparer : StringComparer
     {
         private readonly CompareInfo _compareInfo; // Do not rename (binary serialization)
-        private readonly CompareOptions _options; // Do not rename (binary serialization)
+        private readonly bool _ignoreCase; // Do not rename (binary serialization)
+
+        private CompareOptions Options => _ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
 
         internal CultureAwareComparer(CultureInfo culture, bool ignoreCase)
         {
             _compareInfo = culture.CompareInfo;
-            _options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            _ignoreCase = ignoreCase;
         }
 
         public override int Compare(string x, string y)
@@ -188,14 +190,14 @@ namespace System
             if (object.ReferenceEquals(x, y)) return 0;
             if (x == null) return -1;
             if (y == null) return 1;
-            return _compareInfo.Compare(x, y, _options);
+            return _compareInfo.Compare(x, y, Options);
         }
 
         public override bool Equals(string x, string y)
         {
             if (object.ReferenceEquals(x, y)) return true;
             if (x == null || y == null) return false;
-            return _compareInfo.Compare(x, y, _options) == 0;
+            return _compareInfo.Compare(x, y, Options) == 0;
         }
 
         public override int GetHashCode(string obj)
@@ -204,7 +206,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(obj));
             }
-            return _compareInfo.GetHashCodeOfString(obj, _options);
+            return _compareInfo.GetHashCodeOfString(obj, Options);
         }
 
         // Equals method for the comparer itself.
@@ -213,14 +215,14 @@ namespace System
             CultureAwareComparer comparer = obj as CultureAwareComparer;
             return
                 comparer != null &&
-                _options == comparer._options &&
+                _ignoreCase == comparer._ignoreCase &&
                 _compareInfo.Equals(comparer._compareInfo);
         }
 
         public override int GetHashCode()
         {
             int hashCode = _compareInfo.GetHashCode();
-            return _options == CompareOptions.None ? hashCode : ~hashCode;
+            return _ignoreCase ? ~hashCode : hashCode;
         }
     }
 
