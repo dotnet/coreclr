@@ -70,7 +70,7 @@ void ValidateObjectAndAppDomain(OBJECTREF objRef, ADIndex appDomainIndex)
 
 void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef)
 {
-#if 0 // [LOCALGC TODO] re-enable this by adding HndGetHandleADIndex to interface
+#ifdef _DEBUG_IMPL
     _ASSERTE(handle);
 
 #ifdef DEBUG_DestroyedHandleValue
@@ -78,7 +78,8 @@ void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef)
     _ASSERTE("Attempt to access destroyed handle." && *(_UNCHECKED_OBJECTREF*)handle != DEBUG_DestroyedHandleValue);
 #endif
 
-    ADIndex appDomainIndex = HndGetHandleADIndex(handle);
+    IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+    ADIndex appDomainIndex = ADIndex(reinterpret_cast<DWORD>(mgr->GetHandleContext(handle)));
 
     AppDomain *unloadingDomain = SystemDomain::AppDomainBeingUnloaded();
     if (unloadingDomain && unloadingDomain->GetIndex() == appDomainIndex && unloadingDomain->NoAccessToHandleTable())

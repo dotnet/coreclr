@@ -10998,13 +10998,12 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
             if(fValid)
             {
-#if 0 // [LOCALGC TODO] HndGetHandleADIndex to interface
                 // Get the appdomain
-                ADIndex appDomainIndex = HndGetHandleADIndex(objectHandle);
+                IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+                ADIndex appDomainIndex = ADIndex(reinterpret_cast<DWORD>(mgr->GetHandleContext(objectHandle)));
                 pAppDomain = SystemDomain::GetAppDomainAtIndex(appDomainIndex);
 
                 _ASSERTE(pAppDomain != NULL);
-#endif
             }
 
             pIPCResult->hr = S_OK;
