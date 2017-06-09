@@ -73,18 +73,18 @@ if [ $throughput -eq 1 ]; then
     cd _/fx
 
     # Checkout the specific commit we want
-    git checkout f0b9e238c08f62a1db90ef0378980ac771204d35
+    git checkout cbb9ee1c0f33803a8a71488efe910ca4da70dd6d
 
     # Build
     ./build.sh -release
 else
     # Set up the copies
     # Coreclr build containing the tests and mscorlib
-    curl https://ci.dot.net/job/$perfBranch/job/master/job/release_windows_nt/lastSuccessfulBuild/artifact/bin/tests/tests.zip -o tests.zip
+    curl https://ci.dot.net/job/$perfBranch/job/release_2.0.0/job/release_windows_nt/lastSuccessfulBuild/artifact/bin/tests/tests.zip -o tests.zip
 
     # Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
     mkdir corefx
-    curl https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu14.04_release/lastSuccessfulBuild/artifact/bin/build.tar.gz -o ./corefx/build.tar.gz
+    curl https://ci.dot.net/job/dotnet_corefx/job/release_2.0.0/job/ubuntu14.04_release/lastSuccessfulBuild/artifact/bin/build.tar.gz -o ./corefx/build.tar.gz
 
     # Unpack the corefx binaries
     pushd corefx > /dev/null
