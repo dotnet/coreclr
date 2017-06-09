@@ -96,7 +96,9 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
         ssize_t  immVal = childNode->gtIntCon.gtIconVal;
         emitAttr attr   = emitActualTypeSize(childNode->TypeGet());
         emitAttr size   = EA_SIZE(attr);
-        insFlags flags  = parentNode->gtSetFlags() ? INS_FLAGS_SET : INS_FLAGS_DONT_CARE;
+#ifdef _TARGET_ARM_
+        insFlags flags = parentNode->gtSetFlags() ? INS_FLAGS_SET : INS_FLAGS_DONT_CARE;
+#endif
 
         switch (parentNode->OperGet())
         {
