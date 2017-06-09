@@ -177,13 +177,13 @@ namespace System
         private readonly CompareInfo _compareInfo; // Do not rename (binary serialization)
         private readonly bool _ignoreCase; // Do not rename (binary serialization)
 
-        private CompareOptions Options => _ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
-
         internal CultureAwareComparer(CultureInfo culture, bool ignoreCase)
         {
             _compareInfo = culture.CompareInfo;
             _ignoreCase = ignoreCase;
         }
+
+        private CompareOptions Options => _ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
 
         public override int Compare(string x, string y)
         {
