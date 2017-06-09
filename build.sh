@@ -321,9 +321,9 @@ build_native()
     # Check that the makefiles were created.
     pushd "$intermediatesForBuild"
 
-    echo "Executing $buildTool install -j $NumProc"
+    echo "Executing $buildTool install -j $__NumProc"
 
-    $buildTool install -j $NumProc
+    $buildTool install -j $__NumProc
     if [ $? != 0 ]; then
         echo "Failed to build $message."
         exit 1
@@ -617,6 +617,17 @@ __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
 __IbcOptDataVersion=""
 
+# Get the number of processors available to the scheduler
+# Other techniques such as `nproc` only get the number of
+# processors available to a single process.
+if [ `uname` = "FreeBSD" ]; then
+  __NumProc=`sysctl hw.ncpu | awk '{ print $2+1 }'`
+elif [ `uname` = "NetBSD" ]; then
+  __NumProc=$(($(getconf NPROCESSORS_ONLN)+1))
+else
+  __NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
+fi
+
 while :; do
     if [ $# -le 0 ]; then
         break
@@ -906,21 +917,6 @@ if [ $__CrossBuild == 1 ]; then
     export CROSSCOMPILE=1
     if ! [[ -n "$ROOTFS_DIR" ]]; then
         export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
-    fi
-fi
-
-if [[ -n "$__NumProc" ]]; then
-    NumProc="$__NumProc"
-else
-    # Get the number of processors available to the scheduler
-    # Other techniques such as `nproc` only get the number of
-    # processors available to a single process.
-    if [ `uname` = "FreeBSD" ]; then
-        NumProc=`sysctl hw.ncpu | awk '{ print $2+1 }'`
-    elif [ `uname` = "NetBSD" ]; then
-        NumProc=$(($(getconf NPROCESSORS_ONLN)+1))
-    else
-        NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
     fi
 fi
 
