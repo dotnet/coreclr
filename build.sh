@@ -312,19 +312,6 @@ build_native()
         exit 1
     fi
     
-    if [[ -z ${NumProc} ]]; then
-        # Get the number of processors available to the scheduler
-        # Other techniques such as `nproc` only get the number of
-        # processors available to a single process.
-        if [ `uname` = "FreeBSD" ]; then
-            NumProc=`sysctl hw.ncpu | awk '{ print $2+1 }'`
-        elif [ `uname` = "NetBSD" ]; then
-            NumProc=$(($(getconf NPROCESSORS_ONLN)+1))
-        else
-            NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
-        fi
-    fi
-
     # Build
     if [ $__ConfigureOnly == 1 ]; then
         echo "Finish configuration & skipping $message build."
@@ -821,7 +808,7 @@ while :; do
             ;;
         numproc)
             if [ -n "$2" ]; then
-              NumProc="$2"
+              __NumProc="$2"
               shift
             else
               echo "ERROR: 'numproc' requires a non-empty option argument"
@@ -919,6 +906,21 @@ if [ $__CrossBuild == 1 ]; then
     export CROSSCOMPILE=1
     if ! [[ -n "$ROOTFS_DIR" ]]; then
         export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
+    fi
+fi
+
+if [[ -n "$__NumProc" ]]; then
+    NumProc="$__NumProc"
+else
+    # Get the number of processors available to the scheduler
+    # Other techniques such as `nproc` only get the number of
+    # processors available to a single process.
+    if [ `uname` = "FreeBSD" ]; then
+        NumProc=`sysctl hw.ncpu | awk '{ print $2+1 }'`
+    elif [ `uname` = "NetBSD" ]; then
+        NumProc=$(($(getconf NPROCESSORS_ONLN)+1))
+    else
+        NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
     fi
 fi
 
