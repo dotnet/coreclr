@@ -138,6 +138,11 @@ namespace System
             if (n2.HasValue) return false;
             return true;
         }
+        
+        public static bool IsNullOrDefault<T>(this T? box, T defaultValue = default(T)) where T : struct
+        {
+            return !box.HasValue || Equals(box.value, defaultValue);
+        }
 
         // If the type provided is not a Nullable Type, return null.
         // Otherwise, returns the underlying type of the Nullable type
