@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Diagnostics.Contracts;
+using System.Runtime.Serialization;
 
 namespace System
 {
@@ -252,9 +253,8 @@ namespace System
         public override int GetHashCode() => nameof(OrdinalComparer).GetHashCode();
     }
 
-    [Serializable]
-    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    internal sealed class OrdinalIgnoreCaseComparer : StringComparer
+    [Serializable]    
+    internal sealed class OrdinalIgnoreCaseComparer : StringComparer, ISerializable
     {
         public override int Compare(string x, string y) => string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
 
@@ -276,5 +276,11 @@ namespace System
         // Equals/GetHashCode methods for the comparer itself. 
         public override bool Equals(object obj) => obj is OrdinalIgnoreCaseComparer;
         public override int GetHashCode() => nameof(OrdinalIgnoreCaseComparer).GetHashCode();
+
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            info.SetType(typeof(OrdinalComparer));
+            info.AddValue("_ignoreCase", true);
+        }
     }
 }
