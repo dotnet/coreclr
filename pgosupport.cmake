@@ -22,6 +22,8 @@ function(add_pgo TargetName)
     # NuGet packages are restored to lowercase paths
     string(TOLOWER "${ProfilePath}" ProfilePath)
 
+    message(STATUS "Profile path for ${TargetName}: ${ProfilePath}")
+
     if(CLR_CMAKE_PGO_INSTRUMENT)
         if(WIN32)
             set_property(TARGET ${TargetName} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE        " /LTCG /GENPROFILE")
