@@ -143,7 +143,7 @@ class Constants {
     def static configurationList = ['Debug', 'Checked', 'Release']
 
     // This is the set of architectures
-    def static architectureList = ['arm', 'arm64', 'x64', 'x86']
+    def static architectureList = ['arm', 'arm64', 'x64', 'x86', 'x86lb']
 }
 
 def static setMachineAffinity(def job, def os, def architecture) {
@@ -355,6 +355,9 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
         case 'x86':
             baseName = architecture.toLowerCase() + '_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
+        case 'x86lb':
+            baseName = 'x86_lb_' + configuration.toLowerCase() + '_' + os.toLowerCase()
+            break
         default:
             println("Unknown architecture: ${architecture}");
             assert false
@@ -371,6 +374,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             switch (architecture) {
                 case 'x64':
                 case 'x86':
+                case 'x86lb':
                     if (architecture == 'x86' && os == 'Ubuntu') {
                         Utilities.addPeriodicTrigger(job, '@daily')
                     }
@@ -433,7 +437,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     }
                 }
                 // For x86, only add per-commit jobs for Windows
-                else if (architecture == 'x86') {
+                else if (architecture == 'x86' || architecture == 'x86lb') {
                     if (os == 'Windows_NT') {
                         Utilities.addGithubPushTrigger(job)
                     }
@@ -1296,6 +1300,26 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     break
             }
             break
+         // editor brace matching: }
+        case 'x86lb': // editor brace matching: {
+            assert (os == 'Windows_NT')
+            assert (scenario == 'default' || Constants.r2rJitStressScenarios.indexOf(scenario) !=1)
+
+            def arch = 'x86'
+            def jit = 'legacy_backend'
+            switch (scenario) {
+                case 'default':
+                    if (configuration == 'Checked') {
+                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} Build and Test",
+                            "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}.*")
+                    }
+                    break
+                default:
+                    println("Unknown scenario: ${os} ${arch} ${jit} ${scenario}");
+                    assert false
+                    break
+            }
+            break
         // editor brace matching: }
         default:
             println("Unknown architecture: ${architecture}");
@@ -1315,6 +1339,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
             switch (architecture) {
                 case 'x64':
                 case 'x86':
+                case 'x86lb':
                     def arch = architecture
                     def buildOpts = ''
 
@@ -1471,7 +1496,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "tests\\runtest.cmd ${runtestArguments} GenerateLayoutOnly"
                             buildCommands += "tests\\scripts\\run-gc-reliability-framework.cmd ${arch} ${configuration}"
                         }
-                        else if (architecture == 'x64' || architecture == 'x86') {
+                        else if (architecture == 'x64' || architecture == 'x86' || architecture == 'x86lb') {
                             buildCommands += "tests\\runtest.cmd ${runtestArguments}"
                         }
                     }
@@ -1571,6 +1596,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
             switch (architecture) {
                 case 'x64':
                 case 'x86':
+                case 'x86lb':
+
                     if (architecture == 'x86' && os == 'Ubuntu') {
                         // build and PAL test
                         buildCommands += "./tests/scripts/x86_ci_script.sh --buildConfig=${lowerConfiguration}"
@@ -1758,6 +1785,11 @@ combinedScenarios.each { scenario ->
                                 return
                             }
                             break
+                        case 'x86lb':
+                            if (os != 'Windows_NT') {
+                                return
+                            }
+                            break
                         case 'x64':
                             // Everything implemented
                             break
@@ -1798,6 +1830,10 @@ combinedScenarios.each { scenario ->
                                 }
                                 // Windows: Everything implemented
                                 break
+                            case 'x86lb':
+                                // No stress modes for legacy jit.
+                                // (There's no technical reason we couldn't allow these.)
+                                return                            
                             default:
                                 return
                         }
