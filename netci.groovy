@@ -307,6 +307,9 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
         case 'x86lb':
             baseName = architecture.toLowerCase() + '_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
+        case 'x86lb':
+            baseName = 'x86_lb_' + configuration.toLowerCase() + '_' + os.toLowerCase()
+            break
         default:
             println("Unknown architecture: ${architecture}");
             assert false
@@ -1655,6 +1658,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
             switch (architecture) {
                 case 'x64':
                 case 'x86':
+                case 'x86lb':
+
                     if (architecture == 'x86' && os == 'Ubuntu') {
                         // build and PAL test
                         buildCommands += "./tests/scripts/x86_ci_script.sh --buildConfig=${lowerConfiguration}"
