@@ -8963,7 +8963,6 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
                 }
                 else
                 {
-#ifndef LEGACY_BACKEND
 
                     // The source argument of the copyblk can potentially
                     // be accessed only through indir(addr(lclVar))
@@ -8973,6 +8972,7 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
                     // we don't delete it as a dead store later on.
                     unsigned lclVarNum                = lclVarTree->gtLclVarCommon.gtLclNum;
                     lvaTable[lclVarNum].lvAddrExposed = true;
+#ifndef LEGACY_BACKEND
                     lvaSetVarDoNotEnregister(lclVarNum DEBUGARG(DNER_AddrExposed));
 
 #else  // LEGACY_BACKEND
@@ -10343,7 +10343,6 @@ GenTreePtr Compiler::fgMorphCopyBlock(GenTreePtr tree)
 
             tree = gtNewAssignNode(gtNewLclvNode(addrSpillTemp, TYP_BYREF), addrSpill);
 
-#ifndef LEGACY_BACKEND
             // If we are assigning the address of a LclVar here
             // liveness does not account for this kind of address taken use.
             //
@@ -10361,7 +10360,6 @@ GenTreePtr Compiler::fgMorphCopyBlock(GenTreePtr tree)
                     lvaSetVarDoNotEnregister(lclVarNum DEBUGARG(DNER_AddrExposed));
                 }
             }
-#endif // !LEGACY_BACKEND
         }
 
     _AssignFields:
