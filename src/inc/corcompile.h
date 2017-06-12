@@ -1825,4 +1825,11 @@ inline bool IsReadyToRunCompilation()
 #endif
 }
 
+extern bool g_fCompilationWarnings;
+
+inline bool doCompilationWarnings()
+{
+    return g_fCompilationWarnings;
+}
+
 #endif /* COR_COMPILE_H_ */
