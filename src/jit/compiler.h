@@ -6704,7 +6704,7 @@ public:
 #endif
     };
 
-    VirtualStubParamInfo* virtualStubParam;
+    VirtualStubParamInfo* virtualStubParamInfo;
 
     inline bool IsTargetAbi(CORINFO_RUNTIME_ABI abi)
     {

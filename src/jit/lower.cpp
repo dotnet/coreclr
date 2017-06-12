@@ -3672,7 +3672,7 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
 // So we don't use a register.
 #ifndef _TARGET_X86_
             // on x64 we must materialize the target using specific registers.
-            addr->gtRegNum = comp->virtualStubParam->GetReg();
+            addr->gtRegNum = comp->virtualStubParamInfo->GetReg();
 
             indir->gtRegNum = REG_JUMP_THUNK_PARAM;
             indir->gtFlags |= GTF_IND_REQ_ADDR_IN_REG;
