@@ -468,7 +468,7 @@ EphemeralCheckEnabled
         mov      x7, xzr
 #endif
 
-        // Update wbs state
+        ; Update wbs state
 
         adr  x12, wbs_begin
         stp  x0, x1, [x12], 16
