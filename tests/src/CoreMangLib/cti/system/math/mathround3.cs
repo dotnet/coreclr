@@ -106,8 +106,8 @@ public class MathRound3
             
         if (Math.Round(doubleVal) != expectedVal)
         {
-            Console.WriteLine("actual value = " + Math.Round(doubleVal));
-            Console.WriteLine("expected value = " + expectedVal);
+            Console.WriteLine("actual value = {0:G17}", Math.Round(doubleVal));
+            Console.WriteLine("expected value = {0:G17}", expectedVal);
             TestLibrary.TestFramework.LogError("001.1", "Return value is wrong!");
             retVal = false;
         }
@@ -127,8 +127,8 @@ public class MathRound3
 
         if (Math.Round(doubleVal) != expectedVal)
         {
-            Console.WriteLine("actual value = " + Math.Round(doubleVal));
-            Console.WriteLine("expected value = " + expectedVal);
+            Console.WriteLine("actual value = {0:G17}", Math.Round(doubleVal));
+            Console.WriteLine("expected value = {0:G17}", expectedVal);
             TestLibrary.TestFramework.LogError("001.1", "Return value is wrong!");
             retVal = false;
         }
