@@ -6638,31 +6638,31 @@ public:
     //
     // It represents Abi and target specific registers for the parameter.
     //
-    class VirtualStubParam
+    class VirtualStubParamInfo
     {
     public:
-        VirtualStubParam(bool isCoreRTABI)
+        VirtualStubParamInfo(bool isCoreRTABI)
         {
 #if defined(_TARGET_X86_)
-            reg = REG_EAX;
-            rbm = RBM_EAX;
+            reg     = REG_EAX;
+            regMask = RBM_EAX;
 #elif defined(_TARGET_AMD64_)
             if (isCoreRTABI)
             {
-                reg = REG_R10;
-                rbm = RBM_R10;
+                reg     = REG_R10;
+                regMask = RBM_R10;
             }
             else
             {
-                reg = REG_R11;
-                rbm = RBM_R11;
+                reg     = REG_R11;
+                regMask = RBM_R11;
             }
 #elif defined(_TARGET_ARM_)
-            reg = REG_R4;
-            rbm = RBM_R4;
+            reg     = REG_R4;
+            regMask = RBM_R4;
 #elif defined(_TARGET_ARM64_)
-            reg = REG_R11;
-            rbm = RBM_R11;
+            reg     = REG_R11;
+            regMask = RBM_R11;
 #else
 #error Unsupported or unset target architecture
 #endif
@@ -6683,9 +6683,9 @@ public:
             return reg;
         }
 
-        _regMask_enum GetRbm() const
+        _regMask_enum GetRegMask() const
         {
-            return rbm;
+            return regMask;
         }
 
 #ifdef LEGACY_BACKEND
@@ -6697,14 +6697,14 @@ public:
 
     private:
         regNumber     reg;
-        _regMask_enum rbm;
+        _regMask_enum regMask;
 
 #ifdef LEGACY_BACKEND
         rpPredictReg predict;
 #endif
     };
 
-    VirtualStubParam* virtualStubParam;
+    VirtualStubParamInfo* virtualStubParam;
 
     inline bool IsTargetAbi(CORINFO_RUNTIME_ABI abi)
     {

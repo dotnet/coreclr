@@ -5507,7 +5507,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             /* Virtual stub calls also must reserve the VIRTUAL_STUB_PARAM reg */
             if (callKind == GTF_CALL_VIRT_STUB)
             {
-                ftreg |= virtualStubParam->GetRbm();
+                ftreg |= virtualStubParam->GetRegMask();
             }
 
 #ifdef FEATURE_READYTORUN_COMPILER

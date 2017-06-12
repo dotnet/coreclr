@@ -4847,14 +4847,14 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
 
                     // We only want to record an interference between the virtual stub
                     // param reg and anything that's live AFTER the call, but we've not
-                    // yet processed the indirect target.  So add virtualStubParam.rbm
+                    // yet processed the indirect target.  So add virtualStubParam.regMask
                     // to interferingRegs.
-                    interferingRegs |= virtualStubParam->GetRbm();
+                    interferingRegs |= virtualStubParam->GetRegMask();
 #ifdef DEBUG
                     if (verbose)
                         printf("Adding interference with Virtual Stub Param\n");
 #endif
-                    codeGen->regSet.rsSetRegsModified(virtualStubParam->GetRbm());
+                    codeGen->regSet.rsSetRegsModified(virtualStubParam->GetRegMask());
 
                     if (tree->gtCall.gtCallType == CT_INDIRECT)
                     {

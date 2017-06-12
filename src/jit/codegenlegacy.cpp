@@ -18637,7 +18637,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
         {
             case GTF_CALL_VIRT_STUB:
             {
-                regSet.rsSetRegsModified(compiler->virtualStubParam->GetRbm());
+                regSet.rsSetRegsModified(compiler->virtualStubParam->GetRegMask());
 
                 // An x86 JIT which uses full stub dispatch must generate only
                 // the following stub dispatch calls:
@@ -18716,7 +18716,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
 
                         // Now dereference [virtualStubParam.reg] and put it in a new temp register 'indReg'
                         //
-                        indReg = regSet.rsGrabReg(RBM_ALLINT & ~compiler->virtualStubParam->GetRbm());
+                        indReg = regSet.rsGrabReg(RBM_ALLINT & ~compiler->virtualStubParam->GetRegMask());
                         assert(call->gtCallAddr->InReg());
                         getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indReg, compiler->virtualStubParam->GetReg(),
                                                     0);
@@ -18760,7 +18760,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         if (call->gtCallMoreFlags & GTF_CALL_M_VIRTSTUB_REL_INDIRECT)
                         {
 #if CPU_LOAD_STORE_ARCH
-                            callReg = regSet.rsGrabReg(compiler->virtualStubParam->GetRbm());
+                            callReg = regSet.rsGrabReg(compiler->virtualStubParam->GetRegMask());
                             noway_assert(callReg == compiler->virtualStubParam->GetReg());
 
                             instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, compiler->virtualStubParam->GetReg(),
