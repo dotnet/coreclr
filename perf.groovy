@@ -245,14 +245,16 @@ def static getFullPerfJobName(def project, def os, def isPR) {
 
     // Build has to happen on RHEL7.2 (that's where we produce the bits we ship)
     ['RHEL7.2'].each { os ->
+        def osGroup = getOSGroup(os)
         def newBuildJob = job(fullBuildJobName) {
             steps {
                 shell("./build.sh verbose ${architecture} ${configuration}")
+                shell("src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout")
             }
         }
         Utilities.setMachineAffinity(newBuildJob, os, 'latest-or-auto')
         Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
-        Utilities.addArchival(newBuildJob, "bin/Product/**")
+        Utilities.addArchival(newBuildJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
     }
 
     // Actual perf testing on the following OSes
@@ -290,7 +292,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
                 shell("./tests/scripts/perf-prep.sh")
                 shell("./init-tools.sh")
                 copyArtifacts(fullBuildJobName) {
-                    includePatterns("bin/Product/**")
+                    includePatterns("bin/**")
                     buildSelector {
                         buildNumber('\${PRODUCT_BUILD}')
                     }
