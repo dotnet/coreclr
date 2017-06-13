@@ -167,6 +167,22 @@ check_cxx_symbol_exists(_SC_PHYS_PAGES unistd.h HAVE__SC_PHYS_PAGES)
 check_cxx_symbol_exists(_SC_AVPHYS_PAGES unistd.h HAVE__SC_AVPHYS_PAGES)
 
 check_cxx_source_runs("
+  #include <unistd.h>
+  #include <sys/syscall.h>
+  #include <linux/membarrier.h>
+
+  int main()
+  {
+    int result = syscall(__NR_membarrier, MEMBARRIER_CMD_QUERY, 0);
+
+    if ((result >= 0) && (result & MEMBARRIER_CMD_SHARED))
+      return 0;
+
+    return 1;
+  }" HAVE_SYS_MEMBARRIER)
+  set(CMAKE_REQUIRED_LIBRARIES)
+
+check_cxx_source_runs("
 #include <uuid.h>
 
 int main(void) {

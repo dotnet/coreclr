@@ -72,6 +72,10 @@ SET_DEFAULT_DEBUG_CHANNEL(PROCESS); // some headers have code with asserts, so d
 #include <kvm.h>
 #endif
 
+#ifdef HAVE_SYS_MEMBARRIER
+#include <linux/membarrier.h>
+#endif
+
 extern char *g_szCoreCLRPath;
 
 using namespace CorUnix;
@@ -3035,6 +3039,11 @@ Return
 BOOL 
 InitializeFlushProcessWriteBuffers()
 {
+#if HAVE_SYS_MEMBARRIER && defined(_ARM64_)
+    int status = syscall(__NR_membarrier, MEMBARRIER_CMD_QUERY, 0);
+
+    return (status >= 0) && (status & MEMBARRIER_CMD_SHARED);
+#else
     _ASSERTE(s_helperPage == 0);
 
     s_helperPage = static_cast<int*>(mmap(0, GetVirtualPageSize(), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
@@ -3064,6 +3073,7 @@ InitializeFlushProcessWriteBuffers()
     }
 
     return status == 0;
+#endif
 }
 
 #define FATAL_ASSERT(e, msg) \
@@ -3087,6 +3097,11 @@ VOID
 PALAPI 
 FlushProcessWriteBuffers()
 {   
+#if HAVE_SYS_MEMBARRIER && defined(_ARM64_)
+    int status = syscall(__NR_membarrier, MEMBARRIER_CMD_SHARED, 0);
+
+    FATAL_ASSERT(status == 0, "syscall(__NR_membarrier, MEMBARRIER_CMD_SHARED, 0) nonzero result");
+#else
     int status = pthread_mutex_lock(&flushProcessWriteBuffersMutex);
     FATAL_ASSERT(status == 0, "Failed to lock the flushProcessWriteBuffersMutex lock");
 
@@ -3105,6 +3120,7 @@ FlushProcessWriteBuffers()
 
     status = pthread_mutex_unlock(&flushProcessWriteBuffersMutex);
     FATAL_ASSERT(status == 0, "Failed to unlock the flushProcessWriteBuffersMutex lock");
+#endif
 }
 
 /*++
