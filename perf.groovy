@@ -366,10 +366,32 @@ parallel(
 
 } // isPR
 
+def static getFullThroughputJobName(def os) {
+    return "perf_throughput_${os}"
+}
+
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
 [true, false].each { isPR ->
-    ['Ubuntu14.04'].each { os ->
-        def newJob = job(Utilities.getFullJobName(project, "perf_throughput_${os}", isPR)) {
+    def fullBuildJobName = Utilities.getFullJobName(project, 'perf_throughput_linux_build', isPR)
+    def architecture = 'x64'
+    def configuration = 'Release'
+
+    // Build has to happen on RHEL7.2 (that's where we produce the bits we ship)
+    ['RHEL7.2'].each { os ->
+        def newBuildJob = job(fullBuildJobName) {
+            steps {
+                shell("./build.sh ${architecture} ${configuration}")
+            }
+        }
+        Utilities.setMachineAffinity(newBuildJob, os, 'latest-or-auto')
+        Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
+        Utilities.addArchival(newBuildJob, "bin/Product/**")
+    }
+
+    // Actual perf testing on the following OSes
+    def throughputOSList = ['Ubuntu14.04']
+    throughputOSList.each { os ->
+        def newJob = job(Utilities.getFullJobName(project, getFullThroughputJobName(os), isPR)) {
 
             label('linux_clr_perf')
                 wrappers {
@@ -386,15 +408,18 @@ parallel(
                 }
             }
             def osGroup = getOSGroup(os)
-            def architecture = 'x64'
-            def configuration = 'Release'
             def runType = isPR ? 'private' : 'rolling'
             def benchViewName = isPR ? 'coreclr private \$BenchviewCommitName' : 'coreclr rolling \$GIT_BRANCH_WITHOUT_ORIGIN \$GIT_COMMIT'
 
             steps {
                 shell("bash ./tests/scripts/perf-prep.sh --throughput")
                 shell("./init-tools.sh")
-                shell("./build.sh ${architecture} ${configuration}")
+                copyArtifacts(fullBuildJobName) {
+                    includePatterns("bin/Product/**")
+                    buildSelector {
+                        latestSuccessful(true)
+                    }
+                }
                 shell("GIT_BRANCH_WITHOUT_ORIGIN=\$(echo \$GIT_BRANCH | sed \"s/[^/]*\\/\\(.*\\)/\\1 /\")\n" +
                 "python3.5 \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools/submission-metadata.py\" --name \" ${benchViewName} \" --user \"dotnet-bot@microsoft.com\"\n" +
                 "python3.5 \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools/build.py\" git --branch \$GIT_BRANCH_WITHOUT_ORIGIN --type ${runType}")
@@ -427,20 +452,40 @@ parallel(
                 numToKeep(1000)
             }
         }
-        if (isPR) {
-            TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
-            builder.setGithubContext("${os} Throughput Perf Tests")
-            builder.triggerOnlyOnComment()
-            builder.setCustomTriggerPhrase("(?i).*test\\W+${os}\\W+throughput.*")
-            builder.triggerForBranch(branch)
-            builder.emitTrigger(newJob)
-        }
-        else {
-            // Set a push trigger
-            TriggerBuilder builder = TriggerBuilder.triggerOnCommit()
-            builder.emitTrigger(newJob)
-        }
     } // os
+
+    def flowJobTPRunList = throughputOSList.collect { os ->
+        "{ build(params, '${getFullThroughputJobName(os)}') }"
+    }
+    def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_throughput_linux_flow", isPR, '')) {
+        buildFlow("""
+// First, build the bits on RHEL7.2
+build(params, '${fullBuildJobName}')
+
+// Then, run the perf tests
+parallel(
+    ${flowJobTPRunList.join(",\n    ")}
+)
+""")
+    }
+
+    Utilities.setMachineAffinity(newFlowJob, 'Windows_NT', 'latest-or-auto')
+    Utilities.standardJobSetup(newFlowJob, project, isPR, "*/${branch}")
+
+    if (isPR) {
+        TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
+        builder.setGithubContext("Linux Throughput Perf Test Flow")
+        builder.triggerOnlyOnComment()
+        builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+throughput\\W+flow.*")
+        builder.triggerForBranch(branch)
+        builder.emitTrigger(newFlowJob)
+    }
+    else {
+        // Set a push trigger
+        TriggerBuilder builder = TriggerBuilder.triggerOnCommit()
+        builder.emitTrigger(newFlowJob)
+    }
+
 } // isPR
 
 // Setup ILLink tests
