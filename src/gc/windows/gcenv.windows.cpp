@@ -11,6 +11,7 @@
 #include "env/gcenv.structs.h"
 #include "env/gcenv.base.h"
 #include "env/gcenv.os.h"
+#include "env/gcenv.windows.inl"
 
 GCSystemInfo g_SystemInfo;
 
@@ -138,6 +139,8 @@ bool GCToOSInterface::Initialize()
     g_SystemInfo.dwNumberOfProcessors = systemInfo.dwNumberOfProcessors;
     g_SystemInfo.dwPageSize = systemInfo.dwPageSize;
     g_SystemInfo.dwAllocationGranularity = systemInfo.dwAllocationGranularity;
+
+    assert(systemInfo.dwPageSize == 0x1000);
 
     return true;
 }
@@ -601,6 +604,15 @@ bool GCToOSInterface::CreateThread(GCThreadFunction function, void* param, GCThr
     CloseHandle(gc_thread);
 
     return true;
+}
+
+// Gets the total number of processors on the machine, not taking
+// into account current process affinity.
+// Return:
+//  Number of processors on the machine
+uint32_t GCToOSInterface::GetTotalProcessorCount()
+{
+    return g_SystemInfo.dwNumberOfProcessors;
 }
 
 // Initialize the critical section

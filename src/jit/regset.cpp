@@ -842,7 +842,7 @@ void RegSet::rsMarkRegUsed(GenTreePtr tree, GenTreePtr addr)
     /* The value must be sitting in a register */
 
     assert(tree);
-    assert(tree->gtFlags & GTF_REG_VAL);
+    assert(tree->InReg());
 
     type   = tree->TypeGet();
     regNum = tree->gtRegNum;
@@ -979,7 +979,7 @@ void RegSet::rsMarkRegPairUsed(GenTreePtr tree)
 #else
     assert(tree->gtType == TYP_LONG || tree->gtType == TYP_DOUBLE);
 #endif
-    assert(tree->gtFlags & GTF_REG_VAL);
+    assert(tree->InReg());
 
     regPair = tree->gtRegPair;
     regMask = genRegPairMask(regPair);
@@ -1600,11 +1600,10 @@ void RegSet::rsSpillTree(regNumber reg, GenTreePtr tree, unsigned regIdx /* =0 *
     }
     else
     {
-        assert(tree->gtFlags & GTF_REG_VAL);
+        assert(tree->InReg());
         assert(tree->gtRegNum == reg);
     }
 #else
-    assert(tree->InReg());
     assert(tree->gtRegNum == reg || (call != nullptr && call->GetRegNumByIdx(regIdx) == reg));
 #endif // CPU_LONG_USES_REGPAIR
 
@@ -2429,7 +2428,9 @@ void RegSet::rsUnspillReg(GenTreePtr tree, regMaskTP needReg, KeepReg keepReg)
 
 void RegSet::rsMarkSpill(GenTreePtr tree, regNumber reg)
 {
-    tree->gtFlags &= ~GTF_REG_VAL;
+#ifdef LEGACY_BACKEND
+    tree->SetInReg(false);
+#endif
     tree->gtFlags |= GTF_SPILLED;
 }
 
@@ -2441,9 +2442,9 @@ void RegSet::rsMarkUnspill(GenTreePtr tree, regNumber reg)
     assert(tree->gtType != TYP_LONG);
 #endif // _TARGET_AMD64_
 
-    tree->gtFlags |= GTF_REG_VAL;
     tree->gtFlags &= ~GTF_SPILLED;
     tree->gtRegNum = reg;
+    tree->SetInReg();
 }
 
 /*****************************************************************************
@@ -2684,7 +2685,7 @@ void RegSet::rsUnspillRegPair(GenTreePtr tree, regMaskTP needReg, KeepReg keepRe
 
     /* The value is now residing in the new register */
 
-    tree->gtFlags |= GTF_REG_VAL;
+    tree->SetInReg();
     tree->gtFlags &= ~GTF_SPILLED;
     tree->gtRegPair = gen2regs2pair(regLo, regHi);
 
@@ -3320,6 +3321,15 @@ void Compiler::tmpPreAllocateTemps(var_types type, unsigned count)
         tmpCount++;
         tmpSize += size;
 
+#ifdef _TARGET_ARM_
+        if (type == TYP_DOUBLE)
+        {
+            // Adjust tmpSize to accommodate possible alignment padding.
+            // Note that at this point the offsets aren't yet finalized, so we don't yet know if it will be required.
+            tmpSize += TARGET_POINTER_SIZE;
+        }
+#endif // _TARGET_ARM_
+
         TempDsc* temp = new (this, CMK_Unknown) TempDsc(-((int)tmpCount), size, type);
 
 #ifdef DEBUG
@@ -3561,52 +3571,36 @@ bool genIsProperRegPair(regPairNo regPair)
 
 regNumber genRegArgNext(regNumber argReg)
 {
-    regNumber result = REG_NA;
+    assert(isValidIntArgReg(argReg) || isValidFloatArgReg(argReg));
 
-    if (isValidFloatArgReg(argReg))
+    switch (argReg)
     {
-        // We can iterate the floating point argument registers by using +1
-        result = REG_NEXT(argReg);
-    }
-    else
-    {
-        assert(isValidIntArgReg(argReg));
 
 #ifdef _TARGET_AMD64_
 #ifdef UNIX_AMD64_ABI
-        // Windows X64 ABI:
-        //     REG_EDI, REG_ESI, REG_ECX, REG_EDX, REG_R8, REG_R9
-        //
-        if (argReg == REG_ARG_1) // REG_ESI
-        {
-            result = REG_ARG_2; // REG_ECX
-        }
-        else if (argReg == REG_ARG_3) // REG_EDX
-        {
-            result = REG_ARG_4; // REG_R8
-        }
-#else  // Windows ABI
-        // Windows X64 ABI:
-        //     REG_ECX, REG_EDX, REG_R8, REG_R9
-        //
-        if (argReg == REG_ARG_1) // REG_EDX
-        {
-            result = REG_ARG_2; // REG_R8
-        }
-#endif // UNIX or Windows ABI
+
+        // Linux x64 ABI: REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9
+        case REG_ARG_0:       // REG_RDI
+            return REG_ARG_1; // REG_RSI
+        case REG_ARG_1:       // REG_RSI
+            return REG_ARG_2; // REG_RDX
+        case REG_ARG_2:       // REG_RDX
+            return REG_ARG_3; // REG_RCX
+        case REG_ARG_3:       // REG_RCX
+            return REG_ARG_4; // REG_R8
+
+#else // !UNIX_AMD64_ABI
+
+        // Windows x64 ABI: REG_RCX, REG_RDX, REG_R8, REG_R9
+        case REG_ARG_1:       // REG_RDX
+            return REG_ARG_2; // REG_R8
+
+#endif // !UNIX_AMD64_ABI
 #endif // _TARGET_AMD64_
 
-        // If we didn't set 'result' to valid register above
-        // then we will just iterate 'argReg' using REG_NEXT
-        //
-        if (result == REG_NA)
-        {
-            // Otherwise we just iterate the argument registers by using REG_NEXT
-            result = REG_NEXT(argReg);
-        }
+        default:
+            return REG_NEXT(argReg);
     }
-
-    return result;
 }
 
 /*****************************************************************************

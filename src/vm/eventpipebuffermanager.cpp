@@ -217,7 +217,7 @@ void EventPipeBufferManager::DeAllocateBuffer(EventPipeBuffer *pBuffer)
     }
 }
 
-bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int length, Thread *pEventThread, StackContents *pStack)
+bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId, Thread *pEventThread, StackContents *pStack)
 {
     CONTRACTL
     {
@@ -276,14 +276,19 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
         else
         {
             // Attempt to write the event to the buffer.  If this fails, we should allocate a new buffer.
-            allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pData, length, pStack);
+            allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pData, length, pActivityId, pRelatedActivityId, pStack);
         }
     }
 
     // Check to see if we need to allocate a new buffer, and if so, do it here.
     if(allocNewBuffer)
     {
-        GCX_PREEMP();
+        // We previously switched to preemptive mode here, however, this is not safe and can cause deadlocks.
+        // When a GC is started, and background threads are created (for the first BGC), a thread creation event is fired.
+        // When control gets here the buffer is allocated, but then the thread hangs waiting for the GC to complete
+        // (it was marked as started before creating threads) so that it can switch back to cooperative mode.
+        // However, the GC is waiting on this call to return so that it can make forward progress.  Thus it is not safe
+        // to switch to preemptive mode here.
 
         unsigned int requestSize = sizeof(EventPipeEventInstance) + length;
         pBuffer = AllocateBufferForThread(pThread, requestSize);
@@ -294,7 +299,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
     // This is the second time if this thread did have one or more buffers, but they were full.
     if(allocNewBuffer && pBuffer != NULL)
     {
-        allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pData, length, pStack);
+        allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pData, length, pActivityId, pRelatedActivityId, pStack);
     }
 
     // Mark that the thread is no longer writing an event.

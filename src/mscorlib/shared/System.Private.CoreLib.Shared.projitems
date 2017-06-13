@@ -182,7 +182,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Progress.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Random.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\RankException.cs"/>
-    <Compile Include="$(MSBuildThisFileDirectory)System\ReadOnlySpan.cs" Condition="'$(IsProjectNLibrary)' != 'true'"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\ReadOnlySpan.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\AmbiguousMatchException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\Assembly.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\AssemblyAlgorithmIdAttribute.cs" />
@@ -229,7 +229,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\ManifestResourceInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MemberFilter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MemberInfo.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MemberInfoSerializationHolder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MemberTypes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MethodAttributes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MethodBase.cs" />
@@ -356,8 +355,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\SuppressUnmanagedCodeSecurityAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\UnverifiableCodeAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\VerificationException.cs"/>
-    <Compile Include="$(MSBuildThisFileDirectory)System\Span.cs" Condition="'$(IsProjectNLibrary)' != 'true'"/>
-    <Compile Include="$(MSBuildThisFileDirectory)System\Span.NonGeneric.cs" Condition="'$(IsProjectNLibrary)' != 'true'"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Span.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Span.NonGeneric.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\StackOverflowException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\StringComparer.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\StringComparison.cs"/>
@@ -416,7 +415,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\UnauthorizedAccessException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\UnhandledExceptionEventArgs.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\UnhandledExceptionEventHandler.cs"/>
-    <Compile Include="$(MSBuildThisFileDirectory)System\UnitySerializationHolder.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\ValueTuple.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Version.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Void.cs"/>
@@ -479,7 +477,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.FindFirstFileEx.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.FlushFileBuffers.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.FormatMessage.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.FreeEnvironmentStrings.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.GetCPInfo.cs" /> 
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.GetEnvironmentStrings.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.GetFileAttributesEx.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.GetFileInformationByHandleEx.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.GetFileType_SafeHandle.cs"/>
@@ -495,6 +495,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SECURITY_ATTRIBUTES.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SecurityOptions.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SetEndOfFile.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SetEnvironmentVariable.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SetThreadErrorMode.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SetFilePointerEx.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.WideCharToMultiByte.cs"/>
@@ -503,6 +504,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\OleAut32\Interop.SysAllocStringLen.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\OleAut32\Interop.SysFreeString.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\OleAut32\Interop.SysStringLen.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\User32\Interop.Constants.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\User32\Interop.SendMessageTimeout.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Microsoft\Win32\SafeHandles\SafeFileHandle.Windows.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\HijriCalendar.Win32.cs" Condition="'$(IsProjectNLibrary)' != 'true' and '$(EnableDummyGlobalizationImplementation)' != 'true'"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\HijriCalendar.WinRT.cs" Condition="'$(IsProjectNLibrary)' == 'true'"/>

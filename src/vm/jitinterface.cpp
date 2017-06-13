@@ -3085,6 +3085,8 @@ void CEEInfo::ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind entr
     CORINFO_RUNTIME_LOOKUP *pResult = &pResultLookup->runtimeLookup;
     pResult->signature = NULL;
 
+    pResult->indirectFirstOffset = 0;
+
     // Unless we decide otherwise, just do the lookup via a helper function
     pResult->indirections = CORINFO_USEHELPER;
 
@@ -3207,6 +3209,11 @@ void CEEInfo::ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind entr
                 pResult->testForFixup = 0;
 #endif
                 pResult->offsets[0] = offsetof(InstantiatedMethodDesc, m_pPerInstInfo);
+
+                if (decltype(InstantiatedMethodDesc::m_pPerInstInfo)::isRelative)
+                {
+                    pResult->indirectFirstOffset = 1;
+                }
 
                 ULONG data;
                 IfFailThrow(sigptr.GetData(&data));
@@ -3512,6 +3519,11 @@ NoSpecialCase:
 
             // Indirect through dictionary table pointer in InstantiatedMethodDesc
             pResult->offsets[0] = offsetof(InstantiatedMethodDesc, m_pPerInstInfo);
+
+            if (decltype(InstantiatedMethodDesc::m_pPerInstInfo)::isRelative)
+            {
+                pResult->indirectFirstOffset = 1;
+            }
         }
     }
 
@@ -8731,6 +8743,14 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethod(CORINFO_METHOD_HANDLE method
     return result;
 }
 
+void CEEInfo::expandRawHandleIntrinsic(
+    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+    CORINFO_GENERICHANDLE_RESULT *  pResult)
+{
+    LIMITED_METHOD_CONTRACT;
+    UNREACHABLE();      // only called with CoreRT.
+}
+
 /*********************************************************************/
 void CEEInfo::getFunctionEntryPoint(CORINFO_METHOD_HANDLE  ftnHnd,
                                     CORINFO_CONST_LOOKUP * pResult,
@@ -9579,21 +9599,6 @@ BOOL CEEInfo::isCompatibleDelegate(
     return result;
 }
 
-// Determines whether the delegate creation obeys security transparency rules
-BOOL CEEInfo::isDelegateCreationAllowed (
-        CORINFO_CLASS_HANDLE        delegateHnd,
-        CORINFO_METHOD_HANDLE       calleeHnd)
-{
-    CONTRACTL {
-        SO_TOLERANT;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-    } CONTRACTL_END;
-
-    return TRUE;
-}
-
 /*********************************************************************/
     // return the unmanaged target *if method has already been prelinked.*
 void* CEEInfo::getPInvokeUnmanagedTarget(CORINFO_METHOD_HANDLE method,
@@ -9762,7 +9767,7 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
 
     pEEInfoOut->sizeOfReversePInvokeFrame  = (DWORD)-1;
 
-    pEEInfoOut->osPageSize = OS_PAGE_SIZE;
+    pEEInfoOut->osPageSize = GetOsPageSize();
     pEEInfoOut->maxUncheckedOffsetForNullObject = MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT;
     pEEInfoOut->targetAbi = CORINFO_CORECLR_ABI;
 
@@ -9848,29 +9853,6 @@ const void * CEEInfo::getInlinedCallFrameVptr(void **ppIndirection)
 #else
     result = (void*)0x43210;
 #endif
-
-    EE_TO_JIT_TRANSITION_LEAF();
-
-    return result;
-}
-
-
-SIZE_T * CEEInfo::getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module)
-{
-    CONTRACTL {
-        SO_TOLERANT;
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-    } CONTRACTL_END;
-
-    SIZE_T * result = NULL;
-
-    JIT_TO_EE_TRANSITION_LEAF();
-
-    Module* pModule = GetModule(module);
-
-    result = pModule->GetAddrModuleID();
 
     EE_TO_JIT_TRANSITION_LEAF();
 

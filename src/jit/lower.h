@@ -237,7 +237,7 @@ private:
     // Per tree node member functions
     void LowerStoreInd(GenTree* node);
     GenTree* LowerAdd(GenTree* node);
-    void LowerUnsignedDivOrMod(GenTree* node);
+    GenTree* LowerUnsignedDivOrMod(GenTreeOp* divMod);
     GenTree* LowerSignedDivOrMod(GenTree* node);
     void LowerBlockStore(GenTreeBlk* blkNode);
 
@@ -277,6 +277,9 @@ private:
     //  by the 'parentNode' (i.e. folded into an instruction)
     //  for example small enough and non-relocatable
     bool IsContainableImmed(GenTree* parentNode, GenTree* childNode);
+
+    // Return true if 'node' is a containable memory op.
+    bool IsContainableMemoryOp(GenTree* node);
 
     // Makes 'childNode' contained in the 'parentNode'
     void MakeSrcContained(GenTreePtr parentNode, GenTreePtr childNode);

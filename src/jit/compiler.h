@@ -1131,14 +1131,13 @@ public:
 #endif // FEATURE_JIT_METHOD_PERF
 
 //------------------- Function/Funclet info -------------------------------
-DECLARE_TYPED_ENUM(FuncKind, BYTE)
+enum FuncKind : BYTE
 {
-    FUNC_ROOT,        // The main/root function (always id==0)
-        FUNC_HANDLER, // a funclet associated with an EH handler (finally, fault, catch, filter handler)
-        FUNC_FILTER,  // a funclet associated with an EH filter
-        FUNC_COUNT
-}
-END_DECLARE_TYPED_ENUM(FuncKind, BYTE)
+    FUNC_ROOT,    // The main/root function (always id==0)
+    FUNC_HANDLER, // a funclet associated with an EH handler (finally, fault, catch, filter handler)
+    FUNC_FILTER,  // a funclet associated with an EH filter
+    FUNC_COUNT
+};
 
 class emitLocation;
 
@@ -3753,20 +3752,20 @@ public:
 
     void fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call);
 
-    bool fgComputeLifeLocal(VARSET_TP& life, VARSET_TP& keepAliveVars, GenTree* lclVarNode, GenTree* node);
+    bool fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode, GenTree* node);
 
-    VARSET_VALRET_TP fgComputeLife(VARSET_VALARG_TP life,
-                                   GenTreePtr       startNode,
-                                   GenTreePtr       endNode,
-                                   VARSET_VALARG_TP volatileVars,
-                                   bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
+    void fgComputeLife(VARSET_TP&       life,
+                       GenTreePtr       startNode,
+                       GenTreePtr       endNode,
+                       VARSET_VALARG_TP volatileVars,
+                       bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
 
-    VARSET_VALRET_TP fgComputeLifeLIR(VARSET_VALARG_TP life, BasicBlock* block, VARSET_VALARG_TP volatileVars);
+    void fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars);
 
-    bool fgRemoveDeadStore(GenTree**  pTree,
-                           LclVarDsc* varDsc,
-                           VARSET_TP  life,
-                           bool*      doAgain,
+    bool fgRemoveDeadStore(GenTree**        pTree,
+                           LclVarDsc*       varDsc,
+                           VARSET_VALARG_TP life,
+                           bool*            doAgain,
                            bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
 
     bool fgTryRemoveDeadLIRStore(LIR::Range& blockRange, GenTree* node, GenTree** next);
@@ -3782,7 +3781,7 @@ public:
 
     VARSET_VALRET_TP fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTreePtr tree, GenTreePtr endTree)
     {
-        VARSET_TP VARSET_INIT(this, newLiveSet, liveSet);
+        VARSET_TP newLiveSet(VarSetOps::MakeCopy(this, liveSet));
         while (tree != nullptr && tree != endTree->gtNext)
         {
             VarSetOps::AssignNoCopy(this, newLiveSet, fgUpdateLiveSet(newLiveSet, tree));
@@ -6633,6 +6632,79 @@ public:
         return 3 * eeGetPageSize();
 #endif
     }
+
+    //------------------------------------------------------------------------
+    // VirtualStubParam: virtual stub dispatch extra parameter (slot address).
+    //
+    // It represents Abi and target specific registers for the parameter.
+    //
+    class VirtualStubParamInfo
+    {
+    public:
+        VirtualStubParamInfo(bool isCoreRTABI)
+        {
+#if defined(_TARGET_X86_)
+            reg     = REG_EAX;
+            regMask = RBM_EAX;
+#elif defined(_TARGET_AMD64_)
+            if (isCoreRTABI)
+            {
+                reg     = REG_R10;
+                regMask = RBM_R10;
+            }
+            else
+            {
+                reg     = REG_R11;
+                regMask = RBM_R11;
+            }
+#elif defined(_TARGET_ARM_)
+            reg     = REG_R4;
+            regMask = RBM_R4;
+#elif defined(_TARGET_ARM64_)
+            reg     = REG_R11;
+            regMask = RBM_R11;
+#else
+#error Unsupported or unset target architecture
+#endif
+
+#ifdef LEGACY_BACKEND
+#if defined(_TARGET_X86_)
+            predict = PREDICT_REG_EAX;
+#elif defined(_TARGET_ARM_)
+            predict = PREDICT_REG_R4;
+#else
+#error Unsupported or unset target architecture
+#endif
+#endif // LEGACY_BACKEND
+        }
+
+        regNumber GetReg() const
+        {
+            return reg;
+        }
+
+        _regMask_enum GetRegMask() const
+        {
+            return regMask;
+        }
+
+#ifdef LEGACY_BACKEND
+        rpPredictReg GetPredict() const
+        {
+            return predict;
+        }
+#endif
+
+    private:
+        regNumber     reg;
+        _regMask_enum regMask;
+
+#ifdef LEGACY_BACKEND
+        rpPredictReg predict;
+#endif
+    };
+
+    VirtualStubParamInfo* virtualStubParamInfo;
 
     inline bool IsTargetAbi(CORINFO_RUNTIME_ABI abi)
     {

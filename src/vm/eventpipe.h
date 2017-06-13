@@ -170,7 +170,7 @@ class EventPipe
         // Enable tracing via the event pipe.
         static void Enable(
             LPCWSTR strOutputPath,
-            uint circularBufferSizeInMB,
+            unsigned int circularBufferSizeInMB,
             EventPipeProviderConfiguration *pProviders,
             int numProviders);
 
@@ -188,7 +188,7 @@ class EventPipe
 
         // Write out an event.
         // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length);
+        static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
         // Write out a sample profile event.
         static void WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData = NULL, unsigned int length = 0);
@@ -305,7 +305,8 @@ public:
         INT_PTR eventHandle,
         unsigned int eventID,
         void *pData,
-        unsigned int length);
+        unsigned int length,
+        LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 };
 
 #endif // FEATURE_PERFTRACING

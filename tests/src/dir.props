@@ -18,11 +18,11 @@
 
   <!-- Expose the target OS in a more convenient fashion -->
   <PropertyGroup>
-    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('Windows'))">Windows_NT</OSGroup>
-    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('Linux'))">Linux</OSGroup>
-    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('OSX'))">OSX</OSGroup>
-    <OSGroup Condition="'$(OSGroup)'=='' and $(Configuration.StartsWith('FreeBSD'))">FreeBSD</OSGroup>
-    <OSGroup Condition="'$(OSGroup)'==''">Windows_NT</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(OSPlatformConfig.StartsWith('Windows'))">Windows_NT</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(OSPlatformConfig.StartsWith('Linux'))">Linux</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(OSPlatformConfig.StartsWith('OSX'))">OSX</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(OSPlatformConfig.StartsWith('FreeBSD'))">FreeBSD</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'==''">AnyOS</OSGroup>
   </PropertyGroup>
 
   <!-- Setup properties per OSGroup -->
@@ -34,28 +34,28 @@
     <When Condition="'$(OSGroup)'=='Windows_NT'">
       <PropertyGroup>
         <TargetsWindows>true</TargetsWindows>
-        <TestNugetRuntimeId>win7-x64</TestNugetRuntimeId>
+        <TestNugetRuntimeId>win7-$(__BuildArch)</TestNugetRuntimeId>
       </PropertyGroup>
     </When>
     <When Condition="'$(OSGroup)'=='Linux'">
       <PropertyGroup>
         <TargetsUnix>true</TargetsUnix>
         <TargetsLinux>true</TargetsLinux>
-        <TestNugetRuntimeId>ubuntu.14.04-x64</TestNugetRuntimeId>
+        <TestNugetRuntimeId>ubuntu.14.04-$(__BuildArch)</TestNugetRuntimeId>
       </PropertyGroup>
     </When>
     <When Condition="'$(OSGroup)'=='OSX'">
       <PropertyGroup>
         <TargetsUnix>true</TargetsUnix>
         <TargetsOSX>true</TargetsOSX>
-        <TestNugetRuntimeId>osx.10.12-x64</TestNugetRuntimeId>
+        <TestNugetRuntimeId>osx.10.12-$(__BuildArch)</TestNugetRuntimeId>
       </PropertyGroup>
     </When>
     <When Condition="'$(OSGroup)'=='FreeBSD'">
       <PropertyGroup>
         <TargetsUnix>true</TargetsUnix>
         <TargetsFreeBSD>true</TargetsFreeBSD>
-        <TestNugetRuntimeId>ubuntu.14.04-x64</TestNugetRuntimeId>
+        <TestNugetRuntimeId>ubuntu.14.04-$(__BuildArch)</TestNugetRuntimeId>
       </PropertyGroup>
     </When>
     <Otherwise>
@@ -94,4 +94,5 @@
     <NuGetTargetMonikerShort>netcoreapp2.0</NuGetTargetMonikerShort>
     <PrereleaseResolveNuGetPackages>true</PrereleaseResolveNuGetPackages>
   </PropertyGroup>
+
 </Project>

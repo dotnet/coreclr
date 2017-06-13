@@ -18,6 +18,7 @@
 #include "sigparser.h"
 #include "cor.h"
 #include "corinfo.h"
+#include "volatile.h"
 
 
 const char g_RTMVersion[]= "v1.0.3705";
@@ -437,7 +438,7 @@ void InitCodeAllocHint(SIZE_T base, SIZE_T size, int randomPageOffset)
     }
 
     // Randomize the adddress space
-    pStart += PAGE_SIZE * randomPageOffset;
+    pStart += GetOsPageSize() * randomPageOffset;
 
     s_CodeAllocStart = pStart;
     s_CodeAllocHint = pStart;
@@ -550,6 +551,8 @@ LPVOID ClrVirtualAllocAligned(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocatio
     return ClrVirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
 
 #else // !FEATURE_PAL
+
+    if(alignment < GetOsPageSize()) alignment = GetOsPageSize();
 
     // UNIXTODO: Add a specialized function to PAL so that we don't have to waste memory
     dwSize += alignment;
@@ -1251,9 +1254,6 @@ found:
 //******************************************************************************
 // Returns the number of processors that a process has been configured to run on
 //******************************************************************************
-//******************************************************************************
-// Returns the number of processors that a process has been configured to run on
-//******************************************************************************
 int GetCurrentProcessCpuCount()
 {
     CONTRACTL
@@ -1269,27 +1269,20 @@ int GetCurrentProcessCpuCount()
     if (cCPUs != 0)
         return cCPUs;
 
-#ifndef FEATURE_PAL
-
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
         return 1;
 
-    if (pmask == 1)
-        return 1;
-
     pmask &= smask;
-        
+
     int count = 0;
     while (pmask)
     {
-        if (pmask & 1)
-            count++;
-                
-        pmask >>= 1;
+        pmask &= (pmask - 1);
+        count++;
     }
-        
+
     // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
     // than 64 processors, which would leave us with a count of 0.  Since the GC
     // expects there to be at least one processor to run on (and thus at least one
@@ -1303,15 +1296,6 @@ int GetCurrentProcessCpuCount()
     cCPUs = count;
             
     return count;
-
-#else // !FEATURE_PAL
-
-    SYSTEM_INFO sysInfo;
-    ::GetSystemInfo(&sysInfo);
-    cCPUs = sysInfo.dwNumberOfProcessors;
-    return sysInfo.dwNumberOfProcessors;
-
-#endif // !FEATURE_PAL
 }
 
 DWORD_PTR GetCurrentProcessCpuMask()
@@ -1334,6 +1318,36 @@ DWORD_PTR GetCurrentProcessCpuMask()
     return pmask;
 #else
     return 0;
+#endif
+}
+
+uint32_t GetOsPageSizeUncached()
+{
+    SYSTEM_INFO sysInfo;
+    ::GetSystemInfo(&sysInfo);
+    return sysInfo.dwAllocationGranularity ? sysInfo.dwAllocationGranularity : 0x1000;
+}
+
+namespace
+{
+    Volatile<uint32_t> g_pageSize = 0;
+}
+
+uint32_t GetOsPageSize()
+{
+#ifdef FEATURE_PAL
+    size_t result = g_pageSize.LoadWithoutBarrier();
+
+    if(!result)
+    {
+        result = GetOsPageSizeUncached();
+
+        g_pageSize.StoreWithoutBarrier(result);
+    }
+
+    return result;
+#else
+    return 0x1000;
 #endif
 }
 

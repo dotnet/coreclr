@@ -43,6 +43,7 @@ void Lowering::MakeSrcContained(GenTreePtr parentNode, GenTreePtr childNode)
 {
     assert(!parentNode->OperIsLeaf());
     assert(childNode->canBeContained());
+    childNode->SetContained();
 
     int srcCount = childNode->gtLsraInfo.srcCount;
     assert(srcCount >= 0);
@@ -104,6 +105,26 @@ bool Lowering::IsSafeToContainMem(GenTree* parentNode, GenTree* childNode)
 }
 
 //------------------------------------------------------------------------
+// IsContainableMemoryOp: Checks whether this is a memory op that can be contained.
+//
+// Arguments:
+//    node - the node of interest.
+//
+// Notes:
+//    This differs from the isMemoryOp() method on GenTree because it checks for
+//    the case of an untracked local. Note that this won't include locals that
+//    for some reason do not become register candidates, nor those that get
+//    spilled.
+//
+// Return value:
+//    True if this will definitely be a memory reference that could be contained.
+//
+bool Lowering::IsContainableMemoryOp(GenTree* node)
+{
+    return node->isMemoryOp() || (node->IsLocal() && !comp->lvaTable[node->AsLclVar()->gtLclNum].lvTracked);
+}
+
+//------------------------------------------------------------------------
 
 // This is the main entry point for Lowering.
 GenTree* Lowering::LowerNode(GenTree* node)
@@ -124,7 +145,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_UDIV:
         case GT_UMOD:
-            LowerUnsignedDivOrMod(node);
+            return LowerUnsignedDivOrMod(node->AsOp());
             break;
 
         case GT_DIV:
@@ -1019,20 +1040,6 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
 #endif // FEATURE_PUT_STRUCT_ARG_STK
     }
 
-    if (arg->InReg())
-    {
-        putArg->SetInReg();
-    }
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    else if (info->isStruct)
-    {
-        if (info->structDesc.passedInRegisters)
-        {
-            putArg->SetInReg();
-        }
-    }
-#endif
-
     JITDUMP("new node is : ");
     DISPNODE(putArg);
     JITDUMP("\n");
@@ -1167,10 +1174,10 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 #endif // !defined(_TARGET_64BIT_)
     {
 
-#ifdef _TARGET_ARM64_
+#ifdef _TARGET_ARMARCH_
         // For vararg call, reg args should be all integer.
         // Insert a copy to move float value to integer register.
-        if (call->IsVarargs() && varTypeIsFloating(type))
+        if ((call->IsVarargs() || comp->opts.compUseSoftFP) && varTypeIsFloating(type))
         {
             var_types  intType = (type == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
             GenTreePtr intArg  = comp->gtNewOperNode(GT_COPY, intType, arg);
@@ -1731,14 +1738,14 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                     {
                         tmpLclNum = comp->lvaGrabTemp(
                             true DEBUGARG("Fast tail call lowering is creating a new local variable"));
-                        comp->lvaSortAgain                 = true;
-                        tmpType                            = genActualType(callerArgDsc->lvaArgType());
-                        comp->lvaTable[tmpLclNum].lvType   = tmpType;
-                        comp->lvaTable[tmpLclNum].lvRefCnt = 1;
+                        comp->lvaSortAgain                          = true;
+                        tmpType                                     = genActualType(callerArgDsc->lvaArgType());
+                        comp->lvaTable[tmpLclNum].lvType            = tmpType;
+                        comp->lvaTable[tmpLclNum].lvRefCnt          = 1;
+                        comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->gtLclNum].lvDoNotEnregister;
                     }
 
                     lcl->SetLclNum(tmpLclNum);
-                    lcl->SetOper(GT_LCL_VAR);
                 }
             }
         }
@@ -2009,8 +2016,6 @@ void Lowering::LowerCompare(GenTree* cmp)
 #ifndef _TARGET_64BIT_
     if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
     {
-// TODO-ARM: This code should be enabled for ARM32 once support for GT_CMP and GT_SETCC is added.
-#if _TARGET_X86_
         // Currently this handles only relops that produce a value or aren't used.
         // The same approach can be used for relops that feed a GT_JTRUE, see the #if 0
         // below and its associated comment.
@@ -2139,7 +2144,6 @@ void Lowering::LowerCompare(GenTree* cmp)
 
             return;
         }
-#endif
 
         // For 32-bit targets any comparison that feeds a `GT_JTRUE` node must be lowered such that
         // the liveness of the operands to the comparison is properly visible to the rest of the
@@ -2427,7 +2431,7 @@ void Lowering::LowerCompare(GenTree* cmp)
         GenTreeIntCon* op2      = cmp->gtGetOp2()->AsIntCon();
         ssize_t        op2Value = op2->IconValue();
 
-        if (op1->isMemoryOp() && varTypeIsSmall(op1Type) && genTypeCanRepresentValue(op1Type, op2Value))
+        if (IsContainableMemoryOp(op1) && varTypeIsSmall(op1Type) && genTypeCanRepresentValue(op1Type, op2Value))
         {
             //
             // If op1's type is small then try to narrow op2 so it has the same type as op1.
@@ -2457,7 +2461,7 @@ void Lowering::LowerCompare(GenTree* cmp)
                 // the result of bool returning calls.
                 //
 
-                if (castOp->OperIs(GT_CALL, GT_LCL_VAR) || castOp->OperIsLogical() || castOp->isMemoryOp())
+                if (castOp->OperIs(GT_CALL, GT_LCL_VAR) || castOp->OperIsLogical() || IsContainableMemoryOp(castOp))
                 {
                     assert(!castOp->gtOverflowEx()); // Must not be an overflow checking operation
 
@@ -2502,7 +2506,7 @@ void Lowering::LowerCompare(GenTree* cmp)
                 cmp->gtOp.gtOp1 = andOp1;
                 cmp->gtOp.gtOp2 = andOp2;
 
-                if (andOp1->isMemoryOp() && andOp2->IsIntegralConst())
+                if (IsContainableMemoryOp(andOp1) && andOp2->IsIntegralConst())
                 {
                     //
                     // For "test" we only care about the bits that are set in the second operand (mask).
@@ -3561,8 +3565,11 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
                                                   &vtabOffsAfterIndirection);
 
     // Get the appropriate vtable chunk
-    // result = [REG_CALL_IND_SCRATCH + vtabOffsOfIndirection]
-    result = Ind(Offset(result, vtabOffsOfIndirection));
+    if (vtabOffsOfIndirection != CORINFO_VIRTUALCALL_NO_CHUNK)
+    {
+        // result = [REG_CALL_IND_SCRATCH + vtabOffsOfIndirection]
+        result = Ind(Offset(result, vtabOffsOfIndirection));
+    }
 
     // Load the function address
     // result = [reg+vtabOffs]
@@ -3617,12 +3624,12 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
         // The importer decided we needed a stub call via a computed
         // stub dispatch address, i.e. an address which came from a dictionary lookup.
         //   - The dictionary lookup produces an indirected address, suitable for call
-        //     via "call [REG_VIRTUAL_STUB_PARAM]"
+        //     via "call [VirtualStubParam.reg]"
         //
         // This combination will only be generated for shared generic code and when
         // stub dispatch is active.
 
-        // fgMorphArgs will have created trees to pass the address in REG_VIRTUAL_STUB_PARAM.
+        // fgMorphArgs will have created trees to pass the address in VirtualStubParam.reg.
         // All we have to do here is add an indirection to generate the actual call target.
 
         GenTree* ind = Ind(call->gtCallAddr);
@@ -3665,7 +3672,7 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
 // So we don't use a register.
 #ifndef _TARGET_X86_
             // on x64 we must materialize the target using specific registers.
-            addr->gtRegNum = REG_VIRTUAL_STUB_PARAM;
+            addr->gtRegNum = comp->virtualStubParamInfo->GetReg();
 
             indir->gtRegNum = REG_JUMP_THUNK_PARAM;
             indir->gtFlags |= GTF_IND_REQ_ADDR_IN_REG;
@@ -3959,131 +3966,199 @@ GenTree* Lowering::LowerAdd(GenTree* node)
 }
 
 //------------------------------------------------------------------------
-// LowerUnsignedDivOrMod: transform GT_UDIV/GT_UMOD nodes with a const power of 2
-// divisor into GT_RSZ/GT_AND nodes.
+// LowerUnsignedDivOrMod: Lowers a GT_UDIV/GT_UMOD node.
 //
 // Arguments:
-//    node - pointer to the GT_UDIV/GT_UMOD node to be lowered
-//
-void Lowering::LowerUnsignedDivOrMod(GenTree* node)
-{
-    assert((node->OperGet() == GT_UDIV) || (node->OperGet() == GT_UMOD));
-
-    GenTree* divisor  = node->gtGetOp2();
-    GenTree* dividend = node->gtGetOp1();
-
-    if (divisor->IsCnsIntOrI()
-#ifdef _TARGET_X86_
-        && (dividend->OperGet() != GT_LONG)
-#endif
-            )
-    {
-        size_t divisorValue = static_cast<size_t>(divisor->gtIntCon.IconValue());
-
-        if (isPow2(divisorValue))
-        {
-            genTreeOps newOper;
-
-            if (node->OperGet() == GT_UDIV)
-            {
-                newOper      = GT_RSZ;
-                divisorValue = genLog2(divisorValue);
-            }
-            else
-            {
-                newOper = GT_AND;
-                divisorValue -= 1;
-            }
-
-            node->SetOper(newOper);
-            divisor->gtIntCon.SetIconValue(divisorValue);
-        }
-    }
-}
-
-//------------------------------------------------------------------------
-// GetSignedMagicNumberForDivide: Generates a magic number and shift amount for
-// the magic number division optimization.
-//
-// Arguments:
-//    denom - The denominator
-//    shift - Pointer to the shift value to be returned
-//
-// Returns:
-//    The magic number.
+//    divMod - pointer to the GT_UDIV/GT_UMOD node to be lowered
 //
 // Notes:
-//    This code is previously from UTC where it notes it was taken from
-//   _The_PowerPC_Compiler_Writer's_Guide_, pages 57-58. The paper is is based on
-//   is "Division by invariant integers using multiplication" by Torbjorn Granlund
-//   and Peter L. Montgomery in PLDI 94
+//    - Transform UDIV/UMOD by power of 2 into RSZ/AND
+//    - Transform UDIV by constant >= 2^(N-1) into GE
+//    - Transform UDIV/UMOD by constant >= 3 into "magic division"
 
-template <typename T>
-T GetSignedMagicNumberForDivide(T denom, int* shift /*out*/)
+GenTree* Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
 {
-    // static SMAG smag;
-    const int bits         = sizeof(T) * 8;
-    const int bits_minus_1 = bits - 1;
+    assert(divMod->OperIs(GT_UDIV, GT_UMOD));
 
-    typedef typename jitstd::make_unsigned<T>::type UT;
+    GenTree* next     = divMod->gtNext;
+    GenTree* dividend = divMod->gtGetOp1();
+    GenTree* divisor  = divMod->gtGetOp2();
 
-    const UT two_nminus1 = UT(1) << bits_minus_1;
-
-    int p;
-    UT  absDenom;
-    UT  absNc;
-    UT  delta;
-    UT  q1;
-    UT  r1;
-    UT  r2;
-    UT  q2;
-    UT  t;
-    T   result_magic;
-    int result_shift;
-    int iters = 0;
-
-    absDenom = abs(denom);
-    t        = two_nminus1 + ((unsigned int)denom >> 31);
-    absNc    = t - 1 - (t % absDenom);        // absolute value of nc
-    p        = bits_minus_1;                  // initialize p
-    q1       = two_nminus1 / absNc;           // initialize q1 = 2^p / abs(nc)
-    r1       = two_nminus1 - (q1 * absNc);    // initialize r1 = rem(2^p, abs(nc))
-    q2       = two_nminus1 / absDenom;        // initialize q1 = 2^p / abs(denom)
-    r2       = two_nminus1 - (q2 * absDenom); // initialize r1 = rem(2^p, abs(denom))
-
-    do
+#if !defined(_TARGET_64BIT_)
+    if (dividend->OperIs(GT_LONG))
     {
-        iters++;
-        p++;
-        q1 *= 2; // update q1 = 2^p / abs(nc)
-        r1 *= 2; // update r1 = rem(2^p / abs(nc))
-
-        if (r1 >= absNc)
-        { // must be unsigned comparison
-            q1++;
-            r1 -= absNc;
-        }
-
-        q2 *= 2; // update q2 = 2^p / abs(denom)
-        r2 *= 2; // update r2 = rem(2^p / abs(denom))
-
-        if (r2 >= absDenom)
-        { // must be unsigned comparison
-            q2++;
-            r2 -= absDenom;
-        }
-
-        delta = absDenom - r2;
-    } while (q1 < delta || (q1 == delta && r1 == 0));
-
-    result_magic = q2 + 1; // resulting magic number
-    if (denom < 0)
-    {
-        result_magic = -result_magic;
+        return next;
     }
-    *shift = p - bits; // resulting shift
+#endif
 
-    return result_magic;
+    if (!divisor->IsCnsIntOrI())
+    {
+        return next;
+    }
+
+    if (dividend->IsCnsIntOrI())
+    {
+        // We shouldn't see a divmod with constant operands here but if we do then it's likely
+        // because optimizations are disabled or it's a case that's supposed to throw an exception.
+        // Don't optimize this.
+        return next;
+    }
+
+    const var_types type = divMod->TypeGet();
+    assert((type == TYP_INT) || (type == TYP_I_IMPL));
+
+    size_t divisorValue = static_cast<size_t>(divisor->AsIntCon()->IconValue());
+
+    if (type == TYP_INT)
+    {
+        // Clear up the upper 32 bits of the value, they may be set to 1 because constants
+        // are treated as signed and stored in ssize_t which is 64 bit in size on 64 bit targets.
+        divisorValue &= UINT32_MAX;
+    }
+
+    if (divisorValue == 0)
+    {
+        return next;
+    }
+
+    const bool isDiv = divMod->OperIs(GT_UDIV);
+
+    if (isPow2(divisorValue))
+    {
+        genTreeOps newOper;
+
+        if (isDiv)
+        {
+            newOper      = GT_RSZ;
+            divisorValue = genLog2(divisorValue);
+        }
+        else
+        {
+            newOper = GT_AND;
+            divisorValue -= 1;
+        }
+
+        divMod->SetOper(newOper);
+        divisor->AsIntCon()->SetIconValue(divisorValue);
+
+        return next;
+    }
+
+    if (isDiv)
+    {
+        // If the divisor is greater or equal than 2^(N - 1) then the result is 1
+        // iff the dividend is greater or equal than the divisor.
+        if (((type == TYP_INT) && (divisorValue > (UINT32_MAX / 2))) ||
+            ((type == TYP_LONG) && (divisorValue > (UINT64_MAX / 2))))
+        {
+            divMod->SetOper(GT_GE);
+            divMod->gtFlags |= GTF_UNSIGNED;
+            return next;
+        }
+    }
+
+// TODO-ARM-CQ: Currently there's no GT_MULHI for ARM32/64
+#ifdef _TARGET_XARCH_
+    if (!comp->opts.MinOpts() && (divisorValue >= 3))
+    {
+        size_t magic;
+        bool   add;
+        int    shift;
+
+        if (type == TYP_INT)
+        {
+            magic = MagicDivide::GetUnsigned32Magic(static_cast<uint32_t>(divisorValue), &add, &shift);
+        }
+        else
+        {
+#ifdef _TARGET_64BIT_
+            magic = MagicDivide::GetUnsigned64Magic(static_cast<uint64_t>(divisorValue), &add, &shift);
+#else
+            unreached();
+#endif
+        }
+
+        // Depending on the "add" flag returned by GetUnsignedMagicNumberForDivide we need to generate:
+        // add == false (when divisor == 3 for example):
+        //     div = (dividend MULHI magic) RSZ shift
+        // add == true (when divisor == 7 for example):
+        //     mulhi = dividend MULHI magic
+        //     div   = (((dividend SUB mulhi) RSZ 1) ADD mulhi)) RSZ (shift - 1)
+        const bool     requiresAdjustment       = add;
+        const bool     requiresDividendMultiuse = requiresAdjustment || !isDiv;
+        const unsigned curBBWeight              = m_block->getBBWeight(comp);
+        unsigned       dividendLclNum           = BAD_VAR_NUM;
+
+        if (requiresDividendMultiuse)
+        {
+            LIR::Use dividendUse(BlockRange(), &divMod->gtOp1, divMod);
+            dividendLclNum = dividendUse.ReplaceWithLclVar(comp, curBBWeight);
+            dividend       = divMod->gtGetOp1();
+        }
+
+        // Insert a new GT_MULHI node before the existing GT_UDIV/GT_UMOD node.
+        // The existing node will later be transformed into a GT_RSZ/GT_SUB that
+        // computes the final result. This way don't need to find and change the use
+        // of the existing node.
+        GenTree* mulhi = comp->gtNewOperNode(GT_MULHI, type, dividend, divisor);
+        mulhi->gtFlags |= GTF_UNSIGNED;
+        divisor->AsIntCon()->SetIconValue(magic);
+        BlockRange().InsertBefore(divMod, mulhi);
+
+        if (requiresAdjustment)
+        {
+            GenTree* dividend = comp->gtNewLclvNode(dividendLclNum, type);
+            GenTree* sub      = comp->gtNewOperNode(GT_SUB, type, dividend, mulhi);
+            BlockRange().InsertBefore(divMod, dividend, sub);
+            comp->lvaTable[dividendLclNum].incRefCnts(curBBWeight, comp);
+
+            GenTree* one = comp->gtNewIconNode(1, TYP_INT);
+            GenTree* rsz = comp->gtNewOperNode(GT_RSZ, type, sub, one);
+            BlockRange().InsertBefore(divMod, one, rsz);
+
+            LIR::Use mulhiUse(BlockRange(), &sub->gtOp.gtOp2, sub);
+            unsigned mulhiLclNum = mulhiUse.ReplaceWithLclVar(comp, curBBWeight);
+
+            GenTree* mulhiCopy = comp->gtNewLclvNode(mulhiLclNum, type);
+            GenTree* add       = comp->gtNewOperNode(GT_ADD, type, rsz, mulhiCopy);
+            BlockRange().InsertBefore(divMod, mulhiCopy, add);
+            comp->lvaTable[mulhiLclNum].incRefCnts(curBBWeight, comp);
+
+            mulhi = add;
+            shift -= 1;
+        }
+
+        GenTree* shiftBy = comp->gtNewIconNode(shift, TYP_INT);
+        BlockRange().InsertBefore(divMod, shiftBy);
+
+        if (isDiv)
+        {
+            divMod->SetOper(GT_RSZ);
+            divMod->gtOp1 = mulhi;
+            divMod->gtOp2 = shiftBy;
+        }
+        else
+        {
+            GenTree* div = comp->gtNewOperNode(GT_RSZ, type, mulhi, shiftBy);
+
+            // divisor UMOD dividend = dividend SUB (div MUL divisor)
+            GenTree* divisor  = comp->gtNewIconNode(divisorValue, type);
+            GenTree* mul      = comp->gtNewOperNode(GT_MUL, type, div, divisor);
+            GenTree* dividend = comp->gtNewLclvNode(dividendLclNum, type);
+
+            divMod->SetOper(GT_SUB);
+            divMod->gtOp1 = dividend;
+            divMod->gtOp2 = mul;
+
+            BlockRange().InsertBefore(divMod, div, divisor, mul, dividend);
+            comp->lvaTable[dividendLclNum].incRefCnts(curBBWeight, comp);
+        }
+
+        return mulhi;
+    }
+#endif
+
+    return next;
 }
 
 //------------------------------------------------------------------------
@@ -4156,18 +4231,23 @@ GenTree* Lowering::LowerSignedDivOrMod(GenTreePtr node)
 
     if (!isPow2(absDivisorValue))
     {
+        if (comp->opts.MinOpts())
+        {
+            return next;
+        }
+
 #ifdef _TARGET_XARCH_
         ssize_t magic;
         int     shift;
 
         if (type == TYP_INT)
         {
-            magic = GetSignedMagicNumberForDivide<int32_t>(static_cast<int32_t>(divisorValue), &shift);
+            magic = MagicDivide::GetSigned32Magic(static_cast<int32_t>(divisorValue), &shift);
         }
         else
         {
 #ifdef _TARGET_64BIT_
-            magic = GetSignedMagicNumberForDivide<int64_t>(static_cast<int64_t>(divisorValue), &shift);
+            magic = MagicDivide::GetSigned64Magic(static_cast<int64_t>(divisorValue), &shift);
 #else
             unreached();
 #endif

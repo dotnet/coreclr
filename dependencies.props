@@ -1,20 +1,35 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <!-- Central place to set the versions of all nuget packages produced in the repo -->
+    <PackageVersion Condition="'$(PackageVersion)' == ''">2.1.0</PackageVersion>
+    
+    <!-- Set the boolean below to true to generate packages with stabilized versions -->
+    <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
+    <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
+
+    <PreReleaseLabel>preview1</PreReleaseLabel>
+  </PropertyGroup>
+  
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>5dfd662db1b2793a26441fe3c0a8ee5136004aed</CoreFxCurrentRef>
-    <CoreClrCurrentRef>5dfd662db1b2793a26441fe3c0a8ee5136004aed</CoreClrCurrentRef>
+    <CoreFxCurrentRef>8af1ae0b56ef0552c57bbcdcb8eadd6faa4222d7</CoreFxCurrentRef>
+    <CoreClrCurrentRef>8af1ae0b56ef0552c57bbcdcb8eadd6faa4222d7</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
-    <CoreFxPackageVersion>4.5.0-preview1-25323-02</CoreFxPackageVersion>
-    <PlatformPackageVersion>2.1.0-preview1-25323-02</PlatformPackageVersion>
+    <CoreFxPackageVersion>4.5.0-preview1-25412-02</CoreFxPackageVersion>
+    <PlatformPackageVersion>2.1.0-preview1-25324-02</PlatformPackageVersion>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
   <PropertyGroup>
-    <CoreClrPackageVersion>2.1.0-preview1-25323-01</CoreClrPackageVersion>
+    <CoreClrPackageVersion>2.1.0-preview1-25412-01</CoreClrPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
+    <XUnitConsoleNetCoreVersion>1.0.2-prerelease-00177</XUnitConsoleNetCoreVersion>
+    <XUnitPerformanceApiVersion>1.0.0-beta-build0007</XUnitPerformanceApiVersion>
+    <MicrosoftDiagnosticsTracingLibraryVersion>1.0.3-alpha-experimental</MicrosoftDiagnosticsTracingLibraryVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->
@@ -78,8 +93,16 @@
       <Version>1.0.0-alpha-build0040</Version>
     </StaticDependency>
 
+    <XUnitPerformanceApiDependency Include="xunit.performance.api" />
+    <XUnitPerformanceApiDependency Include="xunit.performance.core" />
+    <XUnitPerformanceApiDependency Include="xunit.performance.execution" />
+    <XUnitPerformanceApiDependency Include="xunit.performance.metrics" />
+    <StaticDependency Include="@(XUnitPerformanceApiDependency)">
+      <Version>$(XUnitPerformanceApiVersion)</Version>
+    </StaticDependency>
+
     <StaticDependency Include="xunit.console.netcore">
-      <Version>1.0.2-prerelease-00177</Version>
+      <Version>$(XUnitConsoleNetCoreVersion)</Version>
     </StaticDependency>
 
     <DependencyBuildInfo Include="@(StaticDependency)">

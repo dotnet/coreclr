@@ -1436,6 +1436,19 @@ DONE:
 
 /*****************************************************************************
  *
+ *  emitIns_valid_imm_for_vldst_offset() returns true when the immediate 'imm'
+ *   can be encoded as the offset in a vldr/vstr instruction, i.e. when it is
+ *   a non-negative multiple of 4 that is less than 1024.
+ */
+/*static*/ bool emitter::emitIns_valid_imm_for_vldst_offset(int imm)
+{
+    if ((imm & 0x3fc) == imm)
+        return true;
+    return false;
+}
+
+/*****************************************************************************
+ *
  *  Add an instruction with no operands.
  */
 
@@ -5540,7 +5553,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 
     assert(REG_NA == (int)REG_NA);
 
-    VARSET_TP VARSET_INIT_NOCOPY(GCvars, VarSetOps::UninitVal());
+    VARSET_TP GCvars(VarSetOps::UninitVal());
 
     /* What instruction format have we got? */
 
@@ -7575,7 +7588,6 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
             {
                 regNumber tmpReg = indir->GetSingleTempReg();
 
-                NYI_IF(varTypeIsFloating(indir), "vldr/vstr encoding is not available.");
                 if (emitIns_valid_imm_for_add(offset, INS_FLAGS_DONT_CARE))
                 {
                     if (lsl > 0)
@@ -7616,54 +7628,18 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 if (lsl > 0)
                 {
                     // Then load/store dataReg from/to [memBase + index*scale]
-                    if (varTypeIsFloating(indir))
-                    {
-                        // We require a tmpReg to hold memBase + index*scale
-                        regNumber tmpReg = indir->GetSingleTempReg();
-
-                        // add tmpReg, memBase, index << lsl
-                        emitIns_R_R_R_I(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
-                                        INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
-
-                        // vldr/vstr
-                        assert(ins == INS_vldr || ins == INS_vstr);
-                        emitIns_R_R(ins, attr, dataReg, tmpReg);
-                    }
-                    else
-                    {
-                        emitIns_R_R_R_I(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum, lsl,
-                                        INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
-                    }
+                    emitIns_R_R_R_I(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum, lsl, INS_FLAGS_DONT_CARE,
+                                    INS_OPTS_LSL);
                 }
                 else // no scale
                 {
                     // Then load/store dataReg from/to [memBase + index]
-                    if (varTypeIsFloating(indir))
-                    {
-                        NYI_ARM("vldr/vstr not test yet!"); // Not tested yet! Please remove it and verify
-                                                            // implemenation.
-
-                        // We require a tmpReg to hold memBase + index*scale
-                        regNumber tmpReg = indir->GetSingleTempReg();
-
-                        // add tmpReg, memBase, index
-                        emitIns_R_R_R(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum,
-                                      INS_FLAGS_DONT_CARE);
-
-                        // vldr/vstr
-                        assert(ins == INS_vldr || ins == INS_vstr);
-                        emitIns_R_R(ins, attr, dataReg, tmpReg);
-                    }
-                    else
-                    {
-                        emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum);
-                    }
+                    emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum);
                 }
             }
         }
         else // no Index
         {
-            NYI_IF(varTypeIsFloating(indir), "vldr/vstr encoding is not available.");
             if (emitIns_valid_imm_for_ldst_offset(offset, attr))
             {
                 // Then load/store dataReg from/to [memBase + offset]
@@ -7787,6 +7763,14 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
             assert(!"Invalid ins for overflow check");
         }
     }
+
+    if (dst->gtSetFlags())
+    {
+        assert((ins == INS_add) || (ins == INS_adc) || (ins == INS_sub) || (ins == INS_sbc) || (ins == INS_and) ||
+               (ins == INS_orr) || (ins == INS_eor) || (ins == INS_orn));
+        flags = INS_FLAGS_SET;
+    }
+
     if (intConst != nullptr)
     {
         emitIns_R_R_I(ins, attr, dst->gtRegNum, nonIntReg->gtRegNum, intConst->IconValue(), flags);

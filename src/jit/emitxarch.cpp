@@ -209,6 +209,7 @@ emitter::code_t emitter::AddVexPrefix(instruction ins, code_t code, emitAttr att
 // Returns true if this instruction, for the given EA_SIZE(attr), will require a REX.W prefix
 bool TakesRexWPrefix(instruction ins, emitAttr attr)
 {
+#ifndef LEGACY_BACKEND
     // Because the current implementation of AVX does not have a way to distinguish between the register
     // size specification (128 vs. 256 bits) and the operand size specification (32 vs. 64 bits), where both are
     // required, the instruction must be created with the register size attribute (EA_16BYTE or EA_32BYTE),
@@ -217,6 +218,7 @@ bool TakesRexWPrefix(instruction ins, emitAttr attr)
     {
         return true;
     }
+#endif // !LEGACY_BACKEND
 #ifdef _TARGET_AMD64_
     // movsx should always sign extend out to 8 bytes just because we don't track
     // whether the dest should be 4 bytes or 8 bytes (attr indicates the size
@@ -359,10 +361,10 @@ emitter::code_t emitter::AddRexWPrefix(instruction ins, code_t code)
         assert(hasVexPrefix(code));
 
         // W-bit is the only bit that is added in non bit-inverted form.
-        return code | 0x00008000000000ULL;
+        return emitter::code_t(code | 0x00008000000000ULL);
     }
 #ifdef _TARGET_AMD64_
-    return code | 0x4800000000ULL;
+    return emitter::code_t(code | 0x4800000000ULL);
 #else
     assert(!"UNREACHED");
     return code;
@@ -2738,7 +2740,7 @@ void emitter::emitInsMov(instruction ins, emitAttr attr, GenTree* node)
         case GT_STORE_LCL_VAR:
         {
             GenTreeLclVarCommon* varNode = node->AsLclVarCommon();
-            GenTree*             data    = varNode->gtOp.gtOp1->gtEffectiveVal();
+            GenTree*             data    = varNode->gtOp.gtOp1;
             codeGen->inst_set_SV_var(varNode);
             assert(varNode->gtRegNum == REG_NA); // stack store
 
@@ -2878,12 +2880,12 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
     GenTreeLclVar* lclVar = nullptr;
     if (src->isLclVarUsedFromMemory())
     {
-        assert(src->IsRegOptional());
+        assert(src->IsRegOptional() || !emitComp->lvaTable[src->gtLclVar.gtLclNum].lvIsRegCandidate());
         lclVar = src->AsLclVar();
     }
     if (dst->isLclVarUsedFromMemory())
     {
-        assert(dst->IsRegOptional());
+        assert(dst->IsRegOptional() || !emitComp->lvaTable[dst->gtLclVar.gtLclNum].lvIsRegCandidate());
         lclVar = dst->AsLclVar();
     }
 
@@ -10368,7 +10370,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
     assert(ins != INS_imul || size >= EA_4BYTE);                  // Has no 'w' bit
     assert(instrIs3opImul(id->idIns()) == 0 || size >= EA_4BYTE); // Has no 'w' bit
 
-    VARSET_TP VARSET_INIT_NOCOPY(GCvars, VarSetOps::UninitVal());
+    VARSET_TP GCvars(VarSetOps::UninitVal());
 
     // What instruction format have we got?
     switch (id->idInsFmt())
