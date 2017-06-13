@@ -100,6 +100,8 @@ namespace System.IO
                 throw;
             }
 
+            // Note: Cleaner to set the following fields in ValidateAndInitFromHandle,
+            // but we can't as they're readonly.
             _access = access;
             _useAsyncIO = isAsync;
 
@@ -143,6 +145,8 @@ namespace System.IO
         {
             ValidateAndInitFromHandle(handle, access, bufferSize, isAsync);
 
+            // Note: Cleaner to set the following fields in ValidateAndInitFromHandle,
+            // but we can't as they're readonly.
             _access = access;
             _useAsyncIO = isAsync;
 

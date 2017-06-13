@@ -205,6 +205,8 @@ namespace System.IO
                 // Lazily-initialize whether we're able to seek, tested by seeking to our current location.
                 _canSeek = Interop.Sys.LSeek(fileHandle, 0, Interop.Sys.SeekWhence.SEEK_CUR) >= 0;
             }
+
+            return _canSeek.Value;
         }
 
         private long GetLengthInternal()
