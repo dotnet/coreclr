@@ -136,21 +136,7 @@ namespace System.IO
             _exposedHandle = true;
             _bufferLength = bufferSize;
 
-#if DEBUG
-            bool hadBinding = handle.ThreadPoolBinding != null;
-
-            try
-            {
-#endif
-                InitFromHandle(handle, access, isAsync);
-#if DEBUG
-            }
-            catch
-            {
-                Debug.Assert(hadBinding || handle.ThreadPoolBinding == null, "We should never error out with a ThreadPoolBinding we've added");
-                throw;
-            }
-#endif
+            InitFromHandle(handle, access, isAsync);
         }
 
         public FileStream(SafeFileHandle handle, FileAccess access, int bufferSize, bool isAsync)

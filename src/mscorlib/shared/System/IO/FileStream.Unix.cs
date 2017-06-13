@@ -189,7 +189,10 @@ namespace System.IO
         public override bool CanSeek => CanSeekCore(_fileHandle);
 
         /// <summary>Gets a value indicating whether the current stream supports seeking.</summary>
-        /// <remarks>Separated out of CanSeek to enable making non-virtual call to this logic.</remarks>
+        /// <remarks>
+        /// Separated out of CanSeek to enable making non-virtual call to this logic.
+        /// We also pass in the file handle to allow the constructor to use this before it stashes the handle.
+        /// </remarks>
         private bool CanSeekCore(SafeFileHandle fileHandle)
         {
             if (fileHandle.IsClosed)

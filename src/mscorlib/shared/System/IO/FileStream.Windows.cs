@@ -110,6 +110,25 @@ namespace System.IO
 
         private void InitFromHandle(SafeFileHandle handle, FileAccess access, bool useAsyncIO)
         {
+#if DEBUG
+            bool hadBinding = handle.ThreadPoolBinding != null;
+
+            try
+            {
+#endif
+                InitFromHandleImpl(handle, access, useAsyncIO);
+#if DEBUG
+            }
+            catch
+            {
+                Debug.Assert(hadBinding || handle.ThreadPoolBinding == null, "We should never error out with a ThreadPoolBinding we've added");
+                throw;
+            }
+#endif
+        }
+
+        private void InitFromHandleImpl(SafeFileHandle handle, FileAccess access, bool useAsyncIO)
+        {
             int handleType = Interop.Kernel32.GetFileType(handle);
             Debug.Assert(handleType == Interop.Kernel32.FileTypes.FILE_TYPE_DISK || handleType == Interop.Kernel32.FileTypes.FILE_TYPE_PIPE || handleType == Interop.Kernel32.FileTypes.FILE_TYPE_CHAR, "FileStream was passed an unknown file type!");
 
