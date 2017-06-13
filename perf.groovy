@@ -275,10 +275,11 @@ def static getFullPerfJobName(def os) {
                 }
             }
 
-            // Cap the maximum number of iterations to 21.
             parameters {
+                // Cap the maximum number of iterations to 21.
                 stringParam('XUNIT_PERFORMANCE_MAX_ITERATION', '21', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enought to get a good sample')
                 stringParam('XUNIT_PERFORMANCE_MAX_ITERATION_INNER_SPECIFIED', '21', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enought to get a good sample')
+                stringParam('PRODUCT_BUILD', '', 'Build number from which to copy down the CoreCLR Product binaries built for Linux')
             }
 
             def osGroup = getOSGroup(os)
@@ -291,7 +292,7 @@ def static getFullPerfJobName(def os) {
                 copyArtifacts(fullBuildJobName) {
                     includePatterns("bin/Product/**")
                     buildSelector {
-                        latestSuccessful(true)
+                        buildNumber('\${PRODUCT_BUILD}')
                     }
                 }
                 shell("GIT_BRANCH_WITHOUT_ORIGIN=\$(echo \$GIT_BRANCH | sed \"s/[^/]*\\/\\(.*\\)/\\1 /\")\n" +
@@ -333,12 +334,12 @@ def static getFullPerfJobName(def os) {
     } // os
 
     def flowJobPerfRunList = perfOSList.collect { os ->
-        "{ build(params, '${getFullPerfJobName(os)}') }"
+        "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullPerfJobName(os)}') }"
     }
     def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_linux_flow", isPR, '')) {
         buildFlow("""
 // First, build the bits on RHEL7.2
-build(params, '${fullBuildJobName}')
+b = build(params, '${fullBuildJobName}')
 
 // Then, run the perf tests
 parallel(
@@ -407,6 +408,11 @@ def static getFullThroughputJobName(def os) {
                     stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
                 }
             }
+
+            parameters {
+                stringParam('PRODUCT_BUILD', '', 'Build number from which to copy down the CoreCLR Product binaries built for Linux')
+            }
+
             def osGroup = getOSGroup(os)
             def runType = isPR ? 'private' : 'rolling'
             def benchViewName = isPR ? 'coreclr private \$BenchviewCommitName' : 'coreclr rolling \$GIT_BRANCH_WITHOUT_ORIGIN \$GIT_COMMIT'
@@ -417,7 +423,7 @@ def static getFullThroughputJobName(def os) {
                 copyArtifacts(fullBuildJobName) {
                     includePatterns("bin/Product/**")
                     buildSelector {
-                        latestSuccessful(true)
+                        buildNumber('\${PRODUCT_BUILD}')
                     }
                 }
                 shell("GIT_BRANCH_WITHOUT_ORIGIN=\$(echo \$GIT_BRANCH | sed \"s/[^/]*\\/\\(.*\\)/\\1 /\")\n" +
@@ -455,12 +461,12 @@ def static getFullThroughputJobName(def os) {
     } // os
 
     def flowJobTPRunList = throughputOSList.collect { os ->
-        "{ build(params, '${getFullThroughputJobName(os)}') }"
+        "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullThroughputJobName(os)}') }"
     }
     def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_throughput_linux_flow", isPR, '')) {
         buildFlow("""
 // First, build the bits on RHEL7.2
-build(params, '${fullBuildJobName}')
+b = build(params, '${fullBuildJobName}')
 
 // Then, run the perf tests
 parallel(
