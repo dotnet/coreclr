@@ -16,7 +16,7 @@ namespace System
     {
         private static readonly CultureAwareComparer s_invariantCulture = new CultureAwareComparer(CultureInfo.InvariantCulture, false);
         private static readonly CultureAwareComparer s_invariantCultureIgnoreCase = new CultureAwareComparer(CultureInfo.InvariantCulture, true);
-        private static readonly OrdinalComparer s_ordinal = new OrdinalComparer();
+        private static readonly OrdinalCaseSensitiveComparer s_ordinal = new OrdinalCaseSensitiveComparer();
         private static readonly OrdinalIgnoreCaseComparer s_ordinalIgnoreCase = new OrdinalIgnoreCaseComparer();        
 
         public static StringComparer InvariantCulture
@@ -229,7 +229,85 @@ namespace System
 
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    internal sealed class OrdinalComparer : StringComparer 
+    internal class OrdinalComparer : StringComparer 
+    {
+        private bool _ignoreCase;
+
+        public override int Compare(string x, string y)
+        {
+            if (Object.ReferenceEquals(x, y))
+                return 0;
+            if (x == null)
+                return -1;
+            if (y == null)
+                return 1;
+
+            if (_ignoreCase)
+            {
+                return String.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return String.CompareOrdinal(x, y);
+        }
+
+        public override bool Equals(string x, string y)
+        {
+            if (Object.ReferenceEquals(x, y))
+                return true;
+            if (x == null || y == null)
+                return false;
+
+            if (_ignoreCase)
+            {
+                if (x.Length != y.Length)
+                {
+                    return false;
+                }
+                return (String.Compare(x, y, StringComparison.OrdinalIgnoreCase) == 0);
+            }
+            return x.Equals(y);
+        }
+
+        public override int GetHashCode(string obj)
+        {
+            if (obj == null)
+            {
+#if CORECLR
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
+#else
+                throw new ArgumentNullException(nameof(obj));
+#endif
+            }
+            Contract.EndContractBlock();
+
+            if (_ignoreCase)
+            {
+                return TextInfo.GetHashCodeOrdinalIgnoreCase(obj);
+            }
+
+            return obj.GetHashCode();
+        }
+
+        // Equals method for the comparer itself. 
+        public override bool Equals(Object obj)
+        {
+            OrdinalComparer comparer = obj as OrdinalComparer;
+            if (comparer == null)
+            {
+                return false;
+            }
+            return (this._ignoreCase == comparer._ignoreCase);
+        }
+
+        public override int GetHashCode()
+        {
+            int hashCode = nameof(OrdinalComparer).GetHashCode();
+            return _ignoreCase ? (~hashCode) : hashCode;
+        }
+    }
+
+    [Serializable]
+    internal sealed class OrdinalCaseSensitiveComparer : StringComparer, ISerializable
     {
         public override int Compare(string x, string y) => string.CompareOrdinal(x, y);
 
@@ -245,12 +323,18 @@ namespace System
                 throw new ArgumentNullException(nameof(obj));
 #endif
             }
-            return obj.GetHashCode();
+            return TextInfo.GetHashCodeOrdinalIgnoreCase(obj);
         }
 
         // Equals/GetHashCode methods for the comparer itself. 
-        public override bool Equals(object obj) => obj is OrdinalComparer;
-        public override int GetHashCode() => nameof(OrdinalComparer).GetHashCode();
+        public override bool Equals(object obj) => obj is OrdinalCaseSensitiveComparer;
+        public override int GetHashCode() => nameof(OrdinalCaseSensitiveComparer).GetHashCode();
+
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            info.SetType(typeof(OrdinalComparer));
+            info.AddValue("_ignoreCase", false);
+        }
     }
 
     [Serializable]    
