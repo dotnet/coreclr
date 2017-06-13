@@ -430,8 +430,8 @@ Exit
         ldr      x1, [x12, g_highest_address]
 
 #ifdef WRITE_BARRIER_CHECK
-        adrp     x12, g_GCShadow
-        ldr      x2, [x12, g_GCShadow]
+        adrp     x12, $g_GCShadow
+        ldr      x2, [x12, $g_GCShadow]
 #else
         mov      x2, xzr
 #endif
