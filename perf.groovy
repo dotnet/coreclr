@@ -233,8 +233,8 @@ def static getOSGroup(def os) {
     }
 }
 
-def static getFullPerfJobName(def os) {
-    return "perf_${os}"
+def static getFullPerfJobName(def os, def isPR) {
+    return Utilities.getFullJobName(project, "perf_${os}", isPR)
 }
 
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
@@ -258,7 +258,7 @@ def static getFullPerfJobName(def os) {
     // Actual perf testing on the following OSes
     def perfOSList = ['Ubuntu14.04']
     perfOSList.each { os ->
-        def newJob = job(Utilities.getFullJobName(project, getFullPerfJobName(os), isPR)) {
+        def newJob = job(getFullPerfJobName(os, isPR)) {
 
             label('linux_clr_perf')
             wrappers {
@@ -334,7 +334,7 @@ def static getFullPerfJobName(def os) {
     } // os
 
     def flowJobPerfRunList = perfOSList.collect { os ->
-        "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullPerfJobName(os)}') }"
+        "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullPerfJobName(os, isPR)}') }"
     }
     def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_linux_flow", isPR, '')) {
         buildFlow("""
@@ -367,8 +367,8 @@ parallel(
 
 } // isPR
 
-def static getFullThroughputJobName(def os) {
-    return "perf_throughput_${os}"
+def static getFullThroughputJobName(def os, def isPR) {
+    return Utilities.getFullJobName(project, "perf_throughput_${os}", isPR)
 }
 
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
@@ -392,7 +392,7 @@ def static getFullThroughputJobName(def os) {
     // Actual perf testing on the following OSes
     def throughputOSList = ['Ubuntu14.04']
     throughputOSList.each { os ->
-        def newJob = job(Utilities.getFullJobName(project, getFullThroughputJobName(os), isPR)) {
+        def newJob = job(getFullThroughputJobName(os, isPR)) {
 
             label('linux_clr_perf')
                 wrappers {
@@ -461,7 +461,7 @@ def static getFullThroughputJobName(def os) {
     } // os
 
     def flowJobTPRunList = throughputOSList.collect { os ->
-        "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullThroughputJobName(os)}') }"
+        "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullThroughputJobName(os, isPR)}') }"
     }
     def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_throughput_linux_flow", isPR, '')) {
         buildFlow("""
