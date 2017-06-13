@@ -247,7 +247,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
     ['RHEL7.2'].each { os ->
         def newBuildJob = job(fullBuildJobName) {
             steps {
-                shell("./build.sh ${architecture} ${configuration}")
+                shell("./build.sh verbose ${architecture} ${configuration}")
             }
         }
         Utilities.setMachineAffinity(newBuildJob, os, 'latest-or-auto')
@@ -381,7 +381,7 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
     ['RHEL7.2'].each { os ->
         def newBuildJob = job(fullBuildJobName) {
             steps {
-                shell("./build.sh ${architecture} ${configuration}")
+                shell("./build.sh verbose ${architecture} ${configuration}")
             }
         }
         Utilities.setMachineAffinity(newBuildJob, os, 'latest-or-auto')
