@@ -233,7 +233,7 @@ def static getOSGroup(def os) {
     }
 }
 
-def static getFullPerfJobName(def os, def isPR) {
+def getFullPerfJobName(def os, def isPR) {
     return Utilities.getFullJobName(project, "perf_${os}", isPR)
 }
 
@@ -367,7 +367,7 @@ parallel(
 
 } // isPR
 
-def static getFullThroughputJobName(def os, def isPR) {
+def getFullThroughputJobName(def os, def isPR) {
     return Utilities.getFullJobName(project, "perf_throughput_${os}", isPR)
 }
 
