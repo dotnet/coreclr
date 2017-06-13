@@ -861,13 +861,19 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 #endif
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-        if (args->write_watch_table != nullptr)
+        if (g_sw_ww_enabled_for_gc_heap && (args->write_watch_table != nullptr))
         {
             assert(args->is_runtime_suspended);
             g_sw_ww_table = args->write_watch_table;
         }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
+#if defined(_ARM64_)
+        g_lowest_address = args->lowest_address;
+        g_highest_address = args->highest_address;
+
+        ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
+#else
         ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
 
         // We need to make sure that other threads executing checked write barriers
@@ -888,6 +894,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
         g_lowest_address = args->lowest_address;
         VolatileStore(&g_highest_address, args->highest_address);
+#endif
         return;
     case WriteBarrierOp::StompEphemeral:
         // StompEphemeral requires a new ephemeral low and a new ephemeral high
@@ -917,6 +924,14 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         g_card_bundle_table = args->card_bundle_table;
 #endif
 
+#if defined(_ARM64_)
+        g_lowest_address = args->lowest_address;
+        g_highest_address = args->highest_address;
+        g_ephemeral_low = args->ephemeral_low;
+        g_ephemeral_high = args->ephemeral_high;
+
+        ::StompWriteBarrierResize(true, false);
+#else
         FlushProcessWriteBuffers();
         
         g_lowest_address = args->lowest_address;
@@ -927,6 +942,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         // are needed in other places.
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
+#endif
         return;
     case WriteBarrierOp::SwitchToWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -942,6 +958,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
     case WriteBarrierOp::SwitchToNonWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
+        g_sw_ww_table = 0;
         g_sw_ww_enabled_for_gc_heap = false;
         ::SwitchToNonWriteWatchBarrier(true);
 #else

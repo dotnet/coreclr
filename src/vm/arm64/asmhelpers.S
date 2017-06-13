@@ -271,24 +271,22 @@ WRITE_BARRIER_ENTRY JIT_WriteBarrier
 
     // Do not perform the work if g_GCShadow is 0
     ldr  x12, LOCAL_LABEL(wbs_GCShadow)
-    cbz  x12, LOCAL_LABEL(shadowupdatedisabled)
+    cbz  x12, LOCAL_LABEL(ShadowUpdateDisabled)
 
     // need temporary register. Save before using.
     str  x13, [sp, #-16]!
 
-    mov  x13, x12
-
     // Compute address of shadow heap location:
     //   pShadow = g_GCShadow + (x14 - g_lowest_address)
-    ldr  x12, LOCAL_LABEL(wbs_lowest_address)
-    sub  x12, x14, x12
+    ldr  x13, LOCAL_LABEL(wbs_lowest_address)
+    sub  x13, x14, x13
     add  x12, x13, x12
 
     // if (pShadow >= g_GCShadowEnd) goto end
     PREPARE_EXTERNAL_VAR g_GCShadowEnd, x13
     ldr  x13, [x13]
     cmp  x12, x13
-    bhs  LOCAL_LABEL(shadowupdateend)
+    bhs  LOCAL_LABEL(ShadowUpdateEnd)
 
     // *pShadow = x15
     str  x15, [x12]
@@ -300,16 +298,16 @@ WRITE_BARRIER_ENTRY JIT_WriteBarrier
     // if ([x14] == x15) goto end
     ldr  x13, [x14]
     cmp  x13, x15
-    beq LOCAL_LABEL(shadowupdateend)
+    beq LOCAL_LABEL(ShadowUpdateEnd)
 
     // *pShadow = INVALIDGCVALUE (0xcccccccd)
     movz x13, #0xcccd
     movk x13, #0xcccc, LSL #16
     str  x13, [x12]
 
-LOCAL_LABEL(shadowupdateend):
-    ldr  x13, [sp],#16
-LOCAL_LABEL(shadowupdatedisabled):
+LOCAL_LABEL(ShadowUpdateEnd):
+    ldr  x13, [sp], #16
+LOCAL_LABEL(ShadowUpdateDisabled):
 #endif
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -326,7 +324,7 @@ LOCAL_LABEL(shadowupdatedisabled):
 LOCAL_LABEL(CheckCardTable):
     // Branch to Exit if the reference is not in the Gen0 heap
     //
-    ldr  x12,  LOCAL_LABEL(wbs_ephemeral_low)
+    ldr  x12, LOCAL_LABEL(wbs_ephemeral_low)
     cbz  x12, LOCAL_LABEL(SkipEphemeralCheck)
     cmp  x15,  x12
 
@@ -347,7 +345,7 @@ LOCAL_LABEL(UpdateCardTable):
     strb w12, [x15]
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-    // Check if we need to update the card table
+    // Check if we need to update the card bundle table
     ldr  x12, LOCAL_LABEL(wbs_card_bundle_table)
     add  x15, x12, x14, lsr #21
     ldrb w12, [x15]
@@ -390,11 +388,13 @@ WRITE_BARRIER_ENTRY JIT_UpdateWriteBarrierState
 
     mov x8, x0
 
-    PREPARE_EXTERNAL_VAR g_lowest_address, x12
+    PREPARE_EXTERNAL_VAR g_card_table, x12
     ldr  x0, [x12]
 
-    PREPARE_EXTERNAL_VAR g_highest_address, x12
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+    PREPARE_EXTERNAL_VAR g_card_bundle_table, x12
     ldr  x1, [x12]
+#endif
 
 #ifdef WRITE_BARRIER_CHECK
     PREPARE_EXTERNAL_VAR g_GCShadow, x12
@@ -402,12 +402,8 @@ WRITE_BARRIER_ENTRY JIT_UpdateWriteBarrierState
 #endif
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-    PREPARE_EXTERNAL_VAR g_sw_ww_enabled_for_gc_heap, x12
-    ldrb w3, [x12]
-    cbz  x3, LOCAL_LABEL(SOFTWARE_WRITE_WATCH_DISABLED)
     PREPARE_EXTERNAL_VAR g_sw_ww_table, x12
     ldr  x3, [x12]
-LOCAL_LABEL(SOFTWARE_WRITE_WATCH_DISABLED):
 #endif
 
     PREPARE_EXTERNAL_VAR g_ephemeral_low, x12
@@ -421,23 +417,29 @@ LOCAL_LABEL(SOFTWARE_WRITE_WATCH_DISABLED):
     movn x5, #0
 LOCAL_LABEL(EphemeralCheckEnabled):
 
-    PREPARE_EXTERNAL_VAR g_card_table, x12
+    PREPARE_EXTERNAL_VAR g_lowest_address, x12
     ldr  x6, [x12]
 
-#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-    PREPARE_EXTERNAL_VAR g_card_bundle_table, x12
+    PREPARE_EXTERNAL_VAR g_highest_address, x12
     ldr  x7, [x12]
-#endif
 
     // Update wbs state
     adr  x12, LOCAL_LABEL(wbs_begin)
+
+    // The following writes are guaranteed ordered since they are
+    // in the same coherencency granule (no barrier required)
     stp  x0, x1, [x12], 16
     stp  x2, x3, [x12], 16
     stp  x4, x5, [x12], 16
     stp  x6, x7, [x12], 16
 
-    // Force updates to be visible other processors
-    dmb ishst
+    // Force updated state to be visible to all threads
+    //
+    // Hypothetically this could be removed if all paths guaranteed to
+    // call FlushProcessWriteBuffers() or equivalent.  Currently
+    // FlushProcessWriteBuffers() is not called in some cases when
+    // runtime is suspended.  It is also not called when runtime resumes.
+    dmb  ishst
 
     EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 16
     EPILOG_RETURN
@@ -445,9 +447,9 @@ LOCAL_LABEL(EphemeralCheckEnabled):
     // Begin patchable literal pool
     .balign 64  // Align to power of two at least as big as patchable literal pool so that it fits optimally in cache line
 LOCAL_LABEL(wbs_begin):
-LOCAL_LABEL(wbs_lowest_address):
+LOCAL_LABEL(wbs_card_table):
     .quad 0
-LOCAL_LABEL(wbs_highest_address):
+LOCAL_LABEL(wbs_card_bundle_table):
     .quad 0
 LOCAL_LABEL(wbs_GCShadow):
     .quad 0
@@ -457,9 +459,9 @@ LOCAL_LABEL(wbs_ephemeral_low):
     .quad 0
 LOCAL_LABEL(wbs_ephemeral_high):
     .quad 0
-LOCAL_LABEL(wbs_card_table):
+LOCAL_LABEL(wbs_lowest_address):
     .quad 0
-LOCAL_LABEL(wbs_card_bundle_table):
+LOCAL_LABEL(wbs_highest_address):
     .quad 0
 WRITE_BARRIER_END JIT_UpdateWriteBarrierState
 

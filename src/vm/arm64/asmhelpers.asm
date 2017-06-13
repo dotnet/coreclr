@@ -52,6 +52,14 @@
     IMPORT $g_GCShadowEnd
 #endif // WRITE_BARRIER_CHECK
 
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+    IMPORT g_card_bundle_table
+#endif
+
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    IMPORT g_sw_ww_table
+#endif
+
     IMPORT JIT_GetSharedNonGCStaticBase_Helper
     IMPORT JIT_GetSharedGCStaticBase_Helper
 
@@ -279,6 +287,7 @@ ThePreStubPatchLabel
 ;   x13  : incremented by 8
 ;   x14  : incremented by 8
 ;   x15  : trashed
+;   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 ;
     WRITE_BARRIER_ENTRY JIT_ByRefWriteBarrier
 
@@ -298,6 +307,7 @@ ThePreStubPatchLabel
 ;   x12  : trashed
 ;   x14  : incremented by 8
 ;   x15  : trashed
+;   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 ;
     WRITE_BARRIER_ENTRY JIT_CheckedWriteBarrier
         ldr      x12,  wbs_lowest_address
@@ -321,6 +331,7 @@ NotInHeap
 ;   x12  : trashed
 ;   x14  : incremented by 8
 ;   x15  : trashed
+;   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 ;
     WRITE_BARRIER_ENTRY JIT_WriteBarrier
         stlr     x15, [x14]
@@ -330,24 +341,22 @@ NotInHeap
 
         ; Do not perform the work if g_GCShadow is 0
         ldr      x12, wbs_GCShadow
-        cbz      x12, shadowupdatedisabled
+        cbz      x12, ShadowUpdateDisabled
 
         ; need temporary register. Save before using.
         str      x13, [sp, #-16]!
 
-        mov      x13, x12
-
         ; Compute address of shadow heap location:
         ;   pShadow = $g_GCShadow + (x14 - g_lowest_address)
-        ldr      x12, wbs_lowest_address
-        sub      x12, x14, x12
+        ldr      x13, wbs_lowest_address
+        sub      x13, x14, x13
         add      x12, x13, x12
 
         ; if (pShadow >= $g_GCShadowEnd) goto end
         adrp     x13, $g_GCShadowEnd
         ldr      x13, [x13, $g_GCShadowEnd]
         cmp      x12, x13
-        bhs      shadowupdateend
+        bhs      ShadowUpdateEnd
 
         ; *pShadow = x15
         str      x15, [x12]
@@ -359,18 +368,30 @@ NotInHeap
         ; if ([x14] == x15) goto end
         ldr      x13, [x14]
         cmp      x13, x15
-        beq      shadowupdateend
+        beq      ShadowUpdateEnd
 
         ; *pShadow = INVALIDGCVALUE (0xcccccccd)        
         movz     x13, #0xcccd
         movk     x13, #0xcccc, LSL #16
         str      x13, [x12]
 
-shadowupdateend
-        ldr      x13, [sp],#16
-shadowupdatedisabled
+ShadowUpdateEnd
+        ldr      x13, [sp], #16
+ShadowUpdateDisabled
 #endif
 
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        ; Update the write watch table if necessary
+        ldr      x12, wbs_sw_ww_table
+        cbz      x12, CheckCardTable
+        add      x12, x12, x14, lsr #0xc  ; SoftwareWriteWatch::AddressToTableByteIndexShift
+        ldrb     w17, [x12]
+        cbnz     x17, CheckCardTable
+        mov      w17, #0xFF
+        strb     w17, [x12]
+#endif
+
+CheckCardTable
         ; Branch to Exit if the reference is not in the Gen0 heap
         ;
         ldr      x12,  wbs_ephemeral_low
@@ -384,7 +405,7 @@ shadowupdatedisabled
 SkipEphemeralCheck
         ; Check if we need to update the card table        
         ldr      x12, wbs_card_table
-        add      x15, x12, x14 lsr #11
+        add      x15, x12, x14, lsr #11
         ldrb     w12, [x15]
         cmp      x12, 0xFF
         beq      Exit
@@ -392,6 +413,20 @@ SkipEphemeralCheck
 UpdateCardTable
         mov      x12, 0xFF 
         strb     w12, [x15]
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        ; Check if we need to update the card bundle table
+        ldr      x12, wbs_card_bundle_table
+        add      x15, x12, x14, lsr #21
+        ldrb     w12, [x15]
+        cmp      x12, 0xFF
+        beq      Exit
+
+UpdateCardBundle
+        mov      x12, 0xFF
+        strb     w12, [x15]
+#endif
+
 Exit
         add      x14, x14, 8
         ret      lr          
@@ -423,28 +458,22 @@ Exit
 
         mov      x8, x0
 
-        adrp     x12, g_lowest_address
-        ldr      x0, [x12, g_lowest_address]
+        adrp     x12, g_card_table
+        ldr      x0, [x12, g_card_table]
 
-        adrp     x12, g_highest_address
-        ldr      x1, [x12, g_highest_address]
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        adrp     x12, g_card_bundle_table
+        ldr      x1, [x12, g_card_bundle_table]
+#endif
 
 #ifdef WRITE_BARRIER_CHECK
         adrp     x12, $g_GCShadow
         ldr      x2, [x12, $g_GCShadow]
-#else
-        mov      x2, xzr
 #endif
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-        adrp     x12, g_sw_ww_enabled_for_gc_heap
-        ldrb     w3, [x12, g_sw_ww_enabled_for_gc_heap]
-        cbz      x3, SOFTWARE_WRITE_WATCH_DISABLED
         adrp     x12, g_sw_ww_table
         ldr      x3, [x12, g_sw_ww_table]
-SOFTWARE_WRITE_WATCH_DISABLED
-#else
-        mov      x3, xzr
 #endif
 
         adrp     x12, g_ephemeral_low
@@ -458,25 +487,28 @@ SOFTWARE_WRITE_WATCH_DISABLED
         movn     x5, #0
 EphemeralCheckEnabled
 
-        adrp     x6, g_card_table
-        ldr      x6, [x12, g_card_table]
+        adrp     x12, g_lowest_address
+        ldr      x6, [x12, g_lowest_address]
 
-#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-        adrp     x7, g_card_bundle_table
-        ldr      x7, [x12, g_card_bundle_table]
-#else
-        mov      x7, xzr
-#endif
+        adrp     x12, g_highest_address
+        ldr      x7, [x12, g_highest_address]
 
         ; Update wbs state
-
         adr  x12, wbs_begin
+
+        ; The following writes are guaranteed ordered since they are
+        ; in the same coherencency granule (no barrier required)
         stp  x0, x1, [x12], 16
         stp  x2, x3, [x12], 16
         stp  x4, x5, [x12], 16
         stp  x6, x7, [x12], 16
 
-        ; Force update to other processors
+        ; Force updated state to be visible to all threads
+        ;
+        ; Hypothetically this could be removed if all paths guaranteed to
+        ; call FlushProcessWriteBuffers() or equivalent.  Currently
+        ; FlushProcessWriteBuffers() is not called in some cases when
+        ; runtime is suspended.  It is also not called when runtime resumes.
         dmb      ishst
 
         EPILOG_RESTORE_REG_PAIR fp, lr, 16
@@ -484,9 +516,10 @@ EphemeralCheckEnabled
 
         ; Begin patchable literal pool
         ALIGN 64  ; Align to power of two at least as big as patchable literal pool so that it fits optimally in cache line
-wbs_lowest_address
+wbs_begin
+wbs_card_table
         DCQ 0
-wbs_highest_address
+wbs_card_bundle_table
         DCQ 0
 wbs_GCShadow
         DCQ 0
@@ -496,9 +529,9 @@ wbs_ephemeral_low
         DCQ 0
 wbs_ephemeral_high
         DCQ 0
-wbs_card_table
+wbs_lowest_address
         DCQ 0
-wbs_card_bundle_table
+wbs_highest_address
         DCQ 0
     WRITE_BARRIER_END JIT_UpdateWriteBarrierState
 
