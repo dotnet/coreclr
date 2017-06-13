@@ -339,6 +339,11 @@ def static getFullPerfJobName(def project, def os, def isPR) {
         "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullPerfJobName(project, os, isPR)}') }"
     }
     def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_linux_flow", isPR, '')) {
+        if (isPR) {
+            parameters {
+                stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
+            }
+        }
         buildFlow("""
 // First, build the bits on RHEL7.2
 b = build(params, '${fullBuildJobName}')
@@ -466,6 +471,11 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
         "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullThroughputJobName(project, os, isPR)}') }"
     }
     def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_throughput_linux_flow", isPR, '')) {
+        if (isPR) {
+            parameters {
+                stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
+            }
+        }
         buildFlow("""
 // First, build the bits on RHEL7.2
 b = build(params, '${fullBuildJobName}')
