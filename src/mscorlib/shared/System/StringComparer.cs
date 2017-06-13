@@ -231,11 +231,16 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     internal class OrdinalComparer : StringComparer 
     {
-        private bool _ignoreCase;
+        private readonly bool _ignoreCase; // Do not rename (binary serialization)
+
+        internal OrdinalComparer(bool ignoreCase)
+        {
+            _ignoreCase = ignoreCase;
+        }
 
         public override int Compare(string x, string y)
         {
-            if (Object.ReferenceEquals(x, y))
+            if (ReferenceEquals(x, y))
                 return 0;
             if (x == null)
                 return -1;
@@ -244,15 +249,15 @@ namespace System
 
             if (_ignoreCase)
             {
-                return String.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+                return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
             }
 
-            return String.CompareOrdinal(x, y);
+            return string.CompareOrdinal(x, y);
         }
 
         public override bool Equals(string x, string y)
         {
-            if (Object.ReferenceEquals(x, y))
+            if (ReferenceEquals(x, y))
                 return true;
             if (x == null || y == null)
                 return false;
@@ -263,7 +268,7 @@ namespace System
                 {
                     return false;
                 }
-                return (String.Compare(x, y, StringComparison.OrdinalIgnoreCase) == 0);
+                return (string.Compare(x, y, StringComparison.OrdinalIgnoreCase) == 0);
             }
             return x.Equals(y);
         }
@@ -289,7 +294,7 @@ namespace System
         }
 
         // Equals method for the comparer itself. 
-        public override bool Equals(Object obj)
+        public override bool Equals(object obj)
         {
             OrdinalComparer comparer = obj as OrdinalComparer;
             if (comparer == null)
@@ -307,8 +312,12 @@ namespace System
     }
 
     [Serializable]
-    internal sealed class OrdinalCaseSensitiveComparer : StringComparer, ISerializable
+    internal sealed class OrdinalCaseSensitiveComparer : OrdinalComparer, ISerializable
     {
+        public OrdinalCaseSensitiveComparer() : base(false)
+        {
+        }
+
         public override int Compare(string x, string y) => string.CompareOrdinal(x, y);
 
         public override bool Equals(string x, string y) => string.Equals(x, y);
@@ -326,10 +335,6 @@ namespace System
             return TextInfo.GetHashCodeOrdinalIgnoreCase(obj);
         }
 
-        // Equals/GetHashCode methods for the comparer itself. 
-        public override bool Equals(object obj) => obj is OrdinalCaseSensitiveComparer;
-        public override int GetHashCode() => nameof(OrdinalCaseSensitiveComparer).GetHashCode();
-
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.SetType(typeof(OrdinalComparer));
@@ -338,8 +343,12 @@ namespace System
     }
 
     [Serializable]    
-    internal sealed class OrdinalIgnoreCaseComparer : StringComparer, ISerializable
+    internal sealed class OrdinalIgnoreCaseComparer : OrdinalComparer, ISerializable
     {
+        public OrdinalIgnoreCaseComparer() : base(true)
+        {
+        }
+
         public override int Compare(string x, string y) => string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
 
         public override bool Equals(string x, string y) => string.Equals(x, y, StringComparison.OrdinalIgnoreCase);
@@ -356,10 +365,6 @@ namespace System
             }
             return TextInfo.GetHashCodeOrdinalIgnoreCase(obj);
         }
-
-        // Equals/GetHashCode methods for the comparer itself. 
-        public override bool Equals(object obj) => obj is OrdinalIgnoreCaseComparer;
-        public override int GetHashCode() => nameof(OrdinalIgnoreCaseComparer).GetHashCode();
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
