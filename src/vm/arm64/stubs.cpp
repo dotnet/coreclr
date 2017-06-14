@@ -14,7 +14,6 @@
 #include "asmconstants.h"
 #include "virtualcallstub.h"
 #include "jitinterface.h"
-#include "threadsuspend.h"
 
 EXTERN_C void JIT_GetSharedNonGCStaticBase_SingleAppDomain();
 EXTERN_C void JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain();
@@ -1317,45 +1316,22 @@ LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
 #ifndef CROSSGEN_COMPILE
 void StompWriteBarrierEphemeral(bool isRuntimeSuspended)
 {
-    _ASSERTE(isRuntimeSuspended);
-
     JIT_UpdateWriteBarrierState(GCHeapUtilities::IsServerHeap());
 }
 
 void StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
 {
-    // The runtime is not always suspended when this is called.  If a thread was
-    // preempted while holding the old card_table ptr in a register, when
-    // resumes it will write to the old card_table (bad).  Same is true for
-    // card_bundle_table
-    //
-    // Suspend the runtime to avoid this race condition
-
-    if (!isRuntimeSuspended)
-    {
-        ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
-    }
-
     JIT_UpdateWriteBarrierState(GCHeapUtilities::IsServerHeap());
-
-    if (!isRuntimeSuspended)
-    {
-        ThreadSuspend::RestartEE(FALSE, TRUE);
-    }
 }
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 void SwitchToWriteWatchBarrier(bool isRuntimeSuspended)
 {
-    _ASSERTE(isRuntimeSuspended);
-
     JIT_UpdateWriteBarrierState(GCHeapUtilities::IsServerHeap());
 }
 
 void SwitchToNonWriteWatchBarrier(bool isRuntimeSuspended)
 {
-    _ASSERTE(isRuntimeSuspended);
-
     JIT_UpdateWriteBarrierState(GCHeapUtilities::IsServerHeap());
 }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP

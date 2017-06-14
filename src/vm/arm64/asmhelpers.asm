@@ -498,6 +498,12 @@ EphemeralCheckEnabled
 
         ; The following writes are guaranteed ordered since they are
         ; in the same coherencency granule (no barrier required)
+        ;
+        ; The corresponding wbs_* reads above will also be ordered
+        ; for the same reasons.
+        ;
+        ; Assumes coherency granule is at least 64 bytes.  True on
+        ; known implementations
         stp  x0, x1, [x12], 16
         stp  x2, x3, [x12], 16
         stp  x4, x5, [x12], 16
@@ -505,10 +511,9 @@ EphemeralCheckEnabled
 
         ; Force updated state to be visible to all threads
         ;
-        ; Hypothetically this could be removed if all paths guaranteed to
-        ; call FlushProcessWriteBuffers() or equivalent.  Currently
-        ; FlushProcessWriteBuffers() is not called in some cases when
-        ; runtime is suspended.  It is also not called when runtime resumes.
+        ; This allows this function to run even when runtime is not suspended
+        ; and is lighter weight than FlushProcessWriteBuffers() which is
+        ; skipped for arm64
         dmb      ishst
 
         EPILOG_RESTORE_REG_PAIR fp, lr, 16
