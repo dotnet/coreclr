@@ -172,6 +172,12 @@ unsigned LinearScan::getWeight(RefPosition* refPos)
             LclVarDsc*           varDsc    = &(compiler->lvaTable[lclCommon->gtLclNum]);
             weight                         = varDsc->lvRefCntWtd;
         }
+        else if (refPos->canFreelyRematerialize)
+        {
+            // Values that can be freely rematerialized have the minimum possible weight.
+            // We should always prefer to spill these values.
+            weight = 0;
+        }
         else
         {
             // Non-candidate local ref or non-lcl tree node.
@@ -3657,7 +3663,6 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
                 candidates = fixedAssignment;
             }
             RefPosition* pos   = newRefPosition(interval, currentLoc, RefTypeUse, tree, candidates);
-            pos->isLocalDefUse = true;
             pos->setAllocateIfProfitable(tree->IsRegOptional());
             DBEXEC(VERBOSE, pos->dump());
             return;
@@ -4191,10 +4196,14 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
 
         RefPosition* pos = newRefPosition(interval, defLocation, defRefType, defNode, currCandidates,
                                           (unsigned)i DEBUG_ARG(minRegCount));
+        if (interval->isConstant)
+        {
+            pos->canFreelyRematerialize = true;
+        }
+
         if (info.isLocalDefUse)
         {
-            pos->isLocalDefUse = true;
-            pos->lastUse       = true;
+            pos->lastUse = true;
         }
         DBEXEC(VERBOSE, pos->dump());
         interval->updateRegisterPreferences(currCandidates);
@@ -5764,6 +5773,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
         {
             assert((bestScore & VALUE_AVAILABLE) == 0);
         }
+
         assignPhysReg(availablePhysRegInterval, currentInterval);
         foundReg                        = availablePhysRegInterval->regNum;
         regMaskTP foundRegMask          = genRegMask(foundReg);
@@ -6329,6 +6339,40 @@ void LinearScan::spillInterval(Interval* interval, RefPosition* fromRefPosition,
         assert(interval->isLocalVar);
         setInVarRegForBB(curBBNum, interval->varNum, REG_STK);
     }
+}
+
+//------------------------------------------------------------------------
+// rematerializeInterval: rematerialize a spilled SDSU value at its use.
+//
+// Note that this currently only supports constants.
+//
+// Arguments:
+//    interval - The interval for the SDSU value to be rematerialized.
+//
+// Return Value:
+//    None.
+//
+void LinearScan::rematerializeInterval(Interval* interval)
+{
+    assert(interval != nullptr);
+    assert(interval->isConstant);
+    assert(interval->isSpilled);
+
+    RefPosition* const defPosition = interval->firstRefPosition;
+    defPosition->spillAfter = false;
+    defPosition->rematerialize = true;
+    defPosition->registerAssignment = RBM_NONE;
+
+    RefPosition* const usePosition = interval->lastRefPosition;
+    usePosition->reload = false;
+
+    GenTree* const node = defPosition->treeNode;
+    usePosition->treeNode = node;
+
+    node->gtLsraInfo.loc = usePosition->nodeLocation;
+    node->SetRematerialize();
+
+    interval->isSpilled = false;
 }
 
 //------------------------------------------------------------------------
@@ -7880,6 +7924,12 @@ void LinearScan::allocateRegisters()
                     currentRefPosition->registerAssignment = RBM_NONE;
                     currentInterval->isActive              = false;
                     setIntervalAsSpilled(currentInterval);
+
+                    // At this point we must rematerialize this interval. Make sure the use gets a register.
+                    if (currentRefPosition->canFreelyRematerialize)
+                    {
+                        currentInterval->lastRefPosition->setAllocateIfProfitable(0);
+                    }
                 }
             }
 #ifdef DEBUG
@@ -7920,6 +7970,11 @@ void LinearScan::allocateRegisters()
             currentRefPosition->registerAssignment = assignedRegBit;
             currentInterval->physReg               = assignedRegister;
             regsToFree &= ~assignedRegBit; // we'll set it again later if it's dead
+
+            if (currentInterval->isConstant && (currentRefPosition->refType == RefTypeUse) && currentInterval->isSpilled)
+            {
+                rematerializeInterval(currentInterval);
+            }
 
             // If this interval is dead, free the register.
             // The interval could be dead if this is a user variable, or if the
@@ -8602,7 +8657,7 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
     RefType refType = refPosition->refType;
 
     if (refPosition->spillAfter || refPosition->reload ||
-        (refPosition->AllocateIfProfitable() && refPosition->assignedReg() == REG_NA))
+        (!refPosition->rematerialize && refPosition->AllocateIfProfitable() && refPosition->assignedReg() == REG_NA))
     {
         Interval* interval = refPosition->getInterval();
         if (!interval->isLocalVar)
@@ -8899,7 +8954,7 @@ void LinearScan::resolveRegisters()
 
             // Most uses won't actually need to be recorded (they're on the def).
             // In those cases, treeNode will be nullptr.
-            if (treeNode == nullptr)
+            if ((treeNode == nullptr) || currentRefPosition->rematerialize)
             {
                 // This is either a use, a dead def, or a field of a struct
                 Interval* interval = currentRefPosition->getInterval();
@@ -10629,10 +10684,6 @@ void RefPosition::dump()
     {
         printf(" fixed");
     }
-    if (this->isLocalDefUse)
-    {
-        printf(" local");
-    }
     if (this->delayRegFree)
     {
         printf(" delay");
@@ -11229,10 +11280,6 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
                                            lastFixedRegRefPos->rpNum);
                                     lastFixedRegRefPos = nullptr;
                                 }
-                                if (currentRefPosition->isLocalDefUse)
-                                {
-                                    printf(" LocalDefUse");
-                                }
                                 if (currentRefPosition->lastUse)
                                 {
                                     printf(" *");
@@ -11251,10 +11298,6 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
                                 assert(genMaxOneBit(currentRefPosition->registerAssignment));
                                 printf(" %s", getRegName(currentRefPosition->assignedReg(),
                                                          isFloatRegType(interval->registerType)));
-                            }
-                            if (currentRefPosition->isLocalDefUse)
-                            {
-                                printf(" LocalDefUse");
                             }
                             if (currentRefPosition->lastUse)
                             {
@@ -12334,7 +12377,7 @@ void LinearScan::verifyFinalAllocation()
                 {
                     dumpLsraAllocationEvent(LSRA_EVENT_KEPT_ALLOCATION, nullptr, regRecord->regNum, currentBlock);
                 }
-                if (currentRefPosition->lastUse || currentRefPosition->spillAfter)
+                if (currentRefPosition->lastUse || currentRefPosition->spillAfter || currentRefPosition->rematerialize)
                 {
                     interval->isActive = false;
                 }
@@ -12411,7 +12454,7 @@ void LinearScan::verifyFinalAllocation()
                     assert(interval->assignedReg != nullptr);
                     regRecord = interval->assignedReg;
                 }
-                if (currentRefPosition->spillAfter || currentRefPosition->lastUse)
+                if (currentRefPosition->spillAfter || currentRefPosition->lastUse || currentRefPosition->rematerialize)
                 {
                     interval->physReg     = REG_NA;
                     interval->assignedReg = nullptr;

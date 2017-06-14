@@ -1607,6 +1607,12 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         JITDUMP("  TreeNode is marked ReuseReg\n");
         return;
     }
+    if (treeNode->IsRematerialize())
+    {
+        assert(treeNode->OperIsConst());
+        JITDUMP("  Node is markes Rematerialize\n");
+        return;
+    }
 
     // contained nodes are part of their parents for codegen purposes
     // ex : immediates, most LEAs

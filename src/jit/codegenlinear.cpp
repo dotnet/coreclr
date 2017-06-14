@@ -1124,6 +1124,11 @@ regNumber CodeGen::genConsumeReg(GenTree* tree)
     {
         genRegCopy(tree);
     }
+    else if (tree->IsRematerialize())
+    {
+        tree->ResetRematerialize();
+        genCodeForTreeNode(tree);
+    }
 
     // Handle the case where we have a lclVar that needs to be copied before use (i.e. because it
     // interferes with one of the other sources (or the target, if it's a "delayed use" register)).

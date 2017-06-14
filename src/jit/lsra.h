@@ -917,6 +917,7 @@ private:
     void setIntervalAsSpilled(Interval* interval);
     void setIntervalAsSplit(Interval* interval);
     void spillInterval(Interval* interval, RefPosition* fromRefPosition, RefPosition* toRefPosition);
+    void rematerializeInterval(Interval* interval);
 
     void spillGCRefs(RefPosition* killRefPosition);
 
@@ -1455,13 +1456,14 @@ public:
         , refType(refType)
         , multiRegIdx(0)
         , lastUse(false)
+        , canFreelyRematerialize(false)
         , reload(false)
         , spillAfter(false)
+        , rematerialize(false)
         , copyReg(false)
         , moveReg(false)
         , isPhysRegRef(false)
         , isFixedRegRef(false)
-        , isLocalDefUse(false)
         , delayRegFree(false)
         , outOfOrder(false)
 #ifdef DEBUG
@@ -1544,7 +1546,7 @@ public:
                 || refType == RefTypeUpperVectorSaveDef || refType == RefTypeUpperVectorSaveUse
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                 ) &&
-               !AllocateIfProfitable();
+               !canFreelyRematerialize && !rematerialize && !AllocateIfProfitable();
     }
 
     // Indicates whether this ref position is to be allocated
@@ -1591,6 +1593,8 @@ public:
     // Last Use - this may be true for multiple RefPositions in the same Interval
     bool lastUse : 1;
 
+    bool canFreelyRematerialize : 1;
+
     // Spill and Copy info
     //   reload indicates that the value was spilled, and must be reloaded here.
     //   spillAfter indicates that the value is spilled here, so a spill must be added.
@@ -1612,12 +1616,12 @@ public:
 
     bool reload : 1;
     bool spillAfter : 1;
+    bool rematerialize : 1;
     bool copyReg : 1;
     bool moveReg : 1; // true if this var is moved to a new register
 
     bool isPhysRegRef : 1; // true if 'referent' points of a RegRecord, false if it points to an Interval
     bool isFixedRegRef : 1;
-    bool isLocalDefUse : 1;
 
     // delayRegFree indicates that the register should not be freed right away, but instead wait
     // until the next Location after it would normally be freed.  This is used for the case of

@@ -878,6 +878,9 @@ public:
                                      // It CANNOT be set on var (GT_LCL*) nodes, or on indir (GT_IND or GT_STOREIND) nodes, since
                                      // it is not needed for lclVars and is highly unlikely to be useful for indir nodes.
 
+#define GTF_REMATERIALIZE_VAL 0x01000000 // Rematerialize this value at the point at which it is used rather than generating its code
+                                         // where it appears it execution order. Currently only valid for constant nodes.
+
 //---------------------------------------------------------------------
 //  The following flags can be used only with a small set of nodes, and
 //  thus their values need not be distinct (other than within the set
@@ -2139,6 +2142,21 @@ public:
     {
         assert(OperIsConst());
         gtFlags &= ~GTF_REUSE_REG_VAL;
+    }
+
+    bool IsRematerialize() const
+    {
+        return OperIsConst() && ((gtFlags & GTF_REMATERIALIZE_VAL) != 0);
+    }
+    void SetRematerialize()
+    {
+        assert(OperIsConst());
+        gtFlags |= GTF_REMATERIALIZE_VAL;
+    }
+    void ResetRematerialize()
+    {
+        assert(OperIsConst());
+        gtFlags &= ~GTF_REMATERIALIZE_VAL;
     }
 
 #if MEASURE_NODE_SIZE
