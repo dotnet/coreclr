@@ -11,8 +11,8 @@
 
 #include "common.h"
 
+#include "gchandleutilities.h"
 #include "weakreferencenative.h"
-#include "handletablepriv.h"
 #include "typestring.h"
 #include "typeparse.h"
 
@@ -218,7 +218,7 @@ NOINLINE Object* LoadWinRTWeakReferenceTarget(WEAKREFERENCEREF weakReference, Ty
             }
             else if(IsWinRTWeakReferenceHandle(handle.RawHandle))
             {
-                _ASSERTE(HandleFetchType(handle.Handle) == HNDTYPE_WEAK_WINRT);
+                _ASSERTE(GCHandleUtilities::GetGCHandleManager()->HandleFetchType(handle.Handle) == HNDTYPE_WEAK_WINRT);
 
                 // Retrieve the associated IWeakReference* for this weak reference.  Add a reference to it while we release
                 // the spin lock so that another thread doesn't release it out from underneath us.
@@ -509,7 +509,7 @@ void FinalizeWeakReference(Object * obj)
         handleToDestroy = GetHandleValue(handle);
 
         // Cache the old handle value
-        UINT handleType = HandleFetchType(handleToDestroy);
+        HandleType handleType = GCHandleUtilities::GetGCHandleManager()->HandleFetchType(handleToDestroy);
 #ifdef FEATURE_COMINTEROP
         _ASSERTE(handleType == HNDTYPE_WEAK_LONG || handleType == HNDTYPE_WEAK_SHORT || handleType == HNDTYPE_WEAK_WINRT);
         isWeakWinRTHandle = handleType == HNDTYPE_WEAK_WINRT;
@@ -933,7 +933,7 @@ FCIMPL1(FC_BOOL_RET, WeakReferenceNative::IsTrackResurrection, WeakReferenceObje
         }
         else
         {
-            trackResurrection = HandleFetchType(GetHandleValue(handle)) == HNDTYPE_WEAK_LONG;
+            trackResurrection = GCHandleUtilities::GetGCHandleManager()->HandleFetchType(GetHandleValue(handle)) == HNDTYPE_WEAK_LONG;
         }
 
         ReleaseWeakHandleSpinLock(pThis, handle);
@@ -971,7 +971,7 @@ FCIMPL1(FC_BOOL_RET, WeakReferenceOfTNative::IsTrackResurrection, WeakReferenceO
         }
         else
         {
-            trackResurrection = HandleFetchType(GetHandleValue(handle)) == HNDTYPE_WEAK_LONG;
+            trackResurrection = GCHandleUtilities::GetGCHandleManager()->HandleFetchType(GetHandleValue(handle)) == HNDTYPE_WEAK_LONG;
         }
 
         ReleaseWeakHandleSpinLock(pThis, handle);
