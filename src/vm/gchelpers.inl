@@ -35,7 +35,7 @@ FORCEINLINE void InlinedSetCardsAfterBulkCopyHelper(Object **start, size_t len)
     // Check whether the writes were even into the heap. If not there's no card update required.
     // Also if the size is smaller than a pointer, no write barrier is required.
     _ASSERTE(len >= sizeof(uintptr_t));
-    if ((BYTE*)start < g_lowest_address || (BYTE*)start >= g_highest_address)
+    if ((BYTE*)start < g_lowest_address || (BYTE*)start >= VolatileLoad(&g_highest_address))
     {
         return;
     }

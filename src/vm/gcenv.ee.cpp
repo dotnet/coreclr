@@ -870,7 +870,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
 #if defined(_ARM64_)
         g_lowest_address = args->lowest_address;
-        g_highest_address = args->highest_address;
+        VolatileStore(&g_highest_address, args->highest_address);
 
         ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
 #else
@@ -925,10 +925,10 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 #endif
 
 #if defined(_ARM64_)
-        g_lowest_address = args->lowest_address;
-        g_highest_address = args->highest_address;
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
+        g_lowest_address = args->lowest_address;
+        VolatileStore(&g_highest_address, args->highest_address);
 
         ::StompWriteBarrierResize(true, false);
 #else

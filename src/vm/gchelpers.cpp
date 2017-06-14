@@ -1339,7 +1339,7 @@ extern "C" HCIMPL2_RAW(VOID, JIT_CheckedWriteBarrier, Object **dst, Object *ref)
 
     // if the dst is outside of the heap (unboxed value classes) then we
     //      simply exit
-    if (((BYTE*)dst < g_lowest_address) || ((BYTE*)dst >= g_highest_address))
+    if (((BYTE*)dst < g_lowest_address) || ((BYTE*)dst >= VolatileLoad(&g_highest_address)))
         return;
     
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
@@ -1477,7 +1477,7 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
 
     // if the dst is outside of the heap (unboxed value classes) then we
     //      simply exit
-    if (((BYTE*)dst < g_lowest_address) || ((BYTE*)dst >= g_highest_address))
+    if (((BYTE*)dst < g_lowest_address) || ((BYTE*)dst >= VolatileLoad(&g_highest_address)))
         return;
     
 #ifdef WRITE_BARRIER_CHECK
