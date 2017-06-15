@@ -8963,6 +8963,7 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
                 }
                 else
                 {
+#ifndef LEGACY_BACKEND
 
                     // The source argument of the copyblk can potentially
                     // be accessed only through indir(addr(lclVar))
@@ -8972,7 +8973,6 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
                     // we don't delete it as a dead store later on.
                     unsigned lclVarNum                = lclVarTree->gtLclVarCommon.gtLclNum;
                     lvaTable[lclVarNum].lvAddrExposed = true;
-#ifndef LEGACY_BACKEND
                     lvaSetVarDoNotEnregister(lclVarNum DEBUGARG(DNER_AddrExposed));
 
 #else  // LEGACY_BACKEND
