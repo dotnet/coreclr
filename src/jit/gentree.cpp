@@ -16986,7 +16986,7 @@ regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
         }
     }
 
-#elif defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+#elif defined(_TARGET_X86_)
 
     if (idx == 0)
     {
@@ -16996,6 +16996,35 @@ regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
     {
         resultReg = REG_LNGRET_HI;
     }
+
+#elif defined(_TARGET_ARM_)
+
+    var_types regType = GetReturnRegType(idx);
+    if (varTypeIsIntegralOrI(regType))
+    {
+        if (idx == 0)
+        {
+            resultReg = REG_LNGRET_LO;
+        }
+        else if (idx == 1)
+        {
+            resultReg = REG_LNGRET_HI;
+        }
+#if FEATURE_MULTIREG_RET
+        else
+        {
+            assert(idx < MAX_RET_REG_COUNT);          // Up to 4 return registers for 16-byte structs
+            resultReg = (idx == 2) ? REG_R2 : REG_R3; // r2 or r3
+        }
+#endif
+    }
+#if FEATURE_MULTIREG_RET
+    else
+    {
+        assert(idx < MAX_RET_REG_COUNT);                         // Up to 4 return registers for HFA's
+        resultReg = (regNumber)((unsigned)(REG_FLOATRET) + idx); // f0, f1, f2 or f3
+    }
+#endif
 
 #elif defined(_TARGET_ARM64_)
 
