@@ -183,7 +183,7 @@ Object* GCHandleManager::InterlockedCompareExchangeObjectInHandle(OBJECTHANDLE h
 HandleType GCHandleManager::HandleFetchType(OBJECTHANDLE handle)
 {
     uint32_t type = ::HandleFetchType(handle);
-    assert(type >= 0 && type <= 9);
+    assert(type >= HNDTYPE_WEAK_SHORT && type <= HNDTYPE_WEAK_WINRT);
     return static_cast<HandleType>(type);
 }
 
