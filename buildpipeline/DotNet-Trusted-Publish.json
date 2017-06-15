@@ -20,6 +20,24 @@
       }
     },
     {
+        "enabled": true,
+        "continueOnError": false,
+        "alwaysRun": false,
+        "displayName": "Install Signing Plugin",
+        "timeoutInMinutes": 0,
+        "task": {
+            "id": "30666190-6959-11e5-9f96-f56098202fef",
+            "versionSpec": "1.*",
+            "definitionType": "task"
+        },
+        "inputs": {
+            "signType": "real",
+            "zipSources": "true",
+            "version": "",
+            "feedSource": "https://devdiv.pkgs.visualstudio.com/DefaultCollection/_packaging/MicroBuildToolset/nuget/v3/index.json"
+        }
+    },
+    {
       "enabled": true,
       "continueOnError": false,
       "alwaysRun": false,
@@ -78,6 +96,26 @@
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
+    },
+    {
+        "enabled": true,
+        "continueOnError": false,
+        "alwaysRun": false,
+        "displayName": "Inject signed symbol catalogs",
+        "timeoutInMinutes": 0,
+        "task": {
+            "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
+            "versionSpec": "1.*",
+            "definitionType": "task"
+        },
+        "inputs": {
+            "scriptType": "inlineScript",
+            "scriptName": "",
+            "arguments": "-ConfigGroup $(ConfigurationGroup) -SymPkgGlob $(AzureContainerSymbolPackageGlob) -PipelineSrcDir $(Pipeline.SourcesDirectory)",
+            "workingFolder": "$(Pipeline.SourcesDirectory)",
+            "inlineScript": "param($ConfigGroup, $SymPkgGlob, $PipelineSrcDir)\nmsbuild build.proj /t:InjectSignedSymbolCatalogIntoSymbolPackages /p:SymbolPackagesToPublishGlob=$PipelineSrcDir\\packages\\AzureTransfer\\$ConfigGroup\\$env:AzureContainerSymbolPackageGlob /p:SymbolCatalogCertificateId=400",
+            "failOnStandardError": "true"
+        }
     },
     {
       "enabled": true,
@@ -321,6 +359,19 @@
         "ArtifactType": "Container",
         "TargetPath": "\\\\my\\share\\$(Build.DefinitionName)\\$(Build.BuildNumber)"
       }
+    },
+    {
+        "enabled": true,
+        "continueOnError": false,
+        "alwaysRun": false,
+        "displayName": "Send Telemetry",
+        "timeoutInMinutes": 0,
+        "task": {
+            "id": "521a94ea-9e68-468a-8167-6dcf361ea776",
+            "versionSpec": "1.*",
+            "definitionType": "task"
+        },
+        "inputs": {}
     }
   ],
   "options": [
@@ -498,7 +549,7 @@
       "allowOverride": true
     },
     "AzureContainerSymbolPackageGlob": {
-      "value": "symbols\\*.nupkg",
+      "value": "symbolpkg\\*.nupkg",
       "allowOverride": true
     },
     "GitHubRepositoryName": {
