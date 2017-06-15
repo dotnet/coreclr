@@ -41,7 +41,7 @@ public:
     const uint64_t EndAddress() const { return m_endAddress; }
     const uint64_t Size() const { return m_endAddress - m_startAddress; }
     const uint64_t Offset() const { return m_offset; }
-    const char* FileName() const { return m_fileName; }
+    char* FileName() const { return m_fileName; }
 
     bool operator<(const MemoryRegion& rhs) const
     {
