@@ -1436,6 +1436,19 @@ DONE:
 
 /*****************************************************************************
  *
+ *  emitIns_valid_imm_for_vldst_offset() returns true when the immediate 'imm'
+ *   can be encoded as the offset in a vldr/vstr instruction, i.e. when it is
+ *   a non-negative multiple of 4 that is less than 1024.
+ */
+/*static*/ bool emitter::emitIns_valid_imm_for_vldst_offset(int imm)
+{
+    if ((imm & 0x3fc) == imm)
+        return true;
+    return false;
+}
+
+/*****************************************************************************
+ *
  *  Add an instruction with no operands.
  */
 
@@ -4241,24 +4254,29 @@ void emitter::emitIns_J(instruction ins, BasicBlock* dst, int instrCount /* = 0 
 
 void emitter::emitIns_R_L(instruction ins, emitAttr attr, BasicBlock* dst, regNumber reg)
 {
-    insFormat fmt = IF_NONE;
-
     assert(dst->bbFlags & BBF_JMP_TARGET);
+
+    insFormat     fmt = IF_NONE;
+    instrDescJmp* id;
 
     /* Figure out the encoding format of the instruction */
     switch (ins)
     {
+        case INS_adr:
+            id  = emitNewInstrLbl();
+            fmt = IF_T2_M1;
+            break;
         case INS_movt:
         case INS_movw:
+            id  = emitNewInstrJmp();
             fmt = IF_T2_N1;
             break;
         default:
             unreached();
     }
-    assert(fmt == IF_T2_N1);
+    assert((fmt == IF_T2_M1) || (fmt == IF_T2_N1));
 
-    instrDescJmp* id  = emitNewInstrJmp();
-    insSize       isz = emitInsSize(fmt);
+    insSize isz = emitInsSize(fmt);
 
     id->idIns(ins);
     id->idReg1(reg);
@@ -4275,7 +4293,16 @@ void emitter::emitIns_R_L(instruction ins, emitAttr attr, BasicBlock* dst, regNu
 
     id->idAddr()->iiaBBlabel = dst;
     id->idjShort             = false;
-    id->idjKeepLong          = true;
+
+    if (ins == INS_adr)
+    {
+        id->idReg2(REG_PC);
+        id->idjKeepLong = emitComp->fgInDifferentRegions(emitComp->compCurBB, dst);
+    }
+    else
+    {
+        id->idjKeepLong = true;
+    }
 
     /* Record the jump's IG and offset within it */
 
@@ -4332,39 +4359,30 @@ void emitter::emitIns_J_R(instruction ins, emitAttr attr, BasicBlock* dst, regNu
 {
     assert(dst->bbFlags & BBF_JMP_TARGET);
 
-    instrDescJmp* id;
-    if (ins == INS_adr)
+    insFormat fmt = IF_NONE;
+    switch (ins)
     {
-        id = emitNewInstrLbl();
-
-        id->idIns(INS_adr);
-        id->idInsFmt(IF_T2_M1);
-        id->idInsSize(emitInsSize(IF_T2_M1));
-        id->idAddr()->iiaBBlabel = dst;
-        id->idReg1(reg);
-        id->idReg2(REG_PC);
-
-        /* Assume the label reference will be long */
-
-        id->idjShort    = 0;
-        id->idjKeepLong = emitComp->fgInDifferentRegions(emitComp->compCurBB, dst);
+        case INS_cbz:
+        case INS_cbnz:
+            fmt = IF_T1_I;
+            break;
+        default:
+            unreached();
     }
-    else
-    {
-        assert(ins == INS_cbz || INS_cbnz);
-        assert(isLowRegister(reg));
-        id = emitNewInstrJmp();
+    assert(fmt == IF_T1_I);
 
-        id->idIns(ins);
-        id->idInsFmt(IF_T1_I);
-        id->idInsSize(emitInsSize(IF_T1_I));
-        id->idReg1(reg);
+    assert(isLowRegister(reg));
 
-        /* This jump better be short or-else! */
-        id->idjShort             = true;
-        id->idAddr()->iiaBBlabel = dst;
-        id->idjKeepLong          = false;
-    }
+    instrDescJmp* id = emitNewInstrJmp();
+    id->idIns(ins);
+    id->idInsFmt(IF_T1_I);
+    id->idInsSize(emitInsSize(IF_T1_I));
+    id->idReg1(reg);
+
+    /* This jump better be short or-else! */
+    id->idjShort             = true;
+    id->idAddr()->iiaBBlabel = dst;
+    id->idjKeepLong          = false;
 
     /* Record the jump's IG and offset within it */
 
@@ -5387,7 +5405,7 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
             {
                 assert(ins == INS_movt || ins == INS_movw);
                 if ((ins == INS_movt) && emitComp->info.compMatchedVM)
-                    emitRecordRelocation((void*)(dst - 8), (void*)distVal, IMAGE_REL_BASED_THUMB_MOV32);
+                    emitHandlePCRelativeMov32((void*)(dst - 8), (void*)distVal);
             }
         }
         else
@@ -5535,7 +5553,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 
     assert(REG_NA == (int)REG_NA);
 
-    VARSET_TP VARSET_INIT_NOCOPY(GCvars, VarSetOps::UninitVal());
+    VARSET_TP GCvars(VarSetOps::UninitVal());
 
     /* What instruction format have we got? */
 
@@ -6011,7 +6029,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 assert((ins == INS_movt) || (ins == INS_movw));
                 dst += emitOutput_Thumb2Instr(dst, code);
                 if ((ins == INS_movt) && emitComp->info.compMatchedVM)
-                    emitRecordRelocation((void*)(dst - 8), (void*)imm, IMAGE_REL_BASED_THUMB_MOV32);
+                    emitHandlePCRelativeMov32((void*)(dst - 8), (void*)imm);
             }
             else
             {
@@ -7745,6 +7763,14 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
             assert(!"Invalid ins for overflow check");
         }
     }
+
+    if (dst->gtSetFlags())
+    {
+        assert((ins == INS_add) || (ins == INS_adc) || (ins == INS_sub) || (ins == INS_sbc) || (ins == INS_and) ||
+               (ins == INS_orr) || (ins == INS_eor) || (ins == INS_orn));
+        flags = INS_FLAGS_SET;
+    }
+
     if (intConst != nullptr)
     {
         emitIns_R_R_I(ins, attr, dst->gtRegNum, nonIntReg->gtRegNum, intConst->IconValue(), flags);

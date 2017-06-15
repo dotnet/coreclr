@@ -467,6 +467,7 @@ void Module::InitializeForProfiling()
     }
     else // ReadyToRun image
     {
+#ifdef FEATURE_READYTORUN
         // We already setup the m_methodProfileList in the ReadyToRunInfo constructor
         if (m_methodProfileList != nullptr)
         {
@@ -476,6 +477,7 @@ void Module::InitializeForProfiling()
             // Enable profiling if the ZapBBInstr value says to
             m_nativeImageProfiling = GetAssembly()->IsInstrumented();
         }
+#endif
     }
 
 #ifdef FEATURE_LAZY_COW_PAGES
@@ -500,11 +502,6 @@ void Module::InitializeNativeImage(AllocMemTracker* pamTracker)
         PRECONDITION(HasNativeImage());
     }
     CONTRACTL_END;
-
-    if(m_pModuleSecurityDescriptor)
-    {
-        _ASSERTE(m_pModuleSecurityDescriptor->GetModule() == this);
-    }
 
     PEImageLayout * pNativeImage = GetNativeImage();
 
@@ -606,9 +603,6 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
         {
             FastInterlockOr(&m_dwPersistedFlags, LOW_LEVEL_SYSTEM_ASSEMBLY_BY_NAME);
         }
-
-        _ASSERT(m_pModuleSecurityDescriptor == NULL);
-        m_pModuleSecurityDescriptor = new ModuleSecurityDescriptor(this);
     }
 
     m_dwTransientFlags &= ~((DWORD)CLASSES_FREED);  // Set flag indicating LookupMaps are now in a consistent and destructable state
@@ -1450,9 +1444,6 @@ void Module::Destruct()
 #endif // FEATURE_PREJIT
     {
         m_file->Release();
-
-        if (m_pModuleSecurityDescriptor)
-            delete m_pModuleSecurityDescriptor;
     }
 
     // If this module was loaded as domain-specific, then 
@@ -3554,13 +3545,6 @@ PTR_BaseDomain Module::GetDomain()
 
 #ifndef DACCESS_COMPILE 
 
-IAssemblySecurityDescriptor *Module::GetSecurityDescriptor()
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE(m_pAssembly != NULL);
-    return m_pAssembly->GetSecurityDescriptor();
-}
-
 #ifndef CROSSGEN_COMPILE
 void Module::StartUnload()
 {
@@ -3815,7 +3799,6 @@ ISymUnmanagedReader *Module::GetISymUnmanagedReader(void)
     {
         INSTANCE_CHECK;
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-        PRECONDITION(Security::IsResolved(GetAssembly()));
         THROWS;
         WRAPPER(GC_TRIGGERS);
         MODE_ANY;
@@ -4040,16 +4023,7 @@ BOOL Module::IsSymbolReadingEnabled()
 #endif // DEBUGGING_SUPPORTED
 
 
-    // Default policy - only read symbols corresponding to full-trust assemblies.
-    // Note that there is no strong (cryptographic) connection between a symbol file and its assembly.
-        // The intent here is just to ensure that the common high-risk scenarios (AppLaunch, etc)
-        // will never be able to load untrusted PDB files.
-    // 
-        if (GetSecurityDescriptor()->IsFullyTrusted())
-        {
-            return TRUE;
-        }
-    return FALSE;
+    return TRUE;
 }
 
 // At this point, this is only called when we're creating an appdomain
@@ -5713,7 +5687,7 @@ DomainAssembly * Module::LoadAssembly(
         {
             spec.SetWindowsRuntimeType(szWinRtTypeNamespace, szWinRtTypeClassName);
         }
-        pDomainAssembly = GetAppDomain()->LoadDomainAssembly(&spec, pFile, FILE_LOADED, NULL);
+        pDomainAssembly = GetAppDomain()->LoadDomainAssembly(&spec, pFile, FILE_LOADED);
     }
 
     if (pDomainAssembly != NULL)
@@ -6465,10 +6439,6 @@ BOOL Module::CanExecuteCode()
     // preferred base address. If they have any relocs, these may
     // not have been fixed up.
     if (!pPEAssembly->IsDll() && !pPEAssembly->IsILOnly())
-        return FALSE;
-
-    // If the assembly does not have FullTrust, we should not execute its code.
-    if (!pAssembly->GetSecurityDescriptor()->IsFullyTrusted())
         return FALSE;
 #endif // FEATURE_PREJIT
 
@@ -9042,12 +9012,6 @@ void Module::Save(DataImage *image)
                                           DataImage::ITEM_DYNAMIC_STATICS_INFO_TABLE);
     }
 
-    // save the module security descriptor
-    if (m_pModuleSecurityDescriptor)
-    {
-        m_pModuleSecurityDescriptor->Save(image);
-    }
-
     InlineTrackingMap *inlineTrackingMap = image->GetInlineTrackingMap();
     if (inlineTrackingMap) 
     {
@@ -9550,7 +9514,7 @@ void Module::Arrange(DataImage *image)
             else if (TypeFromToken(token) == mdtFieldDef)
             {
                 FieldDesc *pFD = LookupFieldDef(token);
-                if (pFD && pFD->IsILOnlyRVAField())
+                if (pFD && pFD->IsRVA())
                 {
                     if (entry->flags & (1 << RVAFieldData))
                     {
@@ -10028,17 +9992,6 @@ void Module::Fixup(DataImage *image)
             // assembly being ngenned.
             image->ZeroPointerField(m_pDynamicStaticsInfo, (BYTE *)&pDSI->pEnclosingMT - (BYTE *)m_pDynamicStaticsInfo);
         }
-    }
-
-    // fix up module security descriptor
-    if (m_pModuleSecurityDescriptor)
-    {
-        image->FixupPointerField(this, offsetof(Module, m_pModuleSecurityDescriptor));
-        m_pModuleSecurityDescriptor->Fixup(image);
-    }
-    else
-    {
-        image->ZeroPointerField(this, offsetof(Module, m_pModuleSecurityDescriptor));
     }
 
     // If we failed to load some types we need to reset the pointers to the static offset tables so they'll be
@@ -12770,6 +12723,11 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
     if (!m_nativeImageProfiling)
         return;
 
+    if (flagnum >= CORBBTPROF_TOKEN_MAX_NUM_FLAGS)
+    {
+        return;
+    }
+
     mdToken rid = RidFromToken(token);
     CorTokenType  tkType  = (CorTokenType) TypeFromToken(token);
     SectionFormat tkKind  = (SectionFormat) (tkType >> 24);
@@ -12798,8 +12756,9 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
     else if (tkKind == (SectionFormat) (ibcMethodSpec >> 24))
         tkKind = IbcMethodSpecSection;
 
+    _ASSERTE(tkKind >= 0);
     _ASSERTE(tkKind < SectionFormatCount);
-    if (tkKind >= SectionFormatCount)
+    if (tkKind < 0 || tkKind >= SectionFormatCount)
     {
         return;
     }
@@ -13031,7 +12990,8 @@ idTypeSpec Module::LogInstantiatedType(TypeHandle typeHnd, ULONG flagNum)
         // We can relax this if we allow a (duplicate) MethodTable to live
         // in any module (which might be needed for ngen of generics)
 #ifdef FEATURE_PREJIT
-        PRECONDITION(this == GetPreferredZapModuleForTypeHandle(typeHnd));
+        // All callsites already do this...
+        // PRECONDITION(this == GetPreferredZapModuleForTypeHandle(typeHnd));
 #endif
     }
     CONTRACT_END;
@@ -13702,7 +13662,10 @@ void LookupMapBase::CreateHotItemList(DataImage *image, CorProfileData *profileD
                 for (DWORD ii = 0; ii < numItems; ii++)
                 {
                     if (itemList[ii].value != NULL)
-                        RelativePointer<TADDR>::SetValueMaybeNullAtPtr(dac_cast<TADDR>(&itemList[ii].value), itemList[ii].value);
+                    {
+                        RelativePointer<TADDR> *pRelPtr = (RelativePointer<TADDR> *)&itemList[ii].value;
+                        pRelPtr->SetValueMaybeNull(itemList[ii].value);
+                    }
                 }
 
                 if (itemList != NULL)

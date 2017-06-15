@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 
 namespace System.Reflection
 {
-    [Serializable]
     public sealed class TargetParameterCountException : ApplicationException
     {
         public TargetParameterCountException()
@@ -25,11 +24,6 @@ namespace System.Reflection
             : base(message, inner)
         {
             HResult = __HResults.COR_E_TARGETPARAMCOUNT;
-        }
-
-        internal TargetParameterCountException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
         }
     }
 }

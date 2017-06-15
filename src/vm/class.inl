@@ -39,7 +39,7 @@ inline void EEClassOptionalFields::Init()
 {
     LIMITED_METHOD_CONTRACT;
     m_pDictLayout = NULL;
-    m_pVarianceInfo = NULL;
+    m_pVarianceInfo.SetValueMaybeNull(NULL);
 #ifdef FEATURE_COMINTEROP
     m_pSparseVTableMap = NULL;
     m_pCoClassForIntf = TypeHandle();
@@ -49,7 +49,6 @@ inline void EEClassOptionalFields::Init()
     m_WinRTRedirectedTypeIndex = WinMDAdapter::RedirectedTypeIndex_Invalid;
 #endif // FEATURE_COMINTEROP
     m_cbModuleDynamicID = MODULE_NON_DYNAMIC_STATICS;
-    m_SecProps = 0;
 #if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     m_numberEightBytes = 0;
 #endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING    

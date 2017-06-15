@@ -18,7 +18,6 @@ namespace System
     // The ArgumentException is thrown when an argument 
     // is null when it shouldn't be.
     // 
-    [Serializable]
     public class ArgumentNullException : ArgumentException
     {
         // Creates a new ArgumentNullException with its message 
@@ -48,6 +47,9 @@ namespace System
             HResult = __HResults.E_POINTER;
         }
 
-        protected ArgumentNullException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected ArgumentNullException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

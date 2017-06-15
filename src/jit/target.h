@@ -44,116 +44,127 @@
 #error Unsupported or unset target architecture
 #endif
 
-/*****************************************************************************/
-
+//------------------------------------------------------------------------
+//
+// Each register list in register.h must declare REG_STK as the last value.
+// In the following enum declarations, the following REG_XXX are created beyond
+// the "real" registers:
+//    REG_STK          - Used to indicate something evaluated onto the stack.
+//    ACTUAL_REG_COUNT - The number of physical registers. (same as REG_STK).
+//    REG_COUNT        - The number of physical register + REG_STK. This is the count of values that may
+//                       be assigned during register allocation.
+//    REG_NA           - Used to indicate that a register is either not yet assigned or not required.
+//
 #if defined(_TARGET_ARM_)
-DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+enum _regNumber_enum : unsigned
 {
 #define REGDEF(name, rnum, mask, sname) REG_##name = rnum,
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT, ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
-}
-END_DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
+};
 
-DECLARE_TYPED_ENUM(_regMask_enum, unsigned __int64)
+enum _regMask_enum : unsigned __int64
 {
     RBM_NONE = 0,
 #define REGDEF(name, rnum, mask, sname) RBM_##name = mask,
 #define REGALIAS(alias, realname) RBM_##alias = RBM_##realname,
 #include "register.h"
-}
-END_DECLARE_TYPED_ENUM(_regMask_enum, unsigned __int64)
+};
 
 #elif defined(_TARGET_ARM64_)
 
-DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+enum _regNumber_enum : unsigned
 {
 #define REGDEF(name, rnum, mask, xname, wname) REG_##name = rnum,
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT, ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
-}
-END_DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
+};
 
-DECLARE_TYPED_ENUM(_regMask_enum, unsigned __int64)
+enum _regMask_enum : unsigned __int64
 {
     RBM_NONE = 0,
 #define REGDEF(name, rnum, mask, xname, wname) RBM_##name = mask,
 #define REGALIAS(alias, realname) RBM_##alias = RBM_##realname,
 #include "register.h"
-}
-END_DECLARE_TYPED_ENUM(_regMask_enum, unsigned __int64)
+};
 
 #elif defined(_TARGET_AMD64_)
 
-DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+enum _regNumber_enum : unsigned
 {
 #define REGDEF(name, rnum, mask, sname) REG_##name = rnum,
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT, ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
-}
-END_DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
+};
 
-DECLARE_TYPED_ENUM(_regMask_enum, unsigned)
+enum _regMask_enum : unsigned
 {
     RBM_NONE = 0,
 
 #define REGDEF(name, rnum, mask, sname) RBM_##name = mask,
 #define REGALIAS(alias, realname) RBM_##alias = RBM_##realname,
 #include "register.h"
-}
-END_DECLARE_TYPED_ENUM(_regMask_enum, unsigned)
+};
 
 #elif defined(_TARGET_X86_)
 
 #ifndef LEGACY_BACKEND
-DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+enum _regNumber_enum : unsigned
 {
 #define REGDEF(name, rnum, mask, sname) REG_##name = rnum,
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT, ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
-}
-END_DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1 // everything but REG_STK (only real regs)
+};
 
-DECLARE_TYPED_ENUM(_regMask_enum, unsigned)
+enum _regMask_enum : unsigned
 {
     RBM_NONE = 0,
 
 #define REGDEF(name, rnum, mask, sname) RBM_##name = mask,
 #define REGALIAS(alias, realname) RBM_##alias = RBM_##realname,
 #include "register.h"
-}
-END_DECLARE_TYPED_ENUM(_regMask_enum, unsigned)
+};
+
 #else // LEGACY_BACKEND
-DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+enum _regNumber_enum : unsigned
 {
 #define REGDEF(name, rnum, mask, sname) REG_##name = rnum,
 #define REGALIAS(alias, realname) REG_##alias = REG_##realname,
 #include "register.h"
 
-    REG_COUNT, REG_NA = REG_COUNT,
-               ACTUAL_REG_COUNT = REG_COUNT - 1, // everything but REG_STK (only real regs)
+    REG_COUNT,
+    REG_NA           = REG_COUNT,
+    ACTUAL_REG_COUNT = REG_COUNT - 1, // everything but REG_STK (only real regs)
 
 #define REGDEF(name, rnum, mask, sname) REG_##name = rnum,
 #include "registerfp.h"
 
-        REG_FPCOUNT, REG_FPNONE = REG_FPCOUNT,
+    REG_FPCOUNT,
+    REG_FPNONE = REG_FPCOUNT,
 
 #define REGDEF(name, rnum, mask, sname) REG_##name = rnum,
 #include "registerxmm.h"
 
-               REG_XMMCOUNT
-}
-END_DECLARE_TYPED_ENUM(_regNumber_enum, unsigned)
+    REG_XMMCOUNT
+};
 
-DECLARE_TYPED_ENUM(_regMask_enum, unsigned)
+enum _regMask_enum : unsigned
 {
     RBM_NONE = 0,
 
@@ -166,8 +177,7 @@ DECLARE_TYPED_ENUM(_regMask_enum, unsigned)
 
 #define REGDEF(name, rnum, mask, sname) RBM_##name = mask,
 #include "registerxmm.h"
-}
-END_DECLARE_TYPED_ENUM(_regMask_enum, unsigned)
+};
 
 #endif // LEGACY_BACKEND
 #else
@@ -203,7 +213,7 @@ C_ASSERT(REG_COUNT < REG_PAIR_FIRST); // make sure the register numbers (includi
 #define REG_PAIR_FIRST 0
 #endif
 
-DECLARE_TYPED_ENUM(_regPairNo_enum, unsigned)
+enum _regPairNo_enum : unsigned
 {
 #define PAIRDEF(rlo, rhi) REG_PAIR_##rlo##rhi = REG_##rlo + (REG_##rhi << REG_PAIR_NBITS) + REG_PAIR_FIRST,
 #include "regpair.h"
@@ -211,8 +221,7 @@ DECLARE_TYPED_ENUM(_regPairNo_enum, unsigned)
     REG_PAIR_LAST = (REG_COUNT - 1) + ((REG_COUNT - 1) << REG_PAIR_NBITS) + REG_PAIR_FIRST,
 
     REG_PAIR_NONE = REG_PAIR_LAST + 1
-}
-END_DECLARE_TYPED_ENUM(_regPairNo_enum, unsigned)
+};
 
 enum regPairMask
 {
@@ -596,11 +605,6 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   // IL stub's secret parameter (JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM)
   #define REG_SECRET_STUB_PARAM    REG_EAX
   #define RBM_SECRET_STUB_PARAM    RBM_EAX
-
-  // VSD extra parameter
-  #define REG_VIRTUAL_STUB_PARAM   REG_EAX
-  #define RBM_VIRTUAL_STUB_PARAM   RBM_EAX
-  #define PREDICT_REG_VIRTUAL_STUB_PARAM  PREDICT_REG_EAX
 
   // VSD target address register
   #define REG_VIRTUAL_STUB_TARGET  REG_EAX
@@ -990,11 +994,6 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define REG_SECRET_STUB_PARAM    REG_R10
   #define RBM_SECRET_STUB_PARAM    RBM_R10
 
-  // VSD extra parameter (slot address)
-  #define REG_VIRTUAL_STUB_PARAM   REG_R11
-  #define RBM_VIRTUAL_STUB_PARAM   RBM_R11
-  #define PREDICT_REG_VIRTUAL_STUB_PARAM  PREDICT_REG_R11
-
   // Registers used by PInvoke frame setup
   #define REG_PINVOKE_FRAME        REG_EDI
   #define RBM_PINVOKE_FRAME        RBM_EDI
@@ -1357,6 +1356,13 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_WRITE_BARRIER        RBM_R1
 #endif
 
+  //In the ARM case, registers of write barrier use the normal argument registers.
+  #define REG_WRITE_BARRIER_SRC_BYREF    REG_ARG_1
+  #define RBM_WRITE_BARRIER_SRC_BYREF    RBM_ARG_1
+
+  #define REG_WRITE_BARRIER_DST_BYREF    REG_ARG_0
+  #define RBM_WRITE_BARRIER_DST_BYREF    RBM_ARG_0
+
   // GenericPInvokeCalliHelper VASigCookie Parameter 
   #define REG_PINVOKE_COOKIE_PARAM          REG_R4
   #define RBM_PINVOKE_COOKIE_PARAM          RBM_R4
@@ -1370,11 +1376,6 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   // IL stub's secret MethodDesc parameter (JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM)
   #define REG_SECRET_STUB_PARAM     REG_R12
   #define RBM_SECRET_STUB_PARAM     RBM_R12
-
-  // VSD extra parameter (slot address)
-  #define REG_VIRTUAL_STUB_PARAM          REG_R4
-  #define RBM_VIRTUAL_STUB_PARAM          RBM_R4
-  #define PREDICT_REG_VIRTUAL_STUB_PARAM  PREDICT_REG_R4
 
   // R2R indirect call. Use the same registers as VSD
   #define REG_R2R_INDIRECT_PARAM          REG_R4
@@ -1431,9 +1432,9 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_FLOATRET             RBM_F0
   #define RBM_DOUBLERET           (RBM_F0|RBM_F1)
 
-  // The registers trashed by the CORINFO_HELP_STOP_FOR_GC helper
+  // The registers trashed by the CORINFO_HELP_STOP_FOR_GC helper (JIT_RareDisableHelper).
   // See vm\arm\amshelpers.asm for more details.
-  #define RBM_STOP_FOR_GC_TRASH     (RBM_CALLEE_TRASH & ~(RBM_FLOATRET | RBM_INTRET))
+  #define RBM_STOP_FOR_GC_TRASH     (RBM_CALLEE_TRASH & ~(RBM_LNGRET|RBM_R7|RBM_R8|RBM_R11|RBM_DOUBLERET|RBM_F2|RBM_F3|RBM_F4|RBM_F5|RBM_F6|RBM_F7))
 
   // The registers trashed by the CORINFO_HELP_INIT_PINVOKE_FRAME helper.
   #define RBM_INIT_PINVOKE_FRAME_TRASH (RBM_CALLEE_TRASH | RBM_PINVOKE_TCB | RBM_PINVOKE_SCRATCH)
@@ -1520,7 +1521,7 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
   #define FEATURE_MULTIREG_STRUCT_PROMOTE 1  // True when we want to promote fields of a multireg struct into registers
   #define FEATURE_FASTTAILCALL     1       // Tail calls made as epilog+jmp
-  #define FEATURE_TAILCALL_OPT     0       // opportunistic Tail calls (i.e. without ".tail" prefix) made as fast tail calls.
+  #define FEATURE_TAILCALL_OPT     1       // opportunistic Tail calls (i.e. without ".tail" prefix) made as fast tail calls.
   #define FEATURE_SET_FLAGS        1       // Set to true to force the JIT to mark the trees with GTF_SET_FLAGS when the flags need to be set
   #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register  
   #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register  
@@ -1661,11 +1662,6 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   // IL stub's secret MethodDesc parameter (JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM)
   #define REG_SECRET_STUB_PARAM     REG_R12
   #define RBM_SECRET_STUB_PARAM     RBM_R12
-
-  // VSD extra parameter (slot address)
-  #define REG_VIRTUAL_STUB_PARAM          REG_R11
-  #define RBM_VIRTUAL_STUB_PARAM          RBM_R11
-  #define PREDICT_REG_VIRTUAL_STUB_PARAM  PREDICT_REG_R11
 
   // R2R indirect call. Use the same registers as VSD
   #define REG_R2R_INDIRECT_PARAM          REG_R11
@@ -1950,7 +1946,7 @@ inline bool genIsValidFloatReg(regNumber reg)
     return reg >= REG_FP_FIRST && reg <= REG_FP_LAST;
 }
 
-#if defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+#ifdef _TARGET_ARM_
 
 /*****************************************************************************
  * Return true if the register is a valid floating point double register
@@ -1960,7 +1956,7 @@ inline bool genIsValidDoubleReg(regNumber reg)
     return genIsValidFloatReg(reg) && (((reg - REG_FP_FIRST) & 0x1) == 0);
 }
 
-#endif // defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+#endif // _TARGET_ARM_
 
 //-------------------------------------------------------------------------------------------
 // hasFixedRetBuffReg:

@@ -178,15 +178,19 @@ private:
     {
         assert(GenTree::OperIsBinary(tree->OperGet()));
 
-        GenTree* op1 = tree->gtGetOp1();
-        GenTree* op2 = tree->gtGetOp2();
+        GenTree* const op1 = tree->gtGetOp1();
+        GenTree* const op2 = tree->gtGetOp2();
 
-        if (tree->OperIsCommutative() && tree->TypeGet() == op1->TypeGet())
+        const unsigned operatorSize = genTypeSize(tree->TypeGet());
+
+        const bool op1Legal = tree->OperIsCommutative() && (operatorSize == genTypeSize(op1->TypeGet()));
+        const bool op2Legal = operatorSize == genTypeSize(op2->TypeGet());
+
+        if (op1Legal)
         {
-            GenTree* preferredOp = PreferredRegOptionalOperand(tree);
-            SetRegOptional(preferredOp);
+            SetRegOptional(op2Legal ? PreferredRegOptionalOperand(tree) : op1);
         }
-        else if (tree->TypeGet() == op2->TypeGet())
+        else if (op2Legal)
         {
             SetRegOptional(op2);
         }
@@ -233,7 +237,7 @@ private:
     // Per tree node member functions
     void LowerStoreInd(GenTree* node);
     GenTree* LowerAdd(GenTree* node);
-    void LowerUnsignedDivOrMod(GenTree* node);
+    GenTree* LowerUnsignedDivOrMod(GenTreeOp* divMod);
     GenTree* LowerSignedDivOrMod(GenTree* node);
     void LowerBlockStore(GenTreeBlk* blkNode);
 
@@ -256,6 +260,7 @@ private:
     void LowerStoreLoc(GenTreeLclVarCommon* tree);
     GenTree* LowerArrElem(GenTree* node);
     void LowerRotate(GenTree* tree);
+    void LowerShift(GenTreeOp* shift);
 
     // Utility functions
     void MorphBlkIntoHelperCall(GenTreePtr pTree, GenTreePtr treeStmt);
@@ -272,6 +277,9 @@ private:
     //  by the 'parentNode' (i.e. folded into an instruction)
     //  for example small enough and non-relocatable
     bool IsContainableImmed(GenTree* parentNode, GenTree* childNode);
+
+    // Return true if 'node' is a containable memory op.
+    bool IsContainableMemoryOp(GenTree* node);
 
     // Makes 'childNode' contained in the 'parentNode'
     void MakeSrcContained(GenTreePtr parentNode, GenTreePtr childNode);

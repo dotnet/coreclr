@@ -23,7 +23,6 @@ namespace System
     using System.Diagnostics.Contracts;
     using StackCrawlMark = System.Threading.StackCrawlMark;
 
-    [Serializable]
     public unsafe struct RuntimeTypeHandle : ISerializable
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
@@ -388,37 +387,6 @@ namespace System
             return _IsVisible(new RuntimeTypeHandle(type));
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecurityCritical(RuntimeTypeHandle typeHandle);
-
-        internal bool IsSecurityCritical()
-        {
-            return IsSecurityCritical(GetNativeHandle());
-        }
-
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecuritySafeCritical(RuntimeTypeHandle typeHandle);
-
-        internal bool IsSecuritySafeCritical()
-        {
-            return IsSecuritySafeCritical(GetNativeHandle());
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecurityTransparent(RuntimeTypeHandle typeHandle);
-
-        internal bool IsSecurityTransparent()
-        {
-            return IsSecurityTransparent(GetNativeHandle());
-        }
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern static bool IsValueType(RuntimeType type);
 
@@ -671,30 +639,9 @@ namespace System
             return new MetadataImport(_GetMetadataImport(type), type);
         }
 
-        private RuntimeTypeHandle(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            RuntimeType m = (RuntimeType)info.GetValue("TypeObj", typeof(RuntimeType));
-
-            m_type = m;
-
-            if (m_type == null)
-                throw new SerializationException(SR.Serialization_InsufficientState);
-        }
-
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            if (m_type == null)
-                throw new SerializationException(SR.Serialization_InvalidFieldState);
-
-            info.AddValue("TypeObj", m_type, typeof(RuntimeType));
+            throw new PlatformNotSupportedException();
         }
     }
 
@@ -784,7 +731,6 @@ namespace System
         }
     }
 
-    [Serializable]
     public unsafe struct RuntimeMethodHandle : ISerializable
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
@@ -814,33 +760,9 @@ namespace System
         }
 
         // ISerializable interface
-        private RuntimeMethodHandle(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            MethodBase m = (MethodBase)info.GetValue("MethodObj", typeof(MethodBase));
-
-            m_value = m.MethodHandle.m_value;
-
-            if (m_value == null)
-                throw new SerializationException(SR.Serialization_InsufficientState);
-        }
-
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            if (m_value == null)
-                throw new SerializationException(SR.Serialization_InvalidFieldState);
-
-            // This is either a RuntimeMethodInfo or a RuntimeConstructorInfo
-            MethodBase methodInfo = RuntimeType.GetMethodBase(m_value);
-
-            info.AddValue("MethodObj", methodInfo, typeof(MethodBase));
+            throw new PlatformNotSupportedException();
         }
 
         public IntPtr Value
@@ -897,9 +819,6 @@ namespace System
             GC.KeepAlive(m_value);
             return ptr;
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal unsafe extern static void CheckLinktimeDemands(IRuntimeMethodInfo method, RuntimeModule module, bool isDecoratedTargetSecurityTransparent);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -1167,7 +1086,6 @@ namespace System
         }
     }
 
-    [Serializable]
     public unsafe struct RuntimeFieldHandle : ISerializable
     {
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
@@ -1280,70 +1198,10 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool AcquiresContextFromThis(RuntimeFieldHandleInternal field);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecurityCritical(RuntimeFieldHandle fieldHandle);
-
-        internal bool IsSecurityCritical()
-        {
-            return IsSecurityCritical(GetNativeHandle());
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecuritySafeCritical(RuntimeFieldHandle fieldHandle);
-
-        internal bool IsSecuritySafeCritical()
-        {
-            return IsSecuritySafeCritical(GetNativeHandle());
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsSecurityTransparent(RuntimeFieldHandle fieldHandle);
-
-        internal bool IsSecurityTransparent()
-        {
-            return IsSecurityTransparent(GetNativeHandle());
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        internal static extern void CheckAttributeAccess(RuntimeFieldHandle fieldHandle, RuntimeModule decoratedTarget);
-
         // ISerializable interface
-        private RuntimeFieldHandle(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            FieldInfo f = (RuntimeFieldInfo)info.GetValue("FieldObj", typeof(RuntimeFieldInfo));
-
-            if (f == null)
-                throw new SerializationException(SR.Serialization_InsufficientState);
-
-            m_ptr = f.FieldHandle.m_ptr;
-
-            if (m_ptr == null)
-                throw new SerializationException(SR.Serialization_InsufficientState);
-        }
-
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            if (m_ptr == null)
-                throw new SerializationException(SR.Serialization_InvalidFieldState);
-
-            RuntimeFieldInfo fldInfo = (RuntimeFieldInfo)RuntimeType.GetFieldInfo(this.GetRuntimeFieldInfo());
-
-            info.AddValue("FieldObj", fldInfo, typeof(RuntimeFieldInfo));
+            throw new PlatformNotSupportedException();
         }
     }
 

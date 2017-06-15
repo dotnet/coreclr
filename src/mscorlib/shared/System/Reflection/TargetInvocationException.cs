@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 
 namespace System.Reflection
 {
-    [Serializable]
     public sealed class TargetInvocationException : ApplicationException
     {
         public TargetInvocationException(Exception inner)
@@ -19,11 +18,6 @@ namespace System.Reflection
             : base(message, inner)
         {
             HResult = __HResults.COR_E_TARGETINVOCATION;
-        }
-
-        internal TargetInvocationException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
         }
     }
 }

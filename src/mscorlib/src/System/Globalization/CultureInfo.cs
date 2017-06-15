@@ -44,7 +44,6 @@ namespace System.Globalization
     using StringLcidDictionary = LowLevelDictionary<int, CultureInfo>;
 #endif
 
-    [Serializable]
     public partial class CultureInfo : IFormatProvider, ICloneable
     {
         //--------------------------------------------------------------------//
@@ -968,7 +967,7 @@ namespace System.Globalization
 
         public void ClearCachedData()
         {
-            s_userDefaultCulture = null;
+            Init(); // reset the default culture values
 
             RegionInfo.s_currentRegionInfo = null;
             #pragma warning disable 0618 // disable the obsolete warning 

@@ -11,7 +11,6 @@ namespace System
     ///    <para> The exception that is thrown when accessing an object that was
     ///       disposed.</para>
     /// </devdoc>
-    [Serializable]
     public class ObjectDisposedException : InvalidOperationException
     {
         private String _objectName;
@@ -42,13 +41,12 @@ namespace System
         protected ObjectDisposedException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            _objectName = info.GetString("ObjectName");
+            throw new PlatformNotSupportedException();
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
-            info.AddValue("ObjectName", ObjectName, typeof(String));
         }
 
         /// <devdoc>

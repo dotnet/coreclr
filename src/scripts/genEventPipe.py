@@ -122,7 +122,7 @@ def generateClrEventPipeWriteEventsImpl(
     WriteEventImpl.append(
         "    EventPipeProvider" +
         providerPrettyName +
-        " = new EventPipeProvider(" +
+        " = EventPipe::CreateProvider(" +
         providerPrettyName +
         "GUID);\n")
     for eventNode in eventNodes:
@@ -136,14 +136,9 @@ def generateClrEventPipeWriteEventsImpl(
         eventLevel = eventLevel.replace("win:", "EventPipeEventLevel::")
         exclusionInfo = parseExclusionList(exclusionListFile)
         taskName = eventNode.getAttribute('task')
-        noStack = getStackWalkBit(
-            providerName,
-            taskName,
-            eventName,
-            exclusionInfo.nostack)
 
-        initEvent = """    EventPipeEvent%s = EventPipeProvider%s->AddEvent(%s,%s,%s,%s,%d);
-""" % (eventName, providerPrettyName, eventKeywordsMask, eventValue, eventVersion, eventLevel, int(noStack))
+        initEvent = """    EventPipeEvent%s = EventPipeProvider%s->AddEvent(%s,%s,%s,%s);
+""" % (eventName, providerPrettyName, eventValue, eventKeywordsMask, eventVersion, eventLevel)
 
         WriteEventImpl.append(initEvent)
     WriteEventImpl.append("}")
@@ -266,6 +261,8 @@ def generateEventPipeCmakeFile(etwmanifest, eventpipe_directory):
             topCmake.write('            "%s.cpp"\n' % (providerName_File))
         topCmake.write('            "eventpipehelpers.cpp"\n')
         topCmake.write("""        )
+
+        add_dependencies(eventpipe GeneratedEventingFiles)
 
         # Install the static eventpipe library
         install(TARGETS eventpipe DESTINATION lib)

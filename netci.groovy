@@ -1470,8 +1470,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         else if (isGcReliabilityFramework(scenario)) {
                             buildCommands += "tests\\runtest.cmd ${runtestArguments} GenerateLayoutOnly"
                             buildCommands += "tests\\scripts\\run-gc-reliability-framework.cmd ${arch} ${configuration}"
-                            Utilities.addArchival(newJob, "stdout.txt")
-                            Utilities.addArchival(newJob, "Logs/**")
                         }
                         else if (architecture == 'x64' || architecture == 'x86') {
                             buildCommands += "tests\\runtest.cmd ${runtestArguments}"
@@ -1504,9 +1502,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         }
 
                         if (!isBuildOnly) {
-                            if (architecture == 'x64' || !isPR) {
-                                Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml')
-                            }
+                            Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml', true)
                             setTestJobTimeOut(newJob, scenario)
                         }
                     }
@@ -1545,7 +1541,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                            Utilities.setJobTimeout(newJob, 240)
                        }
 
-                       buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2"
+                       buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2 -priority=1"
                        // Test build and run are launched together.
                        buildCommands += "python tests\\scripts\\arm64_post_build.py -repo_root %WORKSPACE% -arch ${architecture} -build_type ${lowerConfiguration} -scenario ${scenario} -key_location C:\\tools\\key.txt"
                        //Utilities.addXUnitDotNETResults(newJob, 'bin/tests/testResults.xml')
@@ -2012,7 +2008,7 @@ combinedScenarios.each { scenario ->
 
                                     // Copy the Windows test binaries and the Corefx build binaries
                                     copyArtifacts(WindowTestsName) {
-                                        excludePatterns('**/testResults.xml', '**/*.ni.dll')
+                                        includePatterns('bin/tests/tests.zip')
                                         buildSelector {
                                             latestSuccessful(true)
                                         }
@@ -2498,13 +2494,6 @@ combinedScenarios.each { scenario ->
                                 }
                             }
                         }
-                    }
-
-                    if (isGcReliabilityFramework(scenario))
-                    {
-                        // Both of these are emitted by the RF
-                        Utilities.addArchival(newJob, "stdout.txt")
-                        Utilities.addArchival(newJob, "Logs/**")
                     }
 
                     if (scenario == 'coverage') {

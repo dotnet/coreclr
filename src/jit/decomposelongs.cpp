@@ -264,7 +264,7 @@ GenTree* DecomposeLongs::DecomposeNode(GenTree* tree)
 
         default:
         {
-            JITDUMP("Illegal TYP_LONG node %s in Decomposition.", GenTree::NodeName(tree->OperGet()));
+            JITDUMP("Illegal TYP_LONG node %s in Decomposition.", GenTree::OpName(tree->OperGet()));
             assert(!"Illegal TYP_LONG node in Decomposition.");
             break;
         }
@@ -800,7 +800,6 @@ GenTree* DecomposeLongs::DecomposeStoreInd(LIR::Use& use)
         new (m_compiler, GT_LEA) GenTreeAddrMode(TYP_REF, addrBaseHigh, nullptr, 0, genTypeSize(TYP_INT));
     GenTree* storeIndHigh = new (m_compiler, GT_STOREIND) GenTreeStoreInd(TYP_INT, addrHigh, dataHigh);
     storeIndHigh->gtFlags = (storeIndLow->gtFlags & (GTF_ALL_EFFECT | GTF_LIVENESS_MASK));
-    storeIndHigh->gtFlags |= GTF_REVERSE_OPS;
 
     m_compiler->lvaIncRefCnts(addrBaseHigh);
 
@@ -922,11 +921,15 @@ GenTree* DecomposeLongs::DecomposeNeg(LIR::Use& use)
     loResult->gtType     = TYP_INT;
     loResult->gtOp.gtOp1 = loOp1;
 
-    GenTree* zero     = m_compiler->gtNewZeroConNode(TYP_INT);
+    GenTree* zero = m_compiler->gtNewZeroConNode(TYP_INT);
+#if defined(_TARGET_X86_)
     GenTree* hiAdjust = m_compiler->gtNewOperNode(GT_ADD_HI, TYP_INT, hiOp1, zero);
     GenTree* hiResult = m_compiler->gtNewOperNode(GT_NEG, TYP_INT, hiAdjust);
-
     Range().InsertAfter(loResult, zero, hiAdjust, hiResult);
+#elif defined(_TARGET_ARM_)
+    GenTree* hiResult = m_compiler->gtNewOperNode(GT_SUB_HI, TYP_INT, zero, hiOp1);
+    Range().InsertAfter(loResult, zero, hiResult);
+#endif
 
     return FinalizeDecomposition(use, loResult, hiResult, hiResult);
 }
@@ -1550,7 +1553,8 @@ GenTree* DecomposeLongs::DecomposeRotate(LIR::Use& use)
 // these nodes, we convert them into GT_MUL_LONGs, undo the cast from int to long by
 // stripping out the lo ops, and force them into the form var = mul, as we do for
 // GT_CALLs. In codegen, we then produce a mul instruction that produces the result
-// in edx:eax, and store those registers on the stack in genStoreLongLclVar.
+// in edx:eax on x86 or in any two chosen by RA registers on arm32, and store those
+// registers on the stack in genStoreLongLclVar.
 //
 // All other GT_MULs have been converted to helper calls in morph.cpp
 //
@@ -1583,7 +1587,7 @@ GenTree* DecomposeLongs::DecomposeMul(LIR::Use& use)
 
     tree->gtOp.gtOp1 = op1->gtGetOp1();
     tree->gtOp.gtOp2 = op2->gtGetOp1();
-    tree->SetOperRaw(GT_MUL_LONG);
+    tree->SetOper(GT_MUL_LONG);
 
     return StoreNodeToVar(use);
 }

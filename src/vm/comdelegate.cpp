@@ -26,6 +26,7 @@
 #include "virtualcallstub.h"
 #include "callingconvention.h"
 #include "customattribute.h"
+#include "typestring.h"
 #include "../md/compiler/custattr.h"
 #ifdef FEATURE_COMINTEROP
 #include "comcallablewrapper.h"
@@ -581,7 +582,7 @@ ComPlusCallInfo * COMDelegate::PopulateComPlusCallInfo(MethodTable * pDelMT)
 // We need a LoaderHeap that lives at least as long as the DelegateEEClass, but ideally no longer
 LoaderHeap *DelegateEEClass::GetStubHeap()
 {
-    return m_pInvokeMethod->GetLoaderAllocator()->GetStubHeap();
+    return GetInvokeMethod()->GetLoaderAllocator()->GetStubHeap();
 }
 
 
@@ -600,7 +601,7 @@ Stub* COMDelegate::SetupShuffleThunk(MethodTable * pDelMT, MethodDesc *pTargetMe
 
     DelegateEEClass * pClass = (DelegateEEClass *)pDelMT->GetClass();
     
-    MethodDesc *pMD = pClass->m_pInvokeMethod;
+    MethodDesc *pMD = pClass->GetInvokeMethod();
 
     StackSArray<ShuffleEntry> rShuffleEntryArray;
     GenerateShuffleArray(pMD, pTargetMeth, &rShuffleEntryArray);
@@ -774,12 +775,6 @@ FCIMPL5(FC_BOOL_RET, COMDelegate::BindToMethodName,
                     continue;
                 }
 
-                if (!COMDelegate::ValidateSecurityTransparency(pCurMethod, gc.refThis->GetTypeHandle().AsMethodTable()))
-                {
-                    // violates security transparency rules, skip.
-                    continue;
-                }
-
                 // Found the target that matches the signature and satisfies security transparency rules
                 // Initialize the delegate to point to the target method.
                 BindToMethod(&gc.refThis,
@@ -862,8 +857,7 @@ FCIMPL5(FC_BOOL_RET, COMDelegate::BindToMethodInfo, Object* refThisUNSAFE, Objec
                                             gc.refThis->GetTypeHandle(), 
                                             pInvokeMeth,
                                             flags,
-                                            &fIsOpenDelegate) &&
-        COMDelegate::ValidateSecurityTransparency(method, gc.refThis->GetTypeHandle().AsMethodTable()) )
+                                            &fIsOpenDelegate))
     {
         // Initialize the delegate to point to the target method.
         BindToMethod(&gc.refThis,
@@ -939,10 +933,6 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
                                       pExactMethodType,
                                       pTargetMethod->IsStatic() ? NULL : pInstanceMT,
                                       pTargetMethod);
-
-        // Trip any link demands the target method requires.
-        InvokeUtil::CheckLinktimeDemand(&sCtx,
-                                        pTargetMethod);
 
         // Ask for skip verification if a delegate over a .ctor or .cctor is requested.
         if (pTargetMethod->IsClassConstructorOrCtor())
@@ -1181,7 +1171,7 @@ BOOL COMDelegate::IsFullTrustDelegate(DELEGATEREF pDelegate)
             // The target must be decorated with AllowReversePInvokeCallsAttribute
             if (!IsMethodAllowedToSinkReversePInvoke(pMD)) return FALSE;
 
-            return pMD->GetModule()->GetSecurityDescriptor()->IsFullyTrusted();
+            return TRUE;
         }
     }
     // Default: 
@@ -2385,7 +2375,7 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
     MethodTable *       pDelMT = pMD->GetMethodTable();
     DelegateEEClass*    pClass = (DelegateEEClass*) pDelMT->GetClass();
 
-    if (pMD == pClass->m_pInvokeMethod)
+    if (pMD == pClass->GetInvokeMethod())
     {
         // Validate the invoke method, which at the moment just means checking the calling convention
 
@@ -2401,7 +2391,7 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
         // and not an invalid-delegate-layout condition. 
         // 
         // If the call was indeed for async delegate invocation, we will just throw an exception.
-        if ((pMD == pClass->m_pBeginInvokeMethod) || (pMD == pClass->m_pEndInvokeMethod))
+        if ((pMD == pClass->GetBeginInvokeMethod()) || (pMD == pClass->GetEndInvokeMethod()))
         {
             COMPlusThrow(kPlatformNotSupportedException);
         }
@@ -2525,7 +2515,7 @@ DELEGATEREF COMDelegate::CreateSecureDelegate(DELEGATEREF delegate, MethodDesc* 
     CONTRACTL_END;
 
     MethodTable *pDelegateType = delegate->GetMethodTable();
-    MethodDesc *pMD = ((DelegateEEClass*)(pDelegateType->GetClass()))->m_pInvokeMethod;
+    MethodDesc *pMD = ((DelegateEEClass*)(pDelegateType->GetClass()))->GetInvokeMethod();
     // allocate the object
     struct _gc {
         DELEGATEREF refSecDel;
@@ -2625,13 +2615,13 @@ FCIMPL1(MethodDesc*, COMDelegate::GetInvokeMethod, Object* refThisIn)
     OBJECTREF refThis = ObjectToOBJECTREF(refThisIn);
     MethodTable * pDelMT = refThis->GetMethodTable();
 
-    MethodDesc* pMD = ((DelegateEEClass*)(pDelMT->GetClass()))->m_pInvokeMethod;
+    MethodDesc* pMD = ((DelegateEEClass*)(pDelMT->GetClass()))->GetInvokeMethod();
     _ASSERTE(pMD);
     return pMD;
 }
 FCIMPLEND
 
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
 FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
 {
     FCALL_CONTRACT;
@@ -2643,7 +2633,7 @@ FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
     Stub *pStub = delegateEEClass->m_pMultiCastInvokeStub;
     if (pStub == NULL)
     {
-        MethodDesc* pMD = delegateEEClass->m_pInvokeMethod;
+        MethodDesc* pMD = delegateEEClass->GetInvokeMethod();
     
         HELPER_METHOD_FRAME_BEGIN_RET_0();
 
@@ -2754,7 +2744,7 @@ FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
 }
 FCIMPLEND
 
-#else // FEATURE_STUBS_AS_IL
+#else // FEATURE_MULTICASTSTUB_AS_IL
 
 FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
 {
@@ -2767,7 +2757,7 @@ FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
     Stub *pStub = delegateEEClass->m_pMultiCastInvokeStub;
     if (pStub == NULL)
     {
-        MethodDesc* pMD = delegateEEClass->m_pInvokeMethod;
+        MethodDesc* pMD = delegateEEClass->GetInvokeMethod();
     
         HELPER_METHOD_FRAME_BEGIN_RET_0();
 
@@ -2813,7 +2803,7 @@ FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
     return pStub->GetEntryPoint();
 }
 FCIMPLEND
-#endif // FEATURE_STUBS_AS_IL
+#endif // FEATURE_MULTICASTSTUB_AS_IL
 
 #ifdef FEATURE_STUBS_AS_IL
 PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
@@ -3101,7 +3091,7 @@ MethodDesc* COMDelegate::FindDelegateInvokeMethod(MethodTable *pMT)
 
     _ASSERTE(pMT->IsDelegate());
 
-    MethodDesc * pMD = ((DelegateEEClass*)pMT->GetClass())->m_pInvokeMethod;
+    MethodDesc * pMD = ((DelegateEEClass*)pMT->GetClass())->GetInvokeMethod();
     if (pMD == NULL)
         COMPlusThrowNonLocalized(kMissingMethodException, W("Invoke"));
     return pMD;
@@ -3114,7 +3104,7 @@ BOOL COMDelegate::IsDelegateInvokeMethod(MethodDesc *pMD)
     MethodTable *pMT = pMD->GetMethodTable();
     _ASSERTE(pMT->IsDelegate());
 
-    return (pMD == ((DelegateEEClass *)pMT->GetClass())->m_pInvokeMethod);
+    return (pMD == ((DelegateEEClass *)pMT->GetClass())->GetInvokeMethod());
 }
 
 BOOL COMDelegate::IsMethodDescCompatible(TypeHandle   thFirstArg,
@@ -3667,45 +3657,11 @@ BOOL COMDelegate::ValidateCtor(TypeHandle instHnd,
 
     DelegateEEClass *pdlgEEClass = (DelegateEEClass*)dlgtHnd.AsMethodTable()->GetClass();
     PREFIX_ASSUME(pdlgEEClass != NULL);
-    MethodDesc *pDlgtInvoke = pdlgEEClass->m_pInvokeMethod;
+    MethodDesc *pDlgtInvoke = pdlgEEClass->GetInvokeMethod();
     if (pDlgtInvoke == NULL)
         return FALSE;
     return IsMethodDescCompatible(instHnd, ftnParentHnd, pFtn, dlgtHnd, pDlgtInvoke, DBF_RelaxedSignature, pfIsOpenDelegate);
 }
-
-
-// This method checks the delegate type transparency rules.
-// It returns TRUE if the transparency rules are obeyed and FALSE otherwise
-//
-// The Partial Trust Silverlight (SL2, SL4, and PT SL5) rule is:
-// 1. Critical delegates can only be bound to critical target methods
-// 2. Transparent/SafeCritical delegates can only be bound to Transparent/SafeCritical target methods
-//
-// The Full Trust Silverlight rule FOR NOW is: anything is allowed
-// The Desktop rule FOR NOW is: anything is allowed
-//
-// This is called by JIT in early bound delegate creation to determine whether the delegate transparency 
-// check is POSSIBLY needed. If the code is shared between appdomains of different trust levels, it is 
-// possible that the check is needed in some domains but not the others. So we need to made that distinction 
-// at run time in JIT_DelegateSecurityCheck.
-
-/* static */
-BOOL COMDelegate::ValidateSecurityTransparency(MethodDesc *pFtn, MethodTable *pdlgMT)
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (GetAppDomain()->GetSecurityDescriptor()->IsFullyTrusted())
-        return TRUE;
-
-    BOOL fCriticalDelegate = Security::IsTypeCritical(pdlgMT) && !Security::IsTypeSafeCritical(pdlgMT);
-    BOOL fCriticalTarget   = Security::IsMethodCritical(pFtn) && !Security::IsMethodSafeCritical(pFtn);
-
-    // returns true if:
-    //     1. the delegate is critical and the target method is critical, or
-    //     2. the delegate is transparent/safecritical and the target method is transparent/safecritical
-    return (fCriticalDelegate == fCriticalTarget);
-}
-
 
 BOOL COMDelegate::ValidateBeginInvoke(DelegateEEClass* pClass)
 {
@@ -3716,18 +3672,18 @@ BOOL COMDelegate::ValidateBeginInvoke(DelegateEEClass* pClass)
         MODE_ANY;
 
         PRECONDITION(CheckPointer(pClass));
-        PRECONDITION(CheckPointer(pClass->m_pBeginInvokeMethod));
+        PRECONDITION(CheckPointer(pClass->GetBeginInvokeMethod()));
 
         // insert fault. Can the binder throw an OOM?
     }
     CONTRACTL_END;
 
-    if (pClass->m_pInvokeMethod == NULL) 
+    if (pClass->GetInvokeMethod() == NULL)
         return FALSE;
 
     // We check the signatures under the typical instantiation of the possibly generic class 
-    MetaSig beginInvokeSig(pClass->m_pBeginInvokeMethod->LoadTypicalMethodDefinition());
-    MetaSig invokeSig(pClass->m_pInvokeMethod->LoadTypicalMethodDefinition());
+    MetaSig beginInvokeSig(pClass->GetBeginInvokeMethod()->LoadTypicalMethodDefinition());
+    MetaSig invokeSig(pClass->GetInvokeMethod()->LoadTypicalMethodDefinition());
 
     if (beginInvokeSig.GetCallingConventionInfo() != (IMAGE_CEE_CS_CALLCONV_HASTHIS | IMAGE_CEE_CS_CALLCONV_DEFAULT))
         return FALSE;
@@ -3768,18 +3724,18 @@ BOOL COMDelegate::ValidateEndInvoke(DelegateEEClass* pClass)
         MODE_ANY;
 
         PRECONDITION(CheckPointer(pClass));
-        PRECONDITION(CheckPointer(pClass->m_pEndInvokeMethod));
+        PRECONDITION(CheckPointer(pClass->GetEndInvokeMethod()));
 
         // insert fault. Can the binder throw an OOM?
     }
     CONTRACTL_END;
 
-    if (pClass->m_pInvokeMethod == NULL) 
+    if (pClass->GetInvokeMethod() == NULL)
         return FALSE;
 
     // We check the signatures under the typical instantiation of the possibly generic class 
-    MetaSig endInvokeSig(pClass->m_pEndInvokeMethod->LoadTypicalMethodDefinition());
-    MetaSig invokeSig(pClass->m_pInvokeMethod->LoadTypicalMethodDefinition());
+    MetaSig endInvokeSig(pClass->GetEndInvokeMethod()->LoadTypicalMethodDefinition());
+    MetaSig invokeSig(pClass->GetInvokeMethod()->LoadTypicalMethodDefinition());
 
     if (endInvokeSig.GetCallingConventionInfo() != (IMAGE_CEE_CS_CALLCONV_HASTHIS | IMAGE_CEE_CS_CALLCONV_DEFAULT))
         return FALSE;

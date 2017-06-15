@@ -1337,6 +1337,9 @@ TypeHandle ClassLoader::LookupTypeKeyUnderLock(TypeKey *pKey,
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
 
+    // m_AvailableTypesLock has to be taken in cooperative mode to avoid deadlocks during GC
+    GCX_MAYBE_COOP_NO_THREAD_BROKEN(!IsGCThread());
+
     CrstHolder ch(pLock);
     return pTable->GetValue(pKey);
 }
@@ -2071,8 +2074,7 @@ ClassLoader::LoadTypeHandleThrowing(
             BOOL fTrustTD = TRUE;
 #ifndef DACCESS_COMPILE
             CONTRACT_VIOLATION(ThrowsViolation);
-            BOOL fVerifyTD = (FoundExportedType != mdTokenNil) &&
-                             !pClsLdr->GetAssembly()->GetSecurityDescriptor()->IsFullyTrusted();
+            BOOL fVerifyTD = FALSE;
             
             // If this is an exported type with a mdTokenNil class token, then then
             // exported type did not give a typedefID hint. We won't be able to trust the typedef
@@ -3743,6 +3745,9 @@ TypeHandle ClassLoader::PublishType(TypeKey *pTypeKey, TypeHandle typeHnd)
         Module *pLoaderModule = ComputeLoaderModule(pTypeKey);
         EETypeHashTable *pTable = pLoaderModule->GetAvailableParamTypes();
 
+        // m_AvailableTypesLock has to be taken in cooperative mode to avoid deadlocks during GC
+        GCX_COOP();
+
         CrstHolder ch(&pLoaderModule->GetClassLoader()->m_AvailableTypesLock);
 
         // The type could have been loaded by a different thread as side-effect of avoiding deadlocks caused by LoadsTypeViolation
@@ -3807,6 +3812,9 @@ TypeHandle ClassLoader::PublishType(TypeKey *pTypeKey, TypeHandle typeHnd)
     {
         Module *pModule = pTypeKey->GetModule();
         mdTypeDef typeDef = pTypeKey->GetTypeToken();
+
+        // m_AvailableTypesLock has to be taken in cooperative mode to avoid deadlocks during GC
+        GCX_COOP();
 
         CrstHolder ch(&pModule->GetClassLoader()->m_AvailableTypesLock);
 
@@ -4970,10 +4978,6 @@ BOOL AccessCheckOptions::DemandMemberAccess(AccessCheckContext *pContext, Method
     // classes/members in app code.
     if (m_accessCheckType != kMemberAccess && pTargetMT)
     {
-        // m_accessCheckType must be kRestrictedMemberAccess if we are running in PT.
-        _ASSERTE(GetAppDomain()->GetSecurityDescriptor()->IsFullyTrusted() ||
-                 m_accessCheckType == kRestrictedMemberAccess);
-
         if (visibilityCheck && Security::IsTransparencyEnforcementEnabled())
         {
             // In CoreCLR RMA means visibility checks always succeed if the target is user code.
@@ -5486,12 +5490,6 @@ static BOOL CheckTransparentAccessToCriticalCode(
                 pOptionalTargetField, 
                 pOptionalTargetType))
     {
-#ifdef _DEBUG
-        if (g_pConfig->LogTransparencyErrors())
-        {
-            SecurityTransparent::LogTransparencyError(pContext->GetCallerMethod(), "Transparent code accessing a critical type, method, or field", pOptionalTargetMethod);
-        }
-#endif // _DEBUG
         return accessCheckOptions.DemandMemberAccessOrFail(pContext, pTargetMT, FALSE /*visibilityCheck*/);
     }
 

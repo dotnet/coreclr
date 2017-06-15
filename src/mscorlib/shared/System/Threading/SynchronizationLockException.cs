@@ -16,7 +16,6 @@ using System.Runtime.Serialization;
 
 namespace System.Threading
 {
-    [Serializable]
     public class SynchronizationLockException : SystemException
     {
         public SynchronizationLockException()
@@ -39,6 +38,7 @@ namespace System.Threading
 
         protected SynchronizationLockException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

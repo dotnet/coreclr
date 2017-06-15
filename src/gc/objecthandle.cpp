@@ -427,7 +427,6 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, uintpt
     {
         NOTHROW;
         GC_NOTRIGGER;
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
     }
     CONTRACTL_END;
 #endif // FEATURE_REDHAWK
@@ -563,10 +562,10 @@ int getNumberOfSlots()
         return 1;
 
 #ifdef FEATURE_REDHAWK
-    return g_SystemInfo.dwNumberOfProcessors;
+    return GCToOSInterface::GetCurrentProcessCpuCount();
 #else
     return (CPUGroupInfo::CanEnableGCCPUGroups() ? CPUGroupInfo::GetNumActiveProcessors() :
-                                                   g_SystemInfo.dwNumberOfProcessors);
+                                                   GCToOSInterface::GetCurrentProcessCpuCount());
 #endif
 }
 

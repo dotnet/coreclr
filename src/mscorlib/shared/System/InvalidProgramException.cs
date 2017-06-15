@@ -15,7 +15,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public sealed class InvalidProgramException : SystemException
     {
         public InvalidProgramException()
@@ -35,7 +34,5 @@ namespace System
         {
             HResult = __HResults.COR_E_INVALIDPROGRAM;
         }
-
-        internal InvalidProgramException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }

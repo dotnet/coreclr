@@ -1381,10 +1381,6 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
         id->idOpSize(EA_SIZE(opsz));
     }
 
-#ifdef _TARGET_ARM64_
-    id->idGCrefReg2(GCT_NONE);
-#endif
-
     // Amd64: ip-relative addressing is supported even when not generating relocatable ngen code
     if (EA_IS_DSP_RELOC(opsz)
 #ifndef _TARGET_AMD64_
@@ -3345,7 +3341,7 @@ void emitter::emitDispIGlist(bool verbose)
 void emitter::emitDispGCinfo()
 {
     printf("Emitter GC tracking info:");
-    printf("\n  emitPrevGCrefVars(0x%p)=%016llX ", dspPtr(&emitPrevGCrefVars), emitPrevGCrefVars);
+    printf("\n  emitPrevGCrefVars ");
     dumpConvertedVarSet(emitComp, emitPrevGCrefVars);
     printf("\n  emitPrevGCrefRegs(0x%p)=", dspPtr(&emitPrevGCrefRegs));
     printRegMaskInt(emitPrevGCrefRegs);
@@ -3353,7 +3349,7 @@ void emitter::emitDispGCinfo()
     printf("\n  emitPrevByrefRegs(0x%p)=", dspPtr(&emitPrevByrefRegs));
     printRegMaskInt(emitPrevByrefRegs);
     emitDispRegSet(emitPrevByrefRegs);
-    printf("\n  emitInitGCrefVars(0x%p)=%016llX ", dspPtr(&emitInitGCrefVars), emitInitGCrefVars);
+    printf("\n  emitInitGCrefVars ");
     dumpConvertedVarSet(emitComp, emitInitGCrefVars);
     printf("\n  emitInitGCrefRegs(0x%p)=", dspPtr(&emitInitGCrefRegs));
     printRegMaskInt(emitInitGCrefRegs);
@@ -3361,7 +3357,7 @@ void emitter::emitDispGCinfo()
     printf("\n  emitInitByrefRegs(0x%p)=", dspPtr(&emitInitByrefRegs));
     printRegMaskInt(emitInitByrefRegs);
     emitDispRegSet(emitInitByrefRegs);
-    printf("\n  emitThisGCrefVars(0x%p)=%016llX ", dspPtr(&emitThisGCrefVars), emitThisGCrefVars);
+    printf("\n  emitThisGCrefVars ");
     dumpConvertedVarSet(emitComp, emitThisGCrefVars);
     printf("\n  emitThisGCrefRegs(0x%p)=", dspPtr(&emitThisGCrefRegs));
     printRegMaskInt(emitThisGCrefRegs);
@@ -7106,6 +7102,29 @@ void emitter::emitRecordRelocation(void* location,            /* IN */
     codeGen->getDisAssembler().disRecordRelocation((size_t)location, (size_t)target);
 #endif // defined(LATE_DISASM)
 }
+
+#ifdef _TARGET_ARM_
+/*****************************************************************************
+ *  A helper for handling a Thumb-Mov32 of position-independent (PC-relative) value
+ *
+ *  This routine either records relocation for the location with the EE,
+ *  or creates a virtual relocation entry to perform offset fixup during
+ *  compilation without recording it with EE - depending on which of
+ *  absolute/relocative relocations mode are used for code section.
+ */
+void emitter::emitHandlePCRelativeMov32(void* location, /* IN */
+                                        void* target)   /* IN */
+{
+    if (emitComp->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_RELATIVE_CODE_RELOCS))
+    {
+        emitRecordRelocation(location, target, IMAGE_REL_BASED_REL_THUMB_MOV32_PCREL);
+    }
+    else
+    {
+        emitRecordRelocation(location, target, IMAGE_REL_BASED_THUMB_MOV32);
+    }
+}
+#endif // _TARGET_ARM_
 
 /*****************************************************************************
  *  A helper for recording a call site with the EE.

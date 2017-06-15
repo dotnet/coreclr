@@ -1431,8 +1431,8 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
         sl.X86EmitPopReg(kEBP);
         sl.X86EmitReturn(static_cast<WORD>(argState.callerArgStackSlots * sizeof(void*)));
 #elif defined(_AMD64_)
-        // EDX has "ilArgs" i.e., just the point where registers have been homed.
-        sl.X86EmitIndexLeaRSP(kEDX, static_cast<X86Reg>(kESP_Unsafe), 8);
+        // Pass "ilArgs", i.e. just the point where registers have been homed, as 2nd arg
+        sl.X86EmitIndexLeaRSP(ARGUMENT_kREG2, static_cast<X86Reg>(kESP_Unsafe), 8);
 
         // Allocate space for homing callee's (InterpretMethod's) arguments.
         // Calling convention requires a default allocation space of 4,
@@ -1450,10 +1450,10 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
 #endif
         {
             // For a non-ILStub method, push NULL as the StubContext argument.
-            sl.X86EmitZeroOutReg(kRCX);
-            sl.X86EmitMovRegReg(kR8, kRCX);
+            sl.X86EmitZeroOutReg(ARGUMENT_kREG1);
+            sl.X86EmitMovRegReg(kR8, ARGUMENT_kREG1);
         }
-        sl.X86EmitRegLoad(kRCX, reinterpret_cast<UINT_PTR>(interpMethInfo));
+        sl.X86EmitRegLoad(ARGUMENT_kREG1, reinterpret_cast<UINT_PTR>(interpMethInfo));
         sl.X86EmitCall(sl.NewExternalCodeLabel(interpretMethodFunc), 0);
         sl.X86EmitAddEsp(interpMethodArgSize);
         sl.X86EmitReturn(0);
@@ -2626,8 +2626,10 @@ EvalLoop:
             {
                 assert(m_curStackHt > 0);
                 m_curStackHt--;
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_AMD64_)
                 CorInfoType cit = OpStackTypeGet(m_curStackHt).ToCorInfoType();
+#endif // _DEBUG || _AMD64_
+#ifdef _DEBUG
                 assert(cit == CORINFO_TYPE_INT || cit == CORINFO_TYPE_UINT || cit == CORINFO_TYPE_NATIVEINT);
 #endif // _DEBUG
 #if defined(_AMD64_)
@@ -9558,7 +9560,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 
     // This is the argument slot that will be used to hold the return value.
     ARG_SLOT retVal = 0;
-#ifndef _ARM_
+#if !defined(_ARM_) && !defined(UNIX_AMD64_ABI)
     _ASSERTE (NUMBER_RETURNVALUE_SLOTS == 1);
 #endif
 
@@ -9868,7 +9870,6 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
         GCX_FORBID();
 
         // Some managed methods, believe it or not, can push capital-F Frames on the Frame chain.
-        // The example I've found involves SecurityContextFrame.Push/Pop.
         // If this happens, executing the EX_CATCH below will pop it, which is bad.
         // So detect that case, pop the explicitly-pushed frame, and push it again after the EX_CATCH.
         // (Asserting that there is only 1 such frame!)

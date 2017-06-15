@@ -20,6 +20,7 @@
     <!-- This prevents the default MsBuild targets from referencing System.Core.dll -->
     <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
     <!-- These prevent the default MsBuild targets from referencing System.dll and mscorlib.dll -->
+    <ExcludeMscorlibFacade>true</ExcludeMscorlibFacade>
     <NoStdLib>true</NoStdLib>
     <NoCompilerStandardLib>true</NoCompilerStandardLib>
     <SubsystemVersion>6.00</SubsystemVersion>
@@ -86,11 +87,9 @@
   <PropertyGroup Condition="'$(OsEnvironment)' == 'Unix'">
     <DebugType>portable</DebugType>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(TargetsOSX)' == 'true'">
     <DefineConstants>PLATFORM_OSX;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
-
   <!-- Assembly attributes -->
   <PropertyGroup>
     <AssemblyName>System.Private.CoreLib</AssemblyName>
@@ -104,6 +103,7 @@
     <AssemblyInfoLines Include="[assembly: System.Security.AllowPartiallyTrustedCallers]" />
     <AssemblyInfoLines Include="[assembly: System.Runtime.InteropServices.ComVisible(false)]" />
     <AssemblyInfoLines Include="[assembly: System.Resources.NeutralResourcesLanguage(&quot;en-US&quot;)]" />
+    <AssemblyInfoLines Include="[assembly: System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute(System.Runtime.InteropServices.DllImportSearchPath.AssemblyDirectory | System.Runtime.InteropServices.DllImportSearchPath.System32)]" />
   </ItemGroup>
   <!--
     Helper Paths
@@ -311,11 +311,10 @@
     <Compile Include="$(BclSourcesRoot)\System\AppDomain.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppDomainSetup.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppDomainManager.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IAppDomainPauseManager.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\AppDomainAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppDomainUnloadedException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ArgIterator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Attribute.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\BadImageFormatException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BitConverter.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Boolean.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
@@ -324,7 +323,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Decimal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DefaultBinder.CanConvert.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\DelegateSerializationHolder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Double.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Empty.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Enum.cs" />
@@ -397,7 +395,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MdFieldInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MdImport.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MemberInfo.Internal.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\MemberSerializationStringGenerator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBase.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBody.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RtFieldInfo.cs" />
@@ -437,7 +434,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\PEFileKinds.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\OpCodes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\Opcode.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\OpcodeType.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\OpCodeType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\StackBehaviour.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\OperandType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\FlowControl.cs" />
@@ -565,6 +562,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventSource_CoreCLR.cs" />
     <Compile Condition="'$(FeatureXplatEventSource)' == 'true'" Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\XplatEventLogger.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\FrameworkEventSource.cs" />
+    <Compile Condition="'$(FeaturePerfTracing)' == 'true'" Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipe.cs" />
+    <Compile Condition="'$(FeaturePerfTracing)' == 'true'" Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventProvider.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\Contracts.cs" />
@@ -618,7 +617,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Resources\__HResults.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\FileBasedResourceGroveler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\IResourceGroveler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\LooselyLinkedResourceReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ManifestBasedResourceGroveler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceManager.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceReader.cs" />
@@ -663,6 +661,7 @@
     <Compile Include="$(BclSourcesRoot)\System\IO\StreamReader.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\Normalization.Unix.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TimeZoneInfo.Unix.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
@@ -677,6 +676,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\IdnMapping.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\TextInfo.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\Normalization.Windows.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TimeZoneInfo.Win32.cs" />
   </ItemGroup>
   <!-- Include additional sources shared files in the compilation -->
@@ -688,8 +688,6 @@
     <Compile Include="$(CommonPath)\System\SR.cs" />
     <!-- Include Internals visible to file in the compilation -->
     <Compile Include="$(BclSourcesRoot)\mscorlib.Friends.cs" />
-    <!-- TODO list of types to be cleaned up from CoreLib -->
-    <Compile Include="$(BclSourcesRoot)\CleanupToDoList.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\System\Runtime\RuntimeImports.cs" />
@@ -724,7 +722,9 @@
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup>
     <!-- Overwrite the key that we are going to use for signing -->
-    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)Tools\Signing\mscorlib.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>$(ToolsDir)SilverlightPlatformPublicKey.snk</AssemblyOriginatorKeyFile>
+    <!-- Don't need a strong name signature because we only ship the native image -->
+    <StrongNameSig>None</StrongNameSig>
     <!-- Use a different nativeresource file to avoid conflicts with mscorlib-->
     <Win32Resource Condition="'$(GenerateNativeVersionInfo)'=='true'">$(IntermediateOutputPath)\System.Private.CoreLib.res</Win32Resource>
   </PropertyGroup>

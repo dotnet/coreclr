@@ -13,7 +13,6 @@
 
 #include "common.h"
 #include "security.h"
-#include "verifier.hpp"
 #include "excep.h"
 #include "dbginterface.h"
 #include "ecall.h"
@@ -2493,162 +2492,11 @@ void MethodDesc::Reset()
     }
 
     if (HasNativeCodeSlot())
-        NativeCodeSlot::SetValueMaybeNullAtPtr(GetAddrOfNativeCodeSlot(), NULL);
+    {
+        RelativePointer<TADDR> *pRelPtr = (RelativePointer<TADDR> *)GetAddrOfNativeCodeSlot();
+        pRelPtr->SetValueMaybeNull(NULL);
+    }
     _ASSERTE(!HasNativeCode());
-}
-
-//*******************************************************************************
-DWORD MethodDesc::GetSecurityFlagsDuringPreStub()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END
-
-
-    DWORD dwMethDeclFlags       = 0;
-    DWORD dwMethNullDeclFlags   = 0;
-    DWORD dwClassDeclFlags      = 0;
-    DWORD dwClassNullDeclFlags  = 0;
-
-    if (IsInterceptedForDeclSecurity())
-    {
-        HRESULT hr;
-
-        BOOL fHasSuppressUnmanagedCodeAccessAttr = HasSuppressUnmanagedCodeAccessAttr();;
-
-        hr = Security::GetDeclarationFlags(GetMDImport(),
-                                           GetMemberDef(),
-                                           &dwMethDeclFlags,
-                                           &dwMethNullDeclFlags,
-                                           &fHasSuppressUnmanagedCodeAccessAttr);
-        if (FAILED(hr))
-            COMPlusThrowHR(hr);
-
-        // We only care about runtime actions, here.
-        // Don't add security interceptors for anything else!
-        dwMethDeclFlags     &= DECLSEC_RUNTIME_ACTIONS;
-        dwMethNullDeclFlags &= DECLSEC_RUNTIME_ACTIONS;
-    }
-
-    MethodTable *pMT = GetMethodTable();
-    if (!pMT->IsNoSecurityProperties())
-    {
-        PSecurityProperties pSecurityProperties = pMT->GetClass()->GetSecurityProperties();
-        _ASSERTE(pSecurityProperties);
-
-        dwClassDeclFlags    = pSecurityProperties->GetRuntimeActions();
-        dwClassNullDeclFlags= pSecurityProperties->GetNullRuntimeActions();
-    }
-    else
-    {
-        _ASSERTE( pMT->GetClass()->GetSecurityProperties() == NULL ||
-                  ( pMT->GetClass()->GetSecurityProperties()->GetRuntimeActions() == 0
-                    && pMT->GetClass()->GetSecurityProperties()->GetNullRuntimeActions() == 0 ) );
-    }
-
-
-    // Build up a set of flags to indicate the actions, if any,
-    // for which we will need to set up an interceptor.
-
-    // Add up the total runtime declarative actions so far.
-    DWORD dwSecurityFlags = dwMethDeclFlags | dwClassDeclFlags;
-
-    // Add in a declarative demand for NDirect.
-    // If this demand has been overridden by a declarative check
-    // on a class or method, then the bit won't change. If it's
-    // overridden by an empty check, then it will be reset by the
-    // subtraction logic below.
-    if (IsNDirect())
-    {
-        dwSecurityFlags |= DECLSEC_UNMNGD_ACCESS_DEMAND;
-    }
-
-    if (dwSecurityFlags)
-    {
-        // If we've found any declarative actions at this point,
-        // try to subtract any actions that are empty.
-
-            // Subtract out any empty declarative actions on the method.
-        dwSecurityFlags &= ~dwMethNullDeclFlags;
-
-        // Finally subtract out any empty declarative actions on the class,
-        // but only those actions that are not also declared by the method.
-        dwSecurityFlags &= ~(dwClassNullDeclFlags & ~dwMethDeclFlags);
-    }
-
-    return dwSecurityFlags;
-}
-
-//*******************************************************************************
-DWORD MethodDesc::GetSecurityFlagsDuringClassLoad(IMDInternalImport *pInternalImport,
-                                                  mdToken tkMethod,
-                                                  mdToken tkClass,
-                                                  DWORD *pdwClassDeclFlags,
-                                                  DWORD *pdwClassNullDeclFlags,
-                                                  DWORD *pdwMethDeclFlags,
-                                                  DWORD *pdwMethNullDeclFlags)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END
-
-    HRESULT hr;
-
-    hr = Security::GetDeclarationFlags(pInternalImport,
-                                               tkMethod,
-                                               pdwMethDeclFlags,
-                                               pdwMethNullDeclFlags);
-    if (FAILED(hr))
-          COMPlusThrowHR(hr);
-
-
-    if (!IsNilToken(tkClass) && (*pdwClassDeclFlags == 0xffffffff || *pdwClassNullDeclFlags == 0xffffffff))
-    {
-        hr = Security::GetDeclarationFlags(pInternalImport,
-                                           tkClass,
-                                           pdwClassDeclFlags,
-                                           pdwClassNullDeclFlags);
-        if (FAILED(hr))
-            COMPlusThrowHR(hr);
-
-    }
-
-    // Build up a set of flags to indicate the actions, if any,
-    // for which we will need to set up an interceptor.
-
-    // Add up the total runtime declarative actions so far.
-    DWORD dwSecurityFlags = *pdwMethDeclFlags | *pdwClassDeclFlags;
-
-    // Add in a declarative demand for NDirect.
-    // If this demand has been overridden by a declarative check
-    // on a class or method, then the bit won't change. If it's
-    // overridden by an empty check, then it will be reset by the
-    // subtraction logic below.
-    if (IsNDirect())
-    {
-        dwSecurityFlags |= DECLSEC_UNMNGD_ACCESS_DEMAND;
-    }
-
-    if (dwSecurityFlags)
-    {
-        // If we've found any declarative actions at this point,
-        // try to subtract any actions that are empty.
-
-            // Subtract out any empty declarative actions on the method.
-        dwSecurityFlags &= ~*pdwMethNullDeclFlags;
-
-        // Finally subtract out any empty declarative actions on the class,
-        // but only those actions that are not also declared by the method.
-        dwSecurityFlags &= ~(*pdwClassNullDeclFlags & ~*pdwMethDeclFlags);
-    }
-
-    return dwSecurityFlags;
 }
 
 //*******************************************************************************
@@ -2916,7 +2764,7 @@ void MethodDesc::Save(DataImage *image)
 
         if (pNewSMD->HasStoredMethodSig())
         {
-            if (!image->IsStored((void *) pNewSMD->m_pSig))
+            if (!image->IsStored((void *) pNewSMD->m_pSig.GetValueMaybeNull()))
             {
                 // Store signatures that doesn't need restore into a read only section.
                 DataImage::ItemKind sigItemKind = DataImage::ITEM_STORED_METHOD_SIG_READONLY;
@@ -2932,7 +2780,7 @@ void MethodDesc::Save(DataImage *image)
                     }
 
                     if (FixupSignatureContainingInternalTypes(image, 
-                        (PCCOR_SIGNATURE)pNewSMD->m_pSig, 
+                        (PCCOR_SIGNATURE) pNewSMD->m_pSig.GetValueMaybeNull(),
                         pNewSMD->m_cSig, 
                         true /*checkOnly if we will need to restore the signature without doing fixup*/))
                     {
@@ -2940,7 +2788,7 @@ void MethodDesc::Save(DataImage *image)
                     }
                 }
 
-                image->StoreInternedStructure((void *) pNewSMD->m_pSig,
+                image->StoreInternedStructure((void *) pNewSMD->m_pSig.GetValueMaybeNull(),
                                          pNewSMD->m_cSig,
                                          sigItemKind,
                                          1);
@@ -2961,9 +2809,9 @@ void MethodDesc::Save(DataImage *image)
     if (HasMethodInstantiation())
     {
         InstantiatedMethodDesc* pIMD = AsInstantiatedMethodDesc();
-        if (pIMD->IMD_IsSharedByGenericMethodInstantiations() && pIMD->m_pDictLayout != NULL)
+        if (pIMD->IMD_IsSharedByGenericMethodInstantiations() && !pIMD->m_pDictLayout.IsNull())
         {
-            pIMD->m_pDictLayout->Save(image);
+            pIMD->m_pDictLayout.GetValue()->Save(image);
         }
     }
     if (IsNDirect())
@@ -3039,9 +2887,10 @@ void MethodDesc::Save(DataImage *image)
     if (IsDynamicMethod())
     {
         DynamicMethodDesc *pDynMeth = AsDynamicMethodDesc();
-        if (pDynMeth->m_pszMethodName && !image->IsStored(pDynMeth->m_pszMethodName))
-            image->StoreStructure((void *) pDynMeth->m_pszMethodName,
-                                  (ULONG)(strlen(pDynMeth->m_pszMethodName) + 1),
+        if (!pDynMeth->m_pszMethodName.IsNull()
+            && !image->IsStored(pDynMeth->m_pszMethodName.GetValue()))
+            image->StoreStructure((void *) pDynMeth->m_pszMethodName.GetValue(),
+                                  (ULONG)(strlen(pDynMeth->m_pszMethodName.GetValue()) + 1),
                                   DataImage::ITEM_STORED_METHOD_NAME,
                                   1);
     }
@@ -3626,7 +3475,7 @@ MethodDesc::Fixup(
     if (IsDynamicMethod())
     {
         image->ZeroPointerField(this, offsetof(DynamicMethodDesc, m_pResolver));
-        image->FixupPointerField(this, offsetof(DynamicMethodDesc, m_pszMethodName));
+        image->FixupRelativePointerField(this, offsetof(DynamicMethodDesc, m_pszMethodName));
     }
 
     if (GetClassification() == mcInstantiated)
@@ -3642,12 +3491,19 @@ MethodDesc::Fixup(
         {
             if (pIMD->IMD_IsSharedByGenericMethodInstantiations())
             {
-                pIMD->m_pDictLayout->Fixup(image, TRUE);
-                image->FixupPointerField(this, offsetof(InstantiatedMethodDesc, m_pDictLayout));
+                pIMD->m_pDictLayout.GetValue()->Fixup(image, TRUE);
+                image->FixupRelativePointerField(this, offsetof(InstantiatedMethodDesc, m_pDictLayout));
             }
         }
 
-        image->FixupPointerField(this, offsetof(InstantiatedMethodDesc, m_pPerInstInfo));
+        if (decltype(InstantiatedMethodDesc::m_pPerInstInfo)::isRelative)
+        {
+            image->FixupRelativePointerField(this, offsetof(InstantiatedMethodDesc, m_pPerInstInfo));
+        }
+        else
+        {
+            image->FixupPointerField(this, offsetof(InstantiatedMethodDesc, m_pPerInstInfo));
+        }
 
         // Generic methods are dealt with specially to avoid encoding the formal method type parameters
         if (IsTypicalMethodDefinition())
@@ -3726,7 +3582,14 @@ MethodDesc::Fixup(
 
         NDirectMethodDesc *pNMD = (NDirectMethodDesc *)this;
 
-        image->FixupPointerField(this, offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
+        if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+        {
+            image->FixupRelativePointerField(this, offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
+        }
+        else
+        {
+            image->FixupPointerField(this, offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
+        }
 
         NDirectWriteableData *pWriteableData = pNMD->GetWriteableData();
         NDirectImportThunkGlue *pImportThunkGlue = pNMD->GetNDirectImportThunkGlue();
@@ -3751,7 +3614,7 @@ MethodDesc::Fixup(
         if (!pNMD->MarshalingRequired())
         {
             // import thunk is only needed if the P/Invoke is inlinable
-            image->FixupPointerField(this, offsetof(NDirectMethodDesc, ndirect.m_pImportThunkGlue));
+            image->FixupRelativePointerField(this, offsetof(NDirectMethodDesc, ndirect.m_pImportThunkGlue));
             ((Precode*)pImportThunkGlue)->Fixup(image, this);
         }
         else
@@ -3764,8 +3627,8 @@ MethodDesc::Fixup(
 
         if (!IsQCall())
         {
-            image->FixupPointerField(this, offsetof(NDirectMethodDesc, ndirect.m_pszLibName));
-            image->FixupPointerField(this, offsetof(NDirectMethodDesc, ndirect.m_pszEntrypointName));
+            image->FixupRelativePointerField(this, offsetof(NDirectMethodDesc, ndirect.m_pszLibName));
+            image->FixupRelativePointerField(this, offsetof(NDirectMethodDesc, ndirect.m_pszEntrypointName));
         }
         
         if (image->IsStored(pNMD->ndirect.m_pStubMD.GetValueMaybeNull()))
@@ -3776,7 +3639,7 @@ MethodDesc::Fixup(
 
     if (HasStoredSig())
     {
-        image->FixupPointerField(this, offsetof(StoredSigMethodDesc, m_pSig));
+        image->FixupRelativePointerField(this, offsetof(StoredSigMethodDesc, m_pSig));
 
         // The DynamicMethodDescs used for IL stubs may have a signature that refers to
         // runtime types using ELEMENT_TYPE_INTERNAL.  We need to fixup these types here.
@@ -5509,7 +5372,7 @@ StoredSigMethodDesc::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
     SUPPORTS_DAC;
     // 'this' already done, see below.
-    DacEnumMemoryRegion(m_pSig, m_cSig);
+    DacEnumMemoryRegion(GetSigRVA(), m_cSig);
 }
 
 //*******************************************************************************

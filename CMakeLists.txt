@@ -31,7 +31,8 @@ if(CORECLR_SET_RPATH)
     set(MACOSX_RPATH ON)
 endif(CORECLR_SET_RPATH)
 
-OPTION(CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
+OPTION(CLR_CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
+OPTION(CLR_CMAKE_WARNINGS_ARE_ERRORS "Warnings are errors" ON)
 
 # Ensure that python is present
 find_program(PYTHON python)
@@ -312,8 +313,8 @@ if (WIN32)
     endforeach (Definition)
   endforeach (Config)
 
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /guard:cf")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /guard:cf")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /GUARD:CF")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /GUARD:CF")
 
   # Linker flags
   #
@@ -584,6 +585,10 @@ if(FEATURE_STANDALONE_GC)
     add_subdirectory(src/gc/unix)
   endif(CLR_CMAKE_PLATFORM_UNIX)
 endif(FEATURE_STANDALONE_GC)
+
+if(FEATURE_STANDALONE_GC_ONLY)
+  add_definitions(-DFEATURE_STANDALONE_GC_ONLY)
+endif(FEATURE_STANDALONE_GC_ONLY)
 
 if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc")

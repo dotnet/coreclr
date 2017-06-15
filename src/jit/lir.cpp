@@ -4,6 +4,7 @@
 
 #include "jitpch.h"
 #include "smallhash.h"
+#include "sideeffects.h"
 
 #ifdef _MSC_VER
 #pragma hdrstop
@@ -1468,6 +1469,11 @@ bool LIR::Range::CheckLIR(Compiler* compiler, bool checkUnusedValues) const
         // Verify that the node is allowed in LIR.
         assert(node->IsLIR());
 
+        // Verify that the REVERSE_OPS flag is not set. NOTE: if we ever decide to reuse the bit assigned to
+        // GTF_REVERSE_OPS for an LIR-only flag we will need to move this check to the points at which we
+        // insert nodes into an LIR range.
+        assert((node->gtFlags & GTF_REVERSE_OPS) == 0);
+
         // TODO: validate catch arg stores
 
         // Check that all phi nodes (if any) occur at the start of the range.
@@ -1549,6 +1555,45 @@ bool LIR::Range::CheckLIR(Compiler* compiler, bool checkUnusedValues) const
             GenTree* node = kvp.Key();
             assert(((node->gtLIRFlags & LIR::Flags::IsUnusedValue) != 0) && "found an unmarked unused value");
         }
+    }
+
+    // Check lclVar semantics: specifically, ensure that an unaliasable lclVar is not redefined between the
+    // point at which a use appears in linear order and the point at which that use is consumed by its user.
+    // This ensures that it is always safe to treat a lclVar use as happening at the user (rather than at
+    // the lclVar node).
+    //
+    // This happens as a second pass because unused lclVar reads may otherwise appear as outstanding reads
+    // and produce false indications that a write to a lclVar occurs while outstanding reads of that lclVar
+    // exist.
+    SmallHashTable<int, int, 32> unconsumedLclVarReads(compiler);
+    for (GenTree* node : *this)
+    {
+        for (GenTree* operand : node->Operands())
+        {
+            AliasSet::NodeInfo operandInfo(compiler, operand);
+            if (operandInfo.IsLclVarRead())
+            {
+                int        count;
+                const bool removed = unconsumedLclVarReads.TryRemove(operandInfo.LclNum(), &count);
+                assert(removed);
+
+                if (count > 1)
+                {
+                    unconsumedLclVarReads.AddOrUpdate(operandInfo.LclNum(), count - 1);
+                }
+            }
+        }
+
+        AliasSet::NodeInfo nodeInfo(compiler, node);
+        if (nodeInfo.IsLclVarRead() && !unusedDefs.Contains(node))
+        {
+            int count = 0;
+            unconsumedLclVarReads.TryGetValue(nodeInfo.LclNum(), &count);
+            unconsumedLclVarReads.AddOrUpdate(nodeInfo.LclNum(), count + 1);
+        }
+
+        // If this node is a lclVar write, it must be to a lclVar that does not have an outstanding read.
+        assert(!nodeInfo.IsLclVarWrite() || !unconsumedLclVarReads.Contains(nodeInfo.LclNum()));
     }
 
     return true;

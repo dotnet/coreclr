@@ -401,7 +401,7 @@ static void RewriteAssignmentIntoStoreLclCore(GenTreeOp* assignment,
     genTreeOps storeOp = storeForm(locationOp);
 
 #ifdef DEBUG
-    JITDUMP("rewriting asg(%s, X) to %s(X)\n", GenTree::NodeName(locationOp), GenTree::NodeName(storeOp));
+    JITDUMP("rewriting asg(%s, X) to %s(X)\n", GenTree::OpName(locationOp), GenTree::OpName(storeOp));
 #endif // DEBUG
 
     assignment->SetOper(storeOp);
@@ -503,7 +503,7 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                 {
                     storeBlk = new (comp, GT_STORE_BLK) GenTreeBlk(GT_STORE_BLK, TYP_STRUCT, location, value, size);
                 }
-                storeBlk->gtFlags |= (GTF_REVERSE_OPS | GTF_ASG);
+                storeBlk->gtFlags |= GTF_ASG;
                 storeBlk->gtFlags |= ((location->gtFlags | value->gtFlags) & GTF_ALL_EFFECT);
 
                 GenTree* insertionPoint = location->gtNext;
@@ -539,11 +539,6 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
 
             copyFlags(store, assignment, GTF_ALL_EFFECT);
             copyFlags(store, location, GTF_IND_FLAGS);
-
-            if (assignment->IsReverseOp())
-            {
-                store->gtFlags |= GTF_REVERSE_OPS;
-            }
 
             // TODO: JIT dump
 
@@ -582,17 +577,18 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                     storeOper = GT_STORE_OBJ;
                     break;
                 case GT_DYN_BLK:
-                    storeOper = GT_STORE_DYN_BLK;
+                    storeOper                             = GT_STORE_DYN_BLK;
+                    storeBlk->AsDynBlk()->gtEvalSizeFirst = false;
                     break;
                 default:
                     unreached();
             }
-            JITDUMP("Rewriting GT_ASG(%s(X), Y) to %s(X,Y):\n", GenTree::NodeName(location->gtOper),
-                    GenTree::NodeName(storeOper));
+            JITDUMP("Rewriting GT_ASG(%s(X), Y) to %s(X,Y):\n", GenTree::OpName(location->gtOper),
+                    GenTree::OpName(storeOper));
             storeBlk->SetOperRaw(storeOper);
             storeBlk->gtFlags &= ~GTF_DONT_CSE;
-            storeBlk->gtFlags |= (assignment->gtFlags & (GTF_ALL_EFFECT | GTF_REVERSE_OPS | GTF_BLK_VOLATILE |
-                                                         GTF_BLK_UNALIGNED | GTF_DONT_CSE));
+            storeBlk->gtFlags |=
+                (assignment->gtFlags & (GTF_ALL_EFFECT | GTF_BLK_VOLATILE | GTF_BLK_UNALIGNED | GTF_DONT_CSE));
             storeBlk->gtBlk.Data() = value;
 
             // Replace the assignment node with the store
@@ -683,8 +679,12 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
     for (GenTree* prev = node->gtPrev; prev != nullptr && prev->OperIsAnyList() && !(prev->OperIsFieldListHead());
          prev          = node->gtPrev)
     {
+        prev->gtFlags &= ~GTF_REVERSE_OPS;
         BlockRange().Remove(prev);
     }
+
+    // Now clear the REVERSE_OPS flag on the current node.
+    node->gtFlags &= ~GTF_REVERSE_OPS;
 
     // In addition, remove the current node if it is a GT_LIST node that is not an aggregate.
     if (node->OperIsAnyList())
@@ -776,18 +776,17 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
 
         case GT_COMMA:
         {
-            GenTree* op1 = node->gtGetOp1();
-            if ((op1->gtFlags & GTF_ALL_EFFECT) == 0)
+            GenTree*           op1         = node->gtGetOp1();
+            bool               isClosed    = false;
+            unsigned           sideEffects = 0;
+            LIR::ReadOnlyRange lhsRange    = BlockRange().GetTreeRange(op1, &isClosed, &sideEffects);
+
+            if ((sideEffects & GTF_ALL_EFFECT) == 0)
             {
                 // The LHS has no side effects. Remove it.
-                bool               isClosed    = false;
-                unsigned           sideEffects = 0;
-                LIR::ReadOnlyRange lhsRange    = BlockRange().GetTreeRange(op1, &isClosed, &sideEffects);
-
-                // None of the transforms performed herein violate tree order, so these
+                // None of the transforms performed herein violate tree order, so isClosed
                 // should always be true.
                 assert(isClosed);
-                assert((sideEffects & GTF_ALL_EFFECT) == 0);
 
                 BlockRange().Delete(comp, m_block, std::move(lhsRange));
             }
@@ -801,16 +800,15 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
             {
                 // This is a top-level comma. If the RHS has no side effects we can remove
                 // it as well.
-                if ((replacement->gtFlags & GTF_ALL_EFFECT) == 0)
-                {
-                    bool               isClosed    = false;
-                    unsigned           sideEffects = 0;
-                    LIR::ReadOnlyRange rhsRange    = BlockRange().GetTreeRange(replacement, &isClosed, &sideEffects);
+                bool               isClosed    = false;
+                unsigned           sideEffects = 0;
+                LIR::ReadOnlyRange rhsRange    = BlockRange().GetTreeRange(replacement, &isClosed, &sideEffects);
 
-                    // None of the transforms performed herein violate tree order, so these
+                if ((sideEffects & GTF_ALL_EFFECT) == 0)
+                {
+                    // None of the transforms performed herein violate tree order, so isClosed
                     // should always be true.
                     assert(isClosed);
-                    assert((sideEffects & GTF_ALL_EFFECT) == 0);
 
                     BlockRange().Delete(comp, m_block, std::move(rhsRange));
                 }
@@ -953,8 +951,8 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
 #endif // FEATURE_SIMD
 
         default:
-            // JCC nodes should not be present in HIR.
-            assert(node->OperGet() != GT_JCC);
+            // CMP, SETCC and JCC nodes should not be present in HIR.
+            assert(!node->OperIs(GT_CMP, GT_SETCC, GT_JCC));
             break;
     }
 
@@ -970,6 +968,20 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
         {
             // Local reads are side-effect-free; clear any flags leftover from frontend transformations.
             node->gtFlags &= ~GTF_ALL_EFFECT;
+        }
+    }
+    else
+    {
+        if (!node->OperIsStore())
+        {
+            // Clear the GTF_ASG flag for all nodes but stores
+            node->gtFlags &= ~GTF_ASG;
+        }
+
+        if (!node->IsCall())
+        {
+            // Clear the GTF_CALL flag for all nodes but calls
+            node->gtFlags &= ~GTF_CALL;
         }
     }
 

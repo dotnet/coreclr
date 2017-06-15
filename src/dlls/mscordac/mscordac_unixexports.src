@@ -39,6 +39,7 @@ PAL_fprintf
 PAL__wcstoui64
 PAL_wcstoul
 PAL_iswprint
+PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange
 PAL_wcslen
 PAL_wcsncmp
 PAL_wcsrchr
@@ -105,6 +106,7 @@ GetLastError
 GetLongPathNameW
 GetModuleFileNameW
 GetProcAddress
+GetProcessAffinityMask
 GetProcessHeap
 GetShortPathNameW
 GetStdHandle
@@ -173,7 +175,6 @@ WaitForSingleObject
 WaitForSingleObjectEx
 WideCharToMultiByte
 WriteFile
-YieldProcessor
 
 nativeStringResourceTable_mscorrc_debug
 _ZN25NativeExceptionHolderBase4PushEv

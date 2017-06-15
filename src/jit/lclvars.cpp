@@ -1818,7 +1818,7 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
         shouldPromote = false;
     }
 #endif // _TARGET_AMD64_ || _TARGET_ARM64_
-    else if (varDsc->lvIsParam)
+    else if (varDsc->lvIsParam && !lvaIsImplicitByRefLocal(lclNum))
     {
 #if FEATURE_MULTIREG_STRUCT_PROMOTE
         // Is this a variable holding a value with exactly two fields passed in
@@ -1833,7 +1833,10 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
 
             // TODO-PERF - Implement struct promotion for incoming multireg structs
             //             Currently it hits assert(lvFieldCnt==1) in lclvar.cpp line 4417
-
+            //             Also the implementation of jmp uses the 4 byte move to store
+            //             byte parameters to the stack, so that if we have a byte field
+            //             with something else occupying the same 4-byte slot, it will
+            //             overwrite other fields.
             if (structPromotionInfo->fieldCnt != 1)
         {
             JITDUMP("Not promoting promotable struct local V%02u, because lvIsParam is true and #fields = "
@@ -1921,6 +1924,7 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* Stru
         fieldVarDsc->lvType          = pFieldInfo->fldType;
         fieldVarDsc->lvExactSize     = pFieldInfo->fldSize;
         fieldVarDsc->lvIsStructField = true;
+        fieldVarDsc->lvFieldHnd      = pFieldInfo->fldHnd;
         fieldVarDsc->lvFldOffset     = pFieldInfo->fldOffset;
         fieldVarDsc->lvFldOrdinal    = pFieldInfo->fldOrdinal;
         fieldVarDsc->lvParentLcl     = lclNum;
@@ -2386,7 +2390,7 @@ void Compiler::lvaSetClass(unsigned varNum, GenTreePtr tree, CORINFO_CLASS_HANDL
 
 void Compiler::lvaUpdateClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool isExact)
 {
-    noway_assert(varNum < lvaCount);
+    assert(varNum < lvaCount);
 
     // If we are just importing, we cannot reliably track local ref types,
     // since the jit maps CORINFO_TYPE_VAR to TYP_REF.
@@ -2491,7 +2495,7 @@ void Compiler::lvaUpdateClass(unsigned varNum, GenTreePtr tree, CORINFO_CLASS_HA
 
 BYTE* Compiler::lvaGetGcLayout(unsigned varNum)
 {
-    noway_assert(varTypeIsStruct(lvaTable[varNum].lvType) && (lvaTable[varNum].lvExactSize >= TARGET_POINTER_SIZE));
+    assert(varTypeIsStruct(lvaTable[varNum].lvType) && (lvaTable[varNum].lvExactSize >= TARGET_POINTER_SIZE));
 
     return lvaTable[varNum].lvGcLayout;
 }
@@ -2507,7 +2511,7 @@ BYTE* Compiler::lvaGetGcLayout(unsigned varNum)
 
 unsigned Compiler::lvaLclSize(unsigned varNum)
 {
-    noway_assert(varNum < lvaCount);
+    assert(varNum < lvaCount);
 
     var_types varType = lvaTable[varNum].TypeGet();
 
@@ -2550,7 +2554,7 @@ unsigned Compiler::lvaLclSize(unsigned varNum)
 //
 unsigned Compiler::lvaLclExactSize(unsigned varNum)
 {
-    noway_assert(varNum < lvaCount);
+    assert(varNum < lvaCount);
 
     var_types varType = lvaTable[varNum].TypeGet();
 
@@ -2752,7 +2756,7 @@ void Compiler::lvaDecRefCnts(BasicBlock* block, GenTreePtr tree)
 
             lclNum = info.compLvFrameListRoot;
 
-            noway_assert(lclNum <= lvaCount);
+            assert(lclNum <= lvaCount);
             varDsc = lvaTable + lclNum;
 
             /* Decrement the reference counts twice */
@@ -2771,7 +2775,7 @@ void Compiler::lvaDecRefCnts(BasicBlock* block, GenTreePtr tree)
 
         lclNum = tree->gtLclVarCommon.gtLclNum;
 
-        noway_assert(lclNum < lvaCount);
+        assert(lclNum < lvaCount);
         varDsc = lvaTable + lclNum;
 
         /* Decrement its lvRefCnt and lvRefCntWtd */
@@ -2811,7 +2815,7 @@ void Compiler::lvaIncRefCnts(GenTreePtr tree)
 
             lclNum = info.compLvFrameListRoot;
 
-            noway_assert(lclNum <= lvaCount);
+            assert(lclNum <= lvaCount);
             varDsc = lvaTable + lclNum;
 
             /* Increment the reference counts twice */
@@ -2831,7 +2835,7 @@ void Compiler::lvaIncRefCnts(GenTreePtr tree)
 
         lclNum = tree->gtLclVarCommon.gtLclNum;
 
-        noway_assert(lclNum < lvaCount);
+        assert(lclNum < lvaCount);
         varDsc = lvaTable + lclNum;
 
         /* Increment its lvRefCnt and lvRefCntWtd */
@@ -3403,6 +3407,12 @@ var_types LclVarDsc::lvaArgType()
     var_types type = TypeGet();
 
 #ifdef _TARGET_AMD64_
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+    if (type == TYP_STRUCT)
+    {
+        NYI("lvaArgType");
+    }
+#else  //! FEATURE_UNIX_AMD64_STRUCT_PASSING
     if (type == TYP_STRUCT)
     {
         switch (lvExactSize)
@@ -3440,6 +3450,12 @@ var_types LclVarDsc::lvaArgType()
                 type = TYP_BYREF;
                 break;
         }
+    }
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#elif defined(_TARGET_ARM64_)
+    if (type == TYP_STRUCT)
+    {
+        NYI("lvaArgType");
     }
 #elif defined(_TARGET_X86_)
 // Nothing to do; use the type as is.
@@ -3580,7 +3596,7 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
             if (op2->gtOper == GT_LCL_VAR)
             {
                 unsigned lclNum = op2->gtLclVarCommon.gtLclNum;
-                noway_assert(lclNum < lvaCount);
+                assert(lclNum < lvaCount);
                 lvaTable[lclNum].setPrefReg(REG_ECX, this);
             }
         }
@@ -3596,7 +3612,7 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
 
     /* This must be a local variable reference */
 
-    noway_assert((tree->gtOper == GT_LCL_VAR) || (tree->gtOper == GT_LCL_FLD));
+    assert((tree->gtOper == GT_LCL_VAR) || (tree->gtOper == GT_LCL_FLD));
     unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
 
     noway_assert(lclNum < lvaCount);
@@ -7226,7 +7242,7 @@ void Compiler::lvaStressLclFld()
 #ifdef DEBUG
 void Compiler::lvaDispVarSet(VARSET_VALARG_TP set)
 {
-    VARSET_TP VARSET_INIT_NOCOPY(allVars, VarSetOps::MakeEmpty(this));
+    VARSET_TP allVars(VarSetOps::MakeEmpty(this));
     lvaDispVarSet(set, allVars);
 }
 

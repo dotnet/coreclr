@@ -2134,7 +2134,7 @@ inline VARSET_VALRET_TP Compiler::lvaStmtLclMask(GenTreePtr stmt)
     GenTreePtr tree;
     unsigned   varNum;
     LclVarDsc* varDsc;
-    VARSET_TP  VARSET_INIT_NOCOPY(lclMask, VarSetOps::MakeEmpty(this));
+    VARSET_TP  lclMask(VarSetOps::MakeEmpty(this));
 
     assert(stmt->gtOper == GT_STMT);
     assert(fgStmtListThreaded);
@@ -3845,7 +3845,7 @@ inline bool Compiler::optIsVarAssgLoop(unsigned lnum, unsigned var)
     assert(lnum < optLoopCount);
     if (var < lclMAX_ALLSET_TRACKED)
     {
-        ALLVARSET_TP ALLVARSET_INIT_NOCOPY(vs, AllVarSetOps::MakeSingleton(this, var));
+        ALLVARSET_TP vs(AllVarSetOps::MakeSingleton(this, var));
         return optIsSetAssgLoop(lnum, vs) != 0;
     }
     else
@@ -4103,6 +4103,13 @@ inline void* Compiler::compGetMem(size_t sz, CompMemKind cmk)
 }
 
 #endif
+
+// Wrapper for Compiler::compGetMem that can be forward-declared for use in template
+// types which Compiler depends on but which need to allocate heap memory.
+inline void* compGetMem(Compiler* comp, size_t sz)
+{
+    return comp->compGetMem(sz);
+}
 
 /*****************************************************************************
  *

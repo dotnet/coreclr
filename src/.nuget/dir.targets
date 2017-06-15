@@ -84,5 +84,19 @@
     </ItemGroup>
   </Target>
 
+  <!-- OverrideLicenseUrl is temporary till we update the buildtools to v2 -->  
+  <Target Name="OverrideLicenseUrl" BeforeTargets="GenerateNuSpec">
+    <PropertyGroup>
+      <LicenseUrl>https://github.com/dotnet/coreclr/blob/master/LICENSE.TXT</LicenseUrl>
+    </PropertyGroup>
+  </Target>
+
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory)\.., dir.targets))\dir.targets" />
+  <ItemGroup>
+    <!-- Add version file to packages -->
+    <File Condition="Exists('$(SyncInfoFile)')"
+          Include="$(SyncInfoFile)">
+          <SkipPackageFileCheck>true</SkipPackageFileCheck>
+    </File>
+  </ItemGroup>
 </Project>

@@ -13,11 +13,15 @@ add_definitions(-D_UNICODE)
 
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   foreach (Config DEBUG CHECKED)  
-     set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:WRITE_BARRIER_CHECK=1>)
+    if(NOT FEATURE_STANDALONE_GC_ONLY)
+      set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:WRITE_BARRIER_CHECK=1>)
+    endif(NOT FEATURE_STANDALONE_GC_ONLY)
   endforeach (Config)
 else()
   if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    add_definitions(-DWRITE_BARRIER_CHECK=1)
+    if(NOT FEATURE_STANDALONE_GC_ONLY)
+      add_definitions(-DWRITE_BARRIER_CHECK=1)
+    endif(NOT FEATURE_STANDALONE_GC_ONLY)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
 
@@ -93,8 +97,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     precode.cpp
     prestub.cpp
     rejit.cpp
-    securitydescriptor.cpp
-    securitydescriptorassembly.cpp
+    security.cpp
     sigformat.cpp
     siginfo.cpp
     spinlock.cpp
@@ -118,6 +121,18 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     zapsig.cpp
 )
 
+set( GC_SOURCES_DAC_AND_WKS_COMMON
+  ../gc/gcconfig.cpp
+  ../gc/gccommon.cpp
+  ../gc/gcscan.cpp
+  ../gc/gcsvr.cpp
+  ../gc/gcwks.cpp
+  ../gc/handletable.cpp
+  ../gc/handletablecore.cpp
+  ../gc/handletablescan.cpp
+  ../gc/objecthandle.cpp
+  ../gc/softwarewritewatch.cpp)
+
 if(FEATURE_READYTORUN)
     list(APPEND VM_SOURCES_DAC_AND_WKS_COMMON
         readytoruninfo.cpp
@@ -130,10 +145,12 @@ set(VM_SOURCES_DAC
     threaddebugblockinginfo.cpp
 )
 
+set(GC_SOURCES_DAC
+    ${GC_SOURCES_DAC_AND_WKS_COMMON})
+
 set(VM_SOURCES_WKS
     ${VM_SOURCES_DAC_AND_WKS_COMMON}
     appdomainnative.cpp
-    appdomainstack.cpp
     assemblyname.cpp
     assemblynative.cpp
     assemblyspec.cpp
@@ -170,6 +187,8 @@ set(VM_SOURCES_WKS
     eventpipefile.cpp
     eventpipejsonfile.cpp
     eventpipeprovider.cpp
+    eventpipebuffer.cpp
+    eventpipebuffermanager.cpp
     eventstore.cpp
     fastserializer.cpp
     fcall.cpp
@@ -177,7 +196,9 @@ set(VM_SOURCES_WKS
     finalizerthread.cpp
     frameworkexceptionloader.cpp
     gccover.cpp
-    gcenv.ee.cpp
+    gcenv.ee.static.cpp
+    gcenv.ee.common.cpp
+    gcenv.os.cpp
     gchelpers.cpp
     genmeth.cpp
     hosting.cpp
@@ -219,14 +240,6 @@ set(VM_SOURCES_WKS
     runtimehandles.cpp
     safehandle.cpp
     sampleprofiler.cpp
-    security.cpp
-    securityattributes.cpp
-    securitydeclarative.cpp
-    securitydeclarativecache.cpp
-    securitydescriptorappdomain.cpp
-    securitymeta.cpp
-    securitypolicy.cpp
-    securitytransparentassembly.cpp
     sha1.cpp
     simplerwlock.cpp
     sourceline.cpp
@@ -243,16 +256,28 @@ set(VM_SOURCES_WKS
     threaddebugblockinginfo.cpp
     threadsuspend.cpp
     typeparse.cpp
-    verifier.cpp
     weakreferencenative.cpp
     ${VM_SOURCES_GDBJIT}
 )
+
+set(GC_SOURCES_WKS
+    ${GC_SOURCES_DAC_AND_WKS_COMMON}
+    ../gc/gchandletable.cpp
+    ../gc/gceesvr.cpp
+    ../gc/gceewks.cpp
+    ../gc/handletablecache.cpp)
 
 if(FEATURE_EVENT_TRACE)
     list(APPEND VM_SOURCES_WKS
         eventtrace.cpp
         )
 endif(FEATURE_EVENT_TRACE)
+
+if(FEATURE_STANDALONE_GC)
+    list(APPEND VM_SOURCES_WKS
+        gcenv.ee.standalone.cpp
+        )
+endif(FEATURE_STANDALONE_GC)
 
 if(NOT FEATURE_STANDALONE_GC)
     list(APPEND VM_SOURCES_WKS
@@ -479,6 +504,22 @@ list(APPEND VM_SOURCES_WKS
 list(APPEND VM_SOURCES_DAC
     ${VM_SOURCES_DAC_ARCH}
     ${VM_SOURCES_DAC_AND_WKS_ARCH}
+)
+
+# The default option for FEATURE_STANDALONE_GC builds a standalone
+# and non-standalone GC, linking the non-standalone GC into coreclr.dll.
+# For testing purposes, FEATURE_STANDALONE_GC_ONLY instead only builds and
+# links the non-standalone GC into coreclr.dll.
+if (NOT FEATURE_STANDALONE_GC_ONLY)
+    list(APPEND VM_SOURCES_WKS
+        ${GC_SOURCES_WKS}
+    )
+endif(NOT FEATURE_STANDALONE_GC_ONLY)
+
+# The DAC does need GC sources in order to link correctly, even if
+# it's not used.
+list(APPEND VM_SOURCES_DAC
+    ${GC_SOURCES_DAC}
 )
 
 convert_to_absolute_path(VM_SOURCES_WKS ${VM_SOURCES_WKS})

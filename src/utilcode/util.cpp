@@ -18,6 +18,7 @@
 #include "sigparser.h"
 #include "cor.h"
 #include "corinfo.h"
+#include "volatile.h"
 
 
 const char g_RTMVersion[]= "v1.0.3705";
@@ -437,7 +438,7 @@ void InitCodeAllocHint(SIZE_T base, SIZE_T size, int randomPageOffset)
     }
 
     // Randomize the adddress space
-    pStart += PAGE_SIZE * randomPageOffset;
+    pStart += GetOsPageSize() * randomPageOffset;
 
     s_CodeAllocStart = pStart;
     s_CodeAllocHint = pStart;
@@ -551,6 +552,8 @@ LPVOID ClrVirtualAllocAligned(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocatio
 
 #else // !FEATURE_PAL
 
+    if(alignment < GetOsPageSize()) alignment = GetOsPageSize();
+
     // UNIXTODO: Add a specialized function to PAL so that we don't have to waste memory
     dwSize += alignment;
     SIZE_T addr = (SIZE_T)ClrVirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
@@ -573,7 +576,9 @@ static DWORD ShouldInjectFaultInRange()
 // Reserves free memory within the range [pMinAddr..pMaxAddr] using
 // ClrVirtualQuery to find free memory and ClrVirtualAlloc to reserve it.
 //
-// This method only supports the flAllocationType of MEM_RESERVE
+// This method only supports the flAllocationType of MEM_RESERVE, and expects that the memory
+// is being reserved for the purpose of eventually storing executable code.
+//
 // Callers also should set dwSize to a multiple of sysInfo.dwAllocationGranularity (64k).
 // That way they can reserve a large region and commit smaller sized pages
 // from that region until it fills up.  
@@ -603,6 +608,11 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     static unsigned countOfCalls = 0;  // We log the number of tims we call this method
     countOfCalls++;                    // increment the call counter
 
+    if (dwSize == 0)
+    {
+        return nullptr;
+    }
+
     //
     // First lets normalize the pMinAddr and pMaxAddr values
     //
@@ -618,18 +628,26 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
         pMaxAddr = (BYTE *) TOP_MEMORY;
     }
 
+    // If pMaxAddr is not greater than pMinAddr we can not make an allocation
+    if (pMaxAddr <= pMinAddr)
+    {
+        return nullptr;
+    }
+
     // If pMinAddr is BOT_MEMORY and pMaxAddr is TOP_MEMORY
     // then we can call ClrVirtualAlloc instead 
     if ((pMinAddr == (BYTE *) BOT_MEMORY) && (pMaxAddr == (BYTE *) TOP_MEMORY))
     {
-        return (BYTE*) ClrVirtualAlloc(NULL, dwSize, flAllocationType, flProtect);
+        return (BYTE*) ClrVirtualAlloc(nullptr, dwSize, flAllocationType, flProtect);
     }
 
-    // If pMaxAddr is not greater than pMinAddr we can not make an allocation
-    if (dwSize == 0 || pMaxAddr <= pMinAddr)
+#ifdef FEATURE_PAL
+    pResult = (BYTE *)PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(pMinAddr, pMaxAddr, dwSize);
+    if (pResult != nullptr)
     {
-        return NULL;
+        return pResult;
     }
+#endif // FEATURE_PAL
 
     // We will do one scan from [pMinAddr .. pMaxAddr]
     // First align the tryAddr up to next 64k base address. 
@@ -1236,9 +1254,6 @@ found:
 //******************************************************************************
 // Returns the number of processors that a process has been configured to run on
 //******************************************************************************
-//******************************************************************************
-// Returns the number of processors that a process has been configured to run on
-//******************************************************************************
 int GetCurrentProcessCpuCount()
 {
     CONTRACTL
@@ -1254,27 +1269,20 @@ int GetCurrentProcessCpuCount()
     if (cCPUs != 0)
         return cCPUs;
 
-#ifndef FEATURE_PAL
-
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
         return 1;
 
-    if (pmask == 1)
-        return 1;
-
     pmask &= smask;
-        
+
     int count = 0;
     while (pmask)
     {
-        if (pmask & 1)
-            count++;
-                
-        pmask >>= 1;
+        pmask &= (pmask - 1);
+        count++;
     }
-        
+
     // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
     // than 64 processors, which would leave us with a count of 0.  Since the GC
     // expects there to be at least one processor to run on (and thus at least one
@@ -1288,15 +1296,6 @@ int GetCurrentProcessCpuCount()
     cCPUs = count;
             
     return count;
-
-#else // !FEATURE_PAL
-
-    SYSTEM_INFO sysInfo;
-    ::GetSystemInfo(&sysInfo);
-    cCPUs = sysInfo.dwNumberOfProcessors;
-    return sysInfo.dwNumberOfProcessors;
-
-#endif // !FEATURE_PAL
 }
 
 DWORD_PTR GetCurrentProcessCpuMask()
@@ -1319,6 +1318,36 @@ DWORD_PTR GetCurrentProcessCpuMask()
     return pmask;
 #else
     return 0;
+#endif
+}
+
+uint32_t GetOsPageSizeUncached()
+{
+    SYSTEM_INFO sysInfo;
+    ::GetSystemInfo(&sysInfo);
+    return sysInfo.dwAllocationGranularity ? sysInfo.dwAllocationGranularity : 0x1000;
+}
+
+namespace
+{
+    Volatile<uint32_t> g_pageSize = 0;
+}
+
+uint32_t GetOsPageSize()
+{
+#ifdef FEATURE_PAL
+    size_t result = g_pageSize.LoadWithoutBarrier();
+
+    if(!result)
+    {
+        result = GetOsPageSizeUncached();
+
+        g_pageSize.StoreWithoutBarrier(result);
+    }
+
+    return result;
+#else
+    return 0x1000;
 #endif
 }
 

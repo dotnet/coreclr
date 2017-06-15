@@ -10,10 +10,18 @@
 #include "common.h"
 #include "eventpipe.h"
 
+enum class SampleProfilerSampleType
+{
+    Error = 0,
+    External = 1,
+    Managed = 2
+};
+
 class SampleProfiler
 {
 
     // Declare friends.
+    friend class EventPipe;
     friend class SampleProfilerEventInstance;
 
     public:
@@ -23,6 +31,9 @@ class SampleProfiler
 
         // Disable profiling.
         static void Disable();
+
+        // Set the sampling rate.
+        static void SetSamplingRate(long nanoseconds);
 
     private:
 
@@ -43,13 +54,18 @@ class SampleProfiler
         static EventPipeProvider *s_pEventPipeProvider;
         static EventPipeEvent *s_pThreadTimeEvent;
 
+        // Event payloads.
+        // External represents a sample in external or native code.
+        // Managed represents a sample in managed code.
+        static BYTE *s_pPayloadExternal;
+        static BYTE *s_pPayloadManaged;
+        static const unsigned int c_payloadSize = sizeof(unsigned int);
+
         // Thread shutdown event for synchronization between Disable() and the sampling thread.
         static CLREventStatic s_threadShutdownEvent;
 
-#ifdef FEATURE_PAL
         // The sampling rate.
         static long s_samplingRateInNs;
-#endif
 };
 
 #endif // FEATURE_PERFTRACING

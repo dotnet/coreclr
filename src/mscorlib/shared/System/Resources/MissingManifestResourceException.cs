@@ -7,7 +7,6 @@ using System.Runtime.Serialization;
 
 namespace System.Resources
 {
-    [Serializable]
     public class MissingManifestResourceException : SystemException
     {
         public MissingManifestResourceException()
@@ -31,6 +30,7 @@ namespace System.Resources
         protected MissingManifestResourceException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

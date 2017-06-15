@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 
 namespace System.Threading
 {
-    [Serializable]
     public sealed class ThreadStartException : SystemException
     {
         internal ThreadStartException()
@@ -19,11 +18,6 @@ namespace System.Threading
             : base(SR.Arg_ThreadStartException, reason)
         {
             HResult = __HResults.COR_E_THREADSTART;
-        }
-
-        internal ThreadStartException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
         }
     }
 }

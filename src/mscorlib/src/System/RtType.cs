@@ -19,7 +19,6 @@ using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime;
-using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 using System.Security;
 using System.Text;
@@ -71,9 +70,8 @@ namespace System
         FullName,
     }
 
-    [Serializable]
     internal class RuntimeType :
-        System.Reflection.TypeInfo, ISerializable, ICloneable
+        System.Reflection.TypeInfo, ICloneable
     {
         #region Definitions
 
@@ -3507,15 +3505,15 @@ namespace System
 
         public override bool IsSecurityCritical
         {
-            get { return new RuntimeTypeHandle(this).IsSecurityCritical(); }
+            get { return true; }
         }
         public override bool IsSecuritySafeCritical
         {
-            get { return new RuntimeTypeHandle(this).IsSecuritySafeCritical(); }
+            get { return false; }
         }
         public override bool IsSecurityTransparent
         {
-            get { return new RuntimeTypeHandle(this).IsSecurityTransparent(); }
+            get { return false; }
         }
         #endregion
 
@@ -3789,6 +3787,8 @@ namespace System
         #endregion
 
         #region Misc
+        public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeType>(other);
+
         public override bool IsTypeDefinition
         {
             get { return RuntimeTypeHandle.IsTypeDefinition(this); }
@@ -4443,17 +4443,6 @@ namespace System
         }
         #endregion
 
-        #region ISerializable
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            UnitySerializationHolder.GetUnitySerializationInfo(info, this);
-        }
-        #endregion
-
         #region ICustomAttributeProvider
         public override Object[] GetCustomAttributes(bool inherit)
         {
@@ -4910,7 +4899,6 @@ namespace System
     // method (RuntimeType) and an instance of this type will work around the reason to have this type in the 
     // first place. However given RuntimeType is not public all its methods are protected and require full trust
     // to be accessed
-    [Serializable]
     internal class ReflectionOnlyType : RuntimeType
     {
         private ReflectionOnlyType() { }

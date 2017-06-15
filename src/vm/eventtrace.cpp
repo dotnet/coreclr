@@ -197,7 +197,10 @@ BOOL IsRundownNgenKeywordEnabledAndNotSuppressed()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return 
+    return
+#ifdef FEATURE_PERFTRACING
+        EventPipeHelper::Enabled() ||
+#endif // FEATURE_PERFTRACING
     (
         ETW_TRACING_CATEGORY_ENABLED(
             MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, 
@@ -4886,12 +4889,10 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
             UINT startupFlags = 0;
             PathString dllPath;
             UINT8 Sku = 0;
-            _ASSERTE(g_fEEManagedEXEStartup ||   //CLR started due to a managed exe
-                g_fEEIJWStartup ||               //CLR started as a mixed mode Assembly
-                CLRHosted() || g_fEEHostedStartup || //CLR started through one of the Hosting API CLRHosted() returns true if CLR started through the V2 Interface while 
-                                                    // g_fEEHostedStartup is true if CLR is hosted through the V1 API.
-                g_fEEComActivatedStartup ||      //CLR started as a COM object
-                g_fEEOtherStartup  );            //In case none of the 4 above mentioned cases are true for example ngen, ildasm then we asssume its a "other" startup
+            _ASSERTE(CLRHosted() || g_fEEHostedStartup || // CLR started through one of the Hosting API CLRHosted() returns true if CLR started through the V2 Interface while 
+                                                          // g_fEEHostedStartup is true if CLR is hosted through the V1 API.
+                     g_fEEComActivatedStartup ||          //CLR started as a COM object
+                     g_fEEOtherStartup  );                //In case none of the 4 above mentioned cases are true for example ngen, ildasm then we asssume its a "other" startup
 
             Sku = ETW::InfoLog::InfoStructs::CoreCLR;
         
@@ -4914,18 +4915,7 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
 
 
             // Determine the startupmode
-            if(g_fEEIJWStartup)
-            {
-                //IJW Mode
-                startupMode = ETW::InfoLog::InfoStructs::IJW;
-            }
-            else if(g_fEEManagedEXEStartup) 
-            {
-                //managed exe
-                startupMode = ETW::InfoLog::InfoStructs::ManagedExe;
-                lpwszCommandLine = WszGetCommandLine();
-            }
-            else if (CLRHosted() || g_fEEHostedStartup)
+            if (CLRHosted() || g_fEEHostedStartup)
             {
                 //Hosted CLR
                 startupMode = ETW::InfoLog::InfoStructs::HostedCLR;
@@ -7385,3 +7375,12 @@ VOID ETW::EnumerationLog::EnumerationHelper(Module *moduleFilter, BaseDomain *do
 }
 
 #endif // !FEATURE_REDHAWK
+
+#ifdef FEATURE_PERFTRACING
+#include "eventpipe.h"
+bool EventPipeHelper::Enabled()
+{
+    LIMITED_METHOD_CONTRACT;
+    return EventPipe::Enabled();
+}
+#endif // FEATURE_PERFTRACING

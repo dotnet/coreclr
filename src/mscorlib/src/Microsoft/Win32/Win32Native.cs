@@ -399,7 +399,6 @@ namespace Microsoft.Win32
             internal int bInheritHandle = 0;
         }
 
-        [Serializable]
         [StructLayout(LayoutKind.Sequential)]
         internal struct WIN32_FILE_ATTRIBUTE_DATA
         {
@@ -472,9 +471,6 @@ namespace Microsoft.Win32
         internal const String CRYPT32 = "crypt32.dll";
         internal const String SECUR32 = "secur32.dll";
         internal const String MSCORWKS = "coreclr.dll";
-
-        // From WinBase.h
-        internal const int SEM_FAILCRITICALERRORS = 1;
 
         [DllImport(KERNEL32, CharSet = CharSet.Auto, BestFitMapping = true)]
         internal static extern int FormatMessage(int dwFlags, IntPtr lpSource,
@@ -726,7 +722,6 @@ namespace Microsoft.Win32
         }
 
         // Win32 Structs in N/Direct style
-        [Serializable]
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         [BestFitMapping(false)]
         internal class WIN32_FIND_DATA
@@ -767,26 +762,8 @@ namespace Microsoft.Win32
         [DllImport(KERNEL32)]
         internal static extern bool FindClose(IntPtr handle);
 
-        [DllImport(KERNEL32, SetLastError = true, ExactSpelling = true)]
-        internal static extern uint GetCurrentDirectoryW(uint nBufferLength, char[] lpBuffer);
-
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern bool GetFileAttributesEx(String name, int fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation);
-
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern bool SetCurrentDirectory(String path);
-
-        [DllImport(KERNEL32, SetLastError = false, EntryPoint = "SetErrorMode", ExactSpelling = true)]
-        private static extern int SetErrorMode_VistaAndOlder(int newMode);
-
-        // RTM versions of Win7 and Windows Server 2008 R2
-        private static readonly Version ThreadErrorModeMinOsVersion = new Version(6, 1, 7600);
-
-        // this method uses the thread-safe version of SetErrorMode on Windows 7 / Windows Server 2008 R2 operating systems.
-        internal static int SetErrorMode(int newMode)
-        {
-            return SetErrorMode_VistaAndOlder(newMode);
-        }
 
         internal const int LCID_SUPPORTED = 0x00000002;  // supported locale ids
 

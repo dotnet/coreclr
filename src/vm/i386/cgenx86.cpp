@@ -1302,30 +1302,6 @@ extern "C" VOID STDCALL StubRareDisableTHROWWorker(Thread *pThread)
     pThread->HandleThreadAbort();
 }
 
-#ifndef FEATURE_PAL
-// Note that this logic is copied below, in PopSEHRecords
-__declspec(naked)
-VOID __cdecl PopSEHRecords(LPVOID pTargetSP)
-{
-    // No CONTRACT possible on naked functions
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-
-    __asm{
-        mov     ecx, [esp+4]        ;; ecx <- pTargetSP
-        mov     eax, fs:[0]         ;; get current SEH record
-  poploop:
-        cmp     eax, ecx
-        jge     done
-        mov     eax, [eax]          ;; get next SEH record
-        jmp     poploop
-  done:
-        mov     fs:[0], eax
-        retn
-    }
-}
-#endif // FEATURE_PAL
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // JITInterface
@@ -1478,7 +1454,7 @@ extern "C" DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16])
             "  mov %%edx, 12(%[result])\n" \
         : "=a"(eax) /*output in eax*/\
         : "a"(arg), [result]"r"(result) /*inputs - arg in eax, result in any register*/\
-        : "eax", "ebx", "ecx", "edx", "memory" /* registers that are clobbered, *result is clobbered */
+        : "ebx", "ecx", "edx", "memory" /* registers that are clobbered, *result is clobbered */
         );
     return eax;
 }
@@ -1486,14 +1462,15 @@ extern "C" DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16])
 extern "C" DWORD __stdcall getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16])
 {
     DWORD eax;
+    DWORD ecx;
     __asm("  cpuid\n" \
             "  mov %%eax, 0(%[result])\n" \
             "  mov %%ebx, 4(%[result])\n" \
             "  mov %%ecx, 8(%[result])\n" \
             "  mov %%edx, 12(%[result])\n" \
-        : "=a"(eax) /*output in eax*/\
+        : "=a"(eax), "=c"(ecx) /*output in eax, ecx is rewritten*/\
         : "c"(arg1), "a"(arg2), [result]"r"(result) /*inputs - arg1 in ecx, arg2 in eax, result in any register*/\
-        : "eax", "ebx", "ecx", "edx", "memory" /* registers that are clobbered, *result is clobbered */
+        : "ebx", "edx", "memory" /* registers that are clobbered, *result is clobbered */
         );
     return eax;
 }
@@ -1504,7 +1481,7 @@ extern "C" DWORD __stdcall xmmYmmStateSupport()
     __asm("  xgetbv\n" \
         : "=a"(eax) /*output in eax*/\
         : "c"(0) /*inputs - 0 in ecx*/\
-        : "eax", "edx" /* registers that are clobbered*/
+        : "edx" /* registers that are clobbered*/
         );
     // check OS has enabled both XMM and YMM state support
     return ((eax & 0x06) == 0x06) ? 1 : 0;

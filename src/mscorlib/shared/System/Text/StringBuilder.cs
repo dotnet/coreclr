@@ -26,6 +26,7 @@ namespace System.Text
     // object unless specified otherwise.  This class may be used in conjunction with the String
     // class to carry out modifications upon strings.
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed partial class StringBuilder : ISerializable
     {
         // A StringBuilder is internally represented as a linked list of blocks each of which holds
@@ -64,10 +65,10 @@ namespace System.Text
         /// </summary>
         internal const int DefaultCapacity = 16;
 
-        private const String CapacityField = "Capacity";
-        private const String MaxCapacityField = "m_MaxCapacity";
-        private const String StringValueField = "m_StringValue";
-        private const String ThreadIDField = "m_currentThread";
+        private const string CapacityField = "Capacity"; // Do not rename (binary serialization)
+        private const string MaxCapacityField = "m_MaxCapacity"; // Do not rename (binary serialization)
+        private const string StringValueField = "m_StringValue"; // Do not rename (binary serialization)
+        private const string ThreadIDField = "m_currentThread"; // Do not rename (binary serialization)
 
         // We want to keep chunk arrays out of large object heap (< 85K bytes ~ 40K chars) to be sure.
         // Making the maximum chunk size big means less allocation code called, but also more waste

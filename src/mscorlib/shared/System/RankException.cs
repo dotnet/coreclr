@@ -16,7 +16,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class RankException : SystemException
     {
         public RankException()
@@ -37,6 +36,9 @@ namespace System
             HResult = __HResults.COR_E_RANK;
         }
 
-        protected RankException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected RankException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

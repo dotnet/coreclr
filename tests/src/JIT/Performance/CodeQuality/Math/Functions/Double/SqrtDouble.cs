@@ -14,14 +14,17 @@ namespace Functions
         private const double sqrtDoubleDelta = 0.0006283185307180;
         private const double sqrtDoubleExpectedResult = 5909.0605337797215;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = SqrtDoubleIterations)]
         public static void SqrtDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    SqrtDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        SqrtDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {sqrtDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {sqrtDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

@@ -14,7 +14,9 @@ EventPipeEventInstance::EventPipeEventInstance(
     EventPipeEvent &event,
     DWORD threadID,
     BYTE *pData,
-    unsigned int length)
+    unsigned int length,
+    LPCGUID pActivityId,
+    LPCGUID pRelatedActivityId)
 {
     CONTRACTL
     {
@@ -24,8 +26,29 @@ EventPipeEventInstance::EventPipeEventInstance(
     }
     CONTRACTL_END;
 
+#ifdef _DEBUG
+    m_debugEventStart = 0xDEADBEEF;
+    m_debugEventEnd = 0xCAFEBABE;
+#endif // _DEBUG
     m_pEvent = &event;
     m_threadID = threadID;
+    if(pActivityId != NULL)
+    {
+        m_activityId = *pActivityId;
+    }
+    else
+    {
+        m_activityId = {0};
+    }
+    if(pRelatedActivityId != NULL)
+    {
+        m_relatedActivityId = *pRelatedActivityId;
+    }
+    else
+    {
+        m_relatedActivityId = {0};
+    }
+
     m_pData = pData;
     m_dataLength = length;
     QueryPerformanceCounter(&m_timeStamp);
@@ -34,6 +57,10 @@ EventPipeEventInstance::EventPipeEventInstance(
     {
         EventPipe::WalkManagedStackForCurrentThread(m_stackContents);
     }
+
+#ifdef _DEBUG
+    EnsureConsistency();
+#endif // _DEBUG
 }
 
 StackContents* EventPipeEventInstance::GetStack()
@@ -48,6 +75,13 @@ EventPipeEvent* EventPipeEventInstance::GetEvent() const
     LIMITED_METHOD_CONTRACT;
 
     return m_pEvent;
+}
+
+LARGE_INTEGER EventPipeEventInstance::GetTimeStamp() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_timeStamp;
 }
 
 BYTE* EventPipeEventInstance::GetData() const
@@ -74,7 +108,7 @@ void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer, StreamLa
     }
     CONTRACTL_END;
 
-#ifdef _DEBUG
+#ifdef EVENTPIPE_EVENT_MARKER
     // Useful for diagnosing serialization bugs.
     const unsigned int value = 0xDEADBEEF;
     pSerializer->WriteBuffer((BYTE*)&value, sizeof(value));
@@ -83,10 +117,14 @@ void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer, StreamLa
     // Calculate the size of the total payload so that it can be written to the file.
     unsigned int payloadLength =
         sizeof(metadataLabel) +
-        sizeof(m_threadID) +        // Thread ID
-        sizeof(m_timeStamp) +       // TimeStamp
-        m_dataLength +              // Event payload data length
-        m_stackContents.GetSize();  // Stack payload size
+        sizeof(m_threadID) +            // Thread ID
+        sizeof(m_timeStamp) +           // TimeStamp
+        sizeof(m_activityId) +          // Activity ID
+        sizeof(m_relatedActivityId) +   // Related Activity ID
+        sizeof(m_dataLength) +          // Data payload length
+        m_dataLength +                  // Event payload data
+        sizeof(unsigned int) +          // Prepended stack payload size in bytes
+        m_stackContents.GetSize();      // Stack payload size
 
     // Write the size of the event to the file.
     pSerializer->WriteBuffer((BYTE*)&payloadLength, sizeof(payloadLength));
@@ -100,19 +138,33 @@ void EventPipeEventInstance::FastSerialize(FastSerializer *pSerializer, StreamLa
     // Write the timestamp.
     pSerializer->WriteBuffer((BYTE*)&m_timeStamp, sizeof(m_timeStamp));
 
+    // Write the activity id.
+    pSerializer->WriteBuffer((BYTE*)&m_activityId, sizeof(m_activityId));
+
+    // Write the related activity id.
+    pSerializer->WriteBuffer((BYTE*)&m_relatedActivityId, sizeof(m_relatedActivityId));
+
+    // Write the data payload size.
+    pSerializer->WriteBuffer((BYTE*)&m_dataLength, sizeof(m_dataLength));
+
     // Write the event data payload.
     if(m_dataLength > 0)
     {
         pSerializer->WriteBuffer(m_pData, m_dataLength);
     }
 
+    // Write the size of the stack in bytes.
+    unsigned int stackSize = m_stackContents.GetSize();
+    pSerializer->WriteBuffer((BYTE*)&stackSize, sizeof(stackSize));
+
     // Write the stack if present.
-    if(m_stackContents.GetSize() > 0)
+    if(stackSize > 0)
     {
-        pSerializer->WriteBuffer(m_stackContents.GetPointer(), m_stackContents.GetSize());
+        pSerializer->WriteBuffer(m_stackContents.GetPointer(), stackSize);
     }
 }
 
+#ifdef _DEBUG
 void EventPipeEventInstance::SerializeToJsonFile(EventPipeJsonFile *pFile)
 {
     CONTRACTL
@@ -147,9 +199,38 @@ void EventPipeEventInstance::SerializeToJsonFile(EventPipeJsonFile *pFile)
     }
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }
+#endif
 
-SampleProfilerEventInstance::SampleProfilerEventInstance(Thread *pThread)
-    :EventPipeEventInstance(*SampleProfiler::s_pThreadTimeEvent, pThread->GetOSThreadId(), NULL, 0)
+void EventPipeEventInstance::SetTimeStamp(LARGE_INTEGER timeStamp)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    m_timeStamp = timeStamp;
+}
+
+#ifdef _DEBUG
+bool EventPipeEventInstance::EnsureConsistency()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Validate event start.
+    _ASSERTE(m_debugEventStart == 0xDEADBEEF);
+
+    // Validate event end.
+    _ASSERTE(m_debugEventEnd == 0xCAFEBABE);
+
+    return true;
+}
+#endif // _DEBUG
+
+SampleProfilerEventInstance::SampleProfilerEventInstance(EventPipeEvent &event, Thread *pThread, BYTE *pData, unsigned int length)
+    :EventPipeEventInstance(event, pThread->GetOSThreadId(), pData, length, NULL /* pActivityId */, NULL /* pRelatedActivityId */)
 {
     LIMITED_METHOD_CONTRACT;
 }

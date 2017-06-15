@@ -2294,7 +2294,19 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
                     //pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);
                     pcsEmit->EmitLDC(offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
                     pcsEmit->EmitADD();
+
+                    if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+                    {
+                        pcsEmit->EmitDUP();
+                    }
+
                     pcsEmit->EmitLDIND_I();
+
+                    if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+                    {
+                        pcsEmit->EmitADD();
+                    }
+
                     pcsEmit->EmitLDIND_I();
                 }
             }
@@ -4368,8 +4380,8 @@ void NDirect::PopulateNDirectMethodDesc(NDirectMethodDesc* pNMD, PInvokeStaticSi
     else
     {
         EnsureWritablePages(&pNMD->ndirect);
-        pNMD->ndirect.m_pszLibName = szLibName;
-        pNMD->ndirect.m_pszEntrypointName = szEntryPointName;
+        pNMD->ndirect.m_pszLibName.SetValueMaybeNull(szLibName);
+        pNMD->ndirect.m_pszEntrypointName.SetValueMaybeNull(szEntryPointName);
     }
 
 #ifdef _TARGET_X86_
@@ -6418,9 +6430,6 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
             //
             // With IL stubs, we don't have to do anything but ensure the DLL is loaded.
             //
-
-            if (!pMD->GetModule()->GetSecurityDescriptor()->CanCallUnmanagedCode())
-                Security::ThrowSecurityException(g_SecurityPermissionClassName, SPFLAGSUNMANAGEDCODE);
 
             if (!pMD->IsZapped())
             {

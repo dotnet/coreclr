@@ -14,14 +14,17 @@ namespace Functions
         private const double roundDoubleDelta = 0.0006283185307180;
         private const double roundDoubleExpectedResult = 2;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = RoundDoubleIterations)]
         public static void RoundDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    RoundDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        RoundDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {roundDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {roundDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

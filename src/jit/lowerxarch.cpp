@@ -35,6 +35,50 @@ void Lowering::LowerRotate(GenTreePtr tree)
 }
 
 //------------------------------------------------------------------------
+// LowerShift: Lower shift nodes
+//
+// Arguments:
+//    shift - the shift node (GT_LSH, GT_RSH or GT_RSZ)
+//
+// Notes:
+//    Remove unnecessary shift count masking, xarch shift instructions
+//    mask the shift count to 5 bits (or 6 bits for 64 bit operations).
+
+void Lowering::LowerShift(GenTreeOp* shift)
+{
+    assert(shift->OperIs(GT_LSH, GT_RSH, GT_RSZ));
+
+    size_t mask = 0x1f;
+#ifdef _TARGET_AMD64_
+    if (varTypeIsLong(shift->TypeGet()))
+    {
+        mask = 0x3f;
+    }
+#else
+    assert(!varTypeIsLong(shift->TypeGet()));
+#endif
+
+    for (GenTree* andOp = shift->gtGetOp2(); andOp->OperIs(GT_AND); andOp = andOp->gtGetOp1())
+    {
+        GenTree* maskOp = andOp->gtGetOp2();
+
+        if (!maskOp->IsCnsIntOrI())
+        {
+            break;
+        }
+
+        if ((static_cast<size_t>(maskOp->AsIntCon()->IconValue()) & mask) != mask)
+        {
+            break;
+        }
+
+        shift->gtOp2 = andOp->gtGetOp1();
+        BlockRange().Remove(andOp);
+        BlockRange().Remove(maskOp);
+    }
+}
+
+//------------------------------------------------------------------------
 // LowerStoreLoc: Lower a store of a lclVar
 //
 // Arguments:
@@ -968,7 +1012,7 @@ bool Lowering::isRMWRegOper(GenTreePtr tree)
     // For now, We assume that most binary operators are of the RMW form.
     assert(tree->OperIsBinary());
 
-    if (tree->OperIsCompare())
+    if (tree->OperIsCompare() || tree->OperIs(GT_CMP))
     {
         return false;
     }
@@ -1042,7 +1086,7 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
 GenTree* Lowering::PreferredRegOptionalOperand(GenTree* tree)
 {
     assert(GenTree::OperIsBinary(tree->OperGet()));
-    assert(tree->OperIsCommutative() || tree->OperIsCompare());
+    assert(tree->OperIsCommutative() || tree->OperIsCompare() || tree->OperIs(GT_CMP));
 
     GenTree* op1         = tree->gtGetOp1();
     GenTree* op2         = tree->gtGetOp2();
@@ -1117,7 +1161,6 @@ GenTree* Lowering::PreferredRegOptionalOperand(GenTree* tree)
         else
         {
             preferredOp = op1;
-            ;
         }
     }
     else if (op1->OperGet() == GT_LCL_VAR)
@@ -1130,11 +1173,7 @@ GenTree* Lowering::PreferredRegOptionalOperand(GenTree* tree)
     }
     else
     {
-        // Neither of the operands is a local, prefer marking
-        // operand that is evaluated first as reg optional
-        // since its use position is less likely to get a register.
-        bool reverseOps = ((tree->gtFlags & GTF_REVERSE_OPS) != 0);
-        preferredOp     = reverseOps ? op2 : op1;
+        preferredOp = op1;
     }
 
     return preferredOp;

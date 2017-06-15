@@ -654,7 +654,9 @@ public:
 
     ULONG Release();
 
+#ifdef FEATURE_READYTORUN_COMPILER
     void GetSerializedInlineTrackingMap(SBuffer* pBuffer);
+#endif
 
     void Error(mdToken token, Exception * pException);
 };
@@ -789,7 +791,6 @@ class CompilationDomain : public AppDomain,
         BOOL fThrowOnFileNotFound,
         BOOL fRaisePrebindEvents,
         StackCrawlMark *pCallerStackMark = NULL,
-        AssemblyLoadSecurity *pLoadSecurity = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
 
     BOOL CanEagerBindToZapFile(Module *targetModule, BOOL limitToHardBindList = TRUE);

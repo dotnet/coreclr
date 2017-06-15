@@ -2853,6 +2853,14 @@ PAL_GetSymbolModuleBase(void *symbol);
 PALIMPORT
 LPVOID
 PALAPI
+PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(
+    IN LPCVOID lpBeginAddress,
+    IN LPCVOID lpEndAddress,
+    IN SIZE_T dwSize);
+
+PALIMPORT
+LPVOID
+PALAPI
 VirtualAlloc(
          IN LPVOID lpAddress,
          IN SIZE_T dwSize,
@@ -4552,11 +4560,24 @@ MemoryBarrier(
     __sync_synchronize();
 }
 
+EXTERN_C
 PALIMPORT
+inline
 VOID
 PALAPI
 YieldProcessor(
-    VOID);
+    VOID)
+{
+#if defined(_X86_) || defined(_AMD64_)
+    __asm__ __volatile__(
+        "rep\n"
+        "nop");
+#elif defined(_ARM64_)
+    __asm__ __volatile__( "yield");
+#else
+    return;
+#endif
+}
 
 PALIMPORT
 DWORD

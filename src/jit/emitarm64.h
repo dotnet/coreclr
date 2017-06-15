@@ -464,7 +464,7 @@ static bool emitIns_valid_imm_for_movi(INT64 imm, emitAttr size);
 static bool emitIns_valid_imm_for_fmov(double immDbl);
 
 // true if this 'imm' can be encoded as a input operand to an add instruction
-static bool emitIns_valid_imm_for_add(INT64 imm, emitAttr size);
+static bool emitIns_valid_imm_for_add(INT64 imm, emitAttr size = EA_8BYTE);
 
 // true if this 'imm' can be encoded as a input operand to a cmp instruction
 static bool emitIns_valid_imm_for_cmp(INT64 imm, emitAttr size);
@@ -758,7 +758,13 @@ void emitIns_S(instruction ins, emitAttr attr, int varx, int offs);
 
 void emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int varx, int offs);
 
+void emitIns_S_S_R_R(
+    instruction ins, emitAttr attr, emitAttr attr2, regNumber ireg, regNumber ireg2, int varx, int offs);
+
 void emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int varx, int offs);
+
+void emitIns_R_R_S_S(
+    instruction ins, emitAttr attr, emitAttr attr2, regNumber ireg, regNumber ireg2, int varx, int offs);
 
 void emitIns_S_I(instruction ins, emitAttr attr, int varx, int offs, int val);
 

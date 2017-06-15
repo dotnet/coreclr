@@ -8,7 +8,6 @@ using System.Diagnostics.Contracts;
 
 namespace System.Text
 {
-    [Serializable]
     public sealed class EncoderExceptionFallback : EncoderFallback
     {
         // Construction
@@ -99,7 +98,6 @@ namespace System.Text
         }
     }
 
-    [Serializable]
     public sealed class EncoderFallbackException : ArgumentException
     {
         private char charUnknown;
@@ -123,10 +121,6 @@ namespace System.Text
             : base(message, innerException)
         {
             HResult = __HResults.COR_E_ARGUMENT;
-        }
-
-        internal EncoderFallbackException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
         }
 
         internal EncoderFallbackException(

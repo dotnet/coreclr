@@ -17,11 +17,10 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
-    public class BadImageFormatException : SystemException
+    public partial class BadImageFormatException : SystemException
     {
         private String _fileName;  // The name of the corrupt PE file.
-        private String _fusionLog;  // fusion log (when applicable)
+        private String _fusionLog = null;  // fusion log (when applicable)
 
         public BadImageFormatException()
             : base(SR.Arg_BadImageFormatException)
@@ -57,16 +56,12 @@ namespace System
         protected BadImageFormatException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            _fileName = info.GetString("BadImageFormat_FileName");
-            _fusionLog = info.GetString("BadImageFormat_FusionLog");
+            throw new PlatformNotSupportedException();
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
-
-            info.AddValue("BadImageFormat_FileName", _fileName, typeof(String));
-            info.AddValue("BadImageFormat_FusionLog", _fusionLog, typeof(String));
         }
 
         public override String Message

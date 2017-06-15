@@ -178,14 +178,6 @@ HRESULT EEConfig::Init()
     iGCHeapVerify = 0;          // Heap Verification OFF by default
 #endif
 
-#ifdef _DEBUG // TRACE_GC
-    iGCtraceStart = INT_MAX; // Set to huge value so GCtrace is off by default
-    iGCtraceEnd   = INT_MAX;
-    iGCtraceFac   = 0;
-    iGCprnLvl     = DEFAULT_GC_PRN_LVL;
-    
-#endif
-
 #if defined(STRESS_HEAP) || defined(_DEBUG)
     iGCStress     = 0;
 #endif
@@ -235,25 +227,15 @@ HRESULT EEConfig::Init()
     fLegacyComVTableLayout = false;
     fLegacyVirtualMethodCallVerification = false;
     fNewComVTableLayout = false;
-    iImpersonationPolicy = IMP_DEFAULT;
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
     // By default, there is not pre-V4 CSE policy
     fLegacyCorruptedStateExceptionsPolicy = false;
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-#ifdef _DEBUG
-    fLogTransparencyErrors = false;
-#endif // _DEBUG
-    fLegacyLoadMscorsnOnStartup = false;
-    fBypassStrongNameVerification = true;
-    fGeneratePublisherEvidence = true;
-    fEnforceFIPSPolicy = true;
-    fLegacyHMACMode = false;
     fNgenBindOptimizeNonGac = false;
     fStressLog = false;
     fCacheBindingFailures = true;
-    fDisableFusionUpdatesFromADManager = false;
     fDisableCommitThreadStack = false;
     fProbeForStackOverflow = true;
     
@@ -293,9 +275,6 @@ HRESULT EEConfig::Init()
     // LS in DAC builds. Initialized via the environment variable TestDataConsistency
     fTestDataConsistency = false;
 #endif
-    
-    // TlbImp Stuff
-    fTlbImpSkipLoading = false;
 
     // In Thread::SuspendThread(), default the timeout to 2 seconds.  If the suspension
     // takes longer, assert (but keep trying).
@@ -1105,11 +1084,6 @@ HRESULT EEConfig::sync()
 
     fJitVerificationDisable = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_JitVerificationDisable, fJitVerificationDisable)         != 0);
 
-    fLogTransparencyErrors = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_Security_LogTransparencyErrors) != 0;
-
-    // TlbImp stuff
-    fTlbImpSkipLoading = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_TlbImpSkipLoading, fTlbImpSkipLoading) != 0);
-
     iExposeExceptionsInCOM = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_ExposeExceptionsInCOM, iExposeExceptionsInCOM);
 #endif
 
@@ -1380,19 +1354,6 @@ HRESULT EEConfig::GetConfiguration_DontUse_(__in_z LPCWSTR pKey, ConfigSearch di
         RETURN E_FAIL;
     }
 }        
-
-LPCWSTR EEConfig::GetProcessBindingFile()
-{
-    LIMITED_METHOD_CONTRACT;
-    return g_pszHostConfigFile;
-}
-
-SIZE_T EEConfig::GetSizeOfProcessBindingFile()
-{
-    LIMITED_METHOD_CONTRACT;
-    return g_dwHostConfigFile;
-}
-
 
 bool EEConfig::RequireZap(LPCUTF8 assemblyName) const
 {

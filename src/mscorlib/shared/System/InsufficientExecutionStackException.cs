@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public sealed class InsufficientExecutionStackException : SystemException
     {
         public InsufficientExecutionStackException()
@@ -26,7 +25,5 @@ namespace System
         {
             HResult = __HResults.COR_E_INSUFFICIENTEXECUTIONSTACK;
         }
-
-        internal InsufficientExecutionStackException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }

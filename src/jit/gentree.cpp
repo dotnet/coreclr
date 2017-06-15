@@ -21,7 +21,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 /*****************************************************************************/
 
 const unsigned short GenTree::gtOperKindTable[] = {
-#define GTNODE(en, sn, st, cm, ok) ok + GTK_COMMUTE *cm,
+#define GTNODE(en, st, cm, ok) ok + GTK_COMMUTE *cm,
 #include "gtlist.h"
 };
 
@@ -208,24 +208,12 @@ static void printIndent(IndentStack* indentStack)
     indentStack->print();
 }
 
-static const char* nodeNames[] = {
-#define GTNODE(en, sn, st, cm, ok) sn,
-#include "gtlist.h"
-};
-
-const char* GenTree::NodeName(genTreeOps op)
-{
-    assert((unsigned)op < sizeof(nodeNames) / sizeof(nodeNames[0]));
-
-    return nodeNames[op];
-}
-
 #endif
 
 #if defined(DEBUG) || NODEBASH_STATS || MEASURE_NODE_SIZE || COUNT_AST_OPERS
 
 static const char* opNames[] = {
-#define GTNODE(en, sn, st, cm, ok) #en,
+#define GTNODE(en, st, cm, ok) #en,
 #include "gtlist.h"
 };
 
@@ -241,7 +229,7 @@ const char* GenTree::OpName(genTreeOps op)
 #if MEASURE_NODE_SIZE && SMALL_TREE_NODES
 
 static const char* opStructNames[] = {
-#define GTNODE(en, sn, st, cm, ok) #st,
+#define GTNODE(en, st, cm, ok) #st,
 #include "gtlist.h"
 };
 
@@ -270,7 +258,7 @@ unsigned char GenTree::s_gtNodeSizes[GT_COUNT + 1];
 #if NODEBASH_STATS || MEASURE_NODE_SIZE || COUNT_AST_OPERS
 
 unsigned char GenTree::s_gtTrueSizes[GT_COUNT + 1]{
-#define GTNODE(en, sn, st, cm, ok) sizeof(st),
+#define GTNODE(en, st, cm, ok) sizeof(st),
 #include "gtlist.h"
 };
 
@@ -366,7 +354,7 @@ void GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeLclVar)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeLclFld)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeRegVar)       <= TREE_NODE_SZ_SMALL);
-    static_assert_no_msg(sizeof(GenTreeJumpCC)       <= TREE_NODE_SZ_SMALL);
+    static_assert_no_msg(sizeof(GenTreeCC)           <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeCast)         <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeBox)          <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeField)        <= TREE_NODE_SZ_LARGE); // *** large node
@@ -3040,8 +3028,8 @@ bool Compiler::lvaLclVarRefs(GenTreePtr tree, GenTreePtr* findPtr, varRefKinds* 
     genTreeOps   oper;
     unsigned     kind;
     varRefKinds  refs = VR_NONE;
-    ALLVARSET_TP ALLVARSET_INIT_NOCOPY(allVars, AllVarSetOps::UninitVal());
-    VARSET_TP    VARSET_INIT_NOCOPY(trkdVars, VarSetOps::UninitVal());
+    ALLVARSET_TP allVars(AllVarSetOps::UninitVal());
+    VARSET_TP    trkdVars(VarSetOps::UninitVal());
     if (findPtr)
     {
         AllVarSetOps::AssignNoCopy(this, allVars, AllVarSetOps::MakeEmpty(this));
@@ -3219,7 +3207,7 @@ AGAIN:
             unsigned dim;
             for (dim = 0; dim < tree->gtArrElem.gtArrRank; dim++)
             {
-                VARSET_TP VARSET_INIT_NOCOPY(tmpVs, VarSetOps::UninitVal());
+                VARSET_TP tmpVs(VarSetOps::UninitVal());
                 if (!lvaLclVarRefsAccum(tree->gtArrElem.gtArrInds[dim], findPtr, refsPtr, &allVars, &trkdVars))
                 {
                     return false;
@@ -3309,7 +3297,7 @@ bool Compiler::lvaLclVarRefsAccum(
 {
     if (findPtr)
     {
-        ALLVARSET_TP ALLVARSET_INIT_NOCOPY(tmpVs, AllVarSetOps::UninitVal());
+        ALLVARSET_TP tmpVs(AllVarSetOps::UninitVal());
         if (!lvaLclVarRefs(tree, findPtr, refsPtr, &tmpVs))
         {
             return false;
@@ -3319,7 +3307,7 @@ bool Compiler::lvaLclVarRefsAccum(
     }
     else
     {
-        VARSET_TP VARSET_INIT_NOCOPY(tmpVs, VarSetOps::UninitVal());
+        VARSET_TP tmpVs(VarSetOps::UninitVal());
         if (!lvaLclVarRefs(tree, findPtr, refsPtr, &tmpVs))
         {
             return false;
@@ -3447,10 +3435,10 @@ GenTreePtr Compiler::gtReverseCond(GenTree* tree)
             tree->gtFlags ^= GTF_RELOP_NAN_UN;
         }
     }
-    else if (tree->OperGet() == GT_JCC)
+    else if (tree->OperIs(GT_JCC, GT_SETCC))
     {
-        GenTreeJumpCC* jcc = tree->AsJumpCC();
-        jcc->gtCondition   = GenTree::ReverseRelop(jcc->gtCondition);
+        GenTreeCC* cc   = tree->AsCC();
+        cc->gtCondition = GenTree::ReverseRelop(cc->gtCondition);
     }
     else
     {
@@ -5249,6 +5237,13 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             // so if possible it was set above.
             tryToSwap = false;
         }
+        else if ((oper == GT_INTRINSIC) &&
+                 Compiler::IsIntrinsicImplementedByUserCall(tree->AsIntrinsic()->gtIntrinsicId))
+        {
+            // We do not swap operand execution order for intrinsics that are implemented by user calls
+            // because of trickiness around ensuring the execution order does not change during rationalization.
+            tryToSwap = false;
+        }
         else
         {
             if (tree->gtFlags & GTF_REVERSE_OPS)
@@ -5286,15 +5281,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     case GT_GT:
                         if (GenTree::SwapRelop(oper) != oper)
                         {
-                            // SetOper will obliterate the VN for the underlying expression.
-                            // If we're in VN CSE phase, we don't want to lose that information,
-                            // so save the value numbers and put them back after the SetOper.
-                            ValueNumPair vnp = tree->gtVNPair;
-                            tree->SetOper(GenTree::SwapRelop(oper));
-                            if (optValnumCSE_phase)
-                            {
-                                tree->gtVNPair = vnp;
-                            }
+                            tree->SetOper(GenTree::SwapRelop(oper), GenTree::PRESERVE_VN);
                         }
 
                         __fallthrough;
@@ -5520,7 +5507,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             /* Virtual stub calls also must reserve the VIRTUAL_STUB_PARAM reg */
             if (callKind == GTF_CALL_VIRT_STUB)
             {
-                ftreg |= RBM_VIRTUAL_STUB_PARAM;
+                ftreg |= virtualStubParamInfo->GetRegMask();
             }
 
 #ifdef FEATURE_READYTORUN_COMPILER
@@ -5532,14 +5519,14 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 #endif
 #endif
 
-#if GTF_CALL_REG_SAVE
+#ifdef LEGACY_BACKEND
             // Normally function calls don't preserve caller save registers
             //   and thus are much more expensive.
             // However a few function calls do preserve these registers
             //   such as the GC WriteBarrier helper calls.
 
             if (!(tree->gtFlags & GTF_CALL_REG_SAVE))
-#endif
+#endif // LEGACY_BACKEND
             {
                 level += 5;
                 costEx += 3 * IND_COST_EX;
@@ -6100,7 +6087,7 @@ bool GenTree::IsAddWithI32Const(GenTreePtr* addr, int* offset)
 //    later gets converted to a GT_FIELD_LIST with two GT_LCL_FLDs in Lower/LowerXArch.
 //
 
-GenTreePtr* GenTree::gtGetChildPointer(GenTreePtr parent)
+GenTreePtr* GenTree::gtGetChildPointer(GenTreePtr parent) const
 
 {
     switch (parent->OperGet())
@@ -6316,7 +6303,7 @@ void GenTree::ReplaceOperand(GenTree** useEdge, GenTree* replacement)
 //    To enable the child to be replaced, it accepts an argument, parentChildPointer that, if non-null,
 //    will be set to point to the child pointer in the parent that points to this node.
 
-GenTreePtr GenTree::gtGetParent(GenTreePtr** parentChildPtrPtr)
+GenTreePtr GenTree::gtGetParent(GenTreePtr** parentChildPtrPtr) const
 {
     // Find the parent node; it must be after this node in the execution order.
     GenTreePtr* parentChildPtr = nullptr;
@@ -6952,7 +6939,11 @@ GenTreePtr Compiler::gtNewLclvNode(unsigned lnum, var_types type, IL_OFFSETX ILo
     // It might be nice to assert this in general, but we have assignments of int to long.
     if (varTypeIsStruct(type))
     {
-        assert(type == lvaTable[lnum].lvType);
+        // Make an exception for implicit by-ref parameters during global morph, since
+        // their lvType has been updated to byref but their appearances have not yet all
+        // been rewritten and so may have struct type still.
+        assert(type == lvaTable[lnum].lvType ||
+               (lvaIsImplicitByRefLocal(lnum) && fgGlobalMorph && (lvaTable[lnum].lvType == TYP_BYREF)));
     }
     GenTreePtr node = new (this, GT_LCL_VAR) GenTreeLclVar(type, lnum, ILoffs);
 
@@ -6970,7 +6961,11 @@ GenTreePtr Compiler::gtNewLclLNode(unsigned lnum, var_types type, IL_OFFSETX ILo
     // It might be nice to assert this in general, but we have assignments of int to long.
     if (varTypeIsStruct(type))
     {
-        assert(type == lvaTable[lnum].lvType);
+        // Make an exception for implicit by-ref parameters during global morph, since
+        // their lvType has been updated to byref but their appearances have not yet all
+        // been rewritten and so may have struct type still.
+        assert(type == lvaTable[lnum].lvType ||
+               (lvaIsImplicitByRefLocal(lnum) && fgGlobalMorph && (lvaTable[lnum].lvType == TYP_BYREF)));
     }
 #if SMALL_TREE_NODES
     /* This local variable node may later get transformed into a large node */
@@ -8179,13 +8174,15 @@ GenTreePtr Compiler::gtCloneExpr(
             copy->gtFlags |= (copy->gtGetOp2()->gtFlags & GTF_ALL_EFFECT);
         }
 
+#ifdef LEGACY_BACKEND
         // The early morph for TailCall creates a GT_NOP with GTF_REG_VAL flag set
         // Thus we have to copy the gtRegNum/gtRegPair value if we clone it here.
         //
-        if (addFlags & GTF_REG_VAL)
+        if (tree->InReg())
         {
             copy->CopyReg(tree);
         }
+#endif // LEGACY_BACKEND
 
         goto DONE;
     }
@@ -9201,6 +9198,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_MEMORYBARRIER:
         case GT_JMP:
         case GT_JCC:
+        case GT_SETCC:
         case GT_NO_OP:
         case GT_START_NONGC:
         case GT_PROF_HOOK:
@@ -9772,7 +9770,11 @@ bool GenTree::Precedes(GenTree* other)
 
 /* static */ int GenTree::gtDispFlags(unsigned flags, unsigned debugFlags)
 {
+#ifdef LEGACY_BACKEND
     printf("%c", (flags & GTF_ASG) ? 'A' : '-');
+#else  // !LEGACY_BACKEND
+    printf("%c", (flags & GTF_ASG) ? 'A' : (IsContained(flags) ? 'c' : '-'));
+#endif // LEGACY_BACKEND
     printf("%c", (flags & GTF_CALL) ? 'C' : '-');
     printf("%c", (flags & GTF_EXCEPT) ? 'X' : '-');
     printf("%c", (flags & GTF_GLOB_REF) ? 'G' : '-');
@@ -9802,7 +9804,7 @@ void Compiler::gtDispNodeName(GenTree* tree)
     assert(tree);
     if (tree->gtOper < GT_COUNT)
     {
-        name = GenTree::NodeName(tree->OperGet());
+        name = GenTree::OpName(tree->OperGet());
     }
     else
     {
@@ -9821,7 +9823,7 @@ void Compiler::gtDispNodeName(GenTree* tree)
     }
     else if (tree->gtOper == GT_CALL)
     {
-        const char* callType = "call";
+        const char* callType = "CALL";
         const char* gtfType  = "";
         const char* ctType   = "";
         char        gtfTypeBuf[100];
@@ -9830,7 +9832,7 @@ void Compiler::gtDispNodeName(GenTree* tree)
         {
             if ((tree->gtFlags & GTF_CALL_VIRT_KIND_MASK) != GTF_CALL_NONVIRT)
             {
-                callType = "callv";
+                callType = "CALLV";
             }
         }
         else if (tree->gtCall.gtCallType == CT_HELPER)
@@ -10209,7 +10211,7 @@ void Compiler::gtDispNode(GenTreePtr tree, IndentStack* indentStack, __in __in_z
                 goto DASH;
 
             case GT_MUL:
-#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
             case GT_MUL_LONG:
 #endif
                 if (tree->gtFlags & GTF_MUL_64RSLT)
@@ -10424,8 +10426,17 @@ void Compiler::gtDispNode(GenTreePtr tree, IndentStack* indentStack, __in __in_z
                 }
                 else if (varDsc->lvPromoted)
                 {
-                    assert(varTypeIsPromotable(varDsc));
-                    printf("(P)"); // Promoted struct
+                    if (varTypeIsPromotable(varDsc))
+                    {
+                        printf("(P)"); // Promoted struct
+                    }
+                    else
+                    {
+                        // Promoted implicit by-refs can have this state during
+                        // global morph while they are being rewritten
+                        assert(fgGlobalMorph);
+                        printf("(P?!)"); // Promoted struct
+                    }
                 }
             }
 
@@ -10521,10 +10532,12 @@ void Compiler::gtDispRegVal(GenTree* tree)
         }
     }
 
-    if (tree->gtFlags & GTF_REG_VAL)
+#ifdef LEGACY_BACKEND
+    if (tree->InReg())
     {
         printf(" RV");
     }
+#endif
 }
 
 // We usually/commonly don't expect to print anything longer than this string,
@@ -11010,44 +11023,51 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
 
             if (varDsc->lvPromoted)
             {
-                assert(varTypeIsPromotable(varDsc) || varDsc->lvUnusedStruct);
-
-                CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-                CORINFO_FIELD_HANDLE fldHnd;
-
-                for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
+                if (!varTypeIsPromotable(varDsc) && !varDsc->lvUnusedStruct)
                 {
-                    LclVarDsc*  fieldVarDsc = &lvaTable[i];
-                    const char* fieldName;
+                    // Promoted implicit byrefs can get in this state while they are being rewritten
+                    // in global morph.
+                    assert(fgGlobalMorph);
+                }
+                else
+                {
+                    CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
+                    CORINFO_FIELD_HANDLE fldHnd;
+
+                    for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
+                    {
+                        LclVarDsc*  fieldVarDsc = &lvaTable[i];
+                        const char* fieldName;
 #if !defined(_TARGET_64BIT_)
-                    if (varTypeIsLong(varDsc))
-                    {
-                        fieldName = (i == 0) ? "lo" : "hi";
-                    }
-                    else
+                        if (varTypeIsLong(varDsc))
+                        {
+                            fieldName = (i == 0) ? "lo" : "hi";
+                        }
+                        else
 #endif // !defined(_TARGET_64BIT_)
-                    {
-                        fldHnd    = info.compCompHnd->getFieldInClass(typeHnd, fieldVarDsc->lvFldOrdinal);
-                        fieldName = eeGetFieldName(fldHnd);
-                    }
+                        {
+                            fldHnd    = info.compCompHnd->getFieldInClass(typeHnd, fieldVarDsc->lvFldOrdinal);
+                            fieldName = eeGetFieldName(fldHnd);
+                        }
 
-                    printf("\n");
-                    printf("                                                  ");
-                    printIndent(indentStack);
-                    printf("    %-6s V%02u.%s (offs=0x%02x) -> ", varTypeName(fieldVarDsc->TypeGet()),
-                           tree->gtLclVarCommon.gtLclNum, fieldName, fieldVarDsc->lvFldOffset);
-                    gtDispLclVar(i);
+                        printf("\n");
+                        printf("                                                  ");
+                        printIndent(indentStack);
+                        printf("    %-6s V%02u.%s (offs=0x%02x) -> ", varTypeName(fieldVarDsc->TypeGet()),
+                               tree->gtLclVarCommon.gtLclNum, fieldName, fieldVarDsc->lvFldOffset);
+                        gtDispLclVar(i);
 
-                    if (fieldVarDsc->lvRegister)
-                    {
-                        printf(" ");
-                        fieldVarDsc->PrintVarReg();
-                    }
+                        if (fieldVarDsc->lvRegister)
+                        {
+                            printf(" ");
+                            fieldVarDsc->PrintVarReg();
+                        }
 
-                    if (fieldVarDsc->lvTracked && fgLocalVarLivenessDone && // Includes local variable liveness
-                        ((tree->gtFlags & GTF_VAR_DEATH) != 0))
-                    {
-                        printf(" (last use)");
+                        if (fieldVarDsc->lvTracked && fgLocalVarLivenessDone && // Includes local variable liveness
+                            ((tree->gtFlags & GTF_VAR_DEATH) != 0))
+                        {
+                            printf(" (last use)");
+                        }
                     }
                 }
             }
@@ -11167,7 +11187,8 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
             break;
 
         case GT_JCC:
-            printf(" cond=%s", GenTree::NodeName(tree->AsJumpCC()->gtCondition));
+        case GT_SETCC:
+            printf(" cond=%s", GenTree::OpName(tree->AsCC()->gtCondition));
             break;
 
         default:
@@ -15444,46 +15465,56 @@ bool GenTree::canBeContained() const
 //    Essentially, it will be rolled into the code generation for the parent.
 //
 // Assumptions:
-//    This method relies upon the value of gtRegNum field to determine whether the tree node
-//    is contained.
-//    Therefore you can not call this method until after the LSRA phase has allocated physical
-//    registers to the treenodes.
+//    This method relies upon the value of the GTF_CONTAINED flag.
+//    Therefore this method is only valid after Lowering.
+//    Also note that register allocation or other subsequent phases may cause
+//    nodes to become contained (or not) and therefore this property may change.
 //
 bool GenTree::isContained() const
 {
+#ifdef LEGACY_BACKEND
+    return false;
+#else // !LEGACY_BACKEND
     assert(IsLIR());
+    const bool isMarkedContained = ((gtFlags & GTF_CONTAINED) != 0);
 
+#ifdef DEBUG
     if (!canBeContained() || gtHasReg())
     {
-        return false;
+        assert(!isMarkedContained);
     }
 
     // these actually produce a register (the flags reg, we just don't model it)
     // and are a separate instruction from the branch that consumes the result
-    if ((OperKind() & GTK_RELOP) != 0)
+    else if (OperKind() & GTK_RELOP)
     {
-        return false;
+        assert(!isMarkedContained);
     }
 
     // these either produce a result in register or set flags reg.
-    if (IsSIMDEqualityOrInequality())
+    else if (IsSIMDEqualityOrInequality())
     {
-        return false;
+        assert(!isMarkedContained);
     }
 
-#if !defined(LEGACY_BACKEND) && !defined(_TARGET_64BIT_)
+#if !defined(_TARGET_64BIT_)
     if (OperGet() == GT_LONG)
     {
         // GT_LONG nodes are normally contained. The only exception is when the result
         // of a TYP_LONG operation is not used and this can only happen if the GT_LONG
-        // is the last node in the statement (in linear order).
-        return gtNext != nullptr;
+        // has no parent.
+        assert(isMarkedContained || (gtGetParent(nullptr) == nullptr));
     }
 #endif
 
     // if it's contained it better have a user
-    assert((gtNext != nullptr) || OperIsLocal());
-    return true;
+    if (isMarkedContained)
+    {
+        assert((gtNext != nullptr) || OperIsLocal());
+    }
+#endif // DEBUG
+    return isMarkedContained;
+#endif // !LEGACY_BACKEND
 }
 
 // return true if node is contained and an indir

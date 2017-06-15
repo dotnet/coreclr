@@ -5339,6 +5339,7 @@ int RedirectedThrowControlExceptionFilter(
     return (EXCEPTION_CONTINUE_EXECUTION);
 }
 #endif
+#endif // !FEATURE_PAL
 
 // Resume a thread at this location, to persuade it to throw a ThreadStop.  The
 // exception handler needs a reasonable idea of how large this method is, so don't
@@ -5413,7 +5414,6 @@ ThrowControlForThread(
     // Here we raise an exception.
     RaiseComPlusException();
 }
-#endif // !FEATURE_PAL
 
 #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
 // This function is called by UserAbort and StopEEAndUnwindThreads.
@@ -7513,6 +7513,11 @@ void HandleGCSuspensionForInterruptedThread(CONTEXT *interruptedContext)
 
     if (pThread->PreemptiveGCDisabled() != TRUE)
         return;
+
+#ifdef FEATURE_PERFTRACING
+    // Mark that the thread is currently in managed code.
+    pThread->SaveGCModeOnSuspension();
+#endif // FEATURE_PERFTRACING
 
     PCODE ip = GetIP(interruptedContext);
 
