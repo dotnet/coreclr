@@ -7307,3 +7307,111 @@ void Compiler::lvaDispVarSet(VARSET_VALARG_TP set, VARSET_VALARG_TP allVars)
 }
 
 #endif // DEBUG
+
+LclVarTable::LclVarTable()
+    : m_count(0), m_capacity(0), m_array(nullptr)
+{
+}
+
+LclVarTable::LclVarTable(Compiler& compiler, unsigned initialSize)
+    : m_count(0), m_capacity(0), m_array(nullptr)
+{
+    Grow(compiler, initialSize < 8 ? 16 : initialSize * 2);
+    m_count = initialSize;
+}
+
+LclVarTable& LclVarTable::operator=(const LclVarTable& other)
+{
+    m_count = other.m_count;
+    m_capacity = other.m_capacity;
+    m_array = other.m_array;
+
+    return *this;
+}
+
+void LclVarTable::Grow(Compiler& compiler, unsigned newCapacity)
+{
+    assert(newCapacity > m_capacity);
+
+    auto* newArray = reinterpret_cast<LclVarDsc*>(compiler.compGetMemArray(newCapacity, sizeof(LclVarDsc), CMK_LvaTable));
+
+    memcpy(newArray, m_array, m_count * sizeof(LclVarDsc));
+    memset(&newArray[m_count], 0, (newCapacity - m_count) * sizeof(LclVarDsc));
+
+    for (unsigned i = m_count; i < newCapacity; i++)
+    {
+        new (&newArray[i], jitstd::placement_t()) LclVarDsc(&compiler);
+    }
+
+#if 0
+        // TODO-Cleanup: Enable this for debug builds and test.
+        // Fill the old table with junks. So to detect the un-intended use.
+        memset(lvaTable, fDefaultFill2.val_DontUse_(CLRConfig::INTERNAL_JitDefaultFill, 0xFF), lvaCount * sizeof(*lvaTable));
+#endif
+
+    m_capacity = newCapacity;
+    m_array = newArray;
+}
+
+void LclVarTable::GrowIfNecessary(Compiler& compiler, unsigned requiredCapacity)
+{
+    if (requiredCapacity <= m_capacity)
+    {
+        return;
+    }
+
+    // Calculate the new capacity and check for overflow.
+    const unsigned newCapacity = requiredCapacity + requiredCapacity / 2;
+    if (newCapacity < requiredCapacity)
+    {
+        IMPL_LIMITATION("too many locals");
+    }
+
+    Grow(compiler, newCapacity);
+}
+
+unsigned LclVarTable::AllocateLclVar(Compiler& compiler, bool shortLifetime)
+{
+    GrowIfNecessary(compiler, m_count + 1);
+
+    const unsigned lclNum = m_count;
+    m_count++;
+
+    // Initialize lvType, lvIsTemp and lvOnFrame
+    (*this)[lclNum].lvType    = TYP_UNDEF;
+    (*this)[lclNum].lvIsTemp  = shortLifetime;
+    (*this)[lclNum].lvOnFrame = true;
+
+    return lclNum;
+}
+
+unsigned LclVarTable::AllocateLclVars(Compiler& compiler, unsigned count)
+{
+    GrowIfNecessary(compiler, m_count + count);
+
+    const unsigned baseLclNum = m_count;
+    m_count += count;
+
+    for (unsigned lclNum = baseLclNum; lclNum < m_count; lclNum++)
+    {
+        // Initialize lvType, lvIsTemp and lvOnFrame
+        (*this)[lclNum].lvType    = TYP_UNDEF;
+        (*this)[lclNum].lvIsTemp  = false;
+        (*this)[lclNum].lvOnFrame = true;
+    }
+
+    return baseLclNum;
+}
+
+void LclVarTable::Truncate(Compiler& compiler, unsigned newCount)
+{
+    assert(newCount <= m_count);
+
+    memset(&m_array[newCount], 0, (m_count - newCount) * sizeof(LclVarDsc));
+    for (unsigned i = newCount; i < m_count; i++)
+    {
+        new (&m_array[i], jitstd::placement_t()) LclVarDsc(&compiler); // call the constructor.
+    }
+
+    m_count = newCount;
+}

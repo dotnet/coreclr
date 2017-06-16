@@ -1720,11 +1720,10 @@ public:
     bool     lvaLocalVarRefCounted; // Set to true after we have called lvaMarkLocalVars()
     bool     lvaSortAgain;          // true: We need to sort the lvaTable
     bool     lvaTrackedFixed;       // true: We cannot add new 'tracked' variable
-    unsigned lvaCount;              // total number of locals
+
+    LclVarTable lvaTable; // variable descriptor table
 
     unsigned   lvaRefCount; // total number of references to locals
-    LclVarDsc* lvaTable;    // variable descriptor table
-    unsigned   lvaTableCnt; // lvaTable size (>= lvaCount)
 
     LclVarDsc** lvaRefSorted; // table sorted by refcount
 
@@ -1751,6 +1750,14 @@ public:
     unsigned GetCurLVEpoch()
     {
         return lvaCurEpoch;
+    }
+
+    __declspec(property(get = GetLclVarCount))
+    unsigned lvaCount;
+
+    unsigned GetLclVarCount() const
+    {
+        return lvaTable.Count();
     }
 
     // reverse map of tracked number to var number

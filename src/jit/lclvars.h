@@ -650,3 +650,101 @@ public:
 #endif // DEBUG
 
 }; // class LclVarDsc
+
+class LclVarTable final
+{
+    unsigned m_count;
+    unsigned m_capacity;
+    LclVarDsc* m_array;
+
+    void Grow(Compiler& compiler, unsigned newCapacity);
+    void GrowIfNecessary(Compiler& compiler, unsigned requiredCapacity);
+
+public:
+    class Iterator final
+    {
+        friend class LclVarTable;
+
+        LclVarDsc* m_lclVarDsc;
+
+        Iterator(LclVarDsc* lclVarDsc)
+            : m_lclVarDsc(lclVarDsc)
+        {
+        }
+
+    public:
+        inline LclVarDsc* operator*()
+        {
+            return m_lclVarDsc;
+        }
+
+        inline LclVarDsc* operator->()
+        {
+            return m_lclVarDsc;
+        }
+
+        inline bool operator==(const Iterator& other) const
+        {
+            return m_lclVarDsc == other.m_lclVarDsc;
+        }
+
+        inline bool operator!=(const Iterator& other) const
+        {
+            return m_lclVarDsc != other.m_lclVarDsc;
+        }
+
+        inline Iterator& operator++()
+        {
+            ++m_lclVarDsc;
+            return *this;
+        }
+    };
+
+    LclVarTable();
+    LclVarTable(Compiler& compiler, unsigned initialSize);
+
+    LclVarTable& operator=(const LclVarTable& other);
+
+    LclVarTable(LclVarTable&& other) = delete;
+    LclVarTable(const LclVarTable& other) = delete;
+
+    unsigned Count() const
+    {
+        return m_count;
+    }
+
+    LclVarDsc& operator[](const unsigned index) const
+    {
+        assert(index < m_count);
+        return m_array[index];
+    }
+
+    Iterator begin() const
+    {
+        return Iterator(&m_array[0]);
+    }
+
+    Iterator end() const
+    {
+        return Iterator(&m_array[m_count]);
+    }
+
+    IteratorPair<Iterator> LclVars(unsigned start, unsigned end) const
+    {
+        assert(start <= end);
+        assert(end <= m_count);
+        return MakeIteratorPair(Iterator(&m_array[start]), Iterator(&m_array[end]));
+    }
+
+    unsigned GetLclNum(const LclVarDsc* lclVarDsc) const
+    {
+        assert(lclVarDsc >= *begin());
+        assert(lclVarDsc < *end());
+        return (unsigned)(lclVarDsc - m_array);
+    }
+
+    unsigned AllocateLclVar(Compiler& compiler, bool shortLifetime);
+    unsigned AllocateLclVars(Compiler& compiler, unsigned count);
+
+    void Truncate(Compiler& compiler, unsigned newCount);
+};
