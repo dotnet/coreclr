@@ -23,7 +23,7 @@ namespace System.IO
                 throw new ArgumentNullException(nameof(path));
 
             if (path.Length == 0)
-                throw new ArgumentException(SR.Arg_PathIllegal, nameof(path));
+                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
             PathInternal.CheckInvalidPathChars(path);
 
@@ -199,7 +199,7 @@ namespace System.IO
         {
             if (path == null) return null;
 			if (string.IsNullOrWhiteSpace(path))
-                throw new ArgumentException(SR.Arg_PathIllegal, nameof(path));
+                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
 			return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
         }

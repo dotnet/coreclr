@@ -589,8 +589,8 @@
   <data name="Arg_ParmCnt" xml:space="preserve">
     <value>Parameter count mismatch.</value>
   </data>
-  <data name="Arg_PathIllegal" xml:space="preserve">
-    <value>The path is not of a legal form.</value>
+  <data name="Arg_PathEmpty" xml:space="preserve">
+    <value>The path is empty.</value>
   </data>
   <data name="Arg_PathIllegalUNC" xml:space="preserve">
     <value>The UNC path should be of the form \\\\server\\share.</value>
