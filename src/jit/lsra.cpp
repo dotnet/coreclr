@@ -6719,7 +6719,7 @@ regNumber LinearScan::rotateBlockStartLocation(Interval* interval, regNumber tar
 
 #ifdef _TARGET_ARM_
 //--------------------------------------------------------------------------------------
-// isSecondHalfReg: Test if recRec is second half of double reigster
+// isSecondHalfReg: Test if recRec is second half of double register
 //                  which is assigned to an interval.
 //
 // Arguments:
@@ -8015,11 +8015,11 @@ void LinearScan::allocateRegisters()
 #ifdef _TARGET_ARM_
 //-----------------------------------------------------------------------------
 // updateAssignedInterval: Update assigned interval of register for ARM32
-// considering reigster type. When reigster type is TYP_DOUBLE, update
+// considering register type. When register type is TYP_DOUBLE, update
 // two float registers consisting a double register.
 //
 // Arguments:
-//    reg      -    reigster to be updated
+//    reg      -    register to be updated
 //    interval -    interval to be assigned
 //    regType  -    regsiter type
 //
@@ -8027,7 +8027,7 @@ void LinearScan::allocateRegisters()
 //    None
 //
 // Assumptions:
-//    When "regType" is TYP_DOUBLE, "reg" should be a even-numbered float reigster,
+//    When "regType" is TYP_DOUBLE, "reg" should be a even-numbered float register,
 //    i.e. lower half of double register.
 //
 void LinearScan::updateAssignedInterval(RegRecord* reg, Interval* interval, RegisterType regType)
