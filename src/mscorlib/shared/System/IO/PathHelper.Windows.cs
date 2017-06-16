@@ -128,7 +128,7 @@ namespace System.IO
                                     // If we're at the end of the path and this is the first separator, we're missing the share.
                                     // Otherwise we're good, so ignore UNC tracking from here.
                                     if (index == fullPath.Length - 1)
-                                        throw new ArgumentException(SR.Arg_PathIllegalUNC);
+                                        throw new ArgumentException(SR.Format(SR.Arg_PathIllegalUNC_Path, fullPath.ToString()));
                                     else
                                         possibleBadUnc = false;
                                 }
@@ -145,7 +145,7 @@ namespace System.IO
                 }
 
                 if (possibleBadUnc)
-                    throw new ArgumentException(SR.Arg_PathIllegalUNC);
+                    throw new ArgumentException(SR.Format(SR.Arg_PathIllegalUNC_Path, fullPath.ToString()));
 
                 segmentLength = fullPath.Length - lastSeparator - 1;
                 if (segmentLength > PathInternal.MaxComponentLength)

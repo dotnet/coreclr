@@ -592,8 +592,8 @@
   <data name="Arg_PathEmpty" xml:space="preserve">
     <value>The path is empty.</value>
   </data>
-  <data name="Arg_PathIllegalUNC" xml:space="preserve">
-    <value>The UNC path should be of the form \\\\server\\share.</value>
+  <data name="Arg_PathIllegalUNC_Path" xml:space="preserve">
+    <value>The UNC path '{0}' should be of the form \\\\server\\share.</value>
   </data>
   <data name="Arg_PlatformNotSupported" xml:space="preserve">
     <value>Operation is not supported on this platform.</value>
