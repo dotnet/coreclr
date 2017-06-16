@@ -76,7 +76,7 @@ namespace System.IO
 
             // Technically this doesn't matter but we used to throw for this case
             if (string.IsNullOrWhiteSpace(path))
-                throw new ArgumentException(SR.Arg_PathEmpty);
+                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
             // We don't want to check invalid characters for device format- see comments for extended above
             string fullPath = PathHelper.Normalize(path, checkInvalidCharacters: !isDevice, expandShortPaths: true);
