@@ -346,19 +346,6 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
 
     // store the reference
     HndAssignHandle(handle, object);
-
-#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
-    g_dwHandles++;
-#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
-
-#ifdef GC_PROFILING
-    {
-        BEGIN_PIN_PROFILER(CORProfilerTrackGC());
-        g_profControlBlock.pProfInterface->HandleCreated((uintptr_t)handle, (ObjectID)OBJECTREF_TO_UNCHECKED_OBJECTREF(object));
-        END_PIN_PROFILER();
-    }
-#endif //GC_PROFILING
-
     STRESS_LOG2(LF_GC, LL_INFO1000, "CreateHandle: %p, type=%d\n", handle, uType);
 
     // return the result
@@ -490,18 +477,6 @@ void HndDestroyHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTHANDLE handle)
     // fetch the handle table pointer
     HandleTable *pTable = Table(hTable);
 
-#ifdef GC_PROFILING
-    {
-        BEGIN_PIN_PROFILER(CORProfilerTrackGC());
-        g_profControlBlock.pProfInterface->HandleDestroyed((uintptr_t)handle);
-        END_PIN_PROFILER();
-    }        
-#endif //GC_PROFILING
-
-#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
-    g_dwHandles--;
-#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
-
     // sanity check the type index
     _ASSERTE(uType < pTable->uTypeCount);
 
@@ -583,15 +558,6 @@ uint32_t HndCreateHandles(HHANDLETABLE hTable, uint32_t uType, OBJECTHANDLE *pHa
     g_dwHandles += uSatisfied;
 #endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
-#ifdef GC_PROFILING
-    {
-        BEGIN_PIN_PROFILER(CORProfilerTrackGC());
-        for (uint32_t i = 0; i < uSatisfied; i++)
-            g_profControlBlock.pProfInterface->HandleCreated((uintptr_t)pHandles[i], 0);
-        END_PIN_PROFILER();
-    }
-#endif //GC_PROFILING
-
     // return the number of handles we allocated
     return uSatisfied;
 }
@@ -616,15 +582,6 @@ void HndDestroyHandles(HHANDLETABLE hTable, uint32_t uType, const OBJECTHANDLE *
 
     // sanity check the type index
     _ASSERTE(uType < pTable->uTypeCount);
-
-#ifdef GC_PROFILING
-    {
-        BEGIN_PIN_PROFILER(CORProfilerTrackGC());
-        for (uint32_t i = 0; i < uCount; i++)
-            g_profControlBlock.pProfInterface->HandleDestroyed((uintptr_t)pHandles[i]);
-        END_PIN_PROFILER();
-    }
-#endif
 
 #if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
     g_dwHandles -= uCount;
