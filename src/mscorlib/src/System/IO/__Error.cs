@@ -98,30 +98,7 @@ namespace System.IO
             if (!isFullyQualified && !isInvalidPath)
                 return path;
 
-            bool safeToReturn = false;
-            try
-            {
-                if (!isInvalidPath)
-                {
-                    safeToReturn = true;
-                }
-            }
-            catch (SecurityException)
-            {
-            }
-            catch (ArgumentException)
-            {
-                // ? and * characters cause ArgumentException to be thrown from HasIllegalCharacters
-                // inside FileIOPermission.AddPathList
-            }
-            catch (NotSupportedException)
-            {
-                // paths like "!Bogus\\dir:with/junk_.in it" can cause NotSupportedException to be thrown
-                // from Security.Util.StringExpressionSet.CanonicalizePath when ':' is found in the path
-                // beyond string index position 1.  
-            }
-
-            if (!safeToReturn)
+            if (isInvalidPath)
             {
                 if (PathInternal.IsDirectorySeparator(path[path.Length - 1]))
                     path = SR.IO_NoPermissionToDirectoryName;
