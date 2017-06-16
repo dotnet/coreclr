@@ -277,6 +277,106 @@ ThePreStubPatchLabel
 
     MEND
 
+; ------------------------------------------------------------------
+; Start of the writeable code region
+    LEAF_ENTRY JIT_PatchedCodeStart
+        ret      lr
+    LEAF_END
+
+; void JIT_UpdateWriteBarrierState(bool skipEphemeralCheck)
+;
+; Update shadow copies of the various state info required for barrier
+;
+; State info is contained in a literal pool at the end of the function
+; Placed in text section so that it is close enough to use ldr literal and still
+; be relocatable. Eliminates need for PREPARE_EXTERNAL_VAR in hot code.
+;
+; Align and group state info together so it fits in a single cache line
+; and each entry can be written atomically
+;
+    WRITE_BARRIER_ENTRY JIT_UpdateWriteBarrierState
+        PROLOG_SAVE_REG_PAIR   fp, lr, #-16!
+
+        ; x0-x7 will contain intended new state
+        ; x8 will preserve skipEphemeralCheck
+        ; x12 will be used for pointers
+
+        mov      x8, x0
+
+        adrp     x12, g_card_table
+        ldr      x0, [x12, g_card_table]
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        adrp     x12, g_card_bundle_table
+        ldr      x1, [x12, g_card_bundle_table]
+#endif
+
+#ifdef WRITE_BARRIER_CHECK
+        adrp     x12, $g_GCShadow
+        ldr      x2, [x12, $g_GCShadow]
+#endif
+
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        adrp     x12, g_sw_ww_table
+        ldr      x3, [x12, g_sw_ww_table]
+#endif
+
+        adrp     x12, g_ephemeral_low
+        ldr      x4, [x12, g_ephemeral_low]
+
+        adrp     x12, g_ephemeral_high
+        ldr      x5, [x12, g_ephemeral_high]
+
+        cbz      x8, EphemeralCheckEnabled
+        movz     x4, #0
+        movn     x5, #0
+EphemeralCheckEnabled
+
+        adrp     x12, g_lowest_address
+        ldr      x6, [x12, g_lowest_address]
+
+        adrp     x12, g_highest_address
+        ldr      x7, [x12, g_highest_address]
+
+        ; Update wbs state
+        adr  x12, wbs_begin
+
+        stp  x0, x1, [x12], 16
+        stp  x2, x3, [x12], 16
+        stp  x4, x5, [x12], 16
+        stp  x6, x7, [x12], 16
+
+        EPILOG_RESTORE_REG_PAIR fp, lr, 16
+        EPILOG_RETURN
+
+        ; Begin patchable literal pool
+        ALIGN 64  ; Align to power of two at least as big as patchable literal pool so that it fits optimally in cache line
+wbs_begin
+wbs_card_table
+        DCQ 0
+wbs_card_bundle_table
+        DCQ 0
+wbs_GCShadow
+        DCQ 0
+wbs_sw_ww_table
+        DCQ 0
+wbs_ephemeral_low
+        DCQ 0
+wbs_ephemeral_high
+        DCQ 0
+wbs_lowest_address
+        DCQ 0
+wbs_highest_address
+        DCQ 0
+    WRITE_BARRIER_END JIT_UpdateWriteBarrierState
+
+
+; ------------------------------------------------------------------
+; End of the writeable code region
+    LEAF_ENTRY JIT_PatchedCodeLast
+        ret      lr
+    LEAF_END
+
 ; void JIT_ByRefWriteBarrier
 ; On entry:
 ;   x13  : the source address (points to object reference to write)
@@ -431,106 +531,6 @@ Exit
         add      x14, x14, 8
         ret      lr          
     WRITE_BARRIER_END JIT_WriteBarrier
-
-; ------------------------------------------------------------------
-; Start of the writeable code region
-    LEAF_ENTRY JIT_PatchedCodeStart
-        ret      lr
-    LEAF_END
-
-; void JIT_UpdateWriteBarrierState(bool skipEphemeralCheck)
-;
-; Update shadow copies of the various state info required for barrier
-;
-; State info is contained in a literal pool at the end of the function
-; Placed in text section so that it is close enough to use ldr literal and still
-; be relocatable. Eliminates need for PREPARE_EXTERNAL_VAR in hot code.
-;
-; Align and group state info together so it fits in a single cache line
-; and each entry can be written atomically
-;
-    WRITE_BARRIER_ENTRY JIT_UpdateWriteBarrierState
-        PROLOG_SAVE_REG_PAIR   fp, lr, #-16!
-
-        ; x0-x7 will contain intended new state
-        ; x8 will preserve skipEphemeralCheck
-        ; x12 will be used for pointers
-
-        mov      x8, x0
-
-        adrp     x12, g_card_table
-        ldr      x0, [x12, g_card_table]
-
-#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-        adrp     x12, g_card_bundle_table
-        ldr      x1, [x12, g_card_bundle_table]
-#endif
-
-#ifdef WRITE_BARRIER_CHECK
-        adrp     x12, $g_GCShadow
-        ldr      x2, [x12, $g_GCShadow]
-#endif
-
-#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-        adrp     x12, g_sw_ww_table
-        ldr      x3, [x12, g_sw_ww_table]
-#endif
-
-        adrp     x12, g_ephemeral_low
-        ldr      x4, [x12, g_ephemeral_low]
-
-        adrp     x12, g_ephemeral_high
-        ldr      x5, [x12, g_ephemeral_high]
-
-        cbz      x8, EphemeralCheckEnabled
-        movz     x4, #0
-        movn     x5, #0
-EphemeralCheckEnabled
-
-        adrp     x12, g_lowest_address
-        ldr      x6, [x12, g_lowest_address]
-
-        adrp     x12, g_highest_address
-        ldr      x7, [x12, g_highest_address]
-
-        ; Update wbs state
-        adr  x12, wbs_begin
-
-        stp  x0, x1, [x12], 16
-        stp  x2, x3, [x12], 16
-        stp  x4, x5, [x12], 16
-        stp  x6, x7, [x12], 16
-
-        EPILOG_RESTORE_REG_PAIR fp, lr, 16
-        EPILOG_RETURN
-
-        ; Begin patchable literal pool
-        ALIGN 64  ; Align to power of two at least as big as patchable literal pool so that it fits optimally in cache line
-wbs_begin
-wbs_card_table
-        DCQ 0
-wbs_card_bundle_table
-        DCQ 0
-wbs_GCShadow
-        DCQ 0
-wbs_sw_ww_table
-        DCQ 0
-wbs_ephemeral_low
-        DCQ 0
-wbs_ephemeral_high
-        DCQ 0
-wbs_lowest_address
-        DCQ 0
-wbs_highest_address
-        DCQ 0
-    WRITE_BARRIER_END JIT_UpdateWriteBarrierState
-
-
-; ------------------------------------------------------------------
-; End of the writeable code region
-    LEAF_ENTRY JIT_PatchedCodeLast
-        ret      lr
-    LEAF_END
 
 ;------------------------------------------------
 ; VirtualMethodFixupStub
