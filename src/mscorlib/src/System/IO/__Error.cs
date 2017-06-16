@@ -152,7 +152,7 @@ namespace System.IO
                     throw new IOException(SR.Format(SR.IO_AlreadyExists_Name, str), Win32Native.MakeHRFromErrorCode(errorCode), maybeFullPath);
 
                 case Win32Native.ERROR_FILENAME_EXCED_RANGE:
-                    throw new PathTooLongException(SR.IO_PathTooLong);
+                    throw new PathTooLongException(SR.Format(SR.IO_PathTooLong_Path, str));
 
                 case Win32Native.ERROR_INVALID_DRIVE:
                     throw new DriveNotFoundException(SR.Format(SR.IO_DriveNotFound_Drive, str));
