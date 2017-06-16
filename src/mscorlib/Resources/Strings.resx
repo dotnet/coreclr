@@ -353,7 +353,7 @@
     <value>Operation is not valid due to the current state of the object.</value>
   </data>
   <data name="Arg_InvalidSearchPattern" xml:space="preserve">
-    <value>Search pattern cannot contain ".." to move up directories and can be contained only internally in file/directory names, as in "a..b".</value>
+    <value>Search pattern '{0}' cannot contain ".." to move up directories and can be contained only internally in file/directory names, as in "a..b".</value>
   </data>
   <data name="Arg_InvalidTypeInRetType" xml:space="preserve">
     <value>The return Type contains some invalid type (i.e. null, ByRef)</value>
