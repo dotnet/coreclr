@@ -350,110 +350,110 @@ inline void DestroyHandle(OBJECTHANDLE handle)
     }
     CONTRACTL_END;
 
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_DEFAULT);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_DEFAULT);
 }
 
 inline void DestroyWeakHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_DEFAULT);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_DEFAULT);
 }
 
 inline void DestroyShortWeakHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_SHORT);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_SHORT);
 }
 
 inline void DestroyLongWeakHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_LONG);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_LONG);
 }
 
 inline void DestroyStrongHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_STRONG);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_STRONG);
 }
 
 inline void DestroyPinningHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_PINNED);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_PINNED);
 }
 
 inline void DestroyAsyncPinningHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_ASYNCPINNED);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_ASYNCPINNED);
 }
 
 inline void DestroyRefcountedHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_REFCOUNTED);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_REFCOUNTED);
 }
 
 inline void DestroyDependentHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_DEPENDENT);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_DEPENDENT);
 }
 
 inline void  DestroyVariableHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_VARIABLE);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_VARIABLE);
 }
 
 inline void DestroyGlobalHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_DEFAULT);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_DEFAULT);
 }
 
 inline void DestroyGlobalWeakHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_DEFAULT);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_DEFAULT);
 }
 
 inline void DestroyGlobalShortWeakHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_SHORT);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_SHORT);
 }
 
 inline void DestroyGlobalLongWeakHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_LONG);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_LONG);
 }
 
 inline void DestroyGlobalStrongHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_STRONG);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_STRONG);
 }
 
 inline void DestroyGlobalPinningHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_PINNED);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_PINNED);
 }
 
 inline void DestroyGlobalRefcountedHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_REFCOUNTED);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_REFCOUNTED);
 }
 
 inline void DestroyTypedHandle(OBJECTHANDLE handle)
 {
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfUnknownType(handle);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfUnknownType(handle);
 }
 
 #ifdef FEATURE_COMINTEROP
@@ -479,8 +479,8 @@ inline void DestroyWinRTWeakHandle(OBJECTHANDLE handle)
         pWinRTWeakReference->Release();
     }
 
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_WINRT);
     DiagHandleDestroyed(handle);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_WINRT);
 }
 #endif
 

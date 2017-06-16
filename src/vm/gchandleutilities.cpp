@@ -81,9 +81,9 @@ void DiagHandleDestroyed(OBJECTHANDLE handle)
     BEGIN_PIN_PROFILER(CORProfilerTrackGC());
     g_profControlBlock.pProfInterface->HandleDestroyed((uintptr_t)handle);
     END_PIN_PROFILER();
-#else // GC_PROFILING
+#else
     UNREFERENCED_PARAMETER(handle);
-#endif
+#endif // GC_PROFILING
 
 #if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
     g_dwHandles--;
