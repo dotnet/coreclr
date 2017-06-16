@@ -1384,8 +1384,8 @@
   <data name="Argument_PathEmpty" xml:space="preserve">
     <value>Path cannot be the empty string or all whitespace.</value>
   </data>
-  <data name="Argument_PathFormatNotSupported" xml:space="preserve">
-    <value>The given path's format is not supported.</value>
+  <data name="Argument_PathFormatNotSupported_Path" xml:space="preserve">
+    <value>The format of the path '{0}' is not supported.</value>
   </data>
   <data name="Argument_PreAllocatedAlreadyAllocated" xml:space="preserve">
     <value>'preAllocated' is already in use.</value>

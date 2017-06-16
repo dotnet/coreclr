@@ -70,7 +70,7 @@ namespace System.IO
                     || (path.Length >= startIndex && path[startIndex - 1] == PathInternal.VolumeSeparatorChar && !PathInternal.IsValidDriveChar(path[startIndex - 2]))
                     || (path.Length > startIndex && path.IndexOf(PathInternal.VolumeSeparatorChar, startIndex) != -1))
                 {
-                    throw new NotSupportedException(SR.Argument_PathFormatNotSupported);
+                    throw new NotSupportedException(SR.Format(SR.Argument_PathFormatNotSupported_Path, path));
                 }
             }
 
