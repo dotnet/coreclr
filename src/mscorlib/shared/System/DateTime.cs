@@ -54,6 +54,7 @@ namespace System
     // 
     [StructLayout(LayoutKind.Auto)]
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
     public partial struct DateTime : IComparable, IFormattable, IConvertible, IComparable<DateTime>, IEquatable<DateTime>, ISerializable
     {
         // Number of 100ns ticks per time unit
@@ -125,8 +126,8 @@ namespace System
         private const UInt64 KindLocalAmbiguousDst = 0xC000000000000000;
         private const Int32 KindShift = 62;
 
-        private const String TicksField = "ticks";
-        private const String DateDataField = "_dateData";
+        private const String TicksField = "ticks"; // Do not rename (binary serialization)
+        private const String DateDataField = "dateData"; // Do not rename (binary serialization)
 
         // The data is stored as an unsigned 64-bit integeter
         //   Bits 01-62: The value of 100-nanosecond ticks where 0 represents 1/1/0001 12:00am, up until the value
