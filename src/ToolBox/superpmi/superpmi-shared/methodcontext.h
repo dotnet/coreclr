@@ -499,6 +499,19 @@ public:
         DWORD     token;
     };
 
+    struct GetReadyToRunHelper_TOKENin
+    {
+        Agnostic_CORINFO_RESOLVED_TOKEN ResolvedToken;
+        Agnostic_CORINFO_LOOKUP_KIND    GenericLookupKind;
+        DWORD                           id;
+    };
+
+    struct GetReadyToRunHelper_TOKENout
+    {
+        Agnostic_CORINFO_CONST_LOOKUP Lookup;
+        bool                          result;
+    };
+
 #pragma pack(pop)
 
     MethodContext();
@@ -723,7 +736,7 @@ public:
                                 CorInfoHelpFunc         id,
                                 CORINFO_CONST_LOOKUP*   pLookup,
                                 bool                    result);
-    void dmpGetReadyToRunHelper(DWORDLONG key, DWORD value);
+    void dmpGetReadyToRunHelper(GetReadyToRunHelper_TOKENin key, GetReadyToRunHelper_TOKENout value);
     bool repGetReadyToRunHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                 CORINFO_LOOKUP_KIND*    pGenericLookupKind,
                                 CorInfoHelpFunc         id,

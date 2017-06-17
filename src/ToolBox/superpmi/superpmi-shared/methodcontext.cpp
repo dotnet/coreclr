@@ -2110,26 +2110,49 @@ void MethodContext::recGetReadyToRunHelper(CORINFO_RESOLVED_TOKEN* pResolvedToke
                                            CORINFO_CONST_LOOKUP*   pLookup,
                                            bool                    result)
 {
-    LogError("getReadyToRunHelper NYI");
-
-    // TODO: we need a more sophisticated mapping
-
     if (GetReadyToRunHelper == nullptr)
-        GetReadyToRunHelper = new LightWeightMap<DWORDLONG, DWORD>();
+        GetReadyToRunHelper = new LightWeightMap<GetReadyToRunHelper_TOKENin, GetReadyToRunHelper_TOKENout>();
 
-    // GetReadyToRunHelper->Add((DWORDLONG)cls, result);
+    GetReadyToRunHelper_TOKENin key;
+    ZeroMemory(&key, sizeof(key));
+    key.ResolvedToken = SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, GetReadyToRunHelper);
+    key.GenericLookupKind = SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP_KIND(pGenericLookupKind);
+    key.id                = (DWORD)id;
+    GetReadyToRunHelper_TOKENout value;
+    value.Lookup = SpmiRecordsHelper::StoreAgnostic_CORINFO_CONST_LOOKUP(pLookup);
+    value.result = result;
+
+    GetReadyToRunHelper->Add(key, value);
 }
-void MethodContext::dmpGetReadyToRunHelper(DWORDLONG key, DWORD value)
+
+void MethodContext::dmpGetReadyToRunHelper(GetReadyToRunHelper_TOKENin key, GetReadyToRunHelper_TOKENout value)
 {
-    LogError("getReadyToRunHelper NYI");
+    printf("GetReadyToRunHelper key: tk{%s} kind{%s} id-%u",
+           SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.ResolvedToken).c_str(),
+           SpmiDumpHelper::DumpAgnostic_CORINFO_LOOKUP_KIND(key.GenericLookupKind).c_str(), key.id);
+    printf(", value: lk{ %s } %u", SpmiDumpHelper::DumpAgnostic_CORINFO_CONST_LOOKUP(value.Lookup).c_str(),
+           value.result);
 }
+
 bool MethodContext::repGetReadyToRunHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                            CORINFO_LOOKUP_KIND*    pGenericLookupKind,
                                            CorInfoHelpFunc         id,
                                            CORINFO_CONST_LOOKUP*   pLookup)
 {
-    LogError("getReadyToRunHelper NYI");
-    return false;
+    AssertCodeMsg(GetReadyToRunHelper != nullptr, EXCEPTIONCODE_MC, "No GetReadyToRunHelper records");
+
+    GetReadyToRunHelper_TOKENin key;
+    ZeroMemory(&key, sizeof(key));
+    key.ResolvedToken = SpmiRecordsHelper::RestoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, GetReadyToRunHelper);
+    key.GenericLookupKind = SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP_KIND(pGenericLookupKind);
+    key.id                = (DWORD)id;
+
+    AssertCodeMsg(GetReadyToRunHelper->GetIndex(key) != -1, EXCEPTIONCODE_MC,
+                  "Didn't find a key for GetReadyToRunHelper");
+
+    GetReadyToRunHelper_TOKENout value = GetReadyToRunHelper->Get(key);
+    *pLookup                           = SpmiRecordsHelper::RestoreCORINFO_CONST_LOOKUP(value.Lookup);
+    return value.result;
 }
 
 void MethodContext::recGetReadyToRunDelegateCtorHelper(CORINFO_RESOLVED_TOKEN* pTargetMethod,

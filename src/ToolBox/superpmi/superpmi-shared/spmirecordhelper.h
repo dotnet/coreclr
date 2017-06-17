@@ -237,9 +237,12 @@ inline MethodContext::Agnostic_CORINFO_LOOKUP_KIND SpmiRecordsHelper::CreateAgno
 {
     MethodContext::Agnostic_CORINFO_LOOKUP_KIND genericLookupKind;
     ZeroMemory(&genericLookupKind, sizeof(genericLookupKind));
-    genericLookupKind.needsRuntimeLookup = (DWORD)pGenericLookupKind->needsRuntimeLookup;
-    genericLookupKind.runtimeLookupKind  = (DWORD)pGenericLookupKind->runtimeLookupKind;
-    genericLookupKind.runtimeLookupFlags = pGenericLookupKind->runtimeLookupFlags;
+    if (pGenericLookupKind != nullptr)
+    {
+        genericLookupKind.needsRuntimeLookup = (DWORD)pGenericLookupKind->needsRuntimeLookup;
+        genericLookupKind.runtimeLookupKind  = (DWORD)pGenericLookupKind->runtimeLookupKind;
+        genericLookupKind.runtimeLookupFlags = pGenericLookupKind->runtimeLookupFlags;
+    }
     // We don't store result->runtimeLookupArgs, which is opaque data. Ok?
     return genericLookupKind;
 }
