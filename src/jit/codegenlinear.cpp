@@ -32,9 +32,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //
 void CodeGen::genCodeForBBlist()
 {
-    unsigned   varNum;
-    LclVarDsc* varDsc;
-
     unsigned savedStkLvl;
 
 #ifdef DEBUG
@@ -90,7 +87,7 @@ void CodeGen::genCodeForBBlist()
 
     /* If any arguments live in registers, mark those regs as such */
 
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+    for (LclVarDsc* varDsc : compiler->lvaTable)
     {
         /* Is this variable a parameter assigned to a register? */
 
@@ -117,7 +114,7 @@ void CodeGen::genCodeForBBlist()
 
         /* Mark the register as holding the variable */
 
-        regTracker.rsTrackRegLclVar(varDsc->lvRegNum, varNum);
+        regTracker.rsTrackRegLclVar(varDsc->lvRegNum, compiler->lvaTable.GetLclNum(varDsc));
     }
 
     unsigned finallyNesting = 0;
@@ -505,7 +502,7 @@ void CodeGen::genCodeForBBlist()
         while (extraLiveVarIter.NextElem(&extraLiveVarIndex))
         {
             unsigned   varNum = compiler->lvaTrackedToVarNum[extraLiveVarIndex];
-            LclVarDsc* varDsc = compiler->lvaTable + varNum;
+            LclVarDsc* varDsc = &compiler->lvaTable[varNum];
             assert(!varDsc->lvIsRegCandidate());
         }
 #endif
@@ -1228,7 +1225,7 @@ void CodeGen::genConsumeRegs(GenTree* tree)
             // A contained lcl var must be living on stack and marked as reg optional, or not be a
             // register candidate.
             unsigned   varNum = tree->AsLclVarCommon()->GetLclNum();
-            LclVarDsc* varDsc = compiler->lvaTable + varNum;
+            LclVarDsc* varDsc = &compiler->lvaTable[varNum];
 
             noway_assert(varDsc->lvRegNum == REG_STK);
             noway_assert(tree->IsRegOptional() || !varDsc->lvLRACandidate);

@@ -1929,8 +1929,6 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
 
     // Make sure register arguments are in their initial registers
     // and stack arguments are put back as well.
-    unsigned   varNum;
-    LclVarDsc* varDsc;
 
     // First move any en-registered stack arguments back to the stack.
     // At the same time any reg arg not in correct reg is moved back to its stack location.
@@ -1939,16 +1937,14 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
     // But that would require us to deal with circularity while moving values around.  Spilling
     // to stack makes the implementation simple, which is not a bad trade off given Jmp calls
     // are not frequent.
-    for (varNum = 0; (varNum < compiler->info.compArgsCount); varNum++)
+    for (LclVarDsc* varDsc : compiler->lvaTable.LclVars(0, compiler->info.compArgsCount))
     {
-        varDsc = compiler->lvaTable + varNum;
-
         if (varDsc->lvPromoted)
         {
             noway_assert(varDsc->lvFieldCnt == 1); // We only handle one field here
 
             unsigned fieldVarNum = varDsc->lvFieldLclStart;
-            varDsc               = compiler->lvaTable + fieldVarNum;
+            varDsc               = &compiler->lvaTable[fieldVarNum];
         }
         noway_assert(varDsc->lvIsParam);
 
@@ -1967,6 +1963,8 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
             // Skip args which are currently living in stack.
             continue;
         }
+
+        const unsigned varNum = compiler->lvaTable.GetLclNum(varDsc);
 
         // If we came here it means either a reg argument not in the right register or
         // a stack argument currently living in a register.  In either case the following
@@ -1998,15 +1996,14 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
     // Next move any un-enregistered register arguments back to their register.
     regMaskTP fixedIntArgMask = RBM_NONE;    // tracks the int arg regs occupying fixed args in case of a vararg method.
     unsigned  firstArgVarNum  = BAD_VAR_NUM; // varNum of the first argument in case of a vararg method.
-    for (varNum = 0; (varNum < compiler->info.compArgsCount); varNum++)
+    for (LclVarDsc* varDsc : compiler->lvaTable.LclVars(0, compiler->info.compArgsCount))
     {
-        varDsc = compiler->lvaTable + varNum;
         if (varDsc->lvPromoted)
         {
             noway_assert(varDsc->lvFieldCnt == 1); // We only handle one field here
 
             unsigned fieldVarNum = varDsc->lvFieldLclStart;
-            varDsc               = compiler->lvaTable + fieldVarNum;
+            varDsc               = &compiler->lvaTable[fieldVarNum];
         }
         noway_assert(varDsc->lvIsParam);
 
@@ -2016,6 +2013,8 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
 
         // Register argument
         noway_assert(isRegParamType(genActualType(varDsc->TypeGet())));
+
+        const unsigned varNum = compiler->lvaTable.GetLclNum(varDsc);
 
         // Is register argument already in the right register?
         // If not load it from its stack location.

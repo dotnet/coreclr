@@ -4640,8 +4640,6 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     {
         size_t     siz;
         unsigned   cnt;
-        unsigned   num;
-        LclVarDsc* dsc;
         int*       tab;
 
         /* Allocate and clear emitGCrFrameLiveTab[]. This is the table
@@ -4673,13 +4671,14 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
         memset(emitGCrFrameOffsTab, -1, cnt * sizeof(int));
 
         /* Now fill in all the actual used entries */
-
-        for (num = 0, dsc = emitComp->lvaTable, cnt = emitComp->lvaCount; num < cnt; num++, dsc++)
+        for (LclVarDsc* dsc : emitComp->lvaTable)
         {
             if (!dsc->lvOnFrame || (dsc->lvIsParam && !dsc->lvIsRegArg))
             {
                 continue;
             }
+
+            const unsigned num = emitComp->lvaTable.GetLclNum(dsc);
 
 #if FEATURE_FIXED_OUT_ARGS
             if (num == emitComp->lvaOutgoingArgSpaceVar)

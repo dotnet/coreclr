@@ -7534,8 +7534,7 @@ void emitter::emitDispFrameRef(int varx, int disp, int offs, bool asmfm)
         LclVarDsc*  varDsc;
         const char* varName;
 
-        assert((unsigned)varx < emitComp->lvaCount);
-        varDsc  = emitComp->lvaTable + varx;
+        varDsc  = &emitComp->lvaTable[varx];
         varName = emitComp->compLocalVarName(varx, offs);
 
         if (varName)
