@@ -748,7 +748,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
                 {
                     GenTreeLclVarCommon* lclVarNode = addr->gtGetOp1()->AsLclVarCommon();
                     unsigned             lclNum     = lclVarNode->GetLclNum();
-                    LclVarDsc*           varDsc     = comp->lvaTable + lclNum;
+                    LclVarDsc*           varDsc     = &comp->lvaTable[lclNum];
                     if (node->TypeGet() == varDsc->TypeGet())
                     {
                         JITDUMP("Rewriting GT_IND(GT_ADD(LCL_VAR_ADDR,0)) to LCL_VAR\n");

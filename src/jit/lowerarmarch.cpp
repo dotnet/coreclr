@@ -174,7 +174,7 @@ void Lowering::LowerStoreLoc(GenTreeLclVarCommon* storeLoc)
         GenTreeIntCon* con    = op1->AsIntCon();
         ssize_t        ival   = con->gtIconVal;
         unsigned       varNum = storeLoc->gtLclNum;
-        LclVarDsc*     varDsc = comp->lvaTable + varNum;
+        LclVarDsc*     varDsc = &comp->lvaTable[varNum];
 
         if (varDsc->lvIsSIMDType())
         {

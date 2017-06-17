@@ -466,7 +466,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     GenTreePtr temp = node->gtOp.gtOp1;
     assert(temp->gtOper == GT_LCL_VAR);
     unsigned   tempLclNum  = temp->gtLclVarCommon.gtLclNum;
-    LclVarDsc* tempVarDsc  = comp->lvaTable + tempLclNum;
+    LclVarDsc* tempVarDsc  = &comp->lvaTable[tempLclNum];
     var_types  tempLclType = tempVarDsc->TypeGet();
 
     BasicBlock* defaultBB   = jumpTab[jumpCnt - 1];
@@ -1704,12 +1704,12 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         noway_assert(callerArgNum < comp->info.compArgsCount);
 
         unsigned   callerArgLclNum = callerArgNum;
-        LclVarDsc* callerArgDsc    = comp->lvaTable + callerArgLclNum;
+        LclVarDsc* callerArgDsc    = &comp->lvaTable[callerArgLclNum];
         if (callerArgDsc->lvPromoted)
         {
             callerArgLclNum =
                 callerArgDsc->lvFieldLclStart; // update the callerArgNum to the promoted struct field's lclNum
-            callerArgDsc = comp->lvaTable + callerArgLclNum;
+            callerArgDsc = &comp->lvaTable[callerArgLclNum];
         }
         noway_assert(callerArgDsc->lvIsParam);
 
