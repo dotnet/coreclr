@@ -193,8 +193,6 @@ void Compiler::lvaInitTypeRef()
         info.compTypeCtxtArg = BAD_VAR_NUM;
     }
 
-    lvaCount = info.compLocalsCount = info.compArgsCount + info.compMethodInfo->locals.numArgs;
-
     info.compILlocalsCount = info.compILargsCount + info.compMethodInfo->locals.numArgs;
 
     /* Now allocate the variable descriptor table */
@@ -202,27 +200,12 @@ void Compiler::lvaInitTypeRef()
     if (compIsForInlining())
     {
         lvaTable    = impInlineInfo->InlinerCompiler->lvaTable;
-        lvaCount    = impInlineInfo->InlinerCompiler->lvaCount;
-        lvaTableCnt = impInlineInfo->InlinerCompiler->lvaTableCnt;
 
         // No more stuff needs to be done.
         return;
     }
 
-    lvaTableCnt = lvaCount * 2;
-
-    if (lvaTableCnt < 16)
-    {
-        lvaTableCnt = 16;
-    }
-
-    lvaTable         = (LclVarDsc*)compGetMemArray(lvaTableCnt, sizeof(*lvaTable), CMK_LvaTable);
-    size_t tableSize = lvaTableCnt * sizeof(*lvaTable);
-    memset(lvaTable, 0, tableSize);
-    for (unsigned i = 0; i < lvaTableCnt; i++)
-    {
-        new (&lvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
-    }
+    lvaTable = LclVarTable(*this, info.compLocalsCount = info.compArgsCount + info.compMethodInfo->locals.numArgs);
 
     //-------------------------------------------------------------------------
     // Count the arguments and initialize the respective lvaTable[] entries
@@ -230,8 +213,7 @@ void Compiler::lvaInitTypeRef()
     // First the implicit arguments
     //-------------------------------------------------------------------------
 
-    InitVarDscInfo varDscInfo;
-    varDscInfo.Init(lvaTable, hasRetBuffArg);
+    InitVarDscInfo varDscInfo(lvaTable, hasRetBuffArg);
 
     lvaInitArgs(&varDscInfo);
 
@@ -2062,7 +2044,7 @@ unsigned Compiler::lvaGetFieldLocal(LclVarDsc* varDsc, unsigned int fldOffset)
     for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
     {
         noway_assert(lvaTable[i].lvIsStructField);
-        noway_assert(lvaTable[i].lvParentLcl == (unsigned)(varDsc - lvaTable));
+        noway_assert(lvaTable[i].lvParentLcl == lvaTable.GetLclNum(varDsc));
         if (lvaTable[i].lvFldOffset == fldOffset)
         {
             return i;
@@ -2755,9 +2737,7 @@ void Compiler::lvaDecRefCnts(BasicBlock* block, GenTreePtr tree)
             /* Get the special variable descriptor */
 
             lclNum = info.compLvFrameListRoot;
-
-            assert(lclNum <= lvaCount);
-            varDsc = lvaTable + lclNum;
+            varDsc = &lvaTable[lclNum];
 
             /* Decrement the reference counts twice */
 
@@ -2774,9 +2754,7 @@ void Compiler::lvaDecRefCnts(BasicBlock* block, GenTreePtr tree)
         /* Get the variable descriptor */
 
         lclNum = tree->gtLclVarCommon.gtLclNum;
-
-        assert(lclNum < lvaCount);
-        varDsc = lvaTable + lclNum;
+        varDsc = &lvaTable[lclNum];
 
         /* Decrement its lvRefCnt and lvRefCntWtd */
 
@@ -2814,9 +2792,7 @@ void Compiler::lvaIncRefCnts(GenTreePtr tree)
             /* Get the special variable descriptor */
 
             lclNum = info.compLvFrameListRoot;
-
-            assert(lclNum <= lvaCount);
-            varDsc = lvaTable + lclNum;
+            varDsc = &lvaTable[lclNum];
 
             /* Increment the reference counts twice */
 
@@ -2834,9 +2810,7 @@ void Compiler::lvaIncRefCnts(GenTreePtr tree)
         /* Get the variable descriptor */
 
         lclNum = tree->gtLclVarCommon.gtLclNum;
-
-        assert(lclNum < lvaCount);
-        varDsc = lvaTable + lclNum;
+        varDsc = &lvaTable[lclNum];
 
         /* Increment its lvRefCnt and lvRefCntWtd */
 
@@ -3152,7 +3126,7 @@ void Compiler::lvaDumpRefCounts()
             unsigned refCntWtd = lvaRefSorted[lclNum]->lvRefCntWtd;
 
             printf("   ");
-            gtDispLclVar((unsigned)(lvaRefSorted[lclNum] - lvaTable));
+            gtDispLclVar(lvaTable.GetLclNum(lvaRefSorted[lclNum]));
             printf(" [%6s]: refCnt = %4u, refCntWtd = %6s", varTypeName(lvaRefSorted[lclNum]->TypeGet()), refCnt,
                    refCntWtd2str(refCntWtd));
 
@@ -3190,9 +3164,6 @@ void Compiler::lvaSortByRefCount()
         return;
     }
 
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
     LclVarDsc** refTab;
 
     /* We'll sort the variables by ref count - allocate the sorted table */
@@ -3200,16 +3171,15 @@ void Compiler::lvaSortByRefCount()
     lvaRefSorted = refTab = new (this, CMK_LvaTable) LclVarDsc*[lvaCount];
 
     /* Fill in the table used for sorting */
-
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
-        /* Append this variable to the table for sorting */
+        const unsigned lclNum = lvaTable.GetLclNum(varDsc);
 
+        /* Append this variable to the table for sorting */
         *refTab++ = varDsc;
 
         /* If we have JMP, all arguments must have a location
          * even if we don't use them inside the method */
-
         if (compJmpOpUsed && varDsc->lvIsParam)
         {
             /* ...except when we have varargs and the argument is
@@ -3354,7 +3324,7 @@ void Compiler::lvaSortByRefCount()
     {
         /* Mark all variables past the first 'lclMAX_TRACKED' as untracked */
 
-        for (lclNum = lclMAX_TRACKED; lclNum < lvaCount; lclNum++)
+        for (unsigned lclNum = lclMAX_TRACKED; lclNum < lvaCount; lclNum++)
         {
             lvaRefSorted[lclNum]->lvTracked = 0;
         }
@@ -3367,16 +3337,16 @@ void Compiler::lvaSortByRefCount()
 
     /* Assign indices to all the variables we've decided to track */
 
-    for (lclNum = 0; lclNum < min(lvaCount, lclMAX_TRACKED); lclNum++)
+    for (unsigned lclNum = 0; lclNum < min(lvaCount, lclMAX_TRACKED); lclNum++)
     {
-        varDsc = lvaRefSorted[lclNum];
+        LclVarDsc* varDsc = lvaRefSorted[lclNum];
         if (varDsc->lvTracked)
         {
             noway_assert(varDsc->lvRefCnt > 0);
 
             /* This variable will be tracked - assign it an index */
 
-            lvaTrackedToVarNum[lvaTrackedCount] = (unsigned)(varDsc - lvaTable); // The type of varDsc and lvaTable
+            lvaTrackedToVarNum[lvaTrackedCount] = lvaTable.GetLclNum(varDsc); // The type of varDsc and lvaTable
             // is LclVarDsc. Subtraction will give us
             // the index.
             varDsc->lvVarIndex = lvaTrackedCount++;
@@ -3491,9 +3461,7 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
             /* Get the special variable descriptor */
 
             unsigned lclNum = info.compLvFrameListRoot;
-
-            noway_assert(lclNum <= lvaCount);
-            LclVarDsc* varDsc = lvaTable + lclNum;
+            LclVarDsc* varDsc = &lvaTable[lclNum];
 
             /* Increment the ref counts twice */
             varDsc->incRefCnts(lvaMarkRefsWeight, this);
@@ -3622,9 +3590,7 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
 
     assert((tree->gtOper == GT_LCL_VAR) || (tree->gtOper == GT_LCL_FLD));
     unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
-
-    noway_assert(lclNum < lvaCount);
-    LclVarDsc* varDsc = lvaTable + lclNum;
+    LclVarDsc* varDsc = &lvaTable[lclNum];
 
     /* Increment the reference counts */
 
@@ -3913,12 +3879,9 @@ void Compiler::lvaMarkLocalVars()
     if (opts.compScopeInfo && (info.compVarScopesCount > 0))
 #endif
     {
-        unsigned   lclNum;
-        LclVarDsc* varDsc;
-
-        for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+        for (LclVarDsc* varDsc : lvaTable)
         {
-            varDsc->lvSlotNum = lclNum;
+            varDsc->lvSlotNum = lvaTable.GetLclNum(varDsc);
         }
     }
 
@@ -3934,17 +3897,8 @@ void Compiler::lvaMarkLocalVars()
      *  then we will have to copy them to the final home in the prolog
      *  This counts as an extra reference with a weight of 2
      */
-
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable.LclVars(0, info.compArgsCount))
     {
-        if (lclNum >= info.compArgsCount)
-        {
-            break; // early exit for loop
-        }
-
         if ((varDsc->lvIsRegArg) && (varDsc->lvRefCnt > 0))
         {
             // Fix 388376 ARM JitStress WP7
@@ -4536,15 +4490,13 @@ void Compiler::lvaAssignFrameOffsets(FrameLayoutState curState)
  */
 void Compiler::lvaFixVirtualFrameOffsets()
 {
-    LclVarDsc* varDsc;
-
 #if FEATURE_EH_FUNCLETS && defined(_TARGET_AMD64_)
     if (lvaPSPSym != BAD_VAR_NUM)
     {
         // We need to fix the offset of the PSPSym so there is no padding between it and the outgoing argument space.
         // Without this code, lvaAlignFrame might have put the padding lower than the PSPSym, which would be between
         // the PSPSym and the outgoing argument space.
-        varDsc = &lvaTable[lvaPSPSym];
+        LclVarDsc* varDsc = &lvaTable[lvaPSPSym];
         assert(varDsc->lvFramePointerBased); // We always access it RBP-relative.
         assert(!varDsc->lvMustInit);         // It is never "must init".
         varDsc->lvStkOffs = codeGen->genCallerSPtoInitialSPdelta() + lvaLclSize(lvaOutgoingArgSpaceVar);
@@ -4582,8 +4534,7 @@ void Compiler::lvaFixVirtualFrameOffsets()
     }
 #endif //_TARGET_AMD64_
 
-    unsigned lclNum;
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         bool doAssignStkOffs = true;
 
@@ -4606,6 +4557,8 @@ void Compiler::lvaFixVirtualFrameOffsets()
 
         if (!varDsc->lvOnFrame)
         {
+            const unsigned lclNum = lvaTable.GetLclNum(varDsc);
+
             if (!varDsc->lvIsParam
 #if !defined(_TARGET_AMD64_)
                 || (varDsc->lvIsRegArg
@@ -4660,7 +4613,7 @@ void Compiler::lvaFixVirtualFrameOffsets()
 
     if (lvaOutgoingArgSpaceVar != BAD_VAR_NUM)
     {
-        varDsc                      = &lvaTable[lvaOutgoingArgSpaceVar];
+        LclVarDsc* varDsc           = &lvaTable[lvaOutgoingArgSpaceVar];
         varDsc->lvStkOffs           = 0;
         varDsc->lvFramePointerBased = false;
         varDsc->lvMustInit          = false;
@@ -4689,16 +4642,14 @@ void Compiler::lvaUpdateArgsWithInitialReg()
         return;
     }
 
-    for (unsigned lclNum = 0; lclNum < info.compArgsCount; lclNum++)
+    for (LclVarDsc* varDsc : lvaTable.LclVars(0, info.compArgsCount))
     {
-        LclVarDsc* varDsc = lvaTable + lclNum;
-
         if (varDsc->lvPromotedStruct())
         {
             noway_assert(varDsc->lvFieldCnt == 1); // We only handle one field here
 
             unsigned fieldVarNum = varDsc->lvFieldLclStart;
-            varDsc               = lvaTable + fieldVarNum;
+            varDsc               = &lvaTable[fieldVarNum];
         }
 
         noway_assert(varDsc->lvIsParam);
@@ -4933,11 +4884,8 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
         argOffs -= argSize;
     }
 
+    LclVarDsc* varDsc = &lvaTable[lclNum];
     unsigned fieldVarNum = BAD_VAR_NUM;
-
-    noway_assert(lclNum < lvaCount);
-    LclVarDsc* varDsc = lvaTable + lclNum;
-
     if (varDsc->lvPromotedStruct())
     {
         noway_assert(varDsc->lvFieldCnt == 1); // We only handle one field here
@@ -4948,8 +4896,7 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
         if (promotionType == PROMOTION_TYPE_INDEPENDENT)
         {
             lclNum = fieldVarNum;
-            noway_assert(lclNum < lvaCount);
-            varDsc = lvaTable + lclNum;
+            varDsc = &lvaTable[lclNum];
             assert(varDsc->lvIsStructField);
         }
     }
@@ -5052,8 +4999,7 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
 
     unsigned fieldVarNum = BAD_VAR_NUM;
 
-    noway_assert(lclNum < lvaCount);
-    LclVarDsc* varDsc = lvaTable + lclNum;
+    LclVarDsc* varDsc = &lvaTable[lclNum];
 
     if (varDsc->lvPromotedStruct())
     {
@@ -5065,8 +5011,7 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
         if (promotionType == PROMOTION_TYPE_INDEPENDENT)
         {
             lclNum = fieldVarNum;
-            noway_assert(lclNum < lvaCount);
-            varDsc = lvaTable + lclNum;
+            varDsc = &lvaTable[lclNum];
             assert(varDsc->lvIsStructField);
         }
     }
@@ -5654,11 +5599,10 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
 
         assignMore = 0;
 
-        unsigned   lclNum;
-        LclVarDsc* varDsc;
-
-        for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+        for (LclVarDsc* varDsc : lvaTable)
         {
+            const unsigned lclNum = lvaTable.GetLclNum(varDsc);
+
             /* Ignore field locals of the promotion type PROMOTION_TYPE_FIELD_DEPENDENT.
                In other words, we will not calculate the "base" address of the struct local if
                the promotion type is PROMOTION_TYPE_FIELD_DEPENDENT.
@@ -6274,8 +6218,7 @@ void Compiler::lvaAlignFrame()
  */
 void Compiler::lvaAssignFrameOffsetsToPromotedStructs()
 {
-    LclVarDsc* varDsc = lvaTable;
-    for (unsigned lclNum = 0; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         // For promoted struct fields that are params, we will
         // assign their offsets in lvaAssignVirtualFrameOffsetToArg().
@@ -6450,7 +6393,7 @@ int Compiler::lvaAllocateTemps(int stkOffs, bool mustDoubleAlign)
 
 void Compiler::lvaDumpRegLocation(unsigned lclNum)
 {
-    LclVarDsc* varDsc = lvaTable + lclNum;
+    LclVarDsc* varDsc = &lvaTable[lclNum];
     var_types  type   = varDsc->TypeGet();
 
 #if FEATURE_STACK_FP_X87
@@ -6532,7 +6475,7 @@ void Compiler::lvaDumpFrameLocation(unsigned lclNum)
 
 void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t refCntWtdWidth)
 {
-    LclVarDsc* varDsc = lvaTable + lclNum;
+    LclVarDsc* varDsc = &lvaTable[lclNum];
     var_types  type   = varDsc->TypeGet();
 
     if (curState == INITIAL_FRAME_LAYOUT)
@@ -6824,16 +6767,13 @@ void Compiler::lvaTableDump(FrameLayoutState curState)
     printf(" local variable assignments\n");
     printf(";\n");
 
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
     // Figure out some sizes, to help line things up
 
     size_t refCntWtdWidth = 6; // Use 6 as the minimum width
 
     if (curState != INITIAL_FRAME_LAYOUT) // don't need this info for INITIAL_FRAME_LAYOUT
     {
-        for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+        for (LclVarDsc* varDsc : lvaTable)
         {
             size_t width = strlen(refCntWtd2str(varDsc->lvRefCntWtd));
             if (width > refCntWtdWidth)
@@ -6844,10 +6784,9 @@ void Compiler::lvaTableDump(FrameLayoutState curState)
     }
 
     // Do the actual output
-
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
-        lvaDumpEntry(lclNum, curState, refCntWtdWidth);
+        lvaDumpEntry(lvaTable.GetLclNum(varDsc), curState, refCntWtdWidth);
     }
 
     //-------------------------------------------------------------------------
@@ -6964,8 +6903,7 @@ int Compiler::lvaGetSPRelativeOffset(unsigned varNum)
 {
     assert(!compLocallocUsed);
     assert(lvaDoneFrameLayout == FINAL_FRAME_LAYOUT);
-    assert(varNum < lvaCount);
-    const LclVarDsc* varDsc = lvaTable + varNum;
+    const LclVarDsc* varDsc = &lvaTable[varNum];
     assert(varDsc->lvOnFrame);
     int spRelativeOffset;
 
@@ -6993,8 +6931,7 @@ int Compiler::lvaGetSPRelativeOffset(unsigned varNum)
 int Compiler::lvaGetCallerSPRelativeOffset(unsigned varNum)
 {
     assert(lvaDoneFrameLayout == FINAL_FRAME_LAYOUT);
-    assert(varNum < lvaCount);
-    LclVarDsc* varDsc = lvaTable + varNum;
+    LclVarDsc* varDsc = &lvaTable[varNum];
     assert(varDsc->lvOnFrame);
 
     return lvaToCallerSPRelativeOffset(varDsc->lvStkOffs, varDsc->lvFramePointerBased);
@@ -7025,8 +6962,7 @@ int Compiler::lvaToCallerSPRelativeOffset(int offset, bool isFpBased)
 int Compiler::lvaGetInitialSPRelativeOffset(unsigned varNum)
 {
     assert(lvaDoneFrameLayout == FINAL_FRAME_LAYOUT);
-    assert(varNum < lvaCount);
-    LclVarDsc* varDsc = lvaTable + varNum;
+    LclVarDsc* varDsc = &lvaTable[varNum];
     assert(varDsc->lvOnFrame);
 
     return lvaToInitialSPRelativeOffset(varDsc->lvStkOffs, varDsc->lvFramePointerBased);
@@ -7264,15 +7200,13 @@ void Compiler::lvaDispVarSet(VARSET_VALARG_TP set, VARSET_VALARG_TP allVars)
     {
         if (VarSetOps::IsMember(this, set, index))
         {
-            unsigned   lclNum;
-            LclVarDsc* varDsc;
-
             /* Look for the matching variable */
-
-            for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+            unsigned lclNum;
+            for (LclVarDsc* varDsc : lvaTable)
             {
                 if ((varDsc->lvVarIndex == index) && varDsc->lvTracked)
                 {
+                    lclNum = lvaTable.GetLclNum(varDsc);
                     break;
                 }
             }

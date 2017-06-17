@@ -7016,8 +7016,7 @@ private:
     // Is this var is of type simd struct?
     bool lclVarIsSIMDType(unsigned varNum)
     {
-        LclVarDsc* varDsc = lvaTable + varNum;
-        return varDsc->lvIsSIMDType();
+        return lvaTable[varNum].lvIsSIMDType();
     }
 
     // Is this Local node a SIMD local?

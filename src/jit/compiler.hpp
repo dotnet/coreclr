@@ -1630,55 +1630,13 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
 
         unsigned tmpNum = pComp->lvaGrabTemp(shortLifetime DEBUGARG(reason));
         lvaTable        = pComp->lvaTable;
-        lvaCount        = pComp->lvaCount;
-        lvaTableCnt     = pComp->lvaTableCnt;
         return tmpNum;
     }
 
     // You cannot allocate more space after frame layout!
     noway_assert(lvaDoneFrameLayout < Compiler::TENTATIVE_FRAME_LAYOUT);
 
-    /* Check if the lvaTable has to be grown */
-    if (lvaCount + 1 > lvaTableCnt)
-    {
-        unsigned newLvaTableCnt = lvaCount + (lvaCount / 2) + 1;
-
-        // Check for overflow
-        if (newLvaTableCnt <= lvaCount)
-        {
-            IMPL_LIMITATION("too many locals");
-        }
-
-        // Note: compGetMemArray might throw.
-        LclVarDsc* newLvaTable = (LclVarDsc*)compGetMemArray(newLvaTableCnt, sizeof(*lvaTable), CMK_LvaTable);
-
-        memcpy(newLvaTable, lvaTable, lvaCount * sizeof(*lvaTable));
-        memset(newLvaTable + lvaCount, 0, (newLvaTableCnt - lvaCount) * sizeof(*lvaTable));
-
-        for (unsigned i = lvaCount; i < newLvaTableCnt; i++)
-        {
-            new (&newLvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
-        }
-
-#if 0
-        // TODO-Cleanup: Enable this and test.
-#ifdef DEBUG
-        // Fill the old table with junks. So to detect the un-intended use.
-        memset(lvaTable, fDefaultFill2.val_DontUse_(CLRConfig::INTERNAL_JitDefaultFill, 0xFF), lvaCount * sizeof(*lvaTable));
-#endif
-#endif
-
-        lvaTableCnt = newLvaTableCnt;
-        lvaTable    = newLvaTable;
-    }
-
-    lvaTable[lvaCount].lvType    = TYP_UNDEF; // Initialize lvType, lvIsTemp and lvOnFrame
-    lvaTable[lvaCount].lvIsTemp  = shortLifetime;
-    lvaTable[lvaCount].lvOnFrame = true;
-
-    unsigned tempNum = lvaCount;
-
-    lvaCount++;
+    unsigned tempNum = lvaTable.AllocateLclVar(*this, shortLifetime);
 
 #ifdef DEBUG
     if (verbose)
@@ -1698,68 +1656,19 @@ inline unsigned Compiler::lvaGrabTemps(unsigned cnt DEBUGARG(const char* reason)
     {
         // Grab the temps using Inliner's Compiler instance.
         unsigned tmpNum = impInlineInfo->InlinerCompiler->lvaGrabTemps(cnt DEBUGARG(reason));
-
-        lvaTable    = impInlineInfo->InlinerCompiler->lvaTable;
-        lvaCount    = impInlineInfo->InlinerCompiler->lvaCount;
-        lvaTableCnt = impInlineInfo->InlinerCompiler->lvaTableCnt;
+        lvaTable        = impInlineInfo->InlinerCompiler->lvaTable;
         return tmpNum;
     }
 
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nlvaGrabTemps(%d) returning %d..%d (long lifetime temps) called for %s", cnt, lvaCount,
-               lvaCount + cnt - 1, reason);
+        printf("\nlvaGrabTemps(%d) returning %d..%d (long lifetime temps) called for %s", cnt, lvaTable.Count(),
+               lvaTable.Count() + cnt - 1, reason);
     }
 #endif
 
-    // You cannot allocate more space after frame layout!
-    noway_assert(lvaDoneFrameLayout < Compiler::TENTATIVE_FRAME_LAYOUT);
-
-    /* Check if the lvaTable has to be grown */
-    if (lvaCount + cnt > lvaTableCnt)
-    {
-        unsigned newLvaTableCnt = lvaCount + max(lvaCount / 2 + 1, cnt);
-
-        // Check for overflow
-        if (newLvaTableCnt <= lvaCount)
-        {
-            IMPL_LIMITATION("too many locals");
-        }
-
-        // Note: compGetMemArray might throw.
-        LclVarDsc* newLvaTable = (LclVarDsc*)compGetMemArray(newLvaTableCnt, sizeof(*lvaTable), CMK_LvaTable);
-
-        memcpy(newLvaTable, lvaTable, lvaCount * sizeof(*lvaTable));
-        memset(newLvaTable + lvaCount, 0, (newLvaTableCnt - lvaCount) * sizeof(*lvaTable));
-        for (unsigned i = lvaCount; i < newLvaTableCnt; i++)
-        {
-            new (&newLvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
-        }
-
-#if 0
-#ifdef DEBUG
-        // TODO-Cleanup: Enable this and test.
-        // Fill the old table with junks. So to detect the un-intended use.
-        memset(lvaTable, fDefaultFill2.val_DontUse_(CLRConfig::INTERNAL_JitDefaultFill, 0xFF), lvaCount * sizeof(*lvaTable));
-#endif
-#endif
-
-        lvaTableCnt = newLvaTableCnt;
-        lvaTable    = newLvaTable;
-    }
-
-    unsigned tempNum = lvaCount;
-
-    while (cnt--)
-    {
-        lvaTable[lvaCount].lvType    = TYP_UNDEF; // Initialize lvType, lvIsTemp and lvOnFrame
-        lvaTable[lvaCount].lvIsTemp  = false;
-        lvaTable[lvaCount].lvOnFrame = true;
-        lvaCount++;
-    }
-
-    return tempNum;
+    return lvaTable.AllocateLclVars(*this, cnt);
 }
 
 /*****************************************************************************
@@ -1775,10 +1684,7 @@ inline unsigned Compiler::lvaGrabTempWithImplicitUse(bool shortLifetime DEBUGARG
     {
         // Grab the temp using Inliner's Compiler instance.
         unsigned tmpNum = impInlineInfo->InlinerCompiler->lvaGrabTempWithImplicitUse(shortLifetime DEBUGARG(reason));
-
-        lvaTable    = impInlineInfo->InlinerCompiler->lvaTable;
-        lvaCount    = impInlineInfo->InlinerCompiler->lvaCount;
-        lvaTableCnt = impInlineInfo->InlinerCompiler->lvaTableCnt;
+        lvaTable        = impInlineInfo->InlinerCompiler->lvaTable;
         return tmpNum;
     }
 
@@ -1902,8 +1808,7 @@ inline void LclVarDsc::decRefCnts(BasicBlock::weight_t weight, Compiler* comp, b
 #ifdef DEBUG
     if (comp->verbose)
     {
-        unsigned varNum = (unsigned)(this - comp->lvaTable);
-        assert(&comp->lvaTable[varNum] == this);
+        const unsigned varNum = comp->lvaTable.GetLclNum(this);
         printf("New refCnts for V%02u: refCnt = %2u, refCntWtd = %s\n", varNum, lvRefCnt, refCntWtd2str(lvRefCntWtd));
     }
 #endif
@@ -1992,8 +1897,7 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, b
 #ifdef DEBUG
     if (comp->verbose)
     {
-        unsigned varNum = (unsigned)(this - comp->lvaTable);
-        assert(&comp->lvaTable[varNum] == this);
+        const unsigned varNum = comp->lvaTable.GetLclNum(this);
         printf("New refCnts for V%02u: refCnt = %2u, refCntWtd = %s\n", varNum, lvRefCnt, refCntWtd2str(lvRefCntWtd));
     }
 #endif
@@ -2039,12 +1943,12 @@ inline void LclVarDsc::setPrefReg(regNumber regNum, Compiler* comp)
     {
         if (lvPrefReg)
         {
-            printf("Change preferred register for V%02u from ", this - comp->lvaTable);
+            printf("Change preferred register for V%02u from ", comp->lvaTable.GetLclNum(this));
             dspRegMask(lvPrefReg);
         }
         else
         {
-            printf("Set preferred register for V%02u", this - comp->lvaTable);
+            printf("Set preferred register for V%02u", comp->lvaTable.GetLclNum(this));
         }
         printf(" to ");
         dspRegMask(regMask);
@@ -2094,12 +1998,12 @@ inline void LclVarDsc::addPrefReg(regMaskTP regMask, Compiler* comp)
     {
         if (lvPrefReg)
         {
-            printf("Additional preferred register for V%02u from ", this - comp->lvaTable);
+            printf("Additional preferred register for V%02u from ", comp->lvaTable.GetLclNum(this));
             dspRegMask(lvPrefReg);
         }
         else
         {
-            printf("Set preferred register for V%02u", this - comp->lvaTable);
+            printf("Set preferred register for V%02u", comp->lvaTable.GetLclNum(this));
         }
         printf(" to ");
         dspRegMask(lvPrefReg | regMask);
@@ -2147,8 +2051,7 @@ inline VARSET_VALRET_TP Compiler::lvaStmtLclMask(GenTreePtr stmt)
         }
 
         varNum = tree->gtLclVarCommon.gtLclNum;
-        assert(varNum < lvaCount);
-        varDsc = lvaTable + varNum;
+        varDsc = &lvaTable[varNum];
 
         if (!varDsc->lvTracked)
         {
@@ -2317,8 +2220,7 @@ inline
     {
         LclVarDsc* varDsc;
 
-        assert((unsigned)varNum < lvaCount);
-        varDsc               = lvaTable + varNum;
+        varDsc               = &lvaTable[varNum];
         type                 = varDsc->TypeGet();
         bool isPrespilledArg = false;
 #if defined(_TARGET_ARM_) && defined(PROFILING_SUPPORTED)
@@ -2495,22 +2397,12 @@ inline
 
 inline bool Compiler::lvaIsParameter(unsigned varNum)
 {
-    LclVarDsc* varDsc;
-
-    assert(varNum < lvaCount);
-    varDsc = lvaTable + varNum;
-
-    return varDsc->lvIsParam;
+    return lvaTable[varNum].lvIsParam;
 }
 
 inline bool Compiler::lvaIsRegArgument(unsigned varNum)
 {
-    LclVarDsc* varDsc;
-
-    assert(varNum < lvaCount);
-    varDsc = lvaTable + varNum;
-
-    return varDsc->lvIsRegArg;
+    return lvaTable[varNum].lvIsRegArg;
 }
 
 inline BOOL Compiler::lvaIsOriginalThisArg(unsigned varNum)
@@ -2522,7 +2414,7 @@ inline BOOL Compiler::lvaIsOriginalThisArg(unsigned varNum)
 #ifdef DEBUG
     if (isOriginalThisArg)
     {
-        LclVarDsc* varDsc = lvaTable + varNum;
+        LclVarDsc* varDsc = &lvaTable[varNum];
         // Should never write to or take the address of the original 'this' arg
         CLANG_FORMAT_COMMENT_ANCHOR;
 
@@ -3496,7 +3388,7 @@ inline void Compiler::optAssertionReset(AssertionIndex limit)
         AssertionDsc*  curAssertion = optGetAssertion(index);
         optAssertionCount--;
         unsigned lclNum = curAssertion->op1.lcl.lclNum;
-        assert(lclNum < lvaTableCnt);
+        assert(lclNum < lvaCount);
         BitVecOps::RemoveElemD(apTraits, GetAssertionDep(lclNum), index - 1);
 
         //
@@ -3869,9 +3761,7 @@ inline LclVarDsc* Compiler::optIsTrackedLocal(GenTreePtr tree)
     }
 
     lclNum = tree->gtLclVarCommon.gtLclNum;
-
-    assert(lclNum < lvaCount);
-    varDsc = lvaTable + lclNum;
+    varDsc = &lvaTable[lclNum];
 
     /* if variable not tracked, return NULL */
     if (!varDsc->lvTracked)

@@ -5,8 +5,6 @@
 #ifndef __register_arg_convention__
 #define __register_arg_convention__
 
-class LclVarDsc;
-
 struct InitVarDscInfo
 {
     LclVarDsc* varDsc;
@@ -28,16 +26,9 @@ struct InitVarDscInfo
 
 public:
     // set to initial values
-    void Init(LclVarDsc* lvaTable, bool _hasRetBufArg)
+    InitVarDscInfo(LclVarTable& lvaTable, bool _hasRetBufArg)
+        : varDsc(lvaTable.Count() > 0 ? &lvaTable[0] : nullptr), varNum(0), intRegArgNum(0), floatRegArgNum(0), maxIntRegArgNum(MAX_REG_ARG), maxFloatRegArgNum(MAX_FLOAT_REG_ARG), hasRetBufArg(_hasRetBufArg)
     {
-        hasRetBufArg      = _hasRetBufArg;
-        varDsc            = &lvaTable[0]; // the first argument LclVar 0
-        varNum            = 0;            // the first argument varNum 0
-        intRegArgNum      = 0;
-        floatRegArgNum    = 0;
-        maxIntRegArgNum   = MAX_REG_ARG;
-        maxFloatRegArgNum = MAX_FLOAT_REG_ARG;
-
 #ifdef _TARGET_ARM_
         fltArgSkippedRegMask = RBM_NONE;
         anyFloatStackArgs    = false;
