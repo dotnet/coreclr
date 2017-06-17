@@ -405,10 +405,10 @@ def static getOSGroup(def os) {
             def architecture = arch
             def newJob = job(Utilities.getFullJobName(project, "perf_illink_${os}_${arch}", isPR)) {
                 // Set the label.
-                label('windows_Illink_perf')
+                label('windows_clr_perf')
                 wrappers {
                     credentialsBinding {
-                    string('BV_UPLOAD_SAS_TOKEN', 'ILLink BenchView Sas')
+                        string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
                     }
                 }
 
