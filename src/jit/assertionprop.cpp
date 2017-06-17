@@ -47,9 +47,6 @@ Compiler::fgWalkResult Compiler::optAddCopiesCallback(GenTreePtr* pTree, fgWalkD
 
 void Compiler::optAddCopies()
 {
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
 #ifdef DEBUG
     if (verbose)
     {
@@ -68,8 +65,10 @@ void Compiler::optAddCopies()
         return;
     }
 
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (unsigned lclNum = 0; lclNum < lvaCount; lclNum++)
     {
+        LclVarDsc* varDsc = &lvaTable[lclNum];
+
         var_types typ = varDsc->TypeGet();
 
         // We only add copies for non temp local variables
@@ -737,8 +736,7 @@ void Compiler::optPrintAssertion(AssertionDsc* curAssertion, AssertionIndex asse
                     else
                     {
                         unsigned lclNum = curAssertion->op1.lcl.lclNum;
-                        assert(lclNum < lvaCount);
-                        LclVarDsc* varDsc = lvaTable + lclNum;
+                        LclVarDsc* varDsc = &lvaTable[lclNum];
                         op1Type           = varDsc->lvType;
                     }
 

@@ -428,14 +428,11 @@ void Compiler::fgPerBlockLocalVarLiveness()
 
     if (opts.MinOpts())
     {
-        unsigned   lclNum;
-        LclVarDsc* varDsc;
-
         VARSET_TP liveAll(VarSetOps::MakeEmpty(this));
 
         /* We simply make everything live everywhere */
 
-        for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+        for (LclVarDsc* varDsc : lvaTable)
         {
             if (varDsc->lvTracked)
             {
@@ -869,7 +866,7 @@ void Compiler::fgExtendDbgLifetimes()
 
     for (unsigned argNum = 0; argNum < info.compArgsCount; argNum++)
     {
-        LclVarDsc* argDsc = lvaTable + argNum;
+        LclVarDsc* argDsc = &lvaTable[argNum];
         if (argDsc->lvPromoted)
         {
             lvaPromotionType promotionType = lvaGetPromotionType(argDsc);
@@ -879,7 +876,7 @@ void Compiler::fgExtendDbgLifetimes()
                 noway_assert(argDsc->lvFieldCnt == 1); // We only handle one field here
 
                 unsigned fieldVarNum = argDsc->lvFieldLclStart;
-                argDsc               = lvaTable + fieldVarNum;
+                argDsc               = &lvaTable[fieldVarNum];
             }
         }
         noway_assert(argDsc->lvIsParam);
@@ -1062,8 +1059,7 @@ void Compiler::fgExtendDbgLifetimes()
     //   needs to be initialized). However, arguments don't need to be initialized.
     //   So just ensure that they don't have a 0 ref cnt
 
-    unsigned lclNum = 0;
-    for (LclVarDsc *varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         if (varDsc->lvRefCnt == 0 && varDsc->lvIsRegArg)
         {
@@ -1158,8 +1154,7 @@ class LiveVarAnalysis
             // A JMP uses all the arguments, so mark them all
             // as live at the JMP instruction
             //
-            const LclVarDsc* varDscEndParams = m_compiler->lvaTable + m_compiler->info.compArgsCount;
-            for (LclVarDsc* varDsc = m_compiler->lvaTable; varDsc < varDscEndParams; varDsc++)
+            for (LclVarDsc* varDsc : m_compiler->lvaTable.LclVars(0, m_compiler->info.compArgsCount))
             {
                 noway_assert(!varDsc->lvPromoted);
                 if (varDsc->lvTracked)
@@ -1576,10 +1571,7 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
             // For each live variable if it is a GC-ref type, we
             // mark it volatile to prevent if from being enregistered
             // across the unmanaged call.
-
-            unsigned   lclNum;
-            LclVarDsc* varDsc;
-            for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+            for (LclVarDsc* varDsc : lvaTable)
             {
                 /* Ignore the variable if it's not tracked */
 
@@ -1600,7 +1592,7 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
                 // If it is a GC-ref type then mark it DoNotEnregister.
                 if (varTypeIsGC(varDsc->TypeGet()))
                 {
-                    lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_LiveAcrossUnmanagedCall));
+                    lvaSetVarDoNotEnregister(lvaTable.GetLclNum(varDsc) DEBUGARG(DNER_LiveAcrossUnmanagedCall));
                 }
             }
         }
@@ -2813,10 +2805,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 #endif // FEATURE_EH_FUNCLETS
     }
 
-    LclVarDsc* varDsc;
-    unsigned   varNum;
-
-    for (varNum = 0, varDsc = lvaTable; varNum < lvaCount; varNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         /* Ignore the variable if it's not tracked */
 
@@ -2829,6 +2818,8 @@ void Compiler::fgInterBlockLocalVarLiveness()
         {
             continue;
         }
+
+        const unsigned varNum = lvaTable.GetLclNum(varDsc);
 
         /* Un-init locals may need auto-initialization. Note that the
            liveness of such locals will bubble to the top (fgFirstBB)

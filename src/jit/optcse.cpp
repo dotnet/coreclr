@@ -273,14 +273,9 @@ Compiler::fgWalkResult Compiler::optUnmarkCSEs(GenTreePtr* pTree, fgWalkData* da
 
     if (tree->gtOper == GT_LCL_VAR)
     {
-        unsigned   lclNum;
-        LclVarDsc* varDsc;
-
         /* This variable ref is going away, decrease its ref counts */
-
-        lclNum = tree->gtLclVarCommon.gtLclNum;
-        assert(lclNum < comp->lvaCount);
-        varDsc = comp->lvaTable + lclNum;
+        unsigned   lclNum = tree->gtLclVarCommon.gtLclNum;
+        LclVarDsc* varDsc = &comp->lvaTable[lclNum];
 
         // make sure it's been initialized
         assert(comp->optCSEweight <= BB_MAX_WEIGHT);
@@ -1193,15 +1188,15 @@ public:
 
         unsigned   frameSize        = 0;
         unsigned   regAvailEstimate = ((CNT_CALLEE_ENREG * 3) + (CNT_CALLEE_TRASH * 2) + 1);
-        unsigned   lclNum;
-        LclVarDsc* varDsc;
 
-        for (lclNum = 0, varDsc = m_pCompiler->lvaTable; lclNum < m_pCompiler->lvaCount; lclNum++, varDsc++)
+        for (LclVarDsc* varDsc : m_pCompiler->lvaTable)
         {
             if (varDsc->lvRefCnt == 0)
             {
                 continue;
             }
+
+            const unsigned lclNum = m_pCompiler->lvaTable.GetLclNum(varDsc);
 
 #if FEATURE_FIXED_OUT_ARGS
             // Skip the OutgoingArgArea in computing frame size, since
