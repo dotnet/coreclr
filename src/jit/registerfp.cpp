@@ -353,8 +353,7 @@ void CodeGen::genFloatAssign(GenTree* tree)
 
         case GT_LCL_VAR:
             varNum = op1->gtLclVarCommon.gtLclNum;
-            noway_assert(varNum < compiler->lvaCount);
-            varDsc = compiler->lvaTable + varNum;
+            varDsc = &compiler->lvaTable[varNum];
 
             // For non-debuggable code, every definition of a lcl-var has
             // to be checked to see if we need to open a new scope for it.

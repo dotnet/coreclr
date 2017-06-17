@@ -425,11 +425,11 @@ void CodeGen::genCodeForPrologStackFP()
             // Get the virtual register that matches
             unsigned iVirtual = pState->STToVirtual(pState->m_uStackSize - i - 1);
 
-            unsigned   varNum;
-            LclVarDsc* varDsc;
-
-            for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+            unsigned varNum;
+            for (LclVarDsc* varDsc : compiler->lvaTable)
             {
+                varNum = compiler->lvaTable.GetLclNum(varDsc);
+
                 if (varDsc->IsFloatRegType() && varDsc->lvRegister && varDsc->lvRegNum == iVirtual)
                 {
                     unsigned varIndex = varDsc->lvVarIndex;
@@ -439,7 +439,7 @@ void CodeGen::genCodeForPrologStackFP()
                     {
                         if (varDsc->lvIsParam)
                         {
-                            getEmitter()->emitIns_S(INS_fld, EmitSize(varDsc->TypeGet()), varNum, 0);
+                            getEmitter()->emitIns_S(INS_fld, EmitSize(varDsc->TypeGet()), compiler->lvaTable.GetLclNum(varDsc), 0);
                         }
                         else
                         {
@@ -504,11 +504,9 @@ void CodeGen::genCodeForEndBlockTransitionStackFP(BasicBlock* block)
 
 regMaskTP CodeGen::genRegMaskFromLivenessStackFP(VARSET_VALARG_TP varset)
 {
-    unsigned   varNum;
-    LclVarDsc* varDsc;
-    regMaskTP  result = 0;
+    regMaskTP result = 0;
 
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+    for (LclVarDsc* varDsc : compiler->lvaTable)
     {
         if (varDsc->IsFloatRegType() && varDsc->lvRegister)
         {
@@ -847,7 +845,7 @@ void CodeGen::genRegVarBirthStackFP(GenTreePtr tree)
 #endif // DEBUG
 
     // Update register in local var
-    LclVarDsc* varDsc = compiler->lvaTable + tree->gtLclVarCommon.gtLclNum;
+    LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
 
     genRegVarBirthStackFP(varDsc);
     assert(tree->gtRegNum == tree->gtRegVar.gtRegNum && tree->gtRegNum == varDsc->lvRegNum);
@@ -872,7 +870,7 @@ void CodeGen::genRegVarDeathStackFP(GenTreePtr tree)
     }
 #endif // DEBUG
 
-    LclVarDsc* varDsc = compiler->lvaTable + tree->gtLclVarCommon.gtLclNum;
+    LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
     genRegVarDeathStackFP(varDsc);
 }
 
@@ -1070,10 +1068,7 @@ void CodeGen::genSetupStateStackFP(BasicBlock* block)
 
     if (!VarSetOps::IsEmpty(compiler, liveSet))
     {
-        unsigned   varNum;
-        LclVarDsc* varDsc;
-
-        for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+        for (LclVarDsc* varDsc : compiler->lvaTable)
         {
             if (varDsc->IsFloatRegType() && varDsc->lvRegister)
             {
@@ -1083,7 +1078,7 @@ void CodeGen::genSetupStateStackFP(BasicBlock* block)
                 // Is this variable live on entry?
                 if (VarSetOps::IsMember(compiler, liveSet, varIndex))
                 {
-                    JITDUMP("genSetupStateStackFP(): enregistered variable V%i is live on entry to block\n", varNum);
+                    JITDUMP("genSetupStateStackFP(): enregistered variable V%i is live on entry to block\n", compiler->lvaTable.GetLclNum(varDsc));
 
                     assert(varDsc->lvTracked);
                     assert(varDsc->lvRegNum != REG_FPNONE);
@@ -2932,7 +2927,7 @@ void CodeGen::genQMarkRegVarTransition(GenTreePtr nextNode, VARSET_VALARG_TP liv
     for (i = 0; i < compiler->lvaTrackedCount; i++)
     {
         unsigned   lclVar = compiler->lvaTrackedToVarNum[i];
-        LclVarDsc* varDsc = compiler->lvaTable + lclVar;
+        LclVarDsc* varDsc = &compiler->lvaTable[lclVar];
 
         assert(varDsc->lvTracked);
 
@@ -2975,7 +2970,7 @@ void CodeGen::genQMarkAfterElseBlockStackFP(QmarkStateStackFP* pState, VARSET_VA
         {
             // This variable should be live
             unsigned   lclnum = compiler->lvaTrackedToVarNum[i];
-            LclVarDsc* varDsc = compiler->lvaTable + lclnum;
+            LclVarDsc* varDsc = &compiler->lvaTable[lclnum];
 
             if (regSet.genRegVarsFloat[varDsc->lvRegNum] != varDsc)
             {
@@ -3619,10 +3614,7 @@ void Compiler::raInitStackFP()
 
     // Calculate the set of all tracked FP/non-FP variables
     //  into compiler->optAllFloatVars and compiler->optAllNonFPvars
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         /* Ignore the variable if it's not tracked */
 
@@ -3959,7 +3951,7 @@ void Compiler::raEnregisterVarsPrePassStackFP()
                             {
                                 unsigned int lclNum = op1->gtLclVarCommon.gtLclNum;
                                 assert(lclNum < lvaCount);
-                                LclVarDsc*   varDsc          = lvaTable + lclNum;
+                                LclVarDsc*   varDsc          = &lvaTable[lclNum];
                                 unsigned int weightedRefCnt  = varDsc->lvRefCntWtd;
                                 unsigned int refCntDecrement = 2 * block->getBBWeight(this);
                                 if (refCntDecrement > weightedRefCnt)
@@ -4041,7 +4033,7 @@ void Compiler::raSetRegLclBirthDeath(GenTreePtr tree, VARSET_VALARG_TP lastlife,
     unsigned lclnum = tree->gtLclVarCommon.gtLclNum;
     assert(lclnum < lvaCount);
 
-    LclVarDsc* varDsc = lvaTable + lclnum;
+    LclVarDsc* varDsc = &lvaTable[lclnum];
 
     if (!varDsc->lvTracked)
     {
@@ -4171,9 +4163,7 @@ void Compiler::raGenerateFPRefCounts()
     assert(raCntStkParamDblStackFP == 0);
     assert(raCntStkStackFP == 0);
 
-    LclVarDsc* varDsc;
-    unsigned   lclNum;
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         if (varDsc->lvType == TYP_DOUBLE ||
             varDsc->lvStructDoubleAlign) // Account for structs (A bit over aggressive here, we should
@@ -4272,7 +4262,7 @@ void Compiler::raEnregisterVarsStackFP()
 
         if (VarSetOps::IsMember(this, optAllFloatVars, i))
         {
-            varDsc = lvaTable + lvaTrackedToVarNum[i];
+            varDsc = &lvaTable[lvaTrackedToVarNum[i]];
 
             assert(varDsc->lvTracked);
 
@@ -4292,7 +4282,7 @@ void Compiler::raEnregisterVarsStackFP()
             }
 #endif
 
-            fpLclFPVars[numFPVars++] = lvaTable + lvaTrackedToVarNum[i];
+            fpLclFPVars[numFPVars++] = &lvaTable[lvaTrackedToVarNum[i]];
         }
     }
 
@@ -4308,7 +4298,7 @@ void Compiler::raEnregisterVarsStackFP()
             for (unsigned i = sortNum; i < numFPVars; i++)
             {
                 varDsc          = fpLclFPVars[i];
-                unsigned lclNum = varDsc - lvaTable;
+                unsigned lclNum = lvaTable.GetLclNum(varDsc);
                 unsigned varIndex;
                 varIndex = varDsc->lvVarIndex;
 
@@ -4340,7 +4330,7 @@ void Compiler::raEnregisterVarsStackFP()
         varDsc = fpLclFPVars[sortNum];
 
 #ifdef DEBUG
-        unsigned lclNum = varDsc - lvaTable;
+        unsigned lclNum = lvaTable.GetLclNum(varDsc);
 #endif
         unsigned varIndex = varDsc->lvVarIndex;
 
@@ -4469,7 +4459,7 @@ void Compiler::raEnregisterVarsStackFP()
 
             if (varDsc->lvRegister)
             {
-                unsigned lclNum = varDsc - lvaTable;
+                unsigned lclNum = lvaTable.GetLclNum(varDsc);
                 unsigned varIndex;
                 varIndex = varDsc->lvVarIndex;
 

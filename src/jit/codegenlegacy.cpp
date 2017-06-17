@@ -56,7 +56,7 @@ void CodeGen::genDyingVars(VARSET_VALARG_TP beforeSet, VARSET_VALARG_TP afterSet
     while (iter.NextElem(&varIndex))
     {
         varNum = compiler->lvaTrackedToVarNum[varIndex];
-        varDsc = compiler->lvaTable + varNum;
+        varDsc = &compiler->lvaTable[varNum];
 
         /* Remove this variable from the 'deadSet' bit set */
 
@@ -203,8 +203,7 @@ bool CodeGenInterface::genMarkLclVar(GenTreePtr tree)
     /* Does the variable live in a register? */
 
     varNum = tree->gtLclVarCommon.gtLclNum;
-    assert(varNum < compiler->lvaCount);
-    varDsc = compiler->lvaTable + varNum;
+    varDsc = &compiler->lvaTable[varNum];
 
     if (varDsc->lvRegister)
     {
@@ -5233,11 +5232,8 @@ void CodeGen::genCodeForTreeLeaf_GT_JMP(GenTreePtr tree)
         return;
     }
 
-    unsigned   varNum;
-    LclVarDsc* varDsc;
-
     // First move any enregistered stack arguments back to the stack
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->info.compArgsCount; varNum++, varDsc++)
+    for (LclVarDsc* varDsc : compiler->lvaTable.LclVars(0, compiler->info.compArgsCount))
     {
         noway_assert(varDsc->lvIsParam);
         if (varDsc->lvIsRegArg || !varDsc->lvRegister)
@@ -5246,6 +5242,8 @@ void CodeGen::genCodeForTreeLeaf_GT_JMP(GenTreePtr tree)
         /* Argument was passed on the stack, but ended up in a register
          * Store it back to the stack */
         CLANG_FORMAT_COMMENT_ANCHOR;
+
+        const unsigned varNum = compiler->lvaTable.GetLclNum(varDsc);
 
 #ifndef _TARGET_64BIT_
         if (varDsc->TypeGet() == TYP_LONG)
@@ -5274,7 +5272,7 @@ void CodeGen::genCodeForTreeLeaf_GT_JMP(GenTreePtr tree)
 #endif
 
     // Next move any un-enregistered register arguments back to their register
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->info.compArgsCount; varNum++, varDsc++)
+    for (LclVarDsc* varDsc : compiler->lvaTable)
     {
         /* Is this variable a register arg? */
 
@@ -5288,6 +5286,8 @@ void CodeGen::genCodeForTreeLeaf_GT_JMP(GenTreePtr tree)
 
         /* Reload it from the stack */
         CLANG_FORMAT_COMMENT_ANCHOR;
+
+        const unsigned varNum = compiler->lvaTable.GetLclNum(varDsc);
 
 #ifndef _TARGET_64BIT_
         if (varDsc->TypeGet() == TYP_LONG)
@@ -5456,8 +5456,7 @@ regNumber CodeGen::genIsEnregisteredIntVariable(GenTreePtr tree)
         /* Does the variable live in a register? */
 
         varNum = tree->gtLclVarCommon.gtLclNum;
-        noway_assert(varNum < compiler->lvaCount);
-        varDsc = compiler->lvaTable + varNum;
+        varDsc = &compiler->lvaTable[varNum];
 
         if (!varDsc->IsFloatRegType() && varDsc->lvRegister)
         {
@@ -5636,7 +5635,7 @@ void CodeGen::genCodeForQmark(GenTreePtr tree, regMaskTP destReg, regMaskTP best
             {
                 // Find the variable in compiler->lvaTable
                 unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-                LclVarDsc* varDsc = compiler->lvaTable + varNum;
+                LclVarDsc* varDsc = &compiler->lvaTable[varNum];
 
 #if !FEATURE_FP_REGALLOC
                 if (varDsc->IsFloatRegType())
@@ -7984,8 +7983,7 @@ void CodeGen::genCodeForGeneralDivide(GenTreePtr tree, regMaskTP destReg, regMas
         if (op1->gtOper == GT_LCL_VAR)
         {
             unsigned varNum = op1->gtLclVarCommon.gtLclNum;
-            noway_assert(varNum < compiler->lvaCount);
-            LclVarDsc* varDsc = compiler->lvaTable + varNum;
+            LclVarDsc* varDsc = &compiler->lvaTable[varNum];
             if (varDsc->lvRegister)
             {
                 destReg &= ~genRegMask(varDsc->lvRegNum);
@@ -8118,8 +8116,7 @@ void CodeGen::genCodeForGeneralDivide(GenTreePtr tree, regMaskTP destReg, regMas
         if (op1->gtOper == GT_LCL_VAR)
         {
             unsigned varNum = op1->gtLclVarCommon.gtLclNum;
-            noway_assert(varNum < compiler->lvaCount);
-            LclVarDsc* varDsc = compiler->lvaTable + varNum;
+            LclVarDsc* varDsc = &compiler->lvaTable[varNum];
             if (varDsc->lvRegister)
             {
                 destReg &= ~genRegMask(varDsc->lvRegNum);
@@ -11168,7 +11165,7 @@ void CodeGen::genLoadIntoFltRetRegs(GenTreePtr tree)
 {
     assert(tree->TypeGet() == TYP_STRUCT);
     assert(tree->gtOper == GT_LCL_VAR);
-    LclVarDsc* varDsc = compiler->lvaTable + tree->gtLclVarCommon.gtLclNum;
+    LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
     int        slots  = varDsc->lvSize() / REGSIZE_BYTES;
     if (varDsc->lvPromoted)
     {
@@ -11315,8 +11312,7 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTreePtr tree)
 
         case GT_LCL_VAR:
             varNum = op1->gtLclVarCommon.gtLclNum;
-            noway_assert(varNum < compiler->lvaCount);
-            varDsc = compiler->lvaTable + varNum;
+            varDsc = &compiler->lvaTable[varNum];
 
             /* For non-debuggable code, every definition of a lcl-var has
              * to be checked to see if we need to open a new scope for it.
@@ -11586,7 +11582,7 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTreePtr tree)
             if ((op1->gtOper == GT_LCL_VAR) && (size < EA_4BYTE))
             {
                 unsigned   varNum = op1->gtLclVarCommon.gtLclNum;
-                LclVarDsc* varDsc = compiler->lvaTable + varNum;
+                LclVarDsc* varDsc = &compiler->lvaTable[varNum];
 
                 // Fix the immediate by sign extending if needed
                 if (!varTypeIsUnsigned(varDsc->TypeGet()))
@@ -12450,8 +12446,7 @@ void CodeGen::genCodeForBBlist()
     gcInfo.gcVarPtrSetInit();
 
     /* If any arguments live in registers, mark those regs as such */
-
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+    for (LclVarDsc* varDsc : compiler->lvaTable)
     {
         /* Is this variable a parameter assigned to a register? */
 
@@ -12471,6 +12466,8 @@ void CodeGen::genCodeForBBlist()
 
         noway_assert(!varTypeIsFloating(varDsc->TypeGet()));
 #endif
+
+        const unsigned varNum = compiler->lvaTable.GetLclNum(varDsc);
 
         /* Mark the register as holding the variable */
 
@@ -12583,7 +12580,7 @@ void CodeGen::genCodeForBBlist()
         while (iter.NextElem(&varIndex))
         {
             varNum = compiler->lvaTrackedToVarNum[varIndex];
-            varDsc = compiler->lvaTable + varNum;
+            varDsc = &compiler->lvaTable[varNum];
             assert(varDsc->lvTracked);
             /* Ignore the variable if it's not not in a reg */
 
@@ -13367,10 +13364,7 @@ void CodeGen::genCodeForTreeLng(GenTreePtr tree, regMaskTP needReg, regMaskTP av
                 if (op1->gtOper == GT_LCL_VAR)
                 {
                     unsigned   varNum = op1->gtLclVarCommon.gtLclNum;
-                    LclVarDsc* varDsc;
-
-                    noway_assert(varNum < compiler->lvaCount);
-                    varDsc = compiler->lvaTable + varNum;
+                    LclVarDsc* varDsc = &compiler->lvaTable[varNum];
 
                     // No dead stores, (with min opts we may have dead stores)
                     noway_assert(!varDsc->lvTracked || compiler->opts.MinOpts() || !(op1->gtFlags & GTF_VAR_DEATH));
@@ -15957,7 +15951,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                             for (int varNum = varDsc->lvFieldLclStart + varDsc->lvFieldCnt - 1;
                                  varNum >= (int)varDsc->lvFieldLclStart; varNum--)
                             {
-                                LclVarDsc* fieldVarDsc = compiler->lvaTable + varNum;
+                                LclVarDsc* fieldVarDsc = &compiler->lvaTable[varNum];
 #ifdef DEBUG
                                 if (fieldVarDsc->lvExactSize == 2 * sizeof(unsigned))
                                 {
@@ -16184,7 +16178,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                 for (unsigned varNum = varDsc->lvFieldLclStart;
                                      varNum < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; varNum++)
                                 {
-                                    LclVarDsc* fieldVarDsc = compiler->lvaTable + varNum;
+                                    LclVarDsc* fieldVarDsc = &compiler->lvaTable[varNum];
 
                                     // All stack aligned fields have already been pushed
                                     if (fieldVarDsc->lvStackAligned())
@@ -19668,12 +19662,13 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
     if (ptrRegs)
     {
         // A reg may be dead already.  The assertion is too strong.
-        LclVarDsc* varDsc;
-        unsigned   varNum;
 
         // use compiler->compCurLife
-        for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount && ptrRegs != 0; varNum++, varDsc++)
+        for (LclVarDsc* varDsc : compiler->lvaTable)
         {
+            if (ptrRegs == 0)
+                break;
+
             /* Ignore the variable if it's not tracked, not in a register, or a floating-point type */
 
             if (!varDsc->lvTracked)
@@ -21260,9 +21255,11 @@ regNumber CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
         deadRegs &= regSet.rsMaskVars;
         if (deadRegs)
         {
-            for (LclVarDsc* varDsc = compiler->lvaTable;
-                 ((varDsc < (compiler->lvaTable + compiler->lvaCount)) && deadRegs); varDsc++)
+            for (LclVarDsc* varDsc : compiler->lvaTable)
             {
+                if (!deadRegs)
+                    break;
+
                 if (!varDsc->lvTracked || !varDsc->lvRegister)
                     continue;
 
@@ -21363,7 +21360,7 @@ regNumber CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
         /* mov reg, dword ptr [tcb address]    */
 
         getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, tcbReg,
-                                  (unsigned)(frameListRoot - compiler->lvaTable), 0);
+                                  compiler->lvaTable.GetLclNum(frameListRoot), 0);
         regTracker.rsTrackRegTrash(tcbReg);
     }
 
@@ -21460,7 +21457,7 @@ void CodeGen::genPInvokeCallEpilog(LclVarDsc* frameListRoot, regMaskTP retVal)
 #endif
 
         getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, reg2,
-                                  (unsigned)(frameListRoot - compiler->lvaTable), 0);
+                                  compiler->lvaTable.GetLclNum(frameListRoot), 0);
         regTracker.rsTrackRegTrash(reg2);
     }
 
