@@ -4563,7 +4563,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
 
                     // This check is only intended to prevent an AV.  Bad varNum values will later
                     // be handled properly by the verifier.
-                    if (varNum < lvaTableCnt)
+                    if (varNum < lvaCount)
                     {
                         // In non-inline cases, note written-to arguments.
                         lvaTable[varNum].lvHasILStoreOp = 1;
@@ -4611,7 +4611,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
 
                     // This check is only intended to prevent an AV.  Bad varNum values will later
                     // be handled properly by the verifier.
-                    if (varNum < lvaTableCnt)
+                    if (varNum < lvaCount)
                     {
                         // In non-inline cases, note written-to locals.
                         if (lvaTable[varNum].lvHasILStoreOp)
@@ -4704,8 +4704,6 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                     // is based in that we know what trees we will
                     // generate for this ldfld, and we require that we
                     // won't need the address of this local at all
-                    noway_assert(varNum < lvaTableCnt);
-
                     const bool notStruct    = !varTypeIsStruct(&lvaTable[varNum]);
                     const bool notLastInstr = (codeAddr < codeEndp - sz);
                     const bool notDebugCode = !opts.compDbgCode;
@@ -9303,7 +9301,7 @@ VARSET_VALRET_TP Compiler::fgGetVarBits(GenTreePtr tree)
     assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD || tree->gtOper == GT_REG_VAR);
 
     unsigned int lclNum = tree->gtLclVarCommon.gtLclNum;
-    LclVarDsc*   varDsc = lvaTable + lclNum;
+    LclVarDsc*   varDsc = &lvaTable[lclNum];
     if (varDsc->lvTracked)
     {
         VarSetOps::AddElemD(this, varBits, varDsc->lvVarIndex);
