@@ -105,7 +105,6 @@ public:
         DWORD     cbTypeSpec;
         DWORD     pMethodSpec_Index;
         DWORD     cbMethodSpec;
-        DWORD     exceptionCode;
     };
     struct Agnostic_GetArgType
     {
@@ -165,6 +164,7 @@ public:
         DWORDLONG tokenScope;
         DWORD     token;
         DWORD     tokenType;
+
         DWORDLONG hClass;
         DWORDLONG hMethod;
         DWORDLONG hField;
@@ -450,6 +450,12 @@ public:
         DWORDLONG ownerType;
     };
 
+    struct ResolveTokenValue
+    {
+        Agnostic_CORINFO_RESOLVED_TOKENout tokenOut;
+        DWORD                              exceptionCode;
+    };
+
 #pragma pack(pop)
 
     MethodContext();
@@ -559,7 +565,7 @@ public:
                                DWORD*                exceptionCode);
 
     void recResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, DWORD exceptionCode);
-    void dmpResolveToken(const Agnostic_CORINFO_RESOLVED_TOKENin& key, const Agnostic_CORINFO_RESOLVED_TOKENout& value);
+    void dmpResolveToken(const Agnostic_CORINFO_RESOLVED_TOKENin& key, const ResolveTokenValue& value);
     void repResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, DWORD* exceptionCode);
 
     void recTryResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, bool success);
