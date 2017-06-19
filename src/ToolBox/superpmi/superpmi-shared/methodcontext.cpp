@@ -1339,75 +1339,63 @@ void MethodContext::repResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, DWOR
 void MethodContext::recTryResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, bool success)
 {
     if (TryResolveToken == nullptr)
-        TryResolveToken = new LightWeightMap<Agnostic_CORINFO_RESOLVED_TOKENin, Agnostic_CORINFO_RESOLVED_TOKENout>();
+        TryResolveToken = new LightWeightMap<Agnostic_CORINFO_RESOLVED_TOKENin, TryResolveTokenValue>();
 
     Agnostic_CORINFO_RESOLVED_TOKENin key;
     ZeroMemory(&key, sizeof(Agnostic_CORINFO_RESOLVED_TOKENin)); // We use the input structs as a key and use memcmp to
                                                                  // compare.. so we need to zero out padding too
-    Agnostic_CORINFO_RESOLVED_TOKENout value;
-
     key.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
     key.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
     key.token        = (DWORD)pResolvedToken->token;
     key.tokenType    = (DWORD)pResolvedToken->tokenType;
 
-    value.hClass  = (DWORDLONG)pResolvedToken->hClass;
-    value.hMethod = (DWORDLONG)pResolvedToken->hMethod;
-    value.hField  = (DWORDLONG)pResolvedToken->hField;
-    value.pTypeSpec_Index =
+    TryResolveTokenValue value;
+
+    value.tokenOut.hClass  = (DWORDLONG)pResolvedToken->hClass;
+    value.tokenOut.hMethod = (DWORDLONG)pResolvedToken->hMethod;
+    value.tokenOut.hField  = (DWORDLONG)pResolvedToken->hField;
+    value.tokenOut.pTypeSpec_Index =
         (DWORD)ResolveToken->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    value.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    value.pMethodSpec_Index =
+    value.tokenOut.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
+    value.tokenOut.pMethodSpec_Index =
         (DWORD)ResolveToken->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    value.cbMethodSpec  = (DWORD)pResolvedToken->cbMethodSpec;
-    value.exceptionCode = success ? 0 : 1;
+    value.tokenOut.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    value.success               = success ? 0 : 1;
 
     TryResolveToken->Add(key, value);
     DEBUG_REC(dmpTryResolveToken(key, value));
 }
-void MethodContext::dmpTryResolveToken(const Agnostic_CORINFO_RESOLVED_TOKENin&  key,
-                                       const Agnostic_CORINFO_RESOLVED_TOKENout& value)
+void MethodContext::dmpTryResolveToken(const Agnostic_CORINFO_RESOLVED_TOKENin& key, const TryResolveTokenValue& value)
 {
     printf("TryResolveToken key tc-%016llX ts-%016llX tok-%08X tt-%u", key.tokenContext, key.tokenScope, key.token,
            key.tokenType);
-    printf(", value cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u mi-%u ms-%u failed-%u", value.hClass,
-           value.hMethod, value.hField, value.pTypeSpec_Index, value.cbTypeSpec, value.pMethodSpec_Index,
-           value.cbMethodSpec, value.exceptionCode);
+    printf(", value cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u mi-%u ms-%u failed-%u", value.tokenOut.hClass,
+           value.tokenOut.hMethod, value.tokenOut.hField, value.tokenOut.pTypeSpec_Index, value.tokenOut.cbTypeSpec,
+           value.tokenOut.pMethodSpec_Index, value.tokenOut.cbMethodSpec, value.success);
 }
 bool MethodContext::repTryResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken)
 {
     Agnostic_CORINFO_RESOLVED_TOKENin key;
     ZeroMemory(&key, sizeof(Agnostic_CORINFO_RESOLVED_TOKENin)); // We use the input structs as a key and use memcmp to
                                                                  // compare.. so we need to zero out padding too
-    Agnostic_CORINFO_RESOLVED_TOKENout value;
 
     key.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
     key.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
     key.token        = (DWORD)pResolvedToken->token;
     key.tokenType    = (DWORD)pResolvedToken->tokenType;
 
-    // Best-effort: if the `tryResolveToken` map is missing or the key is not found therein,
-    // fall back to the `resolveToken` map.
-    if (TryResolveToken != nullptr && TryResolveToken->GetIndex(key) != -1)
-    {
-        value = TryResolveToken->Get(key);
-    }
-    else
-    {
-        AssertCodeMsg(ResolveToken->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %x", pResolvedToken->token);
-        value = ResolveToken->Get(key);
-    }
+    TryResolveTokenValue value = TryResolveToken->Get(key);
 
-    pResolvedToken->hClass       = (CORINFO_CLASS_HANDLE)value.hClass;
-    pResolvedToken->hMethod      = (CORINFO_METHOD_HANDLE)value.hMethod;
-    pResolvedToken->hField       = (CORINFO_FIELD_HANDLE)value.hField;
-    pResolvedToken->pTypeSpec    = (PCCOR_SIGNATURE)ResolveToken->GetBuffer(value.pTypeSpec_Index);
-    pResolvedToken->cbTypeSpec   = (ULONG)value.cbTypeSpec;
-    pResolvedToken->pMethodSpec  = (PCCOR_SIGNATURE)ResolveToken->GetBuffer(value.pMethodSpec_Index);
-    pResolvedToken->cbMethodSpec = (ULONG)value.cbMethodSpec;
+    pResolvedToken->hClass       = (CORINFO_CLASS_HANDLE)value.tokenOut.hClass;
+    pResolvedToken->hMethod      = (CORINFO_METHOD_HANDLE)value.tokenOut.hMethod;
+    pResolvedToken->hField       = (CORINFO_FIELD_HANDLE)value.tokenOut.hField;
+    pResolvedToken->pTypeSpec    = (PCCOR_SIGNATURE)ResolveToken->GetBuffer(value.tokenOut.pTypeSpec_Index);
+    pResolvedToken->cbTypeSpec   = (ULONG)value.tokenOut.cbTypeSpec;
+    pResolvedToken->pMethodSpec  = (PCCOR_SIGNATURE)ResolveToken->GetBuffer(value.tokenOut.pMethodSpec_Index);
+    pResolvedToken->cbMethodSpec = (ULONG)value.tokenOut.cbMethodSpec;
 
     DEBUG_REP(dmpTryResolveToken(key, value));
-    return (DWORD)value.exceptionCode == 0;
+    return (DWORD)value.success == 0;
 }
 
 void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
@@ -1425,50 +1413,50 @@ void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                                     // we need to zero out padding too
     Agnostic_CORINFO_CALL_INFO value;
 
-    key.ResolvedToken.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.pTypeSpec_Index =
+    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
+    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
+    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
+    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
+    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
+    key.ResolvedToken.outValue.pTypeSpec_Index =
         (DWORD)GetCallInfo->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.pMethodSpec_Index =
+    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
+    key.ResolvedToken.outValue.pMethodSpec_Index =
         (DWORD)GetCallInfo->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     if (pConstrainedResolvedToken != nullptr)
     {
-        key.ConstrainedResolvedToken.tokenContext = (DWORDLONG)pConstrainedResolvedToken->tokenContext;
-        key.ConstrainedResolvedToken.tokenScope   = (DWORDLONG)pConstrainedResolvedToken->tokenScope;
-        key.ConstrainedResolvedToken.token        = (DWORD)pConstrainedResolvedToken->token;
-        key.ConstrainedResolvedToken.tokenType    = (DWORD)pConstrainedResolvedToken->tokenType;
-        key.ConstrainedResolvedToken.hClass       = (DWORDLONG)pConstrainedResolvedToken->hClass;
-        key.ConstrainedResolvedToken.hMethod      = (DWORDLONG)pConstrainedResolvedToken->hMethod;
-        key.ConstrainedResolvedToken.hField       = (DWORDLONG)pConstrainedResolvedToken->hField;
-        key.ConstrainedResolvedToken.pTypeSpec_Index =
+        key.ConstrainedResolvedToken.inValue.tokenContext = (DWORDLONG)pConstrainedResolvedToken->tokenContext;
+        key.ConstrainedResolvedToken.inValue.tokenScope   = (DWORDLONG)pConstrainedResolvedToken->tokenScope;
+        key.ConstrainedResolvedToken.inValue.token        = (DWORD)pConstrainedResolvedToken->token;
+        key.ConstrainedResolvedToken.inValue.tokenType    = (DWORD)pConstrainedResolvedToken->tokenType;
+        key.ConstrainedResolvedToken.outValue.hClass      = (DWORDLONG)pConstrainedResolvedToken->hClass;
+        key.ConstrainedResolvedToken.outValue.hMethod     = (DWORDLONG)pConstrainedResolvedToken->hMethod;
+        key.ConstrainedResolvedToken.outValue.hField      = (DWORDLONG)pConstrainedResolvedToken->hField;
+        key.ConstrainedResolvedToken.outValue.pTypeSpec_Index =
             (DWORD)GetCallInfo->AddBuffer((unsigned char*)pConstrainedResolvedToken->pTypeSpec,
                                           pConstrainedResolvedToken->cbTypeSpec);
-        key.ConstrainedResolvedToken.cbTypeSpec = (DWORD)pConstrainedResolvedToken->cbTypeSpec;
-        key.ConstrainedResolvedToken.pMethodSpec_Index =
+        key.ConstrainedResolvedToken.outValue.cbTypeSpec = (DWORD)pConstrainedResolvedToken->cbTypeSpec;
+        key.ConstrainedResolvedToken.outValue.pMethodSpec_Index =
             (DWORD)GetCallInfo->AddBuffer((unsigned char*)pConstrainedResolvedToken->pMethodSpec,
                                           pConstrainedResolvedToken->cbMethodSpec);
-        key.ConstrainedResolvedToken.cbMethodSpec = (DWORD)pConstrainedResolvedToken->cbMethodSpec;
+        key.ConstrainedResolvedToken.outValue.cbMethodSpec = (DWORD)pConstrainedResolvedToken->cbMethodSpec;
     }
     else
     {
-        key.ConstrainedResolvedToken.tokenContext      = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.tokenScope        = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.token             = (DWORD)0;
-        key.ConstrainedResolvedToken.tokenType         = (DWORD)0;
-        key.ConstrainedResolvedToken.hClass            = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.hMethod           = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.hField            = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.pTypeSpec_Index   = (DWORD)0;
-        key.ConstrainedResolvedToken.cbTypeSpec        = (DWORD)0;
-        key.ConstrainedResolvedToken.pMethodSpec_Index = (DWORD)0;
-        key.ConstrainedResolvedToken.cbMethodSpec      = (DWORD)0;
+        key.ConstrainedResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.inValue.token              = (DWORD)0;
+        key.ConstrainedResolvedToken.inValue.tokenType          = (DWORD)0;
+        key.ConstrainedResolvedToken.outValue.hClass            = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.outValue.hMethod           = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.outValue.hField            = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
+        key.ConstrainedResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
+        key.ConstrainedResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
+        key.ConstrainedResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
     }
 
     key.callerHandle = (DWORDLONG)callerHandle;
@@ -1607,16 +1595,17 @@ void MethodContext::dmpGetCallInfo(const Agnostic_GetCallInfo& key, const Agnost
            " rt{tc-%016llX ts-%016llX tok-%08X tt-%u cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u mi-%u ms-%u}"
            " crt{tc-%016llX ts-%016llX tok-%08X tt-%u cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u mi-%u ms-%u}"
            " ch-%016llX flg-%08X",
-           key.ResolvedToken.tokenContext, key.ResolvedToken.tokenScope, key.ResolvedToken.token,
-           key.ResolvedToken.tokenType, key.ResolvedToken.hClass, key.ResolvedToken.hMethod, key.ResolvedToken.hField,
-           key.ResolvedToken.pTypeSpec_Index, key.ResolvedToken.cbTypeSpec, key.ResolvedToken.pMethodSpec_Index,
-           key.ResolvedToken.cbMethodSpec, key.ConstrainedResolvedToken.tokenContext,
-           key.ConstrainedResolvedToken.tokenScope, key.ConstrainedResolvedToken.token,
-           key.ConstrainedResolvedToken.tokenType, key.ConstrainedResolvedToken.hClass,
-           key.ConstrainedResolvedToken.hMethod, key.ConstrainedResolvedToken.hField,
-           key.ConstrainedResolvedToken.pTypeSpec_Index, key.ConstrainedResolvedToken.cbTypeSpec,
-           key.ConstrainedResolvedToken.pMethodSpec_Index, key.ConstrainedResolvedToken.cbMethodSpec, key.callerHandle,
-           key.flags);
+           key.ResolvedToken.inValue.tokenContext, key.ResolvedToken.inValue.tokenScope,
+           key.ResolvedToken.inValue.token, key.ResolvedToken.inValue.tokenType, key.ResolvedToken.outValue.hClass,
+           key.ResolvedToken.outValue.hMethod, key.ResolvedToken.outValue.hField,
+           key.ResolvedToken.outValue.pTypeSpec_Index, key.ResolvedToken.outValue.cbTypeSpec,
+           key.ResolvedToken.outValue.pMethodSpec_Index, key.ResolvedToken.outValue.cbMethodSpec,
+           key.ConstrainedResolvedToken.inValue.tokenContext, key.ConstrainedResolvedToken.inValue.tokenScope,
+           key.ConstrainedResolvedToken.inValue.token, key.ConstrainedResolvedToken.inValue.tokenType,
+           key.ConstrainedResolvedToken.outValue.hClass, key.ConstrainedResolvedToken.outValue.hMethod,
+           key.ConstrainedResolvedToken.outValue.hField, key.ConstrainedResolvedToken.outValue.pTypeSpec_Index,
+           key.ConstrainedResolvedToken.outValue.cbTypeSpec, key.ConstrainedResolvedToken.outValue.pMethodSpec_Index,
+           key.ConstrainedResolvedToken.outValue.cbMethodSpec, key.callerHandle, key.flags);
     printf(", value mth-%016llX, mf-%08X cf-%08X"
            " sig{flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u args-%016llX scp-%016llX tok-%08X}"
            " vsig{flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u args-%016llX scp-%016llX tok-%08X}"
@@ -1641,59 +1630,60 @@ void MethodContext::repGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     Agnostic_GetCallInfo key;
     ZeroMemory(&key, sizeof(Agnostic_GetCallInfo)); // We use the input structs as a key and use memcmp to compare.. so
                                                     // we need to zero out padding too
-    Agnostic_CORINFO_CALL_INFO value;
-
-    key.ResolvedToken.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.pTypeSpec_Index =
+    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
+    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
+    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
+    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
+    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
+    key.ResolvedToken.outValue.pTypeSpec_Index =
         (DWORD)GetCallInfo->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.pMethodSpec_Index =
+    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
+    key.ResolvedToken.outValue.pMethodSpec_Index =
         (DWORD)GetCallInfo->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     if (pConstrainedResolvedToken != nullptr)
     {
-        key.ConstrainedResolvedToken.tokenContext = (DWORDLONG)pConstrainedResolvedToken->tokenContext;
-        key.ConstrainedResolvedToken.tokenScope   = (DWORDLONG)pConstrainedResolvedToken->tokenScope;
-        key.ConstrainedResolvedToken.token        = (DWORD)pConstrainedResolvedToken->token;
-        key.ConstrainedResolvedToken.tokenType    = (DWORD)pConstrainedResolvedToken->tokenType;
-        key.ConstrainedResolvedToken.hClass       = (DWORDLONG)pConstrainedResolvedToken->hClass;
-        key.ConstrainedResolvedToken.hMethod      = (DWORDLONG)pConstrainedResolvedToken->hMethod;
-        key.ConstrainedResolvedToken.hField       = (DWORDLONG)pConstrainedResolvedToken->hField;
-        key.ConstrainedResolvedToken.pTypeSpec_Index =
+        key.ConstrainedResolvedToken.inValue.tokenContext = (DWORDLONG)pConstrainedResolvedToken->tokenContext;
+        key.ConstrainedResolvedToken.inValue.tokenScope   = (DWORDLONG)pConstrainedResolvedToken->tokenScope;
+        key.ConstrainedResolvedToken.inValue.token        = (DWORD)pConstrainedResolvedToken->token;
+        key.ConstrainedResolvedToken.inValue.tokenType    = (DWORD)pConstrainedResolvedToken->tokenType;
+        key.ConstrainedResolvedToken.outValue.hClass      = (DWORDLONG)pConstrainedResolvedToken->hClass;
+        key.ConstrainedResolvedToken.outValue.hMethod     = (DWORDLONG)pConstrainedResolvedToken->hMethod;
+        key.ConstrainedResolvedToken.outValue.hField      = (DWORDLONG)pConstrainedResolvedToken->hField;
+        key.ConstrainedResolvedToken.outValue.pTypeSpec_Index =
             (DWORD)GetCallInfo->Contains((unsigned char*)pConstrainedResolvedToken->pTypeSpec,
                                          pConstrainedResolvedToken->cbTypeSpec);
-        key.ConstrainedResolvedToken.cbTypeSpec = (DWORD)pConstrainedResolvedToken->cbTypeSpec;
-        key.ConstrainedResolvedToken.pMethodSpec_Index =
+        key.ConstrainedResolvedToken.outValue.cbTypeSpec = (DWORD)pConstrainedResolvedToken->cbTypeSpec;
+        key.ConstrainedResolvedToken.outValue.pMethodSpec_Index =
             (DWORD)GetCallInfo->Contains((unsigned char*)pConstrainedResolvedToken->pMethodSpec,
                                          pConstrainedResolvedToken->cbMethodSpec);
-        key.ConstrainedResolvedToken.cbMethodSpec = (DWORD)pConstrainedResolvedToken->cbMethodSpec;
+        key.ConstrainedResolvedToken.outValue.cbMethodSpec = (DWORD)pConstrainedResolvedToken->cbMethodSpec;
     }
     else
     {
-        key.ConstrainedResolvedToken.tokenContext      = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.tokenScope        = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.token             = (DWORD)0;
-        key.ConstrainedResolvedToken.tokenType         = (DWORD)0;
-        key.ConstrainedResolvedToken.hClass            = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.hMethod           = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.hField            = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.pTypeSpec_Index   = (DWORD)0;
-        key.ConstrainedResolvedToken.cbTypeSpec        = (DWORD)0;
-        key.ConstrainedResolvedToken.pMethodSpec_Index = (DWORD)0;
-        key.ConstrainedResolvedToken.cbMethodSpec      = (DWORD)0;
+        key.ConstrainedResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.inValue.token              = (DWORD)0;
+        key.ConstrainedResolvedToken.inValue.tokenType          = (DWORD)0;
+        key.ConstrainedResolvedToken.outValue.hClass            = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.outValue.hMethod           = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.outValue.hField            = (DWORDLONG)0;
+        key.ConstrainedResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
+        key.ConstrainedResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
+        key.ConstrainedResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
+        key.ConstrainedResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
     }
     key.callerHandle = (DWORDLONG)callerHandle;
     key.flags        = (DWORD)flags;
 
     AssertCodeMsg(GetCallInfo->GetIndex(key) != -1, EXCEPTIONCODE_MC,
-                  "Didn't find %08x, %016llx. Probably a missing exception in GetCallInfo", key.ResolvedToken.token,
-                  key.ResolvedToken.hClass);
+                  "Didn't find %08x, %016llx. Probably a missing exception in GetCallInfo",
+                  key.ResolvedToken.inValue.token, key.ResolvedToken.outValue.hClass);
+
+    Agnostic_CORINFO_CALL_INFO value;
+
     value = GetCallInfo->Get(key);
 
     pResult->hMethod                    = (CORINFO_METHOD_HANDLE)value.hMethod;
@@ -1809,10 +1799,10 @@ void MethodContext::repGetCallInfoFromMethodHandle(CORINFO_METHOD_HANDLE methodH
                 CORINFO_RESOLVED_TOKEN resolvedToken;
                 DWORD                  exceptionCode;
 
-                resolvedToken.tokenContext = (CORINFO_CONTEXT_HANDLE)key.ResolvedToken.tokenContext;
-                resolvedToken.tokenScope   = (CORINFO_MODULE_HANDLE)key.ResolvedToken.tokenScope;
-                resolvedToken.token        = (mdToken)key.ResolvedToken.token;
-                resolvedToken.tokenType    = (CorInfoTokenKind)key.ResolvedToken.tokenType;
+                resolvedToken.tokenContext = (CORINFO_CONTEXT_HANDLE)key.ResolvedToken.inValue.tokenContext;
+                resolvedToken.tokenScope   = (CORINFO_MODULE_HANDLE)key.ResolvedToken.inValue.tokenScope;
+                resolvedToken.token        = (mdToken)key.ResolvedToken.inValue.token;
+                resolvedToken.tokenType    = (CorInfoTokenKind)key.ResolvedToken.inValue.tokenType;
 
                 repResolveToken(&resolvedToken, &exceptionCode);
 
@@ -1823,15 +1813,17 @@ void MethodContext::repGetCallInfoFromMethodHandle(CORINFO_METHOD_HANDLE methodH
                 CORINFO_RESOLVED_TOKEN  constrainedResolvedToken;
                 CORINFO_RESOLVED_TOKEN* pConstrainedResolvedToken = nullptr;
 
-                if (key.ConstrainedResolvedToken.tokenContext != 0 && key.ConstrainedResolvedToken.tokenScope != 0)
+                if (key.ConstrainedResolvedToken.inValue.tokenContext != 0 &&
+                    key.ConstrainedResolvedToken.inValue.tokenScope != 0)
                 {
                     constrainedResolvedToken.tokenContext =
-                        (CORINFO_CONTEXT_HANDLE)key.ConstrainedResolvedToken.tokenContext;
+                        (CORINFO_CONTEXT_HANDLE)key.ConstrainedResolvedToken.inValue.tokenContext;
                     constrainedResolvedToken.tokenScope =
-                        (CORINFO_MODULE_HANDLE)key.ConstrainedResolvedToken.tokenScope;
-                    constrainedResolvedToken.token     = (mdToken)key.ConstrainedResolvedToken.token;
-                    constrainedResolvedToken.tokenType = (CorInfoTokenKind)key.ConstrainedResolvedToken.tokenType;
-                    pConstrainedResolvedToken          = &constrainedResolvedToken;
+                        (CORINFO_MODULE_HANDLE)key.ConstrainedResolvedToken.inValue.tokenScope;
+                    constrainedResolvedToken.token = (mdToken)key.ConstrainedResolvedToken.inValue.token;
+                    constrainedResolvedToken.tokenType =
+                        (CorInfoTokenKind)key.ConstrainedResolvedToken.inValue.tokenType;
+                    pConstrainedResolvedToken = &constrainedResolvedToken;
 
                     repResolveToken(pConstrainedResolvedToken, &exceptionCode);
                 }
@@ -3130,26 +3122,26 @@ void MethodContext::recGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     ZeroMemory(&key, sizeof(Agnostic_GetNewHelper)); // We use the input structs as a key and use memcmp to compare.. so
                                                      // we need to zero out padding too
 
-    key.ResolvedToken.tokenContext      = (DWORDLONG)0;
-    key.ResolvedToken.tokenScope        = (DWORDLONG)0;
-    key.ResolvedToken.token             = (DWORD)0;
-    key.ResolvedToken.tokenType         = (DWORD)0;
-    key.ResolvedToken.hClass            = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod           = (DWORDLONG)0;
-    key.ResolvedToken.hField            = (DWORDLONG)0;
-    key.ResolvedToken.pTypeSpec_Index   = (DWORD)0;
-    key.ResolvedToken.cbTypeSpec        = (DWORD)0;
-    key.ResolvedToken.pMethodSpec_Index = (DWORD)0;
-    key.ResolvedToken.cbMethodSpec      = (DWORD)0;
-    key.callerHandle                    = (DWORDLONG)callerHandle;
+    key.ResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
+    key.ResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
+    key.ResolvedToken.inValue.token              = (DWORD)0;
+    key.ResolvedToken.inValue.tokenType          = (DWORD)0;
+    key.ResolvedToken.outValue.hClass            = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod           = (DWORDLONG)0;
+    key.ResolvedToken.outValue.hField            = (DWORDLONG)0;
+    key.ResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
+    key.ResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
+    key.ResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
+    key.ResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
+    key.callerHandle                             = (DWORDLONG)callerHandle;
 
     GetNewHelper->Add(key, (DWORD)result);
     DEBUG_REC(dmpGetNewHelper(key, (DWORD)result));
 }
 void MethodContext::dmpGetNewHelper(const Agnostic_GetNewHelper& key, DWORD value)
 {
-    printf("GetNewHelper key cls-%016llX chan-%016llX, value res-%u", key.ResolvedToken.hClass, key.callerHandle,
-           value);
+    printf("GetNewHelper key cls-%016llX chan-%016llX, value res-%u", key.ResolvedToken.outValue.hClass,
+           key.callerHandle, value);
 }
 CorInfoHelpFunc MethodContext::repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                                CORINFO_METHOD_HANDLE   callerHandle)
@@ -3158,23 +3150,23 @@ CorInfoHelpFunc MethodContext::repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolved
     ZeroMemory(&key, sizeof(Agnostic_GetNewHelper)); // We use the input structs as a key and use memcmp to compare.. so
                                                      // we need to zero out padding too
 
-    key.ResolvedToken.tokenContext      = (DWORDLONG)0;
-    key.ResolvedToken.tokenScope        = (DWORDLONG)0;
-    key.ResolvedToken.token             = (DWORD)0;
-    key.ResolvedToken.tokenType         = (DWORD)0;
-    key.ResolvedToken.hClass            = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod           = (DWORDLONG)0;
-    key.ResolvedToken.hField            = (DWORDLONG)0;
-    key.ResolvedToken.pTypeSpec_Index   = (DWORD)0;
-    key.ResolvedToken.cbTypeSpec        = (DWORD)0;
-    key.ResolvedToken.pMethodSpec_Index = (DWORD)0;
-    key.ResolvedToken.cbMethodSpec      = (DWORD)0;
-    key.callerHandle                    = (DWORDLONG)callerHandle;
+    key.ResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
+    key.ResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
+    key.ResolvedToken.inValue.token              = (DWORD)0;
+    key.ResolvedToken.inValue.tokenType          = (DWORD)0;
+    key.ResolvedToken.outValue.hClass            = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod           = (DWORDLONG)0;
+    key.ResolvedToken.outValue.hField            = (DWORDLONG)0;
+    key.ResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
+    key.ResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
+    key.ResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
+    key.ResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
+    key.callerHandle                             = (DWORDLONG)callerHandle;
 
     AssertCodeMsg(GetNewHelper != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX",
-                  (DWORDLONG)key.ResolvedToken.hClass);
+                  (DWORDLONG)key.ResolvedToken.outValue.hClass);
     AssertCodeMsg(GetNewHelper->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
-                  (DWORDLONG)key.ResolvedToken.hClass);
+                  (DWORDLONG)key.ResolvedToken.outValue.hClass);
     CorInfoHelpFunc value = (CorInfoHelpFunc)GetNewHelper->Get(key);
     DEBUG_REP(dmpGetNewHelper(key, value));
     return value;
@@ -3192,20 +3184,20 @@ void MethodContext::recEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolve
                                                            // compare.. so we need to zero out padding too
     Agnostic_CORINFO_GENERICHANDLE_RESULT value;
 
-    key.ResolvedToken.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.pTypeSpec_Index =
+    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
+    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
+    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
+    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
+    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
+    key.ResolvedToken.outValue.pTypeSpec_Index =
         (DWORD)EmbedGenericHandle->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.pMethodSpec_Index =
+    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
+    key.ResolvedToken.outValue.pMethodSpec_Index =
         (DWORD)EmbedGenericHandle->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.fEmbedParent               = (DWORD)fEmbedParent;
+    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    key.fEmbedParent                        = (DWORD)fEmbedParent;
 
     value.lookup.lookupKind.needsRuntimeLookup = (DWORD)pResult->lookup.lookupKind.needsRuntimeLookup;
     value.lookup.lookupKind.runtimeLookupKind  = (DWORD)pResult->lookup.lookupKind.runtimeLookupKind;
@@ -3248,10 +3240,11 @@ void MethodContext::dmpEmbedGenericHandle(const Agnostic_EmbedGenericHandle&    
 {
     printf("EmbedGenericHandle key rt{tokCon-%016llX tokScp-%016llX tok-%08X tokTyp-%08X cls-%016llX ftn-%016llX "
            "fld-%016llX tsi-%u cbts-%u msi-%u cbms-%u} emb-%u",
-           key.ResolvedToken.tokenContext, key.ResolvedToken.tokenScope, key.ResolvedToken.token,
-           key.ResolvedToken.tokenType, key.ResolvedToken.hClass, key.ResolvedToken.hMethod, key.ResolvedToken.hField,
-           key.ResolvedToken.pTypeSpec_Index, key.ResolvedToken.cbTypeSpec, key.ResolvedToken.pMethodSpec_Index,
-           key.ResolvedToken.cbMethodSpec, key.fEmbedParent);
+           key.ResolvedToken.inValue.tokenContext, key.ResolvedToken.inValue.tokenScope,
+           key.ResolvedToken.inValue.token, key.ResolvedToken.inValue.tokenType, key.ResolvedToken.outValue.hClass,
+           key.ResolvedToken.outValue.hMethod, key.ResolvedToken.outValue.hField,
+           key.ResolvedToken.outValue.pTypeSpec_Index, key.ResolvedToken.outValue.cbTypeSpec,
+           key.ResolvedToken.outValue.pMethodSpec_Index, key.ResolvedToken.outValue.cbMethodSpec, key.fEmbedParent);
     printf(", value nrl-%u rlk-%u", value.lookup.lookupKind.needsRuntimeLookup,
            value.lookup.lookupKind.runtimeLookupKind);
     if (value.lookup.lookupKind.needsRuntimeLookup)
@@ -3279,20 +3272,20 @@ void MethodContext::repEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolve
     Agnostic_CORINFO_GENERICHANDLE_RESULT value;
 
     AssertCodeMsg(EmbedGenericHandle != nullptr, EXCEPTIONCODE_MC, "Encountered an empty LWM while looking for ...");
-    key.ResolvedToken.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.pTypeSpec_Index =
+    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
+    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
+    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
+    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
+    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
+    key.ResolvedToken.outValue.pTypeSpec_Index =
         (DWORD)EmbedGenericHandle->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.pMethodSpec_Index =
+    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
+    key.ResolvedToken.outValue.pMethodSpec_Index =
         (DWORD)EmbedGenericHandle->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.fEmbedParent               = (DWORD)fEmbedParent;
+    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    key.fEmbedParent                        = (DWORD)fEmbedParent;
 
     AssertCodeMsg(EmbedGenericHandle->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find ...");
     value = EmbedGenericHandle->Get(key);
@@ -3460,23 +3453,24 @@ void MethodContext::recGetTokenTypeAsHandle(CORINFO_RESOLVED_TOKEN* pResolvedTok
     ZeroMemory(&key, sizeof(Agnostic_CORINFO_RESOLVED_TOKEN)); // We use the input structs as a key and use memcmp to
                                                                // compare.. so we need to zero out padding too
 
-    key.tokenContext      = (DWORDLONG)0;
-    key.tokenScope        = (DWORDLONG)0;
-    key.token             = (DWORD)0;
-    key.tokenType         = (DWORD)0;
-    key.hClass            = (DWORDLONG)0;
-    key.hMethod           = (DWORDLONG)pResolvedToken->hMethod;
-    key.hField            = (DWORDLONG)pResolvedToken->hField;
-    key.pTypeSpec_Index   = (DWORD)0;
-    key.cbTypeSpec        = (DWORD)0;
-    key.pMethodSpec_Index = (DWORD)0;
-    key.cbMethodSpec      = (DWORD)0;
+    key.inValue.tokenContext       = (DWORDLONG)0;
+    key.inValue.tokenScope         = (DWORDLONG)0;
+    key.inValue.token              = (DWORD)0;
+    key.inValue.tokenType          = (DWORD)0;
+    key.outValue.hClass            = (DWORDLONG)0;
+    key.outValue.hMethod           = (DWORDLONG)pResolvedToken->hMethod;
+    key.outValue.hField            = (DWORDLONG)pResolvedToken->hField;
+    key.outValue.pTypeSpec_Index   = (DWORD)0;
+    key.outValue.cbTypeSpec        = (DWORD)0;
+    key.outValue.pMethodSpec_Index = (DWORD)0;
+    key.outValue.cbMethodSpec      = (DWORD)0;
 
     GetTokenTypeAsHandle->Add(key, (DWORDLONG)result);
 }
 void MethodContext::dmpGetTokenTypeAsHandle(const Agnostic_CORINFO_RESOLVED_TOKEN& key, DWORDLONG value)
 {
-    printf("GetTokenTypeAsHandle key ftn-%016llX fld-%016llX, value cls-%016llX", key.hMethod, key.hField, value);
+    printf("GetTokenTypeAsHandle key ftn-%016llX fld-%016llX, value cls-%016llX", key.outValue.hMethod,
+           key.outValue.hField, value);
 }
 CORINFO_CLASS_HANDLE MethodContext::repGetTokenTypeAsHandle(CORINFO_RESOLVED_TOKEN* pResolvedToken)
 {
@@ -3484,17 +3478,17 @@ CORINFO_CLASS_HANDLE MethodContext::repGetTokenTypeAsHandle(CORINFO_RESOLVED_TOK
     ZeroMemory(&key, sizeof(Agnostic_CORINFO_RESOLVED_TOKEN)); // We use the input structs as a key and use memcmp to
                                                                // compare.. so we need to zero out padding too
 
-    key.tokenContext      = (DWORDLONG)0;
-    key.tokenScope        = (DWORDLONG)0;
-    key.token             = (DWORD)0;
-    key.tokenType         = (DWORD)0;
-    key.hClass            = (DWORDLONG)0;
-    key.hMethod           = (DWORDLONG)pResolvedToken->hMethod;
-    key.hField            = (DWORDLONG)pResolvedToken->hField;
-    key.pTypeSpec_Index   = (DWORD)0;
-    key.cbTypeSpec        = (DWORD)0;
-    key.pMethodSpec_Index = (DWORD)0;
-    key.cbMethodSpec      = (DWORD)0;
+    key.inValue.tokenContext       = (DWORDLONG)0;
+    key.inValue.tokenScope         = (DWORDLONG)0;
+    key.inValue.token              = (DWORD)0;
+    key.inValue.tokenType          = (DWORD)0;
+    key.outValue.hClass            = (DWORDLONG)0;
+    key.outValue.hMethod           = (DWORDLONG)pResolvedToken->hMethod;
+    key.outValue.hField            = (DWORDLONG)pResolvedToken->hField;
+    key.outValue.pTypeSpec_Index   = (DWORD)0;
+    key.outValue.cbTypeSpec        = (DWORD)0;
+    key.outValue.pMethodSpec_Index = (DWORD)0;
+    key.outValue.cbMethodSpec      = (DWORD)0;
 
     CORINFO_CLASS_HANDLE value = (CORINFO_CLASS_HANDLE)GetTokenTypeAsHandle->Get(key);
     return value;
@@ -3512,21 +3506,21 @@ void MethodContext::recGetFieldInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                                      // need to zero out the padding bytes too
     Agnostic_CORINFO_FIELD_INFO value;
 
-    key.ResolvedToken.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.pTypeSpec_Index =
+    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
+    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
+    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
+    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
+    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
+    key.ResolvedToken.outValue.pTypeSpec_Index =
         (DWORD)GetFieldInfo->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.pMethodSpec_Index =
+    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
+    key.ResolvedToken.outValue.pMethodSpec_Index =
         (DWORD)GetFieldInfo->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.callerHandle               = (DWORDLONG)callerHandle;
-    key.flags                      = (DWORD)flags;
+    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    key.callerHandle                        = (DWORDLONG)callerHandle;
+    key.flags                               = (DWORD)flags;
 
     value.fieldAccessor                 = (DWORD)pResult->fieldAccessor;
     value.fieldFlags                    = (DWORD)pResult->fieldFlags;
@@ -3549,10 +3543,11 @@ void MethodContext::dmpGetFieldInfo(const Agnostic_GetFieldInfo& key, const Agno
 {
     printf("GetFieldInfo key ch-%016llX flg-%08X rt{tc-%016llX ts-%016llX tok-%08X tt-%u cls-%016llX meth-%016llX "
            "fld-%016llX tsi-%u cbts-%u msi-%u cbms-%u}",
-           key.callerHandle, key.flags, key.ResolvedToken.tokenContext, key.ResolvedToken.tokenScope,
-           key.ResolvedToken.token, key.ResolvedToken.tokenType, key.ResolvedToken.hClass, key.ResolvedToken.hMethod,
-           key.ResolvedToken.hField, key.ResolvedToken.pTypeSpec_Index, key.ResolvedToken.cbTypeSpec,
-           key.ResolvedToken.pMethodSpec_Index, key.ResolvedToken.cbMethodSpec);
+           key.callerHandle, key.flags, key.ResolvedToken.inValue.tokenContext, key.ResolvedToken.inValue.tokenScope,
+           key.ResolvedToken.inValue.token, key.ResolvedToken.inValue.tokenType, key.ResolvedToken.outValue.hClass,
+           key.ResolvedToken.outValue.hMethod, key.ResolvedToken.outValue.hField,
+           key.ResolvedToken.outValue.pTypeSpec_Index, key.ResolvedToken.outValue.cbTypeSpec,
+           key.ResolvedToken.outValue.pMethodSpec_Index, key.ResolvedToken.outValue.cbMethodSpec);
 
     printf(", value fa-%u fflg-%08X hlp-%u off-%u fT-%u(%s) sT-%016llX aa-%u hnum-%u na-%u {", value.fieldAccessor,
            value.fieldFlags, value.helper, value.offset, value.fieldType, toString((CorInfoType)value.fieldType),
@@ -3596,21 +3591,21 @@ void MethodContext::repGetFieldInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     Agnostic_CORINFO_FIELD_INFO value;
 
     AssertCodeMsg(GetFieldInfo != nullptr, EXCEPTIONCODE_MC, "Didn't find %x", pResolvedToken->token);
-    key.ResolvedToken.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.pTypeSpec_Index =
+    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
+    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
+    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
+    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
+    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
+    key.ResolvedToken.outValue.pTypeSpec_Index =
         (DWORD)GetFieldInfo->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.pMethodSpec_Index =
+    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
+    key.ResolvedToken.outValue.pMethodSpec_Index =
         (DWORD)GetFieldInfo->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.callerHandle               = (DWORDLONG)callerHandle;
-    key.flags                      = (DWORD)flags;
+    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    key.callerHandle                        = (DWORDLONG)callerHandle;
+    key.flags                               = (DWORD)flags;
 
     DWORD origFlag = key.flags;
 
@@ -3893,20 +3888,20 @@ void MethodContext::recCanAccessClass(CORINFO_RESOLVED_TOKEN*      pResolvedToke
 
     Agnostic_CanAccessClassOut value;
 
-    key.ResolvedToken.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.pTypeSpec_Index =
+    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
+    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
+    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
+    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
+    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
+    key.ResolvedToken.outValue.pTypeSpec_Index =
         (DWORD)CanAccessClass->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.pMethodSpec_Index =
+    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
+    key.ResolvedToken.outValue.pMethodSpec_Index =
         (DWORD)CanAccessClass->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.callerHandle               = (DWORDLONG)callerHandle;
+    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    key.callerHandle                        = (DWORDLONG)callerHandle;
 
     value.AccessHelper.helperNum = (DWORD)pAccessHelper->helperNum;
     value.AccessHelper.numArgs   = (DWORD)pAccessHelper->numArgs;
@@ -3924,10 +3919,11 @@ void MethodContext::dmpCanAccessClass(const Agnostic_CanAccessClassIn& key, cons
 {
     printf("CanAccessClass key tc-%016llX ts-%016llX tok-%08X tt-%u cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u "
            "mi-%u ms-%u",
-           key.ResolvedToken.tokenContext, key.ResolvedToken.tokenScope, key.ResolvedToken.token,
-           key.ResolvedToken.tokenType, key.ResolvedToken.hClass, key.ResolvedToken.hMethod, key.ResolvedToken.hField,
-           key.ResolvedToken.pTypeSpec_Index, key.ResolvedToken.cbTypeSpec, key.ResolvedToken.pMethodSpec_Index,
-           key.ResolvedToken.cbMethodSpec);
+           key.ResolvedToken.inValue.tokenContext, key.ResolvedToken.inValue.tokenScope,
+           key.ResolvedToken.inValue.token, key.ResolvedToken.inValue.tokenType, key.ResolvedToken.outValue.hClass,
+           key.ResolvedToken.outValue.hMethod, key.ResolvedToken.outValue.hField,
+           key.ResolvedToken.outValue.pTypeSpec_Index, key.ResolvedToken.outValue.cbTypeSpec,
+           key.ResolvedToken.outValue.pMethodSpec_Index, key.ResolvedToken.outValue.cbMethodSpec);
     printf(", value hnum-%u na-%u {", value.AccessHelper.helperNum, value.AccessHelper.numArgs);
     for (int i = 0; i < CORINFO_ACCESS_ALLOWED_MAX_ARGS; i++)
     {
@@ -3946,20 +3942,20 @@ CorInfoIsAccessAllowedResult MethodContext::repCanAccessClass(CORINFO_RESOLVED_T
 
     AssertCodeMsg(CanAccessClass != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX",
                   (DWORDLONG)pResolvedToken->hClass);
-    key.ResolvedToken.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.pTypeSpec_Index =
+    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
+    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
+    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
+    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
+    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
+    key.ResolvedToken.outValue.pTypeSpec_Index =
         (DWORD)CanAccessClass->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.pMethodSpec_Index =
+    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
+    key.ResolvedToken.outValue.pMethodSpec_Index =
         (DWORD)CanAccessClass->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.callerHandle               = (DWORDLONG)callerHandle;
+    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    key.callerHandle                        = (DWORDLONG)callerHandle;
 
     AssertCodeMsg(CanAccessClass->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
                   (DWORDLONG)pResolvedToken->hClass);
@@ -3986,24 +3982,25 @@ void MethodContext::recGetCastingHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, 
     ZeroMemory(&key, sizeof(Agnostic_GetCastingHelper)); // We use the input structs as a key and use memcmp to
                                                          // compare.. so we need to zero out padding too
 
-    key.ResolvedToken.tokenContext      = (DWORDLONG)0;
-    key.ResolvedToken.tokenScope        = (DWORDLONG)0;
-    key.ResolvedToken.token             = (DWORD)0;
-    key.ResolvedToken.tokenType         = (DWORD)0;
-    key.ResolvedToken.hClass            = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod           = (DWORDLONG)0;
-    key.ResolvedToken.hField            = (DWORDLONG)0;
-    key.ResolvedToken.pTypeSpec_Index   = (DWORD)0;
-    key.ResolvedToken.cbTypeSpec        = (DWORD)0;
-    key.ResolvedToken.pMethodSpec_Index = (DWORD)0;
-    key.ResolvedToken.cbMethodSpec      = (DWORD)0;
-    key.fThrowing                       = (DWORD)fThrowing;
+    key.ResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
+    key.ResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
+    key.ResolvedToken.inValue.token              = (DWORD)0;
+    key.ResolvedToken.inValue.tokenType          = (DWORD)0;
+    key.ResolvedToken.outValue.hClass            = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod           = (DWORDLONG)0;
+    key.ResolvedToken.outValue.hField            = (DWORDLONG)0;
+    key.ResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
+    key.ResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
+    key.ResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
+    key.ResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
+    key.fThrowing                                = (DWORD)fThrowing;
 
     GetCastingHelper->Add(key, (DWORD)result);
 }
 void MethodContext::dmpGetCastingHelper(const Agnostic_GetCastingHelper& key, DWORD value)
 {
-    printf("GetCastingHelper key cls-%016llX, thw-%u, value res-%u", key.ResolvedToken.hClass, key.fThrowing, value);
+    printf("GetCastingHelper key cls-%016llX, thw-%u, value res-%u", key.ResolvedToken.outValue.hClass, key.fThrowing,
+           value);
 }
 CorInfoHelpFunc MethodContext::repGetCastingHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, bool fThrowing)
 {
@@ -4011,18 +4008,18 @@ CorInfoHelpFunc MethodContext::repGetCastingHelper(CORINFO_RESOLVED_TOKEN* pReso
     ZeroMemory(&key, sizeof(Agnostic_GetCastingHelper)); // We use the input structs as a key and use memcmp to
                                                          // compare.. so we need to zero out padding too
 
-    key.ResolvedToken.tokenContext      = (DWORDLONG)0;
-    key.ResolvedToken.tokenScope        = (DWORDLONG)0;
-    key.ResolvedToken.token             = (DWORD)0;
-    key.ResolvedToken.tokenType         = (DWORD)0;
-    key.ResolvedToken.hClass            = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.hMethod           = (DWORDLONG)0;
-    key.ResolvedToken.hField            = (DWORDLONG)0;
-    key.ResolvedToken.pTypeSpec_Index   = (DWORD)0;
-    key.ResolvedToken.cbTypeSpec        = (DWORD)0;
-    key.ResolvedToken.pMethodSpec_Index = (DWORD)0;
-    key.ResolvedToken.cbMethodSpec      = (DWORD)0;
-    key.fThrowing                       = (DWORD)fThrowing;
+    key.ResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
+    key.ResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
+    key.ResolvedToken.inValue.token              = (DWORD)0;
+    key.ResolvedToken.inValue.tokenType          = (DWORD)0;
+    key.ResolvedToken.outValue.hClass            = (DWORDLONG)pResolvedToken->hClass;
+    key.ResolvedToken.outValue.hMethod           = (DWORDLONG)0;
+    key.ResolvedToken.outValue.hField            = (DWORDLONG)0;
+    key.ResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
+    key.ResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
+    key.ResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
+    key.ResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
+    key.fThrowing                                = (DWORD)fThrowing;
 
     CorInfoHelpFunc value = (CorInfoHelpFunc)GetCastingHelper->Get(key);
     return value;
