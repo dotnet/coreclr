@@ -14,6 +14,7 @@
 #include "compileresult.h"
 #include "lightweightmap.h"
 #include "callutils.h"
+#include "spmirecordhelper.h"
 
 struct
 {
@@ -1281,22 +1282,11 @@ void MethodContext::recResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, DWOR
     Agnostic_CORINFO_RESOLVED_TOKENin key;
     ZeroMemory(&key, sizeof(Agnostic_CORINFO_RESOLVED_TOKENin)); // We use the input structs as a key and use memcmp to
                                                                  // compare.. so we need to zero out padding too
-    key.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.token        = (DWORD)pResolvedToken->token;
-    key.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key = SpmiRecordsHelper::CreateAgnostic_CORINFO_RESOLVED_TOKENin(pResolvedToken);
 
     ResolveTokenValue value;
-    value.tokenOut.hClass  = (DWORDLONG)pResolvedToken->hClass;
-    value.tokenOut.hMethod = (DWORDLONG)pResolvedToken->hMethod;
-    value.tokenOut.hField  = (DWORDLONG)pResolvedToken->hField;
-    value.tokenOut.pTypeSpec_Index =
-        (DWORD)ResolveToken->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    value.tokenOut.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    value.tokenOut.pMethodSpec_Index =
-        (DWORD)ResolveToken->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    value.tokenOut.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    value.exceptionCode         = (DWORD)exceptionCode;
+    value.tokenOut      = SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKENout(pResolvedToken, ResolveToken);
+    value.exceptionCode = (DWORD)exceptionCode;
 
     ResolveToken->Add(key, value);
     DEBUG_REC(dmpResolveToken(key, value));
@@ -1314,11 +1304,7 @@ void MethodContext::repResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, DWOR
     Agnostic_CORINFO_RESOLVED_TOKENin key;
     ZeroMemory(&key, sizeof(Agnostic_CORINFO_RESOLVED_TOKENin)); // We use the input structs as a key and use memcmp to
                                                                  // compare.. so we need to zero out padding too
-
-    key.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.token        = (DWORD)pResolvedToken->token;
-    key.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key = SpmiRecordsHelper::CreateAgnostic_CORINFO_RESOLVED_TOKENin(pResolvedToken);
 
     AssertCodeMsg(ResolveToken->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %x", pResolvedToken->token);
 
@@ -1344,23 +1330,12 @@ void MethodContext::recTryResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, b
     Agnostic_CORINFO_RESOLVED_TOKENin key;
     ZeroMemory(&key, sizeof(Agnostic_CORINFO_RESOLVED_TOKENin)); // We use the input structs as a key and use memcmp to
                                                                  // compare.. so we need to zero out padding too
-    key.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.token        = (DWORD)pResolvedToken->token;
-    key.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key = SpmiRecordsHelper::CreateAgnostic_CORINFO_RESOLVED_TOKENin(pResolvedToken);
 
     TryResolveTokenValue value;
 
-    value.tokenOut.hClass  = (DWORDLONG)pResolvedToken->hClass;
-    value.tokenOut.hMethod = (DWORDLONG)pResolvedToken->hMethod;
-    value.tokenOut.hField  = (DWORDLONG)pResolvedToken->hField;
-    value.tokenOut.pTypeSpec_Index =
-        (DWORD)ResolveToken->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    value.tokenOut.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    value.tokenOut.pMethodSpec_Index =
-        (DWORD)ResolveToken->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    value.tokenOut.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    value.success               = success ? 0 : 1;
+    value.tokenOut = SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKENout(pResolvedToken, ResolveToken);
+    value.success  = success ? 0 : 1;
 
     TryResolveToken->Add(key, value);
     DEBUG_REC(dmpTryResolveToken(key, value));
@@ -1379,10 +1354,7 @@ bool MethodContext::repTryResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken)
     ZeroMemory(&key, sizeof(Agnostic_CORINFO_RESOLVED_TOKENin)); // We use the input structs as a key and use memcmp to
                                                                  // compare.. so we need to zero out padding too
 
-    key.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.token        = (DWORD)pResolvedToken->token;
-    key.tokenType    = (DWORD)pResolvedToken->tokenType;
+    key = SpmiRecordsHelper::CreateAgnostic_CORINFO_RESOLVED_TOKENin(pResolvedToken);
 
     TryResolveTokenValue value = TryResolveToken->Get(key);
 
@@ -1411,38 +1383,12 @@ void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     Agnostic_GetCallInfo key;
     ZeroMemory(&key, sizeof(Agnostic_GetCallInfo)); // We use the input structs as a key and use memcmp to compare.. so
                                                     // we need to zero out padding too
-    Agnostic_CORINFO_CALL_INFO value;
+    key.ResolvedToken = SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, GetCallInfo);
 
-    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.outValue.pTypeSpec_Index =
-        (DWORD)GetCallInfo->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.outValue.pMethodSpec_Index =
-        (DWORD)GetCallInfo->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     if (pConstrainedResolvedToken != nullptr)
     {
-        key.ConstrainedResolvedToken.inValue.tokenContext = (DWORDLONG)pConstrainedResolvedToken->tokenContext;
-        key.ConstrainedResolvedToken.inValue.tokenScope   = (DWORDLONG)pConstrainedResolvedToken->tokenScope;
-        key.ConstrainedResolvedToken.inValue.token        = (DWORD)pConstrainedResolvedToken->token;
-        key.ConstrainedResolvedToken.inValue.tokenType    = (DWORD)pConstrainedResolvedToken->tokenType;
-        key.ConstrainedResolvedToken.outValue.hClass      = (DWORDLONG)pConstrainedResolvedToken->hClass;
-        key.ConstrainedResolvedToken.outValue.hMethod     = (DWORDLONG)pConstrainedResolvedToken->hMethod;
-        key.ConstrainedResolvedToken.outValue.hField      = (DWORDLONG)pConstrainedResolvedToken->hField;
-        key.ConstrainedResolvedToken.outValue.pTypeSpec_Index =
-            (DWORD)GetCallInfo->AddBuffer((unsigned char*)pConstrainedResolvedToken->pTypeSpec,
-                                          pConstrainedResolvedToken->cbTypeSpec);
-        key.ConstrainedResolvedToken.outValue.cbTypeSpec = (DWORD)pConstrainedResolvedToken->cbTypeSpec;
-        key.ConstrainedResolvedToken.outValue.pMethodSpec_Index =
-            (DWORD)GetCallInfo->AddBuffer((unsigned char*)pConstrainedResolvedToken->pMethodSpec,
-                                          pConstrainedResolvedToken->cbMethodSpec);
-        key.ConstrainedResolvedToken.outValue.cbMethodSpec = (DWORD)pConstrainedResolvedToken->cbMethodSpec;
+        key.ConstrainedResolvedToken =
+            SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(pConstrainedResolvedToken, GetCallInfo);
     }
     else
     {
@@ -1462,6 +1408,7 @@ void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     key.callerHandle = (DWORDLONG)callerHandle;
     key.flags        = (DWORD)flags;
 
+    Agnostic_CORINFO_CALL_INFO value;
     if (exceptionCode == 0)
     {
         value.hMethod                    = (DWORDLONG)pResult->hMethod;
@@ -1630,36 +1577,11 @@ void MethodContext::repGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     Agnostic_GetCallInfo key;
     ZeroMemory(&key, sizeof(Agnostic_GetCallInfo)); // We use the input structs as a key and use memcmp to compare.. so
                                                     // we need to zero out padding too
-    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.outValue.pTypeSpec_Index =
-        (DWORD)GetCallInfo->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.outValue.pMethodSpec_Index =
-        (DWORD)GetCallInfo->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
+    key.ResolvedToken = SpmiRecordsHelper::RestoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, GetCallInfo);
     if (pConstrainedResolvedToken != nullptr)
     {
-        key.ConstrainedResolvedToken.inValue.tokenContext = (DWORDLONG)pConstrainedResolvedToken->tokenContext;
-        key.ConstrainedResolvedToken.inValue.tokenScope   = (DWORDLONG)pConstrainedResolvedToken->tokenScope;
-        key.ConstrainedResolvedToken.inValue.token        = (DWORD)pConstrainedResolvedToken->token;
-        key.ConstrainedResolvedToken.inValue.tokenType    = (DWORD)pConstrainedResolvedToken->tokenType;
-        key.ConstrainedResolvedToken.outValue.hClass      = (DWORDLONG)pConstrainedResolvedToken->hClass;
-        key.ConstrainedResolvedToken.outValue.hMethod     = (DWORDLONG)pConstrainedResolvedToken->hMethod;
-        key.ConstrainedResolvedToken.outValue.hField      = (DWORDLONG)pConstrainedResolvedToken->hField;
-        key.ConstrainedResolvedToken.outValue.pTypeSpec_Index =
-            (DWORD)GetCallInfo->Contains((unsigned char*)pConstrainedResolvedToken->pTypeSpec,
-                                         pConstrainedResolvedToken->cbTypeSpec);
-        key.ConstrainedResolvedToken.outValue.cbTypeSpec = (DWORD)pConstrainedResolvedToken->cbTypeSpec;
-        key.ConstrainedResolvedToken.outValue.pMethodSpec_Index =
-            (DWORD)GetCallInfo->Contains((unsigned char*)pConstrainedResolvedToken->pMethodSpec,
-                                         pConstrainedResolvedToken->cbMethodSpec);
-        key.ConstrainedResolvedToken.outValue.cbMethodSpec = (DWORD)pConstrainedResolvedToken->cbMethodSpec;
+        key.ConstrainedResolvedToken =
+            SpmiRecordsHelper::RestoreAgnostic_CORINFO_RESOLVED_TOKEN(pConstrainedResolvedToken, GetCallInfo);
     }
     else
     {
@@ -3182,23 +3104,10 @@ void MethodContext::recEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolve
     Agnostic_EmbedGenericHandle key;
     ZeroMemory(&key, sizeof(Agnostic_EmbedGenericHandle)); // We use the input structs as a key and use memcmp to
                                                            // compare.. so we need to zero out padding too
+    key.ResolvedToken = SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, EmbedGenericHandle);
+    key.fEmbedParent  = (DWORD)fEmbedParent;
+
     Agnostic_CORINFO_GENERICHANDLE_RESULT value;
-
-    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.outValue.pTypeSpec_Index =
-        (DWORD)EmbedGenericHandle->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.outValue.pMethodSpec_Index =
-        (DWORD)EmbedGenericHandle->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.fEmbedParent                        = (DWORD)fEmbedParent;
-
     value.lookup.lookupKind.needsRuntimeLookup = (DWORD)pResult->lookup.lookupKind.needsRuntimeLookup;
     value.lookup.lookupKind.runtimeLookupKind  = (DWORD)pResult->lookup.lookupKind.runtimeLookupKind;
     if (pResult->lookup.lookupKind.needsRuntimeLookup)
@@ -3269,25 +3178,14 @@ void MethodContext::repEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolve
     Agnostic_EmbedGenericHandle key;
     ZeroMemory(&key, sizeof(Agnostic_EmbedGenericHandle)); // We use the input structs as a key and use memcmp to
                                                            // compare.. so we need to zero out padding too
-    Agnostic_CORINFO_GENERICHANDLE_RESULT value;
 
     AssertCodeMsg(EmbedGenericHandle != nullptr, EXCEPTIONCODE_MC, "Encountered an empty LWM while looking for ...");
-    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.outValue.pTypeSpec_Index =
-        (DWORD)EmbedGenericHandle->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.outValue.pMethodSpec_Index =
-        (DWORD)EmbedGenericHandle->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.fEmbedParent                        = (DWORD)fEmbedParent;
+    key.ResolvedToken = SpmiRecordsHelper::RestoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, EmbedGenericHandle);
+    key.fEmbedParent  = (DWORD)fEmbedParent;
 
     AssertCodeMsg(EmbedGenericHandle->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find ...");
+
+    Agnostic_CORINFO_GENERICHANDLE_RESULT value;
     value = EmbedGenericHandle->Get(key);
 
     pResult->lookup.lookupKind.needsRuntimeLookup = value.lookup.lookupKind.needsRuntimeLookup != 0;
@@ -3504,24 +3402,11 @@ void MethodContext::recGetFieldInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     Agnostic_GetFieldInfo key;
     ZeroMemory(&key, sizeof(Agnostic_GetFieldInfo)); // Since dd has nested structs, and we use memcmp to compare, we
                                                      // need to zero out the padding bytes too
+    key.ResolvedToken = SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, GetFieldInfo);
+    key.callerHandle  = (DWORDLONG)callerHandle;
+    key.flags         = (DWORD)flags;
+
     Agnostic_CORINFO_FIELD_INFO value;
-
-    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.outValue.pTypeSpec_Index =
-        (DWORD)GetFieldInfo->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.outValue.pMethodSpec_Index =
-        (DWORD)GetFieldInfo->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.callerHandle                        = (DWORDLONG)callerHandle;
-    key.flags                               = (DWORD)flags;
-
     value.fieldAccessor                 = (DWORD)pResult->fieldAccessor;
     value.fieldFlags                    = (DWORD)pResult->fieldFlags;
     value.helper                        = (DWORD)pResult->helper;
@@ -3585,27 +3470,14 @@ void MethodContext::repGetFieldInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                     CORINFO_ACCESS_FLAGS    flags,
                                     CORINFO_FIELD_INFO*     pResult)
 {
+    AssertCodeMsg(GetFieldInfo != nullptr, EXCEPTIONCODE_MC, "Didn't find %x", pResolvedToken->token);
+
     Agnostic_GetFieldInfo key;
     ZeroMemory(&key, sizeof(Agnostic_GetFieldInfo)); // Since dd has nested structs, and we use memcmp to compare, we
                                                      // need to zero out the padding bytes too
-    Agnostic_CORINFO_FIELD_INFO value;
-
-    AssertCodeMsg(GetFieldInfo != nullptr, EXCEPTIONCODE_MC, "Didn't find %x", pResolvedToken->token);
-    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.outValue.pTypeSpec_Index =
-        (DWORD)GetFieldInfo->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.outValue.pMethodSpec_Index =
-        (DWORD)GetFieldInfo->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.callerHandle                        = (DWORDLONG)callerHandle;
-    key.flags                               = (DWORD)flags;
+    key.ResolvedToken = SpmiRecordsHelper::RestoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, GetFieldInfo);
+    key.callerHandle  = (DWORDLONG)callerHandle;
+    key.flags         = (DWORD)flags;
 
     DWORD origFlag = key.flags;
 
@@ -3643,7 +3515,7 @@ void MethodContext::repGetFieldInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
 #endif
     }
 
-    value = GetFieldInfo->Get(key);
+    Agnostic_CORINFO_FIELD_INFO value = GetFieldInfo->Get(key);
 
     pResult->fieldAccessor                 = (CORINFO_FIELD_ACCESSOR)value.fieldAccessor;
     pResult->fieldFlags                    = (unsigned)value.fieldFlags;
@@ -3885,24 +3757,10 @@ void MethodContext::recCanAccessClass(CORINFO_RESOLVED_TOKEN*      pResolvedToke
     Agnostic_CanAccessClassIn key;
     ZeroMemory(&key, sizeof(Agnostic_CanAccessClassIn)); // We use the input structs as a key and use memcmp to
                                                          // compare.. so we need to zero out padding too
+    key.ResolvedToken = SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, CanAccessClass);
+    key.callerHandle = (DWORDLONG)callerHandle;
 
     Agnostic_CanAccessClassOut value;
-
-    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.outValue.pTypeSpec_Index =
-        (DWORD)CanAccessClass->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.outValue.pMethodSpec_Index =
-        (DWORD)CanAccessClass->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.callerHandle                        = (DWORDLONG)callerHandle;
-
     value.AccessHelper.helperNum = (DWORD)pAccessHelper->helperNum;
     value.AccessHelper.numArgs   = (DWORD)pAccessHelper->numArgs;
     for (int i = 0; i < CORINFO_ACCESS_ALLOWED_MAX_ARGS; i++)
@@ -3935,31 +3793,18 @@ CorInfoIsAccessAllowedResult MethodContext::repCanAccessClass(CORINFO_RESOLVED_T
                                                               CORINFO_METHOD_HANDLE   callerHandle,
                                                               CORINFO_HELPER_DESC*    pAccessHelper)
 {
+    AssertCodeMsg(CanAccessClass != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX",
+                  (DWORDLONG)pResolvedToken->hClass);
+
     Agnostic_CanAccessClassIn key;
     ZeroMemory(&key, sizeof(Agnostic_CanAccessClassIn)); // We use the input structs as a key and use memcmp to
                                                          // compare.. so we need to zero out padding too
-    Agnostic_CanAccessClassOut value;
-
-    AssertCodeMsg(CanAccessClass != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX",
-                  (DWORDLONG)pResolvedToken->hClass);
-    key.ResolvedToken.inValue.tokenContext = (DWORDLONG)pResolvedToken->tokenContext;
-    key.ResolvedToken.inValue.tokenScope   = (DWORDLONG)pResolvedToken->tokenScope;
-    key.ResolvedToken.inValue.token        = (DWORD)pResolvedToken->token;
-    key.ResolvedToken.inValue.tokenType    = (DWORD)pResolvedToken->tokenType;
-    key.ResolvedToken.outValue.hClass      = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod     = (DWORDLONG)pResolvedToken->hMethod;
-    key.ResolvedToken.outValue.hField      = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.outValue.pTypeSpec_Index =
-        (DWORD)CanAccessClass->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
-    key.ResolvedToken.outValue.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.outValue.pMethodSpec_Index =
-        (DWORD)CanAccessClass->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
-    key.ResolvedToken.outValue.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
-    key.callerHandle                        = (DWORDLONG)callerHandle;
+    key.ResolvedToken = SpmiRecordsHelper::RestoreAgnostic_CORINFO_RESOLVED_TOKEN(pResolvedToken, CanAccessClass);
+    key.callerHandle  = (DWORDLONG)callerHandle;
 
     AssertCodeMsg(CanAccessClass->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
                   (DWORDLONG)pResolvedToken->hClass);
-    value = CanAccessClass->Get(key);
+    Agnostic_CanAccessClassOut value = CanAccessClass->Get(key);
 
     pAccessHelper->helperNum = (CorInfoHelpFunc)value.AccessHelper.helperNum;
     pAccessHelper->numArgs   = (unsigned)value.AccessHelper.numArgs;
