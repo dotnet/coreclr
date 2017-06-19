@@ -16928,11 +16928,10 @@ void ReturnTypeDesc::InitializeLongReturnType(Compiler* comp)
 //     Returns ith return register as per target ABI.
 //
 // Notes:
-//     Right now this is implemented only for x64 Unix
+//     Right now this is implemented only for x64 Unix and Arm32.
 //     and yet to be implemented for other multi-reg return
-//     targets (Arm64/Arm32/x86).
+//     targets (Arm64/x86).
 //
-// TODO-ARM:   Implement this routine to support HFA returns.
 // TODO-X86:   Implement this routine to support long returns.
 regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
 {
@@ -17002,6 +17001,8 @@ regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
     var_types regType = GetReturnRegType(idx);
     if (varTypeIsIntegralOrI(regType))
     {
+        // Ints are returned in one return register.
+        // Longs are returned in two return registers.
         if (idx == 0)
         {
             resultReg = REG_LNGRET_LO;
@@ -17010,21 +17011,22 @@ regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
         {
             resultReg = REG_LNGRET_HI;
         }
-#if FEATURE_MULTIREG_RET
-        else
-        {
-            assert(idx < MAX_RET_REG_COUNT);          // Up to 4 return registers for 16-byte structs
-            resultReg = (idx == 2) ? REG_R2 : REG_R3; // r2 or r3
-        }
-#endif
     }
-#if FEATURE_MULTIREG_RET
     else
     {
-        assert(idx < MAX_RET_REG_COUNT);                         // Up to 4 return registers for HFA's
-        resultReg = (regNumber)((unsigned)(REG_FLOATRET) + idx); // f0, f1, f2 or f3
+        // Floats are returned in one return register (f0).
+        // Doubles are returned in one return register (d0).
+        // Structs are returned in four registers with HFAs.
+        assert(idx < MAX_RET_REG_COUNT); // Up to 4 return registers for HFA's
+        if (regType == TYP_DOUBLE)
+        {
+            resultReg = (regNumber)((unsigned)(REG_FLOATRET) + idx*2); // d0, d1, d2 or d3
+        }
+        else
+        {
+            resultReg = (regNumber)((unsigned)(REG_FLOATRET) + idx); // f0, f1, f2 or f3
+        }
     }
-#endif
 
 #elif defined(_TARGET_ARM64_)
 
