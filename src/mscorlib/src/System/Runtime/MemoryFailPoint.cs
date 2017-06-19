@@ -158,7 +158,6 @@ namespace System.Runtime
                 throw new ArgumentOutOfRangeException(nameof(sizeInMegabytes), SR.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
 
-#if !FEATURE_PAL // Remove this when CheckForAvailableMemory is able to provide legitimate estimates
             ulong size = ((ulong)sizeInMegabytes) << 20;
             _reservedMemory = size;
 
@@ -312,7 +311,6 @@ namespace System.Runtime
                 SharedStatics.AddMemoryFailPointReservation((long)size);
                 _mustSubtractReservation = true;
             }
-#endif
         }
 
         private static void CheckForAvailableMemory(out ulong availPageFile, out ulong totalAddressSpaceFree)
