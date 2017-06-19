@@ -10092,7 +10092,7 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
             tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
         }
 #else
-        tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
+        tempRegFlt                                  = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
 #endif
     }
 
