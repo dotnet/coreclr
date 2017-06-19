@@ -42,10 +42,18 @@ class Constants {
     // test execution in the build flow runs.  It generates the exact same build
     // as Windows_NT but without the tests.
     def static osList = [
+               'Ubuntu',
+               'Debian8.4',
                'OSX10.12',
                'Windows_NT',
                'Windows_NT_BuildOnly',
+               'FreeBSD',
+               'CentOS7.1',
+               'OpenSUSE42.1',
+               'RHEL7.2',
                'Ubuntu16.04',
+               'Ubuntu16.10',
+               'Fedora24',
                'Tizen']
 
     def static crossList = ['Ubuntu', 'OSX10.12', 'CentOS7.1', 'RHEL7.2', 'Debian8.4']
@@ -54,13 +62,66 @@ class Constants {
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
     // the values are the environment variables
     def static jitStressModeScenarios = [
-               'jitstress2'                     : ['COMPlus_JitStress' : '2']
+               'minopts'                        : ['COMPlus_JITMinOpts' : '1'],
+               'forcerelocs'                    : ['COMPlus_ForceRelocs' : '1'],
+               'jitstress1'                     : ['COMPlus_JitStress' : '1'],
+               'jitstress2'                     : ['COMPlus_JitStress' : '2'],
+               'jitstressregs1'                 : ['COMPlus_JitStressRegs' : '1'],
+               'jitstressregs2'                 : ['COMPlus_JitStressRegs' : '2'],
+               'jitstressregs3'                 : ['COMPlus_JitStressRegs' : '3'],
+               'jitstressregs4'                 : ['COMPlus_JitStressRegs' : '4'],
+               'jitstressregs8'                 : ['COMPlus_JitStressRegs' : '8'],
+               'jitstressregs0x10'              : ['COMPlus_JitStressRegs' : '0x10'],
+               'jitstressregs0x80'              : ['COMPlus_JitStressRegs' : '0x80'],
+               'jitstressregs0x1000'            : ['COMPlus_JitStressRegs' : '0x1000'],
+               'jitstress2_jitstressregs1'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '1'],
+               'jitstress2_jitstressregs2'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '2'],
+               'jitstress2_jitstressregs3'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '3'],
+               'jitstress2_jitstressregs4'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '4'],
+               'jitstress2_jitstressregs8'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '8'],
+               'jitstress2_jitstressregs0x10'   : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x10'],
+               'jitstress2_jitstressregs0x80'   : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x80'],
+               'jitstress2_jitstressregs0x1000' : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x1000'],
+               'tailcallstress'                 : ['COMPlus_TailcallStress' : '1'],
+               'jitsse2only'                    : ['COMPlus_EnableAVX' : '0', 'COMPlus_EnableSSE3_4' : '0'],
+               'corefx_baseline'                : [ : ], // corefx baseline
+               'corefx_minopts'                 : ['COMPlus_JITMinOpts' : '1'],
+               'corefx_jitstress1'              : ['COMPlus_JitStress' : '1'],
+               'corefx_jitstress2'              : ['COMPlus_JitStress' : '2'],
+               'corefx_jitstressregs1'          : ['COMPlus_JitStressRegs' : '1'],
+               'corefx_jitstressregs2'          : ['COMPlus_JitStressRegs' : '2'],
+               'corefx_jitstressregs3'          : ['COMPlus_JitStressRegs' : '3'],
+               'corefx_jitstressregs4'          : ['COMPlus_JitStressRegs' : '4'],
+               'corefx_jitstressregs8'          : ['COMPlus_JitStressRegs' : '8'],
+               'corefx_jitstressregs0x10'       : ['COMPlus_JitStressRegs' : '0x10'],
+               'corefx_jitstressregs0x80'       : ['COMPlus_JitStressRegs' : '0x80'],
+               'corefx_jitstressregs0x1000'     : ['COMPlus_JitStressRegs' : '0x1000'],
+               'gcstress0x3'                    : ['COMPlus_GCStress' : '0x3'],
+               'gcstress0xc'                    : ['COMPlus_GCStress' : '0xC'],
+               'zapdisable'                     : ['COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
+               'heapverify1'                    : ['COMPlus_HeapVerify' : '1'],
+               'gcstress0xc_zapdisable'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
+               'gcstress0xc_zapdisable_jitstress2'  : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_JitStress'  : '2'],
+               'gcstress0xc_zapdisable_heapverify1' : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_HeapVerify' : '1'],
+               'gcstress0xc_jitstress1'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '1'],
+               'gcstress0xc_jitstress2'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '2'],
+               'gcstress0xc_minopts_heapverify1'    : ['COMPlus_GCStress' : '0xC', 'COMPlus_JITMinOpts' : '1', 'COMPlus_HeapVerify' : '1']
                ]
 
     // This is a set of r2r jit stress scenarios
     def static r2rJitStressScenarios = [
-               'r2r_jitstress1'
-               ]
+               'r2r_jitstress1',
+               'r2r_jitstress2',
+               'r2r_jitstressregs1',
+               'r2r_jitstressregs2',
+               'r2r_jitstressregs3',
+               'r2r_jitstressregs4',
+               'r2r_jitstressregs8',
+               'r2r_jitstressregs0x10',
+               'r2r_jitstressregs0x80',
+               'r2r_jitstressregs0x1000',
+               'r2r_jitminopts',
+               'r2r_jitforcerelocs']
 
     // This is the basic set of scenarios
     def static basicScenarios = [
@@ -89,7 +150,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     if (architecture == 'arm64' && os == 'Windows_NT') {
         Utilities.setMachineAffinity(job, os, 'latest-arm64');
     } else if (architecture == 'arm64' && os != 'Windows_NT' && options == null) {
-        Utilities.setMachineAffinity(job, os, 'arm64-huge-page-size');
+        Utilities.setMachineAffinity(job, os, 'arm64-small-page-size');
     } else if (architecture == 'arm64' && os != 'Windows_NT' && options['large_pages'] == true) {
         Utilities.setMachineAffinity(job, os, 'arm64-huge-page-size');
     } else if (architecture == 'arm64' && os != 'Windows_NT' && options['is_build_only'] == true) {
@@ -1058,7 +1119,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 'russellhadley',
                 'RussKeldorph',
                 'sandreenko',
+                'rartemev',
                 'sdmaclea',
+                'sivarv',
                 'swaroop-sridhar',
                 'gkhanna79',
                 'jkotas',
