@@ -69,10 +69,9 @@ inline BOOL ObjectHandleIsNull(OBJECTHANDLE handle)
 #ifndef DACCESS_COMPILE
 
 // Handle creation convenience functions
-
-inline OBJECTHANDLE CreateHandle(IGCHandleStore* store, OBJECTREF object)
+inline OBJECTHANDLE CreateHandleCommon(IGCHandleStore* store, OBJECTREF object, HandleType type)
 {
-    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_DEFAULT);
+    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), type);
     if (!hnd)
     {
         COMPlusThrowOM();
@@ -80,102 +79,51 @@ inline OBJECTHANDLE CreateHandle(IGCHandleStore* store, OBJECTREF object)
 
     DiagHandleCreated(hnd, object);
     return hnd;
+}
+
+inline OBJECTHANDLE CreateHandle(IGCHandleStore* store, OBJECTREF object)
+{
+    return CreateHandleCommon(store, object, HNDTYPE_DEFAULT);
 }
 
 inline OBJECTHANDLE CreateWeakHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_DEFAULT);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateHandleCommon(store, object, HNDTYPE_WEAK_DEFAULT);
 }
 
 inline OBJECTHANDLE CreateShortWeakHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_SHORT);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateHandleCommon(store, object, HNDTYPE_WEAK_SHORT);
 }
 
 inline OBJECTHANDLE CreateLongWeakHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_LONG);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateHandleCommon(store, object, HNDTYPE_WEAK_LONG);
 }
 
 inline OBJECTHANDLE CreateStrongHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_STRONG);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateHandleCommon(store, object, HNDTYPE_STRONG);
 }
 
 inline OBJECTHANDLE CreatePinningHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_PINNED);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateHandleCommon(store, object, HNDTYPE_PINNED);
 }
 
 inline OBJECTHANDLE CreateAsyncPinningHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_ASYNCPINNED);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateHandleCommon(store, object, HNDTYPE_ASYNCPINNED);
 }
 
 inline OBJECTHANDLE CreateRefcountedHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_REFCOUNTED);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateHandleCommon(store, object, HNDTYPE_REFCOUNTED);
 }
 
 inline OBJECTHANDLE CreateSizedRefHandle(IGCHandleStore* store, OBJECTREF object)
 {
-    OBJECTHANDLE hnd = store->CreateHandleOfType(OBJECTREFToObject(object), HNDTYPE_SIZEDREF);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateHandleCommon(store, object, HNDTYPE_SIZEDREF);
 }
 
 inline OBJECTHANDLE CreateSizedRefHandle(IGCHandleStore* store, OBJECTREF object, int heapToAffinitizeTo)
@@ -191,11 +139,10 @@ inline OBJECTHANDLE CreateSizedRefHandle(IGCHandleStore* store, OBJECTREF object
 }
 
 // Global handle creation convenience functions
-
-inline OBJECTHANDLE CreateGlobalHandle(OBJECTREF object)
+inline OBJECTHANDLE CreateGlobalHandleCommon(OBJECTREF object, HandleType type)
 {
     CONDITIONAL_CONTRACT_VIOLATION(ModeViolation, object == NULL);
-    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_DEFAULT);
+    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), type);
     if (!hnd)
     {
         COMPlusThrowOM();
@@ -203,80 +150,42 @@ inline OBJECTHANDLE CreateGlobalHandle(OBJECTREF object)
 
     DiagHandleCreated(hnd, object);
     return hnd;
+
+}
+
+inline OBJECTHANDLE CreateGlobalHandle(OBJECTREF object)
+{
+    return CreateGlobalHandleCommon(object, HNDTYPE_DEFAULT);
 }
 
 inline OBJECTHANDLE CreateGlobalWeakHandle(OBJECTREF object)
 {
-    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_DEFAULT);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateGlobalHandleCommon(object, HNDTYPE_WEAK_DEFAULT);
 }
 
 inline OBJECTHANDLE CreateGlobalShortWeakHandle(OBJECTREF object)
 {
-    CONDITIONAL_CONTRACT_VIOLATION(ModeViolation, object == NULL);
-    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_SHORT);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateGlobalHandleCommon(object, HNDTYPE_WEAK_SHORT);
 }
 
 inline OBJECTHANDLE CreateGlobalLongWeakHandle(OBJECTREF object)
 {
-    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_WEAK_LONG);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateGlobalHandleCommon(object, HNDTYPE_WEAK_LONG);
 }
 
 inline OBJECTHANDLE CreateGlobalStrongHandle(OBJECTREF object)
 {
-    CONDITIONAL_CONTRACT_VIOLATION(ModeViolation, object == NULL);
-    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_STRONG);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateGlobalHandleCommon(object, HNDTYPE_STRONG);
 }
 
 inline OBJECTHANDLE CreateGlobalPinningHandle(OBJECTREF object)
 {
-    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_PINNED);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateGlobalHandleCommon(object, HNDTYPE_PINNED);
 }
 
 inline OBJECTHANDLE CreateGlobalRefcountedHandle(OBJECTREF object)
 {
-    OBJECTHANDLE hnd = GCHandleUtilities::GetGCHandleManager()->CreateGlobalHandleOfType(OBJECTREFToObject(object), HNDTYPE_REFCOUNTED);
-    if (!hnd)
-    {
-        COMPlusThrowOM();
-    }
-
-    DiagHandleCreated(hnd, object);
-    return hnd;
+    return CreateGlobalHandleCommon(object, HNDTYPE_REFCOUNTED);
 }
 
 // Special handle creation convenience functions
@@ -337,8 +246,7 @@ inline void ResetOBJECTHANDLE(OBJECTHANDLE handle)
 }
 
 // Handle destruction convenience functions
-
-inline void DestroyHandle(OBJECTHANDLE handle)
+inline void DestroyHandleCommon(OBJECTHANDLE handle, HandleType type)
 {
     CONTRACTL
     {
@@ -351,103 +259,92 @@ inline void DestroyHandle(OBJECTHANDLE handle)
     CONTRACTL_END;
 
     DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_DEFAULT);
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, type);
+}
+
+inline void DestroyHandle(OBJECTHANDLE handle)
+{
+    DestroyHandleCommon(handle, HNDTYPE_DEFAULT);
 }
 
 inline void DestroyWeakHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_DEFAULT);
+    DestroyHandleCommon(handle, HNDTYPE_WEAK_DEFAULT);
 }
 
 inline void DestroyShortWeakHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_SHORT);
+    DestroyHandleCommon(handle, HNDTYPE_WEAK_SHORT);
 }
 
 inline void DestroyLongWeakHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_LONG);
+    DestroyHandleCommon(handle, HNDTYPE_WEAK_LONG);
 }
 
 inline void DestroyStrongHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_STRONG);
+    DestroyHandleCommon(handle, HNDTYPE_STRONG);
 }
 
 inline void DestroyPinningHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_PINNED);
+    DestroyHandleCommon(handle, HNDTYPE_PINNED);
 }
 
 inline void DestroyAsyncPinningHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_ASYNCPINNED);
+    DestroyHandleCommon(handle, HNDTYPE_ASYNCPINNED);
 }
 
 inline void DestroyRefcountedHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_REFCOUNTED);
+    DestroyHandleCommon(handle, HNDTYPE_REFCOUNTED);
 }
 
 inline void DestroyDependentHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_DEPENDENT);
+    DestroyHandleCommon(handle, HNDTYPE_DEPENDENT);
 }
 
 inline void  DestroyVariableHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_VARIABLE);
+    DestroyHandleCommon(handle, HNDTYPE_VARIABLE);
 }
 
 inline void DestroyGlobalHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_DEFAULT);
+    DestroyHandleCommon(handle, HNDTYPE_DEFAULT);
 }
 
 inline void DestroyGlobalWeakHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_DEFAULT);
+    DestroyHandleCommon(handle, HNDTYPE_WEAK_DEFAULT);
 }
 
 inline void DestroyGlobalShortWeakHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_SHORT);
+    DestroyHandleCommon(handle, HNDTYPE_WEAK_SHORT);
 }
 
 inline void DestroyGlobalLongWeakHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_WEAK_LONG);
+    DestroyHandleCommon(handle, HNDTYPE_WEAK_LONG);
 }
 
 inline void DestroyGlobalStrongHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_STRONG);
+    DestroyHandleCommon(handle, HNDTYPE_STRONG);
 }
 
 inline void DestroyGlobalPinningHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_PINNED);
+    DestroyHandleCommon(handle, HNDTYPE_PINNED);
 }
 
 inline void DestroyGlobalRefcountedHandle(OBJECTHANDLE handle)
 {
-    DiagHandleDestroyed(handle);
-    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfType(handle, HNDTYPE_REFCOUNTED);
+    DestroyHandleCommon(handle, HNDTYPE_REFCOUNTED);
 }
 
 inline void DestroyTypedHandle(OBJECTHANDLE handle)
