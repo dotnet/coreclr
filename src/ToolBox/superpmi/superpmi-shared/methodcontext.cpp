@@ -1435,10 +1435,10 @@ void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
     key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.typeSpec_Index =
+    key.ResolvedToken.pTypeSpec_Index =
         (DWORD)GetCallInfo->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
     key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.methodSpec_Index =
+    key.ResolvedToken.pMethodSpec_Index =
         (DWORD)GetCallInfo->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
     key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     if (pConstrainedResolvedToken != nullptr)
@@ -1450,11 +1450,11 @@ void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
         key.ConstrainedResolvedToken.hClass       = (DWORDLONG)pConstrainedResolvedToken->hClass;
         key.ConstrainedResolvedToken.hMethod      = (DWORDLONG)pConstrainedResolvedToken->hMethod;
         key.ConstrainedResolvedToken.hField       = (DWORDLONG)pConstrainedResolvedToken->hField;
-        key.ConstrainedResolvedToken.typeSpec_Index =
+        key.ConstrainedResolvedToken.pTypeSpec_Index =
             (DWORD)GetCallInfo->AddBuffer((unsigned char*)pConstrainedResolvedToken->pTypeSpec,
                                           pConstrainedResolvedToken->cbTypeSpec);
         key.ConstrainedResolvedToken.cbTypeSpec = (DWORD)pConstrainedResolvedToken->cbTypeSpec;
-        key.ConstrainedResolvedToken.methodSpec_Index =
+        key.ConstrainedResolvedToken.pMethodSpec_Index =
             (DWORD)GetCallInfo->AddBuffer((unsigned char*)pConstrainedResolvedToken->pMethodSpec,
                                           pConstrainedResolvedToken->cbMethodSpec);
         key.ConstrainedResolvedToken.cbMethodSpec = (DWORD)pConstrainedResolvedToken->cbMethodSpec;
@@ -1468,9 +1468,9 @@ void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
         key.ConstrainedResolvedToken.hClass           = (DWORDLONG)0;
         key.ConstrainedResolvedToken.hMethod          = (DWORDLONG)0;
         key.ConstrainedResolvedToken.hField           = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.typeSpec_Index   = (DWORD)0;
+        key.ConstrainedResolvedToken.pTypeSpec_Index   = (DWORD)0;
         key.ConstrainedResolvedToken.cbTypeSpec       = (DWORD)0;
-        key.ConstrainedResolvedToken.methodSpec_Index = (DWORD)0;
+        key.ConstrainedResolvedToken.pMethodSpec_Index = (DWORD)0;
         key.ConstrainedResolvedToken.cbMethodSpec     = (DWORD)0;
     }
 
@@ -1612,13 +1612,13 @@ void MethodContext::dmpGetCallInfo(const Agnostic_GetCallInfo& key, const Agnost
            " ch-%016llX flg-%08X",
            key.ResolvedToken.tokenContext, key.ResolvedToken.tokenScope, key.ResolvedToken.token,
            key.ResolvedToken.tokenType, key.ResolvedToken.hClass, key.ResolvedToken.hMethod, key.ResolvedToken.hField,
-           key.ResolvedToken.typeSpec_Index, key.ResolvedToken.cbTypeSpec, key.ResolvedToken.methodSpec_Index,
+           key.ResolvedToken.pTypeSpec_Index, key.ResolvedToken.cbTypeSpec, key.ResolvedToken.pMethodSpec_Index,
            key.ResolvedToken.cbMethodSpec, key.ConstrainedResolvedToken.tokenContext,
            key.ConstrainedResolvedToken.tokenScope, key.ConstrainedResolvedToken.token,
            key.ConstrainedResolvedToken.tokenType, key.ConstrainedResolvedToken.hClass,
            key.ConstrainedResolvedToken.hMethod, key.ConstrainedResolvedToken.hField,
-           key.ConstrainedResolvedToken.typeSpec_Index, key.ConstrainedResolvedToken.cbTypeSpec,
-           key.ConstrainedResolvedToken.methodSpec_Index, key.ConstrainedResolvedToken.cbMethodSpec, key.callerHandle,
+           key.ConstrainedResolvedToken.pTypeSpec_Index, key.ConstrainedResolvedToken.cbTypeSpec,
+           key.ConstrainedResolvedToken.pMethodSpec_Index, key.ConstrainedResolvedToken.cbMethodSpec, key.callerHandle,
            key.flags);
     printf(", value mth-%016llX, mf-%08X cf-%08X"
            " sig{flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u args-%016llX scp-%016llX tok-%08X}"
@@ -1653,10 +1653,10 @@ void MethodContext::repGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
     key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.typeSpec_Index =
+    key.ResolvedToken.pTypeSpec_Index =
         (DWORD)GetCallInfo->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
     key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.methodSpec_Index =
+    key.ResolvedToken.pMethodSpec_Index =
         (DWORD)GetCallInfo->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
     key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     if (pConstrainedResolvedToken != nullptr)
@@ -1668,11 +1668,11 @@ void MethodContext::repGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
         key.ConstrainedResolvedToken.hClass       = (DWORDLONG)pConstrainedResolvedToken->hClass;
         key.ConstrainedResolvedToken.hMethod      = (DWORDLONG)pConstrainedResolvedToken->hMethod;
         key.ConstrainedResolvedToken.hField       = (DWORDLONG)pConstrainedResolvedToken->hField;
-        key.ConstrainedResolvedToken.typeSpec_Index =
+        key.ConstrainedResolvedToken.pTypeSpec_Index =
             (DWORD)GetCallInfo->Contains((unsigned char*)pConstrainedResolvedToken->pTypeSpec,
                                          pConstrainedResolvedToken->cbTypeSpec);
         key.ConstrainedResolvedToken.cbTypeSpec = (DWORD)pConstrainedResolvedToken->cbTypeSpec;
-        key.ConstrainedResolvedToken.methodSpec_Index =
+        key.ConstrainedResolvedToken.pMethodSpec_Index =
             (DWORD)GetCallInfo->Contains((unsigned char*)pConstrainedResolvedToken->pMethodSpec,
                                          pConstrainedResolvedToken->cbMethodSpec);
         key.ConstrainedResolvedToken.cbMethodSpec = (DWORD)pConstrainedResolvedToken->cbMethodSpec;
@@ -1686,9 +1686,9 @@ void MethodContext::repGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
         key.ConstrainedResolvedToken.hClass           = (DWORDLONG)0;
         key.ConstrainedResolvedToken.hMethod          = (DWORDLONG)0;
         key.ConstrainedResolvedToken.hField           = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.typeSpec_Index   = (DWORD)0;
+        key.ConstrainedResolvedToken.pTypeSpec_Index   = (DWORD)0;
         key.ConstrainedResolvedToken.cbTypeSpec       = (DWORD)0;
-        key.ConstrainedResolvedToken.methodSpec_Index = (DWORD)0;
+        key.ConstrainedResolvedToken.pMethodSpec_Index = (DWORD)0;
         key.ConstrainedResolvedToken.cbMethodSpec     = (DWORD)0;
     }
     key.callerHandle = (DWORDLONG)callerHandle;
@@ -3140,9 +3140,9 @@ void MethodContext::recGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     key.ResolvedToken.hClass           = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod          = (DWORDLONG)0;
     key.ResolvedToken.hField           = (DWORDLONG)0;
-    key.ResolvedToken.typeSpec_Index   = (DWORD)0;
+    key.ResolvedToken.pTypeSpec_Index   = (DWORD)0;
     key.ResolvedToken.cbTypeSpec       = (DWORD)0;
-    key.ResolvedToken.methodSpec_Index = (DWORD)0;
+    key.ResolvedToken.pMethodSpec_Index = (DWORD)0;
     key.ResolvedToken.cbMethodSpec     = (DWORD)0;
     key.callerHandle                   = (DWORDLONG)callerHandle;
 
@@ -3168,9 +3168,9 @@ CorInfoHelpFunc MethodContext::repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolved
     key.ResolvedToken.hClass           = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod          = (DWORDLONG)0;
     key.ResolvedToken.hField           = (DWORDLONG)0;
-    key.ResolvedToken.typeSpec_Index   = (DWORD)0;
+    key.ResolvedToken.pTypeSpec_Index   = (DWORD)0;
     key.ResolvedToken.cbTypeSpec       = (DWORD)0;
-    key.ResolvedToken.methodSpec_Index = (DWORD)0;
+    key.ResolvedToken.pMethodSpec_Index = (DWORD)0;
     key.ResolvedToken.cbMethodSpec     = (DWORD)0;
     key.callerHandle                   = (DWORDLONG)callerHandle;
 
@@ -3202,10 +3202,10 @@ void MethodContext::recEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolve
     key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
     key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.typeSpec_Index =
+    key.ResolvedToken.pTypeSpec_Index =
         (DWORD)EmbedGenericHandle->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
     key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.methodSpec_Index =
+    key.ResolvedToken.pMethodSpec_Index =
         (DWORD)EmbedGenericHandle->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
     key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     key.fEmbedParent               = (DWORD)fEmbedParent;
@@ -3253,7 +3253,7 @@ void MethodContext::dmpEmbedGenericHandle(const Agnostic_EmbedGenericHandle&    
            "fld-%016llX tsi-%u cbts-%u msi-%u cbms-%u} emb-%u",
            key.ResolvedToken.tokenContext, key.ResolvedToken.tokenScope, key.ResolvedToken.token,
            key.ResolvedToken.tokenType, key.ResolvedToken.hClass, key.ResolvedToken.hMethod, key.ResolvedToken.hField,
-           key.ResolvedToken.typeSpec_Index, key.ResolvedToken.cbTypeSpec, key.ResolvedToken.methodSpec_Index,
+           key.ResolvedToken.pTypeSpec_Index, key.ResolvedToken.cbTypeSpec, key.ResolvedToken.pMethodSpec_Index,
            key.ResolvedToken.cbMethodSpec, key.fEmbedParent);
     printf(", value nrl-%u rlk-%u", value.lookup.lookupKind.needsRuntimeLookup,
            value.lookup.lookupKind.runtimeLookupKind);
@@ -3289,10 +3289,10 @@ void MethodContext::repEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolve
     key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
     key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.typeSpec_Index =
+    key.ResolvedToken.pTypeSpec_Index =
         (DWORD)EmbedGenericHandle->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
     key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.methodSpec_Index =
+    key.ResolvedToken.pMethodSpec_Index =
         (DWORD)EmbedGenericHandle->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
     key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     key.fEmbedParent               = (DWORD)fEmbedParent;
@@ -3470,9 +3470,9 @@ void MethodContext::recGetTokenTypeAsHandle(CORINFO_RESOLVED_TOKEN* pResolvedTok
     key.hClass           = (DWORDLONG)0;
     key.hMethod          = (DWORDLONG)pResolvedToken->hMethod;
     key.hField           = (DWORDLONG)pResolvedToken->hField;
-    key.typeSpec_Index   = (DWORD)0;
+    key.pTypeSpec_Index   = (DWORD)0;
     key.cbTypeSpec       = (DWORD)0;
-    key.methodSpec_Index = (DWORD)0;
+    key.pMethodSpec_Index = (DWORD)0;
     key.cbMethodSpec     = (DWORD)0;
 
     GetTokenTypeAsHandle->Add(key, (DWORDLONG)result);
@@ -3494,9 +3494,9 @@ CORINFO_CLASS_HANDLE MethodContext::repGetTokenTypeAsHandle(CORINFO_RESOLVED_TOK
     key.hClass           = (DWORDLONG)0;
     key.hMethod          = (DWORDLONG)pResolvedToken->hMethod;
     key.hField           = (DWORDLONG)pResolvedToken->hField;
-    key.typeSpec_Index   = (DWORD)0;
+    key.pTypeSpec_Index   = (DWORD)0;
     key.cbTypeSpec       = (DWORD)0;
-    key.methodSpec_Index = (DWORD)0;
+    key.pMethodSpec_Index = (DWORD)0;
     key.cbMethodSpec     = (DWORD)0;
 
     CORINFO_CLASS_HANDLE value = (CORINFO_CLASS_HANDLE)GetTokenTypeAsHandle->Get(key);
@@ -3522,10 +3522,10 @@ void MethodContext::recGetFieldInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
     key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.typeSpec_Index =
+    key.ResolvedToken.pTypeSpec_Index =
         (DWORD)GetFieldInfo->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
     key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.methodSpec_Index =
+    key.ResolvedToken.pMethodSpec_Index =
         (DWORD)GetFieldInfo->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
     key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     key.callerHandle               = (DWORDLONG)callerHandle;
@@ -3554,8 +3554,8 @@ void MethodContext::dmpGetFieldInfo(const Agnostic_GetFieldInfo& key, const Agno
            "fld-%016llX tsi-%u cbts-%u msi-%u cbms-%u}",
            key.callerHandle, key.flags, key.ResolvedToken.tokenContext, key.ResolvedToken.tokenScope,
            key.ResolvedToken.token, key.ResolvedToken.tokenType, key.ResolvedToken.hClass, key.ResolvedToken.hMethod,
-           key.ResolvedToken.hField, key.ResolvedToken.typeSpec_Index, key.ResolvedToken.cbTypeSpec,
-           key.ResolvedToken.methodSpec_Index, key.ResolvedToken.cbMethodSpec);
+           key.ResolvedToken.hField, key.ResolvedToken.pTypeSpec_Index, key.ResolvedToken.cbTypeSpec,
+           key.ResolvedToken.pMethodSpec_Index, key.ResolvedToken.cbMethodSpec);
 
     printf(", value fa-%u fflg-%08X hlp-%u off-%u fT-%u(%s) sT-%016llX aa-%u hnum-%u na-%u {", value.fieldAccessor,
            value.fieldFlags, value.helper, value.offset, value.fieldType, toString((CorInfoType)value.fieldType),
@@ -3606,10 +3606,10 @@ void MethodContext::repGetFieldInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
     key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.typeSpec_Index =
+    key.ResolvedToken.pTypeSpec_Index =
         (DWORD)GetFieldInfo->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
     key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.methodSpec_Index =
+    key.ResolvedToken.pMethodSpec_Index =
         (DWORD)GetFieldInfo->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
     key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     key.callerHandle               = (DWORDLONG)callerHandle;
@@ -3903,10 +3903,10 @@ void MethodContext::recCanAccessClass(CORINFO_RESOLVED_TOKEN*      pResolvedToke
     key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
     key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.typeSpec_Index =
+    key.ResolvedToken.pTypeSpec_Index =
         (DWORD)CanAccessClass->AddBuffer((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
     key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.methodSpec_Index =
+    key.ResolvedToken.pMethodSpec_Index =
         (DWORD)CanAccessClass->AddBuffer((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
     key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     key.callerHandle               = (DWORDLONG)callerHandle;
@@ -3929,7 +3929,7 @@ void MethodContext::dmpCanAccessClass(const Agnostic_CanAccessClassIn& key, cons
            "mi-%u ms-%u",
            key.ResolvedToken.tokenContext, key.ResolvedToken.tokenScope, key.ResolvedToken.token,
            key.ResolvedToken.tokenType, key.ResolvedToken.hClass, key.ResolvedToken.hMethod, key.ResolvedToken.hField,
-           key.ResolvedToken.typeSpec_Index, key.ResolvedToken.cbTypeSpec, key.ResolvedToken.methodSpec_Index,
+           key.ResolvedToken.pTypeSpec_Index, key.ResolvedToken.cbTypeSpec, key.ResolvedToken.pMethodSpec_Index,
            key.ResolvedToken.cbMethodSpec);
     printf(", value hnum-%u na-%u {", value.AccessHelper.helperNum, value.AccessHelper.numArgs);
     for (int i = 0; i < CORINFO_ACCESS_ALLOWED_MAX_ARGS; i++)
@@ -3956,10 +3956,10 @@ CorInfoIsAccessAllowedResult MethodContext::repCanAccessClass(CORINFO_RESOLVED_T
     key.ResolvedToken.hClass       = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod      = (DWORDLONG)pResolvedToken->hMethod;
     key.ResolvedToken.hField       = (DWORDLONG)pResolvedToken->hField;
-    key.ResolvedToken.typeSpec_Index =
+    key.ResolvedToken.pTypeSpec_Index =
         (DWORD)CanAccessClass->Contains((unsigned char*)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
     key.ResolvedToken.cbTypeSpec = (DWORD)pResolvedToken->cbTypeSpec;
-    key.ResolvedToken.methodSpec_Index =
+    key.ResolvedToken.pMethodSpec_Index =
         (DWORD)CanAccessClass->Contains((unsigned char*)pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
     key.ResolvedToken.cbMethodSpec = (DWORD)pResolvedToken->cbMethodSpec;
     key.callerHandle               = (DWORDLONG)callerHandle;
@@ -3996,9 +3996,9 @@ void MethodContext::recGetCastingHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, 
     key.ResolvedToken.hClass           = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod          = (DWORDLONG)0;
     key.ResolvedToken.hField           = (DWORDLONG)0;
-    key.ResolvedToken.typeSpec_Index   = (DWORD)0;
+    key.ResolvedToken.pTypeSpec_Index   = (DWORD)0;
     key.ResolvedToken.cbTypeSpec       = (DWORD)0;
-    key.ResolvedToken.methodSpec_Index = (DWORD)0;
+    key.ResolvedToken.pMethodSpec_Index = (DWORD)0;
     key.ResolvedToken.cbMethodSpec     = (DWORD)0;
     key.fThrowing                      = (DWORD)fThrowing;
 
@@ -4021,9 +4021,9 @@ CorInfoHelpFunc MethodContext::repGetCastingHelper(CORINFO_RESOLVED_TOKEN* pReso
     key.ResolvedToken.hClass           = (DWORDLONG)pResolvedToken->hClass;
     key.ResolvedToken.hMethod          = (DWORDLONG)0;
     key.ResolvedToken.hField           = (DWORDLONG)0;
-    key.ResolvedToken.typeSpec_Index   = (DWORD)0;
+    key.ResolvedToken.pTypeSpec_Index   = (DWORD)0;
     key.ResolvedToken.cbTypeSpec       = (DWORD)0;
-    key.ResolvedToken.methodSpec_Index = (DWORD)0;
+    key.ResolvedToken.pMethodSpec_Index = (DWORD)0;
     key.ResolvedToken.cbMethodSpec     = (DWORD)0;
     key.fThrowing                      = (DWORD)fThrowing;
 

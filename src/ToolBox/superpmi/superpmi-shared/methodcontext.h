@@ -168,9 +168,9 @@ public:
         DWORDLONG hClass;
         DWORDLONG hMethod;
         DWORDLONG hField;
-        DWORD     typeSpec_Index;
+        DWORD     pTypeSpec_Index;
         DWORD     cbTypeSpec;
-        DWORD     methodSpec_Index;
+        DWORD     pMethodSpec_Index;
         DWORD     cbMethodSpec;
     };
     struct Agnostic_GetFieldInfo
