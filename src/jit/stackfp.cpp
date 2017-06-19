@@ -4144,15 +4144,20 @@ void Compiler::raEnregisterVarsPostPassStackFP()
                 if (tree->gtOper == GT_CALL)
                 {
                     GenTreeCall* call = tree->AsCall();
-                    if (call->IsUnmanaged() && !opts.ShouldUsePInvokeHelpers())
+                    if (call->IsUnmanaged())
                     {
-                        LclVarDsc* frameVarDsc = &lvaTable[info.compLvFrameListRoot];
-
-                        if (frameVarDsc->lvTracked && ((call->gtCallMoreFlags & GTF_CALL_M_FRAME_VAR_DEATH) != 0))
+#ifndef _ARM_
+                        if (!opts.ShouldUsePInvokeHelpers())
+#endif
                         {
-                            // Frame var dies here
-                            unsigned varIndex = frameVarDsc->lvVarIndex;
-                            VarSetOps::RemoveElemD(this, lastlife, varIndex);
+                            LclVarDsc* frameVarDsc = &lvaTable[info.compLvFrameListRoot];
+
+                            if (frameVarDsc->lvTracked && ((call->gtCallMoreFlags & GTF_CALL_M_FRAME_VAR_DEATH) != 0))
+                            {
+                                // Frame var dies here
+                                unsigned varIndex = frameVarDsc->lvVarIndex;
+                                VarSetOps::RemoveElemD(this, lastlife, varIndex);
+                            }
                         }
                     }
                 }
