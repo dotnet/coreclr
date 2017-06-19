@@ -1440,7 +1440,6 @@ void fgArgInfo::ArgsComplete()
 #endif
         }
 #if defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND)
-        // Not tested on LegacyJIT/ARM32 yet
         else if (curArgTabEntry->isSplit)
         {
             hasStructRegArg = true;
@@ -1568,8 +1567,6 @@ void fgArgInfo::ArgsComplete()
 #if defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND)
                 else if (prevArgTabEntry->isSplit)
                 {
-                    // TODO: We need to test it on LegacyJIT/ARM32.
-                    // It have worked well on LegacyJIT/ARM32 in spite of we did not set this.
                     prevArgTabEntry->needPlace = true;
                 }
 #endif
@@ -1582,9 +1579,6 @@ void fgArgInfo::ArgsComplete()
         // For RyuJIT backend we will expand a Multireg arg into a GT_FIELD_LIST
         // with multiple indirections, so here we consider spilling it into a tmp LclVar.
         //
-        // Note that Arm32 is a LEGACY_BACKEND and it defines FEATURE_MULTIREG_ARGS
-        // so we skip this for ARM32 until it is ported to use RyuJIT backend
-        //
 
         bool isMultiRegArg = (curArgTabEntry->numRegs > 1);
 
@@ -1596,7 +1590,9 @@ void fgArgInfo::ArgsComplete()
                 curArgTabEntry->needTmp = true;
             }
 #ifndef _TARGET_ARM_
-            // TODO: This implementation is not tested on ARM32
+            // TODO-Arm: This optimization is not implemented for ARM32
+            // so we skip this for ARM32 until it is ported to use RyuJIT backend
+            //
             else
             {
                 // We call gtPrepareCost to measure the cost of evaluating this tree
@@ -1628,7 +1624,6 @@ void fgArgInfo::ArgsComplete()
                                 curArgTabEntry->needTmp = true;
                             }
                             break;
-
                         case 11:
                         case 13:
                         case 14:

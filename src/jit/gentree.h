@@ -1295,7 +1295,7 @@ public:
 
     bool OperIsPutArgSplit() const
     {
-#ifdef _TARGET_ARM_
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
         return gtOper == GT_PUTARG_SPLIT;
 #else
         return false;
@@ -4911,7 +4911,7 @@ struct GenTreePutArgStk : public GenTreeUnOp
     unsigned gtNumberReferenceSlots; // Number of reference slots.
     BYTE*    gtGcPtrs;               // gcPointers
 #ifdef _TARGET_ARM_
-    bool gtIsHfa; // isHfa
+    bool gtIsHfa;
 #endif
 
 #endif // FEATURE_PUT_STRUCT_ARG_STK
@@ -4927,8 +4927,8 @@ struct GenTreePutArgStk : public GenTreeUnOp
 #endif
 };
 
-#ifdef _TARGET_ARM_
-// Represent the struct argument: value is splitted in register(s) and stack
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+// Represent the struct argument: split value in register(s) and stack
 struct GenTreePutArgSplit : public GenTreePutArgStk
 {
     unsigned gtNumRegs;
@@ -4947,13 +4947,20 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
                            callNode)
         , gtNumRegs(numRegs)
     {
-#ifdef FEATURE_PUT_STRUCT_ARG_STK
         gtIsHfa = isHfa;
-#endif
+        ClearOtherRegs();
+        ClearOtherRegFlags();
     }
 
-    // HFA args is not yet handled
-    regNumber gtOtherRegs[MAX_REG_ARG - 1];
+    // First reg of struct is aloways given by gtRegNum.
+    // gtOtherRegs holds the other reg numbers of struct.
+    // HFA args is not yet handled.
+    regNumberSmall gtOtherRegs[MAX_REG_ARG - 1];
+
+    // GTF_SPILL or GTF_SPILLED flag on a multi-reg struct node indicates that one or
+    // more of its result regs are in that state.  The spill flag of each of the
+    // return register is stored in the below array.
+    unsigned gtSpillFlags[MAX_REG_ARG];
 
     //---------------------------------------------------------------------------
     // GetRegNumByIdx: get ith register allocated to this struct argument.
@@ -4973,7 +4980,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
             return gtRegNum;
         }
 
-        return gtOtherRegs[idx - 1];
+        return (regNumber)gtOtherRegs[idx - 1];
     }
 
     //----------------------------------------------------------------------
@@ -5000,6 +5007,70 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
         }
     }
 
+    //----------------------------------------------------------------------------
+    // ClearOtherRegs: clear multi-reg state to indicate no regs are allocated
+    //
+    // Arguments:
+    //    None
+    //
+    // Return Value:
+    //    None
+    //
+    void ClearOtherRegs()
+    {
+        for (unsigned i = 0; i < MAX_REG_ARG - 1; ++i)
+        {
+            gtOtherRegs[i] = REG_NA;
+        }
+    }
+
+    //----------------------------------------------------------------------
+    // GetRegSpillFlagByIdx: get spill flag associated with the register
+    // specified by its index.
+    //
+    // Arguments:
+    //    idx  -  Position or index of the register
+    //
+    // Return Value:
+    //    Returns GTF_* flags associated with.
+    unsigned GetRegSpillFlagByIdx(unsigned idx) const
+    {
+        assert(idx < MAX_RET_REG_COUNT);
+        return gtSpillFlags[idx];
+    }
+
+    //----------------------------------------------------------------------
+    // SetRegSpillFlagByIdx: set spill flags for the register
+    // specified by its index.
+    //
+    // Arguments:
+    //    flags  -  GTF_* flags
+    //    idx    -  Position or index of the register
+    //
+    // Return Value:
+    //    None
+    void SetRegSpillFlagByIdx(unsigned flags, unsigned idx)
+    {
+        assert(idx < MAX_REG_ARG);
+        gtSpillFlags[idx] = flags;
+    }
+
+    //-------------------------------------------------------------------
+    // clearOtherRegFlags: clear GTF_* flags associated with gtOtherRegs
+    //
+    // Arguments:
+    //     None
+    //
+    // Return Value:
+    //     None
+    void ClearOtherRegFlags()
+    {
+        for (unsigned i = 0; i < MAX_REG_ARG; ++i)
+        {
+            gtSpillFlags[i] = 0;
+        }
+    }
+
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
     unsigned getArgSize()
     {
@@ -5013,7 +5084,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
     }
 #endif
 };
-#endif // _TARGET_ARM_
+#endif // !LEGACY_BACKEND && _TARGET_ARM_
 
 // Represents GT_COPY or GT_RELOAD node
 struct GenTreeCopyOrReload : public GenTreeUnOp

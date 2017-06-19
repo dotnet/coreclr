@@ -9062,6 +9062,13 @@ void LinearScan::resolveRegisters()
                                 GenTreeCall* call = treeNode->AsCall();
                                 call->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
                             }
+#ifdef _TARGET_ARM_
+                            else if (treeNode->OperIsPutArgSplit())
+                            {
+                                GenTreePutArgSplit* splitArg = treeNode->AsPutArgSplit();
+                                splitArg->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
+                            }
+#endif
                         }
 
                         // If the value is reloaded or moved to a different register, we need to insert

@@ -734,10 +734,10 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntr
 
 #ifdef _TARGET_ARM_
 //------------------------------------------------------------------------
-// TreeNodeInfoInitPutArgStruct: Set the NodeInfo for a GT_PUTARG_STRUCT node
+// TreeNodeInfoInitPutArgStruct: Set the NodeInfo for a GT_PUTARG_SPLIT node
 //
 // Arguments:
-//    argNode - a GT_PUTARG_STRUCT node
+//    argNode - a GT_PUTARG_SPLIT node
 //
 // Return Value:
 //    None.
@@ -781,7 +781,7 @@ void Lowering::TreeNodeInfoInitPutArgSplit(GenTreePutArgSplit* argNode, TreeNode
     }
     MakeSrcContained(argNode, putArgChild);
 }
-#endif
+#endif // _TARGET_ARM_
 
 //------------------------------------------------------------------------
 // TreeNodeInfoInitBlockStore: Set the NodeInfo for a block store.

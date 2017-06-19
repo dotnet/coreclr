@@ -1004,6 +1004,35 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
         }
+#ifdef _TARGET_ARM_
+        else if (unspillTree->OperIsPutArgSplit())
+        {
+            GenTreePutArgSplit* splitArg = unspillTree->AsPutArgSplit();
+            unsigned            regCount = splitArg->gtNumRegs;
+
+            // In case of split struct argument node, GTF_SPILLED flag on it indicates that
+            // one or more of its result regs are spilled.  Call node needs to be
+            // queried to know which specific result regs to be unspilled.
+            for (unsigned i = 0; i < regCount; ++i)
+            {
+                unsigned flags = splitArg->GetRegSpillFlagByIdx(i);
+                if ((flags & GTF_SPILLED) != 0)
+                {
+                    BYTE*     gcPtrs  = splitArg->gtGcPtrs;
+                    var_types dstType = compiler->getJitGCType(gcPtrs[i]);
+                    regNumber dstReg  = splitArg->GetRegNumByIdx(i);
+
+                    TempDsc* t = regSet.rsUnspillInPlace(splitArg, dstReg, i);
+                    getEmitter()->emitIns_R_S(ins_Load(dstType), emitActualTypeSize(dstType), dstReg, t->tdTempNum(),
+                                              0);
+                    compiler->tmpRlsTemp(t);
+                    gcInfo.gcMarkRegPtrVal(dstReg, dstType);
+                }
+            }
+
+            unspillTree->gtFlags &= ~GTF_SPILLED;
+        }
+#endif
         else
         {
             TempDsc* t = regSet.rsUnspillInPlace(unspillTree, unspillTree->gtRegNum);

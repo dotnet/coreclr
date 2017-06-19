@@ -328,7 +328,7 @@ void GenTree::InitNodeSize()
     // TODO-Throughput: This should not need to be a large node. The object info should be
     // obtained from the child node.
     GenTree::s_gtNodeSizes[GT_PUTARG_STK]       = TREE_NODE_SZ_LARGE;
-#ifdef _TARGET_ARM_
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
     GenTree::s_gtNodeSizes[GT_PUTARG_SPLIT]     = TREE_NODE_SZ_LARGE;
 #endif
 #endif // FEATURE_PUT_STRUCT_ARG_STK
@@ -393,7 +393,7 @@ void GenTree::InitNodeSize()
     // TODO-Throughput: This should not need to be a large node. The object info should be
     // obtained from the child node.
     static_assert_no_msg(sizeof(GenTreePutArgStk)    <= TREE_NODE_SZ_LARGE);
-#ifdef _TARGET_ARM_
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
     static_assert_no_msg(sizeof(GenTreePutArgSplit)  <= TREE_NODE_SZ_LARGE);
 #endif
 #endif // FEATURE_PUT_STRUCT_ARG_STK
@@ -1748,6 +1748,24 @@ regMaskTP GenTree::gtGetRegMask() const
                 }
             }
         }
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+        else if (OperIsPutArgSplit())
+        {
+            GenTree*            tree     = const_cast<GenTree*>(this);
+            GenTreePutArgSplit* splitArg = tree->AsPutArgSplit();
+            unsigned            regCount = splitArg->gtNumRegs;
+
+            resultMask = RBM_NONE;
+            for (unsigned i = 0; i < regCount; ++i)
+            {
+                regNumber reg = splitArg->GetRegNumByIdx(i);
+                if (reg != REG_NA)
+                {
+                    resultMask |= genRegMask(reg);
+                }
+            }
+        }
+#endif
         else
         {
             resultMask = genRegMask(gtRegNum);
@@ -9251,9 +9269,9 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_PHYSREGDST:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
-#ifdef _TARGET_ARM_
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
         case GT_PUTARG_SPLIT:
-#endif
+#endif // !LEGACY_BACKEND && _TARGET_ARM_
         case GT_RETURNTRAP:
             m_edge = &m_node->AsUnOp()->gtOp1;
             assert(*m_edge != nullptr);

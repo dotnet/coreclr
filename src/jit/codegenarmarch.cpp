@@ -893,10 +893,10 @@ void CodeGen::genPutArgReg(GenTreeOp* tree)
 
 #ifdef _TARGET_ARM_
 //---------------------------------------------------------------------
-// genPutArgSplit - generate code for a GT_PUTARG_STRUCT node
+// genPutArgSplit - generate code for a GT_PUTARG_SPLIT node
 //
 // Arguments
-//    tree - the GT_PUTARG_STRUCT node
+//    tree - the GT_PUTARG_SPLIT node
 //
 // Return value:
 //    None
@@ -981,6 +981,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
     int      remainingSize = structSize - structOffset;
 
     // remainingSize is always multiple of TARGET_POINTER_SIZE
+    assert(remainingSize % TARGET_POINTER_SIZE == 0);
     while (remainingSize > 0)
     {
         var_types type = compiler->getJitGCType(gcPtrs[nextIndex]);
@@ -1012,21 +1013,21 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
     structOffset = 0;
     for (unsigned idx = 0; idx < treeNode->gtNumRegs; idx++)
     {
-        baseReg        = treeNode->GetRegNumByIdx(idx);
-        var_types type = compiler->getJitGCType(gcPtrs[idx]);
+        regNumber targetReg = treeNode->GetRegNumByIdx(idx);
+        var_types type      = compiler->getJitGCType(gcPtrs[idx]);
 
         if (varNode != nullptr)
         {
             // Load from our varNumImp source
-            emit->emitIns_R_S(INS_ldr, emitTypeSize(type), baseReg, srcVarNum, structOffset);
+            emit->emitIns_R_S(INS_ldr, emitTypeSize(type), targetReg, srcVarNum, structOffset);
         }
         else
         {
             // check for case of destroying the addrRegister while we still need it
-            assert(baseReg != addrReg);
+            assert(targetReg != addrReg);
 
             // Load from our address expression source
-            emit->emitIns_R_R_I(INS_ldr, emitTypeSize(type), baseReg, addrReg, structOffset);
+            emit->emitIns_R_R_I(INS_ldr, emitTypeSize(type), targetReg, addrReg, structOffset);
         }
         structOffset += TARGET_POINTER_SIZE;
     }
@@ -1765,24 +1766,30 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         }
         else
         {
-            regNumber argReg = curArgTabEntry->regNum;
             genConsumeReg(argNode);
-            if (argNode->gtRegNum != argReg)
-            {
 #ifdef _TARGET_ARM_
-                if (curArgTabEntry->isSplit)
+            if (curArgTabEntry->isSplit)
+            {
+                assert(curArgTabEntry->numRegs >= 1);
+                for (unsigned idx = 0; idx < curArgTabEntry->numRegs; idx++)
                 {
-                    for (unsigned idx = 0; idx < curArgTabEntry->numRegs; idx++)
+                    regNumber regDst = (regNumber)((unsigned)curArgTabEntry->regNum + idx);
+                    regNumber regSrc = argNode->AsPutArgSplit()->GetRegNumByIdx(idx);
+                    if (regDst != regSrc)
                     {
-                        regNumber regDst = (regNumber)((unsigned)argReg + idx);
-                        regNumber regSrc = (regNumber)((unsigned)argNode->gtRegNum + idx);
                         inst_RV_RV(ins_Move_Extend(argNode->TypeGet(), true), regDst, regSrc);
                     }
                 }
-                else
+            }
+            else
 #endif
+            {
+                regNumber argReg = curArgTabEntry->regNum;
+                if (argNode->gtRegNum != argReg)
                 {
-                    inst_RV_RV(ins_Move_Extend(argNode->TypeGet(), true), argReg, argNode->gtRegNum);
+                    {
+                        inst_RV_RV(ins_Move_Extend(argNode->TypeGet(), true), argReg, argNode->gtRegNum);
+                    }
                 }
             }
         }
