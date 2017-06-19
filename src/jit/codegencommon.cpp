@@ -8687,8 +8687,10 @@ void CodeGen::genFnProlog()
     {
         excludeMask |= RBM_PINVOKE_FRAME;
 
+#ifndef _ARM_
         assert((!compiler->opts.ShouldUsePInvokeHelpers()) || (compiler->info.compLvFrameListRoot == BAD_VAR_NUM));
         if (!compiler->opts.ShouldUsePInvokeHelpers())
+#endif
         {
             noway_assert(compiler->info.compLvFrameListRoot < compiler->lvaCount);
 
@@ -8960,9 +8962,27 @@ void CodeGen::genFnProlog()
 #if defined(LEGACY_BACKEND) // in RyuJIT backend this has already been expanded into trees
     if (compiler->info.compCallUnmanaged)
     {
-        getEmitter()->emitDisableRandomNops();
-        initRegs = genPInvokeMethodProlog(initRegs);
-        getEmitter()->emitEnableRandomNops();
+        if (!compiler->opts.ShouldUsePInvokeHelpers())
+        {
+            getEmitter()->emitDisableRandomNops();
+            initRegs = genPInvokeMethodProlog(initRegs);
+            getEmitter()->emitEnableRandomNops();
+        }
+#ifdef _ARM_
+        else
+        {
+            /* let's find out if compLvFrameListRoot is enregistered */
+            noway_assert(compiler->info.compLvFrameListRoot != BAD_VAR_NUM);
+            noway_assert(compiler->info.compLvFrameListRoot < compiler->lvaCount);
+            LclVarDsc* varDsc = &compiler->lvaTable[compiler->info.compLvFrameListRoot];
+
+            noway_assert(!varDsc->lvIsParam);
+            noway_assert(varDsc->lvType == TYP_I_IMPL);
+
+            // We're about to track REG_PINVOKE_TCB, it better not be in use!
+            assert((regSet.rsMaskUsed & RBM_PINVOKE_TCB) == 0);
+        }
+#endif
     }
 #endif // defined(LEGACY_BACKEND)
 

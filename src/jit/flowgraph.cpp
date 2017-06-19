@@ -8403,7 +8403,9 @@ void Compiler::fgAddInternal()
     {
         // The P/Invoke helpers only require a frame variable, so only allocate the
         // TCB variable if we're not using them.
+#ifndef _ARM_
         if (!opts.ShouldUsePInvokeHelpers())
+#endif
         {
             info.compLvFrameListRoot = lvaGrabTemp(false DEBUGARG("Pinvoke FrameListRoot"));
         }

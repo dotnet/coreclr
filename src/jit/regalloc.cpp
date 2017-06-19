@@ -6354,7 +6354,9 @@ void Compiler::rpPredictRegUse()
         // it must not be in a register trashed by the callee
         if (info.compLvFrameListRoot != BAD_VAR_NUM)
         {
+#ifndef _ARM_
             assert(!opts.ShouldUsePInvokeHelpers());
+#endif
             noway_assert(info.compLvFrameListRoot < lvaCount);
 
             LclVarDsc* pinvokeVarDsc = &lvaTable[info.compLvFrameListRoot];

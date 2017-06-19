@@ -20929,6 +20929,7 @@ regMaskTP CodeGen::genPInvokeMethodProlog(regMaskTP initRegs)
     noway_assert(compiler->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
 
     /* let's find out if compLvFrameListRoot is enregistered */
+    noway_assert(compiler->info.compLvFrameListRoot != BAD_VAR_NUM);
 
     LclVarDsc* varDsc = &compiler->lvaTable[compiler->info.compLvFrameListRoot];
 
@@ -21100,6 +21101,14 @@ regMaskTP CodeGen::genPInvokeMethodProlog(regMaskTP initRegs)
 void CodeGen::genPInvokeMethodEpilog()
 {
     noway_assert(compiler->info.compCallUnmanaged);
+
+#ifdef _ARM_
+    if (compiler->opts.ShouldUsePInvokeHelpers())
+    {
+        return;
+    }
+#endif
+
     noway_assert(!compiler->opts.ShouldUsePInvokeHelpers());
     noway_assert(compiler->compCurBB == compiler->genReturnBB ||
                  (compiler->compTailCallUsed && (compiler->compCurBB->bbJumpKind == BBJ_THROW)) ||
@@ -21285,6 +21294,30 @@ regNumber CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
 #endif // DEBUG
     }
 
+    if (compiler->opts.ShouldUsePInvokeHelpers())
+    {
+        regNumber tcbReg = REG_NA;
+        if (frameListRoot->lvRegister)
+        {
+            tcbReg = frameListRoot->lvRegNum;
+        }
+        else
+        {
+            tcbReg = regSet.rsGrabReg(RBM_ALLINT);
+
+            /* mov reg, dword ptr [tcb address]    */
+
+            getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, tcbReg,
+                                      (unsigned)(frameListRoot - compiler->lvaTable), 0);
+            regTracker.rsTrackRegTrash(tcbReg);
+        }
+        getEmitter()->emitIns_R_AR(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_ARG_0, tcbReg, 0);
+        genEmitHelperCall(CORINFO_HELP_JIT_PINVOKE_BEGIN,
+                          0,             // argSize
+                          EA_UNKNOWN);   // retSize
+        return tcbReg;
+    }
+
     /* Since we are using the InlinedCallFrame, we should have spilled all
        GC pointers to it - even from callee-saved registers */
 
@@ -21428,6 +21461,27 @@ regNumber CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
 
 void CodeGen::genPInvokeCallEpilog(LclVarDsc* frameListRoot, regMaskTP retVal)
 {
+    if (compiler->opts.ShouldUsePInvokeHelpers())
+    {
+        regNumber tcbReg = REG_NA;
+        if (frameListRoot->lvRegister)
+        {
+            tcbReg = frameListRoot->lvRegNum;
+        }
+        else
+        {
+            tcbReg = regSet.rsGrabReg(RBM_ALLINT);
+            getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, tcbReg,
+                                      (unsigned)(frameListRoot - compiler->lvaTable), 0);
+            regTracker.rsTrackRegTrash(tcbReg);
+        }
+        getEmitter()->emitIns_R_AR(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_ARG_0, tcbReg, 0);
+        genEmitHelperCall(CORINFO_HELP_JIT_PINVOKE_END,
+                          0,             // argSize
+                          EA_UNKNOWN);   // retSize
+        return;
+    }
+
     BasicBlock*      clab_nostop;
     CORINFO_EE_INFO* pInfo = compiler->eeGetEEInfo();
     regNumber        reg2;

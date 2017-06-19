@@ -357,8 +357,10 @@ void Compiler::fgPerNodeLocalVarLiveness(GenTree* tree)
 
             if ((tree->gtCall.IsUnmanaged() || (tree->gtCall.IsTailCall() && info.compCallUnmanaged)))
             {
+#ifndef _ARM_
                 assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
                 if (!opts.ShouldUsePInvokeHelpers())
+#endif
                 {
                     /* Get the TCB local and mark it as used */
 
@@ -529,8 +531,10 @@ void Compiler::fgPerBlockLocalVarLiveness()
 
         if (block->bbJumpKind == BBJ_RETURN && info.compCallUnmanaged)
         {
+#ifndef _ARM_
             assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
             if (!opts.ShouldUsePInvokeHelpers())
+#endif
             {
                 noway_assert(info.compLvFrameListRoot < lvaCount);
 
@@ -1501,8 +1505,10 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
     // This ensure that this variable is kept alive at the tail-call
     if (call->IsTailCall() && info.compCallUnmanaged)
     {
+#ifndef _ARM_
         assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
         if (!opts.ShouldUsePInvokeHelpers())
+#endif
         {
             /* Get the TCB local and make it live */
 
@@ -1532,8 +1538,10 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
     if (call->IsUnmanaged())
     {
         /* Get the TCB local and make it live */
+#ifndef _ARM_
         assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
         if (!opts.ShouldUsePInvokeHelpers())
+#endif
         {
             noway_assert(info.compLvFrameListRoot < lvaCount);
 
