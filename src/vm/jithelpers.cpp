@@ -3155,10 +3155,12 @@ HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
     HELPER_METHOD_FRAME_BEGIN_RET_0();    // Set up a frame
 
     TypeHandle typeHnd(arrayTypeHnd_);
-
-    _ASSERTE(typeHnd.GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY);
-    typeHnd.CheckRestore();
     ArrayTypeDesc* pArrayClassRef = typeHnd.AsArray();
+    MethodTable *pArrayMT = pArrayClassRef->GetTemplateMethodTable();
+
+    _ASSERTE(pArrayMT->IsFullyLoaded());
+    _ASSERTE(pArrayMT->IsArray());
+    _ASSERTE(!pArrayMT->IsMultiDimArray());
 
     if (size < 0)
         COMPlusThrow(kOverflowException);
@@ -3175,7 +3177,7 @@ HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
     // is this a primitive type?
     //
 
-    CorElementType elemType = pArrayClassRef->GetArrayElementTypeHandle().GetSignatureCorElementType();
+    CorElementType elemType = pArrayMT->GetInternalCorElementType();
 
     if (CorTypeInfo::IsPrimitiveType(elemType)
 #ifdef FEATURE_64BIT_ALIGNMENT
@@ -3208,9 +3210,13 @@ HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
 #endif
 
         if (g_pPredefinedArrayTypes[elemType] == NULL)
-            g_pPredefinedArrayTypes[elemType] = pArrayClassRef;
+        {
+            TypeHandle elemTypeHnd = TypeHandle(MscorlibBinder::GetElementType(elemType));
 
-        newArray = FastAllocatePrimitiveArray(pArrayClassRef->GetMethodTable(), static_cast<DWORD>(size), bAllocateInLargeHeap);
+            g_pPredefinedArrayTypes[elemType] = ClassLoader::LoadArrayTypeThrowing(elemTypeHnd, ELEMENT_TYPE_SZARRAY, 0).AsArray();
+        }
+
+        newArray = FastAllocatePrimitiveArray(pArrayMT, static_cast<DWORD>(size), bAllocateInLargeHeap);
     }
     else
     {
@@ -3220,7 +3226,7 @@ HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
         }
 #endif // _DEBUG
         INT32 size32 = (INT32)size;
-        newArray = AllocateArrayEx(typeHnd, &size32, 1);
+        newArray = AllocateArrayEx(pArrayMT, &size32, 1);
     }
 
     HELPER_METHOD_FRAME_END();
