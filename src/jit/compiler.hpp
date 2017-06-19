@@ -4142,6 +4142,12 @@ inline bool Compiler::IsGcSafePoint(GenTreePtr tree)
     return false;
 }
 
+inline bool Compiler::IsOperArithmetic(genTreeOps oper)
+{
+    return oper == GT_ADD || oper == GT_SUB || oper == GT_MUL || oper == GT_DIV || oper == GT_MOD || oper == GT_UDIV ||
+           oper == GT_UMOD || oper == GT_AND || oper == GT_OR || oper == GT_XOR;
+}
+
 //
 // Note that we want to have two special FIELD_HANDLES that will both
 // be considered non-Data Offset handles

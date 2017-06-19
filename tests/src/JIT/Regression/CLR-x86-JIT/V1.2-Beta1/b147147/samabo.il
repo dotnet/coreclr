@@ -68,7 +68,7 @@
     IL_0019:  ldflda     valuetype MyStruct/buffer__FixedBufferImpl MyStruct::buffer
     IL_001e:  ldflda     char MyStruct/buffer__FixedBufferImpl::FixedElementField
     IL_0023:  ldc.i4.2
-    IL_0024:  conv.i
+    IL_0024:  nop
     IL_0025:  add
     IL_0026:  ldc.i4.s   69
     IL_0028:  stind.i2
@@ -76,7 +76,7 @@
     IL_002b:  ldflda     valuetype MyStruct/buffer__FixedBufferImpl MyStruct::buffer
     IL_0030:  ldflda     char MyStruct/buffer__FixedBufferImpl::FixedElementField
     IL_0035:  ldc.i4.4
-    IL_0036:  conv.i
+    IL_0036:  nop
     IL_0037:  add
     IL_0038:  ldc.i4.s   76
     IL_003a:  stind.i2
@@ -84,7 +84,7 @@
     IL_003d:  ldflda     valuetype MyStruct/buffer__FixedBufferImpl MyStruct::buffer
     IL_0042:  ldflda     char MyStruct/buffer__FixedBufferImpl::FixedElementField
     IL_0047:  ldc.i4.6
-    IL_0048:  conv.i
+    IL_0048:  nop
     IL_0049:  add
     IL_004a:  ldc.i4.s   76
     IL_004c:  stind.i2
@@ -92,7 +92,7 @@
     IL_004f:  ldflda     valuetype MyStruct/buffer__FixedBufferImpl MyStruct::buffer
     IL_0054:  ldflda     char MyStruct/buffer__FixedBufferImpl::FixedElementField
     IL_0059:  ldc.i4.8
-    IL_005a:  conv.i
+    IL_005a:  nop
     IL_005b:  add
     IL_005c:  ldc.i4.s   79
     IL_005e:  stind.i2
@@ -104,7 +104,7 @@
     IL_0065:  ldflda     valuetype MyStruct/buffer__FixedBufferImpl MyStruct::buffer
     IL_006a:  ldflda     char MyStruct/buffer__FixedBufferImpl::FixedElementField
     IL_006f:  ldloc.1
-    IL_0070:  conv.i
+    IL_0070:  nop
     IL_0071:  ldc.i4.2
     IL_0072:  mul
     IL_0073:  add
