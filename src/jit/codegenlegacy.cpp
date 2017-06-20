@@ -21318,8 +21318,8 @@ regNumber CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
 
         getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_ARG_0, baseReg, adr);
         genEmitHelperCall(CORINFO_HELP_JIT_PINVOKE_BEGIN,
-                          0,             // argSize
-                          EA_UNKNOWN);   // retSize
+                          0,           // argSize
+                          EA_UNKNOWN); // retSize
         regTracker.rsTrackRegTrash(REG_ARG_0);
         return REG_ARG_0;
     }
@@ -21456,8 +21456,8 @@ void CodeGen::genPInvokeCallEpilog(LclVarDsc* frameListRoot, regMaskTP retVal)
 
         getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_ARG_0, baseReg, adr);
         genEmitHelperCall(CORINFO_HELP_JIT_PINVOKE_END,
-                          0,             // argSize
-                          EA_UNKNOWN);   // retSize
+                          0,           // argSize
+                          EA_UNKNOWN); // retSize
         regTracker.rsTrackRegTrash(REG_ARG_0);
         return;
     }
