@@ -475,6 +475,20 @@ public:
         DWORD     token;
     };
 
+    struct GetCookieForPInvokeCalliSigValue
+    {
+        DWORD     cbSig;
+        DWORD     pSig;
+        DWORDLONG scope;
+        DWORD     token;
+    };
+
+    struct CanGetCookieForPInvokeCalliSigValue
+    {
+        DWORDLONG scope;
+        DWORD     token;
+    };
+
 #pragma pack(pop)
 
     MethodContext();
@@ -1085,11 +1099,11 @@ public:
     CORINFO_CLASS_HANDLE repMergeClasses(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
 
     void recGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, void** ppIndirection, LPVOID result);
-    void dmpGetCookieForPInvokeCalliSig(const Agnostic_CORINFO_SIG_INFO& key, DLDL value);
+    void dmpGetCookieForPInvokeCalliSig(const GetCookieForPInvokeCalliSigValue& key, DLDL value);
     LPVOID repGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, void** ppIndirection);
 
     void recCanGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, bool result);
-    void dmpCanGetCookieForPInvokeCalliSig(const Agnostic_CORINFO_SIG_INFO& key, DWORD value);
+    void dmpCanGetCookieForPInvokeCalliSig(const CanGetCookieForPInvokeCalliSigValue& key, DWORD value);
     bool repCanGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig);
 
     void recCanAccessFamily(CORINFO_METHOD_HANDLE hCaller, CORINFO_CLASS_HANDLE hInstanceType, BOOL result);

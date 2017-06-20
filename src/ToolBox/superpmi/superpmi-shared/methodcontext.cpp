@@ -5449,29 +5449,17 @@ CORINFO_CLASS_HANDLE MethodContext::repMergeClasses(CORINFO_CLASS_HANDLE cls1, C
 void MethodContext::recGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, void** ppIndirection, LPVOID result)
 {
     if (GetCookieForPInvokeCalliSig == nullptr)
-        GetCookieForPInvokeCalliSig = new LightWeightMap<Agnostic_CORINFO_SIG_INFO, DLDL>();
+        GetCookieForPInvokeCalliSig = new LightWeightMap<GetCookieForPInvokeCalliSigValue, DLDL>();
 
-    Agnostic_CORINFO_SIG_INFO key;
-    ZeroMemory(&key, sizeof(Agnostic_CORINFO_SIG_INFO)); // We use the input structs as a key and use memcmp to
-                                                         // compare.. so we need to zero out padding too
-    DLDL value;
-
-    key.callConv                = (DWORD)0;
-    key.retTypeClass            = (DWORDLONG)0;
-    key.retTypeSigClass         = (DWORDLONG)0;
-    key.retType                 = (DWORD)0;
-    key.flags                   = (DWORD)0;
-    key.numArgs                 = (DWORD)0;
-    key.sigInst_classInstCount  = (DWORD)0;
-    key.sigInst_classInst_Index = (DWORD)0;
-    key.sigInst_methInstCount   = (DWORD)0;
-    key.sigInst_methInst_Index  = (DWORD)0;
-    key.args                    = (DWORDLONG)0;
-    key.cbSig                   = (DWORD)szMetaSig->cbSig;
+    GetCookieForPInvokeCalliSigValue key;
+    ZeroMemory(&key, sizeof(GetCookieForPInvokeCalliSigValue)); // We use the input structs as a key and use memcmp to
+                                                                // compare.. so we need to zero out padding too
+    key.cbSig = (DWORD)szMetaSig->cbSig;
     key.pSig  = (DWORD)GetCookieForPInvokeCalliSig->AddBuffer((unsigned char*)szMetaSig->pSig, szMetaSig->cbSig);
     key.scope = (DWORDLONG)szMetaSig->scope;
     key.token = (DWORD)szMetaSig->token;
 
+    DLDL value;
     if (ppIndirection != nullptr)
         value.A = (DWORDLONG)*ppIndirection;
     else
@@ -5480,35 +5468,21 @@ void MethodContext::recGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, 
 
     GetCookieForPInvokeCalliSig->Add(key, value);
 }
-void MethodContext::dmpGetCookieForPInvokeCalliSig(const Agnostic_CORINFO_SIG_INFO& key, DLDL value)
+void MethodContext::dmpGetCookieForPInvokeCalliSig(const GetCookieForPInvokeCalliSigValue& key, DLDL value)
 {
     printf("GetCookieForPInvokeCalliSig NYI");
 }
 LPVOID MethodContext::repGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, void** ppIndirection)
 {
-    Agnostic_CORINFO_SIG_INFO key;
-    ZeroMemory(&key, sizeof(Agnostic_CORINFO_SIG_INFO)); // We use the input structs as a key and use memcmp to
-                                                         // compare.. so we need to zero out padding too
-    DLDL value;
-
-    key.callConv                = (DWORD)0;
-    key.retTypeClass            = (DWORDLONG)0;
-    key.retTypeSigClass         = (DWORDLONG)0;
-    key.retType                 = (DWORD)0;
-    key.flags                   = (DWORD)0;
-    key.numArgs                 = (DWORD)0;
-    key.sigInst_classInstCount  = (DWORD)0;
-    key.sigInst_classInst_Index = (DWORD)0;
-    key.sigInst_methInstCount   = (DWORD)0;
-    key.sigInst_methInst_Index  = (DWORD)0;
-    key.args                    = (DWORDLONG)0;
-    key.cbSig                   = (DWORD)szMetaSig->cbSig;
+    GetCookieForPInvokeCalliSigValue key;
+    ZeroMemory(&key, sizeof(GetCookieForPInvokeCalliSigValue)); // We use the input structs as a key and use memcmp to
+                                                                // compare.. so we need to zero out padding too
+    key.cbSig = (DWORD)szMetaSig->cbSig;
     key.pSig  = (DWORD)GetCookieForPInvokeCalliSig->Contains((unsigned char*)szMetaSig->pSig, szMetaSig->cbSig);
     key.scope = (DWORDLONG)szMetaSig->scope;
     key.token = (DWORD)szMetaSig->token;
 
-    value = (DLDL)GetCookieForPInvokeCalliSig->Get(key);
-
+    DLDL value = (DLDL)GetCookieForPInvokeCalliSig->Get(key);
     if (ppIndirection != nullptr)
         *ppIndirection = (void*)value.A;
 
@@ -5518,56 +5492,30 @@ LPVOID MethodContext::repGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig
 void MethodContext::recCanGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, bool result)
 {
     if (CanGetCookieForPInvokeCalliSig == nullptr)
-        CanGetCookieForPInvokeCalliSig = new LightWeightMap<Agnostic_CORINFO_SIG_INFO, DWORD>();
+        CanGetCookieForPInvokeCalliSig = new LightWeightMap<CanGetCookieForPInvokeCalliSigValue, DWORD>();
 
-    Agnostic_CORINFO_SIG_INFO key;
-    ZeroMemory(&key, sizeof(Agnostic_CORINFO_SIG_INFO)); // We use the input structs as a key and use memcmp to
-                                                         // compare.. so we need to zero out padding too
-
-    key.callConv                = (DWORD)0;
-    key.retTypeClass            = (DWORDLONG)0;
-    key.retTypeSigClass         = (DWORDLONG)0;
-    key.retType                 = (DWORD)0;
-    key.flags                   = (DWORD)0;
-    key.numArgs                 = (DWORD)0;
-    key.sigInst_classInstCount  = (DWORD)0;
-    key.sigInst_classInst_Index = (DWORD)0;
-    key.sigInst_methInstCount   = (DWORD)0;
-    key.sigInst_methInst_Index  = (DWORD)0;
-    key.args                    = (DWORDLONG)0;
-    key.cbSig                   = (DWORD)0;
-    key.pSig                    = (DWORD)0;
-    key.scope                   = (DWORDLONG)szMetaSig->scope;
-    key.token                   = (DWORD)szMetaSig->token;
+    CanGetCookieForPInvokeCalliSigValue key;
+    ZeroMemory(&key,
+               sizeof(CanGetCookieForPInvokeCalliSigValue)); // We use the input structs as a key and use memcmp to
+                                                             // compare.. so we need to zero out padding too
+    key.scope = (DWORDLONG)szMetaSig->scope;
+    key.token = (DWORD)szMetaSig->token;
 
     CanGetCookieForPInvokeCalliSig->Add(key, (DWORD)result);
 }
-void MethodContext::dmpCanGetCookieForPInvokeCalliSig(const Agnostic_CORINFO_SIG_INFO& key, DWORD value)
+void MethodContext::dmpCanGetCookieForPInvokeCalliSig(const CanGetCookieForPInvokeCalliSigValue& key, DWORD value)
 {
     printf("CanGetCookieForPInvokeCalliSig key scope-%016llX token-%08X, value result-%08X", key.scope, key.token,
            value);
 }
 bool MethodContext::repCanGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig)
 {
-    Agnostic_CORINFO_SIG_INFO key;
-    ZeroMemory(&key, sizeof(Agnostic_CORINFO_SIG_INFO)); // We use the input structs as a key and use memcmp to
-                                                         // compare.. so we need to zero out padding too
-
-    key.callConv                = (DWORD)0;
-    key.retTypeClass            = (DWORDLONG)0;
-    key.retTypeSigClass         = (DWORDLONG)0;
-    key.retType                 = (DWORD)0;
-    key.flags                   = (DWORD)0;
-    key.numArgs                 = (DWORD)0;
-    key.sigInst_classInstCount  = (DWORD)0;
-    key.sigInst_classInst_Index = (DWORD)0;
-    key.sigInst_methInstCount   = (DWORD)0;
-    key.sigInst_methInst_Index  = (DWORD)0;
-    key.args                    = (DWORDLONG)0;
-    key.cbSig                   = (DWORD)0;
-    key.pSig                    = (DWORD)0;
-    key.scope                   = (DWORDLONG)szMetaSig->scope;
-    key.token                   = (DWORD)szMetaSig->token;
+    CanGetCookieForPInvokeCalliSigValue key;
+    ZeroMemory(&key,
+               sizeof(CanGetCookieForPInvokeCalliSigValue)); // We use the input structs as a key and use memcmp to
+                                                             // compare.. so we need to zero out padding too
+    key.scope = (DWORDLONG)szMetaSig->scope;
+    key.token = (DWORD)szMetaSig->token;
 
     DWORD temp = CanGetCookieForPInvokeCalliSig->Get(key);
     return temp != 0;
