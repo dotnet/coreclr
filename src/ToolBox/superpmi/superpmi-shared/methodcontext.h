@@ -106,10 +106,16 @@ public:
         DWORD     pMethodSpec_Index;
         DWORD     cbMethodSpec;
     };
-    struct Agnostic_GetArgType
+    struct GetArgTypeValue
     {
-        Agnostic_CORINFO_SIG_INFO sig;
-        DWORDLONG                 args;
+        DWORD     flags;
+        DWORD     numArgs;
+        DWORD     sigInst_classInstCount;
+        DWORD     sigInst_classInst_Index;
+        DWORD     sigInst_methInstCount;
+        DWORD     sigInst_methInst_Index;
+        DWORDLONG     scope;
+        DWORDLONG args;
     };
     struct Agnostic_GetArgClass
     {
@@ -761,7 +767,7 @@ public:
                        CORINFO_CLASS_HANDLE*   vcTypeRet,
                        CorInfoTypeWithMod      result,
                        DWORD                   exception);
-    void dmpGetArgType(const Agnostic_GetArgType& key, const Agnostic_GetArgType_Value& value);
+    void dmpGetArgType(const GetArgTypeValue& key, const Agnostic_GetArgType_Value& value);
     CorInfoTypeWithMod repGetArgType(CORINFO_SIG_INFO*       sig,
                                      CORINFO_ARG_LIST_HANDLE args,
                                      CORINFO_CLASS_HANDLE*   vcTypeRet,

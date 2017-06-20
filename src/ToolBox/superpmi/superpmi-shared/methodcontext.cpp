@@ -2562,34 +2562,25 @@ void MethodContext::recGetArgType(CORINFO_SIG_INFO*       sig,
                                   DWORD                   exceptionCode)
 {
     if (GetArgType == nullptr)
-        GetArgType = new LightWeightMap<Agnostic_GetArgType, Agnostic_GetArgType_Value>();
+        GetArgType = new LightWeightMap<GetArgTypeValue, Agnostic_GetArgType_Value>();
 
-    Agnostic_GetArgType key;
-    ZeroMemory(&key, sizeof(Agnostic_GetArgType)); // We use the input structs as a key and use memcmp to compare.. so
-                                                   // we need to zero out padding too
-    Agnostic_GetArgType_Value value;
-
+    GetArgTypeValue key;
+    ZeroMemory(&key, sizeof(GetArgType)); // We use the input structs as a key and use memcmp to compare.. so
+                                          // we need to zero out padding too
     // Only setting values for things the EE seems to pay attention to... this is necessary since some of the values
     // are unset and fail our precise comparisions...
-    key.sig.callConv               = (DWORD)0;
-    key.sig.retTypeClass           = (DWORDLONG)0;
-    key.sig.retTypeSigClass        = (DWORDLONG)0;
-    key.sig.retType                = (DWORD)0;
-    key.sig.flags                  = (DWORD)sig->flags;
-    key.sig.numArgs                = (DWORD)sig->numArgs;
-    key.sig.sigInst_classInstCount = (DWORD)sig->sigInst.classInstCount;
-    key.sig.sigInst_classInst_Index =
+    key.flags                  = (DWORD)sig->flags;
+    key.numArgs                = (DWORD)sig->numArgs;
+    key.sigInst_classInstCount = (DWORD)sig->sigInst.classInstCount;
+    key.sigInst_classInst_Index =
         (DWORD)GetArgType->AddBuffer((unsigned char*)sig->sigInst.classInst, sig->sigInst.classInstCount * 8);
-    key.sig.sigInst_methInstCount = (DWORD)sig->sigInst.methInstCount;
-    key.sig.sigInst_methInst_Index =
+    key.sigInst_methInstCount = (DWORD)sig->sigInst.methInstCount;
+    key.sigInst_methInst_Index =
         (DWORD)GetArgType->AddBuffer((unsigned char*)sig->sigInst.methInst, sig->sigInst.methInstCount * 8);
-    key.sig.args  = (DWORDLONG)0;
-    key.sig.cbSig = (DWORD)0;
-    key.sig.pSig  = -1;
-    key.sig.scope = (DWORDLONG)sig->scope;
-    key.sig.token = (DWORD)0;
-    key.args      = (DWORDLONG)args;
+    key.scope = (DWORDLONG)sig->scope;
+    key.args  = (DWORDLONG)args;
 
+    Agnostic_GetArgType_Value value;
     value.vcTypeRet     = (DWORDLONG)*vcTypeRet;
     value.result        = (DWORD)result;
     value.exceptionCode = (DWORD)exceptionCode;
@@ -2597,11 +2588,11 @@ void MethodContext::recGetArgType(CORINFO_SIG_INFO*       sig,
     GetArgType->Add(key, value);
     DEBUG_REC(dmpGetArgType(key, value));
 }
-void MethodContext::dmpGetArgType(const Agnostic_GetArgType& key, const Agnostic_GetArgType_Value& value)
+void MethodContext::dmpGetArgType(const GetArgTypeValue& key, const Agnostic_GetArgType_Value& value)
 {
-    printf("GetArgType key flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u scp-%016llX arg-%016llX", key.sig.flags,
-           key.sig.numArgs, key.sig.sigInst_classInstCount, key.sig.sigInst_classInst_Index,
-           key.sig.sigInst_methInstCount, key.sig.sigInst_methInst_Index, key.sig.scope, key.args);
+    printf("GetArgType key flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u scp-%016llX arg-%016llX", key.flags, key.numArgs,
+           key.sigInst_classInstCount, key.sigInst_classInst_Index, key.sigInst_methInstCount,
+           key.sigInst_methInst_Index, key.scope, key.args);
     printf(", value rt-%016llX ci-%u excp-%08X", value.vcTypeRet, value.result, value.exceptionCode);
 }
 CorInfoTypeWithMod MethodContext::repGetArgType(CORINFO_SIG_INFO*       sig,
@@ -2609,39 +2600,30 @@ CorInfoTypeWithMod MethodContext::repGetArgType(CORINFO_SIG_INFO*       sig,
                                                 CORINFO_CLASS_HANDLE*   vcTypeRet,
                                                 DWORD*                  exceptionCode)
 {
-    Agnostic_GetArgType key;
-    ZeroMemory(&key, sizeof(Agnostic_GetArgType)); // We use the input structs as a key and use memcmp to compare.. so
-                                                   // we need to zero out padding too
-    Agnostic_GetArgType_Value value;
+    GetArgTypeValue key;
+    ZeroMemory(&key, sizeof(GetArgTypeValue)); // We use the input structs as a key and use memcmp to compare.. so
+                                               // we need to zero out padding too
 
     AssertCodeMsg(GetArgType != nullptr, EXCEPTIONCODE_MC,
-                  "Didn't find %016llx, %016llx.  probably a missing exception in getArgType", key.sig.scope, key.args);
-    key.sig.callConv               = (DWORD)0;
-    key.sig.retTypeClass           = (DWORDLONG)0;
-    key.sig.retTypeSigClass        = (DWORDLONG)0;
-    key.sig.retType                = (DWORD)0;
-    key.sig.flags                  = (DWORD)sig->flags;
-    key.sig.numArgs                = (DWORD)sig->numArgs;
-    key.sig.sigInst_classInstCount = (DWORD)sig->sigInst.classInstCount;
-    key.sig.sigInst_classInst_Index =
+                  "Didn't find %016llx, %016llx.  probably a missing exception in getArgType", key.scope, key.args);
+    key.flags                  = (DWORD)sig->flags;
+    key.numArgs                = (DWORD)sig->numArgs;
+    key.sigInst_classInstCount = (DWORD)sig->sigInst.classInstCount;
+    key.sigInst_classInst_Index =
         (DWORD)GetArgType->Contains((unsigned char*)sig->sigInst.classInst, sig->sigInst.classInstCount * 8);
-    key.sig.sigInst_methInstCount = (DWORD)sig->sigInst.methInstCount;
-    key.sig.sigInst_methInst_Index =
+    key.sigInst_methInstCount = (DWORD)sig->sigInst.methInstCount;
+    key.sigInst_methInst_Index =
         (DWORD)GetArgType->Contains((unsigned char*)sig->sigInst.methInst, sig->sigInst.methInstCount * 8);
-    key.sig.args  = (DWORDLONG)0;
-    key.sig.cbSig = (DWORD)0;
-    key.sig.pSig  = -1;
-    key.sig.scope = (DWORDLONG)sig->scope;
-    key.sig.token = (DWORD)0;
-    key.args      = (DWORDLONG)args;
+    key.scope = (DWORDLONG)sig->scope;
+    key.args  = (DWORDLONG)args;
 
     AssertCodeMsg(GetArgType->GetIndex(key) != -1, EXCEPTIONCODE_MC,
-                  "Didn't find %016llx, %016llx.  probably a missing exception in getArgType", key.sig.scope, key.args);
+                  "Didn't find %016llx, %016llx.  probably a missing exception in getArgType", key.scope, key.args);
 
-    value                   = GetArgType->Get(key);
-    *vcTypeRet              = (CORINFO_CLASS_HANDLE)value.vcTypeRet;
-    CorInfoTypeWithMod temp = (CorInfoTypeWithMod)value.result;
-    *exceptionCode          = (DWORD)value.exceptionCode;
+    Agnostic_GetArgType_Value value = GetArgType->Get(key);
+    *vcTypeRet                      = (CORINFO_CLASS_HANDLE)value.vcTypeRet;
+    CorInfoTypeWithMod temp         = (CorInfoTypeWithMod)value.result;
+    *exceptionCode                  = (DWORD)value.exceptionCode;
 
     DEBUG_REP(dmpGetArgType(key, value));
     return temp;
