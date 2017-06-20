@@ -5913,12 +5913,12 @@ MethodTableBuilder::InitMethodDesc(
             NDirectMethodDesc *pNewNMD = (NDirectMethodDesc*)pNewMD;
 
             // Allocate writeable data
-            pNewNMD->ndirect.m_pWriteableData = (NDirectWriteableData*)
-                AllocateFromHighFrequencyHeap(S_SIZE_T(sizeof(NDirectWriteableData)));
+            pNewNMD->ndirect.m_pWriteableData.SetValue((NDirectWriteableData*)
+                AllocateFromHighFrequencyHeap(S_SIZE_T(sizeof(NDirectWriteableData))));
 
 #ifdef HAS_NDIRECT_IMPORT_PRECODE 
-            pNewNMD->ndirect.m_pImportThunkGlue = Precode::Allocate(PRECODE_NDIRECT_IMPORT, pNewMD,
-                GetLoaderAllocator(), GetMemTracker())->AsNDirectImportPrecode();
+            pNewNMD->ndirect.m_pImportThunkGlue.SetValue(Precode::Allocate(PRECODE_NDIRECT_IMPORT, pNewMD,
+                GetLoaderAllocator(), GetMemTracker())->AsNDirectImportPrecode());
 #else // !HAS_NDIRECT_IMPORT_PRECODE
             pNewNMD->GetNDirectImportThunkGlue()->Init(pNewNMD);
 #endif // !HAS_NDIRECT_IMPORT_PRECODE
@@ -5948,18 +5948,18 @@ MethodTableBuilder::InitMethodDesc(
 
         if (strcmp(pMethodName, "Invoke") == 0)
         {
-            BAD_FORMAT_NOTHROW_ASSERT(NULL == ((DelegateEEClass*)GetHalfBakedClass())->m_pInvokeMethod);
-            ((DelegateEEClass*)GetHalfBakedClass())->m_pInvokeMethod = pNewMD;
+            BAD_FORMAT_NOTHROW_ASSERT(((DelegateEEClass*)GetHalfBakedClass())->m_pInvokeMethod.IsNull());
+            ((DelegateEEClass*)GetHalfBakedClass())->m_pInvokeMethod.SetValue(pNewMD);
         }
         else if (strcmp(pMethodName, "BeginInvoke") == 0)
         {
-            BAD_FORMAT_NOTHROW_ASSERT(NULL == ((DelegateEEClass*)GetHalfBakedClass())->m_pBeginInvokeMethod);
-            ((DelegateEEClass*)GetHalfBakedClass())->m_pBeginInvokeMethod = pNewMD;
+            BAD_FORMAT_NOTHROW_ASSERT(((DelegateEEClass*)GetHalfBakedClass())->m_pBeginInvokeMethod.IsNull());
+            ((DelegateEEClass*)GetHalfBakedClass())->m_pBeginInvokeMethod.SetValue(pNewMD);
         }
         else if (strcmp(pMethodName, "EndInvoke") == 0)
         {
-            BAD_FORMAT_NOTHROW_ASSERT(NULL == ((DelegateEEClass*)GetHalfBakedClass())->m_pEndInvokeMethod);
-            ((DelegateEEClass*)GetHalfBakedClass())->m_pEndInvokeMethod = pNewMD;
+            BAD_FORMAT_NOTHROW_ASSERT(((DelegateEEClass*)GetHalfBakedClass())->m_pEndInvokeMethod.IsNull());
+            ((DelegateEEClass*)GetHalfBakedClass())->m_pEndInvokeMethod.SetValue(pNewMD);
         }
         else
         {
@@ -6163,7 +6163,7 @@ MethodTableBuilder::PlaceMethodImpls()
     // Allocate some temporary storage. The number of overrides for a single method impl
     // cannot be greater then the number of vtable slots.
     DWORD * slots = new (&GetThread()->m_MarshalAlloc) DWORD[bmtVT->cVirtualSlots];
-    MethodDesc ** replaced = new (&GetThread()->m_MarshalAlloc) MethodDesc*[bmtVT->cVirtualSlots];
+    RelativePointer<MethodDesc *> * replaced = new (&GetThread()->m_MarshalAlloc) RelativePointer<MethodDesc*>[bmtVT->cVirtualSlots];
 
     DWORD iEntry = 0;
     bmtMDMethod * pCurImplMethod = bmtMethodImpl->GetImplementationMethod(iEntry);
@@ -6250,7 +6250,7 @@ MethodTableBuilder::WriteMethodImplData(
     bmtMDMethod * pImplMethod, 
     DWORD         cSlots, 
     DWORD *       rgSlots, 
-    MethodDesc ** rgDeclMD)
+    RelativePointer<MethodDesc *> * rgDeclMD)
 {
     STANDARD_VM_CONTRACT;
     
@@ -6280,9 +6280,9 @@ MethodTableBuilder::WriteMethodImplData(
             {
                 if (rgSlots[j] < rgSlots[i])
                 {
-                    MethodDesc * mTmp = rgDeclMD[i];
-                    rgDeclMD[i] = rgDeclMD[j];
-                    rgDeclMD[j] = mTmp;
+                    MethodDesc * mTmp = rgDeclMD[i].GetValue();
+                    rgDeclMD[i].SetValue(rgDeclMD[j].GetValue());
+                    rgDeclMD[j].SetValue(mTmp);
 
                     DWORD sTmp = rgSlots[i];
                     rgSlots[i] = rgSlots[j];
@@ -6304,7 +6304,7 @@ MethodTableBuilder::PlaceLocalDeclaration(
     bmtMDMethod * pDecl, 
     bmtMDMethod * pImpl, 
     DWORD *       slots, 
-    MethodDesc ** replaced, 
+    RelativePointer<MethodDesc *> * replaced,
     DWORD *       pSlotIndex)
 {
     CONTRACTL
@@ -6361,7 +6361,7 @@ MethodTableBuilder::PlaceLocalDeclaration(
 
     // We implement this slot, record it
     slots[*pSlotIndex] = pDecl->GetSlotIndex();
-    replaced[*pSlotIndex] = pDecl->GetMethodDesc();
+    replaced[*pSlotIndex].SetValue(pDecl->GetMethodDesc());
 
     // increment the counter
     (*pSlotIndex)++;
@@ -6372,7 +6372,7 @@ VOID MethodTableBuilder::PlaceInterfaceDeclaration(
     bmtRTMethod *     pDecl,
     bmtMDMethod *     pImpl,
     DWORD*            slots,
-    MethodDesc**      replaced,
+    RelativePointer<MethodDesc *> *      replaced,
     DWORD*            pSlotIndex)
 {
     CONTRACTL {
@@ -6477,7 +6477,7 @@ MethodTableBuilder::PlaceParentDeclaration(
     bmtRTMethod * pDecl, 
     bmtMDMethod * pImpl, 
     DWORD *       slots, 
-    MethodDesc ** replaced, 
+    RelativePointer<MethodDesc *> * replaced,
     DWORD *       pSlotIndex)
 {
     CONTRACTL {
@@ -6522,7 +6522,7 @@ MethodTableBuilder::PlaceParentDeclaration(
 
     // We implement this slot, record it
     slots[*pSlotIndex] = pDeclMD->GetSlot();
-    replaced[*pSlotIndex] = pDeclMD;
+    replaced[*pSlotIndex].SetValue(pDeclMD);
 
     // increment the counter
     (*pSlotIndex)++;
@@ -10124,7 +10124,7 @@ MethodTableBuilder::SetupMethodTable2(
                                    GetMemTracker());
 
     pMT->SetClass(pClass);
-    pClass->m_pMethodTable = pMT;
+    pClass->m_pMethodTable.SetValue(pMT);
     m_pHalfBakedMT = pMT;
 
 #ifdef _DEBUG 

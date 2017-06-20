@@ -1411,11 +1411,6 @@ const void * ZapInfo::getInlinedCallFrameVptr(void **ppIndirection)
     return NULL;
 }
 
-SIZE_T* ZapInfo::getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module)
-{
-    return m_pEEJitInfo->getAddrModuleDomainID(module);
-}
-
 LONG * ZapInfo::getAddrOfCaptureThreadGlobal(void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);
@@ -2136,7 +2131,6 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
         if (pResult->thisTransform == CORINFO_BOX_THIS)
         {
             // READYTORUN: FUTURE: Optionally create boxing stub at runtime
-            m_zapper->Warning(W("ReadyToRun: Implicit boxing for calls to constrained methods not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
     }
@@ -3723,6 +3717,13 @@ CORINFO_METHOD_HANDLE ZapInfo::resolveVirtualMethod(
     return m_pEEJitInfo->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
 }
 
+void ZapInfo::expandRawHandleIntrinsic(
+    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+    CORINFO_GENERICHANDLE_RESULT *  pResult)
+{
+    m_pEEJitInfo->expandRawHandleIntrinsic(pResolvedToken, pResult);
+}
+
 CorInfoIntrinsics ZapInfo::getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                           bool * pMustExpand)
 {
@@ -3776,13 +3777,6 @@ BOOL ZapInfo::isCompatibleDelegate(
             BOOL* pfIsOpenDelegate)
 {
     return m_pEEJitInfo->isCompatibleDelegate(objCls, methodParentCls, method, delegateCls, pfIsOpenDelegate);
-}
-
-BOOL ZapInfo::isDelegateCreationAllowed (
-        CORINFO_CLASS_HANDLE        delegateHnd,
-        CORINFO_METHOD_HANDLE       calleeHnd)
-{
-    return m_pEEJitInfo->isDelegateCreationAllowed(delegateHnd, calleeHnd);
 }
 
 //

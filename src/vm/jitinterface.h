@@ -19,7 +19,7 @@
 #ifndef FEATURE_PAL
 #define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((32*1024)-1)   // when generating JIT code
 #else // !FEATURE_PAL
-#define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((OS_PAGE_SIZE / 2) - 1)
+#define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((GetOsPageSize() / 2) - 1)
 #endif // !FEATURE_PAL
 
 class Stub;
@@ -741,6 +741,10 @@ public:
         CORINFO_CONTEXT_HANDLE ownerType
         );
 
+    void expandRawHandleIntrinsic(
+        CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+        CORINFO_GENERICHANDLE_RESULT *  pResult);
+
     CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                      bool * pMustExpand = NULL);
 
@@ -776,11 +780,6 @@ public:
             CORINFO_METHOD_HANDLE       method,
             CORINFO_CLASS_HANDLE        delegateCls,
             BOOL*                       pfIsOpenDelegate);
-
-    // Determines whether the delegate creation obeys security transparency rules
-    BOOL isDelegateCreationAllowed (
-            CORINFO_CLASS_HANDLE        delegateHnd,
-            CORINFO_METHOD_HANDLE       calleeHnd);
 
     // ICorFieldInfo stuff
     const char* getFieldName (CORINFO_FIELD_HANDLE field,
@@ -897,10 +896,6 @@ public:
 
     DWORD getThreadTLSIndex(void **ppIndirection);
     const void * getInlinedCallFrameVptr(void **ppIndirection);
-
-    // Returns the address of the domain neutral module id. This only makes sense for domain neutral (shared)
-    // modules
-    SIZE_T* getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module);
 
     LONG * getAddrOfCaptureThreadGlobal(void **ppIndirection);
     void* getHelperFtn(CorInfoHelpFunc    ftnNum,                 /* IN  */

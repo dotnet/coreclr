@@ -119,7 +119,7 @@ struct sigaction g_previous_sigquit;
 struct sigaction g_previous_activation;
 #endif
 
-// Offset of the local variable containing native context in the common_signal_handler function.
+// Offset of the local variable containing pointer to windows style context in the common_signal_handler function.
 // This offset is relative to the frame pointer.
 int g_common_signal_handler_context_locvar_offset = 0;
 #endif // !HAVE_MACH_EXCEPTIONS
@@ -152,13 +152,13 @@ BOOL EnsureSignalAlternateStack()
 
         // We include the size of the SignalHandlerWorkerReturnPoint in the alternate stack size since the 
         // context contained in it is large and the SIGSTKSZ was not sufficient on ARM64 during testing.
-        int altStackSize = SIGSTKSZ + ALIGN_UP(sizeof(SignalHandlerWorkerReturnPoint), 16) + VIRTUAL_PAGE_SIZE;
+        int altStackSize = SIGSTKSZ + ALIGN_UP(sizeof(SignalHandlerWorkerReturnPoint), 16) + GetVirtualPageSize();
         void* altStack;
-        int st = posix_memalign(&altStack, VIRTUAL_PAGE_SIZE, altStackSize);
+        int st = posix_memalign(&altStack, GetVirtualPageSize(), altStackSize);
         if (st == 0)
         {
             // create a guard page for the alternate stack
-            st = mprotect(altStack, VIRTUAL_PAGE_SIZE, PROT_NONE);
+            st = mprotect(altStack, GetVirtualPageSize(), PROT_NONE);
             if (st == 0)
             {
                 stack_t ss;
@@ -169,7 +169,7 @@ BOOL EnsureSignalAlternateStack()
                 if (st != 0)
                 {
                     // Installation of the alternate stack failed, so revert the guard page protection
-                    int st2 = mprotect(altStack, VIRTUAL_PAGE_SIZE, PROT_READ | PROT_WRITE);
+                    int st2 = mprotect(altStack, GetVirtualPageSize(), PROT_READ | PROT_WRITE);
                     _ASSERTE(st2 == 0);
                 }
             }
@@ -203,7 +203,7 @@ void FreeSignalAlternateStack()
     int st = sigaltstack(&ss, &oss);
     if ((st == 0) && (oss.ss_flags != SS_DISABLE))
     {
-        int st = mprotect(oss.ss_sp, VIRTUAL_PAGE_SIZE, PROT_READ | PROT_WRITE);
+        int st = mprotect(oss.ss_sp, GetVirtualPageSize(), PROT_READ | PROT_WRITE);
         _ASSERTE(st == 0);
         free(oss.ss_sp);
     }
@@ -436,7 +436,7 @@ static void sigsegv_handler(int code, siginfo_t *siginfo, void *context)
 
         // If the failure address is at most one page above or below the stack pointer, 
         // we have a stack overflow. 
-        if ((failureAddress - (sp - VIRTUAL_PAGE_SIZE)) < 2 * VIRTUAL_PAGE_SIZE)
+        if ((failureAddress - (sp - GetVirtualPageSize())) < 2 * GetVirtualPageSize())
         {
             (void)write(STDERR_FILENO, StackOverflowMessage, sizeof(StackOverflowMessage) - 1);
             PROCAbort();
@@ -761,12 +761,13 @@ __attribute__((noinline))
 static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext, int numParams, ...)
 {
     sigset_t signal_set;
+    CONTEXT signalContextRecord;
     CONTEXT *contextRecord;
     EXCEPTION_RECORD *exceptionRecord;
     native_context_t *ucontext;
 
     ucontext = (native_context_t *)sigcontext;
-    g_common_signal_handler_context_locvar_offset = (int)((char*)&ucontext - (char*)__builtin_frame_address(0));
+    g_common_signal_handler_context_locvar_offset = (int)((char*)&signalContextRecord - (char*)__builtin_frame_address(0));
 
     AllocateExceptionRecords(&exceptionRecord, &contextRecord);
 
@@ -809,6 +810,9 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
     }
 
     contextRecord->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
+
+    memcpy_s(&signalContextRecord, sizeof(CONTEXT), contextRecord, sizeof(CONTEXT));
+
     // The exception object takes ownership of the exceptionRecord and contextRecord
     PAL_SEHException exception(exceptionRecord, contextRecord);
 

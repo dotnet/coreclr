@@ -32,6 +32,7 @@ function print_usage {
     echo '                                     specified by --testRootDir. Multiple of this switch may be specified.'
     echo '  --testDirFile=<path>             : Run tests only in the directories specified by the file at <path>. Paths are listed'
     echo '                                     one line, relative to the directory specified by --testRootDir.'
+    echo '  --build-overlay-only             : Build coreoverlay only, and skip running tests.'
     echo '  --runFailingTestsOnly            : Run only the tests that are disabled on this platform due to unexpected failures.'
     echo '                                     Failing tests are listed in coreclr/tests/failingTestsOutsideWindows.txt, one per'
     echo '                                     line, as paths to .sh files relative to the directory specified by --testRootDir.'
@@ -477,6 +478,10 @@ function load_unsupported_tests {
 function load_failing_tests {
     # Load the list of tests that fail on this platform. These tests are disabled (skipped) temporarily, pending investigation.
     failingTests=($(read_array "$(dirname "$0")/testsFailingOutsideWindows.txt"))
+   
+    if [ "$ARCH" == "arm64" ]; then
+        failingTests+=($(read_array "$(dirname "$0")/testsFailingOnArm64.txt"))
+    fi
 }
 
 function load_playlist_tests {
@@ -1200,6 +1205,18 @@ then
 else
     load_unsupported_tests
     load_failing_tests
+fi
+
+# Other architectures are not supported yet.
+if [ "$ARCH" == "x64" ]
+then
+    scriptPath=$(dirname $0)
+    ${scriptPath}/setup-stress-dependencies.sh --outputDir=$coreOverlayDir
+else
+    if [ "$ARCH" != "arm64" ]
+    then
+        echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
+    fi
 fi
 
 export __TestEnv=$testEnv

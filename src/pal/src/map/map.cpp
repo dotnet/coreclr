@@ -46,11 +46,6 @@ SET_DEFAULT_DEBUG_CHANNEL(VIRTUAL);
 
 #include "pal/utils.h"
 
-// This is temporary until #10981 merges.
-// There will be an equivalent but opposite temporary fix in #10981 which
-// will trigger a merge conflict to be sure both of these workarounds are removed
-#define GetVirtualPageSize() VIRTUAL_PAGE_SIZE
-
 //
 // The mapping critical section guards access to the list
 // of currently mapped views. If a thread needs to access
@@ -246,7 +241,7 @@ FileMappingInitializationRoutine(
 
     pProcessLocalData->UnixFd = InternalOpen(
         pImmutableData->szFileName,
-        MAPProtectionToFileOpenFlags(pImmutableData->flProtect)
+        MAPProtectionToFileOpenFlags(pImmutableData->flProtect) | O_CLOEXEC
         );
 
     if (-1 == pProcessLocalData->UnixFd)
@@ -510,7 +505,7 @@ CorUnix::InternalCreateFileMapping(
 
 #if HAVE_MMAP_DEV_ZERO
 
-        UnixFd = InternalOpen(pImmutableData->szFileName, O_RDWR);
+        UnixFd = InternalOpen(pImmutableData->szFileName, O_RDWR | O_CLOEXEC);
         if ( -1 == UnixFd )
         {
             ERROR( "Unable to open the file.\n");
@@ -587,7 +582,7 @@ CorUnix::InternalCreateFileMapping(
             // information, though...
             //
             
-            UnixFd = dup(pFileLocalData->unix_fd);
+            UnixFd = fcntl(pFileLocalData->unix_fd, F_DUPFD_CLOEXEC, 0); // dup, but with CLOEXEC
             if (-1 == UnixFd)
             {
                 ERROR( "Unable to duplicate the Unix file descriptor!\n" );

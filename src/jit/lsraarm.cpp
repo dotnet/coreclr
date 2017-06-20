@@ -48,6 +48,7 @@ void Lowering::TreeNodeInfoInitReturn(GenTree* tree)
     {
         GenTree* op1 = tree->gtGetOp1();
         noway_assert(op1->OperGet() == GT_LONG);
+        op1->SetContained();
         GenTree* loVal = op1->gtGetOp1();
         GenTree* hiVal = op1->gtGetOp2();
         info->srcCount = 2;
@@ -317,6 +318,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             if (varTypeIsLong(castOpType))
             {
                 noway_assert(castOp->OperGet() == GT_LONG);
+                castOp->SetContained();
                 info->srcCount = 2;
             }
 
@@ -567,49 +569,56 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_ARR_OFFSET:
             // This consumes the offset, if any, the arrObj and the effective index,
             // and produces the flattened offset for this dimension.
-            info->srcCount         = 3;
-            info->dstCount         = 1;
-            info->internalIntCount = 1;
+            info->srcCount = 3;
+            info->dstCount = 1;
 
             // we don't want to generate code for this
             if (tree->gtArrOffs.gtOffset->IsIntegralConst(0))
             {
                 MakeSrcContained(tree, tree->gtArrOffs.gtOffset);
             }
+            else
+            {
+                // Here we simply need an internal register, which must be different
+                // from any of the operand's registers, but may be the same as targetReg.
+                info->internalIntCount = 1;
+            }
             break;
 
         case GT_LEA:
         {
-            GenTreeAddrMode* lea = tree->AsAddrMode();
+            GenTreeAddrMode* lea    = tree->AsAddrMode();
+            unsigned         offset = lea->gtOffset;
 
-            GenTree* base  = lea->Base();
-            GenTree* index = lea->Index();
-            unsigned cns   = lea->gtOffset;
-
-            // This LEA is instantiating an address,
-            // so we set up the srcCount and dstCount here.
+            // This LEA is instantiating an address, so we set up the srcCount and dstCount here.
             info->srcCount = 0;
-            if (base != nullptr)
+            if (lea->HasBase())
             {
                 info->srcCount++;
             }
-            if (index != nullptr)
+            if (lea->HasIndex())
             {
                 info->srcCount++;
             }
             info->dstCount = 1;
 
-            // On ARM we may need a single internal register
-            // (when both conditions are true then we still only need a single internal register)
-            if ((index != nullptr) && (cns != 0))
+            // An internal register may be needed too; the logic here should be in sync with the
+            // genLeaInstruction()'s requirements for a such register.
+            if (lea->HasBase() && lea->HasIndex())
             {
-                // ARM does not support both Index and offset so we need an internal register
-                info->internalIntCount = 1;
+                if (offset != 0)
+                {
+                    // We need a register when we have all three: base reg, index reg and a non-zero offset.
+                    info->internalIntCount = 1;
+                }
             }
-            else if (!emitter::emitIns_valid_imm_for_add(cns, INS_FLAGS_DONT_CARE))
+            else if (lea->HasBase())
             {
-                // This offset can't be contained in the add instruction, so we need an internal register
-                info->internalIntCount = 1;
+                if (!emitter::emitIns_valid_imm_for_add(offset, INS_FLAGS_DONT_CARE))
+                {
+                    // We need a register when we have an offset that is too large to encode in the add instruction.
+                    info->internalIntCount = 1;
+                }
             }
         }
         break;
@@ -639,6 +648,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_LE:
         case GT_GE:
         case GT_GT:
+        case GT_CMP:
             TreeNodeInfoInitCmp(tree);
             break;
 
@@ -721,7 +731,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
 #ifdef DEBUG
             char message[256];
             _snprintf_s(message, _countof(message), _TRUNCATE, "NYI: Unimplemented node type %s",
-                        GenTree::NodeName(tree->OperGet()));
+                        GenTree::OpName(tree->OperGet()));
             NYIRAW(message);
 #else
             NYI_ARM("TreeNodeInfoInit default case");
@@ -739,8 +749,10 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_LABEL:
         case GT_PINVOKE_PROLOG:
         case GT_JCC:
+        case GT_SETCC:
         case GT_MEMORYBARRIER:
         case GT_OBJ:
+        case GT_COPY:
             info->dstCount = tree->IsValue() ? 1 : 0;
             if (kind & (GTK_CONST | GTK_LEAF))
             {

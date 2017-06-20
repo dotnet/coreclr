@@ -145,6 +145,8 @@ void CodeGen::genCodeForBBlist()
         }
 #endif // DEBUG
 
+        assert(LIR::AsRange(block).CheckLIR(compiler));
+
         // Figure out which registers hold variables on entry to this block
 
         regSet.ClearMaskVars();
@@ -164,8 +166,8 @@ void CodeGen::genCodeForBBlist()
         regMaskTP newRegGCrefSet = RBM_NONE;
         regMaskTP newRegByrefSet = RBM_NONE;
 #ifdef DEBUG
-        VARSET_TP VARSET_INIT_NOCOPY(removedGCVars, VarSetOps::MakeEmpty(compiler));
-        VARSET_TP VARSET_INIT_NOCOPY(addedGCVars, VarSetOps::MakeEmpty(compiler));
+        VARSET_TP removedGCVars(VarSetOps::MakeEmpty(compiler));
+        VARSET_TP addedGCVars(VarSetOps::MakeEmpty(compiler));
 #endif
         VARSET_ITER_INIT(compiler, iter, block->bbLiveIn, varIndex);
         while (iter.NextElem(&varIndex))
@@ -497,7 +499,7 @@ void CodeGen::genCodeForBBlist()
         // it up to date for vars that are not register candidates
         // (it would be nice to have a xor set function)
 
-        VARSET_TP VARSET_INIT_NOCOPY(extraLiveVars, VarSetOps::Diff(compiler, block->bbLiveOut, compiler->compCurLife));
+        VARSET_TP extraLiveVars(VarSetOps::Diff(compiler, block->bbLiveOut, compiler->compCurLife));
         VarSetOps::UnionD(compiler, extraLiveVars, VarSetOps::Diff(compiler, compiler->compCurLife, block->bbLiveOut));
         VARSET_ITER_INIT(compiler, extraLiveVarIter, extraLiveVars, extraLiveVarIndex);
         while (extraLiveVarIter.NextElem(&extraLiveVarIndex))
@@ -731,9 +733,6 @@ void CodeGen::genSpillVar(GenTreePtr tree)
             restoreRegVar = true;
         }
 
-        // mask off the flag to generate the right spill code, then bring it back
-        tree->gtFlags &= ~GTF_REG_VAL;
-
         instruction storeIns = ins_Store(tree->TypeGet(), compiler->isSIMDTypeLocalAligned(varNum));
 #if CPU_LONG_USES_REGPAIR
         if (varTypeIsMultiReg(tree))
@@ -751,7 +750,6 @@ void CodeGen::genSpillVar(GenTreePtr tree)
             assert(varDsc->lvRegNum == tree->gtRegNum);
             inst_TT_RV(storeIns, tree, tree->gtRegNum, 0, size);
         }
-        tree->gtFlags |= GTF_REG_VAL;
 
         if (restoreRegVar)
         {
@@ -919,7 +917,6 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 #else
             NYI("Unspilling not implemented for this target architecture.");
 #endif
-            unspillTree->SetInReg();
 
             // TODO-Review: We would like to call:
             //      genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(tree));
@@ -1006,7 +1003,6 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             }
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
-            unspillTree->SetInReg();
         }
         else
         {
@@ -1016,7 +1012,6 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             compiler->tmpRlsTemp(t);
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
-            unspillTree->SetInReg();
             gcInfo.gcMarkRegPtrVal(dstReg, unspillTree->TypeGet());
         }
     }
@@ -1559,7 +1554,6 @@ void CodeGen::genProduceReg(GenTree* tree)
         if (genIsRegCandidateLocal(tree))
         {
             // Store local variable to its home location.
-            tree->gtFlags &= ~GTF_REG_VAL;
             // Ensure that lclVar stores are typed correctly.
             unsigned varNum = tree->gtLclVarCommon.gtLclNum;
             assert(!compiler->lvaTable[varNum].lvNormalizeOnStore() ||
@@ -1584,7 +1578,6 @@ void CodeGen::genProduceReg(GenTree* tree)
                     if ((flags & GTF_SPILL) != 0)
                     {
                         regNumber reg = call->GetRegNumByIdx(i);
-                        call->SetInReg();
                         regSet.rsSpillTree(reg, call, i);
                         gcInfo.gcMarkRegSetNpt(genRegMask(reg));
                     }
@@ -1592,7 +1585,6 @@ void CodeGen::genProduceReg(GenTree* tree)
             }
             else
             {
-                tree->SetInReg();
                 regSet.rsSpillTree(tree->gtRegNum, tree);
                 gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
             }
@@ -1664,7 +1656,6 @@ void CodeGen::genProduceReg(GenTree* tree)
             }
         }
     }
-    tree->SetInReg();
 }
 
 // transfer gc/byref status of src reg to dst reg

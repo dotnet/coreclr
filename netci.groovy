@@ -536,8 +536,9 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             if (os != 'CentOS7.1' && !(os in bidailyCrossList)) {
                 assert (os == 'Windows_NT') || (os in Constants.crossList)
                 if (architecture == 'arm64') {
-                    assert (os == 'Windows_NT')
-                    Utilities.addPeriodicTrigger(job, '@daily')
+                    if (os == 'Windows_NT') {
+                        Utilities.addPeriodicTrigger(job, '@daily')
+                    }
                     // TODO: Add once external email sending is available again
                     // addEmailPublisher(job, 'dotnetonarm64@microsoft.com')
                 }
@@ -557,7 +558,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             if (os != 'CentOS7.1' && os != 'OSX10.12' && !(os in bidailyCrossList)) {
                 assert (os == 'Windows_NT') || (os in Constants.crossList)
                 if (architecture == 'arm64') {
-                    assert (os == 'Windows_NT')
                     // TODO: Enable a periodic trigger after tests are updated.
                     // Utilities.addPeriodicTrigger(job, '@daily')
                     // TODO: Add once external email sending is available again
@@ -1058,6 +1058,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 'russellhadley',
                 'RussKeldorph',
                 'sandreenko',
+                'rartemev',
+                'sdmaclea',
+                'sivarv',
                 'swaroop-sridhar',
                 'gkhanna79',
                 'jkotas',
@@ -1484,8 +1487,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         else if (isGcReliabilityFramework(scenario)) {
                             buildCommands += "tests\\runtest.cmd ${runtestArguments} GenerateLayoutOnly"
                             buildCommands += "tests\\scripts\\run-gc-reliability-framework.cmd ${arch} ${configuration}"
-                            Utilities.addArchival(newJob, "stdout.txt")
-                            Utilities.addArchival(newJob, "Logs/**")
                         }
                         else if (architecture == 'x64' || architecture == 'x86') {
                             buildCommands += "tests\\runtest.cmd ${runtestArguments}"
@@ -1525,9 +1526,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         }
 
                         if (!isBuildOnly) {
-                            if (architecture == 'x64' || !isPR) {
-                                Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml')
-                            }
+                            Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml', true)
                             setTestJobTimeOut(newJob, scenario)
                         }
                     }
@@ -2532,6 +2531,13 @@ combinedScenarios.each { scenario ->
                                     shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
                                 }
 
+                                // HACK -- Arm64 does not have corefx jobs yet.
+                                // Clone corefx and build the native packages overwriting the x64 packages.
+                                if (architecture == 'arm64') {
+                                    shell("cp ./bin/Product/Linux.arm64.${configuration}/corefxNative/* ./bin/CoreFxBinDir")
+                                    shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
+                                }
+
                                 // Unzip the tests first.  Exit with 0
                                 shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
 
@@ -2570,13 +2576,6 @@ combinedScenarios.each { scenario ->
                                 }
                             }
                         }
-                    }
-
-                    if (isGcReliabilityFramework(scenario))
-                    {
-                        // Both of these are emitted by the RF
-                        Utilities.addArchival(newJob, "stdout.txt")
-                        Utilities.addArchival(newJob, "Logs/**")
                     }
 
                     if (scenario == 'coverage') {

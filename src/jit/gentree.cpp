@@ -21,7 +21,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 /*****************************************************************************/
 
 const unsigned short GenTree::gtOperKindTable[] = {
-#define GTNODE(en, sn, st, cm, ok) ok + GTK_COMMUTE *cm,
+#define GTNODE(en, st, cm, ok) ok + GTK_COMMUTE *cm,
 #include "gtlist.h"
 };
 
@@ -208,24 +208,12 @@ static void printIndent(IndentStack* indentStack)
     indentStack->print();
 }
 
-static const char* nodeNames[] = {
-#define GTNODE(en, sn, st, cm, ok) sn,
-#include "gtlist.h"
-};
-
-const char* GenTree::NodeName(genTreeOps op)
-{
-    assert((unsigned)op < sizeof(nodeNames) / sizeof(nodeNames[0]));
-
-    return nodeNames[op];
-}
-
 #endif
 
 #if defined(DEBUG) || NODEBASH_STATS || MEASURE_NODE_SIZE || COUNT_AST_OPERS
 
 static const char* opNames[] = {
-#define GTNODE(en, sn, st, cm, ok) #en,
+#define GTNODE(en, st, cm, ok) #en,
 #include "gtlist.h"
 };
 
@@ -241,7 +229,7 @@ const char* GenTree::OpName(genTreeOps op)
 #if MEASURE_NODE_SIZE && SMALL_TREE_NODES
 
 static const char* opStructNames[] = {
-#define GTNODE(en, sn, st, cm, ok) #st,
+#define GTNODE(en, st, cm, ok) #st,
 #include "gtlist.h"
 };
 
@@ -270,7 +258,7 @@ unsigned char GenTree::s_gtNodeSizes[GT_COUNT + 1];
 #if NODEBASH_STATS || MEASURE_NODE_SIZE || COUNT_AST_OPERS
 
 unsigned char GenTree::s_gtTrueSizes[GT_COUNT + 1]{
-#define GTNODE(en, sn, st, cm, ok) sizeof(st),
+#define GTNODE(en, st, cm, ok) sizeof(st),
 #include "gtlist.h"
 };
 
@@ -1781,7 +1769,7 @@ regMaskTP GenTreeCall::GetOtherRegMask() const
     {
         if (gtOtherRegs[i] != REG_NA)
         {
-            resultMask |= genRegMask(gtOtherRegs[i]);
+            resultMask |= genRegMask((regNumber)gtOtherRegs[i]);
             continue;
         }
         break;
@@ -3040,8 +3028,8 @@ bool Compiler::lvaLclVarRefs(GenTreePtr tree, GenTreePtr* findPtr, varRefKinds* 
     genTreeOps   oper;
     unsigned     kind;
     varRefKinds  refs = VR_NONE;
-    ALLVARSET_TP ALLVARSET_INIT_NOCOPY(allVars, AllVarSetOps::UninitVal());
-    VARSET_TP    VARSET_INIT_NOCOPY(trkdVars, VarSetOps::UninitVal());
+    ALLVARSET_TP allVars(AllVarSetOps::UninitVal());
+    VARSET_TP    trkdVars(VarSetOps::UninitVal());
     if (findPtr)
     {
         AllVarSetOps::AssignNoCopy(this, allVars, AllVarSetOps::MakeEmpty(this));
@@ -3219,7 +3207,7 @@ AGAIN:
             unsigned dim;
             for (dim = 0; dim < tree->gtArrElem.gtArrRank; dim++)
             {
-                VARSET_TP VARSET_INIT_NOCOPY(tmpVs, VarSetOps::UninitVal());
+                VARSET_TP tmpVs(VarSetOps::UninitVal());
                 if (!lvaLclVarRefsAccum(tree->gtArrElem.gtArrInds[dim], findPtr, refsPtr, &allVars, &trkdVars))
                 {
                     return false;
@@ -3309,7 +3297,7 @@ bool Compiler::lvaLclVarRefsAccum(
 {
     if (findPtr)
     {
-        ALLVARSET_TP ALLVARSET_INIT_NOCOPY(tmpVs, AllVarSetOps::UninitVal());
+        ALLVARSET_TP tmpVs(AllVarSetOps::UninitVal());
         if (!lvaLclVarRefs(tree, findPtr, refsPtr, &tmpVs))
         {
             return false;
@@ -3319,7 +3307,7 @@ bool Compiler::lvaLclVarRefsAccum(
     }
     else
     {
-        VARSET_TP VARSET_INIT_NOCOPY(tmpVs, VarSetOps::UninitVal());
+        VARSET_TP tmpVs(VarSetOps::UninitVal());
         if (!lvaLclVarRefs(tree, findPtr, refsPtr, &tmpVs))
         {
             return false;
@@ -5519,7 +5507,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             /* Virtual stub calls also must reserve the VIRTUAL_STUB_PARAM reg */
             if (callKind == GTF_CALL_VIRT_STUB)
             {
-                ftreg |= RBM_VIRTUAL_STUB_PARAM;
+                ftreg |= virtualStubParamInfo->GetRegMask();
             }
 
 #ifdef FEATURE_READYTORUN_COMPILER
@@ -6099,7 +6087,7 @@ bool GenTree::IsAddWithI32Const(GenTreePtr* addr, int* offset)
 //    later gets converted to a GT_FIELD_LIST with two GT_LCL_FLDs in Lower/LowerXArch.
 //
 
-GenTreePtr* GenTree::gtGetChildPointer(GenTreePtr parent)
+GenTreePtr* GenTree::gtGetChildPointer(GenTreePtr parent) const
 
 {
     switch (parent->OperGet())
@@ -6315,7 +6303,7 @@ void GenTree::ReplaceOperand(GenTree** useEdge, GenTree* replacement)
 //    To enable the child to be replaced, it accepts an argument, parentChildPointer that, if non-null,
 //    will be set to point to the child pointer in the parent that points to this node.
 
-GenTreePtr GenTree::gtGetParent(GenTreePtr** parentChildPtrPtr)
+GenTreePtr GenTree::gtGetParent(GenTreePtr** parentChildPtrPtr) const
 {
     // Find the parent node; it must be after this node in the execution order.
     GenTreePtr* parentChildPtr = nullptr;
@@ -8186,13 +8174,15 @@ GenTreePtr Compiler::gtCloneExpr(
             copy->gtFlags |= (copy->gtGetOp2()->gtFlags & GTF_ALL_EFFECT);
         }
 
+#ifdef LEGACY_BACKEND
         // The early morph for TailCall creates a GT_NOP with GTF_REG_VAL flag set
         // Thus we have to copy the gtRegNum/gtRegPair value if we clone it here.
         //
-        if (addFlags & GTF_REG_VAL)
+        if (tree->InReg())
         {
             copy->CopyReg(tree);
         }
+#endif // LEGACY_BACKEND
 
         goto DONE;
     }
@@ -9780,7 +9770,11 @@ bool GenTree::Precedes(GenTree* other)
 
 /* static */ int GenTree::gtDispFlags(unsigned flags, unsigned debugFlags)
 {
+#ifdef LEGACY_BACKEND
     printf("%c", (flags & GTF_ASG) ? 'A' : '-');
+#else  // !LEGACY_BACKEND
+    printf("%c", (flags & GTF_ASG) ? 'A' : (IsContained(flags) ? 'c' : '-'));
+#endif // LEGACY_BACKEND
     printf("%c", (flags & GTF_CALL) ? 'C' : '-');
     printf("%c", (flags & GTF_EXCEPT) ? 'X' : '-');
     printf("%c", (flags & GTF_GLOB_REF) ? 'G' : '-');
@@ -9810,7 +9804,7 @@ void Compiler::gtDispNodeName(GenTree* tree)
     assert(tree);
     if (tree->gtOper < GT_COUNT)
     {
-        name = GenTree::NodeName(tree->OperGet());
+        name = GenTree::OpName(tree->OperGet());
     }
     else
     {
@@ -9829,7 +9823,7 @@ void Compiler::gtDispNodeName(GenTree* tree)
     }
     else if (tree->gtOper == GT_CALL)
     {
-        const char* callType = "call";
+        const char* callType = "CALL";
         const char* gtfType  = "";
         const char* ctType   = "";
         char        gtfTypeBuf[100];
@@ -9838,7 +9832,7 @@ void Compiler::gtDispNodeName(GenTree* tree)
         {
             if ((tree->gtFlags & GTF_CALL_VIRT_KIND_MASK) != GTF_CALL_NONVIRT)
             {
-                callType = "callv";
+                callType = "CALLV";
             }
         }
         else if (tree->gtCall.gtCallType == CT_HELPER)
@@ -10538,10 +10532,12 @@ void Compiler::gtDispRegVal(GenTree* tree)
         }
     }
 
-    if (tree->gtFlags & GTF_REG_VAL)
+#ifdef LEGACY_BACKEND
+    if (tree->InReg())
     {
         printf(" RV");
     }
+#endif
 }
 
 // We usually/commonly don't expect to print anything longer than this string,
@@ -11192,7 +11188,7 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
 
         case GT_JCC:
         case GT_SETCC:
-            printf(" cond=%s", GenTree::NodeName(tree->AsCC()->gtCondition));
+            printf(" cond=%s", GenTree::OpName(tree->AsCC()->gtCondition));
             break;
 
         default:
@@ -15469,46 +15465,56 @@ bool GenTree::canBeContained() const
 //    Essentially, it will be rolled into the code generation for the parent.
 //
 // Assumptions:
-//    This method relies upon the value of gtRegNum field to determine whether the tree node
-//    is contained.
-//    Therefore you can not call this method until after the LSRA phase has allocated physical
-//    registers to the treenodes.
+//    This method relies upon the value of the GTF_CONTAINED flag.
+//    Therefore this method is only valid after Lowering.
+//    Also note that register allocation or other subsequent phases may cause
+//    nodes to become contained (or not) and therefore this property may change.
 //
 bool GenTree::isContained() const
 {
+#ifdef LEGACY_BACKEND
+    return false;
+#else // !LEGACY_BACKEND
     assert(IsLIR());
+    const bool isMarkedContained = ((gtFlags & GTF_CONTAINED) != 0);
 
+#ifdef DEBUG
     if (!canBeContained() || gtHasReg())
     {
-        return false;
+        assert(!isMarkedContained);
     }
 
     // these actually produce a register (the flags reg, we just don't model it)
     // and are a separate instruction from the branch that consumes the result
-    if ((OperKind() & GTK_RELOP) != 0)
+    else if (OperKind() & GTK_RELOP)
     {
-        return false;
+        assert(!isMarkedContained);
     }
 
     // these either produce a result in register or set flags reg.
-    if (IsSIMDEqualityOrInequality())
+    else if (IsSIMDEqualityOrInequality())
     {
-        return false;
+        assert(!isMarkedContained);
     }
 
-#if !defined(LEGACY_BACKEND) && !defined(_TARGET_64BIT_)
+#if !defined(_TARGET_64BIT_)
     if (OperGet() == GT_LONG)
     {
         // GT_LONG nodes are normally contained. The only exception is when the result
         // of a TYP_LONG operation is not used and this can only happen if the GT_LONG
-        // is the last node in the statement (in linear order).
-        return gtNext != nullptr;
+        // has no parent.
+        assert(isMarkedContained || (gtGetParent(nullptr) == nullptr));
     }
 #endif
 
     // if it's contained it better have a user
-    assert((gtNext != nullptr) || OperIsLocal());
-    return true;
+    if (isMarkedContained)
+    {
+        assert((gtNext != nullptr) || OperIsLocal());
+    }
+#endif // DEBUG
+    return isMarkedContained;
+#endif // !LEGACY_BACKEND
 }
 
 // return true if node is contained and an indir

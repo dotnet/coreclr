@@ -326,8 +326,7 @@ NotInHeap
 ;   x15  : trashed
 ;
     WRITE_BARRIER_ENTRY JIT_WriteBarrier
-        dmb      ST
-        str      x15, [x14]
+        stlr     x15, [x14]
 
 #ifdef WRITE_BARRIER_CHECK
         ; Update GC Shadow Heap  
@@ -355,7 +354,7 @@ NotInHeap
 
         ; Ensure that the write to the shadow heap occurs before the read from the GC heap so that race
         ; conditions are caught by INVALIDGCVALUE.
-        dmb      sy
+        dmb      ish
 
         ; if ([x14] == x15) goto end
         ldr      x13, [x14]

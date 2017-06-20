@@ -66,24 +66,23 @@ enum SpecialCodeKind
 
 /*****************************************************************************/
 
-DECLARE_TYPED_ENUM(genTreeOps, BYTE)
+enum genTreeOps : BYTE
 {
-#define GTNODE(en, sn, st, cm, ok) GT_##en,
+#define GTNODE(en, st, cm, ok) GT_##en,
 #include "gtlist.h"
 
     GT_COUNT,
 
 #ifdef _TARGET_64BIT_
-        // GT_CNS_NATIVELONG is the gtOper symbol for GT_CNS_LNG or GT_CNS_INT, depending on the target.
-        // For the 64-bit targets we will only use GT_CNS_INT as it used to represent all the possible sizes
-        GT_CNS_NATIVELONG = GT_CNS_INT,
+    // GT_CNS_NATIVELONG is the gtOper symbol for GT_CNS_LNG or GT_CNS_INT, depending on the target.
+    // For the 64-bit targets we will only use GT_CNS_INT as it used to represent all the possible sizes
+    GT_CNS_NATIVELONG = GT_CNS_INT,
 #else
-        // For the 32-bit targets we use a GT_CNS_LNG to hold a 64-bit integer constant and GT_CNS_INT for all others.
-        // In the future when we retarget the JIT for x86 we should consider eliminating GT_CNS_LNG
-        GT_CNS_NATIVELONG = GT_CNS_LNG,
+    // For the 32-bit targets we use a GT_CNS_LNG to hold a 64-bit integer constant and GT_CNS_INT for all others.
+    // In the future when we retarget the JIT for x86 we should consider eliminating GT_CNS_LNG
+    GT_CNS_NATIVELONG = GT_CNS_LNG,
 #endif
-}
-END_DECLARE_TYPED_ENUM(genTreeOps, BYTE)
+};
 
 /*****************************************************************************
  *
@@ -133,15 +132,14 @@ enum genTreeKinds
 
 /*****************************************************************************/
 
-DECLARE_TYPED_ENUM(gtCallTypes, BYTE)
+enum gtCallTypes : BYTE
 {
-    CT_USER_FUNC,    // User function
-        CT_HELPER,   // Jit-helper
-        CT_INDIRECT, // Indirect call
+    CT_USER_FUNC, // User function
+    CT_HELPER,    // Jit-helper
+    CT_INDIRECT,  // Indirect call
 
-        CT_COUNT // fake entry (must be last)
-}
-END_DECLARE_TYPED_ENUM(gtCallTypes, BYTE)
+    CT_COUNT // fake entry (must be last)
+};
 
 /*****************************************************************************/
 
@@ -598,9 +596,9 @@ private:
 
 private:
     union {
-        // NOTE: After LSRA, one of these values may be valid even if GTF_REG_VAL is not set in gtFlags.
-        // They store the register assigned to the node. If a register is not assigned, _gtRegNum is set to REG_NA
+        // These store the register assigned to the node. If a register is not assigned, _gtRegNum is set to REG_NA
         // or _gtRegPair is set to REG_PAIR_NONE, depending on the node type.
+        // For the LEGACY_BACKEND,these are valid only if GTF_REG_VAL is set in gtFlags.
         regNumberSmall _gtRegNum;  // which register      the value is in
         regPairNoSmall _gtRegPair; // which register pair the value is in
     };
@@ -837,7 +835,13 @@ public:
     (((flags) & (GTF_CALL | GTF_EXCEPT)) || (((flags) & (GTF_ASG | GTF_GLOB_REF)) == (GTF_ASG | GTF_GLOB_REF)))
 
 #define GTF_REVERSE_OPS 0x00000020 // operand op2 should be evaluated before op1 (normally, op1 is evaluated first and op2 is evaluated second)
+
+#ifdef LEGACY_BACKEND
 #define GTF_REG_VAL     0x00000040 // operand is sitting in a register (or part of a TYP_LONG operand is sitting in a register)
+#else  // !LEGACY_BACKEND
+#define GTF_CONTAINED   0x00000040 // This node is contained (executed as part of its parent)
+#endif // !LEGACY_BACKEND
+
 #define GTF_SPILLED     0x00000080 // the value has been spilled
 
 #ifdef LEGACY_BACKEND
@@ -1690,14 +1694,14 @@ public:
 
     // Given a tree node, if this is a child of that node, return the pointer to the child node so that it
     // can be modified; otherwise, return null.
-    GenTreePtr* gtGetChildPointer(GenTreePtr parent);
+    GenTreePtr* gtGetChildPointer(GenTreePtr parent) const;
 
     // Given a tree node, if this node uses that node, return the use as an out parameter and return true.
     // Otherwise, return false.
     bool TryGetUse(GenTree* def, GenTree*** use);
 
     // Get the parent of this node, and optionally capture the pointer to the child so that it can be modified.
-    GenTreePtr gtGetParent(GenTreePtr** parentChildPtrPtr);
+    GenTreePtr gtGetParent(GenTreePtr** parentChildPtrPtr) const;
 
     void ReplaceOperand(GenTree** useEdge, GenTree* replacement);
 
@@ -1757,10 +1761,6 @@ public:
     static bool Compare(GenTreePtr op1, GenTreePtr op2, bool swapOK = false);
 
 //---------------------------------------------------------------------
-
-#if defined(DEBUG)
-    static const char* NodeName(genTreeOps op);
-#endif
 
 #if defined(DEBUG) || NODEBASH_STATS || MEASURE_NODE_SIZE || COUNT_AST_OPERS
     static const char* OpName(genTreeOps op);
@@ -1901,6 +1901,7 @@ public:
     // sets "*pIsEntire" to true if this assignment writes the full width of the local.
     bool DefinesLocalAddr(Compiler* comp, unsigned width, GenTreeLclVarCommon** pLclVarTree, bool* pIsEntire);
 
+#ifdef LEGACY_BACKEND
     bool IsRegVar() const
     {
         return OperGet() == GT_REG_VAR ? true : false;
@@ -1909,15 +1910,56 @@ public:
     {
         return (gtFlags & GTF_REG_VAL) ? true : false;
     }
-    void SetInReg()
+    void SetInReg(bool value = true)
     {
-        gtFlags |= GTF_REG_VAL;
+        if (value == true)
+        {
+            gtFlags |= GTF_REG_VAL;
+        }
+        else
+        {
+            gtFlags &= ~GTF_REG_VAL;
+        }
     }
-
     regNumber GetReg() const
     {
         return InReg() ? gtRegNum : REG_NA;
     }
+
+#else // !LEGACY_BACKEND
+    // For the non-legacy backend, these are only used for dumping.
+    // The gtRegNum is only valid in LIR, but the dumping methods are not easily
+    // modified to check this.
+    CLANG_FORMAT_COMMENT_ANCHOR;
+#ifdef DEBUG
+    bool InReg() const
+    {
+        return (GetRegTag() != GT_REGTAG_NONE) ? true : false;
+    }
+    regNumber GetReg() const
+    {
+        return (GetRegTag() != GT_REGTAG_NONE) ? gtRegNum : REG_NA;
+    }
+#endif
+
+    static bool IsContained(unsigned flags)
+    {
+        return ((flags & GTF_CONTAINED) != 0);
+    }
+
+    void SetContained()
+    {
+        gtFlags |= GTF_CONTAINED;
+    }
+
+    void ClearContained()
+    {
+        gtFlags &= ~GTF_CONTAINED;
+        gtLsraInfo.regOptional = false;
+    }
+
+#endif // !LEGACY_BACKEND
+
     bool IsRegVarDeath() const
     {
         assert(OperGet() == GT_REG_VAR);
@@ -3171,6 +3213,7 @@ struct GenTreeCall final : public GenTree
 #endif                           // LEGACY_BACKEND
 
 #if FEATURE_MULTIREG_RET
+
     // State required to support multi-reg returning call nodes.
     // For now it is enabled only for x64 unix.
     //
@@ -3179,13 +3222,18 @@ struct GenTreeCall final : public GenTree
 
     // gtRegNum would always be the first return reg.
     // The following array holds the other reg numbers of multi-reg return.
-    regNumber gtOtherRegs[MAX_RET_REG_COUNT - 1];
+    regNumberSmall gtOtherRegs[MAX_RET_REG_COUNT - 1];
 
     // GTF_SPILL or GTF_SPILLED flag on a multi-reg call node indicates that one or
     // more of its result regs are in that state.  The spill flag of each of the
-    // return register is stored in the below array.
-    unsigned gtSpillFlags[MAX_RET_REG_COUNT];
-#endif
+    // return register is stored here. We only need 2 bits per returned register,
+    // so this is treated as a 2-bit array. No architecture needs more than 8 bits.
+
+    static const unsigned PACKED_GTF_SPILL   = 1;
+    static const unsigned PACKED_GTF_SPILLED = 2;
+    unsigned char         gtSpillFlags;
+
+#endif // FEATURE_MULTIREG_RET
 
     //-----------------------------------------------------------------------
     // GetReturnTypeDesc: get the type descriptor of return value of the call
@@ -3230,7 +3278,7 @@ struct GenTreeCall final : public GenTree
         }
 
 #if FEATURE_MULTIREG_RET
-        return gtOtherRegs[idx - 1];
+        return (regNumber)gtOtherRegs[idx - 1];
 #else
         return REG_NA;
 #endif
@@ -3257,7 +3305,7 @@ struct GenTreeCall final : public GenTree
 #if FEATURE_MULTIREG_RET
         else
         {
-            gtOtherRegs[idx - 1] = reg;
+            gtOtherRegs[idx - 1] = (regNumberSmall)reg;
             assert(gtOtherRegs[idx - 1] == reg);
         }
 #else
@@ -3314,13 +3362,25 @@ struct GenTreeCall final : public GenTree
     //    idx  -  Position or index of the return register
     //
     // Return Value:
-    //    Returns GTF_* flags associated with.
+    //    Returns GTF_* flags associated with the register. Only GTF_SPILL and GTF_SPILLED are considered.
+    //
     unsigned GetRegSpillFlagByIdx(unsigned idx) const
     {
+        static_assert_no_msg(MAX_RET_REG_COUNT * 2 <= sizeof(unsigned char) * BITS_PER_BYTE);
         assert(idx < MAX_RET_REG_COUNT);
 
 #if FEATURE_MULTIREG_RET
-        return gtSpillFlags[idx];
+        unsigned bits = gtSpillFlags >> (idx * 2); // It doesn't matter that we possibly leave other high bits here.
+        unsigned spillFlags = 0;
+        if (bits & PACKED_GTF_SPILL)
+        {
+            spillFlags |= GTF_SPILL;
+        }
+        if (bits & PACKED_GTF_SPILLED)
+        {
+            spillFlags |= GTF_SPILLED;
+        }
+        return spillFlags;
 #else
         assert(!"unreached");
         return 0;
@@ -3332,17 +3392,30 @@ struct GenTreeCall final : public GenTree
     // specified by its index.
     //
     // Arguments:
-    //    flags  -  GTF_* flags
+    //    flags  -  GTF_* flags. Only GTF_SPILL and GTF_SPILLED are allowed.
     //    idx    -  Position or index of the return register
     //
     // Return Value:
     //    None
+    //
     void SetRegSpillFlagByIdx(unsigned flags, unsigned idx)
     {
+        static_assert_no_msg(MAX_RET_REG_COUNT * 2 <= sizeof(unsigned char) * BITS_PER_BYTE);
         assert(idx < MAX_RET_REG_COUNT);
 
 #if FEATURE_MULTIREG_RET
-        gtSpillFlags[idx] = flags;
+        unsigned bits = 0;
+        if (flags & GTF_SPILL)
+        {
+            bits |= PACKED_GTF_SPILL;
+        }
+        if (flags & GTF_SPILLED)
+        {
+            bits |= PACKED_GTF_SPILLED;
+        }
+
+        // Clear anything that was already there by masking out the bits before 'or'ing in what we want there.
+        gtSpillFlags = (gtSpillFlags & ~(0xffU << (idx * 2))) | (bits << (idx * 2));
 #else
         unreached();
 #endif
@@ -3359,10 +3432,7 @@ struct GenTreeCall final : public GenTree
     void ClearOtherRegFlags()
     {
 #if FEATURE_MULTIREG_RET
-        for (unsigned i = 0; i < MAX_RET_REG_COUNT; ++i)
-        {
-            gtSpillFlags[i] = 0;
-        }
+        gtSpillFlags = 0;
 #endif
     }
 
@@ -3379,10 +3449,7 @@ struct GenTreeCall final : public GenTree
     void CopyOtherRegFlags(GenTreeCall* fromCall)
     {
 #if FEATURE_MULTIREG_RET
-        for (unsigned i = 0; i < MAX_RET_REG_COUNT; ++i)
-        {
-            this->gtSpillFlags[i] = fromCall->gtSpillFlags[i];
-        }
+        this->gtSpillFlags = fromCall->gtSpillFlags;
 #endif
     }
 
@@ -3507,9 +3574,12 @@ struct GenTreeCall final : public GenTree
     //
     bool HasMultiRegRetVal() const
     {
-#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(LEGACY_BACKEND)
+#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
         // LEGACY_BACKEND does not use multi reg returns for calls with long return types
         return varTypeIsLong(gtType);
+#elif FEATURE_MULTIREG_RET && (defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND))
+        // LEGACY_BACKEND does not use multi reg returns for calls with long return types
+        return varTypeIsLong(gtType) || (varTypeIsStruct(gtType) && !HasRetBufArg());
 #elif FEATURE_MULTIREG_RET
         return varTypeIsStruct(gtType) && !HasRetBufArg();
 #else
@@ -4852,7 +4922,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
     // State required to support copy/reload of a multi-reg call node.
     // First register is is always given by gtRegNum.
     //
-    regNumber gtOtherRegs[MAX_RET_REG_COUNT - 1];
+    regNumberSmall gtOtherRegs[MAX_RET_REG_COUNT - 1];
 #endif
 
     //----------------------------------------------------------
@@ -4893,7 +4963,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
         }
 
 #if FEATURE_MULTIREG_RET
-        return gtOtherRegs[idx - 1];
+        return (regNumber)gtOtherRegs[idx - 1];
 #else
         return REG_NA;
 #endif
@@ -4920,7 +4990,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 #if FEATURE_MULTIREG_RET
         else
         {
-            gtOtherRegs[idx - 1] = reg;
+            gtOtherRegs[idx - 1] = (regNumberSmall)reg;
             assert(gtOtherRegs[idx - 1] == reg);
         }
 #else

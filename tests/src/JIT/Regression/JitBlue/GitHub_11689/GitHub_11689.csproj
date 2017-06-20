@@ -34,16 +34,6 @@
   <ItemGroup>
     <Compile Include="GitHub_11689.cs" />
   </ItemGroup>
-  <PropertyGroup>
-    <CLRTestBatchPreCommands><![CDATA[
-$(CLRTestBatchPreCommands)
-set COMPlus_TailcallStress=1
-]]></CLRTestBatchPreCommands>
-  <BashCLRTestPreCommands><![CDATA[
-$(BashCLRTestPreCommands)
-export COMPlus_TailcallStress=1
-]]></BashCLRTestPreCommands>
-  </PropertyGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>

@@ -24,6 +24,10 @@ void genCodeForMulHi(GenTreeOp* treeNode);
 void genLeaInstruction(GenTreeAddrMode* lea);
 void genSetRegToCond(regNumber dstReg, GenTreePtr tree);
 
+#if defined(_TARGET_ARMARCH_)
+void genScaledAdd(emitAttr attr, regNumber targetReg, regNumber baseReg, regNumber indexReg, int scale);
+#endif // _TARGET_ARMARCH_
+
 #if defined(_TARGET_ARM_)
 void genCodeForMulLong(GenTreeMulLong* treeNode);
 #endif // _TARGET_ARM_
@@ -52,12 +56,6 @@ unsigned getFirstArgWithStackSlot();
 
 void genCompareFloat(GenTreePtr treeNode);
 void genCompareInt(GenTreePtr treeNode);
-
-#if defined(_TARGET_ARM_)
-void genCompareLong(GenTreePtr treeNode);
-void genJccLongHi(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse, bool isUnsigned = false);
-void genJccLongLo(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse);
-#endif // defined(_TARGET_ARM_)
 
 #ifdef FEATURE_SIMD
 enum SIMDScalarMoveType

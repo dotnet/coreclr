@@ -19,7 +19,7 @@ fi
 
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [stripsymbols] [cmakeargs] [bindir]"
+    echo "Usage: $0 [BuildArch] [BuildType] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [stripsymbols] [ignorewarnings] [cmakeargs] [bindir]"
     echo "BuildArch can be: x64, x86, arm, armel, arm64"
     echo "BuildType can be: debug, checked, release"
     echo "coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
@@ -38,7 +38,6 @@ usage()
     echo "skiptests - skip the tests in the 'tests' subdirectory."
     echo "skipnuget - skip building nuget packages."
     echo "skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
-    echo "portable - build for portable RID."
     echo "verbose - optional argument to enable verbose build output."
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
 	echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
@@ -48,10 +47,12 @@ usage()
 	echo "-Rebuild: passes /t:rebuild to the build projects."
     echo "stripSymbols - Optional argument to strip native symbols during the build."
     echo "skipgenerateversion - disable version generation even if MSBuild is supported."
+    echo "ignorewarnings - do not treat warnings as errors"
     echo "cmakeargs - user-settable additional arguments passed to CMake."
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "buildstandalonegc - builds the GC in a standalone mode. Can't be used with \"cmakeargs\"."
     echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
+    echo "numproc - set the number of build processes."
     exit 1
 }
 
@@ -73,8 +74,13 @@ initTargetDistroRid()
     if [ $__CrossBuild == 1 ]; then
         if [ "$__BuildOS" == "Linux" ]; then
             if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
-                echo "WARNING: Can not determine runtime id for current distro."
-                export __DistroRid=""
+                if [ -e $ROOTFS_DIR/android_platform ]; then
+                    source $ROOTFS_DIR/android_platform
+                    export __DistroRid="$RID"
+                else
+                    echo "WARNING: Can not determine runtime id for current distro."
+                    export __DistroRid=""
+                fi
             else
                 source $ROOTFS_DIR/etc/os-release
                 export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
@@ -135,6 +141,9 @@ restore_optdata()
 {
     # if msbuild is not supported, then set __SkipRestoreOptData to 1
     if [ $__isMSBuildOnNETCoreSupported == 0 ]; then __SkipRestoreOptData=1; fi
+    # we only need optdata on a Release build
+    if [[ "$__BuildType" != "Release" ]]; then __SkipRestoreOptData=1; fi
+
     if [ $__SkipRestoreOptData == 0 ]; then
         echo "Restoring the OptimizationData package"
         "$__ProjectRoot/run.sh" sync -optdata
@@ -142,6 +151,16 @@ restore_optdata()
             echo "Failed to restore the optimization data package."
             exit 1
         fi
+
+        # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
+        local DotNetCli="$__ProjectRoot/Tools/dotnetcli/dotnet"
+        if [ ! -f $DotNetCli ]; then
+            echo "Assertion failed: dotnet CLI not found at '$DotNetCli'"
+            exit 1
+        fi
+        local OptDataProjectFilePath="$__ProjectRoot/src/.nuget/optdata/optdata.csproj"
+        __PgoOptDataVersion=$($DotNetCli msbuild $OptDataProjectFilePath /t:DumpPgoDataPackageVersion /nologo | sed 's/^\s*//')
+        __IbcOptDataVersion=$($DotNetCli msbuild $OptDataProjectFilePath /t:DumpIbcDataPackageVersion /nologo | sed 's/^\s*//')
     fi
 }
 
@@ -174,11 +193,17 @@ generate_event_logging_sources()
 
     mkdir -p "$__GeneratedIntermediateEventProvider"
     mkdir -p "$__GeneratedIntermediateEventPipe"
+
+    __PythonWarningFlags="-Wall"
+    if [[ $__IgnoreWarnings == 0 ]]; then
+        __PythonWarningFlags="$__PythonWarningFlags -Werror"
+    fi
+
     
     if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
         echo "Laying out dynamically generated files consumed by the build system "
         echo "Laying out dynamically generated Event Logging Test files"
-        $PYTHON -B -Wall -Werror "$__ProjectRoot/src/scripts/genXplatEventing.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst" --testdir "$__GeneratedIntermediateEventProvider/tests"
+        $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genXplatEventing.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst" --testdir "$__GeneratedIntermediateEventProvider/tests"
 
         if  [[ $? != 0 ]]; then
             exit
@@ -187,7 +212,7 @@ generate_event_logging_sources()
         case $__BuildOS in
             Linux)
                 echo "Laying out dynamically generated EventPipe Implementation"
-                $PYTHON -B -Wall -Werror "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventPipe" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst"
+                $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventPipe" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst"
                 if  [[ $? != 0 ]]; then
                     exit
                 fi
@@ -200,7 +225,7 @@ generate_event_logging_sources()
         case $__BuildOS in
             Linux)
                 echo "Laying out dynamically generated Event Logging Implementation of Lttng"
-                $PYTHON -B -Wall -Werror "$__ProjectRoot/src/scripts/genXplatLttng.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventProvider"
+                $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genXplatLttng.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventProvider"
                 if  [[ $? != 0 ]]; then
                     exit
                 fi
@@ -211,7 +236,7 @@ generate_event_logging_sources()
     fi
 
     echo "Cleaning the temp folder of dynamically generated Event Logging files"
-    $PYTHON -B -Wall -Werror -c "import sys;sys.path.insert(0,\"$__ProjectRoot/src/scripts\"); from Utilities import *;UpdateDirectory(\"$__GeneratedIntermediate/eventprovider\",\"$__GeneratedIntermediateEventProvider\")"
+    $PYTHON -B $__PythonWarningFlags -c "import sys;sys.path.insert(0,\"$__ProjectRoot/src/scripts\"); from Utilities import *;UpdateDirectory(\"$__GeneratedIntermediate/eventprovider\",\"$__GeneratedIntermediateEventProvider\")"
     if  [[ $? != 0 ]]; then
         exit
     fi
@@ -219,7 +244,7 @@ generate_event_logging_sources()
     rm -rf "$__GeneratedIntermediateEventProvider"
 
     echo "Cleaning the temp folder of dynamically generated EventPipe files"
-    $PYTHON -B -Wall -Werror -c "import sys;sys.path.insert(0,\"$__ProjectRoot/src/scripts\"); from Utilities import *;UpdateDirectory(\"$__GeneratedIntermediate/eventpipe\",\"$__GeneratedIntermediateEventPipe\")"
+    $PYTHON -B $__PythonWarningFlags -c "import sys;sys.path.insert(0,\"$__ProjectRoot/src/scripts\"); from Utilities import *;UpdateDirectory(\"$__GeneratedIntermediate/eventpipe\",\"$__GeneratedIntermediateEventPipe\")"
     if  [[ $? != 0 ]]; then
         exit
     fi
@@ -287,17 +312,6 @@ build_native()
         exit 1
     fi
     
-    # Get the number of processors available to the scheduler
-    # Other techniques such as `nproc` only get the number of
-    # processors available to a single process.
-    if [ `uname` = "FreeBSD" ]; then
-        NumProc=`sysctl hw.ncpu | awk '{ print $2+1 }'`
-    elif [ `uname` = "NetBSD" ]; then
-        NumProc=$(($(getconf NPROCESSORS_ONLN)+1))
-    else
-        NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
-    fi
-
     # Build
     if [ $__ConfigureOnly == 1 ]; then
         echo "Finish configuration & skipping $message build."
@@ -307,9 +321,9 @@ build_native()
     # Check that the makefiles were created.
     pushd "$intermediatesForBuild"
 
-    echo "Executing $buildTool install -j $NumProc"
+    echo "Executing $buildTool install -j $__NumProc"
 
-    $buildTool install -j $NumProc
+    $buildTool install -j $__NumProc
     if [ $? != 0 ]; then
         echo "Failed to build $message."
         exit 1
@@ -362,50 +376,29 @@ build_cross_arch_component()
 
 isMSBuildOnNETCoreSupported()
 {
-    # This needs to be updated alongwith corresponding changes to netci.groovy.
-    __isMSBuildOnNETCoreSupported=0
+    __isMSBuildOnNETCoreSupported=$__msbuildonunsupportedplatform
+
+    if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
+        return
+    fi
 
     if [ "$__HostArch" == "x64" ]; then
         if [ "$__HostOS" == "Linux" ]; then
-            case "$__HostDistroRid" in
-                "centos.7-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                "debian.8-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                "fedora.24-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                "fedora.25-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                "opensuse.42.1-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                "rhel.7"*"-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                "ubuntu.14.04-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                "ubuntu.16.04-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                "ubuntu.16.10-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                "alpine.3.4.3-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
-                *)
-                __isMSBuildOnNETCoreSupported=$__msbuildonunsupportedplatform
-            esac
+            __isMSBuildOnNETCoreSupported=1
+            UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64")
+            for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
+            do
+                if [ "$__HostDistroRid" == "$UNSUPPORTED_RID" ]; then
+                    __isMSBuildOnNETCoreSupported=0
+                    break
+                fi
+            done
         elif [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
         fi
     fi
 }
+
 
 build_CoreLib_ni()
 {
@@ -486,7 +479,8 @@ generate_NugetPackages()
     fi
 
     echo "Generating nuget packages for "$__BuildOS
-
+    echo "DistroRid is "$__DistroRid
+    echo "ROOTFS_DIR is "$ROOTFS_DIR
     # Build the packages
     $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__UnprocessedBuildArgs
 
@@ -588,6 +582,7 @@ esac
 __BuildType=Debug
 __CodeCoverage=
 __IncludeTests=Include_Tests
+__IgnoreWarnings=0
 
 # Set the various build properties here so that CMake and MSBuild can pick them up
 __ProjectDir="$__ProjectRoot"
@@ -617,10 +612,21 @@ __DistroRid=""
 __cmakeargs=""
 __SkipGenerateVersion=0
 __DoCrossArchBuild=0
-__PortableBuild=0
+__PortableBuild=1
 __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
 __IbcOptDataVersion=""
+
+# Get the number of processors available to the scheduler
+# Other techniques such as `nproc` only get the number of
+# processors available to a single process.
+if [ `uname` = "FreeBSD" ]; then
+  __NumProc=`sysctl hw.ncpu | awk '{ print $2+1 }'`
+elif [ `uname` = "NetBSD" ]; then
+  __NumProc=$(($(getconf NPROCESSORS_ONLN)+1))
+else
+  __NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
+fi
 
 while :; do
     if [ $# -le 0 ]; then
@@ -674,8 +680,8 @@ while :; do
             __CrossBuild=1
             ;;
             
-        -portable)
-            __PortableBuild=1
+        -portablebuild=false)
+            __PortableBuild=0
             ;;
 
         verbose)
@@ -775,6 +781,11 @@ while :; do
             __SkipNuget=1
             ;;
 
+        ignorewarnings)
+            __IgnoreWarnings=1
+            __cmakeargs="$__cmakeargs -DCLR_CMAKE_WARNINGS_ARE_ERRORS=OFF"
+            ;;
+
         cmakeargs)
             if [ -n "$2" ]; then
                 __cmakeargs="$__cmakeargs $2"
@@ -801,10 +812,19 @@ while :; do
             fi
             ;;
         buildstandalonegc)
-            __cmakeargs="-DFEATURE_STANDALONE_GC=1"
+            __cmakeargs="$__cmakeargs -DFEATURE_STANDALONE_GC=1 -DFEATURE_STANDALONE_GC_ONLY=1"
             ;;
         msbuildonunsupportedplatform)
             __msbuildonunsupportedplatform=1
+            ;;
+        numproc)
+            if [ -n "$2" ]; then
+              __NumProc="$2"
+              shift
+            else
+              echo "ERROR: 'numproc' requires a non-empty option argument"
+              exit 1
+            fi
             ;;
         *)
             __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
@@ -832,10 +852,20 @@ if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
             __ClangMajorVersion=3
             __ClangMinorVersion=6
         fi
+
     else
         __ClangMajorVersion=3
         __ClangMinorVersion=5
     fi
+fi
+
+if [[ "$__BuildArch" == "armel" ]]; then
+    # Armel cross build is Tizen specific and does not support Portable RID build
+    __PortableBuild=0
+fi
+
+if [ $__PortableBuild == 0 ]; then
+	__RunArgs="$__RunArgs -PortableBuild=false"
 fi
 
 # Set dependent variables
@@ -888,13 +918,6 @@ if [ $__CrossBuild == 1 ]; then
     if ! [[ -n "$ROOTFS_DIR" ]]; then
         export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
     fi
-fi
-
-# Parse the optdata package version from its project.json file
-optDataProjectJsonPath="$__ProjectRoot/src/.nuget/optdata/project.json"
-if [ -f $optDataProjectJsonPath ]; then
-    __PgoOptDataVersion=$("$__ProjectRoot/extract-from-json.py" -rf $optDataProjectJsonPath dependencies optimization.PGO.CoreCLR)
-    __IbcOptDataVersion=$("$__ProjectRoot/extract-from-json.py" -rf $optDataProjectJsonPath dependencies optimization.IBC.CoreCLR)
 fi
 
 # init the target distro name

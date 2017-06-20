@@ -10999,7 +10999,8 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             if(fValid)
             {
                 // Get the appdomain
-                ADIndex appDomainIndex = HndGetHandleADIndex(objectHandle);
+                IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+                ADIndex appDomainIndex = ADIndex(reinterpret_cast<DWORD>(mgr->GetHandleContext(objectHandle)));
                 pAppDomain = SystemDomain::GetAppDomainAtIndex(appDomainIndex);
 
                 _ASSERTE(pAppDomain != NULL);
@@ -15573,7 +15574,9 @@ HRESULT Debugger::SetReference(void *objectRefAddress,
             // fixup the handle.
             OBJECTHANDLE h = vmObjectHandle.GetRawPtr();
             OBJECTREF  src = *((OBJECTREF*)&newReference);
-            HndAssignHandle(h, src);
+
+            IGCHandleManager* mgr = GCHandleUtilities::GetGCHandleManager();
+            mgr->StoreObjectInHandle(h, OBJECTREFToObject(src));
         }
 
     return S_OK;

@@ -266,7 +266,6 @@ extern "C" HRESULT __cdecl CorDBGetInterface(DebugInterface** rcInterface);
 
 
 
-extern "C" IExecutionEngine* __stdcall IEE();
 
 // Remember how the last startup of EE went.
 HRESULT g_EEStartupStatus = S_OK;
@@ -478,8 +477,8 @@ void InitializeStartupFlags()
         g_IGCconcurrent = 0;
 
 
-    InitializeHeapType((flags & STARTUP_SERVER_GC) != 0);
     g_heap_type = (flags & STARTUP_SERVER_GC) == 0 ? GC_HEAP_WKS : GC_HEAP_SVR;
+    g_IGCHoardVM = (flags & STARTUP_HOARD_GC_VM) == 0 ? 0 : 1;
 }
 #endif // CROSSGEN_COMPILE
 
@@ -1081,8 +1080,8 @@ void EEStartupHelper(COINITIEE fFlags)
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
         // retrieve configured max size for the mini-metadata buffer (defaults to 64KB)
         g_MiniMetaDataBuffMaxSize = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_MiniMdBufferCapacity);
-        // align up to OS_PAGE_SIZE, with a maximum of 1 MB
-        g_MiniMetaDataBuffMaxSize = (DWORD) min(ALIGN_UP(g_MiniMetaDataBuffMaxSize, OS_PAGE_SIZE), 1024 * 1024);
+        // align up to GetOsPageSize(), with a maximum of 1 MB
+        g_MiniMetaDataBuffMaxSize = (DWORD) min(ALIGN_UP(g_MiniMetaDataBuffMaxSize, GetOsPageSize()), 1024 * 1024);
         // allocate the buffer. this is never touched while the process is running, so it doesn't 
         // contribute to the process' working set. it is needed only as a "shadow" for a mini-metadata
         // buffer that will be set up and reported / updated in the Watson process (the 
@@ -1563,6 +1562,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         ETW::EnumerationLog::ProcessShutdown();
     }
 
+#ifdef FEATURE_PERFTRACING
+    // Shutdown the event pipe.
+    EventPipe::Shutdown();
+#endif // FEATURE_PERFTRACING
+
 #if defined(FEATURE_COMINTEROP)
     // Get the current thread.
     Thread * pThisThread = GetThread();
@@ -1694,11 +1698,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // Flush and close the perf map file.
         PerfMap::Destroy();
 #endif
-
-#ifdef FEATURE_PERFTRACING
-        // Shutdown the event pipe.
-        EventPipe::Shutdown();
-#endif // FEATURE_PERFTRACING
 
 #ifdef FEATURE_PREJIT
         {
@@ -2440,6 +2439,101 @@ BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)
 // Initialize the Garbage Collector
 //
 
+// Prototype for the function that initialzes the garbage collector.
+// Should only be called once: here, during EE startup.
+// Returns true if the initialization was successful, false otherwise.
+//
+// When using a standalone GC, this function is loaded dynamically using
+// GetProcAddress.
+extern "C" bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleManager** gcHandleManager, GcDacVars* gcDacVars);
+
+#ifdef FEATURE_STANDALONE_GC
+
+void LoadGarbageCollector()
+{
+    CONTRACTL {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    } CONTRACTL_END;
+
+    TCHAR *standaloneGc = nullptr;
+    CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCStandaloneLocation, &standaloneGc);
+    HMODULE hMod;
+    if (!standaloneGc)
+    {
+#ifdef FEATURE_STANDALONE_GC_ONLY
+        // if the user has set GCUseStandalone but has not given us a standalone location,
+        // try and load the initialization symbol from the current module.
+        hMod = GetModuleInst();
+#else
+        ThrowHR(E_FAIL);
+#endif // FEATURE_STANDALONE_GC_ONLY
+    }
+    else
+    {
+        hMod = CLRLoadLibrary(standaloneGc);
+    }
+
+    if (!hMod)
+    {
+        ThrowHR(E_FAIL);
+    }
+
+    InitializeGarbageCollectorFunction igcf = (InitializeGarbageCollectorFunction)GetProcAddress(hMod, INITIALIZE_GC_FUNCTION_NAME);
+    if (!igcf)
+    {
+        ThrowHR(E_FAIL);
+    }
+
+    // at this point we are committing to using the standalone GC
+    // given to us.
+    IGCToCLR* gcToClr = new (nothrow) standalone::GCToEEInterface();
+    if (!gcToClr)
+    {
+        ThrowOutOfMemory();
+    }
+
+    IGCHandleManager *pGcHandleManager;
+    IGCHeap *pGCHeap;
+    if (!igcf(gcToClr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars))
+    {
+        ThrowOutOfMemory();
+    }
+
+    assert(pGCHeap != nullptr);
+    assert(pGcHandleManager != nullptr);
+    g_pGCHeap = pGCHeap;
+    g_pGCHandleManager = pGcHandleManager;
+    g_gcDacGlobals = &g_gc_dac_vars;
+}
+
+#endif // FEATURE_STANDALONE_GC
+
+void LoadStaticGarbageCollector()
+{
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    } CONTRACTL_END;
+
+    IGCHandleManager *pGcHandleManager;
+    IGCHeap *pGCHeap;
+
+    if (!InitializeGarbageCollector(nullptr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars)) 
+    {
+        ThrowOutOfMemory();
+    }
+
+    assert(pGCHeap != nullptr);
+    assert(pGcHandleManager != nullptr);
+    g_pGCHeap = pGCHeap;
+    g_pGCHandleManager = pGcHandleManager;
+    g_gcDacGlobals = &g_gc_dac_vars;
+}
+
+
 void InitializeGarbageCollector()
 {
     CONTRACTL{
@@ -2463,25 +2557,19 @@ void InitializeGarbageCollector()
     g_pFreeObjectMethodTable->SetComponentSize(1);
 
 #ifdef FEATURE_STANDALONE_GC
-    IGCToCLR* gcToClr = new (nothrow) GCToEEInterface();
-    if (!gcToClr)
-        ThrowOutOfMemory();
-#else
-    IGCToCLR* gcToClr = nullptr;
-#endif
-
-    IGCHandleManager *pGcHandleManager;
-
-    IGCHeap *pGCHeap;
-    if (!InitializeGarbageCollector(gcToClr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars)) 
+    if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCUseStandalone)
+#ifdef FEATURE_STANDALONE_GC_ONLY
+        || true
+#endif // FEATURE_STANDALONE_GC_ONLY
+        )
     {
-        ThrowOutOfMemory();
+        LoadGarbageCollector();
     }
-
-    assert(pGCHeap != nullptr);
-    g_pGCHeap = pGCHeap;
-    g_pGCHandleManager = pGcHandleManager;
-    g_gcDacGlobals = &g_gc_dac_vars;
+    else
+#endif // FEATURE_STANDALONE_GC
+    {
+        LoadStaticGarbageCollector();
+    }
 
     // Apparently the Windows linker removes global variables if they are never
     // read from, which is a problem for g_gcDacGlobals since it's expected that
