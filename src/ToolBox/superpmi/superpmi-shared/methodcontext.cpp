@@ -5256,29 +5256,17 @@ void* MethodContext::repGetMethodSync(CORINFO_METHOD_HANDLE ftn, void** ppIndire
 void MethodContext::recGetVarArgsHandle(CORINFO_SIG_INFO* pSig, void** ppIndirection, CORINFO_VARARGS_HANDLE result)
 {
     if (GetVarArgsHandle == nullptr)
-        GetVarArgsHandle = new LightWeightMap<Agnostic_CORINFO_SIG_INFO, DLDL>();
+        GetVarArgsHandle = new LightWeightMap<GetVarArgsHandleValue, DLDL>();
 
-    Agnostic_CORINFO_SIG_INFO key;
-    ZeroMemory(&key, sizeof(Agnostic_CORINFO_SIG_INFO)); // We use the input structs as a key and use memcmp to
-                                                         // compare.. so we need to zero out padding too
+    GetVarArgsHandleValue key;
+    ZeroMemory(&key, sizeof(GetVarArgsHandleValue)); // We use the input structs as a key and use memcmp to
+                                                     // compare.. so we need to zero out padding too
+    key.cbSig = (DWORD)pSig->cbSig;
+    key.pSig  = (DWORD)GetVarArgsHandle->AddBuffer((unsigned char*)pSig->pSig, pSig->cbSig);
+    key.scope = (DWORDLONG)pSig->scope;
+    key.token = (DWORD)pSig->token;
+
     DLDL value;
-
-    key.callConv                = (DWORD)0;
-    key.retTypeClass            = (DWORDLONG)0;
-    key.retTypeSigClass         = (DWORDLONG)0;
-    key.retType                 = (DWORD)0;
-    key.flags                   = (DWORD)0;
-    key.numArgs                 = (DWORD)0;
-    key.sigInst_classInstCount  = (DWORD)0;
-    key.sigInst_classInst_Index = (DWORD)0;
-    key.sigInst_methInstCount   = (DWORD)0;
-    key.sigInst_methInst_Index  = (DWORD)0;
-    key.args                    = (DWORDLONG)0;
-    key.cbSig                   = (DWORD)pSig->cbSig;
-    key.pSig                    = (DWORD)GetVarArgsHandle->AddBuffer((unsigned char*)pSig->pSig, pSig->cbSig);
-    key.scope                   = (DWORDLONG)pSig->scope;
-    key.token                   = (DWORD)pSig->token;
-
     if (ppIndirection != nullptr)
         value.A = (DWORDLONG)*ppIndirection;
     else
@@ -5287,7 +5275,7 @@ void MethodContext::recGetVarArgsHandle(CORINFO_SIG_INFO* pSig, void** ppIndirec
 
     GetVarArgsHandle->Add(key, value);
 }
-void MethodContext::dmpGetVarArgsHandle(const Agnostic_CORINFO_SIG_INFO& key, DLDL value)
+void MethodContext::dmpGetVarArgsHandle(const GetVarArgsHandleValue& key, DLDL value)
 {
     printf("GetVarArgsHandle key cbSig-%08X pSig-%08X scope-%016llX token-%08X", key.cbSig, key.pSig, key.scope,
            key.token);
@@ -5295,28 +5283,16 @@ void MethodContext::dmpGetVarArgsHandle(const Agnostic_CORINFO_SIG_INFO& key, DL
 }
 CORINFO_VARARGS_HANDLE MethodContext::repGetVarArgsHandle(CORINFO_SIG_INFO* pSig, void** ppIndirection)
 {
-    Agnostic_CORINFO_SIG_INFO key;
-    ZeroMemory(&key, sizeof(Agnostic_CORINFO_SIG_INFO)); // We use the input structs as a key and use memcmp to
-                                                         // compare.. so we need to zero out padding too
-    DLDL value;
+    GetVarArgsHandleValue key;
+    ZeroMemory(&key, sizeof(GetVarArgsHandleValue)); // We use the input structs as a key and use memcmp to
+                                                     // compare.. so we need to zero out padding too
 
-    key.callConv                = (DWORD)0;
-    key.retTypeClass            = (DWORDLONG)0;
-    key.retTypeSigClass         = (DWORDLONG)0;
-    key.retType                 = (DWORD)0;
-    key.flags                   = (DWORD)0;
-    key.numArgs                 = (DWORD)0;
-    key.sigInst_classInstCount  = (DWORD)0;
-    key.sigInst_classInst_Index = (DWORD)0;
-    key.sigInst_methInstCount   = (DWORD)0;
-    key.sigInst_methInst_Index  = (DWORD)0;
-    key.args                    = (DWORDLONG)0;
-    key.cbSig                   = (DWORD)pSig->cbSig;
-    key.pSig                    = (DWORD)GetVarArgsHandle->Contains((unsigned char*)pSig->pSig, pSig->cbSig);
-    key.scope                   = (DWORDLONG)pSig->scope;
-    key.token                   = (DWORD)pSig->token;
+    key.cbSig = (DWORD)pSig->cbSig;
+    key.pSig  = (DWORD)GetVarArgsHandle->Contains((unsigned char*)pSig->pSig, pSig->cbSig);
+    key.scope = (DWORDLONG)pSig->scope;
+    key.token = (DWORD)pSig->token;
 
-    value = (DLDL)GetVarArgsHandle->Get(key);
+    DLDL value = (DLDL)GetVarArgsHandle->Get(key);
 
     if (ppIndirection != nullptr)
         *ppIndirection = (void*)value.A;
@@ -5327,56 +5303,28 @@ CORINFO_VARARGS_HANDLE MethodContext::repGetVarArgsHandle(CORINFO_SIG_INFO* pSig
 void MethodContext::recCanGetVarArgsHandle(CORINFO_SIG_INFO* pSig, bool result)
 {
     if (CanGetVarArgsHandle == nullptr)
-        CanGetVarArgsHandle = new LightWeightMap<Agnostic_CORINFO_SIG_INFO, DWORD>();
+        CanGetVarArgsHandle = new LightWeightMap<CanGetVarArgsHandleValue, DWORD>();
 
-    Agnostic_CORINFO_SIG_INFO key;
-    ZeroMemory(&key, sizeof(Agnostic_CORINFO_SIG_INFO)); // We use the input structs as a key and use memcmp to
-                                                         // compare.. so we need to zero out padding too
-
-    key.callConv                = (DWORD)0;
-    key.retTypeClass            = (DWORDLONG)0;
-    key.retTypeSigClass         = (DWORDLONG)0;
-    key.retType                 = (DWORD)0;
-    key.flags                   = (DWORD)0;
-    key.numArgs                 = (DWORD)0;
-    key.sigInst_classInstCount  = (DWORD)0;
-    key.sigInst_classInst_Index = (DWORD)0;
-    key.sigInst_methInstCount   = (DWORD)0;
-    key.sigInst_methInst_Index  = (DWORD)0;
-    key.args                    = (DWORDLONG)0;
-    key.cbSig                   = (DWORD)0;
-    key.pSig                    = (DWORD)0;
-    key.scope                   = (DWORDLONG)pSig->scope;
-    key.token                   = (DWORD)pSig->token;
+    CanGetVarArgsHandleValue key;
+    ZeroMemory(&key, sizeof(CanGetVarArgsHandleValue)); // We use the input structs as a key and use memcmp to
+                                                        // compare.. so we need to zero out padding too
+    key.scope = (DWORDLONG)pSig->scope;
+    key.token = (DWORD)pSig->token;
 
     CanGetVarArgsHandle->Add(key, (DWORD)result);
     DEBUG_REC(dmpCanGetVarArgsHandle(key, (DWORD)result));
 }
-void MethodContext::dmpCanGetVarArgsHandle(const Agnostic_CORINFO_SIG_INFO& key, DWORD value)
+void MethodContext::dmpCanGetVarArgsHandle(const CanGetVarArgsHandleValue& key, DWORD value)
 {
     printf("CanGetVarArgsHandle key scope-%016llX token-%08X, value result-%08X", key.scope, key.token, value);
 }
 bool MethodContext::repCanGetVarArgsHandle(CORINFO_SIG_INFO* pSig)
 {
-    Agnostic_CORINFO_SIG_INFO key;
-    ZeroMemory(&key, sizeof(Agnostic_CORINFO_SIG_INFO)); // We use the input structs as a key and use memcmp to
-                                                         // compare.. so we need to zero out padding too
-
-    key.callConv                = (DWORD)0;
-    key.retTypeClass            = (DWORDLONG)0;
-    key.retTypeSigClass         = (DWORDLONG)0;
-    key.retType                 = (DWORD)0;
-    key.flags                   = (DWORD)0;
-    key.numArgs                 = (DWORD)0;
-    key.sigInst_classInstCount  = (DWORD)0;
-    key.sigInst_classInst_Index = (DWORD)0;
-    key.sigInst_methInstCount   = (DWORD)0;
-    key.sigInst_methInst_Index  = (DWORD)0;
-    key.args                    = (DWORDLONG)0;
-    key.cbSig                   = (DWORD)0;
-    key.pSig                    = (DWORD)0;
-    key.scope                   = (DWORDLONG)pSig->scope;
-    key.token                   = (DWORD)pSig->token;
+    CanGetVarArgsHandleValue key;
+    ZeroMemory(&key, sizeof(CanGetVarArgsHandleValue)); // We use the input structs as a key and use memcmp to
+                                                        // compare.. so we need to zero out padding too
+    key.scope = (DWORDLONG)pSig->scope;
+    key.token = (DWORD)pSig->token;
 
     AssertCodeMsg(CanGetVarArgsHandle != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX",
                   (DWORDLONG)key.token);

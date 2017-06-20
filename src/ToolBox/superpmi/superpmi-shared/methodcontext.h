@@ -461,6 +461,20 @@ public:
         DWORDLONG hField;
     };
 
+    struct GetVarArgsHandleValue
+    {
+        DWORD     cbSig;
+        DWORD     pSig;
+        DWORDLONG scope;
+        DWORD     token;
+    };
+
+    struct CanGetVarArgsHandleValue
+    {
+        DWORDLONG scope;
+        DWORD     token;
+    };
+
 #pragma pack(pop)
 
     MethodContext();
@@ -1044,11 +1058,11 @@ public:
     void* repGetMethodSync(CORINFO_METHOD_HANDLE ftn, void** ppIndirection);
 
     void recGetVarArgsHandle(CORINFO_SIG_INFO* pSig, void** ppIndirection, CORINFO_VARARGS_HANDLE result);
-    void dmpGetVarArgsHandle(const Agnostic_CORINFO_SIG_INFO& key, DLDL value);
+    void dmpGetVarArgsHandle(const GetVarArgsHandleValue& key, DLDL value);
     CORINFO_VARARGS_HANDLE repGetVarArgsHandle(CORINFO_SIG_INFO* pSig, void** ppIndirection);
 
     void recCanGetVarArgsHandle(CORINFO_SIG_INFO* pSig, bool result);
-    void dmpCanGetVarArgsHandle(const Agnostic_CORINFO_SIG_INFO& key, DWORD value);
+    void dmpCanGetVarArgsHandle(const CanGetVarArgsHandleValue& key, DWORD value);
     bool repCanGetVarArgsHandle(CORINFO_SIG_INFO* pSig);
 
     void recGetFieldThreadLocalStoreID(CORINFO_FIELD_HANDLE field, void** ppIndirection, DWORD result);
