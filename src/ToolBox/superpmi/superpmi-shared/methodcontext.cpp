@@ -3015,27 +3015,15 @@ void MethodContext::recGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     Agnostic_GetNewHelper key;
     ZeroMemory(&key, sizeof(Agnostic_GetNewHelper)); // We use the input structs as a key and use memcmp to compare.. so
                                                      // we need to zero out padding too
-
-    key.ResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
-    key.ResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
-    key.ResolvedToken.inValue.token              = (DWORD)0;
-    key.ResolvedToken.inValue.tokenType          = (DWORD)0;
-    key.ResolvedToken.outValue.hClass            = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod           = (DWORDLONG)0;
-    key.ResolvedToken.outValue.hField            = (DWORDLONG)0;
-    key.ResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
-    key.ResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
-    key.ResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
-    key.ResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
-    key.callerHandle                             = (DWORDLONG)callerHandle;
+    key.hClass       = (DWORDLONG)pResolvedToken->hClass;
+    key.callerHandle = (DWORDLONG)callerHandle;
 
     GetNewHelper->Add(key, (DWORD)result);
     DEBUG_REC(dmpGetNewHelper(key, (DWORD)result));
 }
 void MethodContext::dmpGetNewHelper(const Agnostic_GetNewHelper& key, DWORD value)
 {
-    printf("GetNewHelper key cls-%016llX chan-%016llX, value res-%u", key.ResolvedToken.outValue.hClass,
-           key.callerHandle, value);
+    printf("GetNewHelper key cls-%016llX chan-%016llX, value res-%u", key.hClass, key.callerHandle, value);
 }
 CorInfoHelpFunc MethodContext::repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                                CORINFO_METHOD_HANDLE   callerHandle)
@@ -3043,24 +3031,11 @@ CorInfoHelpFunc MethodContext::repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolved
     Agnostic_GetNewHelper key;
     ZeroMemory(&key, sizeof(Agnostic_GetNewHelper)); // We use the input structs as a key and use memcmp to compare.. so
                                                      // we need to zero out padding too
+    key.hClass       = (DWORDLONG)pResolvedToken->hClass;
+    key.callerHandle = (DWORDLONG)callerHandle;
 
-    key.ResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
-    key.ResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
-    key.ResolvedToken.inValue.token              = (DWORD)0;
-    key.ResolvedToken.inValue.tokenType          = (DWORD)0;
-    key.ResolvedToken.outValue.hClass            = (DWORDLONG)pResolvedToken->hClass;
-    key.ResolvedToken.outValue.hMethod           = (DWORDLONG)0;
-    key.ResolvedToken.outValue.hField            = (DWORDLONG)0;
-    key.ResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
-    key.ResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
-    key.ResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
-    key.ResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
-    key.callerHandle                             = (DWORDLONG)callerHandle;
-
-    AssertCodeMsg(GetNewHelper != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX",
-                  (DWORDLONG)key.ResolvedToken.outValue.hClass);
-    AssertCodeMsg(GetNewHelper->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
-                  (DWORDLONG)key.ResolvedToken.outValue.hClass);
+    AssertCodeMsg(GetNewHelper != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX", (DWORDLONG)key.hClass);
+    AssertCodeMsg(GetNewHelper->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX", (DWORDLONG)key.hClass);
     CorInfoHelpFunc value = (CorInfoHelpFunc)GetNewHelper->Get(key);
     DEBUG_REP(dmpGetNewHelper(key, value));
     return value;

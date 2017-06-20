@@ -360,8 +360,8 @@ public:
     };
     struct Agnostic_GetNewHelper
     {
-        Agnostic_CORINFO_RESOLVED_TOKEN ResolvedToken;
-        DWORDLONG                       callerHandle;
+        DWORDLONG hClass;
+        DWORDLONG callerHandle;
     };
     struct Agnostic_GetCastingHelper
     {
