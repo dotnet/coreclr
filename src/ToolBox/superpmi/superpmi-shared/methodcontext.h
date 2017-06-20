@@ -117,10 +117,14 @@ public:
         DWORDLONG     scope;
         DWORDLONG args;
     };
-    struct Agnostic_GetArgClass
+    struct GetArgClassValue
     {
-        Agnostic_CORINFO_SIG_INFO sig;
-        DWORDLONG                 args;
+        DWORD     sigInst_classInstCount;
+        DWORD     sigInst_classInst_Index;
+        DWORD     sigInst_methInstCount;
+        DWORD     sigInst_methInst_Index;
+        DWORDLONG scope;
+        DWORDLONG args;
     };
     struct Agnostic_GetBoundaries
     {
@@ -785,7 +789,7 @@ public:
                         CORINFO_ARG_LIST_HANDLE args,
                         CORINFO_CLASS_HANDLE    result,
                         DWORD                   exceptionCode);
-    void dmpGetArgClass(const Agnostic_GetArgClass& key, const Agnostic_GetArgClass_Value& value);
+    void dmpGetArgClass(const GetArgClassValue& key, const Agnostic_GetArgClass_Value& value);
     CORINFO_CLASS_HANDLE repGetArgClass(CORINFO_SIG_INFO* sig, CORINFO_ARG_LIST_HANDLE args, DWORD* exceptionCode);
 
     void recGetHFAType(CORINFO_CLASS_HANDLE clsHnd, CorInfoType result);

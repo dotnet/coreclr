@@ -2727,80 +2727,56 @@ void MethodContext::recGetArgClass(CORINFO_SIG_INFO*       sig,
                                    DWORD                   exceptionCode)
 {
     if (GetArgClass == nullptr)
-        GetArgClass = new LightWeightMap<Agnostic_GetArgClass, Agnostic_GetArgClass_Value>();
+        GetArgClass = new LightWeightMap<GetArgClassValue, Agnostic_GetArgClass_Value>();
 
-    Agnostic_GetArgClass key;
-    ZeroMemory(&key, sizeof(Agnostic_GetArgClass)); // We use the input structs as a key and use memcmp to compare.. so
-                                                    // we need to zero out padding too
-    Agnostic_GetArgClass_Value value;
-
+    GetArgClassValue key;
+    ZeroMemory(&key, sizeof(GetArgClassValue)); // We use the input structs as a key and use memcmp to compare.. so
+                                                // we need to zero out padding too
     // Only setting values for things the EE seems to pay attention to... this is necessary since some of the values
     // are unset and fail our precise comparisions...
-    key.sig.callConv               = (DWORD)0;
-    key.sig.retTypeClass           = (DWORDLONG)0;
-    key.sig.retTypeSigClass        = (DWORDLONG)0;
-    key.sig.retType                = (DWORD)0;
-    key.sig.flags                  = (DWORD)0;
-    key.sig.numArgs                = (DWORD)0;
-    key.sig.sigInst_classInstCount = (DWORD)sig->sigInst.classInstCount;
-    key.sig.sigInst_classInst_Index =
+    key.sigInst_classInstCount = (DWORD)sig->sigInst.classInstCount;
+    key.sigInst_classInst_Index =
         (DWORD)GetArgClass->AddBuffer((unsigned char*)sig->sigInst.classInst, sig->sigInst.classInstCount * 8);
-    key.sig.sigInst_methInstCount = (DWORD)sig->sigInst.methInstCount;
-    key.sig.sigInst_methInst_Index =
+    key.sigInst_methInstCount = (DWORD)sig->sigInst.methInstCount;
+    key.sigInst_methInst_Index =
         (DWORD)GetArgClass->AddBuffer((unsigned char*)sig->sigInst.methInst, sig->sigInst.methInstCount * 8);
-    key.sig.args  = (DWORDLONG)0;
-    key.sig.cbSig = (DWORD)0;
-    key.sig.pSig  = -1;
-    key.sig.scope = (DWORDLONG)sig->scope;
-    key.sig.token = (DWORD)0;
-    key.args      = (DWORDLONG)args;
+    key.scope = (DWORDLONG)sig->scope;
+    key.args  = (DWORDLONG)args;
 
+    Agnostic_GetArgClass_Value value;
     value.result        = (DWORDLONG)result;
     value.exceptionCode = exceptionCode;
 
     GetArgClass->Add(key, value);
     DEBUG_REC(dmpGetArgClass(key, value));
 }
-void MethodContext::dmpGetArgClass(const Agnostic_GetArgClass& key, const Agnostic_GetArgClass_Value& value)
+void MethodContext::dmpGetArgClass(const GetArgClassValue& key, const Agnostic_GetArgClass_Value& value)
 {
-    printf("GetArgClass key cc-%u ci-%u mc-%u mi-%u scp-%016llX args-%016llX", key.sig.sigInst_classInstCount,
-           key.sig.sigInst_classInst_Index, key.sig.sigInst_methInstCount, key.sig.sigInst_methInst_Index,
-           key.sig.scope, key.args);
+    printf("GetArgClass key cc-%u ci-%u mc-%u mi-%u scp-%016llX args-%016llX", key.sigInst_classInstCount,
+           key.sigInst_classInst_Index, key.sigInst_methInstCount, key.sigInst_methInst_Index, key.scope, key.args);
     printf(", value %016llX excp-%08X", value.result, value.exceptionCode);
 }
 CORINFO_CLASS_HANDLE MethodContext::repGetArgClass(CORINFO_SIG_INFO*       sig,
                                                    CORINFO_ARG_LIST_HANDLE args,
                                                    DWORD*                  exceptionCode)
 {
-    Agnostic_GetArgClass key;
-    ZeroMemory(&key, sizeof(Agnostic_GetArgClass)); // We use the input structs as a key and use memcmp to compare.. so
-                                                    // we need to zero out padding too
+    GetArgClassValue key;
+    ZeroMemory(&key, sizeof(GetArgClassValue)); // We use the input structs as a key and use memcmp to compare.. so
+                                                // we need to zero out padding too
 
     AssertCodeMsg(GetArgClass != nullptr, EXCEPTIONCODE_MC,
-                  "Didn't find %016llx, %016llx.  probably a missing exception in getArgClass", key.sig.scope,
-                  key.args);
-    key.sig.callConv               = (DWORD)0;
-    key.sig.retTypeClass           = (DWORDLONG)0;
-    key.sig.retTypeSigClass        = (DWORDLONG)0;
-    key.sig.retType                = (DWORD)0;
-    key.sig.flags                  = (DWORD)0;
-    key.sig.numArgs                = (DWORD)0;
-    key.sig.sigInst_classInstCount = (DWORD)sig->sigInst.classInstCount;
-    key.sig.sigInst_classInst_Index =
+                  "Didn't find %016llx, %016llx.  probably a missing exception in getArgClass", key.scope, key.args);
+    key.sigInst_classInstCount = (DWORD)sig->sigInst.classInstCount;
+    key.sigInst_classInst_Index =
         (DWORD)GetArgClass->Contains((unsigned char*)sig->sigInst.classInst, sig->sigInst.classInstCount * 8);
-    key.sig.sigInst_methInstCount = (DWORD)sig->sigInst.methInstCount;
-    key.sig.sigInst_methInst_Index =
+    key.sigInst_methInstCount = (DWORD)sig->sigInst.methInstCount;
+    key.sigInst_methInst_Index =
         (DWORD)GetArgClass->Contains((unsigned char*)sig->sigInst.methInst, sig->sigInst.methInstCount * 8);
-    key.sig.args  = (DWORDLONG)0;
-    key.sig.cbSig = (DWORD)0;
-    key.sig.pSig  = -1;
-    key.sig.scope = (DWORDLONG)sig->scope;
-    key.sig.token = (DWORD)0;
-    key.args      = (DWORDLONG)args;
+    key.scope = (DWORDLONG)sig->scope;
+    key.args  = (DWORDLONG)args;
 
     AssertCodeMsg(GetArgClass->GetIndex(key) != -1, EXCEPTIONCODE_MC,
-                  "Didn't find %016llx, %016llx.  probably a missing exception in getArgClass", key.sig.scope,
-                  key.args);
+                  "Didn't find %016llx, %016llx.  probably a missing exception in getArgClass", key.scope, key.args);
 
     Agnostic_GetArgClass_Value value = GetArgClass->Get(key);
     *exceptionCode                   = value.exceptionCode;
