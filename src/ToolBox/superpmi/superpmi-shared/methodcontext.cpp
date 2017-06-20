@@ -1390,20 +1390,6 @@ void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
         key.ConstrainedResolvedToken =
             SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(pConstrainedResolvedToken, GetCallInfo);
     }
-    else
-    {
-        key.ConstrainedResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.inValue.token              = (DWORD)0;
-        key.ConstrainedResolvedToken.inValue.tokenType          = (DWORD)0;
-        key.ConstrainedResolvedToken.outValue.hClass            = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.outValue.hMethod           = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.outValue.hField            = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
-        key.ConstrainedResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
-        key.ConstrainedResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
-        key.ConstrainedResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
-    }
 
     key.callerHandle = (DWORDLONG)callerHandle;
     key.flags        = (DWORD)flags;
@@ -1582,20 +1568,6 @@ void MethodContext::repGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     {
         key.ConstrainedResolvedToken =
             SpmiRecordsHelper::RestoreAgnostic_CORINFO_RESOLVED_TOKEN(pConstrainedResolvedToken, GetCallInfo);
-    }
-    else
-    {
-        key.ConstrainedResolvedToken.inValue.tokenContext       = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.inValue.tokenScope         = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.inValue.token              = (DWORD)0;
-        key.ConstrainedResolvedToken.inValue.tokenType          = (DWORD)0;
-        key.ConstrainedResolvedToken.outValue.hClass            = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.outValue.hMethod           = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.outValue.hField            = (DWORDLONG)0;
-        key.ConstrainedResolvedToken.outValue.pTypeSpec_Index   = (DWORD)0;
-        key.ConstrainedResolvedToken.outValue.cbTypeSpec        = (DWORD)0;
-        key.ConstrainedResolvedToken.outValue.pMethodSpec_Index = (DWORD)0;
-        key.ConstrainedResolvedToken.outValue.cbMethodSpec      = (DWORD)0;
     }
     key.callerHandle = (DWORDLONG)callerHandle;
     key.flags        = (DWORD)flags;
