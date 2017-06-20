@@ -24,7 +24,6 @@
 //        UINT64      flt1;
 //        UINT64      flt2;
 //        UINT64      flt3;
-// #if defined(UNIX_AMD64_ABI)
 //        UINT64      flt4;
 //        UINT64      flt5;
 //        UINT64      flt6;
@@ -35,7 +34,6 @@
 //        UINT64      rcx;
 //        UINT64      r8;
 //        UINT64      r9;
-// #endif
 //        UINT32      flags;
 //    } PROFILE_PLATFORM_SPECIFIC_DATA, *PPROFILE_PLATFORM_SPECIFIC_DATA;
 //
