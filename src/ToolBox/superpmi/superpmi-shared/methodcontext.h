@@ -277,10 +277,12 @@ public:
         DWORD     sigTOK;
         DWORDLONG context;
     };
-    struct Agnostic_PInvokeMarshalingRequired
+    struct PInvokeMarshalingRequiredValue
     {
-        DWORDLONG                 method;
-        Agnostic_CORINFO_SIG_INFO callSiteSig;
+        DWORDLONG method;
+        DWORD     pSig;
+        DWORD     cbSig;
+        DWORDLONG scope;
     };
     struct Agnostic_CORINFO_EH_CLAUSE
     {
@@ -363,8 +365,8 @@ public:
     };
     struct Agnostic_GetCastingHelper
     {
-        Agnostic_CORINFO_RESOLVED_TOKEN ResolvedToken;
-        DWORD                           fThrowing;
+        DWORDLONG hClass;
+        DWORD     fThrowing;
     };
     struct Agnostic_GetClassModuleIdForStatics
     {
@@ -451,6 +453,12 @@ public:
     {
         Agnostic_CORINFO_RESOLVED_TOKENout tokenOut;
         DWORD                              success;
+    };
+
+    struct GetTokenTypeAsHandleValue
+    {
+        DWORDLONG hMethod;
+        DWORDLONG hField;
     };
 
 #pragma pack(pop)
@@ -791,7 +799,7 @@ public:
                                                   CORINFO_CONTEXT_HANDLE ownerType);
 
     void recGetTokenTypeAsHandle(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_CLASS_HANDLE result);
-    void dmpGetTokenTypeAsHandle(const Agnostic_CORINFO_RESOLVED_TOKEN& key, DWORDLONG value);
+    void dmpGetTokenTypeAsHandle(const GetTokenTypeAsHandleValue& key, DWORDLONG value);
     CORINFO_CLASS_HANDLE repGetTokenTypeAsHandle(CORINFO_RESOLVED_TOKEN* pResolvedToken);
 
     void recGetFieldInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
@@ -842,7 +850,7 @@ public:
     CORINFO_CLASS_HANDLE repEmbedClassHandle(CORINFO_CLASS_HANDLE handle, void** ppIndirection);
 
     void recPInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* callSiteSig, BOOL result);
-    void dmpPInvokeMarshalingRequired(const Agnostic_PInvokeMarshalingRequired& key, DWORD value);
+    void dmpPInvokeMarshalingRequired(const PInvokeMarshalingRequiredValue& key, DWORD value);
     BOOL repPInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* callSiteSig);
 
     void recFindSig(CORINFO_MODULE_HANDLE  module,
