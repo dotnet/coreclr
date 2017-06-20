@@ -466,6 +466,8 @@ public:
     virtual Object* InterlockedCompareExchangeObjectInHandle(OBJECTHANDLE handle, Object* object, Object* comparandObject) = 0;
 
     virtual HandleType HandleFetchType(OBJECTHANDLE handle) = 0;
+
+    virtual void TraceRefCountedHandles(HANDLESCANPROC callback, uintptr_t param1, uintptr_t param2) = 0;
 };
 
 // IGCHeap is the interface that the VM will use when interacting with the GC.
