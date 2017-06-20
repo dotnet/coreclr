@@ -49,10 +49,8 @@ OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements);
 OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements, BOOL bAllocateInLargeHeap);
 
 
-// Allocate SD array of object pointers.  StubLinker-generated asm code might
-// implement this, so the element TypeHandle is passed as a PVOID to avoid any
-// struct calling convention weirdness.
-typedef HCCALL2_PTR(Object*, FastObjectArrayAllocatorFuncPtr, /*TypeHandle*/PVOID ArrayType, DWORD cElements);
+// Allocate SD array of object pointers.
+typedef HCCALL2_PTR(Object*, FastObjectArrayAllocatorFuncPtr, MethodTable *pArrayMT, DWORD cElements);
 
 extern FastObjectArrayAllocatorFuncPtr fastObjectArrayAllocator;
 

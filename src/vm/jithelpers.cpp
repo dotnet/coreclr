@@ -3001,7 +3001,7 @@ HCIMPLEND
 //*************************************************************
 // Array allocation fast path for arrays of value type elements
 //
-HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
+HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size)
 {
     FCALL_CONTRACT;
 
@@ -3027,16 +3027,14 @@ HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeHn
         // some reshuffling of intermediate values into nonvolatile registers around the call.
         Thread *thread = GetThread();
 
-        TypeHandle arrayTypeHandle(arrayTypeHnd_);
-        ArrayTypeDesc *arrayTypeDesc = arrayTypeHandle.AsArray();
-        MethodTable *arrayMethodTable = arrayTypeDesc->GetTemplateMethodTable();
+        MethodTable *pArrayMT = (MethodTable *)arrayMT;
 
-        _ASSERTE(arrayMethodTable->HasComponentSize());
-        SIZE_T componentSize = arrayMethodTable->RawGetComponentSize();
+        _ASSERTE(pArrayMT->HasComponentSize());
+        SIZE_T componentSize = pArrayMT->RawGetComponentSize();
         SIZE_T totalSize = componentCount * componentSize;
         _ASSERTE(totalSize / componentSize == componentCount);
 
-        SIZE_T baseSize = arrayMethodTable->GetBaseSize();
+        SIZE_T baseSize = pArrayMT->GetBaseSize();
         totalSize += baseSize;
         _ASSERTE(totalSize >= baseSize);
 
@@ -3055,7 +3053,7 @@ HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeHn
 
         _ASSERTE(allocPtr != nullptr);
         ArrayBase *array = reinterpret_cast<ArrayBase *>(allocPtr);
-        array->SetArrayMethodTable(arrayMethodTable);
+        array->SetArrayMethodTable(pArrayMT);
         _ASSERTE(static_cast<DWORD>(componentCount) == componentCount);
         array->m_NumComponents = static_cast<DWORD>(componentCount);
 
@@ -3071,14 +3069,14 @@ HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeHn
 
     // Tail call to the slow helper
     ENDFORBIDGC();
-    return HCCALL2(JIT_NewArr1, arrayTypeHnd_, size);
+    return HCCALL2(JIT_NewArr1, arrayMT, size);
 }
 HCIMPLEND
 
 //*************************************************************
 // Array allocation fast path for arrays of object elements
 //
-HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
+HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size)
 {
     FCALL_CONTRACT;
 
@@ -3099,14 +3097,12 @@ HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeH
         // some reshuffling of intermediate values into nonvolatile registers around the call.
         Thread *thread = GetThread();
 
-        TypeHandle arrayTypeHandle(arrayTypeHnd_);
-        ArrayTypeDesc *arrayTypeDesc = arrayTypeHandle.AsArray();
-        MethodTable *arrayMethodTable = arrayTypeDesc->GetTemplateMethodTable();
-
         SIZE_T totalSize = componentCount * sizeof(void *);
         _ASSERTE(totalSize / sizeof(void *) == componentCount);
 
-        SIZE_T baseSize = arrayMethodTable->GetBaseSize();
+        MethodTable *pArrayMT = (MethodTable *)arrayMT;
+
+        SIZE_T baseSize = pArrayMT->GetBaseSize();
         totalSize += baseSize;
         _ASSERTE(totalSize >= baseSize);
 
@@ -3123,7 +3119,7 @@ HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeH
 
         _ASSERTE(allocPtr != nullptr);
         ArrayBase *array = reinterpret_cast<ArrayBase *>(allocPtr);
-        array->SetArrayMethodTable(arrayMethodTable);
+        array->SetArrayMethodTable(pArrayMT);
         _ASSERTE(static_cast<DWORD>(componentCount) == componentCount);
         array->m_NumComponents = static_cast<DWORD>(componentCount);
 
@@ -3139,14 +3135,14 @@ HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayTypeH
 
     // Tail call to the slow helper
     ENDFORBIDGC();
-    return HCCALL2(JIT_NewArr1, arrayTypeHnd_, size);
+    return HCCALL2(JIT_NewArr1, arrayMT, size);
 }
 HCIMPLEND
 
 #include <optdefault.h>
 
 /*************************************************************/
-HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
+HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size)
 {
     FCALL_CONTRACT;
 
@@ -3154,9 +3150,7 @@ HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
 
     HELPER_METHOD_FRAME_BEGIN_RET_0();    // Set up a frame
 
-    TypeHandle typeHnd(arrayTypeHnd_);
-    ArrayTypeDesc* pArrayClassRef = typeHnd.AsArray();
-    MethodTable *pArrayMT = pArrayClassRef->GetTemplateMethodTable();
+    MethodTable *pArrayMT = (MethodTable *)arrayMT;
 
     _ASSERTE(pArrayMT->IsFullyLoaded());
     _ASSERTE(pArrayMT->IsArray());

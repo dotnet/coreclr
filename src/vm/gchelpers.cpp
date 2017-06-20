@@ -584,7 +584,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
     else
     {
 #ifdef FEATURE_64BIT_ALIGNMENT
-        MethodTable *pElementMT = arrayDesc->GetTypeParam().GetMethodTable();
+        MethodTable *pElementMT = pArrayMT->GetApproxArrayElementTypeHandle().GetMethodTable();
         if (pElementMT->RequiresAlign8() && pElementMT->IsValueType())
         {
             // This platform requires that certain fields are 8-byte aligned (and the runtime doesn't provide
@@ -949,7 +949,7 @@ OBJECTREF AllocateObjectArray(DWORD cElements, TypeHandle ElementType)
     Thread::DisableSOCheckInHCALL disableSOCheckInHCALL;
 #endif  // FEATURE_STACK_PROBE
 #endif  // _DEBUG
-    return OBJECTREF( HCCALL2(fastObjectArrayAllocator, ArrayType.AsPtr(), cElements));
+    return OBJECTREF( HCCALL2(fastObjectArrayAllocator, ArrayType.AsArray()->GetTemplateMethodTable(), cElements));
 }
 
 STRINGREF AllocateString( DWORD cchStringLength )
