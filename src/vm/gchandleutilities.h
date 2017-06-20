@@ -33,6 +33,10 @@ private:
 void ValidateObjectAndAppDomain(OBJECTREF objRef, ADIndex appDomainIndex);
 void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef);
 
+// Check that the supplied object is valid to put in a pinned handle,
+// throwing an exception if not.
+void ValidatePinnedObject(OBJECTREF obj);
+
 // Given a handle, returns an OBJECTREF for the object it refers to.
 inline OBJECTREF ObjectFromHandle(OBJECTHANDLE handle)
 {

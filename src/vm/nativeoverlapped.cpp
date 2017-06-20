@@ -137,7 +137,7 @@ FCIMPL1(void*, AllocateNativeOverlapped, OverlappedDataObject* overlappedUNSAFE)
             SIZE_T i;
             for (i = 0; i < num; i ++)
             {
-                GCHandleValidatePinnedObject(pObj[i]);
+                ValidatePinnedObject(pObj[i]);
             }
             for (i = 0; i < num; i ++)
             {
@@ -147,7 +147,7 @@ FCIMPL1(void*, AllocateNativeOverlapped, OverlappedDataObject* overlappedUNSAFE)
         }
         else
         {
-            GCHandleValidatePinnedObject(userObject);
+            ValidatePinnedObject(userObject);
             AddMTForPinHandle(userObject);
         }
         

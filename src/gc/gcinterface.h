@@ -820,6 +820,14 @@ void updateGCShadow(Object** ptr, Object* val);
 #define GC_ALLOC_ALIGN8_BIAS 0x4
 #define GC_ALLOC_ALIGN8 0x8
 
+#if defined(USE_CHECKED_OBJECTREFS) && !defined(_NOVM)
+#define OBJECTREF_TO_UNCHECKED_OBJECTREF(objref)    (*((_UNCHECKED_OBJECTREF*)&(objref)))
+#define UNCHECKED_OBJECTREF_TO_OBJECTREF(obj)       (OBJECTREF(obj))
+#else
+#define OBJECTREF_TO_UNCHECKED_OBJECTREF(objref)    (objref)
+#define UNCHECKED_OBJECTREF_TO_OBJECTREF(obj)       (obj)
+#endif
+
 struct ScanContext
 {
     Thread* thread_under_crawl;
