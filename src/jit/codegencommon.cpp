@@ -2669,8 +2669,12 @@ void CodeGen::genExitCode(BasicBlock* block)
 
             for (LclVarDsc* varDsc : compiler->lvaTable)
             {
-                noway_assert(varDsc->lvIsParam);
+                if (!varDsc->lvIsRegArg)
+                {
+                    break;
+                }
 
+                noway_assert(varDsc->lvIsParam);
                 gcInfo.gcMarkRegPtrVal(varDsc->lvArgReg, varDsc->TypeGet());
             }
 

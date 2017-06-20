@@ -7201,7 +7201,7 @@ void Compiler::lvaDispVarSet(VARSET_VALARG_TP set, VARSET_VALARG_TP allVars)
         if (VarSetOps::IsMember(this, set, index))
         {
             /* Look for the matching variable */
-            unsigned lclNum;
+            unsigned lclNum = 0;
             for (LclVarDsc* varDsc : lvaTable)
             {
                 if ((varDsc->lvVarIndex == index) && varDsc->lvTracked)
