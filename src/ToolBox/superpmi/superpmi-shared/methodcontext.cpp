@@ -1311,14 +1311,8 @@ void MethodContext::repResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, DWOR
 
     ResolveTokenValue value = ResolveToken->Get(key);
 
-    pResolvedToken->hClass       = (CORINFO_CLASS_HANDLE)value.tokenOut.hClass;
-    pResolvedToken->hMethod      = (CORINFO_METHOD_HANDLE)value.tokenOut.hMethod;
-    pResolvedToken->hField       = (CORINFO_FIELD_HANDLE)value.tokenOut.hField;
-    pResolvedToken->pTypeSpec    = (PCCOR_SIGNATURE)ResolveToken->GetBuffer(value.tokenOut.pTypeSpec_Index);
-    pResolvedToken->cbTypeSpec   = (ULONG)value.tokenOut.cbTypeSpec;
-    pResolvedToken->pMethodSpec  = (PCCOR_SIGNATURE)ResolveToken->GetBuffer(value.tokenOut.pMethodSpec_Index);
-    pResolvedToken->cbMethodSpec = (ULONG)value.tokenOut.cbMethodSpec;
-    *exceptionCode               = (DWORD)value.exceptionCode;
+    SpmiRecordsHelper::Restore_CORINFO_RESOLVED_TOKENout(pResolvedToken, value.tokenOut, ResolveToken);
+    *exceptionCode  = (DWORD)value.exceptionCode;
 
     DEBUG_REP(dmpResolveToken(key, value));
 }
@@ -1359,13 +1353,7 @@ bool MethodContext::repTryResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken)
 
     TryResolveTokenValue value = TryResolveToken->Get(key);
 
-    pResolvedToken->hClass       = (CORINFO_CLASS_HANDLE)value.tokenOut.hClass;
-    pResolvedToken->hMethod      = (CORINFO_METHOD_HANDLE)value.tokenOut.hMethod;
-    pResolvedToken->hField       = (CORINFO_FIELD_HANDLE)value.tokenOut.hField;
-    pResolvedToken->pTypeSpec    = (PCCOR_SIGNATURE)ResolveToken->GetBuffer(value.tokenOut.pTypeSpec_Index);
-    pResolvedToken->cbTypeSpec   = (ULONG)value.tokenOut.cbTypeSpec;
-    pResolvedToken->pMethodSpec  = (PCCOR_SIGNATURE)ResolveToken->GetBuffer(value.tokenOut.pMethodSpec_Index);
-    pResolvedToken->cbMethodSpec = (ULONG)value.tokenOut.cbMethodSpec;
+    SpmiRecordsHelper::Restore_CORINFO_RESOLVED_TOKENout(pResolvedToken, value.tokenOut, ResolveToken);
 
     DEBUG_REP(dmpTryResolveToken(key, value));
     return (DWORD)value.success == 0;

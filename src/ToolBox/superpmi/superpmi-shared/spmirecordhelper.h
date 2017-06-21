@@ -4,8 +4,10 @@
 //
 
 //----------------------------------------------------------
-// SpmiRecordHelper.h - Helpers to copy data between agnostic/non-agnostic types and dump them.
+// SpmiRecordHelper.h - a helper to copy data between agnostic/non-agnostic types.
 //----------------------------------------------------------
+#ifndef _SpmiRecordsHelper
+#define _SpmiRecordsHelper
 
 #include "methodcontext.h"
 
@@ -33,6 +35,13 @@ public:
     template <typename key, typename value>
     static MethodContext::Agnostic_CORINFO_RESOLVED_TOKEN RestoreAgnostic_CORINFO_RESOLVED_TOKEN(
         CORINFO_RESOLVED_TOKEN* pResolvedToken, LightWeightMap<key, value>* buffers);
+
+
+    // Restore the out values in the first argument from the second.
+    // Can't just return whole CORINFO_RESOLVED_TOKEN because [in] values in it are important too.
+    template <typename key, typename value>
+    static void Restore_CORINFO_RESOLVED_TOKENout(CORINFO_RESOLVED_TOKEN* pResolvedToken,
+        MethodContext::Agnostic_CORINFO_RESOLVED_TOKENout& token, LightWeightMap<key, value>* buffers);
 
     static MethodContext::Agnostic_CORINFO_SIG_INFO CreateAgnostic_CORINFO_SIG_INFO_without_buffers(
         CORINFO_SIG_INFO& sigInfo);
@@ -129,6 +138,19 @@ inline MethodContext::Agnostic_CORINFO_RESOLVED_TOKEN SpmiRecordsHelper::Restore
     return token;
 }
 
+template <typename key, typename value>
+inline void SpmiRecordsHelper::Restore_CORINFO_RESOLVED_TOKENout(CORINFO_RESOLVED_TOKEN* pResolvedToken,
+    MethodContext::Agnostic_CORINFO_RESOLVED_TOKENout& tokenOut, LightWeightMap<key, value>* buffers)
+{
+    pResolvedToken->hClass       = (CORINFO_CLASS_HANDLE)tokenOut.hClass;
+    pResolvedToken->hMethod      = (CORINFO_METHOD_HANDLE)tokenOut.hMethod;
+    pResolvedToken->hField       = (CORINFO_FIELD_HANDLE)tokenOut.hField;
+    pResolvedToken->pTypeSpec    = (PCCOR_SIGNATURE)buffers->GetBuffer(tokenOut.pTypeSpec_Index);
+    pResolvedToken->cbTypeSpec   = (ULONG)tokenOut.cbTypeSpec;
+    pResolvedToken->pMethodSpec  = (PCCOR_SIGNATURE)buffers->GetBuffer(tokenOut.pMethodSpec_Index);
+    pResolvedToken->cbMethodSpec = (ULONG)tokenOut.cbMethodSpec;
+}
+
 inline MethodContext::Agnostic_CORINFO_SIG_INFO SpmiRecordsHelper::CreateAgnostic_CORINFO_SIG_INFO_without_buffers(
     CORINFO_SIG_INFO& sigInfo)
 {
@@ -197,3 +219,5 @@ inline CORINFO_SIG_INFO SpmiRecordsHelper::Restore_CORINFO_SIG_INFO(MethodContex
     sig.token                  = (mdToken)sigInfo.token;
     return sig;
 }
+
+#endif
