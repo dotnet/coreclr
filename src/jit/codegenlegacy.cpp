@@ -18221,7 +18221,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
     if (compiler->opts.ShouldUsePInvokeHelpers() && (call->gtFlags & GTF_CALL_UNMANAGED) &&
         ((call->gtFlags & GTF_CALL_VIRT_KIND_MASK) == GTF_CALL_NONVIRT))
     {
-        (void)genPInvokeCallProlog(nullptr, 0, (CORINFO_METHOD_HANDLE)nullptr, nullptr);
+        (void)genPInvokeCallProlog(nullptr, 0, (CORINFO_METHOD_HANDLE) nullptr, nullptr);
     }
 #endif
 
