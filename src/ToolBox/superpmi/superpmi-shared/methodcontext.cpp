@@ -15,6 +15,7 @@
 #include "lightweightmap.h"
 #include "callutils.h"
 #include "spmirecordhelper.h"
+#include "spmidumphelper.h"
 
 struct
 {
@@ -1294,11 +1295,9 @@ void MethodContext::recResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, DWOR
 }
 void MethodContext::dmpResolveToken(const Agnostic_CORINFO_RESOLVED_TOKENin& key, const ResolveTokenValue& value)
 {
-    printf("ResolveToken key tc-%016llX ts-%016llX tok-%08X tt-%u", key.tokenContext, key.tokenScope, key.token,
-           key.tokenType);
-    printf(", value cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u mi-%u ms-%u excp-%08X", value.tokenOut.hClass,
-           value.tokenOut.hMethod, value.tokenOut.hField, value.tokenOut.pTypeSpec_Index, value.tokenOut.cbTypeSpec,
-           value.tokenOut.pMethodSpec_Index, value.tokenOut.cbMethodSpec, value.exceptionCode);
+    printf("ResolveToken key: %s\n", SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKENin(key).c_str());
+    printf(", value: %s excp-%08X", SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKENout(value.tokenOut).c_str(),
+           value.exceptionCode);
 }
 void MethodContext::repResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, DWORD* exceptionCode)
 {
@@ -1337,11 +1336,9 @@ void MethodContext::recTryResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, b
 }
 void MethodContext::dmpTryResolveToken(const Agnostic_CORINFO_RESOLVED_TOKENin& key, const TryResolveTokenValue& value)
 {
-    printf("TryResolveToken key tc-%016llX ts-%016llX tok-%08X tt-%u", key.tokenContext, key.tokenScope, key.token,
-           key.tokenType);
-    printf(", value cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u mi-%u ms-%u failed-%u", value.tokenOut.hClass,
-           value.tokenOut.hMethod, value.tokenOut.hField, value.tokenOut.pTypeSpec_Index, value.tokenOut.cbTypeSpec,
-           value.tokenOut.pMethodSpec_Index, value.tokenOut.cbMethodSpec, value.success);
+    printf("TryResolveToken key: %s\n", SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKENin(key).c_str());
+    printf(", value: %s failed-%u", SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKENout(value.tokenOut).c_str(),
+           value.success);
 }
 bool MethodContext::repTryResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken)
 {
@@ -1459,21 +1456,10 @@ void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
 }
 void MethodContext::dmpGetCallInfo(const Agnostic_GetCallInfo& key, const Agnostic_CORINFO_CALL_INFO& value)
 {
-    printf("GetCallInfo key"
-           " rt{tc-%016llX ts-%016llX tok-%08X tt-%u cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u mi-%u ms-%u}"
-           " crt{tc-%016llX ts-%016llX tok-%08X tt-%u cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u mi-%u ms-%u}"
-           " ch-%016llX flg-%08X",
-           key.ResolvedToken.inValue.tokenContext, key.ResolvedToken.inValue.tokenScope,
-           key.ResolvedToken.inValue.token, key.ResolvedToken.inValue.tokenType, key.ResolvedToken.outValue.hClass,
-           key.ResolvedToken.outValue.hMethod, key.ResolvedToken.outValue.hField,
-           key.ResolvedToken.outValue.pTypeSpec_Index, key.ResolvedToken.outValue.cbTypeSpec,
-           key.ResolvedToken.outValue.pMethodSpec_Index, key.ResolvedToken.outValue.cbMethodSpec,
-           key.ConstrainedResolvedToken.inValue.tokenContext, key.ConstrainedResolvedToken.inValue.tokenScope,
-           key.ConstrainedResolvedToken.inValue.token, key.ConstrainedResolvedToken.inValue.tokenType,
-           key.ConstrainedResolvedToken.outValue.hClass, key.ConstrainedResolvedToken.outValue.hMethod,
-           key.ConstrainedResolvedToken.outValue.hField, key.ConstrainedResolvedToken.outValue.pTypeSpec_Index,
-           key.ConstrainedResolvedToken.outValue.cbTypeSpec, key.ConstrainedResolvedToken.outValue.pMethodSpec_Index,
-           key.ConstrainedResolvedToken.outValue.cbMethodSpec, key.callerHandle, key.flags);
+    printf("GetCallInfo key rt{%s} crt{%s} ch-%016llX flg-%08X\n",
+           SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.ResolvedToken).c_str(),
+           SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.ConstrainedResolvedToken).c_str(), key.callerHandle,
+           key.flags);
     printf(", value mth-%016llX, mf-%08X cf-%08X"
            " sig{flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u args-%016llX scp-%016llX tok-%08X}"
            " vsig{flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u args-%016llX scp-%016llX tok-%08X}"
@@ -2926,13 +2912,8 @@ void MethodContext::recEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolve
 void MethodContext::dmpEmbedGenericHandle(const Agnostic_EmbedGenericHandle&           key,
                                           const Agnostic_CORINFO_GENERICHANDLE_RESULT& value)
 {
-    printf("EmbedGenericHandle key rt{tokCon-%016llX tokScp-%016llX tok-%08X tokTyp-%08X cls-%016llX ftn-%016llX "
-           "fld-%016llX tsi-%u cbts-%u msi-%u cbms-%u} emb-%u",
-           key.ResolvedToken.inValue.tokenContext, key.ResolvedToken.inValue.tokenScope,
-           key.ResolvedToken.inValue.token, key.ResolvedToken.inValue.tokenType, key.ResolvedToken.outValue.hClass,
-           key.ResolvedToken.outValue.hMethod, key.ResolvedToken.outValue.hField,
-           key.ResolvedToken.outValue.pTypeSpec_Index, key.ResolvedToken.outValue.cbTypeSpec,
-           key.ResolvedToken.outValue.pMethodSpec_Index, key.ResolvedToken.outValue.cbMethodSpec, key.fEmbedParent);
+    printf("EmbedGenericHandle key rt{%s} emb-%u\n",
+           SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.ResolvedToken).c_str(), key.fEmbedParent);
     printf(", value nrl-%u rlk-%u", value.lookup.lookupKind.needsRuntimeLookup,
            value.lookup.lookupKind.runtimeLookupKind);
     if (value.lookup.lookupKind.needsRuntimeLookup)
@@ -3186,13 +3167,8 @@ void MethodContext::recGetFieldInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
 }
 void MethodContext::dmpGetFieldInfo(const Agnostic_GetFieldInfo& key, const Agnostic_CORINFO_FIELD_INFO& value)
 {
-    printf("GetFieldInfo key ch-%016llX flg-%08X rt{tc-%016llX ts-%016llX tok-%08X tt-%u cls-%016llX meth-%016llX "
-           "fld-%016llX tsi-%u cbts-%u msi-%u cbms-%u}",
-           key.callerHandle, key.flags, key.ResolvedToken.inValue.tokenContext, key.ResolvedToken.inValue.tokenScope,
-           key.ResolvedToken.inValue.token, key.ResolvedToken.inValue.tokenType, key.ResolvedToken.outValue.hClass,
-           key.ResolvedToken.outValue.hMethod, key.ResolvedToken.outValue.hField,
-           key.ResolvedToken.outValue.pTypeSpec_Index, key.ResolvedToken.outValue.cbTypeSpec,
-           key.ResolvedToken.outValue.pMethodSpec_Index, key.ResolvedToken.outValue.cbMethodSpec);
+    printf("GetFieldInfo key ch-%016llX flg-%08X rt{%s}\n", key.callerHandle, key.flags,
+           SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.ResolvedToken).c_str());
 
     printf(", value fa-%u fflg-%08X hlp-%u off-%u fT-%u(%s) sT-%016llX aa-%u hnum-%u na-%u {", value.fieldAccessor,
            value.fieldFlags, value.helper, value.offset, value.fieldType, toString((CorInfoType)value.fieldType),
@@ -3535,13 +3511,8 @@ void MethodContext::recCanAccessClass(CORINFO_RESOLVED_TOKEN*      pResolvedToke
 }
 void MethodContext::dmpCanAccessClass(const Agnostic_CanAccessClassIn& key, const Agnostic_CanAccessClassOut& value)
 {
-    printf("CanAccessClass key tc-%016llX ts-%016llX tok-%08X tt-%u cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u "
-           "mi-%u ms-%u",
-           key.ResolvedToken.inValue.tokenContext, key.ResolvedToken.inValue.tokenScope,
-           key.ResolvedToken.inValue.token, key.ResolvedToken.inValue.tokenType, key.ResolvedToken.outValue.hClass,
-           key.ResolvedToken.outValue.hMethod, key.ResolvedToken.outValue.hField,
-           key.ResolvedToken.outValue.pTypeSpec_Index, key.ResolvedToken.outValue.cbTypeSpec,
-           key.ResolvedToken.outValue.pMethodSpec_Index, key.ResolvedToken.outValue.cbMethodSpec);
+    printf("CanAccessClass key rt{%s}, callerHandle %016llX\n",
+           SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.ResolvedToken).c_str(), key.callerHandle);
     printf(", value hnum-%u na-%u {", value.AccessHelper.helperNum, value.AccessHelper.numArgs);
     for (int i = 0; i < CORINFO_ACCESS_ALLOWED_MAX_ARGS; i++)
     {
@@ -4007,7 +3978,7 @@ void MethodContext::recGetInlinedCallFrameVptr(void** ppIndirection, const void*
 }
 void MethodContext::dmpGetInlinedCallFrameVptr(DWORD key, DLDL value)
 {
-    printf("GetInlinedCallFrameVptr key 0, value ppIndirection-%016llX result-%016llX\n", value.A, value.B);
+    printf("GetInlinedCallFrameVptr key 0, value ppIndirection-%016llX result-%016llX", value.A, value.B);
 }
 const void* MethodContext::repGetInlinedCallFrameVptr(void** ppIndirection)
 {
