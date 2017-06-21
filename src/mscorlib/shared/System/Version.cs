@@ -16,14 +16,15 @@ namespace System
     // specified component.
 
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed class Version : ICloneable, IComparable
         , IComparable<Version>, IEquatable<Version>
     {
         // AssemblyName depends on the order staying the same
-        private readonly int _Major;
-        private readonly int _Minor;
-        private readonly int _Build = -1;
-        private readonly int _Revision = -1;
+        private readonly int _Major; // Do not rename (binary serialization)
+        private readonly int _Minor; // Do not rename (binary serialization)
+        private readonly int _Build = -1; // Do not rename (binary serialization)
+        private readonly int _Revision = -1; // Do not rename (binary serialization)
 
         public Version(int major, int minor, int build, int revision)
         {

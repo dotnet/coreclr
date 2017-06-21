@@ -8,23 +8,23 @@
     <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
     <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
 
-    <PreReleaseLabel>preview2</PreReleaseLabel>
+    <PreReleaseLabel>preview3</PreReleaseLabel>
   </PropertyGroup>
   
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>bb1b090878210c02de9bf563b5fb2e32db7c6450</CoreFxCurrentRef>
-    <CoreClrCurrentRef>bb1b090878210c02de9bf563b5fb2e32db7c6450</CoreClrCurrentRef>
+    <CoreFxCurrentRef>05b6147ad0ab5b98281f82eaa4350e5d77516ee4</CoreFxCurrentRef>
+    <CoreClrCurrentRef>05b6147ad0ab5b98281f82eaa4350e5d77516ee4</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
-    <CoreFxExpectedPrerelease>preview2-25405-01</CoreFxExpectedPrerelease>
+    <CoreFxExpectedPrerelease>preview3-25417-01</CoreFxExpectedPrerelease>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
   <PropertyGroup>
-    <CoreClrPackageVersion>2.0.0-preview2-25407-01</CoreClrPackageVersion>
+    <CoreClrPackageVersion>2.0.0-preview3-25419-01</CoreClrPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XUnitConsoleNetCoreVersion>1.0.2-prerelease-00177</XUnitConsoleNetCoreVersion>
     <XUnitPerformanceApiVersion>1.0.0-beta-build0007</XUnitPerformanceApiVersion>
