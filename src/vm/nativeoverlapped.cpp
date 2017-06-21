@@ -20,6 +20,7 @@
 #include "mdaassistants.h"
 #include "comsynchronizable.h"
 #include "comthreadpool.h"
+#include "marshalnative.h"
 
 LONG OverlappedDataObject::s_CleanupRequestCount = 0;
 BOOL OverlappedDataObject::s_CleanupInProgress = FALSE;
