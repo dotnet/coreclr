@@ -9,8 +9,9 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
+namespace Benchstone.BenchI
+{
 public class Puzzle
 {
 #if DEBUG
@@ -390,4 +391,5 @@ public class Puzzle
         bool result = TestBase();
         return (result ? 100 : -1);
     }
+}
 }

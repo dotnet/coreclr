@@ -2,9 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 /* The Computer Language Benchmarks Game
-   http://benchmarksgame.alioth.debian.org/ 
+   http://benchmarksgame.alioth.debian.org/
 
-   contributed by Marek Safar  
+   contributed by Marek Safar
 
    modified for use with xunit-performance
 */
@@ -15,8 +15,10 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
+[assembly: MeasureGCCounts]
 
+namespace BenchmarksGame
+{
 public class BinaryTrees
 {
     private const int minDepth = 4;
@@ -148,4 +150,5 @@ public class BinaryTrees
         bool result = TestBase();
         return (result ? 100 : -1);
     }
+}
 }
