@@ -29,10 +29,13 @@
       <AllTestDirsPaths Include="@(AllTestDirsNonCanonicalPaths)" >
         <Path>$([System.IO.Path]::GetFullPath(%(Identity)))</Path>
       </AllTestDirsPaths>
-      <NonExcludedTestDirectories Include="@(AllTestDirsPaths -> '%(Path)')" Exclude="@(_SkipTestDir -> '$(XunitTestBinBase)%(Identity)')">
+      <NonExcludedTestDirectories Include="@(AllTestDirsPaths -> '%(Path)')" Exclude="@(_SkipTestDir -> '$(XunitTestBinBase)%(Identity)')" />
+      <TopLevelDirectories Include="@(NonExcludedTestDirectories)" />
+      <SecondLevel Include="$([System.IO.Directory]::GetDirectories(%(TopLevelDirectories.Identity)))" />
+      <SecondLevelDirectories Include="@(SecondLevel)">
         <Path>$([System.IO.Path]::GetFullPath(%(AllRunnableTestPaths.Identity)))</Path>
-      </NonExcludedTestDirectories>
-      <TestDirectoriesWithDup Include="@(NonExcludedTestDirectories -> '%(Identity)')" Condition="$([System.String]::new('%(Path)').StartsWith('%(Identity)'))" />
+      </SecondLevelDirectories>
+      <TestDirectoriesWithDup Include="@(SecondLevelDirectories -> '%(Identity)')" Condition="$([System.String]::new('%(Path)').StartsWith('%(Identity)'))" />
 
     </ItemGroup>
 
@@ -44,12 +47,10 @@
 
   </Target>
 
-
-  <Import Project="$(__Exclude0)" Condition="'$(__Exclude0)' != '' AND '$(XunitTestBinBase)' != ''" /> 
   <Import Project="$(__Exclude)" Condition="'$(__Exclude)' != '' AND '$(XunitTestBinBase)' != ''" /> 
   <PropertyGroup>
     <HaveExcludes>False</HaveExcludes>
-    <HaveExcludes Condition="('$(__Exclude0)' != '') Or ('$(__Exclude)' != '')">True</HaveExcludes>
+    <HaveExcludes Condition="'$(__Exclude)' != ''">True</HaveExcludes>
   </PropertyGroup>
 
   <Target Name="CreateXunitWrapper" DependsOnTargets="CreateXunitFacts">
@@ -64,7 +65,6 @@ $(_XunitEpilog)
 
 ]]>
       </_XunitWrapperGen>
-      <XunitVersionCompiled>2.2.0-beta2-build3300</XunitVersionCompiled>
       <XunitWrapperGenCsProj>
         <![CDATA[
 <?xml version="1.0" encoding="utf-8"?>
@@ -78,19 +78,15 @@ $(_XunitEpilog)
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{95DFC527-4DC1-495E-97D7-E94EE1F7140D}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkIdentifier Condition ="'$(BuildTestsAgainstPackages)' != 'true'">.NETFramework</TargetFrameworkIdentifier>
+    <TargetFrameworkVersion Condition ="'$(BuildTestsAgainstPackages)' != 'true'">v4.5</TargetFrameworkVersion>
+    <NugetTargetMonikerShort Condition ="'$(BuildTestsAgainstPackages)' != 'true'">net45</NugetTargetMonikerShort>
     <IsXunitWrapperProject>true</IsXunitWrapperProject>
     <SkipSigning>true</SkipSigning>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <SolutionDir Condition="%24(SolutionDir) == '' Or %24(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <NuGetPackageImportStamp>7a9bfb7d</NuGetPackageImportStamp>
     <CLRTestKind>BuildOnly</CLRTestKind>
     <IsTestProject>true</IsTestProject>
-    <ProjectJson>%24(TestWrappersPackagesConfigFileDirectory)project.json</ProjectJson>
-    <ProjectLockJson>%24(TestWrappersPackagesConfigFileDirectory)project.lock.json</ProjectLockJson>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '%24(Configuration)|%24(Platform)' == 'Debug|AnyCPU' ">
@@ -104,7 +100,11 @@ $(_XunitEpilog)
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
    <ItemGroup>
-    <ProjectReference Include="$(SourceDir)Common\Desktop.Coreclr.TestWrapper\Desktop.Coreclr.TestWrapper.csproj">
+    <ProjectReference Include="$(SourceDir)Common\Desktop.Coreclr.TestWrapper\Desktop.Coreclr.TestWrapper.csproj" Condition="'$(BuildTestsAgainstPackages)' != 'true'">
+      <Project>{8ffe99c0-22f8-4462-b839-970eac1b3472}</Project>
+      <Name>coreclr</Name>
+    </ProjectReference>
+    <ProjectReference Include="$(SourceDir)Common\Coreclr.TestWrapper\Coreclr.TestWrapper.csproj" Condition="'$(BuildTestsAgainstPackages)' == 'true'">
       <Project>{8ffe99c0-22f8-4462-b839-970eac1b3472}</Project>
       <Name>coreclr</Name>
     </ProjectReference>
@@ -115,14 +115,10 @@ $(_XunitEpilog)
     <Reference Include="System.Runtime" />
     <Reference Include="mscorlib" />
   </ItemGroup>
-  <PropertyGroup>
-    <ProjectJson>%24(TestWrappersPackagesConfigFileDirectory)project.json</ProjectJson>
-    <ProjectLockJson>%24(TestWrappersPackagesConfigFileDirectory)project.lock.json</ProjectLockJson>
-  </PropertyGroup>
   <Import Project="$(SourceDir)dir.targets" />
-  <Import Project="$(ProjectDir)helix.targets" />
   <PropertyGroup>
-     <OutDir>$(XunitTestBinBase)\$(Category)\</OutDir>
+    <OutDir>$(XunitTestBinBase)\$(CategoryWithSlash)\</OutDir>
+    <ProjectAssetsFile Condition="'$(BuildTestsAgainstPackages)' != 'true'">%24(TestWrappersPackagesConfigFileDirectory)obj/project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 </Project>
         ]]>
@@ -155,7 +151,9 @@ $(_XunitEpilog)
 
     <PropertyGroup>
       <_CMDDIR_Parent>$([System.IO.Path]::GetDirectoryName($(_CMDDIR)))</_CMDDIR_Parent>
-      <Category>$([System.String]::Copy('$(_CMDDIR)').Replace($(_CMDDIR_Parent)\,''))</Category>
+      <_CMDDIR_Grandparent>$([System.IO.Path]::GetDirectoryName($(_CMDDIR_Parent)))</_CMDDIR_Grandparent>
+      <CategoryWithSlash>$([System.String]::Copy('$(_CMDDIR)').Replace($(_CMDDIR_Grandparent)\,''))</CategoryWithSlash>
+      <Category>$([System.String]::Copy('$(CategoryWithSlash)').Replace('\','.'))</Category>
       <XunitWrapper>$(Category).XUnitWrapper</XunitWrapper>
       <XunitWrapperSrcDir>$(XunitWrapperGeneratedCSDirBase)$(Category)</XunitWrapperSrcDir>
       <XunitWrapperOutputDir>$(XunitWrapperOutputIntermediatedDirBase)$(Category)</XunitWrapperOutputDir>
@@ -197,7 +195,8 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                     throw new ArgumentException("Environment variable CORE_ROOT is not set")%3B
                 }
 
-                runningInWindows = System.Environment.GetEnvironmentVariable("OS").StartsWith("Windows")%3B
+                string operatingSystem = System.Environment.GetEnvironmentVariable("OS")%3B
+                runningInWindows = (operatingSystem != null && operatingSystem.StartsWith("Windows"))%3B
             }
         }
 
@@ -215,6 +214,10 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
     <ItemGroup>
       <CanonicalExcludeList Include="%(ExcludeList.FullPath)" Condition="$(HaveExcludes)"/>
     </ItemGroup>
+
+    <PropertyGroup>
+      <TestExecutableReplacement Condition="'$(TargetsWindows)' != 'true' ">testExecutable = testExecutable.Replace("\\", "/")%3B</TestExecutableReplacement>
+    </PropertyGroup>
 
     <ItemGroup>
       <AllCMDsPresent Include="$(_CMDDIR)\**\*.cmd" />
@@ -246,6 +249,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                   outputFile = System.IO.Path.GetFullPath(_Global.reportBase + testSubfolder + @"%(AllCMDs.FileName).output.txt")%3B
                   errorFile = System.IO.Path.GetFullPath(_Global.reportBase + testSubfolder + @"%(AllCMDs.FileName).error.txt")%3B
                   testExecutable = System.IO.Path.GetFullPath(_Global.testBinaryBase + @"$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",''))")%3B
+                  $(TestExecutableReplacement)
 
                   if (!_Global.runningInWindows) {
                       testExecutable = testExecutable.Replace(".cmd", ".sh")%3B
@@ -307,31 +311,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   </Target>
 
   <Target Name="CreateAllWrappers" DependsOnTargets="GetListOfTestCmds;FindCmdDirectories">
-    <MSBuild Projects="$(MSBuildProjectFile)" Targets="CreateXunitWrapper" Properties="_CMDDIR=%(TestDirectories.Identity)" />
-
-    <!--
-      Contents of a project.json that will be restored once with errors turned off. This works
-      around the package being incompatible with dotnet restore. Only the package contents are
-      required so the compatibility errors can be ignored.
-    -->
-    <PropertyGroup>
-      <XunitRunnerRestoreGenConfig>{ "dependencies": { "xunit.runner.msbuild": "$(XunitPackageVersion)" }, "frameworks": { "net45": {} } }</XunitRunnerRestoreGenConfig>
-      <XunitRunnerRestoreProjectDir>$(BaseOutputPath)\tempRestoreProject</XunitRunnerRestoreProjectDir>
-      <XunitRunnerRestoreProjectJsonPath>$(XunitRunnerRestoreProjectDir)\project.json</XunitRunnerRestoreProjectJsonPath>
-    </PropertyGroup>
-    
-    <MakeDir Directories="$(XunitRunnerRestoreProjectDir)" />
-    <WriteLinesToFile File="$(XunitRunnerRestoreProjectJsonPath)"
-                      Lines="$(XunitRunnerRestoreGenConfig)"
-                      Overwrite="true" />
-    
-    <Exec Command="$(DnuRestoreCommand) &quot;$(XunitRunnerRestoreProjectJsonPath)&quot;"
-          StandardOutputImportance="Low"
-          CustomErrorRegularExpression="^Unable to resolve .*"
-          IgnoreExitCode="true" 
-          IgnoreStandardErrorWarningFormat="true" />
-
-    <MSBuild Projects="$(MSBuildProjectFile)" Targets="BuildXunitWrapper" Properties="_CMDDIR=%(TestDirectories.Identity)" />
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="CreateXunitWrapper;BuildXunitWrapper" Properties="_CMDDIR=%(TestDirectories.Identity)" />
   </Target>
 
   <Target Name="GetListOfTestCmds">
@@ -343,10 +323,31 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   <Import Project="tests.targets" />
   <Import Project="publishdependency.targets" />
 
+  <PropertyGroup>
+    <TargetRid Condition="'$(RuntimeId)' != ''">$(RuntimeId)</TargetRid>
+    <TargetRid Condition="'$(RuntimeId)' == ''">$(TestNugetRuntimeId)</TargetRid>
+  </PropertyGroup>
+
   <Target Name="CreateTestOverlay">
     <MSBuild Projects="$(MSBuildProjectFile)"
              Targets="CopyDependecyToCoreRoot"
-             Properties="Language=C#" />
+             Properties="Language=C#;TargetRid=$(TargetRid)" />
+  </Target>
+
+  <Target Name="BinPlaceRef">
+    <!-- Copy mscorlib.dll from TargetingPack to bin/Product/ref, if we're building against packages -->
+    <MSBuild Projects="$(MSBuildProjectFile)"
+             Targets="CopyDependencyToRef"
+             Properties="Language=C#;TargetRid=$(TargetRid)"
+             Condition=" '$(BuildTestsAgainstPackages)'=='true' " />
+  </Target>
+
+  <Target Name="BinPlaceProduct">
+    <!-- Copy test dependencies to bin/Product, if we're building against packages -->
+    <MSBuild Projects="$(MSBuildProjectFile)"
+             Targets="CopyDependencyToProduct"
+             Properties="Language=C#;TargetRid=$(TargetRid)"
+             Condition=" '$(BuildTestsAgainstPackages)'=='true' " />
   </Target>
 
   <!-- All the test projects need to add dependency to currently built runtime as they require that to run. 
