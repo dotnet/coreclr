@@ -18217,6 +18217,14 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
     }
 #endif
 
+#ifdef _ARM_
+    if (compiler->opts.ShouldUsePInvokeHelpers() && (call->gtFlags & GTF_CALL_UNMANAGED) &&
+        ((call->gtFlags & GTF_CALL_VIRT_KIND_MASK) == GTF_CALL_NONVIRT))
+    {
+        (void)genPInvokeCallProlog(nullptr, 0, (CORINFO_METHOD_HANDLE)nullptr, nullptr);
+    }
+#endif
+
     gtCallTypes callType = (gtCallTypes)call->gtCallType;
     IL_OFFSETX  ilOffset = BAD_IL_OFFSET;
 
@@ -18986,7 +18994,11 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                     }
 
                     regNumber tcbReg;
-                    tcbReg = genPInvokeCallProlog(frameListRoot, nArgSize, methHnd, returnLabel);
+
+                    if (!compiler->opts.ShouldUsePInvokeHelpers())
+                    {
+                        tcbReg = genPInvokeCallProlog(frameListRoot, nArgSize, methHnd, returnLabel);
+                    }
 
                     void* addr = NULL;
 
