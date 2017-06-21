@@ -2155,6 +2155,10 @@ void Lowering::LowerCompare(GenTree* cmp)
                         comp->lvaDecRefCnts(m_block, loSrc1);
                     }
                 }
+                else
+                {
+                    loSrc1->gtLIRFlags |= LIR::Flags::IsUnusedValue;
+                }
 
                 hiCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, hiSrc1, hiSrc2);
                 BlockRange().InsertBefore(cmp, hiCmp);
@@ -2182,6 +2186,10 @@ void Lowering::LowerCompare(GenTree* cmp)
         }
 
         hiCmp->gtFlags |= GTF_SET_FLAGS;
+        if (hiCmp->IsValue())
+        {
+            hiCmp->gtLIRFlags |= LIR::Flags::IsUnusedValue;
+        }
 
         LIR::Use cmpUse;
         if (BlockRange().TryGetUse(cmp, &cmpUse) && cmpUse.User()->OperIs(GT_JTRUE))
@@ -4410,6 +4418,10 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
     {
         arrElemUse.ReplaceWith(comp, leaNode);
     }
+    else
+    {
+        leaNode->gtLIRFlags |= LIR::Flags::IsUnusedValue;
+    }
 
     BlockRange().Remove(arrElem);
 
@@ -4507,6 +4519,7 @@ void Lowering::DoPhase()
             comp->fgLocalVarLiveness();
         }
     }
+
 #ifdef DEBUG
     JITDUMP("Liveness pass finished after lowering, IR:\n");
     JITDUMP("lvasortagain = %d\n", comp->lvaSortAgain);
@@ -4515,6 +4528,8 @@ void Lowering::DoPhase()
         comp->fgDispBasicBlocks(true);
     }
 #endif
+
+    assert(BlockRange().CheckLIR(comp, true));
 
     // The initialization code for the TreeNodeInfo map was initially part of a single full IR
     // traversal and it has been split because the order of traversal performed by fgWalkTreePost
@@ -4583,7 +4598,7 @@ void Lowering::DoPhase()
             assert((node->gtLsraInfo.dstCount == 0) || node->IsValue());
 
             // If the node produces an unused value, mark it as a local def-use
-            if ((node->gtLIRFlags & LIR::Flags::IsUnusedValue) != 0)
+            if (node->IsValue() && ((node->gtLIRFlags & LIR::Flags::IsUnusedValue) != 0))
             {
                 node->gtLsraInfo.isLocalDefUse = true;
                 node->gtLsraInfo.dstCount      = 0;
@@ -4720,7 +4735,7 @@ bool Lowering::CheckBlock(Compiler* compiler, BasicBlock* block)
         CheckNode(node);
     }
 
-    assert(blockRange.CheckLIR(compiler));
+    assert(blockRange.CheckLIR(compiler, true));
     return true;
 }
 #endif
