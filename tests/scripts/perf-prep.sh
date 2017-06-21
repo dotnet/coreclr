@@ -64,19 +64,17 @@ python3.5 --version
 python3.5 ./tests/scripts/Microsoft.BenchView.JSONFormat/tools/machinedata.py
 
 if [ $throughput -eq 1 ]; then
-    # Clone corefx
-    if [ -d "_" ]; then
-        rm -r -f _
+    # Download throughput benchmarks
+    if [ -d "Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT" ]; then
+        rm -r -f Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
     fi
-    mkdir _
-    git clone https://github.com/dotnet/corefx.git _/fx
-    cd _/fx
+    mkdir Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
+    cd Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
 
-    # Checkout the specific commit we want
-    git checkout cbb9ee1c0f33803a8a71488efe910ca4da70dd6d
+    curl -OL https://dotnet.myget.org/F/dotnet-core/api/v2/package/Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT/1.0.0
+    mv 1.0.0 1.0.0.zip
+    unzip -q 1.0.0.zip
 
-    # Build
-    ./build.sh -release
 else
     # Set up the copies
     # Coreclr build containing the tests and mscorlib
