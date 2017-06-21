@@ -1014,7 +1014,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
     for (unsigned idx = 0; idx < treeNode->gtNumRegs; idx++)
     {
         regNumber targetReg = treeNode->GetRegNumByIdx(idx);
-        var_types type      = compiler->getJitGCType(gcPtrs[idx]);
+        var_types type      = treeNode->GetRegType(idx);
 
         if (varNode != nullptr)
         {
@@ -1031,6 +1031,8 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
         }
         structOffset += TARGET_POINTER_SIZE;
     }
+
+    genProduceReg(treeNode);
 }
 #endif // _TARGET_ARM_
 
@@ -1764,33 +1766,29 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #endif // _TARGET_ARM_
             }
         }
-        else
-        {
-            genConsumeReg(argNode);
 #ifdef _TARGET_ARM_
-            if (curArgTabEntry->isSplit)
+        else if (curArgTabEntry->isSplit)
+        {
+            assert(curArgTabEntry->numRegs >= 1);
+            genConsumeArgSplitStruct(argNode->AsPutArgSplit());
+            for (unsigned idx = 0; idx < curArgTabEntry->numRegs; idx++)
             {
-                assert(curArgTabEntry->numRegs >= 1);
-                for (unsigned idx = 0; idx < curArgTabEntry->numRegs; idx++)
+                regNumber argReg   = (regNumber)((unsigned)curArgTabEntry->regNum + idx);
+                regNumber allocReg = argNode->AsPutArgSplit()->GetRegNumByIdx(idx);
+                if (argReg != allocReg)
                 {
-                    regNumber regDst = (regNumber)((unsigned)curArgTabEntry->regNum + idx);
-                    regNumber regSrc = argNode->AsPutArgSplit()->GetRegNumByIdx(idx);
-                    if (regDst != regSrc)
-                    {
-                        inst_RV_RV(ins_Move_Extend(argNode->TypeGet(), true), regDst, regSrc);
-                    }
+                    inst_RV_RV(ins_Move_Extend(argNode->TypeGet(), true), argReg, allocReg);
                 }
             }
-            else
+        }
 #endif
+        else
+        {
+            regNumber argReg = curArgTabEntry->regNum;
+            genConsumeReg(argNode);
+            if (argNode->gtRegNum != argReg)
             {
-                regNumber argReg = curArgTabEntry->regNum;
-                if (argNode->gtRegNum != argReg)
-                {
-                    {
-                        inst_RV_RV(ins_Move_Extend(argNode->TypeGet(), true), argReg, argNode->gtRegNum);
-                    }
-                }
+                inst_RV_RV(ins_Move_Extend(argNode->TypeGet(), true), argReg, argNode->gtRegNum);
             }
         }
 

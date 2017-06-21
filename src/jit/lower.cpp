@@ -822,9 +822,17 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                                info->isHfaRegArg, call->IsFastTailCall(), call);
 
         // Set GC Pointer info
-        BYTE*    gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots + info->numRegs];
-        unsigned numRefs  = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
-        putArg->AsPutArgSplit()->setGcPointers(numRefs, gcLayout);
+        GenTreePutArgSplit* argSplit = putArg->AsPutArgSplit();
+        BYTE*               gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots + info->numRegs];
+        unsigned            numRefs  = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
+        argSplit->setGcPointers(numRefs, gcLayout);
+
+        // Set type of registers
+        for (unsigned index = 0; index < info->numRegs; index++)
+        {
+            var_types regType          = comp->getJitGCType(gcLayout[index]);
+            argSplit->m_regType[index] = regType;
+        }
     }
     else
 #endif // _TARGET_ARM_

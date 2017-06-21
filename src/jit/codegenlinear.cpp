@@ -1019,7 +1019,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
                 if ((flags & GTF_SPILLED) != 0)
                 {
                     BYTE*     gcPtrs  = splitArg->gtGcPtrs;
-                    var_types dstType = compiler->getJitGCType(gcPtrs[i]);
+                    var_types dstType = splitArg->GetRegType(i);
                     regNumber dstReg  = splitArg->GetRegNumByIdx(i);
 
                     TempDsc* t = regSet.rsUnspillInPlace(splitArg, dstReg, i);
@@ -1418,6 +1418,31 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode,
 }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
+#ifdef _TARGET_ARM_
+//------------------------------------------------------------------------
+// genConsumeArgRegSplit: Consume register(s) in Call node to set split struct argument.
+//                        Liveness update for the PutArgSplit node is not needed
+//
+// Arguments:
+//    putArgNode - the PUTARG_STK tree.
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genConsumeArgSplitStruct(GenTreePutArgSplit* putArgNode)
+{
+    assert(putArgNode->OperGet() == GT_PUTARG_SPLIT);
+    assert(putArgNode->gtHasReg());
+
+    genUnspillRegIfNeeded(putArgNode);
+
+    // Skip updating GC info
+    // GC info for all argument registers will be cleared in caller
+
+    genCheckConsumeNode(putArgNode);
+}
+#endif
+
 //------------------------------------------------------------------------
 // genSetBlockSize: Ensure that the block size is in the given register
 //
@@ -1612,6 +1637,24 @@ void CodeGen::genProduceReg(GenTree* tree)
                     }
                 }
             }
+#ifdef _TARGET_ARM_
+            else if (tree->OperIsPutArgSplit())
+            {
+                GenTreePutArgSplit* argSplit = tree->AsPutArgSplit();
+                unsigned            regCount = argSplit->gtNumRegs;
+
+                for (unsigned i = 0; i < regCount; ++i)
+                {
+                    unsigned flags = argSplit->GetRegSpillFlagByIdx(i);
+                    if ((flags & GTF_SPILL) != 0)
+                    {
+                        regNumber reg = argSplit->GetRegNumByIdx(i);
+                        regSet.rsSpillTree(reg, argSplit, i);
+                        gcInfo.gcMarkRegSetNpt(genRegMask(reg));
+                    }
+                }
+            }
+#endif // _TARGET_ARM_
             else
             {
                 regSet.rsSpillTree(tree->gtRegNum, tree);

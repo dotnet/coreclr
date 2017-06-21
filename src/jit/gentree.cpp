@@ -1759,10 +1759,8 @@ regMaskTP GenTree::gtGetRegMask() const
             for (unsigned i = 0; i < regCount; ++i)
             {
                 regNumber reg = splitArg->GetRegNumByIdx(i);
-                if (reg != REG_NA)
-                {
-                    resultMask |= genRegMask(reg);
-                }
+                assert(reg != REG_NA);
+                resultMask |= genRegMask(reg);
             }
         }
 #endif
@@ -11863,38 +11861,65 @@ void Compiler::gtGetArgMsg(
 #ifdef _TARGET_ARM_
             if (curArgTabEntry->isSplit)
             {
-                regNumber argReg = curArgTabEntry->regNum;
+                regNumber firstReg = curArgTabEntry->regNum;
                 if (listCount == -1)
                 {
                     if (curArgTabEntry->numRegs == 1)
                     {
-                        sprintf_s(bufp, bufLength, "arg%d %s out+%02x%c", argNum, compRegVarName(argReg),
+                        sprintf_s(bufp, bufLength, "arg%d %s out+%02x%c", argNum, compRegVarName(firstReg),
                                   (curArgTabEntry->slotNum) * TARGET_POINTER_SIZE, 0);
                     }
                     else
                     {
-                        regNumber otherRegNum = (regNumber)((unsigned)(argReg) + curArgTabEntry->numRegs - 1);
-                        char      seperator   = (curArgTabEntry->numRegs == 2) ? ',' : '-';
-                        sprintf_s(bufp, bufLength, "arg%d %s%c%s out+%02x%c", argNum, compRegVarName(argReg), seperator,
-                                  compRegVarName(otherRegNum), (curArgTabEntry->slotNum) * TARGET_POINTER_SIZE, 0);
+                        regNumber lastReg   = REG_STK;
+                        char      separator = (curArgTabEntry->numRegs == 2) ? ',' : '-';
+                        if (curArgTabEntry->isHfaRegArg)
+                        {
+                            unsigned lastRegNum = genMapFloatRegNumToRegArgNum(firstReg) + curArgTabEntry->numRegs - 1;
+                            lastReg             = genMapFloatRegArgNumToRegNum(lastRegNum);
+                        }
+                        else
+                        {
+                            unsigned lastRegNum = genMapIntRegNumToRegArgNum(firstReg) + curArgTabEntry->numRegs - 1;
+                            lastReg             = genMapIntRegArgNumToRegNum(lastRegNum);
+                        }
+                        sprintf_s(bufp, bufLength, "arg%d %s%c%s out+%02x%c", argNum, compRegVarName(firstReg),
+                                  separator, compRegVarName(lastReg), (curArgTabEntry->slotNum) * TARGET_POINTER_SIZE,
+                                  0);
                     }
                 }
                 else
                 {
-                    regNumber curReg = (regNumber)((unsigned)(argReg) + listCount);
-                    if (((unsigned)(curReg)) <= MAX_ARG_REG_COUNT)
+                    unsigned curArgNum = BAD_VAR_NUM;
+                    bool     isFloat   = curArgTabEntry->isHfaRegArg;
+                    if (isFloat)
                     {
+                        curArgNum = genMapFloatRegNumToRegArgNum(firstReg) + listCount;
+                    }
+                    else
+                    {
+                        curArgNum = genMapIntRegNumToRegArgNum(firstReg) + listCount;
+                    }
+
+                    if (!isFloat && curArgNum < MAX_REG_ARG)
+                    {
+                        regNumber curReg = genMapIntRegArgNumToRegNum(curArgNum);
+                        sprintf_s(bufp, bufLength, "arg%d m%d %s%c", argNum, listCount, compRegVarName(curReg), 0);
+                    }
+                    else if (isFloat && curArgNum < MAX_FLOAT_REG_ARG)
+                    {
+                        regNumber curReg = genMapFloatRegArgNumToRegNum(curArgNum);
                         sprintf_s(bufp, bufLength, "arg%d m%d %s%c", argNum, listCount, compRegVarName(curReg), 0);
                     }
                     else
                     {
-                        unsigned curSlot = (unsigned)(curReg)-MAX_ARG_REG_COUNT;
-                        sprintf_s(bufp, bufLength, "arg%d m%d out+%s%c", argNum, listCount, curSlot, 0);
+                        unsigned stackSlot = listCount - curArgTabEntry->numRegs;
+                        sprintf_s(bufp, bufLength, "arg%d m%d out+%s%c", argNum, listCount, stackSlot, 0);
                     }
                 }
                 return;
             }
-#endif
+#endif // _TARGET_ARM_
 #if FEATURE_FIXED_OUT_ARGS
             if (listCount == -1)
             {
