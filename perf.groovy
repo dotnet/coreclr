@@ -8,10 +8,12 @@ def projectName = Utilities.getFolderName(project)
 def projectFolder = projectName + '/' + Utilities.getFolderName(branch)
 
 def static getOSGroup(def os) {
-    def osGroupMap = ['Ubuntu14.04':'Linux',
+    def osGroupMap = ['Ubuntu':'Linux',
+        'Ubuntu14.04':'Linux',
         'RHEL7.2': 'Linux',
         'Ubuntu16.04': 'Linux',
         'Debian8.4':'Linux',
+        'Fedora23':'Linux',
         'Fedora24':'Linux',
         'OSX':'OSX',
         'Windows_NT':'Windows_NT',
