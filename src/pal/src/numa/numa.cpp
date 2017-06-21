@@ -146,7 +146,7 @@ NUMASupportInitialize()
         int numaNodesCount = numa_max_node() + 1;
 
         g_possibleCpuCount = numa_num_possible_cpus();
-        g_cpuCount = PAL_GetLogicalCpuCountFromOS();
+        g_cpuCount = 0;
         g_groupCount = 0;
 
         for (int i = 0; i < numaNodesCount; i++)
@@ -156,6 +156,7 @@ NUMASupportInitialize()
             // but that cannot happen since the mask was allocated by numa_allocate_cpumask
             _ASSERTE(st == 0);
             unsigned int nodeCpuCount = numa_bitmask_weight(mask);
+            g_cpuCount += nodeCpuCount;
             unsigned int nodeGroupCount = (nodeCpuCount + MaxCpusPerGroup - 1) / MaxCpusPerGroup;
             g_groupCount += nodeGroupCount;
         }
