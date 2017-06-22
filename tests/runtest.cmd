@@ -202,9 +202,7 @@ call :PrecompileFX
 :SkipPrecompileFX
 
 if  defined __GenerateLayoutOnly (
-    REM Delete the unecessary mscorlib.ni file.
-    del %CORE_ROOT%\mscorlib.ni.dll
-    exit /b 0
+    exit /b 1
 )
 
 if not exist %CORE_ROOT%\coreclr.dll (
