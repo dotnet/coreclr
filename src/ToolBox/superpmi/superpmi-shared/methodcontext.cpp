@@ -1311,7 +1311,7 @@ void MethodContext::repResolveToken(CORINFO_RESOLVED_TOKEN* pResolvedToken, DWOR
     ResolveTokenValue value = ResolveToken->Get(key);
 
     SpmiRecordsHelper::Restore_CORINFO_RESOLVED_TOKENout(pResolvedToken, value.tokenOut, ResolveToken);
-    *exceptionCode  = (DWORD)value.exceptionCode;
+    *exceptionCode = (DWORD)value.exceptionCode;
 
     DEBUG_REP(dmpResolveToken(key, value));
 }
@@ -4071,33 +4071,18 @@ void MethodContext::recGetLocationOfThisType(CORINFO_METHOD_HANDLE context, CORI
     if (GetLocationOfThisType == nullptr)
         GetLocationOfThisType = new LightWeightMap<DWORDLONG, Agnostic_CORINFO_LOOKUP_KIND>();
 
-    Agnostic_CORINFO_LOOKUP_KIND value;
-
-    value.needsRuntimeLookup = (DWORD)result->needsRuntimeLookup;
-    value.runtimeLookupKind  = (DWORD)result->runtimeLookupKind;
-    value.runtimeLookupFlags = (WORD)result->runtimeLookupFlags;
-    // We don't store result->runtimeLookupArgs, which is opaque data. Ok?
-
+    Agnostic_CORINFO_LOOKUP_KIND value = SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP_KIND(result);
     GetLocationOfThisType->Add((DWORDLONG)context, value);
 }
 void MethodContext::dmpGetLocationOfThisType(DWORDLONG key, const Agnostic_CORINFO_LOOKUP_KIND& value)
 {
-    printf("GetLocationOfThisType key ftn-%016llX, value nrl-%u rlk-%u", key, value.needsRuntimeLookup,
-           value.runtimeLookupKind);
+    printf("GetLocationOfThisType key ftn-%016llX, value %s", key,
+           SpmiDumpHelper::DumpAgnostic_CORINFO_LOOKUP_KIND(value));
 }
 CORINFO_LOOKUP_KIND MethodContext::repGetLocationOfThisType(CORINFO_METHOD_HANDLE context)
 {
-    Agnostic_CORINFO_LOOKUP_KIND value1;
-    CORINFO_LOOKUP_KIND          value2;
-
-    value1 = GetLocationOfThisType->Get((DWORDLONG)context);
-
-    value2.needsRuntimeLookup = value1.needsRuntimeLookup != 0;
-    value2.runtimeLookupKind  = (CORINFO_RUNTIME_LOOKUP_KIND)value1.runtimeLookupKind;
-    value2.runtimeLookupFlags = (WORD)value1.runtimeLookupFlags;
-    value2.runtimeLookupArgs  = nullptr; // We don't store this opaque data. Ok?
-
-    return value2;
+    Agnostic_CORINFO_LOOKUP_KIND value = GetLocationOfThisType->Get((DWORDLONG)context);
+    return SpmiRecordsHelper::RestoreCORINFO_LOOKUP_KIND(value);
 }
 
 void MethodContext::recGetDelegateCtor(CORINFO_METHOD_HANDLE methHnd,
@@ -4167,16 +4152,14 @@ void MethodContext::recGetFunctionFixedEntryPoint(CORINFO_METHOD_HANDLE ftn, COR
     if (GetFunctionFixedEntryPoint == nullptr)
         GetFunctionFixedEntryPoint = new LightWeightMap<DWORDLONG, Agnostic_CORINFO_CONST_LOOKUP>();
 
-    Agnostic_CORINFO_CONST_LOOKUP value;
-
-    value.accessType = (DWORD)pResult->accessType;
-    value.handle     = (DWORDLONG)pResult->handle;
+    Agnostic_CORINFO_CONST_LOOKUP value = SpmiRecordsHelper::StoreAgnostic_CORINFO_CONST_LOOKUP(pResult);
 
     GetFunctionFixedEntryPoint->Add((DWORDLONG)ftn, value);
 }
 void MethodContext::dmpGetFunctionFixedEntryPoint(DWORDLONG key, const Agnostic_CORINFO_CONST_LOOKUP& value)
 {
-    printf("GetFunctionFixedEntryPoint key ftn-%016llX, value at-%u han-%016llX", key, value.accessType, value.handle);
+    printf("GetFunctionFixedEntryPoint key ftn-%016llX, value %s", key,
+           SpmiDumpHelper::DumpAgnostic_CORINFO_CONST_LOOKUP(value).c_str());
 }
 void MethodContext::repGetFunctionFixedEntryPoint(CORINFO_METHOD_HANDLE ftn, CORINFO_CONST_LOOKUP* pResult)
 {
@@ -4184,8 +4167,7 @@ void MethodContext::repGetFunctionFixedEntryPoint(CORINFO_METHOD_HANDLE ftn, COR
 
     value = GetFunctionFixedEntryPoint->Get((DWORDLONG)ftn);
 
-    pResult->accessType = (InfoAccessType)value.accessType;
-    pResult->handle     = (CORINFO_GENERIC_HANDLE)value.handle;
+    *pResult = SpmiRecordsHelper::RestoreCORINFO_CONST_LOOKUP(value);
 }
 
 void MethodContext::recGetFieldInClass(CORINFO_CLASS_HANDLE clsHnd, INT num, CORINFO_FIELD_HANDLE result)
