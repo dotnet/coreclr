@@ -2817,7 +2817,7 @@ bool MethodContext::repGetMethodInfo(CORINFO_METHOD_HANDLE ftn, CORINFO_METHOD_I
         info->locals.scope = (CORINFO_MODULE_HANDLE)value.info.locals.scope;
         info->locals.token = (mdToken)value.info.locals.token;
     }
-    bool result    = (bool)value.result;
+    bool result    = value.result;
     *exceptionCode = (DWORD)value.exceptionCode;
     DEBUG_REP(dmpGetMethodInfo((DWORDLONG)ftn, value));
     return result;
