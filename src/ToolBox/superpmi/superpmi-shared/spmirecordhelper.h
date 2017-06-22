@@ -36,12 +36,12 @@ public:
     static MethodContext::Agnostic_CORINFO_RESOLVED_TOKEN RestoreAgnostic_CORINFO_RESOLVED_TOKEN(
         CORINFO_RESOLVED_TOKEN* pResolvedToken, LightWeightMap<key, value>* buffers);
 
-
     // Restore the out values in the first argument from the second.
     // Can't just return whole CORINFO_RESOLVED_TOKEN because [in] values in it are important too.
     template <typename key, typename value>
-    static void Restore_CORINFO_RESOLVED_TOKENout(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-        MethodContext::Agnostic_CORINFO_RESOLVED_TOKENout& token, LightWeightMap<key, value>* buffers);
+    static void Restore_CORINFO_RESOLVED_TOKENout(CORINFO_RESOLVED_TOKEN*                            pResolvedToken,
+                                                  MethodContext::Agnostic_CORINFO_RESOLVED_TOKENout& token,
+                                                  LightWeightMap<key, value>* buffers);
 
     static MethodContext::Agnostic_CORINFO_SIG_INFO CreateAgnostic_CORINFO_SIG_INFO_without_buffers(
         CORINFO_SIG_INFO& sigInfo);
@@ -57,6 +57,16 @@ public:
     template <typename key, typename value>
     static CORINFO_SIG_INFO Restore_CORINFO_SIG_INFO(MethodContext::Agnostic_CORINFO_SIG_INFO& sigInfo,
                                                      LightWeightMap<key, value>* buffers);
+
+    static MethodContext::Agnostic_CORINFO_LOOKUP_KIND CreateAgnostic_CORINFO_LOOKUP_KIND(
+        CORINFO_LOOKUP_KIND* pGenericLookupKind);
+
+    static CORINFO_LOOKUP_KIND RestoreCORINFO_LOOKUP_KIND(MethodContext::Agnostic_CORINFO_LOOKUP_KIND& lookupKind);
+
+    static MethodContext::Agnostic_CORINFO_CONST_LOOKUP StoreAgnostic_CORINFO_CONST_LOOKUP(
+        CORINFO_CONST_LOOKUP* pLookup);
+
+    static CORINFO_CONST_LOOKUP RestoreCORINFO_CONST_LOOKUP(MethodContext::Agnostic_CORINFO_CONST_LOOKUP& lookup);
 };
 
 inline MethodContext::Agnostic_CORINFO_RESOLVED_TOKENin SpmiRecordsHelper::CreateAgnostic_CORINFO_RESOLVED_TOKENin(
@@ -139,8 +149,10 @@ inline MethodContext::Agnostic_CORINFO_RESOLVED_TOKEN SpmiRecordsHelper::Restore
 }
 
 template <typename key, typename value>
-inline void SpmiRecordsHelper::Restore_CORINFO_RESOLVED_TOKENout(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-    MethodContext::Agnostic_CORINFO_RESOLVED_TOKENout& tokenOut, LightWeightMap<key, value>* buffers)
+inline void SpmiRecordsHelper::Restore_CORINFO_RESOLVED_TOKENout(
+    CORINFO_RESOLVED_TOKEN*                            pResolvedToken,
+    MethodContext::Agnostic_CORINFO_RESOLVED_TOKENout& tokenOut,
+    LightWeightMap<key, value>* buffers)
 {
     pResolvedToken->hClass       = (CORINFO_CLASS_HANDLE)tokenOut.hClass;
     pResolvedToken->hMethod      = (CORINFO_METHOD_HANDLE)tokenOut.hMethod;
@@ -218,6 +230,48 @@ inline CORINFO_SIG_INFO SpmiRecordsHelper::Restore_CORINFO_SIG_INFO(MethodContex
     sig.scope                  = (CORINFO_MODULE_HANDLE)sigInfo.scope;
     sig.token                  = (mdToken)sigInfo.token;
     return sig;
+}
+
+inline MethodContext::Agnostic_CORINFO_LOOKUP_KIND SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP_KIND(
+    CORINFO_LOOKUP_KIND* pGenericLookupKind)
+{
+    MethodContext::Agnostic_CORINFO_LOOKUP_KIND genericLookupKind;
+    ZeroMemory(&genericLookupKind, sizeof(genericLookupKind));
+    genericLookupKind.needsRuntimeLookup = (DWORD)pGenericLookupKind->needsRuntimeLookup;
+    genericLookupKind.runtimeLookupKind  = (DWORD)pGenericLookupKind->runtimeLookupKind;
+    genericLookupKind.runtimeLookupFlags = pGenericLookupKind->runtimeLookupFlags;
+    // We don't store result->runtimeLookupArgs, which is opaque data. Ok?
+    return genericLookupKind;
+}
+
+inline CORINFO_LOOKUP_KIND SpmiRecordsHelper::RestoreCORINFO_LOOKUP_KIND(
+    MethodContext::Agnostic_CORINFO_LOOKUP_KIND& lookupKind)
+{
+    CORINFO_LOOKUP_KIND genericLookupKind;
+    genericLookupKind.needsRuntimeLookup = lookupKind.needsRuntimeLookup != 0;
+    genericLookupKind.runtimeLookupKind  = (CORINFO_RUNTIME_LOOKUP_KIND)lookupKind.runtimeLookupKind;
+    genericLookupKind.runtimeLookupFlags = lookupKind.runtimeLookupFlags;
+    genericLookupKind.runtimeLookupArgs  = nullptr; // We don't store this opaque data. Ok?
+    return genericLookupKind;
+}
+
+inline MethodContext::Agnostic_CORINFO_CONST_LOOKUP SpmiRecordsHelper::StoreAgnostic_CORINFO_CONST_LOOKUP(
+    CORINFO_CONST_LOOKUP* pLookup)
+{
+    MethodContext::Agnostic_CORINFO_CONST_LOOKUP constLookup;
+    ZeroMemory(&constLookup, sizeof(constLookup));
+    constLookup.accessType = (DWORD)pLookup->accessType;
+    constLookup.handle     = (DWORDLONG)pLookup->handle;
+    return constLookup;
+}
+
+inline CORINFO_CONST_LOOKUP SpmiRecordsHelper::RestoreCORINFO_CONST_LOOKUP(
+    MethodContext::Agnostic_CORINFO_CONST_LOOKUP& lookup)
+{
+    CORINFO_CONST_LOOKUP constLookup;
+    constLookup.accessType = (InfoAccessType)lookup.accessType;
+    constLookup.handle     = (CORINFO_GENERIC_HANDLE)lookup.handle;
+    return constLookup;
 }
 
 #endif

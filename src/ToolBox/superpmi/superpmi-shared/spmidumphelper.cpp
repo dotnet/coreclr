@@ -14,8 +14,8 @@ std::string SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKENin(
     const MethodContext::Agnostic_CORINFO_RESOLVED_TOKENin& tokenIn)
 {
     char buffer[MAX_BUFFER_SIZE];
-    sprintf_s(buffer, MAX_BUFFER_SIZE, "tc-%016llX ts-%016llX tok - %08X tt-%u", tokenIn.tokenContext, tokenIn.tokenScope,
-            tokenIn.token, tokenIn.tokenType);
+    sprintf_s(buffer, MAX_BUFFER_SIZE, "tc-%016llX ts-%016llX tok - %08X tt-%u", tokenIn.tokenContext,
+              tokenIn.tokenScope, tokenIn.token, tokenIn.tokenType);
     return std::string(buffer);
 }
 
@@ -24,8 +24,8 @@ std::string SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKENout(
 {
     char buffer[MAX_BUFFER_SIZE];
     sprintf_s(buffer, MAX_BUFFER_SIZE, "cls-%016llX meth-%016llX fld-%016llX ti-%u ts-%u mi-%u ms-%u", tokenOut.hClass,
-            tokenOut.hMethod, tokenOut.hField, tokenOut.pTypeSpec_Index, tokenOut.cbTypeSpec,
-            tokenOut.pMethodSpec_Index, tokenOut.cbMethodSpec);
+              tokenOut.hMethod, tokenOut.hField, tokenOut.pTypeSpec_Index, tokenOut.cbTypeSpec,
+              tokenOut.pMethodSpec_Index, tokenOut.cbMethodSpec);
     return std::string(buffer);
 }
 
@@ -34,4 +34,20 @@ std::string SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(
 {
     return DumpAgnostic_CORINFO_RESOLVED_TOKENin(token.inValue) + std::string(" ") +
            DumpAgnostic_CORINFO_RESOLVED_TOKENout(token.outValue);
+}
+
+std::string SpmiDumpHelper::DumpAgnostic_CORINFO_LOOKUP_KIND(
+    const MethodContext::Agnostic_CORINFO_LOOKUP_KIND& lookupKind)
+{
+    char buffer[MAX_BUFFER_SIZE];
+    sprintf_s(buffer, MAX_BUFFER_SIZE, "nrl-%u rlk-%u", lookupKind.needsRuntimeLookup, lookupKind.runtimeLookupKind);
+    return std::string(buffer);
+}
+
+std::string SpmiDumpHelper::DumpAgnostic_CORINFO_CONST_LOOKUP(
+    const MethodContext::Agnostic_CORINFO_CONST_LOOKUP& constLookup)
+{
+    char buffer[MAX_BUFFER_SIZE];
+    sprintf_s(buffer, MAX_BUFFER_SIZE, "at - %u handle/address - % 016llX", constLookup.accessType, constLookup.handle);
+    return std::string(buffer);
 }
