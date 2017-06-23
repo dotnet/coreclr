@@ -1492,7 +1492,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "tests\\runtest.cmd ${runtestArguments}"
                         }
                         else if (architecture == 'x86lb') {
-                            buildCommands += "tests\\runtest.cmd ${runtestArguments} TestEnv tests\\legacyjit_x86_testenv.cmd"
+                            buildCommands += "tests\\runtest.cmd ${runtestArguments} TestEnv %WORKSPACE%\\tests\\legacyjit_x86_testenv.cmd"
                         }
                     }
 
