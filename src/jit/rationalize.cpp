@@ -997,6 +997,11 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
         {
             node->gtLIRFlags |= LIR::Flags::IsUnusedValue;
         }
+
+        if (node->TypeGet() == TYP_LONG)
+        {
+            comp->compLongUsed = true;
+        }
     }
 
     assert(isLateArg == ((use.Def()->gtFlags & GTF_LATE_ARG) != 0));

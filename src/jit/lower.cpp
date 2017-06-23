@@ -4481,7 +4481,10 @@ void Lowering::DoPhase()
         comp->compCurBB = block;
 
 #if !defined(_TARGET_64BIT_)
-        decomp.DecomposeBlock(block);
+        if (comp->compLongUsed)
+        {
+            decomp.DecomposeBlock(block);
+        }
 #endif //!_TARGET_64BIT_
 
         LowerBlock(block);
