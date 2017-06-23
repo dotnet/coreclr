@@ -501,7 +501,7 @@ CrashInfo::GetDSOInfo()
 }
 
 inline bool
-NameCompare(char* name, const char* sectionName)
+NameCompare(const char* name, const char* sectionName)
 {
     return strncmp(name, sectionName, strlen(sectionName) + 1) == 0;
 }
@@ -746,7 +746,7 @@ CrashInfo::EnumerateManagedModules(IXCLRDataProcess* clrDataProcess)
 // Replace an existing module mapping with one with a different name.
 //
 void
-CrashInfo::ReplaceModuleMapping(CLRDATA_ADDRESS baseAddress, char* pszName)
+CrashInfo::ReplaceModuleMapping(CLRDATA_ADDRESS baseAddress, const char* pszName)
 {
     // Add or change the module mapping for this PE image. The managed assembly images are
     // already in the module mappings list but in .NET 2.0 they have the name "/dev/zero".

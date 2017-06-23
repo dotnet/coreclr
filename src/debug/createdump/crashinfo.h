@@ -68,7 +68,7 @@ private:
     bool GetELFInfo(uint64_t baseAddress);
     bool EnumerateMemoryRegionsWithDAC(const char* programPath, MINIDUMP_TYPE minidumpType);
     bool EnumerateManagedModules(IXCLRDataProcess* clrDataProcess);
-    void ReplaceModuleMapping(CLRDATA_ADDRESS baseAddress, char* pszName);
+    void ReplaceModuleMapping(CLRDATA_ADDRESS baseAddress, const char* pszName);
     bool ReadMemory(void* address, void* buffer, size_t size);
     void InsertMemoryBackedRegion(const MemoryRegion& region);
     void InsertMemoryRegion(uint64_t address, size_t size);

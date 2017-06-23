@@ -22,7 +22,7 @@ private:
     uint64_t m_offset;
 
     // The name used for NT_FILE output
-    char* m_fileName;
+    const char* m_fileName;
 
 public:
     MemoryRegion(uint32_t flags, uint64_t start, uint64_t end) : 
@@ -36,7 +36,7 @@ public:
         assert((end & ~PAGE_MASK) == 0);
     }
 
-    MemoryRegion(uint32_t flags, uint64_t start, uint64_t end, uint64_t offset, char* filename) : 
+    MemoryRegion(uint32_t flags, uint64_t start, uint64_t end, uint64_t offset, const char* filename) : 
         m_flags(flags),
         m_startAddress(start),
         m_endAddress(end),
@@ -48,7 +48,7 @@ public:
     }
 
     // copy with new file name constructor
-    MemoryRegion(const MemoryRegion& region, char* fileName) : 
+    MemoryRegion(const MemoryRegion& region, const char* fileName) : 
         m_flags(region.m_flags),
         m_startAddress(region.m_startAddress),
         m_endAddress(region.m_endAddress),
@@ -84,7 +84,7 @@ public:
     const uint64_t EndAddress() const { return m_endAddress; }
     const uint64_t Size() const { return m_endAddress - m_startAddress; }
     const uint64_t Offset() const { return m_offset; }
-    char* FileName() const { return m_fileName; }
+    const char* FileName() const { return m_fileName; }
 
     bool operator<(const MemoryRegion& rhs) const
     {
@@ -102,7 +102,7 @@ public:
     {
         if (m_fileName != nullptr)
         {
-            free(m_fileName);
+            free((void*)m_fileName);
             m_fileName = nullptr;
         }
     }
