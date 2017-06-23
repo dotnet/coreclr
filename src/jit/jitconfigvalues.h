@@ -218,9 +218,10 @@ CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 0)
 CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 1)
 #endif // !defined(DEBUG) && !defined(_DEBUG)
 
-// It was originally intended that JitMinOptsTrackGCrefs only be enabled for amd6 on CoreCLR. A mistake was
+// It was originally intended that JitMinOptsTrackGCrefs only be enabled for amd64 on CoreCLR. A mistake was
 // made, and it was enabled for x86 as well. However, it doesn't currently work with x86 legacy back-end, so
 // disable it for that. Whether it should continue to be enabled for x86 non-legacy-backend should be investigated.
+// This is tracked by issue https://github.com/dotnet/coreclr/issues/12415.
 #if (defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)) || (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND))
 #define JitMinOptsTrackGCrefs_Default 0 // Not tracking GC refs in MinOpts is new behavior
 #else
