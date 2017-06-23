@@ -27,6 +27,8 @@ void PerfMap::Initialize()
 
         // Create the map.
         s_Current = new PerfMap(currentPid);
+
+        PAL_IgnoreProfileSignal();
     }
 }
 
