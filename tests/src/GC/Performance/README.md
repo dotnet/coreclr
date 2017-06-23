@@ -46,7 +46,7 @@ REM Get the xunit-performance analysis engine
 xcopy /sy C:\<path_to_your_coreclr>\coreclr\packages\Microsoft.DotNet.xunit.performance.analysis\1.0.0-alpha-build0035\tools\* .
 
 REM Get the xunit console runner
-xcopy /sy C:\<path_to_your_coreclr>\coreclr\packages\xunit.runner.console\2.1.0\tools\* .
+xcopy /sy C:\<path_to_your_coreclr>\coreclr\packages\xunit.runner.console\2.2.0-beta2-build3300\tools\* .
 
 REM Get the test executables' dependencies
 xcopy /sy C:\<path_to_your_coreclr>\coreclr\bin\tests\Windows_NT.x64.Release\Tests\Core_Root\* .

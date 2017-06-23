@@ -8,10 +8,9 @@
     <!-- Reset the Default project.json-->
     <ProjectJson></ProjectJson>
     <ProjectLockJson></ProjectLockJson>
-    <CoreRootPackagesDir>$(CORE_ROOT)\.nuget\pkg</CoreRootPackagesDir>
   </PropertyGroup>
   <ItemGroup>
-     <DnuSourceList Include="$(CoreRootPackagesDir)" Condition="Exists('$(CoreRootPackagesDir)')" />
+     <DnuSourceList Include="$(CORE_ROOT)\.nuget\pkg" /> 
   </ItemGroup>
   <ItemGroup>
     <None Include="project.json" />
