@@ -579,7 +579,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
     if (bAllocateInLargeHeap)
     {
         orArray = (ArrayBase *) AllocLHeap(totalSize, FALSE, pArrayMT->ContainsPointers());
-        orArray->SetMethodTableForLargeObject(pArrayMT);
+        orArray->SetArrayMethodTableForLargeObject(pArrayMT);
     }
     else
     {
@@ -600,7 +600,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
         {
             orArray = (ArrayBase *) Alloc(totalSize, FALSE, pArrayMT->ContainsPointers());
         }
-        orArray->SetMethodTable(pArrayMT);
+        orArray->SetArrayMethodTable(pArrayMT);
     }
 
     // Initialize Object
@@ -827,7 +827,7 @@ OBJECTREF   FastAllocatePrimitiveArray(MethodTable* pMT, DWORD cElements, BOOL b
     }
 
     // Initialize Object
-    orObject->SetMethodTable( pMT );
+    orObject->SetArrayMethodTable( pMT );
     _ASSERTE(orObject->GetMethodTable() != NULL);
     orObject->m_NumComponents = cElements;
 
