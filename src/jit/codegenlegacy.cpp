@@ -18993,7 +18993,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         noway_assert(callType == CT_USER_FUNC);
                     }
 
-                    regNumber tcbReg;
+                    regNumber tcbReg = REG_NA;
 
                     if (!compiler->opts.ShouldUsePInvokeHelpers())
                     {
