@@ -18217,7 +18217,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
     }
 #endif
 
-#ifdef _ARM_
+#ifdef _TARGET_ARM_
     if (compiler->opts.ShouldUsePInvokeHelpers() && (call->gtFlags & GTF_CALL_UNMANAGED) &&
         ((call->gtFlags & GTF_CALL_VIRT_KIND_MASK) == GTF_CALL_NONVIRT))
     {
@@ -21322,7 +21322,7 @@ regNumber CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
 
     noway_assert(compiler->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
 
-#ifdef _ARM_
+#ifdef _TARGET_ARM_
     if (compiler->opts.ShouldUsePInvokeHelpers())
     {
         regNumber baseReg;
@@ -21458,7 +21458,7 @@ regNumber CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
 
 void CodeGen::genPInvokeCallEpilog(LclVarDsc* frameListRoot, regMaskTP retVal)
 {
-#ifdef _ARM_
+#ifdef _TARGET_ARM_
     if (compiler->opts.ShouldUsePInvokeHelpers())
     {
         noway_assert(compiler->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
