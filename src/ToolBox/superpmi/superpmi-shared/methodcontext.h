@@ -512,6 +512,12 @@ public:
         bool                          result;
     };
 
+    struct GetReadyToRunDelegateCtorHelper_TOKENIn
+    {
+        Agnostic_CORINFO_RESOLVED_TOKEN TargetMethod;
+        DWORDLONG                       delegateType;
+    };
+
 #pragma pack(pop)
 
     MethodContext();
@@ -745,7 +751,7 @@ public:
     void recGetReadyToRunDelegateCtorHelper(CORINFO_RESOLVED_TOKEN* pTargetMethod,
                                             CORINFO_CLASS_HANDLE    delegateType,
                                             CORINFO_LOOKUP*         pLookup);
-    void dmpGetReadyToRunDelegateCtorHelper(DWORDLONG key, DWORD value);
+    void dmpGetReadyToRunDelegateCtorHelper(GetReadyToRunDelegateCtorHelper_TOKENIn key, CORINFO_LOOKUP pLookup);
     void repGetReadyToRunDelegateCtorHelper(CORINFO_RESOLVED_TOKEN* pTargetMethod,
                                             CORINFO_CLASS_HANDLE    delegateType,
                                             CORINFO_LOOKUP*         pLookup);

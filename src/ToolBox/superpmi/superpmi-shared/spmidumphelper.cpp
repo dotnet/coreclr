@@ -51,3 +51,8 @@ std::string SpmiDumpHelper::DumpAgnostic_CORINFO_CONST_LOOKUP(
     sprintf_s(buffer, MAX_BUFFER_SIZE, "at - %u handle/address - % 016llX", constLookup.accessType, constLookup.handle);
     return std::string(buffer);
 }
+
+std::string SpmiDumpHelper::Dump_CORINFO_LOOKUP(const CORINFO_LOOKUP& lookup)
+{
+    return std::string("");
+}
