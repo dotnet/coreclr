@@ -1983,7 +1983,7 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* Stru
 //
 void Compiler::lvaPromoteLongVars()
 {
-    if ((opts.compFlags & CLFLG_REGVAR) == 0)
+    if (((opts.compFlags & CLFLG_REGVAR) == 0) || !compLongUsed)
     {
         return;
     }
