@@ -23,7 +23,10 @@ public:
     static std::string DumpAgnostic_CORINFO_LOOKUP_KIND(const MethodContext::Agnostic_CORINFO_LOOKUP_KIND& lookupKind);
     static std::string DumpAgnostic_CORINFO_CONST_LOOKUP(
         const MethodContext::Agnostic_CORINFO_CONST_LOOKUP& constLookup);
-    static std::string Dump_CORINFO_LOOKUP(const CORINFO_LOOKUP& lookup);
+    static std::string Dump_Agnostic_CORINFO_RUNTIME_LOOKUP(
+        const MethodContext::Agnostic_CORINFO_RUNTIME_LOOKUP& lookup);
+    static std::string Dump_Agnostic_CORINFO_LOOKUP(const MethodContext::Agnostic_CORINFO_LOOKUP& lookup);
+
 private:
     static const int MAX_BUFFER_SIZE = 1000;
 };

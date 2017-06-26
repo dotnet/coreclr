@@ -2160,24 +2160,25 @@ void MethodContext::recGetReadyToRunDelegateCtorHelper(CORINFO_RESOLVED_TOKEN* p
                                                        CORINFO_LOOKUP*         pLookup)
 {
     if (GetReadyToRunDelegateCtorHelper == nullptr)
-        GetReadyToRunDelegateCtorHelper = new LightWeightMap<GetReadyToRunDelegateCtorHelper_TOKENIn, CORINFO_LOOKUP>();
+        GetReadyToRunDelegateCtorHelper =
+            new LightWeightMap<GetReadyToRunDelegateCtorHelper_TOKENIn, Agnostic_CORINFO_LOOKUP>();
 
     GetReadyToRunDelegateCtorHelper_TOKENIn key;
     ZeroMemory(&key, sizeof(key));
     key.TargetMethod =
         SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(pTargetMethod, GetReadyToRunDelegateCtorHelper);
-    key.delegateType     = (DWORDLONG)delegateType;
-    CORINFO_LOOKUP value = *pLookup;
+    key.delegateType              = (DWORDLONG)delegateType;
+    Agnostic_CORINFO_LOOKUP value = SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP(pLookup);
     GetReadyToRunDelegateCtorHelper->Add(key, value);
     DEBUG_REP(dmpGetReadyToRunDelegateCtorHelper(key, value));
 }
 
 void MethodContext::dmpGetReadyToRunDelegateCtorHelper(GetReadyToRunDelegateCtorHelper_TOKENIn key,
-                                                       CORINFO_LOOKUP                          value)
+                                                       Agnostic_CORINFO_LOOKUP                 value)
 {
     printf("GetReadyToRunDelegateCtorHelper key: method tk{%s} type-%016llX",
            SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.TargetMethod).c_str(), key.delegateType);
-    printf(", value: %s", SpmiDumpHelper::Dump_CORINFO_LOOKUP(value).c_str());
+    printf(", value: %s", SpmiDumpHelper::Dump_Agnostic_CORINFO_LOOKUP(value).c_str());
 }
 
 void MethodContext::repGetReadyToRunDelegateCtorHelper(CORINFO_RESOLVED_TOKEN* pTargetMethod,
@@ -2194,7 +2195,8 @@ void MethodContext::repGetReadyToRunDelegateCtorHelper(CORINFO_RESOLVED_TOKEN* p
 
     AssertCodeMsg(GetReadyToRunDelegateCtorHelper->GetIndex(key) != -1, EXCEPTIONCODE_MC,
                   "Didn't find a key for GetReadyToRunDelegateCtorHelper");
-    *pLookup = GetReadyToRunDelegateCtorHelper->Get(key);
+    Agnostic_CORINFO_LOOKUP value = GetReadyToRunDelegateCtorHelper->Get(key);
+    *pLookup                      = SpmiRecordsHelper::RestoreCORINFO_LOOKUP(value);
 }
 
 void MethodContext::recGetHelperFtn(CorInfoHelpFunc ftnNum, void** ppIndirection, void* result)

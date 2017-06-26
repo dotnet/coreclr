@@ -67,6 +67,15 @@ public:
         CORINFO_CONST_LOOKUP* pLookup);
 
     static CORINFO_CONST_LOOKUP RestoreCORINFO_CONST_LOOKUP(MethodContext::Agnostic_CORINFO_CONST_LOOKUP& lookup);
+
+    static MethodContext::Agnostic_CORINFO_RUNTIME_LOOKUP StoreAgnostic_CORINFO_RUNTIME_LOOKUP(
+        CORINFO_RUNTIME_LOOKUP* pLookup);
+
+    static CORINFO_RUNTIME_LOOKUP RestoreCORINFO_RUNTIME_LOOKUP(MethodContext::Agnostic_CORINFO_RUNTIME_LOOKUP& Lookup);
+
+    static MethodContext::Agnostic_CORINFO_LOOKUP CreateAgnostic_CORINFO_LOOKUP(CORINFO_LOOKUP* pLookup);
+
+    static CORINFO_LOOKUP RestoreCORINFO_LOOKUP(MethodContext::Agnostic_CORINFO_LOOKUP& agnosticLookup);
 };
 
 inline MethodContext::Agnostic_CORINFO_RESOLVED_TOKENin SpmiRecordsHelper::CreateAgnostic_CORINFO_RESOLVED_TOKENin(
@@ -275,6 +284,69 @@ inline CORINFO_CONST_LOOKUP SpmiRecordsHelper::RestoreCORINFO_CONST_LOOKUP(
     constLookup.accessType = (InfoAccessType)lookup.accessType;
     constLookup.handle     = (CORINFO_GENERIC_HANDLE)lookup.handle;
     return constLookup;
+}
+
+inline MethodContext::Agnostic_CORINFO_RUNTIME_LOOKUP SpmiRecordsHelper::StoreAgnostic_CORINFO_RUNTIME_LOOKUP(
+    CORINFO_RUNTIME_LOOKUP* pLookup)
+{
+    MethodContext::Agnostic_CORINFO_RUNTIME_LOOKUP runtimeLookup;
+    ZeroMemory(&runtimeLookup, sizeof(runtimeLookup));
+    runtimeLookup.signature           = (DWORDLONG)pLookup->signature;
+    runtimeLookup.helper              = (DWORD)pLookup->helper;
+    runtimeLookup.indirections        = (DWORD)pLookup->indirections;
+    runtimeLookup.testForNull         = (DWORD)pLookup->testForNull;
+    runtimeLookup.testForFixup        = (DWORD)pLookup->testForFixup;
+    runtimeLookup.indirectFirstOffset = (DWORD)pLookup->indirectFirstOffset;
+    for (int i                   = 0; i < CORINFO_MAXINDIRECTIONS; i++)
+        runtimeLookup.offsets[i] = (DWORDLONG)pLookup->offsets[i];
+    return runtimeLookup;
+}
+
+inline CORINFO_RUNTIME_LOOKUP SpmiRecordsHelper::RestoreCORINFO_RUNTIME_LOOKUP(
+    MethodContext::Agnostic_CORINFO_RUNTIME_LOOKUP& lookup)
+{
+    CORINFO_RUNTIME_LOOKUP runtimeLookup;
+    runtimeLookup.signature           = (LPVOID)lookup.signature;
+    runtimeLookup.helper              = (CorInfoHelpFunc)lookup.helper;
+    runtimeLookup.indirections        = (WORD)lookup.indirections;
+    runtimeLookup.testForNull         = lookup.testForNull != 0;
+    runtimeLookup.testForFixup        = lookup.testForFixup != 0;
+    runtimeLookup.indirectFirstOffset = lookup.indirectFirstOffset != 0;
+    for (int i                   = 0; i < CORINFO_MAXINDIRECTIONS; i++)
+        runtimeLookup.offsets[i] = (size_t)lookup.offsets[i];
+    return CORINFO_RUNTIME_LOOKUP();
+}
+
+inline MethodContext::Agnostic_CORINFO_LOOKUP SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP(CORINFO_LOOKUP* pLookup)
+{
+    MethodContext::Agnostic_CORINFO_LOOKUP lookup;
+    ZeroMemory(&lookup, sizeof(lookup));
+    lookup.lookupKind = CreateAgnostic_CORINFO_LOOKUP_KIND(&pLookup->lookupKind);
+    if (pLookup->lookupKind.needsRuntimeLookup)
+    {
+        lookup.runtimeLookup = StoreAgnostic_CORINFO_RUNTIME_LOOKUP(&pLookup->runtimeLookup);
+    }
+    else
+    {
+        lookup.constLookup = StoreAgnostic_CORINFO_CONST_LOOKUP(&pLookup->constLookup);
+    }
+    return lookup;
+}
+
+inline CORINFO_LOOKUP SpmiRecordsHelper::RestoreCORINFO_LOOKUP(MethodContext::Agnostic_CORINFO_LOOKUP& agnosticLookup)
+{
+    CORINFO_LOOKUP lookup;
+    ZeroMemory(&lookup, sizeof(lookup));
+    lookup.lookupKind = RestoreCORINFO_LOOKUP_KIND(agnosticLookup.lookupKind);
+    if (lookup.lookupKind.needsRuntimeLookup)
+    {
+        lookup.runtimeLookup = RestoreCORINFO_RUNTIME_LOOKUP(agnosticLookup.runtimeLookup);
+    }
+    else
+    {
+        lookup.constLookup = RestoreCORINFO_CONST_LOOKUP(agnosticLookup.constLookup);
+    }
+    return lookup;
 }
 
 #endif

@@ -53,12 +53,13 @@ std::string SpmiDumpHelper::DumpAgnostic_CORINFO_CONST_LOOKUP(
     return std::string(buffer);
 }
 
-std::string SpmiDumpHelper::Dump_CORINFO_LOOKUP(const CORINFO_LOOKUP& lookup)
+std::string SpmiDumpHelper::Dump_Agnostic_CORINFO_RUNTIME_LOOKUP(
+    const MethodContext::Agnostic_CORINFO_RUNTIME_LOOKUP& lookup)
 {
-    MethodContext::Agnostic_CORINFO_LOOKUP_KIND lookupKind =
-        SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP_KIND(&lookup.lookupKind);
-    std::string kindDump = DumpAgnostic_CORINFO_LOOKUP_KIND(lookupKind);
-    char        buffer[MAX_BUFFER_SIZE];
-    sprintf_s(buffer, MAX_BUFFER_SIZE, "lookup adress-NYI");
-    return kindDump + std::string(" ") + std::string(buffer);
+    return std::string(" ");
+}
+
+std::string SpmiDumpHelper::Dump_Agnostic_CORINFO_LOOKUP(const MethodContext::Agnostic_CORINFO_LOOKUP& lookup)
+{
+    return std::string(" ");
 }
