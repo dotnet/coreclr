@@ -133,6 +133,7 @@ inline AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelperSpin(Thread*
         return AwareLock::EnterHelperResult_Contention;
     }
 
+#ifdef PLATFORM_WINDOWS
     DWORD spincount = g_SpinConstants.dwInitialDuration;
 
     for (;;)
@@ -159,6 +160,17 @@ inline AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelperSpin(Thread*
     }
 
     return AwareLock::EnterHelperResult_Contention;
+#else
+    // non-Windows
+    for (;;)
+    {
+        AwareLock::EnterHelperResult result = EnterObjMonitorHelper(pCurThread);
+        if (result != AwareLock::EnterHelperResult_Contention)
+        {
+            return result;
+        }
+    }
+#endif // PLATFORM_WINDOWS
 }
 
 // Helper encapsulating the core logic for releasing monitor. Returns what kind of 

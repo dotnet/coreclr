@@ -3337,7 +3337,8 @@ bool AwareLock::Contention(INT32 timeOut)
                     bKeepGoing = false;
                     break;
                 }
-                
+
+#ifdef PLATFORM_WINDOWS
                 // Spin for i iterations, and make sure to never go more than 20000 iterations between
                 // checking if we should SwitchToThread
                 int remainingDelay = i;
@@ -3376,7 +3377,7 @@ bool AwareLock::Contention(INT32 timeOut)
                         __SwitchToThread(0, CALLER_LIMITS_SPINNING);
                     }
                 }
-
+#endif // PLATFORM_WINDOWS
                 // exponential backoff: wait a factor longer in the next iteration
                 i *= g_SpinConstants.dwBackoffFactor;
             }
