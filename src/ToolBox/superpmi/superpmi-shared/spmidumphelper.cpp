@@ -60,5 +60,5 @@ std::string SpmiDumpHelper::Dump_CORINFO_LOOKUP(const CORINFO_LOOKUP& lookup)
     std::string kindDump = DumpAgnostic_CORINFO_LOOKUP_KIND(lookupKind);
     char        buffer[MAX_BUFFER_SIZE];
     sprintf_s(buffer, MAX_BUFFER_SIZE, "lookup adress-NYI");
-    return kindDump + " " + std::string(buffer);
+    return kindDump + std::string(" ") + std::string(buffer);
 }
