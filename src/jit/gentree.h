@@ -1700,6 +1700,12 @@ public:
     // Otherwise, return false.
     bool TryGetUse(GenTree* def, GenTree*** use);
 
+private:
+    bool TryGetUseList(GenTree* def, GenTree*** use);
+
+    bool TryGetUseBinOp(GenTree* def, GenTree*** use);
+
+public:
     // Get the parent of this node, and optionally capture the pointer to the child so that it can be modified.
     GenTreePtr gtGetParent(GenTreePtr** parentChildPtrPtr) const;
 
@@ -3415,7 +3421,7 @@ struct GenTreeCall final : public GenTree
         }
 
         // Clear anything that was already there by masking out the bits before 'or'ing in what we want there.
-        gtSpillFlags = (gtSpillFlags & ~(0xffU << (idx * 2))) | (bits << (idx * 2));
+        gtSpillFlags = (unsigned char)((gtSpillFlags & ~(0xffU << (idx * 2))) | (bits << (idx * 2)));
 #else
         unreached();
 #endif
