@@ -2123,6 +2123,7 @@ void MethodContext::recGetReadyToRunHelper(CORINFO_RESOLVED_TOKEN* pResolvedToke
     value.result = result;
 
     GetReadyToRunHelper->Add(key, value);
+    DEBUG_REP(dmpGetReadyToRunHelper(key, value));
 }
 
 void MethodContext::dmpGetReadyToRunHelper(GetReadyToRunHelper_TOKENin key, GetReadyToRunHelper_TOKENout value)
@@ -2169,6 +2170,7 @@ void MethodContext::recGetReadyToRunDelegateCtorHelper(CORINFO_RESOLVED_TOKEN* p
     key.delegateType     = (DWORDLONG)delegateType;
     CORINFO_LOOKUP value = *pLookup;
     GetReadyToRunDelegateCtorHelper->Add(key, value);
+    DEBUG_REP(dmpGetReadyToRunDelegateCtorHelper(key, value));
 }
 
 void MethodContext::dmpGetReadyToRunDelegateCtorHelper(GetReadyToRunDelegateCtorHelper_TOKENIn key,
@@ -4117,7 +4119,7 @@ void MethodContext::recGetLocationOfThisType(CORINFO_METHOD_HANDLE context, CORI
 void MethodContext::dmpGetLocationOfThisType(DWORDLONG key, const Agnostic_CORINFO_LOOKUP_KIND& value)
 {
     printf("GetLocationOfThisType key ftn-%016llX, value %s", key,
-           SpmiDumpHelper::DumpAgnostic_CORINFO_LOOKUP_KIND(value));
+           SpmiDumpHelper::DumpAgnostic_CORINFO_LOOKUP_KIND(value).c_str());
 }
 CORINFO_LOOKUP_KIND MethodContext::repGetLocationOfThisType(CORINFO_METHOD_HANDLE context)
 {

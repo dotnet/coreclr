@@ -59,7 +59,7 @@ public:
                                                      LightWeightMap<key, value>* buffers);
 
     static MethodContext::Agnostic_CORINFO_LOOKUP_KIND CreateAgnostic_CORINFO_LOOKUP_KIND(
-        CORINFO_LOOKUP_KIND* pGenericLookupKind);
+        const CORINFO_LOOKUP_KIND* pGenericLookupKind);
 
     static CORINFO_LOOKUP_KIND RestoreCORINFO_LOOKUP_KIND(MethodContext::Agnostic_CORINFO_LOOKUP_KIND& lookupKind);
 
@@ -233,7 +233,7 @@ inline CORINFO_SIG_INFO SpmiRecordsHelper::Restore_CORINFO_SIG_INFO(MethodContex
 }
 
 inline MethodContext::Agnostic_CORINFO_LOOKUP_KIND SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP_KIND(
-    CORINFO_LOOKUP_KIND* pGenericLookupKind)
+    const CORINFO_LOOKUP_KIND* pGenericLookupKind)
 {
     MethodContext::Agnostic_CORINFO_LOOKUP_KIND genericLookupKind;
     ZeroMemory(&genericLookupKind, sizeof(genericLookupKind));
