@@ -1,0 +1,38 @@
+{
+  "version": "1.0.0-*",
+  "buildOptions": {
+    "debugType": "portable",
+    "emitEntryPoint": true
+  },
+  "dependencies": {
+    "Microsoft.NETCore.App": {
+      "type": "platform",
+      "version": "1.1.0"
+    },
+
+    "CommandLineParser": "2.1.1-beta",
+    "Microsoft.3rdpartytools.MarkdownLog": "0.10.0-alpha-experimental",
+
+    "xunit": "2.2.0-beta2-build3300",
+    "xunit.abstractions": "2.0.1",
+    "xunit.extensibility.core": "2.2.0-beta2-build3300",
+    "xunit.runner.utility": "2.2.0-beta2-build3300",
+
+    "xunit.performance.api": "1.0.0-beta-build0007",
+    "xunit.performance.core": "1.0.0-beta-build0007",
+    "xunit.performance.execution": "1.0.0-beta-build0007",
+    "xunit.performance.metrics": "1.0.0-beta-build0007",
+
+    "System.ValueTuple": "4.3.1",
+
+    "Microsoft.Diagnostics.Tracing.TraceEvent":{
+      "version": "1.0.3-alpha-experimental",
+      "include":"all"
+    }
+  },
+  "frameworks": {
+    "netcoreapp1.1": {
+      "imports": "dnxcore50"
+    }
+  }
+}

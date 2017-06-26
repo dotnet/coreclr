@@ -9,8 +9,9 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
+namespace Benchstone.BenchF
+{
 public static class BenchMrk
 {
 #if DEBUG
@@ -63,4 +64,5 @@ public static class BenchMrk
         bool result = TestBase();
         return (result ? 100 : -1);
     }
+}
 }

@@ -9,8 +9,9 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
+namespace Benchstone.BenchI
+{
 public class TreeInsert
 {
 #if DEBUG
@@ -135,4 +136,5 @@ public class TreeInsert
         bool result = TestBase();
         return (result ? 100 : -1);
     }
+}
 }

@@ -9,8 +9,9 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
+namespace Benchstone.BenchI
+{
 public static class AddArray2
 {
 #if DEBUG
@@ -128,4 +129,5 @@ public static class AddArray2
         bool result = TestBase();
         return (result ? 100 : -1);
     }
+}
 }

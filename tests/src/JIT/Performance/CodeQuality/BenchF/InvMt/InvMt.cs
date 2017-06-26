@@ -10,8 +10,9 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
+namespace Benchstone.BenchF
+{
 public static class InvMt
 {
 #if DEBUG
@@ -134,4 +135,5 @@ public static class InvMt
         bool result = TestBase();
         return (result ? 100 : -1);
     }
+}
 }

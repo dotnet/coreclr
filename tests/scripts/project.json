@@ -1,11 +1,15 @@
 {
   "dependencies": {
-    "Microsoft.DotNet.xunit.performance.run.core": "1.0.0-alpha-build0035",
-    "Microsoft.DotNet.xunit.performance.analysis.cli": "1.0.0-alpha-build0035",
-    "Microsoft.DotNet.xunit.performance.runner.cli": "1.0.0-alpha-build0035",
-    "Microsoft.DotNet.xunit.performance":"1.0.0-alpha-build0035",
-    "xunit.console.netcore": "1.0.3-prerelease-00607-01",
+    "xunit.console.netcore": "1.0.2-prerelease-00101",
     "Microsoft.DotNet.BuildTools.TestSuite": "1.0.0-prerelease-00629-04",
+
+    "CommandLineParser": "2.1.1-beta",
+    "Microsoft.3rdpartytools.MarkdownLog": "0.10.0-alpha-experimental",
+
+    "xunit.performance.api": "1.0.0-beta-build0007",
+    "xunit.performance.core": "1.0.0-beta-build0007",
+    "xunit.performance.execution": "1.0.0-beta-build0007",
+    "xunit.performance.metrics": "1.0.0-beta-build0007"
   },
   "frameworks": {
     "netstandard1.3":{

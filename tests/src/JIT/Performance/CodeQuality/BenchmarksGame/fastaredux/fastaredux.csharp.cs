@@ -16,8 +16,9 @@ using System.IO;
 using System.Text;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
+namespace BenchmarksGame
+{
 public static class FastaRedux
 {
 #if DEBUG
@@ -180,5 +181,6 @@ public static class FastaRedux
         if (lr < LINE_LEN) s_buf[BUF_LEN - (br--)] = LF;
         if (br < BUF_LEN) s.Write(s_buf, 0, BUF_LEN - br);
     }
+}
 }
 

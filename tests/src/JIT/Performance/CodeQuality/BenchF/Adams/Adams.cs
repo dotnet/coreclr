@@ -15,9 +15,10 @@ using Microsoft.Xunit.Performance;
 
 #if XUNIT_PERF
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 #endif // XUNIT_PERF
 
+namespace Benchstone.BenchF
+{
 public static class Adams
 {
 #if DEBUG
@@ -41,7 +42,7 @@ public static class Adams
 
 #if VERBOSE
         Console.WriteLine(" ADAMS-MOULTON METHOD ");
-#endif // VERBOSE 
+#endif // VERBOSE
 
         n = 4;
         h = 1.0 / 32.0;
@@ -67,7 +68,7 @@ public static class Adams
             f[i] = xn + yn;
 #if VERBOSE
             Console.WriteLine("{0},  {1},  {2},  {3},  {4}", k, xn, yn, dn, en);
-#endif // VERBOSE 
+#endif // VERBOSE
         }
 
         for (k = 4; k <= nstep; k++)
@@ -137,7 +138,7 @@ public static class Adams
 
         bool result = true;
         // Note: we can't check xn or yn better because of the precision
-        // with which original results are given 
+        // with which original results are given
         result &= System.Math.Abs(g_xn_base - g_xn) <= 1.5e-7;
         result &= System.Math.Abs(g_yn_base - g_yn) <= 1.5e-7;
         result &= System.Math.Abs(g_dn) <= 2.5e-9;
@@ -160,4 +161,5 @@ public static class Adams
         Console.WriteLine("Test iterations: {0}; Total time: {1} sec", Iterations, sw.Elapsed.TotalSeconds);
         return (result ? 100 : -1);
     }
+}
 }
