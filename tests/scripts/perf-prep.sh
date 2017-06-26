@@ -54,7 +54,7 @@ echo "configuration = $perfConfig"
 # Instead we curl the package feed and use grep and sed to find the newest package.
 # We grep for content type and that returns us strings that contain the path to the nupkg
 # Then we match only the last line using '$' and use the s command to replace the entire line
-# with what we find inside of the quotes after src=.  We then jump to label x on a match and if
+# with what we find inside of the quotes after src=.  We then jump to label x on a match and if 
 # we don't match we delete the line.  This returns just the address of the last nupkg to curl.
 curl "http://benchviewtestfeed.azurewebsites.net/nuget/FindPackagesById()?id='Microsoft.BenchView.JSONFormat'" | grep "content type" | sed "$ s/.*src=\"\([^\"]*\)\".*/\1/;tx;d;:x" | xargs curl -o benchview.zip
 unzip -q -o benchview.zip -d ./tests/scripts/Microsoft.BenchView.JSONFormat
@@ -64,19 +64,17 @@ python3.5 --version
 python3.5 ./tests/scripts/Microsoft.BenchView.JSONFormat/tools/machinedata.py
 
 if [ $throughput -eq 1 ]; then
-    # Clone corefx
-    if [ -d "_" ]; then
-        rm -r -f _
+    # Download throughput benchmarks
+    if [ -d "Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT" ]; then
+        rm -r -f Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
     fi
-    mkdir _
-    git clone https://github.com/dotnet/corefx.git _/fx
-    cd _/fx
+    mkdir Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
+    cd Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
 
-    # Checkout the specific commit we want
-    git checkout 936d52df0532d56a19ff8486bc9aa7eac19860b3
+    curl -OL https://dotnet.myget.org/F/dotnet-core/api/v2/package/Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT/1.0.0
+    mv 1.0.0 1.0.0.zip
+    unzip -q 1.0.0.zip
 
-    # Build
-    ./build.sh -release
 else
     # Set up the copies
     # Coreclr build containing the tests and mscorlib
