@@ -166,10 +166,10 @@ int __cdecl main(int argc, char* argv[])
         return -1;
     }
 
-    //if (o.parallel)
-    //{
-    //    return doParallelSuperPMI(o);
-    //}
+    if (o.parallel)
+    {
+        return doParallelSuperPMI(o);
+    }
 
     SetSuperPmiTargetArchitecture(o.targetArchitecture);
 
