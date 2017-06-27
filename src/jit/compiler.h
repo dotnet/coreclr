@@ -8264,7 +8264,7 @@ public:
         unsigned  compILargsCount;   // Number of arguments (incl. implicit but not hidden)
         unsigned  compArgsCount;     // Number of arguments (incl. implicit and     hidden)
 
-#if FEATURE_MULTIREG_ARGS && FEATURE_FASTTAILCALL
+#if FEATURE_FASTTAILCALL
         unsigned compArgRegCount;      // Number of incoming integer args
         unsigned compFloatArgRegCount; // Number of incoming floating point args
         size_t   compStackSize;        // Incoming stack size
