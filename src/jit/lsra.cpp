@@ -6480,7 +6480,6 @@ void LinearScan::unassignPhysReg(RegRecord* regRec, RefPosition* spillRefPositio
     {
         // This must have been a temporary copy reg, but we can't assert that because there
         // may have been intervening RefPositions that were not copyRegs.
-        regRec->assignedInterval = nullptr;
         return;
     }
 
