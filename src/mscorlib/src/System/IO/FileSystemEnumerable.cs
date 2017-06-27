@@ -496,9 +496,6 @@ namespace System.IO
         {
             Contract.Requires(searchPattern != null);
 
-            // Win32 normalization trims only U+0020.
-            String tempSearchPattern = searchPattern.TrimEnd(PathInternal.s_trimEndChars);
-
             // Make this corner case more useful, like dir
             if (tempSearchPattern.Equals("."))
             {
