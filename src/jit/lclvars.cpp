@@ -262,12 +262,12 @@ void Compiler::lvaInitTypeRef()
         {
             incrementRegCount(curDsc);
 
-#if defined(FEATURE_MULTIREG_ARGS) && defined(UNIX_AMD64_ABI)
+#if FEATURE_MULTIREG_ARGS
             if (curDsc->lvOtherArgReg != REG_NA)
             {
                 incrementRegCount(curDsc);
             }
-#endif // defined(FEATURE_MULTIREG_ARGS) && defined(UNIX_AMD64_ABI)
+#endif // FEATURE_MULTIREG_ARGS
         }
         else if (varTypeIsStruct(curDsc))
         {
@@ -1314,9 +1314,9 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
     varDsc->lvStkOffs = BAD_STK_OFFS;
 #endif
 
-#if defined(FEATURE_MULTIREG_ARGS) && !defined(WINDOWS_AMD64_ABI)
+#if FEATURE_MULTIREG_ARGS
     varDsc->lvOtherArgReg = REG_NA;
-#endif // defined(FEATURE_MULTIREG_ARGS) && !defined(WINDOWS_AMD64_ABI)
+#endif // FEATURE_MULTIREG_ARGS
 }
 
 /*****************************************************************************

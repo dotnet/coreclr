@@ -7146,7 +7146,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         return false;
     }
 
-#elif (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI) || defined(_TARGET_ARM64_))
+#elif (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI)) || defined(_TARGET_ARM64_)
 
     // For *nix Amd64 and Arm64 check to see if all arguments for the callee
     // and caller are passing in registers. If not, ensure that the outgoing argument stack size
