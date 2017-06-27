@@ -243,14 +243,13 @@ void Compiler::lvaInitTypeRef()
     // This will later be used for fastTailCall determination
     //-------------------------------------------------------------------------
 
-    unsigned   argRegCount      = 0;
-    unsigned   floatingRegCount = 0;
-    unsigned   stackArgCount    = 0;
-    size_t     stackSize        = 0;
-    unsigned   compArgCount     = info.compArgsCount;
+    unsigned argRegCount      = 0;
+    unsigned floatingRegCount = 0;
+    unsigned stackArgCount    = 0;
+    size_t   stackSize        = 0;
+    unsigned compArgCount     = info.compArgsCount;
 
-    auto incrementRegCount = [&floatingRegCount, &argRegCount](LclVarDsc* varDsc)
-    {
+    auto incrementRegCount = [&floatingRegCount, &argRegCount](LclVarDsc* varDsc) {
         varDsc->IsFloatRegType() ? ++floatingRegCount : ++argRegCount;
     };
 
@@ -294,7 +293,7 @@ void Compiler::lvaInitTypeRef()
          i++, varNum++, varDsc++, localsSig = info.compCompHnd->getArgNext(localsSig))
     {
         CORINFO_CLASS_HANDLE typeHnd;
-        CorInfoTypeWithMod corInfoTypeWithMod =
+        CorInfoTypeWithMod   corInfoTypeWithMod =
             info.compCompHnd->getArgType(&info.compMethodInfo->locals, localsSig, &typeHnd);
         CorInfoType corInfoType = strip(corInfoTypeWithMod);
 
@@ -317,11 +316,11 @@ void Compiler::lvaInitTypeRef()
 
     stackSize += stackArgCount * REGSIZE_BYTES;
 
-    info.compArgRegCount = argRegCount;
+    info.compArgRegCount      = argRegCount;
     info.compFloatArgRegCount = floatingRegCount;
-    info.compStackSize = stackSize;
+    info.compStackSize        = stackSize;
 
-#endif //FEATURE_FASTTAILCALL
+#endif // FEATURE_FASTTAILCALL
 
     if ( // If there already exist unsafe buffers, don't mark more structs as unsafe
         // as that will cause them to be placed along with the real unsafe buffers,

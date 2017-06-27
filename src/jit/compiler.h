@@ -8259,20 +8259,20 @@ public:
         bool compPublishStubParam : 1; // EAX captured in prolog will be available through an instrinsic
         bool compRetBuffDefStack : 1;  // The ret buff argument definitely points into the stack.
 
-        var_types compRetType;          // Return type of the method as declared in IL
-        var_types compRetNativeType;    // Normalized return type as per target arch ABI
-        unsigned  compILargsCount;      // Number of arguments (incl. implicit but not hidden)
-        unsigned  compArgsCount;        // Number of arguments (incl. implicit and     hidden)
+        var_types compRetType;       // Return type of the method as declared in IL
+        var_types compRetNativeType; // Normalized return type as per target arch ABI
+        unsigned  compILargsCount;   // Number of arguments (incl. implicit but not hidden)
+        unsigned  compArgsCount;     // Number of arguments (incl. implicit and     hidden)
 
 #if defined(FEATURE_MULTIREG_ARGS) && defined(FEATURE_FASTTAILCALL)
-        unsigned  compArgRegCount;      // Number of incoming integer args
-        unsigned  compFloatArgRegCount; // Number of incoming floating point args
-        size_t  compStackSize;        // Incoming stack size
-#endif // defined(FEATURE_MULTIREG_ARGS) && defined(FEATURE_FASTTAILCALL)
+        unsigned compArgRegCount;      // Number of incoming integer args
+        unsigned compFloatArgRegCount; // Number of incoming floating point args
+        size_t   compStackSize;        // Incoming stack size
+#endif                                 // defined(FEATURE_MULTIREG_ARGS) && defined(FEATURE_FASTTAILCALL)
 
-        unsigned  compRetBuffArg;       // position of hidden return param var (0, 1) (BAD_VAR_NUM means not present);
-        int compTypeCtxtArg;            // position of hidden param for type context for generic code (CORINFO_CALLCONV_PARAMTYPE)
-        unsigned       compThisArg;     // position of implicit this pointer param (not to be confused with lvaArg0Var)
+        unsigned compRetBuffArg; // position of hidden return param var (0, 1) (BAD_VAR_NUM means not present);
+        int compTypeCtxtArg; // position of hidden param for type context for generic code (CORINFO_CALLCONV_PARAMTYPE)
+        unsigned       compThisArg; // position of implicit this pointer param (not to be confused with lvaArg0Var)
         unsigned       compILlocalsCount; // Number of vars : args + locals (incl. implicit but not hidden)
         unsigned       compLocalsCount;   // Number of vars : args + locals (incl. implicit and     hidden)
         unsigned       compMaxStack;
