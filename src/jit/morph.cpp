@@ -7136,7 +7136,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
                                   ? (calleeArgRegCount + calleeFloatArgRegCount) - maxRegArgs
                                   : 0;
     size_t calleeStackSize = calleeStackSlots * TARGET_POINTER_SIZE;
-    size_t callerStackSize = info.compStackSize;
+    size_t callerStackSize = info.compArgStackSize;
 
     // x64 Windows: If we have more callee registers used than MAX_REG_ARG, then
     // make sure the callee's incoming arguments is less than the caller's
@@ -7163,7 +7163,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         calleeFloatArgRegCount > maxFloatRegArgs ? calleeFloatArgRegCount - maxFloatRegArgs : 0;
 
     size_t calleeStackArgCount = calleeIntStackArgCount + calleeFloatStackArgCount;
-    size_t callerStackSize     = info.compStackSize;
+    size_t callerStackSize     = info.compArgStackSize;
     size_t calleeStackSize     = calleeStackArgCount * TARGET_POINTER_SIZE;
 
     if (callerStackSize > 0 || calleeStackSize > 0)

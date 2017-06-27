@@ -318,7 +318,7 @@ void Compiler::lvaInitTypeRef()
 
     info.compArgRegCount      = argRegCount;
     info.compFloatArgRegCount = floatingRegCount;
-    info.compStackSize        = stackSize;
+    info.compArgStackSize        = stackSize;
 
 #endif // FEATURE_FASTTAILCALL
 
