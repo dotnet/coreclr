@@ -7039,7 +7039,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
                 }
                 else
                 {
-                    if (structDesc.eightByteCount > 1)
+                    if (structDesc.eightByteCount == 2)
                     {
                         hasTwoSlotSizedStruct = true;
                     }
