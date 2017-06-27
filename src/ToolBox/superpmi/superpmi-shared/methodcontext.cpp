@@ -2567,12 +2567,8 @@ void MethodContext::recGetMethodSig(CORINFO_METHOD_HANDLE ftn, CORINFO_SIG_INFO*
 }
 void MethodContext::dmpGetMethodSig(DLDL key, const Agnostic_CORINFO_SIG_INFO& value)
 {
-    printf("GetMethodSig key ftn-%016llX prt-%016llX, value cc-%u rtc-%016llX rts-%016llX rt-%u(%s) flg-%08X na-%u "
-           "cc-%u ci-%u mc-%u mi-%u args-%016llX sig-%u pSig_Index-%u scp-%016llX tok-%08X",
-           key.A, key.B, value.callConv, value.retTypeClass, value.retTypeSigClass, value.retType,
-           toString((CorInfoType)value.retType), value.flags, value.numArgs, value.sigInst_classInstCount,
-           value.sigInst_classInst_Index, value.sigInst_methInstCount, value.sigInst_methInst_Index, value.args,
-           value.cbSig, value.pSig_Index, value.scope, value.token);
+    printf("GetMethodSig key ftn-%016llX prt-%016llX, value %s", key.A, key.B,
+           SpmiDumpHelper::DumpAgnostic_CORINFO_SIG_INFO(value).c_str());
 }
 void MethodContext::repGetMethodSig(CORINFO_METHOD_HANDLE ftn, CORINFO_SIG_INFO* sig, CORINFO_CLASS_HANDLE memberParent)
 {
@@ -5639,12 +5635,8 @@ void MethodContext::recGetTailCallCopyArgsThunk(CORINFO_SIG_INFO*               
 }
 void MethodContext::dmpGetTailCallCopyArgsThunk(const Agnostic_GetTailCallCopyArgsThunk& key, DWORDLONG value)
 {
-    printf("GetTailCallCopyArgsThunk key sig{cc-%u rtc-%016llX rts-%016llX rt-%u flg-%08X na-%u cc-%u ci-%u mc-%u "
-           "mi-%u sig-%u pSig_Index-%u scp-%016llX tok-%08X} flg-%08X",
-           key.Sig.callConv, key.Sig.retTypeClass, key.Sig.retTypeSigClass, key.Sig.retType, key.Sig.flags,
-           key.Sig.numArgs, key.Sig.sigInst_classInstCount, key.Sig.sigInst_classInst_Index,
-           key.Sig.sigInst_methInstCount, key.Sig.sigInst_methInst_Index, key.Sig.cbSig, key.Sig.pSig_Index,
-           key.Sig.scope, key.Sig.token, key.flags);
+    printf("GetTailCallCopyArgsThunk key sig%s flg-%08X",
+           SpmiDumpHelper::DumpAgnostic_CORINFO_SIG_INFO(key.Sig).c_str(), key.flags);
     printf(", value res-%016llX", value);
 }
 void* MethodContext::repGetTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfoHelperTailCallSpecialHandling flags)
