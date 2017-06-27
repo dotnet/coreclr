@@ -1404,43 +1404,12 @@ void MethodContext::recGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
         }
         value.thisTransform = (DWORD)pResult->thisTransform;
 
-        value.kind                                     = (DWORD)pResult->kind;
-        value.nullInstanceCheck                        = (DWORD)pResult->nullInstanceCheck;
-        value.contextHandle                            = (DWORDLONG)pResult->contextHandle;
-        value.exactContextNeedsRuntimeLookup           = (DWORD)pResult->exactContextNeedsRuntimeLookup;
-        value.stubLookup.lookupKind.needsRuntimeLookup = (DWORD)pResult->stubLookup.lookupKind.needsRuntimeLookup;
-        value.stubLookup.lookupKind.runtimeLookupKind  = (DWORD)pResult->stubLookup.lookupKind.runtimeLookupKind;
-        if (pResult->stubLookup.lookupKind.needsRuntimeLookup)
-        {
-            value.stubLookup.constLookup.accessType = (DWORD)0;
-            value.stubLookup.constLookup.handle     = (DWORDLONG)0;
+        value.kind                           = (DWORD)pResult->kind;
+        value.nullInstanceCheck              = (DWORD)pResult->nullInstanceCheck;
+        value.contextHandle                  = (DWORDLONG)pResult->contextHandle;
+        value.exactContextNeedsRuntimeLookup = (DWORD)pResult->exactContextNeedsRuntimeLookup;
 
-            value.stubLookup.runtimeLookup.signature =
-                (DWORDLONG)pResult->stubLookup.runtimeLookup.signature; // needs to be a more flexible copy based on
-                                                                        // value
-            value.stubLookup.runtimeLookup.helper       = (DWORD)pResult->stubLookup.runtimeLookup.helper;
-            value.stubLookup.runtimeLookup.indirections = (DWORD)pResult->stubLookup.runtimeLookup.indirections;
-            value.stubLookup.runtimeLookup.testForNull  = (DWORD)pResult->stubLookup.runtimeLookup.testForNull;
-            value.stubLookup.runtimeLookup.testForFixup = (DWORD)pResult->stubLookup.runtimeLookup.testForFixup;
-            value.stubLookup.runtimeLookup.indirectFirstOffset =
-                (DWORD)pResult->stubLookup.runtimeLookup.indirectFirstOffset;
-            for (int i                                    = 0; i < CORINFO_MAXINDIRECTIONS; i++)
-                value.stubLookup.runtimeLookup.offsets[i] = (DWORDLONG)pResult->stubLookup.runtimeLookup.offsets[i];
-        }
-        else
-        {
-            value.stubLookup.runtimeLookup.signature           = (DWORDLONG)0;
-            value.stubLookup.runtimeLookup.helper              = (DWORD)0;
-            value.stubLookup.runtimeLookup.indirections        = (DWORD)0;
-            value.stubLookup.runtimeLookup.testForNull         = (DWORD)0;
-            value.stubLookup.runtimeLookup.testForFixup        = (DWORD)0;
-            value.stubLookup.runtimeLookup.indirectFirstOffset = (DWORD)0;
-            for (int i                                    = 0; i < CORINFO_MAXINDIRECTIONS; i++)
-                value.stubLookup.runtimeLookup.offsets[i] = (DWORDLONG)0;
-
-            value.stubLookup.constLookup.accessType = (DWORD)pResult->stubLookup.constLookup.accessType;
-            value.stubLookup.constLookup.handle     = (DWORDLONG)pResult->stubLookup.constLookup.handle;
-        }
+        value.stubLookup = SpmiRecordsHelper::StoreAgnostic_CORINFO_LOOKUP(&pResult->stubLookup);
 
         value.instParamLookup.accessType = (DWORD)pResult->instParamLookup.accessType;
         value.instParamLookup.handle     = (DWORDLONG)pResult->instParamLookup.handle;
@@ -1460,18 +1429,17 @@ void MethodContext::dmpGetCallInfo(const Agnostic_GetCallInfo& key, const Agnost
            SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.ConstrainedResolvedToken).c_str(), key.callerHandle,
            key.flags);
     printf(", value mth-%016llX, mf-%08X cf-%08X"
-           " sig{flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u args-%016llX scp-%016llX tok-%08X}"
-           " vsig{flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u args-%016llX scp-%016llX tok-%08X}"
+           " sig%s"
+           " vsig%s"
            " ipl{at-%08X hnd-%016llX}"
            " sdi-%08X"
-           " excp-%08X",
-           value.hMethod, value.methodFlags, value.classFlags, value.sig.flags, value.sig.numArgs,
-           value.sig.sigInst_classInstCount, value.sig.sigInst_classInst_Index, value.sig.sigInst_methInstCount,
-           value.sig.sigInst_methInst_Index, value.sig.args, value.sig.scope, value.sig.token, value.verSig.flags,
-           value.verSig.numArgs, value.verSig.sigInst_classInstCount, value.verSig.sigInst_classInst_Index,
-           value.verSig.sigInst_methInstCount, value.verSig.sigInst_methInst_Index, value.verSig.args,
-           value.verSig.scope, value.verSig.token, value.instParamLookup.accessType, value.instParamLookup.handle,
-           value.secureDelegateInvoke, value.exceptionCode);
+           " excp-%08X"
+           "stubLookup%s",
+           value.hMethod, value.methodFlags, value.classFlags,
+           SpmiDumpHelper::DumpAgnostic_CORINFO_SIG_INFO(value.sig).c_str(),
+           SpmiDumpHelper::DumpAgnostic_CORINFO_SIG_INFO(value.verSig).c_str(), value.instParamLookup.accessType,
+           value.instParamLookup.handle, value.secureDelegateInvoke, value.exceptionCode,
+           SpmiDumpHelper::DumpAgnostic_CORINFO_LOOKUP(value.stubLookup).c_str());
 }
 void MethodContext::repGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                    CORINFO_RESOLVED_TOKEN* pConstrainedResolvedToken,
@@ -2168,7 +2136,7 @@ void MethodContext::recGetReadyToRunDelegateCtorHelper(CORINFO_RESOLVED_TOKEN* p
     key.TargetMethod =
         SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(pTargetMethod, GetReadyToRunDelegateCtorHelper);
     key.delegateType              = (DWORDLONG)delegateType;
-    Agnostic_CORINFO_LOOKUP value = SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP(pLookup);
+    Agnostic_CORINFO_LOOKUP value = SpmiRecordsHelper::StoreAgnostic_CORINFO_LOOKUP(pLookup);
     GetReadyToRunDelegateCtorHelper->Add(key, value);
     DEBUG_REP(dmpGetReadyToRunDelegateCtorHelper(key, value));
 }
@@ -2178,7 +2146,7 @@ void MethodContext::dmpGetReadyToRunDelegateCtorHelper(GetReadyToRunDelegateCtor
 {
     printf("GetReadyToRunDelegateCtorHelper key: method tk{%s} type-%016llX",
            SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.TargetMethod).c_str(), key.delegateType);
-    printf(", value: %s", SpmiDumpHelper::Dump_Agnostic_CORINFO_LOOKUP(value).c_str());
+    printf(", value: %s", SpmiDumpHelper::DumpAgnostic_CORINFO_LOOKUP(value).c_str());
 }
 
 void MethodContext::repGetReadyToRunDelegateCtorHelper(CORINFO_RESOLVED_TOKEN* pTargetMethod,
@@ -2916,36 +2884,7 @@ void MethodContext::recEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolve
     key.fEmbedParent  = (DWORD)fEmbedParent;
 
     Agnostic_CORINFO_GENERICHANDLE_RESULT value;
-    value.lookup.lookupKind.needsRuntimeLookup = (DWORD)pResult->lookup.lookupKind.needsRuntimeLookup;
-    value.lookup.lookupKind.runtimeLookupKind  = (DWORD)pResult->lookup.lookupKind.runtimeLookupKind;
-    if (pResult->lookup.lookupKind.needsRuntimeLookup)
-    {
-        value.lookup.constLookup.accessType = (DWORD)0;
-        value.lookup.constLookup.handle     = (DWORDLONG)0;
-        // copy the runtimeLookup view of the union
-        value.lookup.runtimeLookup.signature           = (DWORDLONG)pResult->lookup.runtimeLookup.signature;
-        value.lookup.runtimeLookup.helper              = (DWORD)pResult->lookup.runtimeLookup.helper;
-        value.lookup.runtimeLookup.indirections        = (DWORD)pResult->lookup.runtimeLookup.indirections;
-        value.lookup.runtimeLookup.testForNull         = (DWORD)pResult->lookup.runtimeLookup.testForNull;
-        value.lookup.runtimeLookup.testForFixup        = (DWORD)pResult->lookup.runtimeLookup.testForFixup;
-        value.lookup.runtimeLookup.indirectFirstOffset = (DWORD)pResult->lookup.runtimeLookup.indirectFirstOffset;
-        for (int i                                = 0; i < CORINFO_MAXINDIRECTIONS; i++)
-            value.lookup.runtimeLookup.offsets[i] = (DWORDLONG)pResult->lookup.runtimeLookup.offsets[i];
-    }
-    else
-    {
-        value.lookup.runtimeLookup.signature           = (DWORDLONG)0;
-        value.lookup.runtimeLookup.helper              = (DWORD)0;
-        value.lookup.runtimeLookup.indirections        = (DWORD)0;
-        value.lookup.runtimeLookup.testForNull         = (DWORD)0;
-        value.lookup.runtimeLookup.testForFixup        = (DWORD)0;
-        value.lookup.runtimeLookup.indirectFirstOffset = (DWORD)0;
-        for (int i                                = 0; i < CORINFO_MAXINDIRECTIONS; i++)
-            value.lookup.runtimeLookup.offsets[i] = (DWORDLONG)0;
-        // copy the constLookup view of the union
-        value.lookup.constLookup.accessType = (DWORD)pResult->lookup.constLookup.accessType;
-        value.lookup.constLookup.handle     = (DWORDLONG)pResult->lookup.constLookup.handle;
-    }
+    value.lookup            = SpmiRecordsHelper::StoreAgnostic_CORINFO_LOOKUP(&pResult->lookup);
     value.compileTimeHandle = (DWORDLONG)pResult->compileTimeHandle;
     value.handleType        = (DWORD)pResult->handleType;
 
@@ -2957,21 +2896,7 @@ void MethodContext::dmpEmbedGenericHandle(const Agnostic_EmbedGenericHandle&    
 {
     printf("EmbedGenericHandle key rt{%s} emb-%u\n",
            SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.ResolvedToken).c_str(), key.fEmbedParent);
-    printf(", value nrl-%u rlk-%u", value.lookup.lookupKind.needsRuntimeLookup,
-           value.lookup.lookupKind.runtimeLookupKind);
-    if (value.lookup.lookupKind.needsRuntimeLookup)
-    {
-        printf(" sig-%016llX hlp-%u ind-%u tfn-%u tff-%u { ", value.lookup.runtimeLookup.signature,
-               value.lookup.runtimeLookup.helper, value.lookup.runtimeLookup.indirections,
-               value.lookup.runtimeLookup.testForNull, value.lookup.runtimeLookup.testForFixup);
-        for (int i = 0; i < CORINFO_MAXINDIRECTIONS; i++)
-            printf("%016llX ", value.lookup.runtimeLookup.offsets[i]);
-        printf("}");
-    }
-    else
-    {
-        printf(" at-%u han-%016llX", value.lookup.constLookup.accessType, value.lookup.constLookup.handle);
-    }
+    printf(", value %s", SpmiDumpHelper::DumpAgnostic_CORINFO_LOOKUP(value.lookup).c_str());
     printf(" cth-%016llX ht-%u", value.compileTimeHandle, value.handleType);
 }
 void MethodContext::repEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolvedToken,
@@ -2991,26 +2916,7 @@ void MethodContext::repEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolve
     Agnostic_CORINFO_GENERICHANDLE_RESULT value;
     value = EmbedGenericHandle->Get(key);
 
-    pResult->lookup.lookupKind.needsRuntimeLookup = value.lookup.lookupKind.needsRuntimeLookup != 0;
-    pResult->lookup.lookupKind.runtimeLookupKind =
-        (CORINFO_RUNTIME_LOOKUP_KIND)value.lookup.lookupKind.runtimeLookupKind;
-    if (pResult->lookup.lookupKind.needsRuntimeLookup)
-    {
-        // copy the runtimeLookup view of the union
-        pResult->lookup.runtimeLookup.signature           = (LPVOID)value.lookup.runtimeLookup.signature;
-        pResult->lookup.runtimeLookup.helper              = (CorInfoHelpFunc)value.lookup.runtimeLookup.helper;
-        pResult->lookup.runtimeLookup.indirections        = (WORD)value.lookup.runtimeLookup.indirections;
-        pResult->lookup.runtimeLookup.testForNull         = value.lookup.runtimeLookup.testForNull != 0;
-        pResult->lookup.runtimeLookup.testForFixup        = value.lookup.runtimeLookup.testForFixup != 0;
-        pResult->lookup.runtimeLookup.indirectFirstOffset = value.lookup.runtimeLookup.indirectFirstOffset != 0;
-        for (int i                                   = 0; i < CORINFO_MAXINDIRECTIONS; i++)
-            pResult->lookup.runtimeLookup.offsets[i] = (size_t)value.lookup.runtimeLookup.offsets[i];
-    }
-    else
-    {
-        pResult->lookup.constLookup.accessType = (InfoAccessType)value.lookup.constLookup.accessType;
-        pResult->lookup.constLookup.handle     = (CORINFO_GENERIC_HANDLE)value.lookup.constLookup.handle;
-    }
+    pResult->lookup            = SpmiRecordsHelper::RestoreCORINFO_LOOKUP(value.lookup);
     pResult->compileTimeHandle = (CORINFO_GENERIC_HANDLE)value.compileTimeHandle;
     pResult->handleType        = (CorInfoGenericHandleType)value.handleType;
 

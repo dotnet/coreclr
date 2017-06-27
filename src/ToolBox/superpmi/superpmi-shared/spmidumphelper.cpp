@@ -54,13 +54,12 @@ std::string SpmiDumpHelper::DumpAgnostic_CORINFO_CONST_LOOKUP(
     return std::string(buffer);
 }
 
-std::string SpmiDumpHelper::Dump_Agnostic_CORINFO_RUNTIME_LOOKUP(
+std::string SpmiDumpHelper::DumpAgnostic_CORINFO_RUNTIME_LOOKUP(
     const MethodContext::Agnostic_CORINFO_RUNTIME_LOOKUP& lookup)
 {
     char buffer[MAX_BUFFER_SIZE];
-    sprintf_s(buffer, MAX_BUFFER_SIZE, " sig-%016llX hlp-%u ind-%u tfn-%u tff-%u { ", lookup.signature,
-        lookup.helper, lookup.indirections,
-        lookup.testForNull, lookup.testForFixup);
+    sprintf_s(buffer, MAX_BUFFER_SIZE, " sig-%016llX hlp-%u ind-%u tfn-%u tff-%u { ", lookup.signature, lookup.helper,
+              lookup.indirections, lookup.testForNull, lookup.testForFixup);
     std::string resultDump(buffer);
     for (int i = 0; i < CORINFO_MAXINDIRECTIONS; i++)
     {
@@ -71,17 +70,27 @@ std::string SpmiDumpHelper::Dump_Agnostic_CORINFO_RUNTIME_LOOKUP(
     return resultDump;
 }
 
-std::string SpmiDumpHelper::Dump_Agnostic_CORINFO_LOOKUP(const MethodContext::Agnostic_CORINFO_LOOKUP& lookup)
+std::string SpmiDumpHelper::DumpAgnostic_CORINFO_LOOKUP(const MethodContext::Agnostic_CORINFO_LOOKUP& lookup)
 {
     std::string kind = DumpAgnostic_CORINFO_LOOKUP_KIND(lookup.lookupKind);
     std::string lookupDescription;
     if (lookup.lookupKind.needsRuntimeLookup)
     {
-        lookupDescription = Dump_Agnostic_CORINFO_RUNTIME_LOOKUP(lookup.runtimeLookup);
+        lookupDescription = DumpAgnostic_CORINFO_RUNTIME_LOOKUP(lookup.runtimeLookup);
     }
     else
     {
         lookupDescription = DumpAgnostic_CORINFO_CONST_LOOKUP(lookup.constLookup);
     }
     return kind + std::string(" ") + lookupDescription;
+}
+
+std::string SpmiDumpHelper::DumpAgnostic_CORINFO_SIG_INFO(const MethodContext::Agnostic_CORINFO_SIG_INFO& sigInfo)
+{
+    char buffer[MAX_BUFFER_SIZE];
+    sprintf_s(buffer, MAX_BUFFER_SIZE, "{flg-%08X na-%u cc-%u ci-%u mc-%u mi-%u args-%016llX scp-%016llX tok-%08X}",
+              sigInfo.flags, sigInfo.numArgs, sigInfo.sigInst_classInstCount, sigInfo.sigInst_classInst_Index,
+              sigInfo.sigInst_methInstCount, sigInfo.sigInst_methInst_Index, sigInfo.args, sigInfo.scope,
+              sigInfo.token);
+    return std::string(buffer);
 }

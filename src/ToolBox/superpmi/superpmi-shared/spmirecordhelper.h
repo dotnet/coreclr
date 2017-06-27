@@ -73,7 +73,7 @@ public:
 
     static CORINFO_RUNTIME_LOOKUP RestoreCORINFO_RUNTIME_LOOKUP(MethodContext::Agnostic_CORINFO_RUNTIME_LOOKUP& Lookup);
 
-    static MethodContext::Agnostic_CORINFO_LOOKUP CreateAgnostic_CORINFO_LOOKUP(CORINFO_LOOKUP* pLookup);
+    static MethodContext::Agnostic_CORINFO_LOOKUP StoreAgnostic_CORINFO_LOOKUP(CORINFO_LOOKUP* pLookup);
 
     static CORINFO_LOOKUP RestoreCORINFO_LOOKUP(MethodContext::Agnostic_CORINFO_LOOKUP& agnosticLookup);
 };
@@ -317,7 +317,7 @@ inline CORINFO_RUNTIME_LOOKUP SpmiRecordsHelper::RestoreCORINFO_RUNTIME_LOOKUP(
     return CORINFO_RUNTIME_LOOKUP();
 }
 
-inline MethodContext::Agnostic_CORINFO_LOOKUP SpmiRecordsHelper::CreateAgnostic_CORINFO_LOOKUP(CORINFO_LOOKUP* pLookup)
+inline MethodContext::Agnostic_CORINFO_LOOKUP SpmiRecordsHelper::StoreAgnostic_CORINFO_LOOKUP(CORINFO_LOOKUP* pLookup)
 {
     MethodContext::Agnostic_CORINFO_LOOKUP lookup;
     ZeroMemory(&lookup, sizeof(lookup));
