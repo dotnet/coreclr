@@ -55,8 +55,7 @@ public class FastTailCallCandidates
         CheckOutput(IntegerArgs(10, 11, 12, 13, 14, 15));
         CheckOutput(FloatArgs(10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f));
         CheckOutput(IntAndFloatArgs(10, 11, 12, 13, 14, 15, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f));
-        CheckOutput(DoNotFastTailCallSimple(10, 11));
-        CheckOutput(DoNotFastTailCallSimple(1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14));
+        CheckOutput(DoNotFastTailCallSimple(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14));
         CheckOutput(StackBasedCaller(16, new StructSizeThirtyTwo(1, 2, 3, 4)));
 
         return s_ret_value;
@@ -358,6 +357,8 @@ public class FastTailCallCandidates
         {
             return 104;
         }
+
+        return 100;
     }
 
     /// <summary>
@@ -470,7 +471,7 @@ public class FastTailCallCandidates
     /// Return 105 is a failure.
     ///
     /// </remarks>
-    public static void StackBasedCallee(int a, int b, EightByteStruct ebs)
+    public static int StackBasedCallee(int a, int b, EightByteStruct ebs)
     {
         if (ebs.a == 10)
         {
@@ -496,19 +497,19 @@ public class FastTailCallCandidates
     /// Return 105 is a failure.
     ///
     /// </remarks>
-    public static void StackBasedCaller(int i, StructSizeThirtyTwo sstt)
+    public static int StackBasedCaller(int i, StructSizeThirtyTwo sstt)
     {
         if (i % 2 == 0)
         {
             int a = i * 100;
             int b = i + 1100;
-            return StackBasedCallee(a, b, sstt);
+            return StackBasedCallee(a, b, new EightByteStruct(a));
         }
         else
         {
             int b = i + 829;
             int a = i + 16;
-            return StackBasedCallee(b, a, sstt);
+            return StackBasedCallee(b, a, new EightByteStruct(b));
         }
     }
 
