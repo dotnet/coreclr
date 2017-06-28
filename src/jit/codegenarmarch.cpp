@@ -2959,6 +2959,7 @@ void CodeGen::genStructReturn(GenTreePtr treeNode)
         assert(op1->isContained());
 
         // Copy var on stack into ABI return registers
+        // TODO: It could be optimized by reducing two float loading to one double
         int offset = 0;
         for (unsigned i = 0; i < regCount; ++i)
         {
