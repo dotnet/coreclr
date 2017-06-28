@@ -465,11 +465,12 @@ namespace System.Resources
             get { return _ignoreCase; }
             set 
             { 
+#if FEATURE_APPX
                 if (_PRIonAppXInitialized && value)
                 {
                     throw new PlatformNotSupportedException(SR.Format(SR.PlatformNotSupported_ResourceManager_ResWFileUnsupportedProperty, nameof(IgnoreCase)));
                 }
-
+#endif // FEATURE_APPX
                 _ignoreCase = value; 
             }
         }
