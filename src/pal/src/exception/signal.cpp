@@ -711,22 +711,22 @@ static void signal_ignore_handler(int code, siginfo_t *siginfo, void *context)
 }
 
 
-void PAL_IgnoreProfileSignal(void)
+void PAL_IgnoreProfileSignal(int signalNum)
 {
-#if !HAVE_MACH_EXCEPTIONS && defined(SIGRTMAX)
+#if !HAVE_MACH_EXCEPTIONS
     // Add a signal handler which will ignore signals
     // This will allow signal to be used as a marker in perf recording.
     // This will be used as an aid to synchromize recorded profile with
     // test cases
     //
-    // signal(SIGRTMAX, SGN_IGN) can not be used here.  It will ignore
+    // signal(signalNum, SGN_IGN) can not be used here.  It will ignore
     // the signal in kernel space and therefore generate no recordable
     // event for profiling. Preventing it being used for profile
     // synchronization
     //
     // Since this is only used in rare circumstances no attempt to
     // restore the old handler will be made
-    handle_signal(SIGRTMAX, signal_ignore_handler, 0);
+    handle_signal(signalNum, signal_ignore_handler, 0);
 #endif
 }
 

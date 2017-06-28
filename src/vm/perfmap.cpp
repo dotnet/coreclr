@@ -28,7 +28,12 @@ void PerfMap::Initialize()
         // Create the map.
         s_Current = new PerfMap(currentPid);
 
-        PAL_IgnoreProfileSignal();
+        int signalNum = (int) CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_PerfMapIgnoreSignal);
+
+        if(signalNum > 0)
+        {
+            PAL_IgnoreProfileSignal(signalNum);
+        }
     }
 }
 

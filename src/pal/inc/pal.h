@@ -503,7 +503,7 @@ PAL_InitializeDebug(
 PALIMPORT
 void
 PALAPI
-PAL_IgnoreProfileSignal(void);
+PAL_IgnoreProfileSignal(int signalNum);
 
 PALIMPORT
 HINSTANCE
