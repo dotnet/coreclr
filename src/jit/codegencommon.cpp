@@ -1647,9 +1647,11 @@ void CodeGen::genAdjustStackLevel(BasicBlock* block)
 #if defined(UNIX_X86_ABI)
     if (isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block))
     {
-        int offset = compiler->compCalleeRegsPushed * REGSIZE_BYTES + compiler->compLclFrameSize;
-        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, -offset);
-        SetStackLevel(0);
+        // x86/Linux requires stack frames to be 16-byte aligned, but SP may be unaligned
+        // at this point if a jump to this block is made in the middle of pushing arugments.
+        //
+        // Here we restore SP to prevent potential stack alignment issue.
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, -genSPtoFPdelta());
     }
 #endif
 
