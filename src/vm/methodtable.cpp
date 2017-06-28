@@ -6943,6 +6943,13 @@ MethodTable::FindDispatchImpl(
 }
 
 #ifndef DACCESS_COMPILE
+
+struct MatchCandidate
+{
+    MethodTable *pMT;
+    MethodDesc *pMD;
+};
+
 BOOL MethodTable::FindDefaultMethod(
     MethodDesc *pInterfaceMD,
     MethodTable *pInterfaceMT,
@@ -6964,16 +6971,13 @@ BOOL MethodTable::FindDefaultMethod(
     // Find best candidate
     //
     InterfaceMapIterator it = this->IterateInterfaceMap();
-    MethodTable *pBestCandidateMT = NULL;
-    MethodDesc  *pBestCandidateMD = NULL;
 
-
+    CQuickArray<MatchCandidate> candidates;
+    int candidatesCount = 0;
+    candidates.AllocThrows(this->GetNumInterfaces());
+    
     //
     // Walk interface from derived class to parent class
-    //
-    // @DIM_TODO - This is a first cut naive implementation for prototyping and flush out other 
-    // implementation issues without worrying too much about ordering/checks
-    // Once CLR/C# team has agreed on the right order, we'll replace this with the real deal
     //
     MethodTable *pMT = this;
     while (pMT != NULL)
@@ -7059,23 +7063,40 @@ BOOL MethodTable::FindDefaultMethod(
                         );
                     }
 
-                    if (pBestCandidateMT != pCurMT)
-                    {                    
-                        if (pBestCandidateMT == NULL ||                         // first time
-                            pCurMT->CanCastToInterface(pBestCandidateMT))       // Prefer "more specific"" interface
+                    bool needToInsert = false;
+
+                    for (int i = 0; i < candidatesCount; ++i)
+                    {
+                        MethodTable *pCandidateMT = candidates[i].pMT;
+                        if (pCandidateMT->HasSameTypeDefAs(pCurMT))
+                            break;
+
+                        if (pCurMT->CanCastToInterface(pCandidateMT))
                         {
-                            // This is a better match
-                            pBestCandidateMT = pCurMT;
-                            pBestCandidateMD = pCurMD;
+                            // pCurMT is a more specific choice
+                            // Note: this may end up with duplicates
+                            candidates[i].pMT = pCurMT;
+                            candidates[i].pMD = pCurMD;
+                        }
+                        else if (pCandidateMT->CanCastToInterface(pCurMT))
+                        {
+                            // pCurMT is less specific - we don't need to scan more
+                            break;
                         }
                         else
                         {
-                            if (!pBestCandidateMT->CanCastToInterface(pCurMT))
-                            {
-                                // not good. we have a conflict 
-                                COMPlusThrow(kNotSupportedException);
-                            }
+                            // pCurMT is incompatible - no need to scan more
+                            needToInsert = true;
+                            break;
                         }
+                    }
+                    
+                    if (needToInsert)
+                    {
+                        ASSERT(candidatesCount < candidates.Size());
+                        candidates[candidatesCount].pMT = pCurMT;
+                        candidates[candidatesCount].pMD = pCurMD;
+                        candidatesCount++;
                     }
                 }
 
@@ -7084,6 +7105,23 @@ BOOL MethodTable::FindDefaultMethod(
         }
 
         pMT = pParentMT;
+    }
+
+    // scan to see if there are any conflicts
+    MethodTable *pBestCandidateMT = NULL;
+    MethodDesc *pBestCandidateMD = NULL;
+    for (int i = 0; i < candidatesCount; ++i)
+    {
+        if (pBestCandidateMT == NULL)
+        {
+            pBestCandidateMT = candidates[i].pMT;
+            pBestCandidateMD = candidates[i].pMD;
+        }
+        else if (pBestCandidateMT != candidates[i].pMT)
+        {
+            // found a conflict
+            COMPlusThrow(kNotSupportedException);
+        }
     }
 
     if (pBestCandidateMD != NULL)
