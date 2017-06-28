@@ -1642,6 +1642,8 @@ void CodeGen::genAdjustStackLevel(BasicBlock* block)
 {
 #if !FEATURE_FIXED_OUT_ARGS
     // Check for inserted throw blocks and adjust genStackLevel.
+    CLANG_FORMAT_COMMENT_ANCHOR;
+
 #if defined(UNIX_X86_ABI)
     if (isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block))
     {
