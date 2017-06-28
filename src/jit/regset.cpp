@@ -1544,8 +1544,8 @@ void RegSet::rsSpillTree(regNumber reg, GenTreePtr tree, unsigned regIdx /* =0 *
         splitArg = tree->AsPutArgSplit();
         treeType = splitArg->GetRegType(regIdx);
     }
-    else
 #endif // _TARGET_ARM_
+    else
 #endif // !LEGACY_BACKEND
     {
         treeType = tree->TypeGet();

@@ -734,7 +734,7 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntr
 
 #ifdef _TARGET_ARM_
 //------------------------------------------------------------------------
-// TreeNodeInfoInitPutArgStruct: Set the NodeInfo for a GT_PUTARG_SPLIT node
+// TreeNodeInfoInitPutArgSplit: Set the NodeInfo for a GT_PUTARG_SPLIT node
 //
 // Arguments:
 //    argNode - a GT_PUTARG_SPLIT node
@@ -774,7 +774,7 @@ void Lowering::TreeNodeInfoInitPutArgSplit(GenTreePutArgSplit* argNode, TreeNode
     GenTreePtr objChild = putArgChild->gtOp.gtOp1;
     if (objChild->OperGet() == GT_LCL_VAR_ADDR)
     {
-        // We will generate all of the code for the GT_PUTARG_STK, the GT_OBJ and the GT_LCL_VAR_ADDR
+        // We will generate all of the code for the GT_PUTARG_SPLIT, the GT_OBJ and the GT_LCL_VAR_ADDR
         // as one contained operation
         //
         MakeSrcContained(putArgChild, objChild);
