@@ -749,7 +749,7 @@ public:
             if (color == join_struct.lock_color)
             {
 respin:
-                int spin_count = 4096 * g_num_processors;
+                int spin_count = 4096 * (g_num_gc_threads - 1);
                 for (int j = 0; j < spin_count; j++)
                 {
                     if (color != join_struct.lock_color)
@@ -850,7 +850,7 @@ respin:
                 if (!join_struct.wait_done)
                 {
         respin:
-                    int spin_count = 2 * 4096 * g_num_processors;
+                    int spin_count = 2 * 4096 * (g_num_gc_threads - 1);
                     for (int j = 0; j < spin_count; j++)
                     {
                         if (join_struct.wait_done)
@@ -5336,7 +5336,7 @@ void gc_heap::gc_thread_function ()
         }
         else
         {
-            int spin_count = 32 * (g_num_processors - 1);
+            int spin_count = 32 * (g_num_gc_threads - 1);
 
             // wait until RestartEE has progressed to a stage where we can restart user threads
             while (!gc_heap::internal_gc_done && !GCHeap::SafeToRestartManagedThreads())
@@ -33465,12 +33465,12 @@ HRESULT GCHeap::Initialize ()
                                 CPUGroupInfo::GetNumActiveProcessors():
                                 GCToOSInterface::GetCurrentProcessCpuCount();
 
-    uint32_t nhp = ((nhp_from_config == 0) ? nhp_from_process :
+    g_num_gc_threads = ((nhp_from_config == 0) ? nhp_from_process :
                                              (min (nhp_from_config, nhp_from_process)));
 
-    nhp = min (nhp, MAX_SUPPORTED_CPUS);
+    g_num_gc_threads = min (g_num_gc_threads, MAX_SUPPORTED_CPUS);
 
-    hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/, nhp);
+    hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/, g_num_gc_threads);
 #else
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/);
 #endif //MULTIPLE_HEAPS
@@ -33532,7 +33532,7 @@ HRESULT GCHeap::Initialize ()
 
 #ifdef MULTIPLE_HEAPS
 
-    for (unsigned i = 0; i < nhp; i++)
+    for (unsigned i = 0; i < g_num_gc_threads; i++)
     {
         GCHeap* Hp = new (nothrow) GCHeap();
         if (!Hp)
@@ -33544,7 +33544,7 @@ HRESULT GCHeap::Initialize ()
         }
     }
     // initialize numa node to heap map
-    heap_select::init_numa_node_to_heap_map(nhp);
+    heap_select::init_numa_node_to_heap_map(g_num_gc_threads);
 #else
     hr = Init (0);
 #endif //MULTIPLE_HEAPS

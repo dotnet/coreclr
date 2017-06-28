@@ -106,6 +106,7 @@ extern "C" GCHeapType g_gc_heap_type;
 extern "C" uint32_t g_max_generation;
 extern "C" MethodTable* g_gc_pFreeObjectMethodTable;
 extern "C" uint32_t g_num_processors;
+extern "C" uint32_t g_num_gc_threads;
 
 ::IGCHandleManager*  CreateGCHandleManager();
 
