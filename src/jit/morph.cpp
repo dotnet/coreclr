@@ -7182,13 +7182,13 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // TODO-AMD64-Unix
     // TODO-ARM64
     //
-    // LowerFastTailCall current assumes nCalleeArgs == nCallerArgs. This is
+    // LowerFastTailCall currently assumes nCalleeArgs <= nCallerArgs. This is
     // not true in many cases on x64 linux, remove this pessimization when
     // LowerFastTailCall is fixed. See https://github.com/dotnet/coreclr/issues/12468
     // for more information.
-    if (hasStackArgs && (nCalleeArgs != nCallerArgs))
+    if (hasStackArgs && (nCalleeArgs > nCallerArgs))
     {
-        JITDUMP("Will not fastTailCall hasStackArgs && (nCalleeArgs != nCallerArgs)");
+        JITDUMP("Will not fastTailCall hasStackArgs && (nCalleeArgs > nCallerArgs)");
         return false;
     }
 

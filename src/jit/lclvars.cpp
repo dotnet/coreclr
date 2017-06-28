@@ -245,7 +245,6 @@ void Compiler::lvaInitTypeRef()
 
     unsigned argRegCount      = 0;
     unsigned floatingRegCount = 0;
-    unsigned stackArgCount    = 0;
     size_t   stackSize        = 0;
     unsigned compArgCount     = info.compArgsCount;
 
@@ -314,11 +313,9 @@ void Compiler::lvaInitTypeRef()
     // Save the register usage information and stack size.
     //-------------------------------------------------------------------------
 
-    stackSize += stackArgCount * REGSIZE_BYTES;
-
     info.compArgRegCount      = argRegCount;
     info.compFloatArgRegCount = floatingRegCount;
-    info.compArgStackSize        = stackSize;
+    info.compArgStackSize     = stackSize;
 
 #endif // FEATURE_FASTTAILCALL
 

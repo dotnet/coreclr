@@ -55,8 +55,10 @@ public class FastTailCallCandidates
         CheckOutput(IntegerArgs(10, 11, 12, 13, 14, 15));
         CheckOutput(FloatArgs(10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f));
         CheckOutput(IntAndFloatArgs(10, 11, 12, 13, 14, 15, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f));
+        CheckOutput(CallerGithubIssue12468(1, 2, 3, 4, 5, 6, new StructSizeSixteenNotExplicit(1, 2)));
         CheckOutput(DoNotFastTailCallSimple(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14));
         CheckOutput(StackBasedCaller(16, new StructSizeThirtyTwo(1, 2, 3, 4)));
+        CheckOutput(CallerSimpleHFACase(new HFASize32(1.0, 2.0, 3.0, 4.0), 1.0, 2.0, 3.0, 4.0));
 
         return s_ret_value;
 
@@ -298,12 +300,7 @@ public class FastTailCallCandidates
             four = four + three;
         }
 
-        if (three != 10)
-        {
-            return 104;
-        }
-
-        if (four != 4)
+        if (four != 10)
         {
             return 104;
         }
@@ -392,8 +389,8 @@ public class FastTailCallCandidates
     {
         if (one % 2 == 0)
         {
-            return DoNotFastTailCallHelper((int) one,
-                                           (int) two,
+            return DoNotFastTailCallHelper((int) two,
+                                           (int) one,
                                            (int) three,
                                            (int) four,
                                            (int) five,
@@ -409,8 +406,8 @@ public class FastTailCallCandidates
         }
         else
         {
-            return DoNotFastTailCallHelper((int) two,
-                                           (int) one,
+            return DoNotFastTailCallHelper((int) one,
+                                           (int) two,
                                            (int) three,
                                            (int) four,
                                            (int) five,
@@ -427,8 +424,264 @@ public class FastTailCallCandidates
     }
 
     ////////////////////////////////////////////////////////////////////////////
+    // HFAs
+    ////////////////////////////////////////////////////////////////////////////
+
+    public struct HFASize24
+    {
+        public double a;
+        public double b;
+        public double c;
+
+        public HFASize24(double a, double b, double c)
+        {
+            this.a = a;
+            this.b = b;
+            this.c = c;
+        }
+    }
+
+    public struct HFASize32
+    {
+        public double a;
+        public double b;
+        public double c;
+        public double d;
+
+        public HFASize32(double a, double b, double c, double d)
+        {
+            this.a = a;
+            this.b = b;
+            this.c = c;
+            this.d = d;
+        }
+    }
+
+    /// <summary>
+    /// Possible to fastTailCall only on arm64
+    /// </summary>
+    /// <remarks>
+    ///
+    /// This test case is really only interesting on arm64
+    ///
+    /// Arm64:
+    /// caller has 8 register arguments and no stack space
+    /// callee has 8 register arguments and no stack space
+    ///
+    /// x64 *nux:
+    /// caller has 4 register arguments and 64 bytes of stack space
+    /// callee has 8 register arguments
+    ///
+    /// Arm64 can fastTailCall while x64 linux cannot
+    ///
+    /// Return 100 is a pass.
+    /// Return 107 is a failure.
+    ///
+    /// </remarks>
+    public static int CalleeSimpleHFACase(double one,
+                                          double two,
+                                          double three,
+                                          double four,
+                                          double five,
+                                          double six,
+                                          double seven,
+                                          double eight)
+    {
+        int count = 0;
+        for (double i = 0; i < one; ++i)
+        {
+            if (i % 2 == 0)
+            {
+                ++count;
+            }
+        }
+
+        if (count == 1)
+        {
+            return 100;
+        }
+
+        else
+        {
+            return 107;
+        }
+    }
+
+
+    /// <summary>
+    /// Possible to fastTailCall only on arm64
+    /// </summary>
+    /// <remarks>
+    ///
+    /// This test case is really only interesting on arm64
+    ///
+    /// Arm64:
+    /// caller has 8 register arguments and no stack space
+    /// callee has 8 register arguments and no stack space
+    ///
+    /// x64 *nux:
+    /// caller has 4 register arguments and 64 bytes of stack space
+    /// callee has 8 register arguments
+    ///
+    /// Arm64 can fastTailCall while x64 linux cannot
+    ///
+    /// Return 100 is a pass.
+    /// Return 107 is a failure.
+    ///
+    /// </remarks>
+    public static int CallerSimpleHFACase(HFASize32 s1,
+                                          double one,
+                                          double two,
+                                          double three,
+                                          double four)
+    {
+        if (one % 2 == 0)
+        {
+            double a = one * 100;
+            double b = one + 1100;
+            return CalleeSimpleHFACase(one, 
+                                       two,
+                                       three,
+                                       four,
+                                       a,
+                                       b,
+                                       5.0,
+                                       6.0);
+        }
+        else
+        {
+            double b = one + 1599;
+            double a = one + 16;
+            return CalleeSimpleHFACase(two, 
+                                       one,
+                                       three,
+                                       four,
+                                       a,
+                                       b,
+                                       6.0,
+                                       5.0);
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
     // Stack Based args.
     ////////////////////////////////////////////////////////////////////////////
+
+    public struct StructSizeEightNotExplicit
+    {
+        public long a;
+
+        public StructSizeEightNotExplicit(long a)
+        {
+            this.a = a;
+        }
+    }
+
+    public struct StructSizeSixteenNotExplicit
+    {
+        public long a;
+        public long b;
+
+        public StructSizeSixteenNotExplicit(long a, long b)
+        {
+            this.a = a;
+            this.b = b;
+        }
+
+    }
+
+    /// <summary>
+    /// Possible to fast tail call
+    /// </summary>
+    /// <remarks>
+    ///
+    /// Caller has 6 register arguments and 1 stack argument (size 16)
+    /// Callee has 6 register arguments and 2 stack arguments (size 16)
+    ///
+    /// See: https://github.com/dotnet/coreclr/issues/12468
+    ///
+    /// Return 100 is a pass.
+    /// Return 106 is a failure.
+    ///
+    /// </remarks>
+    public static int CalleeGithubIssue12468(int one,
+                                             int two,
+                                             int three,
+                                             int four,
+                                             int five,
+                                             int six,
+                                             StructSizeEightNotExplicit s1,
+                                             StructSizeEightNotExplicit s2)
+    {
+        int count = 0;
+        for (int i = 0; i < s1.a; ++i)
+        {
+            if (i % 10 == 0)
+            {
+                ++count;
+            }
+        }
+
+        if (count == 160)
+        {
+            return 100;
+        }
+
+        else
+        {
+            return 106;
+        }
+    }
+
+    /// <summary>
+    /// Possible to fast tail call
+    /// </summary>
+    /// <remarks>
+    ///
+    /// Caller has 6 register arguments and 1 stack argument (size 16)
+    /// Callee has 6 register arguments and 2 stack arguments (size 16)
+    ///
+    /// See: https://github.com/dotnet/coreclr/issues/12468
+    ///
+    /// Return 100 is a pass.
+    /// Return 106 is a failure.
+    ///
+    /// </remarks>
+    public static int CallerGithubIssue12468(int one,
+                                             int two,
+                                             int three,
+                                             int four,
+                                             int five,
+                                             int six,
+                                             StructSizeSixteenNotExplicit s1)
+    {
+        if (one % 2 == 0)
+        {
+            long a = one * 100;
+            long b = one + 1100;
+            return CalleeGithubIssue12468(two, 
+                                          one,
+                                          three,
+                                          four,
+                                          five,
+                                          six,
+                                          new StructSizeEightNotExplicit(a), 
+                                          new StructSizeEightNotExplicit(b));
+        }
+        else
+        {
+            long b = one + 1599;
+            long a = one + 16;
+            return CalleeGithubIssue12468(one, 
+                                          two,
+                                          three,
+                                          four,
+                                          five,
+                                          six,
+                                          new StructSizeEightNotExplicit(b), 
+                                          new StructSizeEightNotExplicit(a));
+        }
+    }
     
     [StructLayout(LayoutKind.Explicit, Size=8, CharSet=CharSet.Ansi)]
     public struct StructSizeThirtyTwo
@@ -473,7 +726,16 @@ public class FastTailCallCandidates
     /// </remarks>
     public static int StackBasedCallee(int a, int b, EightByteStruct ebs)
     {
-        if (ebs.a == 10)
+        int count = 0;
+        for (int i = 0; i < ebs.a; ++i)
+        {
+            if (i % 10 == 0)
+            {
+                ++count;
+            }
+        }
+
+        if (count == 160)
         {
             return 100;
         }
