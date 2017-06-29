@@ -5315,6 +5315,12 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             {
                 fPossibleSyncHelperCall = true;
             }
+#if defined(UNIX_X86_ABI)
+            if (helperNum == CORINFO_HELP_OVERFLOW)
+            {
+                inst_RV_IV(INS_AND, REG_SPBASE, ~(STACK_ALIGN - 1), EA_PTRSIZE);
+            }
+#endif
         }
         else
         {
