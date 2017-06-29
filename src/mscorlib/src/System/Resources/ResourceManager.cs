@@ -463,16 +463,7 @@ namespace System.Resources
         public virtual bool IgnoreCase
         {
             get { return _ignoreCase; }
-            set 
-            { 
-#if FEATURE_APPX
-                if (_PRIonAppXInitialized && value)
-                {
-                    throw new PlatformNotSupportedException(SR.Format(SR.PlatformNotSupported_ResourceManager_ResWFileUnsupportedProperty, nameof(IgnoreCase)));
-                }
-#endif // FEATURE_APPX
-                _ignoreCase = value; 
-            }
+            set { _ignoreCase = value; }
         }
 
         // Returns the Type of the ResourceSet the ResourceManager uses
