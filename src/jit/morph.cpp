@@ -6934,19 +6934,19 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 #endif
 
-    auto reportFastTailCallDecision = [this](const char* msg)
-    {
+    auto reportFastTailCallDecision = [this](const char* msg) {
 #if DEBUG
         if ((JitConfig.JitReportFastTailCallDecisions() & 1) == 1)
         {
-            printf("fgCanFastTailCall: %s - (MethodHash=%08x) -- Decision:  ", info.compFullName, info.compMethodHash());
+            printf("fgCanFastTailCall: %s - (MethodHash=%08x) -- Decision:  ", info.compFullName,
+                   info.compMethodHash());
             printf("%s\n", msg);
         }
         else
         {
             JITDUMP(msg);
         }
-#endif //DEBUG
+#endif // DEBUG
     };
 
     unsigned nCallerArgs = info.compArgsCount;
@@ -7092,7 +7092,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
                 {
                     // Structs are either passed in 1 or 2 (64-bit) slots
                     size_t roundupSize = roundUp(typeSize, TARGET_POINTER_SIZE);
-                    size = roundupSize / TARGET_POINTER_SIZE;
+                    size               = roundupSize / TARGET_POINTER_SIZE;
 
                     if (size > 2)
                     {
