@@ -487,6 +487,25 @@ public:
         assert(_lvRegNum == reg);
     }
 
+    const size_t lvArgStackSize() const
+    {
+        // Make sure this will have a stack size
+        assert(!this->lvIsRegArg);
+
+        size_t stackSize = 0;
+        if (varTypeIsStruct(this))
+        {
+            // lvSize should roundup.
+            stackSize = this->lvSize();
+        }
+        else
+        {
+            stackSize = TARGET_POINTER_SIZE;
+        }
+
+        return stackSize;
+    }
+
 /////////////////////
 
 #if defined(_TARGET_64BIT_)

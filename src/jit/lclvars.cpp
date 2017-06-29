@@ -259,6 +259,11 @@ void Compiler::lvaInitTypeRef()
     {
         if (curDsc->lvIsRegArg)
         {
+            // TODO-ARM64
+            //
+            // Currently incoming HFA are marked as address exposed.
+            assert(!curDsc->lvIsHfa());
+
             incrementRegCount(curDsc);
 
 #if FEATURE_MULTIREG_ARGS
@@ -268,15 +273,20 @@ void Compiler::lvaInitTypeRef()
             }
 #endif // FEATURE_MULTIREG_ARGS
         }
-        else if (varTypeIsStruct(curDsc))
+        else 
         {
-            stackSize += curDsc->lvSize();
-        }
-        else
-        {
-            stackSize += TARGET_POINTER_SIZE;
+            
+            stackSize += curDsc->lvArgStackSize();
         }
     }
+
+    //-------------------------------------------------------------------------
+    // Save the register usage information and stack size.
+    //-------------------------------------------------------------------------
+
+    info.compArgRegCount      = argRegCount;
+    info.compFloatArgRegCount = floatingRegCount;
+    info.compArgStackSize     = stackSize;
 
 #endif // FEATURE_FASTTAILCALL
 
@@ -307,17 +317,6 @@ void Compiler::lvaInitTypeRef()
             lvaSetClass(varNum, clsHnd);
         }
     }
-
-#if FEATURE_FASTTAILCALL
-    //-------------------------------------------------------------------------
-    // Save the register usage information and stack size.
-    //-------------------------------------------------------------------------
-
-    info.compArgRegCount      = argRegCount;
-    info.compFloatArgRegCount = floatingRegCount;
-    info.compArgStackSize     = stackSize;
-
-#endif // FEATURE_FASTTAILCALL
 
     if ( // If there already exist unsafe buffers, don't mark more structs as unsafe
         // as that will cause them to be placed along with the real unsafe buffers,
