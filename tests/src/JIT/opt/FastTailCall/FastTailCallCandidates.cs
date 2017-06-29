@@ -55,10 +55,10 @@ public class FastTailCallCandidates
         CheckOutput(IntegerArgs(10, 11, 12, 13, 14, 15));
         CheckOutput(FloatArgs(10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f));
         CheckOutput(IntAndFloatArgs(10, 11, 12, 13, 14, 15, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f));
-        CheckOutput(CallerGithubIssue12468(1, 2, 3, 4, 5, 6, new StructSizeSixteenNotExplicit(1, 2)));
+        CheckOutput(CallerGithubIssue12468(1, 2, 3, 4, 5, 6, 7, 8, new StructSizeSixteenNotExplicit(1, 2)));
         CheckOutput(DoNotFastTailCallSimple(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14));
-        CheckOutput(StackBasedCaller(16, new StructSizeThirtyTwo(1, 2, 3, 4)));
-        CheckOutput(CallerSimpleHFACase(new HFASize32(1.0, 2.0, 3.0, 4.0), 1.0, 2.0, 3.0, 4.0));
+        CheckOutput(StackBasedCaller(16, new StructSizeTwentyFour(1, 2, 3)));
+        CheckOutput(CallerSimpleHFACase(new HFASize32(1.0f, 2.0f, 3.0f, 4.0f), 1.0, 2.0, 3.0, 4.0));
 
         return s_ret_value;
 
@@ -441,14 +441,15 @@ public class FastTailCallCandidates
         }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
     public struct HFASize32
     {
-        public double a;
-        public double b;
-        public double c;
-        public double d;
+        public float a;
+        public float b;
+        public float c;
+        public float d;
 
-        public HFASize32(double a, double b, double c, double d)
+        public HFASize32(float a, float b, float c, float d)
         {
             this.a = a;
             this.b = b;
@@ -545,8 +546,8 @@ public class FastTailCallCandidates
                                        four,
                                        a,
                                        b,
-                                       5.0,
-                                       6.0);
+                                       one,
+                                       two);
         }
         else
         {
@@ -558,8 +559,8 @@ public class FastTailCallCandidates
                                        four,
                                        a,
                                        b,
-                                       6.0,
-                                       5.0);
+                                       two,
+                                       one);
         }
     }
 
@@ -610,6 +611,8 @@ public class FastTailCallCandidates
                                              int four,
                                              int five,
                                              int six,
+                                             int seven,
+                                             int eight,
                                              StructSizeEightNotExplicit s1,
                                              StructSizeEightNotExplicit s2)
     {
@@ -653,6 +656,8 @@ public class FastTailCallCandidates
                                              int four,
                                              int five,
                                              int six,
+                                             int seven,
+                                             int eight,
                                              StructSizeSixteenNotExplicit s1)
     {
         if (one % 2 == 0)
@@ -665,6 +670,8 @@ public class FastTailCallCandidates
                                           four,
                                           five,
                                           six,
+                                          seven,
+                                          eight,
                                           new StructSizeEightNotExplicit(a), 
                                           new StructSizeEightNotExplicit(b));
         }
@@ -678,6 +685,8 @@ public class FastTailCallCandidates
                                           four,
                                           five,
                                           six,
+                                          seven,
+                                          eight,
                                           new StructSizeEightNotExplicit(b), 
                                           new StructSizeEightNotExplicit(a));
         }
@@ -701,13 +710,17 @@ public class FastTailCallCandidates
     };
 
     [StructLayout(LayoutKind.Explicit, Size=8, CharSet=CharSet.Ansi)]
-    public struct EightByteStruct
+    public struct StructSizeTwentyFour
     {
         [FieldOffset(0)] public int a;
+        [FieldOffset(8)] public int b;
+        [FieldOffset(16)] public int c;
 
-        public EightByteStruct(int a)
+        public StructSizeTwentyFour(int a, int b, int c)
         {
             this.a = a;
+            this.b = b;
+            this.c = c;
         }
     }
 
@@ -724,10 +737,10 @@ public class FastTailCallCandidates
     /// Return 105 is a failure.
     ///
     /// </remarks>
-    public static int StackBasedCallee(int a, int b, EightByteStruct ebs)
+    public static int StackBasedCallee(int a, int b, StructSizeThirtyTwo sstt)
     {
         int count = 0;
-        for (int i = 0; i < ebs.a; ++i)
+        for (int i = 0; i < sstt.a; ++i)
         {
             if (i % 10 == 0)
             {
@@ -751,27 +764,32 @@ public class FastTailCallCandidates
     /// </summary>
     /// <remarks>
     ///
-    /// The caller has one stack argument of size 32
+    /// On x64 linux this will not fastTailCall.
     ///
-    /// The calle4 should not fast tail call
+    /// The caller has one stack argument of size 24
+    /// The callee has one stack argument of size 32
+    ///
+    /// On Arm64 this will fastTailCall
+    ///
+    /// Both caller and callee have two register args.
     ///
     /// Return 100 is a pass.
     /// Return 105 is a failure.
     ///
     /// </remarks>
-    public static int StackBasedCaller(int i, StructSizeThirtyTwo sstt)
+    public static int StackBasedCaller(int i, StructSizeTwentyFour sstf)
     {
         if (i % 2 == 0)
         {
             int a = i * 100;
             int b = i + 1100;
-            return StackBasedCallee(a, b, new EightByteStruct(a));
+            return StackBasedCallee(a, b, new StructSizeThirtyTwo(a, b, b, a));
         }
         else
         {
             int b = i + 829;
             int a = i + 16;
-            return StackBasedCallee(b, a, new EightByteStruct(b));
+            return StackBasedCallee(b, a, new StructSizeThirtyTwo(b, a, a, b));
         }
     }
 

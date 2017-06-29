@@ -6934,6 +6934,21 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 #endif
 
+    auto reportFastTailCallDecision = [this](const char* msg)
+    {
+#if DEBUG
+        if ((JitConfig.JitReportFastTailCallDecisions() & 1) == 1)
+        {
+            printf("fgCanFastTailCall: %s - (MethodHash=%08x) -- Decision:  ", info.compFullName, info.compMethodHash());
+            printf("%s\n", msg);
+        }
+        else
+        {
+            JITDUMP(msg);
+        }
+#endif //DEBUG
+    };
+
     unsigned nCallerArgs = info.compArgsCount;
 
     // Note on vararg methods:
@@ -6978,6 +6993,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         // Otherwise go the slow route.
         if (info.compRetBuffArg == BAD_VAR_NUM)
         {
+            reportFastTailCallDecision("Calle has RetBuf but caller does not.");
             return false;
         }
     }
@@ -6988,6 +7004,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // these won't contribute to out-going arg size.
     bool   hasMultiByteArgs      = false;
     bool   hasTwoSlotSizedStruct = false;
+    bool   hasHfaArg             = false;
     size_t nCalleeArgs           = calleeArgRegCount; // Keep track of how many args we have.
     for (GenTreePtr args = callee->gtCallArgs; (args != nullptr) && !hasMultiByteArgs; args = args->gtOp.gtOp2)
     {
@@ -7069,7 +7086,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
                 if (isHfaArg)
                 {
-                    size = GetHfaCount(argx);
+                    hasHfaArg = true;
                 }
                 else
                 {
@@ -7117,7 +7134,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // Go the slow route, if it has multi-byte params
     if (hasMultiByteArgs)
     {
-        JITDUMP("Will not fastTailCall hasMultiByteArgs");
+        reportFastTailCallDecision("Will not fastTailCall hasMultiByteArgs");
         return false;
     }
 
@@ -7142,11 +7159,21 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // make sure the callee's incoming arguments is less than the caller's
     if ((calleeStackSlots > 0) && (calleeStackSize > callerStackSize))
     {
-        JITDUMP("Will not fastTailCall (calleeStackSlots > 0) && (calleeStackSize > callerStackSize)");
+        reportFastTailCallDecision("Will not fastTailCall (calleeStackSlots > 0) && (calleeStackSize > callerStackSize)");
         return false;
     }
 
 #elif (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI)) || defined(_TARGET_ARM64_)
+
+    // Incoming HFA Arguments are set to addressExposed. There should not be a
+    // code path that asks for a fastTailCall decision with an HFA argument.
+    if (hasHfaArg)
+    {
+        assert(!hasHfaArg);
+
+        // Out of caution return false if there is an HFA arg.
+        return false;
+    }
 
     // For *nix Amd64 and Arm64 check to see if all arguments for the callee
     // and caller are passing in registers. If not, ensure that the outgoing argument stack size
@@ -7175,7 +7202,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // on the stack. Do not fastTailCall.
     if (hasStackArgs && hasTwoSlotSizedStruct)
     {
-        JITDUMP("Will not fastTailCall hasStackArgs && hasTwoSlotSizedStruct");
+        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && hasTwoSlotSizedStruct");
         return false;
     }
 
@@ -7188,13 +7215,13 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // for more information.
     if (hasStackArgs && (nCalleeArgs > nCallerArgs))
     {
-        JITDUMP("Will not fastTailCall hasStackArgs && (nCalleeArgs > nCallerArgs)");
+        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (nCalleeArgs > nCallerArgs)");
         return false;
     }
 
     if (calleeStackSize > callerStackSize)
     {
-        JITDUMP("Will not fastTailCall calleeStackArgCount > callerStackArgCount");
+        reportFastTailCallDecision("Will not fastTailCall calleeStackArgCount > callerStackArgCount");
         return false;
     }
 
@@ -7204,7 +7231,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
 #endif //  WINDOWS_AMD64_ABI
 
-    JITDUMP("Will fastTailCall");
+    reportFastTailCallDecision("Will fastTailCall");
     return true;
 #else // FEATURE_FASTTAILCALL
     return false;
