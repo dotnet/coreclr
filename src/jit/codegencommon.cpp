@@ -1650,7 +1650,7 @@ void CodeGen::genAdjustStackLevel(BasicBlock* block)
         // x86/Linux requires stack frames to be 16-byte aligned, but SP may be unaligned
         // at this point if a jump to this block is made in the middle of pushing arugments.
         //
-        // Here we restore SP to prevent potential stack alignment issue.
+        // Here we restore SP to prevent potential stack alignment issues.
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, -genSPtoFPdelta());
     }
 #endif
