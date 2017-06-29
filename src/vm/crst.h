@@ -296,7 +296,11 @@ protected:
 #endif
 
     union {
+#ifdef CROSSGEN_COMPILE
+        T_CRITICAL_SECTION  m_criticalsection;
+#else
         CRITICAL_SECTION    m_criticalsection;
+#endif
     };
 
     typedef enum

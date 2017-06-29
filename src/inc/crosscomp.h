@@ -174,6 +174,29 @@ typedef struct _T_DISPATCHER_CONTEXT {
 #define T_RUNTIME_FUNCTION RUNTIME_FUNCTION
 #define PT_RUNTIME_FUNCTION PRUNTIME_FUNCTION
 
+#ifdef FEATURE_PAL
+typedef struct _T_CRITICAL_SECTION {
+    PVOID DebugInfo;
+    LONG LockCount;
+    LONG RecursionCount;
+    HANDLE OwningThread;
+    HANDLE LockSemaphore;
+    ULONG_PTR SpinCount;
+
+    BOOL bInternal;
+    volatile DWORD dwInitState;
+    union CSNativeDataStorage
+    {
+        // PAL_CS_NATIVE_DATA_SIZE for linux ARM: 80
+        BYTE rgNativeDataStorage[80];
+        VOID * pvAlign; // make sure the storage is machine-pointer-size aligned
+    } csnds;    
+} T_CRITICAL_SECTION, *PT_CRITICAL_SECTION, *LPT_CRITICAL_SECTION;
+#else
+#define T_CRITICAL_SECTION CRITICAL_SECTION
+#define PT_CRITICAL_SECTION PCRITICAL_SECTION
+#endif
+
 #elif defined(_AMD64_) && defined(_TARGET_ARM64_)  // Host amd64 managing ARM64 related code
 
 #ifndef CROSS_COMPILE
@@ -343,6 +366,29 @@ typedef struct _T_KNONVOLATILE_CONTEXT_POINTERS {
 
 } T_KNONVOLATILE_CONTEXT_POINTERS, *PT_KNONVOLATILE_CONTEXT_POINTERS;
 
+#ifdef FEATURE_PAL
+typedef struct _T_CRITICAL_SECTION {
+    PVOID DebugInfo;
+    LONG LockCount;
+    LONG RecursionCount;
+    HANDLE OwningThread;
+    HANDLE LockSemaphore;
+    ULONG_PTR SpinCount;
+
+    BOOL bInternal;
+    volatile DWORD dwInitState;
+    union CSNativeDataStorage
+    {
+        // PAL_CS_NATIVE_DATA_SIZE for linux ARM64: 116
+        BYTE rgNativeDataStorage[116];
+        VOID * pvAlign; // make sure the storage is machine-pointer-size aligned
+    } csnds;    
+} T_CRITICAL_SECTION, *PT_CRITICAL_SECTION, *LPT_CRITICAL_SECTION;
+#else
+#define T_CRITICAL_SECTION CRITICAL_SECTION
+#define PT_CRITICAL_SECTION PCRITICAL_SECTION
+#endif
+
 #else  // !(defined(_X86_) && defined(_TARGET_ARM_)) && !(defined(_AMD64_) && defined(_TARGET_ARM64_))
 
 #define T_CONTEXT CONTEXT
@@ -356,6 +402,9 @@ typedef struct _T_KNONVOLATILE_CONTEXT_POINTERS {
 
 #define T_RUNTIME_FUNCTION RUNTIME_FUNCTION
 #define PT_RUNTIME_FUNCTION PRUNTIME_FUNCTION
+
+#define T_CRITICAL_SECTION CRITICAL_SECTION
+#define PT_CRITICAL_SECTION PCRITICAL_SECTION
 
 #endif 
 

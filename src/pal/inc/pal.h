@@ -2612,8 +2612,7 @@ PALIMPORT BOOL PALAPI PAL_VirtualUnwindOutOfProc(CONTEXT *context,
 #warning 
 #error  PAL_CS_NATIVE_DATA_SIZE is not defined for this architecture
 #endif
-    
-// 
+
 typedef struct _CRITICAL_SECTION {
     PVOID DebugInfo;
     LONG LockCount;
