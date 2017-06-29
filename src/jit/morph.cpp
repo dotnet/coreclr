@@ -7091,8 +7091,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
                 else
                 {
                     // Structs are either passed in 1 or 2 (64-bit) slots
-                    size_t roundupSize =
-                        roundUp(info.compCompHnd->getClassSize(argx->gtArgPlace.gtArgPlaceClsHnd), TARGET_POINTER_SIZE);
+                    size_t roundupSize = roundUp(typeSize, TARGET_POINTER_SIZE);
                     size = roundupSize / TARGET_POINTER_SIZE;
 
                     if (size > 2)
@@ -7155,11 +7154,18 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     size_t calleeStackSize = calleeStackSlots * TARGET_POINTER_SIZE;
     size_t callerStackSize = info.compArgStackSize;
 
+    bool hasStackArgs = false;
+
+    if (callerStackSize > 0 || calleeStackSize > 0)
+    {
+        hasStackArgs = true;
+    }
+
     // x64 Windows: If we have more callee registers used than MAX_REG_ARG, then
     // make sure the callee's incoming arguments is less than the caller's
-    if ((calleeStackSlots > 0) && (calleeStackSize > callerStackSize))
+    if (hasStackArgs && (nCalleeArgs > nCallerArgs))
     {
-        reportFastTailCallDecision("Will not fastTailCall (calleeStackSlots > 0) && (calleeStackSize > callerStackSize)");
+        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (nCalleeArgs > nCallerArgs)");
         return false;
     }
 
