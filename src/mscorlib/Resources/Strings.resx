@@ -3182,9 +3182,6 @@
   <data name="PlatformNotSupported_OverlappedIO" xml:space="preserve">
     <value>This API is specific to the way in which Windows handles asynchronous I/O, and is not supported on this platform.</value>
   </data>
-  <data name="PlatformNotSupported_ResourceManager_ResWFileUnsupportedProperty" xml:space="preserve">
-    <value>ResourceManager property '{0}' is not supported when reading from .resw resource files.</value>
-  </data>  
   <data name="Policy_CannotLoadSemiTrustAssembliesDuringInit" xml:space="preserve">
     <value>All assemblies loaded as part of AppDomain initialization must be fully trusted.</value>
   </data>
