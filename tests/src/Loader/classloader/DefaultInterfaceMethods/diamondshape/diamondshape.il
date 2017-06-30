@@ -123,17 +123,125 @@
 
 } // end of class FooClass
 
+.class interface private abstract auto ansi I1
+{
+  .method public hidebysig newslot abstract virtual 
+          instance int32  Func(int32 a) cil managed
+  {
+  } // end of method I1::Func
+
+} // end of class I1
+
+.class interface private abstract auto ansi I2
+       implements I1
+{
+.class interface private abstract auto ansi I3
+       implements I1
+{
+  .method private hidebysig newslot virtual final 
+          instance int32  I2.Func(int32 a) cil managed
+  {
+    .override I1::Func
+    // Code size       20 (0x14)
+    .maxstack  2
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldstr      "At I2.Func"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldarg.1
+    IL_000d:  ldc.i4.1
+    IL_000e:  add
+    IL_000f:  stloc.0
+    IL_0010:  br.s       IL_0012
+
+    IL_0012:  ldloc.0
+    IL_0013:  ret
+  } // end of method I2::I1.Func    
+} // end of class I3
+} // end of class I2
+
+.class interface private abstract auto ansi I3
+       implements I1
+{
+  .method private hidebysig newslot virtual final 
+          instance int32  I3.Func(int32 a) cil managed
+  {
+    .override I1::Func
+    // Code size       20 (0x14)
+    .maxstack  2
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldstr      "At I3.Func"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldarg.1
+    IL_000d:  ldc.i4.1
+    IL_000e:  add
+    IL_000f:  stloc.0
+    IL_0010:  br.s       IL_0012
+
+    IL_0012:  ldloc.0
+    IL_0013:  ret
+  } // end of method I3::I1.Func    
+} // end of class I3
+
+.class interface private abstract auto ansi I4
+       implements I2,
+                  I1,
+                  I3
+{
+  .method private hidebysig newslot virtual final 
+          instance int32  I1.Func(int32 a) cil managed
+  {
+    .override I1::Func
+    // Code size       20 (0x14)
+    .maxstack  2
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldstr      "At I4.Func"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldarg.1
+    IL_000d:  ldc.i4.1
+    IL_000e:  add
+    IL_000f:  stloc.0
+    IL_0010:  br.s       IL_0012
+
+    IL_0012:  ldloc.0
+    IL_0013:  ret
+  } // end of method I4::I1.Func   
+} // end of class I4
+
+.class private auto ansi beforefieldinit I4Class
+       extends [mscorlib]System.Object
+       implements I4,
+                  I2,
+                  I1,
+                  I3
+{
+  .method public hidebysig specialname rtspecialname 
+          instance void  .ctor() cil managed
+  {
+    // Code size       8 (0x8)
+    .maxstack  8
+    IL_0000:  ldarg.0
+    IL_0001:  call       instance void [mscorlib]System.Object::.ctor()
+    IL_0006:  nop
+    IL_0007:  ret
+  } // end of method I4Class::.ctor
+
+} // end of class I4Class
+
 .class private auto ansi beforefieldinit Program
        extends [mscorlib]System.Object
 {
-  .method public hidebysig static int32  Main() cil managed
+  .method public hidebysig static void  Negative() cil managed
   {
-    .entrypoint
-    // Code size       60 (0x3c)
+    // Code size       51 (0x33)
     .maxstack  2
     .locals init (class FooClass V_0,
-             class IFoo V_1,
-             int32 V_2)
+             class IFoo V_1)
     IL_0000:  nop
     IL_0001:  newobj     instance void FooClass::.ctor()
     IL_0006:  stloc.0
@@ -166,12 +274,49 @@
       IL_0030:  leave.s    IL_0032
 
     }  // end handler
-    IL_0032:  call       int32 Test::Ret()
-    IL_0037:  stloc.2
-    IL_0038:  br.s       IL_003a
+    IL_0032:  ret
+  } // end of method Program::Negative
 
-    IL_003a:  ldloc.2
-    IL_003b:  ret
+  .method public hidebysig static void  Positive() cil managed
+  {
+    // Code size       33 (0x21)
+    .maxstack  2
+    .locals init (class I4Class V_0,
+             class I1 V_1)
+    IL_0000:  nop
+    IL_0001:  newobj     instance void I4Class::.ctor()
+    IL_0006:  stloc.0
+    IL_0007:  ldloc.0
+    IL_0008:  stloc.1
+    IL_0009:  ldloc.1
+    IL_000a:  ldc.i4.s   10
+    IL_000c:  callvirt   instance int32 I1::Func(int32)
+    IL_0011:  ldc.i4.s   12
+    IL_0013:  ceq
+    IL_0015:  ldstr      "Expecting I1.Func to land on I4.Func"
+    IL_001a:  call       void Test::Assert(bool,
+                                           string)
+    IL_001f:  nop
+    IL_0020:  ret
+  } // end of method Program::Positive
+
+  .method public hidebysig static int32  Main() cil managed
+  {
+    .entrypoint
+    // Code size       23 (0x17)
+    .maxstack  1
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  call       void Program::Negative()
+    IL_0006:  nop
+    IL_0007:  call       void Program::Positive()
+    IL_000c:  nop
+    IL_000d:  call       int32 Test::Ret()
+    IL_0012:  stloc.0
+    IL_0013:  br.s       IL_0015
+
+    IL_0015:  ldloc.0
+    IL_0016:  ret
   } // end of method Program::Main
 
   .method public hidebysig specialname rtspecialname 

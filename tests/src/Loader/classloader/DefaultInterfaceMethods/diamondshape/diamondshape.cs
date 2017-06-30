@@ -48,9 +48,39 @@ class FooClass : IFoo2, IFooEx
     }
 }
 
+interface I1
+{
+    int Func(int a);    
+}
+
+interface I2 : I1
+{
+    // int I1.Func(int a);
+}
+
+interface I3 : I1
+{
+    // int I1.Func(int a);
+}
+
+interface I4 : I2, I3
+{
+    // int I1.Func(int a);
+}
+
+class I4Class : I4
+{
+    // @REMOVE
+    int I1.Func(int a)
+    {
+        Console.WriteLine("At I4Class.Func");
+        return a + 2;
+    }        
+}
+
 class Program
 {
-    public static int Main()
+    public static void Negative()
     {
         FooClass fooObj = new FooClass();
         IFoo foo = (IFoo) fooObj;
@@ -64,7 +94,19 @@ class Program
         catch(Exception)
         {
         }
+    }
 
+    public static void Positive()
+    {
+        I4Class i4 = new I4Class();
+        I1 i1 = (I1) i4;
+        Test.Assert(i1.Func(10) == 12, "Expecting I1.Func to land on I4.Func");
+    }
+
+    public static int Main()
+    {
+        Negative();
+        Positive();
         return Test.Ret();
     }
 }
