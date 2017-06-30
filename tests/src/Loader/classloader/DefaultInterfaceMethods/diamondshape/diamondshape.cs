@@ -119,25 +119,43 @@ class I8Class: I8
     }            
 }
 
-interface GI1
+interface GI1<T>
 {
-    T Func<T>();
+    int Func<S>(); // { Console.WriteLine(typeof(S) + ":GI4"); return 1; }
 } 
 
-interface GI2 : GI1
+interface GI2<T> : GI1<T>
 {
-    // T GI1.Func<T>() { Console.WriteLine(typeof(T) + ":GI1"); }
+    // int GI1<T>.Func<S>() { Console.WriteLine(typeof(S) + ":GI4"); return 2; }
 } 
 
-interface GI3 : GI1
+interface GI3<T> : GI1<T>
 {
-    // T GI1.Func<T>() { Console.WriteLine(typeof(T) + ":GI1"); }
+    // int GI1.Func<S>() { Console.WriteLine(typeof(S) + ":GI4"); return 3; }
 } 
 
-interface GI4 : GI2, GI3
+interface GI4<T> : GI2<T>, GI3<T>
 {
-    // T GI1.Func<T>() { Console.WriteLine(typeof(T) + ":GI1"); }
+    // int GI1.Func<S>() { Console.WriteLine(typeof(S) + ":GI4"); return 4; }
 } 
+
+class GI1Class<T>: GI1<T>
+{
+    // @REMOVE
+    int GI1<T>.Func<S>() { Console.WriteLine(typeof(S) + ":GI1Class"); return -1; }     
+}
+
+class GI23Class<T>: GI2<T>, GI3<T>
+{
+    // @REMOVE
+    int GI1<T>.Func<S>() { Console.WriteLine(typeof(S) + ":GI23Class"); return -23; } 
+}
+
+class GI4Class<T>: GI4<T>
+{
+    // @REMOVE
+    int GI1<T>.Func<S>() { Console.WriteLine(typeof(S) + ":GI4Class"); return -4; }
+}
 
 class Program
 {
@@ -167,6 +185,18 @@ class Program
         catch(Exception)
         {
         }
+
+        var gi23Class = new GI23Class<object>();
+        GI1<object> gi1 = (GI1<object>) gi23Class;
+        Console.WriteLine("Calling GI1<T>.Func on GI23Class<S> - expecting exception");
+        try
+        {
+            gi1.Func<string>();
+            Test.Assert(false, "Expecting exception on GI23Class");
+        }
+        catch(Exception)
+        {
+        }          
     }
 
     public static void Positive()
@@ -182,6 +212,18 @@ class Program
         I8Class i8Class = new I8Class();
         i1 = (I1) i8Class;
         Test.Assert(i1.Func(10) == 18, "Expecting I1.Func to land on I8.Func");
+
+        Console.WriteLine("Calling GI1.Func on GI1Class<object> - expecting I1.Func<S>");
+
+        var gi1Class = new GI1Class<object>();
+        GI1<object> gi1 = (GI1<object>) gi1Class;
+        Test.Assert(gi1.Func<string>() == 1, "Expecting GI1<T>.Func to land on GII1<T>.Func<S>");
+       
+        Console.WriteLine("Calling GI1.Func on GI4Class<object> - expecting GI4.Func<S>");
+
+        var gi4Class = new GI4Class<object>();
+        gi1 = (GI1<object>) gi4Class;
+        Test.Assert(gi1.Func<string>() == 4, "Expecting GI1<T>.Func to land on GII4<T>.Func<S>");
     }
 
     public static int Main()
