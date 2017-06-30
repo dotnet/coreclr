@@ -6903,7 +6903,7 @@ MethodTable::FindDispatchImpl(
                 // See if we can find a default method from one of the implemented interfaces 
                 //
                 MethodDesc *pDefaultMethod = NULL;
-                if (FindDefaultMethod(
+                if (FindDefaultInterfaceImplementation(
                     pIfcMD,     // the interface method being resolved
                     pIfcMT,     // the interface being resolved
                     &pDefaultMethod))
@@ -6950,7 +6950,7 @@ struct MatchCandidate
     MethodDesc *pMD;
 };
 
-BOOL MethodTable::FindDefaultMethod(
+BOOL MethodTable::FindDefaultInterfaceImplementation(
     MethodDesc *pInterfaceMD,
     MethodTable *pInterfaceMT,
     MethodDesc **ppDefaultMethod

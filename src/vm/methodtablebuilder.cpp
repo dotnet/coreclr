@@ -1622,6 +1622,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
     if (IsInterface())
     {
+        // @DIM_TODO: Optimize for no method impl scenario
         ProcessMethodImpls();
         PlaceMethodImpls();
     }
@@ -10783,6 +10784,43 @@ MethodTableBuilder::SetupMethodTable2(
 #pragma warning(pop)
 #endif
 
+BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(MethodDesc *pDeclMD)
+{
+    STANDARD_VM_CONTRACT;
+
+    // If the interface method is already non-abstract, we are done
+    if (pDeclMD->IsDefaultInterfaceMethod())
+        return TRUE;
+
+    MethodTable *pDeclMT = pDeclMD->GetMethodTable();
+
+    // Otherwise, traverse the list of interfaces and see if there is at least one overrides
+    bmtInterfaceInfo::MapIterator intIt = bmtInterface->IterateInterfaceMap();
+    for (; !intIt.AtEnd(); intIt.Next())
+    {
+        MethodTable *pIntfMT = intIt->GetInterfaceType()->GetMethodTable();
+        if (pIntfMT->GetClass()->ContainsMethodImpls() && pIntfMT->CanCastToInterface(pDeclMT))
+        {
+            MethodTable::MethodIterator methodIt(pIntfMT);
+            for (; methodIt.IsValid(); methodIt.Next())
+            {
+                MethodDesc *pMD = methodIt.GetMethodDesc();
+                if (pMD->IsVirtual() && !pMD->IsAbstract() && pMD->IsMethodImpl())
+                {
+                    MethodImpl::Iterator it(pMD);
+                    while (it.IsValid())
+                    {
+                        if (it.GetMethodDesc() == pDeclMD)
+                            return TRUE;
+                    }
+                }
+            }
+        }
+    }
+
+    return FALSE;
+}
+
 void MethodTableBuilder::VerifyVirtualMethodsImplemented(MethodTable::MethodData * hMTData)
 {
     STANDARD_VM_CONTRACT;
@@ -10855,13 +10893,13 @@ void MethodTableBuilder::VerifyVirtualMethodsImplemented(MethodTable::MethodData
             MethodTable::MethodIterator it(hData);
             for (; it.IsValid() && it.IsVirtual(); it.Next())
             {
-                // @DIM_TODO - What is the right level of check if the interface itself does not have default implementation
-                // but a derived interface do
-                // if (it.GetTarget().IsNull())
-                // {
-                //    MethodDesc *pMD = it.GetDeclMethodDesc();
-                //    BuildMethodTableThrowException(IDS_CLASSLOAD_NOTIMPLEMENTED, pMD->GetNameOnNonArrayClass());
-                // }
+                if (it.GetTarget().IsNull())
+                {
+                    MethodDesc *pMD = it.GetDeclMethodDesc();
+
+                    if (!HasDefaultInterfaceImplementation(pMD))
+                        BuildMethodTableThrowException(IDS_CLASSLOAD_NOTIMPLEMENTED, pMD->GetNameOnNonArrayClass());
+                }
             }
         }
     }
