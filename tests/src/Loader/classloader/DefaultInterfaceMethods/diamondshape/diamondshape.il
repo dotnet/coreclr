@@ -307,10 +307,13 @@
 } // end of class I7
 
 .class interface private abstract auto ansi I8
-       implements I6,
+       implements I4,
+                  I2,
                   I1,
+                  I3,
                   I7,
-                  I5
+                  I5,
+                  I6
 {
   .method private hidebysig newslot virtual final 
           instance int32  I1.Func(int32 a) cil managed
@@ -360,10 +363,13 @@
 .class private auto ansi beforefieldinit I8Class
        extends [mscorlib]System.Object
        implements I8,
-                  I6,
+                  I4,
+                  I2,
                   I1,
+                  I3,
                   I7,
-                  I5
+                  I5,
+                  I6 
 {
   .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed

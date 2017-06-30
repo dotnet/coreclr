@@ -93,7 +93,7 @@ interface I7: I5, I6
     // int I1.Func(int a) { return a + 7; }
 }
 
-interface I8: I6, I7
+interface I8: I4, I7
 {
     // int I1.Func(int a) { return a + 8; }
 }
@@ -118,6 +118,26 @@ class I8Class: I8
         return a + 8;
     }            
 }
+
+interface GI1
+{
+    T Func<T>();
+} 
+
+interface GI2 : GI1
+{
+    // T GI1.Func<T>() { Console.WriteLine(typeof(T) + ":GI1"); }
+} 
+
+interface GI3 : GI1
+{
+    // T GI1.Func<T>() { Console.WriteLine(typeof(T) + ":GI1"); }
+} 
+
+interface GI4 : GI2, GI3
+{
+    // T GI1.Func<T>() { Console.WriteLine(typeof(T) + ":GI1"); }
+} 
 
 class Program
 {
