@@ -38,7 +38,7 @@
       }
     },
     {
-      "enabled": true,
+      "enabled": false,
       "continueOnError": true,
       "alwaysRun": false,
       "displayName": "Sync test native binaries",
