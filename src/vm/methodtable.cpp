@@ -7063,31 +7063,50 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                         );
                     }
 
-                    bool needToInsert = false;
+                    bool needToInsert = true;
+                    bool seenMoreSpecific = false;
 
+                    // We need to maintain the invariant that the candidates are always the most specific
+                    // in all path scaned so far. There might be multiple incompatible candidates 
                     for (int i = 0; i < candidatesCount; ++i)
                     {
                         MethodTable *pCandidateMT = candidates[i].pMT;
+                        if (pCandidateMT == NULL)
+                            continue;
+
                         if (pCandidateMT->HasSameTypeDefAs(pCurMT))
+                        {
+                            // A dup
+                            needToInsert = false;
                             break;
+                        }
 
                         if (pCurMT->CanCastToInterface(pCandidateMT))
                         {
                             // pCurMT is a more specific choice
-                            // Note: this may end up with duplicates
-                            candidates[i].pMT = pCurMT;
-                            candidates[i].pMD = pCurMD;
+                            if (!seenMoreSpecific)
+                            {
+                                seenMoreSpecific = true;
+                                candidates[i].pMT = pCurMT;
+                                candidates[i].pMD = pCurMD;
+                            }
+                            else
+                            {
+                                candidates[i].pMT = NULL;
+                                candidates[i].pMD = NULL;
+                            }
+
+                            needToInsert = false;
                         }
                         else if (pCandidateMT->CanCastToInterface(pCurMT))
                         {
                             // pCurMT is less specific - we don't need to scan more
+                            needToInsert = false;
                             break;
                         }
                         else
                         {
-                            // pCurMT is incompatible - no need to scan more
-                            needToInsert = true;
-                            break;
+                            // pCurMT is incompatible - keep scanning 
                         }
                     }
                     
@@ -7112,6 +7131,9 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
     MethodDesc *pBestCandidateMD = NULL;
     for (int i = 0; i < candidatesCount; ++i)
     {
+        if (candidates[i].pMT == NULL)
+            continue;
+
         if (pBestCandidateMT == NULL)
         {
             pBestCandidateMT = candidates[i].pMT;

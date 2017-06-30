@@ -203,7 +203,7 @@
     IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_000b:  nop
     IL_000c:  ldarg.1
-    IL_000d:  ldc.i4.1
+    IL_000d:  ldc.i4.2
     IL_000e:  add
     IL_000f:  stloc.0
     IL_0010:  br.s       IL_0012
