@@ -540,6 +540,19 @@ set PATH=%PATH%;%WinDir%\Microsoft.Net\Framework64\V4.0.30319;%WinDir%\Microsoft
 if %__BuildNativeCoreLib% EQU 1 (
     echo %__MsgPrefix%Generating native image of System.Private.CoreLib for %__BuildOS%.%__BuildArch%.%__BuildType%
 
+    REM Need VS native tools environment for the **target** arch when running instrumented binaries
+    if %__PgoInstrument% EQU 1 (
+        set __VCExecArch=%__BuildArch%
+        if /i [%__BuildArch%] == [x64] set __VCExecArch=amd64
+        echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch!
+        call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch!
+        @if defined _echo @echo on
+        if NOT !errorlevel! == 0 (
+            echo %__MsgPrefix%Error: Failed to load native tools environment for !__VCExecArch!
+            goto CrossgenFailure
+        )
+    )
+
     set NEXTCMD="%__CrossgenExe%" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%"\IL /out "%__BinDir%\System.Private.CoreLib.dll" "%__BinDir%\IL\System.Private.CoreLib.dll"
     echo %__MsgPrefix%!NEXTCMD!
     !NEXTCMD! > "%__CrossGenCoreLibLog%" 2>&1
