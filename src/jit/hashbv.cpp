@@ -1964,58 +1964,52 @@ indexType hashBvIterator::nextBit()
     // printf("in nextbit for bv:\n");
     // this->bv->dump();
 
-    if (!this->currNode)
+    if (this->currNode == nullptr)
     {
         this->nextNode();
     }
 
-top:
-
-    if (!this->currNode)
+    while (this->currNode != nullptr)
     {
-        return NOMOREBITS;
-    }
-
-more_data:
-    if (!this->current_data)
-    {
-        current_element++;
-        // printf("current element is %d\n", current_element);
-        // reached the end of this node
-        if (current_element == (indexType) this->currNode->numElements())
+        for (;;)
         {
-            // printf("going to next node\n");
-            this->nextNode();
-            goto top;
-        }
-        else
-        {
-            assert(current_element < (indexType) this->currNode->numElements());
-            // printf("getting more data\n");
-            current_data = this->currNode->elements[current_element];
-            current_base = this->currNode->baseIndex + current_element * BITS_PER_ELEMENT;
-            goto more_data;
-        }
-    }
-    else
-    {
-        while (current_data)
-        {
-            if (current_data & 1)
+            if (this->current_data == 0)
             {
-                current_data >>= 1;
-                current_base++;
-
-                return current_base - 1;
+                current_element++;
+                // printf("current element is %d\n", current_element);
+                // reached the end of this node
+                if (current_element == (indexType) this->currNode->numElements())
+                {
+                    // printf("going to next node\n");
+                    this->nextNode();
+                    break;   // break inner loop
+                }
+                else
+                {
+                    assert(current_element < (indexType) this->currNode->numElements());
+                    // printf("getting more data\n");
+                    current_data = this->currNode->elements[current_element];
+                    current_base = this->currNode->baseIndex + current_element * BITS_PER_ELEMENT;
+                }
             }
             else
             {
-                current_data >>= 1;
-                current_base++;
+                while (current_data != 0)
+                {
+                    bool has_bit = (current_data & 1) != 0;
+                    current_data >>= 1;
+                    current_base++;
+
+                    if (has_bit)
+                    {
+                        return current_base - 1;
+                    }
+                }
             }
         }
-        goto more_data;
     }
+
+    return NOMOREBITS;
 }
 
 indexType HbvNext(hashBv* bv, Compiler* comp)
