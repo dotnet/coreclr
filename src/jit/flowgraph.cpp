@@ -1049,14 +1049,15 @@ flowList* Compiler::fgAddRefPred(BasicBlock* block,
     // Keep the predecessor list in lowest to highest bbNum order. This allows us to discover the loops in
     // optFindNaturalLoops from innermost to outermost.
     //
-    // TODO-Throughput: This search is quadratic if you have many jumps to the same target. We need to either
+    // TODO-Throughput: Inserting an edge for a block in sorted order requires searching every existing edge.
+    // Thus, inserting all the edges for a block is quadratic in the number of edges. We need to either
     // not bother sorting for debuggable code, or sort in optFindNaturalLoops, or better, make the code in
     // optFindNaturalLoops not depend on order. This also requires ensuring that nobody else has taken a
     // dependency on this order. Note also that we don't allow duplicates in the list; we maintain a flDupCount
-    // count of duplication. This also necessitates walking the flow list for every addition.
+    // count of duplication. This also necessitates walking the flow list for every edge we add.
 
     flowList** listp = &block->bbPreds;
-    while (*listp && ((*listp)->flBlock->bbNum < blockPred->bbNum))
+    while ((*listp != nullptr) && ((*listp)->flBlock->bbNum < blockPred->bbNum))
     {
         listp = &(*listp)->flNext;
     }
