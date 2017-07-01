@@ -1622,7 +1622,10 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
     if (IsInterface())
     {
-        // @DIM_TODO: Optimize for no method impl scenario
+        //
+        // We need to process/place method impls for default interface method overrides.
+        // We won't build dispatch map for interfaces, though.
+        //
         ProcessMethodImpls();
         PlaceMethodImpls();
     }
@@ -5569,6 +5572,9 @@ MethodTableBuilder::ProcessMethodImpls()
 {
     STANDARD_VM_CONTRACT;
 
+    if (bmtMethod->dwNumberMethodImpls == 0)
+        return;
+
     HRESULT hr = S_OK;
 
     DeclaredMethodIterator it(*this);
@@ -6251,7 +6257,8 @@ MethodTableBuilder::PlaceMethodImpls()
         iEntry++;
 
         if(iEntry == bmtMethodImpl->pIndex)
-        {   // We hit the end of the list so dump the current data and leave
+        {
+            // We hit the end of the list so dump the current data and leave
             WriteMethodImplData(pCurImplMethod, slotIndex, slots, replaced);
             break;
         }
@@ -6260,7 +6267,8 @@ MethodTableBuilder::PlaceMethodImpls()
             bmtMDMethod * pNextImplMethod = bmtMethodImpl->GetImplementationMethod(iEntry);
 
             if (pNextImplMethod != pCurImplMethod)
-            {   // If we're moving on to a new body, dump the current data and reset the counter
+            {
+                // If we're moving on to a new body, dump the current data and reset the counter
                 WriteMethodImplData(pCurImplMethod, slotIndex, slots, replaced);
                 slotIndex = 0;
             }
@@ -6301,8 +6309,11 @@ MethodTableBuilder::WriteMethodImplData(
 
         if (!IsInterface())
         {
+            // @DIM_TODO - use binary search (be aware of dups) to locate the right method
             // If we are currently builting an interface, the slots here has no meaning and we can skip it
             // Sort the two arrays in slot index order
+            // This is required in MethodImpl::FindSlotIndex and MethodImpl::Iterator as we'll be using 
+            // binary search later
             for (DWORD i = 0; i < cSlots; i++)
             {
                 int min = i;

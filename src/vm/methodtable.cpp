@@ -7023,16 +7023,19 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                         for (; methodIt.IsValid(); methodIt.Next())
                         {
                             MethodDesc *pMD = methodIt.GetMethodDesc();
+                            int targetSlot = pInterfaceMD->GetSlot();
                             if (pMD->IsVirtual() && !pMD->IsAbstract() && pMD->IsMethodImpl())
                             {
                                 MethodImpl::Iterator it(pMD);
                                 while (it.IsValid())
                                 {
                                     MethodDesc *pDeclMD = it.GetMethodDesc();
+
+                                    if (pDeclMD->GetSlot() != targetSlot)
+                                        continue;
+
                                     MethodTable *pDeclMT = pDeclMD->GetMethodTable();
-
                                     BOOL bMatch = FALSE;
-
                                     if (pDeclMT->ContainsGenericVariables())
                                     {
                                         TypeHandle thInstDeclMT = ClassLoader::LoadGenericInstantiationThrowing(
@@ -7041,7 +7044,7 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                                             pCurMT->GetInstantiation());
                                         MethodTable *pInstDeclMT = thInstDeclMT.GetMethodTable();
                                         if (pInstDeclMT == pInterfaceMT &&
-                                            pDeclMD->GetSlot() == pInterfaceMD->GetSlot())
+                                            pDeclMD->GetSlot() == targetSlot)
                                         {
                                             pCurMD = pMD;
                                             break;
