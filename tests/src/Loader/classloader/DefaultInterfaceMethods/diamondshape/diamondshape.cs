@@ -121,40 +121,42 @@ class I8Class: I8
 
 interface GI1<T>
 {
-    int Func<S>(); // { Console.WriteLine(typeof(S) + ":GI4"); return 1; }
+    int Func<S>(out Type[] types); // int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", "typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 4; }  
+
 } 
 
 interface GI2<T> : GI1<T>
 {
-    // int GI1<T>.Func<S>() { Console.WriteLine(typeof(S) + ":GI4"); return 2; }
+    // int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", "typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 2; }  
+
 } 
 
 interface GI3<T> : GI1<T>
 {
-    // int GI1.Func<S>() { Console.WriteLine(typeof(S) + ":GI4"); return 3; }
+    // int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", "typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 3; }  
 } 
 
 interface GI4<T> : GI2<T>, GI3<T>
 {
-    // int GI1.Func<S>() { Console.WriteLine(typeof(S) + ":GI4"); return 4; }
+    // int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", "typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 4; }  
 } 
 
 class GI1Class<T>: GI1<T>
 {
     // @REMOVE
-    int GI1<T>.Func<S>() { Console.WriteLine(typeof(S) + ":GI1Class"); return -1; }     
+    int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", " + typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 4; }      
 }
 
 class GI23Class<T>: GI2<T>, GI3<T>
 {
     // @REMOVE
-    int GI1<T>.Func<S>() { Console.WriteLine(typeof(S) + ":GI23Class"); return -23; } 
+    int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", " + typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 4; }  
 }
 
 class GI4Class<T>: GI4<T>
 {
     // @REMOVE
-    int GI1<T>.Func<S>() { Console.WriteLine(typeof(S) + ":GI4Class"); return -4; }
+    int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", " + typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 4; }  
 }
 
 class Program
@@ -191,7 +193,8 @@ class Program
         Console.WriteLine("Calling GI1<T>.Func on GI23Class<S> - expecting exception");
         try
         {
-            gi1.Func<string>();
+            Type[] types;
+            gi1.Func<string>(out types);
             Test.Assert(false, "Expecting exception on GI23Class");
         }
         catch(Exception)
@@ -216,14 +219,19 @@ class Program
         Console.WriteLine("Calling GI1.Func on GI1Class<object> - expecting I1.Func<S>");
 
         var gi1Class = new GI1Class<object>();
+        Type[] types;
         GI1<object> gi1 = (GI1<object>) gi1Class;
-        Test.Assert(gi1.Func<string>() == 1, "Expecting GI1<T>.Func to land on GII1<T>.Func<S>");
+        Test.Assert(gi1.Func<string>(out types) == 1, "Expecting GI1<T>.Func to land on GII1<T>.Func<S>");
+        Test.Assert(types[0] == typeof(object), "T must be object");
+        Test.Assert(types[1] == typeof(string), "S must be string");
        
         Console.WriteLine("Calling GI1.Func on GI4Class<object> - expecting GI4.Func<S>");
 
         var gi4Class = new GI4Class<object>();
         gi1 = (GI1<object>) gi4Class;
-        Test.Assert(gi1.Func<string>() == 4, "Expecting GI1<T>.Func to land on GII4<T>.Func<S>");
+        Test.Assert(gi1.Func<string>(out types) == 4, "Expecting GI1<T>.Func to land on GII4<T>.Func<S>");
+        Test.Assert(types[0] == typeof(object), "T must be object");
+        Test.Assert(types[1] == typeof(string), "S must be string");  
     }
 
     public static int Main()

@@ -7028,7 +7028,26 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                                 MethodImpl::Iterator it(pMD);
                                 while (it.IsValid())
                                 {
-                                    if (it.GetMethodDesc() == pInterfaceMD)
+                                    MethodDesc *pDeclMD = it.GetMethodDesc();
+                                    MethodTable *pDeclMT = pDeclMD->GetMethodTable();
+
+                                    BOOL bMatch = FALSE;
+
+                                    if (pDeclMT->ContainsGenericVariables())
+                                    {
+                                        TypeHandle thInstDeclMT = ClassLoader::LoadGenericInstantiationThrowing(
+                                            pDeclMT->GetModule(),
+                                            pDeclMT->GetCl(),
+                                            pCurMT->GetInstantiation());
+                                        MethodTable *pInstDeclMT = thInstDeclMT.GetMethodTable();
+                                        if (pInstDeclMT == pInterfaceMT &&
+                                            pDeclMD->GetSlot() == pInterfaceMD->GetSlot())
+                                        {
+                                            pCurMD = pMD;
+                                            break;
+                                        }
+                                    }
+                                    else if (pDeclMD == pInterfaceMD)
                                     {
                                         pCurMD = pMD;
                                         break;
@@ -7076,7 +7095,7 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
 
                         if (pCandidateMT->HasSameTypeDefAs(pCurMT))
                         {
-                            // A dup
+                            // A dup - we are done
                             needToInsert = false;
                             break;
                         }
