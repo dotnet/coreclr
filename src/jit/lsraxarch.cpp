@@ -471,6 +471,12 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             TreeNodeInfoInitCast(tree);
             break;
 
+        case GT_REINTERPRET:
+            info->srcCount = 1;
+            info->dstCount = 1;
+            tree->AsUnOp()->gtOp1->gtLsraInfo.isTgtPref = true;
+            break;
+
         case GT_NEG:
             info->srcCount = 1;
             info->dstCount = 1;
