@@ -386,56 +386,9 @@
 
 .class interface private abstract auto ansi GI1`1<T>
 {
-  .method public hidebysig newslot virtual 
+  .method public hidebysig newslot abstract virtual 
           instance int32  Func<S>([out] class [mscorlib]System.Type[]& types) cil managed
   {
-    // Code size       100 (0x64)
-    .maxstack  5
-    .locals init (int32 V_0)
-    IL_0000:  nop
-    IL_0001:  ldc.i4.4
-    IL_0002:  newarr     [mscorlib]System.Object
-    IL_0007:  dup
-    IL_0008:  ldc.i4.0
-    IL_0009:  ldtoken    !T
-    IL_000e:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_0013:  stelem.ref
-    IL_0014:  dup
-    IL_0015:  ldc.i4.1
-    IL_0016:  ldstr      ", "
-    IL_001b:  stelem.ref
-    IL_001c:  dup
-    IL_001d:  ldc.i4.2
-    IL_001e:  ldtoken    !!S
-    IL_0023:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_0028:  stelem.ref
-    IL_0029:  dup
-    IL_002a:  ldc.i4.3
-    IL_002b:  ldstr      ", GI1"
-    IL_0030:  stelem.ref
-    IL_0031:  call       string [mscorlib]System.String::Concat(object[])
-    IL_0036:  call       void [mscorlib]System.Console::WriteLine(string)
-    IL_003b:  nop
-    IL_003c:  ldarg.1
-    IL_003d:  ldc.i4.2
-    IL_003e:  newarr     [mscorlib]System.Type
-    IL_0043:  dup
-    IL_0044:  ldc.i4.0
-    IL_0045:  ldtoken    !T
-    IL_004a:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_004f:  stelem.ref
-    IL_0050:  dup
-    IL_0051:  ldc.i4.1
-    IL_0052:  ldtoken    !!S
-    IL_0057:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_005c:  stelem.ref
-    IL_005d:  stind.ref
-    IL_005e:  ldc.i4.1
-    IL_005f:  stloc.0
-    IL_0060:  br.s       IL_0062
-
-    IL_0062:  ldloc.0
-    IL_0063:  ret
   } // end of method GI1`1::'GI1<T>.Func' 
 
 } // end of class GI1`1
@@ -494,7 +447,7 @@
 
     IL_0062:  ldloc.0
     IL_0063:  ret
-  } // end of method GI1Class`1::'GI1<T>.Func' 
+  } // end of method G2`1::'GI1<T>.Func' 
 } // end of class GI2`1
 
 .class interface private abstract auto ansi GI3`1<T>
@@ -612,23 +565,6 @@
     IL_0063:  ret
   } // end of method GI4`1::'GI1<T>.Func' 
 } // end of class GI4`1
-
-.class private auto ansi beforefieldinit GI1Class`1<T>
-       extends [mscorlib]System.Object
-       implements class GI1`1<!T>
-{
-  .method public hidebysig specialname rtspecialname 
-          instance void  .ctor() cil managed
-  {
-    // Code size       8 (0x8)
-    .maxstack  8
-    IL_0000:  ldarg.0
-    IL_0001:  call       instance void [mscorlib]System.Object::.ctor()
-    IL_0006:  nop
-    IL_0007:  ret
-  } // end of method GI1Class`1::.ctor
-
-} // end of class GI1Class`1
 
 .class private auto ansi beforefieldinit GI23Class`1<T>
        extends [mscorlib]System.Object
@@ -783,15 +719,14 @@
 
   .method public hidebysig static void  Positive() cil managed
   {
-    // Code size       294 (0x126)
+    // Code size       189 (0xbd)
     .maxstack  2
     .locals init (class I4Class V_0,
              class I1 V_1,
              class I8Class V_2,
-             class GI1Class`1<object> V_3,
+             class GI4Class`1<object> V_3,
              class [mscorlib]System.Type[] V_4,
-             class GI1`1<object> V_5,
-             class GI4Class`1<object> V_6)
+             class GI1`1<object> V_5)
     IL_0000:  nop
     IL_0001:  ldstr      "Calling I1.Func on I4Class - expecting I4.Func"
     IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
@@ -825,20 +760,20 @@
     IL_004f:  call       void Test::Assert(bool,
                                            string)
     IL_0054:  nop
-    IL_0055:  ldstr      "Calling GI1.Func on GI1Class<object> - expecting I"
-    + "1.Func<S>"
+    IL_0055:  ldstr      "Calling GI1.Func on GI4Class<object> - expecting G"
+    + "I4.Func<S>"
     IL_005a:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_005f:  nop
-    IL_0060:  newobj     instance void class GI1Class`1<object>::.ctor()
+    IL_0060:  newobj     instance void class GI4Class`1<object>::.ctor()
     IL_0065:  stloc.3
     IL_0066:  ldloc.3
     IL_0067:  stloc.s    V_5
     IL_0069:  ldloc.s    V_5
     IL_006b:  ldloca.s   V_4
     IL_006d:  callvirt   instance int32 class GI1`1<object>::Func<string>(class [mscorlib]System.Type[]&)
-    IL_0072:  ldc.i4.1
+    IL_0072:  ldc.i4.4
     IL_0073:  ceq
-    IL_0075:  ldstr      "Expecting GI1<T>.Func to land on GII1<T>.Func<S>"
+    IL_0075:  ldstr      "Expecting GI1<T>.Func to land on GII4<T>.Func<S>"
     IL_007a:  call       void Test::Assert(bool,
                                            string)
     IL_007f:  nop
@@ -864,46 +799,7 @@
     IL_00b6:  call       void Test::Assert(bool,
                                            string)
     IL_00bb:  nop
-    IL_00bc:  ldstr      "Calling GI1.Func on GI4Class<object> - expecting G"
-    + "I4.Func<S>"
-    IL_00c1:  call       void [mscorlib]System.Console::WriteLine(string)
-    IL_00c6:  nop
-    IL_00c7:  newobj     instance void class GI4Class`1<object>::.ctor()
-    IL_00cc:  stloc.s    V_6
-    IL_00ce:  ldloc.s    V_6
-    IL_00d0:  stloc.s    V_5
-    IL_00d2:  ldloc.s    V_5
-    IL_00d4:  ldloca.s   V_4
-    IL_00d6:  callvirt   instance int32 class GI1`1<object>::Func<string>(class [mscorlib]System.Type[]&)
-    IL_00db:  ldc.i4.4
-    IL_00dc:  ceq
-    IL_00de:  ldstr      "Expecting GI1<T>.Func to land on GII4<T>.Func<S>"
-    IL_00e3:  call       void Test::Assert(bool,
-                                           string)
-    IL_00e8:  nop
-    IL_00e9:  ldloc.s    V_4
-    IL_00eb:  ldc.i4.0
-    IL_00ec:  ldelem.ref
-    IL_00ed:  ldtoken    [mscorlib]System.Object
-    IL_00f2:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_00f7:  call       bool [mscorlib]System.Type::op_Equality(class [mscorlib]System.Type,
-                                                                 class [mscorlib]System.Type)
-    IL_00fc:  ldstr      "T must be object"
-    IL_0101:  call       void Test::Assert(bool,
-                                           string)
-    IL_0106:  nop
-    IL_0107:  ldloc.s    V_4
-    IL_0109:  ldc.i4.1
-    IL_010a:  ldelem.ref
-    IL_010b:  ldtoken    [mscorlib]System.String
-    IL_0110:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_0115:  call       bool [mscorlib]System.Type::op_Equality(class [mscorlib]System.Type,
-                                                                 class [mscorlib]System.Type)
-    IL_011a:  ldstr      "S must be string"
-    IL_011f:  call       void Test::Assert(bool,
-                                           string)
-    IL_0124:  nop
-    IL_0125:  ret
+    IL_00bc:  ret
   } // end of method Program::Positive
 
   .method public hidebysig static int32  Main() cil managed

@@ -121,9 +121,8 @@ class I8Class: I8
 
 interface GI1<T>
 {
-    int Func<S>(out Type[] types); // int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", "typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 4; }  
-
-} 
+    int Func<S>(out Type[] types); 
+}
 
 interface GI2<T> : GI1<T>
 {
@@ -140,12 +139,6 @@ interface GI4<T> : GI2<T>, GI3<T>
 {
     // int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", "typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 4; }  
 } 
-
-class GI1Class<T>: GI1<T>
-{
-    // @REMOVE
-    int GI1<T>.Func<S>(out Type[] types) { Console.WriteLine(typeof(T) + ", " + typeof(S) + ", GI1Class"); types = new Type[] { typeof(T), typeof(S) }; return 4; }      
-}
 
 class GI23Class<T>: GI2<T>, GI3<T>
 {
@@ -216,19 +209,11 @@ class Program
         i1 = (I1) i8Class;
         Test.Assert(i1.Func(10) == 18, "Expecting I1.Func to land on I8.Func");
 
-        Console.WriteLine("Calling GI1.Func on GI1Class<object> - expecting I1.Func<S>");
-
-        var gi1Class = new GI1Class<object>();
-        Type[] types;
-        GI1<object> gi1 = (GI1<object>) gi1Class;
-        Test.Assert(gi1.Func<string>(out types) == 1, "Expecting GI1<T>.Func to land on GII1<T>.Func<S>");
-        Test.Assert(types[0] == typeof(object), "T must be object");
-        Test.Assert(types[1] == typeof(string), "S must be string");
-       
         Console.WriteLine("Calling GI1.Func on GI4Class<object> - expecting GI4.Func<S>");
 
         var gi4Class = new GI4Class<object>();
-        gi1 = (GI1<object>) gi4Class;
+        Type[] types;
+        var gi1 = (GI1<object>) gi4Class;
         Test.Assert(gi1.Func<string>(out types) == 4, "Expecting GI1<T>.Func to land on GII4<T>.Func<S>");
         Test.Assert(types[0] == typeof(object), "T must be object");
         Test.Assert(types[1] == typeof(string), "S must be string");  
