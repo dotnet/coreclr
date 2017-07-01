@@ -1537,6 +1537,33 @@ void QCALLTYPE ThreadNative::nativeInitCultureAccessors()
     END_QCALL;
 }
 
+typedef HRESULT(WINAPI *pfnSetThreadDescription)(HANDLE hThread, PCWSTR lpThreadDescription);
+extern pfnSetThreadDescription g_pfnSetThreadDescription;
+
+HRESULT WINAPI InitializeSetThreadDescription(HANDLE hThread, PCWSTR lpThreadDescription)
+{
+    pfnSetThreadDescription func = NULL;
+
+#ifndef FEATURE_PAL
+    HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
+    if (hKernel32 != NULL)
+    {
+        func = (pfnSetThreadDescription)GetProcAddress(hKernel32, "SetThreadDescription");
+    }
+
+    if (func != NULL) // method is only available with Windows 10 Creators Update
+    {
+        g_pfnSetThreadDescription = func;
+        return func(hThread, lpThreadDescription);
+    }
+    else
+#endif
+    { 
+        return NOERROR;
+    }
+}
+
+pfnSetThreadDescription g_pfnSetThreadDescription = &InitializeSetThreadDescription;
 
 void QCALLTYPE ThreadNative::InformThreadNameChange(QCall::ThreadHandle thread, LPCWSTR name, INT32 len)
 {
@@ -1544,7 +1571,23 @@ void QCALLTYPE ThreadNative::InformThreadNameChange(QCall::ThreadHandle thread, 
 
     BEGIN_QCALL;
 
+    
     Thread* pThread = &(*thread);
+
+    // Set on Windows 10 Creators Update and later machines the unmanaged thread name as well. That will show up in ETW traces and debuggers which is very helpful
+    // if more and more thread get a meaningful name
+    if (len > 0 && name != NULL)
+    {
+        HRESULT lret = g_pfnSetThreadDescription(pThread->GetThreadHandle(), name);
+#ifdef _DEBUG
+        if (FAILED(lret))
+        {
+
+            auto last = ::GetLastError();
+            wprintf(L"\r\nSetThreadName failed for string %s and returned: %lx, lastError: %llx, Thread Handle: %llx. This should not happen unless the thread handle is invalid or the API call itself has a problem.", name, lret, last, pThread->GetThreadHandle());
+        }
+#endif
+    }
 
 #ifdef PROFILING_SUPPORTED
     {
