@@ -1584,7 +1584,7 @@ void QCALLTYPE ThreadNative::InformThreadNameChange(QCall::ThreadHandle thread, 
         {
 
             auto last = ::GetLastError();
-            wprintf(L"\r\nSetThreadName failed for string %s and returned: %lx, lastError: %llx, Thread Handle: %llx. This should not happen unless the thread handle is invalid or the API call itself has a problem.", name, lret, last, pThread->GetThreadHandle());
+            printf("\r\nSetThreadName failed and returned: %llx, lastError: %llx, Thread Handle: %llx. This should not happen unless the thread handle is invalid or the API call itself has a problem.", lret, last, pThread->GetThreadHandle());
         }
 #endif
     }
