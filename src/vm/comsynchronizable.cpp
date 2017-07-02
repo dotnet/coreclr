@@ -1539,16 +1539,22 @@ void QCALLTYPE ThreadNative::nativeInitCultureAccessors()
 
 typedef HRESULT(WINAPI *pfnSetThreadDescription)(HANDLE hThread, PCWSTR lpThreadDescription);
 extern pfnSetThreadDescription g_pfnSetThreadDescription;
+BOOL g_InitializeSetThreadDescriptionWasRun = FALSE;
+
 
 HRESULT WINAPI InitializeSetThreadDescription(HANDLE hThread, PCWSTR lpThreadDescription)
 {
     pfnSetThreadDescription func = NULL;
 
 #ifndef FEATURE_PAL
-    HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
-    if (hKernel32 != NULL)
+    if (!g_InitializeSetThreadDescriptionWasRun)
     {
-        func = (pfnSetThreadDescription)GetProcAddress(hKernel32, "SetThreadDescription");
+        HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
+        if (hKernel32 != NULL)
+        {
+            func = (pfnSetThreadDescription)GetProcAddress(hKernel32, "SetThreadDescription");
+        }
+        g_InitializeSetThreadDescriptionWasRun = TRUE;
     }
 
     if (func != NULL) // method is only available with Windows 10 Creators Update
@@ -1575,18 +1581,10 @@ void QCALLTYPE ThreadNative::InformThreadNameChange(QCall::ThreadHandle thread, 
     Thread* pThread = &(*thread);
 
     // Set on Windows 10 Creators Update and later machines the unmanaged thread name as well. That will show up in ETW traces and debuggers which is very helpful
-    // if more and more thread get a meaningful name
+    // if more and more threads get a meaningful name
     if (len > 0 && name != NULL)
     {
-        HRESULT lret = g_pfnSetThreadDescription(pThread->GetThreadHandle(), name);
-#ifdef _DEBUG
-        if (FAILED(lret))
-        {
-
-            auto last = ::GetLastError();
-            printf("\r\nSetThreadName failed and returned: %llx, lastError: %llx, Thread Handle: %llx. This should not happen unless the thread handle is invalid or the API call itself has a problem.", lret, last, pThread->GetThreadHandle());
-        }
-#endif
+        g_pfnSetThreadDescription(pThread->GetThreadHandle(), name);
     }
 
 #ifdef PROFILING_SUPPORTED
