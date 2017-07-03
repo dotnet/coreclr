@@ -1801,7 +1801,7 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
                 structPromotionInfo->fieldCnt, varDsc->lvFieldAccessed);
         shouldPromote = false;
     }
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) || defined(_TARGET_ARM_)
     // TODO-PERF - Only do this when the LclVar is used in an argument context
     // TODO-ARM64 - HFA support should also eliminate the need for this.
     // TODO-LSRA - Currently doesn't support the passing of floating point LCL_VARS in the integer registers
