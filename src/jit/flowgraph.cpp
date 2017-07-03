@@ -3299,7 +3299,7 @@ Compiler::SwitchUniqueSuccSet Compiler::GetDescriptorForSwitch(BasicBlock* switc
         // reachability information stored in the blocks. To avoid that, we just use a local BitVec.
 
         BitVecTraits blockVecTraits(fgBBNumMax + 1, this);
-        BitVec       BITVEC_INIT_NOCOPY(uniqueSuccBlocks, BitVecOps::MakeEmpty(&blockVecTraits));
+        BitVec       uniqueSuccBlocks(BitVecOps::MakeEmpty(&blockVecTraits));
         BasicBlock** jumpTable = switchBlk->bbJumpSwt->bbsDstTab;
         unsigned     jumpCount = switchBlk->bbJumpSwt->bbsCount;
         for (unsigned i = 0; i < jumpCount; i++)
@@ -21255,7 +21255,7 @@ void Compiler::fgDebugCheckBlockLinks()
                 // Create a set with all the successors. Don't use BlockSet, so we don't need to worry
                 // about the BlockSet epoch.
                 BitVecTraits bitVecTraits(fgBBNumMax + 1, this);
-                BitVec       BITVEC_INIT_NOCOPY(succBlocks, BitVecOps::MakeEmpty(&bitVecTraits));
+                BitVec       succBlocks(BitVecOps::MakeEmpty(&bitVecTraits));
                 BasicBlock** jumpTable = block->bbJumpSwt->bbsDstTab;
                 unsigned     jumpCount = block->bbJumpSwt->bbsCount;
                 for (unsigned i = 0; i < jumpCount; i++)
