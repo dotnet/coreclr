@@ -2707,8 +2707,8 @@ void LinearScan::checkLastUses(BasicBlock* block)
 
     VARSET_TP liveInNotComputedLive(VarSetOps::Diff(compiler, block->bbLiveIn, computedLive));
 
-    unsigned        liveInNotComputedLiveIndex = 0;
     VarSetOps::Iter liveInNotComputedLiveIter(compiler, liveInNotComputedLive);
+    unsigned        liveInNotComputedLiveIndex = 0;
     while (liveInNotComputedLiveIter.NextElem(&liveInNotComputedLiveIndex))
     {
         unsigned varNum = compiler->lvaTrackedToVarNum[liveInNotComputedLiveIndex];
@@ -2721,8 +2721,8 @@ void LinearScan::checkLastUses(BasicBlock* block)
 
     VarSetOps::DiffD(compiler, computedLive, block->bbLiveIn);
     const VARSET_TP& computedLiveNotLiveIn(computedLive); // reuse the buffer.
-    unsigned         computedLiveNotLiveInIndex = 0;
     VarSetOps::Iter  computedLiveNotLiveInIter(compiler, computedLiveNotLiveIn);
+    unsigned         computedLiveNotLiveInIndex = 0;
     while (computedLiveNotLiveInIter.NextElem(&computedLiveNotLiveInIndex))
     {
         unsigned varNum = compiler->lvaTrackedToVarNum[computedLiveNotLiveInIndex];
@@ -9630,11 +9630,11 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
     // Note that for this purpose we use the full live-out set, because we must ensure that
     // even the registers that remain the same across the edge are preserved correctly.
     regMaskTP       liveOutRegs = RBM_NONE;
-    VarSetOps::Iter iter1(compiler, block->bbLiveOut);
-    unsigned        varIndex1 = 0;
-    while (iter1.NextElem(&varIndex1))
+    VarSetOps::Iter liveOutIter(compiler, block->bbLiveOut);
+    unsigned        liveOutVarIndex = 0;
+    while (liveOutIter.NextElem(&liveOutVarIndex))
     {
-        regNumber fromReg = getVarReg(outVarToRegMap, varIndex1);
+        regNumber fromReg = getVarReg(outVarToRegMap, liveOutVarIndex);
         if (fromReg != REG_STK)
         {
             liveOutRegs |= genRegMask(fromReg);
@@ -9673,11 +9673,11 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
     //   write to any registers that are read by those in the diffResolutionSet:
     //     sameResolutionSet
 
-    VarSetOps::Iter iter2(compiler, outResolutionSet);
-    unsigned        varIndex2 = 0;
-    while (iter2.NextElem(&varIndex2))
+    VarSetOps::Iter outResolutionSetIter(compiler, outResolutionSet);
+    unsigned        outResolutionSetVarIndex = 0;
+    while (outResolutionSetIter.NextElem(&outResolutionSetVarIndex))
     {
-        regNumber fromReg             = getVarReg(outVarToRegMap, varIndex2);
+        regNumber fromReg             = getVarReg(outVarToRegMap, outResolutionSetVarIndex);
         bool      isMatch             = true;
         bool      isSame              = false;
         bool      maybeSingleTarget   = false;
@@ -9687,7 +9687,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
         for (unsigned succIndex = 0; succIndex < succCount; succIndex++)
         {
             BasicBlock* succBlock = block->GetSucc(succIndex, compiler);
-            if (!VarSetOps::IsMember(compiler, succBlock->bbLiveIn, varIndex2))
+            if (!VarSetOps::IsMember(compiler, succBlock->bbLiveIn, outResolutionSetVarIndex))
             {
                 maybeSameLivePaths = true;
                 continue;
@@ -9698,7 +9698,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
                 liveOnlyAtSplitEdge = ((succBlock->bbPreds->flNext == nullptr) && (succBlock != compiler->fgFirstBB));
             }
 
-            regNumber toReg = getVarReg(getInVarToRegMap(succBlock->bbNum), varIndex2);
+            regNumber toReg = getVarReg(getInVarToRegMap(succBlock->bbNum), outResolutionSetVarIndex);
             if (sameToReg == REG_NA)
             {
                 sameToReg = toReg;
@@ -9748,7 +9748,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
 
         if (sameToReg == REG_NA)
         {
-            VarSetOps::AddElemD(compiler, diffResolutionSet, varIndex2);
+            VarSetOps::AddElemD(compiler, diffResolutionSet, outResolutionSetVarIndex);
             if (fromReg != REG_STK)
             {
                 diffReadRegs |= genRegMask(fromReg);
@@ -9756,8 +9756,8 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
         }
         else if (sameToReg != fromReg)
         {
-            VarSetOps::AddElemD(compiler, sameResolutionSet, varIndex2);
-            setVarReg(sameVarToRegMap, varIndex2, sameToReg);
+            VarSetOps::AddElemD(compiler, sameResolutionSet, outResolutionSetVarIndex);
+            setVarReg(sameVarToRegMap, outResolutionSetVarIndex, sameToReg);
             if (sameToReg != REG_STK)
             {
                 sameWriteRegs |= genRegMask(sameToReg);

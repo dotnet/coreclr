@@ -459,10 +459,10 @@ void CodeGen::siBeginBlock(BasicBlock* block)
         // Check that vars which are live on entry have an open scope
 
         VarSetOps::Iter iter(compiler, block->bbLiveIn);
-        unsigned        i = 0;
-        while (iter.NextElem(&i))
+        unsigned        varIndex = 0;
+        while (iter.NextElem(&varIndex))
         {
-            unsigned varNum = compiler->lvaTrackedToVarNum[i];
+            unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
             // lvRefCnt may go down to 0 after liveness-analysis.
             // So we need to check if this tracked variable is actually used.
             if (!compiler->lvaTable[varNum].lvIsInReg() && !compiler->lvaTable[varNum].lvOnFrame)
@@ -661,17 +661,17 @@ void CodeGen::siUpdate()
     assert(VarSetOps::IsSubset(compiler, killed, compiler->lvaTrackedVars));
 
     VarSetOps::Iter iter(compiler, killed);
-    unsigned        i = 0;
-    while (iter.NextElem(&i))
+    unsigned        varIndex = 0;
+    while (iter.NextElem(&varIndex))
     {
 #ifdef DEBUG
-        unsigned   lclNum = compiler->lvaTrackedToVarNum[i];
+        unsigned   lclNum = compiler->lvaTrackedToVarNum[varIndex];
         LclVarDsc* lclVar = &compiler->lvaTable[lclNum];
         assert(lclVar->lvTracked);
 #endif
 
-        siScope* scope = siLatestTrackedScopes[i];
-        siEndTrackedScope(i);
+        siScope* scope = siLatestTrackedScopes[varIndex];
+        siEndTrackedScope(varIndex);
     }
 
     VarSetOps::Assign(compiler, siLastLife, compiler->compCurLife);
