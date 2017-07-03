@@ -20098,11 +20098,11 @@ void Compiler::fgDispBasicBlocks(bool dumpTrees)
 /*****************************************************************************/
 //  Increment the stmtNum and dump the tree using gtDispTree
 //
-void Compiler::fgDumpStmtTree(GenTreePtr stmt, unsigned blkNum)
+void Compiler::fgDumpStmtTree(GenTreePtr stmt, unsigned bbNum)
 {
     compCurStmtNum++; // Increment the current stmtNum
 
-    printf("\n***** BB%02u, stmt %d\n", blkNum, compCurStmtNum);
+    printf("\n***** BB%02u, stmt %d\n", bbNum, compCurStmtNum);
 
     if (fgOrder == FGOrderLinear || opts.compDbgInfo)
     {

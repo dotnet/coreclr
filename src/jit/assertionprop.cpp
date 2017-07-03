@@ -169,16 +169,16 @@ void Compiler::optAddCopies()
         bool isDominatedByFirstBB = false;
 
         BlockSetOps::Iter iter(this, varDsc->lvRefBlks);
-        unsigned          blkNum = 0;
-        while (iter.NextElem(&blkNum))
+        unsigned          bbNum = 0;
+        while (iter.NextElem(&bbNum))
         {
-            /* Find the block 'blkNum' */
+            /* Find the block 'bbNum' */
             BasicBlock* block = fgFirstBB;
-            while (block && (block->bbNum != blkNum))
+            while (block && (block->bbNum != bbNum))
             {
                 block = block->bbNext;
             }
-            noway_assert(block && (block->bbNum == blkNum));
+            noway_assert(block && (block->bbNum == bbNum));
 
             bool     importantUseInBlock = (varDsc->lvIsParam) && (block->getBBWeight(this) > paramAvgWtdRefDiv2);
             bool     isPreHeaderBlock    = ((block->bbFlags & BBF_LOOP_PREHEADER) != 0);
@@ -215,7 +215,7 @@ void Compiler::optAddCopies()
 #ifdef DEBUG
             if (verbose)
             {
-                printf("        Referenced in BB%02u, bbWeight is %s", blkNum, refCntWtd2str(block->getBBWeight(this)));
+                printf("        Referenced in BB%02u, bbWeight is %s", bbNum, refCntWtd2str(block->getBBWeight(this)));
 
                 if (isDominatedByFirstBB)
                 {
@@ -322,16 +322,16 @@ void Compiler::optAddCopies()
 
             /* We have already calculated paramImportantUseDom above. */
             BlockSetOps::Iter iter(this, paramImportantUseDom);
-            unsigned          blkNum = 0;
-            while (iter.NextElem(&blkNum))
+            unsigned          bbNum = 0;
+            while (iter.NextElem(&bbNum))
             {
-                /* Advance block to point to 'blkNum' */
+                /* Advance block to point to 'bbNum' */
                 /* This assumes that the iterator returns block number is increasing lexical order. */
-                while (block && (block->bbNum != blkNum))
+                while (block && (block->bbNum != bbNum))
                 {
                     block = block->bbNext;
                 }
-                noway_assert(block && (block->bbNum == blkNum));
+                noway_assert(block && (block->bbNum == bbNum));
 
 #ifdef DEBUG
                 if (verbose)
