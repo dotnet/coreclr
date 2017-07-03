@@ -760,7 +760,8 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
         }
 
         // For each local var number "lclNum" that "block" assigns to...
-        VARSET_ITER_INIT(m_pCompiler, defVars, block->bbVarDef, varIndex);
+        VarSetOps::Iter defVars(m_pCompiler, block->bbVarDef);
+        unsigned        varIndex = 0;
         while (defVars.NextElem(&varIndex))
         {
             unsigned lclNum = m_pCompiler->lvaTrackedToVarNum[varIndex];
