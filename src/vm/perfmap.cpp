@@ -227,7 +227,7 @@ void PerfMap::LogStubs(const char* stubType, const char* stubOwner, PCODE pCode,
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (s_Current == nullptr)
+    if (s_Current == nullptr || s_Current->m_FileStream == nullptr)
     {
         return;
     }
