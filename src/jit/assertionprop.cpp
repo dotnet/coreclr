@@ -168,7 +168,8 @@ void Compiler::optAddCopies()
 
         bool isDominatedByFirstBB = false;
 
-        BLOCKSET_ITER_INIT(this, iter, varDsc->lvRefBlks, blkNum);
+        BlockSetOps::Iter iter(this, varDsc->lvRefBlks);
+        unsigned          blkNum = 0;
         while (iter.NextElem(&blkNum))
         {
             /* Find the block 'blkNum' */
@@ -320,8 +321,8 @@ void Compiler::optAddCopies()
 #endif
 
             /* We have already calculated paramImportantUseDom above. */
-
-            BLOCKSET_ITER_INIT(this, iter, paramImportantUseDom, blkNum);
+            BlockSetOps::Iter iter(this, paramImportantUseDom);
+            unsigned          blkNum = 0;
             while (iter.NextElem(&blkNum))
             {
                 /* Advance block to point to 'blkNum' */
