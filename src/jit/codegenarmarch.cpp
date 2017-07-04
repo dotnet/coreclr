@@ -667,7 +667,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     gcPtrs[i]   = varDsc->lvGcLayout[i];
 #else // _TARGET_ARM_
                 gcPtrs     = treeNode->gtGcPtrs;
-                gcPtrCount = treeNode->gtNumSlots;
+                gcPtrCount = treeNode->gtNumberReferenceSlots;
 #endif // _TARGET_ARM_
             }
             else // addrNode is used
