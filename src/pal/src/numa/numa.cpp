@@ -595,7 +595,7 @@ SetThreadAffinityMask(
 
     if (st == 0)
     {
-        for (int i = 0; i < g_possibleCpuCount; i++)
+        for (int i = 0; i < min(8 * sizeof(KAFFINITY), g_possibleCpuCount); i++)
         {
             if (CPU_ISSET(i, &prevCpuSet))
             {
@@ -620,17 +620,17 @@ SetThreadAffinityMask(
 
     st = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuSet);
 
-    if (st == -1)
+    if (st != 0)
     {
-        switch (errno)
+        switch (st)
         {
         case EINVAL:
             // There is no processor in the mask that is allowed to execute the
             // process
             SetLastError(ERROR_INVALID_PARAMETER);
             break;
-        case EPERM:
-            SetLastError(ERROR_ACCESS_DENIED);
+        case ESRCH:
+            SetLastError(ERROR_INVALID_HANDLE);
             break;
         default:
             SetLastError(ERROR_GEN_FAILURE);
