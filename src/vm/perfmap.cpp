@@ -30,7 +30,7 @@ void PerfMap::Initialize()
 
         int signalNum = (int) CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_PerfMapIgnoreSignal);
 
-        if(signalNum > 0)
+        if (signalNum > 0)
         {
             PAL_IgnoreProfileSignal(signalNum);
         }
