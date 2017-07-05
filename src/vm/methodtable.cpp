@@ -7027,7 +7027,7 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                             if (pMD->IsVirtual() && !pMD->IsAbstract() && pMD->IsMethodImpl())
                             {
                                 MethodImpl::Iterator it(pMD);
-                                while (it.IsValid())
+                                for (; it.IsValid(); it.Next())
                                 {
                                     MethodDesc *pDeclMD = it.GetMethodDesc();
 
@@ -7055,8 +7055,6 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                                         pCurMD = pMD;
                                         break;
                                     }
-
-                                    it.Next();
                                 } 
                             }
                         }

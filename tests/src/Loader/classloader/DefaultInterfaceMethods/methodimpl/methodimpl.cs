@@ -2,40 +2,160 @@ using System;
 
 interface IFoo
 {
-    int Foo(int a);
+    int Foo1(int a); // { return a + 1 };
+    int Foo2(int a); // { return a + 2 };
+    int Foo3(int a);
+    int Foo4(int a);
+    int Foo5(int a);
+    int Foo6(int a);
+    int Foo7(int a);
+    int Foo8(int a);
+    int Foo9(int a);
 }
 
-interface IBar
+interface IBar : IFoo
 {
-    int Bar(int b);
+    // @OVERRIDE
+    // IFoo.Foo1/2/3/4/5
+
+    int Bar1(int b); // { return a + 11; }
+    int Bar2(int b); // { return a + 22; } 
+    int Bar3(int b); // { return a + 33; } 
+    int Bar4(int b);
+    int Bar5(int b);
+    int Bar6(int b);
+    int Bar7(int b);
+    int Bar8(int b);
+    int Bar9(int b);
 }
 
-interface IFooBar : IFoo, IBar
+interface IBlah : IBar
 {
-    int Foo(int a);
+    // @OVERRIDE IFoo.Foo6/7/8/9
+    // @OVERRIDE IBar.Bar6/7/8/9
+    int Blah1(int c);
+    int Blah2(int c);
+    int Blah3(int c);
 }
 
-class Temp : IFoo
+class IBarImpl : IBar
 {
-    int IFoo.Foo(int a)
+    // @REMOVE all implementation
+    int IFoo.Foo1(int a)
     {
-        Console.WriteLine("At IFooBar::IFoo.Foo explicit methodimpl");
+        Console.WriteLine("At IIFoo.Foo1");
+        return a + 10;
+    }
+
+    int IFoo.Foo2(int a)
+    {
+        Console.WriteLine("At IIFoo.Foo1");
+        return a + 20;
+    }
+    int IFoo.Foo3(int a)
+    {
+        Console.WriteLine("At IIFoo.Foo1");
         return a + 30;
     }
-}
-
-class FooBar : IFooBar
-{
-    public int Foo(int a)
+    int IFoo.Foo4(int a)
     {
-        Console.WriteLine("At IFoo::Foo");
-        return a+10;            
+        Console.WriteLine("At IIFoo.Foo1");
+        return a + 40;
+    }
+    int IFoo.Foo5(int a)
+    {
+        Console.WriteLine("At IIFoo.Foo1");
+        return a + 50;
+    }
+    int IFoo.Foo6(int a)
+    {
+        Console.WriteLine("At IIFoo.Foo1");
+        return a + 60;
+    }
+    int IFoo.Foo7(int a)
+    {
+        Console.WriteLine("At IIFoo.Foo1");
+        return a + 70;
+    }
+    int IFoo.Foo8(int a)
+    {
+        Console.WriteLine("At IIFoo.Foo1");
+        return a + 80;
+    }
+    int IFoo.Foo9(int a)
+    {
+        Console.WriteLine("At IIFoo.Foo1");
+        return a + 19;
     }
 
-    public int Bar(int b)
+    int IBar.Bar1(int a)
     {
-        Console.WriteLine("At IBar::Bar");
-        return b+20;
+        Console.WriteLine("At IBar.Bar1");
+        return a + 110;
+    }
+
+    int IBar.Bar2(int a)
+    {
+        Console.WriteLine("At IBar.Bar1");
+        return a + 220;
+    }
+    int IBar.Bar3(int a)
+    {
+        Console.WriteLine("At IBar.Bar1");
+        return a + 330;
+    }
+    int IBar.Bar4(int a)
+    {
+        Console.WriteLine("At IBar.Bar1");
+        return a + 440;
+    }
+    int IBar.Bar5(int a)
+    {
+        Console.WriteLine("At IBar.Bar1");
+        return a + 550;
+    }
+    int IBar.Bar6(int a)
+    {
+        Console.WriteLine("At IBar.Bar1");
+        return a + 660;
+    }
+    int IBar.Bar7(int a)
+    {
+        Console.WriteLine("At IBar.Bar1");
+        return a + 770;
+    }
+    int IBar.Bar8(int a)
+    {
+        Console.WriteLine("At IBar.Bar1");
+        return a + 880;
+    }
+    int IBar.Bar9(int a)
+    {
+        Console.WriteLine("At IBar.Bar1");
+        return a + 990;
+    }      
+}
+
+class IBlahImpl : IBarImpl, IBlah
+{
+    // @REMOVE all implementation
+    // @OVERRIDE IBlah2/3 with + 2220/3330
+    int IBlah.Blah1(int c)
+    {
+        Console.WriteLine("At IBlah.Blah1");
+        return c+111;
+    }
+
+    int IBlah.Blah2(int c)
+    {
+        Console.WriteLine("At IBlah.Blah2");
+        return c+222;
+    }
+
+    int IBlah.Blah3(int c)
+    {
+        Console.WriteLine("At IBlah.Blah3");
+        return c+333;
     }
 }
 
@@ -43,15 +163,69 @@ class Program
 {
     public static int Main()
     {
-        FooBar fooBar = new FooBar();
-        IFoo foo = (IFoo) fooBar;
-        IBar bar = (IBar) fooBar;
+        IBarImpl barImpl = new IBarImpl();
+        IFoo foo = (IFoo) barImpl;
 
-        Console.WriteLine("Calling IFoo.Foo on FooBar - expecting IFooBar::IFoo.Bar");
-        Test.Assert(foo.Foo(10) == 40, "Calling IFoo.Foo on FooBar");
+        Console.WriteLine("Calling IFoo.Foo methods on IBarImpl...");
 
-        Console.WriteLine("Calling IBar.Bar on FooBar - expecting IBar::Bar");
-        Test.Assert(bar.Bar(10) == 30, "Calling IBar.Bar on FooBar");
+        Test.Assert(foo.Foo1(1) == 11, "Calling IFoo.Foo1 on IBarImpl");
+        Test.Assert(foo.Foo2(2) == 22, "Calling IFoo.Foo2 on IBarImpl");
+        Test.Assert(foo.Foo3(3) == 33, "Calling IFoo.Foo3 on IBarImpl");
+        Test.Assert(foo.Foo4(4) == 44, "Calling IFoo.Foo4 on IBarImpl");
+        Test.Assert(foo.Foo5(5) == 55, "Calling IFoo.Foo5 on IBarImpl");
+        Test.Assert(foo.Foo6(0) == 6, "Calling IFoo.Foo6 on IBarImpl");
+        Test.Assert(foo.Foo7(0) == 7, "Calling IFoo.Foo7 on IBarImpl");
+        Test.Assert(foo.Foo8(0) == 8, "Calling IFoo.Foo8 on IBarImpl");
+        Test.Assert(foo.Foo9(0) == 9, "Calling IFoo.Foo9 on IBarImpl");
+
+        IBar bar = (IBar) barImpl;
+
+        Console.WriteLine("Calling IBar.Bar methods on IBarImpl...");
+
+        Test.Assert(bar.Bar1(0) == 11, "Calling IBar.Bar1 on IBarImpl");
+        Test.Assert(bar.Bar2(0) == 22, "Calling IBar.Bar2 on IBarImpl");
+        Test.Assert(bar.Bar3(0) == 33, "Calling IBar.Bar3 on IBarImpl");
+        Test.Assert(bar.Bar4(0) == 44, "Calling IBar.Bar4 on IBarImpl");
+        Test.Assert(bar.Bar5(0) == 55, "Calling IBar.Bar5 on IBarImpl");
+        Test.Assert(bar.Bar6(0) == 66, "Calling IBar.Bar6 on IBarImpl");
+        Test.Assert(bar.Bar7(0) == 77, "Calling IBar.Bar7 on IBarImpl");
+        Test.Assert(bar.Bar8(0) == 88, "Calling IBar.Bar8 on IBarImpl");
+        Test.Assert(bar.Bar9(0) == 99, "Calling IBar.Bar9 on IBarImpl");
+
+        IBlahImpl blahImpl = new IBlahImpl();
+        foo = (IFoo) blahImpl;
+
+        Test.Assert(foo.Foo1(1) == 11, "Calling IFoo.Foo1 on IBlahImpl");
+        Test.Assert(foo.Foo2(2) == 22, "Calling IFoo.Foo2 on IBlahImpl");
+        Test.Assert(foo.Foo3(3) == 33, "Calling IFoo.Foo3 on IBlahImpl");
+        Test.Assert(foo.Foo4(4) == 44, "Calling IFoo.Foo4 on IBlahImpl");
+        Test.Assert(foo.Foo5(5) == 55, "Calling IFoo.Foo5 on IBlahImpl");
+        Test.Assert(foo.Foo6(6) == 66, "Calling IFoo.Foo6 on IBlahImpl");
+        Test.Assert(foo.Foo7(7) == 77, "Calling IFoo.Foo7 on IBlahImpl");
+        Test.Assert(foo.Foo8(8) == 88, "Calling IFoo.Foo8 on IBlahImpl");
+        Test.Assert(foo.Foo9(9) == 99, "Calling IFoo.Foo9 on IBlahImpl");
+
+        bar = (IBar) blahImpl;
+
+        Console.WriteLine("Calling IBar.Bar methods on IBlahImpl...");
+
+        Test.Assert(bar.Bar1(1) == 111, "Calling IBar.Bar1 on IBlahImpl");
+        Test.Assert(bar.Bar2(2) == 222, "Calling IBar.Bar2 on IBlahImpl");
+        Test.Assert(bar.Bar3(3) == 333, "Calling IBar.Bar3 on IBlahImpl");
+        Test.Assert(bar.Bar4(4) == 444, "Calling IBar.Bar4 on IBlahImpl");
+        Test.Assert(bar.Bar5(5) == 555, "Calling IBar.Bar5 on IBlahImpl");
+        Test.Assert(bar.Bar6(0) == 66, "Calling IBar.Bar6 on IBlahImpl");
+        Test.Assert(bar.Bar7(0) == 77, "Calling IBar.Bar7 on IBlahImpl");
+        Test.Assert(bar.Bar8(0) == 88, "Calling IBar.Bar8 on IBlahImpl");
+        Test.Assert(bar.Bar9(0) == 99, "Calling IBar.Bar9 on IBlahImpl");  
+
+        IBlah blah = (IBlah) blahImpl;
+
+        Console.WriteLine("Calling IBlah.Blah methods on IBlahImpl...");   
+
+        Test.Assert(blah.Blah1(0) == 111, "Calling IBlah.Blah1 on IBlahImpl");
+        Test.Assert(blah.Blah2(2) == 2222, "Calling IBlah.Blah1 on IBlahImpl");
+        Test.Assert(blah.Blah3(3) == 3333, "Calling IBlah.Blah1 on IBlahImpl"); 
 
         return Test.Ret();
     }
