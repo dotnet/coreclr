@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using CommandLine;
 using CommandLine.Text;
 using Microsoft.Xunit.Performance.Api;
@@ -342,7 +345,6 @@ namespace JitBench
                     AddDashesToOption = true,
                     AddEnumValuesToHelpText = true,
                     AdditionalNewLineAfterOption = false,
-                    Copyright = "Copyright (c) Microsoft Corporation 2015",
                     Heading = "JitBenchHarness",
                     MaximumDisplayWidth = 80,
                 }.AddOptions(result).ToString();
