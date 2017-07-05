@@ -275,7 +275,6 @@ void Compiler::lvaInitTypeRef()
         }
         else 
         {
-            
             stackSize += curDsc->lvArgStackSize();
         }
     }

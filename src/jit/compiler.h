@@ -495,8 +495,28 @@ public:
         size_t stackSize = 0;
         if (varTypeIsStruct(this))
         {
+#if defined(WINDOWS_AMD64_ABI)
+            // StackSize is always the pointer size.
+            stackSize = TARGET_POINTER_SIZE;
+#elif defined(_TARGET_ARM64_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
             // lvSize should roundup.
             stackSize = this->lvSize();
+
+#if defined(_TARGET_ARM64_)
+            if (stackSize > TARGET_POINTER_SIZE * 2)
+            {
+                // If the size is greater than the special to slot struct
+                // then it will be passed as a reference.
+                stackSize = TARGET_POINTER_SIZE;
+            }
+#endif //
+
+#else // !_TARGET_ARM64_ !WINDOWS_AMD64_ABI !FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+        NYI("Unsupported target.");
+        unreached();
+
+#endif // WINDOWS_AM64_ABI
         }
         else
         {
