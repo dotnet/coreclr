@@ -159,9 +159,31 @@ class IBlahImpl : IBarImpl, IBlah
     }
 }
 
+interface IFooBarBlah : IFoo, IBar, IBlah
+{
+    // FooBarBlah1 .override IFoo.Foo1/IBar.Bar1/IBlah.Blah1 return 1+11111
+    // FooBarBlah2 .override IFoo.Foo2/IBar.Bar2/IBlah.Blah2 return i+22222
+    // FooBarBLah345 .override IFoo.Foo345/IBar.Bar345/IBlah.Blah3 return i+33333
+}
+
+class FooBarBlahImpl : 
+    IBlahImpl,   // @REMOVE
+    IFooBarBlah
+{
+
+}
+
 class Program
 {
     public static int Main()
+    {
+        SingleOverride();
+        MultiOverride();
+                              
+        return Test.Ret();
+    }
+
+    private static void SingleOverride()
     {
         IBarImpl barImpl = new IBarImpl();
         IFoo foo = (IFoo) barImpl;
@@ -226,8 +248,45 @@ class Program
         Test.Assert(blah.Blah1(0) == 111, "Calling IBlah.Blah1 on IBlahImpl");
         Test.Assert(blah.Blah2(2) == 2222, "Calling IBlah.Blah1 on IBlahImpl");
         Test.Assert(blah.Blah3(3) == 3333, "Calling IBlah.Blah1 on IBlahImpl"); 
+    }
 
-        return Test.Ret();
+    private static void MultiOverride()
+    {        
+        FooBarBlahImpl fooBarBlah = new FooBarBlahImpl();
+        IFoo foo = (IFoo) fooBarBlah;
+
+        Console.WriteLine("Calling IFoo.Foo methods on FooBarBlahImpl...");   
+        Test.Assert(foo.Foo1(0) == 11111, "Calling IFoo.Foo1 on FooBarBlahImpl");
+        Test.Assert(foo.Foo2(0) == 22222, "Calling IFoo.Foo2 on FooBarBlahImpl");
+        Test.Assert(foo.Foo3(0) == 33333, "Calling IFoo.Foo3 on FooBarBlahImpl");
+        Test.Assert(foo.Foo4(0) == 33333, "Calling IFoo.Foo4 on FooBarBlahImpl");
+        Test.Assert(foo.Foo5(0) == 33333, "Calling IFoo.Foo5 on FooBarBlahImpl");
+        Test.Assert(foo.Foo6(6) == 66, "Calling IFoo.Foo6 on FooBarBlahImpl");
+        Test.Assert(foo.Foo7(7) == 77, "Calling IFoo.Foo7 on FooBarBlahImpl");
+        Test.Assert(foo.Foo8(8) == 88, "Calling IFoo.Foo8 on FooBarBlahImpl");
+        Test.Assert(foo.Foo9(9) == 99, "Calling IFoo.Foo9 on FooBarBlahImpl"); 
+
+        IBar bar = (IBar) fooBarBlah;
+
+        Console.WriteLine("Calling IBar.Bar methods on FooBarBlahImpl...");
+
+        Test.Assert(bar.Bar1(0) == 11111, "Calling IBar.Bar1 on FooBarBlahImpl");
+        Test.Assert(bar.Bar2(0) == 22222, "Calling IBar.Bar2 on FooBarBlahImpl");
+        Test.Assert(bar.Bar3(0) == 33333, "Calling IBar.Bar3 on FooBarBlahImpl");
+        Test.Assert(bar.Bar4(0) == 33333, "Calling IBar.Bar4 on FooBarBlahImpl");
+        Test.Assert(bar.Bar5(0) == 33333, "Calling IBar.Bar5 on FooBarBlahImpl");
+        Test.Assert(bar.Bar6(0) == 66, "Calling IBar.Bar6 on FooBarBlahImpl");
+        Test.Assert(bar.Bar7(0) == 77, "Calling IBar.Bar7 on FooBarBlahImpl");
+        Test.Assert(bar.Bar8(0) == 88, "Calling IBar.Bar8 on FooBarBlahImpl");
+        Test.Assert(bar.Bar9(0) == 99, "Calling IBar.Bar9 on FooBarBlahImpl");            
+
+        IBlah blah = (IBlah) fooBarBlah;
+       
+        Console.WriteLine("Calling IBlah.Blah methods on FooBarBlahImpl...");   
+
+        Test.Assert(blah.Blah1(0) == 11111, "Calling IBlah.Blah1 on FooBarBlahImpl");
+        Test.Assert(blah.Blah2(0) == 22222, "Calling IBlah.Blah1 on FooBarBlahImpl");
+        Test.Assert(blah.Blah3(0) == 33333, "Calling IBlah.Blah1 on FooBarBlahImpl"); 
     }
 }
 

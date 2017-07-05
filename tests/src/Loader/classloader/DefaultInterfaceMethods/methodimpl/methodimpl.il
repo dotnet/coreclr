@@ -851,20 +851,134 @@
 
 } // end of class IBlahImpl   
  
+.class interface private abstract auto ansi IFooBarBlah
+       implements IFoo,
+                  IBar,
+                  IBlah
+{
+  .method private hidebysig newslot virtual final 
+          instance int32  IFooBarBlah.FooBarBlah1(int32 c) cil managed
+  {
+    .override IFoo::Foo1
+    .override IBar::Bar1
+    .override IBlah::Blah1
+    // Code size       21 (0x15)
+    .maxstack  2
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldstr      "At IFooBarBlah.FooBarBlah1"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldarg.1
+    IL_000d:  ldc.i4     11111
+    IL_000f:  add
+    IL_0010:  stloc.0
+    IL_0011:  br.s       IL_0013
+
+    IL_0013:  ldloc.0
+    IL_0014:  ret   
+  } // end of method IFooBarBlah.FooBarBlah1  
+  .method private hidebysig newslot virtual final 
+          instance int32  IFooBarBlah.FooBarBlah2(int32 c) cil managed
+  {
+    .override IFoo::Foo2
+    .override IBar::Bar2
+    .override IBlah::Blah2
+    // Code size       21 (0x15)
+    .maxstack  2
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldstr      "At IFooBarBlah.FooBarBlah2"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldarg.1
+    IL_000d:  ldc.i4     22222
+    IL_000f:  add
+    IL_0010:  stloc.0
+    IL_0011:  br.s       IL_0013
+
+    IL_0013:  ldloc.0
+    IL_0014:  ret   
+  } // end of method IFooBarBlah.FooBarBlah1
+
+  .method private hidebysig newslot virtual final 
+          instance int32  IFooBarBlah.FooBarBlah3(int32 c) cil managed
+  {
+    .override IFoo::Foo3
+    .override IFoo::Foo4
+    .override IFoo::Foo5
+    .override IBar::Bar3
+    .override IBar::Bar4
+    .override IBar::Bar5
+    .override IBlah::Blah3
+    // Code size       21 (0x15)
+    .maxstack  2
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldstr      "At IFooBarBlah.FooBarBlah3"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldarg.1
+    IL_000d:  ldc.i4     33333
+    IL_000f:  add
+    IL_0010:  stloc.0
+    IL_0011:  br.s       IL_0013
+
+    IL_0013:  ldloc.0
+    IL_0014:  ret   
+  } // end of method IFooBarBlah.FooBarBlah3
+} // end of class IFooBarBlah  
+
+.class private auto ansi beforefieldinit FooBarBlahImpl
+       implements IFooBarBlah,
+                  IFoo,
+                  IBar,
+                  IBlah
+{
+  .method public hidebysig specialname rtspecialname 
+          instance void  .ctor() cil managed
+  {
+    // Code size       8 (0x8)
+    .maxstack  8
+    IL_0000:  ldarg.0
+    IL_0001:  call       instance void IBlahImpl::.ctor()
+    IL_0006:  nop
+    IL_0007:  ret
+  } // end of method FooBarBlahImpl::.ctor
+
+} // end of class FooBarBlahImpl         
+
 .class private auto ansi beforefieldinit Program
        extends [mscorlib]System.Object
 {
   .method public hidebysig static int32  Main() cil managed
   {
     .entrypoint
-    // Code size       957 (0x3bd)
+    // Code size       23 (0x17)
+    .maxstack  1
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  call       void Program::SingleOverride()
+    IL_0006:  nop
+    IL_0007:  call       void Program::MultiOverride()
+    IL_000c:  nop
+    IL_000d:  call       int32 Test::Ret()
+    IL_0012:  stloc.0
+    IL_0013:  br.s       IL_0015
+
+    IL_0015:  ldloc.0
+    IL_0016:  ret
+  } // end of method Program::Main
+
+  .method private hidebysig static void  SingleOverride() cil managed
+  {
+    // Code size       946 (0x3b2)
     .maxstack  2
     .locals init (class IBarImpl V_0,
              class IFoo V_1,
              class IBar V_2,
              class IBlahImpl V_3,
-             class IBlah V_4,
-             int32 V_5)
+             class IBlah V_4)
     IL_0000:  nop
     IL_0001:  newobj     instance void IBarImpl::.ctor()
     IL_0006:  stloc.0
@@ -1243,13 +1357,226 @@
     IL_03ab:  call       void Test::Assert(bool,
                                            string)
     IL_03b0:  nop
-    IL_03b1:  call       int32 Test::Ret()
-    IL_03b6:  stloc.s    V_5
-    IL_03b8:  br.s       IL_03ba
+    IL_03b1:  ret
+  } // end of method Program::SingleOverride
 
-    IL_03ba:  ldloc.s    V_5
-    IL_03bc:  ret
-  } // end of method Program::Main
+  .method private hidebysig static void  MultiOverride() cil managed
+  {
+    // Code size       549 (0x225)
+    .maxstack  2
+    .locals init (class FooBarBlahImpl V_0,
+             class IFoo V_1,
+             class IBar V_2,
+             class IBlah V_3)
+    IL_0000:  nop
+    IL_0001:  newobj     instance void FooBarBlahImpl::.ctor()
+    IL_0006:  stloc.0
+    IL_0007:  ldloc.0
+    IL_0008:  stloc.1
+    IL_0009:  ldstr      "Calling IFoo.Foo methods on FooBarBlahImpl..."
+    IL_000e:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_0013:  nop
+    IL_0014:  ldloc.1
+    IL_0015:  ldc.i4.0
+    IL_0016:  callvirt   instance int32 IFoo::Foo1(int32)
+    IL_001b:  ldc.i4     0x2b67
+    IL_0020:  ceq
+    IL_0022:  ldstr      "Calling IFoo.Foo1 on FooBarBlahImpl"
+    IL_0027:  call       void Test::Assert(bool,
+                                           string)
+    IL_002c:  nop
+    IL_002d:  ldloc.1
+    IL_002e:  ldc.i4.0
+    IL_002f:  callvirt   instance int32 IFoo::Foo2(int32)
+    IL_0034:  ldc.i4     0x56ce
+    IL_0039:  ceq
+    IL_003b:  ldstr      "Calling IFoo.Foo2 on FooBarBlahImpl"
+    IL_0040:  call       void Test::Assert(bool,
+                                           string)
+    IL_0045:  nop
+    IL_0046:  ldloc.1
+    IL_0047:  ldc.i4.0
+    IL_0048:  callvirt   instance int32 IFoo::Foo3(int32)
+    IL_004d:  ldc.i4     0x8235
+    IL_0052:  ceq
+    IL_0054:  ldstr      "Calling IFoo.Foo3 on FooBarBlahImpl"
+    IL_0059:  call       void Test::Assert(bool,
+                                           string)
+    IL_005e:  nop
+    IL_005f:  ldloc.1
+    IL_0060:  ldc.i4.0
+    IL_0061:  callvirt   instance int32 IFoo::Foo4(int32)
+    IL_0066:  ldc.i4     0x8235
+    IL_006b:  ceq
+    IL_006d:  ldstr      "Calling IFoo.Foo4 on FooBarBlahImpl"
+    IL_0072:  call       void Test::Assert(bool,
+                                           string)
+    IL_0077:  nop
+    IL_0078:  ldloc.1
+    IL_0079:  ldc.i4.0
+    IL_007a:  callvirt   instance int32 IFoo::Foo5(int32)
+    IL_007f:  ldc.i4     0x8235
+    IL_0084:  ceq
+    IL_0086:  ldstr      "Calling IFoo.Foo5 on FooBarBlahImpl"
+    IL_008b:  call       void Test::Assert(bool,
+                                           string)
+    IL_0090:  nop
+    IL_0091:  ldloc.1
+    IL_0092:  ldc.i4.6
+    IL_0093:  callvirt   instance int32 IFoo::Foo6(int32)
+    IL_0098:  ldc.i4.s   66
+    IL_009a:  ceq
+    IL_009c:  ldstr      "Calling IFoo.Foo6 on FooBarBlahImpl"
+    IL_00a1:  call       void Test::Assert(bool,
+                                           string)
+    IL_00a6:  nop
+    IL_00a7:  ldloc.1
+    IL_00a8:  ldc.i4.7
+    IL_00a9:  callvirt   instance int32 IFoo::Foo7(int32)
+    IL_00ae:  ldc.i4.s   77
+    IL_00b0:  ceq
+    IL_00b2:  ldstr      "Calling IFoo.Foo7 on FooBarBlahImpl"
+    IL_00b7:  call       void Test::Assert(bool,
+                                           string)
+    IL_00bc:  nop
+    IL_00bd:  ldloc.1
+    IL_00be:  ldc.i4.8
+    IL_00bf:  callvirt   instance int32 IFoo::Foo8(int32)
+    IL_00c4:  ldc.i4.s   88
+    IL_00c6:  ceq
+    IL_00c8:  ldstr      "Calling IFoo.Foo8 on FooBarBlahImpl"
+    IL_00cd:  call       void Test::Assert(bool,
+                                           string)
+    IL_00d2:  nop
+    IL_00d3:  ldloc.1
+    IL_00d4:  ldc.i4.s   9
+    IL_00d6:  callvirt   instance int32 IFoo::Foo9(int32)
+    IL_00db:  ldc.i4.s   99
+    IL_00dd:  ceq
+    IL_00df:  ldstr      "Calling IFoo.Foo9 on FooBarBlahImpl"
+    IL_00e4:  call       void Test::Assert(bool,
+                                           string)
+    IL_00e9:  nop
+    IL_00ea:  ldloc.0
+    IL_00eb:  stloc.2
+    IL_00ec:  ldstr      "Calling IBar.Bar methods on FooBarBlahImpl..."
+    IL_00f1:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_00f6:  nop
+    IL_00f7:  ldloc.2
+    IL_00f8:  ldc.i4.0
+    IL_00f9:  callvirt   instance int32 IBar::Bar1(int32)
+    IL_00fe:  ldc.i4     0x2b67
+    IL_0103:  ceq
+    IL_0105:  ldstr      "Calling IBar.Bar1 on FooBarBlahImpl"
+    IL_010a:  call       void Test::Assert(bool,
+                                           string)
+    IL_010f:  nop
+    IL_0110:  ldloc.2
+    IL_0111:  ldc.i4.0
+    IL_0112:  callvirt   instance int32 IBar::Bar2(int32)
+    IL_0117:  ldc.i4     0x56ce
+    IL_011c:  ceq
+    IL_011e:  ldstr      "Calling IBar.Bar2 on FooBarBlahImpl"
+    IL_0123:  call       void Test::Assert(bool,
+                                           string)
+    IL_0128:  nop
+    IL_0129:  ldloc.2
+    IL_012a:  ldc.i4.0
+    IL_012b:  callvirt   instance int32 IBar::Bar3(int32)
+    IL_0130:  ldc.i4     0x8235
+    IL_0135:  ceq
+    IL_0137:  ldstr      "Calling IBar.Bar3 on FooBarBlahImpl"
+    IL_013c:  call       void Test::Assert(bool,
+                                           string)
+    IL_0141:  nop
+    IL_0142:  ldloc.2
+    IL_0143:  ldc.i4.0
+    IL_0144:  callvirt   instance int32 IBar::Bar4(int32)
+    IL_0149:  ldc.i4     0x8235
+    IL_014e:  ceq
+    IL_0150:  ldstr      "Calling IBar.Bar4 on FooBarBlahImpl"
+    IL_0155:  call       void Test::Assert(bool,
+                                           string)
+    IL_015a:  nop
+    IL_015b:  ldloc.2
+    IL_015c:  ldc.i4.0
+    IL_015d:  callvirt   instance int32 IBar::Bar5(int32)
+    IL_0162:  ldc.i4     0x8235
+    IL_0167:  ceq
+    IL_0169:  ldstr      "Calling IBar.Bar5 on FooBarBlahImpl"
+    IL_016e:  call       void Test::Assert(bool,
+                                           string)
+    IL_0173:  nop
+    IL_0174:  ldloc.2
+    IL_0175:  ldc.i4.0
+    IL_0176:  callvirt   instance int32 IBar::Bar6(int32)
+    IL_017b:  ldc.i4.s   66
+    IL_017d:  ceq
+    IL_017f:  ldstr      "Calling IBar.Bar6 on FooBarBlahImpl"
+    IL_0184:  call       void Test::Assert(bool,
+                                           string)
+    IL_0189:  nop
+    IL_018a:  ldloc.2
+    IL_018b:  ldc.i4.0
+    IL_018c:  callvirt   instance int32 IBar::Bar7(int32)
+    IL_0191:  ldc.i4.s   77
+    IL_0193:  ceq
+    IL_0195:  ldstr      "Calling IBar.Bar7 on FooBarBlahImpl"
+    IL_019a:  call       void Test::Assert(bool,
+                                           string)
+    IL_019f:  nop
+    IL_01a0:  ldloc.2
+    IL_01a1:  ldc.i4.0
+    IL_01a2:  callvirt   instance int32 IBar::Bar8(int32)
+    IL_01a7:  ldc.i4.s   88
+    IL_01a9:  ceq
+    IL_01ab:  ldstr      "Calling IBar.Bar8 on FooBarBlahImpl"
+    IL_01b0:  call       void Test::Assert(bool,
+                                           string)
+    IL_01b5:  nop
+    IL_01b6:  ldloc.2
+    IL_01b7:  ldc.i4.0
+    IL_01b8:  callvirt   instance int32 IBar::Bar9(int32)
+    IL_01bd:  ldc.i4.s   99
+    IL_01bf:  ceq
+    IL_01c1:  ldstr      "Calling IBar.Bar9 on FooBarBlahImpl"
+    IL_01c6:  call       void Test::Assert(bool,
+                                           string)
+    IL_01cb:  nop
+    IL_01cc:  ldloc.0
+    IL_01cd:  stloc.3
+    IL_01ce:  ldstr      "Calling IBlah.Blah methods on FooBarBlahImpl..."
+    IL_01d3:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_01d8:  nop
+    IL_01d9:  ldloc.3
+    IL_01da:  ldc.i4.0
+    IL_01db:  callvirt   instance int32 IBlah::Blah1(int32)
+    IL_01e0:  ldc.i4     0x2b67
+    IL_01e5:  ceq
+    IL_01e7:  ldstr      "Calling IBlah.Blah1 on FooBarBlahImpl"
+    IL_01ec:  call       void Test::Assert(bool,
+                                           string)
+    IL_01f1:  nop
+    IL_01f2:  ldloc.3
+    IL_01f3:  ldc.i4.0
+    IL_01f4:  callvirt   instance int32 IBlah::Blah2(int32)
+    IL_01f9:  ldc.i4     0x56ce
+    IL_01fe:  ceq
+    IL_0200:  ldstr      "Calling IBlah.Blah1 on FooBarBlahImpl"
+    IL_0205:  call       void Test::Assert(bool,
+                                           string)
+    IL_020a:  nop
+    IL_020b:  ldloc.3
+    IL_020c:  ldc.i4.0
+    IL_020d:  callvirt   instance int32 IBlah::Blah3(int32)
+    IL_0212:  ldc.i4     0x8235
+    IL_0217:  ceq
+    IL_0219:  ldstr      "Calling IBlah.Blah1 on FooBarBlahImpl"
+    IL_021e:  call       void Test::Assert(bool,
+                                           string)
+    IL_0223:  nop
+    IL_0224:  ret
+  } // end of method Program::MultiOverride
 
   .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
@@ -1262,7 +1589,7 @@
     IL_0007:  ret
   } // end of method Program::.ctor
 
-} // end of class Program
+} // end of class Program  
 
 .class private auto ansi beforefieldinit Test
        extends [mscorlib]System.Object
