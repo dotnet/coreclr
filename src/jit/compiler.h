@@ -487,6 +487,45 @@ public:
         assert(_lvRegNum == reg);
     }
 
+    const size_t lvArgStackSize() const
+    {
+        // Make sure this will have a stack size
+        assert(!this->lvIsRegArg);
+
+        size_t stackSize = 0;
+        if (varTypeIsStruct(this))
+        {
+#if defined(WINDOWS_AMD64_ABI)
+            // StackSize is always the pointer size.
+            stackSize = TARGET_POINTER_SIZE;
+#elif defined(_TARGET_ARM64_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+            // lvSize should roundup.
+            stackSize = this->lvSize();
+
+#if defined(_TARGET_ARM64_)
+            if (stackSize > TARGET_POINTER_SIZE * 2)
+            {
+                // If the size is greater than the special to slot struct
+                // then it will be passed as a reference.
+                stackSize = TARGET_POINTER_SIZE;
+            }
+#endif //
+
+#else // !_TARGET_ARM64_ !WINDOWS_AMD64_ABI !FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+        NYI("Unsupported target.");
+        unreached();
+
+#endif // WINDOWS_AM64_ABI
+        }
+        else
+        {
+            stackSize = TARGET_POINTER_SIZE;
+        }
+
+        return stackSize;
+    }
+
 /////////////////////
 
 #if defined(_TARGET_64BIT_)
@@ -8254,7 +8293,14 @@ public:
         var_types compRetNativeType; // Normalized return type as per target arch ABI
         unsigned  compILargsCount;   // Number of arguments (incl. implicit but not hidden)
         unsigned  compArgsCount;     // Number of arguments (incl. implicit and     hidden)
-        unsigned  compRetBuffArg;    // position of hidden return param var (0, 1) (BAD_VAR_NUM means not present);
+
+#if FEATURE_FASTTAILCALL
+        unsigned compArgRegCount;      // Number of incoming integer argument registers used for incoming arguments
+        unsigned compFloatArgRegCount; // Number of incoming floating argument registers used for incoming arguments
+        size_t   compArgStackSize;     // Incoming argument stack size in bytes
+#endif                                 // FEATURE_FASTTAILCALL
+
+        unsigned compRetBuffArg; // position of hidden return param var (0, 1) (BAD_VAR_NUM means not present);
         int compTypeCtxtArg; // position of hidden param for type context for generic code (CORINFO_CALLCONV_PARAMTYPE)
         unsigned       compThisArg; // position of implicit this pointer param (not to be confused with lvaArg0Var)
         unsigned       compILlocalsCount; // Number of vars : args + locals (incl. implicit but not hidden)
