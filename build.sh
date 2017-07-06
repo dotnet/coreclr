@@ -338,7 +338,7 @@ build_cross_arch_component()
     __SkipCrossArchBuild=1
     TARGET_ROOTFS=""
     # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
-    if [[ ("$__BuildArch" == "arm" || "$__BuildARch" == "armel") && "$__CrossArch" == "x86" ]]; then
+    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$__CrossArch" == "x86" ]]; then
         export CROSSCOMPILE=0
         __SkipCrossArchBuild=0
 
