@@ -2897,7 +2897,8 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
                 {
 #ifdef _TARGET_ARM_
                     // On ARM, There is the case that the argument of a virtual stub call is transferred by R4 register.
-                    // And then if the virtual stub is called, R4 register would be the busy status to avoid losing the argument data.
+                    // And then if the virtual stub is called, 
+                    // R4 register would be the busy status to avoid losing the argument data.
                     // It means R4 register must not be assigned to anywhere until the next kill.
                     // But the R4 register has to be killed in case of after virtual stub call to escape the busy state.
                     if (tree->AsCall()->IsVirtualStub())
