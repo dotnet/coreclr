@@ -1462,6 +1462,7 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define REG_ARG_1                REG_R1
   #define REG_ARG_2                REG_R2
   #define REG_ARG_3                REG_R3
+  #define REG_ARG_4                REG_R4             // Special case for virtual stub.
 
   SELECTANY const regNumber intArgRegs [] = {REG_R0, REG_R1, REG_R2, REG_R3};
   SELECTANY const regMaskTP intArgMasks[] = {RBM_R0, RBM_R1, RBM_R2, RBM_R3};
@@ -1470,6 +1471,7 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_ARG_1                RBM_R1
   #define RBM_ARG_2                RBM_R2
   #define RBM_ARG_3                RBM_R3
+  #define RBM_ARG_4                RBM_R4             // Special case for virtual stub.
 
   #define RBM_ARG_REGS            (RBM_ARG_0|RBM_ARG_1|RBM_ARG_2|RBM_ARG_3)
   #define RBM_FLTARG_REGS         (RBM_F0|RBM_F1|RBM_F2|RBM_F3|RBM_F4|RBM_F5|RBM_F6|RBM_F7|RBM_F8|RBM_F9|RBM_F10|RBM_F11|RBM_F12|RBM_F13|RBM_F14|RBM_F15)
