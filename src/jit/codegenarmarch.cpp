@@ -665,7 +665,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 gcPtrCount = varDsc->lvStructGcCount;
                 for (unsigned i = 0; i < gcPtrCount; ++i)
                     gcPtrs[i]   = varDsc->lvGcLayout[i];
-#else // _TARGET_ARM_
+#else  // _TARGET_ARM_
                 gcPtrs     = treeNode->gtGcPtrs;
                 gcPtrCount = treeNode->gtNumberReferenceSlots;
 #endif // _TARGET_ARM_
