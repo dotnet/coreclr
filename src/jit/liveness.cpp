@@ -405,7 +405,6 @@ void Compiler::fgPerNodeLocalVarLiveness(GenTree* tree)
             break;
     }
 }
-
 #endif // !LEGACY_BACKEND
 
 /*****************************************************************************/
@@ -451,7 +450,6 @@ void Compiler::fgPerBlockLocalVarLiveness()
             VarSetOps::Assign(this, block->bbVarUse, liveAll);
             VarSetOps::Assign(this, block->bbVarDef, liveAll);
             VarSetOps::Assign(this, block->bbLiveIn, liveAll);
-            VarSetOps::Assign(this, block->bbLiveOut, liveAll);
             block->bbMemoryUse     = fullMemoryKindSet;
             block->bbMemoryDef     = fullMemoryKindSet;
             block->bbMemoryLiveIn  = fullMemoryKindSet;
@@ -465,6 +463,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
                     VarSetOps::AssignNoCopy(this, block->bbLiveOut, VarSetOps::MakeEmpty(this));
                     break;
                 default:
+                    VarSetOps::Assign(this, block->bbLiveOut, liveAll);
                     break;
             }
         }
@@ -1323,6 +1322,13 @@ public:
 
 void Compiler::fgLiveVarAnalysis(bool updateInternalOnly)
 {
+#if CAN_DISABLE_DFA
+    if (opts.MinOpts())
+    {
+        return;
+    }
+#endif // CAN_DISABLE_DFA
+
     LiveVarAnalysis::Run(this, updateInternalOnly);
 
 #ifdef DEBUG
@@ -2883,6 +2889,15 @@ void Compiler::fgInterBlockLocalVarLiveness()
     /*-------------------------------------------------------------------------
      * Now fill in liveness info within each basic block - Backward DataFlow
      */
+
+#if CAN_DISABLE_DFA
+    // Nothing to be done in minopts.
+    if (opts.MinOpts())
+    {
+        fgLocalVarLivenessDone = true;
+        return;
+    }
+#endif
 
     // This is used in the liveness computation, as a temporary.
     VarSetOps::AssignNoCopy(this, fgMarkIntfUnionVS, VarSetOps::MakeEmpty(this));
