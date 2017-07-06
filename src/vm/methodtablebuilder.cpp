@@ -6166,9 +6166,13 @@ MethodTableBuilder::PlaceMethodImpls()
     }
 
     // Allocate some temporary storage. The number of overrides for a single method impl
-    // cannot be greater then the number of vtable slots.
-    DWORD * slots = new (&GetThread()->m_MarshalAlloc) DWORD[bmtVT->cVirtualSlots];
-    RelativePointer<MethodDesc *> * replaced = new (&GetThread()->m_MarshalAlloc) RelativePointer<MethodDesc*>[bmtVT->cVirtualSlots];
+    // cannot be greater then the number of vtable slots for classes. But for interfaces
+    // it might contain overrides for other interface methods.
+    DWORD dwMaxSlotSize = bmtVT->cVirtualSlots;
+    if (IsInterface())
+        dwMaxSlotSize += bmtMethod->dwNumberMethodImpls;
+    DWORD * slots = new (&GetThread()->m_MarshalAlloc) DWORD[dwMaxSlotSize];
+    RelativePointer<MethodDesc *> * replaced = new (&GetThread()->m_MarshalAlloc) RelativePointer<MethodDesc*>[dwMaxSlotSize];
 
     DWORD iEntry = 0;
     bmtMDMethod * pCurImplMethod = bmtMethodImpl->GetImplementationMethod(iEntry);
@@ -6186,7 +6190,8 @@ MethodTableBuilder::PlaceMethodImpls()
         // (declaration is on this type) or a method desc.
         bmtMethodHandle hDeclMethod = bmtMethodImpl->GetDeclarationMethod(iEntry);
         if(hDeclMethod.IsMDMethod())
-        {   // The declaration is on the type being built
+        {   
+            // The declaration is on the type being built
             bmtMDMethod * pCurDeclMethod = hDeclMethod.AsMDMethod();
 
             mdToken mdef = pCurDeclMethod->GetMethodSignature().GetToken();
@@ -6198,6 +6203,7 @@ MethodTableBuilder::PlaceMethodImpls()
             if (IsInterface())
             {
                 // We implement this slot, record it
+                ASSERT(slotIndex < dwMaxSlotSize);
                 slots[slotIndex] = pCurDeclMethod->GetSlotIndex();
                 replaced[slotIndex].SetValue(pCurDeclMethod->GetMethodDesc());
 
@@ -6210,9 +6216,10 @@ MethodTableBuilder::PlaceMethodImpls()
                 PlaceLocalDeclaration(
                     pCurDeclMethod,
                     pCurImplMethod,
-                    slots,             // Adds override to the slot and replaced arrays.
+                    slots,              // Adds override to the slot and replaced arrays.
                     replaced,
-                    &slotIndex);       // Increments count
+                    &slotIndex,
+                    dwMaxSlotSize);     // Increments count
             }
         }
         else
@@ -6222,6 +6229,7 @@ MethodTableBuilder::PlaceMethodImpls()
             if (IsInterface())
             {
                 // We implement this slot, record it
+                ASSERT(slotIndex < dwMaxSlotSize);
                 slots[slotIndex] = pCurDeclMethod->GetSlotIndex();
                 replaced[slotIndex].SetValue(pCurDeclMethod->GetMethodDesc());
 
@@ -6236,10 +6244,7 @@ MethodTableBuilder::PlaceMethodImpls()
                     // Throws
                     PlaceInterfaceDeclaration(
                         pCurDeclMethod,
-                        pCurImplMethod,
-                        slots,
-                        replaced,
-                        &slotIndex);     // Increments count
+                        pCurImplMethod);
                 }
                 else
                 {
@@ -6249,7 +6254,8 @@ MethodTableBuilder::PlaceMethodImpls()
                         pCurImplMethod,
                         slots,
                         replaced,
-                        &slotIndex);        // Increments count
+                        &slotIndex,
+                        dwMaxSlotSize);        // Increments count
                 }
             }
         }
@@ -6352,7 +6358,8 @@ MethodTableBuilder::PlaceLocalDeclaration(
     bmtMDMethod * pImpl, 
     DWORD *       slots, 
     RelativePointer<MethodDesc *> * replaced,
-    DWORD *       pSlotIndex)
+    DWORD *       pSlotIndex,
+    DWORD         dwMaxSlotSize)
 {
     CONTRACTL
     {
@@ -6407,6 +6414,7 @@ MethodTableBuilder::PlaceLocalDeclaration(
         pImpl);
 
     // We implement this slot, record it
+    ASSERT(*pSlotIndex < dwMaxSlotSize);
     slots[*pSlotIndex] = pDecl->GetSlotIndex();
     replaced[*pSlotIndex].SetValue(pDecl->GetMethodDesc());
 
@@ -6417,10 +6425,7 @@ MethodTableBuilder::PlaceLocalDeclaration(
 //*******************************************************************************
 VOID MethodTableBuilder::PlaceInterfaceDeclaration(
     bmtRTMethod *     pDecl,
-    bmtMDMethod *     pImpl,
-    DWORD*            slots,
-    RelativePointer<MethodDesc *> *      replaced,
-    DWORD*            pSlotIndex)
+    bmtMDMethod *     pImpl)
 {
     CONTRACTL {
         STANDARD_VM_CHECK;
@@ -6525,7 +6530,8 @@ MethodTableBuilder::PlaceParentDeclaration(
     bmtMDMethod * pImpl, 
     DWORD *       slots, 
     RelativePointer<MethodDesc *> * replaced,
-    DWORD *       pSlotIndex)
+    DWORD *       pSlotIndex,
+    DWORD         dwMaxSlotSize)
 {
     CONTRACTL {
         STANDARD_VM_CHECK;
@@ -6568,6 +6574,7 @@ MethodTableBuilder::PlaceParentDeclaration(
         pImpl);
 
     // We implement this slot, record it
+    ASSERT(*pSlotIndex < dwMaxSlotSize);
     slots[*pSlotIndex] = pDeclMD->GetSlot();
     replaced[*pSlotIndex].SetValue(pDeclMD);
 

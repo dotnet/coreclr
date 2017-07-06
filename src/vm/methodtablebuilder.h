@@ -2744,7 +2744,8 @@ private:
         bmtMDMethod *    pImpl,
         DWORD*           slots,
         RelativePointer<MethodDesc *> *     replaced,
-        DWORD*           pSlotIndex);
+        DWORD*           pSlotIndex,
+        DWORD            dwMaxSlotSize);
 
     // --------------------------------------------------------------------------------------------
     // Places a methodImpl pair where the decl is declared by a parent type.
@@ -2754,17 +2755,15 @@ private:
         bmtMDMethod *     pImpl,
         DWORD*            slots,
         RelativePointer<MethodDesc *> *      replaced,
-        DWORD*            pSlotIndex);
+        DWORD*            pSlotIndex,
+        DWORD             dwMaxSlotSize);
 
     // --------------------------------------------------------------------------------------------
     // Places a methodImpl pair where the decl is declared by an interface.
     VOID
     PlaceInterfaceDeclaration(
         bmtRTMethod *     pDecl,
-        bmtMDMethod *     pImpl,
-        DWORD*            slots,
-        RelativePointer<MethodDesc *> *      replaced,
-        DWORD*            pSlotIndex);
+        bmtMDMethod *     pImpl);
 
     // --------------------------------------------------------------------------------------------
     // This will validate that all interface methods that were matched during
