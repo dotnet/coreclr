@@ -406,7 +406,7 @@ build_CoreLib_ni()
 {
     if [ $__SkipCrossgen == 1 ]; then
         echo "Skipping generating native image"
-        exit 0
+        return
     fi
 
     if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
