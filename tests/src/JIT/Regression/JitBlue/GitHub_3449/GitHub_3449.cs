@@ -6,15 +6,13 @@ using System;
 
 public class Program
 {
-    // RyuJIT codegen and clang (or gcc) may produce different results for casting uint64 to 
-    // double, and the clang result is more accurate. For example,
+    // RyuJIT codegen, VC++, clang and gcc may produce different results for casting uint64 to 
+    // double.
     //    1) (double)0x84595161401484A0UL --> 43e08b2a2c280290  (RyuJIT codegen or VC++)
     //    2) (double)0x84595161401484A0UL --> 43e08b2a2c280291  (clang or gcc)
     // Constant folding in RyuJIT simply does (double)0x84595161401484A0UL in its C++ implementation.
-    // If it is compiled by clang, the example unsigned value and cast tree node are folded into 
-    // 43e08b2a2c280291, which is different from what the codegen produces. To fix this inconsistency,
-    // the constant folding is forced to have the same behavior as the codegen, and the result
-    // must be always 43e08b2a2c280290.
+    // If it is compiled by clang or gcc, the example unsigned value and cast tree node are folded into 
+    // 43e08b2a2c280291, which is different from what RyuJIT codegen or VC++ produces.
     // 
     // We don't have a good way to tell if the CLR is compiled by clang or VC++, so we simply allow
     // both answers.
