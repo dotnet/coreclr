@@ -2904,7 +2904,7 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
                     if (tree->AsCall()->IsVirtualStub())
                     {
                         regMaskTP virtualStubParamMask = compiler->virtualStubParamInfo->GetRegMask();
-                        killMask = RBM_INT_CALLEE_TRASH | virtualStubParamMask;
+                        killMask                       = RBM_INT_CALLEE_TRASH | virtualStubParamMask;
                     }
                     else
 #endif // _TARGET_ARM_
