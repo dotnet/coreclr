@@ -1718,7 +1718,9 @@ private:
     CORINFO_FIELD_HANDLE emitFltOrDblConst(GenTreeDblCon* tree, emitAttr attr = EA_UNKNOWN);
     regNumber emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src);
     regNumber emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src1, GenTree* src2);
-    void emitInsMov(instruction ins, emitAttr attr, GenTree* node);
+    void emitInsLoadInd(instruction ins, emitAttr attr, GenTree* node);
+    void emitInsStoreInd(instruction ins, emitAttr attr, GenTree* node);
+    void emitInsStoreLcl(instruction ins, emitAttr attr, GenTree* node);
     insFormat emitMapFmtForIns(insFormat fmt, instruction ins);
     insFormat emitMapFmtAtoM(insFormat fmt);
     void emitHandleMemOp(GenTreeIndir* indir, instrDesc* id, insFormat fmt, instruction ins);
