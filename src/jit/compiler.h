@@ -2931,6 +2931,13 @@ protected:
                              CORINFO_CALL_INFO*      callInfo,
                              CORINFO_CONTEXT_HANDLE* exactContextHnd);
 
+    void impDevirtualizeCall(GenTreeCall*            call,
+                             GenTreePtr              thisObj,
+                             CORINFO_METHOD_HANDLE*  method,
+                             unsigned*               methodAttribs,
+                             CORINFO_CONTEXT_HANDLE* contextHandle,
+                             CORINFO_CONTEXT_HANDLE* exactContextHandle);
+
     bool impMethodInfo_hasRetBuffArg(CORINFO_METHOD_INFO* methInfo);
 
     GenTreePtr impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HANDLE retClsHnd);

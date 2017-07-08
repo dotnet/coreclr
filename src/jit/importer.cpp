@@ -18583,6 +18583,14 @@ bool Compiler::IsMathIntrinsic(GenTreePtr tree)
     return (tree->OperGet() == GT_INTRINSIC) && IsMathIntrinsic(tree->gtIntrinsic.gtIntrinsicId);
 }
 
+void Compiler::impDevirtualizeCall(GenTreeCall*            call,
+                                   GenTreePtr              thisObj,
+                                   CORINFO_CALL_INFO*      callInfo,
+                                   CORINFO_CONTEXT_HANDLE* exactContextHandle)
+{
+    return impDevirtualizeCall(call, thisObj, &callInfo->hMethod, &callInfo->methodFlags, &callInfo->contextHandle, exactContextHandle);
+}
+
 //------------------------------------------------------------------------
 // impDevirtualizeCall: Attempt to change a virtual vtable call into a
 //   normal call
@@ -18590,7 +18598,9 @@ bool Compiler::IsMathIntrinsic(GenTreePtr tree)
 // Arguments:
 //     call -- the call node to examine/modify
 //     thisObj  -- the value of 'this' for the call
-//     callInfo -- [IN/OUT] info about the call from the VM
+//     method   -- [IN/OUT] the method handle for call. Updated iff call devirtualized.
+//     methodAttribs -- [IN/OUT] flags for the method to call. Updated iff call devirtualized.
+//     contextHandle -- [IN/OUT] context handle for the call. Updated iff call devirtualized.
 //     exactContextHnd -- [OUT] updated context handle iff call devirtualized
 //
 // Notes:
@@ -18612,9 +18622,16 @@ bool Compiler::IsMathIntrinsic(GenTreePtr tree)
 //
 void Compiler::impDevirtualizeCall(GenTreeCall*            call,
                                    GenTreePtr              thisObj,
-                                   CORINFO_CALL_INFO*      callInfo,
+                                   CORINFO_METHOD_HANDLE*  method,
+                                   unsigned*               methodAttribs,
+                                   CORINFO_CONTEXT_HANDLE* contextHandle,
                                    CORINFO_CONTEXT_HANDLE* exactContextHandle)
 {
+    assert(call != nullptr);
+    assert(method != nullptr);
+    assert(methodAttribs != nullptr);
+    assert(contextHandle != nullptr);
+
     // This should be a virtual vtable or virtual stub call.
     assert(call->IsVirtual());
 
@@ -18641,8 +18658,8 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
 #endif // DEBUG
 
     // Fetch information about the virtual method we're calling.
-    CORINFO_METHOD_HANDLE baseMethod        = callInfo->hMethod;
-    unsigned              baseMethodAttribs = callInfo->methodFlags;
+    CORINFO_METHOD_HANDLE baseMethod        = *method;
+    unsigned              baseMethodAttribs = *methodAttribs;
 
     if (baseMethodAttribs == 0)
     {
@@ -18764,7 +18781,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     }
 
     // Fetch the method that would be called based on the declared type of 'this'
-    CORINFO_CONTEXT_HANDLE ownerType     = callInfo->contextHandle;
+    CORINFO_CONTEXT_HANDLE ownerType     = *contextHandle;
     CORINFO_METHOD_HANDLE  derivedMethod = info.compCompHnd->resolveVirtualMethod(baseMethod, objClass, ownerType);
 
     // If we failed to get a handle, we can't devirtualize.  This can
@@ -18868,7 +18885,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
         CORINFO_RESOLVED_TOKEN derivedResolvedToken = {};
 
         derivedResolvedToken.tokenScope   = info.compScopeHnd;
-        derivedResolvedToken.tokenContext = callInfo->contextHandle;
+        derivedResolvedToken.tokenContext = *contextHandle;
         derivedResolvedToken.token        = info.compCompHnd->getMethodDefFromMethod(derivedMethod);
         derivedResolvedToken.tokenType    = CORINFO_TOKENKIND_Method;
         derivedResolvedToken.hClass       = derivedClass;
@@ -18888,9 +18905,9 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     // Need to update call info too. This is fragile
     // but hopefully the derived method conforms to
     // the base in most other ways.
-    callInfo->hMethod       = derivedMethod;
-    callInfo->methodFlags   = derivedMethodAttribs;
-    callInfo->contextHandle = MAKE_METHODCONTEXT(derivedMethod);
+    *method        = derivedMethod;
+    *methodAttribs = derivedMethodAttribs;
+    *contextHandle = MAKE_METHODCONTEXT(derivedMethod);
 
     // Update context handle.
     if ((exactContextHandle != nullptr) && (*exactContextHandle != nullptr))
