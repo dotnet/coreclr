@@ -6950,6 +6950,38 @@ struct MatchCandidate
     MethodDesc *pMD;
 };
 
+void ThrowExceptionForConflictingOverride(
+    MethodTable *pTargetClass,
+    MethodTable *pInterfaceMT,
+    MethodDesc *pInterfaceMD)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    SString assemblyName;
+
+    pTargetClass->GetAssembly()->GetDisplayName(assemblyName);
+
+    SString strInterfaceName;
+    TypeString::AppendType(strInterfaceName, TypeHandle(pInterfaceMT));
+
+    SString strMethodName;
+    TypeString::AppendMethod(strMethodName, pInterfaceMD, pInterfaceMD->GetMethodInstantiation());
+
+    SString strTargetClassName;
+    TypeString::AppendType(strTargetClassName, pTargetClass);
+
+    COMPlusThrow(
+        kNotSupportedException,
+        IDS_CLASSLOAD_AMBIGUOUS_OVERRIDE,
+        strInterfaceName,
+        strMethodName,
+        strTargetClassName,
+        assemblyName);
+}
+
+// Find the default interface implementation method for interface dispatch
+// It is either the interface method with default interface method implementation, 
+// or an most specific interface with an explicit methodimpl overriding the method
 BOOL MethodTable::FindDefaultInterfaceImplementation(
     MethodDesc *pInterfaceMD,
     MethodTable *pInterfaceMT,
@@ -6967,9 +6999,6 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
         POSTCONDITION(!RETVAL || (*ppDefaultMethod) != nullptr);
     } CONTRACT_END;
 
-    //
-    // Find best candidate
-    //
     InterfaceMapIterator it = this->IterateInterfaceMap();
 
     CQuickArray<MatchCandidate> candidates;
@@ -6978,6 +7007,9 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
     
     //
     // Walk interface from derived class to parent class
+    // We went with a straight-forward implementation as in most cases the number of interfaces are small
+    // and the result of the interface dispatch are already cached. If there are significant usage of default
+    // interface methods in highly complex interface hierarchies we can revisit this
     //
     MethodTable *pMT = this;
     while (pMT != NULL)
@@ -7010,13 +7042,13 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                 {
                     if (pCurMT->HasSameTypeDefAs(pInterfaceMT))
                     {
-                        // Generic variance match
+                        // Generic variance match - we'll instantiate pCurMD with the right type arguments later
                         pCurMD = pInterfaceMD;
                     }
                     else
                     {
                         //
-                        // Parent interface - search for an methodimpl for explicit override
+                        // A more specific interface - search for an methodimpl for explicit override
                         // Implicit override in default interface methods are not allowed
                         //
                         MethodIterator methodIt(pCurMT);
@@ -7024,7 +7056,8 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                         {
                             MethodDesc *pMD = methodIt.GetMethodDesc();
                             int targetSlot = pInterfaceMD->GetSlot();
-                            if (pMD->IsVirtual() && !pMD->IsAbstract() && pMD->IsMethodImpl())
+
+                            if (pMD->IsMethodImpl())
                             {
                                 MethodImpl::Iterator it(pMD);
                                 for (; it.IsValid(); it.Next())
@@ -7043,15 +7076,16 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                                             pDeclMT->GetCl(),
                                             pCurMT->GetInstantiation());
                                         MethodTable *pInstDeclMT = thInstDeclMT.GetMethodTable();
-                                        if (pInstDeclMT == pInterfaceMT &&
-                                            pDeclMD->GetSlot() == targetSlot)
+                                        if (pInstDeclMT == pInterfaceMT)
                                         {
+                                            // This is a matching override. We'll instantiate pCurMD later
                                             pCurMD = pMD;
                                             break;
                                         }
                                     }
                                     else if (pDeclMD == pInterfaceMD)
                                     {
+                                        // Exact match override 
                                         pCurMD = pMD;
                                         break;
                                     }
@@ -7104,6 +7138,7 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                         if (pCurMT->CanCastToInterface(pCandidateMT))
                         {
                             // pCurMT is a more specific choice
+                            // If pCurMT is more specific than IFoo and IBar, only update first entry IFoo and null out IBar
                             if (!seenMoreSpecific)
                             {
                                 seenMoreSpecific = true;
@@ -7120,7 +7155,8 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                         }
                         else if (pCandidateMT->CanCastToInterface(pCurMT))
                         {
-                            // pCurMT is less specific - we don't need to scan more
+                            // pCurMT is less specific - we don't need to scan more entries as this entry can
+                            // represent pCurMT (other entries are incompatible with pCurMT)
                             needToInsert = false;
                             break;
                         }
@@ -7161,8 +7197,7 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
         }
         else if (pBestCandidateMT != candidates[i].pMT)
         {
-            // found a conflict
-            COMPlusThrow(kNotSupportedException);
+            ThrowExceptionForConflictingOverride(this, pInterfaceMT, pInterfaceMD);
         }
     }
 

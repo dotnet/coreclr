@@ -4790,6 +4790,12 @@ VOID MethodTableBuilder::TestMethodImpl(
         BuildMethodTableThrowException(IDS_CLASSLOAD_MI_FINAL_DECL);
     }
 
+    // Interface method body that has methodimpl should always be final
+    if (IsInterface() && !IsMdFinal(dwImplAttrs))
+    {
+        BuildMethodTableThrowException(IDS_CLASSLOAD_MI_FINAL_DECL);
+    }
+
     // Since MethodImpl's do not affect the visibility of the Decl method, there's
     // no need to check.
 
@@ -6168,9 +6174,8 @@ MethodTableBuilder::PlaceMethodImpls()
     // Allocate some temporary storage. The number of overrides for a single method impl
     // cannot be greater then the number of vtable slots for classes. But for interfaces
     // it might contain overrides for other interface methods.
-    DWORD dwMaxSlotSize = bmtVT->cVirtualSlots;
-    if (IsInterface())
-        dwMaxSlotSize += bmtMethod->dwNumberMethodImpls;
+    DWORD dwMaxSlotSize = IsInterface() ? bmtMethod->dwNumberMethodImpls : bmtVT->cVirtualSlots;
+
     DWORD * slots = new (&GetThread()->m_MarshalAlloc) DWORD[dwMaxSlotSize];
     RelativePointer<MethodDesc *> * replaced = new (&GetThread()->m_MarshalAlloc) RelativePointer<MethodDesc*>[dwMaxSlotSize];
 
@@ -6315,7 +6320,6 @@ MethodTableBuilder::WriteMethodImplData(
 
         if (!IsInterface())
         {
-            // @DIM_TODO - use binary search (be aware of dups) to locate the right method
             // If we are currently builting an interface, the slots here has no meaning and we can skip it
             // Sort the two arrays in slot index order
             // This is required in MethodImpl::FindSlotIndex and MethodImpl::Iterator as we'll be using 
@@ -10802,6 +10806,8 @@ MethodTableBuilder::SetupMethodTable2(
 #pragma warning(pop)
 #endif
 
+// Returns true if there is at least one default implementation for this interface method
+// We don't care about conflicts at this stage in order to avoid impact type load performance
 BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(MethodDesc *pDeclMD)
 {
     STANDARD_VM_CONTRACT;
@@ -10812,7 +10818,7 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(MethodDesc *pDeclMD)
 
     MethodTable *pDeclMT = pDeclMD->GetMethodTable();
 
-    // Otherwise, traverse the list of interfaces and see if there is at least one overrides
+    // Otherwise, traverse the list of interfaces and see if there is at least one override 
     bmtInterfaceInfo::MapIterator intIt = bmtInterface->IterateInterfaceMap();
     for (; !intIt.AtEnd(); intIt.Next())
     {
@@ -10823,7 +10829,7 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(MethodDesc *pDeclMD)
             for (; methodIt.IsValid(); methodIt.Next())
             {
                 MethodDesc *pMD = methodIt.GetMethodDesc();
-                if (pMD->IsVirtual() && !pMD->IsAbstract() && pMD->IsMethodImpl())
+                if (pMD->IsMethodImpl())
                 {
                     MethodImpl::Iterator it(pMD);
                     while (it.IsValid())
