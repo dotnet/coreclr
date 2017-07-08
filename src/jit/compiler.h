@@ -2927,14 +2927,9 @@ protected:
                             IL_OFFSET          rawILOffset);
 
     void impDevirtualizeCall(GenTreeCall*            call,
-                             GenTreePtr              obj,
-                             CORINFO_CALL_INFO*      callInfo,
-                             CORINFO_CONTEXT_HANDLE* exactContextHnd);
-
-    void impDevirtualizeCall(GenTreeCall*            call,
                              GenTreePtr              thisObj,
                              CORINFO_METHOD_HANDLE*  method,
-                             unsigned*               methodAttribs,
+                             unsigned*               methodFlags,
                              CORINFO_CONTEXT_HANDLE* contextHandle,
                              CORINFO_CONTEXT_HANDLE* exactContextHandle);
 

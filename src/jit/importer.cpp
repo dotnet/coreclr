@@ -7495,7 +7495,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             assert(obj->gtType == TYP_REF);
 
             // See if we can devirtualize.
-            impDevirtualizeCall(call->AsCall(), obj, callInfo, &exactContextHnd);
+            impDevirtualizeCall(call->AsCall(), obj, &callInfo->hMethod, &callInfo->methodFlags, &callInfo->contextHandle, &exactContextHnd);
         }
         else
         {
@@ -18583,14 +18583,6 @@ bool Compiler::IsMathIntrinsic(GenTreePtr tree)
     return (tree->OperGet() == GT_INTRINSIC) && IsMathIntrinsic(tree->gtIntrinsic.gtIntrinsicId);
 }
 
-void Compiler::impDevirtualizeCall(GenTreeCall*            call,
-                                   GenTreePtr              thisObj,
-                                   CORINFO_CALL_INFO*      callInfo,
-                                   CORINFO_CONTEXT_HANDLE* exactContextHandle)
-{
-    return impDevirtualizeCall(call, thisObj, &callInfo->hMethod, &callInfo->methodFlags, &callInfo->contextHandle, exactContextHandle);
-}
-
 //------------------------------------------------------------------------
 // impDevirtualizeCall: Attempt to change a virtual vtable call into a
 //   normal call
@@ -18623,13 +18615,13 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
 void Compiler::impDevirtualizeCall(GenTreeCall*            call,
                                    GenTreePtr              thisObj,
                                    CORINFO_METHOD_HANDLE*  method,
-                                   unsigned*               methodAttribs,
+                                   unsigned*               methodFlags,
                                    CORINFO_CONTEXT_HANDLE* contextHandle,
                                    CORINFO_CONTEXT_HANDLE* exactContextHandle)
 {
     assert(call != nullptr);
     assert(method != nullptr);
-    assert(methodAttribs != nullptr);
+    assert(methodFlags != nullptr);
     assert(contextHandle != nullptr);
 
     // This should be a virtual vtable or virtual stub call.
@@ -18659,7 +18651,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
 
     // Fetch information about the virtual method we're calling.
     CORINFO_METHOD_HANDLE baseMethod        = *method;
-    unsigned              baseMethodAttribs = *methodAttribs;
+    unsigned              baseMethodAttribs = *methodFlags;
 
     if (baseMethodAttribs == 0)
     {
@@ -18906,7 +18898,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     // but hopefully the derived method conforms to
     // the base in most other ways.
     *method        = derivedMethod;
-    *methodAttribs = derivedMethodAttribs;
+    *methodFlags   = derivedMethodAttribs;
     *contextHandle = MAKE_METHODCONTEXT(derivedMethod);
 
     // Update context handle.
