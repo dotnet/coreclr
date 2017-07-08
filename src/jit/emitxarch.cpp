@@ -2646,9 +2646,10 @@ void emitter::spillIntArgRegsToShadowSlots()
 // Arguments:
 //    ins - the instruction to emit
 //    attr - the instruction operand size
+//    dstReg - the destination register
 //    node - the GT_IND node
 //
-void emitter::emitInsLoadInd(instruction ins, emitAttr attr, GenTree* node)
+void emitter::emitInsLoadInd(instruction ins, emitAttr attr, regNumber dstReg, GenTree* node)
 {
     assert(node->OperIs(GT_IND));
 
@@ -2660,13 +2661,13 @@ void emitter::emitInsLoadInd(instruction ins, emitAttr attr, GenTree* node)
 
     if (addr->OperGet() == GT_CLS_VAR_ADDR)
     {
-        emitIns_R_C(ins, attr, mem->gtRegNum, addr->gtClsVar.gtClsVarHnd, 0);
+        emitIns_R_C(ins, attr, dstReg, addr->gtClsVar.gtClsVarHnd, 0);
         return;
     }
     else if (addr->OperGet() == GT_LCL_VAR_ADDR)
     {
         GenTreeLclVarCommon* varNode = addr->AsLclVarCommon();
-        emitIns_R_S(ins, attr, mem->gtRegNum, varNode->GetLclNum(), 0);
+        emitIns_R_S(ins, attr, dstReg, varNode->GetLclNum(), 0);
         codeGen->genUpdateLife(varNode);
         return;
     }
@@ -2676,7 +2677,7 @@ void emitter::emitInsLoadInd(instruction ins, emitAttr attr, GenTree* node)
         size_t offset = mem->Offset();
         id            = emitNewInstrAmd(attr, offset);
         id->idIns(ins);
-        id->idReg1(mem->gtRegNum);
+        id->idReg1(dstReg);
         emitHandleMemOp(mem, id, IF_RWR_ARD, ins);
         sz = emitInsSizeAM(id, insCodeRM(ins));
         id->idCodeSize(sz);
