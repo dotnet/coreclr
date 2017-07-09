@@ -426,6 +426,38 @@ lExit:
     
 }
 
+typedef HRESULT(WINAPI *pfnSetThreadDescription)(HANDLE hThread, PCWSTR lpThreadDescription);
+extern pfnSetThreadDescription g_pfnSetThreadDescription;
+
+// Dummy method if windows version does not support it
+HRESULT SetThreadDescriptionDummy(HANDLE hThread, PCWSTR lpThreadDescription)
+{
+    return NOERROR;
+}
+
+HRESULT WINAPI InitializeSetThreadDescription(HANDLE hThread, PCWSTR lpThreadDescription)
+{
+    HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
+    if (hKernel32 != NULL)
+    {
+        g_pfnSetThreadDescription = (pfnSetThreadDescription)GetProcAddress(hKernel32, "SetThreadDescription");
+    }
+
+    if (g_pfnSetThreadDescription == NULL) // method is only available with Windows 10 Creators Update or later
+    {
+        g_pfnSetThreadDescription = SetThreadDescriptionDummy;
+    }
+
+    return g_pfnSetThreadDescription(hThread, lpThreadDescription);
+}
+
+pfnSetThreadDescription g_pfnSetThreadDescription = &InitializeSetThreadDescription;
+
+// Set unmanaged thread name which will show up in ETW and Debuggers which know how to read this data.
+HRESULT SetThreadName(HANDLE hThread, PCWSTR lpThreadDescription)
+{
+    return g_pfnSetThreadDescription(hThread, lpThreadDescription);
+}
 
 DWORD
 WszGetWorkingSet()
