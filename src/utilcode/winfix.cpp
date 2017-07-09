@@ -438,14 +438,21 @@ HRESULT SetThreadDescriptionDummy(HANDLE hThread, PCWSTR lpThreadDescription)
 HRESULT WINAPI InitializeSetThreadDescription(HANDLE hThread, PCWSTR lpThreadDescription)
 {
     HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
+
+    pfnSetThreadDescription pLocal = NULL; 
     if (hKernel32 != NULL)
     {
-        g_pfnSetThreadDescription = (pfnSetThreadDescription)GetProcAddress(hKernel32, "SetThreadDescription");
+        // store to thread local variable to prevent data race
+        pLocal = (pfnSetThreadDescription)GetProcAddress(hKernel32, "SetThreadDescription");
     }
 
-    if (g_pfnSetThreadDescription == NULL) // method is only available with Windows 10 Creators Update or later
+    if (pLocal == NULL) // method is only available with Windows 10 Creators Update or later
     {
         g_pfnSetThreadDescription = SetThreadDescriptionDummy;
+    }
+    else
+    {
+        g_pfnSetThreadDescription = pLocal;
     }
 
     return g_pfnSetThreadDescription(hThread, lpThreadDescription);
