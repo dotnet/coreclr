@@ -293,9 +293,9 @@ void ZapDebugDirectory::SaveNGenDebugDirectoryEntry(ZapWriter *pZapWriter)
     debugDirectory.Type = IMAGE_DEBUG_TYPE_CODEVIEW;
     debugDirectory.SizeOfData = m_pNGenPdbDebugData->GetSize();
     debugDirectory.AddressOfRawData = m_pNGenPdbDebugData->GetRVA();
-    // NGen PDBs are always Windows currently so make sure the "is portable pdb"
-    // indicator (0x504d) is clear since this debug directory is copied from
-    // an existing entry which could be a portable pdb.
+    // Make sure the "is portable pdb" indicator (MinorVersion == 0x504d) is clear
+    // for the NGen debug directory entry since this debug directory is copied
+    // from an existing entry which could be a portable pdb.
     debugDirectory.MinorVersion = 0;
     {
         ZapPhysicalSection *pPhysicalSection = ZapImage::GetImage(pZapWriter)->m_pTextSection;
