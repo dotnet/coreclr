@@ -405,6 +405,7 @@ void Compiler::fgPerNodeLocalVarLiveness(GenTree* tree)
             break;
     }
 }
+
 #endif // !LEGACY_BACKEND
 
 /*****************************************************************************/
@@ -421,11 +422,8 @@ void Compiler::fgPerBlockLocalVarLiveness()
 
     BasicBlock* block;
 
-#if CAN_DISABLE_DFA
-
-    /* If we're not optimizing at all, things are simple */
-
-    if (opts.MinOpts())
+    // If we don't require accurate local var lifetimes, things are simple.
+    if (!backendRequiresLocalVarLifetimes())
     {
         unsigned   lclNum;
         LclVarDsc* varDsc;
@@ -474,8 +472,6 @@ void Compiler::fgPerBlockLocalVarLiveness()
 
         return;
     }
-
-#endif // CAN_DISABLE_DFA
 
     // Avoid allocations in the long case.
     VarSetOps::AssignNoCopy(this, fgCurUseSet, VarSetOps::MakeEmpty(this));
@@ -1322,12 +1318,10 @@ public:
 
 void Compiler::fgLiveVarAnalysis(bool updateInternalOnly)
 {
-#if CAN_DISABLE_DFA
-    if (opts.MinOpts())
+    if (!backendRequiresLocalVarLifetimes())
     {
         return;
     }
-#endif // CAN_DISABLE_DFA
 
     LiveVarAnalysis::Run(this, updateInternalOnly);
 
@@ -2778,6 +2772,13 @@ void Compiler::fgInterBlockLocalVarLiveness()
         fgExtendDbgLifetimes();
     }
 
+    // Nothing more to be done if the backend does not require accurate local var lifetimes.
+    if (!backendRequiresLocalVarLifetimes())
+    {
+        fgLocalVarLivenessDone = true;
+        return;
+    }
+
     /*-------------------------------------------------------------------------
      * Variables involved in exception-handlers and finally blocks need
      * to be specially marked
@@ -2889,15 +2890,6 @@ void Compiler::fgInterBlockLocalVarLiveness()
     /*-------------------------------------------------------------------------
      * Now fill in liveness info within each basic block - Backward DataFlow
      */
-
-#if CAN_DISABLE_DFA
-    // Nothing to be done in minopts.
-    if (opts.MinOpts())
-    {
-        fgLocalVarLivenessDone = true;
-        return;
-    }
-#endif
 
     // This is used in the liveness computation, as a temporary.
     VarSetOps::AssignNoCopy(this, fgMarkIntfUnionVS, VarSetOps::MakeEmpty(this));
