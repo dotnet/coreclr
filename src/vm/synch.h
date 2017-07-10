@@ -103,21 +103,21 @@ private:
     {
         LIMITED_METHOD_CONTRACT;
         // cannot use `|=' operator on `Volatile<DWORD>'
-        m_dwFlags = m_dwFlags | CLREVENT_FLAGS_AUTO_EVENT;
+        FastInterlockOr(&m_dwFlags, CLREVENT_FLAGS_AUTO_EVENT);
     }
     BOOL IsOSEvent() { LIMITED_METHOD_CONTRACT; return m_dwFlags & CLREVENT_FLAGS_OS_EVENT; }
     void SetOSEvent ()
     {
         LIMITED_METHOD_CONTRACT;
         // cannot use `|=' operator on `Volatile<DWORD>'
-        m_dwFlags = m_dwFlags | CLREVENT_FLAGS_OS_EVENT;
+        FastInterlockOr(&m_dwFlags, CLREVENT_FLAGS_OS_EVENT);
     }
     BOOL IsInDeadlockDetection() { LIMITED_METHOD_CONTRACT; return m_dwFlags & CLREVENT_FLAGS_IN_DEADLOCK_DETECTION; }
     void SetInDeadlockDetection ()
     {
         LIMITED_METHOD_CONTRACT;
         // cannot use `|=' operator on `Volatile<DWORD>'
-        m_dwFlags = m_dwFlags | CLREVENT_FLAGS_IN_DEADLOCK_DETECTION;
+        FastInterlockOr(&m_dwFlags, CLREVENT_FLAGS_IN_DEADLOCK_DETECTION);
     }
 };
 
