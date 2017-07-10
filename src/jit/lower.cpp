@@ -4588,7 +4588,7 @@ void Lowering::DoPhase()
     // For now we'll take the throughput hit of recomputing local liveness but in the long term
     // we're striving to use the unified liveness computation (fgLocalVarLiveness) and stop
     // computing it separately in LSRA.
-    if ((comp->lvaCount != 0) && !comp->backendRequiresLocalVarLifetimes())
+    if ((comp->lvaCount != 0) && comp->backendRequiresLocalVarLifetimes())
     {
         comp->lvaSortAgain = true;
     }
