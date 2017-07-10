@@ -110,7 +110,7 @@
       },
       "inputs": {
         "filename": "msbuild",
-        "arguments": "/t:InjectSignedSymbolCatalogIntoSymbolPackages /p:SymbolPackagesToPublishGlob=$(Pipeline.SourcesDirectory)\\packages\\AzureTransfer\\$(ConfigurationGroup)\\$(AzureContainerSymbolPackageGlob) /p:SymbolCatalogCertificateId=400",
+        "arguments": "/t:InjectSignedSymbolCatalogIntoSymbolPackages /p:SymbolPackagesToPublishGlob=$(Pipeline.SourcesDirectory)\\packages\\AzureTransfer\\$(ConfigurationGroup)\\$(AzureContainerSymbolPackageGlob) /p:SymbolCatalogCertificateId=$(PB_SymbolCatalogCertificateId)",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "true"
       }
@@ -557,6 +557,9 @@
     "UseLegacyBuildScripts": {
       "value": "false",
       "allowOverride": true
+    },
+    "PB_SymbolCatalogCertificateId": {
+      "value": "400"
     }
   },
   "retentionRules": [
