@@ -1816,7 +1816,7 @@ Thread* ThreadpoolMgr::CreateUnimpersonatedThread(LPTHREAD_START_ROUTINE lpStart
         bOK = pThread->CreateNewThread(0,               // default stack size
                                        lpStartAddress,
                                        lpArgs,           //arguments
-                                       L"ThreadPool");
+                                       W("ThreadPool"));
     }
     else {
 #ifndef FEATURE_PAL
