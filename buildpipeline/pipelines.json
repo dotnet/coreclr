@@ -216,7 +216,9 @@
           "SkipBranchAndVersionOverrides": "true",
           "Parameters": {
             "VstsRepositoryName": "DotNet-CoreCLR-Trusted",
-            "GitHubRepositoryName": "coreclr"
+            "GitHubRepositoryName": "coreclr",
+            "AzureContainerPackageGlob": "pkg\\*.nupkg",
+            "AzureContainerSymbolPackageGlob": "symbolpkg\\*.nupkg"
           },
           "ReportingParameters": {
             "SubType":  "Publish",
