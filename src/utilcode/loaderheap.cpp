@@ -10,6 +10,12 @@
 #define DONOT_DEFINE_ETW_CALLBACK
 #include "eventtracebase.h"
 
+#ifdef FEATURE_LOADER_HEAP_GUARD
+#define LOADER_HEAP_REDZONE_VALUE 0xcc
+#else
+#define LOADER_HEAP_REDZONE_VALUE 0
+#endif
+
 #ifndef DACCESS_COMPILE
 
 INDEBUG(DWORD UnlockedLoaderHeap::s_dwNumInstancesOfLoaderHeaps = 0;)
@@ -723,6 +729,9 @@ struct LoaderHeapFreeBlock
             }
 #endif
 
+#if LOADER_HEAP_REDZONE_VALUE != 0
+            memset(pMem, LOADER_HEAP_REDZONE_VALUE, dwTotalSize);
+#endif
             INDEBUG(memset(pMem, 0xcc, dwTotalSize);)
             LoaderHeapFreeBlock *pNewBlock = (LoaderHeapFreeBlock*)pMem;
             pNewBlock->m_pNext  = *ppHead;
@@ -1344,6 +1353,10 @@ again:
 
         if (pData)
         {
+#if LOADER_HEAP_REDZONE_VALUE != 0
+            memset((BYTE *)pData, 0x00, dwSize);
+#endif
+
 #ifdef _DEBUG
     
             BYTE *pAllocatedBytes = (BYTE *)pData;
@@ -1529,7 +1542,7 @@ void UnlockedLoaderHeap::UnlockedBackoutMem(void *pMem,
     {
         // Cool. This was the last block allocated. We can just undo the allocation instead
         // of going to the freelist.
-        memset(pMem, 0, dwSize);  // Must zero init this memory as AllocMem expect it
+        memset(pMem, LOADER_HEAP_REDZONE_VALUE, dwSize); // Fill freed region with LOADER_HEAP_REDZONE_VALUE
         m_pAllocPtr = (BYTE*)pMem;
     }
     else
@@ -1639,6 +1652,11 @@ void *UnlockedLoaderHeap::UnlockedAllocAlignedMem_NoThrow(size_t  dwRequestedSiz
 
     
     ((BYTE*&)pResult) += extra;
+
+#if LOADER_HEAP_REDZONE_VALUE != 0
+    memset((BYTE *)pResult, 0x00, dwRequestedSize);
+#endif
+
 #ifdef _DEBUG
      BYTE *pAllocatedBytes = (BYTE *)pResult;
 #if LOADER_HEAP_DEBUG_BOUNDARY > 0
