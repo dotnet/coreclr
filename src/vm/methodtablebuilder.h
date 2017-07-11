@@ -2739,7 +2739,7 @@ private:
     // --------------------------------------------------------------------------------------------
     // Places a methodImpl pair where the decl is declared by the type being built.
     VOID
-    PlaceLocalDeclaration(
+    PlaceLocalDeclarationOnClass(
         bmtMDMethod *    pDecl,
         bmtMDMethod *    pImpl,
         DWORD*           slots,
@@ -2750,7 +2750,7 @@ private:
     // --------------------------------------------------------------------------------------------
     // Places a methodImpl pair where the decl is declared by a parent type.
     VOID
-    PlaceParentDeclaration(
+    PlaceParentDeclarationOnClass(
         bmtRTMethod *     pDecl,
         bmtMDMethod *     pImpl,
         DWORD*            slots,
@@ -2759,11 +2759,22 @@ private:
         DWORD             dwMaxSlotSize);
 
     // --------------------------------------------------------------------------------------------
-    // Places a methodImpl pair where the decl is declared by an interface.
+    // Places a methodImpl pair on a class where the decl is declared by an interface.
     VOID
-    PlaceInterfaceDeclaration(
+    PlaceInterfaceDeclarationOnClass(
         bmtRTMethod *     pDecl,
         bmtMDMethod *     pImpl);
+
+    // --------------------------------------------------------------------------------------------
+    // Places a methodImpl pair on an interface where the decl is declared by an interface.
+    VOID
+    PlaceInterfaceDeclarationOnInterface(
+        bmtMethodHandle   hDecl, 
+        bmtMDMethod *     pImpl, 
+        DWORD*            slots,
+        RelativePointer<MethodDesc *> *      replaced,
+        DWORD*            pSlotIndex,
+        DWORD             dwMaxSlotSize);
 
     // --------------------------------------------------------------------------------------------
     // This will validate that all interface methods that were matched during

@@ -4793,7 +4793,7 @@ VOID MethodTableBuilder::TestMethodImpl(
     // Interface method body that has methodimpl should always be final
     if (IsInterface() && !IsMdFinal(dwImplAttrs))
     {
-        BuildMethodTableThrowException(IDS_CLASSLOAD_MI_FINAL_DECL);
+        BuildMethodTableThrowException(IDS_CLASSLOAD_MI_FINAL_IMPL);
     }
 
     // Since MethodImpl's do not affect the visibility of the Decl method, there's
@@ -6207,18 +6207,19 @@ MethodTableBuilder::PlaceMethodImpls()
 
             if (IsInterface())
             {
-                // We implement this slot, record it
-                ASSERT(slotIndex < dwMaxSlotSize);
-                slots[slotIndex] = pCurDeclMethod->GetSlotIndex();
-                replaced[slotIndex].SetValue(pCurDeclMethod->GetMethodDesc());
-
-                // increment the counter
-                slotIndex++;
+                // Throws
+                PlaceInterfaceDeclarationOnInterface(
+                    hDeclMethod,
+                    pCurImplMethod,
+                    slots,              // Adds override to the slot and replaced arrays.
+                    replaced,
+                    &slotIndex,
+                    dwMaxSlotSize);     // Increments count                
             }
             else
             {
                 // Throws
-                PlaceLocalDeclaration(
+                PlaceLocalDeclarationOnClass(
                     pCurDeclMethod,
                     pCurImplMethod,
                     slots,              // Adds override to the slot and replaced arrays.
@@ -6233,13 +6234,14 @@ MethodTableBuilder::PlaceMethodImpls()
 
             if (IsInterface())
             {
-                // We implement this slot, record it
-                ASSERT(slotIndex < dwMaxSlotSize);
-                slots[slotIndex] = pCurDeclMethod->GetSlotIndex();
-                replaced[slotIndex].SetValue(pCurDeclMethod->GetMethodDesc());
-
-                // increment the counter
-                slotIndex++;
+                // Throws
+                PlaceInterfaceDeclarationOnInterface(
+                    hDeclMethod,
+                    pCurImplMethod,
+                    slots,              // Adds override to the slot and replaced arrays.
+                    replaced,
+                    &slotIndex,
+                    dwMaxSlotSize);     // Increments count     
             }
             else
             {
@@ -6247,14 +6249,14 @@ MethodTableBuilder::PlaceMethodImpls()
                 if (pCurDeclMethod->GetOwningType()->IsInterface())
                 {
                     // Throws
-                    PlaceInterfaceDeclaration(
+                    PlaceInterfaceDeclarationOnClass(
                         pCurDeclMethod,
                         pCurImplMethod);
                 }
                 else
                 {
                     // Throws
-                    PlaceParentDeclaration(
+                    PlaceParentDeclarationOnClass(
                         pCurDeclMethod,
                         pCurImplMethod,
                         slots,
@@ -6357,7 +6359,7 @@ MethodTableBuilder::WriteMethodImplData(
 
 //*******************************************************************************
 VOID
-MethodTableBuilder::PlaceLocalDeclaration(
+MethodTableBuilder::PlaceLocalDeclarationOnClass(
     bmtMDMethod * pDecl, 
     bmtMDMethod * pImpl, 
     DWORD *       slots, 
@@ -6424,10 +6426,10 @@ MethodTableBuilder::PlaceLocalDeclaration(
 
     // increment the counter
     (*pSlotIndex)++;
-} // MethodTableBuilder::PlaceLocalDeclaration
+} // MethodTableBuilder::PlaceLocalDeclarationOnClass
 
 //*******************************************************************************
-VOID MethodTableBuilder::PlaceInterfaceDeclaration(
+VOID MethodTableBuilder::PlaceInterfaceDeclarationOnClass(
     bmtRTMethod *     pDecl,
     bmtMDMethod *     pImpl)
 {
@@ -6525,11 +6527,54 @@ VOID MethodTableBuilder::PlaceInterfaceDeclaration(
         }
     }
 #endif //_DEBUG
-} // MethodTableBuilder::PlaceInterfaceDeclaration
+} // MethodTableBuilder::PlaceInterfaceDeclarationOnClass
+
+//*******************************************************************************
+VOID MethodTableBuilder::PlaceInterfaceDeclarationOnInterface(
+    bmtMethodHandle hDecl, 
+    bmtMDMethod   *pImpl, 
+    DWORD *       slots, 
+    RelativePointer<MethodDesc *> * replaced,
+    DWORD *       pSlotIndex,
+    DWORD         dwMaxSlotSize)
+{
+    CONTRACTL {
+        STANDARD_VM_CHECK;
+        PRECONDITION(CheckPointer(pImpl));
+        PRECONDITION(IsInterface());
+        PRECONDITION(hDecl.GetMethodDesc()->IsInterface());
+    } CONTRACTL_END;
+
+    MethodDesc *  pDeclMD = hDecl.GetMethodDesc();
+
+    if (!bmtProp->fNoSanityChecks)
+    {
+        ///////////////////////////////
+        // Verify the signatures match
+
+        MethodImplCompareSignatures(
+            hDecl,
+            bmtMethodHandle(pImpl),
+            IDS_CLASSLOAD_CONSTRAINT_MISMATCH_ON_INTERFACE_METHOD_IMPL);
+
+        ///////////////////////////////
+        // Validate the method impl.
+
+        TestMethodImpl(hDecl, bmtMethodHandle(pImpl));
+    }
+
+    // We implement this slot, record it
+    ASSERT(*pSlotIndex < dwMaxSlotSize);
+    slots[*pSlotIndex] = hDecl.GetSlotIndex();
+    replaced[*pSlotIndex].SetValue(pDeclMD);
+
+    // increment the counter
+    (*pSlotIndex)++;
+} // MethodTableBuilder::PlaceInterfaceDeclarationOnInterface
 
 //*******************************************************************************
 VOID
-MethodTableBuilder::PlaceParentDeclaration(
+MethodTableBuilder::PlaceParentDeclarationOnClass(
     bmtRTMethod * pDecl, 
     bmtMDMethod * pImpl, 
     DWORD *       slots, 
@@ -6584,7 +6629,7 @@ MethodTableBuilder::PlaceParentDeclaration(
 
     // increment the counter
     (*pSlotIndex)++;
-} // MethodTableBuilder::PlaceParentDeclaration
+} // MethodTableBuilder::PlaceParentDeclarationOnClass
 
 //*******************************************************************************
 // This will validate that all interface methods that were matched during

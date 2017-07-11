@@ -610,7 +610,7 @@
 {
   .method public hidebysig static void  Negative() cil managed
   {
-    // Code size       153 (0x99)
+    // Code size       225 (0xe1)
     .maxstack  2
     .locals init (class FooClass V_0,
              class IFoo V_1,
@@ -618,7 +618,10 @@
              class I1 V_3,
              class GI23Class`1<object> V_4,
              class GI1`1<object> V_5,
-             class [mscorlib]System.Type[] V_6)
+             class [mscorlib]System.Exception V_6,
+             class [mscorlib]System.Exception V_7,
+             class [mscorlib]System.Type[] V_8,
+             class [mscorlib]System.Exception V_9)
     IL_0000:  nop
     IL_0001:  newobj     instance void FooClass::.ctor()
     IL_0006:  stloc.0
@@ -640,81 +643,102 @@
                                              string)
       IL_0029:  nop
       IL_002a:  nop
-      IL_002b:  leave.s    IL_0032
+      IL_002b:  leave.s    IL_004a
 
     }  // end .try
     catch [mscorlib]System.Exception 
     {
-      IL_002d:  pop
-      IL_002e:  nop
+      IL_002d:  stloc.s    V_6
       IL_002f:  nop
-      IL_0030:  leave.s    IL_0032
+      IL_0030:  ldstr      "Exception caught: "
+      IL_0035:  ldloc.s    V_6
+      IL_0037:  callvirt   instance string [mscorlib]System.Object::ToString()
+      IL_003c:  call       string [mscorlib]System.String::Concat(string,
+                                                                  string)
+      IL_0041:  call       void [mscorlib]System.Console::WriteLine(string)
+      IL_0046:  nop
+      IL_0047:  nop
+      IL_0048:  leave.s    IL_004a
 
     }  // end handler
-    IL_0032:  newobj     instance void I47Class::.ctor()
-    IL_0037:  stloc.2
-    IL_0038:  ldloc.2
-    IL_0039:  stloc.3
-    IL_003a:  ldstr      "Calling I1.Func on I47Class - expecting exception"
-    IL_003f:  call       void [mscorlib]System.Console::WriteLine(string)
-    IL_0044:  nop
+    IL_004a:  newobj     instance void I47Class::.ctor()
+    IL_004f:  stloc.2
+    IL_0050:  ldloc.2
+    IL_0051:  stloc.3
+    IL_0052:  ldstr      "Calling I1.Func on I47Class - expecting exception"
+    IL_0057:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_005c:  nop
     .try
     {
-      IL_0045:  nop
-      IL_0046:  ldloc.3
-      IL_0047:  ldc.i4.s   10
-      IL_0049:  callvirt   instance int32 I1::Func(int32)
-      IL_004e:  pop
-      IL_004f:  ldc.i4.0
-      IL_0050:  ldstr      "Expecting exception on I47Class"
-      IL_0055:  call       void Test::Assert(bool,
+      IL_005d:  nop
+      IL_005e:  ldloc.3
+      IL_005f:  ldc.i4.s   10
+      IL_0061:  callvirt   instance int32 I1::Func(int32)
+      IL_0066:  pop
+      IL_0067:  ldc.i4.0
+      IL_0068:  ldstr      "Expecting exception on I47Class"
+      IL_006d:  call       void Test::Assert(bool,
                                              string)
-      IL_005a:  nop
-      IL_005b:  nop
-      IL_005c:  leave.s    IL_0063
+      IL_0072:  nop
+      IL_0073:  nop
+      IL_0074:  leave.s    IL_0093
 
     }  // end .try
     catch [mscorlib]System.Exception 
     {
-      IL_005e:  pop
-      IL_005f:  nop
-      IL_0060:  nop
-      IL_0061:  leave.s    IL_0063
-
-    }  // end handler
-    IL_0063:  newobj     instance void class GI23Class`1<object>::.ctor()
-    IL_0068:  stloc.s    V_4
-    IL_006a:  ldloc.s    V_4
-    IL_006c:  stloc.s    V_5
-    IL_006e:  ldstr      "Calling GI1<T>.Func on GI23Class<S> - expecting ex"
-    + "ception"
-    IL_0073:  call       void [mscorlib]System.Console::WriteLine(string)
-    IL_0078:  nop
-    .try
-    {
-      IL_0079:  nop
-      IL_007a:  ldloc.s    V_5
-      IL_007c:  ldloca.s   V_6
-      IL_007e:  callvirt   instance int32 class GI1`1<object>::Func<string>(class [mscorlib]System.Type[]&)
-      IL_0083:  pop
-      IL_0084:  ldc.i4.0
-      IL_0085:  ldstr      "Expecting exception on GI23Class"
-      IL_008a:  call       void Test::Assert(bool,
-                                             string)
+      IL_0076:  stloc.s    V_7
+      IL_0078:  nop
+      IL_0079:  ldstr      "Exception caught: "
+      IL_007e:  ldloc.s    V_7
+      IL_0080:  callvirt   instance string [mscorlib]System.Object::ToString()
+      IL_0085:  call       string [mscorlib]System.String::Concat(string,
+                                                                  string)
+      IL_008a:  call       void [mscorlib]System.Console::WriteLine(string)
       IL_008f:  nop
       IL_0090:  nop
-      IL_0091:  leave.s    IL_0098
+      IL_0091:  leave.s    IL_0093
+
+    }  // end handler
+    IL_0093:  newobj     instance void class GI23Class`1<object>::.ctor()
+    IL_0098:  stloc.s    V_4
+    IL_009a:  ldloc.s    V_4
+    IL_009c:  stloc.s    V_5
+    IL_009e:  ldstr      "Calling GI1<T>.Func on GI23Class<S> - expecting ex"
+    + "ception"
+    IL_00a3:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_00a8:  nop
+    .try
+    {
+      IL_00a9:  nop
+      IL_00aa:  ldloc.s    V_5
+      IL_00ac:  ldloca.s   V_8
+      IL_00ae:  callvirt   instance int32 class GI1`1<object>::Func<string>(class [mscorlib]System.Type[]&)
+      IL_00b3:  pop
+      IL_00b4:  ldc.i4.0
+      IL_00b5:  ldstr      "Expecting exception on GI23Class"
+      IL_00ba:  call       void Test::Assert(bool,
+                                             string)
+      IL_00bf:  nop
+      IL_00c0:  nop
+      IL_00c1:  leave.s    IL_00e0
 
     }  // end .try
     catch [mscorlib]System.Exception 
     {
-      IL_0093:  pop
-      IL_0094:  nop
-      IL_0095:  nop
-      IL_0096:  leave.s    IL_0098
+      IL_00c3:  stloc.s    V_9
+      IL_00c5:  nop
+      IL_00c6:  ldstr      "Exception caught: "
+      IL_00cb:  ldloc.s    V_9
+      IL_00cd:  callvirt   instance string [mscorlib]System.Object::ToString()
+      IL_00d2:  call       string [mscorlib]System.String::Concat(string,
+                                                                  string)
+      IL_00d7:  call       void [mscorlib]System.Console::WriteLine(string)
+      IL_00dc:  nop
+      IL_00dd:  nop
+      IL_00de:  leave.s    IL_00e0
 
     }  // end handler
-    IL_0098:  ret
+    IL_00e0:  ret 
   } // end of method Program::Negative
 
   .method public hidebysig static void  Positive() cil managed

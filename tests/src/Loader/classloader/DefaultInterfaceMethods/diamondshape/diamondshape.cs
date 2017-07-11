@@ -165,8 +165,9 @@ class Program
              foo.Foo(10);
              Test.Assert(false, "Expecting exception on Foo");
         }
-        catch(Exception)
+        catch(Exception ex)
         {
+            Console.WriteLine("Exception caught: " + ex.ToString());
         }
 
         I47Class i47Class = new I47Class();
@@ -177,8 +178,9 @@ class Program
             i1.Func(10);
             Test.Assert(false, "Expecting exception on I47Class");
         }
-        catch(Exception)
+        catch(Exception ex)
         {
+            Console.WriteLine("Exception caught: " + ex.ToString());
         }
 
         var gi23Class = new GI23Class<object>();
@@ -190,8 +192,9 @@ class Program
             gi1.Func<string>(out types);
             Test.Assert(false, "Expecting exception on GI23Class");
         }
-        catch(Exception)
+        catch(Exception ex)
         {
+            Console.WriteLine("Exception caught: " + ex.ToString());
         }          
     }
 
