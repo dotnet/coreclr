@@ -2895,6 +2895,7 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
                 }
                 else
                 {
+                    killMask = RBM_INT_CALLEE_TRASH;
 #ifdef _TARGET_ARM_
                     // On ARM, There is the case that the argument of a virtual stub call is transferred by R4 register.
                     // And then if the virtual stub is called,
@@ -2904,11 +2905,9 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
                     if (tree->AsCall()->IsVirtualStub())
                     {
                         regMaskTP virtualStubParamMask = compiler->virtualStubParamInfo->GetRegMask();
-                        killMask                       = RBM_INT_CALLEE_TRASH | virtualStubParamMask;
+                        killMask |= virtualStubParamMask;
                     }
-                    else
 #endif // _TARGET_ARM_
-                        killMask = RBM_INT_CALLEE_TRASH;
                 }
             }
             break;
