@@ -3805,7 +3805,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
                 VarSetOps::AddElemD(compiler, currentLiveVars, varIndex);
             }
         }
-        else if (store->gtOp1->OperIs(GT_REINTERPRET))
+        else if (store->gtOp1->OperIs(GT_BITCAST))
         {
             store->gtType = store->gtOp1->gtType = store->gtOp1->AsUnOp()->gtOp1->TypeGet();
 

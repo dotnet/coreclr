@@ -1708,7 +1708,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             genCodeForCast(treeNode->AsOp());
             break;
 
-        case GT_REINTERPRET:
+        case GT_BITCAST:
         {
             GenTree* const op1 = treeNode->AsOp()->gtOp1;
             genConsumeReg(op1);

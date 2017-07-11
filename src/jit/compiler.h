@@ -9599,7 +9599,7 @@ public:
             case GT_RELOAD:
             case GT_ARR_LENGTH:
             case GT_CAST:
-            case GT_REINTERPRET:
+            case GT_BITCAST:
             case GT_CKFINITE:
             case GT_LCLHEAP:
             case GT_ADDR:

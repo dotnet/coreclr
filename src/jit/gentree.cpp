@@ -5377,7 +5377,7 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_RELOAD:
         case GT_ARR_LENGTH:
         case GT_CAST:
-        case GT_REINTERPRET:
+        case GT_BITCAST:
         case GT_CKFINITE:
         case GT_LCLHEAP:
         case GT_ADDR:
@@ -8645,7 +8645,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_RELOAD:
         case GT_ARR_LENGTH:
         case GT_CAST:
-        case GT_REINTERPRET:
+        case GT_BITCAST:
         case GT_CKFINITE:
         case GT_LCLHEAP:
         case GT_ADDR:

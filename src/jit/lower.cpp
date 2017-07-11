@@ -268,9 +268,9 @@ GenTree* Lowering::LowerNode(GenTree* node)
                 GenTreeLclVarCommon* const store = node->AsLclVarCommon();
                 if ((store->TypeGet() == TYP_SIMD8) != (store->gtOp1->TypeGet() == TYP_SIMD8))
                 {
-                    GenTreeUnOp* reinterpret = new (comp, GT_REINTERPRET) GenTreeOp(GT_REINTERPRET, store->TypeGet(), store->gtOp1, nullptr);
-                    store->gtOp1 = reinterpret;
-                    BlockRange().InsertBefore(store, reinterpret);
+                    GenTreeUnOp* bitcast = new (comp, GT_BITCAST) GenTreeOp(GT_BITCAST, store->TypeGet(), store->gtOp1, nullptr);
+                    store->gtOp1 = bitcast;
+                    BlockRange().InsertBefore(store, bitcast);
                     break;
                 }
             }
@@ -1173,10 +1173,10 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
     // TYP_SIMD8 parameters that are passed as longs 
     if (type == TYP_SIMD8 && genIsValidIntReg(info->regNum))
     {
-        GenTreeUnOp* reinterpret = new (comp, GT_REINTERPRET) GenTreeOp(GT_REINTERPRET, TYP_LONG, arg, nullptr);
-        BlockRange().InsertAfter(arg, reinterpret);
+        GenTreeUnOp* bitcast = new (comp, GT_BITCAST) GenTreeOp(GT_BITCAST, TYP_LONG, arg, nullptr);
+        BlockRange().InsertAfter(arg, bitcast);
 
-        info->node = *ppArg = arg = reinterpret;
+        info->node = *ppArg = arg = bitcast;
         type = TYP_LONG;
     }
 #endif // defined(_TARGET_X86_)
@@ -2483,9 +2483,9 @@ void Lowering::LowerRet(GenTree* ret)
     GenTreeUnOp* const unOp = ret->AsUnOp();
     if ((unOp->TypeGet() == TYP_LONG) && (unOp->gtOp1->TypeGet() == TYP_SIMD8))
     {
-        GenTreeUnOp* reinterpret = new (comp, GT_REINTERPRET) GenTreeOp(GT_REINTERPRET, TYP_LONG, unOp->gtOp1, nullptr);
-        unOp->gtOp1 = reinterpret;
-        BlockRange().InsertBefore(unOp, reinterpret);
+        GenTreeUnOp* bitcast = new (comp, GT_BITCAST) GenTreeOp(GT_BITCAST, TYP_LONG, unOp->gtOp1, nullptr);
+        unOp->gtOp1 = bitcast;
+        BlockRange().InsertBefore(unOp, bitcast);
     }
 #endif // _TARGET_AMD64_
 
