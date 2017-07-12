@@ -3819,7 +3819,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
 
             LocationInfo& operandInfo = *static_cast<LocationInfo*>(operandDefs.Begin());
 
-            Interval* srcInterval = operandInfo.interval;
+            Interval* srcInterval     = operandInfo.interval;
             srcInterval->registerType = regType(store->TypeGet());
 
             RefPosition* srcDefPosition = srcInterval->firstRefPosition;
@@ -10080,7 +10080,7 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
             tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
         }
 #else
-        tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
+        tempRegFlt                   = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
 #endif
     }
 

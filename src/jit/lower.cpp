@@ -264,16 +264,17 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_STORE_LCL_VAR:
 #if defined(_TARGET_AMD64_)
+        {
+            GenTreeLclVarCommon* const store = node->AsLclVarCommon();
+            if ((store->TypeGet() == TYP_SIMD8) != (store->gtOp1->TypeGet() == TYP_SIMD8))
             {
-                GenTreeLclVarCommon* const store = node->AsLclVarCommon();
-                if ((store->TypeGet() == TYP_SIMD8) != (store->gtOp1->TypeGet() == TYP_SIMD8))
-                {
-                    GenTreeUnOp* bitcast = new (comp, GT_BITCAST) GenTreeOp(GT_BITCAST, store->TypeGet(), store->gtOp1, nullptr);
-                    store->gtOp1 = bitcast;
-                    BlockRange().InsertBefore(store, bitcast);
-                    break;
-                }
+                GenTreeUnOp* bitcast =
+                    new (comp, GT_BITCAST) GenTreeOp(GT_BITCAST, store->TypeGet(), store->gtOp1, nullptr);
+                store->gtOp1 = bitcast;
+                BlockRange().InsertBefore(store, bitcast);
+                break;
             }
+        }
 #endif // _TARGET_AMD64_
             WidenSIMD12IfNecessary(node->AsLclVarCommon());
             __fallthrough;
@@ -1170,14 +1171,14 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
         }
     }
 #elif defined(_TARGET_AMD64_)
-    // TYP_SIMD8 parameters that are passed as longs 
+    // TYP_SIMD8 parameters that are passed as longs
     if (type == TYP_SIMD8 && genIsValidIntReg(info->regNum))
     {
         GenTreeUnOp* bitcast = new (comp, GT_BITCAST) GenTreeOp(GT_BITCAST, TYP_LONG, arg, nullptr);
         BlockRange().InsertAfter(arg, bitcast);
 
         info->node = *ppArg = arg = bitcast;
-        type = TYP_LONG;
+        type                      = TYP_LONG;
     }
 #endif // defined(_TARGET_X86_)
 #endif // defined(FEATURE_SIMD)
@@ -2484,7 +2485,7 @@ void Lowering::LowerRet(GenTree* ret)
     if ((unOp->TypeGet() == TYP_LONG) && (unOp->gtOp1->TypeGet() == TYP_SIMD8))
     {
         GenTreeUnOp* bitcast = new (comp, GT_BITCAST) GenTreeOp(GT_BITCAST, TYP_LONG, unOp->gtOp1, nullptr);
-        unOp->gtOp1 = bitcast;
+        unOp->gtOp1          = bitcast;
         BlockRange().InsertBefore(unOp, bitcast);
     }
 #endif // _TARGET_AMD64_
