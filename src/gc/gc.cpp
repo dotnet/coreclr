@@ -551,7 +551,7 @@ process_sync_log_stats()
         // Print out the cycles we spent on average in each suspend and restart.
         printf("\n_________________________________________________________________________________\n"
             "Past %d(s): #%3d GCs; Total gc_lock contended: %8u; GC: %12u\n"
-            "SuspendEE: %8u; RestartEE: %8u GC%% %g\n",
+            "SuspendEE: %8u; RestartEE: %8u GC %.3f%%\n",
             log_interval / 1000,
             gc_count_during_log,
             gc_lock_contended,
@@ -736,7 +736,7 @@ public:
     {
 #ifdef JOIN_STATS
         // parallel execution ends here
-        end[gch->heap_number] = getTS();
+        end[gch->heap_number] = get_ts();
 #endif //JOIN_STATS
 
         assert (!join_struct.joined_p);
@@ -803,7 +803,7 @@ respin:
 
 #ifdef JOIN_STATS
             // parallel execution starts here
-            start[gch->heap_number] = getTS();
+            start[gch->heap_number] = get_ts();
             Interlocked::ExchangeAdd(&in_join_total[join_id], (start[gch->heap_number] - end[gch->heap_number]));
 #endif //JOIN_STATS
         }
@@ -820,7 +820,7 @@ respin:
             // remember the join id, the last thread arriving, the start of the sequential phase,
             // and keep track of the cycles spent waiting in the join
             thd = gch->heap_number;
-            start_seq = getTS();
+            start_seq = get_ts();
             Interlocked::ExchangeAdd(&in_join_total[join_id], (start_seq - end[gch->heap_number]));
 #endif //JOIN_STATS
         }
@@ -894,32 +894,32 @@ respin:
     }
 
 #ifdef JOIN_STATS
-    uint64_t getTS()
+    uint64_t get_ts()
     {
         return GCToOSInterface::QueryPerformanceCounter();
     }
 
-    void startTS (gc_heap* gch)
+    void start_ts (gc_heap* gch)
     {
         // parallel execution ends here
-        start[gch->heap_number] = getTS();
+        start[gch->heap_number] = get_ts();
     }
 #endif //JOIN_STATS
 
     void restart()
     {
 #ifdef JOIN_STATS
-        uint64_t elapsed_seq = getTS() - start_seq;
+        uint64_t elapsed_seq = get_ts() - start_seq;
         uint64_t max = 0, sum = 0, wake = 0;
-        uint64_t minTS = start[0];
+        uint64_t min_ts = start[0];
         for (int i = 1; i < join_struct.n_threads; i++)
         {
-            if(minTS > start[i]) minTS = start[i];
+            if(min_ts > start[i]) min_ts = start[i];
         }
 
         for (int i = 0; i < join_struct.n_threads; i++)
         {
-            uint64_t wake_delay = start[i] - minTS;
+            uint64_t wake_delay = start[i] - min_ts;
             uint64_t elapsed = end[i] - start[i];
             if (max < elapsed)
                 max = elapsed;
@@ -932,15 +932,15 @@ respin:
         if (max > 0)
             efficiency = sum*100.0/(join_struct.n_threads*max);
 
-        const double tsScale = 1e-6;
+        const double ts_scale = 1e-6;
 
         // enable this printf to get statistics on each individual join as it occurs
-//      printf("join #%3d  seq_loss = %5g   par_loss = %5g  efficiency = %3.0f%%\n", join_id, tsScale*seq_loss, tsScale*par_loss, efficiency);
+//      printf("join #%3d  seq_loss = %5g   par_loss = %5g  efficiency = %3.0f%%\n", join_id, ts_scale*seq_loss, ts_scale*par_loss, efficiency);
 
-        Interlocked::ExchangeAdd(&elapsed_total[id], sum);
-        Interlocked::ExchangeAdd(&wake_total[id], wake);
-        Interlocked::ExchangeAdd(&seq_loss_total[id], seq_loss);
-        Interlocked::ExchangeAdd(&par_loss_total[id], par_loss);
+        elapsed_total[id] += sum;
+        wake_total[id] += wake;
+        seq_loss_total[id] += seq_loss;
+        par_loss_total[id] += par_loss;
 
         // every 10 seconds, print a summary of the time spent in each type of join
         if (GCToOSInterface::GetLowPrecisionTimeStamp() - start_tick > 10*1000)
@@ -948,13 +948,13 @@ respin:
             printf("**** summary *****\n");
             for (int i = 0; i < 16; i++)
             {
-                printf("join #%3d  elapsed_total = %8g wake_loss = %8g seq_loss = %8g  par_loss = %8g  in_join_total = %8g\n", 
+                printf("join #%3d  elapsed_total = %8g wake_loss = %8g seq_loss = %8g  par_loss = %8g  in_join_total = %8g\n",
                    i,
-                   tsScale*elapsed_total[i],
-                   tsScale*wake_total[i],
-                   tsScale*seq_loss_total[i],
-                   tsScale*par_loss_total[i],
-                   tsScale*in_join_total[i]);
+                   ts_scale*elapsed_total[i],
+                   ts_scale*wake_total[i],
+                   ts_scale*seq_loss_total[i],
+                   ts_scale*par_loss_total[i],
+                   ts_scale*in_join_total[i]);
                 elapsed_total[i] = wake_total[i] = seq_loss_total[i] = par_loss_total[i] = in_join_total[i] = 0;
             }
             start_tick = GCToOSInterface::GetLowPrecisionTimeStamp();
@@ -976,7 +976,7 @@ respin:
         fire_event (join_heap_restart, time_end, type_restart, -1);
 
 #ifdef JOIN_STATS
-        start[thd] = getTS();
+        start[thd] = get_ts();
 #endif //JOIN_STATS
     }
     
@@ -1687,7 +1687,7 @@ void WaitLonger (int i
     )
 {
 #ifdef SYNCHRONIZATION_STATS
-    Interlocked::Increment(&spin_lock->num_wait_longer);
+    (spin_lock->num_wait_longer)++;
 #endif //SYNCHRONIZATION_STATS
 
     // every 8th attempt:
@@ -1710,7 +1710,7 @@ void WaitLonger (int i
     if (!gc_heap::gc_started)
     {
 #ifdef SYNCHRONIZATION_STATS
-        Interlocked::Increment(&spin_lock->num_switch_thread_w);
+        (spin_lock->num_switch_thread_w)++;
 #endif //SYNCHRONIZATION_STATS
         if  (g_num_processors > 1)
         {
@@ -1738,7 +1738,7 @@ void WaitLonger (int i
             }
 
 #ifdef SYNCHRONIZATION_STATS
-            Interlocked::Increment(&spin_lock->num_disable_preemptive_w);
+            (spin_lock->num_disable_preemptive_w)++;
 #endif //SYNCHRONIZATION_STATS
             GCToEEInterface::DisablePreemptiveGC(pCurThread);
         }
@@ -1773,7 +1773,7 @@ retry:
                     if  (spin_lock->lock >= 0 && !gc_heap::gc_started)
                     {
 #ifdef SYNCHRONIZATION_STATS
-                        Interlocked::Increment(&spin_lock->num_switch_thread);
+                        (spin_lock->num_switch_thread)++;
 #endif //SYNCHRONIZATION_STATS
                         Thread* current_thread = GCToEEInterface::GetThread();
                         BOOL cooperative_mode = gc_heap::enable_preemptive (current_thread);
@@ -13132,11 +13132,11 @@ int gc_heap::try_allocate_more_space (alloc_context* acontext, size_t size,
     num_msl_acquired++;
     if (msl_acquire > 200)
     {
-        Interlocked::Increment(&num_high_msl_acquire);
+        num_high_msl_acquire++;
     }
     else
     {
-        Interlocked::Increment(&num_low_msl_acquire);
+        num_low_msl_acquire++;
     }
 #endif //SYNCHRONIZATION_STATS
 
@@ -13185,7 +13185,7 @@ int gc_heap::try_allocate_more_space (alloc_context* acontext, size_t size,
 #endif //BACKGROUND_GC
 
 #ifdef SYNCHRONIZATION_STATS
-        Interlocked::Increment(&bad_suspension);
+        bad_suspension++;
 #endif //SYNCHRONIZATION_STATS
         dprintf (/*100*/ 2, ("running out of budget on gen%d, gc", gen_number));
 
@@ -16548,7 +16548,7 @@ int gc_heap::garbage_collect (int n)
     fix_allocation_contexts (TRUE);
 #ifdef MULTIPLE_HEAPS
 #ifdef JOIN_STATS
-    gc_t_join.startTS(this);
+    gc_t_join.start_ts(this);
 #endif //JOIN_STATS
     clear_gen0_bricks();
 #endif //MULTIPLE_HEAPS
@@ -34962,7 +34962,7 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
         if (localCount != col_count)
         {
 #ifdef SYNCHRONIZATION_STATS
-            Interlocked::Increment(&gc_lock_contended);
+            gc_lock_contended++;
 #endif //SYNCHRONIZATION_STATS
             dprintf (SPINLOCK_LOG, ("no need GC Lgc"));
             leave_spin_lock (&gc_heap::gc_lock);
