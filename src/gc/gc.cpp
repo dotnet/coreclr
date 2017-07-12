@@ -35456,6 +35456,18 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
 
     if ((gen0size == 0) || !g_theGCHeap->IsValidGen0MaxSize(gen0size))
     {
+#if (defined(_TARGET_ARM64_))
+        // Choose per heap gen0size based on GetPhysicalMemoryLimit(), GetTotalProcessorCount(), and some fudge factors
+        size_t physMemPerProcessor = GCToOSInterface::GetPhysicalMemoryLimit() / GCToOSInterface::GetTotalProcessorCount();
+        size_t processesPerProcessor = 4;
+        size_t heapToGen0Size = 8;
+
+        dprintf (2, ("phys: %Id, cpu: %Id",
+            (int)(GCToOSInterface::GetPhysicalMemoryLimit() >> 20),
+            GCToOSInterface::GetTotalProcessorCount()));
+
+        gen0size = physMemPerProcessor / processesPerProcessor / heapToGen0Size;
+#else //_TARGET_ARM64_
 #ifdef SERVER_GC
         // performance data seems to indicate halving the size results
         // in optimal perf.  Ask for adjusted gen0 size.
@@ -35485,6 +35497,7 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
 #else //SERVER_GC
         gen0size = max((4*GCToOSInterface::GetLargestOnDieCacheSize(TRUE)/5),(256*1024));
 #endif //SERVER_GC
+#endif //_TARGET_ARM64_
     }
 
     // Generation 0 must never be more than 1/2 the segment size.
