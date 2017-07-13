@@ -483,6 +483,23 @@ namespace System
             if (pointerSizeLength == 0)
                 return;
 
+#if CORECLR && ARM64
+            // For platforms which Unsafe.InitBlockUnaligned calls JIT_MemSet and JIT_MemSet is guaranteed
+            // to write GC refs atomically use that as it is significantly faster
+
+            nuint byteLength = pointerSizeLength * (nuint)sizeof(IntPtr);
+            nuint offset = 0;
+
+            while (byteLength > 0)
+            {
+                // Limit clear to 4096 bytes at a time to allow GC interruption
+                nuint clearLength = (byteLength > 4096) ? 4096 : byteLength;
+                Unsafe.InitBlockUnaligned(ref Unsafe.As<IntPtr, byte>(ref Unsafe.AddByteOffset<IntPtr>(ref ip, offset)), 0, (uint)clearLength);
+                offset += clearLength;
+                byteLength -= clearLength;
+            }
+#else
+            // TODO: Enable optimization on other platforms with JIT_MemSet GC refs atomicity guarantee
             // TODO: Perhaps do switch casing to improve small size perf
 
             nuint i = 0;
@@ -517,6 +534,7 @@ namespace System
             {
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 0) * (nuint)sizeof(IntPtr)) = default(IntPtr);
             }
+#endif
         }
     }
 }
