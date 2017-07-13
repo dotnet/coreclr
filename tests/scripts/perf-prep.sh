@@ -60,25 +60,20 @@ curl "http://benchviewtestfeed.azurewebsites.net/nuget/FindPackagesById()?id='Mi
 unzip -q -o benchview.zip -d ./tests/scripts/Microsoft.BenchView.JSONFormat
 
 # Install python 3.5.2 to run machinedata.py for machine data collection
-python3.5 --version
-python3.5 ./tests/scripts/Microsoft.BenchView.JSONFormat/tools/machinedata.py
+python3 --version
+python3 ./tests/scripts/Microsoft.BenchView.JSONFormat/tools/machinedata.py
 
 if [ $throughput -eq 1 ]; then
     # Download throughput benchmarks
-    if [ -d "Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT" ]; then
-        rm -r -f Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
+    if [ ! -d "Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT" ]; then
+      mkdir Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
+      cd Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
+
+      curl -OL https://dotnet.myget.org/F/dotnet-core/api/v2/package/Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT/1.0.0
+      mv 1.0.0 1.0.0.zip
+      unzip -q 1.0.0.zip
     fi
-    mkdir Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
-    cd Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
-
-    curl -OL https://dotnet.myget.org/F/dotnet-core/api/v2/package/Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT/1.0.0
-    mv 1.0.0 1.0.0.zip
-    unzip -q 1.0.0.zip
-
 else
-    # Set up the copies
-    # Coreclr build containing the tests and mscorlib
-    curl https://ci.dot.net/job/$perfBranch/job/master/job/release_windows_nt/lastSuccessfulBuild/artifact/bin/tests/tests.zip -o tests.zip
 
     # Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
     mkdir corefx
@@ -91,8 +86,15 @@ else
     popd > /dev/null
 
     # Unzip the tests first.  Exit with 0
-    mkdir bin
-    mkdir bin/tests
-    unzip -q -o tests.zip -d ./bin/tests/Windows_NT.$perfArch.$perfConfig || exit 0
-    echo "unzip tests to ./bin/tests/Windows_NT.$perfArch.$perfConfig"
+    if [ ! -d "bin" ]; then
+        mkdir bin
+    fi
+    if [ -d "bin/tests" ]; then
+        # Coreclr build containing the tests and mscorlib
+        curl https://ci.dot.net/job/$perfBranch/job/master/job/release_windows_nt/lastSuccessfulBuild/artifact/bin/tests/tests.zip -o tests.zip
+        rm bin/tests
+        mkdir bin/tests
+        unzip -q -o tests.zip -d ./bin/tests/Windows_NT.$perfArch.$perfConfig || exit 0
+        echo "unzip tests to ./bin/tests/Windows_NT.$perfArch.$perfConfig"
+    fi
 fi

@@ -98,7 +98,7 @@ os_group_list = {
 
 python_exe_list = {
     'Windows_NT': 'py',
-    'Linux': 'python3.5'
+    'Linux': 'python3'
 }
 
 ##########################################################################
