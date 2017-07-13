@@ -507,6 +507,8 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processAffinityMa
 uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 {
     uintptr_t pmask, smask;
+    CGroup cgroup;
+    uint32_t cgroupCpuCount;
 
     if (!GetCurrentProcessAffinityMask(&pmask, &smask))
         return 1;
@@ -529,6 +531,9 @@ uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
     // maximum of 64 here.
     if (count == 0 || count > 64)
         count = 64;
+
+    if (cgroup.GetCurrentProcessCpuLimit(&cgroupCpuCount)){
+        count = cgroupCpuCount;
 
     return count;
 }
