@@ -2896,19 +2896,20 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
                 else
                 {
                     killMask = RBM_INT_CALLEE_TRASH;
-#ifdef _TARGET_ARM_
-                    // On ARM, There is the case that the argument of a virtual stub call is transferred by R4 register.
-                    // And then if the virtual stub is called,
-                    // R4 register would be the busy status to avoid losing the argument data.
-                    // It means R4 register must not be assigned to anywhere until the next kill.
-                    // But the R4 register has to be killed in case of after virtual stub call to escape the busy state.
-                    if (tree->AsCall()->IsVirtualStub())
-                    {
-                        regMaskTP virtualStubParamMask = compiler->virtualStubParamInfo->GetRegMask();
-                        killMask |= virtualStubParamMask;
-                    }
-#endif // _TARGET_ARM_
                 }
+#ifdef _TARGET_ARM_
+                if (tree->AsCall()->IsVirtualStub())
+                {
+                    killMask |= compiler->virtualStubParamInfo->GetRegMask();
+                }
+#else // !_TARGET_ARM_
+            // Verify that the special virtual stub call registers are in the kill mask.
+            // We don't just add them unconditionally to the killMask because for most architectures
+            // they are already in the RBM_CALLEE_TRASH set,
+            // and we don't want to introduce extra checks and calls in this hot function.
+            assert(!tree->AsCall()->IsVirtualStub() || ((killMask & compiler->virtualStubParamInfo->GetRegMask()) ==
+                                                        compiler->virtualStubParamInfo->GetRegMask()));
+#endif
             }
             break;
         case GT_STOREIND:
