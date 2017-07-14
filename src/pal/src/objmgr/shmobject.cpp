@@ -321,7 +321,7 @@ CSharedMemoryObject::AllocateSharedDataItems(
 
     SHMLock();
 
-    shmod = SHMalloc(sizeof(SHMObjData));
+    shmod = malloc(sizeof(SHMObjData));
     if (SHMNULL == shmod)
     {
         ERROR("Unable to allocate m_shmod for new object\n");
@@ -339,9 +339,19 @@ CSharedMemoryObject::AllocateSharedDataItems(
 
     if (0 != m_oa.sObjectName.GetStringLength())
     {
+        LPCWSTR str = m_oa.sObjectName.GetString();
+        _ASSERTE(str);
+
         psmod->dwNameLength = m_oa.sObjectName.GetStringLength();
-        psmod->shmObjName = SHMWStrDup(m_oa.sObjectName.GetString());
-        if (SHMNULL == psmod->shmObjName)
+
+        UINT length = (PAL_wcslen(str) + 1) * sizeof(WCHAR);
+        psmod->shmObjName = malloc(length);
+
+        if (psmod->shmObjName != 0)
+        {
+            memcpy(psmod->shmObjName, str, length);
+        }
+        else
         {
             ERROR("Unable to allocate psmod->shmObjName for new object\n");
             palError = ERROR_OUTOFMEMORY;
@@ -356,7 +366,7 @@ CSharedMemoryObject::AllocateSharedDataItems(
         // by CSharedMemoryObjectManager::RegisterObject or PromoteSharedData
         //
         
-        psmod->shmObjImmutableData = SHMalloc(m_pot->GetImmutableDataSize());
+        psmod->shmObjImmutableData = malloc(m_pot->GetImmutableDataSize());
         if (SHMNULL == psmod->shmObjImmutableData)
         {
             ERROR("Unable to allocate psmod->shmObjImmutableData for new object\n");
@@ -367,7 +377,7 @@ CSharedMemoryObject::AllocateSharedDataItems(
 
     if (0 != m_pot->GetSharedDataSize())
     {
-        psmod->shmObjSharedData = SHMalloc(m_pot->GetSharedDataSize());
+        psmod->shmObjSharedData = malloc(m_pot->GetSharedDataSize());
         if (SHMNULL == psmod->shmObjSharedData)
         {
             ERROR("Unable to allocate psmod->shmObjSharedData for new object\n");
@@ -426,20 +436,20 @@ CSharedMemoryObject::FreeSharedDataAreas(
     
     if (SHMNULL != psmod->shmObjImmutableData)
     {
-        SHMfree(psmod->shmObjImmutableData);
+        free(psmod->shmObjImmutableData);
     }
 
     if (SHMNULL != psmod->shmObjSharedData)
     {
-        SHMfree(psmod->shmObjSharedData);
+        free(psmod->shmObjSharedData);
     }
 
     if (SHMNULL != psmod->shmObjName)
     {
-        SHMfree(psmod->shmObjName);
+        free(psmod->shmObjName);
     }
     
-    SHMfree(shmObjData);
+    free(shmObjData);
 
     SHMRelease();
 

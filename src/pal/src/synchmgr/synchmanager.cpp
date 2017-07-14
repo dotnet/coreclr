@@ -4039,7 +4039,7 @@ namespace CorUnix
         DeleteCriticalSection(&m_ownedNamedMutexListLock);
         if (NULLSharedID != m_shridWaitAwakened)
         {
-            RawSharedObjectFree(m_shridWaitAwakened);
+            free(m_shridWaitAwakened);
         }
     }
 
@@ -4091,8 +4091,7 @@ namespace CorUnix
         pthread_condattr_t attrs;
         pthread_condattr_t *attrsPtr = nullptr;
 
-        m_shridWaitAwakened = RawSharedObjectAlloc(sizeof(DWORD),
-                                                   DefaultSharedPool);
+        m_shridWaitAwakened = malloc(sizeof(DWORD));
         if (NULLSharedID == m_shridWaitAwakened)
         {
             ERROR("Fail allocating thread wait status shared object\n");

@@ -121,8 +121,7 @@ namespace CorUnix
         // m_fSharedDataDereferenced will be TRUE if DereferenceSharedData
         // has already been called. (N.B. -- this is a LONG instead of a bool
         // because it is passed to InterlockedExchange). If the shared data blob
-        // should be freed in the object's destructor (i.e., SHMfree should be
-        // called on the appropriate SHMPTRs) DereferenceSharedData will
+        // should be freed in the object's destructor DereferenceSharedData will
         // set m_fDeleteSharedData to TRUE.
         //
 

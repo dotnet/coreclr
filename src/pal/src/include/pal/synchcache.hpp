@@ -291,7 +291,7 @@ namespace CorUnix
             {
                 for (k=0; k<m_iMaxDepth/PreAllocFactor-n+i; k++)
                 {
-                    shridObj = RawSharedObjectAlloc(sizeof(USHRSynchCacheStackNode), DefaultSharedPool);
+                    shridObj = malloc(sizeof(USHRSynchCacheStackNode));
                     if (NULLSharedID == shridObj)
                     {
                         Flush(pthrCurrent, true);
@@ -312,7 +312,7 @@ namespace CorUnix
 
             for (j=i;j<n;j++)
             {
-                shridObj = RawSharedObjectAlloc(sizeof(USHRSynchCacheStackNode), DefaultSharedPool);
+                shridObj = malloc(sizeof(USHRSynchCacheStackNode));
                 if (NULLSharedID == shridObj)
                     break;
 #ifdef _DEBUG
@@ -360,7 +360,7 @@ namespace CorUnix
             }
             else
             {
-                RawSharedObjectFree(shridObj);
+                free(shridObj);
             }
             Unlock(pthrCurrent);       
         }
@@ -387,7 +387,7 @@ namespace CorUnix
                 pTemp = pNode;
                 pNode = pNode->pointers.pNext;
                 shridTemp = pTemp->pointers.shrid;
-                RawSharedObjectFree(shridTemp);
+                free(shridTemp);
             } 
         }    
     };
