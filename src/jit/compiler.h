@@ -85,6 +85,8 @@ class CSE_DataFlow; // defined in OptCSE.cpp
 struct IndentStack;
 #endif
 
+class ComputeLifeHelper;
+
 #ifndef LEGACY_BACKEND
 class Lowering; // defined in lower.h
 #endif
@@ -3768,17 +3770,12 @@ public:
 
     void fgUpdateRefCntForExtract(GenTreePtr wholeTree, GenTreePtr keptTree);
 
-    void fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call);
-
-    bool fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode, GenTree* node);
-
-    void fgComputeLife(VARSET_TP&       life,
-                       GenTreePtr       startNode,
-                       GenTreePtr       endNode,
-                       VARSET_VALARG_TP volatileVars,
+    void fgComputeLife(ComputeLifeHelper& helper,
+                       GenTree*           startNode,
+                       GenTree*           endNode,
                        bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
 
-    void fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars);
+    void fgComputeLifeLIR(ComputeLifeHelper& helper, BasicBlock* block);
 
     bool fgRemoveDeadStore(GenTree**        pTree,
                            LclVarDsc*       varDsc,
