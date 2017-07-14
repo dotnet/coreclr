@@ -61,7 +61,7 @@ private:
     BOOL IsWriterWaiting()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_WriterWaiting != 0;
+        return m_WriterWaiting.LoadWithoutBarrier() != 0;
     }
 
     void SetWriterWaiting()
@@ -84,33 +84,26 @@ private:
     void CheckGCNoTrigger();
 #endif  //ENABLE_CONTRACTS_IMPL
 
-    // lock used for R/W synchronization
-    Volatile<LONG>                m_RWLock;     
-
-    // Does this lock require to be taken in PreemptiveGC mode?
-    const GC_MODE          m_gcMode;
-
-    // spin count for a reader waiting for a writer to release the lock
-    LONG                m_spinCount;
-
-    // used to prevent writers from being starved by readers
-    // we currently do not prevent writers from starving readers since writers 
-    // are supposed to be rare.
-    BOOL                m_WriterWaiting;
-
 #ifdef _DEBUG
-    // Check for dead lock situation.
-    Volatile<LONG>      m_countNoTriggerGC;
-
-#ifdef _WIN64
-    // ensures that we are a multiple of 8-bytes
-    UINT32 pad;      
-#endif
-
     void                PostEnter ();
     void                PreEnter ();
     void                PreLeave ();
+
+    // Check for dead lock situation.
+    Volatile<LONG>                                     m_countNoTriggerGC;
 #endif //_DEBUG
+
+    // Does this lock require to be taken in PreemptiveGC mode?
+    const GC_MODE                                      m_gcMode;
+
+    // lock used for R/W synchronization
+    DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) Volatile<LONG> m_RWLock;
+
+    // used to prevent writers from being starved by readers
+    // we currently do not prevent writers from starving readers since writers
+    // are supposed to be rare.
+    DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) Volatile<BOOL> m_WriterWaiting;
+
 
 #ifndef DACCESS_COMPILE
     static void AcquireReadLock(SimpleRWLock *s) { LIMITED_METHOD_CONTRACT; s->EnterRead(); }
@@ -148,7 +141,6 @@ public:
         } CONTRACTL_END;
 
         m_RWLock = 0;
-        m_spinCount = (GetCurrentProcessCpuCount() == 1) ? 0 : 4000;
         m_WriterWaiting = FALSE;
 
 #ifdef _DEBUG
@@ -211,13 +203,13 @@ public:
     BOOL LockTaken ()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_RWLock != 0;
+        return m_RWLock.LoadWithoutBarrier() != 0;
     }
 
     BOOL IsReaderLock ()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_RWLock > 0;
+        return m_RWLock.LoadWithoutBarrier() > 0;
     }
 
 #endif  
@@ -225,7 +217,7 @@ public:
     BOOL IsWriterLock ()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return m_RWLock < 0;
+        return m_RWLock.LoadWithoutBarrier() < 0;
     }
     
 };
