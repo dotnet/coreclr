@@ -3661,16 +3661,25 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
                 VarSetOps::RemoveElemD(compiler, currentLiveVars, varIndex);
             }
 
-            JITDUMP("t%u (i:%u)\n", currentLoc, getIntervalForLocalVar(varIndex)->intervalIndex);
+            JITDUMP("t%u (i:%u)", currentLoc, getIntervalForLocalVar(varIndex)->intervalIndex);
 
-            if (!info.isLocalDefUse && (produce != 0))
+            if (!info.isLocalDefUse)
             {
+                assert(produce != 0);
+
                 LocationInfoList list(listNodePool.GetNode(currentLoc, getIntervalForLocalVar(varIndex), tree));
                 bool             added = operandToLocationInfoMap.AddOrUpdate(tree, list);
                 assert(added);
 
                 tree->gtLsraInfo.definesAnyRegisters = true;
             }
+#ifdef DEBUG
+            else
+            {
+                JITDUMP(": unused");
+            }
+            JITDUMP("\n");
+#endif // DEBUG
             return;
         }
     }
