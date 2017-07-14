@@ -40,6 +40,7 @@ set( JIT_SOURCES
   hashbv.cpp
   hostallocator.cpp
   importer.cpp
+  importcall.cpp
   inline.cpp
   inlinepolicy.cpp
   instr.cpp
