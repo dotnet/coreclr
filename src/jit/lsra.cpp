@@ -3663,7 +3663,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
 
             JITDUMP("t%u (i:%u)", currentLoc, getIntervalForLocalVar(varIndex)->intervalIndex);
 
-            if (!info.isLocalDefUse)
+            if (!info.isLocalDefUse && !tree->isContained())
             {
                 assert(produce != 0);
 
@@ -3676,7 +3676,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
 #ifdef DEBUG
             else
             {
-                JITDUMP(": unused");
+                JITDUMP(": %s", tree->isContained() ? "contained" : "unused");
             }
             JITDUMP("\n");
 #endif // DEBUG
