@@ -3644,7 +3644,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
             // to a call
 
             assert(varDsc->lvTracked);
-            unsigned  varIndex = varDsc->lvVarIndex;
+            unsigned varIndex = varDsc->lvVarIndex;
 
             // We have only approximate last-use information at this point.  This is because the
             // execution order doesn't actually reflect the true order in which the localVars
