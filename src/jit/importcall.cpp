@@ -23,9 +23,46 @@ class CallImporter
 {
 public:
     //------------------------------------------------------------------------
+    // CallImporter constructor
+    //
+    // Arguments:
+    //    compiler
+    //
+    // Notes:
+    //    The constructor takes care of initializing the variables that are used
+    //    during the call importation.
+    CallImporter(Compiler* compiler) : compiler(compiler)
+    {
+
+        callRetTyp = TYP_COUNT;
+
+        clsFlags = 0;
+        mflags   = 0;
+        argFlags = 0;
+
+        constraintCallThisTransform = CORINFO_NO_THIS_TRANSFORM;
+
+        sig                     = nullptr;
+        methHnd                 = nullptr;
+        clsHnd                  = nullptr;
+        call                    = nullptr;
+        args                    = nullptr;
+        exactContextHnd         = nullptr;
+        szCanTailCallFailReason = nullptr;
+        ldftnToken              = nullptr;
+        extraArg                = nullptr;
+
+        exactContextNeedsRuntimeLookup = false;
+        bIntrinsicImported             = false;
+        checkForSmallType              = false;
+        readonlyCall                   = false;
+
+        canTailCall = true;
+    }
+
+    //------------------------------------------------------------------------
     // impImportCall: see the Compiler::impImportCall description.
-    var_types importCall(Compiler*               compiler,
-                         OPCODE                  opcode,
+    var_types importCall(OPCODE                  opcode,
                          CORINFO_RESOLVED_TOKEN* pResolvedToken,
                          CORINFO_RESOLVED_TOKEN* pConstrainedResolvedToken,
                          GenTreePtr              newobjThis,
@@ -35,25 +72,10 @@ public:
     {
         assert(opcode == CEE_CALL || opcode == CEE_CALLVIRT || opcode == CEE_NEWOBJ || opcode == CEE_CALLI);
 
-        IL_OFFSETX             ilOffset                       = compiler->impCurILOffset(rawILOffset, true);
-        var_types              callRetTyp                     = TYP_COUNT;
-        CORINFO_SIG_INFO*      sig                            = nullptr;
-        CORINFO_METHOD_HANDLE  methHnd                        = nullptr;
-        CORINFO_CLASS_HANDLE   clsHnd                         = nullptr;
-        unsigned               clsFlags                       = 0;
-        unsigned               mflags                         = 0;
-        unsigned               argFlags                       = 0;
-        GenTreePtr             call                           = nullptr;
-        GenTreeArgList*        args                           = nullptr;
-        CORINFO_THIS_TRANSFORM constraintCallThisTransform    = CORINFO_NO_THIS_TRANSFORM;
-        CORINFO_CONTEXT_HANDLE exactContextHnd                = nullptr;
-        bool                   exactContextNeedsRuntimeLookup = false;
-        bool                   canTailCall                    = true;
-        const char*            szCanTailCallFailReason        = nullptr;
-        int                    tailCall                       = prefixFlags & PREFIX_TAILCALL;
-        bool                   readonlyCall                   = (prefixFlags & PREFIX_READONLY) != 0;
+        IL_OFFSETX ilOffset = compiler->impCurILOffset(rawILOffset, true);
 
-        CORINFO_RESOLVED_TOKEN* ldftnToken = nullptr;
+        int tailCall = prefixFlags & PREFIX_TAILCALL;
+        readonlyCall = (prefixFlags & PREFIX_READONLY) != 0;
 
         // Synchronized methods need to call CORINFO_HELP_MON_EXIT at the end. We could
         // do that before tailcalls, but that is probably not the intended
@@ -89,11 +111,7 @@ public:
 
         // ReadyToRun code sticks with default calling convention that does not widen small return types.
 
-        bool checkForSmallType  = compiler->opts.IsJit64Compat() || compiler->opts.IsReadyToRun();
-        bool bIntrinsicImported = false;
-
-        CORINFO_SIG_INFO calliSig;
-        GenTreeArgList*  extraArg = nullptr;
+        checkForSmallType = compiler->opts.IsJit64Compat() || compiler->opts.IsReadyToRun();
 
         /*-------------------------------------------------------------------------
         * First create the call node
@@ -1506,6 +1524,28 @@ public:
     }
 
 private:
+    Compiler*               compiler;
+    var_types               callRetTyp;
+    CORINFO_SIG_INFO*       sig;
+    CORINFO_METHOD_HANDLE   methHnd;
+    CORINFO_CLASS_HANDLE    clsHnd;
+    unsigned                clsFlags;
+    unsigned                mflags;
+    unsigned                argFlags;
+    GenTreePtr              call;
+    GenTreeArgList*         args;
+    CORINFO_THIS_TRANSFORM  constraintCallThisTransform;
+    CORINFO_CONTEXT_HANDLE  exactContextHnd;
+    bool                    exactContextNeedsRuntimeLookup;
+    bool                    canTailCall;
+    const char*             szCanTailCallFailReason;
+    CORINFO_RESOLVED_TOKEN* ldftnToken;
+    bool                    bIntrinsicImported;
+    bool                    checkForSmallType;
+    bool                    readonlyCall;
+
+    CORINFO_SIG_INFO calliSig;
+    GenTreeArgList*  extraArg;
 };
 
 //------------------------------------------------------------------------
@@ -1542,9 +1582,9 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                                   CORINFO_CALL_INFO*      callInfo,
                                   IL_OFFSET               rawILOffset)
 {
-    CallImporter callImporter;
-    return callImporter.importCall(this, opcode, pResolvedToken, pConstrainedResolvedToken, newobjThis, prefixFlags,
-                                   callInfo, rawILOffset);
+    CallImporter callImporter(this);
+    return callImporter.importCall(opcode, pResolvedToken, pConstrainedResolvedToken, newobjThis, prefixFlags, callInfo,
+                                   rawILOffset);
 }
 #ifdef _PREFAST_
 #pragma warning(pop)
