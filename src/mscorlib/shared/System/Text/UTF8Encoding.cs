@@ -15,7 +15,6 @@
 #define FASTLOOP
 
 using System;
-using System.Runtime.Serialization;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Globalization;
@@ -856,7 +855,7 @@ namespace System.Text
                 {
                     // We always need the fallback buffer in get bytes so we can flush any remaining ones if necessary
                     fallbackBuffer = encoder.FallbackBuffer;
-                    if (fallbackBuffer.Remaining > 0 && encoder.m_throwOnOverflow)
+                    if (fallbackBuffer.Remaining > 0 && encoder._throwOnOverflow)
                         throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback.GetType()));
 
                     // Set our internal fallback interesting things.
@@ -1279,11 +1278,11 @@ namespace System.Text
                     "[UTF8Encoding.GetBytes] Expected no mustflush or 0 leftover ch " + ch.ToString("X2", CultureInfo.InvariantCulture));
 
                 encoder.surrogateChar = ch;
-                encoder.m_charsUsed = (int)(pSrc - chars);
+                encoder._charsUsed = (int)(pSrc - chars);
             }
 
             Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0 ||
-                baseEncoder == null || !baseEncoder.m_throwOnOverflow,
+                baseEncoder == null || !baseEncoder._throwOnOverflow,
                 "[UTF8Encoding.GetBytes]Expected empty fallback buffer if not converting");
 
             return (int)(pTarget - bytes);
@@ -1326,7 +1325,7 @@ namespace System.Text
                 charCount -= (ch >> 30);        // Adjust char count for # of expected bytes and expected output chars.
 
                 // Shouldn't have anything in fallback buffer for GetCharCount
-                // (don't have to check m_throwOnOverflow for count)
+                // (don't have to check _throwOnOverflow for count)
                 Debug.Assert(!decoder.InternalHasFallbackBuffer || decoder.FallbackBuffer.Remaining == 0,
                     "[UTF8Encoding.GetCharCount]Expected empty fallback buffer at start");
             }
@@ -1716,7 +1715,7 @@ namespace System.Text
             }
 
             // Shouldn't have anything in fallback buffer for GetCharCount
-            // (don't have to check m_throwOnOverflow for count)
+            // (don't have to check _throwOnOverflow for count)
             Debug.Assert(fallback == null || fallback.Remaining == 0,
                 "[UTF8Encoding.GetCharCount]Expected empty fallback buffer at end");
 
@@ -1758,7 +1757,7 @@ namespace System.Text
                 ch = decoder.bits;
 
                 // Shouldn't have anything in fallback buffer for GetChars
-                // (don't have to check m_throwOnOverflow for chars, we always use all or none so always should be empty)
+                // (don't have to check _throwOnOverflow for chars, we always use all or none so always should be empty)
                 Debug.Assert(!decoder.InternalHasFallbackBuffer || decoder.FallbackBuffer.Remaining == 0,
                     "[UTF8Encoding.GetChars]Expected empty fallback buffer at start");
             }
@@ -2298,17 +2297,17 @@ namespace System.Text
 
                 // If we're storing flush data we expect all bits to be used or else
                 // we're stuck in the middle of a conversion
-                Debug.Assert(!baseDecoder.MustFlush || ch == 0 || !baseDecoder.m_throwOnOverflow,
+                Debug.Assert(!baseDecoder.MustFlush || ch == 0 || !baseDecoder._throwOnOverflow,
                     "[UTF8Encoding.GetChars]Expected no must flush or no left over bits or no throw on overflow.");
 
                 // Remember our leftover bits.
                 decoder.bits = ch;
 
-                baseDecoder.m_bytesUsed = (int)(pSrc - bytes);
+                baseDecoder._bytesUsed = (int)(pSrc - bytes);
             }
 
             // Shouldn't have anything in fallback buffer for GetChars
-            // (don't have to check m_throwOnOverflow for chars)
+            // (don't have to check _throwOnOverflow for chars)
             Debug.Assert(fallback == null || fallback.Remaining == 0,
                 "[UTF8Encoding.GetChars]Expected empty fallback buffer at end");
 
@@ -2519,7 +2518,7 @@ namespace System.Text
                    UTF8_CODEPAGE + (_emitUTF8Identifier ? 1 : 0);
         }
 
-        private sealed class UTF8Encoder : EncoderNLS, ISerializable
+        private sealed class UTF8Encoder : EncoderNLS
         {
             // We must save a high surrogate value until the next call, looking
             // for a low surrogate value.
@@ -2530,18 +2529,12 @@ namespace System.Text
                 // base calls reset
             }
 
-            // ISerializable implementation
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-            {
-                throw new PlatformNotSupportedException();
-            }
-
             public override void Reset()
 
             {
                 this.surrogateChar = 0;
-                if (m_fallbackBuffer != null)
-                    m_fallbackBuffer.Reset();
+                if (_fallbackBuffer != null)
+                    _fallbackBuffer.Reset();
             }
 
             // Anything left in our encoder?
@@ -2554,7 +2547,7 @@ namespace System.Text
             }
         }
 
-        private sealed class UTF8Decoder : DecoderNLS, ISerializable
+        private sealed class UTF8Decoder : DecoderNLS
         {
             // We'll need to remember the previous information. See the comments around definition
             // of FinalByte for details.
@@ -2565,23 +2558,11 @@ namespace System.Text
                 // base calls reset
             }
 
-            // Constructor called by serialization, have to handle deserializing from Everett
-            internal UTF8Decoder(SerializationInfo info, StreamingContext context)
-            {
-                throw new PlatformNotSupportedException();
-            }
-
-            // ISerializable implementation, get data for this object
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-            {
-                throw new PlatformNotSupportedException();
-            }
-
             public override void Reset()
             {
                 this.bits = 0;
-                if (m_fallbackBuffer != null)
-                    m_fallbackBuffer.Reset();
+                if (_fallbackBuffer != null)
+                    _fallbackBuffer.Reset();
             }
 
             // Anything left in our decoder?

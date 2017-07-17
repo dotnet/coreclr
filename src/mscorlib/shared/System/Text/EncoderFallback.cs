@@ -2,11 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Security;
-using System.Threading;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
+using System.Threading;
 
 namespace System.Text
 {
@@ -17,23 +14,8 @@ namespace System.Text
         internal bool bIsMicrosoftBestFitFallback = false;
 #pragma warning restore 0414
 
-        private static volatile EncoderFallback replacementFallback; // Default fallback, uses no best fit & "?"
-        private static volatile EncoderFallback exceptionFallback;
-
-        // Private object for locking instead of locking on a public type for SQL reliability work.
-        private static Object s_InternalSyncObject;
-        private static Object InternalSyncObject
-        {
-            get
-            {
-                if (s_InternalSyncObject == null)
-                {
-                    Object o = new Object();
-                    Interlocked.CompareExchange<Object>(ref s_InternalSyncObject, o, null);
-                }
-                return s_InternalSyncObject;
-            }
-        }
+        private static EncoderFallback s_replacementFallback; // Default fallback, uses no best fit & "?"
+        private static EncoderFallback s_exceptionFallback;
 
         // Get each of our generic fallbacks.
 
@@ -41,12 +23,10 @@ namespace System.Text
         {
             get
             {
-                if (replacementFallback == null)
-                    lock (InternalSyncObject)
-                        if (replacementFallback == null)
-                            replacementFallback = new EncoderReplacementFallback();
+                if (s_replacementFallback == null)
+                    Interlocked.CompareExchange<EncoderFallback>(ref s_replacementFallback, new EncoderReplacementFallback(), null);
 
-                return replacementFallback;
+                return s_replacementFallback;
             }
         }
 
@@ -55,12 +35,10 @@ namespace System.Text
         {
             get
             {
-                if (exceptionFallback == null)
-                    lock (InternalSyncObject)
-                        if (exceptionFallback == null)
-                            exceptionFallback = new EncoderExceptionFallback();
+                if (s_exceptionFallback == null)
+                    Interlocked.CompareExchange<EncoderFallback>(ref s_exceptionFallback, new EncoderExceptionFallback(), null);
 
-                return exceptionFallback;
+                return s_exceptionFallback;
             }
         }
 
@@ -182,7 +160,7 @@ namespace System.Text
                         if (this.setEncoder)
                         {
                             bUsedEncoder = true;
-                            this.encoder.charLeftOver = ch;
+                            this.encoder._charLeftOver = ch;
                         }
                         bFallingBack = false;
                         return false;
@@ -203,7 +181,6 @@ namespace System.Text
                         bFallingBack = Fallback(ch, cNext, index);
                         return bFallingBack;
                     }
-
                     // Next isn't a low surrogate, just fallback the high surrogate
                 }
             }
@@ -223,7 +200,8 @@ namespace System.Text
         {
             // Throw it, using our complete character
             throw new ArgumentException(
-                SR.Format(SR.Argument_RecursiveFallback, charRecursive), "chars");
+                SR.Format(SR.Argument_RecursiveFallback,
+                    charRecursive), "chars");
         }
     }
 }

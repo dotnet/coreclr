@@ -8,7 +8,6 @@
 
 using System;
 using System.Globalization;
-using System.Runtime.Serialization;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
@@ -21,7 +20,6 @@ namespace System.Text
         internal static readonly UnicodeEncoding s_bigEndianDefault = new UnicodeEncoding(bigEndian: true, byteOrderMark: true);
         internal static readonly UnicodeEncoding s_littleEndianDefault = new UnicodeEncoding(bigEndian: false, byteOrderMark: true);
 
-        [OptionalField(VersionAdded = 2)]
         internal bool isThrowException = false;
 
         internal bool bigEndian = false;
@@ -54,15 +52,6 @@ namespace System.Text
             if (this.isThrowException)
                 SetDefaultFallbacks();
         }
-
-        #region Serialization 
-        [OnDeserializing]
-        private void OnDeserializing(StreamingContext ctx)
-        {
-            // In Everett it is false. Whidbey will overwrite this value.
-            isThrowException = false;
-        }
-        #endregion Serialization
 
         internal override void SetDefaultFallbacks()
         {
@@ -414,7 +403,7 @@ namespace System.Text
 
             if (encoder != null)
             {
-                charLeftOver = encoder.charLeftOver;
+                charLeftOver = encoder._charLeftOver;
 
                 // Assume extra bytes to encode charLeftOver if it existed
                 if (charLeftOver > 0)
@@ -674,7 +663,7 @@ namespace System.Text
             }
 
             // Shouldn't have anything in fallback buffer for GetByteCount
-            // (don't have to check m_throwOnOverflow for count)
+            // (don't have to check _throwOnOverflow for count)
             Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
                 "[UnicodeEncoding.GetByteCount]Expected empty fallback buffer at end");
 
@@ -707,14 +696,14 @@ namespace System.Text
             // Get our encoder, but don't clear it yet.
             if (encoder != null)
             {
-                charLeftOver = encoder.charLeftOver;
+                charLeftOver = encoder._charLeftOver;
 
                 // We mustn't have left over fallback data when counting
                 if (encoder.InternalHasFallbackBuffer)
                 {
                     // We always need the fallback buffer in get bytes so we can flush any remaining ones if necessary
                     fallbackBuffer = encoder.FallbackBuffer;
-                    if (fallbackBuffer.Remaining > 0 && encoder.m_throwOnOverflow)
+                    if (fallbackBuffer.Remaining > 0 && encoder._throwOnOverflow)
                         throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback.GetType()));
 
                     // Set our internal fallback interesting things.
@@ -1088,8 +1077,8 @@ namespace System.Text
             // Not flushing, remember it in the encoder
             if (encoder != null)
             {
-                encoder.charLeftOver = charLeftOver;
-                encoder.m_charsUsed = (int)(chars - charStart);
+                encoder._charLeftOver = charLeftOver;
+                encoder._charsUsed = (int)(chars - charStart);
             }
 
             // Remember charLeftOver if we must, or clear it if we're flushing
@@ -1098,7 +1087,7 @@ namespace System.Text
                 "[UnicodeEncoding.GetBytes] Expected no left over characters if flushing");
 
             Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0 ||
-                encoder == null || !encoder.m_throwOnOverflow,
+                encoder == null || !encoder._throwOnOverflow,
                 "[UnicodeEncoding.GetBytes]Expected empty fallback buffer if not converting");
 
             // We used to copy it fast, but this doesn't check for surrogates
@@ -1148,7 +1137,7 @@ namespace System.Text
                 }
 
                 // Shouldn't have anything in fallback buffer for GetCharCount
-                // (don't have to check m_throwOnOverflow for count)
+                // (don't have to check _throwOnOverflow for count)
                 Debug.Assert(!decoder.InternalHasFallbackBuffer || decoder.FallbackBuffer.Remaining == 0,
                     "[UnicodeEncoding.GetCharCount]Expected empty fallback buffer at start");
             }
@@ -1434,7 +1423,7 @@ namespace System.Text
                 charCount--;
 
             // Shouldn't have anything in fallback buffer for GetCharCount
-            // (don't have to check m_throwOnOverflow for count)
+            // (don't have to check _throwOnOverflow for count)
             Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
                 "[UnicodeEncoding.GetCharCount]Expected empty fallback buffer at end");
 
@@ -1462,7 +1451,7 @@ namespace System.Text
                 lastChar = decoder.lastChar;
 
                 // Shouldn't have anything in fallback buffer for GetChars
-                // (don't have to check m_throwOnOverflow for chars)
+                // (don't have to check _throwOnOverflow for chars)
                 Debug.Assert(!decoder.InternalHasFallbackBuffer || decoder.FallbackBuffer.Remaining == 0,
                     "[UnicodeEncoding.GetChars]Expected empty fallback buffer at start");
             }
@@ -1866,7 +1855,7 @@ namespace System.Text
                     //                    + " " + ((int)lastChar).ToString("X4") + " " + lastByte.ToString("X2")
                     );
 
-                decoder.m_bytesUsed = (int)(bytes - byteStart);
+                decoder._bytesUsed = (int)(bytes - byteStart);
                 decoder.lastChar = lastChar;
                 decoder.lastByte = lastByte;
             }
@@ -1875,7 +1864,7 @@ namespace System.Text
             // System.IO.__UnmanagedMemoryStream.memcpyimpl((byte*)chars, bytes, byteCount);
 
             // Shouldn't have anything in fallback buffer for GetChars
-            // (don't have to check m_throwOnOverflow for count or chars)
+            // (don't have to check _throwOnOverflow for count or chars)
             Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
                 "[UnicodeEncoding.GetChars]Expected empty fallback buffer at end");
 
@@ -1964,7 +1953,7 @@ namespace System.Text
             {
                 //
                 // Big Endian Unicode has different code page (1201) than small Endian one (1200),
-                // so we still have to check m_codePage here.
+                // so we still have to check _codePage here.
                 //
                 return (CodePage == that.CodePage) &&
                         byteOrderMark == that.byteOrderMark &&
@@ -1982,7 +1971,7 @@ namespace System.Text
                    (byteOrderMark ? 4 : 0) + (bigEndian ? 8 : 0);
         }
 
-        private sealed class Decoder : System.Text.DecoderNLS, ISerializable
+        private sealed class Decoder : System.Text.DecoderNLS
         {
             internal int lastByte = -1;
             internal char lastChar = '\0';
@@ -1992,23 +1981,12 @@ namespace System.Text
                 // base calls reset
             }
             
-            internal Decoder(SerializationInfo info, StreamingContext context)
-            {
-                throw new PlatformNotSupportedException();
-            }
-
-            // ISerializable implementation
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-            {
-                throw new PlatformNotSupportedException();
-            }
-
             public override void Reset()
             {
                 lastByte = -1;
                 lastChar = '\0';
-                if (m_fallbackBuffer != null)
-                    m_fallbackBuffer.Reset();
+                if (_fallbackBuffer != null)
+                    _fallbackBuffer.Reset();
             }
 
             // Anything left in our decoder?

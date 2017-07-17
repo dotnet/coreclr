@@ -6,11 +6,8 @@
 // This is used internally to create best fit behavior as per the original windows best fit behavior.
 //
 
-using System;
-using System.Text;
-using System.Threading;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
+using System.Threading;
 
 namespace System.Text
 {
@@ -64,7 +61,7 @@ namespace System.Text
         internal char cBestFit = '\0';
         internal int iCount = -1;
         internal int iSize;
-        private InternalDecoderBestFitFallback oFallback;
+        private InternalDecoderBestFitFallback _oFallback;
 
         // Private object for locking instead of locking on a public type for SQL reliability work.
         private static Object s_InternalSyncObject;
@@ -84,16 +81,16 @@ namespace System.Text
         // Constructor
         public InternalDecoderBestFitFallbackBuffer(InternalDecoderBestFitFallback fallback)
         {
-            oFallback = fallback;
+            _oFallback = fallback;
 
-            if (oFallback.arrayBestFit == null)
+            if (_oFallback.arrayBestFit == null)
             {
                 // Lock so we don't confuse ourselves.
                 lock (InternalSyncObject)
                 {
                     // Double check before we do it again.
-                    if (oFallback.arrayBestFit == null)
-                        oFallback.arrayBestFit = fallback.encoding.GetBestFitBytesToUnicodeData();
+                    if (_oFallback.arrayBestFit == null)
+                        _oFallback.arrayBestFit = fallback.encoding.GetBestFitBytesToUnicodeData();
                 }
             }
         }
@@ -106,7 +103,7 @@ namespace System.Text
 
             cBestFit = TryBestFit(bytesUnknown);
             if (cBestFit == '\0')
-                cBestFit = oFallback.cReplacement;
+                cBestFit = _oFallback.cReplacement;
 
             iCount = iSize = 1;
 
@@ -177,7 +174,7 @@ namespace System.Text
         {
             // Need to figure out our best fit character, low is beginning of array, high is 1 AFTER end of array
             int lowBound = 0;
-            int highBound = oFallback.arrayBestFit.Length;
+            int highBound = _oFallback.arrayBestFit.Length;
             int index;
             char cCheck;
 
@@ -195,7 +192,7 @@ namespace System.Text
                 cCheck = unchecked((char)((bytesCheck[0] << 8) + bytesCheck[1]));
 
             // Check trivial out of range case
-            if (cCheck < oFallback.arrayBestFit[0] || cCheck > oFallback.arrayBestFit[highBound - 2])
+            if (cCheck < _oFallback.arrayBestFit[0] || cCheck > _oFallback.arrayBestFit[highBound - 2])
                 return '\0';
 
             // Binary search the array
@@ -207,13 +204,13 @@ namespace System.Text
                 // Also note that index can never == highBound (because diff is rounded down)
                 index = ((iDiff / 2) + lowBound) & 0xFFFE;
 
-                char cTest = oFallback.arrayBestFit[index];
+                char cTest = _oFallback.arrayBestFit[index];
                 if (cTest == cCheck)
                 {
                     // We found it
-                    Debug.Assert(index + 1 < oFallback.arrayBestFit.Length,
+                    Debug.Assert(index + 1 < _oFallback.arrayBestFit.Length,
                         "[InternalDecoderBestFitFallbackBuffer.TryBestFit]Expected replacement character at end of array");
-                    return oFallback.arrayBestFit[index + 1];
+                    return _oFallback.arrayBestFit[index + 1];
                 }
                 else if (cTest < cCheck)
                 {
@@ -229,12 +226,12 @@ namespace System.Text
 
             for (index = lowBound; index < highBound; index += 2)
             {
-                if (oFallback.arrayBestFit[index] == cCheck)
+                if (_oFallback.arrayBestFit[index] == cCheck)
                 {
                     // We found it
-                    Debug.Assert(index + 1 < oFallback.arrayBestFit.Length,
+                    Debug.Assert(index + 1 < _oFallback.arrayBestFit.Length,
                         "[InternalDecoderBestFitFallbackBuffer.TryBestFit]Expected replacement character at end of array");
-                    return oFallback.arrayBestFit[index + 1];
+                    return _oFallback.arrayBestFit[index + 1];
                 }
             }
 

@@ -1285,7 +1285,7 @@ namespace System.Text
 
         internal void ThrowBytesOverflow(EncoderNLS encoder, bool nothingEncoded)
         {
-            if (encoder == null || encoder.m_throwOnOverflow || nothingEncoded)
+            if (encoder == null || encoder._throwOnOverflow || nothingEncoded)
             {
                 if (encoder != null && encoder.InternalHasFallbackBuffer)
                     encoder.FallbackBuffer.InternalReset();
@@ -1308,7 +1308,7 @@ namespace System.Text
 
         internal void ThrowCharsOverflow(DecoderNLS decoder, bool nothingDecoded)
         {
-            if (decoder == null || decoder.m_throwOnOverflow || nothingDecoded)
+            if (decoder == null || decoder._throwOnOverflow || nothingDecoded)
             {
                 if (decoder != null && decoder.InternalHasFallbackBuffer)
                     decoder.FallbackBuffer.InternalReset();
@@ -1322,22 +1322,16 @@ namespace System.Text
             decoder.ClearMustFlush();
         }
 
-        internal sealed class DefaultEncoder : Encoder, IObjectReference, ISerializable
+        internal sealed class DefaultEncoder : Encoder, IObjectReference
         {
-            private Encoding m_encoding;
+            private Encoding _encoding;
 
             public DefaultEncoder(Encoding encoding)
             {
-                m_encoding = encoding;
+                _encoding = encoding;
             }
             
             public Object GetRealObject(StreamingContext context)
-            {
-                throw new PlatformNotSupportedException();
-            }
-
-            // ISerializable implementation, get data for this object
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {
                 throw new PlatformNotSupportedException();
             }
@@ -1352,13 +1346,13 @@ namespace System.Text
 
             public override int GetByteCount(char[] chars, int index, int count, bool flush)
             {
-                return m_encoding.GetByteCount(chars, index, count);
+                return _encoding.GetByteCount(chars, index, count);
             }
 
             [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public unsafe override int GetByteCount(char* chars, int count, bool flush)
             {
-                return m_encoding.GetByteCount(chars, count);
+                return _encoding.GetByteCount(chars, count);
             }
 
             // Encodes a range of characters in a character array into a range of bytes
@@ -1384,33 +1378,27 @@ namespace System.Text
             public override int GetBytes(char[] chars, int charIndex, int charCount,
                                           byte[] bytes, int byteIndex, bool flush)
             {
-                return m_encoding.GetBytes(chars, charIndex, charCount, bytes, byteIndex);
+                return _encoding.GetBytes(chars, charIndex, charCount, bytes, byteIndex);
             }
 
             [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public unsafe override int GetBytes(char* chars, int charCount,
                                                  byte* bytes, int byteCount, bool flush)
             {
-                return m_encoding.GetBytes(chars, charCount, bytes, byteCount);
+                return _encoding.GetBytes(chars, charCount, bytes, byteCount);
             }
         }
 
-        internal sealed class DefaultDecoder : Decoder, IObjectReference, ISerializable
+        internal sealed class DefaultDecoder : Decoder, IObjectReference
         {
-            private Encoding m_encoding;
+            private Encoding _encoding;
 
             public DefaultDecoder(Encoding encoding)
             {
-                m_encoding = encoding;
+                _encoding = encoding;
             }
 
             public Object GetRealObject(StreamingContext context)
-            {
-                throw new PlatformNotSupportedException();
-            }
-
-            // ISerializable implementation
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {
                 throw new PlatformNotSupportedException();
             }
@@ -1429,14 +1417,14 @@ namespace System.Text
 
             public override int GetCharCount(byte[] bytes, int index, int count, bool flush)
             {
-                return m_encoding.GetCharCount(bytes, index, count);
+                return _encoding.GetCharCount(bytes, index, count);
             }
 
             [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public unsafe override int GetCharCount(byte* bytes, int count, bool flush)
             {
                 // By default just call the encoding version, no flush by default
-                return m_encoding.GetCharCount(bytes, count);
+                return _encoding.GetCharCount(bytes, count);
             }
 
             // Decodes a range of bytes in a byte array into a range of characters
@@ -1465,7 +1453,7 @@ namespace System.Text
             public override int GetChars(byte[] bytes, int byteIndex, int byteCount,
                                            char[] chars, int charIndex, bool flush)
             {
-                return m_encoding.GetChars(bytes, byteIndex, byteCount, chars, charIndex);
+                return _encoding.GetChars(bytes, byteIndex, byteCount, chars, charIndex);
             }
 
             [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
@@ -1473,7 +1461,7 @@ namespace System.Text
                                                   char* chars, int charCount, bool flush)
             {
                 // By default just call the encoding's version
-                return m_encoding.GetChars(bytes, byteCount, chars, charCount);
+                return _encoding.GetChars(bytes, byteCount, chars, charCount);
             }
         }
 
@@ -1683,7 +1671,7 @@ namespace System.Text
                 {
                     this.fallbackBuffer = _encoder.FallbackBuffer;
                     // If we're not converting we must not have data in our fallback buffer
-                    if (_encoder.m_throwOnOverflow && _encoder.InternalHasFallbackBuffer &&
+                    if (_encoder._throwOnOverflow && _encoder.InternalHasFallbackBuffer &&
                         this.fallbackBuffer.Remaining > 0)
                         throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty,
                             _encoder.Encoding.EncodingName, _encoder.Fallback.GetType()));
