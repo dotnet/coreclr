@@ -82,7 +82,7 @@ GenTreePtr LC_Ident::ToGenTree(Compiler* comp)
             return comp->gtNewIconNode((ssize_t)constant);
 #endif
         case Var:
-            return comp->gtNewLclvNode((unsigned)constant, comp->lvaTable[constant].lvType);
+            return comp->gtNewLclvNode((unsigned)constant, comp->lvaTable[(unsigned)constant].lvType);
         case ArrLen:
             return arrLen.ToGenTree(comp);
         case Null:

@@ -770,8 +770,7 @@ private:
         if (tree->IsLocal())
         {
             unsigned int lclNum = tree->gtLclVarCommon.gtLclNum;
-            assert(lclNum < compiler->lvaCount);
-            LclVarDsc* varDsc = compiler->lvaTable + tree->gtLclVarCommon.gtLclNum;
+            LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
 
             return isCandidateVar(varDsc);
         }

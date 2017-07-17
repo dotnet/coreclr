@@ -1692,7 +1692,7 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(code_t code, int var, int dsp)
                     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef UNIX_AMD64_ABI
-                    LclVarDsc* varDsc         = emitComp->lvaTable + var;
+                    LclVarDsc* varDsc         = &emitComp->lvaTable[var];
                     bool       isRegPassedArg = varDsc->lvIsParam && varDsc->lvIsRegArg;
                     // Register passed args could have a stack offset of 0.
                     noway_assert((int)offs < 0 || isRegPassedArg);
@@ -6182,8 +6182,7 @@ void emitter::emitDispFrameRef(int varx, int disp, int offs, bool asmfm)
         LclVarDsc*  varDsc;
         const char* varName;
 
-        assert((unsigned)varx < emitComp->lvaCount);
-        varDsc  = emitComp->lvaTable + varx;
+        varDsc  = &emitComp->lvaTable[varx];
         varName = emitComp->compLocalVarName(varx, offs);
 
         if (varName)

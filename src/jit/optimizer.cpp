@@ -7250,14 +7250,9 @@ Compiler::fgWalkResult Compiler::optRemoveTreeVisitor(GenTreePtr* pTree, fgWalkD
 
     if (tree->gtOper == GT_LCL_VAR && comp->lvaLocalVarRefCounted)
     {
-        unsigned   lclNum;
-        LclVarDsc* varDsc;
-
         /* This variable ref is going away, decrease its ref counts */
-
-        lclNum = tree->gtLclVarCommon.gtLclNum;
-        assert(lclNum < comp->lvaCount);
-        varDsc = comp->lvaTable + lclNum;
+        unsigned   lclNum = tree->gtLclVarCommon.gtLclNum;
+        LclVarDsc* varDsc = &comp->lvaTable[lclNum];
 
         // make sure it's been initialized
         assert(comp->compCurBB != nullptr);

@@ -99,7 +99,7 @@ void Lowering::LowerStoreLoc(GenTreeLclVarCommon* storeLoc)
         ssize_t        ival = con->gtIconVal;
 
         unsigned   varNum = storeLoc->gtLclNum;
-        LclVarDsc* varDsc = comp->lvaTable + varNum;
+        LclVarDsc* varDsc = &comp->lvaTable[varNum];
 
         if (varDsc->lvIsSIMDType())
         {
@@ -1128,8 +1128,8 @@ GenTree* Lowering::PreferredRegOptionalOperand(GenTree* tree)
     // mark op1 as reg optional for the same reason as mentioned in (d) above.
     if (op1->OperGet() == GT_LCL_VAR && op2->OperGet() == GT_LCL_VAR)
     {
-        LclVarDsc* v1 = comp->lvaTable + op1->AsLclVarCommon()->GetLclNum();
-        LclVarDsc* v2 = comp->lvaTable + op2->AsLclVarCommon()->GetLclNum();
+        LclVarDsc* v1 = &comp->lvaTable[op1->AsLclVarCommon()->GetLclNum()];
+        LclVarDsc* v2 = &comp->lvaTable[op2->AsLclVarCommon()->GetLclNum()];
 
         bool v1IsRegCandidate = !v1->lvDoNotEnregister && v1->lvTracked;
         bool v2IsRegCandidate = !v2->lvDoNotEnregister && v2->lvTracked;

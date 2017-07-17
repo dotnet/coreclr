@@ -249,12 +249,9 @@ const regNumber* Compiler::raGetRegVarOrder(var_types regType, unsigned* wbVarOr
 
 void Compiler::raDumpVarIntf()
 {
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
     printf("Var. interference graph for %s\n", info.compFullName);
 
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         /* Ignore the variable if it's not tracked */
 
@@ -264,7 +261,7 @@ void Compiler::raDumpVarIntf()
         /* Get hold of the index and the interference mask for the variable */
         unsigned varIndex = varDsc->lvVarIndex;
 
-        printf("  V%02u,T%02u and ", lclNum, varIndex);
+        printf("  V%02u,T%02u and ", lvaTable.GetLclNum(varDsc), varIndex);
 
         unsigned refIndex;
 
@@ -291,13 +288,8 @@ void Compiler::raDumpRegIntf()
 {
     printf("Reg. interference graph for %s\n", info.compFullName);
 
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
-        unsigned varNum;
-
         /* Ignore the variable if it's not tracked */
 
         if (!varDsc->lvTracked)
@@ -305,9 +297,9 @@ void Compiler::raDumpRegIntf()
 
         /* Get hold of the index and the interference mask for the variable */
 
-        varNum = varDsc->lvVarIndex;
+        unsigned varNum = varDsc->lvVarIndex;
 
-        printf("  V%02u,T%02u and ", lclNum, varNum);
+        printf("  V%02u,T%02u and ", lvaTable.GetLclNum(varDsc), varNum);
 
         if (varDsc->IsFloatRegType())
         {
@@ -411,10 +403,7 @@ inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
 
 static void dispLifeSet(Compiler* comp, VARSET_VALARG_TP mask, VARSET_VALARG_TP life)
 {
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    for (lclNum = 0, varDsc = comp->lvaTable; lclNum < comp->lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : comp->lvaTable)
     {
         if (!varDsc->lvTracked)
             continue;
@@ -423,7 +412,7 @@ static void dispLifeSet(Compiler* comp, VARSET_VALARG_TP mask, VARSET_VALARG_TP 
             continue;
 
         if (VarSetOps::IsMember(comp, life, varDsc->lvVarIndex))
-            printf("V%02u ", lclNum);
+            printf("V%02u ", comp->lvaTable.GetLclNum(varDsc));
     }
 }
 
@@ -620,9 +609,7 @@ void Compiler::raSetupArgMasks(RegState* regState)
     regState->rsCalleeRegArgMaskLiveIn = RBM_NONE;
     raAvoidArgRegMask                  = RBM_NONE;
 
-    LclVarDsc* argsEnd = lvaTable + info.compArgsCount;
-
-    for (LclVarDsc* argDsc = lvaTable; argDsc < argsEnd; argDsc++)
+    for (LclVarDsc* argDsc : lvaTable.LclVars(0, info.compArgsCount))
     {
         noway_assert(argDsc->lvIsParam);
 
@@ -644,7 +631,7 @@ void Compiler::raSetupArgMasks(RegState* regState)
         //
         bool keepArgAlive = compJmpOpUsed;
         if ((unsigned(info.compTypeCtxtArg) != BAD_VAR_NUM) && lvaReportParamTypeArg() &&
-            ((lvaTable + info.compTypeCtxtArg) == argDsc))
+            ((&lvaTable[info.compTypeCtxtArg]) == argDsc))
         {
             keepArgAlive = true;
         }
@@ -812,10 +799,7 @@ void Compiler::raAssignVars()
     // Change all unused promoted non-argument struct locals to a non-GC type (in this case TYP_INT)
     // so that the gc tracking logic and lvMustInit logic will ignore them.
 
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         if (varDsc->lvType != TYP_STRUCT)
             continue;
@@ -832,7 +816,7 @@ void Compiler::raAssignVars()
 #ifdef DEBUG
         if (verbose)
         {
-            printf("Mark unused struct local V%02u\n", lclNum);
+            printf("Mark unused struct local V%02u\n", lvaTable.GetLclNum(varDsc));
         }
 
         lvaPromotionType promotionType = lvaGetPromotionType(varDsc);
@@ -1119,7 +1103,7 @@ regMaskTP Compiler::rpPredictRegPick(var_types type, rpPredictReg predictReg, re
         noway_assert((rpAsgVarNum >= 0) && (rpAsgVarNum < (int)lclMAX_TRACKED));
 
         /* Don't pick the register used by rpAsgVarNum either */
-        LclVarDsc* tgtVar = lvaTable + lvaTrackedToVarNum[rpAsgVarNum];
+        LclVarDsc* tgtVar = &lvaTable[lvaTrackedToVarNum[rpAsgVarNum]];
         noway_assert(tgtVar->lvRegNum != REG_STK);
 
         preferReg &= ~genRegMask(tgtVar->lvRegNum);
@@ -1670,7 +1654,7 @@ DONE:
 
 void Compiler::rpPredictRefAssign(unsigned lclNum)
 {
-    LclVarDsc* varDsc = lvaTable + lclNum;
+    LclVarDsc* varDsc = &lvaTable[lclNum];
 
     varDsc->lvRefAssign = 1;
 
@@ -2057,7 +2041,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     // We don't need any register as we plan on writing to the rpAsgVarNum register
                     predictReg = PREDICT_NONE;
 
-                    LclVarDsc* tgtVar   = lvaTable + lvaTrackedToVarNum[tgtIndex];
+                    LclVarDsc* tgtVar   = &lvaTable[lvaTrackedToVarNum[tgtIndex]];
                     tgtVar->lvDependReg = true;
 
                     if (type == TYP_LONG)
@@ -2122,7 +2106,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     // We don't need any register as we plan on writing to the rpAsgVarNum register
                     predictReg = PREDICT_NONE;
 
-                    LclVarDsc* tgtVar   = lvaTable + lvaTrackedToVarNum[tgtIndex];
+                    LclVarDsc* tgtVar   = &lvaTable[lvaTrackedToVarNum[tgtIndex]];
                     tgtVar->lvDependReg = true;
 
                     if (type == TYP_LONG)
@@ -2158,7 +2142,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
             case GT_LCL_VAR:
             case GT_REG_VAR:
 
-                varDsc = lvaTable + tree->gtLclVarCommon.gtLclNum;
+                varDsc = &lvaTable[tree->gtLclVarCommon.gtLclNum];
 
                 VarSetOps::Assign(this, varBits, fgGetVarBits(tree));
                 compUpdateLifeVar</*ForCodeGen*/ false>(tree, &lastUseVarBits);
@@ -2204,7 +2188,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     /* Get the tracked local variable that has an lvVarIndex of tgtIndex1 */
                     {
                         unsigned   tgtIndex1 = rpGetVarIndexForPredict(predictReg);
-                        LclVarDsc* tgtVar    = lvaTable + lvaTrackedToVarNum[tgtIndex1];
+                        LclVarDsc* tgtVar    = &lvaTable[lvaTrackedToVarNum[tgtIndex1]];
                         VarSetOps::MakeSingleton(this, tgtIndex1);
 
                         noway_assert(tgtVar->lvVarIndex == tgtIndex1);
@@ -2340,7 +2324,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                         for (unsigned varNum = varDsc->lvFieldLclStart;
                              varNum < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; varNum++)
                         {
-                            LclVarDsc* fldVar = lvaTable + varNum;
+                            LclVarDsc* fldVar = &lvaTable[varNum];
 
                             if (fldVar->lvStackAligned())
                             {
@@ -2424,13 +2408,13 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 /* We need to sign or zero extend a small type when pushing a struct */
                 noway_assert((type == TYP_INT) || (type == TYP_BYTE));
 
-                varDsc = lvaTable + tree->gtLclVarCommon.gtLclNum;
+                varDsc = &lvaTable[tree->gtLclVarCommon.gtLclNum];
                 noway_assert(varDsc->lvPromoted && !varDsc->lvAddrExposed);
 
                 for (unsigned varNum = varDsc->lvFieldLclStart; varNum < varDsc->lvFieldLclStart + varDsc->lvFieldCnt;
                      varNum++)
                 {
-                    LclVarDsc* fldVar = lvaTable + varNum;
+                    LclVarDsc* fldVar = &lvaTable[varNum];
                     if (fldVar->lvTracked)
                     {
                         VARSET_TP fldBit(VarSetOps::MakeSingleton(this, fldVar->lvVarIndex));
@@ -2494,7 +2478,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 /* Is the value being assigned into a LCL_VAR? */
                 if (op1->gtOper == GT_LCL_VAR)
                 {
-                    varDsc = lvaTable + op1->gtLclVarCommon.gtLclNum;
+                    varDsc = &lvaTable[op1->gtLclVarCommon.gtLclNum];
 
                     /* Are we assigning a LCL_VAR the result of a call? */
                     if (op2->gtOper == GT_CALL)
@@ -2582,7 +2566,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     /* For debug code we only allow a simple op2 to be assigned */
                     if ((op1->gtOper == GT_LCL_VAR) && (!opts.compDbgCode || rpCanAsgOperWithoutReg(op2, false)))
                     {
-                        varDsc = lvaTable + op1->gtLclVarCommon.gtLclNum;
+                        varDsc = &lvaTable[op1->gtLclVarCommon.gtLclNum];
                         /* Did we predict that this local will be enregistered? */
                         if (varDsc->lvRegNum != REG_STK)
                         {
@@ -2633,7 +2617,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     // to each of the last use variables
                     if (!VarSetOps::IsEmpty(this, rpLastUseVars))
                     {
-                        varDsc = lvaTable + op1->gtLclVarCommon.gtLclNum;
+                        varDsc = &lvaTable[op1->gtLclVarCommon.gtLclNum];
 
                         if (varDsc->lvTracked)
                         {
@@ -2663,7 +2647,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
 
                     if (op1->gtOper == GT_LCL_VAR)
                     {
-                        varDsc = lvaTable + op1->gtLclVar.gtLclNum;
+                        varDsc = &lvaTable[op1->gtLclVar.gtLclNum];
 
                         // Did we predict that this local will be enregistered?
                         if (varDsc->lvTracked && (varDsc->lvRegNum != REG_STK) && (oper != GT_CHS))
@@ -2776,7 +2760,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     {
                         /* We must be assigning into an enregistered LCL_VAR */
                         noway_assert(op1->gtOper == GT_LCL_VAR);
-                        varDsc = lvaTable + op1->gtLclVar.gtLclNum;
+                        varDsc = &lvaTable[op1->gtLclVar.gtLclNum];
                         noway_assert(varDsc->lvRegNum != REG_STK);
 
                         /* We need to set lvDependReg, in case we lose the enregistration of op1 */
@@ -2979,7 +2963,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                         // We don't need any register as we plan on writing to the rpAsgVarNum register
                         predictReg = PREDICT_NONE;
 
-                        LclVarDsc* tgtVar   = lvaTable + lvaTrackedToVarNum[tgtIndex];
+                        LclVarDsc* tgtVar   = &lvaTable[lvaTrackedToVarNum[tgtIndex]];
                         tgtVar->lvDependReg = true;
 
                         if (tgtVar->lvOtherReg != REG_STK)
@@ -3422,7 +3406,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                         if (op2->gtOper == GT_LCL_VAR)
                         {
                             unsigned lclNum = op2->gtLclVar.gtLclNum;
-                            varDsc          = lvaTable + lclNum;
+                            varDsc          = &lvaTable[lclNum];
                             /* Did we predict that this local will be enregistered? */
                             if (varDsc->lvTracked && (varDsc->lvRegNum != REG_STK))
                             {
@@ -3783,7 +3767,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 if (op2->gtOper == GT_LCL_VAR)
                 {
                     unsigned lclNum = op2->gtLclVarCommon.gtLclNum;
-                    varDsc          = lvaTable + lclNum;
+                    varDsc          = &lvaTable[lclNum];
                     if (varDsc->lvTracked)
                     {
 #ifdef DEBUG
@@ -3829,7 +3813,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 if (dest && (dest->gtOper == GT_LCL_VAR) && dest->gtNext && (dest->gtNext->OperKind() & GTK_ASGOP) &&
                     dest->gtNext->gtOp.gtOp2 == tree)
                 {
-                    varDsc = lvaTable + dest->gtLclVarCommon.gtLclNum;
+                    varDsc = &lvaTable[dest->gtLclVarCommon.gtLclNum];
                     varDsc->addPrefReg(regMask, this);
                 }
 #ifdef _TARGET_XARCH_
@@ -3972,7 +3956,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
 
                             if (op2->gtOper == GT_LCL_VAR)
                             {
-                                varDsc = lvaTable + op2->gtLclVarCommon.gtLclNum;
+                                varDsc = &lvaTable[op2->gtLclVarCommon.gtLclNum];
                                 varDsc->setPrefReg(REG_SHIFT, this);
                                 if (varDsc->lvTracked)
                                 {
@@ -4005,7 +3989,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                         // Fix 383828 X86 ILGEN
                         if (op1->gtOper == GT_LCL_VAR)
                         {
-                            varDsc = lvaTable + op1->gtLclVar.gtLclNum;
+                            varDsc = &lvaTable[op1->gtLclVar.gtLclNum];
                             if (varDsc->lvTracked)
                             {
                                 VARSET_TP op1VarBit(VarSetOps::MakeSingleton(this, varDsc->lvVarIndex));
@@ -4067,7 +4051,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 tree->gtUsedRegs = op2->gtUsedRegs;
                 if ((op2->gtOper == GT_LCL_VAR) && (rsvdRegs != 0))
                 {
-                    LclVarDsc* op2VarDsc = lvaTable + op2->gtLclVarCommon.gtLclNum;
+                    LclVarDsc* op2VarDsc = &lvaTable[op2->gtLclVarCommon.gtLclNum];
 
                     if (op2VarDsc->lvTracked)
                     {
@@ -4674,7 +4658,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     }
                     else if (argx->gtOper == GT_LCL_VAR)
                     {
-                        varDsc       = lvaTable + argx->gtLclVarCommon.gtLclNum;
+                        varDsc       = &lvaTable[argx->gtLclVarCommon.gtLclNum];
                         originalSize = varDsc->lvSize();
 
                         // Is it a promoted struct local?
@@ -5348,10 +5332,7 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
 
     if (regAvail == RBM_NONE)
     {
-        unsigned   lclNum;
-        LclVarDsc* varDsc;
-
-        for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+        for (LclVarDsc* varDsc : lvaTable)
         {
 #if FEATURE_STACK_FP_X87
             if (!varDsc->IsFloatRegType())
@@ -5563,10 +5544,7 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
 
             if (raAvoidArgRegMask != 0)
             {
-                LclVarDsc* argDsc;
-                LclVarDsc* argsEnd = lvaTable + info.compArgsCount;
-
-                for (argDsc = lvaTable; argDsc < argsEnd; argDsc++)
+                for (LclVarDsc* argDsc : lvaTable.LclVars(0, info.compArgsCount))
                 {
                     if (!argDsc->lvIsRegArg)
                         continue;
@@ -5660,7 +5638,7 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
                 unsigned        pscIndex = 0;
                 while (pscIndexIter.NextElem(&pscIndex))
                 {
-                    LclVarDsc* pscVar = lvaTable + lvaTrackedToVarNum[pscIndex];
+                    LclVarDsc* pscVar = &lvaTable[lvaTrackedToVarNum[pscIndex]];
                     totalRefCntWtd += pscVar->lvRefCntWtd;
                     if (totalRefCntWtd > (2 * BB_UNITY_WEIGHT))
                         break;
@@ -5834,7 +5812,7 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
         if (verbose)
         {
             printf("; ");
-            gtDispLclVar((unsigned)(varDsc - lvaTable));
+            gtDispLclVar(lvaTable.GetLclNum(varDsc));
             if (varDsc->lvTracked)
                 printf("T%02u", varDsc->lvVarIndex);
             else
@@ -5865,7 +5843,7 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
         if (verbose)
         {
             printf("; ");
-            gtDispLclVar((unsigned)(varDsc - lvaTable));
+            gtDispLclVar(lvaTable.GetLclNum(varDsc));
             printf("T%02u (refcnt=%2u,refwtd=%s) predicted to be assigned to ", varIndex, varDsc->lvRefCnt,
                    refCntWtd2str(varDsc->lvRefCntWtd));
             varDsc->PrintVarReg();
@@ -6027,10 +6005,8 @@ REVERSE_EBP_ENREG:
         /* variables that were enregistered in EBP become stack based variables */
         raAddToStkPredict(refCntWtdEBP);
 
-        unsigned lclNum;
-
         /* We're going to have to undo some predicted enregistered variables */
-        for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+        for (LclVarDsc* varDsc : lvaTable)
         {
             /* Is this a register variable? */
             if (varDsc->lvRegNum != REG_STK)
@@ -6070,7 +6046,7 @@ REVERSE_EBP_ENREG:
                         if (verbose)
                         {
                         DUMP_MSG:
-                            printf("; reversing enregisteration of V%02u,T%02u (refcnt=%2u,refwtd=%4u%s)\n", lclNum,
+                            printf("; reversing enregisteration of V%02u,T%02u (refcnt=%2u,refwtd=%4u%s)\n", lvaTable.GetLclNum(varDsc),
                                    varDsc->lvVarIndex, varDsc->lvRefCnt, varDsc->lvRefCntWtd / 2,
                                    (varDsc->lvRefCntWtd & 1) ? ".5" : "");
                         }
@@ -6084,8 +6060,7 @@ REVERSE_EBP_ENREG:
 
 EXIT:;
 
-    unsigned lclNum;
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         /* Clear the lvDependReg flag for next iteration of the predictor */
         varDsc->lvDependReg = false;
@@ -6201,10 +6176,7 @@ void Compiler::rpPredictRegUse()
     // Calculate the set of all tracked FP/non-FP variables
     //  into optAllFloatVars and optAllNonFPvars
 
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         /* Ignore the variable if it's not tracked */
 
@@ -6397,10 +6369,7 @@ void Compiler::rpPredictRegUse()
             // this is so that if we need to reset the initReg to REG_SCRATCH in Compiler::genFnProlog()
             // we won't home the arguments into REG_SCRATCH
 
-            unsigned   lclNum;
-            LclVarDsc* varDsc;
-
-            for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+            for (LclVarDsc* varDsc : lvaTable)
             {
                 if (varDsc->lvMustInit && varTypeIsFloating(varDsc->TypeGet()))
                 {
@@ -6411,7 +6380,7 @@ void Compiler::rpPredictRegUse()
 
             if (hasMustInitFloat)
             {
-                for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+                for (LclVarDsc* varDsc : lvaTable)
                 {
                     // If is an incoming argument, that is tracked and not floating-point
                     if (varDsc->lvIsParam && varDsc->lvTracked && !varTypeIsFloating(varDsc->TypeGet()))
@@ -6599,13 +6568,12 @@ ALL_DONE:;
 
 void Compiler::raMarkStkVars()
 {
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         // For RyuJIT, lvOnFrame is set by LSRA, except in the case of zero-ref, which is set below.
         CLANG_FORMAT_COMMENT_ANCHOR;
+
+        const unsigned lclNum = lvaTable.GetLclNum(varDsc);
 
 #ifdef LEGACY_BACKEND
         varDsc->lvOnFrame = false;

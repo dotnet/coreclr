@@ -2262,7 +2262,7 @@ void fgArgInfo::EvalArgsToTemps()
                 {
                     setupArg = compiler->gtNewTempAssign(tmpVarNum, argx);
 
-                    LclVarDsc* varDsc = compiler->lvaTable + tmpVarNum;
+                    LclVarDsc* varDsc = &compiler->lvaTable[tmpVarNum];
 
 #ifndef LEGACY_BACKEND
                     if (compiler->fgOrder == Compiler::FGOrderLinear)
@@ -5298,7 +5298,7 @@ void Compiler::fgMakeOutgoingStructArgCopy(
         indexType lclNum;
         FOREACH_HBV_BIT_SET(lclNum, fgOutgoingArgTemps)
         {
-            LclVarDsc* varDsc = &lvaTable[lclNum];
+            LclVarDsc* varDsc = &lvaTable[(unsigned)lclNum];
             if (typeInfo::AreEquivalent(varDsc->lvVerTypeInfo, typeInfo(TI_STRUCT, copyBlkClass)) &&
                 !fgCurrentlyInUseArgTemps->testBit(lclNum))
             {
@@ -6897,13 +6897,7 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
         // Undo some changes made in anticipation of inlining...
 
         // Zero out the used locals
-        memset(lvaTable + startVars, 0, (lvaCount - startVars) * sizeof(*lvaTable));
-        for (unsigned i = startVars; i < lvaCount; i++)
-        {
-            new (&lvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
-        }
-
-        lvaCount = startVars;
+        lvaTable.Truncate(*this, startVars);
 
 #ifdef DEBUG
         if (verbose)
@@ -7705,7 +7699,7 @@ GenTreePtr Compiler::fgAssignRecursiveCallArgToCallerParam(GenTreePtr       arg,
         }
 
         // Now assign the temp to the parameter.
-        LclVarDsc* paramDsc = lvaTable + originalArgNum;
+        LclVarDsc* paramDsc = &lvaTable[originalArgNum];
         assert(paramDsc->lvIsParam);
         GenTreePtr paramDest       = gtNewLclvNode(originalArgNum, paramDsc->lvType);
         GenTreePtr paramAssignNode = gtNewAssignNode(paramDest, argInTemp);
@@ -7785,14 +7779,14 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
             // is set. This avoids the need for iterating through all lcl vars of the current
             // method.  Right now throughout the code base we are not consistently using 'set'
             // method to set lvHasLdAddrOp and lvAddrExposed flags.
-            unsigned   varNum;
-            LclVarDsc* varDsc;
             bool       hasAddrExposedVars     = false;
             bool       hasStructPromotedParam = false;
             bool       hasPinnedVars          = false;
 
-            for (varNum = 0, varDsc = lvaTable; varNum < lvaCount; varNum++, varDsc++)
+            for (LclVarDsc* varDsc : lvaTable)
             {
+                const unsigned varNum = lvaTable.GetLclNum(varDsc);
+
                 // If the method is marked as an explicit tail call we will skip the
                 // following three hazard checks.
                 // We still must check for any struct parameters and set 'hasStructParam'
@@ -12284,7 +12278,7 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                             goto SKIP;
                         }
 
-                        LclVarDsc* varDsc = lvaTable + lclNum;
+                        LclVarDsc* varDsc = &lvaTable[lclNum];
 
                         /* Set op1 to the right side of asg, (i.e. the RELOP) */
                         op1 = asg->gtOp.gtOp2;
@@ -13954,9 +13948,7 @@ GenTree* Compiler::fgMorphSmpOpOptional(GenTreeOp* tree)
             if (dstIsSafeLclVar)
             {
                 unsigned   lclNum = op1->gtLclVarCommon.gtLclNum;
-                LclVarDsc* varDsc = lvaTable + lclNum;
-
-                noway_assert(lclNum < lvaCount);
+                LclVarDsc* varDsc = &lvaTable[lclNum];
 
                 /* Is the address taken? */
                 if (varDsc->lvAddrExposed)
@@ -18896,7 +18888,7 @@ bool Compiler::fgShouldCreateAssignOp(GenTreePtr tree, bool* bReverse)
         if (op1->gtOper == GT_LCL_VAR && varTypeIsSmall(op1->TypeGet()) && op1->TypeGet() != op2->gtOp.gtOp2->TypeGet())
         {
             unsigned   lclNum = op1->gtLclVarCommon.gtLclNum;
-            LclVarDsc* varDsc = lvaTable + lclNum;
+            LclVarDsc* varDsc = &lvaTable[lclNum];
 
             if (varDsc->lvIsStructField)
             {

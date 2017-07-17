@@ -398,17 +398,16 @@ GCInfo::regPtrDsc* GCInfo::gcRegPtrAllocDsc()
 
 void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED unsigned int* varPtrTableSize)
 {
-    unsigned   varNum;
-    LclVarDsc* varDsc;
     varPtrDsc* varTmp;
 
     bool         thisKeptAliveIsInUntracked = false; // did we track "this" in a synchronized method?
     unsigned int count                      = 0;
 
     /* Count the untracked locals and non-enregistered args */
-
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+    for (LclVarDsc* varDsc : compiler->lvaTable)
     {
+        const unsigned varNum = compiler->lvaTable.GetLclNum(varDsc);
+
         if (varTypeIsGC(varDsc->TypeGet()))
         {
             if (compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc))
@@ -544,7 +543,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
         {
             int offs = tempThis->tdTempOffs();
 
-            printf("GCINFO: untrck %s Temp at [%s", varTypeGCstring(varDsc->TypeGet()),
+            printf("GCINFO: untrck %s Temp at [%s", varTypeGCstring(tempThis->tdTempType()),
                    compiler->genEmitter->emitGetFrameReg());
 
             if (offs < 0)

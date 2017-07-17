@@ -2226,11 +2226,8 @@ VarName Compiler::compVarName(regNumber reg, bool isFloatReg)
 
     if ((info.compVarScopesCount > 0) && compCurBB && opts.varNames)
     {
-        unsigned   lclNum;
-        LclVarDsc* varDsc;
-
         /* Look for the matching register */
-        for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+        for (LclVarDsc* varDsc : lvaTable)
         {
             /* If the variable is not in a register, or not in the register we're looking for, quit. */
             /* Also, if it is a compiler generated variable (i.e. slot# > info.compVarScopesCount), don't bother. */
@@ -4979,11 +4976,8 @@ bool Compiler::compQuirkForPPP()
     bool       hasOutArgs          = false;
     LclVarDsc* varDscExposedStruct = nullptr;
 
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
     /* Look for struct locals that are address taken */
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : lvaTable)
     {
         if (varDsc->lvIsParam) // It can't be a parameter
         {
@@ -4991,7 +4985,7 @@ bool Compiler::compQuirkForPPP()
         }
 
         // We require that the OutgoingArg space lclVar exists
-        if (lclNum == lvaOutgoingArgSpaceVar)
+        if (lvaTable.GetLclNum(varDsc) == lvaOutgoingArgSpaceVar)
         {
             hasOutArgs = true; // Record that we saw it
             continue;
@@ -5797,7 +5791,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
 #ifdef DEBUG
     compCurBB = nullptr;
-    lvaTable  = nullptr;
+    lvaTable  = LclVarTable();
 
     // Reset node ID counter
     compGenTreeID = 0;
@@ -8450,7 +8444,7 @@ void cVarDsc(Compiler* comp, LclVarDsc* varDsc)
 {
     static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
     printf("===================================================================== *VarDsc %u\n", sequenceNumber++);
-    unsigned lclNum = (unsigned)(varDsc - comp->lvaTable);
+    unsigned lclNum = comp->lvaTable.GetLclNum(varDsc);
     comp->lvaDumpEntry(lclNum, Compiler::FINAL_FRAME_LAYOUT);
 }
 
@@ -9926,7 +9920,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             }
             else
             {
-                LclVarDsc* varDsc = comp->lvaTable + lclNum;
+                LclVarDsc* varDsc = &comp->lvaTable[lclNum];
                 chars += printf("%s%d", ilKind, ilNum);
                 if (comp->dumpIRLocals)
                 {
@@ -10034,7 +10028,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             else
             {
                 chars += printf("%s%d+%u", ilKind, ilNum, tree->gtLclFld.gtLclOffs);
-                LclVarDsc* varDsc = comp->lvaTable + lclNum;
+                LclVarDsc* varDsc = &comp->lvaTable[lclNum];
                 if (comp->dumpIRLocals)
                 {
                     chars += printf("(V%02u", lclNum);

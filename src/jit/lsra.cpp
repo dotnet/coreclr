@@ -1934,7 +1934,7 @@ void LinearScan::identifyCandidatesExceptionDataflow()
     while (iter.NextElem(&varIndex))
     {
         unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-        LclVarDsc* varDsc = compiler->lvaTable + varNum;
+        LclVarDsc* varDsc = &compiler->lvaTable[varNum];
 
         compiler->lvaSetVarDoNotEnregister(varNum DEBUGARG(Compiler::DNER_LiveInOutOfHandler));
 
@@ -2014,9 +2014,6 @@ void LinearScan::identifyCandidates()
     {
         identifyCandidatesExceptionDataflow();
     }
-
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
 
     // While we build intervals for the candidate lclVars, we will determine the floating point
     // lclVars, if any, to consider for callee-save register preferencing.
@@ -2098,7 +2095,7 @@ void LinearScan::identifyCandidates()
     }
 
     INTRACK_STATS(regCandidateVarCount = 0);
-    for (lclNum = 0, varDsc = compiler->lvaTable; lclNum < compiler->lvaCount; lclNum++, varDsc++)
+    for (LclVarDsc* varDsc : compiler->lvaTable)
     {
         // Initialize all variables to REG_STK
         varDsc->lvRegNum = REG_STK;
@@ -2164,6 +2161,8 @@ void LinearScan::identifyCandidates()
             varDsc->lvRefCntWtd    = 0;
             varDsc->lvLRACandidate = 0;
         }
+
+        const unsigned lclNum = compiler->lvaTable.GetLclNum(varDsc);
 
         // Variables that are address-exposed are never enregistered, or tracked.
         // A struct may be promoted, and a struct that fits in a register may be fully enregistered.
@@ -2999,7 +2998,7 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
             while (iter.NextElem(&varIndex))
             {
                 unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-                LclVarDsc* varDsc = compiler->lvaTable + varNum;
+                LclVarDsc* varDsc = &compiler->lvaTable[varNum];
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                 if (varDsc->lvType == LargeVectorType)
                 {
@@ -4258,7 +4257,7 @@ void LinearScan::insertZeroInitRefPositions()
     while (iter.NextElem(&varIndex))
     {
         unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-        LclVarDsc* varDsc = compiler->lvaTable + varNum;
+        LclVarDsc* varDsc = &compiler->lvaTable[varNum];
         if (!varDsc->lvIsParam && isCandidateVar(varDsc))
         {
             JITDUMP("V%02u was live in to first block:", varNum);
@@ -4372,12 +4371,12 @@ void LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
 
         if (isFloat)
         {
-            JITDUMP("Float arg V%02u in reg %s\n", (argDsc - compiler->lvaTable), getRegName(argDsc->lvArgReg));
+            JITDUMP("Float arg V%02u in reg %s\n", compiler->lvaTable.GetLclNum(argDsc), getRegName(argDsc->lvArgReg));
             compiler->raUpdateRegStateForArg(floatRegState, argDsc);
         }
         else
         {
-            JITDUMP("Int arg V%02u in reg %s\n", (argDsc - compiler->lvaTable), getRegName(argDsc->lvArgReg));
+            JITDUMP("Int arg V%02u in reg %s\n", compiler->lvaTable.GetLclNum(argDsc), getRegName(argDsc->lvArgReg));
 #if FEATURE_MULTIREG_ARGS
             if (argDsc->lvOtherArgReg != REG_NA)
             {
@@ -4726,7 +4725,7 @@ void LinearScan::buildIntervals()
                 while (iter.NextElem(&varIndex))
                 {
                     unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-                    LclVarDsc* varDsc = compiler->lvaTable + varNum;
+                    LclVarDsc* varDsc = &compiler->lvaTable[varNum];
                     // Add a dummyDef for any candidate vars that are in the "newLiveIn" set.
                     // If this is the entry block, don't add any incoming parameters (they're handled with ParamDefs).
                     if (isCandidateVar(varDsc) && (predBlock != nullptr || !varDsc->lvIsParam))
@@ -4822,7 +4821,7 @@ void LinearScan::buildIntervals()
                 while (iter.NextElem(&varIndex))
                 {
                     unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-                    LclVarDsc* varDsc = compiler->lvaTable + varNum;
+                    LclVarDsc* varDsc = &compiler->lvaTable[varNum];
                     assert(isCandidateVar(varDsc));
                     Interval*    interval = getIntervalForLocalVar(varIndex);
                     RefPosition* pos =
@@ -4875,7 +4874,7 @@ void LinearScan::buildIntervals()
             // If we need to KeepAliveAndReportThis, add a dummy exposed use of it at the end
             unsigned keepAliveVarNum = compiler->info.compThisArg;
             assert(compiler->info.compIsStatic == false);
-            LclVarDsc* varDsc = compiler->lvaTable + keepAliveVarNum;
+            LclVarDsc* varDsc = &compiler->lvaTable[keepAliveVarNum];
             if (isCandidateVar(varDsc))
             {
                 JITDUMP("Adding exposed use of this, for lvaKeepAliveAndReportThis\n");
@@ -4888,12 +4887,11 @@ void LinearScan::buildIntervals()
 #ifdef DEBUG
         if (getLsraExtendLifeTimes())
         {
-            LclVarDsc* varDsc;
-            for (lclNum = 0, varDsc = compiler->lvaTable; lclNum < compiler->lvaCount; lclNum++, varDsc++)
+            for (LclVarDsc* varDsc : compiler->lvaTable)
             {
                 if (varDsc->lvLRACandidate)
                 {
-                    JITDUMP("Adding exposed use of V%02u for LsraExtendLifetimes\n", lclNum);
+                    JITDUMP("Adding exposed use of V%02u for LsraExtendLifetimes\n", compiler->lvaTable.GetLclNum(varDsc));
                     Interval*    interval = getIntervalForLocalVar(varDsc->lvVarIndex);
                     RefPosition* pos =
                         newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
@@ -4934,11 +4932,10 @@ void LinearScan::dumpVarRefPositions(const char* title)
     {
         printf("\nVAR REFPOSITIONS %s\n", title);
 
-        for (unsigned i = 0; i < compiler->lvaCount; i++)
+        for (LclVarDsc* varDsc : compiler->lvaTable)
         {
-            printf("--- V%02u\n", i);
+            printf("--- V%02u\n", compiler->lvaTable.GetLclNum(varDsc));
 
-            LclVarDsc* varDsc = compiler->lvaTable + i;
             if (varDsc->lvIsRegCandidate())
             {
                 Interval* interval = getIntervalForLocalVar(varDsc->lvVarIndex);
@@ -8446,7 +8443,7 @@ void LinearScan::insertUpperVectorSaveAndReload(GenTreePtr tree, RefPosition* re
 {
     Interval* lclVarInterval = refPosition->getInterval()->relatedInterval;
     assert(lclVarInterval->isLocalVar == true);
-    LclVarDsc* varDsc = compiler->lvaTable + lclVarInterval->varNum;
+    LclVarDsc* varDsc = &compiler->lvaTable[lclVarInterval->varNum];
     assert(varDsc->lvType == LargeVectorType);
     regNumber lclVarReg = lclVarInterval->physReg;
     if (lclVarReg == REG_NA)
@@ -9097,9 +9094,7 @@ void LinearScan::resolveRegisters()
         resolveEdges();
 
         // Verify register assignments on variables
-        unsigned   lclNum;
-        LclVarDsc* varDsc;
-        for (lclNum = 0, varDsc = compiler->lvaTable; lclNum < compiler->lvaCount; lclNum++, varDsc++)
+        for (LclVarDsc* varDsc : compiler->lvaTable)
         {
             if (!isCandidateVar(varDsc))
             {
@@ -9130,7 +9125,7 @@ void LinearScan::resolveRegisters()
 #endif // _TARGET_ARM_
                     {
                         varDsc->lvArgInitReg = initialReg;
-                        JITDUMP("  Set V%02u argument initial register to %s\n", lclNum, getRegName(initialReg));
+                        JITDUMP("  Set V%02u argument initial register to %s\n", compiler->lvaTable.GetLclNum(varDsc), getRegName(initialReg));
                     }
 
                     // Stack args that are part of dependently-promoted structs should never be register candidates (see
@@ -9270,7 +9265,7 @@ void LinearScan::resolveRegisters()
 void LinearScan::insertMove(
     BasicBlock* block, GenTreePtr insertionPoint, unsigned lclNum, regNumber fromReg, regNumber toReg)
 {
-    LclVarDsc* varDsc = compiler->lvaTable + lclNum;
+    LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
     // the lclVar must be a register candidate
     assert(isRegCandidate(varDsc));
     // One or both MUST be a register
@@ -9368,8 +9363,8 @@ void LinearScan::insertSwap(
     }
 #endif // DEBUG
 
-    LclVarDsc* varDsc1 = compiler->lvaTable + lclNum1;
-    LclVarDsc* varDsc2 = compiler->lvaTable + lclNum2;
+    LclVarDsc* varDsc1 = &compiler->lvaTable[lclNum1];
+    LclVarDsc* varDsc2 = &compiler->lvaTable[lclNum2];
     assert(reg1 != REG_STK && reg1 != REG_NA && reg2 != REG_STK && reg2 != REG_NA);
 
     GenTreePtr lcl1                = compiler->gtNewLclvNode(lclNum1, varDsc1->TypeGet());
@@ -12576,8 +12571,8 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
         GenTreeLclVarCommon* right         = dst->gtGetOp2()->AsLclVarCommon();
         regNumber            leftRegNum    = left->gtRegNum;
         regNumber            rightRegNum   = right->gtRegNum;
-        LclVarDsc*           leftVarDsc    = compiler->lvaTable + left->gtLclNum;
-        LclVarDsc*           rightVarDsc   = compiler->lvaTable + right->gtLclNum;
+        LclVarDsc*           leftVarDsc    = &compiler->lvaTable[left->gtLclNum];
+        LclVarDsc*           rightVarDsc   = &compiler->lvaTable[right->gtLclNum];
         Interval*            leftInterval  = getIntervalForLocalVar(leftVarDsc->lvVarIndex);
         Interval*            rightInterval = getIntervalForLocalVar(rightVarDsc->lvVarIndex);
         assert(leftInterval->physReg == leftRegNum && rightInterval->physReg == rightRegNum);

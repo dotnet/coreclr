@@ -2141,9 +2141,6 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 {
     unsigned count;
 
-    unsigned   varNum;
-    LclVarDsc* varDsc;
-
     unsigned pass;
 
     size_t   totalSize = 0;
@@ -2198,9 +2195,10 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
         }
 
         /* Count&Write untracked locals and non-enregistered args */
-
-        for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+        for (LclVarDsc* varDsc : compiler->lvaTable)
         {
+            const unsigned varNum = compiler->lvaTable.GetLclNum(varDsc);
+
             if (compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc))
             {
                 // Field local of a PROMOTION_TYPE_DEPENDENT struct must have been
@@ -4158,10 +4156,7 @@ void GCInfo::gcMakeRegPtrTable(
     int lastoffset = 0;
 
     /* Count&Write untracked locals and non-enregistered args */
-
-    unsigned   varNum;
-    LclVarDsc* varDsc;
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+    for (LclVarDsc* varDsc : compiler->lvaTable)
     {
         if (compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc))
         {
@@ -4277,6 +4272,8 @@ void GCInfo::gcMakeRegPtrTable(
         // Note that the enregisterable struct types cannot have GC pointers in them.
         if ((varDsc->lvType == TYP_STRUCT) && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
         {
+            const unsigned varNum = compiler->lvaTable.GetLclNum(varDsc);
+
             unsigned slots  = compiler->lvaLclSize(varNum) / sizeof(void*);
             BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
 

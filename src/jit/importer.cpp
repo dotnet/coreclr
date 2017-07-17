@@ -16595,8 +16595,7 @@ void Compiler::impRetypeEntryStateTemps(BasicBlock* blk)
             if ((tree->gtOper == GT_LCL_VAR) || (tree->gtOper == GT_LCL_FLD))
             {
                 unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
-                noway_assert(lclNum < lvaCount);
-                LclVarDsc* varDsc              = lvaTable + lclNum;
+                LclVarDsc* varDsc              = &lvaTable[lclNum];
                 es->esStack[level].val->gtType = varDsc->TypeGet();
             }
         }

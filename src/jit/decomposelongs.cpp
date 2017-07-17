@@ -131,7 +131,7 @@ GenTree* DecomposeLongs::DecomposeNode(GenTree* tree)
     // Handle the case where we are implicitly using the lower half of a long lclVar.
     if ((tree->TypeGet() == TYP_INT) && tree->OperIsLocal())
     {
-        LclVarDsc* varDsc = m_compiler->lvaTable + tree->AsLclVarCommon()->gtLclNum;
+        LclVarDsc* varDsc = &m_compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum];
         if (varTypeIsLong(varDsc) && varDsc->lvPromoted)
         {
 #ifdef DEBUG
@@ -370,7 +370,7 @@ GenTree* DecomposeLongs::DecomposeLclVar(LIR::Use& use)
 
     GenTree*   tree   = use.Def();
     unsigned   varNum = tree->AsLclVarCommon()->gtLclNum;
-    LclVarDsc* varDsc = m_compiler->lvaTable + varNum;
+    LclVarDsc* varDsc = &m_compiler->lvaTable[varNum];
     m_compiler->lvaDecRefCnts(tree);
 
     GenTree* loResult = tree;
@@ -458,7 +458,7 @@ GenTree* DecomposeLongs::DecomposeStoreLclVar(LIR::Use& use)
     noway_assert(rhs->OperGet() == GT_LONG);
 
     unsigned   varNum = tree->AsLclVarCommon()->gtLclNum;
-    LclVarDsc* varDsc = m_compiler->lvaTable + varNum;
+    LclVarDsc* varDsc = &m_compiler->lvaTable[varNum];
     if (!varDsc->lvPromoted)
     {
         // We cannot decompose a st.lclVar that is not promoted because doing so

@@ -2159,8 +2159,7 @@ AGAIN:
             }
             else
             {
-                assert(lclNum < lvaCount);
-                LclVarDsc* varDsc = lvaTable + lclNum;
+                LclVarDsc* varDsc = &lvaTable[lclNum];
 
                 if (varDsc->lvTracked == false)
                 {
@@ -2849,8 +2848,7 @@ bool Compiler::gtIsLikelyRegVar(GenTree* tree)
         return false;
     }
 
-    assert(tree->gtLclVar.gtLclNum < lvaTableCnt);
-    LclVarDsc* varDsc = lvaTable + tree->gtLclVar.gtLclNum;
+    LclVarDsc* varDsc = &lvaTable[tree->gtLclVar.gtLclNum];
 
     if (varDsc->lvDoNotEnregister)
     {
@@ -13649,7 +13647,7 @@ DONE:
 
 GenTreePtr Compiler::gtNewTempAssign(unsigned tmp, GenTreePtr val)
 {
-    LclVarDsc* varDsc = lvaTable + tmp;
+    LclVarDsc* varDsc = &lvaTable[tmp];
 
     if (varDsc->TypeGet() == TYP_I_IMPL && val->TypeGet() == TYP_BYREF)
     {
