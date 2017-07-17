@@ -1354,7 +1354,12 @@ again:
         if (pData)
         {
 #if LOADER_HEAP_REDZONE_VALUE != 0
-            memset((BYTE *)pData, 0x00, dwSize);
+            {
+                BYTE *pAllocatedBytes = (BYTE *)pData;
+
+                if (pAllocatedBytes[0] != 0x00)
+                    memset(pAllocatedBytes, 0x00, dwSize);
+            }
 #endif
 
 #ifdef _DEBUG
@@ -1654,7 +1659,12 @@ void *UnlockedLoaderHeap::UnlockedAllocAlignedMem_NoThrow(size_t  dwRequestedSiz
     ((BYTE*&)pResult) += extra;
 
 #if LOADER_HEAP_REDZONE_VALUE != 0
-    memset((BYTE *)pResult, 0x00, dwRequestedSize);
+    {
+        BYTE *pAllocatedBytes = (BYTE *)pResult;
+
+        if (pAllocatedBytes[0] != 0x00)
+            memset(pAllocatedBytes, 0x00, dwRequestedSize);
+    }
 #endif
 
 #ifdef _DEBUG
