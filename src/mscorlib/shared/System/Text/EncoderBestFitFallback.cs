@@ -23,7 +23,6 @@ namespace System.Text
         {
             // Need to load our replacement characters table.
             this.encoding = encoding;
-            this.bIsMicrosoftBestFitFallback = true;
         }
 
         public override EncoderFallbackBuffer CreateFallbackBuffer()

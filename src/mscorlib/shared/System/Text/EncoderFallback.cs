@@ -9,11 +9,6 @@ namespace System.Text
 {
     public abstract class EncoderFallback
     {
-        // disable csharp compiler warning #0414: field assigned unused value
-#pragma warning disable 0414
-        internal bool bIsMicrosoftBestFitFallback = false;
-#pragma warning restore 0414
-
         private static EncoderFallback s_replacementFallback; // Default fallback, uses no best fit & "?"
         private static EncoderFallback s_exceptionFallback;
 
