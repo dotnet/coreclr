@@ -497,13 +497,13 @@ namespace System.IO
             Contract.Requires(searchPattern != null);
 
             // Make this corner case more useful, like dir
-            if (tempSearchPattern.Equals("."))
+            if (searchPattern.Equals("."))
             {
-                tempSearchPattern = "*";
+                return "*";
             }
 
-            PathInternal.CheckSearchPattern(tempSearchPattern);
-            return tempSearchPattern;
+            PathInternal.CheckSearchPattern(searchPattern);
+            return searchPattern;
         }
 
         private static String GetNormalizedSearchCriteria(String fullSearchString, String fullPathMod)
