@@ -57,6 +57,9 @@ public:
         readonlyCall                   = false;
 
         canTailCall = true;
+
+        resolvedToken            = nullptr;
+        constrainedResolvedToken = nullptr;
     }
 
     //------------------------------------------------------------------------
@@ -75,6 +78,9 @@ public:
 
         int tailCall = prefixFlags & PREFIX_TAILCALL;
         readonlyCall = (prefixFlags & PREFIX_READONLY) != 0;
+
+        resolvedToken            = pResolvedToken;
+        constrainedResolvedToken = pConstrainedResolvedToken;
 
         // Synchronized methods need to call CORINFO_HELP_MON_EXIT at the end. We could
         // do that before tailcalls, but that is probably not the intended
@@ -106,7 +112,7 @@ public:
 
         if (opcode == CEE_CALLI)
         {
-            createCalli(pResolvedToken, ilOffset, opcode, callInfo);
+            createCalli(ilOffset, opcode, callInfo);
         }
         else // (opcode != CEE_CALLI)
         {
@@ -188,7 +194,7 @@ public:
                 }
             }
 
-            clsHnd = pResolvedToken->hClass;
+            clsHnd = resolvedToken->hClass;
 
             clsFlags = callInfo->classFlags;
 
@@ -210,9 +216,9 @@ public:
 #endif // DEBUG
 
             // <NICE> Factor this into getCallInfo </NICE>
-            if ((mflags & CORINFO_FLG_INTRINSIC) && !pConstrainedResolvedToken)
+            if ((mflags & CORINFO_FLG_INTRINSIC) && !constrainedResolvedToken)
             {
-                call = compiler->impIntrinsic(newobjThis, clsHnd, methHnd, sig, pResolvedToken->token, readonlyCall,
+                call = compiler->impIntrinsic(newobjThis, clsHnd, methHnd, sig, resolvedToken->token, readonlyCall,
                                               (canTailCall && (tailCall != 0)), &intrinsicID);
 
                 if (compiler->compIsForInlining() && compiler->compInlineResult->IsFailure())
@@ -247,7 +253,7 @@ public:
 #ifdef FEATURE_SIMD
             else if (compiler->featureSIMD)
             {
-                call = compiler->impSIMDIntrinsic(opcode, newobjThis, clsHnd, methHnd, sig, pResolvedToken->token);
+                call = compiler->impSIMDIntrinsic(opcode, newobjThis, clsHnd, methHnd, sig, resolvedToken->token);
                 if (call != nullptr)
                 {
                     bIntrinsicImported = true;
@@ -321,7 +327,7 @@ public:
                             }
 
                             GenTreePtr stubAddr =
-                                compiler->impRuntimeLookupToTree(pResolvedToken, &callInfo->stubLookup, methHnd);
+                                compiler->impRuntimeLookupToTree(resolvedToken, &callInfo->stubLookup, methHnd);
                             assert(!compiler->compDonotInline());
 
                             // This is the rough code to set up an indirect stub call
@@ -415,7 +421,7 @@ public:
                                                          (unsigned)compiler->CHECK_SPILL_ALL,
                                                          nullptr DEBUGARG("LDVIRTFTN this pointer"));
 
-                        GenTreePtr fptr = compiler->impImportLdvirtftn(thisPtr, pResolvedToken, callInfo);
+                        GenTreePtr fptr = compiler->impImportLdvirtftn(thisPtr, resolvedToken, callInfo);
 
                         thisPtr = nullptr; // can't reuse it
 
@@ -486,7 +492,7 @@ public:
                         assert((sig->callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_VARARG);
                         assert((sig->callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_NATIVEVARARG);
 
-                        GenTreePtr fptr = compiler->impLookupToTree(pResolvedToken, &callInfo->codePointerLookup,
+                        GenTreePtr fptr = compiler->impLookupToTree(resolvedToken, &callInfo->codePointerLookup,
                                                                     GTF_ICON_FTN_ADDR, callInfo->hMethod);
 
                         if (compiler->compDonotInline())
@@ -637,7 +643,7 @@ public:
 #ifdef DEBUG
                     unsigned numArgsDef = sig->numArgs;
 #endif
-                    compiler->eeGetCallSiteSig(pResolvedToken->token, compiler->info.compScopeHnd,
+                    compiler->eeGetCallSiteSig(resolvedToken->token, compiler->info.compScopeHnd,
                                                compiler->impTokenLookupContextHandle, sig);
 
 #ifdef DEBUG
@@ -866,7 +872,7 @@ public:
                     else
                     {
                         instParam =
-                            compiler->impTokenToHandle(pResolvedToken, &runtimeLookup, TRUE /*mustRestoreHandle*/);
+                            compiler->impTokenToHandle(resolvedToken, &runtimeLookup, TRUE /*mustRestoreHandle*/);
                         if (instParam == nullptr)
                         {
                             assert(compiler->compDonotInline());
@@ -999,7 +1005,7 @@ public:
                 else
                 {
                     obj = compiler->impPopStack().val;
-                    obj = compiler->impTransformThis(obj, pConstrainedResolvedToken, constraintCallThisTransform);
+                    obj = compiler->impTransformThis(obj, constrainedResolvedToken, constraintCallThisTransform);
                     if (compiler->compDonotInline())
                     {
                         return TYP_UNDEF;
@@ -1309,7 +1315,7 @@ public:
             }
         }
 
-        pushResult(opcode, pResolvedToken, callInfo);
+        pushResult(opcode, callInfo);
 
         return callRetTyp;
     }
@@ -1318,18 +1324,16 @@ private:
     //------------------------------------------------------------------------
     // createCalli: Create calli tree, set signature and callRetType.
     //
-    //    pResolvedToken            - resolved token for the call target
     //    ilOffset                  - IL offset of the opcode
     //    opcode                    - opcode that inspires the call
     //    callInfo                  - EE supplied info for the call
     //
-    void createCalli(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                     const IL_OFFSETX&       ilOffset,
+    void createCalli(const IL_OFFSETX&       ilOffset,
                      const OPCODE&           opcode,
                      CORINFO_CALL_INFO*      callInfo)
     {
         /* Get the call site sig */
-        compiler->eeGetSig(pResolvedToken->token, compiler->info.compScopeHnd, compiler->impTokenLookupContextHandle,
+        compiler->eeGetSig(resolvedToken->token, compiler->info.compScopeHnd, compiler->impTokenLookupContextHandle,
                            &calliSig);
 
         callRetTyp = JITtype2varType(calliSig.retType);
@@ -1380,10 +1384,9 @@ private:
     // pushResult: Push or append the result of the call.
     //
     //    opcode                    - opcode that inspires the call
-    //    pResolvedToken            - resolved token for the call target
     //    callInfo                  - EE supplied info for the call
     //
-    void pushResult(const OPCODE& opcode, CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_CALL_INFO* callInfo)
+    void pushResult(const OPCODE& opcode, CORINFO_CALL_INFO* callInfo)
     {
         if (callRetTyp == TYP_VOID)
         {
@@ -1404,8 +1407,8 @@ private:
 
             if (clsFlags & CORINFO_FLG_ARRAY)
             {
-                compiler->eeGetCallSiteSig(pResolvedToken->token, pResolvedToken->tokenScope,
-                                           pResolvedToken->tokenContext, sig);
+                compiler->eeGetCallSiteSig(resolvedToken->token, resolvedToken->tokenScope, resolvedToken->tokenContext,
+                                           sig);
             }
 
             // Find the return type used for verification by interpreting the method signature.
@@ -1596,6 +1599,9 @@ private:
 
     CORINFO_SIG_INFO calliSig;
     GenTreeArgList*  extraArg;
+
+    CORINFO_RESOLVED_TOKEN* resolvedToken;
+    CORINFO_RESOLVED_TOKEN* constrainedResolvedToken;
 };
 
 //------------------------------------------------------------------------
