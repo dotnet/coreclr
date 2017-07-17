@@ -2218,7 +2218,7 @@ void Compiler::fgComputeLife(ComputeLifeHelper& helper,
             /* Variables in the two branches that are live at the split
              * must interfere with each other */
 
-            fgMarkIntf(life, gtColonLiveSet);
+            fgMarkIntf(helper.LiveVars(), gtColonLiveSet);
 
             /* The live set at the split is the union of the two branches */
 
