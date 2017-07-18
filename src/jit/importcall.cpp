@@ -1358,7 +1358,22 @@ public:
                 compiler->impMarkInlineCandidate(call, exactContextHnd, exactContextNeedsRuntimeLookup, callInfo);
             }
         }
-        // Push or append the result of the call
+
+        pushResult(opcode, pResolvedToken, callInfo);
+
+        return callRetTyp;
+    }
+
+private:
+    //------------------------------------------------------------------------
+    // pushResult: Push or append the result of the call.
+    //
+    //    opcode                    - opcode that inspires the call
+    //    pResolvedToken            - resolved token for the call target
+    //    callInfo                  - EE supplied info for the call
+    //
+    void pushResult(const OPCODE& opcode, CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_CALL_INFO* callInfo)
+    {
         if (callRetTyp == TYP_VOID)
         {
             if (opcode == CEE_NEWOBJ)
@@ -1504,11 +1519,8 @@ public:
 
             compiler->impPushOnStack(call, tiRetVal);
         }
-
-        return callRetTyp;
     }
 
-private:
     //------------------------------------------------------------------------
     // checkForSmallType: check does the current importing call need
     // a check for small return type.
