@@ -23,8 +23,8 @@ namespace System.Text
     internal class DecoderNLS : Decoder
     {
         // Remember our encoding
-        protected Encoding _encoding;
-        protected bool _mustFlush;
+        private Encoding _encoding;
+        private bool _mustFlush;
         internal bool _throwOnOverflow;
         internal int _bytesUsed;
 
@@ -44,8 +44,7 @@ namespace System.Text
 
         public override void Reset()
         {
-            if (_fallbackBuffer != null)
-                _fallbackBuffer.Reset();
+            _fallbackBuffer?.Reset();
         }
 
         public override unsafe int GetCharCount(byte[] bytes, int index, int count)
@@ -160,7 +159,7 @@ namespace System.Text
             _mustFlush = flush;
             _throwOnOverflow = true;
 
-            // By default just call the encoding's version
+            // By default just call the encodings version
             return _encoding.GetChars(bytes, byteCount, chars, charCount, this);
         }
 
@@ -239,7 +238,7 @@ namespace System.Text
             completed = (bytesUsed == byteCount) && (!flush || !this.HasState) &&
                                (_fallbackBuffer == null || _fallbackBuffer.Remaining == 0);
 
-            // Our data thingys are now full, we can return
+            // Our data thingy are now full, we can return
         }
 
         public bool MustFlush

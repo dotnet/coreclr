@@ -1001,7 +1001,7 @@ namespace System.Text
         // GetCharCount method can be used to determine the exact number of
         // characters that will be produced for a given range of bytes.
         // Alternatively, the GetMaxCharCount method can be used to
-        // determine the maximum number of characterss that will be produced for a
+        // determine the maximum number of characters that will be produced for a
         // given number of bytes, regardless of the actual byte values.
         //
 
@@ -1278,7 +1278,7 @@ namespace System.Text
         internal void ThrowBytesOverflow()
         {
             // Special message to include fallback type in case fallback's GetMaxCharCount is broken
-            // This happens if user has implimented an encoder fallback with a broken GetMaxCharCount
+            // This happens if user has implemented an encoder fallback with a broken GetMaxCharCount
             throw new ArgumentException(
                 SR.Format(SR.Argument_EncodingConversionOverflowBytes, EncodingName, EncoderFallback.GetType()), "bytes");
         }
@@ -1290,7 +1290,7 @@ namespace System.Text
                 if (encoder != null && encoder.InternalHasFallbackBuffer)
                     encoder.FallbackBuffer.InternalReset();
                 // Special message to include fallback type in case fallback's GetMaxCharCount is broken
-                // This happens if user has implimented an encoder fallback with a broken GetMaxCharCount
+                // This happens if user has implemented an encoder fallback with a broken GetMaxCharCount
                 ThrowBytesOverflow();
             }
 
@@ -1301,7 +1301,7 @@ namespace System.Text
         internal void ThrowCharsOverflow()
         {
             // Special message to include fallback type in case fallback's GetMaxCharCount is broken
-            // This happens if user has implimented a decoder fallback with a broken GetMaxCharCount
+            // This happens if user has implemented a decoder fallback with a broken GetMaxCharCount
             throw new ArgumentException(
                 SR.Format(SR.Argument_EncodingConversionOverflowChars, EncodingName, DecoderFallback.GetType()), "chars");
         }
@@ -1314,7 +1314,7 @@ namespace System.Text
                     decoder.FallbackBuffer.InternalReset();
 
                 // Special message to include fallback type in case fallback's GetMaxCharCount is broken
-                // This happens if user has implimented a decoder fallback with a broken GetMaxCharCount
+                // This happens if user has implemented a decoder fallback with a broken GetMaxCharCount
                 ThrowCharsOverflow();
             }
 

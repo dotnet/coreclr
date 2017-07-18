@@ -10,40 +10,20 @@ namespace System.Text
 {
     public abstract class DecoderFallback
     {
-        internal bool bIsMicrosoftBestFitFallback = false;
-
         private static DecoderFallback s_replacementFallback; // Default fallback, uses no best fit & "?"
         private static DecoderFallback s_exceptionFallback;
 
-        // Get each of our generic fallbacks.
-
-        public static DecoderFallback ReplacementFallback
-        {
-            get
-            {
-                if (s_replacementFallback == null)
-                    Interlocked.CompareExchange<DecoderFallback>(ref s_replacementFallback, new DecoderReplacementFallback(), null);
-
-                return s_replacementFallback;
-            }
-        }
+        public static DecoderFallback ReplacementFallback =>
+            s_replacementFallback ?? Interlocked.CompareExchange(ref s_replacementFallback, new DecoderReplacementFallback(), null) ?? s_replacementFallback;        
 
 
-        public static DecoderFallback ExceptionFallback
-        {
-            get
-            {
-                if (s_exceptionFallback == null)
-                    Interlocked.CompareExchange<DecoderFallback>(ref s_exceptionFallback, new DecoderExceptionFallback(), null);
-
-                return s_exceptionFallback;
-            }
-        }
+        public static DecoderFallback ExceptionFallback =>
+            s_exceptionFallback ?? Interlocked.CompareExchange<DecoderFallback>(ref s_exceptionFallback, new DecoderExceptionFallback(), null) ?? s_exceptionFallback;
 
         // Fallback
         //
         // Return the appropriate unicode string alternative to the character that need to fall back.
-        // Most implimentations will be:
+        // Most implementations will be:
         //      return new MyCustomDecoderFallbackBuffer(this);
 
         public abstract DecoderFallbackBuffer CreateFallbackBuffer();
@@ -51,22 +31,14 @@ namespace System.Text
         // Maximum number of characters that this instance of this fallback could return
 
         public abstract int MaxCharCount { get; }
-
-        internal bool IsMicrosoftBestFitFallback
-        {
-            get
-            {
-                return bIsMicrosoftBestFitFallback;
-            }
-        }
     }
 
 
     public abstract class DecoderFallbackBuffer
     {
-        // Most implimentations will probably need an implimenation-specific constructor
+        // Most implementations will probably need an implementation-specific constructor
 
-        // internal methods that cannot be overriden that let us do our fallback thing
+        // internal methods that cannot be overridden that let us do our fallback thing
         // These wrap the internal methods so that we can check for people doing stuff that's incorrect
 
         public abstract bool Fallback(byte[] bytesUnknown, int index);
@@ -103,7 +75,7 @@ namespace System.Text
         }
 
         // Set the above values
-        // This can't be part of the constructor because DecoderFallbacks would have to know how to impliment these.
+        // This can't be part of the constructor because DecoderFallbacks would have to know how to implement these.
         internal unsafe void InternalInitialize(byte* byteStart, char* charEnd)
         {
             this.byteStart = byteStart;

@@ -40,7 +40,7 @@ namespace System.Text
         // Fallback
         //
         // Return the appropriate unicode string alternative to the character that need to fall back.
-        // Most implimentations will be:
+        // Most implementations will be:
         //      return new MyCustomEncoderFallbackBuffer(this);
 
         public abstract EncoderFallbackBuffer CreateFallbackBuffer();
@@ -53,9 +53,9 @@ namespace System.Text
 
     public abstract class EncoderFallbackBuffer
     {
-        // Most implementations will probably need an implemenation-specific constructor
+        // Most implementations will probably need an implementation-specific constructor
 
-        // Public methods that cannot be overriden that let us do our fallback thing
+        // Public methods that cannot be overridden that let us do our fallback thing
         // These wrap the internal methods so that we can check for people doing stuff that is incorrect
 
         public abstract bool Fallback(char charUnknown, int index);
@@ -104,7 +104,7 @@ namespace System.Text
         }
 
         // Set the above values
-        // This can't be part of the constructor because EncoderFallbacks would have to know how to impliment these.
+        // This can't be part of the constructor because EncoderFallbacks would have to know how to implement these.
         internal unsafe void InternalInitialize(char* charStart, char* charEnd, EncoderNLS encoder, bool setEncoder)
         {
             this.charStart = charStart;

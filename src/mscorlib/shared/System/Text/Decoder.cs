@@ -94,8 +94,7 @@ namespace System.Text
             byte[] byteTemp = Array.Empty<byte>();
             char[] charTemp = new char[GetCharCount(byteTemp, 0, 0, true)];
             GetChars(byteTemp, 0, 0, charTemp, 0, true);
-            if (_fallbackBuffer != null)
-                _fallbackBuffer.Reset();
+            _fallbackBuffer?.Reset();
         }
 
         // Returns the number of characters the next call to GetChars will

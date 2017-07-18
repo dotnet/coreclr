@@ -69,7 +69,7 @@ namespace System.Text
         }
 
         // The following methods are copied from EncodingNLS.cs.
-        // Unfortunately EncodingNLS.cs is internal and we're public, so we have to reimpliment them here.
+        // Unfortunately EncodingNLS.cs is internal and we're public, so we have to re-implement them here.
         // These should be kept in sync for the following classes:
         // EncodingNLS, UTF7Encoding, UTF8Encoding, UTF32Encoding, ASCIIEncoding, UnicodeEncoding
         //
@@ -450,7 +450,7 @@ namespace System.Text
                         {
                             // See if we potentially have surrogates (0x8000 bit set)
                             // (We're either big endian on a big endian machine or little endian on 
-                            // a little endian machine so this'll work)                            
+                            // a little endian machine so that'll work)                            
                             if ((0x8000800080008000 & *longChars) != 0)
                             {
                                 // See if any of these are high or low surrogates (0xd800 - 0xdfff).  If the high
@@ -578,7 +578,7 @@ namespace System.Text
                             // Set our internal fallback interesting things.
                             fallbackBuffer.InternalInitialize(charStart, charEnd, encoder, false);
                         }
-                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                         fallbackBuffer.InternalFallback(ch, ref charsForFallback);
                         chars = charsForFallback;
                         continue;
@@ -611,7 +611,7 @@ namespace System.Text
                         // Set our internal fallback interesting things.
                         fallbackBuffer.InternalInitialize(charStart, charEnd, encoder, false);
                     }
-                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                     fallbackBuffer.InternalFallback(charLeftOver, ref charsForFallback);
                     chars = charsForFallback;
 
@@ -652,7 +652,7 @@ namespace System.Text
                             // Set our internal fallback interesting things.
                             fallbackBuffer.InternalInitialize(charStart, charEnd, encoder, false);
                         }
-                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                         fallbackBuffer.InternalFallback(charLeftOver, ref charsForFallback);
                         chars = charsForFallback;
                         charLeftOver = (char)0;
@@ -749,7 +749,7 @@ namespace System.Text
                         {
                             // See if we potentially have surrogates (0x8000 bit set)
                             // (We're either big endian on a big endian machine or little endian on 
-                            // a little endian machine so this'll work)                            
+                            // a little endian machine so that'll work)                            
                             if ((0x8000800080008000 & *longChars) != 0)
                             {
                                 // See if any of these are high or low surrogates (0xd800 - 0xdfff).  If the high
@@ -813,9 +813,9 @@ namespace System.Text
 #endif // BIGENDIAN
 
 #if BIT64
-                        (unchecked((long)chars) & 7) != (unchecked((long)bytes) & 7) &&  // Only do this if chars & bytes are out of line, otherwise faster loop'll be faster next time
+                        (unchecked((long)chars) & 7) != (unchecked((long)bytes) & 7) &&  // Only do this if chars & bytes are out of line, otherwise faster loop will be faster next time
 #else
-                        (unchecked((int)chars) & 3) != (unchecked((int)bytes) & 3) &&  // Only do this if chars & bytes are out of line, otherwise faster loop'll be faster next time
+                        (unchecked((int)chars) & 3) != (unchecked((int)bytes) & 3) &&  // Only do this if chars & bytes are out of line, otherwise faster loop will be faster next time
 #endif // BIT64
                         (unchecked((int)(bytes)) & 1) == 0)
                     {
@@ -897,7 +897,7 @@ namespace System.Text
                                 fallbackBuffer.InternalInitialize(charStart, charEnd, encoder, true);
                             }
 
-                            charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                            charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                             fallbackBuffer.InternalFallback(charLeftOver, ref charsForFallback);
                             chars = charsForFallback;
 
@@ -926,7 +926,7 @@ namespace System.Text
                             fallbackBuffer.InternalInitialize(charStart, charEnd, encoder, true);
                         }
 
-                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                         fallbackBuffer.InternalFallback(ch, ref charsForFallback);
                         chars = charsForFallback;
                         continue;
@@ -996,7 +996,7 @@ namespace System.Text
                         fallbackBuffer.InternalInitialize(charStart, charEnd, encoder, true);
                     }
 
-                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                     fallbackBuffer.InternalFallback(charLeftOver, ref charsForFallback);
                     chars = charsForFallback;
 
@@ -1062,8 +1062,8 @@ namespace System.Text
                             fallbackBuffer.InternalInitialize(charStart, charEnd, encoder, true);
                         }
 
-                        // If we're not flushing, this'll remember the left over character.
-                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                        // If we're not flushing, that'll remember the left over character.
+                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                         fallbackBuffer.InternalFallback(charLeftOver, ref charsForFallback);
                         chars = charsForFallback;
 
@@ -1145,7 +1145,7 @@ namespace System.Text
             while (bytes < byteEnd)
             {
                 // If we're aligned then maybe we can do it fast
-                // This'll hurt if we're unaligned because we'll always test but never be aligned
+                // That'll hurt if we're unaligned because we'll always test but never be aligned
 #if !NO_FAST_UNICODE_LOOP
 #if BIGENDIAN
                 if (bigEndian &&
@@ -1166,7 +1166,7 @@ namespace System.Text
                     {
                         // See if we potentially have surrogates (0x8000 bit set)
                         // (We're either big endian on a big endian machine or little endian on 
-                        // a little endian machine so this'll work)
+                        // a little endian machine so that'll work)
                         if ((0x8000800080008000 & *longBytes) != 0)
                         {
                             // See if any of these are high or low surrogates (0xd800 - 0xdfff).  If the high
@@ -1327,7 +1327,7 @@ namespace System.Text
                 else if (lastChar > 0)
                 {
                     // Had a high surrogate, expected a low surrogate
-                    // Uncount the last high surrogate
+                    // Un-count the last high surrogate
                     charCount--;
 
                     // fall back the high surrogate.
@@ -1468,7 +1468,7 @@ namespace System.Text
             while (bytes < byteEnd)
             {
                 // If we're aligned then maybe we can do it fast
-                // This'll hurt if we're unaligned because we'll always test but never be aligned
+                // That'll hurt if we're unaligned because we'll always test but never be aligned
 #if !NO_FAST_UNICODE_LOOP
 #if BIGENDIAN
                 if (bigEndian &&
@@ -1498,7 +1498,7 @@ namespace System.Text
                     {
                         // See if we potentially have surrogates (0x8000 bit set)
                         // (We're either big endian on a big endian machine or little endian on 
-                        // a little endian machine so this'll work)
+                        // a little endian machine so that'll work)
                         if ((0x8000800080008000 & *longBytes) != 0)
                         {
                             // See if any of these are high or low surrogates (0xd800 - 0xdfff).  If the high
@@ -1606,7 +1606,7 @@ namespace System.Text
                                 fallbackBuffer.InternalInitialize(byteStart, charEnd);
                             }
 
-                            charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                            charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                             bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
                             chars = charsForFallback;
 
@@ -1658,7 +1658,7 @@ namespace System.Text
                             fallbackBuffer.InternalInitialize(byteStart, charEnd);
                         }
 
-                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                        charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                         bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
                         chars = charsForFallback;
 
@@ -1720,7 +1720,7 @@ namespace System.Text
                         fallbackBuffer.InternalInitialize(byteStart, charEnd);
                     }
 
-                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                     bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
                     chars = charsForFallback;
 
@@ -1785,7 +1785,7 @@ namespace System.Text
                         fallbackBuffer.InternalInitialize(byteStart, charEnd);
                     }
 
-                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                     bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
                     chars = charsForFallback;
 
@@ -1825,7 +1825,7 @@ namespace System.Text
                     }
 
                     // No hanging odd bytes allowed if must flush
-                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be en-registered
                     bool fallbackResult = fallbackBuffer.InternalFallback(new byte[] { unchecked((byte)lastByte) }, bytes, ref charsForFallback);
                     chars = charsForFallback;
 
@@ -1935,7 +1935,7 @@ namespace System.Text
             // Might also need an extra 1 if there's a left over high surrogate in the decoder.
             long charCount = (long)(byteCount >> 1) + (byteCount & 1) + 1;
 
-            // Don't forget fallback (in case they have a bunch of lonely surrogates or something bizzare like that)
+            // Don't forget fallback (in case they have a bunch of lonely surrogates or something bizarre like that)
             if (DecoderFallback.MaxCharCount > 1)
                 charCount *= DecoderFallback.MaxCharCount;
 

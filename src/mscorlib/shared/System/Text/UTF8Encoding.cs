@@ -50,7 +50,7 @@ namespace System.Text
 
         private const int UTF8_CODEPAGE = 65001;
 
-        // Allow for devirtualization (see https://github.com/dotnet/coreclr/pull/9230)
+        // Allow for de-virtualization (see https://github.com/dotnet/coreclr/pull/9230)
         internal sealed class UTF8EncodingSealed : UTF8Encoding
         {
             public UTF8EncodingSealed(bool encoderShouldEmitUTF8Identifier) : base(encoderShouldEmitUTF8Identifier) { }
@@ -110,7 +110,7 @@ namespace System.Text
         // WARNING: otherwise it'll break VB's way of declaring these.
         //
         // The following methods are copied from EncodingNLS.cs.
-        // Unfortunately EncodingNLS.cs is internal and we're public, so we have to reimpliment them here.
+        // Unfortunately EncodingNLS.cs is internal and we're public, so we have to re-implement them here.
         // These should be kept in sync for the following classes:
         // EncodingNLS, UTF7Encoding, UTF8Encoding, UTF32Encoding, ASCIIEncoding, UnicodeEncoding
 
@@ -585,7 +585,7 @@ namespace System.Text
 
                     // Do our fallback.  Actually we already know its a mixed up surrogate,
                     // so the ref pSrc isn't gonna do anything.
-                    pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be enregistered
+                    pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be en-registered
                     fallbackBuffer.InternalFallback(unchecked((char)ch), ref pSrcForFallback);
                     pSrc = pSrcForFallback;
 
@@ -630,7 +630,7 @@ namespace System.Text
                 if (availableChars <= 13)
                 {
                     // try to get over the remainder of the ascii characters fast though
-                    char* pLocalEnd = pEnd; // hint to get pLocalEnd enregistered
+                    char* pLocalEnd = pEnd; // hint to get pLocalEnd en-registered
                     while (pSrc < pLocalEnd)
                     {
                         ch = *pSrc;
@@ -843,7 +843,7 @@ namespace System.Text
 
             int ch = 0;
 
-            // assume that JIT will enregister pSrc, pTarget and ch
+            // assume that JIT will en-register pSrc, pTarget and ch
 
             if (baseEncoder != null)
             {
@@ -983,7 +983,7 @@ namespace System.Text
 
                     // Do our fallback.  Actually we already know its a mixed up surrogate,
                     // so the ref pSrc isn't gonna do anything.
-                    pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be enregistered
+                    pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be en-registered
                     fallbackBuffer.InternalFallback(unchecked((char)ch), ref pSrcForFallback);
                     pSrc = pSrcForFallback;
 
@@ -1025,7 +1025,7 @@ namespace System.Text
                     Debug.Assert(pSrc >= chars || pTarget == bytes,
                         "[UTF8Encoding.GetBytes]Expected pSrc to be within buffer or to throw with insufficient room.");
                     ThrowBytesOverflow(encoder, pTarget == bytes);  // Throw if we must
-                    ch = 0;                                         // Nothing left over (we backed up to start of pair if supplimentary)
+                    ch = 0;                                         // Nothing left over (we backed up to start of pair if supplementary)
                     break;
                 }
 
@@ -1090,7 +1090,7 @@ namespace System.Text
                     }
 
                     // try to get over the remainder of the ascii characters fast though
-                    char* pLocalEnd = pEnd; // hint to get pLocalEnd enregistered
+                    char* pLocalEnd = pEnd; // hint to get pLocalEnd en-registered
                     while (pSrc < pLocalEnd)
                     {
                         ch = *pSrc;
@@ -1372,12 +1372,12 @@ namespace System.Text
                     {
                         if ((ch & (FinalByte >> 6)) != 0)
                         {
-                            // this is 3rd byte (of 4 byte supplimentary) - nothing to do
+                            // this is 3rd byte (of 4 byte supplementary) - nothing to do
                             continue;
                         }
 
-                        // 2nd byte, check for non-shortest form of supplimentary char and the valid
-                        // supplimentary characters in range 0x010000 - 0x10FFFF at the same time
+                        // 2nd byte, check for non-shortest form of supplementary char and the valid
+                        // supplementary characters in range 0x010000 - 0x10FFFF at the same time
                         if (!InRange(ch & 0x1F0, 0x10, 0x100))
                         {
                             goto InvalidByteSequence;
@@ -1406,7 +1406,7 @@ namespace System.Text
                 goto EncodeChar;
 
             InvalidByteSequence:
-                // this code fragment should be close to the gotos referencing it
+                // this code fragment should be close to the goto referencing it
                 // Have to do fallback for invalid bytes
                 if (fallback == null)
                 {
@@ -1507,7 +1507,7 @@ namespace System.Text
                 if (availableBytes <= 13)
                 {
                     // try to get over the remainder of the ascii characters fast though
-                    byte* pLocalEnd = pEnd; // hint to get pLocalEnd enregistered
+                    byte* pLocalEnd = pEnd; // hint to get pLocalEnd en-registered
                     while (pSrc < pLocalEnd)
                     {
                         ch = *pSrc;
@@ -1697,7 +1697,7 @@ namespace System.Text
             // May have a problem if we have to flush
             if (ch != 0)
             {
-                // We were already adjusting for these, so need to unadjust
+                // We were already adjusting for these, so need to un-adjust
                 charCount += (ch >> 30);
                 if (baseDecoder == null || baseDecoder.MustFlush)
                 {
@@ -1861,9 +1861,9 @@ namespace System.Text
                         fallback = baseDecoder.FallbackBuffer;
                     fallback.InternalInitialize(bytes, pAllocatedBufferEnd);
                 }
-                // This'll back us up the appropriate # of bytes if we didn't get anywhere
-                pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be enregistered
-                pTargetForFallback = pTarget; // Avoid passing pTarget by reference to allow it to be enregistered
+                // That'll back us up the appropriate # of bytes if we didn't get anywhere
+                pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be en-registered
+                pTargetForFallback = pTarget; // Avoid passing pTarget by reference to allow it to be en-registered
                 bool fallbackResult = FallbackInvalidByteSequence(ref pSrcForFallback, ch, fallback, ref pTargetForFallback);
                 pSrc = pSrcForFallback;
                 pTarget = pTargetForFallback;
@@ -1972,7 +1972,7 @@ namespace System.Text
                     pSrc--;
 
                     // Throw that we don't have enough room (pSrc could be < chars if we had started to process
-                    // a 4 byte sequence alredy)
+                    // a 4 byte sequence already)
                     Debug.Assert(pSrc >= bytes || pTarget == chars,
                         "[UTF8Encoding.GetChars]Expected pSrc to be within input buffer or throw due to no output]");
                     ThrowCharsOverflow(baseDecoder, pTarget == chars);
@@ -2269,9 +2269,9 @@ namespace System.Text
                     fallback.InternalInitialize(bytes, pAllocatedBufferEnd);
                 }
 
-                // This'll back us up the appropriate # of bytes if we didn't get anywhere
-                pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be enregistered
-                pTargetForFallback = pTarget; // Avoid passing pTarget by reference to allow it to be enregistered
+                // That'll back us up the appropriate # of bytes if we didn't get anywhere
+                pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be en-registered
+                pTargetForFallback = pTarget; // Avoid passing pTarget by reference to allow it to be en-registered
                 bool fallbackResult = FallbackInvalidByteSequence(ref pSrcForFallback, ch, fallback, ref pTargetForFallback);
                 pSrc = pSrcForFallback;
                 pTarget = pTargetForFallback;
@@ -2316,7 +2316,7 @@ namespace System.Text
 
         // During GetChars we had an invalid byte sequence
         // pSrc is backed up to the start of the bad sequence if we didn't have room to
-        // fall it back.  Otherwise pSrc remains wher it is.
+        // fall it back.  Otherwise pSrc remains where it is.
         private unsafe bool FallbackInvalidByteSequence(
             ref byte* pSrc, int ch, DecoderFallbackBuffer fallback, ref char* pTarget)
         {
