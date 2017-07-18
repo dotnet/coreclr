@@ -54,7 +54,6 @@ public:
 
         exactContextNeedsRuntimeLookup = false;
         bIntrinsicImported             = false;
-        checkForSmallType              = false;
         readonlyCall                   = false;
 
         canTailCall = true;
@@ -100,18 +99,6 @@ public:
             canTailCall             = false;
             szCanTailCallFailReason = "Caller requires a security check.";
         }
-
-        // We only need to cast the return value of pinvoke inlined calls that return small types
-
-        // TODO-AMD64-Cleanup: Remove this when we stop interoperating with JIT64, or if we decide to stop
-        // widening everything! CoreCLR does not support JIT64 interoperation so no need to widen there.
-        // The existing x64 JIT doesn't bother widening all types to int, so we have to assume for
-        // the time being that the callee might be compiled by the other JIT and thus the return
-        // value will need to be widened by us (or not widened at all...)
-
-        // ReadyToRun code sticks with default calling convention that does not widen small return types.
-
-        checkForSmallType = compiler->opts.IsJit64Compat() || compiler->opts.IsReadyToRun();
 
         /*-------------------------------------------------------------------------
         * First create the call node
@@ -793,8 +780,6 @@ public:
                     canTailCall             = false;
                     szCanTailCallFailReason = "Callee is native";
                 }
-
-                checkForSmallType = true;
 
                 compiler->impPopArgsForUnmanagedCall(call, sig);
 
@@ -1510,7 +1495,7 @@ public:
                 functions (pinvoke). The pinvoke stub does the normalization, but we need to do it here
                 if we use the shorter inlined pinvoke stub. */
 
-                if (checkForSmallType && varTypeIsIntegral(callRetTyp) &&
+                if (checkForSmallType() && varTypeIsIntegral(callRetTyp) &&
                     genTypeSize(callRetTyp) < genTypeSize(TYP_INT))
                 {
                     call = compiler->gtNewCastNode(genActualType(callRetTyp), call, callRetTyp);
@@ -1521,6 +1506,49 @@ public:
         }
 
         return callRetTyp;
+    }
+
+private:
+    //------------------------------------------------------------------------
+    // checkForSmallType: check does the current importing call need
+    // a check for small return type.
+    //
+    //
+    // Return Value:
+    //    true if it does, false instead.
+    bool checkForSmallType()
+    {
+        // We only need to cast the return value of pinvoke inlined calls that return small types
+
+        // TODO-AMD64-Cleanup: Remove this when we stop interoperating with JIT64, or if we decide to stop
+        // widening everything! CoreCLR does not support JIT64 interoperation so no need to widen there.
+        // The existing x64 JIT doesn't bother widening all types to int, so we have to assume for
+        // the time being that the callee might be compiled by the other JIT and thus the return
+        // value will need to be widened by us (or not widened at all...)
+
+        if (compiler->opts.IsJit64Compat())
+        {
+            return true;
+        }
+
+        // ReadyToRun code sticks with default calling convention that does not widen small return types.
+
+        if (compiler->opts.IsReadyToRun())
+        {
+            return true;
+        }
+        //-------------------------------------------------------------------------
+        //
+        /* If the call is of a small type and the callee is managed, the callee will normalize the result
+        before returning.
+        However, we need to normalize small type values returned by unmanaged
+        functions (pinvoke). The pinvoke stub does the normalization, but we need to do it here
+        if we use the shorter inlined pinvoke stub. */
+        if ((call->gtFlags & GTF_CALL_UNMANAGED) != 0)
+        {
+            return true;
+        }
+        return false;
     }
 
 private:
@@ -1541,7 +1569,6 @@ private:
     const char*             szCanTailCallFailReason;
     CORINFO_RESOLVED_TOKEN* ldftnToken;
     bool                    bIntrinsicImported;
-    bool                    checkForSmallType;
     bool                    readonlyCall;
 
     CORINFO_SIG_INFO calliSig;
