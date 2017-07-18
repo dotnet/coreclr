@@ -737,10 +737,7 @@ public:
 
                 goto DONE;
             }
-            else if ((opcode == CEE_CALLI) && (((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_STDCALL) ||
-                                               ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_C) ||
-                                               ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_THISCALL) ||
-                                               ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_FASTCALL)))
+            else if ((opcode == CEE_CALLI) && !isManagedCall(sig->callConv))
             {
                 if (!compiler->info.compCompHnd->canGetCookieForPInvokeCalliSig(sig))
                 {
@@ -1377,11 +1374,7 @@ private:
 
         if (compiler->IsTargetAbi(CORINFO_CORERT_ABI))
         {
-            bool managedCall = (((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_STDCALL) &&
-                                ((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_C) &&
-                                ((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_THISCALL) &&
-                                ((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_FASTCALL));
-            if (managedCall)
+            if (isManagedCall(calliSig.callConv))
             {
                 compiler->addFatPointerCandidate(call->AsCall());
             }
@@ -1583,6 +1576,14 @@ private:
             return true;
         }
         return false;
+    }
+
+    bool isManagedCall(CorInfoCallConv callConv)
+    {
+        return ((callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_STDCALL) &&
+               ((callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_C) &&
+               ((callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_THISCALL) &&
+               ((callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_FASTCALL);
     }
 
 private:
