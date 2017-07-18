@@ -51,19 +51,6 @@ public:
     uint8_t** m_FillPointers[NUMBERGENERATIONS + ExtraSegCount];
 };
 
-class dac_handle_table_bucket {
-public:
-    uint8_t* pTable;
-    uint32_t HandleTableIndex;
-};
-
-class dac_handle_table_map {
-public:
-    DPTR(DPTR(dac_handle_table_bucket)) pBuckets;
-    DPTR(dac_handle_table_map) pNext;
-    uint32_t dwMaxIndex;
-};
-
 class dac_handle_table {
 public:
     // On the handle table side, this is an ADIndex. They should still have
@@ -75,6 +62,19 @@ public:
     // we don't want to disrupt that.
     uint32_t padding[HANDLE_MAX_INTERNAL_TYPES];
     DWORD uADIndex;
+};
+
+class dac_handle_table_bucket {
+public:
+    DPTR(DPTR(dac_handle_table)) pTable;
+    uint32_t HandleTableIndex;
+};
+
+class dac_handle_table_map {
+public:
+    DPTR(DPTR(dac_handle_table_bucket)) pBuckets;
+    DPTR(dac_handle_table_map) pNext;
+    uint32_t dwMaxIndex;
 };
 
 // Possible values of the current_c_gc_state dacvar, indicating the state of
