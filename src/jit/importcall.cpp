@@ -106,52 +106,7 @@ public:
 
         if (opcode == CEE_CALLI)
         {
-            /* Get the call site sig */
-            compiler->eeGetSig(pResolvedToken->token, compiler->info.compScopeHnd,
-                               compiler->impTokenLookupContextHandle, &calliSig);
-
-            callRetTyp = JITtype2varType(calliSig.retType);
-
-            call = compiler->impImportIndirectCall(&calliSig, ilOffset);
-
-            // We don't know the target method, so we have to infer the flags, or
-            // assume the worst-case.
-            mflags = (calliSig.callConv & CORINFO_CALLCONV_HASTHIS) ? 0 : CORINFO_FLG_STATIC;
-
-#ifdef DEBUG
-            if (compiler->verbose)
-            {
-                unsigned structSize =
-                    (callRetTyp == TYP_STRUCT) ? compiler->info.compCompHnd->getClassSize(calliSig.retTypeSigClass) : 0;
-                printf("\nIn Compiler::impImportCall: opcode is %s, kind=%d, callRetType is %s, structSize is %d\n",
-                       opcodeNames[opcode], callInfo->kind, varTypeName(callRetTyp), structSize);
-            }
-#endif
-            // This should be checked in impImportBlockCode.
-            assert(!compiler->compIsForInlining() ||
-                   !(compiler->impInlineInfo->inlineCandidateInfo->dwRestrictions & INLINE_RESPECT_BOUNDARY));
-
-            sig = &calliSig;
-
-#ifdef DEBUG
-            // We cannot lazily obtain the signature of a CALLI call because it has no method
-            // handle that we can use, so we need to save its full call signature here.
-            assert(call->gtCall.callSig == nullptr);
-            call->gtCall.callSig  = new (compiler, CMK_CorSig) CORINFO_SIG_INFO;
-            *call->gtCall.callSig = calliSig;
-#endif // DEBUG
-
-            if (compiler->IsTargetAbi(CORINFO_CORERT_ABI))
-            {
-                bool managedCall = (((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_STDCALL) &&
-                                    ((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_C) &&
-                                    ((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_THISCALL) &&
-                                    ((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_FASTCALL));
-                if (managedCall)
-                {
-                    compiler->addFatPointerCandidate(call->AsCall());
-                }
-            }
+            createCalli(pResolvedToken, ilOffset, opcode, callInfo);
         }
         else // (opcode != CEE_CALLI)
         {
@@ -1365,6 +1320,67 @@ public:
     }
 
 private:
+    //------------------------------------------------------------------------
+    // createCalli: Create calli tree, set signature and callRetType.
+    //
+    //    pResolvedToken            - resolved token for the call target
+    //    ilOffset                  - IL offset of the opcode
+    //    opcode                    - opcode that inspires the call
+    //    callInfo                  - EE supplied info for the call
+    //
+    void createCalli(CORINFO_RESOLVED_TOKEN* pResolvedToken,
+                     const IL_OFFSETX&       ilOffset,
+                     const OPCODE&           opcode,
+                     CORINFO_CALL_INFO*      callInfo)
+    {
+        /* Get the call site sig */
+        compiler->eeGetSig(pResolvedToken->token, compiler->info.compScopeHnd, compiler->impTokenLookupContextHandle,
+                           &calliSig);
+
+        callRetTyp = JITtype2varType(calliSig.retType);
+
+        call = compiler->impImportIndirectCall(&calliSig, ilOffset);
+
+        // We don't know the target method, so we have to infer the flags, or
+        // assume the worst-case.
+        mflags = (calliSig.callConv & CORINFO_CALLCONV_HASTHIS) ? 0 : CORINFO_FLG_STATIC;
+
+#ifdef DEBUG
+        if (compiler->verbose)
+        {
+            unsigned structSize =
+                (callRetTyp == TYP_STRUCT) ? compiler->info.compCompHnd->getClassSize(calliSig.retTypeSigClass) : 0;
+            printf("\nIn Compiler::impImportCall: opcode is %s, kind=%d, callRetType is %s, structSize is %d\n",
+                   opcodeNames[opcode], callInfo->kind, varTypeName(callRetTyp), structSize);
+        }
+#endif
+        // This should be checked in impImportBlockCode.
+        assert(!compiler->compIsForInlining() ||
+               !(compiler->impInlineInfo->inlineCandidateInfo->dwRestrictions & INLINE_RESPECT_BOUNDARY));
+
+        sig = &calliSig;
+
+#ifdef DEBUG
+        // We cannot lazily obtain the signature of a CALLI call because it has no method
+        // handle that we can use, so we need to save its full call signature here.
+        assert(call->gtCall.callSig == nullptr);
+        call->gtCall.callSig  = new (compiler, CMK_CorSig) CORINFO_SIG_INFO;
+        *call->gtCall.callSig = calliSig;
+#endif // DEBUG
+
+        if (compiler->IsTargetAbi(CORINFO_CORERT_ABI))
+        {
+            bool managedCall = (((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_STDCALL) &&
+                                ((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_C) &&
+                                ((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_THISCALL) &&
+                                ((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_FASTCALL));
+            if (managedCall)
+            {
+                compiler->addFatPointerCandidate(call->AsCall());
+            }
+        }
+    }
+
     //------------------------------------------------------------------------
     // pushResult: Push or append the result of the call.
     //
