@@ -895,6 +895,21 @@ void CodeGen::genPutArgReg(GenTreeOp* tree)
     assert(targetType != TYP_STRUCT);
 
     GenTree* op1 = tree->gtOp1;
+
+    if (op1->OperGet() == GT_FIELD_LIST)
+    {
+        // One-field structures are being wrapped to the GT_PUTARG_REG
+        // before passing to function call
+        //    ▌  PUTARG_REG void   REG NA
+        //    └──▌  FIELD_LIST void   float at offset 0 REG NA $181
+        //       └──▌  LCL_FLD   float  V00 loc0         [+0] NA
+        //       └──▌    float  V00.f1 (offs=0x00) -> V01 tmp0          REG NA $1c0
+        GenTreeFieldList* fieldListPtr = op1->AsFieldList();
+        op1                            = fieldListPtr->gtOp.gtOp1;
+
+        noway_assert(fieldListPtr->Rest() == NULL);
+    }
+
     genConsumeReg(op1);
 
     // If child node is not already in the register we need, move it

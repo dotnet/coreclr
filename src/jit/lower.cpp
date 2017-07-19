@@ -1000,6 +1000,15 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
 #endif // FEATURE_MULTIREG_ARGS
 #endif // not defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
             {
+                if ((info->numRegs == 1) && (arg->OperGet() == GT_FIELD_LIST))
+                {
+                    // One-field structures are being wrapped to the GT_PUTARG_REG
+                    GenTreeFieldList* fieldListPtr = arg->AsFieldList();
+                    type                           = fieldListPtr->gtOp.gtOp1->TypeGet();
+
+                    noway_assert(fieldListPtr->Rest() == NULL);
+                }
+
                 putArg = comp->gtNewPutArgReg(type, arg);
             }
         }
