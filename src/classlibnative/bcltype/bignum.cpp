@@ -8,7 +8,6 @@
 //
 
 #include "bignum.h"
-#include <cassert>
 
 UINT32 BigNum::m_power10UInt32Table[UINT32POWER10NUM] =
 {
