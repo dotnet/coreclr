@@ -11,6 +11,20 @@ using System.Text;
 using System.Threading;
 using Microsoft.Win32;
 
+#if CORERT
+using UnsafeNativeMethods = Interop.mincore;
+using NativeConstants = Interop.mincore;
+using TimeZoneInformation = Interop.mincore.TIME_ZONE_INFORMATION;
+using DynamicTimeZoneInformation = Interop.mincore.TIME_DYNAMIC_ZONE_INFORMATION;
+using RegistryTimeZoneInformation = Interop.mincore.REGISTRY_TIME_ZONE_INFORMATION;
+#else
+using UnsafeNativeMethods = Microsoft.Win32.UnsafeNativeMethods;
+using NativeConstants = Microsoft.Win32.Win32Native;
+using TimeZoneInformation = Microsoft.Win32.Win32Native.TimeZoneInformation;
+using DynamicTimeZoneInformation = Microsoft.Win32.Win32Native.DynamicTimeZoneInformation;
+using RegistryTimeZoneInformation = Microsoft.Win32.Win32Native.RegistryTimeZoneInformation;
+#endif
+
 namespace System
 {
     public sealed partial class TimeZoneInfo
@@ -37,9 +51,21 @@ namespace System
             private static TimeZoneInfo GetCurrentOneYearLocal()
             {
                 // load the data from the OS
-                Win32Native.TimeZoneInformation timeZoneInformation;
-                long result = UnsafeNativeMethods.GetTimeZoneInformation(out timeZoneInformation);
-                return result == Win32Native.TIME_ZONE_ID_INVALID ?
+                long result;
+                TimeZoneInformation timeZoneInformation;
+
+#if CORERT
+                DynamicTimeZoneInformation dynamicTimeZoneInformation;
+                result = UnsafeNativeMethods.GetDynamicTimeZoneInformation(out dynamicTimeZoneInformation);
+                if (result != NativeConstants.TIME_ZONE_ID_INVALID)
+                {
+                    timeZoneInfo = new TimeZoneInformation(dynamicTimeZoneInformation);
+                }
+#else
+                result = UnsafeNativeMethods.GetTimeZoneInformation(out timeZoneInformation);
+#endif
+
+                return result == NativeConstants.TIME_ZONE_ID_INVALID ?
                     CreateCustomTimeZone(LocalId, TimeSpan.Zero, LocalId, LocalId) :
                     GetLocalTimeZoneFromWin32Data(timeZoneInformation, dstDisabled: false);
             }
@@ -106,7 +132,7 @@ namespace System
             }
         }
 
-        private TimeZoneInfo(Win32Native.TimeZoneInformation zone, bool dstDisabled)
+        private TimeZoneInfo(TimeZoneInformation zone, bool dstDisabled)
         {
             if (string.IsNullOrEmpty(zone.StandardName))
             {
@@ -121,7 +147,7 @@ namespace System
             if (!dstDisabled)
             {
                 // only create the adjustment rule if DST is enabled
-                Win32Native.RegistryTimeZoneInformation regZone = new Win32Native.RegistryTimeZoneInformation(zone);
+                RegistryTimeZoneInformation regZone = new RegistryTimeZoneInformation(zone);
                 AdjustmentRule rule = CreateAdjustmentRuleFromTimeZoneInformation(regZone, DateTime.MinValue.Date, DateTime.MaxValue.Date, zone.Bias);
                 if (rule != null)
                 {
@@ -141,7 +167,7 @@ namespace System
         /// This check returns true when the DaylightDate == StandardDate.
         /// This check is only meant to be used for "Local".
         /// </summary>
-        private static bool CheckDaylightSavingTimeNotSupported(Win32Native.TimeZoneInformation timeZone) =>
+        private static bool CheckDaylightSavingTimeNotSupported(TimeZoneInformation timeZone) =>
             timeZone.DaylightDate.Year == timeZone.StandardDate.Year &&
             timeZone.DaylightDate.Month == timeZone.StandardDate.Month &&
             timeZone.DaylightDate.DayOfWeek == timeZone.StandardDate.DayOfWeek &&
@@ -152,9 +178,9 @@ namespace System
             timeZone.DaylightDate.Milliseconds == timeZone.StandardDate.Milliseconds;
 
         /// <summary>
-        /// Converts a Win32Native.RegistryTimeZoneInformation (REG_TZI_FORMAT struct) to an AdjustmentRule.
+        /// Converts a RegistryTimeZoneInformation (REG_TZI_FORMAT struct) to an AdjustmentRule.
         /// </summary>
-        private static AdjustmentRule CreateAdjustmentRuleFromTimeZoneInformation(Win32Native.RegistryTimeZoneInformation timeZoneInformation, DateTime startDate, DateTime endDate, int defaultBaseUtcOffset)
+        private static AdjustmentRule CreateAdjustmentRuleFromTimeZoneInformation(RegistryTimeZoneInformation timeZoneInformation, DateTime startDate, DateTime endDate, int defaultBaseUtcOffset)
         {
             bool supportsDst = timeZoneInformation.StandardDate.Month != 0;
 
@@ -211,7 +237,7 @@ namespace System
         /// Helper function that searches the registry for a time zone entry
         /// that matches the TimeZoneInformation struct.
         /// </summary>
-        private static string FindIdFromTimeZoneInformation(Win32Native.TimeZoneInformation timeZone, out bool dstDisabled)
+        private static string FindIdFromTimeZoneInformation(TimeZoneInformation timeZone, out bool dstDisabled)
         {
             dstDisabled = false;
 
@@ -249,17 +275,17 @@ namespace System
             //
             // Try using the "kernel32!GetDynamicTimeZoneInformation" API to get the "id"
             //
-            var dynamicTimeZoneInformation = new Win32Native.DynamicTimeZoneInformation();
+            var dynamicTimeZoneInformation = new DynamicTimeZoneInformation();
 
             // call kernel32!GetDynamicTimeZoneInformation...
             long result = UnsafeNativeMethods.GetDynamicTimeZoneInformation(out dynamicTimeZoneInformation);
-            if (result == Win32Native.TIME_ZONE_ID_INVALID)
+            if (result == NativeConstants.TIME_ZONE_ID_INVALID)
             {
                 // return a dummy entry
                 return CreateCustomTimeZone(LocalId, TimeSpan.Zero, LocalId, LocalId);
             }
 
-            var timeZoneInformation = new Win32Native.TimeZoneInformation(dynamicTimeZoneInformation);
+            var timeZoneInformation = new TimeZoneInformation(dynamicTimeZoneInformation);
 
             bool dstDisabled = dynamicTimeZoneInformation.DynamicDaylightTimeDisabled;
 
@@ -298,9 +324,9 @@ namespace System
         /// <summary>
         /// Helper function used by 'GetLocalTimeZone()' - this function wraps a bunch of
         /// try/catch logic for handling the TimeZoneInfo private constructor that takes
-        /// a Win32Native.TimeZoneInformation structure.
+        /// a TimeZoneInformation structure.
         /// </summary>
-        private static TimeZoneInfo GetLocalTimeZoneFromWin32Data(Win32Native.TimeZoneInformation timeZoneInformation, bool dstDisabled)
+        private static TimeZoneInfo GetLocalTimeZoneFromWin32Data(TimeZoneInformation timeZoneInformation, bool dstDisabled)
         {
             // first try to create the TimeZoneInfo with the original 'dstDisabled' flag
             try
@@ -406,11 +432,11 @@ namespace System
         }
 
         /// <summary>
-        /// Converts a Win32Native.RegistryTimeZoneInformation (REG_TZI_FORMAT struct) to a TransitionTime
+        /// Converts a RegistryTimeZoneInformation (REG_TZI_FORMAT struct) to a TransitionTime
         /// - When the argument 'readStart' is true the corresponding daylightTransitionTimeStart field is read
         /// - When the argument 'readStart' is false the corresponding dayightTransitionTimeEnd field is read
         /// </summary>
-        private static bool TransitionTimeFromTimeZoneInformation(Win32Native.RegistryTimeZoneInformation timeZoneInformation, out TransitionTime transitionTime, bool readStartDate)
+        private static bool TransitionTimeFromTimeZoneInformation(RegistryTimeZoneInformation timeZoneInformation, out TransitionTime transitionTime, bool readStartDate)
         {
             //
             // SYSTEMTIME -
@@ -528,7 +554,7 @@ namespace System
         ///  2. A RegistryTimeZoneInformation struct containing the default rule.
         ///  3. An AdjustmentRule[] out-parameter.
         /// </summary>
-        private static bool TryCreateAdjustmentRules(string id, Win32Native.RegistryTimeZoneInformation defaultTimeZoneInformation, out AdjustmentRule[] rules, out Exception e, int defaultBaseUtcOffset)
+        private static bool TryCreateAdjustmentRules(string id, RegistryTimeZoneInformation defaultTimeZoneInformation, out AdjustmentRule[] rules, out Exception e, int defaultBaseUtcOffset)
         {
             e = null;
 
@@ -552,11 +578,11 @@ namespace System
                 //                           Last year in the table. If the current year is greater than this value,
                 //                           this entry will be used for DST boundaries"
                 // * "<year1>"    REG_BINARY REG_TZI_FORMAT
-                //                       See Win32Native.RegistryTimeZoneInformation
+                //                       See RegistryTimeZoneInformation
                 // * "<year2>"    REG_BINARY REG_TZI_FORMAT
-                //                       See Win32Native.RegistryTimeZoneInformation
+                //                       See RegistryTimeZoneInformation
                 // * "<year3>"    REG_BINARY REG_TZI_FORMAT
-                //                       See Win32Native.RegistryTimeZoneInformation
+                //                       See RegistryTimeZoneInformation
                 //
                 using (RegistryKey dynamicKey = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive + "\\" + id + "\\Dynamic DST", writable: false))
                 {
@@ -586,14 +612,14 @@ namespace System
                     }
 
                     // read the first year entry
-                    Win32Native.RegistryTimeZoneInformation dtzi;
+                    RegistryTimeZoneInformation dtzi;
                     byte[] regValue = dynamicKey.GetValue(first.ToString(CultureInfo.InvariantCulture), null, RegistryValueOptions.None) as byte[];
                     if (regValue == null || regValue.Length != RegByteLength)
                     {
                         rules = null;
                         return false;
                     }
-                    dtzi = new Win32Native.RegistryTimeZoneInformation(regValue);
+                    dtzi = new RegistryTimeZoneInformation(regValue);
 
                     if (first == last)
                     {
@@ -626,7 +652,7 @@ namespace System
                             rules = null;
                             return false;
                         }
-                        dtzi = new Win32Native.RegistryTimeZoneInformation(regValue);
+                        dtzi = new RegistryTimeZoneInformation(regValue);
                         AdjustmentRule middleRule = CreateAdjustmentRuleFromTimeZoneInformation(
                             dtzi,
                             new DateTime(i, 1, 1),    // January  01, <Year>
@@ -641,7 +667,7 @@ namespace System
 
                     // read the last year entry
                     regValue = dynamicKey.GetValue(last.ToString(CultureInfo.InvariantCulture), null, RegistryValueOptions.None) as byte[];
-                    dtzi = new Win32Native.RegistryTimeZoneInformation(regValue);
+                    dtzi = new RegistryTimeZoneInformation(regValue);
                     if (regValue == null || regValue.Length != RegByteLength)
                     {
                         rules = null;
@@ -692,7 +718,7 @@ namespace System
         /// Helper function that compares the StandardBias and StandardDate portion a
         /// TimeZoneInformation struct to a time zone registry entry.
         /// </summary>
-        private static bool TryCompareStandardDate(Win32Native.TimeZoneInformation timeZone, Win32Native.RegistryTimeZoneInformation registryTimeZoneInfo) =>
+        private static bool TryCompareStandardDate(TimeZoneInformation timeZone, RegistryTimeZoneInformation registryTimeZoneInfo) =>
             timeZone.Bias == registryTimeZoneInfo.Bias &&
             timeZone.StandardBias == registryTimeZoneInfo.StandardBias &&
             timeZone.StandardDate.Year == registryTimeZoneInfo.StandardDate.Year &&
@@ -707,7 +733,7 @@ namespace System
         /// <summary>
         /// Helper function that compares a TimeZoneInformation struct to a time zone registry entry.
         /// </summary>
-        private static bool TryCompareTimeZoneInformationToRegistry(Win32Native.TimeZoneInformation timeZone, string id, out bool dstDisabled)
+        private static bool TryCompareTimeZoneInformationToRegistry(TimeZoneInformation timeZone, string id, out bool dstDisabled)
         {
             dstDisabled = false;
 
@@ -718,10 +744,10 @@ namespace System
                     return false;
                 }
 
-                Win32Native.RegistryTimeZoneInformation registryTimeZoneInfo;
+                RegistryTimeZoneInformation registryTimeZoneInfo;
                 byte[] regValue = key.GetValue(TimeZoneInfoValue, null, RegistryValueOptions.None) as byte[];
                 if (regValue == null || regValue.Length != RegByteLength) return false;
-                registryTimeZoneInfo = new Win32Native.RegistryTimeZoneInformation(regValue);
+                registryTimeZoneInfo = new RegistryTimeZoneInformation(regValue);
 
                 //
                 // first compare the bias and standard date information between the data from the Win32 API
@@ -825,7 +851,7 @@ namespace System
                 long enumerator = 0;
 
                 bool succeeded = UnsafeNativeMethods.GetFileMUIPath(
-                                        Win32Native.MUI_PREFERRED_UI_LANGUAGES,
+                                        NativeConstants.MUI_PREFERRED_UI_LANGUAGES,
                                         filePath, null /* language */, ref languageLength,
                                         fileMuiPath, ref fileMuiPathLength, ref enumerator);
                 if (!succeeded)
@@ -850,13 +876,18 @@ namespace System
         /// </summary>
         private static string TryGetLocalizedNameByNativeResource(string filePath, int resource)
         {
-            using (SafeLibraryHandle handle =
-                       UnsafeNativeMethods.LoadLibraryEx(filePath, IntPtr.Zero, Win32Native.LOAD_LIBRARY_AS_DATAFILE))
+            using (SafeLibraryHandle handle = UnsafeNativeMethods.
+#if CORERT
+                LoadLibraryEx_SafeHandle
+#else
+                LoadLibraryEx
+#endif
+                (filePath, IntPtr.Zero, NativeConstants.LOAD_LIBRARY_AS_DATAFILE))
             {
                 if (!handle.IsInvalid)
                 {
-                    StringBuilder localizedResource = StringBuilderCache.Acquire(Win32Native.LOAD_STRING_MAX_LENGTH);
-                    localizedResource.Length = Win32Native.LOAD_STRING_MAX_LENGTH;
+                    StringBuilder localizedResource = StringBuilderCache.Acquire(NativeConstants.LOAD_STRING_MAX_LENGTH);
+                    localizedResource.Length = NativeConstants.LOAD_STRING_MAX_LENGTH;
 
                     int result = UnsafeNativeMethods.LoadString(handle, resource,
                                      localizedResource, localizedResource.Length);
@@ -953,7 +984,7 @@ namespace System
             //                       Indirect string to localized resource for the Display,
             //                       add "%windir%\system32\" after "@"
             // * TZI,         REG_BINARY REG_TZI_FORMAT
-            //                       See Win32Native.RegistryTimeZoneInformation
+            //                       See RegistryTimeZoneInformation
             //
             using (RegistryKey key = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive + "\\" + id, writable: false))
             {
@@ -963,7 +994,7 @@ namespace System
                     return TimeZoneInfoResult.TimeZoneNotFoundException;
                 }
 
-                Win32Native.RegistryTimeZoneInformation defaultTimeZoneInformation;
+                RegistryTimeZoneInformation defaultTimeZoneInformation;
                 byte[] regValue = key.GetValue(TimeZoneInfoValue, null, RegistryValueOptions.None) as byte[];
                 if (regValue == null || regValue.Length != RegByteLength)
                 {
@@ -971,7 +1002,7 @@ namespace System
                     value = null;
                     return TimeZoneInfoResult.InvalidTimeZoneException;
                 }
-                defaultTimeZoneInformation = new Win32Native.RegistryTimeZoneInformation(regValue);
+                defaultTimeZoneInformation = new RegistryTimeZoneInformation(regValue);
 
                 AdjustmentRule[] adjustmentRules;
                 if (!TryCreateAdjustmentRules(id, defaultTimeZoneInformation, out adjustmentRules, out e, defaultTimeZoneInformation.Bias))
