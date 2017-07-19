@@ -396,7 +396,7 @@ public:
     BaseDomain *GetDomain() { LIMITED_METHOD_CONTRACT; return m_pDomain; }
     virtual BOOL CanUnload() = 0;
     BOOL IsDomainNeutral();
-    void Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory = NULL);
+    void Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory = NULL, BOOL fRelaxed = FALSE);
     void Terminate();
     SIZE_T EstimateSize();
 

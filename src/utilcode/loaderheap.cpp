@@ -10,11 +10,8 @@
 #define DONOT_DEFINE_ETW_CALLBACK
 #include "eventtracebase.h"
 
-#ifdef FEATURE_LOADER_HEAP_GUARD
-#define LOADER_HEAP_REDZONE_VALUE 0xcc
-#else
-#define LOADER_HEAP_REDZONE_VALUE 0
-#endif
+#define LHF_EXECUTABLE  0x1
+#define LHF_RELAXED     0x2
 
 #ifndef DACCESS_COMPILE
 
@@ -729,9 +726,6 @@ struct LoaderHeapFreeBlock
             }
 #endif
 
-#if LOADER_HEAP_REDZONE_VALUE != 0
-            memset(pMem, LOADER_HEAP_REDZONE_VALUE, dwTotalSize);
-#endif
             INDEBUG(memset(pMem, 0xcc, dwTotalSize);)
             LoaderHeapFreeBlock *pNewBlock = (LoaderHeapFreeBlock*)pMem;
             pNewBlock->m_pNext  = *ppHead;
@@ -912,7 +906,8 @@ UnlockedLoaderHeap::UnlockedLoaderHeap(DWORD dwReserveBlockSize,
                                        SIZE_T dwReservedRegionSize, 
                                        size_t *pPrivatePerfCounter_LoaderBytes,
                                        RangeList *pRangeList,
-                                       BOOL fMakeExecutable)
+                                       BOOL fMakeExecutable,
+                                       BOOL fMakeRelaxed)
 {
     CONTRACTL
     {
@@ -948,10 +943,11 @@ UnlockedLoaderHeap::UnlockedLoaderHeap(DWORD dwReserveBlockSize,
 
     m_pPrivatePerfCounter_LoaderBytes = pPrivatePerfCounter_LoaderBytes;
 
+    m_Options                    = 0;
     if (fMakeExecutable)
-        m_flProtect = PAGE_EXECUTE_READWRITE;
-    else
-        m_flProtect = PAGE_READWRITE;
+        m_Options                |= LHF_EXECUTABLE;
+    if (fMakeRelaxed)
+        m_Options                |= LHF_RELAXED;
 
     m_pFirstFreeBlock            = NULL;
 
@@ -1142,7 +1138,7 @@ BOOL UnlockedLoaderHeap::UnlockedReservePages(size_t dwSizeToCommit)
     }
 
     // Commit first set of pages, since it will contain the LoaderHeapBlock
-    void *pTemp = ClrVirtualAlloc(pData, dwSizeToCommit, MEM_COMMIT, m_flProtect);
+    void *pTemp = ClrVirtualAlloc(pData, dwSizeToCommit, MEM_COMMIT, (m_Options & LHF_EXECUTABLE) ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE);
     if (pTemp == NULL)
     {
         //_ASSERTE(!"Unable to ClrVirtualAlloc commit in a loaderheap");
@@ -1234,7 +1230,7 @@ BOOL UnlockedLoaderHeap::GetMoreCommittedPages(size_t dwMinSize)
         dwSizeToCommit = ALIGN_UP(dwSizeToCommit, GetOsPageSize());
 
         // Yes, so commit the desired number of reserved pages
-        void *pData = ClrVirtualAlloc(m_pPtrToEndOfCommittedRegion, dwSizeToCommit, MEM_COMMIT, m_flProtect);
+        void *pData = ClrVirtualAlloc(m_pPtrToEndOfCommittedRegion, dwSizeToCommit, MEM_COMMIT, (m_Options & LHF_EXECUTABLE) ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE);
         if (pData == NULL)
             return FALSE;
 
@@ -1353,15 +1349,6 @@ again:
 
         if (pData)
         {
-#if LOADER_HEAP_REDZONE_VALUE != 0
-            {
-                BYTE *pAllocatedBytes = (BYTE *)pData;
-
-                if (pAllocatedBytes[0] != 0x00)
-                    memset(pAllocatedBytes, 0x00, dwSize);
-            }
-#endif
-
 #ifdef _DEBUG
     
             BYTE *pAllocatedBytes = (BYTE *)pData;
@@ -1371,7 +1358,7 @@ again:
 #endif
             if (dwRequestedSize > 0)
             {
-                _ASSERTE_MSG(pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0,
+                _ASSERTE_MSG((m_Options & LHF_RELAXED) || ( pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0),
                     "LoaderHeap must return zero-initialized memory");
             }
 
@@ -1547,7 +1534,8 @@ void UnlockedLoaderHeap::UnlockedBackoutMem(void *pMem,
     {
         // Cool. This was the last block allocated. We can just undo the allocation instead
         // of going to the freelist.
-        memset(pMem, LOADER_HEAP_REDZONE_VALUE, dwSize); // Fill freed region with LOADER_HEAP_REDZONE_VALUE
+        if ((m_Options & LHF_RELAXED) == 0)
+            memset(pMem, 0x00, dwSize); // Fill freed region with 0
         m_pAllocPtr = (BYTE*)pMem;
     }
     else
@@ -1658,15 +1646,6 @@ void *UnlockedLoaderHeap::UnlockedAllocAlignedMem_NoThrow(size_t  dwRequestedSiz
     
     ((BYTE*&)pResult) += extra;
 
-#if LOADER_HEAP_REDZONE_VALUE != 0
-    {
-        BYTE *pAllocatedBytes = (BYTE *)pResult;
-
-        if (pAllocatedBytes[0] != 0x00)
-            memset(pAllocatedBytes, 0x00, dwRequestedSize);
-    }
-#endif
-
 #ifdef _DEBUG
      BYTE *pAllocatedBytes = (BYTE *)pResult;
 #if LOADER_HEAP_DEBUG_BOUNDARY > 0
@@ -1676,7 +1655,7 @@ void *UnlockedLoaderHeap::UnlockedAllocAlignedMem_NoThrow(size_t  dwRequestedSiz
 
     if (dwRequestedSize != 0)
     {
-        _ASSERTE_MSG(pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0,
+        _ASSERTE_MSG((m_Options & LHF_RELAXED) || (pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0),
             "LoaderHeap must return zero-initialized memory");
     }
 
@@ -1793,6 +1772,16 @@ void *UnlockedLoaderHeap::UnlockedAllocMemForCode_NoThrow(size_t dwHeaderSize, s
 
 
 #endif // #ifndef DACCESS_COMPILE
+
+BOOL UnlockedLoaderHeap::IsExecutable()
+{
+    return (m_Options & LHF_EXECUTABLE);
+}
+
+BOOL UnlockedLoaderHeap::IsRelaxed()
+{
+    return (m_Options & LHF_RELAXED);
+}
 
 #ifdef DACCESS_COMPILE
 

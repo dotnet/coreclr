@@ -217,7 +217,7 @@ private:
 
     size_t *             m_pPrivatePerfCounter_LoaderBytes;
 
-    DWORD                m_flProtect;
+    DWORD                m_Options;
 
     LoaderHeapFreeBlock *m_pFirstFreeBlock;
 
@@ -288,7 +288,8 @@ protected:
                        SIZE_T dwReservedRegionSize,
                        size_t *pPrivatePerfCounter_LoaderBytes = NULL,
                        RangeList *pRangeList = NULL,
-                       BOOL fMakeExecutable = FALSE);
+                       BOOL fMakeExecutable = FALSE,
+                       BOOL fMakeRelaxed = FALSE);
 
     ~UnlockedLoaderHeap();
 #endif
@@ -398,10 +399,10 @@ public:
         return m_dwTotalAlloc;
     }
 
-    BOOL IsExecutable()
-    {
-        return (PAGE_EXECUTE_READWRITE == m_flProtect);
-    }
+    BOOL IsExecutable();
+    // Relaxed Loader Heap does not guarntee that allocated chunk is
+    // zero-initialized.
+    BOOL IsRelaxed();
 
 
 public:
@@ -447,14 +448,16 @@ public:
                DWORD dwCommitBlockSize,
                size_t *pPrivatePerfCounter_LoaderBytes = NULL,
                RangeList *pRangeList = NULL,
-               BOOL fMakeExecutable = FALSE
+               BOOL fMakeExecutable = FALSE,
+               BOOL fMakeRelaxed = FALSE
                )
       : UnlockedLoaderHeap(dwReserveBlockSize,
                            dwCommitBlockSize,
                            NULL, 0,
                            pPrivatePerfCounter_LoaderBytes,
                            pRangeList,
-                           fMakeExecutable)
+                           fMakeExecutable,
+                           fMakeRelaxed)
     {
         WRAPPER_NO_CONTRACT;
         m_CriticalSection = NULL;
@@ -469,7 +472,8 @@ public:
                SIZE_T dwReservedRegionSize,
                size_t *pPrivatePerfCounter_LoaderBytes = NULL,
                RangeList *pRangeList = NULL,
-               BOOL fMakeExecutable = FALSE
+               BOOL fMakeExecutable = FALSE,
+               BOOL fMakeRelaxed = FALSE
                )
       : UnlockedLoaderHeap(dwReserveBlockSize,
                            dwCommitBlockSize,
@@ -477,7 +481,8 @@ public:
                            dwReservedRegionSize,
                            pPrivatePerfCounter_LoaderBytes,
                            pRangeList,
-                           fMakeExecutable)
+                           fMakeExecutable,
+                           fMakeRelaxed)
     {
         WRAPPER_NO_CONTRACT;
         m_CriticalSection = NULL;

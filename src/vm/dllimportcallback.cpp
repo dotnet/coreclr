@@ -1111,13 +1111,8 @@ UMEntryThunk* UMEntryThunk::CreateUMEntryThunk()
 
     UMEntryThunk * p;
 
-#ifdef FEATURE_WINDOWSPHONE
     // On the phone, use loader heap to save memory commit of regular executable heap
     p = (UMEntryThunk *)(void *)SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->AllocMem(S_SIZE_T(sizeof(UMEntryThunk)));
-#else
-    p = new (executable) UMEntryThunk;
-    memset (p, 0, sizeof(*p));
-#endif
 
     RETURN p;
 }
@@ -1126,11 +1121,10 @@ void UMEntryThunk::Terminate()
 {
     WRAPPER_NO_CONTRACT;
 
-#ifdef FEATURE_WINDOWSPHONE
     SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->BackoutMem(this, sizeof(UMEntryThunk));
-#else
-    DeleteExecutable(this);
-#endif
+
+    _ASSERTE(SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->IsRelaxed());
+    FillMemory(&m_code, sizeof(m_code), 0xcc);
 }
 
 VOID UMEntryThunk::FreeUMEntryThunk(UMEntryThunk* p)
