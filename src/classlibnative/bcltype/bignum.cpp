@@ -87,27 +87,41 @@ int BigNum::Compare(const BigNum& lhs, UINT32 value)
 
 int BigNum::Compare(const BigNum& lhs, const BigNum& rhs)
 {
-    int lenDiff = lhs.m_len - rhs.m_len;
+    int lenDiff = (int)lhs.m_len - (int)rhs.m_len;
     if (lenDiff != 0)
     {
         return lenDiff;
     }
 
-    for (int i = lhs.m_len - 1; i >= 0; --i)
+    if (lhs.m_len == 0 && rhs.m_len == 0)
     {
-        if (lhs.m_blocks[i] == rhs.m_blocks[i])
-        {
-            continue;
-        }
+        return 0;
+    }
 
-        if (lhs.m_blocks[i] > rhs.m_blocks[i])
+    UINT8 lastIndex = lhs.m_len - 1;
+    const UINT32* pLeftStartBlock = lhs.m_blocks;
+    const UINT32* pCurrentLeftBlock = lhs.m_blocks + lastIndex;
+    const UINT32* pCurrentRightBlock = rhs.m_blocks + lastIndex;
+
+    while (true)
+    {
+        if (*pCurrentLeftBlock > *pCurrentRightBlock)
         {
             return 1;
         }
-        else if (lhs.m_blocks[i] < rhs.m_blocks[i])
+
+        if (*pCurrentLeftBlock < *pCurrentRightBlock)
         {
             return -1;
         }
+
+        if (pCurrentLeftBlock == pLeftStartBlock)
+        {
+            break;
+        }
+
+        --pCurrentLeftBlock;
+        --pCurrentRightBlock;
     }
 
     return 0;

@@ -135,9 +135,6 @@ unsigned int Int64DivMod1E9(unsigned __int64* value)
 
 #else // _TARGET_X86_ && !FEATURE_PAL
 
-//#pragma warning(disable:4273)
-//extern "C" char* __cdecl _ecvt(double, int, int*, int*);
-
 void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
 {
     // Step 1:
