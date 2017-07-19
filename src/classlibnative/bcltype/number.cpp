@@ -12,6 +12,7 @@
 #include "number.h"
 #include "string.h"
 #include "decimal.h"
+#include "bignum.h"
 #include <stdlib.h>
 
 typedef wchar_t wchar;
@@ -134,8 +135,194 @@ unsigned int Int64DivMod1E9(unsigned __int64* value)
 
 #else // _TARGET_X86_ && !FEATURE_PAL
 
-#pragma warning(disable:4273)
-extern "C" char* __cdecl _ecvt(double, int, int*, int*);
+//#pragma warning(disable:4273)
+//extern "C" char* __cdecl _ecvt(double, int, int*, int*);
+
+void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
+{
+    // Step 1:
+    // Extract meta data from the input double value.
+    //
+    // Refer to IEEE double precision floating point format.
+    UINT64 realMantissa = 0;
+    int realExponent = 0;
+    UINT32 mantissaHighBitIdx = 0;
+    if (((FPDOUBLE*)&value)->exp > 0)
+    {
+        realMantissa = ((UINT64)(((FPDOUBLE*)&value)->mantHi) << 32) | ((FPDOUBLE*)&value)->mantLo + ((UINT64)1 << 52);
+        realExponent = ((FPDOUBLE*)&value)->exp - 1075;
+        mantissaHighBitIdx = 52;
+    }
+    else
+    {
+        realMantissa = ((UINT64)(((FPDOUBLE*)&value)->mantHi) << 32) | ((FPDOUBLE*)&value)->mantLo;
+        realExponent = -1074;
+        mantissaHighBitIdx = BigNum::LogBase2(realMantissa);
+    }
+
+    // Step 2:
+    // Calculate the first digit exponent. We should estimate the exponent and then verify it later.
+    //
+    // This is an improvement of the estimation in the original paper.
+    // Inspired by http://www.ryanjuckett.com/programming/printing-floating-point-numbers/
+    //
+    // 0.30102999566398119521373889472449 = log10V2
+    // 0.69 = 1 - log10V2 - epsilon (a small number account for drift of floating point multiplication)
+    int firstDigitExponent = (int)(ceil(double((int)mantissaHighBitIdx + realExponent) * 0.30102999566398119521373889472449 - 0.69));
+
+    // Step 3:
+    // Store the input double value in BigNum format.
+    //
+    // To keep the precision, we represent the double value as numertor/denominator.
+    BigNum numerator;
+    BigNum denominator;
+    if (realExponent > 0)
+    {
+        numerator.SetUInt64(realMantissa);
+        BigNum::ShiftLeft(&numerator, realExponent);
+
+        // Explanation:
+        // value = (realMantissa * 2^realExponent) / (1)
+        denominator.SetUInt64(1);
+    }
+    else
+    {
+        // Explanation:
+        // value = (realMantissa * 2^realExponent) / (1)
+        //       = (realMantissa / 2^(-realExponent)
+        numerator.SetUInt64(realMantissa);
+        BigNum::ShiftLeft(1, -realExponent, denominator);
+    }
+
+    if (firstDigitExponent > 0)
+    {
+        BigNum poweredValue;
+        BigNum::Pow10(firstDigitExponent, poweredValue);
+        denominator.Multiply(poweredValue);
+    }
+    else if (firstDigitExponent < 0)
+    {
+        BigNum poweredValue;
+        BigNum::Pow10(-firstDigitExponent, poweredValue);
+        numerator.Multiply(poweredValue);
+    }
+
+    if (BigNum::Compare(numerator, denominator) >= 0)
+    {
+        // The exponent estimation was incorrect.
+        firstDigitExponent += 1;
+    }
+    else
+    {
+        numerator.Multiply(10);
+    }
+
+    *dec = firstDigitExponent - 1;
+
+    BigNum::PrepareHeuristicDivide(&numerator, &denominator);
+
+    // Step 4:
+    // Calculate digits.
+    //
+    // Output digits until reaching the last but one precision or the numerator becomes zero.
+    int digitsNum = 0;
+    int currentDigit = 0;
+    while (true)
+    {
+        currentDigit = BigNum::HeuristicDivide(&numerator, denominator);
+        if (numerator.IsZero() || digitsNum + 1 == count)
+        {
+            break;
+        }
+
+        digits[digitsNum] = L'0' + currentDigit;
+        ++digitsNum;
+
+        numerator.Multiply(10);
+    }
+
+    // Step 5:
+    // Set the last digit.
+    //
+    // We round to the closest digit by comparing value with 0.5:
+    //  compare( value, 0.5 )
+    //  = compare( numerator / denominator, 0.5 )
+    //  = compare( numerator, 0.5 * denominator)
+    //  = compare(2 * numerator, denominator)
+    numerator.Multiply(2);
+    int compareResult = BigNum::Compare(numerator, denominator);
+    bool isRoundDown = compareResult < 0;
+
+    // We are in the middle, round towards the even digit (i.e. IEEE rouding rules)
+    if (compareResult == 0)
+    {
+        isRoundDown = (currentDigit & 1) == 0;
+    }
+
+    if (isRoundDown)
+    {
+        digits[digitsNum] = L'0' + currentDigit;
+        ++digitsNum;
+    }
+    else
+    {
+        wchar_t* pCurDigit = digits + digitsNum;
+
+        // Rounding up for 9 is special.
+        if (currentDigit == 9)
+        {
+            // find the first non-nine prior digit
+            while (true)
+            {
+                // If we are at the first digit
+                if (pCurDigit == digits)
+                {
+                    // Output 1 at the next highest exponent
+                    *pCurDigit = L'1';
+                    ++digitsNum;
+                    *dec += 1;
+                    break;
+                }
+
+                --pCurDigit;
+                --digitsNum;
+                if (*pCurDigit != L'9')
+                {
+                    // increment the digit
+                    *pCurDigit += 1;
+                    ++digitsNum;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // It's simple if the digit is not 9.
+            *pCurDigit = L'0' + currentDigit + 1;
+            ++digitsNum;
+        }
+    }
+
+    while (digitsNum < count)
+    {
+        digits[digitsNum] = L'0';
+        ++digitsNum;
+    }
+
+    digits[count] = 0;
+
+    // Determine decimal location.
+    if (*dec == 0)
+    {
+        *dec = 1;
+    }
+    else
+    {
+        ++*dec;
+    }
+
+    *sign = ((FPDOUBLE*)&value)->sign;
+}
 
 void DoubleToNumber(double value, int precision, NUMBER* number)
 {
@@ -149,12 +336,7 @@ void DoubleToNumber(double value, int precision, NUMBER* number)
         number->digits[0] = 0;
     }
     else {
-        char* src = _ecvt(value, precision, &number->scale, &number->sign);
-        wchar* dst = number->digits;
-        if (*src != '0') {
-            while (*src) *dst++ = *src++;
-        }
-        *dst = 0;
+        ecvt(value, precision, &number->scale, &number->sign, number->digits);
     }
 }
 
