@@ -1358,7 +1358,7 @@ again:
 #endif
             if ((dwRequestedSize > 0) && (m_Options & LHF_ZEROINIT))
             {
-                _ASSERTE_MSG((pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0),
+                _ASSERTE_MSG(pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0,
                     "LoaderHeap must return zero-initialized memory");
             }
 
@@ -1655,7 +1655,7 @@ void *UnlockedLoaderHeap::UnlockedAllocAlignedMem_NoThrow(size_t  dwRequestedSiz
 
     if ((dwRequestedSize != 0) && (m_Options & LHF_ZEROINIT))
     {
-        _ASSERTE_MSG((pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0),
+        _ASSERTE_MSG(pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0,
             "LoaderHeap must return zero-initialized memory");
     }
 
