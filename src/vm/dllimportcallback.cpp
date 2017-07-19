@@ -1117,25 +1117,15 @@ UMEntryThunk* UMEntryThunk::CreateUMEntryThunk()
     RETURN p;
 }
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-#define REDZONE_VALUE 0xcc
-#elif defined(_TARGET_ARM_)
-#define REDZONE_VALUE 0xBE
-#else
-#define REDZONE_VALUE 0x00
-#endif
-
 void UMEntryThunk::Terminate()
 {
     WRAPPER_NO_CONTRACT;
 
     _ASSERTE(!SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->IsZeroInit());
-    FillMemory(&m_code, sizeof(m_code), REDZONE_VALUE);
+    m_code.Poison();
 
     SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->BackoutMem(this, sizeof(UMEntryThunk));
 }
-
-#undef REDZONE_VALUE
 
 VOID UMEntryThunk::FreeUMEntryThunk(UMEntryThunk* p)
 {

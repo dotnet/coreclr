@@ -2522,6 +2522,12 @@ void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
     FlushInstructionCache(GetCurrentProcess(),&m_code,sizeof(m_code));
 }
 
+void UMEntryThunkCode::Poison()
+{
+    m_code[0] = 0xbebe;
+    FlushInstructionCache(GetCurrentProcess(),&m_code,sizeof(m_code));
+}
+
 ///////////////////////////// UNIMPLEMENTED //////////////////////////////////
 
 #ifndef DACCESS_COMPILE
