@@ -37,23 +37,17 @@ namespace System
             private static TimeZoneInfo GetCurrentOneYearLocal()
             {
                 // load the data from the OS
-                long result;
                 Interop.Kernel32.TIME_ZONE_INFORMATION timeZoneInformation;
-
-#if CORERT
                 Interop.Kernel32.TIME_DYNAMIC_ZONE_INFORMATION dynamicTimeZoneInformation;
-                result = Interop.Kernel32.GetDynamicTimeZoneInformation(out dynamicTimeZoneInformation);
+
+                long result = Interop.Kernel32.GetDynamicTimeZoneInformation(out dynamicTimeZoneInformation);
                 if (result != Interop.Kernel32.TIME_ZONE_ID_INVALID)
                 {
                     timeZoneInformation = new Interop.Kernel32.TIME_ZONE_INFORMATION(dynamicTimeZoneInformation);
+                    return GetLocalTimeZoneFromWin32Data(timeZoneInformation, dstDisabled: false);
                 }
-#else
-                result = Interop.Kernel32.GetTimeZoneInformation(out timeZoneInformation);
-#endif
 
-                return result == Interop.Kernel32.TIME_ZONE_ID_INVALID ?
-                    CreateCustomTimeZone(LocalId, TimeSpan.Zero, LocalId, LocalId) :
-                    GetLocalTimeZoneFromWin32Data(timeZoneInformation, dstDisabled: false);
+                return CreateCustomTimeZone(LocalId, TimeSpan.Zero, LocalId, LocalId);
             }
 
             private volatile OffsetAndRule _oneYearLocalFromUtc;
