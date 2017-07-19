@@ -19250,7 +19250,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                     noway_assert(helperNum != CORINFO_HELP_UNDEF);
 
 #ifdef FEATURE_READYTORUN_COMPILER
-                    if (call->gtEntryPoint.addr != NULL)
+                    if (call->gtEntryPoint.addr != NULL && compiler->IsTargetAbi(CORINFO_CORERT_ABI))
                     {
                         accessType = call->gtEntryPoint.accessType;
                         addr       = call->gtEntryPoint.addr;
