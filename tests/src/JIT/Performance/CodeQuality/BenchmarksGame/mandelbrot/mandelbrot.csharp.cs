@@ -8,7 +8,9 @@
    adapted for C# by Jan de Vaan
    simplified and optimised to use TPL by Anthony Lloyd
 
-   modified for use with xunit-performance
+   posted to Benchmarks Game as mandelbrot C# .NET Core #4
+   (http://benchmarksgame.alioth.debian.org/u64q/program.php?test=mandelbrot&lang=csharpcore&id=4)
+   modified to remove concurrency and operate with xunit-performance
 */
 
 using System;
@@ -114,7 +116,7 @@ namespace BenchmarksGame
             {
                 ph.RunBenchmarks(Assembly.GetEntryAssembly().Location);
             }
-            return 0;
+            return 100;
         }
     }
 }

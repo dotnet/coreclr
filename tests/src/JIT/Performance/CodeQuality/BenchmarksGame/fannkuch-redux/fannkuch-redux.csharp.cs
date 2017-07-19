@@ -6,6 +6,8 @@
 
    contributed by Isaac Gouy, transliterated from Mike Pall's Lua program
 
+   posted to Benchmarks Game as fannkuck-redux C# .NET Core #2
+   (http://benchmarksgame.alioth.debian.org/u64q/program.php?test=fannkuchredux&lang=csharpcore&id=2)
    modified for use with xunit-performance
 */
 
@@ -97,7 +99,7 @@ namespace BenchmarksGame
             {
                 ph.RunBenchmarks(Assembly.GetEntryAssembly().Location);
             }
-            return 0;
+            return 100;
         }
     }
 }
