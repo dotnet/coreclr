@@ -3139,6 +3139,22 @@ HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, I
 }
 HCIMPLEND
 
+//*************************************************************
+// R2R-specific array allocation wrapper that extracts array method table from ArrayTypeDesc
+//
+HCIMPL2(Object*, JIT_NewArr1_R2R, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size)
+{
+    FCALL_CONTRACT;
+
+    TypeHandle arrayTypeHandle(arrayTypeHnd_);
+    ArrayTypeDesc *pArrayTypeDesc = arrayTypeHandle.AsArray();
+    MethodTable *pArrayMT = pArrayTypeDesc->GetTemplateMethodTable();
+
+    ENDFORBIDGC();
+    return HCCALL2(JIT_NewArr1, (CORINFO_CLASS_HANDLE)pArrayMT, size);
+}
+HCIMPLEND
+
 #include <optdefault.h>
 
 /*************************************************************/
@@ -3171,7 +3187,7 @@ HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size)
     // is this a primitive type?
     //
 
-    CorElementType elemType = pArrayMT->GetInternalCorElementType();
+    CorElementType elemType = pArrayMT->GetArrayElementType();
 
     if (CorTypeInfo::IsPrimitiveType(elemType)
 #ifdef FEATURE_64BIT_ALIGNMENT

@@ -151,6 +151,18 @@ typedef unsigned short AssertionIndex;
 
 static const AssertionIndex NO_ASSERTION_INDEX = 0;
 
+//------------------------------------------------------------------------
+// GetAssertionIndex: return 1-based AssertionIndex from 0-based int index.
+//
+// Arguments:
+//    index - 0-based index
+// Return Value:
+//    1-based AssertionIndex.
+inline AssertionIndex GetAssertionIndex(unsigned index)
+{
+    return (AssertionIndex)(index + 1);
+}
+
 class AssertionInfo
 {
     // true if the assertion holds on the bbNext edge instead of the bbJumpDest edge (for GT_JTRUE nodes)
@@ -891,7 +903,6 @@ public:
 // the flags. These are also used by GT_LCL_FLD.
 #define GTF_VAR_DEF         0x80000000 // GT_LCL_VAR -- this is a definition
 #define GTF_VAR_USEASG      0x40000000 // GT_LCL_VAR -- this is a use/def for a x<op>=y
-#define GTF_VAR_USEDEF      0x20000000 // GT_LCL_VAR -- this is a use/def as in x=x+y (only the lhs x is tagged)
 #define GTF_VAR_CAST        0x10000000 // GT_LCL_VAR -- has been explictly cast (variable node may not be type of local)
 #define GTF_VAR_ITERATOR    0x08000000 // GT_LCL_VAR -- this is a iterator reference in the loop condition
 #define GTF_VAR_CLONED      0x01000000 // GT_LCL_VAR -- this node has been cloned or is a clone
@@ -906,7 +917,7 @@ public:
 #define GTF_VAR_ARR_INDEX   0x00000020 // The variable is part of (the index portion of) an array index expression.
                                        // Shares a value with GTF_REVERSE_OPS, which is meaningless for local var.
 
-#define GTF_LIVENESS_MASK (GTF_VAR_DEF | GTF_VAR_USEASG | GTF_VAR_USEDEF | GTF_REG_BIRTH | GTF_VAR_DEATH)
+#define GTF_LIVENESS_MASK (GTF_VAR_DEF | GTF_VAR_USEASG | GTF_REG_BIRTH | GTF_VAR_DEATH)
 
 #define GTF_CALL_UNMANAGED          0x80000000 // GT_CALL -- direct call to unmanaged code
 #define GTF_CALL_INLINE_CANDIDATE   0x40000000 // GT_CALL -- this call has been marked as an inline candidate
@@ -1158,6 +1169,11 @@ public:
         }
     }
 
+    // NOTE: the three UnusedValue helpers immediately below are defined in lir.h.
+    inline void SetUnusedValue();
+    inline void ClearUnusedValue();
+    inline bool IsUnusedValue() const;
+
     bool OperIs(genTreeOps oper)
     {
         return OperGet() == oper;
@@ -1293,6 +1309,15 @@ public:
         return OperIsStoreBlk(OperGet());
     }
 
+    bool OperIsPutArgSplit() const
+    {
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+        return gtOper == GT_PUTARG_SPLIT;
+#else
+        return false;
+#endif
+    }
+
     bool OperIsPutArgStk() const
     {
         return gtOper == GT_PUTARG_STK;
@@ -1305,7 +1330,7 @@ public:
 
     bool OperIsPutArg() const
     {
-        return OperIsPutArgStk() || OperIsPutArgReg();
+        return OperIsPutArgStk() || OperIsPutArgReg() || OperIsPutArgSplit();
     }
 
     bool OperIsAddrMode() const
@@ -1628,6 +1653,9 @@ public:
 #ifdef FEATURE_SIMD
             case GT_SIMD:
 #endif // !FEATURE_SIMD
+#if !defined(LEGACY_BACKEND) && _TARGET_ARM_
+            case GT_PUTARG_REG:
+#endif // !defined(LEGACY_BACKEND) && _TARGET_ARM_
                 return true;
             default:
                 return false;
@@ -1727,6 +1755,9 @@ public:
 
     // Returns true if it is a GT_COPY or GT_RELOAD of a multi-reg call node
     inline bool IsCopyOrReloadOfMultiRegCall() const;
+
+    // Returns true if it is a MultiRegOp
+    inline bool IsMultiReg() const;
 
     bool OperMayThrow();
 
@@ -2122,6 +2153,40 @@ public:
     // Returns a range that will produce the operands of this node in use order.
     IteratorPair<GenTreeOperandIterator> Operands();
 
+    enum class VisitResult
+    {
+        Abort    = false,
+        Continue = true
+    };
+
+    // Visits each operand of this node. The operand must be either a lambda, function, or functor with the signature
+    // `GenTree::VisitResult VisitorFunction(GenTree* operand)`. Here is a simple example:
+    //
+    //     unsigned operandCount = 0;
+    //     node->VisitOperands([&](GenTree* operand) -> GenTree::VisitResult)
+    //     {
+    //         operandCount++;
+    //         return GenTree::VisitResult::Continue;
+    //     });
+    //
+    // This function is generally more efficient that the operand iterator and should be preferred over that API for
+    // hot code, as it affords better opportunities for inlining and acheives shorter dynamic path lengths when
+    // deciding how operands need to be accessed.
+    //
+    // Note that this function does not respect `GTF_REVERSE_OPS` and `gtEvalSizeFirst`. This is always safe in LIR,
+    // but may be dangerous in HIR if for some reason you need to visit operands in the order in which they will
+    // execute.
+    template <typename TVisitor>
+    void VisitOperands(TVisitor visitor);
+
+private:
+    template <typename TVisitor>
+    VisitResult VisitListOperands(TVisitor visitor);
+
+    template <typename TVisitor>
+    void VisitBinOpOperands(TVisitor visitor);
+
+public:
     bool Precedes(GenTree* other);
 
     // The maximum possible # of children of any node.
@@ -3111,6 +3176,15 @@ public:
 #endif
     }
 
+#ifdef DEBUG
+    // NOTE: we only use this function when writing out IR dumps. These dumps may take place before the ReturnTypeDesc
+    // has been initialized.
+    unsigned TryGetReturnRegCount() const
+    {
+        return m_inited ? GetReturnRegCount() : 0;
+    }
+#endif // DEBUG
+
     //--------------------------------------------------------------------------------------------
     // GetReturnRegCount:  Get the count of return registers in which the return value is returned.
     //
@@ -3809,16 +3883,17 @@ struct GenTreeCmpXchg : public GenTree
 };
 
 #if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
-struct GenTreeMulLong : public GenTreeOp
+struct GenTreeMultiRegOp : public GenTreeOp
 {
     regNumber gtOtherReg;
 
-    GenTreeMulLong(var_types type, GenTreePtr op1, GenTreePtr op2) : GenTreeOp(GT_MUL_LONG, type, op1, op2)
+    GenTreeMultiRegOp(genTreeOps oper, var_types type, GenTreePtr op1, GenTreePtr op2)
+        : GenTreeOp(oper, type, op1, op2), gtOtherReg(REG_NA)
     {
     }
 
 #if DEBUGGABLE_GENTREE
-    GenTreeMulLong() : GenTreeOp()
+    GenTreeMultiRegOp() : GenTreeOp()
     {
     }
 #endif
@@ -3846,9 +3921,11 @@ struct GenTreeFptrVal : public GenTree
 /* gtQmark */
 struct GenTreeQmark : public GenTreeOp
 {
+#ifdef LEGACY_BACKEND
     // Livesets on entry to then and else subtrees
     VARSET_TP gtThenLiveSet;
     VARSET_TP gtElseLiveSet;
+#endif
 
     // The "Compiler*" argument is not a DEBUGARG here because we use it to keep track of the set of
     // (possible) QMark nodes.
@@ -4921,6 +4998,209 @@ struct GenTreePutArgStk : public GenTreeUnOp
 #endif
 };
 
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+// Represent the struct argument: split value in register(s) and stack
+struct GenTreePutArgSplit : public GenTreePutArgStk
+{
+    unsigned gtNumRegs;
+
+    GenTreePutArgSplit(GenTreePtr op1,
+                       unsigned slotNum PUT_STRUCT_ARG_STK_ONLY_ARG(unsigned numSlots),
+                       unsigned     numRegs,
+                       bool         putIncomingArgArea = false,
+                       GenTreeCall* callNode           = nullptr)
+        : GenTreePutArgStk(GT_PUTARG_SPLIT,
+                           TYP_STRUCT,
+                           op1,
+                           slotNum PUT_STRUCT_ARG_STK_ONLY_ARG(numSlots),
+                           putIncomingArgArea,
+                           callNode)
+        , gtNumRegs(numRegs)
+    {
+        ClearOtherRegs();
+        ClearOtherRegFlags();
+    }
+
+    // Type required to support multi-reg struct arg.
+    var_types m_regType[MAX_REG_ARG];
+
+    // First reg of struct is always given by gtRegNum.
+    // gtOtherRegs holds the other reg numbers of struct.
+    regNumberSmall gtOtherRegs[MAX_REG_ARG - 1];
+
+    // GTF_SPILL or GTF_SPILLED flag on a multi-reg struct node indicates that one or
+    // more of its result regs are in that state.  The spill flag of each of the
+    // return register is stored here. We only need 2 bits per register,
+    // so this is treated as a 2-bit array.
+    static const unsigned PACKED_GTF_SPILL   = 1;
+    static const unsigned PACKED_GTF_SPILLED = 2;
+    unsigned char         gtSpillFlags;
+
+    //---------------------------------------------------------------------------
+    // GetRegNumByIdx: get ith register allocated to this struct argument.
+    //
+    // Arguments:
+    //     idx   -   index of the struct
+    //
+    // Return Value:
+    //     Return regNumber of ith register of this struct argument
+    //
+    regNumber GetRegNumByIdx(unsigned idx) const
+    {
+        assert(idx < MAX_REG_ARG);
+
+        if (idx == 0)
+        {
+            return gtRegNum;
+        }
+
+        return (regNumber)gtOtherRegs[idx - 1];
+    }
+
+    //----------------------------------------------------------------------
+    // SetRegNumByIdx: set ith register of this struct argument
+    //
+    // Arguments:
+    //    reg    -   reg number
+    //    idx    -   index of the struct
+    //
+    // Return Value:
+    //    None
+    //
+    void SetRegNumByIdx(regNumber reg, unsigned idx)
+    {
+        assert(idx < MAX_REG_ARG);
+        if (idx == 0)
+        {
+            gtRegNum = reg;
+        }
+        else
+        {
+            gtOtherRegs[idx - 1] = (regNumberSmall)reg;
+            assert(gtOtherRegs[idx - 1] == reg);
+        }
+    }
+
+    //----------------------------------------------------------------------------
+    // ClearOtherRegs: clear multi-reg state to indicate no regs are allocated
+    //
+    // Arguments:
+    //    None
+    //
+    // Return Value:
+    //    None
+    //
+    void ClearOtherRegs()
+    {
+        for (unsigned i = 0; i < MAX_REG_ARG - 1; ++i)
+        {
+            gtOtherRegs[i] = REG_NA;
+        }
+    }
+
+    //----------------------------------------------------------------------
+    // GetRegSpillFlagByIdx: get spill flag associated with the register
+    // specified by its index.
+    //
+    // Arguments:
+    //    idx  -  Position or index of the register
+    //
+    // Return Value:
+    //    Returns GTF_* flags associated with the register. Only GTF_SPILL and GTF_SPILLED are considered.
+    //
+    unsigned GetRegSpillFlagByIdx(unsigned idx) const
+    {
+        assert(idx < MAX_REG_ARG);
+
+        unsigned bits = gtSpillFlags >> (idx * 2); // It doesn't matter that we possibly leave other high bits here.
+        unsigned spillFlags = 0;
+        if (bits & PACKED_GTF_SPILL)
+        {
+            spillFlags |= GTF_SPILL;
+        }
+        if (bits & PACKED_GTF_SPILLED)
+        {
+            spillFlags |= GTF_SPILLED;
+        }
+
+        return spillFlags;
+    }
+
+    //----------------------------------------------------------------------
+    // SetRegSpillFlagByIdx: set spill flags for the register
+    // specified by its index.
+    //
+    // Arguments:
+    //    flags  -  GTF_* flags. Only GTF_SPILL and GTF_SPILLED are allowed.
+    //    idx    -  Position or index of the register
+    //
+    // Return Value:
+    //    None
+    //
+    void SetRegSpillFlagByIdx(unsigned flags, unsigned idx)
+    {
+        assert(idx < MAX_REG_ARG);
+
+        unsigned bits = 0;
+        if (flags & GTF_SPILL)
+        {
+            bits |= PACKED_GTF_SPILL;
+        }
+        if (flags & GTF_SPILLED)
+        {
+            bits |= PACKED_GTF_SPILLED;
+        }
+
+        // Clear anything that was already there by masking out the bits before 'or'ing in what we want there.
+        gtSpillFlags = (unsigned char)((gtSpillFlags & ~(0xffU << (idx * 2))) | (bits << (idx * 2)));
+    }
+
+    //--------------------------------------------------------------------------
+    // GetRegType:  Get var_type of the register specified by index.
+    //
+    // Arguments:
+    //    index - Index of the register.
+    //            First register will have an index 0 and so on.
+    //
+    // Return Value:
+    //    var_type of the register specified by its index.
+
+    var_types GetRegType(unsigned index)
+    {
+        assert(index < gtNumRegs);
+        var_types result = m_regType[index];
+        return result;
+    }
+
+    //-------------------------------------------------------------------
+    // clearOtherRegFlags: clear GTF_* flags associated with gtOtherRegs
+    //
+    // Arguments:
+    //     None
+    //
+    // Return Value:
+    //     None
+    //
+    void ClearOtherRegFlags()
+    {
+        gtSpillFlags = 0;
+    }
+
+#ifdef FEATURE_PUT_STRUCT_ARG_STK
+    unsigned getArgSize()
+    {
+        return (gtNumSlots + gtNumRegs) * TARGET_POINTER_SIZE;
+    }
+#endif // FEATURE_PUT_STRUCT_ARG_STK
+
+#if DEBUGGABLE_GENTREE
+    GenTreePutArgSplit() : GenTreePutArgStk()
+    {
+    }
+#endif
+};
+#endif // !LEGACY_BACKEND && _TARGET_ARM_
+
 // Represents GT_COPY or GT_RELOAD node
 struct GenTreeCopyOrReload : public GenTreeUnOp
 {
@@ -5476,7 +5756,7 @@ inline bool GenTree::IsMultiRegNode() const
     }
 
 #if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
-    if (gtOper == GT_MUL_LONG)
+    if (gtOper == GT_MUL_LONG || gtOper == GT_PUTARG_REG || gtOper == GT_COPY || OperIsPutArgSplit())
     {
         return true;
     }
@@ -5516,6 +5796,27 @@ inline bool GenTree::IsCopyOrReloadOfMultiRegCall() const
     }
 
     return false;
+}
+
+//-----------------------------------------------------------------------------------
+// IsMultiReg: whether this is a MultiReg node (i.e. GT_MUL_LONG or GT_PUTARG_REG)
+//
+// Arguments:
+//     None
+//
+// Return Value:
+//     Returns true if this GenTree is a MultiReg node
+inline bool GenTree::IsMultiReg() const
+{
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+#ifdef ARM_SOFTFP
+    return (gtOper == GT_MUL_LONG) || (gtOper == GT_PUTARG_REG);
+#else  // !ARM_SOFTFP
+    return gtOper == GT_MUL_LONG;
+#endif // !ARM_SOFTFP
+#else  // ! _TARGET_ARM_
+    return false;
+#endif // ! _TARGET_ARM_
 }
 
 inline bool GenTree::IsCnsIntOrI() const

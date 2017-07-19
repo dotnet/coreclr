@@ -217,6 +217,7 @@ extern FCDECL1(StringObject*, FramedAllocateString, DWORD stringLength);
 
 extern FCDECL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 extern FCDECL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
+extern FCDECL2(Object*, JIT_NewArr1_R2R, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size);
 extern FCDECL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 
 #ifndef JIT_Stelem_Ref
@@ -1544,41 +1545,6 @@ class TailCallFrame;
 EXTERN_C void JIT_TailCallHelperStub_ReturnAddress();
 
 #endif // _TARGET_AMD64_ || _TARGET_ARM_
-
-
-#ifdef _TARGET_X86_
-
-class JIT_TrialAlloc
-{
-public:
-    enum Flags
-    {
-        NORMAL       = 0x0,
-        MP_ALLOCATOR = 0x1,
-        SIZE_IN_EAX  = 0x2,
-        OBJ_ARRAY    = 0x4,
-        ALIGN8       = 0x8,     // insert a dummy object to insure 8 byte alignment (until the next GC)
-        ALIGN8OBJ    = 0x10,
-        NO_FRAME     = 0x20,    // call is from unmanaged code - don't try to put up a frame
-    };
-
-    static void *GenAllocSFast(Flags flags);
-    static void *GenBox(Flags flags);
-    static void *GenAllocArray(Flags flags);
-    static void *GenAllocString(Flags flags);
-
-private:
-    static void EmitAlignmentRoundup(CPUSTUBLINKER *psl,X86Reg regTestAlign, X86Reg regToAdj, Flags flags);
-    static void EmitDummyObject(CPUSTUBLINKER *psl, X86Reg regTestAlign, Flags flags);
-    static void EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *noAlloc, Flags flags);
-    static void EmitNoAllocCode(CPUSTUBLINKER *psl, Flags flags);
-
-#if CHECK_APP_DOMAIN_LEAKS
-    static void EmitSetAppDomain(CPUSTUBLINKER *psl);
-    static void EmitCheckRestore(CPUSTUBLINKER *psl);
-#endif
-};
-#endif // _TARGET_X86_
 
 void *GenFastGetSharedStaticBase(bool bCheckCCtor);
 

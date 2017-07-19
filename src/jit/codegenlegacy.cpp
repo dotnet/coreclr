@@ -52,7 +52,8 @@ void CodeGen::genDyingVars(VARSET_VALARG_TP beforeSet, VARSET_VALARG_TP afterSet
 
     /* iterate through the dead variables */
 
-    VARSET_ITER_INIT(compiler, iter, deadSet, varIndex);
+    VarSetOps::Iter iter(compiler, deadSet);
+    unsigned        varIndex = 0;
     while (iter.NextElem(&varIndex))
     {
         varNum = compiler->lvaTrackedToVarNum[varIndex];
@@ -5631,7 +5632,8 @@ void CodeGen::genCodeForQmark(GenTreePtr tree, regMaskTP destReg, regMaskTP best
 
             VARSET_TP regVarLiveNow(VarSetOps::Intersection(compiler, compiler->raRegVarsMask, rsLiveNow));
 
-            VARSET_ITER_INIT(compiler, iter, regVarLiveNow, varIndex);
+            VarSetOps::Iter iter(compiler, regVarLiveNow);
+            unsigned        varIndex = 0;
             while (iter.NextElem(&varIndex))
             {
                 // Find the variable in compiler->lvaTable
@@ -9619,6 +9621,8 @@ void CodeGen::genCodeForBlkOp(GenTreePtr tree, regMaskTP destReg)
 
             // What order should the Dest, Val/Src, and Size be calculated
 
+            regMaskTP regsToLock = RBM_ARG_0 | RBM_ARG_1 | RBM_ARG_2;
+
             compiler->fgOrderBlockOps(tree, RBM_ARG_0, RBM_ARG_1, RBM_ARG_2, opsPtr, regsPtr); // OUT arguments
 
             genComputeReg(opsPtr[0], regsPtr[0], RegSet::EXACT_REG, RegSet::KEEP_REG);
@@ -9626,6 +9630,11 @@ void CodeGen::genCodeForBlkOp(GenTreePtr tree, regMaskTP destReg)
             if (opsPtr[2] != nullptr)
             {
                 genComputeReg(opsPtr[2], regsPtr[2], RegSet::EXACT_REG, RegSet::KEEP_REG);
+            }
+            else
+            {
+                regSet.rsLockReg(RBM_ARG_2);
+                regsToLock &= ~RBM_ARG_2;
             }
             genRecoverReg(opsPtr[0], regsPtr[0], RegSet::KEEP_REG);
             genRecoverReg(opsPtr[1], regsPtr[1], RegSet::KEEP_REG);
@@ -9646,7 +9655,7 @@ void CodeGen::genCodeForBlkOp(GenTreePtr tree, regMaskTP destReg)
                              (sizeNode->gtRegNum == REG_ARG_2));
             }
 
-            regSet.rsLockUsedReg(RBM_ARG_0 | RBM_ARG_1 | RBM_ARG_2);
+            regSet.rsLockUsedReg(regsToLock);
 
             genEmitHelperCall(isCopyBlk ? CORINFO_HELP_MEMCPY
                                         /* GT_INITBLK */
@@ -9655,12 +9664,16 @@ void CodeGen::genCodeForBlkOp(GenTreePtr tree, regMaskTP destReg)
 
             regTracker.rsTrackRegMaskTrash(RBM_CALLEE_TRASH);
 
-            regSet.rsUnlockUsedReg(RBM_ARG_0 | RBM_ARG_1 | RBM_ARG_2);
+            regSet.rsUnlockUsedReg(regsToLock);
             genReleaseReg(opsPtr[0]);
             genReleaseReg(opsPtr[1]);
             if (opsPtr[2] != nullptr)
             {
                 genReleaseReg(opsPtr[2]);
+            }
+            else
+            {
+                regSet.rsUnlockReg(RBM_ARG_2);
             }
         }
 
@@ -10600,9 +10613,11 @@ void CodeGen::genCodeForNumericCast(GenTreePtr tree, regMaskTP destReg, regMaskT
       * We don't do this optimization for debug code/no optimization
       */
 
-    noway_assert((op1->gtOper != GT_CNS_INT && op1->gtOper != GT_CNS_LNG && op1->gtOper != GT_CNS_DBL) ||
-                 tree->gtOverflow() || (op1->gtOper == GT_CNS_DBL && !_finite(op1->gtDblCon.gtDconVal)) ||
-                 !compiler->opts.OptEnabled(CLFLG_CONSTANTFOLD));
+    noway_assert(
+        (op1->gtOper != GT_CNS_INT && op1->gtOper != GT_CNS_LNG && op1->gtOper != GT_CNS_DBL) || tree->gtOverflow() ||
+        (op1->gtOper == GT_CNS_DBL && !_finite(op1->gtDblCon.gtDconVal)) ||
+        (op1->gtOper == GT_CNS_DBL && op1->gtDblCon.gtDconVal <= -1.0 && varTypeIsUnsigned(tree->CastToType())) ||
+        !compiler->opts.OptEnabled(CLFLG_CONSTANTFOLD));
 
     noway_assert(dstType != TYP_VOID);
 
@@ -12579,7 +12594,8 @@ void CodeGen::genCodeForBBlist()
         // We should never enregister variables in any of the specialUseMask registers
         noway_assert((specialUseMask & regSet.rsMaskVars) == 0);
 
-        VARSET_ITER_INIT(compiler, iter, liveSet, varIndex);
+        VarSetOps::Iter iter(compiler, liveSet);
+        unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
             varNum = compiler->lvaTrackedToVarNum[varIndex];
@@ -15237,7 +15253,8 @@ unsigned CodeGen::genRegCountForLiveIntEnregVars(GenTreePtr tree)
 {
     unsigned regCount = 0;
 
-    VARSET_ITER_INIT(compiler, iter, compiler->compCurLife, varNum);
+    VarSetOps::Iter iter(compiler, compiler->compCurLife);
+    unsigned        varNum = 0;
     while (iter.NextElem(&varNum))
     {
         unsigned   lclNum = compiler->lvaTrackedToVarNum[varNum];
@@ -19032,16 +19049,32 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                     {
                         noway_assert(callType == CT_USER_FUNC);
 
-                        void* pAddr;
-                        addr = compiler->info.compCompHnd->getAddressOfPInvokeFixup(methHnd, (void**)&pAddr);
-                        if (addr != NULL)
+                        CORINFO_CONST_LOOKUP lookup;
+                        compiler->info.compCompHnd->getAddressOfPInvokeTarget(methHnd, &lookup);
+
+                        void* addr = lookup.addr;
+
+                        assert(addr != NULL);
+
+#if defined(_TARGET_ARM_)
+                        // Legacy backend does not handle the `IAT_VALUE` case that does not
+                        // fit. It is not reachable currently from any front end so just check
+                        // for it via assert.
+                        assert(lookup.accessType != IAT_VALUE || arm_Valid_Imm_For_BL((ssize_t)addr));
+#endif
+                        if (lookup.accessType == IAT_VALUE || lookup.accessType == IAT_PVALUE)
                         {
 #if CPU_LOAD_STORE_ARCH
                             // Load the address into a register, indirect it and call  through a register
                             indCallReg = regSet.rsGrabReg(RBM_ALLINT); // Grab an available register to use for the CALL
                                                                        // indirection
                             instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addr);
-                            getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
+
+                            if (lookup.accessType == IAT_PVALUE)
+                            {
+                                getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
+                            }
+
                             regTracker.rsTrackRegTrash(indCallReg);
                             // Now make the call "call indCallReg"
 
@@ -19062,13 +19095,14 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         }
                         else
                         {
+                            assert(lookup.accessType == IAT_PPVALUE);
                             // Double-indirection. Load the address into a register
                             // and call indirectly through a register
                             indCallReg = regSet.rsGrabReg(RBM_ALLINT); // Grab an available register to use for the CALL
                                                                        // indirection
 
 #if CPU_LOAD_STORE_ARCH
-                            instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)pAddr);
+                            instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addr);
                             getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
                             getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
                             regTracker.rsTrackRegTrash(indCallReg);
@@ -19076,7 +19110,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                             emitCallType = emitter::EC_INDIR_R;
 
 #else
-                            getEmitter()->emitIns_R_AI(INS_mov, EA_PTR_DSP_RELOC, indCallReg, (ssize_t)pAddr);
+                            getEmitter()->emitIns_R_AI(INS_mov, EA_PTR_DSP_RELOC, indCallReg, (ssize_t)addr);
                             regTracker.rsTrackRegTrash(indCallReg);
                             emitCallType = emitter::EC_INDIR_ARD;
 
@@ -20838,19 +20872,22 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
                 // This ensures that the block->bbVarUse will contain
                 // the FrameRoot local var if is it a tracked variable.
 
-                if (tree->gtCall.IsUnmanaged() || (tree->gtCall.IsTailCall() && info.compCallUnmanaged))
+                if (!opts.ShouldUsePInvokeHelpers())
                 {
-                    /* Get the TCB local and mark it as used */
-
-                    noway_assert(info.compLvFrameListRoot < lvaCount);
-
-                    LclVarDsc* varDsc = &lvaTable[info.compLvFrameListRoot];
-
-                    if (varDsc->lvTracked)
+                    if (tree->gtCall.IsUnmanaged() || (tree->gtCall.IsTailCall() && info.compCallUnmanaged))
                     {
-                        if (!VarSetOps::IsMember(this, fgCurDefSet, varDsc->lvVarIndex))
+                        /* Get the TCB local and mark it as used */
+
+                        noway_assert(info.compLvFrameListRoot < lvaCount);
+
+                        LclVarDsc* varDsc = &lvaTable[info.compLvFrameListRoot];
+
+                        if (varDsc->lvTracked)
                         {
-                            VarSetOps::AddElemD(this, fgCurUseSet, varDsc->lvVarIndex);
+                            if (!VarSetOps::IsMember(this, fgCurDefSet, varDsc->lvVarIndex))
+                            {
+                                VarSetOps::AddElemD(this, fgCurUseSet, varDsc->lvVarIndex);
+                            }
                         }
                     }
                 }
@@ -21326,7 +21363,7 @@ regNumber CodeGen::genPInvokeCallProlog(LclVarDsc*            frameListRoot,
     if (compiler->opts.ShouldUsePInvokeHelpers())
     {
         regNumber baseReg;
-        int       adr = compiler->lvaFrameAddress(compiler->lvaInlinedPInvokeFrameVar, true, &baseReg, 0);
+        int       adr = compiler->lvaFrameAddress(compiler->lvaInlinedPInvokeFrameVar, false, &baseReg, 0);
 
         getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_ARG_0, baseReg, adr);
         genEmitHelperCall(CORINFO_HELP_JIT_PINVOKE_BEGIN,
@@ -21464,7 +21501,7 @@ void CodeGen::genPInvokeCallEpilog(LclVarDsc* frameListRoot, regMaskTP retVal)
         noway_assert(compiler->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
 
         regNumber baseReg;
-        int       adr = compiler->lvaFrameAddress(compiler->lvaInlinedPInvokeFrameVar, true, &baseReg, 0);
+        int       adr = compiler->lvaFrameAddress(compiler->lvaInlinedPInvokeFrameVar, false, &baseReg, 0);
 
         getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_ARG_0, baseReg, adr);
         genEmitHelperCall(CORINFO_HELP_JIT_PINVOKE_END,
