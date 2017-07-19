@@ -19,7 +19,7 @@ inline LOADERALLOCATORREF LoaderAllocator::GetExposedObject()
 
 inline void GlobalLoaderAllocator::Init(BaseDomain *pDomain) 
 {
-    LoaderAllocator::Init(pDomain, m_ExecutableHeapInstance, TRUE);
+    LoaderAllocator::Init(pDomain, m_ExecutableHeapInstance);
 }
 
 inline void AppDomainLoaderAllocator::Init(AppDomain *pAppDomain) 

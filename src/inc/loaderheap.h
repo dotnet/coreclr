@@ -289,7 +289,7 @@ protected:
                        size_t *pPrivatePerfCounter_LoaderBytes = NULL,
                        RangeList *pRangeList = NULL,
                        BOOL fMakeExecutable = FALSE,
-                       BOOL fMakeRelaxed = FALSE);
+                       BOOL fZeroInit = TRUE);
 
     ~UnlockedLoaderHeap();
 #endif
@@ -400,9 +400,7 @@ public:
     }
 
     BOOL IsExecutable();
-    // Relaxed Loader Heap does not guarntee that allocated chunk is
-    // zero-initialized.
-    BOOL IsRelaxed();
+    BOOL IsZeroInit();
 
 
 public:
@@ -449,7 +447,7 @@ public:
                size_t *pPrivatePerfCounter_LoaderBytes = NULL,
                RangeList *pRangeList = NULL,
                BOOL fMakeExecutable = FALSE,
-               BOOL fMakeRelaxed = FALSE
+               BOOL fZeroInit = TRUE
                )
       : UnlockedLoaderHeap(dwReserveBlockSize,
                            dwCommitBlockSize,
@@ -457,7 +455,7 @@ public:
                            pPrivatePerfCounter_LoaderBytes,
                            pRangeList,
                            fMakeExecutable,
-                           fMakeRelaxed)
+                           fZeroInit)
     {
         WRAPPER_NO_CONTRACT;
         m_CriticalSection = NULL;
@@ -473,7 +471,7 @@ public:
                size_t *pPrivatePerfCounter_LoaderBytes = NULL,
                RangeList *pRangeList = NULL,
                BOOL fMakeExecutable = FALSE,
-               BOOL fMakeRelaxed = FALSE
+               BOOL fZeroInit = TRUE
                )
       : UnlockedLoaderHeap(dwReserveBlockSize,
                            dwCommitBlockSize,
@@ -482,7 +480,7 @@ public:
                            pPrivatePerfCounter_LoaderBytes,
                            pRangeList,
                            fMakeExecutable,
-                           fMakeRelaxed)
+                           fZeroInit)
     {
         WRAPPER_NO_CONTRACT;
         m_CriticalSection = NULL;

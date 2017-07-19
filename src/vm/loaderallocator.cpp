@@ -893,7 +893,7 @@ void LoaderAllocator::ActivateManagedTracking()
 #define COLLECTIBLE_CODEHEAP_SIZE                  (7 * GetOsPageSize())
 #define COLLECTIBLE_VIRTUALSTUBDISPATCH_HEAP_SPACE (5 * GetOsPageSize())
 
-void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory, BOOL fRelaxed)
+void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 {
     STANDARD_VM_CONTRACT;
 
@@ -1006,7 +1006,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory, BOO
                                                                       LOADERHEAP_PROFILE_COUNTER,
                                                                       NULL,
                                                                       TRUE /* Make heap executable */,
-                                                                      fRelaxed);
+                                                                      FALSE);
         initReservedMem += dwExecutableHeapReserveSize;
     }
 

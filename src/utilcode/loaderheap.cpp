@@ -11,7 +11,7 @@
 #include "eventtracebase.h"
 
 #define LHF_EXECUTABLE  0x1
-#define LHF_RELAXED     0x2
+#define LHF_ZEROINIT    0x2
 
 #ifndef DACCESS_COMPILE
 
@@ -907,7 +907,7 @@ UnlockedLoaderHeap::UnlockedLoaderHeap(DWORD dwReserveBlockSize,
                                        size_t *pPrivatePerfCounter_LoaderBytes,
                                        RangeList *pRangeList,
                                        BOOL fMakeExecutable,
-                                       BOOL fMakeRelaxed)
+                                       BOOL fZeroInit)
 {
     CONTRACTL
     {
@@ -946,8 +946,8 @@ UnlockedLoaderHeap::UnlockedLoaderHeap(DWORD dwReserveBlockSize,
     m_Options                    = 0;
     if (fMakeExecutable)
         m_Options                |= LHF_EXECUTABLE;
-    if (fMakeRelaxed)
-        m_Options                |= LHF_RELAXED;
+    if (fZeroInit)
+        m_Options                |= LHF_ZEROINIT;
 
     m_pFirstFreeBlock            = NULL;
 
@@ -1356,9 +1356,9 @@ again:
             // Don't fill the memory we allocated - it is assumed to be zeroed - fill the memory after it
             memset(pAllocatedBytes + dwRequestedSize, 0xEE, LOADER_HEAP_DEBUG_BOUNDARY);
 #endif
-            if (dwRequestedSize > 0)
+            if ((dwRequestedSize > 0) && (m_Options & LHF_ZEROINIT))
             {
-                _ASSERTE_MSG((m_Options & LHF_RELAXED) || ( pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0),
+                _ASSERTE_MSG((pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0),
                     "LoaderHeap must return zero-initialized memory");
             }
 
@@ -1534,7 +1534,7 @@ void UnlockedLoaderHeap::UnlockedBackoutMem(void *pMem,
     {
         // Cool. This was the last block allocated. We can just undo the allocation instead
         // of going to the freelist.
-        if ((m_Options & LHF_RELAXED) == 0)
+        if (m_Options & LHF_ZEROINIT)
             memset(pMem, 0x00, dwSize); // Fill freed region with 0
         m_pAllocPtr = (BYTE*)pMem;
     }
@@ -1653,9 +1653,9 @@ void *UnlockedLoaderHeap::UnlockedAllocAlignedMem_NoThrow(size_t  dwRequestedSiz
     memset(pAllocatedBytes + dwRequestedSize, 0xee, LOADER_HEAP_DEBUG_BOUNDARY);
 #endif
 
-    if (dwRequestedSize != 0)
+    if ((dwRequestedSize != 0) && (m_Options & LHF_ZEROINIT))
     {
-        _ASSERTE_MSG((m_Options & LHF_RELAXED) || (pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0),
+        _ASSERTE_MSG((pAllocatedBytes[0] == 0 && memcmp(pAllocatedBytes, pAllocatedBytes + 1, dwRequestedSize - 1) == 0),
             "LoaderHeap must return zero-initialized memory");
     }
 
@@ -1778,9 +1778,9 @@ BOOL UnlockedLoaderHeap::IsExecutable()
     return (m_Options & LHF_EXECUTABLE);
 }
 
-BOOL UnlockedLoaderHeap::IsRelaxed()
+BOOL UnlockedLoaderHeap::IsZeroInit()
 {
-    return (m_Options & LHF_RELAXED);
+    return (m_Options & LHF_ZEROINIT);
 }
 
 #ifdef DACCESS_COMPILE
