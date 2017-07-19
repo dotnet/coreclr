@@ -28,8 +28,6 @@ Abstract:
 // isn't considered a pointer type...
 //
 
-#define SHMNULL 0
-
 #define SHMPTR_TO_TYPED_PTR(type, shmptr) reinterpret_cast<type*>(shmptr)
 
 /* Set ptr to NULL if shmPtr == 0, else set ptr to SHMPTR_TO_TYPED_PTR(type, shmptr) 

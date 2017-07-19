@@ -180,7 +180,7 @@ CSharedMemoryObject::InitializeFromExistingSharedData(
 
     m_ObjectDomain = SharedObject;
 
-    _ASSERTE(SHMNULL != m_shmod);
+    _ASSERTE(NULL != m_shmod);
 
     psmod = SHMPTR_TO_TYPED_PTR(SHMObjData, m_shmod);
     if (NULL == psmod)
@@ -236,7 +236,7 @@ CSharedMemoryObject::InitializeFromExistingSharedData(
         goto InitializeFromExistingSharedDataExit;
     }
 
-    if (SHMNULL != psmod->shmObjImmutableData)
+    if (NULL != psmod->shmObjImmutableData)
     {
         VOID *pv = SHMPTR_TO_TYPED_PTR(VOID, psmod->shmObjImmutableData);
         if (NULL != pv)
@@ -251,7 +251,7 @@ CSharedMemoryObject::InitializeFromExistingSharedData(
         }
     }
 
-    if (SHMNULL != psmod->shmObjSharedData)
+    if (NULL != psmod->shmObjSharedData)
     {
         m_pvSharedData = SHMPTR_TO_TYPED_PTR(VOID, psmod->shmObjSharedData);
         if (NULL == m_pvSharedData)
@@ -301,7 +301,7 @@ CSharedMemoryObject::AllocateSharedDataItems(
     )
 {
     PAL_ERROR palError = NO_ERROR;
-    SHMPTR shmod = SHMNULL;
+    SHMPTR shmod = NULL;
     SHMObjData *psmod = NULL;
 
     _ASSERTE(NULL != pshmObjData);
@@ -322,7 +322,7 @@ CSharedMemoryObject::AllocateSharedDataItems(
     SHMLock();
 
     shmod = malloc(sizeof(SHMObjData));
-    if (SHMNULL == shmod)
+    if (NULL == shmod)
     {
         ERROR("Unable to allocate m_shmod for new object\n");
         palError = ERROR_OUTOFMEMORY;
@@ -367,7 +367,7 @@ CSharedMemoryObject::AllocateSharedDataItems(
         //
         
         psmod->shmObjImmutableData = malloc(m_pot->GetImmutableDataSize());
-        if (SHMNULL == psmod->shmObjImmutableData)
+        if (NULL == psmod->shmObjImmutableData)
         {
             ERROR("Unable to allocate psmod->shmObjImmutableData for new object\n");
             palError = ERROR_OUTOFMEMORY;
@@ -378,7 +378,7 @@ CSharedMemoryObject::AllocateSharedDataItems(
     if (0 != m_pot->GetSharedDataSize())
     {
         psmod->shmObjSharedData = malloc(m_pot->GetSharedDataSize());
-        if (SHMNULL == psmod->shmObjSharedData)
+        if (NULL == psmod->shmObjSharedData)
         {
             ERROR("Unable to allocate psmod->shmObjSharedData for new object\n");
             palError = ERROR_OUTOFMEMORY;
@@ -391,7 +391,7 @@ CSharedMemoryObject::AllocateSharedDataItems(
 
 AllocateSharedDataItemsExit:
 
-    if (NO_ERROR != palError && SHMNULL != shmod)
+    if (NO_ERROR != palError && NULL != shmod)
     {
         FreeSharedDataAreas(shmod);
     }
@@ -422,7 +422,7 @@ CSharedMemoryObject::FreeSharedDataAreas(
 {
     SHMObjData *psmod;
 
-    _ASSERTE(SHMNULL != shmObjData);
+    _ASSERTE(NULL != shmObjData);
 
     ENTRY("CSharedMemoryObject::FreeSharedDataAreas"
         "(shmObjData = %p)\n",
@@ -434,17 +434,17 @@ CSharedMemoryObject::FreeSharedDataAreas(
     psmod = SHMPTR_TO_TYPED_PTR(SHMObjData, shmObjData);
     _ASSERTE(NULL != psmod);
     
-    if (SHMNULL != psmod->shmObjImmutableData)
+    if (NULL != psmod->shmObjImmutableData)
     {
         free(psmod->shmObjImmutableData);
     }
 
-    if (SHMNULL != psmod->shmObjSharedData)
+    if (NULL != psmod->shmObjSharedData)
     {
         free(psmod->shmObjSharedData);
     }
 
-    if (SHMNULL != psmod->shmObjName)
+    if (NULL != psmod->shmObjName)
     {
         free(psmod->shmObjName);
     }
@@ -473,7 +473,7 @@ CSharedMemoryObject::PromoteSharedData(
     SHMObjData *psmod
     )
 {
-    _ASSERTE(SHMNULL != shmObjData);
+    _ASSERTE(NULL != shmObjData);
     _ASSERTE(NULL != psmod);
     
     ENTRY("CSharedMemoryObject::PromoteSharedData"
@@ -770,7 +770,7 @@ CSharedMemoryObject::DereferenceSharedData()
 
     if (!fSharedDataAlreadDereferenced)
     {   
-        if (SHMNULL != m_shmod)
+        if (NULL != m_shmod)
         {
             SHMObjData *psmod;
             
@@ -799,7 +799,7 @@ CSharedMemoryObject::DereferenceSharedData()
 
                     _ASSERTE(0 != psmod->dwNameLength);
 
-                    if (SHMNULL != psmod->shmPrevObj)
+                    if (NULL != psmod->shmPrevObj)
                     {
                         SHMObjData *psmodPrevious = SHMPTR_TO_TYPED_PTR(SHMObjData, psmod->shmPrevObj);
                         _ASSERTE(NULL != psmodPrevious);
@@ -819,7 +819,7 @@ CSharedMemoryObject::DereferenceSharedData()
                         }
                     }
 
-                    if (SHMNULL != psmod->shmNextObj)
+                    if (NULL != psmod->shmNextObj)
                     {
                         SHMObjData *psmodNext = SHMPTR_TO_TYPED_PTR(SHMObjData, psmod->shmNextObj);
                         _ASSERTE(NULL != psmodNext);
@@ -830,8 +830,8 @@ CSharedMemoryObject::DereferenceSharedData()
 #if _DEBUG                
                 else
                 {
-                    _ASSERTE(SHMNULL == psmod->shmPrevObj);
-                    _ASSERTE(SHMNULL == psmod->shmNextObj);
+                    _ASSERTE(NULL == psmod->shmPrevObj);
+                    _ASSERTE(NULL == psmod->shmNextObj);
                 }
 #endif                
             }
@@ -881,7 +881,7 @@ CSharedMemoryObject::~CSharedMemoryObject()
     {
         free(m_pvSharedData);
     }
-    else if (SHMNULL != m_shmod && m_fDeleteSharedData)
+    else if (NULL != m_shmod && m_fDeleteSharedData)
     {
         FreeSharedDataAreas(m_shmod);        
     }
@@ -1205,7 +1205,7 @@ CSharedMemoryWaitableObject::EnsureObjectIsShared(
 {
     PAL_ERROR palError = NO_ERROR;
     IDataLock *pDataLock = NULL;
-    SHMPTR shmObjData = SHMNULL;
+    SHMPTR shmObjData = NULL;
     SHMObjData *psmod;
     VOID *pvSharedSynchData;
 
@@ -1288,7 +1288,7 @@ EnsureObjectIsSharedExitNoSHMLockRelease:
 
     g_pSynchronizationManager->ReleaseProcessLock(pthr);
 
-    if (NO_ERROR != palError && SHMNULL != shmObjData)
+    if (NO_ERROR != palError && NULL != shmObjData)
     {
         //
         // Since shmObjdData is local to this function there's no

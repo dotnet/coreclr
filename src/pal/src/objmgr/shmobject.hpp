@@ -177,7 +177,7 @@ namespace CorUnix
             :
             CPalObjectBase(pot),
             m_pcsObjListLock(pcsObjListLock),
-            m_shmod(SHMNULL),
+            m_shmod(NULL),
             m_pvSharedData(NULL),
             m_ObjectDomain(ProcessLocalObject),
             m_fSharedDataDereferenced(FALSE),

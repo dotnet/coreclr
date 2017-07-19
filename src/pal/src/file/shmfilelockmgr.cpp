@@ -102,7 +102,7 @@ CSharedMemoryFileLockMgr::GetLockControllerForFile(
     )
 {
     PAL_ERROR palError = NO_ERROR;
-    SHMPTR shmFileLocks = SHMNULL;
+    SHMPTR shmFileLocks = NULL;
     SHMFILELOCKS* fileLocks = NULL;
     CSharedMemoryFileLockController *pController = NULL;
 
@@ -214,7 +214,7 @@ CSharedMemoryFileLockMgr::GetLockControllerForFile(
     // don't attempt to free it below.
     //
 
-    shmFileLocks = SHMNULL;
+    shmFileLocks = NULL;
 
     /* set the share mode again, it's possible that the share mode is now more
     restrictive than the previous mode set. */
@@ -247,7 +247,7 @@ GetLockControllerForFileExit:
             pController->ReleaseController();
         }
 
-        if (SHMNULL != shmFileLocks)
+        if (NULL != shmFileLocks)
         {
             FILECleanUpLockedRgn(
                 shmFileLocks,
@@ -269,13 +269,13 @@ CSharedMemoryFileLockMgr::GetFileShareModeForFile(
 {
     PAL_ERROR palError = NO_ERROR;
     *pdwShareMode = SHARE_MODE_NOT_INITALIZED;
-    SHMPTR shmFileLocks = SHMNULL;
+    SHMPTR shmFileLocks = NULL;
     SHMFILELOCKS* fileLocks = NULL;
 
     SHMLock();
 
     palError = FILEGetSHMFileLocks(szFileName, &shmFileLocks, TRUE);
-    if (NO_ERROR != palError || shmFileLocks == SHMNULL)
+    if (NO_ERROR != palError || shmFileLocks == NULL)
     {
         goto GetLockControllerForFileExit;
     }
@@ -291,7 +291,7 @@ CSharedMemoryFileLockMgr::GetFileShareModeForFile(
 
 GetLockControllerForFileExit:
 
-    if (SHMNULL != shmFileLocks)
+    if (NULL != shmFileLocks)
     {
       FILECleanUpLockedRgn(
                 shmFileLocks,
@@ -425,7 +425,7 @@ CSharedMemoryFileLockController::ReleaseFileLock(
 void
 CSharedMemoryFileLockController::ReleaseController()
 {
-    if (SHMNULL != m_shmFileLocks)
+    if (NULL != m_shmFileLocks)
     {
         FILECleanUpLockedRgn(
             m_shmFileLocks,
@@ -808,7 +808,7 @@ FILEAddNewLockedRgn(
 {
     PAL_ERROR palError = NO_ERROR;
     SHMFILELOCKRGNS *newLockRgn, *lockRgnPtr;
-    SHMPTR shmNewLockRgn = SHMNULL;
+    SHMPTR shmNewLockRgn = NULL;
 
     if ((fileLocks == NULL) || (pvControllerInstance == NULL))
     {
@@ -822,7 +822,7 @@ FILEAddNewLockedRgn(
     TRACE("Create a new entry for the new lock region (%I64u %I64u)\n", 
           lockRgnStart, nbBytesToLock);
     
-    if ((shmNewLockRgn = malloc(sizeof(SHMFILELOCKRGNS))) == SHMNULL)
+    if ((shmNewLockRgn = malloc(sizeof(SHMFILELOCKRGNS))) == NULL)
     {
         ERROR("Can't allocate SHMFILELOCKRGNS structure\n");
         palError = ERROR_NOT_ENOUGH_MEMORY;
@@ -897,7 +897,7 @@ FILEAddNewLockedRgn(
 
 EXIT:
 
-    if (NO_ERROR != palError && SHMNULL != shmNewLockRgn)
+    if (NO_ERROR != palError && NULL != shmNewLockRgn)
     {
         free(shmNewLockRgn);
     }
