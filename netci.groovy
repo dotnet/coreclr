@@ -1654,8 +1654,17 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                 case 'x64':
                 case 'x86':
                     if (architecture == 'x86' && os == 'Ubuntu') {
+                        // Unzip the Windows test binaries first
+                        buildCommands += "unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.x86.${configuration} || exit 0"
+
+                        // Unpack the corefx binaries
+                        buildCommands += "mkdir ./bin/CoreFxBinDir"
+                        buildCommands += "tar -xf ./bin/managed/bin/build.tar.gz -C ./bin/CoreFxBinDir"
+                        buildCommands += "tar -xf ./bin/native/bin/build.tar.gz -C ./bin/CoreFxBinDir"
+
                         // build and PAL test
                         buildCommands += "./tests/scripts/x86_ci_script.sh --buildConfig=${lowerConfiguration}"
+                        Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/**/.nuget/**")
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                         break;
                     }
@@ -2137,6 +2146,53 @@ combinedScenarios.each { scenario ->
 
                                     copyArtifacts("${corefxFolder}/${corefx_os}_${arm_abi}_cross_${corefx_lowerConfiguration}") {
                                         includePatterns('bin/build.tar.gz')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+                                }
+                                else if (architecture == 'x86' && os == 'Ubuntu') {
+                                    // Cross build for ubuntu-x86
+                                    // Define the Windows Tests and Corefx build job names
+                                    def WindowsTestsName = projectFolder + '/' +
+                                                          Utilities.getFullJobName(project,
+                                                                                   getJobName(lowerConfiguration,
+                                                                                              'x86' ,
+                                                                                              'windows_nt',
+                                                                                              'default',
+                                                                                              false),
+                                                                                   false)
+                                    def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' +
+                                                       Utilities.getFolderName(branch)
+
+                                    // Copy the Windows test binaries and the Corefx build binaries
+                                    copyArtifacts(WindowsTestsName) {
+                                        includePatterns('bin/tests/tests.zip')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+
+                                    // Let's use release CoreFX to test checked CoreCLR,
+                                    // because we do not generate checked CoreFX in CoreFX CI yet.
+                                    def corefx_lowerConfiguration = lowerConfiguration
+                                    if ( lowerConfiguration == 'checked' ) {
+                                        corefx_lowerConfiguration='release'
+                                    }
+
+                                    // CoreFX x86 native build
+                                    copyArtifacts("${corefxFolder}/ubuntu16.04_x86_${corefx_lowerConfiguration}") {
+                                        includePatterns('bin/build.tar.gz')
+                                        targetDirectory('bin/native')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+
+                                    // CoreFX arm managed build
+                                    copyArtifacts("${corefxFolder}/linux_arm_cross_${corefx_lowerConfiguration}") {
+                                        includePatterns('bin/build.tar.gz')
+                                        targetDirectory('bin/managed')
                                         buildSelector {
                                             latestSuccessful(true)
                                         }
