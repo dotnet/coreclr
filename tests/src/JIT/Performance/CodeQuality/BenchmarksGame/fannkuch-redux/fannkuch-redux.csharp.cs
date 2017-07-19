@@ -21,7 +21,6 @@ namespace BenchmarksGame
 {
     public class FannkuchRedux
     {
-        private const int Iterations = 1;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static int[] Bench(int n, bool verbose = false)
@@ -77,19 +76,26 @@ namespace BenchmarksGame
             } while (true);
         }
 
+        // Commented out data left in source to provide checksums for each case
+        // Checksums calculated from the origonal source referenced at top of this source
+
         [Benchmark]
-        [InlineData(10)]
-        public static void Test(int n)
+        //[InlineData(7, 228)]
+        //[InlineData(8, 1616)]
+        //[InlineData(9, 8629)]
+        [InlineData(10, 73196)]
+        //[InlineData(11, 556355)]
+        //[InlineData(12, 3968050)]
+        public static void Test(int n, int checksum)
         {
             foreach (var iteration in Benchmark.Iterations)
             {
+                int[] pfannkuchen = null;
                 using (iteration.StartMeasurement())
                 {
-                    for (int i = 0; i < Iterations; i++)
-                    {
-                        Bench(n);
-                    }
+                    pfannkuchen = Bench(n);
                 }
+                Assert.Equal(checksum, pfannkuchen[0]);
             }
         }
 
