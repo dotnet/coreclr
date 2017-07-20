@@ -34,6 +34,37 @@
 #define MON_DEBUG 1
 #endif
 
+class JIT_TrialAlloc
+{
+public:
+    enum Flags
+    {
+        NORMAL       = 0x0,
+        MP_ALLOCATOR = 0x1,
+        SIZE_IN_EAX  = 0x2,
+        OBJ_ARRAY    = 0x4,
+        ALIGN8       = 0x8,     // insert a dummy object to insure 8 byte alignment (until the next GC)
+        ALIGN8OBJ    = 0x10,
+        NO_FRAME     = 0x20,    // call is from unmanaged code - don't try to put up a frame
+    };
+
+    static void *GenAllocSFast(Flags flags);
+    static void *GenBox(Flags flags);
+    static void *GenAllocArray(Flags flags);
+    static void *GenAllocString(Flags flags);
+
+private:
+    static void EmitAlignmentRoundup(CPUSTUBLINKER *psl,X86Reg regTestAlign, X86Reg regToAdj, Flags flags);
+    static void EmitDummyObject(CPUSTUBLINKER *psl, X86Reg regTestAlign, Flags flags);
+    static void EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *noAlloc, Flags flags);
+    static void EmitNoAllocCode(CPUSTUBLINKER *psl, Flags flags);
+
+#if CHECK_APP_DOMAIN_LEAKS
+    static void EmitSetAppDomain(CPUSTUBLINKER *psl);
+    static void EmitCheckRestore(CPUSTUBLINKER *psl);
+#endif
+};
+
 extern "C" LONG g_global_alloc_lock;
 
 extern "C" void STDCALL JIT_WriteBarrierReg_PreGrow();// JIThelp.asm/JIThelp.s
@@ -892,6 +923,11 @@ HCIMPL2_RAW(Object*, UnframedAllocatePrimitiveArray, CorElementType type, DWORD 
 }
 HCIMPLEND_RAW
 
+HCIMPL1_RAW(PTR_MethodTable, UnframedGetTemplateMethodTable, ArrayTypeDesc *arrayDesc)
+{
+    return arrayDesc->GetTemplateMethodTable();
+}
+HCIMPLEND_RAW
 
 void *JIT_TrialAlloc::GenAllocArray(Flags flags)
 {
@@ -931,25 +967,13 @@ void *JIT_TrialAlloc::GenAllocArray(Flags flags)
 
             // je noLock
             sl.X86EmitCondJump(noLock, X86CondCode::kJZ);
+
+            sl.X86EmitPushReg(kEDX);
+            sl.X86EmitCall(sl.NewExternalCodeLabel((LPVOID)UnframedGetTemplateMethodTable), 0);
+            sl.X86EmitPopReg(kEDX);
+
+            sl.X86EmitMovRegReg(kECX, kEAX);
         }
-    }
-    else
-    {
-#ifdef FEATURE_PREJIT
-        CodeLabel *indir = sl.NewCodeLabel();
-
-        // test cl,1
-        sl.Emit16(0xC1F6);
-        sl.Emit8(0x01);
-
-        // je indir
-        sl.X86EmitCondJump(indir, X86CondCode::kJZ);
-
-        // mov ecx, [ecx-1]
-        sl.X86EmitIndexRegLoad(kECX, kECX, -1);
-
-        sl.EmitLabel(indir);
-#endif
     }
 
     // Do a conservative check here.  This is to avoid doing overflow checks within this function.  We'll

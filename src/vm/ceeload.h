@@ -1723,7 +1723,6 @@ private:
 
     PTR_ProfilingBlobTable  m_pProfilingBlobTable;   // While performing IBC instrumenting this hashtable is populated with the External defs
     CorProfileData *        m_pProfileData;          // While ngen-ing with IBC optimizations this contains a link to the IBC data for the assembly
-    SString *               m_pIBCErrorNameString;   // Used when reporting IBC type loading errors
 
     // Profile information
     BOOL                            m_nativeImageProfiling;
@@ -2901,8 +2900,7 @@ public:
     static void RestoreMethodDescPointer(RelativeFixupPointer<PTR_MethodDesc> * ppMD,
                                          Module *pContainingModule = NULL,
                                          ClassLoadLevel level = CLASS_LOADED);
-
-    static void RestoreFieldDescPointer(FixupPointer<PTR_FieldDesc> * ppFD);
+    static void RestoreFieldDescPointer(RelativeFixupPointer<PTR_FieldDesc> * ppFD);
 
     static void RestoreModulePointer(RelativeFixupPointer<PTR_Module> * ppModule, Module *pContainingModule);
 
@@ -2938,19 +2936,11 @@ public:
     void SetProfileData(CorProfileData * profileData);
     CorProfileData *GetProfileData();
 
-
     mdTypeDef     LookupIbcTypeToken(  Module *   pExternalModule, mdToken ibcToken, SString* optionalFullNameOut = NULL);
     mdMethodDef   LookupIbcMethodToken(TypeHandle enclosingType,   mdToken ibcToken, SString* optionalFullNameOut = NULL);
 
-    SString *     IBCErrorNameString();
-
-    void          IBCTypeLoadFailed(  CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry, 
-                                      SString& exceptionMessage, SString* typeNameError);
-    void          IBCMethodLoadFailed(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry, 
-                                      SString& exceptionMessage, SString* typeNameError);
-
-    TypeHandle    LoadIBCTypeHelper(  CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
-    MethodDesc *  LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
+    TypeHandle    LoadIBCTypeHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
+    MethodDesc *  LoadIBCMethodHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
  
 
     void ExpandAll(DataImage *image);

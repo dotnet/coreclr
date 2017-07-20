@@ -85,7 +85,7 @@ CrashInfo::EnumMemoryRegion(
     /* [in] */ CLRDATA_ADDRESS address,
     /* [in] */ ULONG32 size)
 {
-    InsertMemoryRegion(address, size);
+    InsertMemoryRegion((ULONG_PTR)address, size);
     return S_OK;
 }
 
@@ -274,7 +274,7 @@ CrashInfo::GetAuxvEntries()
         if (auxvEntry.a_type < AT_MAX) 
         {
             m_auxvValues[auxvEntry.a_type] = auxvEntry.a_un.a_val;
-            TRACE("AUXV: %lu = %016lx\n", auxvEntry.a_type, auxvEntry.a_un.a_val);
+            TRACE("AUXV: %" PRIu " = %" PRIxA "\n", auxvEntry.a_type, auxvEntry.a_un.a_val);
             result = true;
         }
     }
@@ -334,7 +334,7 @@ CrashInfo::EnumerateModuleMappings()
         char* permissions = nullptr;
         char* moduleName = nullptr;
 
-        int c = sscanf(line, "%lx-%lx %m[-rwxsp] %lx %*[:0-9a-f] %*d %ms\n", &start, &end, &permissions, &offset, &moduleName);
+        int c = sscanf(line, "%" PRIx64 "-%" PRIx64 " %m[-rwxsp] %" PRIx64 " %*[:0-9a-f] %*d %ms\n", &start, &end, &permissions, &offset, &moduleName);
         if (c == 4 || c == 5)
         {
             // r = read
@@ -416,10 +416,10 @@ CrashInfo::GetDSOInfo()
     {
         Phdr ph;
         if (!ReadMemory(phdrAddr, &ph, sizeof(ph))) {
-            fprintf(stderr, "ReadMemory(%p, %lx) phdr FAILED\n", phdrAddr, sizeof(ph));
+            fprintf(stderr, "ReadMemory(%p, %" PRIx ") phdr FAILED\n", phdrAddr, sizeof(ph));
             return false;
         }
-        TRACE("DSO: phdr %p type %d (%x) vaddr %016lx memsz %016lx offset %016lx\n", 
+        TRACE("DSO: phdr %p type %d (%x) vaddr %" PRIxA " memsz %" PRIxA " offset %" PRIxA "\n",
             phdrAddr, ph.p_type, ph.p_type, ph.p_vaddr, ph.p_memsz, ph.p_offset);
 
         if (ph.p_type == PT_DYNAMIC) 
@@ -444,10 +444,10 @@ CrashInfo::GetDSOInfo()
     for (;;) {
         ElfW(Dyn) dyn;
         if (!ReadMemory(dynamicAddr, &dyn, sizeof(dyn))) {
-            fprintf(stderr, "ReadMemory(%p, %lx) dyn FAILED\n", dynamicAddr, sizeof(dyn));
+            fprintf(stderr, "ReadMemory(%p, %" PRIx ") dyn FAILED\n", dynamicAddr, sizeof(dyn));
             return false;
         }
-        TRACE("DSO: dyn %p tag %ld (%lx) d_ptr %016lx\n", dynamicAddr, dyn.d_tag, dyn.d_tag, dyn.d_un.d_ptr);
+        TRACE("DSO: dyn %p tag %" PRId " (%" PRIx ") d_ptr %" PRIxA "\n", dynamicAddr, dyn.d_tag, dyn.d_tag, dyn.d_un.d_ptr);
         if (dyn.d_tag == DT_DEBUG) {
             rdebugAddr = reinterpret_cast<struct r_debug*>(dyn.d_un.d_ptr);
         }
@@ -461,7 +461,7 @@ CrashInfo::GetDSOInfo()
     TRACE("DSO: rdebugAddr %p\n", rdebugAddr);
     struct r_debug debugEntry;
     if (!ReadMemory(rdebugAddr, &debugEntry, sizeof(debugEntry))) {
-        fprintf(stderr, "ReadMemory(%p, %lx) r_debug FAILED\n", rdebugAddr, sizeof(debugEntry));
+        fprintf(stderr, "ReadMemory(%p, %" PRIx ") r_debug FAILED\n", rdebugAddr, sizeof(debugEntry));
         return false;
     }
 
@@ -470,7 +470,7 @@ CrashInfo::GetDSOInfo()
     for (struct link_map* linkMapAddr = debugEntry.r_map; linkMapAddr != nullptr;) {
         struct link_map map;
         if (!ReadMemory(linkMapAddr, &map, sizeof(map))) {
-            fprintf(stderr, "ReadMemory(%p, %lx) link_map FAILED\n", linkMapAddr, sizeof(map));
+            fprintf(stderr, "ReadMemory(%p, %" PRIx ") link_map FAILED\n", linkMapAddr, sizeof(map));
             return false;
         }
         // Read the module's name and make sure the memory is added to the core dump
@@ -488,7 +488,7 @@ CrashInfo::GetDSOInfo()
             }
         }
         moduleName[i] = '\0';
-        TRACE("\nDSO: link_map entry %p l_ld %p l_addr (Ehdr) %lx %s\n", linkMapAddr, map.l_ld, map.l_addr, (char*)moduleName);
+        TRACE("\nDSO: link_map entry %p l_ld %p l_addr (Ehdr) %" PRIx " %s\n", linkMapAddr, map.l_ld, map.l_addr, (char*)moduleName);
 
         // Read the ELF header and info adding it to the core dump
         if (!GetELFInfo(map.l_addr)) {
@@ -498,12 +498,6 @@ CrashInfo::GetDSOInfo()
     }
 
     return true;
-}
-
-inline bool
-NameCompare(const char* name, const char* sectionName)
-{
-    return strncmp(name, sectionName, strlen(sectionName) + 1) == 0;
 }
 
 //
@@ -517,21 +511,21 @@ CrashInfo::GetELFInfo(uint64_t baseAddress)
     }
     Ehdr ehdr;
     if (!ReadMemory((void*)baseAddress, &ehdr, sizeof(ehdr))) {
-        fprintf(stderr, "ReadMemory(%p, %lx) ehdr FAILED\n", (void*)baseAddress, sizeof(ehdr));
+        fprintf(stderr, "ReadMemory(%p, %" PRIx ") ehdr FAILED\n", (void*)baseAddress, sizeof(ehdr));
         return false;
     }
     int phnum = ehdr.e_phnum;
-    int shnum = ehdr.e_shnum;
     assert(phnum != PN_XNUM);
-    assert(shnum != SHN_XINDEX);
-    assert(ehdr.e_shstrndx != SHN_XINDEX);
     assert(ehdr.e_phentsize == sizeof(Phdr));
-    assert(ehdr.e_shentsize == sizeof(Shdr));
+#ifdef BIT64
     assert(ehdr.e_ident[EI_CLASS] == ELFCLASS64);
+#else
+    assert(ehdr.e_ident[EI_CLASS] == ELFCLASS32);
+#endif
     assert(ehdr.e_ident[EI_DATA] == ELFDATA2LSB);
 
-    TRACE("ELF: type %d mach 0x%x ver %d flags 0x%x phnum %d phoff %016lx phentsize 0x%02x shnum %d shoff %016lx shentsize 0x%02x shstrndx %d\n",
-        ehdr.e_type, ehdr.e_machine, ehdr.e_version, ehdr.e_flags, phnum, ehdr.e_phoff, ehdr.e_phentsize, shnum, ehdr.e_shoff, ehdr.e_shentsize, ehdr.e_shstrndx);
+    TRACE("ELF: type %d mach 0x%x ver %d flags 0x%x phnum %d phoff %" PRIxA " phentsize 0x%02x shnum %d shoff %" PRIxA " shentsize 0x%02x shstrndx %d\n",
+        ehdr.e_type, ehdr.e_machine, ehdr.e_version, ehdr.e_flags, phnum, ehdr.e_phoff, ehdr.e_phentsize, ehdr.e_shnum, ehdr.e_shoff, ehdr.e_shentsize, ehdr.e_shstrndx);
 
     if (ehdr.e_phoff != 0 && phnum > 0)
     {
@@ -542,10 +536,10 @@ CrashInfo::GetELFInfo(uint64_t baseAddress)
         {
             Phdr ph;
             if (!ReadMemory(phdrAddr, &ph, sizeof(ph))) {
-                fprintf(stderr, "ReadMemory(%p, %lx) phdr FAILED\n", phdrAddr, sizeof(ph));
+                fprintf(stderr, "ReadMemory(%p, %" PRIx ") phdr FAILED\n", phdrAddr, sizeof(ph));
                 return false;
             }
-            TRACE("ELF: phdr %p type %d (%x) vaddr %016lx memsz %016lx paddr %016lx filesz %016lx offset %016lx align %016lx\n",
+            TRACE("ELF: phdr %p type %d (%x) vaddr %" PRIxA " memsz %" PRIxA " paddr %" PRIxA " filesz %" PRIxA " offset %" PRIxA " align %" PRIxA "\n",
                 phdrAddr, ph.p_type, ph.p_type, ph.p_vaddr, ph.p_memsz, ph.p_paddr, ph.p_filesz, ph.p_offset, ph.p_align);
 
             if (ph.p_type == PT_DYNAMIC || ph.p_type == PT_NOTE || ph.p_type == PT_GNU_EH_FRAME)
@@ -553,52 +547,6 @@ CrashInfo::GetELFInfo(uint64_t baseAddress)
                 if (ph.p_vaddr != 0 && ph.p_memsz != 0)
                 {
                     InsertMemoryRegion(baseAddress + ph.p_vaddr, ph.p_memsz);
-                }
-            }
-        }
-    }
-
-    // Skip the "interpreter" module i.e. /lib64/ld-linux-x86-64.so.2 or ld-2.19.so. The in-memory section headers are 
-    // not valid. Ignore all failures too because on debug builds of coreclr, the section headers are not in valid memory.
-    if (baseAddress != m_auxvValues[AT_BASE] && ehdr.e_shoff != 0 && shnum > 0 && ehdr.e_shstrndx != SHN_UNDEF)
-    {
-        Shdr* shdrAddr = reinterpret_cast<Shdr*>(baseAddress + ehdr.e_shoff);
-
-        // Get the string table section header
-        Shdr stringTableSectionHeader;
-        if (!ReadMemory(shdrAddr + ehdr.e_shstrndx, &stringTableSectionHeader, sizeof(stringTableSectionHeader))) {
-            TRACE("ELF: %2d shdr %p ReadMemory string table section header FAILED\n", ehdr.e_shstrndx, shdrAddr + ehdr.e_shstrndx);
-            return true;
-        }
-        // Get the string table
-        ArrayHolder<char> stringTable = new char[stringTableSectionHeader.sh_size];
-        if (!ReadMemory((void*)(baseAddress + stringTableSectionHeader.sh_offset), stringTable.GetPtr(), stringTableSectionHeader.sh_size)) {
-            TRACE("ELF: %2d shdr %p ReadMemory string table FAILED\n", ehdr.e_shstrndx, (void*)(baseAddress + stringTableSectionHeader.sh_offset));
-            return true;
-        }
-        // Add the section headers to the core dump
-        for (int sectionIndex = 0; sectionIndex < shnum; sectionIndex++, shdrAddr++)
-        {
-            Shdr sh;
-            if (!ReadMemory(shdrAddr, &sh, sizeof(sh))) {
-                TRACE("ELF: %2d shdr %p ReadMemory FAILED\n", sectionIndex, shdrAddr);
-                return true;
-            }
-            TRACE("ELF: %2d shdr %p type %2d (%x) addr %016lx offset %016lx size %016lx link %08x info %08x name %4d %s\n",
-                sectionIndex, shdrAddr, sh.sh_type, sh.sh_type, sh.sh_addr, sh.sh_offset, sh.sh_size, sh.sh_link, sh.sh_info, sh.sh_name, &stringTable[sh.sh_name]);
-
-            if (sh.sh_name != SHN_UNDEF && sh.sh_offset > 0 && sh.sh_size > 0) {
-                char* name = &stringTable[sh.sh_name];
-
-                // Add the .eh_frame/.eh_frame_hdr unwind info to the core dump
-                if (NameCompare(name, ".eh_frame") ||
-                    NameCompare(name, ".eh_frame_hdr") ||
-                    NameCompare(name, ".note.gnu.build-id") ||
-                    NameCompare(name, ".note.gnu.ABI-tag") ||
-                    NameCompare(name, ".gnu_debuglink"))
-                {
-                    TRACE("ELF: %s %p size %016lx\n", name, (void*)(baseAddress + sh.sh_offset), sh.sh_size);
-                    InsertMemoryRegion(baseAddress + sh.sh_offset, sh.sh_size);
                 }
             }
         }
@@ -702,7 +650,7 @@ CrashInfo::EnumerateManagedModules(IXCLRDataProcess* clrDataProcess)
         DacpGetModuleData moduleData;
         if (SUCCEEDED(hr = moduleData.Request(clrDataModule)))
         {
-            TRACE("MODULE: %016lx dyn %d inmem %d file %d pe %016lx pdb %016lx", moduleData.LoadedPEAddress, moduleData.IsDynamic, 
+            TRACE("MODULE: %" PRIA PRIx64 " dyn %d inmem %d file %d pe %" PRIA PRIx64 " pdb %" PRIA PRIx64, moduleData.LoadedPEAddress, moduleData.IsDynamic, 
                 moduleData.IsInMemory, moduleData.IsFileLayout, moduleData.PEFile, moduleData.InMemoryPdbAddress);
 
             if (!moduleData.IsDynamic && moduleData.LoadedPEAddress != 0)
@@ -750,7 +698,7 @@ CrashInfo::ReplaceModuleMapping(CLRDATA_ADDRESS baseAddress, const char* pszName
 {
     // Add or change the module mapping for this PE image. The managed assembly images are
     // already in the module mappings list but in .NET 2.0 they have the name "/dev/zero".
-    MemoryRegion region(PF_R | PF_W | PF_X, baseAddress, baseAddress + PAGE_SIZE, 0, pszName);
+    MemoryRegion region(PF_R | PF_W | PF_X, (ULONG_PTR)baseAddress, (ULONG_PTR)(baseAddress + PAGE_SIZE), 0, pszName);
     const auto& found = m_moduleMappings.find(region);
     if (found == m_moduleMappings.end())
     {
@@ -854,7 +802,7 @@ CrashInfo::InsertMemoryRegion(const MemoryRegion& region)
 
     // The region overlaps/conflicts with one already in the set so add one page at a 
     // time to avoid the overlapping pages.
-    uint64_t numberPages = region.Size() >> PAGE_SHIFT;
+    uint64_t numberPages = region.Size() / PAGE_SIZE;
 
     for (int p = 0; p < numberPages; p++, start += PAGE_SIZE)
     {
@@ -901,8 +849,8 @@ CrashInfo::ValidRegion(const MemoryRegion& region)
     if (region.IsBackedByMemory())
     {
         uint64_t start = region.StartAddress();
-        uint64_t numberPages = region.Size() >> PAGE_SHIFT;
 
+        uint64_t numberPages = region.Size() / PAGE_SIZE;
         for (int p = 0; p < numberPages; p++, start += PAGE_SIZE)
         {
             BYTE buffer[1];
@@ -1012,11 +960,11 @@ CrashInfo::GetStatus(pid_t pid, pid_t* ppid, pid_t* tgid, char** name)
     {
         if (strncmp("PPid:\t", line, 6) == 0)
         {
-            *ppid = _atoi64(line + 6);
+            *ppid = atoll(line + 6);
         }
         else if (strncmp("Tgid:\t", line, 6) == 0)
         {
-            *tgid = _atoi64(line + 6);
+            *tgid = atoll(line + 6);
         }
         else if (strncmp("Name:\t", line, 6) == 0)
         {
