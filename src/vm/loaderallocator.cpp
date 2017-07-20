@@ -1006,7 +1006,8 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
                                                                       LOADERHEAP_PROFILE_COUNTER,
                                                                       NULL,
                                                                       TRUE /* Make heap executable */,
-                                                                      FALSE /* Do NOT zero-initialize */);
+                                                                      FALSE /* Disable zero-initialization (needed by UMEntryThunkCode::Poison) */
+                                                                      );
         initReservedMem += dwExecutableHeapReserveSize;
     }
 
