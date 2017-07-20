@@ -14,6 +14,9 @@
 #if !defined(_TARGET_64BIT_)
 #include "decomposelongs.h"
 #endif
+#ifndef LEGACY_BACKEND
+#include "lower.h" // for LowerRange()
+#endif
 
 /*****************************************************************************
  *
@@ -38,7 +41,7 @@ void Compiler::fgMarkUseDef(GenTreeLclVarCommon* tree)
     }
 
     const bool isDef = (tree->gtFlags & GTF_VAR_DEF) != 0;
-    const bool isUse = !isDef || ((tree->gtFlags & (GTF_VAR_USEASG | GTF_VAR_USEDEF)) != 0);
+    const bool isUse = !isDef || ((tree->gtFlags & GTF_VAR_USEASG) != 0);
 
     if (varDsc->lvTracked)
     {
@@ -422,11 +425,8 @@ void Compiler::fgPerBlockLocalVarLiveness()
 
     BasicBlock* block;
 
-#if CAN_DISABLE_DFA
-
-    /* If we're not optimizing at all, things are simple */
-
-    if (opts.MinOpts())
+    // If we don't require accurate local var lifetimes, things are simple.
+    if (!backendRequiresLocalVarLifetimes())
     {
         unsigned   lclNum;
         LclVarDsc* varDsc;
@@ -451,7 +451,6 @@ void Compiler::fgPerBlockLocalVarLiveness()
             VarSetOps::Assign(this, block->bbVarUse, liveAll);
             VarSetOps::Assign(this, block->bbVarDef, liveAll);
             VarSetOps::Assign(this, block->bbLiveIn, liveAll);
-            VarSetOps::Assign(this, block->bbLiveOut, liveAll);
             block->bbMemoryUse     = fullMemoryKindSet;
             block->bbMemoryDef     = fullMemoryKindSet;
             block->bbMemoryLiveIn  = fullMemoryKindSet;
@@ -465,6 +464,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
                     VarSetOps::AssignNoCopy(this, block->bbLiveOut, VarSetOps::MakeEmpty(this));
                     break;
                 default:
+                    VarSetOps::Assign(this, block->bbLiveOut, liveAll);
                     break;
             }
         }
@@ -475,8 +475,6 @@ void Compiler::fgPerBlockLocalVarLiveness()
 
         return;
     }
-
-#endif // CAN_DISABLE_DFA
 
     // Avoid allocations in the long case.
     VarSetOps::AssignNoCopy(this, fgCurUseSet, VarSetOps::MakeEmpty(this));
@@ -985,7 +983,8 @@ void Compiler::fgExtendDbgLifetimes()
         /* Add statements initializing the vars, if there are any to initialize */
         unsigned blockWeight = block->getBBWeight(this);
 
-        VARSET_ITER_INIT(this, iter, initVars, varIndex);
+        VarSetOps::Iter iter(this, initVars);
+        unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
             /* Create initialization tree */
@@ -1028,9 +1027,12 @@ void Compiler::fgExtendDbgLifetimes()
                     LIR::Range initRange = LIR::EmptyRange();
                     initRange.InsertBefore(nullptr, zero, store);
 
-#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
+#ifndef LEGACY_BACKEND
+#if !defined(_TARGET_64BIT_)
                     DecomposeLongs::DecomposeRange(this, blockWeight, initRange);
-#endif // !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
+#endif // !defined(_TARGET_64BIT_)
+                    m_pLowering->LowerRange(std::move(initRange));
+#endif // !LEGACY_BACKEND
 
                     // Naively inserting the initializer at the end of the block may add code after the block's
                     // terminator, in which case the inserted code will never be executed (and the IR for the
@@ -1323,6 +1325,11 @@ public:
 
 void Compiler::fgLiveVarAnalysis(bool updateInternalOnly)
 {
+    if (!backendRequiresLocalVarLifetimes())
+    {
+        return;
+    }
+
     LiveVarAnalysis::Run(this, updateInternalOnly);
 
 #ifdef DEBUG
@@ -1334,21 +1341,29 @@ void Compiler::fgLiveVarAnalysis(bool updateInternalOnly)
 #endif // DEBUG
 }
 
-/*****************************************************************************
- *
- *  Mark any variables in varSet1 as interfering with any variables
- *  specified in varSet2.
- *  We ensure that the interference graph is reflective:
- *  (if T11 interferes with T16, then T16 interferes with T11)
- *  returns true if an interference was added
- *  This function returns true if any new interferences were added
- *  and returns false if no new interference were added
- */
+//------------------------------------------------------------------------
+// Compiler::fgMarkIntf:
+//    Mark any variables in varSet1 as interfering with any variables
+//    specified in varSet2.
+//
+//    We ensure that the interference graph is reflective: if T_x
+//    interferes with T_y, then T_y interferes with T_x.
+//
+//    Note that this function is a no-op when targeting the RyuJIT
+//    backend, as it does not require the interference graph.
+//
+// Arguments:
+//    varSet1 - The first set of variables.
+//    varSet2 - The second set of variables.
+//
+// Returns:
+//    True if any new interferences were recorded; false otherwise.
+//
 bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet1, VARSET_VALARG_TP varSet2)
 {
 #ifdef LEGACY_BACKEND
     /* If either set has no bits set (or we are not optimizing), take an early out */
-    if (VarSetOps::IsEmpty(this, varSet2) || VarSetOps::IsEmpty(this, varSet1) || opts.MinOpts())
+    if (opts.MinOpts() || VarSetOps::IsEmpty(this, varSet2) || VarSetOps::IsEmpty(this, varSet1))
     {
         return false;
     }
@@ -1358,7 +1373,8 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet1, VARSET_VALARG_TP varSet2)
     VarSetOps::Assign(this, fgMarkIntfUnionVS, varSet1);
     VarSetOps::UnionD(this, fgMarkIntfUnionVS, varSet2);
 
-    VARSET_ITER_INIT(this, iter, fgMarkIntfUnionVS, refIndex);
+    VarSetOps::Iter iter(this, fgMarkIntfUnionVS);
+    unsigned        refIndex = 0;
     while (iter.NextElem(&refIndex))
     {
         // if varSet1 has this bit set then it interferes with varSet2
@@ -1392,6 +1408,72 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet1, VARSET_VALARG_TP varSet2)
 #endif
 }
 
+//------------------------------------------------------------------------
+// Compiler::fgMarkIntf:
+//    Mark any variables in varSet1 as interfering with the variable
+//    specified by varIndex.
+//
+//    We ensure that the interference graph is reflective: if T_x
+//    interferes with T_y, then T_y interferes with T_x.
+//
+//    Note that this function is a no-op when targeting the RyuJIT
+//    backend, as it does not require the interference graph.
+//
+// Arguments:
+//    varSet1  - The first set of variables.
+//    varIndex - The second variable.
+//
+// Returns:
+//    True if any new interferences were recorded; false otherwise.
+//
+bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet, unsigned varIndex)
+{
+#ifdef LEGACY_BACKEND
+    // If the input set has no bits set (or we are not optimizing), take an early out
+    if (opts.MinOpts() || VarSetOps::IsEmpty(this, varSet))
+    {
+        return false;
+    }
+
+    bool addedIntf = false; // This is set to true if we add any new interferences
+
+    VarSetOps::Assign(this, fgMarkIntfUnionVS, varSet);
+    VarSetOps::AddElemD(this, fgMarkIntfUnionVS, varIndex);
+
+    VarSetOps::Iter iter(this, fgMarkIntfUnionVS);
+    unsigned        refIndex = 0;
+    while (iter.NextElem(&refIndex))
+    {
+        // if varSet has this bit set then it interferes with varIndex
+        if (VarSetOps::IsMember(this, varSet, refIndex))
+        {
+            // Calculate the set of new interference to add
+            if (!VarSetOps::IsMember(this, lvaVarIntf[refIndex], varIndex))
+            {
+                addedIntf = true;
+                VarSetOps::AddElemD(this, lvaVarIntf[refIndex], varIndex);
+            }
+        }
+
+        // if this bit is the same as varIndex then it interferes with varSet1
+        if (refIndex == varIndex)
+        {
+            // Calculate the set of new interference to add
+            VARSET_TP newIntf(VarSetOps::Diff(this, varSet, lvaVarIntf[refIndex]));
+            if (!VarSetOps::IsEmpty(this, newIntf))
+            {
+                addedIntf = true;
+                VarSetOps::UnionD(this, lvaVarIntf[refIndex], newIntf);
+            }
+        }
+    }
+
+    return addedIntf;
+#else
+    return false;
+#endif
+}
+
 /*****************************************************************************
  *
  *  Mark any variables in varSet as interfering with each other,
@@ -1411,7 +1493,8 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet)
 
     bool addedIntf = false; // This is set to true if we add any new interferences
 
-    VARSET_ITER_INIT(this, iter, varSet, refIndex);
+    VarSetOps::Iter iter(this, varSet);
+    unsigned        refIndex = 0;
     while (iter.NextElem(&refIndex))
     {
         // Calculate the set of new interference to add
@@ -1512,13 +1595,10 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
 
             if (frameVarDsc->lvTracked)
             {
-                VARSET_TP varBit(VarSetOps::MakeSingleton(this, frameVarDsc->lvVarIndex));
-
                 VarSetOps::AddElemD(this, life, frameVarDsc->lvVarIndex);
 
-                /* Record interference with other live variables */
-
-                fgMarkIntf(life, varBit);
+                // Record interference with other live variables
+                fgMarkIntf(life, frameVarDsc->lvVarIndex);
             }
         }
     }
@@ -1563,19 +1643,18 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
                 }
 
                 // Record an interference with the other live variables
-                //
-                VARSET_TP varBit(VarSetOps::MakeSingleton(this, varIndex));
-                fgMarkIntf(life, varBit);
+                fgMarkIntf(life, varIndex);
             }
         }
 
+#ifdef LEGACY_BACKEND
         /* Do we have any live variables? */
-
         if (!VarSetOps::IsEmpty(this, life))
         {
-            // For each live variable if it is a GC-ref type, we
-            // mark it volatile to prevent if from being enregistered
+            // For each live variable if it is a GC-ref type, mark it volatile to prevent if from being enregistered
             // across the unmanaged call.
+            //
+            // Note that this is not necessary when targeting the RyuJIT backend, as its RA handles these kills itself.
 
             unsigned   lclNum;
             LclVarDsc* varDsc;
@@ -1604,6 +1683,7 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
                 }
             }
         }
+#endif // LEGACY_BACKEND
     }
 }
 
@@ -1726,7 +1806,7 @@ bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVar
                 printf("Ref V%02u,T%02u] at ", lclNum, varIndex);
                 printTreeID(node);
                 printf(" life %s -> %s\n", VarSetOps::ToString(this, life),
-                       VarSetOps::ToString(this, VarSetOps::Union(this, life, varBit)));
+                       VarSetOps::ToString(this, VarSetOps::AddElem(this, life, varIndex)));
             }
 #endif // DEBUG
 
@@ -1736,7 +1816,7 @@ bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVar
             VarSetOps::AddElemD(this, life, varIndex);
 
             // Record interference with other live variables
-            fgMarkIntf(life, VarSetOps::MakeSingleton(this, varIndex));
+            fgMarkIntf(life, varIndex);
         }
     }
     // Note that promoted implies not tracked (i.e. only the fields are tracked).
@@ -2278,10 +2358,10 @@ bool Compiler::fgTryRemoveDeadLIRStore(LIR::Range& blockRange, GenTree* node, Ge
         // If the range of the operands contains unrelated code or if it contains any side effects,
         // do not remove it. Instead, just remove the store.
 
-        for (GenTree* operand : node->Operands())
-        {
-            operand->gtLIRFlags |= LIR::Flags::IsUnusedValue;
-        }
+        store->VisitOperands([](GenTree* operand) -> GenTree::VisitResult {
+            operand->SetUnusedValue();
+            return GenTree::VisitResult::Continue;
+        });
 
         *next = node->gtPrev;
     }
@@ -2770,6 +2850,13 @@ void Compiler::fgInterBlockLocalVarLiveness()
     if (opts.compDbgCode && (info.compVarScopesCount > 0))
     {
         fgExtendDbgLifetimes();
+    }
+
+    // Nothing more to be done if the backend does not require accurate local var lifetimes.
+    if (!backendRequiresLocalVarLifetimes())
+    {
+        fgLocalVarLivenessDone = true;
+        return;
     }
 
     /*-------------------------------------------------------------------------

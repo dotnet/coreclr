@@ -13,8 +13,8 @@
   
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>b863ff9ff68746068091a38f9d952de848b14d32</CoreFxCurrentRef>
-    <CoreClrCurrentRef>b863ff9ff68746068091a38f9d952de848b14d32</CoreClrCurrentRef>
+    <CoreFxCurrentRef>8c5e29c80651aff43c981375d9ae935d96f9d637</CoreFxCurrentRef>
+    <CoreClrCurrentRef>8c5e29c80651aff43c981375d9ae935d96f9d637</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
@@ -30,6 +30,7 @@
     <XUnitConsoleNetCoreVersion>1.0.2-prerelease-00177</XUnitConsoleNetCoreVersion>
     <XUnitPerformanceApiVersion>1.0.0-beta-build0007</XUnitPerformanceApiVersion>
     <MicrosoftDiagnosticsTracingLibraryVersion>1.0.3-alpha-experimental</MicrosoftDiagnosticsTracingLibraryVersion>
+    <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->

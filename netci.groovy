@@ -143,7 +143,7 @@ class Constants {
     def static configurationList = ['Debug', 'Checked', 'Release']
 
     // This is the set of architectures
-    def static architectureList = ['arm', 'arm64', 'x64', 'x86']
+    def static architectureList = ['arm', 'arm64', 'x64', 'x86', 'x86lb']
 }
 
 def static setMachineAffinity(def job, def os, def architecture, def options = null) {
@@ -157,7 +157,9 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         Utilities.setMachineAffinity(job, os, 'arm64-cross-latest');
     } else if ((architecture == 'arm') && (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen')) {
         Utilities.setMachineAffinity(job, 'Ubuntu', 'arm-cross-latest');
-    } else {
+    } else if ((architecture == 'arm') && (os == 'Windows_NT') && options['use_arm64_build_machine'] == true) {
+        Utilities.setMachineAffinity(job, os, 'latest-arm64');
+    }else {
         Utilities.setMachineAffinity(job, os, 'latest-or-auto');
     }
 }
@@ -363,6 +365,7 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
             }
             break
         case 'x86':
+        case 'x86lb':
             baseName = architecture.toLowerCase() + '_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
         default:
@@ -381,6 +384,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             switch (architecture) {
                 case 'x64':
                 case 'x86':
+                case 'x86lb':
                     if (architecture == 'x86' && os == 'Ubuntu') {
                         Utilities.addPeriodicTrigger(job, '@daily')
                     }
@@ -439,7 +443,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     }
                 }
                 // For x86, only add per-commit jobs for Windows
-                else if (architecture == 'x86') {
+                else if (architecture == 'x86' || architecture == 'x86lb') {
                     if (os == 'Windows_NT') {
                         Utilities.addGithubPushTrigger(job)
                     }
@@ -665,6 +669,33 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
         addNonPRTriggers(job, branch, isPR, architecture, os, configuration, scenario, isFlowJob, isWindowsBuildOnlyJob, bidailyCrossList)
         return
     }
+
+     def arm64Users = [
+        'adiaaida',
+        'AndyAyersMS',
+        'briansull',
+        'BruceForstall',
+        'CarolEidt',
+        'cmckinsey',
+        'erozenfeld',
+        'jashook',
+        'JosephTremoulet',
+        'pgavlin',
+        'russellhadley',
+        'RussKeldorph',
+        'sandreenko',
+        'sdmaclea',
+        'sivarv',
+        'swaroop-sridhar',
+        'gkhanna79',
+        'jkotas',
+        'markwilkie',
+        'rahku',
+        'ramarag',
+        'tzwlai',
+        'weshaggard'
+    ]
+    
     // Pull request builds.  Generally these fall into two categories: default triggers and on-demand triggers
     // We generally only have a distinct set of default triggers but a bunch of on-demand ones.
     def osGroup = getOSGroup(os)
@@ -1054,10 +1085,10 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             break
         // editor brace matching: }
         case 'arm': // editor brace matching: {
-            assert scenario == 'default'
             switch (os) {
                 case 'Ubuntu':
                 case 'Ubuntu16.04':
+                    assert scenario == 'default'
                     if ((os == 'Ubuntu' && configuration == 'Release') || (os == 'Ubuntu16.04' && configuration == 'Debug')) {
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build")
                     }
@@ -1076,9 +1107,36 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
                     break;
                 case 'Windows_NT':
-                    if (configuration == 'Debug' || configuration == 'Release')
-                    {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build")
+                    // Set up a private trigger
+                    def contextString = "${os} ${architecture} Cross ${configuration}"
+                    if (scenario != 'default')
+                        contextString += " ${scenario}"
+                    contextString += " Build"
+                    // Debug builds only.
+                    if (configuration != 'Debug') {
+                        contextString += " and Test"
+                    }
+                    switch (scenario) {
+                        case 'default':
+                            // For now only run Debug and Release build jobs on PR Trigger. Note this is not a private trigger.
+                            if (configuration == 'Debug' || configuration == 'Release')
+                            {
+                                Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
+                                "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}.*", null, arm64Users)
+                            }
+                            else 
+                            {
+                                // Checked jobs will run on private trigger and run tests.
+                                Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
+                            }
+                            break
+                        case 'pri1r2r':
+                        case 'gcstress0x3':
+                        case 'gcstress0xc':
+                            // Stress jobs will will run on private trigger and run tests.
+                            Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
+                            "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*", null, arm64Users)
+                            break
                     }
                     break
                 default:
@@ -1100,32 +1158,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             if (configuration != 'Debug') {
                contextString += " and Test"
             }
-
-            def arm64Users = [
-                'adiaaida',
-                'AndyAyersMS',
-                'briansull',
-                'BruceForstall',
-                'CarolEidt',
-                'cmckinsey',
-                'erozenfeld',
-                'jashook',
-                'JosephTremoulet',
-                'pgavlin',
-                'russellhadley',
-                'RussKeldorph',
-                'sandreenko',
-                'sdmaclea',
-                'sivarv',
-                'swaroop-sridhar',
-                'gkhanna79',
-                'jkotas',
-                'markwilkie',
-                'rahku',
-                'ramarag',
-                'tzwlai',
-                'weshaggard'
-            ]
 
             switch (os) {
                 case 'Ubuntu':
@@ -1345,6 +1377,26 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     break
             }
             break
+         // editor brace matching: }
+        case 'x86lb': // editor brace matching: {
+            assert (os == 'Windows_NT')
+            assert (scenario == 'default' || Constants.r2rJitStressScenarios.indexOf(scenario) !=1)
+
+            def arch = 'x86'
+            def jit = 'legacy_backend'
+            switch (scenario) {
+                case 'default':
+                    if (configuration == 'Checked') {
+                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} Build and Test",
+                            "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}.*")
+                    }
+                    break
+                default:
+                    println("Unknown scenario: ${os} ${arch} ${jit} ${scenario}");
+                    assert false
+                    break
+            }
+            break
         // editor brace matching: }
         default:
             println("Unknown architecture: ${architecture}");
@@ -1364,8 +1416,12 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
             switch (architecture) {
                 case 'x64':
                 case 'x86':
+                case 'x86lb':
                     def arch = architecture
                     def buildOpts = ''
+                    if (architecture == 'x86lb') {
+                        arch = 'x86'
+                    }
 
                     if (scenario == 'illink') {
                         buildCommands += "tests\\scripts\\build_illink.cmd clone ${arch}"
@@ -1523,6 +1579,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         else if (architecture == 'x64' || architecture == 'x86') {
                             buildCommands += "tests\\runtest.cmd ${runtestArguments}"
                         }
+                        else if (architecture == 'x86lb') {
+                            buildCommands += "tests\\runtest.cmd ${runtestArguments} TestEnv %WORKSPACE%\\tests\\legacyjit_x86_testenv.cmd"
+                        }
                     }
 
                     if (!enableCorefxTesting) {
@@ -1561,7 +1620,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
                     break
                 case 'arm':
-                    assert (scenario == 'default')
+                    assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc')
 
                     // Set time out
                     setTestJobTimeOut(newJob, scenario)
@@ -1570,7 +1629,14 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // For Debug builds, we will do a P1 test build
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} -priority=1"
                     }
-                    else {
+                    else if (lowerConfiguration == "checked") {
+                        def machineAffinityOptions = ['use_arm64_build_machine' : true]
+                        setMachineAffinity(newJob, os, architecture, machineAffinityOptions)
+                        // For checked runs we will also run testing.
+                        buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} -priority=1"
+                        buildCommands += "python tests\\scripts\\arm64_post_build.py -repo_root %WORKSPACE% -arch ${architecture} -build_type ${lowerConfiguration} -scenario ${scenario} -key_location C:\\tools\\key.txt"
+                    }
+                    else if (lowerConfiguration == "release") {
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture}"
                     }
                     // Add archival.
@@ -1791,14 +1857,6 @@ combinedScenarios.each { scenario ->
                         os = 'Windows_NT'
                     }
 
-                    // WinArm32 is only built for Debug and Release
-                    if (os == 'Windows_NT' && architecture == 'arm')
-                    {
-                        if (configuration == 'Checked')
-                        {
-                            return
-                        }
-                    }
                     // Tizen is only supported for arm architecture
                     if (os == 'Tizen' && architecture != 'arm') {
                         return
@@ -1823,6 +1881,11 @@ combinedScenarios.each { scenario ->
                             break
                         case 'x86':
                             if ((os != 'Ubuntu') && (os != 'Windows_NT')) {
+                                return
+                            }
+                            break
+                        case 'x86lb':
+                            if (os != 'Windows_NT') {
                                 return
                             }
                             break
@@ -1853,6 +1916,7 @@ combinedScenarios.each { scenario ->
                         }
 
                         switch (architecture) {
+                            case 'arm':
                             case 'arm64':
                                 if ((scenario != 'gcstress0x3') && (scenario != 'gcstress0xc')) {
                                     return
@@ -1866,6 +1930,10 @@ combinedScenarios.each { scenario ->
                                 }
                                 // Windows: Everything implemented
                                 break
+                            case 'x86lb':
+                                // No stress modes for legacy jit.
+                                // (There's no technical reason we couldn't allow these.)
+                                return                            
                             default:
                                 return
                         }
@@ -1891,7 +1959,7 @@ combinedScenarios.each { scenario ->
                                 }
                                 break
                             case 'ilrt':
-                                // The ilrt build isn't necessary except for Windows_NT.  Non-Windows NT uses
+                                // The ilrt build isn't necessary except for Windows_NT2003.  Non-Windows NT uses
                                 // the default scenario build
                                 if (os != 'Windows_NT') {
                                     return
@@ -1933,7 +2001,7 @@ combinedScenarios.each { scenario ->
                                     return
                                 }
                                 if (architecture != 'x64') {
-                                    if (architecture != 'arm64' || configuration == 'Debug') {
+                                    if ((architecture != 'arm64' && architecture != 'arm') || (configuration == 'Debug')) {
                                         return
                                     }
                                 }
@@ -2043,6 +2111,7 @@ combinedScenarios.each { scenario ->
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR, folderName)) {}
 
                     def machineAffinityOptions = architecture == 'arm64' ? ['is_build_only': true] : null
+                    machineAffinityOptions = architecture == 'arm' ? ['use_arm64_build_machine': false] : machineAffinityOptions
                     setMachineAffinity(newJob, os, architecture, machineAffinityOptions)
 
                     // Add all the standard options

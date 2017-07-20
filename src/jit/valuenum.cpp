@@ -1088,7 +1088,7 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
         if ((arg0IsFloating && (((arg0VNtyp == TYP_FLOAT) && _isnanf(GetConstantSingle(arg0VN))) ||
                                 ((arg0VNtyp == TYP_DOUBLE) && _isnan(GetConstantDouble(arg0VN))))) ||
             (arg1IsFloating && (((arg1VNtyp == TYP_FLOAT) && _isnanf(GetConstantSingle(arg1VN))) ||
-                                ((arg0VNtyp == TYP_DOUBLE) && _isnan(GetConstantDouble(arg1VN))))))
+                                ((arg1VNtyp == TYP_DOUBLE) && _isnan(GetConstantDouble(arg1VN))))))
         {
             canFold = false;
         }
@@ -5701,7 +5701,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 // TODO-Review: For the short term, we have a workaround for copyblk/initblk.  Those that use
                 // addrSpillTemp will have a statement like "addrSpillTemp = addr(local)."  If we previously decided
                 // that this block operation defines the local, we will have labeled the "local" node as a DEF
-                // (or USEDEF).  This flag propogates to the "local" on the RHS.  So we'll assume that this is correct,
+                // This flag propogates to the "local" on the RHS.  So we'll assume that this is correct,
                 // and treat it as a def (to a new, unique VN).
                 else if ((lcl->gtFlags & GTF_VAR_DEF) != 0)
                 {
