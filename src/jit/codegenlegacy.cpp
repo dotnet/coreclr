@@ -19443,8 +19443,8 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                             }
 #endif // FEATURE_READYTORUN_COMPILER
 
-                            indCallReg = regSet.rsGrabReg(indCallMask); // Grab an available register to use for the CALL
-                                                                        // indirection
+                            // Grab an available register to use for the CALL indirection
+                            indCallReg = regSet.rsGrabReg(indCallMask);
 
                             instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addr);
 #ifdef FEATURE_READYTORUN_COMPILER
