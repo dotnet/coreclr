@@ -3467,9 +3467,6 @@ void BucketTable::LogStats()
 }
 
 DispatchCache::DispatchCache()
-#ifdef CHAIN_LOOKUP 
-    : m_writeLock(CrstStubDispatchCache, CRST_UNSAFE_ANYMODE)
-#endif
 {
     CONTRACTL
     {
@@ -3541,14 +3538,12 @@ BOOL DispatchCache::Insert(ResolveCacheElem* elem, InsertKind insertKind)
         PRECONDITION(insertKind != IK_NONE);
     } CONTRACTL_END;
 
-#ifdef CHAIN_LOOKUP 
-    CrstHolder lh(&m_writeLock);
-#endif
-
     // Figure out what bucket this element belongs in
     UINT16 tokHash = HashToken(elem->token);
     UINT16 hash    = HashMT(tokHash, elem->pMT);
     UINT16 idx     = hash;
+
+retry:
     BOOL   write   = FALSE;
     BOOL   miss    = FALSE;
     BOOL   hit     = FALSE;
@@ -3559,7 +3554,7 @@ BOOL DispatchCache::Insert(ResolveCacheElem* elem, InsertKind insertKind)
     elem->debug_index = idx;
 #endif // _DEBUG
 
-        ResolveCacheElem* cell = GetCacheEntry(idx);
+    ResolveCacheElem* cell = GetCacheEntry(idx);
 
 #ifdef CHAIN_LOOKUP 
     // There is the possibility of a race where two threads will
@@ -3583,7 +3578,7 @@ BOOL DispatchCache::Insert(ResolveCacheElem* elem, InsertKind insertKind)
         {
             hit   = TRUE;
             write = TRUE;
-    }
+        }
     }
     CONSISTENCY_CHECK(!(hit && miss));
 
@@ -3620,7 +3615,8 @@ BOOL DispatchCache::Insert(ResolveCacheElem* elem, InsertKind insertKind)
 #else // !CHAIN_LOOKUP
         elem->pNext = empty;
 #endif // !CHAIN_LOOKUP
-        SetCacheEntry(idx, elem);
+        if(!SetCacheEntry(idx, elem))
+            goto retry;
         stats.insert_cache_write++;
     }
 
@@ -3657,7 +3653,6 @@ void DispatchCache::PromoteChainEntry(ResolveCacheElem* elem)
         FORBID_FAULT;
     } CONTRACTL_END;
 
-    CrstHolder lh(&m_writeLock);
     g_chained_entry_promoted++;
 
     // Figure out what bucket this element belongs in
@@ -3665,6 +3660,7 @@ void DispatchCache::PromoteChainEntry(ResolveCacheElem* elem)
     UINT16 hash    = HashMT(tokHash, elem->pMT);
     UINT16 idx     = hash;
 
+retryRemove:
     ResolveCacheElem *curElem = GetCacheEntry(idx);
 
     // If someone raced in and promoted this element before us,
@@ -3687,11 +3683,16 @@ void DispatchCache::PromoteChainEntry(ResolveCacheElem* elem)
 
     // Remove the element from the chain
     CONSISTENCY_CHECK(curElem->pNext == elem);
-    curElem->pNext = elem->pNext;
+    if(FastInterlockCompareExchangePointer(&curElem->pNext, elem->pNext, elem) != elem)
+    {
+        goto retryRemove;
+    }
 
     // Set the promoted entry to the head of the list.
+retryInsert:
     elem->pNext = GetCacheEntry(idx);
-    SetCacheEntry(idx, elem);
+    if(!SetCacheEntry(idx, elem))
+        goto retryInsert;
 }
 #endif // CHAIN_LOOKUP
 
