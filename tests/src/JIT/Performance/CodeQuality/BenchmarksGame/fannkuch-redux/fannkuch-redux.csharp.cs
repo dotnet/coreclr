@@ -99,13 +99,19 @@ namespace BenchmarksGame
             }
         }
 
+        public static bool VerifyBench(int n, int checksum)
+        {
+            int[] pfannkuchen = Bench(n);
+            return pfannkuchen[0] == checksum;
+        }
+
         public static int Main(string[] args)
         {
-            using (var ph = new XunitPerformanceHarness(args))
-            {
-                ph.RunBenchmarks(Assembly.GetEntryAssembly().Location);
-            }
-            return 100;
+            const int n = 7;
+            const int checksum = 228;
+
+            bool verified = VerifyBench(n, checksum);
+            return (verified ? 100 : -1);
         }
     }
 }

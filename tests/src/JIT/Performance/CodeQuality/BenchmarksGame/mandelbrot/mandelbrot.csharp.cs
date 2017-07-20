@@ -25,6 +25,8 @@ namespace BenchmarksGame
 {
     public class Mandelbrot
     {
+        private static bool s_testFailed = false;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static byte getByte(double[] Crb, double Ciby, int x, int y)
         {
@@ -123,13 +125,23 @@ namespace BenchmarksGame
             }
         }
 
+        public static bool VerifyBench(int n, string checksum)
+        {
+            byte[] bitmap = Bench(n);
+            using (var md5 = MD5.Create())
+            {
+                byte[] hash = md5.ComputeHash(bitmap);
+                return checksum == BitConverter.ToString(hash);
+            }
+        }
+
         public static int Main(string[] args)
         {
-            using (var ph = new XunitPerformanceHarness(args))
-            {
-                ph.RunBenchmarks(Assembly.GetEntryAssembly().Location);
-            }
-            return 100;
+            const int n = 500;
+            const string checksum = "54-01-EE-C8-46-9B-AB-FA-54-9F-45-CE-98-89-66-A9";
+
+            bool verified = VerifyBench(n, checksum);
+            return (verified ? 100 : -1);
         }
     }
 }
