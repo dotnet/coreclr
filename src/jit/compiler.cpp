@@ -660,7 +660,7 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
                     // This should be passed or returned in two FP registers
                     useType = TYP_UNKNOWN;
                 }
-#else  // a 32BIT target
+#elif !defined(LEGACY_BACKEND)  // a 32BIT target but not Legacy Backend
                 // A structSize of 4 with IsHfa, it must be an HFA of one float
                 useType = TYP_FLOAT;
 #endif // _TARGET_64BIT_
@@ -674,7 +674,7 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
             }
             break;
 
-#ifdef _TARGET_ARM_
+#if defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND)
         case 8:
             if (IsHfa(clsHnd))
             {
@@ -704,7 +704,7 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
                 useType = TYP_UNKNOWN;
             }
             break;
-#endif // _TARGET_ARM_
+#endif // _TARGET_ARM_ && !defined(LEGACY_BACKEND)
 
         default:
             useType = TYP_UNKNOWN;
