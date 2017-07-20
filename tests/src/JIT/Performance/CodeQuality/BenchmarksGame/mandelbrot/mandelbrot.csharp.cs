@@ -25,7 +25,6 @@ namespace BenchmarksGame
 {
     public class Mandelbrot
     {
-        private static bool s_testFailed = false;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static byte getByte(double[] Crb, double Ciby, int x, int y)
