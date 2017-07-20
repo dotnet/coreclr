@@ -12,6 +12,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace JitBench
 {
@@ -21,7 +22,7 @@ namespace JitBench
         {
             var options = JitBenchHarnessOptions.Parse(args);
 
-            s_temporaryDirectory = Path.Combine(options.IntermediateOutputDirectory, "JitBenchHarness");
+            s_temporaryDirectory = Path.Combine(options.IntermediateOutputDirectory, "JitBench");
             if (Directory.Exists(s_temporaryDirectory))
                 Directory.Delete(s_temporaryDirectory, true);
             Directory.CreateDirectory(s_temporaryDirectory);
@@ -30,9 +31,8 @@ namespace JitBench
 
             using (var h = new XunitPerformanceHarness(args))
             {
-                var startInfo = Setup();
-                PrintHeader("Running Benchmark Scenario");
-                h.RunScenario(startInfo, () => { }, PostIteration, PostProcessing, s_ScenarioConfiguration);
+                ProcessStartInfo startInfo = Setup();
+                h.RunScenario(startInfo, () => { PrintHeader("Running Benchmark Scenario"); }, PostIteration, PostProcessing, s_ScenarioConfiguration);
             }
         }
 
@@ -48,23 +48,20 @@ namespace JitBench
             s_requestTimes = new double[s_ScenarioConfiguration.Iterations];
         }
 
-        private static ProcessStartInfo Setup()
+        private static void DownloadAndExtractJitBenchRepo()
         {
-            PrintHeader("Starting SETUP");
-
-            var dotnetDirectory = Path.Combine(s_jitBenchDevDirectory, ".dotnet");
-            var dotnetProcessFileName = Path.Combine(dotnetDirectory, "dotnet.exe");
-
-            //Download and extract the repo.
             using (var client = new HttpClient())
             {
                 // Download the JitBench repository and extract it.
-                var url = @"https://github.com/guhuro/JitBench/archive/dev.zip"; // TODO: This should be updated to https://github.com/aspnet/JitBench/archive/dev.zip once the fork is merged.
-                var zipFile = Path.Combine(s_temporaryDirectory, "dev.zip");
+                const string repoUrl = "https://github.com/aspnet/JitBench";
+                const string sha1Id = "a44cd96e4ff8d7c1b43fe3c96a597919bb1544bd";
+                var archiveName = $"{sha1Id}.zip";
+                var url = $"{repoUrl}/archive/{archiveName}";
+                var zipFile = Path.Combine(s_temporaryDirectory, archiveName);
 
-                using (var tmpzip = File.Create(zipFile))
+                using (FileStream tmpzip = File.Create(zipFile))
                 {
-                    using (var stream = client.GetStreamAsync(url).Result)
+                    using (Stream stream = client.GetStreamAsync(url).Result)
                         stream.CopyTo(tmpzip);
                     tmpzip.Flush();
                 }
@@ -75,103 +72,215 @@ namespace JitBench
 
                 // This step will create s_JitBenchDevDirectory.
                 ZipFile.ExtractToDirectory(zipFile, s_temporaryDirectory);
+                Directory.Move(Path.Combine(s_temporaryDirectory, $"JitBench-{sha1Id}"), s_jitBenchDevDirectory);
             }
+        }
 
-            // first dotnet-install.ps1
-            var installProcessStartInfo = new ProcessStartInfo() {
+        private static IDictionary<string, string> InstallSharedRuntime()
+        {
+            var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_jitBenchDevDirectory,
                 FileName = @"powershell.exe",
                 Arguments = @".\Dotnet-Install.ps1 -SharedRuntime -InstallDir .dotnet -Channel master -Architecture x64"
             };
-            LaunchProcess(installProcessStartInfo, 180000);
+            LaunchProcess(psi, 180000);
 
-            // second dotnet-install.ps1
-            var secondInstallProcessStartInfo = new ProcessStartInfo() {
+            // TODO: This is currently hardcoded, but we could probably pull it from the powershell cmdlet call.
+            return new Dictionary<string, string> { { "PATH", $"{Path.Combine(s_jitBenchDevDirectory, ".dotnet")};{psi.Environment["PATH"]}" } };
+        }
+
+        private static void InstallDotnet()
+        {
+            var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_jitBenchDevDirectory,
                 FileName = @"powershell.exe",
                 Arguments = @".\Dotnet-Install.ps1 -InstallDir .dotnet -Channel master -Architecture x64"
             };
-            LaunchProcess(secondInstallProcessStartInfo, 180000);
+            LaunchProcess(psi, 180000);
+        }
 
-            // dotnet restore
-            var musicStoreDirectory = Path.Combine(s_jitBenchDevDirectory, "src", "MusicStore");
-            var restoreProcessStartInfo = new ProcessStartInfo() {
-                WorkingDirectory = musicStoreDirectory,
-                FileName = dotnetProcessFileName,
-                Arguments = "restore"
-            };
-            LaunchProcess(restoreProcessStartInfo, 300000);
+        private static void ModifySharedFramework()
+        {
+            // Current working directory is the <coreclr repo root>/sandbox directory.
+            Console.WriteLine($"Modifying the shared framework.");
 
-            // Modifying the shared framework
-            var sourcePath = Directory.GetCurrentDirectory();
-            var targetPath = Path.Combine(s_jitBenchDevDirectory, ".dotnet", "shared", "Microsoft.NETCore.App");
-            var di = new DirectoryInfo(targetPath);
-            targetPath = Path.Combine(targetPath, di.GetDirectories("2.0*")[0].Name);
+            var sourcedi = new DirectoryInfo(Directory.GetCurrentDirectory());
+            var targetdi = new DirectoryInfo(
+                new DirectoryInfo(Path.Combine(s_jitBenchDevDirectory, ".dotnet", "shared", "Microsoft.NETCore.App"))
+                .GetDirectories("2.1*").First().FullName);
 
-            DirectoryInfo targetdi = new DirectoryInfo(targetPath);
-            DirectoryInfo sourcedi = new DirectoryInfo(sourcePath);
+            Console.WriteLine($"  Source : {sourcedi.FullName}");
+            Console.WriteLine($"  Target : {targetdi.FullName}");
 
-            var excludedFiles = new List<string>()
+            var compiledBinariesOfInterest = new string[]
             {
-                "hostfxr",
-                "hostpolicy",
-                "System.Threading"
+                "clretwrc.dll",
+                "clrjit.dll",
+                "coreclr.dll",
+                "mscordaccore.dll",
+                "mscordbi.dll",
+                "mscorrc.debug.dll",
+                "mscorrc.dll",
+                "sos.dll",
+                "SOS.NETCore.dll",
+                "System.Private.CoreLib.dll"
             };
 
-            foreach (var file in targetdi.GetFiles("*.dll"))
+            foreach (var compiledBinaryOfInterest in compiledBinariesOfInterest)
             {
-                var sourceFilePath = Path.Combine(sourcePath, file.Name);
-                var targetFilePath = Path.Combine(targetPath, file.Name);
-                var isFileInExcludedList = excludedFiles.Exists(excludedFile => excludedFile.Equals(sourceFilePath, StringComparison.OrdinalIgnoreCase));
+                foreach (FileInfo fi in targetdi.GetFiles(compiledBinaryOfInterest))
+                {
+                    var sourceFilePath = Path.Combine(sourcedi.FullName, fi.Name);
+                    var targetFilePath = Path.Combine(targetdi.FullName, fi.Name);
 
-                if (File.Exists(sourceFilePath) && !isFileInExcludedList)
-                {
-                    File.Copy(sourceFilePath, targetFilePath, true);
-                    Console.WriteLine($"  Copied file '{sourceFilePath}' into '{targetFilePath}'");
-                }
-                else
-                {
-                    Console.WriteLine($"  Could not find file '{sourceFilePath}'");
+                    if (File.Exists(sourceFilePath))
+                    {
+                        File.Copy(sourceFilePath, targetFilePath, true);
+                        Console.WriteLine($"    Copied file - '{targetFilePath}'");
+                    }
                 }
             }
-
-            // dotnet publish -c Release -f netcoreapp20
-            var publishProcessStartInfo = new ProcessStartInfo() {
-                WorkingDirectory = musicStoreDirectory,
-                FileName = dotnetProcessFileName,
-                Arguments = "publish -c Release -f netcoreapp20"
-            };
-            LaunchProcess(publishProcessStartInfo, 300000);
-
-            // Invoke-Crossgen
-            var publishDirectory = Path.Combine(musicStoreDirectory, "bin", "Release", "netcoreapp20", "publish");
-            var crossgenProcessStartInfo = new ProcessStartInfo() {
-                WorkingDirectory = publishDirectory,
-                FileName = "powershell.exe",
-                Arguments = @".\Invoke-Crossgen -crossgen_path .crossgen -dotnet_dir " + dotnetDirectory
-            };
-            LaunchProcess(crossgenProcessStartInfo, 200000);
-
-            return new ProcessStartInfo() {
-                Arguments = @"MusicStore.dll",
-                RedirectStandardOutput = true,
-                FileName = dotnetProcessFileName,
-                WorkingDirectory = publishDirectory
-            };
         }
+
+        private static IDictionary<string, string> GenerateStore(IDictionary<string, string> environment)
+        {
+            // This step generates some environment variables needed later.
+            var environmentFileName = "JitBenchEnvironment.txt";
+            var psi = new ProcessStartInfo() {
+                WorkingDirectory = s_jitBenchDevDirectory,
+                FileName = "powershell.exe",
+                Arguments = $"-Command \".\\AspNet-GenerateStore.ps1 -InstallDir .store -Architecture x64 -Runtime win7-x64; gi env:JITBENCH_*, env:DOTNET_SHARED_STORE | %{{ \\\"$($_.Name)=$($_.Value)\\\" }} 1>>{environmentFileName}\""
+            };
+
+            LaunchProcess(psi, 900000, environment);
+
+            // Return the generated environment variables.
+            return GetEnvironment(environment, Path.Combine(s_jitBenchDevDirectory, environmentFileName));
+        }
+
+        private static IDictionary<string, string> GetEnvironment(IDictionary<string, string> environment, string fileName)
+        {
+            foreach (var line in File.ReadLines(fileName))
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                string[] pair = line.Split(new char[] { '=' });
+                if (pair.Length != 2)
+                    throw new InvalidOperationException($"AspNet-GenerateStore.ps1 did not generate the expected environment variable {pair}");
+
+                if (!environment.ContainsKey(pair[0]))
+                    environment.Add(pair[0], pair[1]);
+                else
+                    environment[pair[0]] = pair[1];
+            }
+
+            return environment;
+        }
+
+        private static void RestoreMusicStore(string workingDirectory, string dotnetFileName, IDictionary<string, string> environment)
+        {
+            var psi = new ProcessStartInfo() {
+                WorkingDirectory = workingDirectory,
+                FileName = dotnetFileName,
+                Arguments = "restore"
+            };
+
+            LaunchProcess(psi, 300000, environment);
+        }
+
+        private static void PublishMusicStore(string workingDirectory, string dotnetFileName, IDictionary<string, string> environment)
+        {
+            var psi = new ProcessStartInfo() {
+                WorkingDirectory = workingDirectory,
+                FileName = "cmd.exe",
+                Arguments = $"/C \"{dotnetFileName} publish -c Release -f netcoreapp2.0 --manifest %JITBENCH_ASPNET_MANIFEST% /p:MvcRazorCompileOnPublish=false\""
+            };
+
+            LaunchProcess(psi, 300000, environment);
+        }
+
+        private static ProcessStartInfo Setup()
+        {
+            PrintHeader("Starting SETUP");
+
+            DownloadAndExtractJitBenchRepo();
+            IDictionary<string, string> environment = InstallSharedRuntime();
+            InstallDotnet();
+
+            if (new string[] { "PATH" }.Except(environment.Keys, StringComparer.OrdinalIgnoreCase).Any())
+                throw new Exception("Missing expected environment variable PATH.");
+
+            environment = GenerateStore(environment);
+
+            var expectedVariables = new string[] {
+                "PATH",
+                "JITBENCH_ASPNET_MANIFEST",
+                "JITBENCH_FRAMEWORK_VERSION",
+                "JITBENCH_ASPNET_VERSION",
+                "DOTNET_SHARED_STORE"
+            };
+            if (expectedVariables.Except(environment.Keys, StringComparer.OrdinalIgnoreCase).Any())
+                throw new Exception("Missing expected environment variables.");
+
+            ModifySharedFramework();
+
+            var dotnetProcessFileName = Path.Combine(s_jitBenchDevDirectory, ".dotnet", "dotnet.exe");
+            var musicStoreDirectory = Path.Combine(s_jitBenchDevDirectory, "src", "MusicStore");
+
+            RestoreMusicStore(musicStoreDirectory, dotnetProcessFileName, environment);
+            PublishMusicStore(musicStoreDirectory, dotnetProcessFileName, environment);
+
+            var psi = new ProcessStartInfo() {
+                FileName = "cmd.exe",
+                Arguments = $"/C \"{dotnetProcessFileName} MusicStore.dll 1>{MusicStoreRedirectedStandardOutputFileName}\"",
+                WorkingDirectory = Path.Combine(musicStoreDirectory, "bin", "Release", "netcoreapp2.0", "publish")
+            };
+
+            foreach (KeyValuePair<string, string> pair in environment)
+                psi.Environment.Add(pair.Key, pair.Value);
+
+            return psi;
+        }
+
+        private const string MusicStoreRedirectedStandardOutputFileName = "measures.txt";
 
         private static void PostIteration()
         {
-            using (StreamReader file = new StreamReader(File.OpenRead(Path.Combine(s_jitBenchDevDirectory, @"src\MusicStore\bin\Release\netcoreapp20\publish", "measures.txt"))))
-            {
-                var read = file.ReadLine().Split(' ');
-                var startupTime = Convert.ToDouble(read[0]);
-                var requestTime = Convert.ToDouble(read[1]);
-                s_startupTimes[s_iteration] = startupTime;
-                s_requestTimes[s_iteration] = requestTime;
+            var path = Path.Combine(s_jitBenchDevDirectory, "src", "MusicStore", "bin", "Release", "netcoreapp2.0", "publish");
+            path = Path.Combine(path, MusicStoreRedirectedStandardOutputFileName);
 
-                PrintRunningStepInformation($"JitBench Test: Iteration {s_iteration} took {startupTime}ms to start and {requestTime}ms to complete a single request.");
+            double? startupTime = null;
+            double? requestTime = null;
+            foreach (string line in File.ReadLines(path))
+            {
+                Match match = Regex.Match(line, @"^Server started in (\d+)ms$");
+                if (match.Success && match.Groups.Count == 2)
+                {
+                    startupTime = Convert.ToDouble(match.Groups[1].Value);
+                    continue;
+                }
+
+                match = Regex.Match(line, @"^Request took (\d+)ms$");
+                if (match.Success && match.Groups.Count == 2)
+                {
+                    requestTime = Convert.ToDouble(match.Groups[1].Value);
+                    break;
+                }
             }
+
+            if (!startupTime.HasValue)
+                throw new Exception("Startup time was not found.");
+            if (!requestTime.HasValue)
+                throw new Exception("Request time was not found.");
+
+            s_startupTimes[s_iteration] = startupTime.Value;
+            s_requestTimes[s_iteration] = requestTime.Value;
+
+            PrintRunningStepInformation($"{s_iteration} Server started in {s_startupTimes[s_iteration]}ms");
+            PrintRunningStepInformation($"{s_iteration} Request took {s_requestTimes[s_iteration]}ms");
+            PrintRunningStepInformation($"{s_iteration} Cold start time (server start + first request time): {s_startupTimes[s_iteration] + s_requestTimes[s_iteration]}ms");
+
             ++s_iteration;
         }
 
@@ -184,21 +293,21 @@ namespace JitBench
             };
 
             // Create (measured) test entries for this scenario.
-            var startup = new ScenarioTestModel("Startup");
+            var startup = new ScenarioTestModel("Startup time");
             scenarioBenchmark.Tests.Add(startup);
 
-            var request = new ScenarioTestModel("Request Time");
+            var request = new ScenarioTestModel("Request time");
             scenarioBenchmark.Tests.Add(request);
 
             // Add measured metrics to each test.
             startup.Performance.Metrics.Add(new MetricModel {
-                Name = "ExecutionTime",
-                DisplayName = "Execution Time",
+                Name = "Duration",
+                DisplayName = "Duration",
                 Unit = "ms"
             });
             request.Performance.Metrics.Add(new MetricModel {
-                Name = "ExecutionTime",
-                DisplayName = "Execution Time",
+                Name = "Duration",
+                DisplayName = "Duration",
                 Unit = "ms"
             });
 
@@ -216,16 +325,36 @@ namespace JitBench
             return scenarioBenchmark;
         }
 
-        private static void LaunchProcess(ProcessStartInfo processStartInfo, int timeoutMilliseconds)
+        private static void LaunchProcess(ProcessStartInfo processStartInfo, int timeoutMilliseconds, IDictionary<string, string> environment = null)
         {
-            PrintRunningStepInformation($"{processStartInfo.FileName} {processStartInfo.Arguments}");
+            Console.WriteLine();
+            Console.WriteLine($"{System.Security.Principal.WindowsIdentity.GetCurrent().Name}@{Environment.MachineName} \"{processStartInfo.WorkingDirectory}\"");
+            Console.WriteLine($"[{DateTime.Now}] $ {processStartInfo.FileName} {processStartInfo.Arguments}");
+
+            if (environment != null)
+            {
+                foreach (KeyValuePair<string, string> pair in environment)
+                {
+                    if (!processStartInfo.Environment.ContainsKey(pair.Key))
+                        processStartInfo.Environment.Add(pair.Key, pair.Value);
+                    else
+                        processStartInfo.Environment[pair.Key] = pair.Value;
+                }
+            }
 
             using (var p = new Process())
             {
                 p.StartInfo = processStartInfo;
+
+                p.Exited += (object sender, System.EventArgs e) => {
+                    Console.WriteLine("Process has exited.");
+                };
+
                 p.Start();
+
                 if (p.WaitForExit(timeoutMilliseconds) == false)
                 {
+                    // FIXME: What about clean/kill child processes?
                     p.Kill();
                     throw new TimeoutException($"The process '{processStartInfo.FileName} {processStartInfo.Arguments}' timed out.");
                 }
@@ -294,16 +423,16 @@ namespace JitBench
                 }))
                 {
                     JitBenchHarnessOptions options = null;
-                    var parserResult = parser.ParseArguments<JitBenchHarnessOptions>(args)
+                    parser.ParseArguments<JitBenchHarnessOptions>(args)
                         .WithParsed(parsed => options = parsed)
                         .WithNotParsed(errors => {
-                            foreach (var error in errors)
+                            foreach (Error error in errors)
                             {
                                 switch (error.Tag)
                                 {
                                     case ErrorType.MissingValueOptionError:
                                         throw new ArgumentException(
-                                            $"Missing value option for command line argument '{(error as MissingValueOptionError).NameInfo.NameText}'");
+                                                $"Missing value option for command line argument '{(error as MissingValueOptionError).NameInfo.NameText}'");
                                     case ErrorType.HelpRequestedError:
                                         Console.WriteLine(Usage());
                                         Environment.Exit(0);
@@ -339,7 +468,6 @@ namespace JitBench
                     parserSettings.HelpWriter = new StringWriter();
                     parserSettings.IgnoreUnknownArguments = true;
                 });
-                var result = parser.ParseArguments<JitBenchHarnessOptions>(new string[] { "--help" });
 
                 var helpTextString = new HelpText {
                     AddDashesToOption = true,
@@ -347,7 +475,7 @@ namespace JitBench
                     AdditionalNewLineAfterOption = false,
                     Heading = "JitBenchHarness",
                     MaximumDisplayWidth = 80,
-                }.AddOptions(result).ToString();
+                }.AddOptions(parser.ParseArguments<JitBenchHarnessOptions>(new string[] { "--help" })).ToString();
                 return helpTextString;
             }
 
