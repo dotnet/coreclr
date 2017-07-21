@@ -19449,7 +19449,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                             instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addr);
 
 #ifdef FEATURE_READYTORUN_COMPILER
-                            regNumber spillReg = REG_NA;
+                            regNumber indSpillReg = REG_NA;
 
                             if (call->IsR2RRelativeIndir())
                             {
@@ -19457,8 +19457,8 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                                 {
                                     regMaskTP spillMask =
                                         RBM_INT_CALLEE_SAVED & ~RBM_R2R_INDIRECT_PARAM & ~genRegMask(indCallReg);
-                                    spillReg = regSet.rsPickReg(spillMask);
-                                    getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, spillReg, REG_R2R_INDIRECT_PARAM);
+                                    indSpillReg = regSet.rsPickReg(spillMask);
+                                    getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, indSpillReg, REG_R2R_INDIRECT_PARAM);
                                 }
                                 getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R2R_INDIRECT_PARAM, indCallReg);
                             }
@@ -19485,9 +19485,9 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                                                        emitter::emitNoGChelper(helperNum));
 
 #ifdef FEATURE_READYTORUN_COMPILER
-                            if (spillReg != REG_NA)
+                            if (indSpillReg != REG_NA)
                             {
-                                getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R2R_INDIRECT_PARAM, spillReg);
+                                getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R2R_INDIRECT_PARAM, indSpillReg);
                             }
 #endif // FEATURE_READYTORUN_COMPILER
                         }
