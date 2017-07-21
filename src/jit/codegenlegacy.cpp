@@ -19455,7 +19455,8 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                             {
                                 if ((regSet.rsRegMaskCanGrab() & RBM_R2R_INDIRECT_PARAM) == 0)
                                 {
-                                    regMaskTP spillMask = RBM_INT_CALLEE_SAVED & ~RBM_R2R_INDIRECT_PARAM & ~genRegMask(indCallReg);
+                                    regMaskTP spillMask =
+                                        RBM_INT_CALLEE_SAVED & ~RBM_R2R_INDIRECT_PARAM & ~genRegMask(indCallReg);
                                     spillReg = regSet.rsPickReg(spillMask);
                                     getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, spillReg, REG_R2R_INDIRECT_PARAM);
                                 }
