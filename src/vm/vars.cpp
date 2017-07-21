@@ -190,7 +190,7 @@ int g_IGCHoardVM = 0;
 
 #ifdef GCTRIMCOMMIT
 
-int g_IGCTrimCommit = 0;
+int g_IGCTrimCommit = 1;
 
 #endif
 

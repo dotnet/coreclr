@@ -9264,10 +9264,17 @@ void gc_heap::decommit_heap_segment_pages (heap_segment* seg,
     uint8_t*  page_start = align_on_page (heap_segment_allocated(seg));
     size_t size = heap_segment_committed (seg) - page_start;
     extra_space = align_on_page (extra_space);
-    if (size >= max ((extra_space + 2*OS_PAGE_SIZE), 100*OS_PAGE_SIZE))
+#ifdef FEATURE_GCTRIMCOMMIT_AGGRESSIVE
+    int min_pages_trigger = 2;
+    int min_extra_pages = 1;
+#else // FEATURE_GCTRIMCOMMIT_AGGRESSIVE
+    int min_pages_trigger = 100;
+    int min_extra_pages = 32;
+#endif // FEATURE_GCTRIMCOMMIT_AGGRESSIVE
+    if (size >= max ((extra_space + 2*OS_PAGE_SIZE), min_pages_trigger*OS_PAGE_SIZE))
     {
-        page_start += max(extra_space, 32*OS_PAGE_SIZE);
-        size -= max (extra_space, 32*OS_PAGE_SIZE);
+        page_start += max(extra_space, min_extra_pages*OS_PAGE_SIZE);
+        size -= max (extra_space, min_extra_pages*OS_PAGE_SIZE);
 
         GCToOSInterface::VirtualDecommit (page_start, size);
         dprintf (3, ("Decommitting heap segment [%Ix, %Ix[(%d)", 
@@ -15534,6 +15541,27 @@ void gc_heap::gc1()
     }
 
     descr_generations (FALSE);
+
+#ifdef GCTRIMCOMMIT
+    if (g_pConfig->GetGCTrimCommit())
+    {
+        decommit_heap_segment_pages(ephemeral_heap_segment, 0);
+
+        heap_segment* seg1 = generation_start_segment (generation_of (max_generation));
+        while (seg1 != ephemeral_heap_segment)
+        {
+            decommit_heap_segment_pages(seg1, 0);
+            seg1 = heap_segment_next (seg1);
+        }
+
+        heap_segment* seg2 = generation_allocation_segment (generation_of (max_generation + 1));
+        while (seg2)
+        {
+            decommit_heap_segment_pages(seg2, 0);
+            seg2 = heap_segment_next (seg2);
+        }
+    }
+#endif
 
     verify_soh_segment_list();
 
