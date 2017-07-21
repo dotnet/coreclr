@@ -79,7 +79,7 @@ namespace BenchmarksGame
         // Commented out data left in source to provide checksums for each case
         // Checksums calculated from the origonal source referenced at top of this source
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = 7)]
         //[InlineData(7, 228)]
         //[InlineData(8, 1616)]
         //[InlineData(9, 8629)]
@@ -93,7 +93,10 @@ namespace BenchmarksGame
                 int[] pfannkuchen = null;
                 using (iteration.StartMeasurement())
                 {
-                    pfannkuchen = Bench(n);
+                    for (int i = 0; i < Benchmark.InnerIterationCount; ++i)
+                    {
+                        pfannkuchen = Bench(n);
+                    }
                 }
                 Assert.Equal(checksum, pfannkuchen[0]);
             }
