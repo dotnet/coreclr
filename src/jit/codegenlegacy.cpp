@@ -19484,12 +19484,14 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                                                        false,        /* isJump */
                                                        emitter::emitNoGChelper(helperNum));
 
+#if CPU_LOAD_STORE_ARCH
 #ifdef FEATURE_READYTORUN_COMPILER
                             if (indSpillReg != REG_NA)
                             {
                                 getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R2R_INDIRECT_PARAM, indSpillReg);
                             }
 #endif // FEATURE_READYTORUN_COMPILER
+#endif // CPU_LOAD_STORE_ARCH
                         }
                         break;
 
