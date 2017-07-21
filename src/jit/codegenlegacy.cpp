@@ -19447,14 +19447,22 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                             indCallReg = regSet.rsGrabReg(indCallMask);
 
                             instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addr);
+
 #ifdef FEATURE_READYTORUN_COMPILER
+                            regNumber spillReg = REG_NA;
+
                             if (call->IsR2RRelativeIndir())
                             {
-                                regSet.rsSpillRegIfUsed(REG_R2R_INDIRECT_PARAM);
+                                if ((regSet.rsRegMaskCanGrab() & RBM_R2R_INDIRECT_PARAM) == 0)
+                                {
+                                    regMaskTP spillMask = RBM_INT_CALLEE_SAVED & ~RBM_R2R_INDIRECT_PARAM & ~genRegMask(indCallReg);
+                                    spillReg = regSet.rsPickReg(spillMask);
+                                    getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, spillReg, REG_R2R_INDIRECT_PARAM);
+                                }
                                 getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R2R_INDIRECT_PARAM, indCallReg);
-                                regTracker.rsTrackRegTrash(REG_R2R_INDIRECT_PARAM);
                             }
 #endif // FEATURE_READYTORUN_COMPILER
+
                             getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
                             regTracker.rsTrackRegTrash(indCallReg);
 
@@ -19474,6 +19482,13 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                                                        REG_NA, 0, 0, // xreg, xmul, disp
                                                        false,        /* isJump */
                                                        emitter::emitNoGChelper(helperNum));
+
+#ifdef FEATURE_READYTORUN_COMPILER
+                            if (spillReg != REG_NA)
+                            {
+                                getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R2R_INDIRECT_PARAM, spillReg);
+                            }
+#endif // FEATURE_READYTORUN_COMPILER
                         }
                         break;
 
