@@ -4957,7 +4957,17 @@ void CodeGen::genCodeForTreeLeaf(GenTreePtr tree, regMaskTP destReg, regMaskTP b
             if (genMarkLclVar(tree))
             {
                 genCodeForTree_REG_VAR1(tree);
-                return;
+
+                regNumber lclReg = tree->gtRegNum;
+
+                // Is this register acceptable to use as a destReg ?
+                if ((genRegMask(lclReg) & needReg) != 0)
+                {
+                    // Yes, we are done
+                    return;
+                }
+                // No, we need to move this regVar to an acceptable regsiter.
+                goto MEM_LEAF;
             }
 
 #if REDUNDANT_LOAD
@@ -12276,27 +12286,30 @@ void CodeGen::genCodeForTree(GenTreePtr tree, regMaskTP destReg, regMaskTP bestR
     noway_assert(tree->gtOper != GT_STMT);
     assert(tree->IsNodeProperlySized());
 
-    // When assigning to a enregistered local variable we receive
-    // a hint that we should target the register that is used to
-    // hold the enregistered local variable.
-    // When receiving this hint both destReg and bestReg masks are set
-    // to the register that is used by the enregistered local variable.
-    //
-    // However it is possible to us to have a different local variable
-    // targeting the same register to become alive (and later die)
-    // as we descend the expression tree.
-    //
-    // To handle such cases we will remove any registers that are alive from the
-    // both the destReg and bestReg masks.
-    //
-    regMaskTP liveMask = genLiveMask(tree);
+    if ((destReg == bestReg) && genMaxOneBit(destReg))
+    {
+        // When assigning to a enregistered local variable we receive
+        // a hint that we should target the register that is used to
+        // hold the enregistered local variable.
+        // When receiving this hint both destReg and bestReg masks are set
+        // to the register that is used by the enregistered local variable.
+        //
+        // However it is possible to us to have a different local variable
+        // targeting the same register to become alive (and later die)
+        // as we descend the expression tree.
+        //
+        // To handle such cases we will remove any registers that are alive from the
+        // both the destReg and bestReg masks.
+        //
+        regMaskTP liveMask = genLiveMask(tree);
 
-    // This removes any registers used to hold enregistered locals
-    // from the destReg and bestReg masks.
-    // After this either mask could become 0
-    //
-    destReg &= ~liveMask;
-    bestReg &= ~liveMask;
+        // This removes any registers used to hold enregistered locals
+        // from the destReg and bestReg masks.
+        // After this either mask could become 0
+        //
+        destReg &= ~liveMask;
+        bestReg &= ~liveMask;
+    }
 
     /* 'destReg' of 0 really means 'any' */
 
