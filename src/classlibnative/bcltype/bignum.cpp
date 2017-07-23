@@ -9,23 +9,12 @@
 
 #include "bignum.h"
 
-UINT32 BigNum::m_power10UInt32Table[UINT32POWER10NUM] =
-{
-    1,          // 10^0
-    10,         // 10^1
-    100,        // 10^2
-    1000,       // 10^3
-    10000,      // 10^4
-    100000,     // 10^5
-    1000000,    // 10^6
-    10000000,   // 10^7
-};
-
+constexpr UINT32 BigNum::m_power10UInt32Table[];
 BigNum BigNum::m_power10BigNumTable[BIGPOWER10NUM];
 BigNum::StaticInitializer BigNum::m_initializer;
 
 BigNum::BigNum()
-    :m_len(0)
+    :m_len(0) // Note: we do not zeroing m_blocks due to performance.
 {
 }
 
@@ -45,44 +34,10 @@ BigNum::~BigNum()
 
 BigNum& BigNum::operator=(const BigNum &rhs)
 {
-    UINT8 length = rhs.m_len;
-    UINT32* pCurrent = m_blocks;
-    const UINT32* pRhsCurrent = rhs.m_blocks;
-    const UINT32* pRhsEnd = pRhsCurrent + length;
-
-    while (pRhsCurrent != pRhsEnd)
-    {
-        *pCurrent = *pRhsCurrent;
-
-        ++pCurrent;
-        ++pRhsCurrent;
-    }
-
-    m_len = length;
+    memcpy(m_blocks, rhs.m_blocks, ((UINT32)rhs.m_len) * sizeof(UINT32));
+    m_len = rhs.m_len;
 
     return *this;
-}
-
-int BigNum::Compare(const BigNum& lhs, UINT32 value)
-{
-    if (lhs.m_len == 0)
-    {
-        return value == 0 ? 0 : -1;
-    }
-
-    UINT32 lhsValue = lhs.m_blocks[0];
-
-    if (lhsValue > value || lhs.m_len > 1)
-    {
-        return 1;
-    }
-
-    if (lhsValue < value)
-    {
-        return -1;
-    }
-
-    return 0;
 }
 
 int BigNum::Compare(const BigNum& lhs, const BigNum& rhs)
@@ -98,44 +53,37 @@ int BigNum::Compare(const BigNum& lhs, const BigNum& rhs)
         return 0;
     }
 
-    UINT8 lastIndex = lhs.m_len - 1;
-    const UINT32* pLeftStartBlock = lhs.m_blocks;
-    const UINT32* pCurrentLeftBlock = lhs.m_blocks + lastIndex;
-    const UINT32* pCurrentRightBlock = rhs.m_blocks + lastIndex;
+    UINT32 lastIndex = lhs.m_len - 1;
+    INT32 currentIndex = lastIndex;
 
-    while (true)
+    while (currentIndex >= 0)
     {
-        if (*pCurrentLeftBlock > *pCurrentRightBlock)
+        INT64 diff = (INT64)(lhs.m_blocks[currentIndex]) - (INT64)(rhs.m_blocks[currentIndex]);
+        if (diff != 0)
         {
-            return 1;
+            return diff;
         }
 
-        if (*pCurrentLeftBlock < *pCurrentRightBlock)
-        {
-            return -1;
-        }
-
-        if (pCurrentLeftBlock == pLeftStartBlock)
-        {
-            break;
-        }
-
-        --pCurrentLeftBlock;
-        --pCurrentRightBlock;
+        --currentIndex;
     }
 
     return 0;
 }
 
-void BigNum::ShiftLeft(UINT64 input, int shift, BigNum& output)
+void BigNum::ShiftLeft(UINT64 input, UINT32 shift, BigNum& output)
 {
-    int shiftBlocks = shift / 32;
-    int remaningToShiftBits = shift % 32;
+    if (shift == 0)
+    {
+        return;
+    }
 
-    for (int i = 0; i < shiftBlocks; ++i)
+    UINT32 shiftBlocks = shift / 32;
+    UINT32 remaningToShiftBits = shift % 32;
+
+    if (shiftBlocks > 0)
     {
         // If blocks shifted, we should fill the corresponding blocks with zero.
-        output.ExtendBlock(0);
+        output.ExtendBlocks(0, shiftBlocks);
     }
 
     if (remaningToShiftBits == 0)
@@ -152,7 +100,7 @@ void BigNum::ShiftLeft(UINT64 input, int shift, BigNum& output)
     else
     {
         // Extract the high position bits which would be shifted out of range.
-        UINT32 highPositionBits = (UINT32)input >> (32 + 32 - remaningToShiftBits);
+        UINT32 highPositionBits = (UINT32)input >> (64 - remaningToShiftBits);
 
         // Shift the input. The result should be stored to current block.
         UINT64 shiftedInput = input << remaningToShiftBits;
@@ -172,86 +120,117 @@ void BigNum::ShiftLeft(UINT64 input, int shift, BigNum& output)
     }
 }
 
-void BigNum::ShiftLeft(BigNum* pResult, UINT32 shift)
+void BigNum::ShiftLeft(UINT32 shift)
 {
+    if (m_len == 0 || shift == 0)
+    {
+        return;
+    }
+
     UINT32 shiftBlocks = shift / 32;
     UINT32 shiftBits = shift % 32;
 
-    // process blocks high to low so that we can safely process in place
-    const UINT32* pInBlocks = pResult->m_blocks;
-    int inLength = pResult->m_len;
+    // Process blocks high to low so that we can safely process in place
+    int inLength = m_len;
 
-    // check if the shift is block aligned
+    // Check if the shift is block aligned
     if (shiftBits == 0)
     {
-        // copy blocks from high to low
-        for (UINT32 * pInCur = pResult->m_blocks + inLength, *pOutCur = pInCur + shiftBlocks;
-            pInCur >= pInBlocks;
-            --pInCur, --pOutCur)
+        // Copy blocks from high to low
+        UINT32* pInCurrent = m_blocks + inLength;
+        UINT32* pOutCurrent = pInCurrent + shiftBlocks;
+        while (pInCurrent >= m_blocks)
         {
-            *pOutCur = *pInCur;
+            *pOutCurrent = *pInCurrent;
+
+            --pInCurrent;
+            --pOutCurrent;
         }
 
-        // zero the remaining low blocks
-        for (UINT32 i = 0; i < shiftBlocks; ++i)
-        {
-            pResult->m_blocks[i] = 0;
-        }
+        m_len += shiftBlocks;
 
-        pResult->m_len += shiftBlocks;
+        // Zero the remaining low blocks
+        memset(m_blocks, 0, shiftBlocks);
     }
-    // else we need to shift partial blocks
     else
     {
+        // We need to shift partial blocks
         int inBlockIdx = inLength - 1;
         UINT32 outBlockIdx = inLength + shiftBlocks;
 
-        // set the length to hold the shifted blocks
-        pResult->m_len = outBlockIdx + 1;
+        _ASSERTE(outBlockIdx < BIGSIZE);
 
-        // output the initial blocks
+        // Set the length to hold the shifted blocks
+        m_len = outBlockIdx + 1;
+
+        // Output the initial blocks
         const UINT32 lowBitsShift = (32 - shiftBits);
         UINT32 highBits = 0;
-        UINT32 block = pResult->m_blocks[inBlockIdx];
+        UINT32 block = m_blocks[inBlockIdx];
         UINT32 lowBits = block >> lowBitsShift;
         while (inBlockIdx > 0)
         {
-            pResult->m_blocks[outBlockIdx] = highBits | lowBits;
+            m_blocks[outBlockIdx] = highBits | lowBits;
             highBits = block << shiftBits;
 
             --inBlockIdx;
             --outBlockIdx;
 
-            block = pResult->m_blocks[inBlockIdx];
+            block = m_blocks[inBlockIdx];
             lowBits = block >> lowBitsShift;
         }
 
-        // output the final blocks
-        pResult->m_blocks[outBlockIdx] = highBits | lowBits;
-        pResult->m_blocks[outBlockIdx - 1] = block << shiftBits;
+        // Output the final blocks
+        m_blocks[outBlockIdx] = highBits | lowBits;
+        m_blocks[outBlockIdx - 1] = block << shiftBits;
 
-        // zero the remaining low blocks
-        for (UINT32 i = 0; i < shiftBlocks; ++i)
-        {
-            pResult->m_blocks[i] = 0;
-        }
+        // Zero the remaining low blocks
+        memset(m_blocks, 0, shiftBlocks * sizeof(UINT32));
 
-        // check if the terminating block has no set bits
-        if (pResult->m_blocks[pResult->m_len - 1] == 0)
+        // Check if the terminating block has no set bits
+        if (m_blocks[m_len - 1] == 0)
         {
-            --pResult->m_len;
+            --m_len;
         }
     }
 }
 
 void BigNum::Pow10(int exp, BigNum& result)
 {
+    // We leverage two arrays - m_power10UInt32Table and m_power10BigNumTable to speed up the 
+    // pow10 calculation.
+    //
+    // m_power10UInt32Table stores the results of 10^0 to 10^7.
+    // m_power10BigNumTable stores the results of 10^8, 10^16, 10^32, 10^64, 10^128 and 10^256.
+    //
+    // For example, let's say exp = (111111)2. We can split the exp to two parts, one is small exp, 
+    // which 10^smallExp can be represented as UINT32, another part is 10^bigExp, which must be represented as BigNum. 
+    // So the result should be 10^smallExp * 10^bigExp.
+    //
+    // Calculate 10^smallExp is simple, we just lookup the 10^smallExp from m_power10UInt32Table. 
+    // But here's a bad news: although UINT32 can represent 10^9, exp 9's binary representation is 1001. 
+    // That means 10^(1011), 10^(1101), 10^(1111) all cannot be stored as UINT32, we cannot easily say something like: 
+    // "Any bits <= 3 is small exp, any bits > 3 is big exp". So instead of involving 10^8, 10^9 to m_power10UInt32Table, 
+    // consider 10^8 and 10^9 as a bigNum, so they fall into m_power10BigNumTable. Now we can have a simple rule: 
+    // "Any bits <= 3 is small exp, any bits > 3 is big exp".
+    //
+    // For (111111)2, we first calculate 10^(smallExp), which is 10^(7), now we can shift right 3 bits, prepare to calculate the bigExp part, 
+    // the exp now becomes (000111)2.
+    //
+    // Apparently the lowest bit of bigExp should represent 10^8 because we have already shifted 3 bits for smallExp, so m_power10BigNumTable[0] = 10^8.
+    // Now let's shift exp right 1 bit, the lowest bit should represent 10^(8 * 2) = 10^16, and so on...
+    //
+    // That's why we just need the values of m_power10BigNumTable be power of 2.
+    //
+    // More details of this implementation can be found at: https://github.com/dotnet/coreclr/pull/12894#discussion_r128890596
+
     BigNum temp1;
     BigNum temp2;
 
     BigNum* pCurrentTemp = &temp1;
     BigNum* pNextTemp = &temp2;
 
+    // Extract small exp. 
     UINT32 smallExp = exp & 0x7;
     pCurrentTemp->SetUInt32(m_power10UInt32Table[smallExp]);
 
@@ -260,19 +239,19 @@ void BigNum::Pow10(int exp, BigNum& result)
 
     while (exp != 0)
     {
-        // if the current bit is set, multiply it with the corresponding power of 10
+        // If the current bit is set, multiply it with the corresponding power of 10
         if (exp & 1)
         {
-            // multiply into the next temporary
+            // Multiply into the next temporary
             Multiply(*pCurrentTemp, m_power10BigNumTable[idx], *pNextTemp);
 
-            // swap to the next temporary
+            // Swap to the next temporary
             BigNum* t = pNextTemp;
             pNextTemp = pCurrentTemp;
             pCurrentTemp = t;
         }
 
-        // advance to the next bit
+        // Advance to the next bit
         ++idx;
         exp >>= 1;
     }
@@ -295,14 +274,14 @@ void BigNum::PrepareHeuristicDivide(BigNum* pDividend, BigNum* pDivisor)
         UINT32 hiBlockLog2 = LogBase2(hiBlock);
         UINT32 shift = (59 - hiBlockLog2) % 32;
 
-        BigNum::ShiftLeft(pDivisor, shift);
-        BigNum::ShiftLeft(pDividend, shift);
+        pDivisor->ShiftLeft(shift);
+        pDividend->ShiftLeft(shift);
     }
 }
 
 UINT32 BigNum::HeuristicDivide(BigNum* pDividend, const BigNum& divisor)
 {
-    UINT8 len = divisor.m_len;
+    UINT32 len = divisor.m_len;
     if (pDividend->m_len < len)
     {
         return 0;
@@ -398,8 +377,17 @@ void BigNum::Multiply(const BigNum& value)
 
 void BigNum::Multiply(const BigNum& lhs, UINT32 value, BigNum& result)
 {
-    if (lhs.m_len == 0)
+    if (lhs.IsZero() || value == 1)
     {
+        result = lhs;
+
+        return;
+    }
+
+    if (value == 0)
+    {
+        result.SetZero();
+
         return;
     }
 
@@ -437,6 +425,20 @@ void BigNum::Multiply(const BigNum& lhs, UINT32 value, BigNum& result)
 
 void BigNum::Multiply(const BigNum& lhs, const BigNum& rhs, BigNum& result)
 {
+    if (lhs.IsZero() || (rhs.m_len == 1 && rhs.m_blocks[0] == 1))
+    {
+        result = lhs;
+
+        return;
+    }
+
+    if (rhs.IsZero())
+    {
+        result.SetZero();
+
+        return;
+    }
+
     const BigNum* pLarge = NULL;
     const BigNum* pSmall = NULL;
     if (lhs.m_len < rhs.m_len)
@@ -450,7 +452,8 @@ void BigNum::Multiply(const BigNum& lhs, const BigNum& rhs, BigNum& result)
         pLarge = &lhs;
     }
 
-    UINT8 maxResultLength = pSmall->m_len + pLarge->m_len;
+    UINT32 maxResultLength = pSmall->m_len + pLarge->m_len;
+    _ASSERTE(maxResultLength <= BIGSIZE);
 
     // Zero out result internal blocks.
     memset(result.m_blocks, 0, sizeof(UINT32) * BIGSIZE);
@@ -498,22 +501,9 @@ void BigNum::Multiply(const BigNum& lhs, const BigNum& rhs, BigNum& result)
     }
 }
 
-bool BigNum::IsZero()
+bool BigNum::IsZero() const
 {
-    if (m_len == 0)
-    {
-        return true;
-    }
-
-    for (UINT8 i = 0; i < m_len; ++i)
-    {
-        if (m_blocks[i] != 0)
-        {
-            return false;
-        }
-    }
-
-    return true;
+    return m_len == 0;
 }
 
 void BigNum::SetUInt32(UINT32 value)
@@ -524,22 +514,36 @@ void BigNum::SetUInt32(UINT32 value)
 
 void BigNum::SetUInt64(UINT64 value)
 {
-    m_len = 0;
     m_blocks[0] = (UINT32)(value & 0xFFFFFFFF);
-    m_len++;
-
-    UINT32 highBits = (UINT32)(value >> 32);
-    if (highBits != 0)
-    {
-        m_blocks[1] = highBits;
-        m_len++;
-    }
+    m_blocks[1] = (UINT32)(value >> 32);
+    m_len = (m_blocks[1] == 0) ? 1 : 2;
 }
 
-void BigNum::ExtendBlock(UINT32 newBlock)
+void BigNum::SetZero()
 {
-    m_blocks[m_len] = newBlock;
+    m_len = 0;
+}
+
+void BigNum::ExtendBlock(UINT32 blockValue)
+{
+    m_blocks[m_len] = blockValue;
     ++m_len;
+}
+
+void BigNum::ExtendBlocks(UINT32 blockValue, UINT32 blockCount)
+{
+    _ASSERTE(blockCount > 0);
+
+    if (blockCount == 1)
+    {
+        ExtendBlock(blockValue);
+
+        return;
+    }
+
+    memset(m_blocks + m_len, 0, (blockCount - 1) * sizeof(UINT32));
+    m_len += blockCount;
+    m_blocks[m_len - 1] = blockValue;
 }
 
 UINT32 BigNum::LogBase2(UINT32 val)

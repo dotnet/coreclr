@@ -25,31 +25,41 @@ public:
     static UINT32 LogBase2(UINT32 val);
     static UINT32 LogBase2(UINT64 val);
 
-    static int Compare(const BigNum& lhs, UINT32 value);
     static int Compare(const BigNum& lhs, const BigNum& rhs);
 
-    static void ShiftLeft(UINT64 input, int shift, BigNum& output);
-    static void ShiftLeft(BigNum* pResult, UINT32 shift);
+    static void ShiftLeft(UINT64 input, UINT32 shift, BigNum& output);
     static void Pow10(int exp, BigNum& result);
     static void PrepareHeuristicDivide(BigNum* pDividend, BigNum* divisor);
     static UINT32 HeuristicDivide(BigNum* pDividend, const BigNum& divisor);
     static void Multiply(const BigNum& lhs, UINT32 value, BigNum& result);
     static void Multiply(const BigNum& lhs, const BigNum& rhs, BigNum& result);
 
-    bool IsZero();
+    bool IsZero() const;
 
     void Multiply(UINT32 value);
     void Multiply(const BigNum& value);
+    void ShiftLeft(UINT32 shift);
     void SetUInt32(UINT32 value);
     void SetUInt64(UINT64 value);
-    void ExtendBlock(UINT32 newBlock);
+    void SetZero();
+    void ExtendBlock(UINT32 blockValue);
+    void ExtendBlocks(UINT32 blockValue, UINT32 blockCount);
 
 private:
 
-    static const UINT8 BIGSIZE = 35;
-    static const UINT8 UINT32POWER10NUM = 8;
-    static const UINT8 BIGPOWER10NUM = 6;
-    static UINT32 m_power10UInt32Table[UINT32POWER10NUM];
+    static const UINT32 BIGSIZE = 35;
+    static const UINT32 BIGPOWER10NUM = 6;
+    static constexpr UINT32 m_power10UInt32Table[] = 
+    {
+            1,          // 10^0
+            10,         // 10^1
+            100,        // 10^2
+            1000,       // 10^3
+            10000,      // 10^4
+            100000,     // 10^5
+            1000000,    // 10^6
+            10000000,   // 10^7
+    };
     static BigNum m_power10BigNumTable[BIGPOWER10NUM];
 
     static class StaticInitializer
@@ -58,23 +68,23 @@ private:
         StaticInitializer()
         {
             // 10^8
-            m_power10BigNumTable[0].m_len = (UINT8)1;
+            m_power10BigNumTable[0].m_len = (UINT32)1;
             m_power10BigNumTable[0].m_blocks[0] = (UINT32)100000000;
 
             // 10^16
-            m_power10BigNumTable[1].m_len = (UINT8)2;
+            m_power10BigNumTable[1].m_len = (UINT32)2;
             m_power10BigNumTable[1].m_blocks[0] = (UINT32)0x6fc10000;
             m_power10BigNumTable[1].m_blocks[1] = (UINT32)0x002386f2;
 
             // 10^32
-            m_power10BigNumTable[2].m_len = (UINT8)4;
+            m_power10BigNumTable[2].m_len = (UINT32)4;
             m_power10BigNumTable[2].m_blocks[0] = (UINT32)0x00000000;
             m_power10BigNumTable[2].m_blocks[1] = (UINT32)0x85acef81;
             m_power10BigNumTable[2].m_blocks[2] = (UINT32)0x2d6d415b;
             m_power10BigNumTable[2].m_blocks[3] = (UINT32)0x000004ee;
 
             // 10^64
-            m_power10BigNumTable[3].m_len = (UINT8)7;
+            m_power10BigNumTable[3].m_len = (UINT32)7;
             m_power10BigNumTable[3].m_blocks[0] = (UINT32)0x00000000;
             m_power10BigNumTable[3].m_blocks[1] = (UINT32)0x00000000;
             m_power10BigNumTable[3].m_blocks[2] = (UINT32)0xbf6a1f01;
@@ -84,7 +94,7 @@ private:
             m_power10BigNumTable[3].m_blocks[6] = (UINT32)0x00184f03;
 
             // 10^128
-            m_power10BigNumTable[4].m_len = (UINT8)14;
+            m_power10BigNumTable[4].m_len = (UINT32)14;
             m_power10BigNumTable[4].m_blocks[0] = (UINT32)0x00000000;
             m_power10BigNumTable[4].m_blocks[1] = (UINT32)0x00000000;
             m_power10BigNumTable[4].m_blocks[2] = (UINT32)0x00000000;
@@ -101,7 +111,7 @@ private:
             m_power10BigNumTable[4].m_blocks[13] = (UINT32)0x0000024e;
 
             // 10^256
-            m_power10BigNumTable[5].m_len = (UINT8)27;
+            m_power10BigNumTable[5].m_len = (UINT32)27;
             m_power10BigNumTable[5].m_blocks[0] = (UINT32)0x00000000;
             m_power10BigNumTable[5].m_blocks[1] = (UINT32)0x00000000;
             m_power10BigNumTable[5].m_blocks[2] = (UINT32)0x00000000;
@@ -132,8 +142,8 @@ private:
         }
     } m_initializer;
 
-    UINT8 m_len;
     UINT32 m_blocks[BIGSIZE];
+    UINT32 m_len;
 };
 
 

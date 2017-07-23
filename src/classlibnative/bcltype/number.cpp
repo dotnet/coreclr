@@ -137,86 +137,185 @@ unsigned int Int64DivMod1E9(unsigned __int64* value)
 
 void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
 {
+    // ========================================================================================================================================
+    // This implementation is based on the paper: https://www.cs.indiana.edu/~dyb/pubs/FP-Printing-PLDI96.pdf
+    // Besides the paper, some of the code and ideas are modified from http://www.ryanjuckett.com/programming/printing-floating-point-numbers/
+    // You must read these two marterials to fully understand the code.
+    //
+    // Note: we only support fixed format input.
+    // ======================================================================================================================================== 
+    //
+    // Overview:
+    //
+    // The input double number can be represented as:
+    // value = f * 2^e = r / s.
+    //
+    // f: the output mantissa. Note: f is not the 52 bits mantissa of the input double number. 
+    // e: biased exponent.
+    // r: numerator.
+    // s: denominator.
+    // k: value = d0.d1d2 . . . dn * 10^k
+
+    _ASSERTE(dec != nullptr && sign != nullptr && digits != nullptr);
+
+    // The caller of _ecvt should already checked the Infinity and NAN values.
+    _ASSERTE(((FPDOUBLE*)&value)->exp != 0x7ff);
+
+    // Shortcut for zero.
+    if (value == 0.0)
+    {
+        *dec = 0;
+        *sign = 0;
+
+        for (int i = 0; i < count; ++i)
+        {
+            digits[i] = L'0';
+        }
+
+        digits[count] = 0;
+
+        return;
+    } 
+
     // Step 1:
     // Extract meta data from the input double value.
     //
     // Refer to IEEE double precision floating point format.
-    UINT64 realMantissa = 0;
-    int realExponent = 0;
+    UINT64 f = 0;
+    int e = 0;
     UINT32 mantissaHighBitIdx = 0;
     if (((FPDOUBLE*)&value)->exp > 0)
     {
-        realMantissa = ((UINT64)(((FPDOUBLE*)&value)->mantHi) << 32) | ((FPDOUBLE*)&value)->mantLo + ((UINT64)1 << 52);
-        realExponent = ((FPDOUBLE*)&value)->exp - 1075;
+        // For normalized value, according to https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+        // value = 1.fraction * 2^(exp - 1023) 
+        //       = (1 + mantissa / 2^52) * 2^(exp - 1023) 
+        //       = (2^52 + mantissa) * 2^(exp - 1023 - 52)
+        //
+        // So f = (2^52 + mantissa), e = exp - 1075; 
+        f = ((UINT64)(((FPDOUBLE*)&value)->mantHi) << 32) | ((FPDOUBLE*)&value)->mantLo + ((UINT64)1 << 52);
+        e = ((FPDOUBLE*)&value)->exp - 1075;
         mantissaHighBitIdx = 52;
     }
     else
     {
-        realMantissa = ((UINT64)(((FPDOUBLE*)&value)->mantHi) << 32) | ((FPDOUBLE*)&value)->mantLo;
-        realExponent = -1074;
-        mantissaHighBitIdx = BigNum::LogBase2(realMantissa);
+        // For denormalized value, according to https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+        // value = 0.fraction * 2^(1 - 1023)
+        //       = (mantissa / 2^52) * 2^(-1022)
+        //       = mantissa * 2^(-1022 - 52)
+        //       = mantissa * 2^(-1074)
+        // So f = mantissa, e = -1074
+        f = ((UINT64)(((FPDOUBLE*)&value)->mantHi) << 32) | ((FPDOUBLE*)&value)->mantLo;
+        e = -1074;
+        mantissaHighBitIdx = BigNum::LogBase2(f);
     }
 
     // Step 2:
-    // Calculate the first digit exponent. We should estimate the exponent and then verify it later.
+    // Estimate k. We'll verify it and fix any error later.
     //
     // This is an improvement of the estimation in the original paper.
     // Inspired by http://www.ryanjuckett.com/programming/printing-floating-point-numbers/
     //
     // 0.30102999566398119521373889472449 = log10V2
     // 0.69 = 1 - log10V2 - epsilon (a small number account for drift of floating point multiplication)
-    int firstDigitExponent = (int)(ceil(double((int)mantissaHighBitIdx + realExponent) * 0.30102999566398119521373889472449 - 0.69));
+    int k = (int)(ceil(double((int)mantissaHighBitIdx + e) * 0.30102999566398119521373889472449 - 0.69));
 
     // Step 3:
     // Store the input double value in BigNum format.
     //
-    // To keep the precision, we represent the double value as numertor/denominator.
-    BigNum numerator;
-    BigNum denominator;
-    if (realExponent > 0)
+    // To keep the precision, we represent the double value as r/s.
+    // We have several optimization based on following table in the paper.
+    //
+    //     ----------------------------------------------------------------------------------------------------------
+    //     |               e >= 0                   |                         e < 0                                 |
+    //     ----------------------------------------------------------------------------------------------------------
+    //     |  f != b^(P - 1)  |  f = b^(P - 1)      | e = min exp or f != b^(P - 1) | e > min exp and f = b^(P - 1) |
+    // --------------------------------------------------------------------------------------------------------------
+    // | r |  f * b^e * 2     |  f * b^(e + 1) * 2  |          f * 2                |            f * b * 2          |
+    // --------------------------------------------------------------------------------------------------------------
+    // | s |        2         |        b * 2        |          b^(-e) * 2           |            b^(-e + 1) * 2     |
+    // --------------------------------------------------------------------------------------------------------------  
+    BigNum r(f);
+    BigNum s;
+    if (e >= 0)
     {
-        numerator.SetUInt64(realMantissa);
-        BigNum::ShiftLeft(&numerator, realExponent);
+        // When f != b^(P - 1):
+        // r = f * b^e * 2
+        // s = 2
+        // value = r / s = f * b^e * 2 / 2 = f * b^e / 1
+        //
+        // When f = b^(P - 1):
+        // r = f * b^(e + 1) * 2
+        // s = b * 2
+        // value = r / s =  f * b^(e + 1) * 2 / b * 2 = f * b^e / 1
+        //
+        // Therefore, we can simply say that when e >= 0:
+        // r = f * b^e = f * 2^e
+        // s = 1
 
-        // Explanation:
-        // value = (realMantissa * 2^realExponent) / (1)
-        denominator.SetUInt64(1);
+        r.ShiftLeft(e);
+        s.SetUInt64(1);
     }
     else
     {
-        // Explanation:
-        // value = (realMantissa * 2^realExponent) / (1)
-        //       = (realMantissa / 2^(-realExponent)
-        numerator.SetUInt64(realMantissa);
-        BigNum::ShiftLeft(1, -realExponent, denominator);
+        // When e = min exp or f != b^(P - 1):
+        // r = f * 2
+        // s = b^(-e) * 2
+        // value = r / s = f * 2 / b^(-e) * 2 = f / b^(-e)
+        //
+        // When e > min exp and f = b^(P - 1):
+        // r = f * b * 2
+        // s = b^(-e + 1) * 2
+        // value = r / s =  f * b * 2 / b^(-e + 1) * 2 = f / b^(-e)
+        //
+        // Therefore, we can simply say that when e < 0:
+        // r = f
+        // s = b^(-e) = 2^(-e)
+
+        BigNum::ShiftLeft(1, -e, s);
     }
 
-    if (firstDigitExponent > 0)
+    // According to the paper, we should use k >= 0 instead of k > 0 here.
+    // However, if k = 0, both r and s won't be changed, we don't need to do any operation.
+    //
+    // Following are the Scheme code from the paper:
+    // --------------------------------------------------------------------------------
+    // (if (>= est 0)
+    // (fixup r (∗ s (exptt B est)) m+ m− est B low-ok? high-ok? )
+    // (let ([scale (exptt B (− est))])
+    // (fixup (∗ r scale) s (∗ m+ scale) (∗ m− scale) est B low-ok? high-ok? ))))
+    // --------------------------------------------------------------------------------
+    //
+    // If est is 0, (∗ s (exptt B est)) = s, (∗ r scale) = (* r (exptt B (− est)))) = r.
+    //
+    // So we just skip when k = 0.
+    
+    if (k > 0)
     {
         BigNum poweredValue;
-        BigNum::Pow10(firstDigitExponent, poweredValue);
-        denominator.Multiply(poweredValue);
+        BigNum::Pow10(k, poweredValue);
+        s.Multiply(poweredValue);
     }
-    else if (firstDigitExponent < 0)
+    else if (k < 0)
     {
         BigNum poweredValue;
-        BigNum::Pow10(-firstDigitExponent, poweredValue);
-        numerator.Multiply(poweredValue);
+        BigNum::Pow10(-k, poweredValue);
+        r.Multiply(poweredValue);
     }
 
-    if (BigNum::Compare(numerator, denominator) >= 0)
+    if (BigNum::Compare(r, s) >= 0)
     {
-        // The exponent estimation was incorrect.
-        firstDigitExponent += 1;
+        // The estimation was incorrect. Fix the error by increasing 1.
+        k += 1;
     }
     else
     {
-        numerator.Multiply(10);
+        r.Multiply(10);
     }
 
-    *dec = firstDigitExponent - 1;
+    *dec = k - 1;
 
-    BigNum::PrepareHeuristicDivide(&numerator, &denominator);
+    // This the prerequisite of calling BigNum::HeuristicDivide().
+    BigNum::PrepareHeuristicDivide(&r, &s);
 
     // Step 4:
     // Calculate digits.
@@ -226,8 +325,8 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
     int currentDigit = 0;
     while (true)
     {
-        currentDigit = BigNum::HeuristicDivide(&numerator, denominator);
-        if (numerator.IsZero() || digitsNum + 1 == count)
+        currentDigit = BigNum::HeuristicDivide(&r, s);
+        if (r.IsZero() || digitsNum + 1 == count)
         {
             break;
         }
@@ -235,7 +334,7 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
         digits[digitsNum] = L'0' + currentDigit;
         ++digitsNum;
 
-        numerator.Multiply(10);
+        r.Multiply(10);
     }
 
     // Step 5:
@@ -243,11 +342,12 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
     //
     // We round to the closest digit by comparing value with 0.5:
     //  compare( value, 0.5 )
-    //  = compare( numerator / denominator, 0.5 )
-    //  = compare( numerator, 0.5 * denominator)
-    //  = compare(2 * numerator, denominator)
-    numerator.Multiply(2);
-    int compareResult = BigNum::Compare(numerator, denominator);
+    //  = compare( r / s, 0.5 )
+    //  = compare( r, 0.5 * s)
+    //  = compare(2 * r, s)
+    //  = compare(r << 1, s)
+    r.ShiftLeft(1);
+    int compareResult = BigNum::Compare(r, s);
     bool isRoundDown = compareResult < 0;
 
     // We are in the middle, round towards the even digit (i.e. IEEE rouding rules)
@@ -308,16 +408,7 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
 
     digits[count] = 0;
 
-    // Determine decimal location.
-    if (*dec == 0)
-    {
-        *dec = 1;
-    }
-    else
-    {
-        ++*dec;
-    }
-
+    ++*dec;
     *sign = ((FPDOUBLE*)&value)->sign;
 }
 
