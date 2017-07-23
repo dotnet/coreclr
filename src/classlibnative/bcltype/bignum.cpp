@@ -61,7 +61,7 @@ int BigNum::Compare(const BigNum& lhs, const BigNum& rhs)
         INT64 diff = (INT64)(lhs.m_blocks[currentIndex]) - (INT64)(rhs.m_blocks[currentIndex]);
         if (diff != 0)
         {
-            return diff;
+            return diff > 0 ? 1 : -1;
         }
 
         --currentIndex;
