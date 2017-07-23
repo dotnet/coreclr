@@ -48,8 +48,9 @@ public:
 private:
 
     static const UINT32 BIGSIZE = 35;
+    static const UINT32 UINT32POWER10NUM = 8;
     static const UINT32 BIGPOWER10NUM = 6;
-    static constexpr UINT32 m_power10UInt32Table[] = 
+    static constexpr UINT32 m_power10UInt32Table[UINT32POWER10NUM] = 
     {
             1,          // 10^0
             10,         // 10^1

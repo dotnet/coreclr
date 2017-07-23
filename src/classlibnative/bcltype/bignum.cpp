@@ -9,7 +9,7 @@
 
 #include "bignum.h"
 
-constexpr UINT32 BigNum::m_power10UInt32Table[];
+constexpr UINT32 BigNum::m_power10UInt32Table[UINT32POWER10NUM];
 BigNum BigNum::m_power10BigNumTable[BIGPOWER10NUM];
 BigNum::StaticInitializer BigNum::m_initializer;
 
