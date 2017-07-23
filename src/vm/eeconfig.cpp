@@ -201,7 +201,7 @@ HRESULT EEConfig::Init()
     iGCNoAffinitize = 0;
 
 #ifdef GCTRIMCOMMIT
-    iGCTrimCommit = 0;
+    iGCTrimCommit = 1;
 #endif
 
     m_fFreepZapSet = false;
