@@ -234,6 +234,12 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
     // --------------------------------------------------------------------------------------------------------------
     // | s |        2         |        b * 2        |          b^(-e) * 2           |            b^(-e + 1) * 2     |
     // --------------------------------------------------------------------------------------------------------------  
+    //
+    // Note, we do not need m+ and m- because we only support fixed format input here.
+    // m+ and m- are used for free format input, which need to determine the exact range of values 
+    // that would round to value when input so that we can generate the shortest correct digits.
+    //
+    // In our case, we just output digits until reaching the expected precision. 
     BigNum r(f);
     BigNum s;
     if (e >= 0)
