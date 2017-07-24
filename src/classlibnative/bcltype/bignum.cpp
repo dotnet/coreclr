@@ -9,6 +9,10 @@
 
 #include "bignum.h"
 
+#if !defined(FEATURE_PAL)
+#include <intrin.h>
+#endif
+
 constexpr UINT32 BigNum::m_power10UInt32Table[UINT32POWER10NUM];
 BigNum BigNum::m_power10BigNumTable[BIGPOWER10NUM];
 BigNum::StaticInitializer BigNum::m_initializer;
@@ -567,56 +571,30 @@ void BigNum::ExtendBlocks(UINT32 blockValue, UINT32 blockCount)
     m_blocks[m_len - 1] = blockValue;
 }
 
-UINT32 BigNum::LogBase2(UINT32 val)
+UINT32 BigNum::LogBase2(UINT32 value)
 {
-    static const UINT8 logTable[256] =
-    {
-        0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
-        4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-        5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-        5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7
-    };
+    _ASSERTE(value != 0);
 
-    UINT32 temp = val >> 24;
-    if (temp != 0)
-    {
-        return 24 + logTable[temp];
-    }
+#if defined(FEATURE_PAL)
+    return (UINT32) (8 * sizeof (UINT32) - __builtin_clz(value) - 1);
+#else
+    UINT32 r;
+    _BitScanReverse(&r, value);
 
-    temp = val >> 16;
-    if (temp != 0)
-    {
-        return 16 + logTable[temp];
-    }
-
-    temp = val >> 8;
-    if (temp != 0)
-    {
-        return 8 + logTable[temp];
-    }
-
-    return logTable[val];
+    return r;
+#endif
 }
 
-UINT32 BigNum::LogBase2(UINT64 val)
+UINT32 BigNum::LogBase2(UINT64 value)
 {
-    UINT64 temp = val >> 32;
-    if (temp != 0)
-    {
-        return 32 + LogBase2((UINT32)temp);
-    }
+    _ASSERTE(value != 0);
 
-    return LogBase2((UINT32)val);
+#if defined(FEATURE_PAL)
+    return (UINT32) (8 * sizeof (UINT64) - __builtin_clzll(value) - 1);
+#else
+    UINT32 r;
+    _BitScanReverse64(&r, value);
+
+    return r;
+#endif
 }
