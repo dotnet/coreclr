@@ -591,10 +591,18 @@ UINT32 BigNum::LogBase2(UINT64 value)
 
 #if defined(FEATURE_PAL)
     return (UINT32) (8 * sizeof (UINT64) - __builtin_clzll(value) - 1);
-#else
+#elif !defined(_TARGET_X86_)
     DWORD r;
     _BitScanReverse64(&r, (DWORD64)value);
 
     return (UINT32)r;
+#else
+    UINT64 temp = value >> 32;
+    if (temp != 0)
+    {
+        return 32 + LogBase2((UINT32)temp);
+    }
+
+    return LogBase2((UINT32)value);
 #endif
 }
