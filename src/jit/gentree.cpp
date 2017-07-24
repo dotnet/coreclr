@@ -5377,6 +5377,7 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_RELOAD:
         case GT_ARR_LENGTH:
         case GT_CAST:
+        case GT_BITCAST:
         case GT_CKFINITE:
         case GT_LCLHEAP:
         case GT_ADDR:
@@ -5389,7 +5390,6 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_JTRUE:
         case GT_SWITCH:
         case GT_NULLCHECK:
-        case GT_PHYSREGDST:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
         case GT_RETURNTRAP:
@@ -5931,17 +5931,6 @@ GenTree* Compiler::gtNewPhysRegNode(regNumber reg, var_types type)
 {
     assert(genIsValidIntReg(reg) || (reg == REG_SPBASE));
     GenTree* result = new (this, GT_PHYSREG) GenTreePhysReg(reg, type);
-    return result;
-}
-
-// Return a new node representing a store of a value to a physical register
-// modifies: child's gtRegNum
-GenTree* Compiler::gtNewPhysRegNode(regNumber reg, GenTree* src)
-{
-    assert(genIsValidIntReg(reg));
-    GenTree* result  = new (this, GT_PHYSREGDST) GenTreeOp(GT_PHYSREGDST, TYP_I_IMPL, src, nullptr);
-    result->gtRegNum = reg;
-    src->gtRegNum    = reg;
     return result;
 }
 
@@ -8644,6 +8633,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_RELOAD:
         case GT_ARR_LENGTH:
         case GT_CAST:
+        case GT_BITCAST:
         case GT_CKFINITE:
         case GT_LCLHEAP:
         case GT_ADDR:
@@ -8656,7 +8646,6 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_JTRUE:
         case GT_SWITCH:
         case GT_NULLCHECK:
-        case GT_PHYSREGDST:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
 #if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
@@ -9661,12 +9650,6 @@ void Compiler::gtDispNode(GenTreePtr tree, IndentStack* indentStack, __in __in_z
                     --msgLength;
                     break;
                 }
-                if (tree->gtFlags & GTF_VAR_USEDEF)
-                {
-                    printf("B");
-                    --msgLength;
-                    break;
-                }
                 if (tree->gtFlags & GTF_VAR_DEF)
                 {
                     printf("D");
@@ -9932,7 +9915,7 @@ void Compiler::gtDispRegVal(GenTree* tree)
         // 0th reg is gtRegNum, which is already printed above.
         // Print the remaining regs of a multi-reg call node.
         GenTreeCall* call     = tree->AsCall();
-        unsigned     regCount = call->GetReturnTypeDesc()->GetReturnRegCount();
+        unsigned     regCount = call->GetReturnTypeDesc()->TryGetReturnRegCount();
         for (unsigned i = 1; i < regCount; ++i)
         {
             printf(",%s", compRegVarName(call->GetRegNumByIdx(i)));
@@ -9942,7 +9925,7 @@ void Compiler::gtDispRegVal(GenTree* tree)
     {
         GenTreeCopyOrReload* copyOrReload = tree->AsCopyOrReload();
         GenTreeCall*         call         = tree->gtGetOp1()->AsCall();
-        unsigned             regCount     = call->GetReturnTypeDesc()->GetReturnRegCount();
+        unsigned             regCount     = call->GetReturnTypeDesc()->TryGetReturnRegCount();
         for (unsigned i = 1; i < regCount; ++i)
         {
             printf(",%s", compRegVarName(copyOrReload->GetRegNumByIdx(i)));
@@ -12256,9 +12239,9 @@ DONE_FOLD:
     // a use, update the flags appropriately
     if (op->gtOper == GT_LCL_VAR)
     {
-        assert((tree->OperKind() & GTK_ASGOP) || (op->gtFlags & (GTF_VAR_USEASG | GTF_VAR_USEDEF | GTF_VAR_DEF)) == 0);
+        assert((tree->OperKind() & GTK_ASGOP) || (op->gtFlags & (GTF_VAR_USEASG | GTF_VAR_DEF)) == 0);
 
-        op->gtFlags &= ~(GTF_VAR_USEASG | GTF_VAR_USEDEF | GTF_VAR_DEF);
+        op->gtFlags &= ~(GTF_VAR_USEASG | GTF_VAR_DEF);
     }
 
     op->gtNext = tree->gtNext;

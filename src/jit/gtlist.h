@@ -64,6 +64,7 @@ GTNODE(CMPXCHG          , GenTreeCmpXchg     ,0,GTK_SPECIAL)
 GTNODE(MEMORYBARRIER    , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)
 
 GTNODE(CAST             , GenTreeCast        ,0,GTK_UNOP|GTK_EXOP)      // conversion to another type
+GTNODE(BITCAST          , GenTreeUnOp        ,0,GTK_UNOP)               // reinterpretation of bits as another type
 GTNODE(CKFINITE         , GenTreeOp          ,0,GTK_UNOP|GTK_NOCONTAIN) // Check for NaN
 GTNODE(LCLHEAP          , GenTreeOp          ,0,GTK_UNOP|GTK_NOCONTAIN) // alloca()
 GTNODE(JMP              , GenTreeVal         ,0,GTK_LEAF|GTK_NOVALUE)   // Jump to another function
@@ -289,7 +290,6 @@ GTNODE(CLS_VAR_ADDR     , GenTreeClsVar      ,0,GTK_LEAF)               // stati
 GTNODE(ARGPLACE         , GenTreeArgPlace    ,0,GTK_LEAF)               // placeholder for a register arg
 GTNODE(NULLCHECK        , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)   // null checks the source
 GTNODE(PHYSREG          , GenTreePhysReg     ,0,GTK_LEAF)               // read from a physical register
-GTNODE(PHYSREGDST       , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)   // write to a physical register
 GTNODE(EMITNOP          , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // emitter-placed nop
 GTNODE(PINVOKE_PROLOG   , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // pinvoke prolog seq
 GTNODE(PINVOKE_EPILOG   , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // pinvoke epilog seq

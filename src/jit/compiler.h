@@ -85,6 +85,10 @@ class CSE_DataFlow; // defined in OptCSE.cpp
 struct IndentStack;
 #endif
 
+#ifndef LEGACY_BACKEND
+class Lowering; // defined in lower.h
+#endif
+
 // The following are defined in this file, Compiler.h
 
 class Compiler;
@@ -1984,8 +1988,6 @@ public:
 
     GenTree* gtNewPhysRegNode(regNumber reg, var_types type);
 
-    GenTree* gtNewPhysRegNode(regNumber reg, GenTree* src);
-
     GenTreePtr gtNewJmpTableNode();
     GenTreePtr gtNewIconHandleNode(
         size_t value, unsigned flags, FieldSeqNode* fields = nullptr, unsigned handle1 = 0, void* handle2 = nullptr);
@@ -3760,6 +3762,8 @@ public:
 
     bool fgMarkIntf(VARSET_VALARG_TP varSet1, VARSET_VALARG_TP varSet2);
 
+    bool fgMarkIntf(VARSET_VALARG_TP varSet1, unsigned varIndex);
+
     void fgUpdateRefCntForClone(BasicBlock* addedToBlock, GenTreePtr clonedTree);
 
     void fgUpdateRefCntForExtract(GenTreePtr wholeTree, GenTreePtr keptTree);
@@ -4441,7 +4445,7 @@ public:
     void fgTableDispBasicBlock(BasicBlock* block, int ibcColWidth = 0);
     void fgDispBasicBlocks(BasicBlock* firstBlock, BasicBlock* lastBlock, bool dumpTrees);
     void fgDispBasicBlocks(bool dumpTrees = false);
-    void fgDumpStmtTree(GenTreePtr stmt, unsigned blkNum);
+    void fgDumpStmtTree(GenTreePtr stmt, unsigned bbNum);
     void fgDumpBlock(BasicBlock* block);
     void fgDumpTrees(BasicBlock* firstBlock, BasicBlock* lastBlock);
 
@@ -6252,6 +6256,7 @@ public:
 
 private:
 #ifndef LEGACY_BACKEND
+    Lowering*            m_pLowering;   // Lowering; needed to Lower IR that's added or modified after Lowering.
     LinearScanInterface* m_pLinearScan; // Linear Scan allocator
 #else                                   // LEGACY_BACKEND
     unsigned  raAvoidArgRegMask;       // Mask of incoming argument registers that we may need to avoid
@@ -9594,6 +9599,7 @@ public:
             case GT_RELOAD:
             case GT_ARR_LENGTH:
             case GT_CAST:
+            case GT_BITCAST:
             case GT_CKFINITE:
             case GT_LCLHEAP:
             case GT_ADDR:
@@ -9606,7 +9612,6 @@ public:
             case GT_JTRUE:
             case GT_SWITCH:
             case GT_NULLCHECK:
-            case GT_PHYSREGDST:
             case GT_PUTARG_REG:
             case GT_PUTARG_STK:
             case GT_RETURNTRAP:

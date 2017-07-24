@@ -47,7 +47,38 @@ public:
 
     static void getCastDescription(GenTreePtr treeNode, CastInfo* castInfo);
 
+    // LowerRange handles new code that is introduced by or after Lowering.
+    void LowerRange(LIR::Range&& range)
+    {
+        for (GenTree* newNode : range)
+        {
+            LowerNode(newNode);
+        }
+    }
+
 private:
+    void ContainCheckDivOrMod(GenTreeOp* node);
+    void ContainCheckReturnTrap(GenTreeOp* node);
+    void ContainCheckArrOffset(GenTreeArrOffs* node);
+    void ContainCheckLclHeap(GenTreeOp* node);
+    void ContainCheckRet(GenTreeOp* node);
+    void ContainCheckBinary(GenTreeOp* node);
+    void ContainCheckMul(GenTreeOp* node);
+    void ContainCheckShiftRotate(GenTreeOp* node);
+    void ContainCheckStoreLoc(GenTreeLclVarCommon* storeLoc);
+    void ContainCheckIndir(GenTreeIndir* indirNode);
+    void ContainCheckCast(GenTreeCast* node);
+    void ContainCheckCompare(GenTreeOp* node);
+    void ContainCheckBoundsChk(GenTreeBoundsChk* node);
+#ifdef _TARGET_XARCH_
+    void ContainCheckFloatBinary(GenTreeOp* node);
+    void ContainCheckIntrinsic(GenTreeOp* node);
+#endif // _TARGET_XARCH_
+#ifdef FEATURE_SIMD
+    void ContainCheckJTrue(GenTreeOp* node);
+    void ContainCheckSIMD(GenTreeSIMD* simdNode);
+#endif // FEATURE_SIMD
+
 #ifdef DEBUG
     static void CheckCallArg(GenTree* arg);
     static void CheckCall(GenTreeCall* call);
@@ -57,6 +88,7 @@ private:
 
     void LowerBlock(BasicBlock* block);
     GenTree* LowerNode(GenTree* node);
+
     void CheckVSQuirkStackPaddingNeeded(GenTreeCall* call);
 
     // ------------------------------
@@ -102,11 +134,6 @@ private:
     GenTree* PhysReg(regNumber reg, var_types type = TYP_I_IMPL)
     {
         return comp->gtNewPhysRegNode(reg, type);
-    }
-
-    GenTree* PhysRegDst(regNumber reg, GenTree* src)
-    {
-        return comp->gtNewPhysRegNode(reg, src);
     }
 
     GenTree* ThisReg(GenTreeCall* call)
@@ -198,6 +225,12 @@ private:
         }
     }
 #endif // defined(_TARGET_XARCH_)
+
+    // TreeNodeInfoInit methods
+
+    int GetOperandSourceCount(GenTree* node);
+    int GetIndirSourceCount(GenTreeIndir* indirTree);
+
     void TreeNodeInfoInitStoreLoc(GenTree* tree);
     void TreeNodeInfoInitReturn(GenTree* tree);
     void TreeNodeInfoInitShiftRotate(GenTree* tree);
@@ -207,11 +240,10 @@ private:
     void TreeNodeInfoInitCmp(GenTreePtr tree);
     void TreeNodeInfoInitStructArg(GenTreePtr structArg);
     void TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode);
-    void TreeNodeInfoInitLogicalOp(GenTree* tree);
     void TreeNodeInfoInitModDiv(GenTree* tree);
     void TreeNodeInfoInitIntrinsic(GenTree* tree);
     void TreeNodeInfoInitStoreLoc(GenTreeLclVarCommon* tree);
-    void TreeNodeInfoInitIndir(GenTree* indirTree);
+    void TreeNodeInfoInitIndir(GenTreeIndir* indirTree);
     void TreeNodeInfoInitGCWriteBarrier(GenTree* tree);
 #if !CPU_LOAD_STORE_ARCH
     bool TreeNodeInfoInitIfRMWMemOp(GenTreePtr storeInd);
@@ -261,7 +293,10 @@ private:
     bool IsRMWIndirCandidate(GenTree* operand, GenTree* storeInd);
     bool IsBinOpInRMWStoreInd(GenTreePtr tree);
     bool IsRMWMemOpRootedAtStoreInd(GenTreePtr storeIndTree, GenTreePtr* indirCandidate, GenTreePtr* indirOpSource);
+    bool LowerRMWMemOp(GenTreeIndir* storeInd);
 #endif
+
+    void WidenSIMD12IfNecessary(GenTreeLclVarCommon* node);
     void LowerStoreLoc(GenTreeLclVarCommon* tree);
     GenTree* LowerArrElem(GenTree* node);
     void LowerRotate(GenTree* tree);

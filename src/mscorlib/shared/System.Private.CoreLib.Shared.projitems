@@ -31,6 +31,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\AttributeTargets.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\AttributeUsageAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\BadImageFormatException.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\BitConverter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Buffers\ArrayPool.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Buffers\ConfigurableArrayPool.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Buffers\TlsOverPerCoreLockedStacksArrayPool.cs" />
@@ -370,7 +371,17 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\SystemException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\ASCIIEncoding.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\Decoder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\DecoderNLS.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\DecoderBestFitFallback.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\DecoderExceptionFallback.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\DecoderFallback.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\DecoderReplacementFallback.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\Encoder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncoderNLS.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncoderBestFitFallback.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncoderExceptionFallback.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncoderFallback.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncoderReplacementFallback.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\Encoding.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncodingInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncodingNLS.cs" />
@@ -517,8 +528,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\OleAut32\Interop.SysAllocStringLen.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\OleAut32\Interop.SysFreeString.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\OleAut32\Interop.SysStringLen.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\User32\Interop.Constants.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\User32\Interop.SendMessageTimeout.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\User32\Interop.Constants.cs"  Condition="'$(EnableWinRT)' != 'true'" />
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\User32\Interop.SendMessageTimeout.cs" Condition="'$(EnableWinRT)' != 'true'" />
     <Compile Include="$(MSBuildThisFileDirectory)Microsoft\Win32\SafeHandles\SafeFileHandle.Windows.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\HijriCalendar.Win32.cs" Condition="'$(EnableWinRT)' != 'true' and '$(EnableDummyGlobalizationImplementation)' != 'true'" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\HijriCalendar.WinRT.cs" Condition="'$(EnableWinRT)' == 'true'" />

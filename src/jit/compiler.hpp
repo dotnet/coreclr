@@ -4688,10 +4688,8 @@ unsigned Compiler::GetSsaNumForLocalVarDef(GenTreePtr lcl)
         return SsaConfig::RESERVED_SSA_NUM;
     }
 
-    assert(lcl->gtFlags & (GTF_VAR_DEF | GTF_VAR_USEDEF));
     if (lcl->gtFlags & GTF_VAR_USEASG)
     {
-        assert((lcl->gtFlags & GTF_VAR_USEDEF) == 0);
         // It's an "lcl op= rhs" assignment.  "lcl" is both used and defined here;
         // we've chosen in this case to annotate "lcl" with the SSA number (and VN) of the use,
         // and to store the SSA number of the def in a side table.
@@ -4773,6 +4771,7 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_RELOAD:
         case GT_ARR_LENGTH:
         case GT_CAST:
+        case GT_BITCAST:
         case GT_CKFINITE:
         case GT_LCLHEAP:
         case GT_ADDR:
@@ -4785,7 +4784,6 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_JTRUE:
         case GT_SWITCH:
         case GT_NULLCHECK:
-        case GT_PHYSREGDST:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
 #if defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND)

@@ -1,10 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!-- Always use latest Roslyn compiler -->
-  <Import Project="..\..\Tools\net46\roslyn\build\Microsoft.Net.Compilers.props" Condition="'$(OS)'=='Windows_NT'" />
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <!-- Include common build properties -->
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <!-- Include common build properties -->
-  <Import Project="..\..\dir.props" />
   <!-- Compilation options -->
   <PropertyGroup>
     <AvailablePlatforms>amd64,x86,arm,armel,arm64</AvailablePlatforms>
@@ -315,7 +313,6 @@
     <Compile Include="$(BclSourcesRoot)\System\ArgIterator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Attribute.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BadImageFormatException.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\BitConverter.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Boolean.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Byte.cs" />
@@ -577,18 +574,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterConverter.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterServices.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\SerializationInfo.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\System\Text\DecoderNLS.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\DecoderBestFitFallback.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\DecoderExceptionFallback.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\DecoderFallback.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\DecoderReplacementFallback.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\EncoderNLS.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\EncoderBestFitFallback.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\EncoderExceptionFallback.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\EncoderFallback.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\EncoderReplacementFallback.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />

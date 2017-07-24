@@ -3655,8 +3655,18 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                                 {
                                     fgAddSkippedRegsInPromotedStructArg(varDsc, intArgRegNum, &argSkippedRegMask);
                                 }
+#if !defined(LEGACY_BACKEND)
+                                copyBlkClass = objClass;
+#endif
                             }
                         }
+
+#if !defined(LEGACY_BACKEND)
+                        if (structSize < TARGET_POINTER_SIZE)
+                        {
+                            copyBlkClass = objClass;
+                        }
+#endif
 #endif // _TARGET_ARM_
                     }
 #ifndef FEATURE_UNIX_AMD64_STRUCT_PASSING
@@ -4108,17 +4118,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                         // we skip the corresponding floating point register argument
                         intArgRegNum = min(intArgRegNum + size, MAX_REG_ARG);
 #endif // WINDOWS_AMD64_ABI
-#ifdef _TARGET_ARM_
-                        if (fltArgRegNum > MAX_FLOAT_REG_ARG)
-                        {
-                            // This indicates a partial enregistration of a struct type
-                            assert(varTypeIsStruct(argx));
-                            unsigned numRegsPartial = size - (fltArgRegNum - MAX_FLOAT_REG_ARG);
-                            assert((unsigned char)numRegsPartial == numRegsPartial);
-                            call->fgArgInfo->SplitArg(argIndex, numRegsPartial, size - numRegsPartial);
-                            fltArgRegNum = MAX_FLOAT_REG_ARG;
-                        }
-#endif // _TARGET_ARM_
+                        // There is no partial struct using float registers
+                        // on all supported architectures
+                        assert(fltArgRegNum <= MAX_FLOAT_REG_ARG);
                     }
                     else
                     {
@@ -4766,12 +4768,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
 #ifdef _TARGET_ARM_
     if (fgEntryPtr->isSplit)
     {
-        if (fgEntryPtr->isHfaRegArg)
-        {
-            // We cannot handle HFA split struct morphed to GT_FIELD_LIST yet
-            NYI_ARM("Struct split between float registers and stack");
-        }
-        else if (fgEntryPtr->numSlots + fgEntryPtr->numRegs > 4)
+        if (fgEntryPtr->numSlots + fgEntryPtr->numRegs > 4)
         {
             return arg;
         }
@@ -4921,7 +4918,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
 #ifdef DEBUG
         if (verbose)
         {
-            JITDUMP("Multireg struct argument V%02u : ");
+            JITDUMP("Multireg struct argument V%02u : ", varNum);
             fgEntryPtr->Dump();
         }
 #endif // DEBUG
@@ -7584,6 +7581,39 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
         GenTreePtr arg0Assignment     = gtNewAssignNode(arg0, gtNewLclvNode(info.compThisArg, thisType));
         GenTreePtr arg0AssignmentStmt = gtNewStmt(arg0Assignment, callILOffset);
         fgInsertStmtBefore(block, paramAssignmentInsertionPoint, arg0AssignmentStmt);
+    }
+
+    // If compInitMem is set, we may need to zero-initialize some locals. Normally it's done in the prolog
+    // but this loop can't include the prolog. Since we don't have liveness information, we insert zero-initialization
+    // for all non-parameter non-temp locals. Liveness phase will remove unnecessary initializations.
+    if (info.compInitMem)
+    {
+        unsigned   varNum;
+        LclVarDsc* varDsc;
+        for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
+        {
+            if (!varDsc->lvIsParam)
+            {
+                assert(!varDsc->lvIsTemp);
+                var_types  lclType = varDsc->TypeGet();
+                GenTreePtr lcl     = gtNewLclvNode(varNum, lclType);
+                GenTreePtr init    = nullptr;
+                if (lclType == TYP_STRUCT)
+                {
+                    const bool isVolatile  = false;
+                    const bool isCopyBlock = false;
+                    init = gtNewBlkOpNode(lcl, gtNewIconNode(0), varDsc->lvSize(), isVolatile, isCopyBlock);
+                    init = fgMorphInitBlock(init);
+                }
+                else
+                {
+                    GenTreePtr zero = gtNewZeroConNode(genActualType(lclType));
+                    init            = gtNewAssignNode(lcl, zero);
+                }
+                GenTreePtr initStmt = gtNewStmt(init, callILOffset);
+                fgInsertStmtBefore(block, last, initStmt);
+            }
+        }
     }
 
     // Remove the call
@@ -14148,7 +14178,6 @@ GenTree* Compiler::fgMorphSmpOpOptional(GenTreeOp* tree)
                         /* The target is used as well as being defined */
                         if (op1->OperIsLocal())
                         {
-                            op1->gtFlags &= ~GTF_VAR_USEDEF;
                             op1->gtFlags |= GTF_VAR_USEASG;
                         }
 

@@ -324,9 +324,6 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             genCodeForPhysReg(treeNode->AsPhysReg());
             break;
 
-        case GT_PHYSREGDST:
-            break;
-
         case GT_NULLCHECK:
             genCodeForNullCheck(treeNode->AsOp());
             break;
@@ -665,8 +662,16 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 LclVarDsc* varDsc = &compiler->lvaTable[varNumInp];
 
                 assert(varDsc->lvType == TYP_STRUCT);
-                assert(varDsc->lvOnFrame);   // This struct also must live in the stack frame
-                assert(!varDsc->lvRegister); // And it can't live in a register (SIMD)
+#ifdef _TARGET_ARM_
+                if (varDsc->lvPromoted)
+                {
+                    NYI_ARM("CodeGen::genPutArgStk - promoted struct");
+                }
+                else
+#endif // _TARGET_ARM_
+                    // This struct also must live in the stack frame
+                    // And it can't live in a register (SIMD)
+                    assert(varDsc->lvOnFrame && !varDsc->lvRegister);
 
                 structSize = varDsc->lvSize(); // This yields the roundUp size, but that is fine
                                                // as that is how much stack is allocated for this LclVar
@@ -994,7 +999,6 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
         BYTE*    gcPtrs     = treeNode->gtGcPtrs;
         unsigned gcPtrCount = treeNode->gtNumberReferenceSlots; // The count of GC pointers in the struct
         int      structSize = treeNode->getArgSize();
-        bool     isHfa      = treeNode->gtIsHfa;
 
         // This is the varNum for our load operations,
         // only used when we have a struct with a LclVar source
@@ -1011,6 +1015,9 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             {
                 NYI_ARM("CodeGen::genPutArgSplit - promoted struct");
             }
+
+            // We don't split HFA struct
+            assert(!varDsc->lvIsHfa());
         }
         else // addrNode is used
         {
@@ -1019,13 +1026,14 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             // Generate code to load the address that we need into a register
             genConsumeAddress(addrNode);
             addrReg = addrNode->gtRegNum;
-        }
 
-        // If we have an HFA we can't have any GC pointers,
-        // if not then the max size for the the struct is 16 bytes
-        if (isHfa)
-        {
-            assert(gcPtrCount == 0);
+            // If addrReg equal to baseReg, we use the last target register as alternative baseReg.
+            // Because the candidate mask for the internal baseReg does not include any of the target register,
+            // we can ensure that baseReg, addrReg, and the last target register are not all same.
+            assert(baseReg != addrReg);
+
+            // We don't split HFA struct
+            assert(!compiler->IsHfa(source->gtObj.gtClass));
         }
 
         // Put on stack first
@@ -1062,7 +1070,8 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             nextIndex += 1;
         }
 
-        // Set registers
+        // We set up the registers in order, so that we assign the last target register `baseReg` is no longer in use,
+        // in case we had to reuse the last target register for it.
         structOffset = 0;
         for (unsigned idx = 0; idx < treeNode->gtNumRegs; idx++)
         {
@@ -1077,7 +1086,12 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             else
             {
                 // check for case of destroying the addrRegister while we still need it
-                assert(targetReg != addrReg);
+                if (targetReg == addrReg && idx != treeNode->gtNumRegs - 1)
+                {
+                    assert(targetReg != baseReg);
+                    emit->emitIns_R_R(INS_mov, emitTypeSize(type), baseReg, addrReg);
+                    addrReg = baseReg;
+                }
 
                 // Load from our address expression source
                 emit->emitIns_R_R_I(INS_ldr, emitTypeSize(type), targetReg, addrReg, structOffset);

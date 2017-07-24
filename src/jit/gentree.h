@@ -903,7 +903,6 @@ public:
 // the flags. These are also used by GT_LCL_FLD.
 #define GTF_VAR_DEF         0x80000000 // GT_LCL_VAR -- this is a definition
 #define GTF_VAR_USEASG      0x40000000 // GT_LCL_VAR -- this is a use/def for a x<op>=y
-#define GTF_VAR_USEDEF      0x20000000 // GT_LCL_VAR -- this is a use/def as in x=x+y (only the lhs x is tagged)
 #define GTF_VAR_CAST        0x10000000 // GT_LCL_VAR -- has been explictly cast (variable node may not be type of local)
 #define GTF_VAR_ITERATOR    0x08000000 // GT_LCL_VAR -- this is a iterator reference in the loop condition
 #define GTF_VAR_CLONED      0x01000000 // GT_LCL_VAR -- this node has been cloned or is a clone
@@ -918,7 +917,7 @@ public:
 #define GTF_VAR_ARR_INDEX   0x00000020 // The variable is part of (the index portion of) an array index expression.
                                        // Shares a value with GTF_REVERSE_OPS, which is meaningless for local var.
 
-#define GTF_LIVENESS_MASK (GTF_VAR_DEF | GTF_VAR_USEASG | GTF_VAR_USEDEF | GTF_REG_BIRTH | GTF_VAR_DEATH)
+#define GTF_LIVENESS_MASK (GTF_VAR_DEF | GTF_VAR_USEASG | GTF_REG_BIRTH | GTF_VAR_DEATH)
 
 #define GTF_CALL_UNMANAGED          0x80000000 // GT_CALL -- direct call to unmanaged code
 #define GTF_CALL_INLINE_CANDIDATE   0x40000000 // GT_CALL -- this call has been marked as an inline candidate
@@ -1169,6 +1168,11 @@ public:
                 return true;
         }
     }
+
+    // NOTE: the three UnusedValue helpers immediately below are defined in lir.h.
+    inline void SetUnusedValue();
+    inline void ClearUnusedValue();
+    inline bool IsUnusedValue() const;
 
     bool OperIs(genTreeOps oper)
     {
@@ -3172,6 +3176,15 @@ public:
 #endif
     }
 
+#ifdef DEBUG
+    // NOTE: we only use this function when writing out IR dumps. These dumps may take place before the ReturnTypeDesc
+    // has been initialized.
+    unsigned TryGetReturnRegCount() const
+    {
+        return m_inited ? GetReturnRegCount() : 0;
+    }
+#endif // DEBUG
+
     //--------------------------------------------------------------------------------------------
     // GetReturnRegCount:  Get the count of return registers in which the return value is returned.
     //
@@ -4971,9 +4984,6 @@ struct GenTreePutArgStk : public GenTreeUnOp
     unsigned gtNumSlots;             // Number of slots for the argument to be passed on stack
     unsigned gtNumberReferenceSlots; // Number of reference slots.
     BYTE*    gtGcPtrs;               // gcPointers
-#ifdef _TARGET_ARM_
-    bool gtIsHfa;
-#endif
 
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
@@ -4997,7 +5007,6 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
     GenTreePutArgSplit(GenTreePtr op1,
                        unsigned slotNum PUT_STRUCT_ARG_STK_ONLY_ARG(unsigned numSlots),
                        unsigned     numRegs,
-                       bool         isHfa,
                        bool         putIncomingArgArea = false,
                        GenTreeCall* callNode           = nullptr)
         : GenTreePutArgStk(GT_PUTARG_SPLIT,
@@ -5008,7 +5017,6 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
                            callNode)
         , gtNumRegs(numRegs)
     {
-        gtIsHfa = isHfa;
         ClearOtherRegs();
         ClearOtherRegFlags();
     }
@@ -5018,7 +5026,6 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
 
     // First reg of struct is always given by gtRegNum.
     // gtOtherRegs holds the other reg numbers of struct.
-    // HFA args is not yet handled.
     regNumberSmall gtOtherRegs[MAX_REG_ARG - 1];
 
     // GTF_SPILL or GTF_SPILLED flag on a multi-reg struct node indicates that one or
