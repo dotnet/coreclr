@@ -309,7 +309,7 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
     }
     else
     {
-        r.Multiply(10);
+        r.Multiply10();
     }
 
     *dec = k - 1;
@@ -334,7 +334,7 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
         digits[digitsNum] = L'0' + currentDigit;
         ++digitsNum;
 
-        r.Multiply(10);
+        r.Multiply10();
     }
 
     // Step 5:

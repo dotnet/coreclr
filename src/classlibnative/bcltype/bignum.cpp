@@ -391,13 +391,6 @@ void BigNum::Multiply(const BigNum& lhs, UINT32 value, BigNum& result)
         return;
     }
 
-    if (lhs.m_len < BIGSIZE)
-    {
-        // Set the highest + 1 bit to zero so that
-        // we can check if there's a carry later.
-        result.m_blocks[lhs.m_len] = 0;
-    }
-
     const UINT32* pCurrent = lhs.m_blocks;
     const UINT32* pEnd = pCurrent + lhs.m_len;
     UINT32* pResultCurrent = result.m_blocks;
@@ -413,13 +406,11 @@ void BigNum::Multiply(const BigNum& lhs, UINT32 value, BigNum& result)
         ++pCurrent;
     }
 
-    if (lhs.m_len < BIGSIZE && result.m_blocks[lhs.m_len] != 0)
+    if (carry != 0)
     {
-        result.m_len = lhs.m_len + 1;
-    }
-    else
-    {
-        result.m_len = lhs.m_len;
+        _ASSERTE(lhs.m_len + 1 <= BIGSIZE);
+        *pResultCurrent = (UINT32)carry;
+        result.m_len += lhs.m_len + 1;
     }
 }
 
@@ -498,6 +489,36 @@ void BigNum::Multiply(const BigNum& lhs, const BigNum& rhs, BigNum& result)
     else
     {
         result.m_len = maxResultLength;
+    }
+}
+
+void BigNum::Multiply10()
+{
+    if (IsZero())
+    {
+        return;
+    }
+
+    const UINT32* pCurrent = m_blocks;
+    const UINT32* pEnd = pCurrent + m_len;
+    UINT32* pResultCurrent = m_blocks;
+
+    UINT64 carry = 0;
+    while (pCurrent != pEnd)
+    {
+        UINT64 product = ((UINT64)(*pCurrent) << 3) +  ((UINT64)(*pCurrent) << 1) + carry;
+        carry = product >> 32;
+        *pResultCurrent = (UINT32)(product & 0xFFFFFFFF);
+
+        ++pResultCurrent;
+        ++pCurrent;
+    }
+
+    if (carry != 0)
+    {
+        _ASSERTE(m_len + 1 <= BIGSIZE);
+        *pResultCurrent = (UINT32)carry;
+        m_len += 1;
     }
 }
 

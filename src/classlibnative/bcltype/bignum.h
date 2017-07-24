@@ -38,6 +38,7 @@ public:
 
     void Multiply(UINT32 value);
     void Multiply(const BigNum& value);
+    void Multiply10();
     void ShiftLeft(UINT32 shift);
     void SetUInt32(UINT32 value);
     void SetUInt64(UINT64 value);
