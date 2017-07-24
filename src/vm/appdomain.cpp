@@ -7084,7 +7084,7 @@ EndTry2:;
                         // return an assembly that does not match, and this can cause recursive resource lookups during error
                         // reporting. The CoreLib satellite assembly is loaded from relative locations based on the culture, see
                         // AssemblySpec::Bind().
-                        if (pSpec->GetCodeBase() != nullptr || !pSpec->IsMscorlibSatellite())
+                        if (!pSpec->IsMscorlibSatellite())
                         {
                             // Trigger the resolve event also for non-throw situation.
                             // However, this code path will behave as if the resolve handler has thrown,
