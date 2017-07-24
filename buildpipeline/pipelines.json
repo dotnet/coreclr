@@ -366,7 +366,6 @@
           },
           "ReportingParameters": {
             "OperatingSystem": "Windows",
-            "Architecture": "arm64",
             "SubType":  "Build-Tests",
             "Type": "build/product/",
             "PB_BuildType": "Release"
@@ -385,7 +384,41 @@
           },
           "ReportingParameters": {
             "OperatingSystem": "Windows",
-            "Architecture": "arm64",
+            "SubType":  "Build-Tests-R2R",
+            "Type": "build/product/",
+            "PB_BuildType": "Release"
+          }
+        },
+		{
+          "Name": "Dotnet-CoreClr-Trusted-BuildTests",
+          "Parameters": {
+            "Architecture": "arm",
+            "HelixJobType": "test/functional/cli/",
+            "TargetsWindows": "true",
+            "Rid": "win-arm",
+            "TargetQueues": "Windows.10.Arm64.Core",
+            "TestContainerSuffix": "windows",
+          },
+          "ReportingParameters": {
+            "OperatingSystem": "Windows",
+            "SubType":  "Build-Tests",
+            "Type": "build/product/",
+            "PB_BuildType": "Release"
+          }
+        },
+        {
+          "Name": "Dotnet-CoreClr-Trusted-BuildTests",
+          "Parameters": {
+            "Architecture": "arm",
+            "HelixJobType": "test/functional/r2r/cli/",
+            "TargetsWindows": "true",
+            "Rid": "win-arm",
+            "TargetQueues": "Windows.10.Arm64.Core",
+            "TestContainerSuffix": "windows-r2r",
+            "CrossgenArg": "Crossgen "
+          },
+          "ReportingParameters": {
+            "OperatingSystem": "Windows",
             "SubType":  "Build-Tests-R2R",
             "Type": "build/product/",
             "PB_BuildType": "Release"
