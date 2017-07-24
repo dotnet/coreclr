@@ -158,7 +158,7 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
 
     _ASSERTE(dec != nullptr && sign != nullptr && digits != nullptr);
 
-    // The caller of _ecvt should already checked the Infinity and NAN values.
+    // The caller of ecvt should already checked the Infinity and NAN values.
     _ASSERTE(((FPDOUBLE*)&value)->exp != 0x7ff);
 
     // Shortcut for zero.
