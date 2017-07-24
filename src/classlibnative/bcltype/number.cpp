@@ -184,7 +184,7 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
     UINT64 f = 0;
     int e = 0;
     UINT32 mantissaHighBitIdx = 0;
-    if (((FPDOUBLE*)&value)->exp > 0)
+    if (((FPDOUBLE*)&value)->exp != 0)
     {
         // For normalized value, according to https://en.wikipedia.org/wiki/Double-precision_floating-point_format
         // value = 1.fraction * 2^(exp - 1023) 
