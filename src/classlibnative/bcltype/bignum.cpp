@@ -8,10 +8,7 @@
 //
 
 #include "bignum.h"
-
-#if !defined(FEATURE_PAL)
 #include <intrin.h>
-#endif
 
 constexpr UINT32 BigNum::m_power10UInt32Table[UINT32POWER10NUM];
 BigNum BigNum::m_power10BigNumTable[BIGPOWER10NUM];
@@ -575,28 +572,17 @@ UINT32 BigNum::LogBase2(UINT32 value)
 {
     _ASSERTE(value != 0);
 
-#if defined(FEATURE_PAL)
-    return (UINT32) (8 * sizeof (UINT32) - __builtin_clz(value) - 1);
-#else
     DWORD r;
-    _BitScanReverse(&r, (DWORD)value);
+    BitScanReverse(&r, (DWORD)value);
 
     return (UINT32)r;
-#endif
 }
 
 UINT32 BigNum::LogBase2(UINT64 value)
 {
     _ASSERTE(value != 0);
 
-#if defined(FEATURE_PAL)
-    return (UINT32) (8 * sizeof (UINT64) - __builtin_clzll(value) - 1);
-#elif !defined(_TARGET_X86_)
-    DWORD r;
-    _BitScanReverse64(&r, (DWORD64)value);
-
-    return (UINT32)r;
-#else
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
     UINT64 temp = value >> 32;
     if (temp != 0)
     {
@@ -604,5 +590,10 @@ UINT32 BigNum::LogBase2(UINT64 value)
     }
 
     return LogBase2((UINT32)value);
+#else
+    DWORD r;
+    BitScanReverse64(&r, (DWORD64)value);
+
+    return (UINT32)r;
 #endif
 }
