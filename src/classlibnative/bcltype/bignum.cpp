@@ -578,10 +578,10 @@ UINT32 BigNum::LogBase2(UINT32 value)
 #if defined(FEATURE_PAL)
     return (UINT32) (8 * sizeof (UINT32) - __builtin_clz(value) - 1);
 #else
-    UINT32 r;
-    _BitScanReverse(&r, value);
+    DWORD r;
+    _BitScanReverse(&r, (DWORD)value);
 
-    return r;
+    return (UINT32)r;
 #endif
 }
 
@@ -592,9 +592,9 @@ UINT32 BigNum::LogBase2(UINT64 value)
 #if defined(FEATURE_PAL)
     return (UINT32) (8 * sizeof (UINT64) - __builtin_clzll(value) - 1);
 #else
-    UINT32 r;
-    _BitScanReverse64(&r, value);
+    DWORD r;
+    _BitScanReverse64(&r, (DWORD64)value);
 
-    return r;
+    return (UINT32)r;
 #endif
 }
