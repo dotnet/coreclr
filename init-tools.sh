@@ -25,6 +25,7 @@ if [ -z "$HOME" ]; then
     echo "HOME not defined; setting it to $HOME"
 fi
 
+__init_tools_log=$__scriptpath/init-tools.log
 __PACKAGES_DIR=$__scriptpath/packages
 __TOOLRUNTIME_DIR=$__scriptpath/Tools
 __DOTNET_PATH=$__TOOLRUNTIME_DIR/dotnetcli
@@ -64,6 +65,12 @@ case $OSName in
         ;;
 esac
 
+display_error_message()
+{
+    echo "Please check the detailed log that follows." 1>&2
+    cat "$__init_tools_log" 1>&2
+}
+
 # Initialize Linux Distribution name and .NET CLI package name.
 
 initDistroName $OS
@@ -85,6 +92,7 @@ if [ ! -e $__PROJECT_JSON_FILE ]; then
 
     if [ ! -e $__DOTNET_PATH ]; then
         # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
+        echo "Installing '${__CLIDownloadURL}' to '$__DOTNET_PATH/dotnet.tar'" >> $__init_tools_log
         which curl > /dev/null 2> /dev/null
         if [ $? -ne 0 ]; then
           mkdir -p "$__DOTNET_PATH"
@@ -110,11 +118,20 @@ if [ ! -e $__PROJECT_JSON_FILE ]; then
     echo $__PROJECT_JSON_CONTENTS > "$__PROJECT_JSON_FILE"
 
     if [ ! -e $__BUILD_TOOLS_PATH ]; then
-        $__DOTNET_CMD restore "$__PROJECT_JSON_FILE" --packages $__PACKAGES_DIR --source $__BUILDTOOLS_SOURCE
+        echo "Running: $__DOTNET_CMD restore "$__PROJECT_JSON_FILE" --packages $__PACKAGES_DIR --source $__BUILDTOOLS_SOURCE" >> $__init_tools_log
+        $__DOTNET_CMD restore "$__PROJECT_JSON_FILE" --packages $__PACKAGES_DIR --source $__BUILDTOOLS_SOURCE >> $__init_tools_log
     fi
 
+    echo "Initializing BuildTools..."
+    echo "Running: $__BUILD_TOOLS_PATH/init-tools.sh $__scriptpath $__DOTNET_CMD $__TOOLRUNTIME_DIR" >> $__init_tools_log
     # On ubuntu 14.04, /bin/sh (symbolic link) calls /bin/dash by default.
-    $__BUILD_TOOLS_PATH/init-tools.sh $__scriptpath $__DOTNET_CMD $__TOOLRUNTIME_DIR
+    $__BUILD_TOOLS_PATH/init-tools.sh $__scriptpath $__DOTNET_CMD $__TOOLRUNTIME_DIR >> $__init_tools_log
+    
+    if [ "$?" != "0" ]; then
+        echo "ERROR: An error occurred when trying to initialize the tools." 1>&2
+        display_error_message
+        exit 1
+    fi
 
 else
     echo "$__PROJECT_JSON_FILE found. Skipping .NET CLI installation."   
