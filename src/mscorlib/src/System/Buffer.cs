@@ -270,9 +270,6 @@ namespace System
 
             if (((nuint)dest - (nuint)src < len) || ((nuint)src - (nuint)dest < len)) goto PInvoke;
 
-            byte* srcEnd = src + len;
-            byte* destEnd = dest + len;
-
             if (len <= 16) goto MCPY02;
             if (len > 64) goto MCPY05;
 
@@ -319,15 +316,15 @@ namespace System
             // Unconditionally copy the last 16 bytes using destEnd and srcEnd and return.
             Debug.Assert(len > 16 && len <= 64);
 #if HAS_CUSTOM_BLOCKS
-            *(Block16*)(destEnd - 16) = *(Block16*)(srcEnd - 16);
+            *(Block16*)(dest + len - 16) = *(Block16*)(src + len - 16);
 #elif BIT64
-            *(long*)(destEnd - 16) = *(long*)(srcEnd - 16);
-            *(long*)(destEnd - 8) = *(long*)(srcEnd - 8);
+            *(long*)(dest + len - 16) = *(long*)(src + len - 16);
+            *(long*)(dest + len - 8) = *(long*)(src + len - 8);
 #else
-            *(int*)(destEnd - 16) = *(int*)(srcEnd - 16);
-            *(int*)(destEnd - 12) = *(int*)(srcEnd - 12);
-            *(int*)(destEnd - 8) = *(int*)(srcEnd - 8);
-            *(int*)(destEnd - 4) = *(int*)(srcEnd - 4);
+            *(int*)(dest + len - 16) = *(int*)(src + len - 16);
+            *(int*)(dest + len - 12) = *(int*)(src + len - 12);
+            *(int*)(dest + len - 8) = *(int*)(src + len - 8);
+            *(int*)(dest + len - 4) = *(int*)(src + len - 4);
 #endif
             return;
 
@@ -337,12 +334,12 @@ namespace System
             Debug.Assert(len >= 8 && len <= 16);
 #if BIT64
             *(long*)dest = *(long*)src;
-            *(long*)(destEnd - 8) = *(long*)(srcEnd - 8);
+            *(long*)(dest + len - 8) = *(long*)(src + len - 8);
 #else
             *(int*)dest = *(int*)src;
             *(int*)(dest + 4) = *(int*)(src + 4);
-            *(int*)(destEnd - 8) = *(int*)(srcEnd - 8);
-            *(int*)(destEnd - 4) = *(int*)(srcEnd - 4);
+            *(int*)(dest + len - 8) = *(int*)(src + len - 8);
+            *(int*)(dest + len - 4) = *(int*)(src + len - 4);
 #endif
             return;
 
@@ -351,7 +348,7 @@ namespace System
             if ((len & 4) == 0) goto MCPY04;
             Debug.Assert(len >= 4 && len < 8);
             *(int*)dest = *(int*)src;
-            *(int*)(destEnd - 4) = *(int*)(srcEnd - 4);
+            *(int*)(dest + len - 4) = *(int*)(src + len - 4);
             return;
 
             MCPY04:
@@ -360,7 +357,7 @@ namespace System
             if (len == 0) return;
             *dest = *src;
             if ((len & 2) == 0) return;
-            *(short*)(destEnd - 2) = *(short*)(srcEnd - 2);
+            *(short*)(dest + len - 2) = *(short*)(src + len - 2);
             return;
 
             MCPY05:
@@ -413,15 +410,15 @@ namespace System
             len %= 64;
             if (len > 16) goto MCPY00;
 #if HAS_CUSTOM_BLOCKS
-            *(Block16*)(destEnd - 16) = *(Block16*)(srcEnd - 16);
+            *(Block16*)(dest + len - 16) = *(Block16*)(src + len - 16);
 #elif BIT64
-            *(long*)(destEnd - 16) = *(long*)(srcEnd - 16);
-            *(long*)(destEnd - 8) = *(long*)(srcEnd - 8);
+            *(long*)(dest + len - 16) = *(long*)(src + len - 16);
+            *(long*)(dest + len - 8) = *(long*)(src + len - 8);
 #else
-            *(int*)(destEnd - 16) = *(int*)(srcEnd - 16);
-            *(int*)(destEnd - 12) = *(int*)(srcEnd - 12);
-            *(int*)(destEnd - 8) = *(int*)(srcEnd - 8);
-            *(int*)(destEnd - 4) = *(int*)(srcEnd - 4);
+            *(int*)(dest + len - 16) = *(int*)(src + len - 16);
+            *(int*)(dest + len - 12) = *(int*)(src + len - 12);
+            *(int*)(dest + len - 8) = *(int*)(src + len - 8);
+            *(int*)(dest + len - 4) = *(int*)(src + len - 4);
 #endif
             return;
 
