@@ -23,6 +23,10 @@ namespace JitBench
             var options = JitBenchHarnessOptions.Parse(args);
 
             s_temporaryDirectory = Path.Combine(options.IntermediateOutputDirectory, "JitBench");
+            s_targetArchitecture = options.TargetArchitecture;
+            if (string.IsNullOrWhiteSpace(s_targetArchitecture))
+                throw new ArgumentNullException("Unspecified target architecture.");
+
             if (Directory.Exists(s_temporaryDirectory))
                 Directory.Delete(s_temporaryDirectory, true);
             Directory.CreateDirectory(s_temporaryDirectory);
@@ -46,6 +50,7 @@ namespace JitBench
             s_iteration = 0;
             s_startupTimes = new double[s_ScenarioConfiguration.Iterations];
             s_requestTimes = new double[s_ScenarioConfiguration.Iterations];
+            s_targetArchitecture = "";
         }
 
         private static void DownloadAndExtractJitBenchRepo()
@@ -81,7 +86,7 @@ namespace JitBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_jitBenchDevDirectory,
                 FileName = @"powershell.exe",
-                Arguments = @".\Dotnet-Install.ps1 -SharedRuntime -InstallDir .dotnet -Channel master -Architecture x64"
+                Arguments = $".\\Dotnet-Install.ps1 -SharedRuntime -InstallDir .dotnet -Channel master -Architecture {s_targetArchitecture}"
             };
             LaunchProcess(psi, 180000);
 
@@ -94,7 +99,7 @@ namespace JitBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_jitBenchDevDirectory,
                 FileName = @"powershell.exe",
-                Arguments = @".\Dotnet-Install.ps1 -InstallDir .dotnet -Channel master -Architecture x64"
+                Arguments = $".\\Dotnet-Install.ps1 -InstallDir .dotnet -Channel master -Architecture {s_targetArchitecture}"
             };
             LaunchProcess(psi, 180000);
         }
@@ -149,7 +154,7 @@ namespace JitBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_jitBenchDevDirectory,
                 FileName = "powershell.exe",
-                Arguments = $"-Command \".\\AspNet-GenerateStore.ps1 -InstallDir .store -Architecture x64 -Runtime win7-x64; gi env:JITBENCH_*, env:DOTNET_SHARED_STORE | %{{ \\\"$($_.Name)=$($_.Value)\\\" }} 1>>{environmentFileName}\""
+                Arguments = $"-Command \".\\AspNet-GenerateStore.ps1 -InstallDir .store -Architecture {s_targetArchitecture} -Runtime win7-{s_targetArchitecture}; gi env:JITBENCH_*, env:DOTNET_SHARED_STORE | %{{ \\\"$($_.Name)=$($_.Value)\\\" }} 1>>{environmentFileName}\""
             };
 
             LaunchProcess(psi, 900000, environment);
@@ -314,11 +319,11 @@ namespace JitBench
             for (int i = 0; i < s_ScenarioConfiguration.Iterations; ++i)
             {
                 var startupIteration = new IterationModel { Iteration = new Dictionary<string, double>() };
-                startupIteration.Iteration.Add("ExecutionTime", s_startupTimes[i]);
+                startupIteration.Iteration.Add("Duration", s_startupTimes[i]);
                 startup.Performance.IterationModels.Add(startupIteration);
 
                 var requestIteration = new IterationModel { Iteration = new Dictionary<string, double>() };
-                requestIteration.Iteration.Add("ExecutionTime", s_requestTimes[i]);
+                requestIteration.Iteration.Add("Duration", s_requestTimes[i]);
                 request.Performance.IterationModels.Add(requestIteration);
             }
 
@@ -342,16 +347,9 @@ namespace JitBench
                 }
             }
 
-            using (var p = new Process())
+            using (var p = new Process() { StartInfo = processStartInfo })
             {
-                p.StartInfo = processStartInfo;
-
-                p.Exited += (object sender, System.EventArgs e) => {
-                    Console.WriteLine("Process has exited.");
-                };
-
                 p.Start();
-
                 if (p.WaitForExit(timeoutMilliseconds) == false)
                 {
                     // FIXME: What about clean/kill child processes?
@@ -384,11 +382,12 @@ namespace JitBench
         private static double[] s_requestTimes;
         private static string s_temporaryDirectory;
         private static string s_jitBenchDevDirectory;
+        private static string s_targetArchitecture;
 
         /// <summary>
         /// Provides an interface to parse the command line arguments passed to the JitBench harness.
         /// </summary>
-        sealed class JitBenchHarnessOptions
+        private sealed class JitBenchHarnessOptions
         {
             public JitBenchHarnessOptions()
             {
@@ -412,6 +411,9 @@ namespace JitBench
                     Directory.CreateDirectory(_tempDirectory);
                 }
             }
+
+            [Option("target-architecture", Required = true, HelpText = "JitBench target architecture (It must match the built product that was copied into sandbox).")]
+            public string TargetArchitecture { get; set; }
 
             public static JitBenchHarnessOptions Parse(string[] args)
             {

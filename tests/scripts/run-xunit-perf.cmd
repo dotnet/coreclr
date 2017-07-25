@@ -95,7 +95,7 @@ setlocal
   set BENCHNAME_LOG_FILE_NAME=%LV_RUNID%-%BENCHNAME%.log
   set LV_CMD=
   if defined IS_SCENARIO_TEST (
-    set "LV_CMD=corerun.exe "%CORECLR_REPO%\sandbox\%BENCHNAME%.%TEST_FILE_EXT%" --perf:runid "%LV_RUNID%""
+    set "LV_CMD=corerun.exe "%CORECLR_REPO%\sandbox\%BENCHNAME%.%TEST_FILE_EXT%" --perf:runid "%LV_RUNID%" --target-architecture "%TEST_ARCHITECTURE%""
   ) else (
     set "LV_CMD=%STABILITY_PREFIX% corerun.exe PerfHarness.dll "%CORECLR_REPO%\sandbox\%BENCHNAME%.%TEST_FILE_EXT%" --perf:runid "%LV_RUNID%" --perf:collect %COLLECTION_FLAGS%"
   )
