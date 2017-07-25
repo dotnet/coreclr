@@ -4253,8 +4253,6 @@ BitScanForward64(
 //
 // On GCC, the equivalent function is __builtin_clzll or __builtin_clz. It returns 1+index of the most
 // significant set bit, or undefined result if mask is zero.
-//
-// The same is true for BitScanForward, except that the GCC function is __builtin_ffs.
 EXTERN_C
 PALIMPORT
 inline
