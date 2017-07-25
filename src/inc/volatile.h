@@ -120,7 +120,7 @@ T VolatileLoad(T const * pt)
     STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
 
 #ifndef DACCESS_COMPILE
-#if defined(_ARM64_) && defined(__clang__)
+#if defined(_ARM64_) && defined(__GNUC__) && !(defined(__BIONIC__))
     T val;
     static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
 #if __has_builtin(__atomic_load)
