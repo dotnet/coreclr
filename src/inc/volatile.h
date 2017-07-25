@@ -123,10 +123,12 @@ T VolatileLoad(T const * pt)
 #if defined(_ARM64_) && defined(__GNUC__) && !(defined(__BIONIC__))
     T val;
     static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
+#if __has_builtin(__atomic_load)
     if((1 << sizeof(T)) & lockFreeAtomicSizeMask)
     {
         __atomic_load((T volatile const *)pt, &val, __ATOMIC_ACQUIRE);
     }
+#endif
     else
     {
         val = *(T volatile const *)pt;
