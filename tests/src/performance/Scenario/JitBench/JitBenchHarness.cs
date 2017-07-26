@@ -57,11 +57,8 @@ namespace JitBench
         {
             using (var client = new HttpClient())
             {
-                // Download the JitBench repository and extract it.
-                const string repoUrl = "https://github.com/aspnet/JitBench";
-                const string sha1Id = "a44cd96e4ff8d7c1b43fe3c96a597919bb1544bd";
-                var archiveName = $"{sha1Id}.zip";
-                var url = $"{repoUrl}/archive/{archiveName}";
+                var archiveName = $"{JitBenchCommitSha1Id}.zip";
+                var url = $"{JitBenchRepoUrl}/archive/{archiveName}";
                 var zipFile = Path.Combine(s_temporaryDirectory, archiveName);
 
                 using (FileStream tmpzip = File.Create(zipFile))
@@ -120,8 +117,7 @@ namespace JitBench
             Console.WriteLine($"  Source : {sourcedi.FullName}");
             Console.WriteLine($"  Target : {targetdi.FullName}");
 
-            var compiledBinariesOfInterest = new string[]
-            {
+            var compiledBinariesOfInterest = new string[] {
                 "clretwrc.dll",
                 "clrjit.dll",
                 "coreclr.dll",
@@ -202,7 +198,7 @@ namespace JitBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = workingDirectory,
                 FileName = "cmd.exe",
-                Arguments = $"/C \"{dotnetFileName} publish -c Release -f netcoreapp2.0 --manifest %JITBENCH_ASPNET_MANIFEST% /p:MvcRazorCompileOnPublish=false\""
+                Arguments = $"/C \"{dotnetFileName} publish -c Release -f {JitBenchTargetFramework} --manifest %JITBENCH_ASPNET_MANIFEST% /p:MvcRazorCompileOnPublish=false\""
             };
 
             LaunchProcess(psi, 300000, environment);
@@ -252,6 +248,9 @@ namespace JitBench
         }
 
         private const string MusicStoreRedirectedStandardOutputFileName = "measures.txt";
+        private const string JitBenchRepoUrl = "https://github.com/aspnet/JitBench";
+        private const string JitBenchCommitSha1Id = "a44cd96e4ff8d7c1b43fe3c96a597919bb1544bd";
+        private const string JitBenchTargetFramework = "netcoreapp2.0";
 
         private static void PostIteration()
         {
