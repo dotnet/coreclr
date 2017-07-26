@@ -14,6 +14,7 @@
 #include "decimal.h"
 #include "bignum.h"
 #include <stdlib.h>
+#include <wchar.h>
 
 typedef wchar_t wchar;
 
@@ -167,10 +168,7 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
         *dec = 0;
         *sign = 0;
 
-        for (int i = 0; i < count; ++i)
-        {
-            digits[i] = L'0';
-        }
+        wmemset(digits, L'0', count);
 
         digits[count] = 0;
 
