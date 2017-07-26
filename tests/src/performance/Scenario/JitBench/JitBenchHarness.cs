@@ -81,7 +81,7 @@ namespace JitBench
             }
         }
 
-        private static IDictionary<string, string> InstallSharedRuntime()
+        private static void InstallSharedRuntime()
         {
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_jitBenchDevDirectory,
@@ -89,12 +89,9 @@ namespace JitBench
                 Arguments = $".\\Dotnet-Install.ps1 -SharedRuntime -InstallDir .dotnet -Channel master -Architecture {s_targetArchitecture}"
             };
             LaunchProcess(psi, 180000);
-
-            // TODO: This is currently hardcoded, but we could probably pull it from the powershell cmdlet call.
-            return new Dictionary<string, string> { { "PATH", $"{Path.Combine(s_jitBenchDevDirectory, ".dotnet")};{psi.Environment["PATH"]}" } };
         }
 
-        private static void InstallDotnet()
+        private static IDictionary<string, string> InstallDotnet()
         {
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_jitBenchDevDirectory,
@@ -102,6 +99,9 @@ namespace JitBench
                 Arguments = $".\\Dotnet-Install.ps1 -InstallDir .dotnet -Channel master -Architecture {s_targetArchitecture}"
             };
             LaunchProcess(psi, 180000);
+
+            // TODO: This is currently hardcoded, but we could probably pull it from the powershell cmdlet call.
+            return new Dictionary<string, string> { { "PATH", $"{Path.Combine(s_jitBenchDevDirectory, ".dotnet")};{psi.Environment["PATH"]}" } };
         }
 
         private static void ModifySharedFramework()
@@ -112,7 +112,10 @@ namespace JitBench
             var sourcedi = new DirectoryInfo(Directory.GetCurrentDirectory());
             var targetdi = new DirectoryInfo(
                 new DirectoryInfo(Path.Combine(s_jitBenchDevDirectory, ".dotnet", "shared", "Microsoft.NETCore.App"))
-                .GetDirectories("2.1*").First().FullName);
+                .GetDirectories("*")
+                .OrderBy(s => s.Name)
+                .Last()
+                .FullName);
 
             Console.WriteLine($"  Source : {sourcedi.FullName}");
             Console.WriteLine($"  Target : {targetdi.FullName}");
@@ -170,7 +173,7 @@ namespace JitBench
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
-                string[] pair = line.Split(new char[] { '=' });
+                string[] pair = line.Split(new char[] { '=' }, 2);
                 if (pair.Length != 2)
                     throw new InvalidOperationException($"AspNet-GenerateStore.ps1 did not generate the expected environment variable {pair}");
 
@@ -210,8 +213,8 @@ namespace JitBench
             PrintHeader("Starting SETUP");
 
             DownloadAndExtractJitBenchRepo();
-            IDictionary<string, string> environment = InstallSharedRuntime();
-            InstallDotnet();
+            InstallSharedRuntime();
+            IDictionary<string, string> environment = InstallDotnet();
 
             if (new string[] { "PATH" }.Except(environment.Keys, StringComparer.OrdinalIgnoreCase).Any())
                 throw new Exception("Missing expected environment variable PATH.");
