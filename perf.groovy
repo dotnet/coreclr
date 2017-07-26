@@ -495,7 +495,7 @@ parallel(
 // Setup CoreCLR-Scenarios tests
 [true, false].each { isPR ->
     ['Windows_NT'].each { os ->
-        ['x64'].each { arch ->
+        ['x64', 'x86'].each { arch ->
             def architecture = arch
             def newJob = job(Utilities.getFullJobName(project, "perf_scenarios_${os}_${arch}", isPR)) {
                 // Set the label.
@@ -543,8 +543,9 @@ parallel(
 
                     batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
 
-                    // Run with just stopwatch: Profile=Off
-                    batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${arch} -configuration ${configuration} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\linkbench\\linkbench -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -nowarmup -runtype ${runType} -scenarioTest -group ${jobGroup}")
+                    if (arch == 'x64') {
+                        batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${arch} -configuration ${configuration} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\linkbench\\linkbench -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -nowarmup -runtype ${runType} -scenarioTest -group ILLink")
+                    }
                     batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${arch} -configuration ${configuration} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\Scenario\\JitBench -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -nowarmup -runtype ${runType} -scenarioTest -group ${jobGroup}")
                 }
              }
