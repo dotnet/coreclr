@@ -35488,7 +35488,7 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
         // performance data seems to indicate halving the size results
         // in optimal perf.  Ask for adjusted gen0 size.
         gen0size = max(GCToOSInterface::GetLargestOnDieCacheSize(FALSE)/GCToOSInterface::GetLogicalCpuCount(),(256*1024));
-#if (defined(_TARGET_AMD64_))
+
         // if gen0 size is too large given the available memory, reduce it.
         // Get true cache size, as we don't want to reduce below this.
         size_t trueSize = max(GCToOSInterface::GetLargestOnDieCacheSize(TRUE)/GCToOSInterface::GetLogicalCpuCount(),(256*1024));
@@ -35508,8 +35508,6 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
                 break;
             }
         }
-#endif //_TARGET_AMD64_
-
 #else //SERVER_GC
         gen0size = max((4*GCToOSInterface::GetLargestOnDieCacheSize(TRUE)/5),(256*1024));
 #endif //SERVER_GC
