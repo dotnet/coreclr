@@ -444,7 +444,7 @@ BOOL ThreadpoolMgr::Initialize()
     counts.NumActive = 0;
     counts.NumWorking = 0;
     counts.NumRetired = 0;
-    counts.MaxWorking = max(min(NumberOfProcessors, MaxLimitTotalWorkerThreads), MinLimitTotalWorkerThreads);
+    counts.MaxWorking = max(min((LONG)NumberOfProcessors, MaxLimitTotalWorkerThreads), MinLimitTotalWorkerThreads);
     WorkerCounter.counts.AsLongLong = counts.AsLongLong;
 
 #ifdef _DEBUG
