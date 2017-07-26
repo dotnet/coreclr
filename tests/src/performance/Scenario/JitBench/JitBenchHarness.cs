@@ -74,7 +74,7 @@ namespace JitBench
 
                 // This step will create s_JitBenchDevDirectory.
                 ZipFile.ExtractToDirectory(zipFile, s_temporaryDirectory);
-                Directory.Move(Path.Combine(s_temporaryDirectory, $"JitBench-{sha1Id}"), s_jitBenchDevDirectory);
+                Directory.Move(Path.Combine(s_temporaryDirectory, $"JitBench-{JitBenchCommitSha1Id}"), s_jitBenchDevDirectory);
             }
         }
 
