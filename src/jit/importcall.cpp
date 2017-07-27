@@ -141,7 +141,7 @@ public:
                 if (compiler->impInlineInfo->inlineCandidateInfo->dwRestrictions & INLINE_RESPECT_BOUNDARY)
                 {
                     compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_CROSS_BOUNDARY_SECURITY);
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
 
                 /* Does the inlinee need a security check token on the frame */
@@ -149,7 +149,7 @@ public:
                 if (mflags & CORINFO_FLG_SECURITYCHECK)
                 {
                     compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_NEEDS_SECURITY_CHECK);
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
 
                 /* Does the inlinee use StackCrawlMark */
@@ -157,7 +157,7 @@ public:
                 if (mflags & CORINFO_FLG_DONT_INLINE_CALLER)
                 {
                     compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_STACK_CRAWL_MARK);
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
 
                 /* For now ignore delegate invoke */
@@ -165,26 +165,26 @@ public:
                 if (mflags & CORINFO_FLG_DELEGATE_INVOKE)
                 {
                     compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_DELEGATE_INVOKE);
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
 
                 /* For now ignore varargs */
                 if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_NATIVEVARARG)
                 {
                     compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_NATIVE_VARARGS);
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
 
                 if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_VARARG)
                 {
                     compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_MANAGED_VARARGS);
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
 
                 if ((mflags & CORINFO_FLG_VIRTUAL) && (sig->sigInst.methInstCount != 0) && (opcode == CEE_CALLVIRT))
                 {
                     compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_IS_GENERIC_VIRTUAL);
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
             }
 
@@ -217,7 +217,7 @@ public:
 
                 if (compiler->compIsForInlining() && compiler->compInlineResult->IsFailure())
                 {
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
 
                 if (call != nullptr)
@@ -317,7 +317,7 @@ public:
                                 * failing here.
                                 */
                                 compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_HAS_COMPLEX_HANDLE);
-                                return callRetTyp;
+                                return TYP_UNDEF;
                             }
 
                             GenTreePtr stubAddr =
@@ -395,7 +395,7 @@ public:
                         if (compiler->compIsForInlining())
                         {
                             compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_HAS_CALL_VIA_LDVIRTFTN);
-                            return callRetTyp;
+                            return TYP_UNDEF;
                         }
 
                         assert(!(mflags & CORINFO_FLG_STATIC)); // can't call a static method
@@ -410,7 +410,8 @@ public:
                             compiler->impTransformThis(thisPtr, pConstrainedResolvedToken, callInfo->thisTransform);
                         if (compiler->compDonotInline())
                         {
-                            return callRetTyp;
+                            unreached();
+                            return TYP_UNDEF;
                         }
 
                         // Clone the (possibly transformed) "this" pointer
@@ -423,7 +424,8 @@ public:
 
                         if (compiler->compDonotInline())
                         {
-                            return callRetTyp;
+                            unreached();
+                            return TYP_UNDEF;
                         }
 
                         thisPtr = nullptr; // can't reuse it
@@ -500,7 +502,7 @@ public:
 
                         if (compiler->compDonotInline())
                         {
-                            return callRetTyp;
+                            return TYP_UNDEF;
                         }
 
                         // Now make an indirect call through the function pointer
@@ -698,7 +700,7 @@ public:
                     // Because inlinee method does not have its own frame.
 
                     compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_NEEDS_SECURITY_CHECK);
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
                 else
                 {
@@ -760,7 +762,7 @@ public:
                         IMPL_LIMITATION("Can't get PInvoke cookie (cross module generics)");
                     }
 
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
 
                 GenTreePtr cookie = compiler->eeGetPInvokeCookie(sig);
@@ -805,7 +807,7 @@ public:
                 if (!compiler->info.compCompHnd->canGetVarArgsHandle(sig))
                 {
                     compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_CANT_EMBED_VARARGS_COOKIE);
-                    return callRetTyp;
+                    return TYP_UNDEF;
                 }
 
                 varCookie = compiler->info.compCompHnd->getVarArgsHandle(sig, &pVarCookie);
@@ -861,7 +863,8 @@ public:
                                                                             GTF_ICON_METHOD_HDL, exactMethodHandle);
                             if (instParam == nullptr)
                             {
-                                return callRetTyp;
+                                assert(compiler->compDonotInline());
+                                return TYP_UNDEF;
                             }
                         }
                         else
@@ -877,7 +880,8 @@ public:
                             compiler->impTokenToHandle(pResolvedToken, &runtimeLookup, TRUE /*mustRestoreHandle*/);
                         if (instParam == nullptr)
                         {
-                            return callRetTyp;
+                            assert(compiler->compDonotInline());
+                            return TYP_UNDEF;
                         }
                     }
                 }
@@ -893,7 +897,7 @@ public:
                     if (compiler->compIsForInlining() && (clsFlags & CORINFO_FLG_ARRAY) != 0)
                     {
                         compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_IS_ARRAY_METHOD);
-                        return callRetTyp;
+                        return TYP_UNDEF;
                     }
 
                     if ((clsFlags & CORINFO_FLG_ARRAY) && readonlyCall)
@@ -911,7 +915,8 @@ public:
                                                                             GTF_ICON_CLASS_HDL, exactClassHandle);
                             if (instParam == nullptr)
                             {
-                                return callRetTyp;
+                                assert(compiler->compDonotInline());
+                                return TYP_UNDEF;
                             }
                         }
                         else
@@ -943,7 +948,8 @@ public:
                         }
                         if (instParam == nullptr)
                         {
-                            return callRetTyp;
+                            assert(compiler->compDonotInline());
+                            return TYP_UNDEF;
                         }
                     }
                 }
@@ -1007,7 +1013,7 @@ public:
                     obj = compiler->impTransformThis(obj, pConstrainedResolvedToken, constraintCallThisTransform);
                     if (compiler->compDonotInline())
                     {
-                        return callRetTyp;
+                        return TYP_UNDEF;
                     }
                 }
 
