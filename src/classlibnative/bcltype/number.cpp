@@ -135,7 +135,11 @@ unsigned int Int64DivMod1E9(unsigned __int64* value)
 
 #else // _TARGET_X86_ && !FEATURE_PAL
 
-void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
+// Convert a double value to a NUMBER struct.
+// 
+// 1. You should ensure the input value is not infinity or NaN.
+// 2. For 0.0, number->digits will be set as an empty string. i.e the value of the first bucket is 0.
+void DoubleToNumberWorker( double value, int count, int* dec, int* sign, wchar_t* digits )
 {
     // ========================================================================================================================================
     // This implementation is based on the paper: https://www.cs.indiana.edu/~dyb/pubs/FP-Printing-PLDI96.pdf
@@ -158,7 +162,7 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
 
     _ASSERTE(dec != nullptr && sign != nullptr && digits != nullptr);
 
-    // The caller of ecvt should already checked the Infinity and NAN values.
+    // The caller of DoubleToNumberWorker should already checked the Infinity and NAN values.
     _ASSERTE(((FPDOUBLE*)&value)->exp != 0x7ff);
 
     // Shortcut for zero.
@@ -166,6 +170,8 @@ void ecvt( double value, int count, int* dec, int* sign, wchar_t* digits )
     {
         *dec = 0;
         *sign = 0;
+
+        // Instead of zeroing digits, we just make it as an empty string due to performance reason.
         *digits = 0;
 
         return;
@@ -424,7 +430,7 @@ void DoubleToNumber(double value, int precision, NUMBER* number)
         number->digits[0] = 0;
     }
     else {
-        ecvt(value, precision, &number->scale, &number->sign, number->digits);
+        DoubleToNumberWorker(value, precision, &number->scale, &number->sign, number->digits);
     }
 }
 
