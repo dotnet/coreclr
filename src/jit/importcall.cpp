@@ -875,150 +875,7 @@ public:
 
             if (tailCall)
             {
-                // This check cannot be performed for implicit tail calls for the reason
-                // that impIsImplicitTailCallCandidate() is not checking whether return
-                // types are compatible before marking a call node with PREFIX_TAILCALL_IMPLICIT.
-                // As a result it is possible that in the following case, we find that
-                // the type stack is non-empty if Callee() is considered for implicit
-                // tail calling.
-                //      int Caller(..) { .... void Callee(); ret val; ... }
-                //
-                // Note that we cannot check return type compatibility before ImpImportCall()
-                // as we don't have required info or need to duplicate some of the logic of
-                // ImpImportCall().
-                //
-                // For implicit tail calls, we perform this check after return types are
-                // known to be compatible.
-                if ((tailCall & PREFIX_TAILCALL_EXPLICIT) && (compiler->verCurrentState.esStackDepth != 0))
-                {
-                    BADCODE("Stack should be empty after tailcall");
-                }
-
-                // Note that we can not relax this condition with genActualType() as
-                // the calling convention dictates that the caller of a function with
-                // a small-typed return value is responsible for normalizing the return val
-
-                if (canTailCall &&
-                    !compiler->impTailCallRetTypeCompatible(compiler->info.compRetType,
-                                                            compiler->info.compMethodInfo->args.retTypeClass,
-                                                            callRetTyp, callInfo->sig.retTypeClass))
-                {
-                    canTailCall             = false;
-                    szCanTailCallFailReason = "Return types are not tail call compatible";
-                }
-
-                // Stack empty check for implicit tail calls.
-                if (canTailCall && (tailCall & PREFIX_TAILCALL_IMPLICIT) &&
-                    (compiler->verCurrentState.esStackDepth != 0))
-                {
-#ifdef _TARGET_AMD64_
-                    // JIT64 Compatibility:  Opportunistic tail call stack mismatch throws a VerificationException
-                    // in JIT64, not an InvalidProgramException.
-                    compiler->verRaiseVerifyExceptionIfNeeded(INDEBUG("Stack should be empty after tailcall")
-                                                                  DEBUGARG(__FILE__) DEBUGARG(__LINE__));
-#else  // _TARGET_64BIT_
-                    BADCODE("Stack should be empty after tailcall");
-#endif //!_TARGET_64BIT_
-                }
-
-                // assert(compCurBB is not a catch, finally or filter block);
-                // assert(compCurBB is not a try block protected by a finally block);
-
-                // Check for permission to tailcall
-                bool explicitTailCall = (tailCall & PREFIX_TAILCALL_EXPLICIT) != 0;
-
-                assert(!explicitTailCall || compiler->compCurBB->bbJumpKind == BBJ_RETURN);
-
-                if (canTailCall)
-                {
-                    // True virtual or indirect calls, shouldn't pass in a callee handle.
-                    CORINFO_METHOD_HANDLE exactCalleeHnd =
-                        ((call->gtCall.gtCallType != CT_USER_FUNC) ||
-                         ((call->gtFlags & GTF_CALL_VIRT_KIND_MASK) != GTF_CALL_NONVIRT))
-                            ? nullptr
-                            : methHnd;
-                    GenTreePtr thisArg = call->gtCall.gtCallObjp;
-
-                    if (compiler->info.compCompHnd->canTailCall(compiler->info.compMethodHnd, methHnd, exactCalleeHnd,
-                                                                explicitTailCall))
-                    {
-                        canTailCall = true;
-                        if (explicitTailCall)
-                        {
-                            // In case of explicit tail calls, mark it so that it is not considered
-                            // for in-lining.
-                            call->gtCall.gtCallMoreFlags |= GTF_CALL_M_EXPLICIT_TAILCALL;
-#ifdef DEBUG
-                            if (compiler->verbose)
-                            {
-                                printf("\nGTF_CALL_M_EXPLICIT_TAILCALL bit set for call ");
-                                compiler->printTreeID(call);
-                                printf("\n");
-                            }
-#endif
-                        }
-                        else
-                        {
-#if FEATURE_TAILCALL_OPT
-                            // Must be an implicit tail call.
-                            assert((tailCall & PREFIX_TAILCALL_IMPLICIT) != 0);
-
-                            // It is possible that a call node is both an inline candidate and marked
-                            // for opportunistic tail calling.  In-lining happens before morhphing of
-                            // trees.  If in-lining of an in-line candidate gets aborted for whatever
-                            // reason, it will survive to the morphing stage at which point it will be
-                            // transformed into a tail call after performing additional checks.
-
-                            call->gtCall.gtCallMoreFlags |= GTF_CALL_M_IMPLICIT_TAILCALL;
-#ifdef DEBUG
-                            if (compiler->verbose)
-                            {
-                                printf("\nGTF_CALL_M_IMPLICIT_TAILCALL bit set for call ");
-                                compiler->printTreeID(call);
-                                printf("\n");
-                            }
-#endif
-
-#else //! FEATURE_TAILCALL_OPT
-                            NYI("Implicit tail call prefix on a target which doesn't support opportunistic tail "
-                                "calls");
-
-#endif // FEATURE_TAILCALL_OPT
-                        }
-
-                        // we can't report success just yet...
-                    }
-                    else
-                    {
-                        canTailCall = false;
-// canTailCall reported its reasons already
-#ifdef DEBUG
-                        if (compiler->verbose)
-                        {
-                            printf("\ninfo.compCompHnd->canTailCall returned false for call ");
-                            compiler->printTreeID(call);
-                            printf("\n");
-                        }
-#endif
-                    }
-                }
-                else
-                {
-                    // If this assert fires it means that canTailCall was set to false without setting a reason!
-                    assert(szCanTailCallFailReason != nullptr);
-
-#ifdef DEBUG
-                    if (compiler->verbose)
-                    {
-                        printf("\nRejecting %splicit tail call for call ", explicitTailCall ? "ex" : "im");
-                        compiler->printTreeID(call);
-                        printf(": %s\n", szCanTailCallFailReason);
-                    }
-#endif
-                    compiler->info.compCompHnd->reportTailCallDecision(compiler->info.compMethodHnd, methHnd,
-                                                                       explicitTailCall, TAILCALL_FAIL,
-                                                                       szCanTailCallFailReason);
-                }
+                checkTailCall(tailCall, callInfo);
             }
 
             // Note: we assume that small return types are already normalized by the managed callee
@@ -1075,6 +932,157 @@ public:
     }
 
 private:
+    //------------------------------------------------------------------------
+    // checkTailCall: Check possibility of tail call transformation and set canTailCall flag.
+    //
+    //    tailCall - PREFIX_TAILCALL flags
+    //    callInfo - EE supplied info for the call
+    //
+    void checkTailCall(int tailCall, CORINFO_CALL_INFO* callInfo)
+    {
+        // This check cannot be performed for implicit tail calls for the reason
+        // that impIsImplicitTailCallCandidate() is not checking whether return
+        // types are compatible before marking a call node with PREFIX_TAILCALL_IMPLICIT.
+        // As a result it is possible that in the following case, we find that
+        // the type stack is non-empty if Callee() is considered for implicit
+        // tail calling.
+        //      int Caller(..) { .... void Callee(); ret val; ... }
+        //
+        // Note that we cannot check return type compatibility before ImpImportCall()
+        // as we don't have required info or need to duplicate some of the logic of
+        // ImpImportCall().
+        //
+        // For implicit tail calls, we perform this check after return types are
+        // known to be compatible.
+        if ((tailCall & PREFIX_TAILCALL_EXPLICIT) && (compiler->verCurrentState.esStackDepth != 0))
+        {
+            BADCODE("Stack should be empty after tailcall");
+        }
+
+        // Note that we can not relax this condition with genActualType() as
+        // the calling convention dictates that the caller of a function with
+        // a small-typed return value is responsible for normalizing the return val
+
+        if (canTailCall &&
+            !compiler->impTailCallRetTypeCompatible(compiler->info.compRetType,
+                                                    compiler->info.compMethodInfo->args.retTypeClass, callRetTyp,
+                                                    callInfo->sig.retTypeClass))
+        {
+            canTailCall             = false;
+            szCanTailCallFailReason = "Return types are not tail call compatible";
+        }
+
+        // Stack empty check for implicit tail calls.
+        if (canTailCall && (tailCall & PREFIX_TAILCALL_IMPLICIT) && (compiler->verCurrentState.esStackDepth != 0))
+        {
+#ifdef _TARGET_AMD64_
+            // JIT64 Compatibility:  Opportunistic tail call stack mismatch throws a VerificationException
+            // in JIT64, not an InvalidProgramException.
+            compiler->verRaiseVerifyExceptionIfNeeded(INDEBUG("Stack should be empty after tailcall") DEBUGARG(__FILE__)
+                                                          DEBUGARG(__LINE__));
+#else  // _TARGET_64BIT_
+            BADCODE("Stack should be empty after tailcall");
+#endif //!_TARGET_64BIT_
+        }
+
+        // assert(compCurBB is not a catch, finally or filter block);
+        // assert(compCurBB is not a try block protected by a finally block);
+
+        // Check for permission to tailcall
+        bool explicitTailCall = (tailCall & PREFIX_TAILCALL_EXPLICIT) != 0;
+
+        assert(!explicitTailCall || compiler->compCurBB->bbJumpKind == BBJ_RETURN);
+
+        if (canTailCall)
+        {
+            // True virtual or indirect calls, shouldn't pass in a callee handle.
+            CORINFO_METHOD_HANDLE exactCalleeHnd = ((call->gtCall.gtCallType != CT_USER_FUNC) ||
+                                                    ((call->gtFlags & GTF_CALL_VIRT_KIND_MASK) != GTF_CALL_NONVIRT))
+                                                       ? nullptr
+                                                       : methHnd;
+            GenTreePtr thisArg = call->gtCall.gtCallObjp;
+
+            if (compiler->info.compCompHnd->canTailCall(compiler->info.compMethodHnd, methHnd, exactCalleeHnd,
+                                                        explicitTailCall))
+            {
+                canTailCall = true;
+                if (explicitTailCall)
+                {
+                    // In case of explicit tail calls, mark it so that it is not considered
+                    // for in-lining.
+                    call->gtCall.gtCallMoreFlags |= GTF_CALL_M_EXPLICIT_TAILCALL;
+#ifdef DEBUG
+                    if (compiler->verbose)
+                    {
+                        printf("\nGTF_CALL_M_EXPLICIT_TAILCALL bit set for call ");
+                        compiler->printTreeID(call);
+                        printf("\n");
+                    }
+#endif
+                }
+                else
+                {
+#if FEATURE_TAILCALL_OPT
+                    // Must be an implicit tail call.
+                    assert((tailCall & PREFIX_TAILCALL_IMPLICIT) != 0);
+
+                    // It is possible that a call node is both an inline candidate and marked
+                    // for opportunistic tail calling.  In-lining happens before morhphing of
+                    // trees.  If in-lining of an in-line candidate gets aborted for whatever
+                    // reason, it will survive to the morphing stage at which point it will be
+                    // transformed into a tail call after performing additional checks.
+
+                    call->gtCall.gtCallMoreFlags |= GTF_CALL_M_IMPLICIT_TAILCALL;
+#ifdef DEBUG
+                    if (compiler->verbose)
+                    {
+                        printf("\nGTF_CALL_M_IMPLICIT_TAILCALL bit set for call ");
+                        compiler->printTreeID(call);
+                        printf("\n");
+                    }
+#endif
+
+#else //! FEATURE_TAILCALL_OPT
+                    NYI("Implicit tail call prefix on a target which doesn't support opportunistic tail "
+                        "calls");
+
+#endif // FEATURE_TAILCALL_OPT
+                }
+
+                // we can't report success just yet...
+            }
+            else
+            {
+                canTailCall = false;
+// canTailCall reported its reasons already
+#ifdef DEBUG
+                if (compiler->verbose)
+                {
+                    printf("\ninfo.compCompHnd->canTailCall returned false for call ");
+                    compiler->printTreeID(call);
+                    printf("\n");
+                }
+#endif
+            }
+        }
+        else
+        {
+            // If this assert fires it means that canTailCall was set to false without setting a reason!
+            assert(szCanTailCallFailReason != nullptr);
+
+#ifdef DEBUG
+            if (compiler->verbose)
+            {
+                printf("\nRejecting %splicit tail call for call ", explicitTailCall ? "ex" : "im");
+                compiler->printTreeID(call);
+                printf(": %s\n", szCanTailCallFailReason);
+            }
+#endif
+            compiler->info.compCompHnd->reportTailCallDecision(compiler->info.compMethodHnd, methHnd, explicitTailCall,
+                                                               TAILCALL_FAIL, szCanTailCallFailReason);
+        }
+    }
+
     //------------------------------------------------------------------------
     // createArgumentList: Create the argument list for the call tree.
     //
