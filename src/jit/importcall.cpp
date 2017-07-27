@@ -408,11 +408,6 @@ public:
                         GenTreePtr thisPtr = compiler->impPopStack().val;
                         thisPtr =
                             compiler->impTransformThis(thisPtr, pConstrainedResolvedToken, callInfo->thisTransform);
-                        if (compiler->compDonotInline())
-                        {
-                            unreached();
-                            return TYP_UNDEF;
-                        }
 
                         // Clone the (possibly transformed) "this" pointer
                         GenTreePtr thisPtrCopy;
@@ -421,12 +416,6 @@ public:
                                                          nullptr DEBUGARG("LDVIRTFTN this pointer"));
 
                         GenTreePtr fptr = compiler->impImportLdvirtftn(thisPtr, pResolvedToken, callInfo);
-
-                        if (compiler->compDonotInline())
-                        {
-                            unreached();
-                            return TYP_UNDEF;
-                        }
 
                         thisPtr = nullptr; // can't reuse it
 
