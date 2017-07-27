@@ -635,6 +635,7 @@ public:
                 }
 #endif
 
+                // TODO check this comment.
                 /* Get the total number of arguments - this is already correct
                 * for CALLI - for methods we have to get it from the call site */
 
@@ -673,9 +674,10 @@ public:
                         }
                     }
 
-                    assert(numArgsDef <= sig->numArgs);
+                    assert(numArgsDef <= sig->numArgs); // TODO this check is always true.
                 }
 
+                // TODO check this comment.
                 /* We will have "cookie" as the last argument but we cannot push
                 * it on the operand stack because we may overflow, so we append it
                 * to the arg list next after we pop them */
@@ -739,48 +741,9 @@ public:
             }
             else if ((opcode == CEE_CALLI) && !isManagedCall(sig->callConv))
             {
-                if (!compiler->info.compCompHnd->canGetCookieForPInvokeCalliSig(sig))
+                if (!getPInvokeCookie())
                 {
-                    // Normally this only happens with inlining.
-                    // However, a generic method (or type) being NGENd into another module
-                    // can run into this issue as well.  There's not an easy fall-back for NGEN
-                    // so instead we fallback to JIT.
-                    if (compiler->compIsForInlining())
-                    {
-                        compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_CANT_EMBED_PINVOKE_COOKIE);
-                    }
-                    else
-                    {
-                        IMPL_LIMITATION("Can't get PInvoke cookie (cross module generics)");
-                    }
-
                     return TYP_UNDEF;
-                }
-
-                GenTreePtr cookie = compiler->eeGetPInvokeCookie(sig);
-
-                // This cookie is required to be either a simple GT_CNS_INT or
-                // an indirection of a GT_CNS_INT
-                //
-                GenTreePtr cookieConst = cookie;
-                if (cookie->gtOper == GT_IND)
-                {
-                    cookieConst = cookie->gtOp.gtOp1;
-                }
-                assert(cookieConst->gtOper == GT_CNS_INT);
-
-                // Setting GTF_DONT_CSE on the GT_CNS_INT as well as on the GT_IND (if it exists) will ensure that
-                // we won't allow this tree to participate in any CSE logic
-                //
-                cookie->gtFlags |= GTF_DONT_CSE;
-                cookieConst->gtFlags |= GTF_DONT_CSE;
-
-                call->gtCall.gtCallCookie = cookie;
-
-                if (canTailCall)
-                {
-                    canTailCall             = false;
-                    szCanTailCallFailReason = "PInvoke calli";
                 }
             }
 
@@ -929,6 +892,59 @@ public:
     }
 
 private:
+    //------------------------------------------------------------------------
+    // getPInvokeCookie: Get PInvokeCookie and set it to call tree,
+    //
+    // Return Value:
+    //    false if can't get cookie for PInvoke, true if it is set fine
+    bool getPInvokeCookie()
+    {
+        if (!compiler->info.compCompHnd->canGetCookieForPInvokeCalliSig(sig))
+        {
+            // Normally this only happens with inlining.
+            // However, a generic method (or type) being NGENd into another module
+            // can run into this issue as well.  There's not an easy fall-back for NGEN
+            // so instead we fallback to JIT.
+            if (compiler->compIsForInlining())
+            {
+                compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_CANT_EMBED_PINVOKE_COOKIE);
+            }
+            else
+            {
+                IMPL_LIMITATION("Can't get PInvoke cookie (cross module generics)");
+            }
+
+            return false;
+        }
+
+        GenTreePtr cookie = compiler->eeGetPInvokeCookie(sig);
+
+        // This cookie is required to be either a simple GT_CNS_INT or
+        // an indirection of a GT_CNS_INT
+        //
+        GenTreePtr cookieConst = cookie;
+        if (cookie->gtOper == GT_IND)
+        {
+            cookieConst = cookie->gtOp.gtOp1;
+        }
+        assert(cookieConst->gtOper == GT_CNS_INT);
+
+        // Setting GTF_DONT_CSE on the GT_CNS_INT as well as on the GT_IND (if it exists) will ensure that
+        // we won't allow this tree to participate in any CSE logic
+        //
+        cookie->gtFlags |= GTF_DONT_CSE;
+        cookieConst->gtFlags |= GTF_DONT_CSE;
+
+        call->gtCall.gtCallCookie = cookie;
+
+        if (canTailCall)
+        {
+            canTailCall             = false;
+            szCanTailCallFailReason = "PInvoke calli";
+        }
+        return true;
+    }
+
     //------------------------------------------------------------------------
     // checkTailCall: Check possibility of tail call transformation and set canTailCall flag.
     //
