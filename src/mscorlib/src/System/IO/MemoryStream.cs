@@ -412,9 +412,10 @@ namespace System.IO
                 return 0;
             }
 
-            // TODO: Read(byte[], int, int) has an n <= 8 optimization, presumably
-            // based on benchmarking.  Determine if/where such a cut-off is here and
-            // add an equivalent optimization if necessary.
+            // TODO https://github.com/dotnet/corefx/issues/22388:
+            // Read(byte[], int, int) has an n <= 8 optimization, presumably based
+            // on benchmarking.  Determine if/where such a cut-off is here and add
+            // an equivalent optimization if necessary.
             new Span<byte>(_buffer, _position, n).CopyTo(destination);
 
             _position += n;

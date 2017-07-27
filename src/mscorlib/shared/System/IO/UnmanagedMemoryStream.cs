@@ -380,7 +380,7 @@ namespace System.IO
             }
         }
 
-        private int ReadCore(Span<byte> destination)
+        internal int ReadCore(Span<byte> destination)
         {
             if (!_isOpen) throw Error.GetStreamIsClosed();
             if (!CanRead) throw Error.GetReadNotSupported();
@@ -623,12 +623,10 @@ namespace System.IO
             }
         }
 
-        private unsafe void WriteCore(ReadOnlySpan<byte> source)
+        internal unsafe void WriteCore(ReadOnlySpan<byte> source)
         {
-            if (!_isOpen)
-                throw Error.GetStreamIsClosed();
-            if (!CanWrite)
-                throw Error.GetWriteNotSupported();
+            if (!_isOpen) throw Error.GetStreamIsClosed();
+            if (!CanWrite) throw Error.GetWriteNotSupported();
 
             long pos = Interlocked.Read(ref _position);  // Use a local to avoid a race condition
             long len = Interlocked.Read(ref _length);

@@ -741,8 +741,7 @@ namespace System.IO
                 return 0;
             }
 
-            ArrayPool<byte> pool = ArrayPool<byte>.Shared;
-            byte[] buffer = pool.Rent(destination.Length);
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(destination.Length);
             try
             {
                 int numRead = Read(buffer, 0, destination.Length);
@@ -753,7 +752,7 @@ namespace System.IO
                 new Span<byte>(buffer, 0, numRead).CopyTo(destination);
                 return numRead;
             }
-            finally { pool.Return(buffer); }
+            finally { ArrayPool<byte>.Shared.Return(buffer); }
         }
 
         // Reads one byte from the stream by calling Read(byte[], int, int). 
@@ -783,14 +782,13 @@ namespace System.IO
                 return;
             }
 
-            ArrayPool<byte> pool = ArrayPool<byte>.Shared;
-            byte[] buffer = pool.Rent(source.Length);
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(source.Length);
             try
             {
                 source.CopyTo(buffer);
                 Write(buffer, 0, source.Length);
             }
-            finally { pool.Return(buffer); }
+            finally { ArrayPool<byte>.Shared.Return(buffer); }
         }
 
         // Writes one byte from the stream by calling Write(byte[], int, int).
