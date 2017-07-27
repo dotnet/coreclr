@@ -94,7 +94,7 @@ public:
             szCanTailCallFailReason = "Caller is synchronized";
         }
 #if !FEATURE_FIXED_OUT_ARGS
-        else if (info.compIsVarArgs)
+        else if (compiler->info.compIsVarArgs)
         {
             canTailCall             = false;
             szCanTailCallFailReason = "Caller is varargs";
@@ -605,7 +605,7 @@ public:
 #ifdef UNIX_X86_ABI
             if (call->gtCall.callSig == nullptr)
             {
-                call->gtCall.callSig  = new (this, CMK_CorSig) CORINFO_SIG_INFO;
+                call->gtCall.callSig  = new (compiler, CMK_CorSig) CORINFO_SIG_INFO;
                 *call->gtCall.callSig = *sig;
             }
 #endif // UNIX_X86_ABI

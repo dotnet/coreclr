@@ -2263,7 +2263,7 @@ inline void Compiler::impEvalSideEffects()
  *  [0..chkLevel) is the portion of the stack which will be checked and spilled.
  */
 
-inline void Compiler::impSpillSideEffects(bool spillGlobEffects, unsigned chkLevel DEBUGARG(const char* reason))
+void Compiler::impSpillSideEffects(bool spillGlobEffects, unsigned chkLevel DEBUGARG(const char* reason))
 {
     assert(chkLevel != (unsigned)CHECK_SPILL_NONE);
 
@@ -2304,7 +2304,7 @@ inline void Compiler::impSpillSideEffects(bool spillGlobEffects, unsigned chkLev
  *  those trees to temps and replace them on the stack with refs to their temps.
  */
 
-inline void Compiler::impSpillSpecialSideEff()
+void Compiler::impSpillSpecialSideEff()
 {
     // Only exception objects need to be carefully handled
 
