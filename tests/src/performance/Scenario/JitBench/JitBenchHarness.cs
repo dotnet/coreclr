@@ -22,7 +22,7 @@ namespace JitBench
         {
             var options = JitBenchHarnessOptions.Parse(args);
 
-            s_temporaryDirectory = Path.Combine(options.IntermediateOutputDirectory, "JitBench");
+            s_temporaryDirectory = Path.Combine(/*options.IntermediateOutputDirectory*/@"S:\TEMP", "JitBench");
             s_targetArchitecture = options.TargetArchitecture;
             if (string.IsNullOrWhiteSpace(s_targetArchitecture))
                 throw new ArgumentNullException("Unspecified target architecture.");
@@ -156,7 +156,7 @@ namespace JitBench
                 Arguments = $"-Command \".\\AspNet-GenerateStore.ps1 -InstallDir .store -Architecture {s_targetArchitecture} -Runtime win7-{s_targetArchitecture}; gi env:JITBENCH_*, env:DOTNET_SHARED_STORE | %{{ \\\"$($_.Name)=$($_.Value)\\\" }} 1>>{environmentFileName}\""
             };
 
-            LaunchProcess(psi, 900000, environment);
+            LaunchProcess(psi, 1800000, environment);
 
             // Return the generated environment variables.
             return GetEnvironment(environment, Path.Combine(s_jitBenchDevDirectory, environmentFileName));
