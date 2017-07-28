@@ -379,6 +379,21 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
     <MSBuild Projects="$(MSBuildProjectFile)" Targets="UploadPerfAssemblies" />  
   </Target>  
 
+  <PropertyGroup>
+    <RunPGOCheck>true</RunPGOCheck>
+    <RunPGOCheck Condition="$(Configuration) != 'Release' OR $(RunningOnUnix) == 'true'">false</RunPGOCheck>
+    <RunPGOCheck Condition="$(__BuildArch) == 'arm' OR $(__BuildArch) == 'arm64'">false</RunPGOCheck>
+  </PropertyGroup>
+
+  <Target Name="CheckForPGO">
+    <ItemGroup>
+      <PGOEnabled Include="$(CoreCLRBinDir)\coreclr.dll" />
+      <PGOEnabled Include="$(CoreCLRBinDir)\clrjit.dll" />
+    </ItemGroup>
+
+    <Message Text="Checking if the following DLLs are properly compiled with PGO" Importance="High" />
+    <Exec  Command="py.exe -2 $(MSBuildThisFileDirectory)scripts/pgocheck/pgocheck.py @(PGOEnabled)" />
+  </Target>
 
   <Target Name="Build">
 
@@ -391,6 +406,11 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
              Targets="CreateAllWrappers"
              Properties="_CMDDIR=%(TestDirectories.Identity)"
              Condition=" '$(BuildWrappers)'=='true' " />
+
+    <!-- Check that CLR was built with PGO -->
+    <MSBuild Projects="$(MSBuildProjectFile)"
+             Targets="CheckForPGO"
+             Condition="$(RunPGOCheck) == 'true'" />
 
     <!-- Execution -->
 
