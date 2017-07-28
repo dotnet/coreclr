@@ -521,8 +521,7 @@ parallel(
                 }
                 def configuration = 'Release'
                 def runType = isPR ? 'private' : 'rolling'
-                def jobGroup = 'CoreCLR-Scenarios'
-                def benchViewName = isPR ? '${jobGroup} private %BenchviewCommitName%' : '${jobGroup} rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
+                def benchViewName = isPR ? 'CoreCLR-Scenarios private %BenchviewCommitName%' : 'CoreCLR-Scenarios rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
                 def uploadString = '-uploadToBenchview'
 
                 steps {
@@ -546,7 +545,7 @@ parallel(
                     if (arch == 'x64') {
                         batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${arch} -configuration ${configuration} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\linkbench\\linkbench -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -nowarmup -runtype ${runType} -scenarioTest -group ILLink")
                     }
-                    batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${arch} -configuration ${configuration} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\Scenario\\JitBench -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -nowarmup -runtype ${runType} -scenarioTest -group ${jobGroup}")
+                    batchFile("tests\\scripts\\run-xunit-perf.cmd -arch ${arch} -configuration ${configuration} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\Scenario\\JitBench -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -nowarmup -runtype ${runType} -scenarioTest -group CoreCLR-Scenarios")
                 }
              }
 
