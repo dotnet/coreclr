@@ -1573,7 +1573,7 @@ EXTERN_C TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, Typ
 
 #ifdef _WIN64
 class InlinedCallFrame;
-Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubSecretArg);
+Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubContextArg);
 #endif
 
 #ifdef _DEBUG

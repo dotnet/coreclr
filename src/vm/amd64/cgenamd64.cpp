@@ -636,7 +636,7 @@ void emitJump(LPBYTE pBuffer, LPVOID target)
     _ASSERTE(DbgIsExecutable(pBuffer, 12));
 }
 
-void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
+void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvContextParam)
 {
     CONTRACTL
     {
@@ -659,7 +659,7 @@ void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
 #endif // _DEBUG
     m_movR10[0]  = REX_PREFIX_BASE | REX_OPERAND_SIZE_64BIT | REX_OPCODE_REG_EXT;
     m_movR10[1]  = 0xBA;
-    m_uet        = pvSecretParam;
+    m_uet        = pvContextParam;
     m_movRAX[0]  = REX_PREFIX_BASE | REX_OPERAND_SIZE_64BIT;
     m_movRAX[1]  = 0xB8;
     m_execstub   = pTargetCode;

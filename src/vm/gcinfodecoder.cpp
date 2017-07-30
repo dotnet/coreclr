@@ -126,8 +126,8 @@ GcInfoDecoder::GcInfoDecoder(
     int hasGSCookie            = headerFlags & GC_INFO_HAS_GS_COOKIE;
     int hasPSPSym              = headerFlags & GC_INFO_HAS_PSP_SYM;
     int hasGenericsInstContext = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) != GC_INFO_HAS_GENERICS_INST_CONTEXT_NONE;
-    m_GenericSecretParamIsMD   = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) == GC_INFO_HAS_GENERICS_INST_CONTEXT_MD;
-    m_GenericSecretParamIsMT   = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) == GC_INFO_HAS_GENERICS_INST_CONTEXT_MT;
+    m_GenericContextParamIsMD  = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) == GC_INFO_HAS_GENERICS_INST_CONTEXT_MD;
+    m_GenericContextParamIsMT  = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) == GC_INFO_HAS_GENERICS_INST_CONTEXT_MT;
     int hasStackBaseRegister   = headerFlags & GC_INFO_HAS_STACK_BASE_REGISTER;
     m_WantsReportOnlyLeaf      = ((headerFlags & GC_INFO_WANTS_REPORT_ONLY_LEAF) != 0);
     int hasSizeOfEditAndContinuePreservedArea = headerFlags & GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS;
@@ -353,13 +353,13 @@ bool GcInfoDecoder::IsInterruptible()
 bool GcInfoDecoder::HasMethodDescGenericsInstContext()
 {
     _ASSERTE( m_Flags & DECODE_GENERICS_INST_CONTEXT );
-    return m_GenericSecretParamIsMD;
+    return m_GenericContextParamIsMD;
 }
 
 bool GcInfoDecoder::HasMethodTableGenericsInstContext()
 {
     _ASSERTE( m_Flags & DECODE_GENERICS_INST_CONTEXT );
-    return m_GenericSecretParamIsMT;
+    return m_GenericContextParamIsMT;
 }
 
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED

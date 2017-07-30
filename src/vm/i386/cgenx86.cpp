@@ -1572,7 +1572,7 @@ lDone: ;
     return param.retVal;
 }
 
-void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
+void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvContextParam)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1581,7 +1581,7 @@ void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
     m_alignpad[1] = X86_INSTR_INT3;
 #endif // _DEBUG
     m_movEAX     = X86_INSTR_MOV_EAX_IMM32;
-    m_uet        = pvSecretParam;
+    m_uet        = pvContextParam;
     m_jmp        = X86_INSTR_JMP_REL32;
     m_execstub   = (BYTE*) ((pTargetCode) - (4+((BYTE*)&m_execstub)));
 

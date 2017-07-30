@@ -538,8 +538,8 @@ private:
     // Pre-decoded information
     bool    m_IsInterruptible;
     bool    m_IsVarArg;
-    bool    m_GenericSecretParamIsMD;
-    bool    m_GenericSecretParamIsMT;
+    bool    m_GenericContextParamIsMD;
+    bool    m_GenericContextParamIsMT;
     bool    m_WantsReportOnlyLeaf;
     INT32   m_SecurityObjectStackSlot;
     INT32   m_GSCookieStackSlot;

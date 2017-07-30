@@ -580,7 +580,7 @@ NESTED_END ComCallPreStub, _TEXT
 //   x0          : dwStackSlots, count of argument stack slots to copy
 //   x1          : pFrame, ComMethodFrame pushed by GenericComCallStub above
 //   x2          : pTarget, address of code to call
-//   x3          : pSecretArg, hidden argument passed to target above in x12
+//   x3          : pContextArg, hidden argument passed to target above in x12
 //   x4          : pDangerousThis, managed 'this' reference
 //
 // On exit:

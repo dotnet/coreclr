@@ -818,7 +818,7 @@ private:
     friend LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo);
 #endif
 #ifdef _WIN64
-    friend Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubSecretArg);
+    friend Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubContextArg);
 #endif
 #ifdef WIN64EXCEPTIONS
     friend class ExceptionTracker;
@@ -2938,7 +2938,7 @@ public:
 #elif defined(_WIN64)
         // On 64bit, the actual interop MethodDesc is saved off in a field off the InlinedCrawlFrame
         // which is populated by the JIT. Refer to JIT_InitPInvokeFrame for details.
-        return PTR_MethodDesc(m_StubSecretArg);
+        return PTR_MethodDesc(m_StubContextArg);
 #else
         _ASSERTE(!"NYI - Interop method reporting for this architecture!");
         return NULL;
@@ -2957,7 +2957,7 @@ public:
     // IL stubs fill this field with the incoming secret argument when they erect
     // InlinedCallFrame so we know which interop method was invoked even if the frame
     // is not active at the moment.
-    PTR_VOID                m_StubSecretArg;
+    PTR_VOID                m_StubContextArg;
 #endif // _WIN64
 
 protected:

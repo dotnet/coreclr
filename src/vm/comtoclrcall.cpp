@@ -186,7 +186,7 @@ extern "C" ARG_SLOT __fastcall COMToCLRDispatchHelper(
     INT_PTR dwArgECX,
     INT_PTR dwArgEDX,
     PCODE   pTarget,
-    PCODE   pSecretArg,
+    PCODE   pContextArg,
     INT_PTR *pInputStack,
     WORD    wOutputStackSlots,
     UINT16  *pOutputStackOffsets,
@@ -219,7 +219,7 @@ inline static void InvokeStub(ComCallMethodDesc *pCMD, PCODE pManagedTarget, OBJ
         *((INT_PTR *) &orThis),           // pArgECX
         EDX,                              // pArgEDX
         pStubEntryPoint,                  // pTarget
-        pManagedTarget,                   // pSecretArg
+        pManagedTarget,                   // pContextArg
         pInputStack,                      // pInputStack
         pCMD->m_wStubStackSlotCount,      // wOutputStackSlots
         pCMD->m_pwStubStackSlotOffsets,   // pOutputStackOffsets
@@ -264,7 +264,7 @@ inline static void InvokeStub(ComCallMethodDesc *pCMD, PCODE pManagedTarget, OBJ
         dwStackSlots,     // dwStackSlots
         pFrame,           // pFrame
         pStubEntryPoint,  // pTarget
-        pManagedTarget,   // pSecretArg
+        pManagedTarget,   // pContextArg
         dangerousThis);   // pDangerousThis
 }
 

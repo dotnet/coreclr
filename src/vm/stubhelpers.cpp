@@ -1502,7 +1502,7 @@ FCIMPLEND
 #endif // MDA_SUPPORTED
 
 #ifdef PROFILING_SUPPORTED
-FCIMPL3(SIZE_T, StubHelpers::ProfilerBeginTransitionCallback, SIZE_T pSecretParam, Thread* pThread, Object* unsafe_pThis)
+FCIMPL3(SIZE_T, StubHelpers::ProfilerBeginTransitionCallback, SIZE_T pContextParam, Thread* pThread, Object* unsafe_pThis)
 {
     FCALL_CONTRACT;
 
@@ -1529,13 +1529,13 @@ FCIMPL3(SIZE_T, StubHelpers::ProfilerBeginTransitionCallback, SIZE_T pSecretPara
         // This is our signal for the reverse interop cases.
         fReverseInterop = true;
         pThread = GET_THREAD();
-        // the secret param in this casee is the UMEntryThunk
-        pRealMD = ((UMEntryThunk*)pSecretParam)->GetMethod();
+        // the "stub context" param in this casee is the UMEntryThunk
+        pRealMD = ((UMEntryThunk*)pContextParam)->GetMethod();
     }
     else
-    if (pSecretParam == 0)
+    if (pContextParam == 0)
     {
-        // Secret param is null.  This is the calli pinvoke case or the unmanaged delegate case.  
+        // The "stub context" param is null.  This is the calli pinvoke case or the unmanaged delegate case.  
         // We have an unmanaged target address but no MD.  For the unmanaged delegate case, we can
         // still retrieve the MD by looking at the "this" object.
 
@@ -1558,7 +1558,7 @@ FCIMPL3(SIZE_T, StubHelpers::ProfilerBeginTransitionCallback, SIZE_T pSecretPara
     else
     {
         // This is either the COM interop or the pinvoke case.
-        pRealMD = (MethodDesc*)pSecretParam;
+        pRealMD = (MethodDesc*)pContextParam;
     }
 
     {

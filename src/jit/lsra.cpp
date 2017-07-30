@@ -4618,7 +4618,7 @@ void LinearScan::buildIntervals()
     // If there is a secret stub param, it is also live in
     if (compiler->info.compPublishStubParam)
     {
-        intRegState->rsCalleeRegArgMaskLiveIn |= RBM_SECRET_STUB_PARAM;
+        intRegState->rsCalleeRegArgMaskLiveIn |= RBM_STUB_CONTEXT;
     }
 
     LocationInfoListNodePool listNodePool(compiler, 8);

@@ -5822,7 +5822,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     info.compIsContextful = (info.compClassAttr & CORINFO_FLG_CONTEXTFUL) != 0;
 
-    info.compPublishStubParam = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM);
+    info.compPublishStubParam = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PUBLISH_STUB_CONTEXT);
 
     switch (methodInfo->args.getCallConv())
     {

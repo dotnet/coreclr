@@ -471,7 +471,7 @@ struct DECLSPEC_ALIGN(8) UMEntryThunkCode
     BYTE            m_jmpRAX[3];    // JMP RAX
     BYTE            m_padding2[5];
 
-    void Encode(BYTE* pTargetCode, void* pvSecretParam);
+    void Encode(BYTE* pTargetCode, void* pvContextParam);
 
     LPCBYTE GetEntryPoint() const
     {

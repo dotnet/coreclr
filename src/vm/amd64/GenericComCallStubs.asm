@@ -144,7 +144,7 @@ NESTED_END GenericComCallStub, _TEXT
 ; ARG_SLOT COMToCLRDispatchHelperWithStack(DWORD  dwStackSlots,    // rcx
 ;                                          ComMethodFrame *pFrame, // rdx
 ;                                          PCODE  pTarget,         // r8
-;                                          PCODE  pSecretArg,      // r9
+;                                          PCODE  pContextArg,     // r9
 ;                                          INT_PTR pDangerousThis  // rbp+40h
 ;                                          );
 NESTED_ENTRY COMToCLRDispatchHelperWithStack, _TEXT, CallDescrWorkerUnwindFrameChainHandler
@@ -201,7 +201,7 @@ ComMethodFrame_XMM_SAVE_OFFSET = GenericComCallStub_XMM_SAVE_OFFSET - GenericCom
         movdqa  xmm3, [rdx + ComMethodFrame_XMM_SAVE_OFFSET + 30h]
 
         ;
-        ; load secret arg and target
+        ; load context arg into r10 and target into rax
         ;
         mov     r10, r9
         mov     rax, r8
@@ -238,7 +238,7 @@ NESTED_END COMToCLRDispatchHelperWithStack, _TEXT
 ; ARG_SLOT COMToCLRDispatchHelper(DWORD  dwStackSlots,    // rcx
 ;                                 ComMethodFrame *pFrame, // rdx
 ;                                 PCODE  pTarget,         // r8
-;                                 PCODE  pSecretArg,      // r9
+;                                 PCODE  pContextArg,     // r9
 ;                                 INT_PTR pDangerousThis  // rsp + 28h on entry
 ;                                 );
 NESTED_ENTRY COMToCLRDispatchHelper, _TEXT, CallDescrWorkerUnwindFrameChainHandler
@@ -266,7 +266,7 @@ NESTED_ENTRY COMToCLRDispatchHelper, _TEXT, CallDescrWorkerUnwindFrameChainHandl
         movdqa  xmm3, [rdx + ComMethodFrame_XMM_SAVE_OFFSET + 30h]
 
         ;
-        ; load secret arg and target
+        ; load pContextArg into r10 and pTarget into rax
         ;
         mov     r10, r9
         mov     rax, r8

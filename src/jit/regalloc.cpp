@@ -5343,7 +5343,7 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
     // If there is a secret stub param, it is also live in
     if (info.compPublishStubParam)
     {
-        codeGen->intRegState.rsCalleeRegArgMaskLiveIn |= RBM_SECRET_STUB_PARAM;
+        codeGen->intRegState.rsCalleeRegArgMaskLiveIn |= RBM_STUB_CONTEXT;
     }
 
     if (regAvail == RBM_NONE)

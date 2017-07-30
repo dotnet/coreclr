@@ -1022,28 +1022,28 @@ public:
                 
         if (m_slIL.HasInteropParamExceptionInfo())
         {
-            // This code will not use the secret parameter, so we do not
+            // This code will not use the special "stub context" parameter, so we do not
             // tell the JIT to bother with it.
             m_slIL.ClearCode();
             m_slIL.GenerateInteropParamException(pcsMarshal);
         }
         else if (SF_IsFieldGetterStub(m_dwStubFlags) || SF_IsFieldSetterStub(m_dwStubFlags))
         {
-            // Field access stubs are not shared and do not use the secret parameter.
+            // Field access stubs are not shared and do not use the special "stub context" parameter.
         }
 #ifndef _WIN64
         else if (SF_IsForwardDelegateStub(m_dwStubFlags) ||
                 (SF_IsForwardCOMStub(m_dwStubFlags) && SF_IsWinRTDelegateStub(m_dwStubFlags)))
         {
-            // Forward delegate stubs get all the context they need in 'this' so they
-            // don't use the secret parameter. Except for AMD64 where we use the secret
-            // argument to pass the real target to the stub-for-host.
+            // Forward delegate stubs get all the context they need in 'this' so they don't use
+            // the special "stub context" parameter. Except for AMD64 where we use the "stub context"
+            // parameter to pass the real target to the stub-for-host.
         }
 #endif // !_WIN64
         else
         {
-            // All other IL stubs will need to use the secret parameter.
-            jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PUBLISH_SECRET_PARAM);
+            // All other IL stubs will need to use the special "stub context" parameter.
+            jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PUBLISH_STUB_CONTEXT);
         }
 
         if (SF_IsReverseStub(m_dwStubFlags))
@@ -1380,8 +1380,8 @@ public:
         if (SF_IsWinRTDelegateStub(m_dwStubFlags))
         {
             // write the stub context (EEImplMethodDesc representing the Invoke)
-            // into the secret arg so it shows up in the InlinedCallFrame and can
-            // be used by stub for host
+            // into the special "stub context" parameter so it shows up in the 
+            // InlinedCallFrame and can be used by stub for host
 
             pcsDispatch->EmitCALL(METHOD__STUBHELPERS__GET_STUB_CONTEXT_ADDR, 0, 1);
             m_slIL.EmitLoadStubContext(pcsDispatch, dwStubFlags);
@@ -2240,7 +2240,7 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
             pcsEmit->EmitLoadThis();
 #ifdef _WIN64
             // on AMD64 GetDelegateTarget will return address of the generic stub for host when we are hosted
-            // and update the secret argument with real target - the secret arg will be embedded in the
+            // and update the special "stub context" parameter with real target - this will be embedded in the
             // InlinedCallFrame by the JIT and fetched via TLS->Thread->Frame->Datum by the stub for host
             pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_STUB_CONTEXT_ADDR, 0, 1);
 #else // _WIN64
@@ -2262,7 +2262,8 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
 
                 {
                     // for managed-to-unmanaged CALLI that requires marshaling, the target is passed
-                    // as the secret argument to the stub by GenericPInvokeCalliHelper (asmhelpers.asm)
+                    // as the special "stub context" parameter to the stub by GenericPInvokeCalliHelper
+                    /// (see asmhelpers.asm)
                     EmitLoadStubContext(pcsEmit, dwStubFlags);
                 }
 
@@ -2270,7 +2271,8 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
 #else // _TARGET_X86_
 
                 {
-                    // the secret arg has been shifted to left and ORed with 1 (see code:GenericPInvokeCalliHelper)
+                    // the special "stub context" parameter has been shifted to left and ORed with 1 
+                    // (see code:GenericPInvokeCalliHelper)
                     EmitLoadStubContext(pcsEmit, dwStubFlags);
 #ifndef _TARGET_ARM_
                     pcsEmit->EmitLDC(1);
@@ -2336,7 +2338,7 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
 #ifdef FEATURE_COMINTEROP
         else if (SF_IsCOMStub(dwStubFlags)) // COM -> CLR call
         {
-            // managed target is passed directly in the secret argument
+            // managed target is passed directly in the special "stub context" register
             EmitLoadStubContext(pcsEmit, dwStubFlags);
         }
 #endif // FEATURE_COMINTEROP
@@ -2363,12 +2365,12 @@ void NDirectStubLinker::EmitLogNativeArgument(ILCodeStream* pslILEmit, DWORD dwP
 
     if (SF_IsForwardPInvokeStub(m_dwStubFlags) && !SF_IsForwardDelegateStub(m_dwStubFlags))
     {
-        // get the secret argument via intrinsic
+        // get the "stub context" argument via intrinsic
         pslILEmit->EmitCALL(METHOD__STUBHELPERS__GET_STUB_CONTEXT, 0, 1);
     }
     else
     {
-        // no secret argument
+        // no "stub context" argument
         pslILEmit->EmitLoadNullPtr();
     }
 
@@ -2418,7 +2420,7 @@ DWORD NDirectStubLinker::EmitProfilerBeginTransitionCallback(ILCodeStream* pcsEm
 
     if (SF_IsForwardDelegateStub(dwStubFlags) || SF_IsCALLIStub(dwStubFlags))
     {
-        // secret argument does not contain MD nor UMEntryThunk
+        // no "stub context" argument
         pcsEmit->EmitLoadNullPtr();
     }
     else
@@ -2554,7 +2556,7 @@ void NDirectStubLinker::EmitObjectValidation(ILCodeStream* pcsEmit, DWORD dwStub
 }
 #endif // VERIFY_HEAP
 
-// Loads the 'secret argument' passed to the stub.
+// Loads the "stub context" argument passed to the stub.
 void NDirectStubLinker::EmitLoadStubContext(ILCodeStream* pcsEmit, DWORD dwStubFlags)
 {
     STANDARD_VM_CONTRACT;
@@ -2573,7 +2575,7 @@ void NDirectStubLinker::EmitLoadStubContext(ILCodeStream* pcsEmit, DWORD dwStubF
     else
 #endif // FEATURE_COMINTEROP
     {
-        // get the secret argument via intrinsic
+        // get the "stub context" argument via intrinsic
         pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_STUB_CONTEXT, 0, 1);
     }
 }

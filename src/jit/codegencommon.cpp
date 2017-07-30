@@ -5596,7 +5596,7 @@ void CodeGen::genCheckUseBlockInit()
         // be live when we do block init.
         if (compiler->info.compPublishStubParam)
         {
-            maskCalleeRegArgMask &= ~RBM_SECRET_STUB_PARAM;
+            maskCalleeRegArgMask &= ~RBM_STUB_CONTEXT;
         }
 
 #ifdef _TARGET_XARCH_
@@ -6051,7 +6051,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     const size_t pageSize = compiler->eeGetPageSize();
 
 #ifdef _TARGET_ARM_
-    assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
+    assert(!compiler->info.compPublishStubParam || (REG_STUB_CONTEXT != initReg));
 #endif // _TARGET_ARM_
 
 #ifdef _TARGET_XARCH_
@@ -6120,10 +6120,10 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
 #ifdef _TARGET_XARCH_
         bool pushedStubParam = false;
-        if (compiler->info.compPublishStubParam && (REG_SECRET_STUB_PARAM == initReg))
+        if (compiler->info.compPublishStubParam && (REG_STUB_CONTEXT == initReg))
         {
             // push register containing the StubParam
-            inst_RV(INS_push, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
+            inst_RV(INS_push, REG_STUB_CONTEXT, TYP_I_IMPL);
             pushedStubParam = true;
         }
 #endif // !_TARGET_XARCH_
@@ -6231,8 +6231,8 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         if (pushedStubParam)
         {
             // pop eax
-            inst_RV(INS_pop, REG_SECRET_STUB_PARAM, TYP_I_IMPL);
-            regTracker.rsTrackRegTrash(REG_SECRET_STUB_PARAM);
+            inst_RV(INS_pop, REG_STUB_CONTEXT, TYP_I_IMPL);
+            regTracker.rsTrackRegTrash(REG_STUB_CONTEXT);
         }
 #endif // _TARGET_XARCH_
 
@@ -8924,17 +8924,17 @@ void CodeGen::genFnProlog()
     if (compiler->info.compPublishStubParam)
     {
 #if CPU_LOAD_STORE_ARCH
-        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SECRET_STUB_PARAM, genFramePointerReg(),
+        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_STUB_CONTEXT, genFramePointerReg(),
                                     compiler->lvaTable[compiler->lvaStubArgumentVar].lvStkOffs);
 #else
         // mov [lvaStubArgumentVar], EAX
-        getEmitter()->emitIns_AR_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SECRET_STUB_PARAM, genFramePointerReg(),
+        getEmitter()->emitIns_AR_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_STUB_CONTEXT, genFramePointerReg(),
                                    compiler->lvaTable[compiler->lvaStubArgumentVar].lvStkOffs);
 #endif
-        assert(intRegState.rsCalleeRegArgMaskLiveIn & RBM_SECRET_STUB_PARAM);
+        assert(intRegState.rsCalleeRegArgMaskLiveIn & RBM_STUB_CONTEXT);
 
         // It's no longer live; clear it out so it can be used after this in the prolog
-        intRegState.rsCalleeRegArgMaskLiveIn &= ~RBM_SECRET_STUB_PARAM;
+        intRegState.rsCalleeRegArgMaskLiveIn &= ~RBM_STUB_CONTEXT;
     }
 
 #if STACK_PROBES
