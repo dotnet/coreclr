@@ -169,7 +169,7 @@ def static getOSGroup(def os) {
             {
                 parameters
                 {
-                    stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
+                    stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that will be used to build the full title of a run in Benchview.')
                 }
             }
             def configuration = 'Release'
@@ -398,7 +398,7 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
             {
                 parameters
                 {
-                    stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
+                    stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that will be used to build the full title of a run in Benchview.')
                 }
             }
 
@@ -568,7 +568,7 @@ parallel(
 
             if (isPR) {
                 TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
-                builder.setGithubContext("${os} ${arch} Perf Scenarios Tests")
+                builder.setGithubContext("${os} ${arch} Performance Scenarios Tests")
                 builder.triggerOnlyOnComment()
                 builder.setCustomTriggerPhrase("(?i).*test\\W+${os}\\W+${arch}\\W+scenarios.*")
                 builder.triggerForBranch(branch)
