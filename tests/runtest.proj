@@ -380,9 +380,14 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   </Target>  
 
   <PropertyGroup>
+    <CMakeCache>$(RootBinDir)obj\$(BuildOS).$(BuildArch).$(BuildType)\CMakeCache.txt</CMakeCache>
+    <CMakeCacheContent>$([System.IO.File]::ReadAllText($(CMakeCache)))</CMakeCacheContent>
+    <PGODisabledAtBuild>$([System.Text.RegularExpressions.Regex]::Match($(CMakeCacheContent), `CLR_CMAKE_PGO_OPTIMIZE:\S+=(0|1)`).Value.EndsWith("0"))</PGODisabledAtBuild>
+
     <RunPGOCheck>true</RunPGOCheck>
     <RunPGOCheck Condition="$(Configuration) != 'Release' OR $(RunningOnUnix) == 'true'">false</RunPGOCheck>
     <RunPGOCheck Condition="$(__BuildArch) == 'arm' OR $(__BuildArch) == 'arm64'">false</RunPGOCheck>
+    <RunPGOCheck Condition="$(PGODisabledAtBuild) == 'true'">false</RunPGOCheck>
   </PropertyGroup>
 
   <Target Name="CheckForPGO">
