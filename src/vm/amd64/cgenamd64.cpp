@@ -680,7 +680,7 @@ void UMEntryThunkCode::Poison()
     }
     CONTRACTL_END;
 
-    m_movR10[0] = 0xCC;
+    m_movR10[0] = X86_INSTR_INT3;
 }
 
 UMEntryThunk* UMEntryThunk::Decode(LPVOID pCallback)
