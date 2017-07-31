@@ -73,6 +73,8 @@ def was_compiled_with_pgo(filename):
     return False
 
 if __name__ == "__main__":
+    from sys import stdout
+
     parser = argparse.ArgumentParser(description="Check if the given PE files were compiled with PGO. Fails if the files were not.")
     parser.add_argument('files', metavar='file', nargs='+', help="the files to check for PGO flags")
     parser.add_argument('--negative', action='store_true', help="fail on PGO flags found")
@@ -85,13 +87,13 @@ if __name__ == "__main__":
 
     # Check each file and exit immediately if one is found which does not meet expectations
     for filename in filenames:
-        print filename,
+        stdout.write(filename + " ")
         if was_compiled_with_pgo(filename):
-            print ": compiled with PGO"
+            stdout.write(": compiled with PGO\n")
             if args.negative:
                 exit(1)
 
         else:
-            print ": NOT compiled with PGO"
+            stdout.write(": NOT compiled with PGO\n")
             if not args.negative:
                 exit(1)

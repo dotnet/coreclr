@@ -397,7 +397,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
     </ItemGroup>
 
     <Message Text="Checking if the following DLLs are properly compiled with PGO" Importance="High" />
-    <Exec  Command="py.exe -2 $(MSBuildThisFileDirectory)scripts/pgocheck/pgocheck.py @(PGOEnabled)" />
+    <Exec  Command="python.exe $(MSBuildThisFileDirectory)scripts/pgocheck/pgocheck.py @(PGOEnabled)" />
   </Target>
 
   <Target Name="Build">
