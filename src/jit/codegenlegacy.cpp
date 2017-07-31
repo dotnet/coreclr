@@ -19449,17 +19449,9 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                             instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addr);
 
 #ifdef FEATURE_READYTORUN_COMPILER
-                            regNumber indSpillReg = REG_NA;
-
                             if (call->IsR2RRelativeIndir())
                             {
-                                if ((regSet.rsRegMaskCanGrab() & RBM_R2R_INDIRECT_PARAM) == 0)
-                                {
-                                    regMaskTP spillMask =
-                                        RBM_INT_CALLEE_SAVED & ~RBM_R2R_INDIRECT_PARAM & ~genRegMask(indCallReg);
-                                    indSpillReg = regSet.rsPickReg(spillMask);
-                                    getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, indSpillReg, REG_R2R_INDIRECT_PARAM);
-                                }
+                                noway_assert(regSet.rsRegMaskCanGrab() & RBM_R2R_INDIRECT_PARAM);
                                 getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R2R_INDIRECT_PARAM, indCallReg);
                             }
 #endif // FEATURE_READYTORUN_COMPILER
@@ -19484,14 +19476,6 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                                                        false,        /* isJump */
                                                        emitter::emitNoGChelper(helperNum));
 
-#if CPU_LOAD_STORE_ARCH
-#ifdef FEATURE_READYTORUN_COMPILER
-                            if (indSpillReg != REG_NA)
-                            {
-                                getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R2R_INDIRECT_PARAM, indSpillReg);
-                            }
-#endif // FEATURE_READYTORUN_COMPILER
-#endif // CPU_LOAD_STORE_ARCH
                         }
                         break;
 
