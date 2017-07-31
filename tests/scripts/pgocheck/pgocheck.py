@@ -1,4 +1,16 @@
 #!python2
+#
+## Licensed to the .NET Foundation under one or more agreements.
+## The .NET Foundation licenses this file to you under the MIT license.
+## See the LICENSE file in the project root for more information.
+#
+##
+# Title               :pgocheck.py
+#
+# A script to check whether or not a particular portable executable
+# (e.g. EXE, DLL) was compiled using PGO technology
+#
+################################################################################
 
 from pefile.pefile import PE
 import struct
@@ -36,17 +48,21 @@ pgo_type = {
 # Takes a filename and returns True if the PE header indicates compilation with PGO, otherwise False
 def was_compiled_with_pgo(filename):
     pe = PE(filename)
+
+    # Find the POGO entry in the debug directory
     for entry in pe.DIRECTORY_ENTRY_DEBUG:
         entry_dict = entry.struct.dump_dict()
         typ = debug_type[entry_dict["Type"]["Value"]]
         if typ == "POGO":
             addr = entry_dict["PointerToRawData"]["Value"]
 
+            # Go to the location pointed to by the raw data pointer and read the 4-byte code
             raw_int = None
             with open(filename, 'rb') as dll:
                 dll.seek(addr)
                 raw_int = dll.read(4)
 
+            # Convert the code to an int, then compare it to the dictionary of known codes
             val = int(struct.unpack('I', raw_int)[0])
             try:
                 return pgo_type[val] == "PGU"
@@ -62,19 +78,20 @@ if __name__ == "__main__":
     parser.add_argument('--negative', action='store_true', help="fail on PGO flags found")
 
     args = parser.parse_args()
-    # Divide up filnames which are seperated by semicolons as well as the ones by spaces. Avoid duplicates
+    # Divide up filenames which are separated by semicolons as well as the ones by spaces. Avoid duplicates
     filenames = set()
     for token in args.files:
         filenames.update(token.split(';'))
 
+    # Check each file and exit immediately if one is found which does not meet expectations
     for filename in filenames:
         print filename,
         if was_compiled_with_pgo(filename):
             print ": compiled with PGO"
             if args.negative:
-                exit(31)
+                exit(1)
 
         else:
             print ": NOT compiled with PGO"
             if not args.negative:
-                exit(31)
+                exit(1)
