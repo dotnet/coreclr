@@ -44,7 +44,7 @@ import re
 import string
 import array
 import mmap
-import ordlookup
+from . import ordlookup # nategraf: Modified to work in python3
 
 from collections import Counter
 from hashlib import sha1
