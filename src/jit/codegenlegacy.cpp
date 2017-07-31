@@ -19475,7 +19475,6 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                                                        REG_NA, 0, 0, // xreg, xmul, disp
                                                        false,        /* isJump */
                                                        emitter::emitNoGChelper(helperNum));
-
                         }
                         break;
 
