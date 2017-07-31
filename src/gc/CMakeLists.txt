@@ -51,6 +51,7 @@ endif(WIN32)
 
 convert_to_absolute_path(GC_SOURCES ${GC_SOURCES})
 
-add_library(gc_standalone SHARED ${GC_SOURCES})
-target_link_libraries(gc_standalone ${GC_LINK_LIBRARIES})
+add_library(gc SHARED ${GC_SOURCES})
+target_link_libraries(gc ${GC_LINK_LIBRARIES})
+install_clr(gc)
 
