@@ -22,7 +22,7 @@ namespace JitBench
         {
             var options = JitBenchHarnessOptions.Parse(args);
 
-            s_temporaryDirectory = Path.Combine(/*options.IntermediateOutputDirectory*/@"S:\TEMP", "JitBench");
+            s_temporaryDirectory = Path.Combine(options.IntermediateOutputDirectory, "JitBench");
             s_targetArchitecture = options.TargetArchitecture;
             if (string.IsNullOrWhiteSpace(s_targetArchitecture))
                 throw new ArgumentNullException("Unspecified target architecture.");
