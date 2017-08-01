@@ -2111,6 +2111,16 @@ FCIMPL3_VII(Object*, COMNumber::FormatDouble, double value, StringObject* format
     case 'R':
         // Per IEEE double-precision floating-point format, double number in 17 digits precision should be round-trippable.
         DoubleToNumber(value, 17, &number);
+        if (number.scale == (int) SCALE_NAN) {
+            gc.refRetVal = gc.numfmt->sNaN;
+            goto lExit;
+        }
+
+        if (number.scale == SCALE_INF) {
+            gc.refRetVal = (number.sign? gc.numfmt->sNegativeInfinity: gc.numfmt->sPositiveInfinity);
+            goto lExit;
+        }
+
         gc.refRetVal = NumberToString(&number, 'G', 17, gc.numfmt);
         goto lExit;
         break;
