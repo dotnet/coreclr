@@ -7,6 +7,10 @@
 // Sets up basic environment for CLR GC
 //
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif // _MSC_VER
+
 #define FEATURE_REDHAWK 1
 
 #define REDHAWK_PALIMPORT extern "C"
@@ -215,12 +219,16 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
  #error "Don't know how to MemoryBarrier on this architecture"
 #endif
 
+#ifdef _MSC_VER
+#pragma intrinsic(_BitScanForward)
+#pragma intrinsic(_BitScanForward64)
+#endif // _MSC_VER
+
 // Cross-platform wrapper for the _BitScanForward compiler intrinsic.
 inline unsigned char BitScanForward(DWORD *bitIndex, DWORD mask)
 {
 #ifdef _MSC_VER
-    #pragma intrinsic(_BitScanForward)
-    return _BitScanForward(bitIndex, mask);
+    return _BitScanForward((unsigned long*)bitIndex, mask);
 #else // _MSC_VER
     unsigned char ret = FALSE;
     int iIndex = __builtin_ffsl(mask);
@@ -238,8 +246,7 @@ inline unsigned char BitScanForward(DWORD *bitIndex, DWORD mask)
 inline unsigned char BitScanForward64(DWORD *bitIndex, DWORD64 mask)
 {
 #ifdef _MSC_VER
-    #pragma intrinsic(_BitScanForward64)
-    return _BitScanForward64(bitIndex, mask);
+    return _BitScanForward64((unsigned long*)bitIndex, mask);
 #else
     unsigned char ret = FALSE;
     int iIndex = __builtin_ffsll(mask);
