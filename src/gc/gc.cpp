@@ -9825,7 +9825,7 @@ FILE* CreateLogFile(const GCConfigStringHolder& temp_logfile_name, bool is_confi
     char logfile_name[MAX_LONGPATH+1];
     uint32_t pid = GCToOSInterface::GetCurrentProcessId();
     const char* suffix = is_config ? ".config.log" : ".log";
-    _snprintf_s(logfile_name, MAX_LONGPATH+1, _TRUNCATE, "%s.%d%s", temp_logfile_name.Get(), pid, suffix);
+    snprintf(logfile_name, MAX_LONGPATH+1, "%s.%d%s", temp_logfile_name.Get(), pid, suffix);
     logFile = fopen(logfile_name, "wb");
     return logFile;
 }

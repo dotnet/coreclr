@@ -139,7 +139,7 @@ void CALLBACK TraceDependentHandle(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pEx
     // At this point, it's possible that either or both of the primary and secondary
     // objects are NULL.  However, if the secondary object is non-NULL, then the primary
     // object should also be non-NULL.
-    _ASSERTE(*pExtraInfo == NULL || *pObjRef != NULL);
+    _ASSERTE(*pExtraInfo == 0 || *pObjRef != NULL);
 
     struct DIAG_DEPSCANINFO *pInfo = (struct DIAG_DEPSCANINFO*)lp2;
 

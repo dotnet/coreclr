@@ -6,13 +6,6 @@
 #include <cstddef>
 #include <cassert>
 #include <memory>
-
-// The CoreCLR PAL defines _POSIX_C_SOURCE to avoid calling non-posix pthread functions.
-// This isn't something we want, because we're totally fine using non-posix functions.
-#if defined(__APPLE__)
- #define _DARWIN_C_SOURCE
-#endif // definfed(__APPLE__)
-
 #include <pthread.h>
 #include <signal.h>
 #include "config.h"

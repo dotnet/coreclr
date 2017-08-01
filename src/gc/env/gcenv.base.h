@@ -40,6 +40,7 @@
 
 typedef int BOOL;
 typedef uint32_t DWORD;
+typedef uint64_t DWORD64;
 
 // -----------------------------------------------------------------------------------------------------------
 // HRESULT subset.
@@ -213,6 +214,89 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 #ifndef MemoryBarrier
  #error "Don't know how to MemoryBarrier on this architecture"
 #endif
+
+// Cross-platform wrapper for the _BitScanForward compiler intrinsic.
+inline unsigned char BitScanForward(DWORD *bitIndex, DWORD mask)
+{
+#ifdef _MSC_VER
+    #pragma intrinsic(_BitScanForward)
+    return _BitScanForward(bitIndex, mask);
+#else // _MSC_VER
+    unsigned char ret = FALSE;
+    int iIndex = __builtin_ffsl(mask);
+    if (iIndex != 0)
+    {
+        *bitIndex = (DWORD)(iIndex - 1);
+        ret = TRUE;
+    }
+
+    return ret;
+#endif // _MSC_VER
+}
+
+// Cross-platform wrapper for the _BitScanForward64 compiler intrinsic.
+inline unsigned char BitScanForward64(DWORD *bitIndex, DWORD64 mask)
+{
+#ifdef _MSC_VER
+    #pragma intrinsic(_BitScanForward64)
+    return _BitScanForward64(bitIndex, mask);
+#else
+    unsigned char ret = FALSE;
+    int iIndex = __builtin_ffsll(mask);
+    if (iIndex != 0)
+    {
+        *bitIndex = (DWORD)(iIndex - 1);
+        ret = TRUE;
+    }
+
+    return ret;
+#endif // _MSC_VER
+}
+
+// Aligns a size_t to the specified alignment. Alignment must be a power
+// of two.
+inline size_t ALIGN_UP(size_t val, size_t alignment)
+{
+    // alignment factor must be power of two
+    assert((alignment & (alignment - 1)) == 0);
+    size_t result = (val + (alignment - 1)) & ~(alignment - 1);
+    assert(result >= val);
+    return result;
+}
+
+// Aligns a pointer to the specified alignment. Alignment must be a power
+// of two.
+inline uint8_t* ALIGN_UP(uint8_t* ptr, size_t alignment)
+{
+    size_t as_size_t = reinterpret_cast<size_t>(ptr);
+    return reinterpret_cast<uint8_t*>(ALIGN_UP(as_size_t, alignment));
+}
+
+// Aligns a size_t to the specified alignment by rounding down. Alignment must
+// be a power of two.
+inline size_t ALIGN_DOWN(size_t val, size_t alignment)
+{
+    // alignment factor must be power of two.
+    assert((alignment & (alignment - 1)) == 0);
+    size_t result = val & ~(alignment - 1);
+    return result;
+}
+
+// Aligns a pointer to the specified alignment by rounding down. Alignment
+// must be a power of two.
+inline uint8_t* ALIGN_DOWN(uint8_t* ptr, size_t alignment)
+{
+    size_t as_size_t = reinterpret_cast<size_t>(ptr);
+    return reinterpret_cast<uint8_t*>(ALIGN_DOWN(as_size_t, alignment));
+}
+
+// Aligns a void pointer to the specified alignment by rounding down. Alignment
+// must be a power of two.
+inline void* ALIGN_DOWN(void* ptr, size_t alignment)
+{
+    size_t as_size_t = reinterpret_cast<size_t>(ptr);
+    return reinterpret_cast<void*>(ALIGN_DOWN(as_size_t, alignment));
+}
 
 typedef struct _PROCESSOR_NUMBER {
     uint16_t Group;

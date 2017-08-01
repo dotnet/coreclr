@@ -1,16 +1,5 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/env)
-
-add_definitions(-DBUILD_AS_STANDALONE)
-
-if(CLR_CMAKE_PLATFORM_UNIX)
-  add_compile_options(-fPIC)
-  # dprintf causes many warnings
-  add_compile_options(-Wno-format)
-endif(CLR_CMAKE_PLATFORM_UNIX)
-
 set( GC_SOURCES
   gcconfig.cpp
   gccommon.cpp
@@ -28,16 +17,16 @@ set( GC_SOURCES
   handletablecache.cpp)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-include(unix/configure.cmake)
-set ( GC_SOURCES
-  ${GC_SOURCES}
-  unix/gcenv.unix.cpp
-  unix/events.cpp
-  unix/cgroup.cpp)
+  include(unix/configure.cmake)
+  set ( GC_SOURCES
+    ${GC_SOURCES}
+    unix/gcenv.unix.cpp
+    unix/events.cpp
+    unix/cgroup.cpp)
 else()
-set ( GC_SOURCES
-  ${GC_SOURCES}
-  windows/gcenv.windows.cpp)
+  set ( GC_SOURCES
+    ${GC_SOURCES}
+    windows/gcenv.windows.cpp)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(WIN32)
@@ -54,4 +43,21 @@ convert_to_absolute_path(GC_SOURCES ${GC_SOURCES})
 add_library(gc SHARED ${GC_SOURCES})
 target_link_libraries(gc ${GC_LINK_LIBRARIES})
 install_clr(gc)
+
+if(CLR_CMAKE_PLATFORM_UNIX)
+  target_compile_options(gc PUBLIC -fPIC)
+  # dprintf causes many warnings
+  target_compile_options(gc PUBLIC -Wno-format)
+endif(CLR_CMAKE_PLATFORM_UNIX)
+
+target_compile_definitions(gc PUBLIC -DBUILD_AS_STANDALONE)
+if(CLR_CMAKE_PLATFORM_DARWIN)
+  # The implementation of GCToOSInterface on MacOS makes use of non-POSIX
+  # pthreads APIs, which by default are not included in the pthreads header
+  # unless we define this macro.
+  target_compile_definitions(gc PUBLIC -D_DARWIN_C_SOURCE)
+endif(CLR_CMAKE_PLATFORM_DARWIN)
+
+target_include_directories(gc BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(gc BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/env)
 
