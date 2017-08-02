@@ -368,9 +368,6 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
         case 'x86lb':
             baseName = architecture.toLowerCase() + '_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
-        case 'x86lb':
-            baseName = 'x86_lb_' + configuration.toLowerCase() + '_' + os.toLowerCase()
-            break
         default:
             println("Unknown architecture: ${architecture}");
             assert false
@@ -1162,8 +1159,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                contextString += " and Test"
             }
 
-                'rartemev',
-                'sivarv',
             switch (os) {
                 case 'Ubuntu':
                 case 'Ubuntu16.04':
@@ -1721,8 +1716,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
             switch (architecture) {
                 case 'x64':
                 case 'x86':
-                case 'x86lb':
-
                     if (architecture == 'x86' && os == 'Ubuntu') {
                         // build and PAL test
                         buildCommands += "./tests/scripts/x86_ci_script.sh --buildConfig=${lowerConfiguration}"
@@ -2633,7 +2626,7 @@ combinedScenarios.each { scenario ->
                                     }
                                 }
 
-                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName("master")
+                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName(branch)
 
                                 // Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
                                 def osJobName
@@ -2653,20 +2646,6 @@ combinedScenarios.each { scenario ->
                                 shell ("mkdir ./bin/CoreFxBinDir")
                                 // Unpack the corefx binaries
                                 shell("tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir")
-
-                                // HACK -- Arm64 does not have corefx jobs yet.
-                                // Clone corefx and build the native packages overwriting the x64 packages.
-                                if (architecture == 'arm64') {
-                                    shell("cp ./bin/Product/Linux.arm64.${configuration}/corefxNative/* ./bin/CoreFxBinDir")
-                                    shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
-                                }
-
-                                // HACK -- Arm64 does not have corefx jobs yet.
-                                // Clone corefx and build the native packages overwriting the x64 packages.
-                                if (architecture == 'arm64') {
-                                    shell("cp ./bin/Product/Linux.arm64.${configuration}/corefxNative/* ./bin/CoreFxBinDir")
-                                    shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
-                                }
 
                                 // HACK -- Arm64 does not have corefx jobs yet.
                                 // Clone corefx and build the native packages overwriting the x64 packages.
