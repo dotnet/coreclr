@@ -2418,13 +2418,14 @@ namespace System
 
         private sealed class SZArrayEnumerator : IEnumerator, ICloneable
         {
-            private Array _array;
+            private readonly Array _array;
             private int _index;
-            private int _endIndex; // cache array length, since it's a little slow.
+            private int _endIndex; // Cache Array.Length, since it's a little slow.
 
             internal SZArrayEnumerator(Array array)
             {
                 Debug.Assert(array.Rank == 1 && array.GetLowerBound(0) == 0, "SZArrayEnumerator only works on single dimension arrays w/ a lower bound of zero.");
+
                 _array = array;
                 _index = -1;
                 _endIndex = array.Length;
