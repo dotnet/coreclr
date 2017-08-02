@@ -241,6 +241,11 @@ namespace System
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
         }
 
+        internal static void ThrowInvalidOperationException_EnumCurrent(int index)
+        {
+            throw GetInvalidOperationException_EnumCurrent(index);
+        }
+
         internal static void ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion()
         {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
@@ -269,8 +274,7 @@ namespace System
             return GetArgumentException(ExceptionResource.Argument_InvalidOffLen);
         }
 
-        private static ArgumentException GetArgumentException(ExceptionResource resource)
-        {
+        private static ArgumentException GetArgumentException(ExceptionResource resource) {
             return new ArgumentException(GetResourceString(resource));
         }
 
@@ -302,6 +306,12 @@ namespace System
         private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, int paramNumber, ExceptionResource resource)
         {
             return new ArgumentOutOfRangeException(GetArgumentName(argument) + "[" + paramNumber.ToString() + "]", GetResourceString(resource));
+        }
+
+        private static InvalidOperationException GetInvalidOperationException_EnumCurrent(int index) {
+            if (index < 0)
+                return GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
+            return GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
         }
 
         // Allow nulls for reference types and Nullable<U>, but not for value types.
