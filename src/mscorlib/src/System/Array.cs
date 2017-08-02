@@ -2738,7 +2738,7 @@ namespace System
                 _array = array;
                 _index = -1;
             }
-    
+
             public bool MoveNext()
             {
                 int index = _index + 1;

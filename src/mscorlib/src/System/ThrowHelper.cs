@@ -274,7 +274,8 @@ namespace System
             return GetArgumentException(ExceptionResource.Argument_InvalidOffLen);
         }
 
-        private static ArgumentException GetArgumentException(ExceptionResource resource) {
+        private static ArgumentException GetArgumentException(ExceptionResource resource)
+        {
             return new ArgumentException(GetResourceString(resource));
         }
 
@@ -308,10 +309,12 @@ namespace System
             return new ArgumentOutOfRangeException(GetArgumentName(argument) + "[" + paramNumber.ToString() + "]", GetResourceString(resource));
         }
 
-        private static InvalidOperationException GetInvalidOperationException_EnumCurrent(int index) {
-            if (index < 0)
-                return GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
-            return GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
+        private static InvalidOperationException GetInvalidOperationException_EnumCurrent(int index)
+        {
+            return GetInvalidOperationException(
+                index < 0 ?
+                ExceptionResource.InvalidOperation_EnumNotStarted :
+                ExceptionResource.InvalidOperation_EnumEnded);
         }
 
         // Allow nulls for reference types and Nullable<U>, but not for value types.
