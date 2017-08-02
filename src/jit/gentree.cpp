@@ -12301,12 +12301,10 @@ DONE_FOLD:
 //    op  -- the box node to optimize
 //
 // Return Value:
-//    True if the op was a value type box and the upstream effects
-//    were removed. Note parts of the copy tree may remain, if the
-//    copy source had side effects.
+//    True if the upstream effects were removed. Note parts of the
+//    copy tree may remain, if the copy source had side effects.
 //
-//    False if op was not a value type box or the upstream effects
-//    could not be removed.
+//    False if the upstream effects could not be removed.
 //
 // Notes:
 //    Value typed box gets special treatment because it has associated
@@ -12322,12 +12320,7 @@ DONE_FOLD:
 bool Compiler::gtTryRemoveBoxUpstreamEffects(GenTreePtr op)
 {
     JITDUMP("gtTryRemoveBoxUpstreamEffects called for [%06u]\n", dspTreeID(op));
-
-    if (!op->IsBoxedValue())
-    {
-        JITDUMP(" bailing; not a boxed value type\n");
-        return false;
-    }
+    assert(op->IsBoxedValue());
 
     // grab related parts for the optimization
     GenTreePtr asgStmt = op->gtBox.gtAsgStmtWhenInlinedBoxValue;

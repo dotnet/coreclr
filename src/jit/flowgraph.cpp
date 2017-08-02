@@ -22675,7 +22675,7 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                     }
 #endif // DEBUG
                 }
-                else if (argNode->gtOper == GT_BOX)
+                else if (argNode->IsBoxedValue())
                 {
                     // Try to clean up any unnecessary boxing side effects
                     // since the box itself will be ignored.
