@@ -2043,60 +2043,25 @@ namespace System.Text
             }
         }
 
-        private static unsafe void ThreadSafeCopy(char* sourcePtr, Span<char> destination, int destinationIndex, int count)
+        private static unsafe void ThreadSafeCopy(char[] source, int sourceIndex, Span<char> destination, int destinationIndex, int count)
         {
             if (count > 0)
             {
-                if ((uint)destinationIndex <= (uint)destination.Length && (destinationIndex + count) <= destination.Length)
+                if ((uint)sourceIndex > (uint)source.Length || (sourceIndex + count) > source.Length)
                 {
-                    fixed (char* destinationPtr = &destination.DangerousGetPinnableReference())
-                        string.wstrcpy(destinationPtr + destinationIndex, sourcePtr, count);
+                    throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_Index);
                 }
-                else
+
+                if ((uint)destinationIndex > (uint)destination.Length || (destinationIndex + count) > destination.Length)
                 {
                     throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_Index);
                 }
+
+                fixed (char* sourcePtr = &source[sourceIndex])
+                    fixed (char* destinationPtr = &destination.DangerousGetPinnableReference())
+                        string.wstrcpy(destinationPtr + destinationIndex, sourcePtr, count);
             }
         }
-
-        private static void ThreadSafeCopy(char[] source, int sourceIndex, char[] destination, int destinationIndex, int count)
-        {
-            if (count > 0)
-            {
-                if ((uint)sourceIndex <= (uint)source.Length && (sourceIndex + count) <= source.Length)
-                {
-                    unsafe
-                    {
-                        fixed (char* sourcePtr = &source[sourceIndex])
-                            ThreadSafeCopy(sourcePtr, destination, destinationIndex, count);
-                    }
-                }
-                else
-                {
-                    throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_Index);
-                }
-            }
-        }
-
-        private static void ThreadSafeCopy(char[] source, int sourceIndex, Span<char> destination, int destinationIndex, int count)
-        {
-            if (count > 0)
-            {
-                if ((uint)sourceIndex <= (uint)source.Length && (sourceIndex + count) <= source.Length)
-                {
-                    unsafe
-                    {
-                        fixed (char* sourcePtr = &source[sourceIndex])
-                            ThreadSafeCopy(sourcePtr, destination, destinationIndex, count);
-                    }
-                }
-                else
-                {
-                    throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_Index);
-                }
-            }
-        }
-
 
         /// <summary>
         /// Gets the chunk corresponding to the logical index in this builder.
