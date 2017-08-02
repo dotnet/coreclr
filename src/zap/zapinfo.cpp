@@ -3378,7 +3378,7 @@ CorInfoHelpFunc ZapInfo::getCastingHelper(CORINFO_RESOLVED_TOKEN * pResolvedToke
 CorInfoHelpFunc ZapInfo::getNewArrHelper(CORINFO_CLASS_HANDLE arrayCls)
 {
 	if (IsReadyToRunCompilation())
-		return CORINFO_HELP_NEWARR_1_DIRECT;
+		return CORINFO_HELP_NEWARR_1_R2R_DIRECT;
 
 	return m_pEEJitInfo->getNewArrHelper(arrayCls);
 }
@@ -3586,7 +3586,7 @@ void ZapInfo::getMethodSig(CORINFO_METHOD_HANDLE ftn, CORINFO_SIG_INFO *sig,CORI
 
 bool ZapInfo::getMethodInfo(CORINFO_METHOD_HANDLE ftn,CORINFO_METHOD_INFO* info)
 {
-    bool result = m_pEEJitInfo->getMethodInfo(ftn, info);
+    bool result = m_pImage->m_pPreloader->GetMethodInfo(m_currentMethodToken, ftn, info);
     info->regionKind = m_pImage->GetCurrentRegionKind();
     return result;
 }

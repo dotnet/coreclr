@@ -985,7 +985,8 @@ bool Compiler::rpRecordRegIntf(regMaskTP regMask, VARSET_VALARG_TP life DEBUGARG
 #ifdef DEBUG
                     if (verbose)
                     {
-                        VARSET_ITER_INIT(this, newIntfIter, newIntf, varNum);
+                        VarSetOps::Iter newIntfIter(this, newIntf);
+                        unsigned        varNum = 0;
                         while (newIntfIter.NextElem(&varNum))
                         {
                             unsigned   lclNum = lvaTrackedToVarNum[varNum];
@@ -1335,8 +1336,9 @@ RET:
         // While we still have any lastUse or inPlaceUse bits
         VARSET_TP useUnion(VarSetOps::Union(this, lastUse, inPlaceUse));
 
-        VARSET_TP varAsSet(VarSetOps::MakeEmpty(this));
-        VARSET_ITER_INIT(this, iter, useUnion, varNum);
+        VARSET_TP       varAsSet(VarSetOps::MakeEmpty(this));
+        VarSetOps::Iter iter(this, useUnion);
+        unsigned        varNum = 0;
         while (iter.NextElem(&varNum))
         {
             // We'll need this for one of the calls...
@@ -4833,6 +4835,17 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
             }
             assert(list == NULL);
 
+#ifdef LEGACY_BACKEND
+#if CPU_LOAD_STORE_ARCH
+#ifdef FEATURE_READYTORUN_COMPILER
+            if (tree->gtCall.IsR2RRelativeIndir())
+            {
+                tree->gtUsedRegs |= RBM_R2R_INDIRECT_PARAM;
+            }
+#endif // FEATURE_READYTORUN_COMPILER
+#endif // CPU_LOAD_STORE_ARCH
+#endif // LEGACY_BACKEND
+
             regMaskTP callAddrMask;
             callAddrMask = RBM_NONE;
 #if CPU_LOAD_STORE_ARCH
@@ -5654,7 +5667,8 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
                 // psc is abbeviation for possibleSameColor
                 VARSET_TP pscVarSet(VarSetOps::Diff(this, unprocessedVars, lvaVarIntf[varIndex]));
 
-                VARSET_ITER_INIT(this, pscIndexIter, pscVarSet, pscIndex);
+                VarSetOps::Iter pscIndexIter(this, pscVarSet);
+                unsigned        pscIndex = 0;
                 while (pscIndexIter.NextElem(&pscIndex))
                 {
                     LclVarDsc* pscVar = lvaTable + lvaTrackedToVarNum[pscIndex];
@@ -5736,8 +5750,9 @@ regMaskTP Compiler::rpPredictAssignRegVars(regMaskTP regAvail)
 #ifdef _TARGET_ARM_
             if (isDouble)
             {
-                regNumber secondHalf = REG_NEXT(regNum);
-                VARSET_ITER_INIT(this, iter, lvaVarIntf[varIndex], intfIndex);
+                regNumber       secondHalf = REG_NEXT(regNum);
+                VarSetOps::Iter iter(this, lvaVarIntf[varIndex]);
+                unsigned        intfIndex = 0;
                 while (iter.NextElem(&intfIndex))
                 {
                     VarSetOps::AddElemD(this, raLclRegIntf[secondHalf], intfIndex);
@@ -6252,23 +6267,13 @@ void Compiler::rpPredictRegUse()
         mustPredict |= rpLostEnreg;
 
 #ifdef _TARGET_ARM_
-
         // See if we previously reserved REG_R10 and try to make it available if we have a small frame now
-        //
-        if ((rpPasses == 0) && (codeGen->regSet.rsMaskResvd & RBM_OPT_RSVD))
+        if ((rpPasses == 0) && ((codeGen->regSet.rsMaskResvd & RBM_OPT_RSVD) != 0) &&
+            !compRsvdRegCheck(REGALLOC_FRAME_LAYOUT))
         {
-            if (compRsvdRegCheck(REGALLOC_FRAME_LAYOUT))
-            {
-                // We must keep reserving R10 in this case
-                codeGen->regSet.rsMaskResvd |= RBM_OPT_RSVD;
-            }
-            else
-            {
-                // We can release our reservation on R10 and use it to color registers
-                //
-                codeGen->regSet.rsMaskResvd &= ~RBM_OPT_RSVD;
-                allAcceptableRegs |= RBM_OPT_RSVD;
-            }
+            // We can release our reservation on R10 and use it to color registers
+            codeGen->regSet.rsMaskResvd &= ~RBM_OPT_RSVD;
+            allAcceptableRegs |= RBM_OPT_RSVD;
         }
 #endif
 
@@ -6465,6 +6470,17 @@ void Compiler::rpPredictRegUse()
 
         /* Decide whether we need to set mustPredict */
         mustPredict = false;
+
+#ifdef _TARGET_ARM_
+        // The spill count may be now high enough that we now need to reserve r10. If this is the case, we'll need to
+        // reserve r10, and if it was used, repredict.
+        if (((codeGen->regSet.rsMaskResvd & RBM_OPT_RSVD) == 0) && compRsvdRegCheck(REGALLOC_FRAME_LAYOUT))
+        {
+            codeGen->regSet.rsMaskResvd |= RBM_OPT_RSVD;
+            allAcceptableRegs &= ~RBM_OPT_RSVD;
+            mustPredict = (regUsed & RBM_OPT_RSVD) != 0;
+        }
+#endif
 
         if (rpAddedVarIntf)
         {

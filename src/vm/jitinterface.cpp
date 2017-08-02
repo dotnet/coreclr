@@ -68,6 +68,10 @@
 #include "interpreter.h"
 #endif // FEATURE_INTERPRETER
 
+#ifdef FEATURE_PERFMAP
+#include "perfmap.h"
+#endif
+
 // The Stack Overflow probe takes place in the COOPERATIVE_TRANSITION_BEGIN() macro
 //
 
@@ -2670,7 +2674,14 @@ void CEEInfo::embedGenericHandle(
 
         pResult->handleType = CORINFO_HANDLETYPE_CLASS;
 
-        pResult->compileTimeHandle = (CORINFO_GENERIC_HANDLE)th.AsPtr();
+        if (pResolvedToken->tokenType == CORINFO_TOKENKIND_Newarr)
+        {
+            pResult->compileTimeHandle = (CORINFO_GENERIC_HANDLE)th.AsArray()->GetTemplateMethodTable();
+        }
+        else
+        {
+            pResult->compileTimeHandle = (CORINFO_GENERIC_HANDLE)th.AsPtr();
+        }
 
         if (fEmbedParent && pResolvedToken->hMethod != NULL)
         {
@@ -3348,7 +3359,14 @@ NoSpecialCase:
     case TypeHandleSlot:
         {
             if (pResolvedToken->tokenType == CORINFO_TOKENKIND_Newarr)
+            {
+                if (!IsReadyToRunCompilation())
+                {
+                    sigBuilder.AppendElementType((CorElementType)ELEMENT_TYPE_NATIVE_ARRAY_TEMPLATE_ZAPSIG);
+                }
+
                 sigBuilder.AppendElementType(ELEMENT_TYPE_SZARRAY);
+            }
 
             // Note that we can come here with pResolvedToken->pTypeSpec == NULL for invalid IL that 
             // directly references __Canon
@@ -7659,64 +7677,10 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
     {
         // #rejit
         // 
-        // See if rejit-specific flags for the caller disable inlining
-        if ((ReJitManager::GetCurrentReJitFlags(pCaller) &
-            COR_PRF_CODEGEN_DISABLE_INLINING) != 0)
-        {
-            result = INLINE_FAIL;
-            szFailReason = "ReJIT request disabled inlining from caller";
-            goto exit;
-        }
-
-        // If the profiler has set a mask preventing inlining, always return
-        // false to the jit.
-        if (CORProfilerDisableInlining())
-        {
-            result = INLINE_FAIL;
-            szFailReason = "Profiler disabled inlining globally";
-            goto exit;
-        }
-
-        // If the profiler wishes to be notified of JIT events and the result from
-        // the above tests will cause a function to be inlined, we need to tell the
-        // profiler that this inlining is going to take place, and give them a
-        // chance to prevent it.
-        {
-            BEGIN_PIN_PROFILER(CORProfilerTrackJITInfo());
-            if (pCaller->IsILStub() || pCallee->IsILStub())
-            {
-                // do nothing
-            }
-            else
-            {
-                BOOL fShouldInline;
-
-                HRESULT hr = g_profControlBlock.pProfInterface->JITInlining(
-                    (FunctionID)pCaller,
-                    (FunctionID)pCallee,
-                    &fShouldInline);
-
-                if (SUCCEEDED(hr) && !fShouldInline)
-                {
-                    result = INLINE_FAIL;
-                    szFailReason = "Profiler disabled inlining locally";
-                    goto exit;
-                }
-            }
-            END_PIN_PROFILER();
-        }
-    }
-#endif // PROFILING_SUPPORTED
-
-
-#ifdef PROFILING_SUPPORTED
-    if (CORProfilerPresent())
-    {
-        // #rejit
-        // 
-        // See if rejit-specific flags for the caller disable inlining
-        if ((ReJitManager::GetCurrentReJitFlags(pCaller) &
-            COR_PRF_CODEGEN_DISABLE_INLINING) != 0)
+        // Currently the rejit path is the only path which sets this.
+        // If we get more reasons to set this then we may need to change
+        // the failure reason message or disambiguate them.
+        if (!m_allowInlining)
         {
             result = INLINE_FAIL;
             szFailReason = "ReJIT request disabled inlining from caller";
@@ -12532,7 +12496,8 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
     for (;;)
     {
 #ifndef CROSSGEN_COMPILE
-        CEEJitInfo jitInfo(ftn, ILHeader, jitMgr, flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IMPORT_ONLY));
+        CEEJitInfo jitInfo(ftn, ILHeader, jitMgr, flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IMPORT_ONLY), 
+            !flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_NO_INLINING));
 #else
         // This path should be only ever used for verification in crossgen and so we should not need EEJitManager
         _ASSERTE(flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IMPORT_ONLY));
@@ -12806,6 +12771,10 @@ void Module::LoadHelperTable()
 
     BYTE * curEntry   = table;
     BYTE * tableEnd   = table + tableSize;
+
+#ifdef FEATURE_PERFMAP
+    PerfMap::LogStubs(__FUNCTION__, GetSimpleName(), (PCODE)table, tableSize);
+#endif
 
 #ifdef LOGGING
     int iEntryNumber = 0;

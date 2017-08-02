@@ -438,18 +438,16 @@ namespace System.Resources
         // security check in each constructor prevents it.
         private void CommonAssemblyInit()
         {
-            if (_bUsingModernResourceManagement == false)
-            {
-                UseManifest = true;
+            // Now we can use the managed resources even when using PRI's to support the APIs GetObject, GetStream...etc.
+            UseManifest = true;
 
-                _resourceSets = new Dictionary<String, ResourceSet>();
-                _lastUsedResourceCache = new CultureNameResourceSetPair();
+            _resourceSets = new Dictionary<String, ResourceSet>();
+            _lastUsedResourceCache = new CultureNameResourceSetPair();
 
-                _fallbackLoc = UltimateResourceFallbackLocation.MainAssembly;
+            _fallbackLoc = UltimateResourceFallbackLocation.MainAssembly;
 
-                ResourceManagerMediator mediator = new ResourceManagerMediator(this);
-                resourceGroveler = new ManifestBasedResourceGroveler(mediator);
-            }
+            ResourceManagerMediator mediator = new ResourceManagerMediator(this);
+            resourceGroveler = new ManifestBasedResourceGroveler(mediator);
 
             _neutralResourcesCulture = ManifestBasedResourceGroveler.GetNeutralResourcesLanguage(MainAssembly, ref _fallbackLoc);
         }
@@ -891,7 +889,7 @@ namespace System.Resources
         //       contains the PRI resources.
         private bool ShouldUseSatelliteAssemblyResourceLookupUnderAppX(RuntimeAssembly resourcesAssembly)
         {
-            bool fUseSatelliteAssemblyResourceLookupUnderAppX = true; // TODO: https://github.com/dotnet/coreclr/issues/12178 once we fix our uap testhost
+            bool fUseSatelliteAssemblyResourceLookupUnderAppX = typeof(Object).Assembly == resourcesAssembly;
 
             if (!fUseSatelliteAssemblyResourceLookupUnderAppX)
             {
@@ -1040,6 +1038,11 @@ namespace System.Resources
                                         if (e.HResult != __HResults.ERROR_MRM_MAP_NOT_FOUND)
                                             throw; // Unexpected exception code. Bubble it up to the caller.
                                     }
+
+                                    if (!_PRIonAppXInitialized)
+                                    {
+                                        _bUsingModernResourceManagement = false;
+                                    }
                                     // Allow all other exception types to bubble up to the caller.
 
                                     // Yes, this causes us to potentially throw exception types that are not documented.
@@ -1124,7 +1127,7 @@ namespace System.Resources
                 {
                     // When running inside AppX we want to ignore the languages list when trying to come up with our CurrentUICulture.
                     // This line behaves the same way as CultureInfo.CurrentUICulture would have in .NET 4
-                    culture = CultureInfo.GetCurrentUICultureNoAppX();
+                    culture = CultureInfo.CurrentUICulture;
                 }
 
                 ResourceSet last = GetFirstResourceSet(culture);

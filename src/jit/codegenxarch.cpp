@@ -982,6 +982,19 @@ void CodeGen::genCodeForMul(GenTreeOp* treeNode)
             unsigned int scale = (unsigned int)(imm - 1);
             getEmitter()->emitIns_R_ARX(INS_lea, size, targetReg, rmOp->gtRegNum, rmOp->gtRegNum, scale, 0);
         }
+        else if (!requiresOverflowCheck && rmOp->isUsedFromReg() && (imm == genFindLowestBit(imm)) && (imm != 0))
+        {
+            // Use shift for constant multiply when legal
+            uint64_t     zextImm     = static_cast<uint64_t>(static_cast<size_t>(imm));
+            unsigned int shiftAmount = genLog2(zextImm);
+
+            if (targetReg != rmOp->gtRegNum)
+            {
+                // Copy reg src to dest register
+                inst_RV_RV(ins_Copy(targetType), targetReg, rmOp->gtRegNum, targetType);
+            }
+            inst_RV_SH(INS_shl, size, targetReg, shiftAmount);
+        }
         else
         {
             // use the 3-op form with immediate
@@ -1708,6 +1721,41 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             genCodeForCast(treeNode->AsOp());
             break;
 
+        case GT_BITCAST:
+        {
+            GenTree* const op1 = treeNode->AsOp()->gtOp1;
+            genConsumeReg(op1);
+
+            const bool srcFltReg = varTypeIsFloating(op1) || varTypeIsSIMD(op1);
+            const bool dstFltReg = varTypeIsFloating(treeNode) || varTypeIsSIMD(treeNode);
+            if (srcFltReg != dstFltReg)
+            {
+                instruction ins;
+                regNumber   fltReg;
+                regNumber   intReg;
+                if (dstFltReg)
+                {
+                    ins    = ins_CopyIntToFloat(op1->TypeGet(), treeNode->TypeGet());
+                    fltReg = treeNode->gtRegNum;
+                    intReg = op1->gtRegNum;
+                }
+                else
+                {
+                    ins    = ins_CopyFloatToInt(op1->TypeGet(), treeNode->TypeGet());
+                    intReg = treeNode->gtRegNum;
+                    fltReg = op1->gtRegNum;
+                }
+                inst_RV_RV(ins, fltReg, intReg, treeNode->TypeGet());
+            }
+            else if (treeNode->gtRegNum != op1->gtRegNum)
+            {
+                inst_RV_RV(ins_Copy(treeNode->TypeGet()), treeNode->gtRegNum, op1->gtRegNum, treeNode->TypeGet());
+            }
+
+            genProduceReg(treeNode);
+            break;
+        }
+
         case GT_LCL_FLD_ADDR:
         case GT_LCL_VAR_ADDR:
             genCodeForLclAddr(treeNode);
@@ -1862,9 +1910,6 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
         case GT_PHYSREG:
             genCodeForPhysReg(treeNode->AsPhysReg());
-            break;
-
-        case GT_PHYSREGDST:
             break;
 
         case GT_NULLCHECK:
@@ -4404,8 +4449,8 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
         if (targetReg == REG_NA)
         {
             // stack store
-            emit->emitInsMov(ins_Store(targetType, compiler->isSIMDTypeLocalAligned(lclNum)), emitTypeSize(targetType),
-                             tree);
+            emit->emitInsStoreLcl(ins_Store(targetType, compiler->isSIMDTypeLocalAligned(lclNum)),
+                                  emitTypeSize(targetType), tree);
             varDsc->lvRegNum = REG_STK;
         }
         else
@@ -4480,7 +4525,7 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
     else
     {
         genConsumeAddress(addr);
-        emit->emitInsMov(ins_Load(targetType), emitTypeSize(tree), tree);
+        emit->emitInsLoadInd(ins_Load(targetType), emitTypeSize(tree), tree->gtRegNum, tree);
     }
 
     genProduceReg(tree);
@@ -4742,7 +4787,7 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
         }
         else
         {
-            getEmitter()->emitInsMov(ins_Store(data->TypeGet()), emitTypeSize(tree), tree);
+            getEmitter()->emitInsStoreInd(ins_Store(data->TypeGet()), emitTypeSize(tree), tree);
         }
     }
 }
@@ -6545,7 +6590,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
         if (signCheckOnly)
         {
             // We only need to check for a negative value in sourceReg
-            inst_RV_IV(INS_cmp, sourceReg, 0, srcSize);
+            inst_RV_RV(INS_test, sourceReg, sourceReg, srcType, srcSize);
             genJumpToThrowHlpBlk(EJ_jl, SCK_OVERFLOW);
         }
         else
@@ -6608,34 +6653,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
             ins = INS_mov;
         }
 
-        if (ins == INS_AND)
-        {
-            noway_assert(isUnsignedDst);
-
-            /* Generate "and reg, MASK */
-            unsigned fillPattern;
-            if (dstSize == EA_1BYTE)
-            {
-                fillPattern = 0xff;
-            }
-            else if (dstSize == EA_2BYTE)
-            {
-                fillPattern = 0xffff;
-            }
-            else
-            {
-                fillPattern = 0xffffffff;
-            }
-
-            inst_RV_IV(INS_AND, targetReg, fillPattern, EA_4BYTE);
-        }
-#ifdef _TARGET_AMD64_
-        else if (ins == INS_movsxd)
-        {
-            inst_RV_RV(ins, targetReg, sourceReg, srcType, srcSize);
-        }
-#endif // _TARGET_AMD64_
-        else if (ins == INS_mov)
+        if (ins == INS_mov)
         {
             if (targetReg != sourceReg
 #ifdef _TARGET_AMD64_
@@ -6648,6 +6666,12 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
                 inst_RV_RV(ins, targetReg, sourceReg, srcType, srcSize);
             }
         }
+#ifdef _TARGET_AMD64_
+        else if (ins == INS_movsxd)
+        {
+            inst_RV_RV(ins, targetReg, sourceReg, srcType, srcSize);
+        }
+#endif // _TARGET_AMD64_
         else
         {
             noway_assert(ins == INS_movsx || ins == INS_movzx);

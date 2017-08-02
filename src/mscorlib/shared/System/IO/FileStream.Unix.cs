@@ -100,21 +100,18 @@ namespace System.IO
             // Jump to the end of the file if opened as Append.
             if (_mode == FileMode.Append)
             {
-                _appendStart = SeekCore(0, SeekOrigin.End);
+                _appendStart = SeekCore(_fileHandle, 0, SeekOrigin.End);
             }
         }
 
         /// <summary>Initializes a stream from an already open file handle (file descriptor).</summary>
-        /// <param name="handle">The handle to the file.</param>
-        /// <param name="bufferSize">The size of the buffer to use when buffering.</param>
-        /// <param name="useAsyncIO">Whether access to the stream is performed asynchronously.</param>
-        private void InitFromHandle(SafeFileHandle handle)
+        private void InitFromHandle(SafeFileHandle handle, FileAccess access, bool useAsyncIO)
         {
-            if (_useAsyncIO)
+            if (useAsyncIO)
                 _asyncState = new AsyncState();
 
-            if (CanSeekCore) // use non-virtual CanSeekCore rather than CanSeek to avoid making virtual call during ctor
-                SeekCore(0, SeekOrigin.Current);
+            if (CanSeekCore(handle)) // use non-virtual CanSeekCore rather than CanSeek to avoid making virtual call during ctor
+                SeekCore(handle, 0, SeekOrigin.Current);
         }
 
         /// <summary>Translates the FileMode, FileAccess, and FileOptions values into flags to be passed when opening the file.</summary>
@@ -189,26 +186,27 @@ namespace System.IO
         }
 
         /// <summary>Gets a value indicating whether the current stream supports seeking.</summary>
-        public override bool CanSeek => CanSeekCore;
+        public override bool CanSeek => CanSeekCore(_fileHandle);
 
         /// <summary>Gets a value indicating whether the current stream supports seeking.</summary>
-        /// <remarks>Separated out of CanSeek to enable making non-virtual call to this logic.</remarks>
-        private bool CanSeekCore
+        /// <remarks>
+        /// Separated out of CanSeek to enable making non-virtual call to this logic.
+        /// We also pass in the file handle to allow the constructor to use this before it stashes the handle.
+        /// </remarks>
+        private bool CanSeekCore(SafeFileHandle fileHandle)
         {
-            get
+            if (fileHandle.IsClosed)
             {
-                if (_fileHandle.IsClosed)
-                {
-                    return false;
-                }
-
-                if (!_canSeek.HasValue)
-                {
-                    // Lazily-initialize whether we're able to seek, tested by seeking to our current location.
-                    _canSeek = Interop.Sys.LSeek(_fileHandle, 0, Interop.Sys.SeekWhence.SEEK_CUR) >= 0;
-                }
-                return _canSeek.Value;
+                return false;
             }
+
+            if (!_canSeek.HasValue)
+            {
+                // Lazily-initialize whether we're able to seek, tested by seeking to our current location.
+                _canSeek = Interop.Sys.LSeek(fileHandle, 0, Interop.Sys.SeekWhence.SEEK_CUR) >= 0;
+            }
+
+            return _canSeek.Value;
         }
 
         private long GetLengthInternal()
@@ -357,7 +355,7 @@ namespace System.IO
 
             if (_filePosition != value)
             {
-                SeekCore(value, SeekOrigin.Begin);
+                SeekCore(_fileHandle, value, SeekOrigin.Begin);
             }
 
             CheckFileCall(Interop.Sys.FTruncate(_fileHandle, value));
@@ -367,11 +365,11 @@ namespace System.IO
             {
                 if (origPos < value)
                 {
-                    SeekCore(origPos, SeekOrigin.Begin);
+                    SeekCore(_fileHandle, origPos, SeekOrigin.Begin);
                 }
                 else
                 {
-                    SeekCore(0, SeekOrigin.End);
+                    SeekCore(_fileHandle, 0, SeekOrigin.End);
                 }
             }
         }
@@ -851,16 +849,16 @@ namespace System.IO
             long oldPos = 0;
             if (_appendStart >= 0)
             {
-                oldPos = SeekCore(0, SeekOrigin.Current);
+                oldPos = SeekCore(_fileHandle, 0, SeekOrigin.Current);
             }
 
             // Jump to the new location
-            long pos = SeekCore(offset, origin);
+            long pos = SeekCore(_fileHandle, offset, origin);
 
             // Prevent users from overwriting data in a file that was opened in append mode.
             if (_appendStart != -1 && pos < _appendStart)
             {
-                SeekCore(oldPos, SeekOrigin.Begin);
+                SeekCore(_fileHandle, oldPos, SeekOrigin.Begin);
                 throw new IOException(SR.IO_SeekAppendOverwrite);
             }
 
@@ -875,12 +873,12 @@ namespace System.IO
         /// point for offset, using a value of type SeekOrigin.
         /// </param>
         /// <returns>The new position in the stream.</returns>
-        private long SeekCore(long offset, SeekOrigin origin)
+        private long SeekCore(SafeFileHandle fileHandle, long offset, SeekOrigin origin)
         {
-            Debug.Assert(!_fileHandle.IsClosed && (GetType() != typeof(FileStream) || CanSeek)); // verify that we can seek, but only if CanSeek won't be a virtual call (which could happen in the ctor)
+            Debug.Assert(!fileHandle.IsClosed && (GetType() != typeof(FileStream) || CanSeekCore(fileHandle))); // verify that we can seek, but only if CanSeek won't be a virtual call (which could happen in the ctor)
             Debug.Assert(origin >= SeekOrigin.Begin && origin <= SeekOrigin.End);
 
-            long pos = CheckFileCall(Interop.Sys.LSeek(_fileHandle, offset, (Interop.Sys.SeekWhence)(int)origin)); // SeekOrigin values are the same as Interop.libc.SeekWhence values
+            long pos = CheckFileCall(Interop.Sys.LSeek(fileHandle, offset, (Interop.Sys.SeekWhence)(int)origin)); // SeekOrigin values are the same as Interop.libc.SeekWhence values
             _filePosition = pos;
             return pos;
         }

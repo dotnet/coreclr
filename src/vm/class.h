@@ -43,7 +43,6 @@
 #include "clrex.h"
 #include "hash.h"
 #include "crst.h"
-#include "objecthandle.h"
 #include "cgensys.h"
 #include "declsec.h"
 #ifdef FEATURE_COMINTEROP
@@ -110,6 +109,7 @@ class LoaderAllocator;
 class ComCallWrapperTemplate;
 
 typedef DPTR(DictionaryLayout) PTR_DictionaryLayout;
+typedef DPTR(FieldMarshaler) PTR_FieldMarshaler;
 
 
 //---------------------------------------------------------------------------------
@@ -440,7 +440,7 @@ class EEClassLayoutInfo
         // An array of FieldMarshaler data blocks, used to drive call-time
         // marshaling of NStruct reference parameters. The number of elements
         // equals m_numCTMFields.
-        FieldMarshaler *m_pFieldMarshalers;
+        RelativePointer<PTR_FieldMarshaler> m_pFieldMarshalers;
 
 
     public:
@@ -469,11 +469,19 @@ class EEClassLayoutInfo
             return m_numCTMFields;
         }
 
-        FieldMarshaler *GetFieldMarshalers() const
+        PTR_FieldMarshaler GetFieldMarshalers() const
         {
             LIMITED_METHOD_CONTRACT;
-            return m_pFieldMarshalers;
+            return ReadPointerMaybeNull(this, &EEClassLayoutInfo::m_pFieldMarshalers);
         }
+
+#ifndef DACCESS_COMPILE
+        void SetFieldMarshalers(FieldMarshaler *pFieldMarshallers)
+        {
+            LIMITED_METHOD_CONTRACT;
+            m_pFieldMarshalers.SetValueMaybeNull(pFieldMarshallers);
+        }
+#endif // DACCESS_COMPILE
 
         BOOL IsBlittable() const
         {

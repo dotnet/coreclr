@@ -872,7 +872,7 @@ DEFINE_CLASS(BITCONVERTER,          System,                 BitConverter)
 DEFINE_FIELD(BITCONVERTER,          ISLITTLEENDIAN,         IsLittleEndian)
 // Defined as element type alias
 // DEFINE_CLASS(STRING,                System,                 String)
-DEFINE_FIELD(STRING,                M_FIRST_CHAR,           m_firstChar)
+DEFINE_FIELD(STRING,                M_FIRST_CHAR,           _firstChar)
 DEFINE_FIELD(STRING,                EMPTY,                  Empty)
 DEFINE_METHOD(STRING,               CREATE_STRING,          CreateString,               SM_PtrSByt_Int_Int_Encoding_RetStr)
 DEFINE_METHOD(STRING,               CTOR_CHARPTR,           .ctor,                      IM_PtrChar_RetVoid)
@@ -881,6 +881,7 @@ DEFINE_METHOD(STRING,               CTORF_CHARARRAY_START_LEN,CtorCharArrayStart
 DEFINE_METHOD(STRING,               CTORF_CHAR_COUNT,       CtorCharCount,              IM_Char_Int_RetStr)
 DEFINE_METHOD(STRING,               CTORF_CHARPTR,          CtorCharPtr,                IM_PtrChar_RetStr)
 DEFINE_METHOD(STRING,               CTORF_CHARPTR_START_LEN,CtorCharPtrStartLength,     IM_PtrChar_Int_Int_RetStr)
+DEFINE_METHOD(STRING,               CTORF_READONLYSPANOFCHAR,CtorReadOnlySpanOfChar,    IM_ReadOnlySpanOfChar_RetStr)
 DEFINE_METHOD(STRING,               INTERNAL_COPY,          InternalCopy,               SM_Str_IntPtr_Int_RetVoid)
 DEFINE_METHOD(STRING,               WCSLEN,                 wcslen,                     SM_PtrChar_RetInt)
 DEFINE_PROPERTY(STRING,             LENGTH,                 Length,                     Int)
@@ -965,7 +966,6 @@ DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVEUSINGEVENT,          ResolveUsingReso
 DEFINE_CLASS(LAZY,              System,     Lazy`1)
 
 DEFINE_CLASS(LAZY_INITIALIZER,  Threading,  LazyInitializer)
-DEFINE_CLASS(LAZY_HELPERS,      Threading,  LazyHelpers`1)
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_CLASS(UNKNOWN_WRAPPER,       Interop,                UnknownWrapper)

@@ -1477,14 +1477,13 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
 
 #if 1 // TODO-Cleanup: Consider removing this entire #if block in the future
 
-// This method has two callers. The one in Importer.cpp passes sortFields == false
-// and the other passes sortFields == true.
-// This is a workaround that leaves the inlining behavior the same as before while still
-// performing extra struct promotions when compiling the method.
+// This method has two callers. The one in Importer.cpp passes `sortFields == false` and the other passes
+// `sortFields == true`. This is a workaround that leaves the inlining behavior the same as before while still
+// performing extra struct promotion when compiling the method.
 //
-// The x86 legacy back-end can't handle the more general RyuJIT struct promotion (notably structs
-// with holes), in genPushArgList(), so in that case always check for custom layout.
-#if FEATURE_FIXED_OUT_ARGS || !defined(LEGACY_BACKEND)
+// The legacy back-end can't handle this more general struct promotion (notably structs with holes) in
+// morph/genPushArgList()/SetupLateArgs, so in that case always check for custom layout.
+#if !defined(LEGACY_BACKEND)
         if (!sortFields) // the condition "!sortFields" really means "we are inlining"
 #endif
         {
@@ -1801,9 +1800,10 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
                 structPromotionInfo->fieldCnt, varDsc->lvFieldAccessed);
         shouldPromote = false;
     }
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) || defined(_TARGET_ARM_)
     // TODO-PERF - Only do this when the LclVar is used in an argument context
     // TODO-ARM64 - HFA support should also eliminate the need for this.
+    // TODO-ARM32 - HFA support should also eliminate the need for this.
     // TODO-LSRA - Currently doesn't support the passing of floating point LCL_VARS in the integer registers
     //
     // For now we currently don't promote structs with a single float field
@@ -1817,7 +1817,7 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
                 lclNum, structPromotionInfo->fieldCnt);
         shouldPromote = false;
     }
-#endif // _TARGET_AMD64_ || _TARGET_ARM64_
+#endif // _TARGET_AMD64_ || _TARGET_ARM64_ || _TARGET_ARM_
     else if (varDsc->lvIsParam && !lvaIsImplicitByRefLocal(lclNum))
     {
 #if FEATURE_MULTIREG_STRUCT_PROMOTE
@@ -2152,6 +2152,18 @@ void Compiler::lvaSetVarDoNotEnregister(unsigned varNum DEBUGARG(DoNotEnregister
             JITDUMP("live across unmanaged call\n");
             varDsc->lvLiveAcrossUCall = 1;
             break;
+        case DNER_DepField:
+            JITDUMP("field of a dependently promoted struct\n");
+            assert(varDsc->lvIsStructField && (lvaGetParentPromotionType(varNum) != PROMOTION_TYPE_INDEPENDENT));
+            break;
+        case DNER_NoRegVars:
+            JITDUMP("opts.compFlags & CLFLG_REGVAR is not set\n");
+            assert((opts.compFlags & CLFLG_REGVAR) == 0);
+            break;
+        case DNER_MinOptsGC:
+            JITDUMP("It is a GC Ref and we are compiling MinOpts\n");
+            assert(!JitConfig.JitMinOptsTrackGCrefs() && varTypeIsGC(varDsc->TypeGet()));
+            break;
 #ifdef JIT32_GCENCODER
         case DNER_PinningRef:
             JITDUMP("pinning ref\n");
@@ -2328,7 +2340,7 @@ void Compiler::lvaSetClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool is
     assert(varDsc->lvClassHnd == nullptr);
     assert(!varDsc->lvClassIsExact);
 
-    JITDUMP("\nlvaSetClass: setting class for V%02i to (%p) %s %s\n", varNum, clsHnd,
+    JITDUMP("\nlvaSetClass: setting class for V%02i to (%p) %s %s\n", varNum, dspPtr(clsHnd),
             info.compCompHnd->getClassName(clsHnd), isExact ? " [exact]" : "");
 
     varDsc->lvClassHnd     = clsHnd;
@@ -2436,9 +2448,9 @@ void Compiler::lvaUpdateClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool
     // Are we updating the type?
     if (varDsc->lvClassHnd != clsHnd)
     {
-        JITDUMP("\nlvaUpdateClass: Updating class for V%02i from (%p) %s to (%p) %s %s\n", varNum, varDsc->lvClassHnd,
-                info.compCompHnd->getClassName(varDsc->lvClassHnd), clsHnd, info.compCompHnd->getClassName(clsHnd),
-                isExact ? " [exact]" : "");
+        JITDUMP("\nlvaUpdateClass: Updating class for V%02i from (%p) %s to (%p) %s %s\n", varNum,
+                dspPtr(varDsc->lvClassHnd), info.compCompHnd->getClassName(varDsc->lvClassHnd), dspPtr(clsHnd),
+                info.compCompHnd->getClassName(clsHnd), isExact ? " [exact]" : "");
 
         varDsc->lvClassHnd     = clsHnd;
         varDsc->lvClassIsExact = isExact;
@@ -2676,16 +2688,6 @@ BasicBlock::weight_t BasicBlock::getBBWeight(Compiler* comp)
     }
 }
 
-/*****************************************************************************
- *
- *  Callback used by the tree walker to call lvaDecRefCnts
- */
-Compiler::fgWalkResult Compiler::lvaDecRefCntsCB(GenTreePtr* pTree, fgWalkData* data)
-{
-    data->compiler->lvaDecRefCnts(*pTree);
-    return WALK_CONTINUE;
-}
-
 // Decrement the ref counts for all locals contained in the tree and its children.
 void Compiler::lvaRecursiveDecRefCounts(GenTreePtr tree)
 {
@@ -2702,28 +2704,25 @@ void Compiler::lvaRecursiveDecRefCounts(GenTreePtr tree)
     }
     else
     {
-        fgWalkTreePre(&tree, Compiler::lvaDecRefCntsCB, (void*)this, true);
+        DecLclVarRefCountsVisitor::WalkTree(this, tree);
     }
 }
 
-// Increment the ref counts for all locals contained in the tree and its children.
-void Compiler::lvaRecursiveIncRefCounts(GenTreePtr tree)
+DecLclVarRefCountsVisitor::DecLclVarRefCountsVisitor(Compiler* compiler)
+    : GenTreeVisitor<DecLclVarRefCountsVisitor>(compiler)
 {
-    assert(lvaLocalVarRefCounted);
+}
 
-    // We could just use the recursive walker for all cases but that is a
-    // fairly heavyweight thing to spin up when we're usually just handling a leaf.
-    if (tree->OperIsLeaf())
-    {
-        if (tree->OperIsLocal())
-        {
-            lvaIncRefCnts(tree);
-        }
-    }
-    else
-    {
-        fgWalkTreePre(&tree, Compiler::lvaIncRefCntsCB, (void*)this, true);
-    }
+Compiler::fgWalkResult DecLclVarRefCountsVisitor::PreOrderVisit(GenTree** use, GenTree* user)
+{
+    m_compiler->lvaDecRefCnts(*use);
+    return fgWalkResult::WALK_CONTINUE;
+}
+
+Compiler::fgWalkResult DecLclVarRefCountsVisitor::WalkTree(Compiler* compiler, GenTree* tree)
+{
+    DecLclVarRefCountsVisitor visitor(compiler);
+    return static_cast<GenTreeVisitor<DecLclVarRefCountsVisitor>*>(&visitor)->WalkTree(&tree, nullptr);
 }
 
 /*****************************************************************************
@@ -2784,14 +2783,41 @@ void Compiler::lvaDecRefCnts(BasicBlock* block, GenTreePtr tree)
     }
 }
 
-/*****************************************************************************
- *
- *  Callback used by the tree walker to call lvaIncRefCnts
- */
-Compiler::fgWalkResult Compiler::lvaIncRefCntsCB(GenTreePtr* pTree, fgWalkData* data)
+// Increment the ref counts for all locals contained in the tree and its children.
+void Compiler::lvaRecursiveIncRefCounts(GenTreePtr tree)
 {
-    data->compiler->lvaIncRefCnts(*pTree);
-    return WALK_CONTINUE;
+    assert(lvaLocalVarRefCounted);
+
+    // We could just use the recursive walker for all cases but that is a
+    // fairly heavyweight thing to spin up when we're usually just handling a leaf.
+    if (tree->OperIsLeaf())
+    {
+        if (tree->OperIsLocal())
+        {
+            lvaIncRefCnts(tree);
+        }
+    }
+    else
+    {
+        IncLclVarRefCountsVisitor::WalkTree(this, tree);
+    }
+}
+
+IncLclVarRefCountsVisitor::IncLclVarRefCountsVisitor(Compiler* compiler)
+    : GenTreeVisitor<IncLclVarRefCountsVisitor>(compiler)
+{
+}
+
+Compiler::fgWalkResult IncLclVarRefCountsVisitor::PreOrderVisit(GenTree** use, GenTree* user)
+{
+    m_compiler->lvaIncRefCnts(*use);
+    return fgWalkResult::WALK_CONTINUE;
+}
+
+Compiler::fgWalkResult IncLclVarRefCountsVisitor::WalkTree(Compiler* compiler, GenTree* tree)
+{
+    IncLclVarRefCountsVisitor visitor(compiler);
+    return static_cast<GenTreeVisitor<IncLclVarRefCountsVisitor>*>(&visitor)->WalkTree(&tree, nullptr);
 }
 
 /*****************************************************************************
@@ -3281,6 +3307,7 @@ void Compiler::lvaSortByRefCount()
             // untracked when a blockOp is used to assign the struct.
             //
             varDsc->lvTracked = 0; // so, don't mark as tracked
+            lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_DepField));
         }
         else if (varDsc->lvPinned)
         {
@@ -3289,10 +3316,17 @@ void Compiler::lvaSortByRefCount()
             lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_PinningRef));
 #endif
         }
+#if !defined(JIT32_GCENCODER) || !defined(LEGACY_BACKEND)
         else if (opts.MinOpts() && !JitConfig.JitMinOptsTrackGCrefs() && varTypeIsGC(varDsc->TypeGet()))
         {
             varDsc->lvTracked = 0;
+            lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_MinOptsGC));
         }
+        else if ((opts.compFlags & CLFLG_REGVAR) == 0)
+        {
+            lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_NoRegVars));
+        }
+#endif // !defined(JIT32_GCENCODER) || !defined(LEGACY_BACKEND)
 #if defined(JIT32_GCENCODER) && defined(WIN64EXCEPTIONS)
         else if (lvaIsOriginalThisArg(lclNum) && (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) != 0)
         {
@@ -3758,24 +3792,30 @@ void Compiler::SetVolatileHint(LclVarDsc* varDsc)
 
 /*****************************************************************************
  *
- *  Helper passed to Compiler::fgWalkTreePre() to do variable ref marking.
- */
-
-/* static */
-Compiler::fgWalkResult Compiler::lvaMarkLclRefsCallback(GenTreePtr* pTree, fgWalkData* data)
-{
-    data->compiler->lvaMarkLclRefs(*pTree);
-
-    return WALK_CONTINUE;
-}
-
-/*****************************************************************************
- *
  *  Update the local variable reference counts for one basic block
  */
 
 void Compiler::lvaMarkLocalVars(BasicBlock* block)
 {
+    class MarkLocalVarsVisitor final : public GenTreeVisitor<MarkLocalVarsVisitor>
+    {
+    public:
+        enum
+        {
+            DoPreOrder = true,
+        };
+
+        MarkLocalVarsVisitor(Compiler* compiler) : GenTreeVisitor<MarkLocalVarsVisitor>(compiler)
+        {
+        }
+
+        Compiler::fgWalkResult PreOrderVisit(GenTree** use, GenTree* user)
+        {
+            m_compiler->lvaMarkLclRefs(*use);
+            return WALK_CONTINUE;
+        }
+    };
+
 #if ASSERTION_PROP
     lvaMarkRefsCurBlock = block;
 #endif
@@ -3789,9 +3829,10 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block)
     }
 #endif
 
+    MarkLocalVarsVisitor visitor(this);
     for (GenTreePtr tree = block->FirstNonPhiDef(); tree; tree = tree->gtNext)
     {
-        noway_assert(tree->gtOper == GT_STMT);
+        assert(tree->gtOper == GT_STMT);
 
 #if ASSERTION_PROP
         lvaMarkRefsCurStmt = tree;
@@ -3804,7 +3845,7 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block)
         }
 #endif
 
-        fgWalkTreePre(&tree->gtStmt.gtStmtExpr, Compiler::lvaMarkLclRefsCallback, (void*)this, false);
+        visitor.WalkTree(&tree->gtStmt.gtStmtExpr, nullptr);
     }
 }
 
@@ -4436,7 +4477,7 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
 
 void Compiler::lvaAssignFrameOffsets(FrameLayoutState curState)
 {
-    noway_assert(lvaDoneFrameLayout < curState);
+    noway_assert((lvaDoneFrameLayout < curState) || (curState == REGALLOC_FRAME_LAYOUT));
 
     lvaDoneFrameLayout = curState;
 
@@ -5601,13 +5642,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
 
     bool tempsAllocated = false;
 
-#ifdef _TARGET_ARM_
-    // On ARM, SP based offsets use smaller encoding. Since temps are relatively
-    // rarer than lcl usage, allocate them farther from SP.
-    if (!opts.MinOpts() && !compLocallocUsed)
-#else
     if (lvaTempsHaveLargerOffsetThanVars() && !codeGen->isFramePointerUsed())
-#endif
     {
         // Because we want the temps to have a larger offset than locals
         // and we're not using a frame pointer, we have to place the temps
@@ -6492,9 +6527,15 @@ void Compiler::lvaDumpRegLocation(unsigned lclNum)
 #ifdef _TARGET_ARM_
     else if (varDsc->TypeGet() == TYP_DOUBLE)
     {
+#ifdef LEGACY_BACKEND
+        // The assigned registers are `lvRegNum:lvOtherReg`
         printf("%3s:%-3s    ", getRegName(varDsc->lvRegNum), getRegName(varDsc->lvOtherReg));
-    }
+#else
+        // The assigned registers are `lvRegNum:RegNext(lvRegNum)`
+        printf("%3s:%-3s    ", getRegName(varDsc->lvRegNum), getRegName(REG_NEXT(varDsc->lvRegNum)));
 #endif
+    }
+#endif // !_TARGET_ARM_
     else
     {
         printf("%3s        ", getRegName(varDsc->lvRegNum));

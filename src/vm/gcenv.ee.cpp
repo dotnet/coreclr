@@ -923,10 +923,13 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         VolatileStore(&g_highest_address, args->highest_address);
         ::StompWriteBarrierResize(true, false);
 
-        // g_ephemeral_low/high aren't needed for the write barrier stomp, but they
-        // are needed in other places.
+        // StompWriteBarrierResize does not necessarily bash g_ephemeral_low
+        // usages, so we must do so here. This is particularly true on x86,
+        // where StompWriteBarrierResize will not bash g_ephemeral_low when
+        // called with the parameters (true, false), as it is above.
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
+        ::StompWriteBarrierEphemeral(true);
         return;
     case WriteBarrierOp::SwitchToWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -1028,7 +1031,7 @@ bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
 
     if (strcmp(key, "gcConcurrent") == 0)
     {
-        *value = g_IGCconcurrent != 0;
+        *value = !!g_pConfig->GetGCconcurrent();
         return true;
     }
 

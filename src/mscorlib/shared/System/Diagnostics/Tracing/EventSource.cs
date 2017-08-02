@@ -3271,7 +3271,11 @@ namespace System.Diagnostics.Tracing
         // When that is the case, we have the build the custom assemblies on a member by hand.         
         internal static Attribute GetCustomAttributeHelper(MemberInfo member, Type attributeType, EventManifestOptions flags = EventManifestOptions.None)
         {
+#if !ES_BUILD_PN
+            // On ProjectN, ReflectionOnly() always equals false.  AllowEventSourceOverride is an option that allows either Microsoft.Diagnostics.Tracing or
+            // System.Diagnostics.Tracing EventSource to be considered valid.  This should not mattter anywhere but in Microsoft.Diagnostics.Tracing (nuget package).
             if (!member.Module.Assembly.ReflectionOnly() && (flags & EventManifestOptions.AllowEventSourceOverride) == 0)
+#endif // !ES_BUILD_PN
             {
                 // Let the runtime to the work for us, since we can execute code in this context.
                 Attribute firstAttribute = null;
@@ -4938,10 +4942,10 @@ namespace System.Diagnostics.Tracing
             get
             {
                 // For contract based events we create the list lazily.
-                if (m_payloadNames == null)
+                // You can have m_payloadNames be null in the TraceLogging case (EventID < 0) so only
+                // do the lazy init if you know it is contract based (EventID >= 0)
+                if (EventId >= 0 && m_payloadNames == null)
                 {
-                    // Self described events are identified by id -1.
-                    Debug.Assert(EventId != -1);
 
                     var names = new List<string>();
                     foreach (var parameter in m_eventSource.m_eventData[EventId].Parameters)

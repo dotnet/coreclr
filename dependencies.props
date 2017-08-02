@@ -8,28 +8,29 @@
     <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
     <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
 
-    <PreReleaseLabel>preview1</PreReleaseLabel>
+    <PreReleaseLabel>preview2</PreReleaseLabel>
   </PropertyGroup>
   
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>01f90a3cfd90a2f33f08269244fcd876bb9f2fae</CoreFxCurrentRef>
-    <CoreClrCurrentRef>01f90a3cfd90a2f33f08269244fcd876bb9f2fae</CoreClrCurrentRef>
+    <CoreFxCurrentRef>21bb773993713105abf5a9cb67db558b050333c8</CoreFxCurrentRef>
+    <CoreClrCurrentRef>21bb773993713105abf5a9cb67db558b050333c8</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
-    <CoreFxPackageVersion>4.5.0-preview1-25419-02</CoreFxPackageVersion>
-    <PlatformPackageVersion>2.1.0-preview1-25324-02</PlatformPackageVersion>
+    <CoreFxPackageVersion>4.5.0-preview2-25531-01</CoreFxPackageVersion>
+    <PlatformPackageVersion>2.1.0-preview2-25531-01</PlatformPackageVersion>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
   <PropertyGroup>
-    <CoreClrPackageVersion>2.1.0-preview1-25419-02</CoreClrPackageVersion>
+    <CoreClrPackageVersion>2.1.0-preview2-25531-02</CoreClrPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XUnitConsoleNetCoreVersion>1.0.2-prerelease-00177</XUnitConsoleNetCoreVersion>
     <XUnitPerformanceApiVersion>1.0.0-beta-build0007</XUnitPerformanceApiVersion>
     <MicrosoftDiagnosticsTracingLibraryVersion>1.0.3-alpha-experimental</MicrosoftDiagnosticsTracingLibraryVersion>
+    <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->

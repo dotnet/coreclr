@@ -99,85 +99,6 @@
 
 #define NGEN_STATICS_ALLCLASSES_WERE_LOADED -1
 
-
-//---------------------------------------------------------------------------------------
-InstrumentedILOffsetMapping::InstrumentedILOffsetMapping()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    m_cMap  = 0;
-    m_rgMap = NULL;
-    _ASSERTE(IsNull());
-}
-
-//---------------------------------------------------------------------------------------
-//
-// Check whether there is any mapping information stored in this object.
-//
-// Notes:
-//    The memory should be alive throughout the process lifetime until 
-//    the Module containing the instrumented method is destructed.
-//
-
-BOOL InstrumentedILOffsetMapping::IsNull()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    _ASSERTE((m_cMap == 0) == (m_rgMap == NULL));
-    return (m_cMap == 0);
-}
-
-#if !defined(DACCESS_COMPILE)
-//---------------------------------------------------------------------------------------
-//
-// Release the memory used by the array of COR_IL_MAPs.
-//
-// Notes:
-//    * The memory should be alive throughout the process lifetime until the Module containing 
-//      the instrumented method is destructed.
-//    * This struct should be read-only in DAC builds.
-//
-
-void InstrumentedILOffsetMapping::Clear()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (m_rgMap != NULL)
-    {
-        delete [] m_rgMap;
-    }
-
-    m_cMap  = 0;
-    m_rgMap = NULL;
-}
-#endif // !DACCESS_COMPILE
-
-#if !defined(DACCESS_COMPILE)
-void InstrumentedILOffsetMapping::SetMappingInfo(SIZE_T cMap, COR_IL_MAP * rgMap)
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE((cMap == 0) == (rgMap == NULL));
-    m_cMap = cMap;
-    m_rgMap = ARRAY_PTR_COR_IL_MAP(rgMap);
-}
-#endif // !DACCESS_COMPILE
-
-SIZE_T InstrumentedILOffsetMapping::GetCount() const
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    _ASSERTE((m_cMap == 0) == (m_rgMap == NULL));
-    return m_cMap;
-}
-
-ARRAY_PTR_COR_IL_MAP InstrumentedILOffsetMapping::GetOffsets() const
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    _ASSERTE((m_cMap == 0) == (m_rgMap == NULL));
-    return m_rgMap;
-}
-
 BOOL Module::HasInlineTrackingMap()
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -7374,7 +7295,9 @@ mdMethodDef Module::LookupIbcMethodToken(TypeHandle enclosingType, mdToken ibcTo
     ibcName.tkEnclosingClass = LookupIbcTypeToken(pExternalModule, ibcName.tkIbcNestedClass, optionalFullNameOut);
        
     if (IsNilToken(ibcName.tkEnclosingClass))
-        THROW_BAD_FORMAT(BFA_MISSING_IBC_EXTERNAL_TYPE, this);
+    {
+        COMPlusThrow(kTypeLoadException, IDS_IBC_MISSING_EXTERNAL_TYPE);
+    }
 
     if (optionalFullNameOut != NULL)
     {
@@ -7434,121 +7357,7 @@ mdMethodDef Module::LookupIbcMethodToken(TypeHandle enclosingType, mdToken ibcTo
     return mdResult;
 }
 
-SString *  Module::IBCErrorNameString()
-{
-    CONTRACT(SString *)
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END;
-
-    if (m_pIBCErrorNameString == NULL)
-    {
-        m_pIBCErrorNameString = new SString();
-    }
-
-    RETURN m_pIBCErrorNameString;
-}
-
-void Module::IBCTypeLoadFailed(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry, 
-                               SString& exceptionMessage, SString* typeNameError)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        PRECONDITION(CheckPointer(pBlobSigEntry));
-    }
-    CONTRACTL_END
-
-    //
-    // Print an error message for the type load failure
-    // 
-    StackSString msg(W("Failed to load type token "));
-    SString typeName;
-
-    char buff[16];
-    sprintf_s(buff, COUNTOF(buff), "%08x", pBlobSigEntry->blob.token); 
-    StackSString szToken(SString::Ascii, &buff[0]);
-    msg += szToken;
-
-    if (!exceptionMessage.IsEmpty())
-    {
-        if ((typeNameError != NULL) && !typeNameError->IsEmpty())
-        {
-            msg += W(" for the profile data in ");
-            msg.Append(exceptionMessage);
-            msg += W(".");
-
-            msg += W("  The type was ");
-            msg.Append(*typeNameError);
-            msg += W(".");
-        }
-        else
-        {
-            msg += W(" from profile data. The error is ");
-            msg.Append(exceptionMessage);
-        }
-    }
-    msg += W("\n");
-
-    GetSvcLogger()->Log(msg, LogLevel_Info);
-}
-
-void Module::IBCMethodLoadFailed(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry, 
-                                 SString& exceptionMessage, SString* methodNameError)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        PRECONDITION(CheckPointer(pBlobSigEntry));
-    }
-    CONTRACTL_END
-
-    //
-    // Print an error message for the type load failure
-    // 
-    StackSString msg(W("Failed to load method token "));
-
-    char buff[16];
-    sprintf_s(buff, COUNTOF(buff), "%08x", pBlobSigEntry->blob.token); 
-    StackSString szToken(SString::Ascii, &buff[0]);
-    msg += szToken;
-
-    if (!exceptionMessage.IsEmpty())
-    {
-        if ((methodNameError != NULL) && !methodNameError->IsEmpty())
-        {
-            msg += W(" for the profile data in ");
-            msg.Append(exceptionMessage);
-            msg += W(".");
-
-            msg += W("  The method was ");
-            msg.Append(*methodNameError);
-            msg += W(".\n");
-        }
-        else
-        {
-            msg += W(" from profile data. The error is ");
-            msg.Append(exceptionMessage);
-        }
-    }
-    msg += W("\n");
-
-    GetSvcLogger()->Log(msg, LogLevel_Info);
-}
-
-TypeHandle Module::LoadIBCTypeHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry)
+TypeHandle Module::LoadIBCTypeHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry)
 {
     CONTRACT(TypeHandle)
     {
@@ -7572,8 +7381,6 @@ TypeHandle Module::LoadIBCTypeHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEn
 
     EX_TRY
     {
-        IBCErrorNameString()->Clear();
-
         // This is what ZapSig::FindTypeHandleFromSignature does...
         // 
         SigTypeContext typeContext;  // empty type context
@@ -7591,11 +7398,7 @@ TypeHandle Module::LoadIBCTypeHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEn
     }
     EX_CATCH
     {
-        CONTRACT_VIOLATION(ThrowsViolation);
-
-        StackSString exceptionMessage;
-        GET_EXCEPTION()->GetMessage(exceptionMessage);
-        IBCTypeLoadFailed(pBlobSigEntry, exceptionMessage, IBCErrorNameString());
+        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
         loadedType = TypeHandle();
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -7605,7 +7408,7 @@ TypeHandle Module::LoadIBCTypeHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEn
 
 //---------------------------------------------------------------------------------------
 // 
-MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobSigEntry)
+MethodDesc* Module::LoadIBCMethodHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobSigEntry)
 {
     CONTRACT(MethodDesc*)
     {
@@ -7634,8 +7437,6 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
     //  
     EX_TRY
     {
-        IBCErrorNameString()->Clear();
-
         // This is what ZapSig::FindTypeHandleFromSignature does...
         //
         SigTypeContext typeContext;   // empty type context
@@ -7654,11 +7455,7 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
     }
     EX_CATCH
     {
-        CONTRACT_VIOLATION(ThrowsViolation);
-
-        StackSString exceptionMessage;
-        GET_EXCEPTION()->GetMessage(exceptionMessage);
-        IBCTypeLoadFailed(pBlobSigEntry, exceptionMessage, IBCErrorNameString());
+        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
         enclosingType = TypeHandle();
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -7722,14 +7519,9 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
 
                 if (IsNilToken(methodToken))
                 {
-                    SString * fullTypeName = IBCErrorNameString();
-                    fullTypeName->Clear();
-                    this->LookupIbcMethodToken(enclosingType, ibcToken, fullTypeName);
-
-                    THROW_BAD_FORMAT(BFA_MISSING_IBC_EXTERNAL_METHOD, this);
+                    COMPlusThrow(kTypeLoadException, IDS_IBC_MISSING_EXTERNAL_METHOD);
                 }
             }
-
 
             SigTypeContext methodTypeContext( enclosingType );
             pMethod = MemberLoader::GetMethodDescFromMemberDefOrRefOrSpec(
@@ -7756,13 +7548,23 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
 
             for (DWORD i = 0; i < nargs; i++)
             {
-                pInst[i] = p.GetTypeHandleThrowing( this,
+                TypeHandle curInst;
+
+                curInst = p.GetTypeHandleThrowing( this,
                               &typeContext,
                               ClassLoader::LoadTypes,
                               CLASS_LOADED,
                               FALSE,
                               NULL,
                               pZapSigContext);
+
+                // curInst will be nullptr when the type fails the versioning bubble check
+                if (curInst.IsNull() && IsReadyToRunCompilation())
+                {
+                    COMPlusThrow(kTypeLoadException, IDS_IBC_MISSING_EXTERNAL_TYPE);
+                }
+
+                pInst[i] = curInst;
                 IfFailThrow(p.SkipExactlyOne());
             }
 
@@ -7773,26 +7575,26 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
             inst = pMethod->LoadMethodInstantiation();
         }
 
+        // We should now be able to create an instantiation for this generic method
+
         // This must be called even if nargs == 0, in order to create an instantiating
         // stub for static methods in generic classees if needed, also for BoxedEntryPointStubs
         // in non-generic structs.
+        const bool allowInstParam = !(isInstantiatingStub || isUnboxingStub);
+
         pMethod = MethodDesc::FindOrCreateAssociatedMethodDesc(pMethod, pOwnerMT,
-                                                               isUnboxingStub,
-                                                               inst,
-                                                               !(isInstantiatingStub || isUnboxingStub));
+                                                               isUnboxingStub, 
+                                                               inst, allowInstParam);
 
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE)
         g_pConfig->DebugCheckAndForceIBCFailure(EEConfig::CallSite_3);
 #endif
-
     }
     EX_CATCH
     {
-        CONTRACT_VIOLATION(ThrowsViolation);
-
-        StackSString exceptionMessage;
-        GET_EXCEPTION()->GetMessage(exceptionMessage);
-        IBCMethodLoadFailed(pBlobSigEntry, exceptionMessage, IBCErrorNameString());
+        // Catch any kTypeLoadException that we may have thrown above
+        //
+        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
         pMethod = NULL;
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -8095,7 +7897,8 @@ void Module::ExpandAll(DataImage *image)
     //
     // Load all the reported parameterized types and methods
     //
-    CORBBTPROF_BLOB_ENTRY *pBlobEntry = GetProfileData()->GetBlobStream();
+    CorProfileData *  profileData = this->GetProfileData();
+    CORBBTPROF_BLOB_ENTRY *pBlobEntry = profileData->GetBlobStream();
     
     if (pBlobEntry != NULL)
     {
@@ -8106,7 +7909,8 @@ void Module::ExpandAll(DataImage *image)
                 _ASSERTE(pBlobEntry->type == ParamTypeSpec);
                 CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry = (CORBBTPROF_BLOB_PARAM_SIG_ENTRY *) pBlobEntry;
 
-                TypeHandle th = LoadIBCTypeHelper(pBlobSigEntry);
+                TypeHandle th = LoadIBCTypeHelper(image, pBlobSigEntry);
+
                 if (!th.IsNull())
                 {
                     image->GetPreloader()->TriageTypeForZap(th, TRUE);
@@ -8117,15 +7921,60 @@ void Module::ExpandAll(DataImage *image)
                 _ASSERTE(pBlobEntry->type == ParamMethodSpec);
                 CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry = (CORBBTPROF_BLOB_PARAM_SIG_ENTRY *) pBlobEntry;
                 
-                MethodDesc *pMD = LoadIBCMethodHelper(pBlobSigEntry);
-                if (pMD != NULL)
-                {
-                    image->GetPreloader()->TriageMethodForZap(pMD, TRUE);
-                }
+                MethodDesc *pMD = LoadIBCMethodHelper(image, pBlobSigEntry);
             }
             pBlobEntry = pBlobEntry->GetNextEntry();
         }
         _ASSERTE(pBlobEntry->type == EndOfBlobStream);
+    }
+
+    //
+    // Record references to all of the hot methods specifiled by MethodProfilingData array
+    // We call MethodReferencedByCompiledCode to indicate that we plan on compiling this method
+    //
+    CORBBTPROF_TOKEN_INFO * pMethodProfilingData = profileData->GetTokenFlagsData(MethodProfilingData);
+    DWORD                   cMethodProfilingData = profileData->GetTokenFlagsCount(MethodProfilingData);
+    for (unsigned int i = 0; (i < cMethodProfilingData); i++)
+    {
+        mdToken token = pMethodProfilingData[i].token;
+        DWORD   profilingFlags = pMethodProfilingData[i].flags;
+
+        // We call MethodReferencedByCompiledCode only when the profile data indicates that 
+        // we executed (i.e read) the code for the method
+        //
+        if (profilingFlags & (1 << ReadMethodCode))
+        {
+            if (TypeFromToken(token) == mdtMethodDef)
+            {
+                MethodDesc *  pMD = LookupMethodDef(token);
+                //
+                // Record a reference to a hot non-generic method 
+                //
+                image->GetPreloader()->MethodReferencedByCompiledCode((CORINFO_METHOD_HANDLE)pMD);
+            }
+            else if (TypeFromToken(token) == ibcMethodSpec)
+            {
+                CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry = profileData->GetBlobSigEntry(token);
+
+                if (pBlobSigEntry != NULL)
+                {
+                    _ASSERTE(pBlobSigEntry->blob.token == token);
+                    MethodDesc * pMD = LoadIBCMethodHelper(image, pBlobSigEntry);
+
+                    if (pMD != NULL)
+                    {
+                        // Occasionally a non-instantiated generic method shows up in the IBC data, we should NOT compile it.
+                        if (!pMD->IsTypicalMethodDefinition())
+                        {
+                            //
+                            // Record a reference to a hot instantiated generic method 
+                            //
+                            image->GetPreloader()->MethodReferencedByCompiledCode((CORINFO_METHOD_HANDLE)pMD);
+                        }
+                    }
+                }
+            }
+        }
     }
     
     {
@@ -8744,7 +8593,7 @@ void Module::Save(DataImage *image)
                             if (pBlobEntry->token == token)
                             {
                                 CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry = (CORBBTPROF_BLOB_PARAM_SIG_ENTRY *) pBlobEntry;
-                                TypeHandle th = LoadIBCTypeHelper(pBlobSigEntry);
+                                TypeHandle th = LoadIBCTypeHelper(image, pBlobSigEntry);
                                 
                                 if (!th.IsNull())
                                 {
@@ -9503,7 +9352,7 @@ void Module::Arrange(DataImage *image)
                     //
                     // decode generic type signature
                     //
-                    TypeHandle th = LoadIBCTypeHelper(pBlobSigEntry);
+                    TypeHandle th = LoadIBCTypeHelper(image, pBlobSigEntry);
 
                     //
                     // Place a hot instantiated type and it's data
@@ -9571,7 +9420,7 @@ void Module::Arrange(DataImage *image)
                 else // (pBlobSigEntry  != NULL)
                 {
                     _ASSERTE(pBlobSigEntry->blob.token == token);
-                    MethodDesc * pMD = LoadIBCMethodHelper(pBlobSigEntry);
+                    MethodDesc * pMD = LoadIBCMethodHelper(image, pBlobSigEntry);
                     
                     if (pMD != NULL)
                     {
@@ -9699,7 +9548,6 @@ void Module::Fixup(DataImage *image)
 
     image->ZeroField(this, offsetof(Module, m_pProfilingBlobTable), sizeof(m_pProfilingBlobTable));
     image->ZeroField(this, offsetof(Module, m_pProfileData), sizeof(m_pProfileData));
-    image->ZeroPointerField(this, offsetof(Module, m_pIBCErrorNameString));
 
     image->ZeroPointerField(this, offsetof(Module, m_pNgenStats));
 
@@ -10702,7 +10550,7 @@ void Module::RestoreMethodDescPointer(RelativeFixupPointer<PTR_MethodDesc> * ppM
 }
 
 /*static*/
-void Module::RestoreFieldDescPointer(FixupPointer<PTR_FieldDesc> * ppFD)
+void Module::RestoreFieldDescPointer(RelativeFixupPointer<PTR_FieldDesc> * ppFD)
 {
     CONTRACTL
     {
@@ -10711,6 +10559,9 @@ void Module::RestoreFieldDescPointer(FixupPointer<PTR_FieldDesc> * ppFD)
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    if (!ppFD->IsTagged())
+        return;
 
     PTR_FieldDesc * ppValue = ppFD->GetValuePtr();
 
@@ -10723,7 +10574,7 @@ void Module::RestoreFieldDescPointer(FixupPointer<PTR_FieldDesc> * ppFD)
         CONSISTENCY_CHECK((CORCOMPILE_UNTAG_TOKEN(fixup)>>32) == 0);
 #endif
 
-        Module * pContainingModule = ExecutionManager::FindZapModule(dac_cast<TADDR>(ppValue));
+        Module * pContainingModule = ExecutionManager::FindZapModule((TADDR)ppValue);
         PREFIX_ASSUME(pContainingModule != NULL);
 
         RVA fixupRva = (RVA) CORCOMPILE_UNTAG_TOKEN(fixup);
@@ -14354,16 +14205,7 @@ void Module::ExpandAll()
                     || pMD->HasClassInstantiation())
                 && (pMD->MayHaveNativeCode() && !pMD->IsFCallOrIntrinsic()))
             {
-                COR_ILMETHOD * ilHeader = pMD->GetILHeader();
-                COR_ILMETHOD_DECODER::DecoderStatus ignored;
-                NewHolder<COR_ILMETHOD_DECODER> pHeader(new COR_ILMETHOD_DECODER(ilHeader,
-                                                                                 pMD->GetMDImport(),
-                                                                                 &ignored));
-#ifdef FEATURE_INTERPRETER
-                pMD->MakeJitWorker(pHeader, CORJIT_FLAGS(CORJIT_FLAGS::CORJIT_FLAG_MAKEFINALCODE));
-#else
-                pMD->MakeJitWorker(pHeader, CORJIT_FLAGS());
-#endif
+                pMD->PrepareInitialCode();
             }
         }
         static void CompileMethodsForMethodTable(MethodTable * pMT)

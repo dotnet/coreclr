@@ -357,6 +357,7 @@ static void sigill_handler(int code, siginfo_t *siginfo, void *context)
     }
 
     PROCNotifyProcessShutdown();
+    PROCCreateCrashDumpIfEnabled();
 }
 
 /*++
@@ -391,6 +392,7 @@ static void sigfpe_handler(int code, siginfo_t *siginfo, void *context)
     }
 
     PROCNotifyProcessShutdown();
+    PROCCreateCrashDumpIfEnabled();
 }
 
 /*++
@@ -411,7 +413,27 @@ extern "C" void signal_handler_worker(int code, siginfo_t *siginfo, void *contex
     // TODO: First variable parameter says whether a read (0) or write (non-0) caused the
     // fault. We must disassemble the instruction at record.ExceptionAddress
     // to correctly fill in this value.
+
+    // Unmask the activation signal now that we are running on the original stack of the thread
+    sigset_t signal_set;
+    sigemptyset(&signal_set);
+    sigaddset(&signal_set, INJECT_ACTIVATION_SIGNAL);
+
+    int sigmaskRet = pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL);
+    if (sigmaskRet != 0)
+    {
+        ASSERT("pthread_sigmask failed; error number is %d\n", sigmaskRet);
+    }
+
     returnPoint->returnFromHandler = common_signal_handler(code, siginfo, context, 2, (size_t)0, (size_t)siginfo->si_addr);
+
+    // We are going to return to the alternate stack, so block the activation signal again
+    sigmaskRet = pthread_sigmask(SIG_BLOCK, &signal_set, NULL);
+    if (sigmaskRet != 0)
+    {
+        ASSERT("pthread_sigmask failed; error number is %d\n", sigmaskRet);
+    }
+
     RtlRestoreContext(&returnPoint->context, NULL);
 }
 
@@ -478,6 +500,7 @@ static void sigsegv_handler(int code, siginfo_t *siginfo, void *context)
     }
 
     PROCNotifyProcessShutdown();
+    PROCCreateCrashDumpIfEnabled();
 }
 
 /*++
@@ -513,6 +536,7 @@ static void sigtrap_handler(int code, siginfo_t *siginfo, void *context)
     }
 
     PROCNotifyProcessShutdown();
+    PROCCreateCrashDumpIfEnabled();
 }
 
 /*++
@@ -550,6 +574,7 @@ static void sigbus_handler(int code, siginfo_t *siginfo, void *context)
     }
 
     PROCNotifyProcessShutdown();
+    PROCCreateCrashDumpIfEnabled();
 }
 
 /*++
@@ -694,6 +719,42 @@ PAL_ERROR InjectActivationInternal(CorUnix::CPalThread* pThread)
     return ERROR_CANCELLED;
 #endif
 }
+
+/*++
+Function :
+    signal_ignore_handler
+
+    Simple signal handler which does nothing
+
+Parameters :
+    POSIX signal handler parameter list ("man sigaction" for details)
+
+(no return value)
+--*/
+static void signal_ignore_handler(int code, siginfo_t *siginfo, void *context)
+{
+}
+
+
+void PAL_IgnoreProfileSignal(int signalNum)
+{
+#if !HAVE_MACH_EXCEPTIONS
+    // Add a signal handler which will ignore signals
+    // This will allow signal to be used as a marker in perf recording.
+    // This will be used as an aid to synchronize recorded profile with
+    // test cases
+    //
+    // signal(signalNum, SGN_IGN) can not be used here.  It will ignore
+    // the signal in kernel space and therefore generate no recordable
+    // event for profiling. Preventing it being used for profile
+    // synchronization
+    //
+    // Since this is only used in rare circumstances no attempt to
+    // restore the old handler will be made
+    handle_signal(signalNum, signal_ignore_handler, 0);
+#endif
+}
+
 
 /*++
 Function :
@@ -855,6 +916,16 @@ void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAct
     newAction.sa_handler = SIG_DFL;
 #endif  /* HAVE_SIGINFO_T */
     sigemptyset(&newAction.sa_mask);
+
+#ifdef INJECT_ACTIVATION_SIGNAL
+    if ((additionalFlags & SA_ONSTACK) != 0)
+    {
+        // A handler that runs on a separate stack should not be interrupted by the activation signal
+        // until it switches back to the regular stack, since that signal's handler would run on the
+        // limited separate stack and likely run into a stack overflow.
+        sigaddset(&newAction.sa_mask, INJECT_ACTIVATION_SIGNAL);
+    }
+#endif
 
     if (-1 == sigaction(signal_id, &newAction, previousAction))
     {

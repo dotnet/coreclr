@@ -697,9 +697,11 @@ private:
 #ifdef _TARGET_ARM_
     bool isSecondHalfReg(RegRecord* regRec, Interval* interval);
     RegRecord* findAnotherHalfRegRec(RegRecord* regRec);
-    void updateAssignedInterval(RegRecord* reg, Interval* interval, RegisterType regType);
 #endif
+    void updateAssignedInterval(RegRecord* reg, Interval* interval, RegisterType regType);
+    void updatePreviousInterval(RegRecord* reg, Interval* interval, RegisterType regType);
     bool canRestorePreviousInterval(RegRecord* regRec, Interval* assignedInterval);
+    bool isAssignedToInterval(Interval* interval, RegRecord* regRec);
 
     RefType CheckBlockType(BasicBlock* block, BasicBlock* prevBlock);
 
@@ -1168,6 +1170,11 @@ private:
 
     // True if there are any register candidate lclVars available for allocation.
     bool enregisterLocalVars;
+
+    virtual bool willEnregisterLocalVars() const
+    {
+        return enregisterLocalVars;
+    }
 
     // Ordered list of RefPositions
     RefPositionList refPositions;

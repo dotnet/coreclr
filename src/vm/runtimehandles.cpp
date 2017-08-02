@@ -22,7 +22,6 @@
 #include "stackprobe.h"
 #include "eeconfig.h"
 #include "eehash.h"
-#include "objecthandle.h"
 #include "interoputil.h"
 #include "typedesc.h"
 #include "virtualcallstub.h"
@@ -970,6 +969,24 @@ FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsInterface, ReflectClassBaseObject *pTy
     FC_RETURN_BOOL(typeHandle.IsInterface());
 }
 FCIMPLEND;
+
+
+FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsByRefLike, ReflectClassBaseObject *pTypeUNSAFE)
+{
+    CONTRACTL {
+        FCALL_CHECK;
+    }
+    CONTRACTL_END;
+    
+    REFLECTCLASSBASEREF refType = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(pTypeUNSAFE);
+
+    _ASSERTE(refType != NULL);
+
+    TypeHandle typeHandle = refType->GetType();
+
+    FC_RETURN_BOOL(typeHandle.IsByRefLike());
+}
+FCIMPLEND
 
 BOOL 
 QCALLTYPE 
@@ -3116,3 +3133,4 @@ void QCALLTYPE RuntimeMethodHandle::GetCallerType(QCall::StackCrawlMarkHandle pS
 
     return;
 }
+

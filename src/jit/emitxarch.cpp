@@ -2639,130 +2639,149 @@ void emitter::spillIntArgRegsToShadowSlots()
     }
 }
 
-// this is very similar to emitInsBinary and probably could be folded in to same
-// except the requirements on the incoming parameter are different,
-// ex: the memory op in storeind case must NOT be contained
-void emitter::emitInsMov(instruction ins, emitAttr attr, GenTree* node)
+//------------------------------------------------------------------------
+// emitInsLoadInd: Emits a "mov reg, [mem]" (or a variant such as "movzx" or "movss")
+// instruction for a GT_IND node.
+//
+// Arguments:
+//    ins - the instruction to emit
+//    attr - the instruction operand size
+//    dstReg - the destination register
+//    mem - the GT_IND node
+//
+void emitter::emitInsLoadInd(instruction ins, emitAttr attr, regNumber dstReg, GenTreeIndir* mem)
 {
+    assert(mem->OperIs(GT_IND));
+
+    GenTree* addr = mem->Addr();
+
+    if (addr->OperGet() == GT_CLS_VAR_ADDR)
+    {
+        emitIns_R_C(ins, attr, dstReg, addr->gtClsVar.gtClsVarHnd, 0);
+        return;
+    }
+
+    if (addr->OperGet() == GT_LCL_VAR_ADDR)
+    {
+        GenTreeLclVarCommon* varNode = addr->AsLclVarCommon();
+        emitIns_R_S(ins, attr, dstReg, varNode->GetLclNum(), 0);
+        codeGen->genUpdateLife(varNode);
+        return;
+    }
+
+    assert(addr->OperIsAddrMode() || (addr->IsCnsIntOrI() && addr->isContained()) || !addr->isContained());
+    size_t     offset = mem->Offset();
+    instrDesc* id     = emitNewInstrAmd(attr, offset);
+    id->idIns(ins);
+    id->idReg1(dstReg);
+    emitHandleMemOp(mem, id, IF_RWR_ARD, ins);
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
+    id->idCodeSize(sz);
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+//------------------------------------------------------------------------
+// emitInsStoreInd: Emits a "mov [mem], reg/imm" (or a variant such as "movss")
+// instruction for a GT_STOREIND node.
+//
+// Arguments:
+//    ins - the instruction to emit
+//    attr - the instruction operand size
+//    mem - the GT_STOREIND node
+//
+void emitter::emitInsStoreInd(instruction ins, emitAttr attr, GenTreeStoreInd* mem)
+{
+    assert(mem->OperIs(GT_STOREIND));
+
+    GenTree* addr = mem->Addr();
+    GenTree* data = mem->Data();
+
+    if (addr->OperGet() == GT_CLS_VAR_ADDR)
+    {
+        if (data->isContainedIntOrIImmed())
+        {
+            emitIns_C_I(ins, attr, addr->gtClsVar.gtClsVarHnd, 0, (int)data->AsIntConCommon()->IconValue());
+        }
+        else
+        {
+            assert(!data->isContained());
+            emitIns_C_R(ins, attr, addr->gtClsVar.gtClsVarHnd, data->gtRegNum, 0);
+        }
+        return;
+    }
+
+    if (addr->OperGet() == GT_LCL_VAR_ADDR)
+    {
+        GenTreeLclVarCommon* varNode = addr->AsLclVarCommon();
+        if (data->isContainedIntOrIImmed())
+        {
+            emitIns_S_I(ins, attr, varNode->GetLclNum(), 0, (int)data->AsIntConCommon()->IconValue());
+        }
+        else
+        {
+            assert(!data->isContained());
+            emitIns_S_R(ins, attr, data->gtRegNum, varNode->GetLclNum(), 0);
+        }
+        codeGen->genUpdateLife(varNode);
+        return;
+    }
+
+    size_t         offset = mem->Offset();
     UNATIVE_OFFSET sz;
     instrDesc*     id;
 
-    switch (node->OperGet())
+    if (data->isContainedIntOrIImmed())
     {
-        case GT_IND:
-        {
-            GenTreeIndir* mem  = node->AsIndir();
-            GenTreePtr    addr = mem->Addr();
-
-            if (addr->OperGet() == GT_CLS_VAR_ADDR)
-            {
-                emitIns_R_C(ins, attr, mem->gtRegNum, addr->gtClsVar.gtClsVarHnd, 0);
-                return;
-            }
-            else if (addr->OperGet() == GT_LCL_VAR_ADDR)
-            {
-                GenTreeLclVarCommon* varNode = addr->AsLclVarCommon();
-                emitIns_R_S(ins, attr, mem->gtRegNum, varNode->GetLclNum(), 0);
-                codeGen->genUpdateLife(varNode);
-                return;
-            }
-            else
-            {
-                assert(addr->OperIsAddrMode() || (addr->IsCnsIntOrI() && addr->isContained()) || !addr->isContained());
-                size_t offset = mem->Offset();
-                id            = emitNewInstrAmd(attr, offset);
-                id->idIns(ins);
-                id->idReg1(mem->gtRegNum);
-                emitHandleMemOp(mem, id, IF_RWR_ARD, ins);
-                sz = emitInsSizeAM(id, insCodeRM(ins));
-                id->idCodeSize(sz);
-            }
-        }
-        break;
-
-        case GT_STOREIND:
-        {
-            GenTreeStoreInd* mem    = node->AsStoreInd();
-            GenTreePtr       addr   = mem->Addr();
-            size_t           offset = mem->Offset();
-            GenTree*         data   = mem->Data();
-
-            if (addr->OperGet() == GT_CLS_VAR_ADDR)
-            {
-                if (data->isContainedIntOrIImmed())
-                {
-                    emitIns_C_I(ins, attr, addr->gtClsVar.gtClsVarHnd, 0, (int)data->AsIntConCommon()->IconValue());
-                }
-                else
-                {
-                    assert(!data->isContained());
-                    emitIns_C_R(ins, attr, addr->gtClsVar.gtClsVarHnd, data->gtRegNum, 0);
-                }
-                return;
-            }
-            else if (addr->OperGet() == GT_LCL_VAR_ADDR)
-            {
-                GenTreeLclVarCommon* varNode = addr->AsLclVarCommon();
-                if (data->isContainedIntOrIImmed())
-                {
-                    emitIns_S_I(ins, attr, varNode->GetLclNum(), 0, (int)data->AsIntConCommon()->IconValue());
-                }
-                else
-                {
-                    assert(!data->isContained());
-                    emitIns_S_R(ins, attr, data->gtRegNum, varNode->GetLclNum(), 0);
-                }
-                codeGen->genUpdateLife(varNode);
-                return;
-            }
-            else if (data->isContainedIntOrIImmed())
-            {
-                int icon = (int)data->AsIntConCommon()->IconValue();
-                id       = emitNewInstrAmdCns(attr, offset, icon);
-                id->idIns(ins);
-                emitHandleMemOp(mem, id, IF_AWR_CNS, ins);
-                sz = emitInsSizeAM(id, insCodeMI(ins), icon);
-                id->idCodeSize(sz);
-            }
-            else
-            {
-                assert(!data->isContained());
-                id = emitNewInstrAmd(attr, offset);
-                id->idIns(ins);
-                emitHandleMemOp(mem, id, IF_AWR_RRD, ins);
-                id->idReg1(data->gtRegNum);
-                sz = emitInsSizeAM(id, insCodeMR(ins));
-                id->idCodeSize(sz);
-            }
-        }
-        break;
-
-        case GT_STORE_LCL_VAR:
-        {
-            GenTreeLclVarCommon* varNode = node->AsLclVarCommon();
-            GenTree*             data    = varNode->gtOp.gtOp1;
-            codeGen->inst_set_SV_var(varNode);
-            assert(varNode->gtRegNum == REG_NA); // stack store
-
-            if (data->isContainedIntOrIImmed())
-            {
-                emitIns_S_I(ins, attr, varNode->GetLclNum(), 0, (int)data->AsIntConCommon()->IconValue());
-            }
-            else
-            {
-                assert(!data->isContained());
-                emitIns_S_R(ins, attr, data->gtRegNum, varNode->GetLclNum(), 0);
-            }
-            codeGen->genUpdateLife(varNode);
-        }
-            return;
-
-        default:
-            unreached();
+        int icon = (int)data->AsIntConCommon()->IconValue();
+        id       = emitNewInstrAmdCns(attr, offset, icon);
+        id->idIns(ins);
+        emitHandleMemOp(mem, id, IF_AWR_CNS, ins);
+        sz = emitInsSizeAM(id, insCodeMI(ins), icon);
+        id->idCodeSize(sz);
+    }
+    else
+    {
+        assert(!data->isContained());
+        id = emitNewInstrAmd(attr, offset);
+        id->idIns(ins);
+        emitHandleMemOp(mem, id, IF_AWR_RRD, ins);
+        id->idReg1(data->gtRegNum);
+        sz = emitInsSizeAM(id, insCodeMR(ins));
+        id->idCodeSize(sz);
     }
 
     dispIns(id);
     emitCurIGsize += sz;
+}
+
+//------------------------------------------------------------------------
+// emitInsStoreLcl: Emits a "mov [mem], reg/imm" (or a variant such as "movss")
+// instruction for a GT_STORE_LCL_VAR node.
+//
+// Arguments:
+//    ins - the instruction to emit
+//    attr - the instruction operand size
+//    varNode - the GT_STORE_LCL_VAR node
+//
+void emitter::emitInsStoreLcl(instruction ins, emitAttr attr, GenTreeLclVarCommon* varNode)
+{
+    assert(varNode->OperIs(GT_STORE_LCL_VAR));
+    assert(varNode->gtRegNum == REG_NA); // stack store
+
+    GenTree* data = varNode->gtGetOp1();
+    codeGen->inst_set_SV_var(varNode);
+
+    if (data->isContainedIntOrIImmed())
+    {
+        emitIns_S_I(ins, attr, varNode->GetLclNum(), 0, (int)data->AsIntConCommon()->IconValue());
+    }
+    else
+    {
+        assert(!data->isContained());
+        emitIns_S_R(ins, attr, data->gtRegNum, varNode->GetLclNum(), 0);
+    }
+    codeGen->genUpdateLife(varNode);
 }
 
 CORINFO_FIELD_HANDLE emitter::emitLiteralConst(ssize_t cnsValIn, emitAttr attr /*= EA_8BYTE*/)
@@ -8012,48 +8031,8 @@ DONE:
                 break;
 
             case IF_RRW_ARD:
-                assert(id->idGCref() == GCT_BYREF);
-
-#ifdef DEBUG
-                regMaskTP regMask;
-                regMask = genRegMask(id->idReg1());
-
-                // <BUGNUM> VSW 335101 </BUGNUM>
-                // Either id->idReg1(), id->idAddr()->iiaAddrMode.amBaseReg, or id->idAddr()->iiaAddrMode.amIndxReg
-                // could be a BYREF.
-                // For example in the following case:
-                //     mov     EDX, bword ptr [EBP-78H] ; EDX becomes BYREF after this instr.
-                //     add     EAX, bword ptr [EDX+8]   ; It is the EDX that's causing id->idGCref to be GCT_BYREF.
-                //                                      ; EAX becomes BYREF after this instr.
-                // <BUGNUM> DD 273707 </BUGNUM>
-                //     add     EDX, bword ptr [036464E0H] ; int + static field (technically a GCREF)=BYREF
-                regMaskTP baseRegMask;
-                if (reg == REG_NA)
-                {
-                    baseRegMask = RBM_NONE;
-                }
-                else
-                {
-                    baseRegMask = genRegMask(reg);
-                }
-                regMaskTP indexRegMask;
-                if (rgx == REG_NA)
-                {
-                    indexRegMask = RBM_NONE;
-                }
-                else
-                {
-                    indexRegMask = genRegMask(rgx);
-                }
-
-                // r1 could have been a GCREF as GCREF + int=BYREF
-                //                            or BYREF+/-int=BYREF
-                assert(((reg == REG_NA) && (rgx == REG_NA) && (ins == INS_add || ins == INS_sub)) ||
-                       (((regMask | baseRegMask | indexRegMask) & emitThisGCrefRegs) && (ins == INS_add)) ||
-                       (((regMask | baseRegMask | indexRegMask) & emitThisByrefRegs) &&
-                        (ins == INS_add || ins == INS_sub)));
-#endif
-                // Mark it as holding a GCT_BYREF
+                // Mark the destination register as holding a GCT_BYREF
+                assert(id->idGCref() == GCT_BYREF && (ins == INS_add || ins == INS_sub));
                 emitGCregLiveUpd(GCT_BYREF, id->idReg1(), dst);
                 break;
 
