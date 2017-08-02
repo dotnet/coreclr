@@ -281,7 +281,7 @@ def static getOSGroup(def os) {
                 --mscorlibDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
                 --coreFxBinDir=\"\${WORKSPACE}/corefx/bin/${osGroup}.AnyCPU.${configuration};\${WORKSPACE}/corefx/bin/Unix.AnyCPU.${configuration};\${WORKSPACE}/corefx/bin/AnyOS.AnyCPU.${configuration}\" \\
                 --coreFxNativeBinDir=\"\${WORKSPACE}/corefx/bin/${osGroup}.${architecture}.${configuration}\" \\
-                --runType=\"Local\" \\
+                --runType=\"${runType}\" \\
                 --benchViewOS=\"${os}\" \\
                 --generatebenchviewdata=\"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" \\
                 --stabilityPrefix=\"taskset 0x00000002 nice --adjustment=-10\" \\
