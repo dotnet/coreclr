@@ -21,15 +21,6 @@ For detailed copyright information see the file COPYING in the root of the
 distribution archive.
 """
 
-from __future__ import division
-from __future__ import print_function
-from builtins import bytes
-from builtins import chr
-from builtins import object
-from builtins import range
-from builtins import str
-from builtins import zip
-
 __author__ = 'Ero Carrera'
 __version__ = '2017.5.26'
 __contact__ = 'ero.carrera@gmail.com'
@@ -56,6 +47,9 @@ PY3 = sys.version_info > (3,)
 
 if PY3:
     long = int
+    unichr = chr
+else:
+    range = xrange
 
 def count_zeroes(data):
     try:
@@ -939,7 +933,7 @@ class Structure(object):
                 else:
                     val_str = bytearray(val)
                     val_str = ''.join(
-                            [chr(i) if (i in printable_bytes) else
+                            [unichr(i) if (i in printable_bytes) else
                              '\\x{0:02x}'.format(i) for i in val_str.rstrip(b'\x00')])
 
                 dump.append('0x%-8X 0x%-3X %-30s %s' % (
@@ -968,7 +962,7 @@ class Structure(object):
                         except ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 else:
-                    val = ''.join(chr(d) if chr(d) in string.printable
+                    val = ''.join(unichr(d) if unichr(d) in string.printable
                                   else "\\x%02x" % d for d in
                                     [ord(c) if not isinstance(c, int) else c for c in val])
 
@@ -2197,7 +2191,7 @@ class PE(object):
         """
 
         for warning in self.__warnings:
-            print('>', warning)
+            print('> {0}'.format(warning)) # nategraf: modified to work for py 2 and 3
 
 
     def full_load(self):
@@ -2528,7 +2522,7 @@ class PE(object):
                 if name_str:
                     invalid_chars = [
                         c for c in bytearray(name_str) if
-                            chr(c) not in string.printable]
+                            unichr(c) not in string.printable]
                     if len(name_str) > 256 or invalid_chars:
                         break
 
@@ -2543,7 +2537,7 @@ class PE(object):
             if name_str:
                 invalid_chars = [
                     c for c in bytearray(name_str) if
-                        chr(c) not in string.printable]
+                        unichr(c) not in string.printable]
                 if len(name_str) > 256 or invalid_chars:
                     break
 
@@ -4366,7 +4360,7 @@ class PE(object):
 
         # convert selected part of the string to unicode
         uchrs = struct.unpack('<{:d}H'.format(null_index), data[:null_index * 2])
-        s = u''.join(map(chr, uchrs))
+        s = u''.join(map(unichr, uchrs))
 
         if encoding:
             return b(s.encode(encoding, 'backslashreplace'))
@@ -4401,7 +4395,7 @@ class PE(object):
 
     def print_info(self, encoding='utf-8'):
         """Print all the PE header information in a human readable from."""
-        print(self.dump_info(), encoding=encoding)
+        print('{0} {1}'.format(self.dump_info(), encoding=encoding)) # nategraf: modified to work for py 2 and 3
 
 
     def dump_info(self, dump=None, encoding='ascii'):
@@ -5341,7 +5335,7 @@ class PE(object):
         #     if b != ord(self.__data__[idx]) or (idx > 1244440 and idx < 1244460):
         #         print('Idx: {0} G {1:02x} {3} B {2:02x}'.format(
         #             idx, ord(self.__data__[idx]), b,
-        #             self.__data__[idx], chr(b)))
+        #             self.__data__[idx], unichr(b)))
         self.__data__ = self.write()
 
         # Get the offset to the CheckSum field in the OptionalHeader
