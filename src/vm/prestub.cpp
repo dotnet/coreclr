@@ -60,14 +60,6 @@ EXTERN_C void DeleteFromPitchingCandidate(MethodDesc* pMD);
 EXTERN_C void MarkMethodNotPitchingCandidate(MethodDesc* pMD);
 #endif
 
-EXTERN_C void STDCALL ThePreStub();
-
-#if defined(HAS_COMPACT_ENTRYPOINTS) && defined (_TARGET_ARM_)
-
-EXTERN_C void STDCALL ThePreStubCompactARM();
-
-#endif // defined(HAS_COMPACT_ENTRYPOINTS) && defined (_TARGET_ARM_)
-
 EXTERN_C void STDCALL ThePreStubPatch();
 
 //==========================================================================
@@ -740,7 +732,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
 
         // Interpretted methods skip this notification
 #ifdef FEATURE_INTERPRETER
-        if (Interpreter::InterpretationStubToMethodInfo(pJitNotificationInfo->pCode) == NULL)
+        if (Interpreter::InterpretationStubToMethodInfo(pCode) == NULL)
 #endif
         {
             // Fire an ETW event to mark the end of JIT'ing
@@ -795,9 +787,13 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
     }
 #endif // PROFILING_SUPPORTED
 
+#ifdef FEATURE_INTERPRETER
+    bool isJittedMethod = (Interpreter::InterpretationStubToMethodInfo(pCode) == NULL);
+#endif
+
     // Interpretted methods skip this notification
 #ifdef FEATURE_INTERPRETER
-    if (Interpreter::InterpretationStubToMethodInfo(pCode) == NULL)
+    if (isJittedMethod)
 #endif
     {
 #ifdef FEATURE_PERFMAP
@@ -822,8 +818,13 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
     }
 #endif
 
-    // The notification will only occur if someone has registered for this method.
-    DACNotifyCompilationFinished(this);
+#ifdef FEATURE_INTERPRETER
+    if (isJittedMethod)
+#endif
+    {
+        // The notification will only occur if someone has registered for this method.
+        DACNotifyCompilationFinished(this);
+    }
 
     return pCode;
 }
@@ -988,12 +989,16 @@ CORJIT_FLAGS PrepareCodeConfig::GetJitCompilationFlags()
 {
     STANDARD_VM_CONTRACT;
 
+    CORJIT_FLAGS flags;
     if (m_pMethodDesc->IsILStub())
     {
         ILStubResolver* pResolver = m_pMethodDesc->AsDynamicMethodDesc()->GetILStubResolver();
-        return pResolver->GetJitFlags();
+        flags = pResolver->GetJitFlags();
     }
-    return CORJIT_FLAGS();
+#ifdef FEATURE_TIERED_COMPILATION
+    flags.Add(TieredCompilationManager::GetJitFlags(m_nativeCodeVersion));
+#endif
+    return flags;
 }
 
 BOOL PrepareCodeConfig::MayUsePrecompiledCode()

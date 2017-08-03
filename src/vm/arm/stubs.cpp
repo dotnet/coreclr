@@ -2522,6 +2522,12 @@ void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
     FlushInstructionCache(GetCurrentProcess(),&m_code,sizeof(m_code));
 }
 
+void UMEntryThunkCode::Poison()
+{
+    // Insert 'udf 0xff' at the entry point
+    m_code[0] = 0xdeff;
+}
+
 ///////////////////////////// UNIMPLEMENTED //////////////////////////////////
 
 #ifndef DACCESS_COMPILE

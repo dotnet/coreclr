@@ -515,6 +515,8 @@ typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 // Each thread has a stack that tracks all enter and leave requests
 struct Dbg_TrackSync
 {
+    virtual ~Dbg_TrackSync() = default;
+
     virtual void EnterSync    (UINT_PTR caller, void *pAwareLock) = 0;
     virtual void LeaveSync    (UINT_PTR caller, void *pAwareLock) = 0;
 };
@@ -5249,11 +5251,9 @@ public:
     // object associated with them (e.g., the bgc thread).
     void SetGCSpecial(bool fGCSpecial);
 
-#ifndef FEATURE_PAL
 private:
     WORD m_wCPUGroup;
     DWORD_PTR m_pAffinityMask;
-#endif // !FEATURE_PAL
 
 public:
     void ChooseThreadCPUGroupAffinity();

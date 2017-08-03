@@ -207,6 +207,12 @@ bool CodeGenInterface::genMarkLclVar(GenTreePtr tree)
     assert(varNum < compiler->lvaCount);
     varDsc = compiler->lvaTable + varNum;
 
+    // Retype byref-typed appearances of intptr-typed lclVars as type intptr.
+    if ((varDsc->TypeGet() == TYP_I_IMPL) && (tree->TypeGet() == TYP_BYREF))
+    {
+        tree->gtType = TYP_I_IMPL;
+    }
+
     if (varDsc->lvRegister)
     {
         genBashLclVar(tree, varNum, varDsc);
@@ -2840,8 +2846,6 @@ GenTreePtr CodeGen::genMakeAddrOrFPstk(GenTreePtr tree, regMaskTP* regMaskPtr, b
  *   Generate code to check that the GS cookie wasn't thrashed by a buffer
  *   overrun.  If pushReg is true, preserve all registers around code sequence.
  *   Otherwise, ECX maybe modified.
- *
- *   TODO-ARM-Bug?: pushReg is not implemented (is it needed for ARM?)
  */
 void CodeGen::genEmitGSCookieCheck(bool pushReg)
 {
@@ -2857,13 +2861,20 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
 
     noway_assert(compiler->gsGlobalSecurityCookieAddr || compiler->gsGlobalSecurityCookieVal);
 
+#if CPU_LOAD_STORE_ARCH
+    // Lock all ABI argument registers before generating the check. All other registers should be dead, so this
+    // shouldn't over-constrain us.
+    const regMaskTP unlockedArgRegs = RBM_ARG_REGS & ~regSet.rsMaskLock;
+    regMaskTP       usedArgRegs;
+    regSet.rsLockReg(unlockedArgRegs, &usedArgRegs);
+#endif
+
     if (compiler->gsGlobalSecurityCookieAddr == NULL)
     {
         // JIT case
         CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if CPU_LOAD_STORE_ARCH
-
         regNumber reg = regSet.rsGrabReg(RBM_ALLINT);
         getEmitter()->emitIns_R_S(ins_Load(TYP_INT), EA_4BYTE, reg, compiler->lvaGSSecurityCookie, 0);
         regTracker.rsTrackRegTrash(reg);
@@ -2941,6 +2952,11 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
     genDefineTempLabel(gsCheckBlk);
 
     genPopRegs(pushedRegs, byrefPushedRegs, norefPushedRegs);
+
+#if CPU_LOAD_STORE_ARCH
+    // Unlock all ABI argument registers.
+    regSet.rsUnlockReg(unlockedArgRegs, usedArgRegs);
+#endif
 }
 
 /*****************************************************************************
@@ -14672,7 +14688,7 @@ void CodeGen::genCodeForTreeLng(GenTreePtr tree, regMaskTP needReg, regMaskTP av
                             if (!genMaxOneBit(needReg))
                             {
                                 regPair = regSet.rsFindRegPairNo(needReg);
-                                if (needReg != genRegPairMask(regPair))
+                                if ((regPair == REG_PAIR_NONE) || (needReg != genRegPairMask(regPair)))
                                     goto ANY_FREE_REG_UNSIGNED;
                                 loRegMask = genRegMask(genRegPairLo(regPair));
                                 if ((loRegMask & regSet.rsRegMaskCanGrab()) == 0)
@@ -17693,7 +17709,16 @@ void CodeGen::SetupLateArgs(GenTreeCall* call)
 
                     getEmitter()->emitIns_R_S(INS_lea, EA_PTRSIZE, regSrc, varNum, 0);
                     regTracker.rsTrackRegTrash(regSrc);
-                    gcLayout = compiler->lvaGetGcLayout(varNum);
+
+                    if (varDsc->lvExactSize >= TARGET_POINTER_SIZE)
+                    {
+                        gcLayout = compiler->lvaGetGcLayout(varNum);
+                    }
+                    else
+                    {
+                        gcLayout    = new (compiler, CMK_Codegen) BYTE[1];
+                        gcLayout[0] = TYPE_GC_NONE;
+                    }
                 }
             }
             else if (arg->gtOper == GT_MKREFANY)
@@ -19052,7 +19077,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         CORINFO_CONST_LOOKUP lookup;
                         compiler->info.compCompHnd->getAddressOfPInvokeTarget(methHnd, &lookup);
 
-                        void* addr = lookup.addr;
+                        addr = lookup.addr;
 
                         assert(addr != NULL);
 
@@ -19425,6 +19450,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         break;
 
                         case IAT_PVALUE:
+                        {
                             //------------------------------------------------------
                             // Non-virtual direct calls to addresses accessed by
                             // a single indirection.
@@ -19433,10 +19459,28 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                             // Load the address into a register, load indirect and call  through a register
                             CLANG_FORMAT_COMMENT_ANCHOR;
 #if CPU_LOAD_STORE_ARCH
-                            indCallReg = regSet.rsGrabReg(RBM_ALLINT); // Grab an available register to use for the CALL
-                                                                       // indirection
+                            regMaskTP indCallMask = RBM_ALLINT;
+
+#ifdef FEATURE_READYTORUN_COMPILER
+                            if (call->IsR2RRelativeIndir())
+                            {
+                                indCallMask &= ~RBM_R2R_INDIRECT_PARAM;
+                            }
+#endif // FEATURE_READYTORUN_COMPILER
+
+                            // Grab an available register to use for the CALL indirection
+                            indCallReg = regSet.rsGrabReg(indCallMask);
 
                             instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addr);
+
+#ifdef FEATURE_READYTORUN_COMPILER
+                            if (call->IsR2RRelativeIndir())
+                            {
+                                noway_assert(regSet.rsRegMaskCanGrab() & RBM_R2R_INDIRECT_PARAM);
+                                getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R2R_INDIRECT_PARAM, indCallReg);
+                            }
+#endif // FEATURE_READYTORUN_COMPILER
+
                             getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
                             regTracker.rsTrackRegTrash(indCallReg);
 
@@ -19456,7 +19500,8 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                                                        REG_NA, 0, 0, // xreg, xmul, disp
                                                        false,        /* isJump */
                                                        emitter::emitNoGChelper(helperNum));
-                            break;
+                        }
+                        break;
 
                         case IAT_PPVALUE:
                         {
