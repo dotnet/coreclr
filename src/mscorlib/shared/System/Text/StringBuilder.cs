@@ -2047,12 +2047,12 @@ namespace System.Text
         {
             if (count > 0)
             {
-                if ((uint)sourceIndex > (uint)source.Length || (sourceIndex + count) > source.Length)
+                if ((uint)sourceIndex > (uint)source.Length || count > source.Length - sourceIndex)
                 {
                     throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_Index);
                 }
 
-                if ((uint)destinationIndex > (uint)destination.Length || (destinationIndex + count) > destination.Length)
+                if ((uint)destinationIndex > (uint)destination.Length || count > destination.Length - destinationIndex)
                 {
                     throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_Index);
                 }
