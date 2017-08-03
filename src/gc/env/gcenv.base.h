@@ -106,6 +106,8 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define _vsnprintf_s(string, sizeInBytes, count, format, args) vsnprintf(string, sizeInBytes, format, args)
 #define sprintf_s snprintf
 #define swprintf_s swprintf
+#define _snprintf_s(string, sizeInBytes, count, format, ...) \
+  snprintf(string, sizeInBytes, format, ## __VA_ARGS__)
 #endif
 
 #ifdef UNICODE
@@ -225,7 +227,7 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 #endif // _MSC_VER
 
 // Cross-platform wrapper for the _BitScanForward compiler intrinsic.
-inline unsigned char BitScanForward(DWORD *bitIndex, DWORD mask)
+inline uint8_t BitScanForward(uint32_t *bitIndex, uint32_t mask)
 {
 #ifdef _MSC_VER
     return _BitScanForward((unsigned long*)bitIndex, mask);
@@ -234,7 +236,7 @@ inline unsigned char BitScanForward(DWORD *bitIndex, DWORD mask)
     int iIndex = __builtin_ffsl(mask);
     if (iIndex != 0)
     {
-        *bitIndex = (DWORD)(iIndex - 1);
+        *bitIndex = (uint32_t)(iIndex - 1);
         ret = TRUE;
     }
 
@@ -243,7 +245,7 @@ inline unsigned char BitScanForward(DWORD *bitIndex, DWORD mask)
 }
 
 // Cross-platform wrapper for the _BitScanForward64 compiler intrinsic.
-inline unsigned char BitScanForward64(DWORD *bitIndex, DWORD64 mask)
+inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
 {
 #ifdef _MSC_VER
     return _BitScanForward64((unsigned long*)bitIndex, mask);
@@ -252,7 +254,7 @@ inline unsigned char BitScanForward64(DWORD *bitIndex, DWORD64 mask)
     int iIndex = __builtin_ffsll(mask);
     if (iIndex != 0)
     {
-        *bitIndex = (DWORD)(iIndex - 1);
+        *bitIndex = (uint32_t)(iIndex - 1);
         ret = TRUE;
     }
 

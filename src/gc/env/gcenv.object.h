@@ -36,8 +36,6 @@ static_assert(sizeof(ObjHeader) == sizeof(uintptr_t), "this assumption is made b
 #define MTFlag_ContainsPointers 0x0100
 #define MTFlag_HasFinalizer     0x0010
 #define MTFlag_IsArray          0x0008
-
-// TODO(segilles) get the correct value for this
 #define MTFlag_Collectible      0x1000
 #define MTFlag_HasComponentSize 0x8000
 
