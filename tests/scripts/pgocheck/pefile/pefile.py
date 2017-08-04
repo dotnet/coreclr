@@ -949,6 +949,8 @@ class Structure(object):
 
         dump_dict['Structure'] = self.name
 
+        printable_bytes = [ord(i) for i in string.printable]
+
         # Refer to the __set_format__ method for an explanation
         # of the following construct.
         for keys in self.__keys__:
@@ -962,7 +964,7 @@ class Structure(object):
                         except ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 else:
-                    val = ''.join(unichr(d) if unichr(d) in string.printable
+                    val = ''.join(unichr(d) if d in printable_bytes
                                   else "\\x%02x" % d for d in
                                     [ord(c) if not isinstance(c, int) else c for c in val])
 
@@ -2191,7 +2193,7 @@ class PE(object):
         """
 
         for warning in self.__warnings:
-            print('> {0}'.format(warning)) # nategraf: modified to work for py 2 and 3
+            sts.stdout.write('> {0}\n'.format(warning)) # nategraf: modified to work for py 2 and 3
 
 
     def full_load(self):
@@ -4395,7 +4397,7 @@ class PE(object):
 
     def print_info(self, encoding='utf-8'):
         """Print all the PE header information in a human readable from."""
-        print('{0} {1}'.format(self.dump_info(), encoding=encoding)) # nategraf: modified to work for py 2 and 3
+        sys.stdout.write('{0} {1}\n'.format(self.dump_info(), encoding=encoding)) # nategraf: modified to work for py 2 and 3
 
 
     def dump_info(self, dump=None, encoding='ascii'):
@@ -5555,6 +5557,6 @@ class PE(object):
 if __name__ == '__main__':
     import sys
     if not sys.argv[1:]:
-        print('pefile.py <filename>')
+        sys.stdout.write('pefile.py <filename>\n')
     else:
-        print(PE(sys.argv[1]).dump_info())
+        sys.stdout.write("{0}\n".format(PE(sys.argv[1]).dump_info()))
