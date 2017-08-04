@@ -63,11 +63,17 @@ namespace System.Threading
         // the events that hang off this lock (eg writeEvent, readEvent upgradeEvent).
         private int _myLock;
 
+        // Used to deprioritize threading attempting to enter _myLock when they would not make progress after doing so
+        private int _enterMyLockDeprioritizationState;
+        private const int DeprioritizeEnterAnyReadIncrement = 1 << 16;
+        private const int DeprioritizeEnterAnyWriteIncrement = 1;
+
         //The variables controlling spinning behavior of Mylock(which is a spin-lock)
 
         private const int LockSpinCycles = 20;
         private const int LockSpinCount = 10;
         private const int LockSleep0Count = 5;
+        private const int DeprioritizedLockSleep1Count = 5;
 
         // These variables allow use to avoid Setting events (which is expensive) if we don't have to. 
         private uint _numWriteWaiters;        // maximum number of threads that can be doing a WaitOne on the writeEvent 
@@ -323,7 +329,7 @@ namespace System.Threading
                     throw new LockRecursionException(SR.LockRecursionException_ReadAfterWriteNotAllowed);
                 }
 
-                EnterMyLock();
+                EnterMyLock(EnterMyLockReason.EnterAnyRead);
 
                 lrwc = GetThreadRWCount(false);
 
@@ -349,7 +355,7 @@ namespace System.Threading
             }
             else
             {
-                EnterMyLock();
+                EnterMyLock(EnterMyLockReason.EnterAnyRead);
                 lrwc = GetThreadRWCount(false);
                 if (lrwc.readercount > 0)
                 {
@@ -405,7 +411,7 @@ namespace System.Threading
                     ExitMyLock();
                     spinCount++;
                     SpinWait(spinCount);
-                    EnterMyLock();
+                    EnterMyLock(EnterMyLockReason.EnterAnyRead);
                     //The per-thread structure may have been recycled as the lock is acquired (due to message pumping), load again.
                     if (IsRwHashEntryChanged(lrwc))
                         lrwc = GetThreadRWCount(false);
@@ -415,19 +421,13 @@ namespace System.Threading
                 // Drat, we need to wait.  Mark that we have waiters and wait.  
                 if (_readEvent == null)      // Create the needed event 
                 {
-                    LazyCreateEvent(ref _readEvent, false);
+                    LazyCreateEvent(ref _readEvent, EnterLockType.Read);
                     if (IsRwHashEntryChanged(lrwc))
                         lrwc = GetThreadRWCount(false);
                     continue;   // since we left the lock, start over. 
                 }
 
-                retVal =
-                    WaitOnEvent(
-                        _readEvent,
-                        ref _numReadWaiters,
-                        timeout,
-                        isWriteWaiter: false,
-                        waiterSignaledState: WaiterStates.None);
+                retVal = WaitOnEvent(_readEvent, ref _numReadWaiters, timeout, EnterLockType.Read);
                 if (!retVal)
                 {
                     return false;
@@ -471,6 +471,7 @@ namespace System.Threading
 
             if (!_fIsReentrant)
             {
+                EnterMyLockReason enterMyLockReason;
                 if (id == _writeLockOwnerId)
                 {
                     //Check for AW->AW
@@ -480,9 +481,14 @@ namespace System.Threading
                 {
                     //AU->AW case is allowed once.
                     upgradingToWrite = true;
+                    enterMyLockReason = EnterMyLockReason.UpgradeToWrite;
                 }
+                else
+                {
+                    enterMyLockReason = EnterMyLockReason.EnterWrite;
+                }
+                EnterMyLock(enterMyLockReason);
 
-                EnterMyLock();
                 lrwc = GetThreadRWCount(true);
 
                 //Can't acquire write lock with reader lock held. 
@@ -494,7 +500,21 @@ namespace System.Threading
             }
             else
             {
-                EnterMyLock();
+                EnterMyLockReason enterMyLockReason;
+                if (id == _writeLockOwnerId)
+                {
+                    enterMyLockReason = EnterMyLockReason.EnterRecursiveWrite;
+                }
+                else if (id == _upgradeLockOwnerId)
+                {
+                    enterMyLockReason = EnterMyLockReason.UpgradeToWrite;
+                }
+                else
+                {
+                    enterMyLockReason = EnterMyLockReason.EnterWrite;
+                }
+                EnterMyLock(enterMyLockReason);
+
                 lrwc = GetThreadRWCount(false);
 
                 if (id == _writeLockOwnerId)
@@ -575,7 +595,7 @@ namespace System.Threading
                     ExitMyLock();
                     spinCount++;
                     SpinWait(spinCount);
-                    EnterMyLock();
+                    EnterMyLock(upgradingToWrite ? EnterMyLockReason.UpgradeToWrite : EnterMyLockReason.EnterWrite);
                     continue;
                 }
 
@@ -583,19 +603,13 @@ namespace System.Threading
                 {
                     if (_waitUpgradeEvent == null)   // Create the needed event
                     {
-                        LazyCreateEvent(ref _waitUpgradeEvent, true);
+                        LazyCreateEvent(ref _waitUpgradeEvent, EnterLockType.UpgradeToWrite);
                         continue;   // since we left the lock, start over. 
                     }
 
                     Debug.Assert(_numWriteUpgradeWaiters == 0, "There can be at most one thread with the upgrade lock held.");
 
-                    retVal =
-                        WaitOnEvent(
-                            _waitUpgradeEvent,
-                            ref _numWriteUpgradeWaiters,
-                            timeout,
-                            isWriteWaiter: true,
-                            waiterSignaledState: WaiterStates.None);
+                    retVal = WaitOnEvent(_waitUpgradeEvent, ref _numWriteUpgradeWaiters, timeout, EnterLockType.UpgradeToWrite);
 
                     //The lock is not held in case of failure.
                     if (!retVal)
@@ -606,17 +620,11 @@ namespace System.Threading
                     // Drat, we need to wait.  Mark that we have waiters and wait.
                     if (_writeEvent == null)     // create the needed event.
                     {
-                        LazyCreateEvent(ref _writeEvent, true);
+                        LazyCreateEvent(ref _writeEvent, EnterLockType.Write);
                         continue;   // since we left the lock, start over. 
                     }
 
-                    retVal =
-                        WaitOnEvent(
-                            _writeEvent,
-                            ref _numWriteWaiters,
-                            timeout,
-                            isWriteWaiter: true,
-                            waiterSignaledState: WaiterStates.WriteWaiterSignaled);
+                    retVal = WaitOnEvent(_writeEvent, ref _numWriteWaiters, timeout, EnterLockType.Write);
                     //The lock is not held in case of failure.
                     if (!retVal)
                         return false;
@@ -680,7 +688,7 @@ namespace System.Threading
                     throw new LockRecursionException(SR.LockRecursionException_UpgradeAfterWriteNotAllowed);
                 }
 
-                EnterMyLock();
+                EnterMyLock(EnterMyLockReason.EnterAnyRead);
                 lrwc = GetThreadRWCount(true);
                 //Can't acquire upgrade lock with reader lock held. 
                 if (lrwc != null && lrwc.readercount > 0)
@@ -691,7 +699,7 @@ namespace System.Threading
             }
             else
             {
-                EnterMyLock();
+                EnterMyLock(EnterMyLockReason.EnterAnyRead);
                 lrwc = GetThreadRWCount(false);
 
                 if (id == _upgradeLockOwnerId)
@@ -748,25 +756,19 @@ namespace System.Threading
                     ExitMyLock();
                     spinCount++;
                     SpinWait(spinCount);
-                    EnterMyLock();
+                    EnterMyLock(EnterMyLockReason.EnterAnyRead);
                     continue;
                 }
 
                 // Drat, we need to wait.  Mark that we have waiters and wait. 
                 if (_upgradeEvent == null)   // Create the needed event
                 {
-                    LazyCreateEvent(ref _upgradeEvent, true);
+                    LazyCreateEvent(ref _upgradeEvent, EnterLockType.UpgradeableRead);
                     continue;   // since we left the lock, start over. 
                 }
 
                 //Only one thread with the upgrade lock held can proceed.
-                retVal =
-                    WaitOnEvent(
-                        _upgradeEvent,
-                        ref _numUpgradeWaiters,
-                        timeout,
-                        isWriteWaiter: false,
-                        waiterSignaledState: WaiterStates.UpgradeableReadWaiterSignaled);
+                retVal = WaitOnEvent(_upgradeEvent, ref _numUpgradeWaiters, timeout, EnterLockType.UpgradeableRead);
                 if (!retVal)
                     return false;
             }
@@ -789,7 +791,7 @@ namespace System.Threading
         {
             ReaderWriterCount lrwc = null;
 
-            EnterMyLock();
+            EnterMyLock(EnterMyLockReason.ExitAnyRead);
 
             lrwc = GetThreadRWCount(true);
 
@@ -835,11 +837,11 @@ namespace System.Threading
                     //You have to be holding the write lock to make this call.
                     throw new SynchronizationLockException(SR.SynchronizationLockException_MisMatchedWrite);
                 }
-                EnterMyLock();
+                EnterMyLock(EnterMyLockReason.ExitAnyWrite);
             }
             else
             {
-                EnterMyLock();
+                EnterMyLock(EnterMyLockReason.ExitAnyWrite);
                 lrwc = GetThreadRWCount(false);
 
                 if (lrwc == null)
@@ -882,11 +884,11 @@ namespace System.Threading
                     //You have to be holding the upgrade lock to make this call.
                     throw new SynchronizationLockException(SR.SynchronizationLockException_MisMatchedUpgrade);
                 }
-                EnterMyLock();
+                EnterMyLock(EnterMyLockReason.ExitAnyRead);
             }
             else
             {
-                EnterMyLock();
+                EnterMyLock(EnterMyLockReason.ExitAnyRead);
                 lrwc = GetThreadRWCount(true);
 
                 if (lrwc == null)
@@ -924,19 +926,39 @@ namespace System.Threading
         /// while holding a spin lock).  If all goes well, reenter the lock and
         /// set 'waitEvent' 
         /// </summary>
-        private void LazyCreateEvent(ref EventWaitHandle waitEvent, bool makeAutoResetEvent)
+        private void LazyCreateEvent(ref EventWaitHandle waitEvent, EnterLockType enterLockType)
         {
 #if DEBUG
             Debug.Assert(MyLockHeld);
             Debug.Assert(waitEvent == null);
 #endif
+
             ExitMyLock();
-            EventWaitHandle newEvent;
-            if (makeAutoResetEvent)
-                newEvent = new AutoResetEvent(false);
-            else
-                newEvent = new ManualResetEvent(false);
-            EnterMyLock();
+
+            var newEvent =
+                new EventWaitHandle(
+                    false,
+                    enterLockType == EnterLockType.Read ? EventResetMode.ManualReset : EventResetMode.AutoReset);
+
+            EnterMyLockReason enterMyLockReason;
+            switch (enterLockType)
+            {
+                case EnterLockType.Read:
+                case EnterLockType.UpgradeableRead:
+                    enterMyLockReason = EnterMyLockReason.EnterAnyRead | EnterMyLockReason.Wait;
+                    break;
+
+                case EnterLockType.Write:
+                    enterMyLockReason = EnterMyLockReason.EnterWrite | EnterMyLockReason.Wait;
+                    break;
+
+                default:
+                    Debug.Assert(enterLockType == EnterLockType.UpgradeToWrite);
+                    enterMyLockReason = EnterMyLockReason.UpgradeToWrite | EnterMyLockReason.Wait;
+                    break;
+            }
+            EnterMyLock(enterMyLockReason);
+
             if (waitEvent == null)          // maybe someone snuck in. 
                 waitEvent = newEvent;
             else
@@ -951,16 +973,11 @@ namespace System.Threading
             EventWaitHandle waitEvent,
             ref uint numWaiters,
             TimeoutTracker timeout,
-            bool isWriteWaiter,
-            WaiterStates waiterSignaledState)
+            EnterLockType enterLockType)
         {
 #if DEBUG
             Debug.Assert(MyLockHeld);
 #endif
-            Debug.Assert(
-                waiterSignaledState == WaiterStates.None ||
-                waiterSignaledState == WaiterStates.WriteWaiterSignaled ||
-                waiterSignaledState == WaiterStates.UpgradeableReadWaiterSignaled);
 
             waitEvent.Reset();
             numWaiters++;
@@ -981,7 +998,30 @@ namespace System.Threading
             }
             finally
             {
-                EnterMyLock();
+                WaiterStates waiterSignaledState = WaiterStates.None;
+                EnterMyLockReason enterMyLockReason;
+                switch (enterLockType)
+                {
+                    case EnterLockType.UpgradeableRead:
+                        waiterSignaledState = WaiterStates.UpgradeableReadWaiterSignaled;
+                        goto case EnterLockType.Read;
+
+                    case EnterLockType.Read:
+                        enterMyLockReason = EnterMyLockReason.EnterAnyRead;
+                        break;
+
+                    case EnterLockType.Write:
+                        waiterSignaledState = WaiterStates.WriteWaiterSignaled;
+                        enterMyLockReason = EnterMyLockReason.EnterWrite;
+                        break;
+
+                    default:
+                        Debug.Assert(enterLockType == EnterLockType.UpgradeToWrite);
+                        enterMyLockReason = EnterMyLockReason.UpgradeToWrite;
+                        break;
+                }
+                EnterMyLock(enterMyLockReason);
+
                 --numWaiters;
 
                 if (waitSuccessful && waiterSignaledState != WaiterStates.None)
@@ -1005,7 +1045,7 @@ namespace System.Threading
 
                 if (!waitSuccessful)        // We may also be about to throw for some reason.  Exit myLock.
                 {
-                    if (isWriteWaiter)
+                    if (enterLockType >= EnterLockType.Write)
                     {
                         // Write waiters block read waiters from acquiring the lock. Since this was the last write waiter, try
                         // to wake up the appropriate read waiters.
@@ -1181,6 +1221,99 @@ namespace System.Threading
             return isUpgradeToWrite || _numWriteUpgradeWaiters == 0;
         }
 
+        private static int GetEnterMyLockDeprioritizationStateChange(EnterMyLockReason reason)
+        {
+            EnterMyLockReason operation = reason & EnterMyLockReason.OperationMask;
+            switch (operation)
+            {
+                case EnterMyLockReason.EnterAnyRead:
+                    return 0;
+
+                case EnterMyLockReason.ExitAnyRead:
+                    // A read lock is held until this thread is able to exit it, so deprioritize enter-write threads as they will not be
+                    // able to make progress
+                    return DeprioritizeEnterAnyWriteIncrement;
+
+                case EnterMyLockReason.EnterWrite:
+                    // Writers are typically much less frequent and much less in number than readers. Waiting writers take precedence
+                    // over new read attempts in order to let current readers release their lock and allow a writer to obtain the lock.
+                    // Before a writer can register as a waiter though, the presence of just relatively few enter-read spins can easily
+                    // starve the enter-write from even entering _myLock, delaying its spin loop for an unreasonable duration.
+                    //
+                    // Deprioritize enter-read to preference enter-write. This makes it easier for enter-write threads to starve
+                    // enter-read threads. However, writers can already by design starve readers. A waiting writer blocks enter-read
+                    // threads and a new enter-write that needs to wait will be given precedence over previously waiting enter-read
+                    // threads. So this is not a new problem, and the RW lock is designed for scenarios where writers are rare compared
+                    // to readers.
+                    return DeprioritizeEnterAnyReadIncrement;
+
+                default:
+                    Debug.Assert(
+                        operation == EnterMyLockReason.UpgradeToWrite ||
+                        operation == EnterMyLockReason.EnterRecursiveWrite ||
+                        operation == EnterMyLockReason.ExitAnyWrite);
+
+                    // UpgradeToWrite:
+                    // - A read lock is held and an exit-read is not nearby, so deprioritize enter-write threads as they will not be able
+                    //   to make progress. This thread also intends to enter a write lock, so deprioritize enter-read threads as well, see
+                    //   case EnterMyLockReason.EnterWrite for the rationale.
+                    // EnterRecursiveWrite, ExitAnyWrite:
+                    // - In both cases, a write lock is held until this thread is able to exit it, so deprioritize enter-read and
+                    //   enter-write threads as they will not be able to make progress
+                    return DeprioritizeEnterAnyReadIncrement + DeprioritizeEnterAnyWriteIncrement;
+            }
+        }
+
+        private ushort EnterMyLockForEnterAnyReadDeprioritizedCount
+        {
+            get
+            {
+                Debug.Assert(DeprioritizeEnterAnyReadIncrement == (1 << 16));
+                return (ushort)((uint)_enterMyLockDeprioritizationState >> 16);
+            }
+        }
+
+        private ushort EnterMyLockForEnterAnyWriteDeprioritizedCount
+        {
+            get
+            {
+                Debug.Assert(DeprioritizeEnterAnyWriteIncrement == 1);
+                return (ushort)_enterMyLockDeprioritizationState;
+            }
+        }
+
+        private bool IsEnterMyLockDeprioritized(EnterMyLockReason reason)
+        {
+            Debug.Assert((reason & EnterMyLockReason.Wait) != 0 || reason == (reason & EnterMyLockReason.OperationMask));
+            Debug.Assert(
+                (reason & EnterMyLockReason.Wait) == 0 ||
+                (reason & EnterMyLockReason.OperationMask) == EnterMyLockReason.EnterAnyRead ||
+                (reason & EnterMyLockReason.OperationMask) == EnterMyLockReason.EnterWrite ||
+                (reason & EnterMyLockReason.OperationMask) == EnterMyLockReason.UpgradeToWrite);
+
+            switch (reason)
+            {
+                default:
+                    Debug.Assert(
+                        (reason & EnterMyLockReason.Wait) != 0 ||
+                        reason == EnterMyLockReason.ExitAnyRead ||
+                        reason == EnterMyLockReason.EnterRecursiveWrite ||
+                        reason == EnterMyLockReason.ExitAnyWrite);
+                    return false;
+
+                case EnterMyLockReason.EnterAnyRead:
+                    return EnterMyLockForEnterAnyReadDeprioritizedCount != 0;
+
+                case EnterMyLockReason.EnterWrite:
+                    Debug.Assert((GetEnterMyLockDeprioritizationStateChange(reason) & DeprioritizeEnterAnyWriteIncrement) == 0);
+                    return EnterMyLockForEnterAnyWriteDeprioritizedCount != 0;
+
+                case EnterMyLockReason.UpgradeToWrite:
+                    Debug.Assert((GetEnterMyLockDeprioritizationStateChange(reason) & DeprioritizeEnterAnyWriteIncrement) != 0);
+                    return EnterMyLockForEnterAnyWriteDeprioritizedCount > 1;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool TryEnterMyLock()
         {
@@ -1188,16 +1321,22 @@ namespace System.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void EnterMyLock()
+        private void EnterMyLock(EnterMyLockReason reason)
         {
             if (!TryEnterMyLock())
             {
-                EnterMyLockSpin();
+                EnterMyLockSpin(reason);
             }
         }
 
-        private void EnterMyLockSpin()
+        private void EnterMyLockSpin(EnterMyLockReason reason)
         {
+            int deprioritizationStateChange = GetEnterMyLockDeprioritizationStateChange(reason);
+            if (deprioritizationStateChange != 0)
+            {
+                Interlocked.Add(ref _enterMyLockDeprioritizationState, deprioritizationStateChange);
+            }
+
             int processorCount = ProcessorCount;
             for (int spinIndex = 0; ; spinIndex++)
             {
@@ -1214,9 +1353,31 @@ namespace System.Threading
                     RuntimeThread.Sleep(1);   // Give up my quantum.
                 }
 
-                if (_myLock == 0 && TryEnterMyLock())
+                if (!IsEnterMyLockDeprioritized(reason))
                 {
-                    return;
+                    if (_myLock == 0 && TryEnterMyLock())
+                    {
+                        if (deprioritizationStateChange != 0)
+                        {
+                            Interlocked.Add(ref _enterMyLockDeprioritizationState, -deprioritizationStateChange);
+                        }
+                        return;
+                    }
+                    continue;
+                }
+
+                // It's possible for an EnterMyLock thread to be deprioritized for an extended duration. It's undesirable for a
+                // deprioritized thread to keep waking up to spin despite a Sleep(1) when a large number of such threads are
+                // involved. After a threshold of Sleep(1)s, ignore the deprioritization and enter _myLock to allow this thread
+                // to stop spinning and hopefully enter a proper wait state.
+                Debug.Assert(
+                    reason == EnterMyLockReason.EnterAnyRead ||
+                    reason == EnterMyLockReason.EnterWrite ||
+                    reason == EnterMyLockReason.UpgradeToWrite);
+                if (spinIndex >= (LockSpinCount + LockSleep0Count + DeprioritizedLockSleep1Count))
+                {
+                    reason |= EnterMyLockReason.Wait;
+                    spinIndex = -1;
                 }
             }
         }
@@ -1452,6 +1613,28 @@ namespace System.Threading
             WriteWaiterSignaled = 0x2,
             UpgradeableReadWaiterSignaled = 0x4
             // Write upgrade waiters are excluded because there can only be one at any given time
+        }
+
+        private enum EnterMyLockReason
+        {
+            EnterAnyRead = 0,
+            ExitAnyRead = 1,
+            EnterWrite = 2,
+            UpgradeToWrite = 3,
+            EnterRecursiveWrite = 4,
+            ExitAnyWrite = 5,
+
+            OperationMask = 0x7,
+
+            Wait = 0x8
+        }
+
+        private enum EnterLockType
+        {
+            Read,
+            UpgradeableRead,
+            Write,
+            UpgradeToWrite
         }
     }
 }
