@@ -756,78 +756,7 @@ public:
             // The "this" pointer for "newobj"
             if (opcode == CEE_NEWOBJ)
             {
-                if (clsFlags & CORINFO_FLG_VAROBJSIZE)
-                {
-                    assert(!(clsFlags & CORINFO_FLG_ARRAY)); // arrays handled separately
-                                                             // This is a 'new' of a variable sized object, wher
-                                                             // the constructor is to return the object.  In this case
-                                                             // the constructor claims to return VOID but we know it
-                                                             // actually returns the new object
-                    assert(callRetTyp == TYP_VOID);
-                    callRetTyp   = TYP_REF;
-                    call->gtType = TYP_REF;
-                    compiler->impSpillSpecialSideEff();
-
-                    compiler->impPushOnStack(call, typeInfo(TI_REF, clsHnd));
-                }
-                else
-                {
-                    if (clsFlags & CORINFO_FLG_DELEGATE)
-                    {
-                        // New inliner morph it in impImportCall.
-                        // This will allow us to inline the call to the delegate constructor.
-                        call = compiler->fgOptimizeDelegateConstructor(call->AsCall(), &exactContextHnd, ldftnToken);
-                    }
-
-                    if (!bIntrinsicImported)
-                    {
-
-#if defined(DEBUG) || defined(INLINE_DATA)
-
-                        // Keep track of the raw IL offset of the call
-                        call->gtCall.gtRawILOffset = rawILOffset;
-
-#endif // defined(DEBUG) || defined(INLINE_DATA)
-
-                        // Is it an inline candidate?
-                        compiler->impMarkInlineCandidate(call, exactContextHnd, exactContextNeedsRuntimeLookup,
-                                                         callInfo);
-                    }
-
-                    // append the call node.
-                    compiler->impAppendTree(call, (unsigned)compiler->CHECK_SPILL_ALL, compiler->impCurStmtOffs);
-
-                    // Now push the value of the 'new onto the stack
-
-                    // This is a 'new' of a non-variable sized object.
-                    // Append the new node (op1) to the statement list,
-                    // and then push the local holding the value of this
-                    // new instruction on the stack.
-
-                    if (clsFlags & CORINFO_FLG_VALUECLASS)
-                    {
-                        assert(newobjThis->gtOper == GT_ADDR && newobjThis->gtOp.gtOp1->gtOper == GT_LCL_VAR);
-
-                        unsigned tmp = newobjThis->gtOp.gtOp1->gtLclVarCommon.gtLclNum;
-                        compiler->impPushOnStack(compiler->gtNewLclvNode(tmp, compiler->lvaGetRealType(tmp)),
-                                                 compiler->verMakeTypeInfo(clsHnd).NormaliseForStack());
-                    }
-                    else
-                    {
-                        if (newobjThis->gtOper == GT_COMMA)
-                        {
-                            // In coreclr the callout can be inserted even if verification is disabled
-                            // so we cannot rely on tiVerificationNeeded alone
-
-                            // We must have inserted the callout. Get the real newobj.
-                            newobjThis = newobjThis->gtOp.gtOp2;
-                        }
-
-                        assert(newobjThis->gtOper == GT_LCL_VAR);
-                        compiler->impPushOnStack(compiler->gtNewLclvNode(newobjThis->gtLclVarCommon.gtLclNum, TYP_REF),
-                                                 typeInfo(TI_REF, clsHnd));
-                    }
-                }
+                importNewObj(rawILOffset, callInfo, newobjThis);
                 return callRetTyp;
             }
 
@@ -892,6 +821,87 @@ public:
     }
 
 private:
+    //------------------------------------------------------------------------
+    // importNewObj: Import call for the new object opcode.
+    //
+    //    rawILOffset               - IL offset of the opcode
+    //    callInfo - EE supplied info for the call
+    //    newObjThis                - tree for this pointer or uninitalized newobj temp (or nullptr)
+    void importNewObj(const IL_OFFSET& rawILOffset, CORINFO_CALL_INFO* callInfo, GenTreePtr& newobjThis)
+    {
+        if (clsFlags & CORINFO_FLG_VAROBJSIZE)
+        {
+            assert(!(clsFlags & CORINFO_FLG_ARRAY)); // arrays handled separately
+                                                     // This is a 'new' of a variable sized object, wher
+                                                     // the constructor is to return the object.  In this case
+                                                     // the constructor claims to return VOID but we know it
+                                                     // actually returns the new object
+            assert(callRetTyp == TYP_VOID);
+            callRetTyp   = TYP_REF;
+            call->gtType = TYP_REF;
+            compiler->impSpillSpecialSideEff();
+
+            compiler->impPushOnStack(call, typeInfo(TI_REF, clsHnd));
+        }
+        else
+        {
+            if (clsFlags & CORINFO_FLG_DELEGATE)
+            {
+                // New inliner morph it in impImportCall.
+                // This will allow us to inline the call to the delegate constructor.
+                call = compiler->fgOptimizeDelegateConstructor(call->AsCall(), &exactContextHnd, ldftnToken);
+            }
+
+            if (!bIntrinsicImported)
+            {
+
+#if defined(DEBUG) || defined(INLINE_DATA)
+
+                // Keep track of the raw IL offset of the call
+                call->gtCall.gtRawILOffset = rawILOffset;
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
+
+                // Is it an inline candidate?
+                compiler->impMarkInlineCandidate(call, exactContextHnd, exactContextNeedsRuntimeLookup, callInfo);
+            }
+
+            // append the call node.
+            compiler->impAppendTree(call, (unsigned)compiler->CHECK_SPILL_ALL, compiler->impCurStmtOffs);
+
+            // Now push the value of the 'new onto the stack
+
+            // This is a 'new' of a non-variable sized object.
+            // Append the new node (op1) to the statement list,
+            // and then push the local holding the value of this
+            // new instruction on the stack.
+
+            if (clsFlags & CORINFO_FLG_VALUECLASS)
+            {
+                assert(newobjThis->gtOper == GT_ADDR && newobjThis->gtOp.gtOp1->gtOper == GT_LCL_VAR);
+
+                unsigned tmp = newobjThis->gtOp.gtOp1->gtLclVarCommon.gtLclNum;
+                compiler->impPushOnStack(compiler->gtNewLclvNode(tmp, compiler->lvaGetRealType(tmp)),
+                                         compiler->verMakeTypeInfo(clsHnd).NormaliseForStack());
+            }
+            else
+            {
+                if (newobjThis->gtOper == GT_COMMA)
+                {
+                    // In coreclr the callout can be inserted even if verification is disabled
+                    // so we cannot rely on tiVerificationNeeded alone
+
+                    // We must have inserted the callout. Get the real newobj.
+                    newobjThis = newobjThis->gtOp.gtOp2;
+                }
+
+                assert(newobjThis->gtOper == GT_LCL_VAR);
+                compiler->impPushOnStack(compiler->gtNewLclvNode(newobjThis->gtLclVarCommon.gtLclNum, TYP_REF),
+                                         typeInfo(TI_REF, clsHnd));
+            }
+        }
+    }
+
     //------------------------------------------------------------------------
     // getPInvokeCookie: Get PInvokeCookie and set it to call tree,
     //
