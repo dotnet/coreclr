@@ -14,10 +14,6 @@ namespace eventpipe_onoff
 
         static int Main(string[] args)
         {
-            // Start the allocator thread.
-            //Task t = new Task(new Action(Allocator));
-            //t.Start();
-
             string outputFilename = System.IO.Path.GetTempPath() + Guid.NewGuid().ToString() + ".netperf";
             TraceConfiguration config = CreateConfiguration(outputFilename);
 
@@ -55,14 +51,6 @@ namespace eventpipe_onoff
             }
 
             return pass ? 100 : 0;
-        }
-
-        private static void Allocator()
-        {
-            while(true)
-            {
-                GC.KeepAlive(new object());
-            }
         }
 
         private static TraceConfiguration CreateConfiguration(string outputFilename)
