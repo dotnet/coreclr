@@ -375,9 +375,9 @@ setlocal
   exit /b %ERRORLEVEL%
 
 :USAGE
-rem ****************************************************************************
+rem *****************************************************************************
 rem   Script's usage.
-rem ****************************************************************************
+rem *****************************************************************************
   set USAGE_DISPLAYED=1
   echo run-xunit-perf.cmd -testBinLoc ^<path_to_tests^> [-library] [-arch] ^<x86^|x64^> [-configuration] ^<Release^|Debug^> [-generateBenchviewData] ^<path_to_benchview_tools^> [-warmup] [-better] ^<asc ^| desc^> [-group] ^<group^> [-runtype] ^<rolling^|private^> [-scenarioTest] [-collectionFlags] ^<default^+CacheMisses^+InstructionRetired^+BranchMispredictions^+gcapi^>
   echo/
