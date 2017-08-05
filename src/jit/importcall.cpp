@@ -1665,12 +1665,6 @@ private:
 //
 //    For CEE_NEWOBJ, newobjThis should be the temp grabbed for the allocated
 //    uninitalized object.
-
-#ifdef _PREFAST_
-#pragma warning(push)
-#pragma warning(disable : 21000) // Suppress PREFast warning about overly large function
-#endif
-
 var_types Compiler::impImportCall(OPCODE                  opcode,
                                   CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                   CORINFO_RESOLVED_TOKEN* pConstrainedResolvedToken,
@@ -1683,6 +1677,3 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
     return callImporter.importCall(opcode, pResolvedToken, pConstrainedResolvedToken, newobjThis, prefixFlags, callInfo,
                                    rawILOffset);
 }
-#ifdef _PREFAST_
-#pragma warning(pop)
-#endif
