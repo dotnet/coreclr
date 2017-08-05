@@ -134,18 +134,22 @@ namespace System
 
                 while (count > 0)
                 {
-                    if (*pCh == value1)
+                    char c = *pCh;
+
+                    if (c == value1)
                         goto ReturnIndex;
 
-                    if (*pCh == value2)
+                    if (c == value2)
                         goto ReturnIndex;
 
                     // Possibly reads outside of count and can include null terminator
                     // Handled in the return logic
-                    if (*(pCh + 1) == value1)
+                    c = *(pCh + 1);
+
+                    if (c == value1)
                         goto ReturnIndex1;
 
-                    if (*(pCh + 1) == value2)
+                    if (c == value2)
                         goto ReturnIndex1;
 
                     pCh += 2;

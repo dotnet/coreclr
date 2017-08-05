@@ -507,6 +507,7 @@ void InitializeProbabilisticMap(int* charMap, __in_ecount(length) const WCHAR* c
     }
 
     if (hasAscii) {
+        // Common to search for ASCII symbols. Just the high value once.
         charMap[0] |= 1;
     }
 }
