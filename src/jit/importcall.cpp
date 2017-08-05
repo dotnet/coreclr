@@ -1563,9 +1563,8 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // checkForSmallType: check does the current importing call need
+    // checkForSmallType: Check does the current importing call need
     // a check for small return type.
-    //
     //
     // Return Value:
     //    true if it does, false instead.
@@ -1604,7 +1603,14 @@ private:
         return false;
     }
 
-    bool isManagedCall(CorInfoCallConv callConv)
+    //------------------------------------------------------------------------
+    // isManagedCall: Determinate does callConv correspond to managed call.
+    //
+    //    callConv - call convention
+    //
+    // Return Value:
+    //    true if it is managed call, false instead.
+    static bool isManagedCall(CorInfoCallConv callConv)
     {
         return ((callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_STDCALL) &&
                ((callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_C) &&
