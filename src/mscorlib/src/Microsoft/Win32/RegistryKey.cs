@@ -318,29 +318,6 @@ namespace Microsoft.Win32
             return null;
         }
 
-        // This required no security checks. This is to get around the Deleting SubKeys which only require
-        // write permission. They call OpenSubKey which required read. Now instead call this function w/o security checks
-        internal RegistryKey InternalOpenSubKey(String name, bool writable)
-        {
-            ValidateKeyName(name);
-            EnsureNotDisposed();
-
-            SafeRegistryHandle result = null;
-            int ret = Win32Native.RegOpenKeyEx(hkey,
-                name,
-                0,
-                GetRegistryKeyAccess(writable) | (int)regView,
-                out result);
-
-            if (ret == 0 && !result.IsInvalid)
-            {
-                RegistryKey key = new RegistryKey(result, writable, false, remoteKey, false, regView);
-                key.keyName = keyName + "\\" + name;
-                return key;
-            }
-            return null;
-        }
-
         /**
          * Returns a subkey with read only permissions.
          *
