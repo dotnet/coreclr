@@ -136,20 +136,14 @@ namespace System
                 {
                     char c = *pCh;
 
-                    if (c == value1)
-                        goto ReturnIndex;
-
-                    if (c == value2)
+                    if (c == value1 || c == value2)
                         goto ReturnIndex;
 
                     // Possibly reads outside of count and can include null terminator
                     // Handled in the return logic
                     c = *(pCh + 1);
 
-                    if (c == value1)
-                        goto ReturnIndex1;
-
-                    if (c == value2)
+                    if (c == value1 || c == value2)
                         goto ReturnIndex1;
 
                     pCh += 2;
