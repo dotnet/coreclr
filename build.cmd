@@ -204,10 +204,6 @@ if %__EnforcePgo%==1 (
         echo Error: enforcepgo cannot be used with arm64 architecture
         goto Usage
     )
-    if NOT %__BuildOS% == Windows_NT (
-        echo Error: enforcepgo cannot be used with non-Windows builds
-        goto Usage
-    )
 )
 
 :: Set the remaining variables based upon the determined build configuration
