@@ -225,11 +225,16 @@ FCIMPL2(FC_BOOL_RET, ReflectionInvocation::CanValueSpecialCast, ReflectClassBase
     HELPER_METHOD_FRAME_BEGIN_RET_2(refValueType, refTargetType);
     // the field type is a pointer
     if (targetCorElement == ELEMENT_TYPE_PTR || targetCorElement == ELEMENT_TYPE_FNPTR) {
+        // the object must be an IntPtr or a System.Reflection.Pointer
+        if (valueType == TypeHandle(MscorlibBinder::GetClass(CLASS__INTPTR))) {
+            //
+            // it's an IntPtr, it's good.
+        }
         //
         // it's a System.Reflection.Pointer object
 
         // void* assigns to any pointer. Otherwise the type of the pointer must match
-        if (!InvokeUtil::IsVoidPtr(targetType)) {
+        else if (!InvokeUtil::IsVoidPtr(targetType)) {
             if (!valueType.CanCastTo(targetType))
                 ret = FALSE;
         }
