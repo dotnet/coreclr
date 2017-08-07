@@ -35,7 +35,7 @@ and publish your application so it includes the runtime (`self-contained`). This
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
-    <RuntimeFrameworkVersion>2.0.0-preview2-*</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>2.0.1-preview1-*</RuntimeFrameworkVersion>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
 </Project>
