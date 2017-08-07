@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Reflection;
 
-namespace EventPipe
+namespace Tracing.Tests.Common
 {
     public static class TraceControl
     {
@@ -13,11 +13,13 @@ namespace EventPipe
             EnableDefault(TimeSpan.FromMilliseconds(1));
         }
 
-        public static void EnableDefault(TimeSpan profSampleDelay)
+        public static void EnableDefault(string outputFile)
         {
-            // Set the output file to be in the current working directory.
-            string outputFile = "default.netperf";
+            EnableDefault(TimeSpan.FromMilliseconds(1), outputFile);
+        }
 
+        public static void EnableDefault(TimeSpan profSampleDelay, string outputFile="default.netperf")
+        {
             // Setup the configuration values.
             uint circularBufferMB = 1024; // 1 GB
             uint level = 5; // Verbose

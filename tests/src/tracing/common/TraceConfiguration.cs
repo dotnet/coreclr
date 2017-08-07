@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace EventPipe
+namespace Tracing.Tests.Common
 {
     public sealed class TraceConfiguration
     {
