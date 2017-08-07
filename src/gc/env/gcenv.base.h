@@ -169,8 +169,8 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
  #elif defined(_X86_)
   
   #define YieldProcessor() __asm { rep nop }
-
-  __forceinline void MemoryBarrier()
+  #define MemoryBarrier() MemoryBarrierImpl()
+  __forceinline void MemoryBarrierImpl()
   {
       int32_t Barrier;
       __asm {
@@ -223,7 +223,9 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 
 #ifdef _MSC_VER
 #pragma intrinsic(_BitScanForward)
-#pragma intrinsic(_BitScanForward64)
+#if WIN64
+ #pragma intrinsic(_BitScanForward64)
+#endif
 #endif // _MSC_VER
 
 // Cross-platform wrapper for the _BitScanForward compiler intrinsic.
@@ -248,7 +250,21 @@ inline uint8_t BitScanForward(uint32_t *bitIndex, uint32_t mask)
 inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
 {
 #ifdef _MSC_VER
+ #if _WIN32
+    // MSVC targeting a 32-bit target does not support this intrinsic.
+    // We can fake it using two successive invocations of _BitScanForward.
+    uint32_t hi = (mask >> 32) & 0xFFFFFFFF;
+    uint32_t lo = mask & 0xFFFFFFFF;
+    uint32_t fakeBitIndex = 0;
+    if (BitScanForward(&fakeBitIndex, hi))
+    {
+        *bitIndex = fakeBitIndex + 32;
+    }
+
+    return BitScanForward(bitIndex, lo);
+ #else
     return _BitScanForward64((unsigned long*)bitIndex, mask);
+ #endif // _WIN32
 #else
     unsigned char ret = FALSE;
     int iIndex = __builtin_ffsll(mask);
