@@ -1442,6 +1442,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
                     }
 
+                    // If it is a release build for windows, ensure PGO is used, else fail the build
+                    if ((lowerConfiguration == 'release') && (scenario == 'default')) {
+                        buildOpts += 'enforcepgo'
+                    }
+
                     // For Pri 1 tests, we must shorten the output test binary path names.
                     // if __TestIntermediateDir is already set, build-test.cmd will
                     // output test binaries to that directory. If it is not set, the
