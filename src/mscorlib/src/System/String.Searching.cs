@@ -122,8 +122,18 @@ namespace System
             {
                 return IndexOfAny(anyOf[0], anyOf[1], anyOf[2], startIndex, count);
             }
-
-            return IndexOfCharArray(anyOf, startIndex, count);
+            else if (anyOf.Length > 3)
+            {
+                return IndexOfCharArray(anyOf, startIndex, count);
+            }
+            else if (anyOf.Length == 1)
+            {
+                return IndexOf(anyOf[0], startIndex, count);
+            }
+            else // anyOf.Length == 0
+            {
+                return -1;
+            }
         }
 
         private unsafe int IndexOfAny(char value1, char value2, int startIndex, int count)
