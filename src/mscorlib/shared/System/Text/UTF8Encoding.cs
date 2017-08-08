@@ -60,6 +60,8 @@ namespace System.Text
         // The initialization code will not be run until a static member of the class is referenced
         internal static readonly UTF8EncodingSealed s_default = new UTF8EncodingSealed(encoderShouldEmitUTF8Identifier: true);
 
+        private static readonly byte[] s_preamble = new byte[3] { 0xEF, 0xBB, 0xBF };
+
         // Yes, the idea of emitting U+FEFF as a UTF-8 identifier has made it into
         // the standard.
         private bool _emitUTF8Identifier = false;
@@ -2496,7 +2498,8 @@ namespace System.Text
             else
                 return Array.Empty<byte>();
         }
-
+        
+        public override ReadOnlySpan<byte> Preamble => _emitUTF8Identifier ? s_preamble : Array.Empty<byte>();
 
         public override bool Equals(Object value)
         {
