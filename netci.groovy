@@ -316,6 +316,52 @@ def static genStressModeScriptStep(def os, def stressModeName, def stressModeVar
     return stepScript
 }
 
+def static isNeedDocker(def architecture, def os, def isBuild) {
+    if (isBuild) {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return true
+        }
+        else if (architecture == 'arm') {
+            if (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen') {
+                return true
+            }
+        }
+    }
+    else {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return true
+        }
+    }
+    return false
+}
+
+def static getDockerImageName(def architecture, def os, def isBuild) {
+    // We must change some docker private images to official later
+    if (isBuild) {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return "hseok82/dotnet-buildtools-prereqs:ubuntu-16.04-crossx86-ef0ac75-20175511035548"
+        }
+        else if (architecture == 'arm') {
+            if (os == 'Ubuntu') {
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-0cd4667-20172211042239"
+            }
+            else if (os == 'Ubuntu16.04') {
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-ef0ac75-20175511035548"
+            }
+            else if (os == 'Tizen') {
+                return "hqueue/dotnetcore:ubuntu1404_cross_prereqs_v4-tizen_rootfs"
+            }
+        }
+    }
+    else {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return "hseok82/dotnet-buildtools-prereqs:ubuntu1604_x86_test"
+        }
+    }
+    println("Unknown architecture to use docker: ${architecture} ${os}");
+    assert false
+}
+
 // Calculates the name of the build job based on some typical parameters.
 //
 def static getJobName(def configuration, def architecture, def os, def scenario, def isBuildOnly) {
@@ -383,7 +429,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 case 'x64':
                 case 'x86':
                 case 'x86lb':
-                    if (architecture == 'x86' && os == 'Ubuntu') {
+                    if (isFlowJob && architecture == 'x86' && os == 'Ubuntu') {
                         Utilities.addPeriodicTrigger(job, '@daily')
                     }
                     else if (isFlowJob || os == 'Windows_NT' || !(os in Constants.crossList)) {
@@ -1205,6 +1251,10 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
         case 'x86': // editor brace matching: {
             assert ((os == 'Windows_NT') || ((os == 'Ubuntu') && (scenario == 'default')))
             if (os == 'Ubuntu') {
+                // Triggers on the non-flow jobs aren't necessary here
+                if (!isFlowJob) {
+                    break
+                }
                 // on-demand only for ubuntu x86
                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build",
                     "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}.*")
@@ -1654,16 +1704,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                 case 'x64':
                 case 'x86':
                     if (architecture == 'x86' && os == 'Ubuntu') {
-                        // Unzip the Windows test binaries first
-                        buildCommands += "unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.x86.${configuration} || exit 0"
-
-                        // Unpack the corefx binaries
-                        buildCommands += "mkdir ./bin/CoreFxBinDir"
-                        buildCommands += "tar -xf ./bin/managed/bin/build.tar.gz -C ./bin/CoreFxBinDir"
-                        buildCommands += "tar -xf ./bin/native/bin/build.tar.gz -C ./bin/CoreFxBinDir"
-
                         // build and PAL test
-                        buildCommands += "./tests/scripts/x86_ci_script.sh --buildConfig=${lowerConfiguration}"
+                        def dockerImage = getDockerImageName(architecture, os, true)
+                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code -e ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} ./build.sh x86 cross ${lowerConfiguration}"
+                        dockerImage = getDockerImageName(architecture, os, false)
+                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code ${dockerImage} ./src/pal/tests/palsuite/runpaltests.sh /opt/code/bin/obj/Linux.x86.${lowerConfiguration} /opt/code/bin/paltestout"
                         Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/**/.nuget/**")
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                         break;
@@ -1898,6 +1943,12 @@ combinedScenarios.each { scenario ->
                         switch (architecture) {
                             case 'arm64':
                                 if ((scenario != 'gcstress0x3') && (scenario != 'gcstress0xc')) {
+                                    return
+                                }
+                                break
+                            case 'arm':
+                                // arm linux: default only
+                                if ((os == 'Ubuntu') || (os == 'Ubuntu16.04') || (os == 'Tizen')) {
                                     return
                                 }
                                 break
@@ -2151,53 +2202,6 @@ combinedScenarios.each { scenario ->
                                         }
                                     }
                                 }
-                                else if (architecture == 'x86' && os == 'Ubuntu') {
-                                    // Cross build for ubuntu-x86
-                                    // Define the Windows Tests and Corefx build job names
-                                    def WindowsTestsName = projectFolder + '/' +
-                                                          Utilities.getFullJobName(project,
-                                                                                   getJobName(lowerConfiguration,
-                                                                                              'x86' ,
-                                                                                              'windows_nt',
-                                                                                              'default',
-                                                                                              false),
-                                                                                   false)
-                                    def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' +
-                                                       Utilities.getFolderName(branch)
-
-                                    // Copy the Windows test binaries and the Corefx build binaries
-                                    copyArtifacts(WindowsTestsName) {
-                                        includePatterns('bin/tests/tests.zip')
-                                        buildSelector {
-                                            latestSuccessful(true)
-                                        }
-                                    }
-
-                                    // Let's use release CoreFX to test checked CoreCLR,
-                                    // because we do not generate checked CoreFX in CoreFX CI yet.
-                                    def corefx_lowerConfiguration = lowerConfiguration
-                                    if ( lowerConfiguration == 'checked' ) {
-                                        corefx_lowerConfiguration='release'
-                                    }
-
-                                    // CoreFX x86 native build
-                                    copyArtifacts("${corefxFolder}/ubuntu16.04_x86_${corefx_lowerConfiguration}") {
-                                        includePatterns('bin/build.tar.gz')
-                                        targetDirectory('bin/native')
-                                        buildSelector {
-                                            latestSuccessful(true)
-                                        }
-                                    }
-
-                                    // CoreFX arm managed build
-                                    copyArtifacts("${corefxFolder}/linux_arm_cross_${corefx_lowerConfiguration}") {
-                                        includePatterns('bin/build.tar.gz')
-                                        targetDirectory('bin/managed')
-                                        buildSelector {
-                                            latestSuccessful(true)
-                                        }
-                                    }
-                                }
 
                                 buildCommands.each { buildCommand ->
                                     shell(buildCommand)
@@ -2216,11 +2220,16 @@ combinedScenarios.each { scenario ->
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
 combinedScenarios.each { scenario ->
     [true, false].each { isPR ->
-        // Architectures.  x64 only at this point
-        ['x64', 'arm64'].each { architecture ->
+        // Architectures
+        ['x64', 'arm64', 'x86'].each { architecture ->
             // Put the OS's supported for coreclr cross testing here
             Constants.crossList.each { os ->
                 if (architecture == 'arm64') {
+                    if (os != "Ubuntu") {
+                        return
+                    }
+                }
+                else if (architecture == 'x86') {
                     if (os != "Ubuntu") {
                         return
                     }
@@ -2230,6 +2239,12 @@ combinedScenarios.each { scenario ->
 
                     if (architecture == 'arm64') {
                         if (scenario != 'default' && scenario != 'pri1r2r' && scenario != 'gcstress0x3' && scenario != 'gcstress0xc') {
+                            return
+                        }
+                    }
+                    else if (architecture == 'x86') {
+                        // Linux/x86 only want default test
+                        if (scenario != 'default') {
                             return
                         }
                     }
@@ -2618,6 +2633,13 @@ combinedScenarios.each { scenario ->
                                 if (os == 'Ubuntu') {
                                     osJobName = 'ubuntu14.04'
                                 }
+                                else if (architecture == 'x86') {
+                                    if (os == 'Ubuntu') {
+                                        // Linux/x86 corefx jobs does not build managed yet
+                                        // Clone linux/arm corefx managed packages and overwrite linux/x86 native
+                                        osJobName = "linux_arm_cross"
+                                    }
+                                }
                                 else {
                                     osJobName = os.toLowerCase()
                                 }
@@ -2628,7 +2650,7 @@ combinedScenarios.each { scenario ->
                                     }
                                 }
 
-                                shell ("mkdir ./bin/CoreFxBinDir")
+                                shell("mkdir ./bin/CoreFxBinDir")
                                 // Unpack the corefx binaries
                                 shell("tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir")
 
@@ -2638,11 +2660,33 @@ combinedScenarios.each { scenario ->
                                     shell("cp ./bin/Product/Linux.arm64.${configuration}/corefxNative/* ./bin/CoreFxBinDir")
                                     shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
                                 }
+                                else if (architecture == 'x86') {
+                                    shell("mkdir ./bin/CoreFxNative")
+
+                                    copyArtifacts("${corefxFolder}/ubuntu16.04_x86_release") {
+                                        includePatterns('bin/build.tar.gz')
+                                        targetDirectory('bin/CoreFxNative')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+
+                                    shell("tar -xf ./bin/CoreFxNative/bin/build.tar.gz -C ./bin/CoreFxBinDir")
+                                }
 
                                 // Unzip the tests first.  Exit with 0
                                 shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
 
                                 // Execute the tests
+                                def runDocker = isNeedDocker(architecture, os, false)
+                                def dockerPrefix = ""
+                                def dockerCmd = ""
+                                if (runDocker) {
+                                    def dockerImage = getDockerImageName(architecture, os, false)
+                                    dockerPrefix = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} "
+                                    dockerCmd = dockerPrefix + "${dockerImage} "
+                                }
+
                                 // If we are running a stress mode, we'll set those variables first
                                 def testEnvOpt = ""
                                 if (Constants.jitStressModeScenarios.containsKey(scenario)) {
@@ -2656,7 +2700,7 @@ combinedScenarios.each { scenario ->
                                     shell('./init-tools.sh')
                                 }
 
-                                shell("""./tests/runtest.sh \\
+                                shell("""${dockerCmd}./tests/runtest.sh \\
                 --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
                 --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
                 --coreClrBinDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
@@ -2670,10 +2714,15 @@ combinedScenarios.each { scenario ->
                                 if (isGcReliabilityFramework(scenario)) {
                                     // runtest.sh doesn't actually execute the reliability framework - do it here.
                                     if (serverGCString != '') {
-                                        shell("export COMPlus_gcServer=1")
+                                        if (runDocker) {
+                                            dockerCmd = dockerPrefix + "-e COMPlus_gcServer=1 ${dockerImage} "
+                                        }
+                                        else {
+                                            shell("export COMPlus_gcServer=1")
+                                        }
                                     }
 
-                                    shell("./tests/scripts/run-gc-reliability-framework.sh ${architecture} ${configuration}")
+                                    shell("${dockerCmd}./tests/scripts/run-gc-reliability-framework.sh ${architecture} ${configuration}")
                                 }
                             }
                         }
