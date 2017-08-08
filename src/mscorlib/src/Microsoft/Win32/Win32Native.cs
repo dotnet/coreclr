@@ -572,12 +572,6 @@ namespace Microsoft.Win32
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern SafeWaitHandle OpenSemaphore(uint desiredAccess, bool inheritHandle, string name);
 
-        // Will be in winnls.h
-        internal const int FIND_STARTSWITH = 0x00100000; // see if value is at the beginning of source
-        internal const int FIND_ENDSWITH = 0x00200000; // see if value is at the end of source
-        internal const int FIND_FROMSTART = 0x00400000; // look for value in source, starting at the beginning
-        internal const int FIND_FROMEND = 0x00800000; // look for value in source, starting at the end
-
         [DllImport(KERNEL32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
         internal static extern int GetSystemDirectory([Out]StringBuilder sb, int length);
 
