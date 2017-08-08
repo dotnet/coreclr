@@ -1898,7 +1898,6 @@ class AppDomainSetupObject : public Object
     PTRARRAYREF m_Entries;
     STRINGREF m_AppBase;
     OBJECTREF m_CompatFlags;
-    STRINGREF m_TargetFrameworkName;
 #ifdef FEATURE_RANDOMIZED_STRING_HASHING
     CLR_BOOL m_UseRandomizedStringHashing;
 #endif
