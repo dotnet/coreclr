@@ -12728,6 +12728,10 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                     /* get a temporary for the new object */
                     lclNum = lvaGrabTemp(true DEBUGARG("NewObj constructor temp"));
+                    if (compDonotInline())
+                    {
+                        return;
+                    }
 
                     // In the value class case we only need clsHnd for size calcs.
                     //
