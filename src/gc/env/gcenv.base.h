@@ -65,12 +65,8 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 }
 
 #define S_OK                    0x0
-#define S_FALSE                 0x1
 #define E_FAIL                  0x80004005
 #define E_OUTOFMEMORY           0x8007000E
-#define E_UNEXPECTED            0x8000FFFF
-#define E_NOTIMPL               0x80004001
-#define E_INVALIDARG            0x80070057
 #define COR_E_EXECUTIONENGINE   0x80131506
 
 #define NOERROR                 0x0
@@ -387,75 +383,25 @@ typedef struct _PROCESSOR_NUMBER {
 //
 // Data access macros
 //
-#ifdef DACCESS_COMPILE
-#include "daccess.h"
-#else // DACCESS_COMPILE
 typedef uintptr_t TADDR;
-
 #define PTR_TO_TADDR(ptr) ((TADDR)(ptr))
 
 #define DPTR(type) type*
 #define SPTR(type) type*
-
-#define GVAL_DECL(type, var) \
-    extern type var
-#define GVAL_IMPL(type, var) \
-    type var
-#define GVAL_IMPL_INIT(type, var, init) \
-    type var = init
-
-#define GPTR_DECL(type, var) \
-    extern type* var
-#define GPTR_IMPL(type, var) \
-    type* var
-#define GPTR_IMPL_INIT(type, var, init) \
-    type* var = init
-
-#define SPTR_DECL(type, var) \
-    static type* var
-#define SPTR_IMPL(type, cls, var) \
-    type * cls::var
-#define SPTR_IMPL_NS(type, ns, cls, var) \
-    type * cls::var
-#define SPTR_IMPL_NS_INIT(type, ns, cls, var, init) \
-    type * cls::var = init
-
-#define SVAL_DECL(type, var) \
-    static type var
-#define SVAL_IMPL_NS(type, ns, cls, var) \
-    type cls::var
-#define SVAL_IMPL_NS_INIT(type, ns, cls, var, init) \
-    type cls::var = init
-
-#define GARY_DECL(type, var, size) \
-    extern type var[size]
-#define GARY_IMPL(type, var, size) \
-    type var[size]
-
-struct _DacGlobals;
-#endif // DACCESS_COMPILE
-
 typedef DPTR(size_t)    PTR_size_t;
 typedef DPTR(uint8_t)   PTR_uint8_t;
 
 // -----------------------------------------------------------------------------------------------------------
 
 #define DATA_ALIGNMENT sizeof(uintptr_t)
-
 #define RAW_KEYWORD(x) x
-
 #define DECLSPEC_ALIGN(x)   __declspec(align(x))
-
 #ifndef _ASSERTE
 #define _ASSERTE(_expr) ASSERT(_expr)
 #endif
-
 #define CONSISTENCY_CHECK(_expr) ASSERT(_expr)
-
 #define PREFIX_ASSUME(cond) ASSERT(cond)
-
 #define EEPOLICY_HANDLE_FATAL_ERROR(error) ASSERT(!"EEPOLICY_HANDLE_FATAL_ERROR")
-
 #define UI64(_literal) _literal##ULL
 
 class ObjHeader;
@@ -597,22 +543,7 @@ void VolatileStore(T* pt, T val)
 #endif
 }
 
-extern GCSystemInfo g_SystemInfo;
-
-extern MethodTable * g_pFreeObjectMethodTable;
-
-extern int32_t g_TrapReturningThreads;
-
-//
-// Locks
-//
-
-struct gc_alloc_context;
 class Thread;
-
-Thread * GetThread();
-
-typedef void (CALLBACK *HANDLESCANPROC)(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2);
 
 inline bool IsGCSpecialThread()
 {
@@ -648,46 +579,11 @@ namespace ETW
     } GC_ROOT_KIND;
 };
 
-//
-// Logging
-//
-
-void LogSpewAlways(const char *fmt, ...);
-
-#define DEFAULT_GC_PRN_LVL 3
-
-// -----------------------------------------------------------------------------------------------------------
-
 inline bool IsGCThread()
 {
     // [LOCALGC TODO] this is not correct
     return false;
 }
-
-class CLRConfig
-{
-public:
-    enum CLRConfigTypes
-    {
-        UNSUPPORTED_GCLogEnabled,
-        UNSUPPORTED_GCLogFile,
-        UNSUPPORTED_GCLogFileSize,
-        UNSUPPORTED_GCConfigLogEnabled,
-        UNSUPPORTED_GCConfigLogFile,
-        UNSUPPORTED_BGCSpinCount,
-        UNSUPPORTED_BGCSpin,
-        EXTERNAL_GCStressStart,
-        INTERNAL_GCStressStartAtJit,
-        INTERNAL_DbgDACSkipVerifyDlls,
-        Config_COUNT
-    };
-
-    typedef CLRConfigTypes ConfigDWORDInfo;
-    typedef CLRConfigTypes ConfigStringInfo;
-
-    static uint32_t GetConfigValue(ConfigDWORDInfo eType);
-    static HRESULT GetConfigValue(ConfigStringInfo /*eType*/, /* __out_z */ TCHAR * * outVal);
-};
 
 inline bool FitsInU1(uint64_t val)
 {
@@ -730,32 +626,6 @@ public:
     AppDomain *DefaultDomain() { return NULL; }
     DWORD GetTotalNumSizedRefHandles() { return 0; }
 };
-
-#ifdef STRESS_HEAP
-namespace GCStressPolicy
-{
-    static volatile int32_t s_cGcStressDisables;
-
-    inline bool IsEnabled() { return s_cGcStressDisables == 0; }
-    inline void GlobalDisable() { Interlocked::Increment(&s_cGcStressDisables); }
-    inline void GlobalEnable() { Interlocked::Decrement(&s_cGcStressDisables); }
-}
-
-enum gcs_trigger_points
-{
-    cfg_any,
-};
-
-template <enum gcs_trigger_points tp>
-class GCStress
-{
-public:
-    static inline bool IsEnabled()
-    {
-        return g_pConfig->GetGCStressLevel() != 0;
-    }
-};
-#endif // STRESS_HEAP
 
 class NumaNodeInfo
 {

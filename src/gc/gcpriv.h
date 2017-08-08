@@ -1016,12 +1016,6 @@ enum interesting_data_point
 //class definition of the internal class
 class gc_heap
 {
-    friend struct ::_DacGlobals;
-#ifdef DACCESS_COMPILE
-    friend class ::ClrDataAccess;
-    friend class ::DacHeapWalker;
-#endif //DACCESS_COMPILE
-
     friend class GCHeap;
 #ifdef FEATURE_PREMORTEM_FINALIZATION
     friend class CFinalize;
