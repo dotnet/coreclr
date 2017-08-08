@@ -23,12 +23,7 @@
 #include "gcenv.object.h"
 #include "gcenv.sync.h"
 #include "gcinterface.h"
-
-// [LOCALGC TODO] This is kind of a kludge
-namespace
-{
 #include "gcenv.ee.h"
-}
 
 #define MAX_LONGPATH 1024
 
