@@ -1443,7 +1443,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
 
                     // If it is a release build for windows, ensure PGO is used, else fail the build
-                    if ((lowerConfiguration == 'release') && (scenario == 'default')) {
+                    if ((lowerConfiguration == 'release') && (scenario == 'default') && (architecture != 'x86lb')) {
                         buildOpts += 'enforcepgo'
                     }
 
