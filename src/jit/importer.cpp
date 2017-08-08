@@ -1918,39 +1918,67 @@ GenTreePtr Compiler::getRuntimeContextTree(CORINFO_RUNTIME_LOOKUP_KIND kind)
     return ctxTree;
 }
 
-/*****************************************************************************/
-/* Import a dictionary lookup to access a handle in code shared between
-   generic instantiations.
-   The lookup depends on the typeContext which is only available at
-   runtime, and not at compile-time.
-   pLookup->token1 and pLookup->token2 specify the handle that is needed.
-   The cases are:
-
-   1. pLookup->indirections == CORINFO_USEHELPER : Call a helper passing it the
-      instantiation-specific handle, and the tokens to lookup the handle.
-   2. pLookup->indirections != CORINFO_USEHELPER :
-      2a. pLookup->testForNull == false : Dereference the instantiation-specific handle
-          to get the handle.
-      2b. pLookup->testForNull == true : Dereference the instantiation-specific handle.
-          If it is non-NULL, it is the handle required. Else, call a helper
-          to lookup the handle.
- */
+//------------------------------------------------------------------------
+// impRuntimeLookupToTree: return a tree node for a runtime lookup
+//
+// Arguments:
+//   pResolvedToken - resolved token to look up
+//   pLookup - lookup information from runtime
+//   compileTimeHandle - compile time handle for the lookup
+//
+// Returns:
+//   Tree for the lookup. Structure of the tree can vary depending on
+//   the details of the lookup and the jit's code generation mode.
+//
+// Notes:
+//   Imports a dictionary lookup to access a handle in code shared
+//   between generic instantiations. The lookup depends on the
+//   typeContext which is only available at runtime, and not at
+//   compile-time.  pLookup->token1 and pLookup->token2 specify the
+//   handle that is needed.
+//
+//   The cases are:
+//
+//   1. pLookup->indirections == CORINFO_USEHELPER : Call a helper passing it the
+//      instantiation-specific handle, and the tokens to lookup the handle.
+//      Also used if possible when optimizing jit code size or jit time, and
+//      the inline sequences below will result in larger code or slower jitting.
+//
+//   2. pLookup->indirections != CORINFO_USEHELPER :
+//      2a. pLookup->testForNull == false : Dereference the instantiation-specific handle
+//          to get the handle.
+//      2b. pLookup->testForNull == true : Dereference the instantiation-specific handle.
+//          If it is non-NULL, it is the handle required. Else, call a helper
+//          to lookup the handle.
+//
+//   Cannot be called when importing an inlinee; an upstream check should
+//   have bailed out of the inlining attempt before geting here.
 
 GenTreePtr Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                             CORINFO_LOOKUP*         pLookup,
                                             void*                   compileTimeHandle)
 {
-
     // This method can only be called from the importer instance of the Compiler.
     // In other word, it cannot be called by the instance of the Compiler for the inlinee.
     assert(!compIsForInlining());
 
-    GenTreePtr ctxTree = getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind);
-
+    GenTreePtr              ctxTree        = getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind);
     CORINFO_RUNTIME_LOOKUP* pRuntimeLookup = &pLookup->runtimeLookup;
-    // It's available only via the run-time helper function
-    if (pRuntimeLookup->indirections == CORINFO_USEHELPER)
+
+    // Determine if the jit should user a helper for the lookup
+    const bool mustUseHelperCall = (pRuntimeLookup->indirections == CORINFO_USEHELPER);
+    const bool canUseHelperCall  = (pRuntimeLookup->signature != nullptr);
+    const bool preferSmallerCode = compCurBB->isRunRarely() || opts.compDbgCode || opts.MinOpts();
+    const bool helperCallIsSmaller =
+        (pRuntimeLookup->indirections > 1) || pRuntimeLookup->testForFixup || pRuntimeLookup->testForNull;
+    const bool shouldUseHelperCall = preferSmallerCode && helperCallIsSmaller && canUseHelperCall;
+    const bool useHelperCall       = mustUseHelperCall || shouldUseHelperCall;
+
+    if (useHelperCall)
     {
+        JITDUMP("\nCompiler::impRuntimeLookupToTree: using helper call since %s\n",
+                mustUseHelperCall ? "runtime requires it" : "it is less code");
+
 #ifdef FEATURE_READYTORUN_COMPILER
         if (opts.IsReadyToRun())
         {
@@ -1965,6 +1993,9 @@ GenTreePtr Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedTok
 
         return gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, GTF_EXCEPT, helperArgs);
     }
+
+    JITDUMP("\nCompiler::impRuntimeLookupToTree: using inline sequence since %s\n",
+            preferSmallerCode ? "it is less code" : "it gives better perf");
 
     // Slot pointer
     GenTreePtr slotPtrTree = ctxTree;
