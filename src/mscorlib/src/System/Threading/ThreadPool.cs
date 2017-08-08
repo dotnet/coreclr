@@ -31,7 +31,7 @@ namespace System.Threading
         //requests in the current domain.
         public const uint TP_QUANTUM = 30U;
 
-        public static readonly int processorCount = Environment.ProcessorCount;
+        public static readonly int MaxOutstandingThreadRequests = Math.Min(Environment.ProcessorCount, 4);
 
         public static volatile bool vmTpInitialized;
         public static bool enableWorkerTracking;
@@ -403,7 +403,7 @@ namespace System.Threading
             // which is handled by RequestWorkerThread.
             //
             int count = numOutstandingThreadRequests;
-            while (count < ThreadPoolGlobals.processorCount)
+            while (count < ThreadPoolGlobals.MaxOutstandingThreadRequests)
             {
                 int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count + 1, count);
                 if (prev == count)
