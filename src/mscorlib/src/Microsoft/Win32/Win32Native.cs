@@ -356,24 +356,6 @@ namespace Microsoft.Win32
         internal const int LPTR = (LMEM_FIXED | LMEM_ZEROINIT);
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        internal class OSVERSIONINFO
-        {
-            internal OSVERSIONINFO()
-            {
-                OSVersionInfoSize = (int)Marshal.SizeOf(this);
-            }
-
-            // The OSVersionInfoSize field must be set to Marshal.SizeOf(this)
-            internal int OSVersionInfoSize = 0;
-            internal int MajorVersion = 0;
-            internal int MinorVersion = 0;
-            internal int BuildNumber = 0;
-            internal int PlatformId = 0;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-            internal String CSDVersion = null;
-        }
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         internal class OSVERSIONINFOEX
         {
             public OSVERSIONINFOEX()
@@ -596,16 +578,6 @@ namespace Microsoft.Win32
         internal const int FIND_FROMSTART = 0x00400000; // look for value in source, starting at the beginning
         internal const int FIND_FROMEND = 0x00800000; // look for value in source, starting at the end
 
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct NlsVersionInfoEx
-        {
-            internal int dwNLSVersionInfoSize;
-            internal int dwNLSVersion;
-            internal int dwDefinedVersion;
-            internal int dwEffectiveId;
-            internal Guid guidCustomVersion;
-        }
-
         [DllImport(KERNEL32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
         internal static extern int GetSystemDirectory([Out]StringBuilder sb, int length);
 
@@ -823,14 +795,6 @@ namespace Microsoft.Win32
         [DllImport(ADVAPI32, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern int RegOpenKeyEx(SafeRegistryHandle hKey, String lpSubKey,
                     int ulOptions, int samDesired, out SafeRegistryHandle hkResult);
-
-        [DllImport(ADVAPI32, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern int RegQueryInfoKey(SafeRegistryHandle hKey, [Out]StringBuilder lpClass,
-                    int[] lpcbClass, IntPtr lpReserved_MustBeZero, ref int lpcSubKeys,
-                    int[] lpcbMaxSubKeyLen, int[] lpcbMaxClassLen,
-                    ref int lpcValues, int[] lpcbMaxValueNameLen,
-                    int[] lpcbMaxValueLen, int[] lpcbSecurityDescriptor,
-                    int[] lpftLastWriteTime);
 
         [DllImport(ADVAPI32, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern int RegQueryValueEx(SafeRegistryHandle hKey, String lpValueName,

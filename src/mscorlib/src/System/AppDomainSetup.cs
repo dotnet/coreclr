@@ -63,8 +63,6 @@ namespace System
         // to an AppDomain. We only use the keys, the values are ignored.
         private Dictionary<string, object> _CompatFlags;
 
-        private String _TargetFrameworkName;
-
 #if FEATURE_RANDOMIZED_STRING_HASHING
         private bool _UseRandomizedStringHashing;
 #endif
@@ -94,8 +92,6 @@ namespace System
                 {
                     SetCompatibilitySwitches(copy._CompatFlags.Keys);
                 }
-
-                _TargetFrameworkName = copy._TargetFrameworkName;
 
 #if FEATURE_RANDOMIZED_STRING_HASHING
                 _UseRandomizedStringHashing = copy._UseRandomizedStringHashing;
@@ -189,11 +185,7 @@ namespace System
         {
             get
             {
-                return _TargetFrameworkName;
-            }
-            set
-            {
-                _TargetFrameworkName = value;
+                return null;
             }
         }
 
