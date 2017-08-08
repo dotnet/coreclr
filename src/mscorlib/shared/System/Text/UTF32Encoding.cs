@@ -1181,9 +1181,9 @@ namespace System.Text
         }
 
         public override ReadOnlySpan<byte> Preamble =>
-            _emitUTF32ByteOrderMark ?
-                (_bigEndian ? s_bigEndianPreamble : s_littleEndianPreamble) :
-                Array.Empty<byte>();
+            GetType() != typeof(UTF32Encoding) ? GetPreamble() : // in case a derived UTF32Encoding overrode GetPreamble
+            _emitUTF32ByteOrderMark ? (_bigEndian ? s_bigEndianPreamble : s_littleEndianPreamble) :
+            Array.Empty<byte>();
 
         public override bool Equals(Object value)
         {

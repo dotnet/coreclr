@@ -1902,9 +1902,9 @@ namespace System.Text
         }
 
         public override ReadOnlySpan<byte> Preamble =>
-            byteOrderMark ?
-                (bigEndian ? s_bigEndianPreamble : s_littleEndianPreamble) :
-                Array.Empty<byte>();
+            GetType() != typeof(UnicodeEncoding) ? GetPreamble() : // in case a derived UnicodeEncoding overrode GetPreamble
+            byteOrderMark ? (bigEndian ? s_bigEndianPreamble : s_littleEndianPreamble) :
+            Array.Empty<byte>();
 
         public override int GetMaxByteCount(int charCount)
         {
