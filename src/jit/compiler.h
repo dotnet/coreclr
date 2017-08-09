@@ -4300,6 +4300,8 @@ public:
 
     void fgReplacePred(BasicBlock* block, BasicBlock* oldPred, BasicBlock* newPred);
 
+    void fgExpensiveSortedPredCheck();
+
     flowList* fgAddRefPred(BasicBlock* block,
                            BasicBlock* blockPred,
                            flowList*   oldEdge           = nullptr,

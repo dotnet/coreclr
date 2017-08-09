@@ -1000,6 +1000,27 @@ flowList* Compiler::fgSpliceOutPred(BasicBlock* block, BasicBlock* blockPred)
     return oldEdge;
 }
 
+void Compiler::fgExpensiveSortedPredCheck()
+{
+#ifdef DEBUG
+
+    if (JitConfig.JitSlowDebugChecksEnabled() != 0)
+    {
+        // Pedantically make sure bbPreds still in sorted order.
+
+        unsigned prevNum = 0;
+
+        for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
+        {
+            assert(pred->flBlock->bbNum > prevNum);
+            
+            prevNum = pred->flBlock->bbNum;
+        }
+    }
+
+#endif //DEBUG
+}
+
 //------------------------------------------------------------------------
 // fgAddRefPred: Increment block->bbRefs by one and add "blockPred" to the predecessor list of "block".
 //
@@ -1125,6 +1146,9 @@ flowList* Compiler::fgAddRefPred(BasicBlock* block,
             flow->flEdgeWeightMax = BB_MAX_WEIGHT;
         }
     }
+
+    fgExpensiveSortedPredCheck();
+
     return flow;
 }
 
@@ -1621,16 +1645,86 @@ void Compiler::fgReplacePred(BasicBlock* block, BasicBlock* oldPred, BasicBlock*
     noway_assert(newPred != nullptr);
     assert(!fgCheapPredsValid);
 
-    flowList* pred;
+    // Maintain a pointer to a location earlier in the predList in case we
+    // have to insert the newPred in an earlier location than the pred we
+    // are replacing it with.
+    //
+    // This is done to maintain a sorted order of the pred list. 
+    // 
+    // For example:
+    //
+    // Current pred list: [2, 2, 20, 30, 778]
+    // 30
+    // Replacing 60 with 1
+    //
+    // insertLocation will point to 49, and the flowList pointing to 60 will be
+    // replaced with 49. insertLocation then will be set to newPred (1).
+    flowList* insertLocation = nullptr;
+    BasicBlock* lastPredBlock = nullptr;
 
-    for (pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
+    for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
     {
         if (oldPred == pred->flBlock)
         {
-            pred->flBlock = newPred;
+            // We have to replace the newPred to an earlier location.
+            if (insertLocation)
+            {
+                assert(lastPredBlock);
+
+                pred->flBlock = lastPredBlock;
+                insertLocation->flBlock = newPred;
+            }
+
+            // Make sure that the replacement location is not in a later location.
+            //
+            // If this is the case then we will need to shift down all later
+            // preds.
+            else
+            {
+                while (pred->flNext != nullptr && newPred->bbNum > pred->flBlock->bbNum)
+                {
+                    pred->flBlock = pred->flNext->flBlock;
+                    pred = pred->flNext;
+                }
+
+                pred->flBlock = newPred;
+            }
+
             break;
         }
+
+        // Make sure the new pred to be added going to be added in sorted
+        // order.
+        //
+        // If this is the first time the current pred's number is greater 
+        // than the newPred then this will be the location to insert the
+        // newPred.
+        else if (pred->flBlock->bbNum > newPred->bbNum && !insertLocation)
+        {
+            insertLocation = pred;
+        }
+
+        // We have determined that the newPred will be 
+        else if (insertLocation)
+        {
+            // If lastPredBlock is still null, then we are attempting to insert
+            // a node at the beginning of the list instead of replacing
+            // the first node.
+            assert(lastPredBlock);
+
+            // Make sure we do not lose a pointer to the current pred.
+            BasicBlock* predTempPtr = pred->flBlock;
+
+            pred->flBlock = lastPredBlock;
+            lastPredBlock = predTempPtr;
+
+            continue;
+        }
+        
+        lastPredBlock = pred->flBlock;
     }
+
+    fgExpensiveSortedPredCheck();
 }
 
 /*****************************************************************************
