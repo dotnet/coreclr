@@ -5247,9 +5247,8 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
     // structs is cheap.
     JITDUMP("\nCompiler::impImportAndPushBox -- handling BOX(value class) via");
     bool canExpandInline = (boxHelper == CORINFO_HELP_BOX);
-    bool optForSize      = !exprToBox->IsCall() && (operCls != nullptr) &&
-                      (opts.compDbgCode || opts.MinOpts() || compCurBB->isRunRarely());
-    bool expandInline = canExpandInline && !optForSize;
+    bool optForSize      = !exprToBox->IsCall() && (operCls != nullptr) && (opts.compDbgCode || opts.MinOpts());
+    bool expandInline    = canExpandInline && !optForSize;
 
     if (expandInline)
     {
@@ -5373,11 +5372,10 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
     }
     else
     {
-        JITDUMP(" helper call because: %s\n", !canExpandInline ? "optimizing for size" : "nullable");
+        // Don't optimize, just call the helper and be done with it.
+        JITDUMP(" helper call because: %s\n", canExpandInline ? "optimizing for size" : "nullable");
         assert(operCls != nullptr);
 
-        // Don't optimize, just call the helper and be done with it
-        //
         // Ensure that the value class is restored
         op2 = impTokenToHandle(pResolvedToken, nullptr, TRUE /* mustRestoreHandle */);
         if (op2 == nullptr)
