@@ -32,7 +32,7 @@ namespace System
         {
             if (bytes.Length < Unsafe.SizeOf<T>())
                 return false;
-            Unsafe.As<byte, T>(ref bytes.DangerousGetPinnableReference());
+            Unsafe.As<byte, T>(ref bytes.DangerousGetPinnableReference()) = value;
             return true;
         }
 
