@@ -333,6 +333,85 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         }
     }
 
+void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(s_pBufferManager != NULL);
+    }
+    CONTRACTL_END;
+
+    // Exit early if the event is not enabled.
+    if(!event.IsEnabled())
+    {
+        return;
+    }
+
+    // Get the current thread;
+    Thread *pThread = GetThread();
+    if(pThread == NULL)
+    {
+        // We can't write an event without the thread object.
+        return;
+    }
+
+    if(!s_pConfig->RundownEnabled() && s_pBufferManager != NULL)
+    {
+        if(!s_pBufferManager->WriteEvent(pThread, event, pBlobs, blobCount, pActivityId, pRelatedActivityId))
+        {
+            // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
+            return;
+        }
+    }
+    else if(s_pConfig->RundownEnabled())
+    {
+        // Write synchronously to the file.
+        // We're under lock and blocking the disabling thread.
+        EventPipeEventInstance instance(
+            event,
+            pThread->GetOSThreadId(),
+            pData,
+            length,
+            pActivityId,
+            pRelatedActivityId);
+
+        if(s_pFile != NULL)
+        {
+            s_pFile->WriteEvent(instance);
+        }
+    }
+
+#ifdef _DEBUG
+    {
+        GCX_PREEMP();
+
+        // Create an instance of the event for the synchronous path.
+        EventPipeEventInstance instance(
+            event,
+            pThread->GetOSThreadId(),
+            pData,
+            length,
+            pActivityId,
+            pRelatedActivityId);
+
+        // Write to the EventPipeFile if it exists.
+        if(s_pSyncFile != NULL)
+        {
+            s_pSyncFile->WriteEvent(instance);
+        }
+ 
+        // Write to the EventPipeJsonFile if it exists.
+        if(s_pJsonFile != NULL)
+        {
+            s_pJsonFile->WriteEvent(instance);
+        }
+    }
+#endif // _DEBUG
+}
+
 #ifdef _DEBUG
     {
         GCX_PREEMP();
@@ -591,6 +670,24 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
     _ASSERTE(eventHandle != NULL);
     EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
     EventPipe::WriteEvent(*pEvent, (BYTE *)pData, length, pActivityId, pRelatedActivityId);
+
+    END_QCALL;
+}
+
+void QCALLTYPE EventPipeInternal::WriteEvent(
+    INT_PTR eventHandle,
+    unsigned int eventID,
+    void **pData,
+    unsigned int count,
+    LPCGUID pActivityId,
+    LPCGUID pRelatedActivityId)
+{
+    QCALL_CONTRACT;
+    BEGIN_QCALL;
+
+    _ASSERTE(eventHandle != NULL);
+    EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
+    EventPipe::WriteEvent(*pEvent, (EventData **)pData, count, pActivityId, pRelatedActivityId);
 
     END_QCALL;
 }

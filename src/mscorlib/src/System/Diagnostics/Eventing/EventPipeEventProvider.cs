@@ -66,23 +66,9 @@ namespace System.Diagnostics.Tracing
                     return 0;
                 }
 
-                uint length = 0;
-                for (int i = 0; i < userDataCount; i++)
+                fixed (EventProvider.EventData **pBlobs = &userData)
                 {
-                    length += userData[i].Size;
-                }
-
-                byte[] data = new byte[length];
-                fixed (byte *pData = data)
-                {
-                    uint offset = 0;
-                    for (int i = 0; i < userDataCount; i++)
-                    {
-                        byte * singleUserDataPtr = (byte *)(userData[i].Ptr);
-                        uint singleUserDataSize = userData[i].Size;
-                        WriteToBuffer(pData, length, ref offset, singleUserDataPtr, singleUserDataSize);
-                    }
-                    EventPipeInternal.WriteEvent(eventHandle, eventID, pData, length, activityId, relatedActivityId);
+                    EventPipeInternal.WriteEvent(eventHandle, eventID, pBlobs, userDataCount, activityId, relatedActivityId);
                 }
             }
             return 0;

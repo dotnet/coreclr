@@ -29,6 +29,14 @@ typedef void (*EventPipeCallback)(
     void *FilterData,
     void *CallbackContext);
 
+struct EventData
+{
+public:
+    unsigned long ptr;
+    unsigned int size;
+    unsigned int reserved;
+}
+
 class StackContents
 {
 private:
@@ -190,6 +198,10 @@ class EventPipe
         // Data is written as a serialized blob matching the ETW serialization conventions.
         static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
+        // Write out an event.
+        // Data is written as a serialized blob matching the ETW serialization conventions.
+        static void WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+
         // Write out a sample profile event.
         static void WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData = NULL, unsigned int length = 0);
         
@@ -306,6 +318,13 @@ public:
         unsigned int eventID,
         void *pData,
         unsigned int length,
+        LPCGUID pActivityId, LPCGUID pRelatedActivityId);
+
+    static void QCALLTYPE WriteEvent(
+        INT_PTR eventHandle,
+        unsigned int eventID,
+        void **pData,
+        unsigned int count,
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 };
 

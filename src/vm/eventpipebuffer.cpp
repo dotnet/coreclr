@@ -4,6 +4,7 @@
 
 
 #include "common.h"
+#include "eventpipe.h"
 #include "eventpipeeventinstance.h"
 #include "eventpipebuffer.h"
 
@@ -92,6 +93,78 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *p
         if(dataLength > 0)
         {
             memcpy(pDataDest, pData, dataLength);
+        }
+
+        // Save the most recent event timestamp.
+        m_mostRecentTimeStamp = pInstance->GetTimeStamp();
+
+    }
+    EX_CATCH
+    {
+        // If a failure occurs, bail out and don't advance the pointer.
+        success = false;
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+
+    if(success)
+    {
+        // Advance the current pointer past the event.
+        m_pCurrent += eventSize;
+    }
+
+    return success;
+}
+
+bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId, StackContents *pStack)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(pThread != NULL);
+    }
+    CONTRACTL_END;
+
+    // Calculate the size of the event.
+    unsigned int dataLength = blobCount * sizeof(EventData)
+    unsigned int eventSize = sizeof(EventPipeEventInstance) + dataLength;
+
+    // Make sure we have enough space to write the event.
+    if(m_pCurrent + eventSize >= m_pLimit)
+    {
+        return false;
+    }
+
+    // Calculate the location of the data payload.
+    BYTE *pDataDest = m_pCurrent + sizeof(EventPipeEventInstance);
+
+    bool success = true;
+    EX_TRY
+    {
+        // Placement-new the EventPipeEventInstance.
+        EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
+            event,
+            pThread->GetOSThreadId(),
+            pDataDest,
+            dataLength,
+            pActivityId,
+            pRelatedActivityId);
+
+        // Copy the stack if a separate stack trace was provided.
+        if(pStack != NULL)
+        {
+            StackContents *pInstanceStack = pInstance->GetStack();
+            pStack->CopyTo(pInstanceStack);
+        }
+
+        // Write the event payload data to the buffer.
+        if(dataLength > 0)
+        {
+            unsigned int offset = 0;
+            for(int i=0; i<blobCount; i++){
+                memcpy(pDataDest + offset, pBlobs[i], sizeof(EventData));
+            }
         }
 
         // Save the most recent event timestamp.
