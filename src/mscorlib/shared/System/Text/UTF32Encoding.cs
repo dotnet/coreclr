@@ -39,6 +39,9 @@ namespace System.Text
         internal static readonly UTF32Encoding s_default = new UTF32Encoding(bigEndian: false, byteOrderMark: true);
         internal static readonly UTF32Encoding s_bigEndianDefault = new UTF32Encoding(bigEndian: true, byteOrderMark: true);
 
+        private static readonly byte[] s_bigEndianPreamble = new byte[4] { 0x00, 0x00, 0xFE, 0xFF };
+        private static readonly byte[] s_littleEndianPreamble = new byte[4] { 0xFF, 0xFE, 0x00, 0x00 };
+
         private bool _emitUTF32ByteOrderMark = false;
         private bool _isThrowException = false;
         private bool _bigEndian = false;
@@ -84,7 +87,7 @@ namespace System.Text
 
 
         // The following methods are copied from EncodingNLS.cs.
-        // Unfortunately EncodingNLS.cs is internal and we're public, so we have to reimpliment them here.
+        // Unfortunately EncodingNLS.cs is internal and we're public, so we have to re-implement them here.
         // These should be kept in sync for the following classes:
         // EncodingNLS, UTF7Encoding, UTF8Encoding, UTF32Encoding, ASCIIEncoding, UnicodeEncoding
 
@@ -403,7 +406,7 @@ namespace System.Text
 
             if (encoder != null)
             {
-                highSurrogate = encoder.charLeftOver;
+                highSurrogate = encoder._charLeftOver;
                 fallbackBuffer = encoder.FallbackBuffer;
 
                 // We mustn't have left over fallback data when counting
@@ -509,7 +512,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_GetByteCountOverflow);
 
             // Shouldn't have anything in fallback buffer for GetByteCount
-            // (don't have to check m_throwOnOverflow for count)
+            // (don't have to check _throwOnOverflow for count)
             Debug.Assert(fallbackBuffer.Remaining == 0,
                 "[UTF32Encoding.GetByteCount]Expected empty fallback buffer at end");
 
@@ -538,11 +541,11 @@ namespace System.Text
 
             if (encoder != null)
             {
-                highSurrogate = encoder.charLeftOver;
+                highSurrogate = encoder._charLeftOver;
                 fallbackBuffer = encoder.FallbackBuffer;
 
                 // We mustn't have left over fallback data when not converting
-                if (encoder.m_throwOnOverflow && fallbackBuffer.Remaining > 0)
+                if (encoder._throwOnOverflow && fallbackBuffer.Remaining > 0)
                     throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback.GetType()));
             }
             else
@@ -709,10 +712,10 @@ namespace System.Text
             if (encoder != null)
             {
                 // Remember our left over surrogate (or 0 if flushing)
-                encoder.charLeftOver = highSurrogate;
+                encoder._charLeftOver = highSurrogate;
 
                 // Need # chars used
-                encoder.m_charsUsed = (int)(chars - charStart);
+                encoder._charsUsed = (int)(chars - charStart);
             }
 
             // return the new length
@@ -746,7 +749,7 @@ namespace System.Text
                 fallbackBuffer = decoder.FallbackBuffer;
 
                 // Shouldn't have anything in fallback buffer for GetCharCount
-                // (don't have to check m_throwOnOverflow for chars or count)
+                // (don't have to check _throwOnOverflow for chars or count)
                 Debug.Assert(fallbackBuffer.Remaining == 0,
                     "[UTF32Encoding.GetCharCount]Expected empty fallback buffer at start");
             }
@@ -853,7 +856,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_GetByteCountOverflow);
 
             // Shouldn't have anything in fallback buffer for GetCharCount
-            // (don't have to check m_throwOnOverflow for chars or count)
+            // (don't have to check _throwOnOverflow for chars or count)
             Debug.Assert(fallbackBuffer.Remaining == 0,
                 "[UTF32Encoding.GetCharCount]Expected empty fallback buffer at end");
 
@@ -894,7 +897,7 @@ namespace System.Text
                 fallbackBuffer = baseDecoder.FallbackBuffer;
 
                 // Shouldn't have anything in fallback buffer for GetChars
-                // (don't have to check m_throwOnOverflow for chars)
+                // (don't have to check _throwOnOverflow for chars)
                 Debug.Assert(fallbackBuffer.Remaining == 0,
                     "[UTF32Encoding.GetChars]Expected empty fallback buffer at start");
             }
@@ -1065,11 +1068,11 @@ namespace System.Text
             {
                 decoder.iChar = (int)iChar;
                 decoder.readByteCount = readCount;
-                decoder.m_bytesUsed = (int)(bytes - byteStart);
+                decoder._bytesUsed = (int)(bytes - byteStart);
             }
 
             // Shouldn't have anything in fallback buffer for GetChars
-            // (don't have to check m_throwOnOverflow for chars)
+            // (don't have to check _throwOnOverflow for chars)
             Debug.Assert(fallbackBuffer.Remaining == 0,
                 "[UTF32Encoding.GetChars]Expected empty fallback buffer at end");
 
@@ -1177,6 +1180,10 @@ namespace System.Text
                 return Array.Empty<byte>();
         }
 
+        public override ReadOnlySpan<byte> Preamble =>
+            GetType() != typeof(UTF32Encoding) ? GetPreamble() : // in case a derived UTF32Encoding overrode GetPreamble
+            _emitUTF32ByteOrderMark ? (_bigEndian ? s_bigEndianPreamble : s_littleEndianPreamble) :
+            Array.Empty<byte>();
 
         public override bool Equals(Object value)
         {
@@ -1214,8 +1221,8 @@ namespace System.Text
             {
                 this.iChar = 0;
                 this.readByteCount = 0;
-                if (m_fallbackBuffer != null)
-                    m_fallbackBuffer.Reset();
+                if (_fallbackBuffer != null)
+                    _fallbackBuffer.Reset();
             }
 
             // Anything left in our decoder?

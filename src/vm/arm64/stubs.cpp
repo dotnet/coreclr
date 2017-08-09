@@ -1244,6 +1244,11 @@ void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
     FlushInstructionCache(GetCurrentProcess(),&m_code,sizeof(m_code));
 }
 
+void UMEntryThunkCode::Poison()
+{
+    // Insert 'brk 0xbe' at the entry point
+    m_code[0] = 0xd42017c0;
+}
 
 #ifdef PROFILING_SUPPORTED
 #include "proftoeeinterfaceimpl.h"

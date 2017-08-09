@@ -540,13 +540,15 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
         // If it is contained then source must be the integer constant zero
         if (source->isContained())
         {
+#ifdef _TARGET_ARM64_
             assert(source->OperGet() == GT_CNS_INT);
             assert(source->AsIntConCommon()->IconValue() == 0);
-            NYI_ARM("genPutArgStk: contained zero source");
 
-#ifdef _TARGET_ARM64_
             emit->emitIns_S_R(storeIns, storeAttr, REG_ZR, varNumOut, argOffsetOut);
-#endif // _TARGET_ARM64_
+#else  // !_TARGET_ARM64_
+            // There is no zero register on ARM32
+            unreached();
+#endif // !_TARGET_ARM64
         }
         else
         {
@@ -654,6 +656,11 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // only used when we have a multireg struct with a LclVar source
             unsigned varNumInp = BAD_VAR_NUM;
 
+#ifdef _TARGET_ARM_
+            // On ARM32, size of reference map can be larger than MAX_ARG_REG_COUNT
+            gcPtrs     = treeNode->gtGcPtrs;
+            gcPtrCount = treeNode->gtNumberReferenceSlots;
+#endif
             // Setup the structSize, isHFa, and gcPtrCount
             if (varNode != nullptr)
             {
@@ -661,17 +668,10 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 assert(varNumInp < compiler->lvaCount);
                 LclVarDsc* varDsc = &compiler->lvaTable[varNumInp];
 
+                // This struct also must live in the stack frame
+                // And it can't live in a register (SIMD)
                 assert(varDsc->lvType == TYP_STRUCT);
-#ifdef _TARGET_ARM_
-                if (varDsc->lvPromoted)
-                {
-                    NYI_ARM("CodeGen::genPutArgStk - promoted struct");
-                }
-                else
-#endif // _TARGET_ARM_
-                    // This struct also must live in the stack frame
-                    // And it can't live in a register (SIMD)
-                    assert(varDsc->lvOnFrame && !varDsc->lvRegister);
+                assert(varDsc->lvOnFrame && !varDsc->lvRegister);
 
                 structSize = varDsc->lvSize(); // This yields the roundUp size, but that is fine
                                                // as that is how much stack is allocated for this LclVar
@@ -680,9 +680,6 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 gcPtrCount = varDsc->lvStructGcCount;
                 for (unsigned i = 0; i < gcPtrCount; ++i)
                     gcPtrs[i]   = varDsc->lvGcLayout[i];
-#else  // _TARGET_ARM_
-                gcPtrs     = treeNode->gtGcPtrs;
-                gcPtrCount = treeNode->gtNumberReferenceSlots;
 #endif // _TARGET_ARM_
             }
             else // addrNode is used
@@ -707,7 +704,9 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                 structSize = compiler->info.compCompHnd->getClassSize(objClass);
                 isHfa      = compiler->IsHfa(objClass);
+#ifdef _TARGET_ARM64_
                 gcPtrCount = compiler->info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
+#endif
             }
 
             // If we have an HFA we can't have any GC pointers,
@@ -999,7 +998,6 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
         BYTE*    gcPtrs     = treeNode->gtGcPtrs;
         unsigned gcPtrCount = treeNode->gtNumberReferenceSlots; // The count of GC pointers in the struct
         int      structSize = treeNode->getArgSize();
-        bool     isHfa      = treeNode->gtIsHfa;
 
         // This is the varNum for our load operations,
         // only used when we have a struct with a LclVar source
@@ -1012,10 +1010,14 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
 
             // handle promote situation
             LclVarDsc* varDsc = compiler->lvaTable + srcVarNum;
-            if (varDsc->lvPromoted)
-            {
-                NYI_ARM("CodeGen::genPutArgSplit - promoted struct");
-            }
+
+            // This struct also must live in the stack frame
+            // And it can't live in a register (SIMD)
+            assert(varDsc->lvType == TYP_STRUCT);
+            assert(varDsc->lvOnFrame && !varDsc->lvRegister);
+
+            // We don't split HFA struct
+            assert(!varDsc->lvIsHfa());
         }
         else // addrNode is used
         {
@@ -1024,13 +1026,14 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             // Generate code to load the address that we need into a register
             genConsumeAddress(addrNode);
             addrReg = addrNode->gtRegNum;
-        }
 
-        // If we have an HFA we can't have any GC pointers,
-        // if not then the max size for the the struct is 16 bytes
-        if (isHfa)
-        {
-            assert(gcPtrCount == 0);
+            // If addrReg equal to baseReg, we use the last target register as alternative baseReg.
+            // Because the candidate mask for the internal baseReg does not include any of the target register,
+            // we can ensure that baseReg, addrReg, and the last target register are not all same.
+            assert(baseReg != addrReg);
+
+            // We don't split HFA struct
+            assert(!compiler->IsHfa(source->gtObj.gtClass));
         }
 
         // Put on stack first
@@ -1067,7 +1070,8 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             nextIndex += 1;
         }
 
-        // Set registers
+        // We set up the registers in order, so that we assign the last target register `baseReg` is no longer in use,
+        // in case we had to reuse the last target register for it.
         structOffset = 0;
         for (unsigned idx = 0; idx < treeNode->gtNumRegs; idx++)
         {
@@ -1082,7 +1086,12 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             else
             {
                 // check for case of destroying the addrRegister while we still need it
-                assert(targetReg != addrReg);
+                if (targetReg == addrReg && idx != treeNode->gtNumRegs - 1)
+                {
+                    assert(targetReg != baseReg);
+                    emit->emitIns_R_R(INS_mov, emitTypeSize(type), baseReg, addrReg);
+                    addrReg = baseReg;
+                }
 
                 // Load from our address expression source
                 emit->emitIns_R_R_I(INS_ldr, emitTypeSize(type), targetReg, addrReg, structOffset);
@@ -2213,7 +2222,23 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
         var_types storeType = genActualType(varDsc->TypeGet());
         emitAttr  storeSize = emitActualTypeSize(storeType);
 
-        getEmitter()->emitIns_S_R(ins_Store(storeType), storeSize, varDsc->lvRegNum, varNum, 0);
+#ifdef _TARGET_ARM_
+        if (varDsc->TypeGet() == TYP_LONG)
+        {
+            // long - at least the low half must be enregistered
+            getEmitter()->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, varDsc->lvRegNum, varNum, 0);
+
+            // Is the upper half also enregistered?
+            if (varDsc->lvOtherReg != REG_STK)
+            {
+                getEmitter()->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, varDsc->lvOtherReg, varNum, sizeof(int));
+            }
+        }
+        else
+#endif // _TARGET_ARM_
+        {
+            getEmitter()->emitIns_S_R(ins_Store(storeType), storeSize, varDsc->lvRegNum, varNum, 0);
+        }
         // Update lvRegNum life and GC info to indicate lvRegNum is dead and varDsc stack slot is going live.
         // Note that we cannot modify varDsc->lvRegNum here because another basic block may not be expecting it.
         // Therefore manually update life of varDsc->lvRegNum.
@@ -2259,6 +2284,7 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
         regNumber argReg     = varDsc->lvArgReg; // incoming arg register
         regNumber argRegNext = REG_NA;
 
+#ifdef _TARGET_ARM64_
         if (varDsc->lvRegNum != argReg)
         {
             var_types loadType = TYP_UNDEF;
@@ -2286,7 +2312,6 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
             {
                 if (varDsc->lvIsHfa())
                 {
-                    NYI_ARM("CodeGen::genJmpMethod with multireg HFA arg");
                     NYI_ARM64("CodeGen::genJmpMethod with multireg HFA arg");
                 }
 
@@ -2326,6 +2351,104 @@ void CodeGen::genJmpMethod(GenTreePtr jmp)
                 firstArgVarNum = varNum;
             }
         }
+#else
+        bool      twoParts = false;
+        var_types loadType = TYP_UNDEF;
+        if (varDsc->TypeGet() == TYP_LONG)
+        {
+            twoParts = true;
+        }
+        else if (varDsc->TypeGet() == TYP_DOUBLE)
+        {
+            if (compiler->info.compIsVarArgs || compiler->opts.compUseSoftFP)
+            {
+                twoParts = true;
+            }
+        }
+
+        if (twoParts)
+        {
+            argRegNext = genRegArgNext(argReg);
+
+            if (varDsc->lvRegNum != argReg)
+            {
+                getEmitter()->emitIns_R_S(INS_ldr, EA_PTRSIZE, argReg, varNum, 0);
+                getEmitter()->emitIns_R_S(INS_ldr, EA_PTRSIZE, argRegNext, varNum, REGSIZE_BYTES);
+            }
+
+            if (compiler->info.compIsVarArgs)
+            {
+                fixedIntArgMask |= genRegMask(argReg);
+                fixedIntArgMask |= genRegMask(argRegNext);
+            }
+        }
+        else if (varDsc->lvIsHfaRegArg())
+        {
+            loadType           = varDsc->GetHfaType();
+            regNumber fieldReg = argReg;
+            emitAttr  loadSize = emitActualTypeSize(loadType);
+            unsigned  maxSize  = min(varDsc->lvSize(), (LAST_FP_ARGREG + 1 - argReg) * REGSIZE_BYTES);
+
+            for (unsigned ofs = 0; ofs < maxSize; ofs += (unsigned)loadSize)
+            {
+                if (varDsc->lvRegNum != argReg)
+                {
+                    getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, fieldReg, varNum, ofs);
+                }
+                assert(genIsValidFloatReg(fieldReg)); // we don't use register tracking for FP
+                fieldReg = regNextOfType(fieldReg, loadType);
+            }
+        }
+        else if (varTypeIsStruct(varDsc))
+        {
+            regNumber slotReg = argReg;
+            unsigned  maxSize = min(varDsc->lvSize(), (REG_ARG_LAST + 1 - argReg) * REGSIZE_BYTES);
+
+            for (unsigned ofs = 0; ofs < maxSize; ofs += REGSIZE_BYTES)
+            {
+                unsigned idx = ofs / REGSIZE_BYTES;
+                loadType     = compiler->getJitGCType(varDsc->lvGcLayout[idx]);
+
+                if (varDsc->lvRegNum != argReg)
+                {
+                    emitAttr loadSize = emitActualTypeSize(loadType);
+
+                    getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, slotReg, varNum, ofs);
+                }
+
+                regSet.AddMaskVars(genRegMask(slotReg));
+                gcInfo.gcMarkRegPtrVal(slotReg, loadType);
+                if (genIsValidIntReg(slotReg) && compiler->info.compIsVarArgs)
+                {
+                    fixedIntArgMask |= genRegMask(slotReg);
+                }
+
+                slotReg = genRegArgNext(slotReg);
+            }
+        }
+        else
+        {
+            loadType = compiler->mangleVarArgsType(genActualType(varDsc->TypeGet()));
+
+            if (varDsc->lvRegNum != argReg)
+            {
+                getEmitter()->emitIns_R_S(ins_Load(loadType), emitTypeSize(loadType), argReg, varNum, 0);
+            }
+
+            regSet.AddMaskVars(genRegMask(argReg));
+            gcInfo.gcMarkRegPtrVal(argReg, loadType);
+
+            if (genIsValidIntReg(argReg) && compiler->info.compIsVarArgs)
+            {
+                fixedIntArgMask |= genRegMask(argReg);
+            }
+        }
+
+        if (compiler->lvaIsGCTracked(varDsc))
+        {
+            VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varNum);
+        }
+#endif
     }
 
     // Jmp call to a vararg method - if the method has fewer than fixed arguments that can be max size of reg,

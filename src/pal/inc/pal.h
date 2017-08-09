@@ -501,6 +501,11 @@ PAL_InitializeDebug(
     void);
 
 PALIMPORT
+void
+PALAPI
+PAL_IgnoreProfileSignal(int signalNum);
+
+PALIMPORT
 HINSTANCE
 PALAPI
 PAL_RegisterModule(
@@ -2567,6 +2572,11 @@ PALIMPORT
 BOOL
 PALAPI
 PAL_GetWorkingSetSize(size_t* val);
+
+PALIMPORT
+BOOL
+PALAPI
+PAL_GetCpuLimit(UINT* val);
 
 PALIMPORT
 size_t

@@ -731,6 +731,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
             {
                 use.ReplaceWith(comp, node->gtGetOp1());
                 BlockRange().Remove(node);
+                node = node->gtGetOp1();
             }
             break;
 
@@ -750,9 +751,9 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
 
                 BlockRange().Delete(comp, m_block, std::move(lhsRange));
             }
-            else
+            else if (op1->IsValue())
             {
-                op1->gtLIRFlags |= LIR::Flags::IsUnusedValue;
+                op1->SetUnusedValue();
             }
 
             BlockRange().Remove(node);
@@ -953,9 +954,9 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
             node->gtFlags &= ~GTF_CALL;
         }
 
-        if (use.IsDummyUse())
+        if (node->IsValue() && use.IsDummyUse())
         {
-            node->gtLIRFlags |= LIR::Flags::IsUnusedValue;
+            node->SetUnusedValue();
         }
 
         if (node->TypeGet() == TYP_LONG)

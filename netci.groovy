@@ -157,7 +157,9 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         Utilities.setMachineAffinity(job, os, 'arm64-cross-latest');
     } else if ((architecture == 'arm') && (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen')) {
         Utilities.setMachineAffinity(job, 'Ubuntu', 'arm-cross-latest');
-    } else {
+    } else if ((architecture == 'arm') && (os == 'Windows_NT') && options['use_arm64_build_machine'] == true) {
+        Utilities.setMachineAffinity(job, os, 'latest-arm64');
+    }else {
         Utilities.setMachineAffinity(job, os, 'latest-or-auto');
     }
 }
@@ -667,6 +669,33 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
         addNonPRTriggers(job, branch, isPR, architecture, os, configuration, scenario, isFlowJob, isWindowsBuildOnlyJob, bidailyCrossList)
         return
     }
+
+     def arm64Users = [
+        'adiaaida',
+        'AndyAyersMS',
+        'briansull',
+        'BruceForstall',
+        'CarolEidt',
+        'cmckinsey',
+        'erozenfeld',
+        'jashook',
+        'JosephTremoulet',
+        'pgavlin',
+        'russellhadley',
+        'RussKeldorph',
+        'sandreenko',
+        'sdmaclea',
+        'sivarv',
+        'swaroop-sridhar',
+        'gkhanna79',
+        'jkotas',
+        'markwilkie',
+        'rahku',
+        'ramarag',
+        'tzwlai',
+        'weshaggard'
+    ]
+    
     // Pull request builds.  Generally these fall into two categories: default triggers and on-demand triggers
     // We generally only have a distinct set of default triggers but a bunch of on-demand ones.
     def osGroup = getOSGroup(os)
@@ -1056,10 +1085,10 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             break
         // editor brace matching: }
         case 'arm': // editor brace matching: {
-            assert scenario == 'default'
             switch (os) {
                 case 'Ubuntu':
                 case 'Ubuntu16.04':
+                    assert scenario == 'default'
                     if ((os == 'Ubuntu' && configuration == 'Release') || (os == 'Ubuntu16.04' && configuration == 'Debug')) {
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build")
                     }
@@ -1078,9 +1107,36 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
                     break;
                 case 'Windows_NT':
-                    if (configuration == 'Debug' || configuration == 'Release')
-                    {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build")
+                    // Set up a private trigger
+                    def contextString = "${os} ${architecture} Cross ${configuration}"
+                    if (scenario != 'default')
+                        contextString += " ${scenario}"
+                    contextString += " Build"
+                    // Debug builds only.
+                    if (configuration != 'Debug') {
+                        contextString += " and Test"
+                    }
+                    switch (scenario) {
+                        case 'default':
+                            // For now only run Debug and Release build jobs on PR Trigger. Note this is not a private trigger.
+                            if (configuration == 'Debug' || configuration == 'Release')
+                            {
+                                Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
+                                "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}.*", null, arm64Users)
+                            }
+                            else 
+                            {
+                                // Checked jobs will run on private trigger and run tests.
+                                Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
+                            }
+                            break
+                        case 'pri1r2r':
+                        case 'gcstress0x3':
+                        case 'gcstress0xc':
+                            // Stress jobs will will run on private trigger and run tests.
+                            Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
+                            "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*", null, arm64Users)
+                            break
                     }
                     break
                 default:
@@ -1102,32 +1158,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             if (configuration != 'Debug') {
                contextString += " and Test"
             }
-
-            def arm64Users = [
-                'adiaaida',
-                'AndyAyersMS',
-                'briansull',
-                'BruceForstall',
-                'CarolEidt',
-                'cmckinsey',
-                'erozenfeld',
-                'jashook',
-                'JosephTremoulet',
-                'pgavlin',
-                'russellhadley',
-                'RussKeldorph',
-                'sandreenko',
-                'sdmaclea',
-                'sivarv',
-                'swaroop-sridhar',
-                'gkhanna79',
-                'jkotas',
-                'markwilkie',
-                'rahku',
-                'ramarag',
-                'tzwlai',
-                'weshaggard'
-            ]
 
             switch (os) {
                 case 'Ubuntu':
@@ -1176,8 +1206,12 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 case 'Windows_NT':
                     switch (scenario) {
                         case 'default':
+                            if (isFlowJob == true) {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration}", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}.*")
+                            }
+
                             // For now only run Debug jobs on PR Trigger.
-                            if (configuration != 'Debug') {
+                            else if (configuration != 'Debug') {
                                 Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
                                 "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}.*", null, arm64Users)
                             }
@@ -1590,7 +1624,21 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
                     break
                 case 'arm':
-                    assert (scenario == 'default')
+                    def validArmWindowsScenarios = [ "default",
+                                                     "pri1r2r",
+                                                     "zapdisable",
+                                                     "minopts",
+                                                     "tailcallstress",
+                                                     "jitstress1",
+                                                     "jitstress2",
+                                                     "gcstress0x3",
+                                                     "gcstress0xc",
+                                                     "jitstressregs1",
+                                                     "jitstressregs2",
+                                                     "gcstress0xc_jitstress1",
+                                                     "gcstress0xc_jitstress2"]
+
+                    assert validArmWindowsScenarios.contains(scenario)
 
                     // Set time out
                     setTestJobTimeOut(newJob, scenario)
@@ -1599,7 +1647,22 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // For Debug builds, we will do a P1 test build
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} -priority=1"
                     }
-                    else {
+                    else if (lowerConfiguration == "checked") {
+
+                        if ((scenario != 'gcstress0x3') && (scenario != 'gcstress0xc'))
+                        {
+                           // Up the timeout for arm checked testing only.
+                           // Keep the longer timeout for gcstress.
+                           Utilities.setJobTimeout(newJob, 240)
+                        }
+
+                        def machineAffinityOptions = ['use_arm64_build_machine' : true]
+                        setMachineAffinity(newJob, os, architecture, machineAffinityOptions)
+                        // For checked runs we will also run testing.
+                        buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} -priority=1"
+                        buildCommands += "python tests\\scripts\\arm64_post_build.py -repo_root %WORKSPACE% -arch ${architecture} -build_type ${lowerConfiguration} -scenario ${scenario} -key_location C:\\tools\\key.txt"
+                    }
+                    else if (lowerConfiguration == "release") {
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture}"
                     }
                     // Add archival.
@@ -1731,7 +1794,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
 
                     if (!enableCorefxTesting) {
-                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs ./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture} cross clang3.8 skipnuget ${standaloneGc}"
+                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs ./build.sh verbose ${lowerConfiguration} ${architecture} cross clang3.8 ${standaloneGc}"
                         
                         // HACK -- Arm64 does not have corefx jobs yet.
                         buildCommands += "git clone https://github.com/dotnet/corefx fx"
@@ -1820,14 +1883,6 @@ combinedScenarios.each { scenario ->
                         os = 'Windows_NT'
                     }
 
-                    // WinArm32 is only built for Debug and Release
-                    if (os == 'Windows_NT' && architecture == 'arm')
-                    {
-                        if (configuration == 'Checked')
-                        {
-                            return
-                        }
-                    }
                     // Tizen is only supported for arm architecture
                     if (os == 'Tizen' && architecture != 'arm') {
                         return
@@ -1887,6 +1942,21 @@ combinedScenarios.each { scenario ->
                         }
 
                         switch (architecture) {
+                            case 'arm':
+                                if ((scenario != 'gcstress0x3') &&
+                                    (scenario != 'gcstress0xc') &&
+                                    (scenario != 'jitstress1') &&
+                                    (scenario != 'jitstress2') &&
+                                    (scenario != 'jitstressregs1') &&
+                                    (scenario != 'jitstressregs2') &&
+                                    (scenario != 'gcstress0xc_jitstress1') &&
+                                    (scenario != 'gcstress0xc_jitstress2') &&
+                                    (scenario != 'minopts') &&
+                                    (scenario != 'tailcallstress') &&
+                                    (scenario != 'zapdisable')) {
+                                        return
+                                    }
+                                    break
                             case 'arm64':
                                 if ((scenario != 'gcstress0x3') && (scenario != 'gcstress0xc')) {
                                     return
@@ -1929,7 +1999,7 @@ combinedScenarios.each { scenario ->
                                 }
                                 break
                             case 'ilrt':
-                                // The ilrt build isn't necessary except for Windows_NT.  Non-Windows NT uses
+                                // The ilrt build isn't necessary except for Windows_NT2003.  Non-Windows NT uses
                                 // the default scenario build
                                 if (os != 'Windows_NT') {
                                     return
@@ -1971,7 +2041,7 @@ combinedScenarios.each { scenario ->
                                     return
                                 }
                                 if (architecture != 'x64') {
-                                    if (architecture != 'arm64' || configuration == 'Debug') {
+                                    if ((architecture != 'arm64' && architecture != 'arm') || (configuration == 'Debug')) {
                                         return
                                     }
                                 }
@@ -2081,6 +2151,7 @@ combinedScenarios.each { scenario ->
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR, folderName)) {}
 
                     def machineAffinityOptions = architecture == 'arm64' ? ['is_build_only': true] : null
+                    machineAffinityOptions = architecture == 'arm' ? ['use_arm64_build_machine': false] : machineAffinityOptions
                     setMachineAffinity(newJob, os, architecture, machineAffinityOptions)
 
                     // Add all the standard options

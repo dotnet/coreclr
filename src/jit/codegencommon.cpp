@@ -1587,7 +1587,11 @@ BasicBlock* CodeGen::genCreateTempLabel()
     block->bbFlags |= (compiler->compCurBB->bbFlags & BBF_COLD);
 
 #ifdef DEBUG
+#ifdef UNIX_X86_ABI
+    block->bbTgtStkDepth = (genStackLevel - curNestedAlignment) / sizeof(int);
+#else
     block->bbTgtStkDepth = genStackLevel / sizeof(int);
+#endif
 #endif
     return block;
 }
@@ -2384,6 +2388,17 @@ FOUND_AM:
         }
 
         /* Special case: constant array index (that is range-checked) */
+        CLANG_FORMAT_COMMENT_ANCHOR;
+
+#if defined(LEGACY_BACKEND)
+        // If we've already placed rv2 in a register, we are probably being called in a context that has already
+        // presumed that an addressing mode will be created, even if rv2 is constant, and if we fold we may not find a
+        // useful addressing mode (e.g. if we had [mul * rv2 + cns] it might happen to fold to [cns2].
+        if (mode == -1 && rv2->InReg())
+        {
+            fold = false;
+        }
+#endif
 
         if (fold)
         {

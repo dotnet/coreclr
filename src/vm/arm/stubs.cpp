@@ -19,7 +19,6 @@
 #include "eeconfig.h"
 #include "cgensys.h"
 #include "asmconstants.h"
-#include "security.h"
 #include "virtualcallstub.h"
 #include "gcdump.h"
 #include "rtlfunctions.h"
@@ -2520,6 +2519,12 @@ void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
     m_pvSecretParam = (TADDR)pvSecretParam;
 
     FlushInstructionCache(GetCurrentProcess(),&m_code,sizeof(m_code));
+}
+
+void UMEntryThunkCode::Poison()
+{
+    // Insert 'udf 0xff' at the entry point
+    m_code[0] = 0xdeff;
 }
 
 ///////////////////////////// UNIMPLEMENTED //////////////////////////////////

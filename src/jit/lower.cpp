@@ -810,7 +810,7 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
 
         putArg = new (comp, GT_PUTARG_SPLIT)
             GenTreePutArgSplit(arg, info->slotNum PUT_STRUCT_ARG_STK_ONLY_ARG(info->numSlots), info->numRegs,
-                               info->isHfaRegArg, call->IsFastTailCall(), call);
+                               call->IsFastTailCall(), call);
 
         // If struct argument is morphed to GT_FIELD_LIST node(s),
         // we can know GC info by type of each GT_FIELD_LIST node.
@@ -907,7 +907,7 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                     //
                     // clang-format on
 
-                    putArg = comp->gtNewOperNode(GT_PUTARG_REG, type, arg);
+                    putArg = comp->gtNewPutArgReg(type, arg);
                 }
                 else if (info->structDesc.eightByteCount == 2)
                 {
@@ -950,8 +950,7 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                     for (unsigned ctr = 0; fieldListPtr != nullptr; fieldListPtr = fieldListPtr->Rest(), ctr++)
                     {
                         // Create a new GT_PUTARG_REG node with op1 the original GT_LCL_FLD.
-                        GenTreePtr newOper = comp->gtNewOperNode(
-                            GT_PUTARG_REG,
+                        GenTreePtr newOper = comp->gtNewPutArgReg(
                             comp->GetTypeFromClassificationAndSizes(info->structDesc.eightByteClassifications[ctr],
                                                                     info->structDesc.eightByteSizes[ctr]),
                             fieldListPtr->gtOp.gtOp1);
@@ -986,7 +985,7 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                     var_types  curTyp = curOp->TypeGet();
 
                     // Create a new GT_PUTARG_REG node with op1
-                    GenTreePtr newOper = comp->gtNewOperNode(GT_PUTARG_REG, curTyp, curOp);
+                    GenTreePtr newOper = comp->gtNewPutArgReg(curTyp, curOp);
 
                     // Splice in the new GT_PUTARG_REG node in the GT_FIELD_LIST
                     ReplaceArgWithPutArgOrCopy(&fieldListPtr->gtOp.gtOp1, newOper);
@@ -2216,7 +2215,7 @@ void Lowering::LowerCompare(GenTree* cmp)
                 }
                 else
                 {
-                    loSrc1->gtLIRFlags |= LIR::Flags::IsUnusedValue;
+                    loSrc1->SetUnusedValue();
                 }
 
                 hiCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, hiSrc1, hiSrc2);
@@ -2247,7 +2246,7 @@ void Lowering::LowerCompare(GenTree* cmp)
         hiCmp->gtFlags |= GTF_SET_FLAGS;
         if (hiCmp->IsValue())
         {
-            hiCmp->gtLIRFlags |= LIR::Flags::IsUnusedValue;
+            hiCmp->SetUnusedValue();
         }
 
         LIR::Use cmpUse;
@@ -3447,6 +3446,13 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
     // We'll introduce another use of this local so increase its ref count.
     comp->lvaTable[lclNum].incRefCnts(comp->compCurBB->getBBWeight(comp), comp);
 
+    // Get hold of the vtable offset (note: this might be expensive)
+    unsigned vtabOffsOfIndirection;
+    unsigned vtabOffsAfterIndirection;
+    bool     isRelative;
+    comp->info.compCompHnd->getMethodVTableOffset(call->gtCallMethHnd, &vtabOffsOfIndirection,
+                                                  &vtabOffsAfterIndirection, &isRelative);
+
     // If the thisPtr is a local field, then construct a local field type node
     GenTree* local;
     if (thisPtr->isLclField())
@@ -3462,22 +3468,58 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
     // pointer to virtual table = [REG_CALL_THIS + offs]
     GenTree* result = Ind(Offset(local, VPTR_OFFS));
 
-    // Get hold of the vtable offset (note: this might be expensive)
-    unsigned vtabOffsOfIndirection;
-    unsigned vtabOffsAfterIndirection;
-    comp->info.compCompHnd->getMethodVTableOffset(call->gtCallMethHnd, &vtabOffsOfIndirection,
-                                                  &vtabOffsAfterIndirection);
-
     // Get the appropriate vtable chunk
     if (vtabOffsOfIndirection != CORINFO_VIRTUALCALL_NO_CHUNK)
     {
-        // result = [REG_CALL_IND_SCRATCH + vtabOffsOfIndirection]
-        result = Ind(Offset(result, vtabOffsOfIndirection));
+        if (isRelative)
+        {
+            // MethodTable offset is a relative pointer.
+            //
+            // Additional temporary variable is used to store virtual table pointer.
+            // Address of method is obtained by the next computations:
+            //
+            // Save relative offset to tmp (vtab is virtual table pointer, vtabOffsOfIndirection is offset of
+            // vtable-1st-level-indirection):
+            // tmp = [vtab + vtabOffsOfIndirection]
+            //
+            // Save address of method to result (vtabOffsAfterIndirection is offset of vtable-2nd-level-indirection):
+            // result = [vtab + vtabOffsOfIndirection + vtabOffsAfterIndirection + tmp]
+            unsigned lclNumTmp = comp->lvaGrabTemp(true DEBUGARG("lclNumTmp"));
+
+            comp->lvaTable[lclNumTmp].incRefCnts(comp->compCurBB->getBBWeight(comp), comp);
+            GenTree* lclvNodeStore = comp->gtNewTempAssign(lclNumTmp, result);
+
+            LIR::Range range = LIR::SeqTree(comp, lclvNodeStore);
+            JITDUMP("result of obtaining pointer to virtual table:\n");
+            DISPRANGE(range);
+            BlockRange().InsertBefore(call, std::move(range));
+
+            GenTree* tmpTree = comp->gtNewLclvNode(lclNumTmp, result->TypeGet());
+            tmpTree          = Offset(tmpTree, vtabOffsOfIndirection);
+
+            tmpTree       = comp->gtNewOperNode(GT_IND, TYP_I_IMPL, tmpTree, false);
+            GenTree* offs = comp->gtNewIconNode(vtabOffsOfIndirection + vtabOffsAfterIndirection, TYP_INT);
+            result = comp->gtNewOperNode(GT_ADD, TYP_I_IMPL, comp->gtNewLclvNode(lclNumTmp, result->TypeGet()), offs);
+
+            result = Ind(OffsetByIndex(result, tmpTree));
+        }
+        else
+        {
+            // result = [REG_CALL_IND_SCRATCH + vtabOffsOfIndirection]
+            result = Ind(Offset(result, vtabOffsOfIndirection));
+        }
+    }
+    else
+    {
+        assert(!isRelative);
     }
 
     // Load the function address
     // result = [reg+vtabOffs]
-    result = Ind(Offset(result, vtabOffsAfterIndirection));
+    if (!isRelative)
+    {
+        result = Ind(Offset(result, vtabOffsAfterIndirection));
+    }
 
     return result;
 }
@@ -4538,7 +4580,7 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
     }
     else
     {
-        leaNode->gtLIRFlags |= LIR::Flags::IsUnusedValue;
+        leaNode->SetUnusedValue();
     }
 
     BlockRange().Remove(arrElem);
@@ -4552,34 +4594,6 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
 
 void Lowering::DoPhase()
 {
-#if 0
-    // The code in this #if can be used to debug lowering issues according to
-    // method hash.  To use, simply set environment variables lowerhashlo and lowerhashhi
-#ifdef DEBUG
-    unsigned methHash = info.compMethodHash();
-    char* lostr = getenv("lowerhashlo");
-    unsigned methHashLo = 0;
-    if (lostr != NULL)
-    {
-        sscanf_s(lostr, "%x", &methHashLo);
-    }
-    char* histr = getenv("lowerhashhi");
-    unsigned methHashHi = UINT32_MAX;
-    if (histr != NULL)
-    {
-        sscanf_s(histr, "%x", &methHashHi);
-    }
-    if (methHash < methHashLo || methHash > methHashHi)
-        return;
-    else
-    {
-        printf("Lowering for method %s, hash = 0x%x.\n",
-               info.compFullName, info.compMethodHash());
-        printf("");         // in our logic this causes a flush
-    }
-#endif
-#endif
-
     // If we have any PInvoke calls, insert the one-time prolog code. We'll inserted the epilog code in the
     // appropriate spots later. NOTE: there is a minor optimization opportunity here, as we still create p/invoke
     // data structures and setup/teardown even if we've eliminated all p/invoke calls due to dead code elimination.
@@ -4710,7 +4724,7 @@ void Lowering::DoPhase()
             assert((node->gtLsraInfo.dstCount == 0) || node->IsValue());
 
             // If the node produces an unused value, mark it as a local def-use
-            if (node->IsValue() && ((node->gtLIRFlags & LIR::Flags::IsUnusedValue) != 0))
+            if (node->IsValue() && node->IsUnusedValue())
             {
                 node->gtLsraInfo.isLocalDefUse = true;
                 node->gtLsraInfo.dstCount      = 0;
@@ -4804,9 +4818,10 @@ void Lowering::CheckCall(GenTreeCall* call)
 //                      after lowering.
 //
 // Arguments:
+//   compiler - the compiler context.
 //   node - the node to check.
 //
-void Lowering::CheckNode(GenTree* node)
+void Lowering::CheckNode(Compiler* compiler, GenTree* node)
 {
     switch (node->OperGet())
     {
@@ -4816,13 +4831,19 @@ void Lowering::CheckNode(GenTree* node)
 
 #ifdef FEATURE_SIMD
         case GT_SIMD:
+            assert(node->TypeGet() != TYP_SIMD12);
+            break;
 #ifdef _TARGET_64BIT_
         case GT_LCL_VAR:
         case GT_STORE_LCL_VAR:
+        {
+            unsigned   lclNum = node->AsLclVarCommon()->GetLclNum();
+            LclVarDsc* lclVar = &compiler->lvaTable[lclNum];
+            assert(node->TypeGet() != TYP_SIMD12 || compiler->lvaIsFieldOfDependentlyPromotedStruct(lclVar));
+        }
+        break;
 #endif // _TARGET_64BIT_
-            assert(node->TypeGet() != TYP_SIMD12);
-            break;
-#endif
+#endif // SIMD
 
         default:
             break;
@@ -4844,7 +4865,7 @@ bool Lowering::CheckBlock(Compiler* compiler, BasicBlock* block)
     LIR::Range& blockRange = LIR::AsRange(block);
     for (GenTree* node : blockRange)
     {
-        CheckNode(node);
+        CheckNode(compiler, node);
     }
 
     assert(blockRange.CheckLIR(compiler, true));

@@ -116,13 +116,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
     Compiler*   compiler = comp;
 
     TreeNodeInfo* info = &(tree->gtLsraInfo);
-#ifdef DEBUG
-    if (comp->verbose)
-    {
-        printf("TreeNodeInfoInit:\n");
-        comp->gtDispTreeRange(BlockRange(), tree);
-    }
-#endif
+
     // floating type generates AVX instruction (vmovss etc.), set the flag
     SetContainsAVXFlags(varTypeIsFloating(tree->TypeGet()));
     switch (tree->OperGet())
@@ -175,7 +169,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
 #if !defined(_TARGET_64BIT_)
 
         case GT_LONG:
-            if ((tree->gtLIRFlags & LIR::Flags::IsUnusedValue) != 0)
+            if (tree->IsUnusedValue())
             {
                 // An unused GT_LONG node needs to consume its sources.
                 info->srcCount = 2;
@@ -2074,7 +2068,7 @@ void Lowering::TreeNodeInfoInitModDiv(GenTree* tree)
         op1->gtLsraInfo.setSrcCandidates(l, RBM_RAX);
     }
 
-    if (op2->IsRegOptional())
+    if (!op2->isContained())
     {
         op2->gtLsraInfo.setSrcCandidates(l, l->allRegs(TYP_INT) & ~(RBM_RAX | RBM_RDX));
     }
