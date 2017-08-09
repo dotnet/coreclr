@@ -119,7 +119,7 @@ FCFuncStart(gStringFuncs)
     FCIntrinsic("get_Chars", COMString::GetCharAt, CORINFO_INTRINSIC_StringGetChar)
     FCFuncElement("IsAscii", COMString::IsAscii)
     FCFuncElement("CompareOrdinalHelper", COMString::CompareOrdinalEx)
-    FCFuncElement("IndexOfAny", COMString::IndexOfCharArray)
+    FCFuncElement("IndexOfCharArray", COMString::IndexOfCharArray)
     FCFuncElement("LastIndexOfAny", COMString::LastIndexOfCharArray)
     FCFuncElementSig("ReplaceInternal", &gsig_IM_Str_Str_RetStr, COMString::ReplaceString)
 #ifdef FEATURE_COMINTEROP
@@ -343,10 +343,6 @@ FCFuncStart(gMetaDataImport)
     FCFuncElement("_GetPInvokeMap", MetaDataImport::GetPinvokeMap) 
     FCFuncElement("_IsValidToken", MetaDataImport::IsValidToken) 
     FCFuncElement("_GetMarshalAs", MetaDataImport::GetMarshalAs)  
-FCFuncEnd()
-
-FCFuncStart(gRuntimeFieldInfoFuncs)
-    FCFuncElement("PerformVisibilityCheckOnField",  ReflectionInvocation::PerformVisibilityCheckOnField)
 FCFuncEnd()
 
 FCFuncStart(gSignatureNative)
@@ -1415,7 +1411,6 @@ FCClassElement("RegistrationServices", "System.Runtime.InteropServices", gRegist
 #endif // FEATURE_COMINTEROP_MANAGED_ACTIVATION
 #endif // FEATURE_COMINTEROP
 
-FCClassElement("RtFieldInfo", "System.Reflection", gRuntimeFieldInfoFuncs)
 FCClassElement("RuntimeAssembly", "System.Reflection", gAssemblyFuncs)
 #ifdef FEATURE_COMINTEROP    
 FCClassElement("RuntimeClass", "System.Runtime.InteropServices.WindowsRuntime", gRuntimeClassFuncs)

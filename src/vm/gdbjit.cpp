@@ -1777,6 +1777,75 @@ static int getNextPrologueIndex(int from, const SymbolsInfo *lines, int nlines)
     return -1;
 }
 
+static inline bool isListedModule(const WCHAR *wszModuleFile)
+{
+    static NewArrayHolder<WCHAR> wszModuleNames = nullptr;
+    static DWORD cBytesNeeded = 0;
+
+    // Get names of interesting modules from environment
+    if (wszModuleNames == nullptr && cBytesNeeded == 0)
+    {
+        DWORD cCharsNeeded = GetEnvironmentVariableW(W("CORECLR_GDBJIT"), NULL, 0);
+
+        if (cCharsNeeded == 0)
+        {
+            cBytesNeeded = 0xffffffff;
+            return false;
+        }
+
+        WCHAR *wszModuleNamesBuf = new WCHAR[cCharsNeeded+1];
+
+        cCharsNeeded = GetEnvironmentVariableW(W("CORECLR_GDBJIT"), wszModuleNamesBuf, cCharsNeeded);
+
+        if (cCharsNeeded == 0)
+        {
+            delete[] wszModuleNamesBuf;
+            cBytesNeeded = 0xffffffff;
+            return false;
+        }
+
+        wszModuleNames = wszModuleNamesBuf;
+        cBytesNeeded = cCharsNeeded + 1;
+    }
+    else if (wszModuleNames == nullptr)
+    {
+        return false;
+    }
+
+    _ASSERTE(wszModuleNames != nullptr && cBytesNeeded > 0);
+
+    BOOL isUserDebug = FALSE;
+
+    NewArrayHolder<WCHAR> wszModuleName = new WCHAR[cBytesNeeded];
+    LPWSTR pComma = wcsstr(wszModuleNames, W(","));
+    LPWSTR tmp = wszModuleNames;
+
+    while (pComma != NULL)
+    {
+        wcsncpy(wszModuleName, tmp, pComma - tmp);
+        wszModuleName[pComma - tmp] = W('\0');
+
+        if (wcscmp(wszModuleName, wszModuleFile) == 0)
+        {
+            isUserDebug = TRUE;
+            break;
+        }
+        tmp = pComma + 1;
+        pComma = wcsstr(tmp, W(","));
+    }
+    if (isUserDebug == FALSE)
+    {
+        wcsncpy(wszModuleName, tmp, wcslen(tmp));
+        wszModuleName[wcslen(tmp)] = W('\0');
+        if (wcscmp(wszModuleName, wszModuleFile) == 0)
+        {
+            isUserDebug = TRUE;
+        }
+    }
+
+    return isUserDebug;
+}
+
 static NotifyGdb::AddrSet codeAddrs;
 
 /* Create ELF/DWARF debug info for jitted method */
@@ -1829,57 +1898,9 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* methodDescPtr)
     if (length == 0)
         return;
 
-    static NewArrayHolder<WCHAR> wszModuleNames = nullptr;
-    DWORD cCharsNeeded = 0;
-
-    // Get names of interesting modules from environment
-    if (wszModuleNames == nullptr)
+    if (!isListedModule(wszModuleFile))
     {
-        cCharsNeeded = GetEnvironmentVariableW(W("CORECLR_GDBJIT"), NULL, 0);
-
-        if(cCharsNeeded == 0)
-            return;
-        wszModuleNames = new WCHAR[cCharsNeeded+1];
-        cCharsNeeded = GetEnvironmentVariableW(W("CORECLR_GDBJIT"), wszModuleNames, cCharsNeeded);
-        if(cCharsNeeded == 0)
-            return;
-    }
-    else
-    {
-        cCharsNeeded = wcslen(wszModuleNames);
-    }
-
-    BOOL isUserDebug = FALSE;
-
-    NewArrayHolder<WCHAR> wszModuleName = new WCHAR[cCharsNeeded+1];
-    LPWSTR pComma = wcsstr(wszModuleNames, W(","));
-    LPWSTR tmp = wszModuleNames;
-
-    while (pComma != NULL)
-    {
-        wcsncpy(wszModuleName, tmp, pComma - tmp);
-        wszModuleName[pComma - tmp] = W('\0');
-
-        if (wcscmp(wszModuleName, wszModuleFile) == 0)
-        {
-            isUserDebug = TRUE;
-            break;
-        }
-        tmp = pComma + 1;
-        pComma = wcsstr(tmp, W(","));
-    }
-    if (isUserDebug == FALSE)
-    {
-        wcsncpy(wszModuleName, tmp, wcslen(tmp));
-        wszModuleName[wcslen(tmp)] = W('\0');
-        if (wcscmp(wszModuleName, wszModuleFile) == 0)
-        {
-            isUserDebug = TRUE;
-        }
-    }
-
-    if (isUserDebug == FALSE)
-    {
+        // Do NOTHING if the current module is not listed.
         return;
     }
 
@@ -1950,7 +1971,7 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* methodDescPtr)
         start_index = end_index;
     }
 
-    MemBuf elfHeader, sectHeaders, sectStr, sectSymTab, sectStrTab, dbgInfo, dbgAbbrev, dbgPubname, dbgPubType, dbgLine,
+    MemBuf sectHeaders, sectStr, sectSymTab, sectStrTab, dbgInfo, dbgAbbrev, dbgPubname, dbgPubType, dbgLine,
         dbgStr, elfFile;
 
     /* Build .debug_abbrev section */
@@ -2071,12 +2092,16 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* methodDescPtr)
         pShdr->sh_size = 8;
     }
 
+    /* Build ELF image in memory */
+    elfFile.MemSize = sizeof(Elf_Ehdr) + sectStr.MemSize + dbgStr.MemSize + dbgAbbrev.MemSize + dbgInfo.MemSize +
+                      dbgPubname.MemSize + dbgPubType.MemSize + dbgLine.MemSize + sectSymTab.MemSize +
+                      sectStrTab.MemSize + sectHeaders.MemSize;
+    elfFile.MemPtr =  new char[elfFile.MemSize];
+
+
     /* Build ELF header */
-    if (!BuildELFHeader(elfHeader))
-    {
-        return;
-    }
-    Elf_Ehdr* header = reinterpret_cast<Elf_Ehdr*>(elfHeader.MemPtr.GetValue());
+    Elf_Ehdr* header = new (reinterpret_cast<Elf_Ehdr *>(elfFile.MemPtr.GetValue())) Elf_Ehdr;
+
 #ifdef _TARGET_ARM_
     header->e_flags = EF_ARM_EABI_VER5;
 #ifdef ARM_SOFTFP
@@ -2091,16 +2116,8 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* methodDescPtr)
     header->e_shnum = SectionNamesCount + thunks_count;
     header->e_shstrndx = GetSectionIndex(".shstrtab");
 
-    /* Build ELF image in memory */
-    elfFile.MemSize = elfHeader.MemSize + sectStr.MemSize + dbgStr.MemSize + dbgAbbrev.MemSize + dbgInfo.MemSize +
-                      dbgPubname.MemSize + dbgPubType.MemSize + dbgLine.MemSize + sectSymTab.MemSize +
-                      sectStrTab.MemSize + sectHeaders.MemSize;
-    elfFile.MemPtr =  new char[elfFile.MemSize];
-
     /* Copy section data */
-    offset = 0;
-    memcpy(elfFile.MemPtr, elfHeader.MemPtr, elfHeader.MemSize);
-    offset += elfHeader.MemSize;
+    offset = sizeof(Elf_Ehdr);
     memcpy(elfFile.MemPtr + offset, sectStr.MemPtr, sectStr.MemSize);
     offset +=  sectStr.MemSize;
     memcpy(elfFile.MemPtr + offset, dbgStr.MemPtr, dbgStr.MemSize);
@@ -2788,15 +2805,6 @@ void NotifyGdb::BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemb
 
     // Set actual used size to avoid garbage in ELF section
     strBuf.MemSize = sectNameOffset;
-}
-
-/* Build the ELF header */
-bool NotifyGdb::BuildELFHeader(MemBuf& buf)
-{
-    Elf_Ehdr* header = new Elf_Ehdr;
-    buf.MemPtr = reinterpret_cast<char*>(header);
-    buf.MemSize = sizeof(Elf_Ehdr);
-    return true;
 }
 
 /* Split full path name into directory & file names */
