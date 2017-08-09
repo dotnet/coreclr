@@ -8,5 +8,6 @@ internal partial class Interop
     {
         internal const int HWND_BROADCAST = 0xffff;
         internal const int WM_SETTINGCHANGE = 0x001A;
+        internal const int LOAD_STRING_MAX_LENGTH = 500;
     }
 }
