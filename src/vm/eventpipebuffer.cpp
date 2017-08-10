@@ -164,6 +164,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeEvent &event, EventDa
             unsigned int offset = 0;
             for(int i=0; i<blobCount; i++){
                 memcpy(pDataDest + offset, pBlobs[i], sizeof(EventData));
+                offset += sizeof(EventData)
             }
         }
 

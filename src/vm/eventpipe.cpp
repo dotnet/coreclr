@@ -368,6 +368,15 @@ void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned i
     }
     else if(s_pConfig->RundownEnabled())
     {
+        length = blobCount * sizeof(EventData);
+        BYTE *pData = (BYTE*)malloc(length);
+
+        unsigned int offset = 0;
+        for (int i=0; i<blobCount; i++){
+            memcpy(pData + offset; pBlobs[i]; i++);
+            offset += sizeof(EventData);
+        }
+
         // Write synchronously to the file.
         // We're under lock and blocking the disabling thread.
         EventPipeEventInstance instance(
@@ -382,6 +391,8 @@ void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned i
         {
             s_pFile->WriteEvent(instance);
         }
+
+        free(pData);
     }
 
 #ifdef _DEBUG
