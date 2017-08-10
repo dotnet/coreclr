@@ -5186,9 +5186,48 @@ BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD e
         IsIPInMarkedJitHelper(controlPc));
 }
 
+#ifdef _TARGET_ARM_
+static inline BOOL
+HandleArmSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExceptionRecord,
+                    Thread *pThread)
+{
+#ifdef LINUX32
+    // On ARM Linux exception point to the break instruction,
+    // but the rest of the code expects that it points to an instruction after the break
+    if (pExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
+    {
+        SetIP(pContext, GetIP(pContext) + CORDbg_BREAK_INSTRUCTION_SIZE);
+        pExceptionRecord->ExceptionAddress = (void *)GetIP(pContext);
+    }
+#endif
+    // On ARM we don't have any reliable hardware support for single stepping so it is emulated in software.
+    // The implementation will end up throwing an EXCEPTION_BREAKPOINT rather than an EXCEPTION_SINGLE_STEP
+    // and leaves other aspects of the thread context in an invalid state. Therefore we use this opportunity
+    // to fixup the state before any other part of the system uses it (we do it here since only the debugger
+    // uses single step functionality).
+
+    // First ask the emulation itself whether this exception occurred while single stepping was enabled. If so
+    // it will fix up the context to be consistent again and return true. If so and the exception was
+    // EXCEPTION_BREAKPOINT then we translate it to EXCEPTION_SINGLE_STEP (otherwise we leave it be, e.g. the
+    // instruction stepped caused an access violation).  since this is called from our VEH there might not
+    // be a thread object so we must check pThread first.
+    if ((pThread != NULL) && pThread->HandleSingleStep(pContext, pExceptionRecord->ExceptionCode) && (pExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT))
+    {
+        pExceptionRecord->ExceptionCode = EXCEPTION_SINGLE_STEP;
+        pExceptionRecord->ExceptionAddress = (void *)GetIP(pContext);
+        return TRUE;
+    }
+    return FALSE;
+}
+#endif // _TARGET_ARM_
+
 BOOL HandleHardwareException(PAL_SEHException* ex)
 {
     _ASSERTE(IsSafeToHandleHardwareException(ex->GetContextRecord(), ex->GetExceptionRecord()));
+
+#ifdef _TARGET_ARM_
+    HandleArmSingleStep(ex->GetContextRecord(), ex->GetExceptionRecord(), GetThread());
+#endif
 
     if (ex->GetExceptionRecord()->ExceptionCode != STATUS_BREAKPOINT && ex->GetExceptionRecord()->ExceptionCode != STATUS_SINGLE_STEP)
     {
