@@ -40,6 +40,7 @@ function print_usage {
     echo '                                      also have the BV_UPLOAD_SAS_TOKEN set to a SAS token for the Benchview upload container'
     echo '  --benchViewOS=<os>                : Specify the os that will be used to insert data into Benchview.'
     echo '  --runType=<local|private|rolling> : Specify the runType for Benchview. [Default: local]'
+    echo '  --outputdir                       : Specifies the directory where the generated performance output will be saved.'
 }
 
 # libExtension determines extension for dynamic library files
@@ -263,6 +264,9 @@ do
         --stabilityPrefix=*)
             stabilityPrefix=${i#*=}
             ;;
+        --outputdir=*)
+            benchmarksOutputDir=${i#*=}
+            ;;
         --uploadToBenchview)
             uploadToBenchview=TRUE
             ;;
@@ -333,28 +337,31 @@ for testcase in ${tests[@]}; do
         cp "$directory/$filename"*.txt .  || exit 1
     fi
 
-    # TODO: Do we need this here.
+    # FIXME: We should not need this here.
     chmod u+x ./corerun
 
     echo ""
     echo "----------"
     echo "  Running $testname"
     echo "----------"
-    run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid Perf --perf:collect $collectionflags 1>"Perf-$filename.log" 2>&1 || exit 1
+    xUnitRunId=Perf-$perfCollection
+    perfLogFileName=$xUnitRunId-$filename.log
+    perfXmlFileName=$xUnitRunId-$filename.xml
+    run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid "$xUnitRunId" --perf:collect $collectionflags 1>"$perfLogFileName" 2>&1 || exit 1
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
-        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "Perf-$filename.xml" --better desc $hasWarmupRun --append || {
+        run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "$perfXmlFileName" --better desc $hasWarmupRun --append || {
             echo [ERROR] Failed to generate BenchView data;
             exit 1;
         }
     fi
 
     # Rename file to be archived by Jenkins.
-    mv -f "Perf-$filename.log" "$CORECLR_REPO/Perf-$filename-$perfCollection.log" || {
-        echo [ERROR] Failed to move "Perf-$filename.log" to "$CORECLR_REPO".
+    mv -f "$perfLogFileName" "$CORECLR_REPO/$perfLogFileName" || {
+        echo [ERROR] Failed to move "$perfLogFileName" to "$CORECLR_REPO".
         exit 1;
     }
-    mv -f "Perf-$filename.xml" "$CORECLR_REPO/Perf-$filename-$perfCollection.xml" || {
-        echo [ERROR] Failed to move "Perf-$filename.xml" to "$CORECLR_REPO".
+    mv -f "$perfXmlFileName" "$CORECLR_REPO/$perfXmlFileName" || {
+        echo [ERROR] Failed to move "$perfXmlFileName" to "$CORECLR_REPO".
         exit 1;
     }
 done
