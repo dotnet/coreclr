@@ -33,10 +33,10 @@ namespace System
         // Converts a Boolean into a Span of bytes with length one.
         public static bool TryWriteBytes(Span<byte> destination, bool value)
         {
-            if (destination.Length < Unsafe.SizeOf<byte>())
+            if (destination.Length < sizeof(byte))
                 return false;
 
-            destination[0] = value ? (byte)1 : (byte)0;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value ? (byte)1: (byte)0);
             return true;
         }
 
@@ -51,10 +51,10 @@ namespace System
         // Converts a char into a Span
         public static bool TryWriteBytes(Span<byte> destination, char value)
         {
-            if (destination.Length < Unsafe.SizeOf<char>())
+            if (destination.Length < sizeof(char))
                 return false;
 
-            destination[0] = (byte)value;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
             return true;
         }
 
@@ -70,10 +70,10 @@ namespace System
         // Converts a short into a Span
         public static bool TryWriteBytes(Span<byte> destination, short value)
         {
-            if (destination.Length < Unsafe.SizeOf<short>())
+            if (destination.Length < sizeof(short))
                 return false;
 
-            destination[0] = (byte)value;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
             return true;
         }
 
@@ -89,10 +89,10 @@ namespace System
         // Converts an int into a Span
         public static bool TryWriteBytes(Span<byte> destination, int value)
         {
-            if (destination.Length < Unsafe.SizeOf<int>())
+            if (destination.Length < sizeof(int))
                 return false;
 
-            destination[0] = (byte)value;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
             return true;
         }
 
@@ -105,13 +105,13 @@ namespace System
             return bytes;
         }
 
-        // Cpmverts a long into a Span
+        // Converts a long into a Span
         public static bool TryWriteBytes(Span<byte> destination, long value)
         {
-            if (destination.Length < Unsafe.SizeOf<long>())
+            if (destination.Length < sizeof(long))
                 return false;
 
-            destination[0] = (byte)value;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
             return true;
         }
 
@@ -129,10 +129,10 @@ namespace System
         [CLSCompliant(false)]
         public static bool TryWriteBytes(Span<byte> destination, ushort value)
         {
-            if (destination.Length < Unsafe.SizeOf<ushort>())
+            if (destination.Length < sizeof(ushort))
                 return false;
 
-            destination[0] = (byte)value;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
             return true;
         }
 
@@ -150,10 +150,10 @@ namespace System
         [CLSCompliant(false)]
         public static bool TryWriteBytes(Span<byte> destination, uint value)
         {
-            if (destination.Length < Unsafe.SizeOf<uint>())
+            if (destination.Length < sizeof(uint))
                 return false;
 
-            destination[0] = (byte)value;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
             return true;
         }
 
@@ -171,10 +171,10 @@ namespace System
         [CLSCompliant(false)]
         public static bool TryWriteBytes(Span<byte> destination, ulong value)
         {
-            if (destination.Length < Unsafe.SizeOf<ulong>())
+            if (destination.Length < sizeof(ulong))
                 return false;
 
-            destination[0] = (byte)value;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
             return true;
         }
 
@@ -190,10 +190,10 @@ namespace System
         // Converts a float into a Span
         public static bool TryWriteBytes(Span<byte> destination, float value)
         {
-            if (destination.Length < Unsafe.SizeOf<float>())
+            if (destination.Length < sizeof(float))
                 return false;
 
-            destination[0] = (byte)value;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
             return true;
         }
 
@@ -209,10 +209,10 @@ namespace System
         // Converts a double into a Span
         public static bool TryWriteBytes(Span<byte> destination, double value)
         {
-            if (destination.Length < Unsafe.SizeOf<double>())
+            if (destination.Length < sizeof(double))
                 return false;
 
-            destination[0] = (byte)value;
+            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
             return true;
         }
 
@@ -222,7 +222,7 @@ namespace System
         // Converts a Span into a char
         public static char ToChar(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<char>())
+            if (value.Length < sizeof(char))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<char>(ref value.DangerousGetPinnableReference());
         }
@@ -269,7 +269,7 @@ namespace System
         // Converts a Span into a short
         public static short ToInt16(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<short>())
+            if (value.Length < sizeof(short))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<short>(ref value.DangerousGetPinnableReference());
         }
@@ -280,7 +280,7 @@ namespace System
         // Converts a Span into an int
         public static int ToInt32(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<int>())
+            if (value.Length < sizeof(int))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<int>(ref value.DangerousGetPinnableReference());
         }
@@ -291,7 +291,7 @@ namespace System
         // Converts a Span into a long
         public static long ToInt64(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<long>())
+            if (value.Length < sizeof(long))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<long>(ref value.DangerousGetPinnableReference());
         }
@@ -305,7 +305,7 @@ namespace System
         [CLSCompliant(false)]
         public static ushort ToUInt16(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<ushort>())
+            if (value.Length < sizeof(ushort))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<ushort>(ref value.DangerousGetPinnableReference());
         }
@@ -319,7 +319,7 @@ namespace System
         [CLSCompliant(false)]
         public static uint ToUInt32(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<uint>())
+            if (value.Length < sizeof(uint))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<uint>(ref value.DangerousGetPinnableReference());
         }
@@ -333,7 +333,7 @@ namespace System
         [CLSCompliant(false)]
         public static ulong ToUInt64(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<ulong>())
+            if (value.Length < sizeof(ulong))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<ulong>(ref value.DangerousGetPinnableReference());
         }
@@ -348,7 +348,7 @@ namespace System
         // Converts a Span into a float
         public static float ToSingle(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<float>())
+            if (value.Length < sizeof(float))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<float>(ref value.DangerousGetPinnableReference());
         }
@@ -363,7 +363,7 @@ namespace System
         // Converts a Span into a double
         public static double ToDouble(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<double>())
+            if (value.Length < sizeof(double))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<double>(ref value.DangerousGetPinnableReference());
         }
@@ -478,7 +478,7 @@ namespace System
 
         public static bool ToBoolean(ReadOnlySpan<byte> value)
         {
-            if (value.Length < Unsafe.SizeOf<byte>())
+            if (value.Length < sizeof(byte))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
             return Unsafe.ReadUnaligned<byte>(ref value.DangerousGetPinnableReference()) != 0;
         }
