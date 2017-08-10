@@ -41,6 +41,7 @@ public class Test
 
         Mutex mutex = new Mutex(true, mutexName, out exists);
         
+        reuseBeforeReleaseEvent.Set();
         if (exists)
         {
             Console.WriteLine("Error, created new mutex!");
@@ -48,7 +49,6 @@ public class Test
         }
         else
         {
-            reuseBeforeReleaseEvent.Set();
             mutex.WaitOne();
         }
 
