@@ -3935,6 +3935,10 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
         assert(removed);
         assert(!operandDefs.IsEmpty());
 
+#ifdef _TARGET_ARM_
+        regMaskTP currCandidates = RBM_NONE;
+#endif // _TARGET_ARM_
+
         LocationInfoListNode* const operandDefsEnd = operandDefs.End();
         for (LocationInfoListNode* operandDefsIterator = operandDefs.Begin(); operandDefsIterator != operandDefsEnd;
              operandDefsIterator                       = operandDefsIterator->Next())
@@ -3985,6 +3989,25 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
 #endif // DEBUG
 
             regMaskTP candidates = getUseCandidates(useNode);
+#ifdef _TARGET_ARM_
+            // If oper is GT_PUTARG_SPLIT, set bits in useCandidates must be in sequential order.
+            if (useNode->OperIsPutArgSplit())
+            {
+                // get i-th candidate
+                candidates = genFindLowestReg(candidates & ~currCandidates);
+                currCandidates |= candidates;
+            }
+#ifdef ARM_SOFTFP
+            // If oper is GT_PUTARG_REG, set bits in useCandidates must be in sequential order.
+            if (useNode->OperIsMultiRegOp())
+            {
+                regMaskTP candidate = genFindLowestReg(candidates);
+                useNode->gtLsraInfo.setSrcCandidates(this, candidates & ~candidate);
+                candidates = candidate;
+            }
+#endif // ARM_SOFTFP
+#endif // _TARGET_ARM_
+
             assert((candidates & allRegs(i->registerType)) != 0);
 
             // For non-localVar uses we record nothing, as nothing needs to be written back to the tree.
@@ -4081,7 +4104,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
         }
 #ifdef ARM_SOFTFP
         // If oper is GT_PUTARG_REG, set bits in useCandidates must be in sequential order.
-        else if (tree->OperGet() == GT_PUTARG_REG || tree->OperGet() == GT_COPY)
+        else if (tree->OperIsMultiRegOp())
         {
             useCandidates = genFindLowestReg(remainingUseCandidates);
             remainingUseCandidates &= ~useCandidates;
@@ -8907,6 +8930,21 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                     ReturnTypeDesc* retTypeDesc = treeNode->AsCall()->GetReturnTypeDesc();
                     typ                         = retTypeDesc->GetReturnRegType(refPosition->getMultiRegIdx());
                 }
+#ifdef _TARGET_ARM_
+                else if (treeNode->OperIsPutArgSplit())
+                {
+                    typ = treeNode->AsPutArgSplit()->GetRegType(refPosition->getMultiRegIdx());
+                }
+#endif
+#ifdef ARM_SOFTFP
+                else if (treeNode->OperIsPutArgReg())
+                {
+                    // For double arg regs, the type is changed to long since they must be passed via `r0-r3`.
+                    // However when they get spilled, they should be treated as separated int registers.
+                    var_types typNode = treeNode->TypeGet();
+                    typ               = (typNode == TYP_LONG) ? TYP_INT : typNode;
+                }
+#endif // ARM_SOFTFP
                 else
                 {
                     typ = treeNode->TypeGet();
