@@ -1001,6 +1001,78 @@ flowList* Compiler::fgSpliceOutPred(BasicBlock* block, BasicBlock* blockPred)
 }
 
 //------------------------------------------------------------------------
+// fgExpensiveSortedPredCheck: Assert that the pred list for all Basic Blocks is sorted 
+//
+// Assumptions:
+//    -- This only make sense to check when with the full predecessor lists, not the cheap preds lists.
+//
+// The eventual goal is to assert this is true. Until we can assume that this is 
+// true, just return whether it is sorted or not.
+
+bool Compiler::fgExpensiveSortedPredCheck()
+{
+    assert(!fgCheapPredsValid);
+
+#ifdef DEBUG
+
+    if (JitConfig.JitSlowDebugChecksEnabled() != 0)
+    {
+
+        bool sorted = true;
+
+        for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+        {
+            return fgExpensiveSortedPredCheck(block);
+        }
+        
+        return sorted;
+    }
+
+#endif //DEBUG
+
+    return true;
+}
+
+//------------------------------------------------------------------------
+// fgExpensiveSortedPredCheck: Assert that the pred list for all Basic Blocks is sorted 
+//
+// Assumptions:
+//    -- This only make sense to check when with the full predecessor lists, not the cheap preds lists.
+//
+// Notes:
+//
+// The eventual goal is to assert this is true. Until we can assume that this is 
+// true, just return whether it is sorted or not.
+
+bool Compiler::fgExpensiveSortedPredCheck(BasicBlock* block)
+{
+    assert(!fgCheapPredsValid);
+
+#ifdef DEBUG
+
+    if (JitConfig.JitSlowDebugChecksEnabled() != 0)
+    {
+        // Pedantically make sure bbPreds still in sorted order.
+
+        unsigned prevNum = 0;
+
+        for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
+        {
+            // TODO: Assert here when preds are actually sorted.
+            // assert(pred->flBlock->bbNum > prevNum);
+            if (pred->flBlock->bbNum > prevNum) return false;
+            
+            prevNum = pred->flBlock->bbNum;
+        }
+    }
+
+#endif //DEBUG
+
+    return true;
+
+}
+
+//------------------------------------------------------------------------
 // fgAddRefPred: Increment block->bbRefs by one and add "blockPred" to the predecessor list of "block".
 //
 // Arguments:
@@ -1124,7 +1196,9 @@ flowList* Compiler::fgAddRefPred(BasicBlock* block,
             flow->flEdgeWeightMin = BB_ZERO_WEIGHT;
             flow->flEdgeWeightMax = BB_MAX_WEIGHT;
         }
-    }
+
+    }    
+
     return flow;
 }
 
@@ -1621,16 +1695,154 @@ void Compiler::fgReplacePred(BasicBlock* block, BasicBlock* oldPred, BasicBlock*
     noway_assert(newPred != nullptr);
     assert(!fgCheapPredsValid);
 
-    flowList* pred;
+    unsigned blockNum = block->bbNum;
+    unsigned blockRefCount = block->bbRefs;
+    // Make sure the list is sorted before manipulating.
+    bool sorted = fgExpensiveSortedPredCheck(block);
 
-    for (pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
+#if DEBUG
+    // Also make sure that our refCount is correct before modifying.
+    // If it is not, keep track of that so that we know replacePreds is
+    // not the problem.
+
+    bool refCountCorrect = true;
+
+    if (JitConfig.JitSlowDebugChecksEnabled() != 0)
     {
-        if (oldPred == pred->flBlock)
+        unsigned refCount = 0;
+        
+        // Make sure the ref count to this block is still correct.
+        for (flowList* pred = block->bbPreds; pred; pred = pred->flNext) 
+        { 
+            refCount += pred->flDupCount;
+        }
+
+        if (refCount != block->bbRefs)
         {
-            pred->flBlock = newPred;
-            break;
+            refCountCorrect = false;
         }
     }
+
+#endif // DEBUG
+
+    flowList** elementBeforeMovingPred;
+    flowList*  movingPred = fgGetPredForBlock(block, oldPred, &elementBeforeMovingPred);
+
+    // If the pred we are trying to replace does not exist.
+    // Bail.
+    //
+    // TODO, investigate why we attempt to replace a pred that does not exist.
+    // and change this to an assert.
+    if (!movingPred) return;
+
+    // Splice out the node that we are modifying.
+    if (*elementBeforeMovingPred)
+    {
+        *elementBeforeMovingPred = movingPred->flNext;
+    }
+
+    // Set the block to the new pred.
+    movingPred->flBlock = newPred;
+
+    // If the list is empty or the item is to be inserted at the head.
+    if (block->bbPreds == nullptr)
+    {
+        // We are inserting the newPred at the end of the list.AddArgumentToTail
+        block->bbPreds = movingPred;
+        movingPred->flNext = nullptr;
+
+        fgExpensiveSortedPredCheck(block);
+        return;
+    }
+
+    
+    flowList* pred = block->bbPreds, *prevPred = block->bbPreds;
+    bool inserted = false;
+
+    // If inserting at the head of the list.
+    if (pred->flBlock->bbNum > newPred->bbNum)
+    {
+        block->bbPreds = movingPred;
+        movingPred->flNext = pred;
+
+        fgExpensiveSortedPredCheck(block);
+        return;
+    }
+
+    // Add the new pred.
+    do
+    {
+        // We need to insert the newPred before the next pred.
+        if (pred->flBlock->bbNum > newPred->bbNum)
+        {
+            // We are inserting a new pred that does not exist
+            // already in the list. We can just link it in.
+
+            prevPred->flNext = movingPred;
+            movingPred->flNext = pred;
+            assert(pred->flNext != pred);
+
+            inserted = true;
+            break;
+        }
+
+        // Equal
+        else if (pred->flBlock->bbNum == newPred->bbNum)
+        {
+            // We need to update this pred with a potentially higher ref count
+            // and drop the moving pred instead of reinserting it
+            // back in the pred list.
+
+            unsigned largerCount = pred->flDupCount;
+            largerCount = movingPred->flDupCount > largerCount ? movingPred->flDupCount : largerCount;
+
+            noway_assert(pred->flDupCount > 0);
+            pred->flDupCount = largerCount;
+
+            inserted = true;
+            break;
+        }
+
+        prevPred = pred;
+        pred = pred->flNext;
+    } while (pred);
+
+    // If we have not already inserted then prevPred points to the last element
+    // in the list and we need to insert at the end.
+    if (!inserted)
+    {
+        prevPred->flNext = movingPred;
+        movingPred->flNext = nullptr;
+    }
+
+#if DEBUG
+
+    if (JitConfig.JitSlowDebugChecksEnabled() != 0)
+    {
+        unsigned refCount = 0;
+        
+        // Make sure the ref count to this block is still correct.
+        for (flowList* pred = block->bbPreds; pred; pred = pred->flNext) 
+        { 
+            refCount += pred->flDupCount;
+        }
+
+        // If refCounts were correct coming in, but modifying incorrectly
+        // going out assert.
+        if (refCountCorrect)
+        {
+            assert (refCount == block->bbRefs);
+        }
+    }
+
+#endif // DEBUG
+    
+    // If the list was sorted coming in. Make sure it is sorted going out.
+    if (sorted)
+    {
+        assert(fgExpensiveSortedPredCheck(block));
+    }
+
 }
 
 /*****************************************************************************
