@@ -29,6 +29,16 @@ OSName=$(uname -s)
         Linux)
             __DOTNET_PKG=dotnet-dev-linux-x64
             OS=Linux
+
+            if [ -e /etc/redhat-release ]; then
+                redhatRelease=$(</etc/redhat-release)
+                if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
+                    __DOTNET_PKG=dotnet-dev-rhel.6-x64
+                    # Needed to enable the OS dynamic library loader to see our custom icu and curl libraries
+                    export LD_LIBRARY_PATH=/usr/local/lib
+                fi
+            fi
+
             ;;
 
         *)
