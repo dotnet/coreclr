@@ -66,10 +66,7 @@ namespace System.Diagnostics.Tracing
                     return 0;
                 }
 
-                fixed (EventProvider.EventData **pBlobs = &userData)
-                {
-                    EventPipeInternal.WriteEvent(eventHandle, eventID, pBlobs, userDataCount, activityId, relatedActivityId);
-                }
+                EventPipeInternal.WriteEvent(eventHandle, eventID, &userData, (uint) userDataCount, activityId, relatedActivityId);
             }
             return 0;
         }

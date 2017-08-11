@@ -291,7 +291,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
         // However, the GC is waiting on this call to return so that it can make forward progress.  Thus it is not safe
         // to switch to preemptive mode here.
 
-        unsigned int requestSize = sizeof(EventPipeEventInstance) + length;
+        unsigned int requestSize = sizeof(EventPipeEventInstance) + payload.GetSize();
         pBuffer = AllocateBufferForThread(pThread, requestSize);
     }
 
@@ -300,7 +300,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
     // This is the second time if this thread did have one or more buffers, but they were full.
     if(allocNewBuffer && pBuffer != NULL)
     {
-        allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pData, length, pActivityId, pRelatedActivityId, pStack);
+        allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, payload, pActivityId, pRelatedActivityId, pStack);
     }
 
     // Mark that the thread is no longer writing an event.

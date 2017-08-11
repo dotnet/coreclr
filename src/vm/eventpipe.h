@@ -35,7 +35,7 @@ public:
     unsigned long ptr;
     unsigned int size;
     unsigned int reserved;
-}
+};
 
 class EventPipeEventPayload
 {
@@ -78,20 +78,20 @@ public:
         return m_size;
     }
 
-    unsigned int GetFlatData() const
+    BYTE* GetFlatData() const
     {
         LIMITED_METHOD_CONTRACT;
 
         return m_pData;
     }
 
-    unsigned int GetBlobData() const
+    EventData** GetBlobData() const
     {
         LIMITED_METHOD_CONTRACT;
 
         return m_pBlobs;
     }
-}
+};
 
 class StackContents
 {
@@ -256,7 +256,7 @@ class EventPipe
 
         // Write out an event.
         // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+        static void WriteEventBlob(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
         // Write out a sample profile event.
         static void WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData = NULL, unsigned int length = 0);
@@ -268,6 +268,7 @@ class EventPipe
         static bool WalkManagedStackForThread(Thread *pThread, StackContents &stackContents);
 
     protected:
+
         // The counterpart to WriteEvent which after the payload is constructed
         static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
@@ -380,11 +381,11 @@ public:
         unsigned int length,
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 
-    static void QCALLTYPE WriteEvent(
+    static void QCALLTYPE WriteEventBlob(
         INT_PTR eventHandle,
         unsigned int eventID,
-        EventData **pData,
-        unsigned int count,
+        EventData **pBlobs,
+        unsigned int blobCount,
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 };
 
