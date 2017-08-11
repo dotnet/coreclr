@@ -322,7 +322,7 @@ rem ****************************************************************************
   set LV_MEASUREMENT_ARGS=%LV_MEASUREMENT_ARGS% --append
 
   for /f %%f in ('dir /b "%LV_BENCHMARKS_OUTPUT_DIR%\Perf-*%BENCHNAME%.xml" 2^>nul') do (
-    call :run_cmd py.exe "%BENCHVIEW_PATH%\measurement.py" %LV_MEASUREMENT_ARGS% %%f
+    call :run_cmd py.exe "%BENCHVIEW_PATH%\measurement.py" %LV_MEASUREMENT_ARGS% "%LV_BENCHMARKS_OUTPUT_DIR%\%%f"
 
     IF !ERRORLEVEL! NEQ 0 (
       call :print_error Failed to generate BenchView measurement data.
