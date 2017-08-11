@@ -41,6 +41,14 @@ extern "C" void InitProvidersAndEvents();
 
 EventPipeEventPayload::EventPipeEventPayload(byte *pData, unsigned int length)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
     m_pData = pData;
     m_pBlobs = NULL;
     m_blobCount = 0;
@@ -51,6 +59,14 @@ EventPipeEventPayload::EventPipeEventPayload(byte *pData, unsigned int length)
 
 EventPipeEventPayload::EventPipeEventPayload(EventData **pBlobs, unsigned int blobCount)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
     m_pData = NULL;
     m_pBlobs = pBlobs;
     m_blobCount = blobCount;
@@ -69,6 +85,14 @@ EventPipeEventPayload::EventPipeEventPayload(EventData **pBlobs, unsigned int bl
 
 void EventPipeEventPayload::~EventPipeEventPayload();
 {
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
     if(m_performedAllocation){
         delete[] m_pData;
         m_pData = NULL;
@@ -77,6 +101,14 @@ void EventPipeEventPayload::~EventPipeEventPayload();
 
 void EventPipeEventPayload::Flatten();
 {
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
     if(m_size > 0){
         if (!this->IsFlattened()){
             m_pData = new BYTE[m_size];
@@ -88,6 +120,14 @@ void EventPipeEventPayload::Flatten();
 
 void EventPipeEventPayload::CopyData(BYTE *pDst);
 {
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
     if(m_size > 0){
         if(this->IsFlattened()){
             memcpy(pDst, m_pData, m_size);
@@ -349,12 +389,27 @@ void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
 
 static void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+
+    CONTRACTL_END;
     EventPipeEventPayload payload(pData, length);
     EventPipe::WriteEventInternal(event, payload, pActivityId, pRelatedActivityId)
 }
 
 static void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+
     EventPipeEventPayload payload(pBlobs, blobCount);
     EventPipe::WriteEventInternal(event, payload, pActivityId, pRelatedActivityId)
 }
