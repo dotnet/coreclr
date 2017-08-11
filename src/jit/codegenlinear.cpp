@@ -735,7 +735,7 @@ void CodeGen::genSpillVar(GenTreePtr tree)
             restoreRegVar = true;
         }
 
-        instruction storeIns = ins_Store(tree->TypeGet(), compiler->isSIMDTypeLocalAligned(varNum));
+        instruction storeIns = ins_Store(lclTyp, compiler->isSIMDTypeLocalAligned(varNum));
 #if CPU_LONG_USES_REGPAIR
         if (varTypeIsMultiReg(tree))
         {
@@ -1037,7 +1037,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
         else if (unspillTree->OperIsMultiRegOp())
         {
             GenTreeMultiRegOp* multiReg = unspillTree->AsMultiRegOp();
-            unsigned           regCount = multiReg->gtOtherReg == REG_NA ? 1 : 2;
+            unsigned           regCount = multiReg->GetRegCount();
 
             // In case of split struct argument node, GTF_SPILLED flag on it indicates that
             // one or more of its result regs are spilled.  Call node needs to be
@@ -1685,7 +1685,7 @@ void CodeGen::genProduceReg(GenTree* tree)
             else if (tree->OperIsMultiRegOp())
             {
                 GenTreeMultiRegOp* multiReg = tree->AsMultiRegOp();
-                unsigned           regCount = multiReg->gtOtherReg == REG_NA ? 1 : 2;
+                unsigned           regCount = multiReg->GetRegCount();
 
                 for (unsigned i = 0; i < regCount; ++i)
                 {
