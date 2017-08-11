@@ -17,10 +17,6 @@
  */
 #include "handletable.h"
 
-#if 0 // [LOCALGC TODO] WinRT weak references
-#include <weakreference.h>
-#endif // FEATURE_COMINTEROP
-
 typedef DPTR(struct HandleTableMap) PTR_HandleTableMap;
 typedef DPTR(struct HandleTableBucket) PTR_HandleTableBucket;
 typedef DPTR(PTR_HandleTableBucket) PTR_PTR_HandleTableBucket;

@@ -320,16 +320,3 @@ MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
 {
     return g_pFreeObjectMethodTable;
 }
-
-/*
-bool IsGCSpecialThread()
-{
-    // TODO: Implement for background GC
-    return false;
-}
-
-bool IsGCThread()
-{
-    return false;
-}
-*/
