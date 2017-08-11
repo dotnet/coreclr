@@ -1797,11 +1797,15 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 
         GenTreePtr argNode = list->Current();
 
+        // The call argTable has the gtOp1() of the GT_COPY
+        // In GT_RELOAD case, the call argTable have a GT_RELOAD instead of the gtOp1() of the GT_RELOAD
+        if (argNode->OperGet() == GT_COPY)
+        {
+            argNode = argNode->gtSkipReloadOrCopy();
+        }
+
         fgArgTabEntryPtr curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
         assert(curArgTabEntry);
-
-        // GT_RELOAD/GT_COPY use the child node
-        argNode = argNode->gtSkipReloadOrCopy();
 
         if (curArgTabEntry->regNum == REG_STK)
             continue;
