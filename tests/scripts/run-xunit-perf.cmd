@@ -98,7 +98,7 @@ setlocal
   set CORE_ROOT=%LV_SANDBOX_DIR%
 
   set LV_RUNID=Perf-%ETW_COLLECTION%
-  set BENCHNAME_LOG_FILE_NAME=%LV_RUNID%-%BENCHNAME%.log
+  set BENCHNAME_LOG_FILE_NAME=%LV_BENCHMARKS_OUTPUT_DIR%\%LV_RUNID%-%BENCHNAME%.log
   set LV_CMD=
   if defined IS_SCENARIO_TEST (
     set "LV_CMD=corerun.exe "%LV_SANDBOX_DIR%\%BENCHNAME%.%TEST_FILE_EXT%" --perf:outputdir "%LV_BENCHMARKS_OUTPUT_DIR%" --perf:runid "%LV_RUNID%" --target-architecture "%TEST_ARCHITECTURE%""

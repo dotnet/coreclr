@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+dp0=$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
 function run_command {
     echo ""
     echo $USER@`hostname` "$PWD"
@@ -223,6 +225,7 @@ perfCollection=
 collectionflags=stopwatch
 hasWarmupRun=--drop-first-value
 stabilityPrefix=
+benchmarksOutputDir=$dp0/sandbox/Logs
 
 for i in "$@"
 do
@@ -307,11 +310,16 @@ export NUGET_PACKAGES=$CORECLR_REPO/packages
 create_core_overlay                 || { echo "Creating core overlay failed."; exit 1; }
 precompile_overlay_assemblies       || { echo "Precompiling overlay assemblies failed."; exit 1; }
 
-# Deploy xunit performance packages
+# If the output Logs folder exist, it was from a previous run (It needs to be deleted).
+if [ ! -d "$benchmarksOutputDir" ]; then
+    mkdir -p "$benchmarksOutputDir" || { echo "Failed to delete $benchmarksOutputDir"; exit 1; }
+fi
+
 cd $CORE_ROOT
 
 DO_SETUP=TRUE
 if [ ${DO_SETUP} == "TRUE" ]; then
+    # Deploy xunit performance packages
     $DOTNETCLI_PATH/dotnet restore $CORECLR_REPO/tests/src/Common/PerfHarness/PerfHarness.csproj                                    || { echo "dotnet restore failed."; exit 1; }
     $DOTNETCLI_PATH/dotnet publish $CORECLR_REPO/tests/src/Common/PerfHarness/PerfHarness.csproj -c Release -o "$coreOverlayDir"    || { echo "dotnet publish failed."; exit 1; }
 fi
@@ -345,25 +353,15 @@ for testcase in ${tests[@]}; do
     echo "  Running $testname"
     echo "----------"
     xUnitRunId=Perf-$perfCollection
-    perfLogFileName=$xUnitRunId-$filename.log
-    perfXmlFileName=$xUnitRunId-$filename.xml
-    run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid "$xUnitRunId" --perf:collect $collectionflags 1>"$perfLogFileName" 2>&1 || exit 1
+    perfLogFileName=$benchmarksOutputDir/$xUnitRunId-$filename.log
+    perfXmlFileName=$benchmarksOutputDir/$xUnitRunId-$filename.xml
+    run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid "$xUnitRunId" --perf:outputdir "$benchmarksOutputDir" --perf:collect $collectionflags 1>"$perfLogFileName" 2>&1 || exit 1
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
         run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "$perfXmlFileName" --better desc $hasWarmupRun --append || {
             echo [ERROR] Failed to generate BenchView data;
             exit 1;
         }
     fi
-
-    # Rename file to be archived by Jenkins.
-    mv -f "$perfLogFileName" "$CORECLR_REPO/$perfLogFileName" || {
-        echo [ERROR] Failed to move "$perfLogFileName" to "$CORECLR_REPO".
-        exit 1;
-    }
-    mv -f "$perfXmlFileName" "$CORECLR_REPO/$perfXmlFileName" || {
-        echo [ERROR] Failed to move "$perfXmlFileName" to "$CORECLR_REPO".
-        exit 1;
-    }
 done
 
 if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
