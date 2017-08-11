@@ -1694,8 +1694,6 @@ void Compiler::fgReplacePred(BasicBlock* block, BasicBlock* oldPred, BasicBlock*
     noway_assert(newPred != nullptr);
     assert(!fgCheapPredsValid);
 
-    unsigned blockNum      = block->bbNum;
-    unsigned blockRefCount = block->bbRefs;
     // Make sure the list is sorted before manipulating.
     bool sorted = fgExpensiveSortedPredCheck(block);
 
@@ -1732,6 +1730,8 @@ void Compiler::fgReplacePred(BasicBlock* block, BasicBlock* oldPred, BasicBlock*
     //
     // TODO, investigate why we attempt to replace a pred that does not exist.
     // and change this to an assert.
+    //
+    // Tracked with https://github.com/dotnet/coreclr/issues/13345
     if (!movingPred)
         return;
 
