@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#include "safemath.h"
 #include "common.h"
 #include "eventpipe.h"
 #include "eventpipebuffermanager.h"
@@ -37,6 +38,70 @@ extern "C" void InitProvidersAndEvents();
 // This function is auto-generated from /src/scripts/genEventPipe.py
 extern "C" void InitProvidersAndEvents();
 #endif
+
+EventPipeEventPayload::EventPipeEventPayload(byte *pData, unsigned int length)
+{
+    m_pData = pData;
+    m_pBlobs = NULL;
+    m_blobCount = 0;
+    m_performedAllocation = false;
+
+    m_size = length;
+}
+
+EventPipeEventPayload::EventPipeEventPayload(EventData **pBlobs, unsigned int blobCount)
+{
+    m_pData = NULL;
+    m_pBlobs = pBlobs;
+    m_blobCount = blobCount;
+    m_performedAllocation = false;
+
+    S_UINT32 tmp_size = S_UINT32(blobCount) * S_UINT32(sizeof(EventData));
+    if (tmp_size.IsOverflow()){
+        m_pBlobs = NULL;
+        m_blobCount = 0; // ?
+        m_size = 0; // ?
+    }
+    else{
+        m_size = tmp_size;
+    }
+}
+
+void EventPipeEventPayload::~EventPipeEventPayload();
+{
+    if(m_performedAllocation){
+        delete[] m_pData;
+        m_pData = NULL;
+    }
+}
+
+void EventPipeEventPayload::Flatten();
+{
+    if(m_size > 0){
+        if (!this->IsFlattened()){
+            m_pData = new BYTE[m_size];
+            m_performedAllocation = true;
+            this->CopyData(m_pData);
+        }
+    }
+}
+
+void EventPipeEventPayload::CopyData(BYTE *pDst);
+{
+    if(m_size > 0){
+        if(this->IsFlattened()){
+            memcpy(pDst, m_pData, m_size);
+        }
+
+        else if(m_pBlobs != NULL){
+            unsigned int offset = 0;
+            for(int i=0; i<m_blobCount; i++){
+                memcpy(pDst + offset, m_pBlobs, sizeof(EventData));
+                offset += sizeof(EventData);
+            }
+        }
+    }
+}
 
 void EventPipe::Initialize()
 {
@@ -282,7 +347,19 @@ void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
     }
 }
 
-void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
+static void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
+{
+    EventPipeEventPayload payload(pData, length);
+    EventPipe::WriteEventInternal(event, payload, pActivityId, pRelatedActivityId)
+}
+
+static void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId);
+{
+    EventPipeEventPayload payload(pBlobs, blobCount);
+    EventPipe::WriteEventInternal(event, payload, pActivityId, pRelatedActivityId)
+}
+
+void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
 {
     CONTRACTL
     {
@@ -309,7 +386,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
 
     if(!s_pConfig->RundownEnabled() && s_pBufferManager != NULL)
     {
-        if(!s_pBufferManager->WriteEvent(pThread, event, pData, length, pActivityId, pRelatedActivityId))
+        if(!s_pBufferManager->WriteEvent(pThread, event, payload, pActivityId, pRelatedActivityId))
         {
             // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
             return;
@@ -317,13 +394,17 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
     }
     else if(s_pConfig->RundownEnabled())
     {
+        // Ensure the data is in a flat buffer
+        // This statement only does work if the data is not already flat
+        payload.Flatten();
+
         // Write synchronously to the file.
         // We're under lock and blocking the disabling thread.
         EventPipeEventInstance instance(
             event,
             pThread->GetOSThreadId(),
-            pData,
-            length,
+            payload.GetFlatData(),
+            payload.GetSize(),
             pActivityId,
             pRelatedActivityId);
 
@@ -331,68 +412,6 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
         {
             s_pFile->WriteEvent(instance);
         }
-    }
-
-void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(s_pBufferManager != NULL);
-    }
-    CONTRACTL_END;
-
-    // Exit early if the event is not enabled.
-    if(!event.IsEnabled())
-    {
-        return;
-    }
-
-    // Get the current thread;
-    Thread *pThread = GetThread();
-    if(pThread == NULL)
-    {
-        // We can't write an event without the thread object.
-        return;
-    }
-
-    if(!s_pConfig->RundownEnabled() && s_pBufferManager != NULL)
-    {
-        if(!s_pBufferManager->WriteEvent(pThread, event, pBlobs, blobCount, pActivityId, pRelatedActivityId))
-        {
-            // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
-            return;
-        }
-    }
-    else if(s_pConfig->RundownEnabled())
-    {
-        length = blobCount * sizeof(EventData);
-        BYTE *pData = (BYTE*)malloc(length);
-
-        unsigned int offset = 0;
-        for (int i=0; i<blobCount; i++){
-            memcpy(pData + offset; pBlobs[i]; i++);
-            offset += sizeof(EventData);
-        }
-
-        // Write synchronously to the file.
-        // We're under lock and blocking the disabling thread.
-        EventPipeEventInstance instance(
-            event,
-            pThread->GetOSThreadId(),
-            pData,
-            length,
-            pActivityId,
-            pRelatedActivityId);
-
-        if(s_pFile != NULL)
-        {
-            s_pFile->WriteEvent(instance);
-        }
-
-        free(pData);
     }
 
 #ifdef _DEBUG
@@ -403,8 +422,8 @@ void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned i
         EventPipeEventInstance instance(
             event,
             pThread->GetOSThreadId(),
-            pData,
-            length,
+            payload.GetFlatData(),
+            payload.GetSize(),
             pActivityId,
             pRelatedActivityId);
 
@@ -688,7 +707,7 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
 void QCALLTYPE EventPipeInternal::WriteEvent(
     INT_PTR eventHandle,
     unsigned int eventID,
-    void **pData,
+    EventData **pData,
     unsigned int count,
     LPCGUID pActivityId,
     LPCGUID pRelatedActivityId)
@@ -698,7 +717,7 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
 
     _ASSERTE(eventHandle != NULL);
     EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
-    EventPipe::WriteEvent(*pEvent, (EventData **)pData, count, pActivityId, pRelatedActivityId);
+    EventPipe::WriteEvent(*pEvent, pData, count, pActivityId, pRelatedActivityId);
 
     END_QCALL;
 }

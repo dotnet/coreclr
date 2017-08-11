@@ -218,7 +218,7 @@ void EventPipeBufferManager::DeAllocateBuffer(EventPipeBuffer *pBuffer)
     }
 }
 
-bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId, Thread *pEventThread, StackContents *pStack)
+bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId, LPCGUID pRelatedActivityId, Thread *pEventThread, StackContents *pStack)
 {
     CONTRACTL
     {
@@ -277,7 +277,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
         else
         {
             // Attempt to write the event to the buffer.  If this fails, we should allocate a new buffer.
-            allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pData, length, pActivityId, pRelatedActivityId, pStack);
+            allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, payload, pActivityId, pRelatedActivityId, pStack);
         }
     }
 
@@ -314,106 +314,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
 #endif // _DEBUG
     return !allocNewBuffer;
 }
-
-bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId, Thread *pEventThread, StackContents *pStack)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        // The input thread must match the current thread because no lock is taken on the buffer.
-        PRECONDITION(pThread == GetThread());
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(pThread == GetThread());
-
-    // Check to see an event thread was specified.  If not, then use the current thread.
-    if(pEventThread == NULL)
-    {
-        pEventThread = pThread;
-    }
-
-    // Before we pick a buffer, make sure the event is enabled.
-    if(!event.IsEnabled())
-    {
-        return false;
-    }
-
-    // The event is still enabled.  Mark that the thread is now writing an event.
-    pThread->SetEventWriteInProgress(true);
-
-    // Check one more time to make sure that the event is still enabled.
-    // We do this because we might be trying to disable tracing and free buffers, so we
-    // must make sure that the event is enabled after we mark that we're writing to avoid
-    // races with the destructing thread.
-    if(!event.IsEnabled())
-    {
-        return false;
-    }
-
-    // See if the thread already has a buffer to try.
-    bool allocNewBuffer = false;
-    EventPipeBuffer *pBuffer = NULL;
-    EventPipeBufferList *pThreadBufferList = pThread->GetEventPipeBufferList();
-    if(pThreadBufferList == NULL)
-    {
-        allocNewBuffer = true;
-    }
-    else
-    {
-        // The thread already has a buffer list.  Select the newest buffer and attempt to write into it.
-        pBuffer = pThreadBufferList->GetTail();
-        if(pBuffer == NULL)
-        {
-            // This should never happen.  If the buffer list exists, it must contain at least one entry.
-            _ASSERT(!"Thread buffer list with zero entries encountered.");
-            return false;
-        }
-        else
-        {
-            for(int i=0; i<count; i++){
-                // Attempt to write the event to the buffer.  If this fails, we should allocate a new buffer.
-                allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pBlobs, blobCount, pActivityId, pRelatedActivityId, pStack);
-            }
-        }
-    }
-
-    // Check to see if we need to allocate a new buffer, and if so, do it here.
-    if(allocNewBuffer)
-    {
-        // We previously switched to preemptive mode here, however, this is not safe and can cause deadlocks.
-        // When a GC is started, and background threads are created (for the first BGC), a thread creation event is fired.
-        // When control gets here the buffer is allocated, but then the thread hangs waiting for the GC to complete
-        // (it was marked as started before creating threads) so that it can switch back to cooperative mode.
-        // However, the GC is waiting on this call to return so that it can make forward progress.  Thus it is not safe
-        // to switch to preemptive mode here.
-
-        unsigned int requestSize = sizeof(EventPipeEventInstance) + (blobCount * sizeof(EventData));
-        pBuffer = AllocateBufferForThread(pThread, requestSize);
-    }
-
-    // Try to write the event after we allocated (or stole) a buffer.
-    // This is the first time if the thread had no buffers before the call to this function.
-    // This is the second time if this thread did have one or more buffers, but they were full.
-    if(allocNewBuffer && pBuffer != NULL)
-    {
-        allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, pBlobs, blobCount, pActivityId, pRelatedActivityId, pStack);
-    }
-
-    // Mark that the thread is no longer writing an event.
-     pThread->SetEventWriteInProgress(false);
-
-#ifdef _DEBUG
-    if(!allocNewBuffer)
-    {
-        InterlockedIncrement(&m_numEventsStored);
-    }
-#endif // _DEBUG
-    return !allocNewBuffer;
-}
-
 
 void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
 {

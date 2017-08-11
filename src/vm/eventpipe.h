@@ -37,6 +37,62 @@ public:
     unsigned int reserved;
 }
 
+class EventPipeEventPayload
+{
+private:
+    BYTE *m_pData;
+    EventData **m_pBlobs;
+    unsigned int m_blobCount;
+    unsigned int m_size;
+    bool m_performedAllocation;
+
+public:
+    // Build this payload with a flat buffer inside
+    EventPipeEventPayload(byte *pData, unsigned int length);
+
+    // Build this payload to contain an array of EventData blobs
+    EventPipeEventPayload(EventData **pBlobs, unsigned int blobCount);
+
+    // If a buffer was allocated internally, delete it
+    ~EventPipeEventPayload();
+    
+    // If the data is stored only as an array of blobs, create a flat buffer and copy into it
+    void Flatten();
+
+    // Copy the data (whether flat or array of blobs) into a flat buffer at pDst
+    void CopyData(BYTE *pDst);
+
+    // Return true is the data is stored in a flat buffer
+    bool IsFlattened() const
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_pData != NULL;
+    }
+
+    // The the size of buffer needed to contain the stored data
+    unsigned int GetSize() const
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_size;
+    }
+
+    unsigned int GetFlatData() const
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_pData;
+    }
+
+    unsigned int GetBlobData() const
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_pBlobs;
+    }
+}
+
 class StackContents
 {
 private:
@@ -211,6 +267,10 @@ class EventPipe
         // Get the managed call stack for the specified thread.
         static bool WalkManagedStackForThread(Thread *pThread, StackContents &stackContents);
 
+    protected:
+        // The counterpart to WriteEvent which after the payload is constructed
+        static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+
     private:
 
         // Callback function for the stack walker.  For each frame walked, this callback is invoked.
@@ -323,7 +383,7 @@ public:
     static void QCALLTYPE WriteEvent(
         INT_PTR eventHandle,
         unsigned int eventID,
-        void **pData,
+        EventData **pData,
         unsigned int count,
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 };
