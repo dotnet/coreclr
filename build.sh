@@ -60,14 +60,21 @@ usage()
 
 initHostDistroRid()
 {
+    __HostDistroRid=""
     if [ "$__HostOS" == "Linux" ]; then
-        if [ ! -e /etc/os-release ]; then
-            echo "WARNING: Can not determine runtime id for current distro."
-            __HostDistroRid=""
-        else
+        if [ -e /etc/os-release ]; then
             source /etc/os-release
             __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
+        elif [ -e /etc/redhat-release ]; then
+            local redhatRelease=$(</etc/redhat-release)
+            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
+               __HostDistroRid="rhel.6-$__HostArch"
+            fi
         fi
+    fi
+
+    if [ "$__HostDistroRid" == "" ]; then
+        echo "WARNING: Can not determine runtime id for current distro."
     fi
 }
 
@@ -342,7 +349,7 @@ build_cross_arch_component()
     __SkipCrossArchBuild=1
     TARGET_ROOTFS=""
     # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
-    if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x86" ]]; then
+    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && "$__CrossArch" == "x86" ]]; then
         export CROSSCOMPILE=0
         __SkipCrossArchBuild=0
 
@@ -390,10 +397,11 @@ isMSBuildOnNETCoreSupported()
     if [ "$__HostArch" == "x64" ]; then
         if [ "$__HostOS" == "Linux" ]; then
             __isMSBuildOnNETCoreSupported=1
-            UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64")
+            # note: the RIDs below can use globbing patterns
+            UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64" "alpine.3.6.*-x64" "rhel.6-x64" "")
             for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
             do
-                if [ "$__HostDistroRid" == "$UNSUPPORTED_RID" ]; then
+                if [[ $__HostDistroRid == $UNSUPPORTED_RID ]]; then
                     __isMSBuildOnNETCoreSupported=0
                     break
                 fi
@@ -907,7 +915,7 @@ __CrossComponentBinDir="$__BinDir"
 __CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"
 
 __CrossArch="$__HostArch"
-if [[ "$__HostArch" == "x64" && "$__BuildArch" == "arm" ]]; then
+if [[ "$__HostArch" == "x64" && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
     __CrossArch="x86"
 fi
 if [ $__CrossBuild == 1 ]; then

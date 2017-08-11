@@ -2878,6 +2878,37 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             nonStandardArgs.Add(arg1, REG_PINVOKE_FRAME);
         }
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+#if defined(_TARGET_ARM_)
+        else if (call->gtCallMoreFlags & GTF_CALL_M_SECURE_DELEGATE_INV)
+        {
+            GenTree* arg = call->gtCallObjp;
+            if (arg->OperIsLocal())
+            {
+                arg = gtClone(arg, true);
+            }
+            else
+            {
+                GenTree* tmp     = fgInsertCommaFormTemp(&arg);
+                call->gtCallObjp = arg;
+                call->gtFlags |= GTF_ASG;
+                arg = tmp;
+            }
+            noway_assert(arg != nullptr);
+
+            GenTree* newArg = new (this, GT_ADDR)
+                GenTreeAddrMode(TYP_REF, arg, nullptr, 0, eeGetEEInfo()->offsetOfSecureDelegateIndirectCell);
+
+            // Append newArg as the last arg
+            GenTreeArgList** insertionPoint = &call->gtCallArgs;
+            for (; *insertionPoint != nullptr; insertionPoint = &(*insertionPoint)->Rest())
+            {
+            }
+            *insertionPoint = gtNewListNode(newArg, nullptr);
+
+            numArgs++;
+            nonStandardArgs.Add(newArg, virtualStubParamInfo->GetReg());
+        }
+#endif // defined(_TARGET_ARM_)
 #if defined(_TARGET_X86_)
         // The x86 shift helpers have custom calling conventions and expect the lo part of the long to be in EAX and the
         // hi part to be in EDX. This sets the argument registers up correctly.
@@ -3450,13 +3481,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #error Unsupported or unset target architecture
 #endif // _TARGET_XXX_
             }
-#ifdef _TARGET_ARM_
-            else if (isHfaArg)
-            {
-                size                  = GetHfaCount(argx);
-                hasMultiregStructArgs = true;
-            }
-#endif           // _TARGET_ARM_
             else // struct type
             {
                 // We handle two opcodes: GT_MKREFANY and GT_OBJ
@@ -3556,11 +3580,18 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     // As we can optimize these by turning them into a GT_IND of the correct type
                     //
                     // Check for cases that we cannot optimize:
-                    //
+                    CLANG_FORMAT_COMMENT_ANCHOR;
+#ifdef _TARGET_ARM_
+                    if (((originalSize > TARGET_POINTER_SIZE) &&  // it is struct that is larger than a pointer
+                         howToPassStruct != SPK_PrimitiveType) || // it is struct that is not one double HFA
+                        !isPow2(originalSize) ||                  // it is not a power of two (1, 2, 4 or 8)
+                        (isHfaArg && (howToPassStruct != SPK_PrimitiveType))) // it is a one element HFA struct
+#else                                                                         // !_TARGET_ARM_
                     if ((originalSize > TARGET_POINTER_SIZE) || // it is struct that is larger than a pointer
                         !isPow2(originalSize) ||                // it is not a power of two (1, 2, 4 or 8)
                         (isHfaArg && (hfaSlots != 1)))          // it is a one element HFA struct
-#endif                                                          // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif                                                                        // !_TARGET_ARM_
+#endif                                                                        // FEATURE_UNIX_AMD64_STRUCT_PASSING
                     {
                         // Normalize 'size' to the number of pointer sized items
                         // 'size' is the number of register slots that we will use to pass the argument
@@ -3684,8 +3715,14 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                         // primitives
                         if (isHfaArg)
                         {
+#ifdef _TARGET_ARM_
+                            // If we reach here with an HFA arg it has to be a one element HFA
+                            // If HFA type is double and it has one element, hfaSlot is 2
+                            assert(hfaSlots == 1 || (hfaSlots == 2 && hfaType == TYP_DOUBLE));
+#else
                             // If we reach here with an HFA arg it has to be a one element HFA
                             assert(hfaSlots == 1);
+#endif
                             structBaseType = hfaType; // change the indirection type to a floating point type
                         }
 
@@ -3782,6 +3819,12 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                                ((copyBlkClass != NO_CLASS_HANDLE) && varTypeIsIntegral(structBaseType)));
 
                         size = 1;
+#ifdef _TARGET_ARM_
+                        if (isHfaArg)
+                        {
+                            size = hfaSlots;
+                        }
+#endif
                     }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
@@ -3824,12 +3867,24 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     }
                 }
 
-#if defined(_TARGET_64BIT_) || defined(_TARGET_ARM_)
+#if defined(_TARGET_64BIT_)
                 if (size > 1)
                 {
                     hasMultiregStructArgs = true;
                 }
-#endif // _TARGET_64BIT || _TARGET_ARM_
+#elif defined(_TARGET_ARM_)
+                if (isHfaArg)
+                {
+                    if (size > genTypeStSz(hfaType))
+                    {
+                        hasMultiregStructArgs = true;
+                    }
+                }
+                else if (size > 1)
+                {
+                    hasMultiregStructArgs = true;
+                }
+#endif // _TARGET_ARM_
             }
 
             // The 'size' value has now must have been set. (the original value of zero is an invalid value)
@@ -7176,14 +7231,30 @@ void Compiler::fgMorphTailCall(GenTreeCall* call)
 
         unsigned vtabOffsOfIndirection;
         unsigned vtabOffsAfterIndirection;
-        info.compCompHnd->getMethodVTableOffset(call->gtCallMethHnd, &vtabOffsOfIndirection, &vtabOffsAfterIndirection);
+        bool     isRelative;
+        info.compCompHnd->getMethodVTableOffset(call->gtCallMethHnd, &vtabOffsOfIndirection, &vtabOffsAfterIndirection,
+                                                &isRelative);
 
         /* Get the appropriate vtable chunk */
 
         if (vtabOffsOfIndirection != CORINFO_VIRTUALCALL_NO_CHUNK)
         {
-            add  = gtNewOperNode(GT_ADD, TYP_I_IMPL, vtbl, gtNewIconNode(vtabOffsOfIndirection, TYP_I_IMPL));
+            add = gtNewOperNode(GT_ADD, TYP_I_IMPL, vtbl, gtNewIconNode(vtabOffsOfIndirection, TYP_I_IMPL));
+
+            GenTreePtr indOffTree = nullptr;
+
+            if (isRelative)
+            {
+                indOffTree = impCloneExpr(add, &add, NO_CLASS_HANDLE, (unsigned)CHECK_SPILL_ALL,
+                                          nullptr DEBUGARG("virtual table call"));
+            }
+
             vtbl = gtNewOperNode(GT_IND, TYP_I_IMPL, add);
+
+            if (isRelative)
+            {
+                vtbl = gtNewOperNode(GT_ADD, TYP_I_IMPL, vtbl, indOffTree);
+            }
         }
 
         /* Now the appropriate vtable slot */
@@ -7630,9 +7701,14 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
     // Remove the call
     fgRemoveStmt(block, last);
 
-    // Set the loop edge.
+    // Set the loop edge.  Ensure we have a scratch block and then target the
+    // next block.  Loop detection needs to see a pred out of the loop, so
+    // mark the scratch block BBF_DONT_REMOVE to prevent empty block removal
+    // on it.
+    fgEnsureFirstBBisScratch();
+    fgFirstBB->bbFlags |= BBF_DONT_REMOVE;
     block->bbJumpKind = BBJ_ALWAYS;
-    block->bbJumpDest = fgFirstBBisScratch() ? fgFirstBB->bbNext : fgFirstBB;
+    block->bbJumpDest = fgFirstBB->bbNext;
     fgAddRefPred(block->bbJumpDest, block);
     block->bbFlags &= ~BBF_HAS_JMP;
 }
@@ -9029,13 +9105,14 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
                     }
                 }
             }
-            // If we have no information about the src, we have to assume it could
-            // live anywhere (not just in the GC heap).
-            // Mark the GT_IND node so that we use the correct write barrier helper in case
-            // the field is a GC ref.
 
-            if (!fgIsIndirOfAddrOfLocal(src))
+            if (src->OperIsIndir() && !fgIsIndirOfAddrOfLocal(src))
             {
+                // If we have no information about the src, we have to assume it could
+                // live anywhere (not just in the GC heap).
+                // Mark the GT_IND node so that we use the correct write barrier helper in case
+                // the field is a GC ref.
+
                 src->gtFlags |= (GTF_EXCEPT | GTF_GLOB_REF | GTF_IND_TGTANYWHERE);
             }
         }
@@ -15853,8 +15930,6 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* mult, bool* lnot, bool* loa
 {
     fgRemoveRestOfBlock = false;
 
-    noway_assert(fgExpandInline == false);
-
     /* Make the current basic block address available globally */
 
     compCurBB = block;
@@ -16078,8 +16153,6 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* mult, bool* lnot, bool* loa
         /* Mark block as a BBJ_THROW block */
         fgConvertBBToThrowBB(block);
     }
-
-    noway_assert(fgExpandInline == false);
 
 #if FEATURE_FASTTAILCALL
     GenTreePtr recursiveTailCall = nullptr;
@@ -17401,6 +17474,15 @@ void Compiler::fgMorph()
     JITDUMP("trees after fgMorphBlocks\n");
     DBEXEC(VERBOSE, fgDispBasicBlocks(true));
 #endif
+
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+    if (fgNeedToAddFinallyTargetBits)
+    {
+        // We previously wiped out the BBF_FINALLY_TARGET bits due to some morphing; add them back.
+        fgAddFinallyTargetFlags();
+        fgNeedToAddFinallyTargetBits = false;
+    }
+#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
     /* Decide the kind of code we want to generate */
 

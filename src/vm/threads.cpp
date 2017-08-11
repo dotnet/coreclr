@@ -495,7 +495,6 @@ void Thread::ChooseThreadCPUGroupAffinity()
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -515,7 +514,6 @@ void Thread::ChooseThreadCPUGroupAffinity()
     CPUGroupInfo::SetThreadGroupAffinity(GetThreadHandle(), &groupAffinity, NULL);
     m_wCPUGroup = groupAffinity.Group;
     m_pAffinityMask = groupAffinity.Mask;
-#endif // !FEATURE_PAL
 }
 
 void Thread::ClearThreadCPUGroupAffinity()
@@ -527,7 +525,6 @@ void Thread::ClearThreadCPUGroupAffinity()
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -545,7 +542,6 @@ void Thread::ClearThreadCPUGroupAffinity()
 
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
-#endif // !FEATURE_PAL
 }
 
 DWORD Thread::StartThread()
@@ -1582,7 +1578,7 @@ void Dbg_TrackSyncStack::EnterSync(UINT_PTR caller, void *pAwareLock)
     STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::EnterSync, IP=%p, Recursion=%d, MonitorHeld=%d, HoldingThread=%p.\n",
                     caller,
                     ((AwareLock*)pAwareLock)->m_Recursion,
-                    ((AwareLock*)pAwareLock)->m_MonitorHeld,
+                    ((AwareLock*)pAwareLock)->m_MonitorHeld.LoadWithoutBarrier(),
                     ((AwareLock*)pAwareLock)->m_HoldingThread );
 
     if (m_Active)
@@ -1608,7 +1604,7 @@ void Dbg_TrackSyncStack::LeaveSync(UINT_PTR caller, void *pAwareLock)
     STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::LeaveSync, IP=%p, Recursion=%d, MonitorHeld=%d, HoldingThread=%p.\n",
                     caller,
                     ((AwareLock*)pAwareLock)->m_Recursion,
-                    ((AwareLock*)pAwareLock)->m_MonitorHeld,
+                    ((AwareLock*)pAwareLock)->m_MonitorHeld.LoadWithoutBarrier(),
                     ((AwareLock*)pAwareLock)->m_HoldingThread );
 
     if (m_Active)
@@ -2017,10 +2013,8 @@ Thread::Thread()
     
     m_fGCSpecial = FALSE;
 
-#if !defined(FEATURE_PAL)
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
-#endif
 
     m_pAllLoggedTypes = NULL;
 
