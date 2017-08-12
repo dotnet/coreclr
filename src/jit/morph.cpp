@@ -6444,8 +6444,6 @@ GenTreePtr Compiler::fgMorphField(GenTreePtr tree, MorphAddrContext* mac)
 
         GenTreePtr comma = nullptr;
 
-        bool addedExplicitNullCheck = false;
-
         // NULL mac means we encounter the GT_FIELD first.  This denotes a dereference of the field,
         // and thus is equivalent to a MACK_Ind with zero offset.
         MorphAddrContext defMAC(MACK_Ind);
@@ -6469,18 +6467,30 @@ GenTreePtr Compiler::fgMorphField(GenTreePtr tree, MorphAddrContext* mac)
 
 #define CONSERVATIVE_NULL_CHECK_BYREF_CREATION 1
 
-        // If the objRef is a GT_ADDR node, it, itself, never requires null checking.  The expression
-        // whose address is being taken is either a local or static variable, whose address is necessarily
-        // non-null, or else it is a field dereference, which will do its own bounds checking if necessary.
-        if (objRef->gtOper != GT_ADDR && ((mac->m_kind == MACK_Addr || mac->m_kind == MACK_Ind) &&
-                                          (!mac->m_allConstantOffsets || fgIsBigOffset(mac->m_totalOffset + fldOffset)
+        bool addExplicitNullCheck = false;
+
+        // Implicit byref locals are never null.
+        if (!((objRef->gtOper == GT_LCL_VAR) && lvaIsImplicitByRefLocal(objRef->gtLclVarCommon.gtLclNum)))
+        {
+            // If the objRef is a GT_ADDR node, it, itself, never requires null checking.  The expression
+            // whose address is being taken is either a local or static variable, whose address is necessarily
+            // non-null, or else it is a field dereference, which will do its own bounds checking if necessary.
+            if (objRef->gtOper != GT_ADDR && (mac->m_kind == MACK_Addr || mac->m_kind == MACK_Ind))
+            {
 #if CONSERVATIVE_NULL_CHECK_BYREF_CREATION
-                                           || (mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0))
+                addExplicitNullCheck =
+                    addExplicitNullCheck || (mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0));
 #else
-                                           || (objRef->gtType == TYP_BYREF && mac->m_kind == MACK_Addr &&
-                                               (mac->m_totalOffset + fldOffset > 0))
+                addExplicitNullCheck =
+                    addExplicitNullCheck ||
+                    (objRef->gtType == TYP_BYREF && mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0));
 #endif
-                                               )))
+                addExplicitNullCheck = addExplicitNullCheck || !mac->m_allConstantOffsets;
+                addExplicitNullCheck = addExplicitNullCheck || fgIsBigOffset(mac->m_totalOffset + fldOffset);
+            }
+        }
+
+        if (addExplicitNullCheck)
         {
 #ifdef DEBUG
             if (verbose)
@@ -6538,8 +6548,6 @@ GenTreePtr Compiler::fgMorphField(GenTreePtr tree, MorphAddrContext* mac)
             }
 
             addr = gtNewLclvNode(lclNum, objRefType); // Use "tmpLcl" to create "addr" node.
-
-            addedExplicitNullCheck = true;
         }
         else if (fldOffset == 0)
         {
@@ -6589,7 +6597,7 @@ GenTreePtr Compiler::fgMorphField(GenTreePtr tree, MorphAddrContext* mac)
             tree->gtFlags |= GTF_EXCEPT;
         }
 
-        if (addedExplicitNullCheck)
+        if (addExplicitNullCheck)
         {
             //
             // Create "comma2" node and link it to "tree".
@@ -6604,7 +6612,7 @@ GenTreePtr Compiler::fgMorphField(GenTreePtr tree, MorphAddrContext* mac)
 #ifdef DEBUG
         if (verbose)
         {
-            if (addedExplicitNullCheck)
+            if (addExplicitNullCheck)
             {
                 printf("After adding explicit null check:\n");
                 gtDispTree(tree);
