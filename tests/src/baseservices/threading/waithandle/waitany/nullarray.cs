@@ -31,6 +31,8 @@ class Duplicates
 			retCode = 98;			
 		}
 
+		GC.KeepAlive(waitHandles);
+
 		if (retCode ==100)
 			Console.WriteLine("Test Passed");
 		else
