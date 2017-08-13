@@ -43,29 +43,29 @@ BigNum& BigNum::operator=(const BigNum &rhs)
 
 int BigNum::Compare(const BigNum& lhs, const BigNum& rhs)
 {
+    _ASSERTE(lhs.m_len <= BIGSIZE);
+    _ASSERTE(rhs.m_len <= BIGSIZE);
+
     int lenDiff = (int)lhs.m_len - (int)rhs.m_len;
     if (lenDiff != 0)
     {
         return lenDiff;
     }
 
-    if (lhs.m_len == 0 && rhs.m_len == 0)
+    if (lhs.m_len == 0)
     {
+        _ASSERTE(rhs.m_len == 0);
+
         return 0;
     }
 
-    UINT32 lastIndex = lhs.m_len - 1;
-    INT32 currentIndex = lastIndex;
-
-    while (currentIndex >= 0)
+    for (INT32 currentIndex = lhs.m_len - 1; currentIndex >= 0; --currentIndex)
     {
         INT64 diff = (INT64)(lhs.m_blocks[currentIndex]) - (INT64)(rhs.m_blocks[currentIndex]);
         if (diff != 0)
         {
             return diff > 0 ? 1 : -1;
         }
-
-        --currentIndex;
     }
 
     return 0;

@@ -144,7 +144,7 @@ void DoubleToNumberWorker( double value, int count, int* dec, int* sign, wchar_t
     // ========================================================================================================================================
     // This implementation is based on the paper: https://www.cs.indiana.edu/~dyb/pubs/FP-Printing-PLDI96.pdf
     // Besides the paper, some of the code and ideas are modified from http://www.ryanjuckett.com/programming/printing-floating-point-numbers/
-    // You must read these two marterials to fully understand the code.
+    // You must read these two materials to fully understand the code.
     //
     // Note: we only support fixed format input.
     // ======================================================================================================================================== 
@@ -215,9 +215,9 @@ void DoubleToNumberWorker( double value, int count, int* dec, int* sign, wchar_t
     // This is an improvement of the estimation in the original paper.
     // Inspired by http://www.ryanjuckett.com/programming/printing-floating-point-numbers/
     //
-    // 0.30102999566398119521373889472449 = log10V2
-    // 0.69 = 1 - log10V2 - epsilon (a small number account for drift of floating point multiplication)
-    int k = (int)(ceil(double((int)mantissaHighBitIdx + e) * 0.30102999566398119521373889472449 - 0.69));
+    // LOG10V2 = 0.30102999566398119521373889472449
+    // DRIFT_FACTOR = 0.69 = 1 - log10V2 - epsilon (a small number account for drift of floating point multiplication)
+    int k = (int)(ceil(double((int)mantissaHighBitIdx + e) * LOG10V2 - DRIFT_FACTOR));
 
     // Step 3:
     // Store the input double value in BigNum format.
