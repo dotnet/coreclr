@@ -1547,7 +1547,6 @@ void QCALLTYPE ThreadNative::InformThreadNameChange(QCall::ThreadHandle thread, 
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
-
     
     Thread* pThread = &(*thread);
 
