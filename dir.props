@@ -182,7 +182,7 @@
     <PackageIndex Include="$(PackageIndexFile)" />
   </ItemGroup>
 
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(OfficialBuildId)' != ''">
     <BuildVersionFile>$(BaseIntermediateOutputPath)BuildVersion-$(OfficialBuildId).props</BuildVersionFile>
   </PropertyGroup>
 
