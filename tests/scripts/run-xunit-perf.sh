@@ -348,13 +348,15 @@ for testcase in ${tests[@]}; do
     # FIXME: We should not need this here.
     chmod u+x ./corerun
 
-    echo ""
-    echo "----------"
-    echo "  Running $testname"
-    echo "----------"
     xUnitRunId=Perf-$perfCollection
     perfLogFileName=$benchmarksOutputDir/$xUnitRunId-$filename.log
     perfXmlFileName=$benchmarksOutputDir/$xUnitRunId-$filename.xml
+
+    echo ""
+    echo "----------"
+    echo "  Running $xUnitRunId $testname"
+    echo "----------"
+
     run_command $stabilityPrefix ./corerun PerfHarness.dll $test --perf:runid "$xUnitRunId" --perf:outputdir "$benchmarksOutputDir" --perf:collect $collectionflags 1>"$perfLogFileName" 2>&1 || exit 1
     if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
         run_command python3.5 "$BENCHVIEW_TOOLS_PATH/measurement.py" xunit "$perfXmlFileName" --better desc $hasWarmupRun --append || {
@@ -366,9 +368,9 @@ done
 
 if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
     args=measurement.json
-    args+=" --build ../../../../../build.json"
-    args+=" --machine-data ../../../../../machinedata.json"
-    args+=" --metadata ../../../../../submission-metadata.json"
+    args+=" --build \"$CORECLR_REPO/build.json\""
+    args+=" --machine-data \"$CORECLR_REPO/machinedata.json\""
+    args+=" --metadata \"$CORECLR_REPO/submission-metadata.json\""
     args+=" --group $benchViewGroup"
     args+=" --type $runType"
     args+=" --config-name Release"

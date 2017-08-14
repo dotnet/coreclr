@@ -89,16 +89,16 @@ setlocal
     )
   )
 
-  echo/
-  echo/  ----------
-  echo/  Running %BENCHNAME%
-  echo/  ----------
-
   rem CORE_ROOT environment variable is used by some benchmarks such as Roslyn / CscBench.
   set CORE_ROOT=%LV_SANDBOX_DIR%
-
   set LV_RUNID=Perf-%ETW_COLLECTION%
   set BENCHNAME_LOG_FILE_NAME=%LV_BENCHMARKS_OUTPUT_DIR%\%LV_RUNID%-%BENCHNAME%.log
+
+  echo/
+  echo/  ----------
+  echo/  Running %LV_RUNID% %BENCHNAME%
+  echo/  ----------
+
   set LV_CMD=
   if defined IS_SCENARIO_TEST (
     set "LV_CMD=corerun.exe "%LV_SANDBOX_DIR%\%BENCHNAME%.%TEST_FILE_EXT%" --perf:outputdir "%LV_BENCHMARKS_OUTPUT_DIR%" --perf:runid "%LV_RUNID%" --target-architecture "%TEST_ARCHITECTURE%""
@@ -312,6 +312,10 @@ rem ****************************************************************************
 rem   Generates results for BenchView, by appending new data to the existing
 rem   measurement.json file.
 rem ****************************************************************************
+  if not defined LV_RUNID (
+    call :print_error LV_RUNID was not defined before calling generate_results_for_benchview.
+    exit /b 1
+  )
   set BENCHVIEW_MEASUREMENT_PARSER=xunit
   if defined IS_SCENARIO_TEST set BENCHVIEW_MEASUREMENT_PARSER=xunitscenario
 
@@ -321,7 +325,7 @@ rem ****************************************************************************
   set LV_MEASUREMENT_ARGS=%LV_MEASUREMENT_ARGS% %HAS_WARMUP_RUN%
   set LV_MEASUREMENT_ARGS=%LV_MEASUREMENT_ARGS% --append
 
-  for /f %%f in ('dir /b "%LV_BENCHMARKS_OUTPUT_DIR%\Perf-*%BENCHNAME%.xml" 2^>nul') do (
+  for /f %%f in ('dir /b "%LV_BENCHMARKS_OUTPUT_DIR%\%LV_RUNID%-%BENCHNAME%.xml" 2^>nul') do (
     call :run_cmd py.exe "%BENCHVIEW_PATH%\measurement.py" %LV_MEASUREMENT_ARGS% "%LV_BENCHMARKS_OUTPUT_DIR%\%%f"
 
     IF !ERRORLEVEL! NEQ 0 (
@@ -338,9 +342,9 @@ rem   Generates BenchView's submission data and upload it
 rem ****************************************************************************
 setlocal
   set LV_SUBMISSION_ARGS=
-  set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --build ..\build.json
-  set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --machine-data ..\machinedata.json
-  set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --metadata ..\submission-metadata.json
+  set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --build "%CORECLR_REPO%\build.json"
+  set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --machine-data "%CORECLR_REPO%\machinedata.json"
+  set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --metadata "%CORECLR_REPO%\submission-metadata.json"
   set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --group "%BENCHVIEW_GROUP%"
   set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --type "%BENCHVIEW_RUN_TYPE%"
   set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --config-name "%TEST_CONFIG%"
