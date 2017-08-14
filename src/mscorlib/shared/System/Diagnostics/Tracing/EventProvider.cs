@@ -1226,7 +1226,8 @@ namespace System.Diagnostics.Tracing
             void* callbackContext,
             ref long registrationHandle)
         {
-            Guid fakeProviderId = 0; // Is it ok to not provide a provider Id here?
+            byte[] zeroes = new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            Guid fakeProviderId(zeroes); // Is it ok to not provide a provider Id here?
             return UnsafeNativeMethods.ManifestEtw.EventRegister(
                 ref fakeProviderId,
                 enableCallback,
