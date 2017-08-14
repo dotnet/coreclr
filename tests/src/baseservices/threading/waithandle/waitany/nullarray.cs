@@ -31,7 +31,6 @@ class Duplicates
 			retCode = 98;			
 		}
 
-
 		if (retCode ==100)
 			Console.WriteLine("Test Passed");
 		else
