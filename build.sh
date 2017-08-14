@@ -197,7 +197,7 @@ generate_event_logging_sources()
         __PythonWarningFlags="$__PythonWarningFlags -Werror"
     fi
 
-    
+
     if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
         echo "Laying out dynamically generated files consumed by the build system "
         echo "Laying out dynamically generated Event Logging Test files"
@@ -309,7 +309,7 @@ build_native()
         echo "Failed to generate $message build project!"
         exit 1
     fi
-    
+
     # Get the number of processors available to the scheduler
     # Other techniques such as `nproc` only get the number of
     # processors available to a single process.
@@ -357,8 +357,8 @@ build_cross_arch_component()
     else
         # not supported
         return
-    fi    
-    
+    fi
+
     export __CMakeBinDir="$__CrossComponentBinDir"
     export CROSSCOMPONENT=1
     __IncludeTests=
@@ -374,8 +374,8 @@ build_cross_arch_component()
 
     __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion"
     build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
-   
-    # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE 
+
+    # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE
     if [ -n "$TARGET_ROOTFS" ]; then
         export ROOTFS_DIR="$TARGET_ROOTFS"
     fi
@@ -404,6 +404,9 @@ isMSBuildOnNETCoreSupported()
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 "opensuse.42.1-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "rhel.6-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 "rhel.7"*"-x64")
@@ -488,10 +491,10 @@ build_CoreLib()
            build_CoreLib_ni
        elif [[ ( "$__HostArch" == "arm64" ) && ( "$__BuildArch" == "arm" ) ]]; then
            build_CoreLib_ni
-       else 
+       else
            exit 1
        fi
-    fi 
+    fi
 }
 
 generate_NugetPackages()
@@ -697,7 +700,7 @@ while :; do
         cross)
             __CrossBuild=1
             ;;
-            
+
         -portablebuild=false)
             __PortableBuild=0
             ;;
