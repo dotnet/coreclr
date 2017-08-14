@@ -5187,11 +5187,9 @@ BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD e
 }
 
 #ifdef _TARGET_ARM_
-static inline BOOL
-HandleArmSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExceptionRecord,
-                    Thread *pThread)
+static inline BOOL HandleArmSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExceptionRecord, Thread *pThread)
 {
-#ifdef LINUX32
+#ifdef __linux__
     // On ARM Linux exception point to the break instruction,
     // but the rest of the code expects that it points to an instruction after the break
     if (pExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
@@ -5209,9 +5207,8 @@ HandleArmSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExceptionRecord,
     // First ask the emulation itself whether this exception occurred while single stepping was enabled. If so
     // it will fix up the context to be consistent again and return true. If so and the exception was
     // EXCEPTION_BREAKPOINT then we translate it to EXCEPTION_SINGLE_STEP (otherwise we leave it be, e.g. the
-    // instruction stepped caused an access violation).  since this is called from our VEH there might not
-    // be a thread object so we must check pThread first.
-    if ((pThread != NULL) && pThread->HandleSingleStep(pContext, pExceptionRecord->ExceptionCode) && (pExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT))
+    // instruction stepped caused an access violation).
+    if (pThread->HandleSingleStep(pContext, pExceptionRecord->ExceptionCode) && (pExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT))
     {
         pExceptionRecord->ExceptionCode = EXCEPTION_SINGLE_STEP;
         pExceptionRecord->ExceptionAddress = (void *)GetIP(pContext);
@@ -5224,10 +5221,6 @@ HandleArmSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExceptionRecord,
 BOOL HandleHardwareException(PAL_SEHException* ex)
 {
     _ASSERTE(IsSafeToHandleHardwareException(ex->GetContextRecord(), ex->GetExceptionRecord()));
-
-#ifdef _TARGET_ARM_
-    HandleArmSingleStep(ex->GetContextRecord(), ex->GetExceptionRecord(), GetThread());
-#endif
 
     if (ex->GetExceptionRecord()->ExceptionCode != STATUS_BREAKPOINT && ex->GetExceptionRecord()->ExceptionCode != STATUS_SINGLE_STEP)
     {
@@ -5288,6 +5281,9 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
         Thread *pThread = GetThread();
         if (pThread != NULL && g_pDebugInterface != NULL)
         {
+#ifdef _TARGET_ARM_
+            HandleArmSingleStep(ex->GetContextRecord(), ex->GetExceptionRecord(), GetThread());
+#endif
             if (ex->GetExceptionRecord()->ExceptionCode == STATUS_BREAKPOINT)
             {
                 // If this is breakpoint context, it is set up to point to an instruction after the break instruction.
