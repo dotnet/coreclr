@@ -74,6 +74,7 @@ public:
         readonlyCall = (prefixFlags & PREFIX_READONLY) != 0;
 
         canTailCall = true;
+        intrinsicID = CORINFO_INTRINSIC_Count;
     }
 
     //------------------------------------------------------------------------
@@ -120,7 +121,6 @@ public:
         }
         else // (opcode != CEE_CALLI)
         {
-            CorInfoIntrinsics intrinsicID = CORINFO_INTRINSIC_Count;
 
             // Passing CORINFO_CALLINFO_ALLOWINSTPARAM indicates that this JIT is prepared to
             // supply the instantiation parameters necessary to make direct calls to underlying
@@ -390,25 +390,8 @@ public:
 
                     case CORINFO_CALL:
                     {
-                        // This is for a non-virtual, non-interface etc. call
-                        call = compiler->gtNewCallNode(CT_USER_FUNC, callInfo->hMethod, callRetTyp, nullptr, ilOffset);
+                        createSimpleCallNode();
 
-                        // We remove the nullcheck for the GetType call instrinsic.
-                        // TODO-CQ: JIT64 does not introduce the null check for many more helper calls
-                        // and instrinsics.
-                        if (callInfo->nullInstanceCheck &&
-                            !((mflags & CORINFO_FLG_INTRINSIC) != 0 &&
-                              (intrinsicID == CORINFO_INTRINSIC_Object_GetType)))
-                        {
-                            call->gtFlags |= GTF_CALL_NULLCHECK;
-                        }
-
-#ifdef FEATURE_READYTORUN_COMPILER
-                        if (compiler->opts.IsReadyToRun())
-                        {
-                            call->gtCall.setEntryPoint(callInfo->codePointerLookup.constLookup);
-                        }
-#endif
                         break;
                     }
 
@@ -752,6 +735,30 @@ public:
     }
 
 private:
+    //------------------------------------------------------------------------
+    // createSimpleCallNode: Create call node for a non-virtual, non-interface etc. call.
+    //
+    void createSimpleCallNode()
+    {
+        call = compiler->gtNewCallNode(CT_USER_FUNC, callInfo->hMethod, callRetTyp, nullptr, ilOffset);
+
+        // We remove the nullcheck for the GetType call instrinsic.
+        // TODO-CQ: JIT64 does not introduce the null check for many more helper calls
+        // and instrinsics.
+        if (callInfo->nullInstanceCheck &&
+            !((mflags & CORINFO_FLG_INTRINSIC) != 0 && (intrinsicID == CORINFO_INTRINSIC_Object_GetType)))
+        {
+            call->gtFlags |= GTF_CALL_NULLCHECK;
+        }
+
+#ifdef FEATURE_READYTORUN_COMPILER
+        if (compiler->opts.IsReadyToRun())
+        {
+            call->gtCall.setEntryPoint(callInfo->codePointerLookup.constLookup);
+        }
+#endif
+    }
+
     //------------------------------------------------------------------------
     // createVirtualCallStubNode: Create call node for virtualCallStub.
     //
@@ -1650,6 +1657,8 @@ private:
 
     CORINFO_SIG_INFO calliSig;
     GenTreeArgList*  extraArg;
+
+    CorInfoIntrinsics intrinsicID;
 
     CORINFO_RESOLVED_TOKEN* resolvedToken;
     CORINFO_RESOLVED_TOKEN* constrainedResolvedToken;
