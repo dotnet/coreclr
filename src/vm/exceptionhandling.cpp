@@ -5282,7 +5282,7 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
         if (pThread != NULL && g_pDebugInterface != NULL)
         {
 #ifdef _TARGET_ARM_
-            HandleArmSingleStep(ex->GetContextRecord(), ex->GetExceptionRecord(), GetThread());
+            HandleArmSingleStep(ex->GetContextRecord(), ex->GetExceptionRecord(), pThread);
 #endif
             if (ex->GetExceptionRecord()->ExceptionCode == STATUS_BREAKPOINT)
             {
