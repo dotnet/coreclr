@@ -34,6 +34,9 @@ private:
     // The GUID of the provider.
     GUID m_providerID;
 
+    // The name of the provider.
+    SString m_providerName;
+
     // True if the provider is enabled.
     bool m_enabled;
 
@@ -60,8 +63,11 @@ private:
     // has been deferred until tracing is stopped.
     bool m_deleteDeferred;
 
+    // Using the name of the provider, create a GUID identifier and save it
+    const GUID& GenerateGuidFromName();
+
     // Private constructor because all providers are created through EventPipe::CreateProvider.
-    EventPipeProvider(const GUID &providerID, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
+    EventPipeProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
 
 public:
 

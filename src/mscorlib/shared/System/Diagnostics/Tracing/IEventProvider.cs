@@ -15,7 +15,7 @@ namespace System.Diagnostics.Tracing
     {
         // Register an event provider.
         unsafe uint EventRegister(
-            ref Guid providerId,
+            ref string providerName,
             UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
             void* callbackContext,
             ref long registrationHandle);
