@@ -219,38 +219,12 @@ public:
             }
 #endif // DEBUG
 
-            // <NICE> Factor this into getCallInfo </NICE>
             if ((mflags & CORINFO_FLG_INTRINSIC) && !constrainedResolvedToken)
             {
-                call = compiler->impIntrinsic(newobjThis, clsHnd, methHnd, sig, resolvedToken->token, readonlyCall,
-                                              (canTailCall && (tailCall != 0)), &intrinsicID);
-
-                if (compiler->compIsForInlining() && compiler->compInlineResult->IsFailure())
+                if (!createIntrinsicNode())
                 {
+                    assert(compiler->compDonotInline());
                     return TYP_UNDEF;
-                }
-
-                if (call != nullptr)
-                {
-                    assert(!(mflags & CORINFO_FLG_VIRTUAL) || (mflags & CORINFO_FLG_FINAL) ||
-                           (clsFlags & CORINFO_FLG_FINAL));
-
-#ifdef FEATURE_READYTORUN_COMPILER
-                    if (call->OperGet() == GT_INTRINSIC)
-                    {
-                        if (compiler->opts.IsReadyToRun())
-                        {
-                            noway_assert(callInfo->kind == CORINFO_CALL);
-                            call->gtIntrinsic.gtEntryPoint = callInfo->codePointerLookup.constLookup;
-                        }
-                        else
-                        {
-                            call->gtIntrinsic.gtEntryPoint.addr = nullptr;
-                        }
-                    }
-#endif
-
-                    bIntrinsicImported = true;
                 }
             }
 
@@ -735,6 +709,45 @@ public:
     }
 
 private:
+    //------------------------------------------------------------------------
+    // createIntrinsicNode: Create intrinsic call node. Set bIntrinsicImported if succeed.
+    //
+    // Return Value:
+    //    false if importation should be aborted, true if not.
+    bool createIntrinsicNode()
+    {
+        call = compiler->impIntrinsic(newobjThis, clsHnd, methHnd, sig, resolvedToken->token, readonlyCall,
+                                      (canTailCall && (tailCall != 0)), &intrinsicID);
+
+        if (compiler->compDonotInline())
+        {
+            return false;
+        }
+
+        if (call != nullptr)
+        {
+            assert(!(mflags & CORINFO_FLG_VIRTUAL) || (mflags & CORINFO_FLG_FINAL) || (clsFlags & CORINFO_FLG_FINAL));
+
+#ifdef FEATURE_READYTORUN_COMPILER
+            if (call->OperGet() == GT_INTRINSIC)
+            {
+                if (compiler->opts.IsReadyToRun())
+                {
+                    noway_assert(callInfo->kind == CORINFO_CALL);
+                    call->gtIntrinsic.gtEntryPoint = callInfo->codePointerLookup.constLookup;
+                }
+                else
+                {
+                    call->gtIntrinsic.gtEntryPoint.addr = nullptr;
+                }
+            }
+#endif
+
+            bIntrinsicImported = true;
+        }
+        return true;
+    }
+
     //------------------------------------------------------------------------
     // createSimpleCallNode: Create call node for a non-virtual, non-interface etc. call.
     //
