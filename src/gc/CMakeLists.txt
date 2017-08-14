@@ -40,24 +40,24 @@ endif(WIN32)
 
 convert_to_absolute_path(GC_SOURCES ${GC_SOURCES})
 
-add_library(gc SHARED ${GC_SOURCES})
+add_library_clr(gc SHARED ${GC_SOURCES})
 target_link_libraries(gc ${GC_LINK_LIBRARIES})
 install_clr(gc)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-  target_compile_options(gc PUBLIC -fPIC)
+  add_compile_options(gc PUBLIC -fPIC)
   # dprintf causes many warnings
-  target_compile_options(gc PUBLIC -Wno-format)
+  add_compile_options(gc PUBLIC -Wno-format)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-target_compile_definitions(gc PUBLIC -DBUILD_AS_STANDALONE)
+add_definitions(-DBUILD_AS_STANDALONE)
 if(CLR_CMAKE_PLATFORM_DARWIN)
   # The implementation of GCToOSInterface on MacOS makes use of non-POSIX
   # pthreads APIs, which by default are not included in the pthreads header
   # unless we define this macro.
-  target_compile_definitions(gc PUBLIC -D_DARWIN_C_SOURCE)
+  add_definitions(-D_DARWIN_C_SOURCE)
 endif(CLR_CMAKE_PLATFORM_DARWIN)
 
-target_include_directories(gc BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(gc BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/env)
+include_directories(gc BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(gc BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/env)
 
