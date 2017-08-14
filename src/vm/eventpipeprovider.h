@@ -76,6 +76,9 @@ public:
     // Get the provider ID.
     const GUID& GetProviderID() const;
 
+    // Get the provider Name.
+    const SString& GetProviderName() const;
+
     // Determine if the provider is enabled.
     bool Enabled() const;
 

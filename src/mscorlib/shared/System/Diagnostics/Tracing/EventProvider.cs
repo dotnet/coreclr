@@ -87,7 +87,7 @@ namespace System.Diagnostics.Tracing
         private long m_allKeywordMask;                   // Match all keyword
         private List<SessionInfo> m_liveSessions;        // current live sessions (Tuple<sessionIdBit, etwSessionId>)
         private bool m_enabled;                          // Enabled flag from Trace callback
-        private Guid m_providerName;                     // Control name
+        private string m_providerName;                     // Control name
         internal bool m_disposed;                        // when true provider has unregistered
 
         [ThreadStatic]

@@ -401,15 +401,16 @@ bool WriteToBuffer(const T &value, char *&buffer, unsigned int& offset, unsigned
 
         eventpipeImpl.write(header)
         eventpipeImpl.write(
-            "SString const " +
-            providerPrettyName +
-            "Name = \"" +
-            providerPrettyName +
-            "\";\n")
+            "SString const %sName = SString(u\"%s\");\n" % (
+                providerPrettyName,
+                providerPrettyName
+            )
+        )
         eventpipeImpl.write(
-            "EventPipeProvider *EventPipeProvider" +
-            providerPrettyName +
-            " = nullptr;\n")
+            "EventPipeProvider *EventPipeProvider%s = nullptr;\n" % (
+                providerPrettyName,
+            )
+        )
         templateNodes = providerNode.getElementsByTagName('template')
         allTemplates = parseTemplateNodes(templateNodes)
         eventNodes = providerNode.getElementsByTagName('event')

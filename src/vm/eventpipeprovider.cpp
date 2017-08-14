@@ -81,9 +81,9 @@ const GUID& EventPipeProvider::GenerateGuidFromName()
 {
     LIMITED_METHOD_CONTRACT;
 
-    unsigned int providerNameLength = (providerName.GetCount() + 1) * sizeof(WCHAR);
+    unsigned int providerNameLength = (m_providerName.GetCount() + 1) * sizeof(WCHAR);
 
-    SHA1hash hasher;
+    SHA1Hash hasher;
     hasher.AddData((BYTE *)m_providerName.GetUnicode(), providerNameLength); //There may be an issue with Endian-ness
     BYTE *hash = hasher.GetHash();
     hash[7] = (hash[7] & 0x0F) | 0x50;   // Set high 4 bits of octet 7 to 5, as per RFC 4122
@@ -93,18 +93,18 @@ const GUID& EventPipeProvider::GenerateGuidFromName()
     return m_providerID;
 }
 
-const GUID& EventPipeProvider::GetProviderName() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return m_providerName;
-}
-
 const GUID& EventPipeProvider::GetProviderID() const
 {
     LIMITED_METHOD_CONTRACT;
 
     return m_providerID;
+}
+
+const SString& EventPipeProvider::GetProviderName() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_providerName;
 }
 
 bool EventPipeProvider::Enabled() const

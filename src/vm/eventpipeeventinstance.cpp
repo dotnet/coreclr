@@ -183,7 +183,7 @@ void EventPipeEventInstance::SerializeToJsonFile(EventPipeJsonFile *pFile)
     EX_TRY
     {
         StackScratchBuffer scratch;
-        providerName = m_pEvent->GetProvider()->GetProviderName();
+        SString providerName = m_pEvent->GetProvider()->GetProviderName();
 
         SString message;
         message.Printf("Provider=%s/EventID=%d/Version=%d", providerName.GetANSI(scratch), m_pEvent->GetEventID(), m_pEvent->GetEventVersion());

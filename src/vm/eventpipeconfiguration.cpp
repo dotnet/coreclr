@@ -10,9 +10,7 @@
 
 #ifdef FEATURE_PERFTRACING
 
-// {5291C09C-2660-4D6A-83A3-C383FD020DEC}
-const GUID EventPipeConfiguration::s_configurationProviderID =
-    { 0x5291c09c, 0x2660, 0x4d6a, { 0x83, 0xa3, 0xc3, 0x83, 0xfd, 0x2, 0xd, 0xec } };
+const SString EventPipeConfiguration::s_configurationProviderName = SString(u"EventPipeConfigurationProvider");
 
 EventPipeConfiguration::EventPipeConfiguration()
 {
@@ -59,7 +57,7 @@ void EventPipeConfiguration::Initialize()
     CONTRACTL_END;
 
     // Create the configuration provider.
-    m_pConfigProvider = EventPipe::CreateProvider(s_configurationProviderID);
+    m_pConfigProvider = EventPipe::CreateProvider(s_configurationProviderName);
 
     // Create the metadata event.
     m_pMetadataEvent = m_pConfigProvider->AddEvent(
@@ -178,7 +176,7 @@ EventPipeProvider* EventPipeConfiguration::GetProviderNoLock(const SString &prov
     while(pElem != NULL)
     {
         EventPipeProvider *pProvider = pElem->GetValue();
-        if(pProvider->GetProviderName() == providerName)
+        if(pProvider->GetProviderName().Equals(providerName))
         {
             return pProvider;
         }
@@ -348,7 +346,7 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     BYTE *currentPtr = pInstancePayload;
 
     // Write the provider ID.
-    memcpy(currentPtr, (BYTE*)&providerName.GetUnicode(), providerNameLength);
+    memcpy(currentPtr, (BYTE*)providerName.GetUnicode(), providerNameLength);
     currentPtr += providerNameLength;
 
     // Write the event ID.
@@ -495,7 +493,7 @@ EventPipeEnabledProvider* EventPipeEnabledProviderList::GetEnabledProvider(
         return NULL;
     }
 
-    SString providerNameStr pProvider->GetProviderName();
+    SString providerNameStr = pProvider->GetProviderName();
     LPCWSTR providerName = providerNameStr.GetUnicode();
 
     EventPipeEnabledProvider *pEnabledProvider = NULL;
