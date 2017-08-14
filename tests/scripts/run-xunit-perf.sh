@@ -368,9 +368,9 @@ done
 
 if [ -d "$BENCHVIEW_TOOLS_PATH" ]; then
     args=measurement.json
-    args+=" --build \"$CORECLR_REPO/build.json\""
-    args+=" --machine-data \"$CORECLR_REPO/machinedata.json\""
-    args+=" --metadata \"$CORECLR_REPO/submission-metadata.json\""
+    args+=" --build $CORECLR_REPO/build.json"
+    args+=" --machine-data $CORECLR_REPO/machinedata.json"
+    args+=" --metadata $CORECLR_REPO/submission-metadata.json"
     args+=" --group $benchViewGroup"
     args+=" --type $runType"
     args+=" --config-name Release"
