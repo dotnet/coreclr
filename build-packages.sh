@@ -16,11 +16,11 @@ initHostDistroRid()
     if [ "$__HostOS" == "Linux" ]; then
         if [ -e /etc/os-release ]; then
             source /etc/os-release
-            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
+            __HostDistroRid="$ID.$VERSION_ID-$__Arch"
         elif [ -e /etc/redhat-release ]; then
             local redhatRelease=$(</etc/redhat-release)
             if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
-               __HostDistroRid="rhel.6-$__HostArch"
+               __HostDistroRid="rhel.6-$__Arch"
             fi
         fi
     fi
@@ -90,7 +90,7 @@ while :; do
         __Arch=$(echo $1| cut -d'=' -f 2)
         ;;
 
-        -PortableBuild=false)
+        -portablebuild=false)
             unprocessedBuildArgs="$unprocessedBuildArgs $1"
             __IsPortableBuild=0
             ;;
