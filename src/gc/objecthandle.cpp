@@ -22,12 +22,12 @@
 #include "gchandletableimpl.h"
 
 #ifndef BUILD_AS_STANDALONE
- #ifdef FEATURE_COMINTEROP
-  #include "comcallablewrapper.h"
- #endif // FEATURE_COMINTEROP
- #ifndef FEATURE_REDHAWK
-  #include "nativeoverlapped.h"
- #endif // FEATURE_REDHAWK
+#ifdef FEATURE_COMINTEROP
+#include "comcallablewrapper.h"
+#endif // FEATURE_COMINTEROP
+#ifndef FEATURE_REDHAWK
+#include "nativeoverlapped.h"
+#endif // FEATURE_REDHAWK
 #endif // BUILD_AS_STANDALONE
 
 HandleTableMap g_HandleTableMap;
