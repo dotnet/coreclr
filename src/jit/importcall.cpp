@@ -31,9 +31,24 @@ public:
     // Notes:
     //    The constructor takes care of initializing the variables that are used
     //    during the call importation.
-    CallImporter(Compiler* compiler) : compiler(compiler)
+    CallImporter(Compiler*               compiler,
+                 OPCODE                  opcode,
+                 CORINFO_RESOLVED_TOKEN* pResolvedToken,
+                 CORINFO_RESOLVED_TOKEN* pConstrainedResolvedToken,
+                 GenTreePtr              newobjThis,
+                 int                     prefixFlags,
+                 CORINFO_CALL_INFO*      callInfo,
+                 IL_OFFSET               rawILOffset)
+        : compiler(compiler)
+        , opcode(opcode)
+        , resolvedToken(pResolvedToken)
+        , constrainedResolvedToken(pConstrainedResolvedToken)
+        , newobjThis(newobjThis)
+        , prefixFlags(prefixFlags)
+        , callInfo(callInfo)
+        , rawILOffset(rawILOffset)
+        , ilOffset(compiler->impCurILOffset(rawILOffset, true))
     {
-
         callRetTyp = TYP_COUNT;
 
         clsFlags = 0;
@@ -54,33 +69,22 @@ public:
 
         exactContextNeedsRuntimeLookup = false;
         bIntrinsicImported             = false;
-        readonlyCall                   = false;
+
+        tailCall     = prefixFlags & PREFIX_TAILCALL;
+        readonlyCall = (prefixFlags & PREFIX_READONLY) != 0;
 
         canTailCall = true;
-
-        resolvedToken            = nullptr;
-        constrainedResolvedToken = nullptr;
     }
 
     //------------------------------------------------------------------------
     // impImportCall: see the Compiler::impImportCall description.
-    var_types importCall(OPCODE                  opcode,
-                         CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                         CORINFO_RESOLVED_TOKEN* pConstrainedResolvedToken,
-                         GenTreePtr              newobjThis,
-                         int                     prefixFlags,
-                         CORINFO_CALL_INFO*      callInfo,
-                         IL_OFFSET               rawILOffset)
+    // All parameters are initialized in the contructor.
+    //
+    // Returns:
+    //    Type of the call's return value.
+    var_types importCall()
     {
         assert(opcode == CEE_CALL || opcode == CEE_CALLVIRT || opcode == CEE_NEWOBJ || opcode == CEE_CALLI);
-
-        IL_OFFSETX ilOffset = compiler->impCurILOffset(rawILOffset, true);
-
-        int tailCall = prefixFlags & PREFIX_TAILCALL;
-        readonlyCall = (prefixFlags & PREFIX_READONLY) != 0;
-
-        resolvedToken            = pResolvedToken;
-        constrainedResolvedToken = pConstrainedResolvedToken;
 
         // Synchronized methods need to call CORINFO_HELP_MON_EXIT at the end. We could
         // do that before tailcalls, but that is probably not the intended
@@ -112,7 +116,7 @@ public:
 
         if (opcode == CEE_CALLI)
         {
-            createCalli(ilOffset, opcode, callInfo);
+            createCalli();
         }
         else // (opcode != CEE_CALLI)
         {
@@ -413,7 +417,7 @@ public:
 
                         GenTreePtr thisPtr = compiler->impPopStack().val;
                         thisPtr =
-                            compiler->impTransformThis(thisPtr, pConstrainedResolvedToken, callInfo->thisTransform);
+                            compiler->impTransformThis(thisPtr, constrainedResolvedToken, callInfo->thisTransform);
 
                         // Clone the (possibly transformed) "this" pointer
                         GenTreePtr thisPtrCopy;
@@ -747,7 +751,7 @@ public:
                 }
             }
 
-            if (!createArgumentList(opcode, callInfo, newobjThis))
+            if (!createArgumentList())
             {
                 return TYP_UNDEF;
             }
@@ -756,15 +760,15 @@ public:
             // The "this" pointer for "newobj"
             if (opcode == CEE_NEWOBJ)
             {
-                importNewObj(rawILOffset, callInfo, newobjThis);
+                importNewObj();
                 return callRetTyp;
             }
 
         DONE:
 
-            if (tailCall)
+            if (tailCall != 0)
             {
-                checkTailCall(tailCall, callInfo);
+                checkTailCall();
             }
 
             // Note: we assume that small return types are already normalized by the managed callee
@@ -815,7 +819,7 @@ public:
             }
         }
 
-        pushResult(opcode, callInfo);
+        pushResult();
 
         return callRetTyp;
     }
@@ -824,10 +828,7 @@ private:
     //------------------------------------------------------------------------
     // importNewObj: Import call for the new object opcode.
     //
-    //    rawILOffset               - IL offset of the opcode
-    //    callInfo - EE supplied info for the call
-    //    newObjThis                - tree for this pointer or uninitalized newobj temp (or nullptr)
-    void importNewObj(const IL_OFFSET& rawILOffset, CORINFO_CALL_INFO* callInfo, GenTreePtr& newobjThis)
+    void importNewObj()
     {
         if (clsFlags & CORINFO_FLG_VAROBJSIZE)
         {
@@ -958,10 +959,7 @@ private:
     //------------------------------------------------------------------------
     // checkTailCall: Check possibility of tail call transformation and set canTailCall flag.
     //
-    //    tailCall - PREFIX_TAILCALL flags
-    //    callInfo - EE supplied info for the call
-    //
-    void checkTailCall(int tailCall, CORINFO_CALL_INFO* callInfo)
+    void checkTailCall()
     {
         // This check cannot be performed for implicit tail calls for the reason
         // that impIsImplicitTailCallCandidate() is not checking whether return
@@ -1109,13 +1107,9 @@ private:
     //------------------------------------------------------------------------
     // createArgumentList: Create the argument list for the call tree.
     //
-    //    opcode                    - opcode that inspires the call
-    //    callInfo                  - EE supplied info for the call
-    //    newObjThis                - tree for this pointer or uninitalized newobj temp (or nullptr)
-    //
     // Return Value:
     //    true if arg list was created, false if error occurred.
-    bool createArgumentList(const OPCODE& opcode, CORINFO_CALL_INFO* callInfo, GenTreePtr& newobjThis)
+    bool createArgumentList()
     {
         //-------------------------------------------------------------------------
         // Special case - for varargs we have an implicit last argument
@@ -1357,11 +1351,7 @@ private:
     //------------------------------------------------------------------------
     // createCalli: Create calli tree, set signature and callRetType.
     //
-    //    ilOffset                  - IL offset of the opcode
-    //    opcode                    - opcode that inspires the call
-    //    callInfo                  - EE supplied info for the call
-    //
-    void createCalli(const IL_OFFSETX& ilOffset, const OPCODE& opcode, CORINFO_CALL_INFO* callInfo)
+    void createCalli()
     {
         /* Get the call site sig */
         compiler->eeGetSig(resolvedToken->token, compiler->info.compScopeHnd, compiler->impTokenLookupContextHandle,
@@ -1410,10 +1400,7 @@ private:
     //------------------------------------------------------------------------
     // pushResult: Push or append the result of the call.
     //
-    //    opcode                    - opcode that inspires the call
-    //    callInfo                  - EE supplied info for the call
-    //
-    void pushResult(const OPCODE& opcode, CORINFO_CALL_INFO* callInfo)
+    void pushResult()
     {
         if (callRetTyp == TYP_VOID)
         {
@@ -1638,6 +1625,15 @@ private:
     bool                    bIntrinsicImported;
     bool                    readonlyCall;
 
+    int tailCall;
+
+    GenTreePtr         newobjThis;
+    int                prefixFlags;
+    CORINFO_CALL_INFO* callInfo;
+    IL_OFFSET          rawILOffset;
+    IL_OFFSETX         ilOffset;
+    OPCODE             opcode;
+
     CORINFO_SIG_INFO calliSig;
     GenTreeArgList*  extraArg;
 
@@ -1673,7 +1669,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                                   CORINFO_CALL_INFO*      callInfo,
                                   IL_OFFSET               rawILOffset)
 {
-    CallImporter callImporter(this);
-    return callImporter.importCall(opcode, pResolvedToken, pConstrainedResolvedToken, newobjThis, prefixFlags, callInfo,
-                                   rawILOffset);
+    CallImporter callImporter(this, opcode, pResolvedToken, pConstrainedResolvedToken, newobjThis, prefixFlags,
+                              callInfo, rawILOffset);
+    return callImporter.importCall();
 }
