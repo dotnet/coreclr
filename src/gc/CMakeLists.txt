@@ -45,9 +45,9 @@ target_link_libraries(gc ${GC_LINK_LIBRARIES})
 install_clr(gc)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-  add_compile_options(gc PUBLIC -fPIC)
+  add_compile_options(-fPIC)
   # dprintf causes many warnings
-  add_compile_options(gc PUBLIC -Wno-format)
+  add_compile_options(-Wno-format)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_definitions(-DBUILD_AS_STANDALONE)
@@ -58,6 +58,6 @@ if(CLR_CMAKE_PLATFORM_DARWIN)
   add_definitions(-D_DARWIN_C_SOURCE)
 endif(CLR_CMAKE_PLATFORM_DARWIN)
 
-include_directories(gc BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(gc BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/env)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/env)
 
