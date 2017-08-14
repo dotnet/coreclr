@@ -225,7 +225,7 @@ perfCollection=
 collectionflags=stopwatch
 hasWarmupRun=--drop-first-value
 stabilityPrefix=
-benchmarksOutputDir=$dp0/sandbox/Logs
+benchmarksOutputDir=$dp0/bin/sandbox/Logs
 
 for i in "$@"
 do
