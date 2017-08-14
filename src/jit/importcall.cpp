@@ -308,85 +308,12 @@ public:
 
                     case CORINFO_VIRTUALCALL_STUB:
                     {
-                        assert(!(mflags & CORINFO_FLG_STATIC)); // can't call a static method
-                        assert(!(clsFlags & CORINFO_FLG_VALUECLASS));
-                        if (callInfo->stubLookup.lookupKind.needsRuntimeLookup)
+
+                        if (!createVirtualCallStubNode())
                         {
-
-                            if (compiler->compIsForInlining())
-                            {
-                                // Don't import runtime lookups when inlining
-                                // Inlining has to be aborted in such a case
-                                /* XXX Fri 3/20/2009
-                                * By the way, this would never succeed.  If the handle lookup is into the generic
-                                * dictionary for a candidate, you'll generate different dictionary offsets and the
-                                * inlined code will crash.
-                                *
-                                * To anyone code reviewing this, when could this ever succeed in the future?  It'll
-                                * always have a handle lookup.  These lookups are safe intra-module, but we're just
-                                * failing here.
-                                */
-                                compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_HAS_COMPLEX_HANDLE);
-                                return TYP_UNDEF;
-                            }
-
-                            GenTreePtr stubAddr =
-                                compiler->impRuntimeLookupToTree(resolvedToken, &callInfo->stubLookup, methHnd);
-                            assert(!compiler->compDonotInline());
-
-                            // This is the rough code to set up an indirect stub call
-                            assert(stubAddr != nullptr);
-
-                            // The stubAddr may be a
-                            // complex expression. As it is evaluated after the args,
-                            // it may cause registered args to be spilled. Simply spill it.
-
-                            unsigned lclNum = compiler->lvaGrabTemp(true DEBUGARG("VirtualCall with runtime lookup"));
-                            compiler->impAssignTempGen(lclNum, stubAddr, (unsigned)compiler->CHECK_SPILL_ALL);
-                            stubAddr = compiler->gtNewLclvNode(lclNum, TYP_I_IMPL);
-
-                            // Create the actual call node
-
-                            assert((sig->callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_VARARG &&
-                                   (sig->callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_NATIVEVARARG);
-
-                            call = compiler->gtNewIndCallNode(stubAddr, callRetTyp, nullptr);
-
-                            call->gtFlags |= GTF_EXCEPT | (stubAddr->gtFlags & GTF_GLOB_EFFECT);
-                            call->gtFlags |= GTF_CALL_VIRT_STUB;
-
-#ifdef _TARGET_X86_
-                            // No tailcalls allowed for these yet...
-                            canTailCall             = false;
-                            szCanTailCallFailReason = "VirtualCall with runtime lookup";
-#endif
+                            assert(compiler->compDonotInline());
+                            return TYP_UNDEF;
                         }
-                        else
-                        {
-                            // ok, the stub is available at compile type.
-
-                            call =
-                                compiler->gtNewCallNode(CT_USER_FUNC, callInfo->hMethod, callRetTyp, nullptr, ilOffset);
-                            call->gtCall.gtStubCallStubAddr = callInfo->stubLookup.constLookup.addr;
-                            call->gtFlags |= GTF_CALL_VIRT_STUB;
-                            assert(callInfo->stubLookup.constLookup.accessType != IAT_PPVALUE);
-                            if (callInfo->stubLookup.constLookup.accessType == IAT_PVALUE)
-                            {
-                                call->gtCall.gtCallMoreFlags |= GTF_CALL_M_VIRTSTUB_REL_INDIRECT;
-                            }
-                        }
-
-#ifdef FEATURE_READYTORUN_COMPILER
-                        if (compiler->opts.IsReadyToRun())
-                        {
-                            // Null check is sometimes needed for ready to run to handle
-                            // non-virtual <-> virtual changes between versions
-                            if (callInfo->nullInstanceCheck)
-                            {
-                                call->gtFlags |= GTF_CALL_NULLCHECK;
-                            }
-                        }
-#endif
 
                         break;
                     }
@@ -825,6 +752,93 @@ public:
     }
 
 private:
+    //------------------------------------------------------------------------
+    // createVirtualCallStubNode: Create call node for virtualCallStub.
+    //
+    // Return Value:
+    //    true if import was successful, false if can't import.
+    bool createVirtualCallStubNode()
+    {
+        assert(!(mflags & CORINFO_FLG_STATIC)); // can't call a static method
+        assert(!(clsFlags & CORINFO_FLG_VALUECLASS));
+        if (callInfo->stubLookup.lookupKind.needsRuntimeLookup)
+        {
+
+            if (compiler->compIsForInlining())
+            {
+                // Don't import runtime lookups when inlining
+                // Inlining has to be aborted in such a case
+                /* XXX Fri 3/20/2009
+                * By the way, this would never succeed.  If the handle lookup is into the generic
+                * dictionary for a candidate, you'll generate different dictionary offsets and the
+                * inlined code will crash.
+                *
+                * To anyone code reviewing this, when could this ever succeed in the future?  It'll
+                * always have a handle lookup.  These lookups are safe intra-module, but we're just
+                * failing here.
+                */
+                compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_HAS_COMPLEX_HANDLE);
+                return false;
+            }
+
+            GenTreePtr stubAddr = compiler->impRuntimeLookupToTree(resolvedToken, &callInfo->stubLookup, methHnd);
+            assert(!compiler->compDonotInline());
+
+            // This is the rough code to set up an indirect stub call
+            assert(stubAddr != nullptr);
+
+            // The stubAddr may be a
+            // complex expression. As it is evaluated after the args,
+            // it may cause registered args to be spilled. Simply spill it.
+
+            unsigned lclNum = compiler->lvaGrabTemp(true DEBUGARG("VirtualCall with runtime lookup"));
+            compiler->impAssignTempGen(lclNum, stubAddr, (unsigned)compiler->CHECK_SPILL_ALL);
+            stubAddr = compiler->gtNewLclvNode(lclNum, TYP_I_IMPL);
+
+            // Create the actual call node
+
+            assert((sig->callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_VARARG &&
+                   (sig->callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_NATIVEVARARG);
+
+            call = compiler->gtNewIndCallNode(stubAddr, callRetTyp, nullptr);
+
+            call->gtFlags |= GTF_EXCEPT | (stubAddr->gtFlags & GTF_GLOB_EFFECT);
+            call->gtFlags |= GTF_CALL_VIRT_STUB;
+
+#ifdef _TARGET_X86_
+            // No tailcalls allowed for these yet...
+            canTailCall             = false;
+            szCanTailCallFailReason = "VirtualCall with runtime lookup";
+#endif
+        }
+        else
+        {
+            // ok, the stub is available at compile type.
+
+            call = compiler->gtNewCallNode(CT_USER_FUNC, callInfo->hMethod, callRetTyp, nullptr, ilOffset);
+            call->gtCall.gtStubCallStubAddr = callInfo->stubLookup.constLookup.addr;
+            call->gtFlags |= GTF_CALL_VIRT_STUB;
+            assert(callInfo->stubLookup.constLookup.accessType != IAT_PPVALUE);
+            if (callInfo->stubLookup.constLookup.accessType == IAT_PVALUE)
+            {
+                call->gtCall.gtCallMoreFlags |= GTF_CALL_M_VIRTSTUB_REL_INDIRECT;
+            }
+        }
+
+#ifdef FEATURE_READYTORUN_COMPILER
+        if (compiler->opts.IsReadyToRun())
+        {
+            // Null check is sometimes needed for ready to run to handle
+            // non-virtual <-> virtual changes between versions
+            if (callInfo->nullInstanceCheck)
+            {
+                call->gtFlags |= GTF_CALL_NULLCHECK;
+            }
+        }
+#endif
+        return true;
+    }
+
     //------------------------------------------------------------------------
     // importNewObj: Import call for the new object opcode.
     //
