@@ -146,54 +146,9 @@ public:
 #endif
             if (compiler->compIsForInlining())
             {
-                /* Does this call site have security boundary restrictions? */
-
-                if (compiler->impInlineInfo->inlineCandidateInfo->dwRestrictions & INLINE_RESPECT_BOUNDARY)
+                if (!checkInlineRestrictions())
                 {
-                    compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_CROSS_BOUNDARY_SECURITY);
-                    return TYP_UNDEF;
-                }
-
-                /* Does the inlinee need a security check token on the frame */
-
-                if (mflags & CORINFO_FLG_SECURITYCHECK)
-                {
-                    compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_NEEDS_SECURITY_CHECK);
-                    return TYP_UNDEF;
-                }
-
-                /* Does the inlinee use StackCrawlMark */
-
-                if (mflags & CORINFO_FLG_DONT_INLINE_CALLER)
-                {
-                    compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_STACK_CRAWL_MARK);
-                    return TYP_UNDEF;
-                }
-
-                /* For now ignore delegate invoke */
-
-                if (mflags & CORINFO_FLG_DELEGATE_INVOKE)
-                {
-                    compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_DELEGATE_INVOKE);
-                    return TYP_UNDEF;
-                }
-
-                /* For now ignore varargs */
-                if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_NATIVEVARARG)
-                {
-                    compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_NATIVE_VARARGS);
-                    return TYP_UNDEF;
-                }
-
-                if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_VARARG)
-                {
-                    compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_MANAGED_VARARGS);
-                    return TYP_UNDEF;
-                }
-
-                if ((mflags & CORINFO_FLG_VIRTUAL) && (sig->sigInst.methInstCount != 0) && (opcode == CEE_CALLVIRT))
-                {
-                    compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_IS_GENERIC_VIRTUAL);
+                    assert(compiler->compDonotInline());
                     return TYP_UNDEF;
                 }
             }
@@ -709,6 +664,63 @@ public:
     }
 
 private:
+    //------------------------------------------------------------------------
+    // checkInlineRestrictions: Check does this call satisfy inlining restrictions.
+    //
+    // Return Value:
+    //    true if does, false if not.
+    bool checkInlineRestrictions()
+    {
+        /* Does this call site have security boundary restrictions? */
+        if (compiler->impInlineInfo->inlineCandidateInfo->dwRestrictions & INLINE_RESPECT_BOUNDARY)
+        {
+            compiler->compInlineResult->NoteFatal(InlineObservation::CALLSITE_CROSS_BOUNDARY_SECURITY);
+            return false;
+        }
+
+        /* Does the inlinee need a security check token on the frame */
+        if (mflags & CORINFO_FLG_SECURITYCHECK)
+        {
+            compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_NEEDS_SECURITY_CHECK);
+            return false;
+        }
+
+        /* Does the inlinee use StackCrawlMark */
+
+        if (mflags & CORINFO_FLG_DONT_INLINE_CALLER)
+        {
+            compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_STACK_CRAWL_MARK);
+            return false;
+        }
+
+        /* For now ignore delegate invoke */
+        if (mflags & CORINFO_FLG_DELEGATE_INVOKE)
+        {
+            compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_DELEGATE_INVOKE);
+            return false;
+        }
+
+        /* For now ignore varargs */
+        if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_NATIVEVARARG)
+        {
+            compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_NATIVE_VARARGS);
+            return false;
+        }
+
+        if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_VARARG)
+        {
+            compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_MANAGED_VARARGS);
+            return false;
+        }
+
+        if ((mflags & CORINFO_FLG_VIRTUAL) && (sig->sigInst.methInstCount != 0) && (opcode == CEE_CALLVIRT))
+        {
+            compiler->compInlineResult->NoteFatal(InlineObservation::CALLEE_IS_GENERIC_VIRTUAL);
+            return false;
+        }
+        return true;
+    }
+
     //------------------------------------------------------------------------
     // createIntrinsicNode: Create intrinsic call node. Set bIntrinsicImported if succeed.
     //
