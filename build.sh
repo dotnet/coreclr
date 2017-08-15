@@ -833,7 +833,7 @@ while :; do
                 fi
                 __RootBinParent=$(dirname $__RootBinDir)
                 __RootBinName=${__RootBinDir##*/}
-                __RootBinDir="$(cd $__RootBinParent &>/dev/null && printf %s/%s $PWD $__RootBinName)
+                __RootBinDir="$(cd $__RootBinParent &>/dev/null && printf %s/%s $PWD $__RootBinName)"
                 shift
             else
                 echo "ERROR: 'bindir' requires a non-empty option argument"
