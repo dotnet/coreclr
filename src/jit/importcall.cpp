@@ -43,9 +43,9 @@ public:
         , opcode(opcode)
         , resolvedToken(pResolvedToken)
         , constrainedResolvedToken(pConstrainedResolvedToken)
+        , callInfo(callInfo)
         , newobjThis(newobjThis)
         , prefixFlags(prefixFlags)
-        , callInfo(callInfo)
         , rawILOffset(rawILOffset)
         , ilOffset(compiler->impCurILOffset(rawILOffset, true))
     {
@@ -1652,41 +1652,44 @@ private:
     }
 
 private:
-    Compiler*               compiler;
-    var_types               callRetTyp;
+    Compiler* compiler;
+    var_types callRetTyp;
+    OPCODE    opcode;
+
     CORINFO_SIG_INFO*       sig;
-    CORINFO_METHOD_HANDLE   methHnd;
-    CORINFO_CLASS_HANDLE    clsHnd;
-    unsigned                clsFlags;
-    unsigned                mflags;
-    unsigned                argFlags;
-    GenTreePtr              call;
-    GenTreeArgList*         args;
-    CORINFO_THIS_TRANSFORM  constraintCallThisTransform;
-    CORINFO_CONTEXT_HANDLE  exactContextHnd;
-    bool                    exactContextNeedsRuntimeLookup;
-    bool                    canTailCall;
-    const char*             szCanTailCallFailReason;
     CORINFO_RESOLVED_TOKEN* ldftnToken;
-    bool                    bIntrinsicImported;
-    bool                    readonlyCall;
-
-    int tailCall;
-
-    GenTreePtr         newobjThis;
-    int                prefixFlags;
-    CORINFO_CALL_INFO* callInfo;
-    IL_OFFSET          rawILOffset;
-    IL_OFFSETX         ilOffset;
-    OPCODE             opcode;
-
-    CORINFO_SIG_INFO calliSig;
-    GenTreeArgList*  extraArg;
-
-    CorInfoIntrinsics intrinsicID;
-
     CORINFO_RESOLVED_TOKEN* resolvedToken;
     CORINFO_RESOLVED_TOKEN* constrainedResolvedToken;
+    CORINFO_CALL_INFO*      callInfo;
+
+    CORINFO_METHOD_HANDLE  methHnd;
+    CORINFO_CLASS_HANDLE   clsHnd;
+    CORINFO_SIG_INFO       calliSig;
+    CORINFO_THIS_TRANSFORM constraintCallThisTransform;
+    CORINFO_CONTEXT_HANDLE exactContextHnd;
+
+    unsigned        clsFlags;
+    unsigned        mflags;
+    unsigned        argFlags;
+    GenTreePtr      call;
+    GenTreePtr      newobjThis;
+    GenTreeArgList* args;
+    GenTreeArgList* extraArg;
+
+    bool exactContextNeedsRuntimeLookup;
+    bool canTailCall;
+    bool readonlyCall;
+
+    const char* szCanTailCallFailReason;
+
+    int tailCall;
+    int prefixFlags;
+
+    IL_OFFSET  rawILOffset;
+    IL_OFFSETX ilOffset;
+
+    CorInfoIntrinsics intrinsicID;
+    bool              bIntrinsicImported;
 };
 
 //------------------------------------------------------------------------
