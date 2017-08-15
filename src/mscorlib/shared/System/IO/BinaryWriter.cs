@@ -398,11 +398,12 @@ namespace System.IO
             }
             else
             {
-                byte[] buffer = ArrayPool<byte>.Shared.Rent(value.Length);
+                int length = value.Length;
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(length);
                 try
                 {
                     value.CopyTo(buffer);
-                    Write(buffer);
+                    Write(buffer, 0, length);
                 }
                 finally
                 {
@@ -415,17 +416,28 @@ namespace System.IO
         {
             if (GetType() == typeof(BinaryWriter))
             {
-                Span<byte> bytes = new byte[value.Length * 2];
-                _encoding.GetBytes(value, bytes);
-                OutStream.Write(bytes);
-            }
-            else
-            {
-                char[] chars = ArrayPool<char>.Shared.Rent(value.Length);
+                int length = value.Length;
+                char[] chars = ArrayPool<char>.Shared.Rent(length);
                 try
                 {
                     value.CopyTo(chars);
-                    Write(chars);
+                    byte[] bytes = _encoding.GetBytes(chars, 0, length);
+                    OutStream.Write(bytes);
+                }
+                finally
+                {
+                    ArrayPool<char>.Shared.Return(chars);
+                }
+            }
+            else
+            {
+                int length = value.Length;
+                char[] chars = ArrayPool<char>.Shared.Rent(length);
+                try
+                {
+                    value.CopyTo(chars);
+                    byte[] bytes = _encoding.GetBytes(chars, 0, length);
+                    Write(bytes);
                 }
                 finally
                 {
