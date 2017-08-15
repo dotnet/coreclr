@@ -390,26 +390,6 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     m_FileMap.Assign(WszCreateFileMapping(hFile, NULL, PAGE_READONLY | SEC_IMAGE, 0, 0, NULL));
     if (m_FileMap == NULL)
     {
-#ifndef CROSSGEN_COMPILE
-
-        // Capture last error as it may get reset below.
-        
-        DWORD dwLastError = GetLastError();
-        // There is no reflection-only load on CoreCLR and so we can always throw an error here.
-        // It is important on Windows Phone. All assemblies that we load must have SEC_IMAGE set
-        // so that the OS can perform signature verification.
-        if (pOwner->IsFile())
-        {
-            EEFileLoadException::Throw(pOwner->GetPathForErrorMessages(), HRESULT_FROM_WIN32(dwLastError));
-        }
-        else
-        {
-            // Throw generic exception.
-            ThrowWin32(dwLastError);
-        }
-
-#endif // CROSSGEN_COMPILE
-
         return;
     }
 
@@ -499,10 +479,6 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
 
     if (HasNativeHeader() || HasReadyToRunHeader())
     {
-        //Do base relocation for PE, if necessary.
-        if (!IsNativeMachineFormat())
-            ThrowHR(COR_E_BADIMAGEFORMAT);
-
         ApplyBaseRelocations();
         SetRelocated();
     }
