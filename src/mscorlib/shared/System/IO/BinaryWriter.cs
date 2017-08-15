@@ -4,6 +4,7 @@
 
 using System.Text;
 using System.Diagnostics;
+using System.Buffers;
 
 namespace System.IO
 {
@@ -389,14 +390,46 @@ namespace System.IO
             }
         }
 
-        public virtual void Write(ReadOnlySpan<byte> span)
+        public virtual void Write(ReadOnlySpan<byte> value)
         {
-            OutStream.Write(span);
+            if (GetType() == typeof(BinaryWriter))
+            {
+                OutStream.Write(value);
+            }
+            else
+            {
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(value.Length);
+                try
+                {
+                    value.CopyTo(buffer);
+                    Write(buffer);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
+            }
         }
 
-        public virtual void Write(ReadOnlySpan<char> span)
+        public virtual void Write(ReadOnlySpan<char> value)
         {
-            OutStream.Write(span.NonPortableCast<char, byte>());
+            if (GetType() == typeof(BinaryWriter))
+            {
+                OutStream.Write(value.AsBytes());
+            }
+            else
+            {
+                char[] chars = ArrayPool<char>.Shared.Rent(value.Length);
+                try
+                {
+                    value.CopyTo(chars);
+                    Write(chars);
+                }
+                finally
+                {
+                    ArrayPool<char>.Shared.Return(chars);
+                }
+            }
         }
 
         protected void Write7BitEncodedInt(int value)
