@@ -325,8 +325,8 @@ rem ****************************************************************************
   set LV_MEASUREMENT_ARGS=%LV_MEASUREMENT_ARGS% %HAS_WARMUP_RUN%
   set LV_MEASUREMENT_ARGS=%LV_MEASUREMENT_ARGS% --append
 
-  for /f %%f in ('dir /b "%LV_BENCHMARKS_OUTPUT_DIR%\%LV_RUNID%-%BENCHNAME%.xml" 2^>nul') do (
-    call :run_cmd py.exe "%BENCHVIEW_PATH%\measurement.py" %LV_MEASUREMENT_ARGS% "%LV_BENCHMARKS_OUTPUT_DIR%\%%f"
+  for %%f in ("%LV_BENCHMARKS_OUTPUT_DIR%\%LV_RUNID%-%BENCHNAME%.xml" "%LV_BENCHMARKS_OUTPUT_DIR%\%LV_RUNID%-*-%BENCHNAME%.xml") do (
+    call :run_cmd py.exe "%BENCHVIEW_PATH%\measurement.py" %LV_MEASUREMENT_ARGS% "%%f"
 
     IF !ERRORLEVEL! NEQ 0 (
       call :print_error Failed to generate BenchView measurement data.
