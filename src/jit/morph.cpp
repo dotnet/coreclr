@@ -5733,7 +5733,7 @@ void Compiler::fgSetRngChkTarget(GenTreePtr tree, bool delay)
     unsigned callStkDepth = fgPtrArgCntCur;
 #else
     // only x86 pushes args
-    const unsigned callStkDepth = 0;
+    const unsigned callStkDepth          = 0;
 #endif
 
     if (opts.MinOpts())
@@ -6486,8 +6486,8 @@ GenTreePtr Compiler::fgMorphField(GenTreePtr tree, MorphAddrContext* mac)
 #if CONSERVATIVE_NULL_CHECK_BYREF_CREATION
                     addExplicitNullCheck = (mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0));
 #else
-                    addExplicitNullCheck =
-                        (objRef->gtType == TYP_BYREF && mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0));
+                    addExplicitNullCheck = (objRef->gtType == TYP_BYREF && mac->m_kind == MACK_Addr &&
+                                            (mac->m_totalOffset + fldOffset > 0));
 #endif
                 }
             }
