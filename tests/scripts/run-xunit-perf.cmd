@@ -325,7 +325,12 @@ rem ****************************************************************************
   set LV_MEASUREMENT_ARGS=%LV_MEASUREMENT_ARGS% %HAS_WARMUP_RUN%
   set LV_MEASUREMENT_ARGS=%LV_MEASUREMENT_ARGS% --append
 
-  for %%f in ("%LV_BENCHMARKS_OUTPUT_DIR%\%LV_RUNID%-%BENCHNAME%.xml" "%LV_BENCHMARKS_OUTPUT_DIR%\%LV_RUNID%-*-%BENCHNAME%.xml") do (
+  rem Currently xUnit Performance Api saves the scenario output
+  rem   files on the current working directory.
+  set LV_PATTERN="%LV_BENCHMARKS_OUTPUT_DIR%\%LV_RUNID%-%BENCHNAME%.xml"
+  if defined IS_SCENARIO_TEST set LV_PATTERN="%LV_RUNID%-*-%BENCHNAME%.xml"
+
+  for %%f in (%LV_PATTERN%) do (
     call :run_cmd py.exe "%BENCHVIEW_PATH%\measurement.py" %LV_MEASUREMENT_ARGS% "%%~f"
 
     IF !ERRORLEVEL! NEQ 0 (
