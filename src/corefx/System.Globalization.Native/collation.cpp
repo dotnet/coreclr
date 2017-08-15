@@ -413,6 +413,8 @@ extern "C" int32_t GlobalizationNative_GetSortVersion(SortHandle* pSortHandle)
     }
     else
     {
+        assert(false && "Unexpected ucol_getVersion to fail.");
+
         // we didn't use UCOL_TAILORINGS_VERSION because it is deprecated in ICU v5
         result = UCOL_RUNTIME_VERSION << 16 | UCOL_BUILDER_VERSION;
     }
