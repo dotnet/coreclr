@@ -562,11 +562,11 @@ parallel(
                     batchFile("if exist \"${failedOutputLogFilename}\" (echo [ERROR] Failed to previously created \"${failedOutputLogFilename}\" file.& exit /b 1)")
 
                     // Scenario: JitBench
-                    batchFile("tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios || (echo [ERROR] JitBench failed.1>>\"${failedOutputLogFilename}\"& exit /b 0)")
+                    batchFile("tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios || (echo [ERROR] JitBench failed. 1>>\"${failedOutputLogFilename}\"& exit /b 0)")
 
                     // Scenario: ILLink
                     if (arch == 'x64') {
-                        batchFile("tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\linkbench\\linkbench -group ILLink -nowarmup || (echo [ERROR] IlLink failed.1>>\"${failedOutputLogFilename}\"& exit /b 0)")
+                        batchFile("tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\linkbench\\linkbench -group ILLink -nowarmup || (echo [ERROR] IlLink failed. 1>>\"${failedOutputLogFilename}\"& exit /b 0)")
                     }
 
                     batchFile("if exist \"${failedOutputLogFilename}\" (type \"${failedOutputLogFilename}\"& exit /b 1)")
@@ -575,8 +575,8 @@ parallel(
 
              // Save machinedata.json to /artifact/bin/ Jenkins dir
             def archiveSettings = new ArchivalSettings()
-            archiveSettings.addFiles('.\\bin\\sandbox\\Logs\\Perf-*.xml')
-            archiveSettings.addFiles('.\\bin\\sandbox\\Logs\\Perf-*.log')
+            archiveSettings.addFiles('.\\bin\\sandbox\\Perf-*.xml')
+            archiveSettings.addFiles('.\\bin\\sandbox\\Perf-*.log')
             archiveSettings.addFiles('machinedata.json')
             Utilities.addArchival(newJob, archiveSettings)
 
