@@ -398,12 +398,15 @@ namespace System.Threading
         internal void EnsureThreadRequested()
         {
             //
-            // If we have not yet requested #procs threads from the VM, then request a new thread.
+            // If we have not yet requested #procs threads from the VM, then request a new thread
+            // as needed
+            //
             // Note that there is a separate count in the VM which will also be incremented in this case, 
             // which is handled by RequestWorkerThread.
             //
             int count = numOutstandingThreadRequests;
-            while (count < ThreadPoolGlobals.processorCount)
+            while ((count < ThreadPoolGlobals.processorCount) &&
+                ((count < workItems.Count) || (WorkStealingQueueList.wsqActive > 0)))
             {
                 int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count + 1, count);
                 if (prev == count)
