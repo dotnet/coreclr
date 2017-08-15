@@ -389,6 +389,16 @@ namespace System.IO
             }
         }
 
+        public virtual void Write(ReadOnlySpan<byte> span)
+        {
+            OutStream.Write(span);
+        }
+
+        public virtual void Write(ReadOnlySpan<char> span)
+        {
+            OutStream.Write(span.NonPortableCast<char, byte>());
+        }
+
         protected void Write7BitEncodedInt(int value)
         {
             // Write out an int 7 bits at a time.  The high bit of the byte,
