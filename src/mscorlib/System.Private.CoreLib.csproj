@@ -44,6 +44,7 @@
   <ItemGroup>
     <AssemblyMetadata Include="Serviceable">
       <Value>True</Value>
+      <Visible>false</Visible>
     </AssemblyMetadata>
   </ItemGroup>
   <!-- Platform specific properties -->
@@ -96,12 +97,19 @@
     <MinorVersion>6</MinorVersion>
     <ExcludeAssemblyInfoPartialFile>true</ExcludeAssemblyInfoPartialFile>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <AssemblyInfoLines>
+      <!-- Don't show in solution explorer, also this name is special to the default C# build process
+           and would otherwise be treated as source files -->
+      <Visible>false</Visible>
+    </AssemblyInfoLines>
+  </ItemDefinitionGroup>
   <ItemGroup>
-    <AssemblyInfoLines Include="[assembly: System.Resources.SatelliteContractVersion(&quot;$(AssemblyVersion)&quot;)]" />
-    <AssemblyInfoLines Include="[assembly: System.Security.AllowPartiallyTrustedCallers]" />
-    <AssemblyInfoLines Include="[assembly: System.Runtime.InteropServices.ComVisible(false)]" />
-    <AssemblyInfoLines Include="[assembly: System.Resources.NeutralResourcesLanguage(&quot;en-US&quot;)]" />
-    <AssemblyInfoLines Include="[assembly: System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute(System.Runtime.InteropServices.DllImportSearchPath.AssemblyDirectory | System.Runtime.InteropServices.DllImportSearchPath.System32)]" />
+    <AssemblyInfoLines Include="[assembly:System.Resources.SatelliteContractVersion(&quot;$(AssemblyVersion)&quot;)]" />
+    <AssemblyInfoLines Include="[assembly:System.Security.AllowPartiallyTrustedCallers]" />
+    <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.ComVisible(false)]" />
+    <AssemblyInfoLines Include="[assembly:System.Resources.NeutralResourcesLanguage(&quot;en-US&quot;)]" />
+    <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute(System.Runtime.InteropServices.DllImportSearchPath.AssemblyDirectory | System.Runtime.InteropServices.DllImportSearchPath.System32)]" />
   </ItemGroup>
   <!--
     Helper Paths
