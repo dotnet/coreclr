@@ -65,7 +65,7 @@ namespace BINDER_SPACE
         const int iPublicKeyMaxLength = 2048;
 
         const int iVersionMax = 65535;
-        const int iRequiredVersionParts = 4;
+        const int iVersionParts = 4;
 
         inline void UnicodeHexToBin(LPCWSTR pSrc, UINT cSrc, LPBYTE pDest)
         {
@@ -378,8 +378,10 @@ namespace BINDER_SPACE
     {
         BOOL fIsValid = FALSE;
         DWORD dwFoundNumbers = 0;
-        DWORD dwCurrentNumber = 0;
-        DWORD dwNumbers[iRequiredVersionParts];
+        bool foundUnspecifiedComponent = false;
+        const DWORD UnspecifiedNumber = (DWORD)-1;
+        DWORD dwCurrentNumber = UnspecifiedNumber;
+        DWORD dwNumbers[iVersionParts] = {UnspecifiedNumber, UnspecifiedNumber, UnspecifiedNumber, UnspecifiedNumber};
 
         BINDER_LOG_ENTER(W("TextualIdentityParser::ParseVersion"));
 
@@ -391,17 +393,37 @@ namespace BINDER_SPACE
             {
                 WCHAR wcCurrentChar = cursor[0];
 
-                if (dwFoundNumbers >= static_cast<DWORD>(iRequiredVersionParts))
+                if (dwFoundNumbers >= static_cast<DWORD>(iVersionParts))
                 {
                     goto Exit;
                 }
-                else if (wcCurrentChar == W('.') || wcCurrentChar == 0x00)
+                else if (wcCurrentChar == W('.') || wcCurrentChar == W('\0'))
                 {
-                    dwNumbers[dwFoundNumbers++] = dwCurrentNumber;
-                    dwCurrentNumber = 0;
+                    // Compat with .NET Framework: Once an unspecified component is found, validate the remaining components
+                    // but consider them as unspecified as well
+                    if (dwCurrentNumber == UnspecifiedNumber)
+                    {
+                        if (wcCurrentChar == W('\0') && dwFoundNumbers == 0)
+                        {
+                            // Compat with .NET Framework: A missing major version is considered invalid (see below loop)
+                            break;
+                        }
+                        foundUnspecifiedComponent = true;
+                    }
+                    else if (!foundUnspecifiedComponent)
+                    {
+                        dwNumbers[dwFoundNumbers] = dwCurrentNumber;
+                        dwCurrentNumber = UnspecifiedNumber;
+                    }
+
+                    dwFoundNumbers++;
                 }
                 else if ((wcCurrentChar >= W('0')) && (wcCurrentChar <= W('9')))
                 {
+                    if (dwCurrentNumber == UnspecifiedNumber)
+                    {
+                        dwCurrentNumber = 0;
+                    }
                     dwCurrentNumber = (dwCurrentNumber * 10) + (wcCurrentChar - W('0'));
                     
                     if (dwCurrentNumber > static_cast<DWORD>(iVersionMax))
@@ -417,12 +439,64 @@ namespace BINDER_SPACE
                 cursor++;
             }
 
-            if (dwFoundNumbers == static_cast<DWORD>(iRequiredVersionParts))
+            // Compat with .NET Framework:
+            // - If no value is provided, the version is considered invalid.
+            //   Example: "MyAssembly, Version="
+            // - If the major version is provided and the remaining components are valid, the version is considered valid.
+            //   Examples:
+            //     "MyAssembly, Version=1"
+            //     "MyAssembly, Version=1."
+            //     "MyAssembly, Version=1.."
+            //     "MyAssembly, Version=1..."
+            if (dwFoundNumbers == 0)
             {
-                pAssemblyVersion->SetFeatureVersion(dwNumbers[0], dwNumbers[1]);
-                pAssemblyVersion->SetServiceVersion(dwNumbers[2], dwNumbers[3]);
-                fIsValid = TRUE;
+                goto Exit;
             }
+
+            if (dwFoundNumbers < 2 || dwNumbers[0] == UnspecifiedNumber || dwNumbers[1] == UnspecifiedNumber)
+            {
+                // Compat with .NET Framework: If the major or minor version is unspecified, all components are considered
+                // unspecified. Set the major version to the unspecified value (this is a special value indicating that the
+                // whole version is unspecified, see AssemblyName::HaveAssemblyVersion).
+                //
+                // Examples:
+                //   "MyAssembly, Version=."
+                //   "MyAssembly, Version=.1"
+                //   "MyAssembly, Version=1"
+                //   "MyAssembly, Version=1."
+                dwNumbers[0] = UnspecifiedNumber;
+                dwNumbers[1] = 0;
+                dwNumbers[2] = 0;
+                dwNumbers[3] = 0;
+            }
+            else
+            {
+                // Difference from .NET Framework:
+                // - In .NET Framework, unspecified components retain the unspecified value. This special value is treated as
+                //   unspecified when loading an assembly, even if explicitly specified as 65535 as part of the version.
+                // - In .NET Core, any unspecified version component after the minor version is given a value of zero. When
+                //   loading an assembly, .NET Core will match and load an assembly that has a version that is >= the requested
+                //   version, so zero for any version component is the most accommodating value. 65535 has no special meaning
+                //   for the last two components.
+                //
+                // Examples:
+                //   Assembly name                 | Version in .NET Framework | Version in .NET Core
+                //   -------------------------------------------------------------------------------
+                //   "MyAssembly, Version=1.1"     | 1.1.65535.65535           | 1.1.0.0
+                //   "MyAssembly, Version=1.1.1"   | 1.1.1.65535               | 1.1.1.0
+                if (dwNumbers[2] == UnspecifiedNumber)
+                {
+                    dwNumbers[2] = 0;
+                }
+                if (dwNumbers[3] == UnspecifiedNumber)
+                {
+                    dwNumbers[3] = 0;
+                }
+            }
+
+            pAssemblyVersion->SetFeatureVersion(dwNumbers[0], dwNumbers[1]);
+            pAssemblyVersion->SetServiceVersion(dwNumbers[2], dwNumbers[3]);
+            fIsValid = TRUE;
         }
 
     Exit:
