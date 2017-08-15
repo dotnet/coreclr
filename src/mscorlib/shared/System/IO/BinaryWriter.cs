@@ -415,7 +415,9 @@ namespace System.IO
         {
             if (GetType() == typeof(BinaryWriter))
             {
-                OutStream.Write(value.AsBytes());
+                Span<byte> bytes = new byte[value.Length * 2];
+                _encoding.GetBytes(value, bytes);
+                OutStream.Write(bytes);
             }
             else
             {
