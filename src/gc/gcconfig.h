@@ -86,6 +86,10 @@ public:
   INT_CONFIG(LogFileSize,   "GCLogFileSize", 0, "Specifies the GC log file size")              \
   INT_CONFIG(CompactRatio,  "GCCompactRatio", 0,                                               \
       "Specifies the ratio compacting GCs vs sweeping")                                        \
+  INT_CONFIG(LatencyLevel,  "GCLatencyLevel", 3,                                               \
+      "Specifies the GC latency level (separate from the mode). Must be a number from 1 to 4"  \
+      ", specifying the desired latency level. See documentation for more details on each"     \
+      " level.")                                                                               \
   STRING_CONFIG(LogFile,    "GCLogFile",    "Specifies the name of the GC log file")           \
   STRING_CONFIG(ConfigLogFile, "GCConfigLogFile",                                              \
       "Specifies the name of the GC config log file")                                          \

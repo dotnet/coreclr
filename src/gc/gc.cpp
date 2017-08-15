@@ -2870,6 +2870,9 @@ size_t     gc_heap::interesting_mechanism_bits_per_heap[max_gc_mechanism_bits_co
 
 #endif // MULTIPLE_HEAPS
 
+// the default latency level is a balance between pauses and throughput.
+gc_latency_level gc_heap::latency_level = latency_level_balanced;
+
 /* end of per heap static initialization */
 
 /* end of static initialization */
@@ -3089,6 +3092,61 @@ gc_heap::dt_low_ephemeral_space_p (gc_tuning_point tp)
     return ret;
 }
 
+float
+gc_heap::dt_gen2_frag_tolerance(gc_tuning_point tp)
+{
+    if (tp == tuning_deciding_condemned_gen)
+    {
+        switch (latency_level)
+        {
+            // if we are tuning for short pauses, we are much
+            // more tolerant of gen2 frag.
+            case latency_level_short_pauses:
+                return 0.80f;
+            case latency_level_balanced:
+            case latency_level_throughput:
+                return 0.65f;
+            // if we are tuning for low memory footprint, we
+            // are much /less/ tolerant of gen2 frag.
+            case latency_level_memory_footprint:
+                return 0.40f;
+            default:
+                assert(!"invalid value for latency_level");
+                return 0.65f;
+        }
+    }
+
+    assert(!"asking for frag tolerance at unexpected tuning point");
+    return 0;
+}
+
+BOOL
+gc_heap::dt_gen2_high_frag_p(gc_tuning_point tp)
+{
+    BOOL ret = FALSE;
+
+    switch (tp)
+    {
+        case tuning_deciding_condemned_gen:
+        {
+            float frag_ratio = (float)dd_fragmentation (dynamic_data_of (max_generation)) / (float)generation_size (max_generation);
+            float frag_tolerance = dt_gen2_frag_tolerance (tp);
+            if (frag_ratio > frag_tolerance)
+            {
+                dprintf (GTC_LOG, ("g2 FR: %d%%", (int)(frag_ratio*100)));
+                dprintf (GTC_LOG, ("g2 frag tolerance: %d%%", (int)(frag_tolerance*100)));
+                return TRUE;
+            }
+
+            return FALSE;
+        }
+        default:
+            break;
+    }
+
+    return ret;
+}
+
 BOOL 
 gc_heap::dt_high_frag_p (gc_tuning_point tp, 
                          int gen_number, 
@@ -3112,14 +3170,9 @@ gc_heap::dt_high_frag_p (gc_tuning_point tp,
             else
             {
 #ifndef MULTIPLE_HEAPS
-                if (gen_number == max_generation)
+                if (gen_number == max_generation && dt_gen2_high_frag_p (tp))
                 {
-                    float frag_ratio = (float)(dd_fragmentation (dynamic_data_of (max_generation))) / (float)generation_size (max_generation);
-                    if (frag_ratio > 0.65)
-                    {
-                        dprintf (GTC_LOG, ("g2 FR: %d%%", (int)(frag_ratio*100)));
-                        return TRUE;
-                    }
+                    return TRUE;
                 }
 #endif //!MULTIPLE_HEAPS
                 size_t fr = generation_unusable_fragmentation (generation_of (gen_number));
@@ -33533,6 +33586,15 @@ HRESULT GCHeap::Initialize ()
         available_mem_th = min (available_mem_th, adjusted_available_mem_th);
     }
 
+    // Get our latency level. Defaults to 3 if not specified, and falls-back to 3
+    // if the config latency level is invalid.
+    int latency_level_from_config = static_cast<int>(GCConfig::GetLatencyLevel());
+    if (latency_level_from_config < 1 || latency_level_from_config > 4)
+    {
+        latency_level_from_config = 3;
+    }
+
+    gc_heap::latency_level = static_cast<gc_latency_level>(latency_level_from_config);
     gc_heap::high_memory_load_th = 100 - available_mem_th;
 
 #if defined(BIT64) 
