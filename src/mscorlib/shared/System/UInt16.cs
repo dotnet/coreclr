@@ -129,7 +129,20 @@ namespace System
             return Parse(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
+        [CLSCompliant(false)]
+        public static ushort Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        {
+            NumberFormatInfo.ValidateParseStyleInteger(style);
+            return Parse(s, style, NumberFormatInfo.GetInstance(provider));
+        }
+
         private static ushort Parse(String s, NumberStyles style, NumberFormatInfo info)
+        {
+            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            return Parse(s.AsSpan(), style, info);
+        }
+
+        private static ushort Parse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info)
         {
             uint i = 0;
             try
@@ -158,7 +171,25 @@ namespace System
             return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
+        [CLSCompliant(false)]
+        public static bool TryParse(ReadOnlySpan<char> s, out ushort result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        {
+            NumberFormatInfo.ValidateParseStyleInteger(style);
+            return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
+        }
+
         private static bool TryParse(String s, NumberStyles style, NumberFormatInfo info, out UInt16 result)
+        {
+            if (s == null)
+            {
+                result = 0;
+                return false;
+            }
+
+            return TryParse(s.AsSpan(), style, info, out result);
+        }
+
+        private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out UInt16 result)
         {
             result = 0;
             UInt32 i;

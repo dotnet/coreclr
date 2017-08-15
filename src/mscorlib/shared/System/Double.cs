@@ -288,6 +288,12 @@ namespace System
             return Parse(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
+        public static double Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        {
+            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
+            return Parse(s, style, NumberFormatInfo.GetInstance(provider));
+        }
+
         // Parses a double from a String in the given style.  If
         // a NumberFormatInfo isn't specified, the current culture's
         // NumberFormatInfo is assumed.
@@ -297,6 +303,12 @@ namespace System
         // large or too small.
         //
         private static double Parse(String s, NumberStyles style, NumberFormatInfo info)
+        {
+            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            return Parse(s.AsSpan(), style, info);
+        }
+
+        private static double Parse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info)
         {
             return Number.ParseDouble(s, style, info);
         }
@@ -312,6 +324,12 @@ namespace System
             return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
+        public static bool TryParse(ReadOnlySpan<char> s, out double result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        {
+            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
+            return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
+        }
+
         private static bool TryParse(String s, NumberStyles style, NumberFormatInfo info, out double result)
         {
             if (s == null)
@@ -319,19 +337,25 @@ namespace System
                 result = 0;
                 return false;
             }
+
+            return TryParse(s.AsSpan(), style, info, out result);
+        }
+
+        private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out double result)
+        {
             bool success = Number.TryParseDouble(s, style, info, out result);
             if (!success)
             {
-                String sTrim = s.Trim();
-                if (sTrim.Equals(info.PositiveInfinitySymbol))
+                ReadOnlySpan<char> sTrim = StringSpanHelpers.Trim(s);
+                if (StringSpanHelpers.Equals(sTrim, info.PositiveInfinitySymbol))
                 {
                     result = PositiveInfinity;
                 }
-                else if (sTrim.Equals(info.NegativeInfinitySymbol))
+                else if (StringSpanHelpers.Equals(sTrim, info.NegativeInfinitySymbol))
                 {
                     result = NegativeInfinity;
                 }
-                else if (sTrim.Equals(info.NaNSymbol))
+                else if (StringSpanHelpers.Equals(sTrim, info.NaNSymbol))
                 {
                     result = NaN;
                 }

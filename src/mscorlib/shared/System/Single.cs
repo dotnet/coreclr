@@ -288,9 +288,16 @@ namespace System
             return Parse(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
+        public static float Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        {
+            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
+            return Number.ParseSingle(s, style, NumberFormatInfo.GetInstance(provider));
+        }
+
         private static float Parse(String s, NumberStyles style, NumberFormatInfo info)
         {
-            return Number.ParseSingle(s, style, info);
+            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            return Number.ParseSingle(s.AsSpan(), style, info);
         }
 
         public static Boolean TryParse(String s, out Single result)
@@ -304,6 +311,12 @@ namespace System
             return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
+        public static Boolean TryParse(ReadOnlySpan<char> s, out Single result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        {
+            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
+            return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
+        }
+
         private static Boolean TryParse(String s, NumberStyles style, NumberFormatInfo info, out Single result)
         {
             if (s == null)
@@ -311,19 +324,24 @@ namespace System
                 result = 0;
                 return false;
             }
+            return TryParse(s.AsSpan(), style, info, out result);
+        }
+
+        private static Boolean TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out Single result)
+        {
             bool success = Number.TryParseSingle(s, style, info, out result);
             if (!success)
             {
-                String sTrim = s.Trim();
-                if (sTrim.Equals(info.PositiveInfinitySymbol))
+                ReadOnlySpan<char> sTrim = s.Trim();
+                if (StringSpanHelpers.Equals(sTrim, info.PositiveInfinitySymbol))
                 {
                     result = PositiveInfinity;
                 }
-                else if (sTrim.Equals(info.NegativeInfinitySymbol))
+                else if (StringSpanHelpers.Equals(sTrim, info.NegativeInfinitySymbol))
                 {
                     result = NegativeInfinity;
                 }
-                else if (sTrim.Equals(info.NaNSymbol))
+                else if (StringSpanHelpers.Equals(sTrim, info.NaNSymbol))
                 {
                     result = NaN;
                 }

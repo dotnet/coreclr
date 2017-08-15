@@ -111,7 +111,19 @@ namespace System
             return Parse(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
+        public static byte Parse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider provider)
+        {
+            NumberFormatInfo.ValidateParseStyleInteger(style);
+            return Parse(s, style, NumberFormatInfo.GetInstance(provider));
+        }
+
         private static byte Parse(String s, NumberStyles style, NumberFormatInfo info)
+        {
+            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            return Parse(s.AsSpan(), style, info);
+        }
+
+        private static byte Parse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info)
         {
             int i = 0;
             try
@@ -138,7 +150,24 @@ namespace System
             return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
+        public static bool TryParse(ReadOnlySpan<char> s, out byte result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        {
+            NumberFormatInfo.ValidateParseStyleInteger(style);
+            return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
+        }
+
         private static bool TryParse(String s, NumberStyles style, NumberFormatInfo info, out Byte result)
+        {
+            if (s == null)
+            {
+                result = 0;
+                return false;
+            }
+
+            return TryParse(s.AsSpan(), style, info, out result);
+        }
+
+        private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out Byte result)
         {
             result = 0;
             int i;
