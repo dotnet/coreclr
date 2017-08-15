@@ -6477,16 +6477,19 @@ GenTreePtr Compiler::fgMorphField(GenTreePtr tree, MorphAddrContext* mac)
             // non-null, or else it is a field dereference, which will do its own bounds checking if necessary.
             if (objRef->gtOper != GT_ADDR && (mac->m_kind == MACK_Addr || mac->m_kind == MACK_Ind))
             {
+                if (!mac->m_allConstantOffsets || fgIsBigOffset(mac->m_totalOffset + fldOffset))
+                {
+                    addExplicitNullCheck = true;
+                }
+                else
+                {
 #if CONSERVATIVE_NULL_CHECK_BYREF_CREATION
-                addExplicitNullCheck =
-                    addExplicitNullCheck || (mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0));
+                    addExplicitNullCheck = (mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0));
 #else
-                addExplicitNullCheck =
-                    addExplicitNullCheck ||
-                    (objRef->gtType == TYP_BYREF && mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0));
+                    addExplicitNullCheck =
+                        (objRef->gtType == TYP_BYREF && mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0));
 #endif
-                addExplicitNullCheck = addExplicitNullCheck || !mac->m_allConstantOffsets;
-                addExplicitNullCheck = addExplicitNullCheck || fgIsBigOffset(mac->m_totalOffset + fldOffset);
+                }
             }
         }
 
