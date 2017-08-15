@@ -62,11 +62,11 @@ namespace System.Diagnostics.Tracing
             {
                 if (userDataCount == 0)
                 {
-                    EventPipeInternal.WriteEventBlob(eventHandle, eventID, null, 0, activityId, relatedActivityId);
+                    EventPipeInternal.WriteEventData(eventHandle, eventID, null, 0, activityId, relatedActivityId);
                     return 0;
                 }
 
-                EventPipeInternal.WriteEventBlob(eventHandle, eventID, &userData, (uint) userDataCount, activityId, relatedActivityId);
+                EventPipeInternal.WriteEventData(eventHandle, eventID, &userData, (uint) userDataCount, activityId, relatedActivityId);
             }
             return 0;
         }

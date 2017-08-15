@@ -40,7 +40,7 @@ extern "C" void InitProvidersAndEvents();
 extern "C" void InitProvidersAndEvents();
 #endif
 
-EventPipeEventPayload::EventPipeEventPayload(byte *pData, unsigned int length)
+EventPipeEventPayload::EventPipeEventPayload(BYTE *pData, unsigned int length)
 {
     CONTRACTL
     {
@@ -74,10 +74,12 @@ EventPipeEventPayload::EventPipeEventPayload(EventData **pBlobs, unsigned int bl
     m_performedAllocation = false;
 
     S_UINT32 tmp_size = S_UINT32(blobCount) * S_UINT32(sizeof(EventData));
-    if (tmp_size.IsOverflow()){
+    if (tmp_size.IsOverflow())
+    {
+        // If there is an overflow, drop the data and create an empty payload
         m_pBlobs = NULL;
-        m_blobCount = 0; // ?
-        m_size = 0; // ?
+        m_blobCount = 0;
+        m_size = 0;
     }
     else{
         m_size = tmp_size.Value();
@@ -88,13 +90,14 @@ EventPipeEventPayload::~EventPipeEventPayload()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-    if(m_performedAllocation){
+    if(m_performedAllocation && m_pData != NULL)
+    {
         delete[] m_pData;
         m_pData = NULL;
     }
@@ -104,17 +107,22 @@ void EventPipeEventPayload::Flatten()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-    if(m_size > 0){
-        if (!this->IsFlattened()){
-            m_pData = new BYTE[m_size];
-            m_performedAllocation = true;
-            this->CopyData(m_pData);
+    if(m_size > 0)
+    {
+        if (!this->IsFlattened())
+        {
+            m_pData = new (nothrow) BYTE[m_size];
+            if (m_pData != NULL)
+            {
+                m_performedAllocation = true;
+                this->CopyData(m_pData);
+            }
         }
     }
 }
@@ -123,25 +131,46 @@ void EventPipeEventPayload::CopyData(BYTE *pDst)
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-    if(m_size > 0){
-        if(this->IsFlattened()){
+    if(m_size > 0)
+    {
+        if(m_pData != NULL)
+        {
             memcpy(pDst, m_pData, m_size);
         }
 
-        else if(m_pBlobs != NULL){
+        else if(m_pBlobs != NULL)
+        {
             unsigned int offset = 0;
-            for(int i=0; i<m_blobCount; i++){
-                memcpy(pDst + offset, m_pBlobs, sizeof(EventData));
+            for(int i=0; i<m_blobCount; i++)
+            {
+                memcpy(pDst + offset, m_pBlobs[i], sizeof(EventData));
                 offset += sizeof(EventData);
             }
         }
     }
+}
+
+BYTE* EventPipeEventPayload::GetFlatData()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (!this->IsFlattened())
+    {
+        this->Flatten();
+    }
+    return m_pData;
 }
 
 void EventPipe::Initialize()
@@ -402,7 +431,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
     EventPipe::WriteEventInternal(event, payload, pActivityId, pRelatedActivityId);
 }
 
-void EventPipe::WriteEventBlob(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
+void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
 {
     CONTRACTL
     {
@@ -451,23 +480,23 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     }
     else if(s_pConfig->RundownEnabled())
     {
-        // Ensure the data is in a flat buffer
-        // This statement only does work if the data is not already flat
-        payload.Flatten();
-
-        // Write synchronously to the file.
-        // We're under lock and blocking the disabling thread.
-        EventPipeEventInstance instance(
-            event,
-            pThread->GetOSThreadId(),
-            payload.GetFlatData(),
-            payload.GetSize(),
-            pActivityId,
-            pRelatedActivityId);
-
-        if(s_pFile != NULL)
+        BYTE *pData = payload.GetFlatData();
+        if (pData != NULL)
         {
-            s_pFile->WriteEvent(instance);
+            // Write synchronously to the file.
+            // We're under lock and blocking the disabling thread.
+            EventPipeEventInstance instance(
+                event,
+                pThread->GetOSThreadId(),
+                pData,
+                payload.GetSize(),
+                pActivityId,
+                pRelatedActivityId);
+
+            if(s_pFile != NULL)
+            {
+                s_pFile->WriteEvent(instance);
+            }
         }
     }
 
@@ -475,25 +504,29 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     {
         GCX_PREEMP();
 
-        // Create an instance of the event for the synchronous path.
-        EventPipeEventInstance instance(
-            event,
-            pThread->GetOSThreadId(),
-            payload.GetFlatData(),
-            payload.GetSize(),
-            pActivityId,
-            pRelatedActivityId);
+        BYTE *pData = payload.GetFlatData();
+        if (pData != NULL)
+        {
+            // Create an instance of the event for the synchronous path.
+            EventPipeEventInstance instance(
+                event,
+                pThread->GetOSThreadId(),
+                pData,
+                payload.GetSize(),
+                pActivityId,
+                pRelatedActivityId);
 
-        // Write to the EventPipeFile if it exists.
-        if(s_pSyncFile != NULL)
-        {
-            s_pSyncFile->WriteEvent(instance);
-        }
+            // Write to the EventPipeFile if it exists.
+            if(s_pSyncFile != NULL)
+            {
+                s_pSyncFile->WriteEvent(instance);
+            }
  
-        // Write to the EventPipeJsonFile if it exists.
-        if(s_pJsonFile != NULL)
-        {
-            s_pJsonFile->WriteEvent(instance);
+            // Write to the EventPipeJsonFile if it exists.
+            if(s_pJsonFile != NULL)
+            {
+                s_pJsonFile->WriteEvent(instance);
+            }
         }
     }
 #endif // _DEBUG
@@ -735,7 +768,7 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
     END_QCALL;
 }
 
-void QCALLTYPE EventPipeInternal::WriteEventBlob(
+void QCALLTYPE EventPipeInternal::WriteEventData(
     INT_PTR eventHandle,
     unsigned int eventID,
     EventData **pBlobs,
@@ -748,7 +781,7 @@ void QCALLTYPE EventPipeInternal::WriteEventBlob(
 
     _ASSERTE(eventHandle != NULL);
     EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
-    EventPipe::WriteEventBlob(*pEvent, pBlobs, blobCount, pActivityId, pRelatedActivityId);
+    EventPipe::WriteEvent(*pEvent, pBlobs, blobCount, pActivityId, pRelatedActivityId);
 
     END_QCALL;
 }

@@ -32,9 +32,9 @@ typedef void (*EventPipeCallback)(
 struct EventData
 {
 public:
-    unsigned long ptr;
-    unsigned int size;
-    unsigned int reserved;
+    unsigned long Ptr;
+    unsigned int Size;
+    unsigned int Reserved;
 };
 
 class EventPipeEventPayload
@@ -46,9 +46,12 @@ private:
     unsigned int m_size;
     bool m_performedAllocation;
 
+    // If the data is stored only as an array of blobs, create a flat buffer and copy into it
+    void Flatten();
+
 public:
     // Build this payload with a flat buffer inside
-    EventPipeEventPayload(byte *pData, unsigned int length);
+    EventPipeEventPayload(BYTE *pData, unsigned int length);
 
     // Build this payload to contain an array of EventData blobs
     EventPipeEventPayload(EventData **pBlobs, unsigned int blobCount);
@@ -56,11 +59,14 @@ public:
     // If a buffer was allocated internally, delete it
     ~EventPipeEventPayload();
     
-    // If the data is stored only as an array of blobs, create a flat buffer and copy into it
-    void Flatten();
-
     // Copy the data (whether flat or array of blobs) into a flat buffer at pDst
+    // Assumes that pDst points to an appropriatly sized buffer
     void CopyData(BYTE *pDst);
+
+    // Get the flat formatted data in this payload
+    // This method will allocate a buffer if it does not already contain flattened data
+    // This method will return NULL on OOM if a buffer needed to be allocated
+    BYTE* GetFlatData();
 
     // Return true is the data is stored in a flat buffer
     bool IsFlattened() const
@@ -76,13 +82,6 @@ public:
         LIMITED_METHOD_CONTRACT;
 
         return m_size;
-    }
-
-    BYTE* GetFlatData() const
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return m_pData;
     }
 
     EventData** GetBlobData() const
@@ -256,7 +255,7 @@ class EventPipe
 
         // Write out an event.
         // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEventBlob(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+        static void WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
         // Write out a sample profile event.
         static void WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData = NULL, unsigned int length = 0);
@@ -381,7 +380,7 @@ public:
         unsigned int length,
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 
-    static void QCALLTYPE WriteEventBlob(
+    static void QCALLTYPE WriteEventData(
         INT_PTR eventHandle,
         unsigned int eventID,
         EventData **pBlobs,
