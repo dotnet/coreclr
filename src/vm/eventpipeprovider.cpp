@@ -31,9 +31,6 @@ EventPipeProvider::EventPipeProvider(const SString &providerName, EventPipeCallb
     m_pConfig = EventPipe::GetConfiguration();
     _ASSERTE(m_pConfig != NULL);
 
-    // Generate a providerID from the provider name
-    GenerateGuidFromName();
-
     // Register the provider.
     m_pConfig->RegisterProvider(*this);
 }
@@ -75,29 +72,6 @@ EventPipeProvider::~EventPipeProvider()
         delete m_pEventList;
         m_pEventList = NULL;
     }
-}
-
-const GUID& EventPipeProvider::GenerateGuidFromName()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    unsigned int providerNameLength = (m_providerName.GetCount() + 1) * sizeof(WCHAR);
-
-    SHA1Hash hasher;
-    hasher.AddData((BYTE *)m_providerName.GetUnicode(), providerNameLength); //There may be an issue with Endian-ness
-    BYTE *hash = hasher.GetHash();
-    hash[7] = (hash[7] & 0x0F) | 0x50;   // Set high 4 bits of octet 7 to 5, as per RFC 4122
-
-    memcpy(&m_providerID, hash, sizeof(GUID)); // Copy the first 16 bytes of the hash into the GUID (drop 4 bytes)
-
-    return m_providerID;
-}
-
-const GUID& EventPipeProvider::GetProviderID() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return m_providerID;
 }
 
 const SString& EventPipeProvider::GetProviderName() const
@@ -225,7 +199,7 @@ void EventPipeProvider::InvokeCallback()
     if(m_pCallbackFunction != NULL && !g_fEEShutDown)
     {
         (*m_pCallbackFunction)(
-            0, /* providerId */
+            NULL, /* providerId */
             m_enabled,
             (UCHAR) m_providerLevel,
             m_keywords,

@@ -10,7 +10,7 @@
 
 #ifdef FEATURE_PERFTRACING
 
-const SString EventPipeConfiguration::s_configurationProviderName = SString(u"EventPipeConfigurationProvider");
+const SString EventPipeConfiguration::s_configurationProviderName = W("EventPipeConfigurationProvider");
 
 EventPipeConfiguration::EventPipeConfiguration()
 {

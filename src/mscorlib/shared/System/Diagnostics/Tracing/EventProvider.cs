@@ -87,7 +87,7 @@ namespace System.Diagnostics.Tracing
         private long m_allKeywordMask;                   // Match all keyword
         private List<SessionInfo> m_liveSessions;        // current live sessions (Tuple<sessionIdBit, etwSessionId>)
         private bool m_enabled;                          // Enabled flag from Trace callback
-        private string m_providerName;                     // Control name
+        private string m_providerName;                   // Control name
         internal bool m_disposed;                        // when true provider has unregistered
 
         [ThreadStatic]
@@ -140,13 +140,12 @@ namespace System.Diagnostics.Tracing
         // <SatisfiesLinkDemand Name="Win32Exception..ctor(System.Int32)" />
         // <ReferencesCritical Name="Method: EtwEnableCallBack(Guid&, Int32, Byte, Int64, Int64, Void*, Void*):Void" Ring="1" />
         // </SecurityKernel>
-        internal unsafe void Register(string providerName)
+        internal unsafe void Register(ref EventSource eventSource)
         {
-            m_providerName = providerName;
             uint status;
             m_etwCallback = new UnsafeNativeMethods.ManifestEtw.EtwEnableCallback(EtwEnableCallBack);
 
-            status = EventRegister(ref m_providerName, m_etwCallback);
+            status = EventRegister(ref eventSource, m_etwCallback);
             if (status != 0)
             {
                 throw new ArgumentException(Win32Native.GetMessage(unchecked((int)status)));
@@ -1184,11 +1183,11 @@ namespace System.Diagnostics.Tracing
 
         // These are look-alikes to the Manifest based ETW OS APIs that have been shimmed to work
         // either with Manifest ETW or Classic ETW (if Manifest based ETW is not available).  
-        private unsafe uint EventRegister(ref string providerName, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback)
+        private unsafe uint EventRegister(ref EventSource eventSource, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback)
         {
-            m_providerName = providerName;
+            m_providerName = eventSource.GetName();
             m_etwCallback = enableCallback;
-            return m_eventProvider.EventRegister(ref m_providerName, enableCallback, null, ref m_regHandle);
+            return m_eventProvider.EventRegister(ref eventSource, enableCallback, null, ref m_regHandle);
         }
 
         private uint EventUnregister(long registrationHandle)
@@ -1221,15 +1220,13 @@ namespace System.Diagnostics.Tracing
     {
         // Register an event provider.
         unsafe uint IEventProvider.EventRegister(
-            ref string providerName,
+            ref EventSource eventSource,
             UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
             void* callbackContext,
             ref long registrationHandle)
         {
-            byte[] zeroes = new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-            Guid fakeProviderId(zeroes); // Is it ok to not provide a provider Id here?
             return UnsafeNativeMethods.ManifestEtw.EventRegister(
-                ref fakeProviderId,
+                ref eventSource.GetGuid(),
                 enableCallback,
                 callbackContext,
                 ref registrationHandle);
