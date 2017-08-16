@@ -398,12 +398,11 @@ namespace System.IO
             }
             else
             {
-                int length = value.Length;
-                byte[] buffer = ArrayPool<byte>.Shared.Rent(length);
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(value.Length);
                 try
                 {
                     value.CopyTo(buffer);
-                    Write(buffer, 0, length);
+                    Write(buffer, 0, value.Length);
                 }
                 finally
                 {
@@ -414,35 +413,15 @@ namespace System.IO
 
         public virtual void Write(ReadOnlySpan<char> value)
         {
-            if (GetType() == typeof(BinaryWriter))
+            byte[] bytes = ArrayPool<byte>.Shared.Rent(_encoding.GetMaxByteCount(value.Length));
+            try
             {
-                int length = value.Length;
-                char[] chars = ArrayPool<char>.Shared.Rent(length);
-                try
-                {
-                    value.CopyTo(chars);
-                    byte[] bytes = _encoding.GetBytes(chars, 0, length);
-                    OutStream.Write(bytes);
-                }
-                finally
-                {
-                    ArrayPool<char>.Shared.Return(chars);
-                }
+                int bytesWritten = _encoding.GetBytes(value, bytes);
+                Write(bytes, 0, bytesWritten);
             }
-            else
+            finally
             {
-                int length = value.Length;
-                char[] chars = ArrayPool<char>.Shared.Rent(length);
-                try
-                {
-                    value.CopyTo(chars);
-                    byte[] bytes = _encoding.GetBytes(chars, 0, length);
-                    Write(bytes);
-                }
-                finally
-                {
-                    ArrayPool<char>.Shared.Return(chars);
-                }
+                ArrayPool<byte>.Shared.Return(bytes);
             }
         }
 
