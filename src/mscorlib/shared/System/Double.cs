@@ -268,30 +268,28 @@ namespace System
 
         public static double Parse(String s)
         {
-            return Parse(s, NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo);
+            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            return Number.ParseDouble(s.AsSpan(), NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo);
         }
 
         public static double Parse(String s, NumberStyles style)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Parse(s, style, NumberFormatInfo.CurrentInfo);
+            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            return Number.ParseDouble(s.AsSpan(), style, NumberFormatInfo.CurrentInfo);
         }
 
         public static double Parse(String s, IFormatProvider provider)
         {
-            return Parse(s, NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.GetInstance(provider));
+            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            return Number.ParseDouble(s.AsSpan(), NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.GetInstance(provider));
         }
 
         public static double Parse(String s, NumberStyles style, IFormatProvider provider)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Parse(s, style, NumberFormatInfo.GetInstance(provider));
-        }
-
-        public static double Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
-        {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Parse(s, style, NumberFormatInfo.GetInstance(provider));
+            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
+            return Number.ParseDouble(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider));
         }
 
         // Parses a double from a String in the given style.  If
@@ -301,36 +299,16 @@ namespace System
         // This method will not throw an OverflowException, but will return
         // PositiveInfinity or NegativeInfinity for a number that is too
         // large or too small.
-        //
-        private static double Parse(String s, NumberStyles style, NumberFormatInfo info)
+
+        public static double Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
         {
-            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Parse(s.AsSpan(), style, info);
+            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
+            return Number.ParseDouble(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
-        private static double Parse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info)
-        {
-            return Number.ParseDouble(s, style, info);
-        }
+
 
         public static bool TryParse(String s, out double result)
-        {
-            return TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo, out result);
-        }
-
-        public static bool TryParse(String s, NumberStyles style, IFormatProvider provider, out double result)
-        {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
-        }
-
-        public static bool TryParse(ReadOnlySpan<char> s, out double result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
-        {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
-        }
-
-        private static bool TryParse(String s, NumberStyles style, NumberFormatInfo info, out double result)
         {
             if (s == null)
             {
@@ -338,7 +316,26 @@ namespace System
                 return false;
             }
 
-            return TryParse(s.AsSpan(), style, info, out result);
+            return TryParse(s.AsSpan(), NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo, out result);
+        }
+
+        public static bool TryParse(String s, NumberStyles style, IFormatProvider provider, out double result)
+        {
+            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
+
+            if (s == null)
+            {
+                result = 0;
+                return false;
+            }
+
+            return TryParse(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result);
+        }
+
+        public static bool TryParse(ReadOnlySpan<char> s, out double result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        {
+            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
+            return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
         private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out double result)
@@ -360,7 +357,9 @@ namespace System
                     result = NaN;
                 }
                 else
+                {
                     return false; // We really failed
+                }
             }
             return true;
         }

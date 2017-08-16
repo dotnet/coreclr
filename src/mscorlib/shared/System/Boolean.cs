@@ -166,16 +166,7 @@ namespace System
         public static Boolean Parse(String value)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
-            Contract.EndContractBlock();
-            Boolean result = false;
-            if (!TryParse(value, out result))
-            {
-                throw new FormatException(SR.Format_BadBoolean);
-            }
-            else
-            {
-                return result;
-            }
+            return Parse(value.AsSpan());
         }
 
         public static bool Parse(ReadOnlySpan<char> value) =>
