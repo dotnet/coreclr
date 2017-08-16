@@ -559,7 +559,7 @@ parallel(
 
                     // Using a sentinel file to
                     batchFile("if exist \"${failedOutputLogFilename}\" del /q /f \"${failedOutputLogFilename}\"")
-                    batchFile("if exist \"${failedOutputLogFilename}\" (echo [ERROR] Failed to previously created \"${failedOutputLogFilename}\" file.& exit /b 1)")
+                    batchFile("if exist \"${failedOutputLogFilename}\" (echo [ERROR] Failed to delete previously created \"${failedOutputLogFilename}\" file.& exit /b 1)")
 
                     // Scenario: JitBench
                     batchFile("tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios || (echo [ERROR] JitBench failed. 1>>\"${failedOutputLogFilename}\"& exit /b 0)")
