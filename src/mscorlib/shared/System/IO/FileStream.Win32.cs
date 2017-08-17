@@ -8,6 +8,8 @@ namespace System.IO
 {
     public partial class FileStream : Stream
     {
+        private static bool UseFromApp() => AppDomain.IsAppXModel();
+
         private SafeFileHandle OpenHandle(FileMode mode, FileShare share, FileOptions options)
         {
             // CreateFile2 isn't available on Windows 7

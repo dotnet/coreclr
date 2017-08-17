@@ -9,6 +9,8 @@ namespace System.IO
 {
     public partial class FileStream : Stream
     {
+        private static bool UseFromApp() => true;
+
         private unsafe SafeFileHandle OpenHandle(FileMode mode, FileShare share, FileOptions options)
         {
             return CreateFile2OpenHandle(mode, share, options);

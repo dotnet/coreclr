@@ -1759,9 +1759,14 @@ namespace System.IO
 
             using (DisableMediaInsertionPrompt.Create())
             {
-                if (AppDomain.IsAppXModel())
+                if (UseFromApp())
                 {
-                    return CreateFile2FromApp(_path, access, share, mode, ref parameters);
+                    return ValidateFileHandle(Interop.FileApiInterop.CreateFile2FromApp(
+                        lpFileName: _path,
+                        dwDesiredAccess: access,
+                        dwShareMode: share,
+                        dwCreationDisposition: mode,
+                        pCreateExParams: ref parameters));
                 }
                 else
                 {
@@ -1773,18 +1778,6 @@ namespace System.IO
                         pCreateExParams: ref parameters));
                 }
             }
-        }
-
-        // This needed dll won't be around for coreapp (only uap/uapaot) don't allow it to inline
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private unsafe SafeFileHandle CreateFile2FromApp(string path, int access, FileShare share, FileMode mode, ref Interop.Kernel32.CREATEFILE2_EXTENDED_PARAMETERS parameters)
-        {
-            return ValidateFileHandle(Interop.FileApiInterop.CreateFile2FromApp(
-                lpFileName: _path,
-                dwDesiredAccess: access,
-                dwShareMode: share,
-                dwCreationDisposition: mode,
-                pCreateExParams: ref parameters));
         }
 
         private SafeFileHandle ValidateFileHandle(SafeFileHandle fileHandle)
