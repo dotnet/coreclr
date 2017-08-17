@@ -424,6 +424,15 @@ namespace System.Threading
             // by the time we reach this point.
             //
             int count = numOutstandingThreadRequests;
+
+            if (dequeSuccessful && (count == ThreadPoolGlobals.processorCount))
+            {
+                // If we gated threads due to too many outstanding requests and queue was not empty
+                // Request another thread.
+                ThreadPool.RequestWorkerThread();
+                return;
+            }
+
             while (count > 0)
             {
                 int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count - 1, count);
@@ -432,13 +441,6 @@ namespace System.Threading
                     break;
                 }
                 count = prev;
-            }
-
-            if (dequeSuccessful && (count == ThreadPoolGlobals.processorCount))
-            {
-                // If we gated threads due to too many outstanding requests and queue was not empty
-                // Request another thread.
-                EnsureThreadRequested();
             }
         }
 
