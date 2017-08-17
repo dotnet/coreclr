@@ -1544,14 +1544,15 @@ inline UNATIVE_OFFSET emitter::emitInsSizeRR(instruction ins, regNumber reg1, re
     // If Byte 4 (which is 0xFF00) is zero, that's where the RM encoding goes.
     // Otherwise, it will be placed after the 4 byte encoding, making the total 5 bytes.
     // This would probably be better expressed as a different format or something?
-    if ((insCodeRM(ins) & 0xFF00) != 0)
+    code_t code = insCodeRM(ins);
+
+    if ((code & 0xFF00) != 0)
     {
         sz = 5;
     }
     else
     {
-        code_t code = insCodeRM(ins);
-        sz          = emitInsSize(insEncodeRMreg(ins, code));
+        sz = emitInsSize(insEncodeRMreg(ins, code));
     }
 
     // Most 16-bit operand instructions will need a prefix
@@ -1564,10 +1565,13 @@ inline UNATIVE_OFFSET emitter::emitInsSizeRR(instruction ins, regNumber reg1, re
     sz += emitGetVexPrefixAdjustedSize(ins, size, insCodeRM(ins));
 
     // REX prefix
-    if ((TakesRexWPrefix(ins, size) && ((ins != INS_xor) || (reg1 != reg2))) || IsExtendedReg(reg1, attr) ||
-        IsExtendedReg(reg2, attr))
+    if (!hasRexPrefix(code))
     {
-        sz += emitGetRexPrefixSize(ins);
+        if ((TakesRexWPrefix(ins, size) && ((ins != INS_xor) || (reg1 != reg2))) || IsExtendedReg(reg1, attr) ||
+            IsExtendedReg(reg2, attr))
+        {
+            sz += emitGetRexPrefixSize(ins);
+        }
     }
 
     return sz;
@@ -4187,12 +4191,14 @@ void emitter::emitIns_R_L(instruction ins, emitAttr attr, BasicBlock* dst, regNu
     emitTotalIGjmps++;
 #endif
 
-    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
-    id->idCodeSize(sz);
-
     // Set the relocation flags - these give hint to zap to perform
     // relocation of the specified 32bit address.
+    //
+    // Note the relocation flags influence the size estimate.
     id->idSetRelocFlags(attr);
+
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
+    id->idCodeSize(sz);
 
     dispIns(id);
     emitCurIGsize += sz;
