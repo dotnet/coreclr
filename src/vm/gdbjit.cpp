@@ -15,6 +15,8 @@
 #include "gdbjit.h"
 #include "gdbjithelpers.h"
 
+__declspec(thread) bool tls_isSymReaderInProgress = false;
+
 TypeInfoBase*
 GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
                           NotifyGdb::PTK_TypeInfoMap pTypeMap,
@@ -2397,7 +2399,12 @@ void NotifyGdb::MethodPrepared(MethodDesc* methodDescPtr)
 {
     EX_TRY
     {
-        NotifyGdb::OnMethodPrepared(methodDescPtr);
+        if (!tls_isSymReaderInProgress)
+        {
+            tls_isSymReaderInProgress = true;
+            NotifyGdb::OnMethodPrepared(methodDescPtr);
+            tls_isSymReaderInProgress = false;
+        }
     }
     EX_CATCH
     {

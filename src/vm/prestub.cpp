@@ -52,7 +52,6 @@
 
 #if defined(FEATURE_GDBJIT)
 #include "gdbjit.h"
-__declspec(thread) bool tls_isSymReaderInProgress = false;
 #endif // FEATURE_GDBJIT
 
 #ifndef DACCESS_COMPILE
@@ -249,12 +248,7 @@ PCODE MethodDesc::PrepareInitialCode()
     PCODE pCode = PrepareCode(&config);
 
 #if defined(FEATURE_GDBJIT) && defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
-    if (!tls_isSymReaderInProgress)
-    {
-        tls_isSymReaderInProgress = true;
-        NotifyGdb::MethodPrepared(this);
-        tls_isSymReaderInProgress = false;
-    }
+    NotifyGdb::MethodPrepared(this);
 #endif
 
     return pCode;
