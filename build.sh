@@ -398,7 +398,7 @@ isMSBuildOnNETCoreSupported()
         if [ "$__HostOS" == "Linux" ]; then
             __isMSBuildOnNETCoreSupported=1
             # note: the RIDs below can use globbing patterns
-            UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64" "alpine.3.6.*-x64" "")
+            UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64" "alpine.3.6.*-x64")
             for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
             do
                 if [[ $__HostDistroRid == $UNSUPPORTED_RID ]]; then
