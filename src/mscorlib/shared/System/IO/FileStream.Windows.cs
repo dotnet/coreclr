@@ -1759,24 +1759,12 @@ namespace System.IO
 
             using (DisableMediaInsertionPrompt.Create())
             {
-                if (UseFromApp())
-                {
-                    return ValidateFileHandle(Interop.FileApiInterop.CreateFile2FromApp(
-                        lpFileName: _path,
-                        dwDesiredAccess: access,
-                        dwShareMode: share,
-                        dwCreationDisposition: mode,
-                        pCreateExParams: ref parameters));
-                }
-                else
-                {
-                    return ValidateFileHandle(Interop.Kernel32.CreateFile2(
-                        lpFileName: _path,
-                        dwDesiredAccess: access,
-                        dwShareMode: share,
-                        dwCreationDisposition: mode,
-                        pCreateExParams: ref parameters));
-                }
+                return ValidateFileHandle(Interop.FileApiInterop.CreateFile2FromApp(
+                    lpFileName: _path,
+                    dwDesiredAccess: access,
+                    dwShareMode: share,
+                    dwCreationDisposition: mode,
+                    pCreateExParams: ref parameters));
             }
         }
 

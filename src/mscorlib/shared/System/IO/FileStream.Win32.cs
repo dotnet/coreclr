@@ -8,17 +8,14 @@ namespace System.IO
 {
     public partial class FileStream : Stream
     {
-        private static bool UseFromApp() => AppDomain.IsAppXModel();
-
         private SafeFileHandle OpenHandle(FileMode mode, FileShare share, FileOptions options)
         {
-#if PROJECTN || CORERT
-            return CreateFile2OpenHandle(mode, share, options);
-#else
-            // CreateFile2 isn't available on Windows 7
-            return Environment.IsWindows8OrAbove
+#if CORECLR
+            return AppDomain.IsAppXModel()
                 ? CreateFile2OpenHandle(mode, share, options)
                 : CreateFileOpenHandle(mode, share, options);
+#else
+            return CreateFileOpenHandle(mode, share, options);
 #endif
         }
 
