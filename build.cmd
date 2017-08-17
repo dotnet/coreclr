@@ -242,12 +242,10 @@ set __RunArgs=-BuildOS=%__BuildOS% -BuildType=%__BuildType% -BuildArch=%__BuildA
 
 if %__EnforcePgo%==1 (
     if %__BuildArchArm%==1 (
-        echo Error: enforcepgo cannot be used with arm architecture
-        goto Usage
+        echo WARNING: enforcepgo does nothing with arm architecture
     )
     if %__BuildArchArm64%==1 (
-        echo Error: enforcepgo cannot be used with arm64 architecture
-        goto Usage
+        echo WARNING: enforcepgo does nothing with arm64 architecture
     )
 )
 
