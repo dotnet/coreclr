@@ -2393,11 +2393,11 @@ static void BuildDebugFrame(Elf_Builder &elfBuilder, PCODE pCode, TADDR codeSize
 #endif // FEATURE_GDBJIT_FRAME
 
 /* Create ELF/DWARF debug info for jitted method */
-void NotifyGdb::MethodCompiled(MethodDesc* methodDescPtr)
+void NotifyGdb::MethodPrepared(MethodDesc* methodDescPtr)
 {
     EX_TRY
     {
-        NotifyGdb::OnMethodCompiled(methodDescPtr);
+        NotifyGdb::OnMethodPrepared(methodDescPtr);
     }
     EX_CATCH
     {
@@ -2405,7 +2405,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* methodDescPtr)
     EX_END_CATCH(SwallowAllExceptions);
 }
 
-void NotifyGdb::OnMethodCompiled(MethodDesc* methodDescPtr)
+void NotifyGdb::OnMethodPrepared(MethodDesc* methodDescPtr)
 {
     PCODE pCode = methodDescPtr->GetNativeCode();
     if (pCode == NULL)
@@ -2413,6 +2413,11 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* methodDescPtr)
 
     /* Get method name & size of jitted code */
     EECodeInfo codeInfo(pCode);
+    if (!codeInfo.IsValid())
+    {
+        return;
+    }
+
     TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfoToken());
 
     pCode = PCODEToPINSTR(pCode);
