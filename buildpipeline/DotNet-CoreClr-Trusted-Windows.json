@@ -86,7 +86,7 @@
       },
       "inputs": {
         "filename": "build.cmd",
-        "arguments": "$(Architecture) $(PB_BuildType) skiptests skipbuildpackages $(EnforcePGO) toolset_dir C:\\tools\\clr -OfficialBuildId=$(OfficialBuildId) -Priority=$(Priority) -skiprestore -disableoss -- /flp:\"v=diag\"",
+        "arguments": "$(Architecture) $(PB_BuildType) skiptests skipbuildpackages $(PB_EnforcePGO) toolset_dir C:\\tools\\clr -OfficialBuildId=$(OfficialBuildId) -Priority=$(Priority) -skiprestore -disableoss -- /flp:\"v=diag\"",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -285,8 +285,8 @@
     "TeamName": {
       "value": "DotNetCore"
     },
-    "EnforcePGO": {
-      "value": null,
+    "PB_EnforcePGO": {
+      "value": "",
       "allowOverride": true
     }
   },

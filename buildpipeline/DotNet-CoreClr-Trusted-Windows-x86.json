@@ -86,7 +86,7 @@
       },
       "inputs": {
         "filename": "build.cmd",
-        "arguments": "$(Architecture) $(PB_BuildType) skiptests skipbuildpackages $(EnforcePGO) -OfficialBuildId=$(OfficialBuildId) -skiprestore -Priority=$(Priority)",
+        "arguments": "$(Architecture) $(PB_BuildType) skiptests skipbuildpackages $(PB_EnforcePGO) -OfficialBuildId=$(OfficialBuildId) -skiprestore -Priority=$(Priority)",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -295,8 +295,8 @@
       "value": null,
       "isSecret": true
     },
-    "EnforcePGO": {
-      "value": null,
+    "PB_EnforcePGO": {
+      "value": "",
       "allowOverride": true
     }
   },

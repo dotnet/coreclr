@@ -133,7 +133,7 @@
       },
       "BuildParameters": {
         "PB_BuildType": "Release",
-        "EnforcePGO": "enforcepgo"
+        "PB_EnforcePGO": "enforcepgo"
       },
       "ReportingParameters": {
         "PB_BuildType": "Release"
