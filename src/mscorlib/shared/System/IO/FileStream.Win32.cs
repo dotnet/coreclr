@@ -12,10 +12,14 @@ namespace System.IO
 
         private SafeFileHandle OpenHandle(FileMode mode, FileShare share, FileOptions options)
         {
+#if PROJECTN || CORERT
+            return CreateFile2OpenHandle(mode, share, options);
+#else
             // CreateFile2 isn't available on Windows 7
             return Environment.IsWindows8OrAbove
                 ? CreateFile2OpenHandle(mode, share, options)
                 : CreateFileOpenHandle(mode, share, options);
+#endif
         }
 
         private unsafe SafeFileHandle CreateFileOpenHandle(FileMode mode, FileShare share, FileOptions options)
