@@ -1735,39 +1735,6 @@ namespace System.IO
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             }
         }
-
-        private unsafe SafeFileHandle CreateFile2OpenHandle(FileMode mode, FileShare share, FileOptions options)
-        {
-            Interop.Kernel32.SECURITY_ATTRIBUTES secAttrs = GetSecAttrs(share);
-
-            int access =
-                ((_access & FileAccess.Read) == FileAccess.Read ? GENERIC_READ : 0) |
-                ((_access & FileAccess.Write) == FileAccess.Write ? GENERIC_WRITE : 0);
-
-            // Our Inheritable bit was stolen from Windows, but should be set in
-            // the security attributes class.  Don't leave this bit set.
-            share &= ~FileShare.Inheritable;
-
-            // Must use a valid Win32 constant here...
-            if (mode == FileMode.Append)
-                mode = FileMode.OpenOrCreate;
-
-            Interop.Kernel32.CREATEFILE2_EXTENDED_PARAMETERS parameters = new Interop.Kernel32.CREATEFILE2_EXTENDED_PARAMETERS();
-            parameters.dwSize = (uint)sizeof(Interop.Kernel32.CREATEFILE2_EXTENDED_PARAMETERS);
-            parameters.dwFileFlags = (uint)options;
-            parameters.lpSecurityAttributes = &secAttrs;
-
-            using (DisableMediaInsertionPrompt.Create())
-            {
-                return ValidateFileHandle(Interop.FileApiInterop.CreateFile2FromApp(
-                    lpFileName: _path,
-                    dwDesiredAccess: access,
-                    dwShareMode: share,
-                    dwCreationDisposition: mode,
-                    pCreateExParams: ref parameters));
-            }
-        }
-
         private SafeFileHandle ValidateFileHandle(SafeFileHandle fileHandle)
         {
             if (fileHandle.IsInvalid)

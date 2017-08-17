@@ -45,10 +45,6 @@ namespace Microsoft.Win32
                                      ref int fileMuiPathLength,
                                      ref Int64 enumerator);
 
-
-        [DllImport(Win32Native.USER32, EntryPoint = "LoadStringW", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-        internal static extern int LoadString(SafeLibraryHandle handle, int id, [Out] StringBuilder buffer, int bufferLength);
-
         [SuppressUnmanagedCodeSecurityAttribute()]
         internal static unsafe class ManifestEtw
         {

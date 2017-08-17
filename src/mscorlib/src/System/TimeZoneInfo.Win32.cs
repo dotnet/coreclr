@@ -859,7 +859,7 @@ namespace System
                     StringBuilder localizedResource = StringBuilderCache.Acquire(Win32Native.LOAD_STRING_MAX_LENGTH);
                     localizedResource.Length = Win32Native.LOAD_STRING_MAX_LENGTH;
 
-                    int result = UnsafeNativeMethods.LoadString(handle, resource,
+                    int result = Interop.User32.LoadStringW(handle, resource,
                                      localizedResource, localizedResource.Length);
 
                     if (result != 0)

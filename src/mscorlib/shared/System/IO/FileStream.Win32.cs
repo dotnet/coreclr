@@ -11,12 +11,10 @@ namespace System.IO
         private SafeFileHandle OpenHandle(FileMode mode, FileShare share, FileOptions options)
         {
 #if CORECLR
-            return AppDomain.IsAppXModel()
-                ? CreateFile2OpenHandle(mode, share, options)
-                : CreateFileOpenHandle(mode, share, options);
-#else
-            return CreateFileOpenHandle(mode, share, options);
+            if (AppDomain.IsAppXModel())
+                return CreateFile2OpenHandle(mode, share, options);
 #endif
+            return CreateFileOpenHandle(mode, share, options);
         }
 
         private unsafe SafeFileHandle CreateFileOpenHandle(FileMode mode, FileShare share, FileOptions options)
