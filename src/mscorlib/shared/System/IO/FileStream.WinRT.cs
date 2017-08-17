@@ -9,9 +9,6 @@ namespace System.IO
 {
     public partial class FileStream : Stream
     {
-        // For AOT we expect the FromApp APIs to be available
-        private static bool IsFromAppAvailable() => true;
-
         private unsafe SafeFileHandle OpenHandle(FileMode mode, FileShare share, FileOptions options)
         {
             return CreateFile2OpenHandle(mode, share, options);

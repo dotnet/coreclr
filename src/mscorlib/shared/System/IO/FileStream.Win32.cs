@@ -8,18 +8,10 @@ namespace System.IO
 {
     public partial class FileStream : Stream
     {
-        private static bool IsFromAppAvailable()
-        {
-            SafeLibraryHandle handle = Interop.Kernel32.LoadLibraryExW(Interop.Libraries.FileApiInterop, IntPtr.Zero, 0);
-
-            // If we actually loaded we want to keep it resident as we'll be using it
-            handle.SetHandleAsInvalid();
-            return !handle.IsInvalid;
-        }
-
         private SafeFileHandle OpenHandle(FileMode mode, FileShare share, FileOptions options)
         {
-            return s_fromAppAvailable
+            // CreateFile2 isn't available on Windows 7
+            return Environment.IsWindows8OrAbove
                 ? CreateFile2OpenHandle(mode, share, options)
                 : CreateFileOpenHandle(mode, share, options);
         }
@@ -48,7 +40,7 @@ namespace System.IO
             // (note that this is the effective default on CreateFile2)
             flagsAndAttributes |= (Interop.Kernel32.SecurityOptions.SECURITY_SQOS_PRESENT | Interop.Kernel32.SecurityOptions.SECURITY_ANONYMOUS);
 
-            using (new DisableMediaInsertionPrompt())
+            using (DisableMediaInsertionPrompt.Create())
             {
                 return ValidateFileHandle(
                     Interop.Kernel32.CreateFile(_path, fAccess, share, ref secAttrs, mode, flagsAndAttributes, IntPtr.Zero));

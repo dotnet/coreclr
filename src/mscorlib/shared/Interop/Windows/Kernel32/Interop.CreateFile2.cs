@@ -12,22 +12,22 @@ internal partial class Interop
     internal partial class Kernel32
     {
         [DllImport(Libraries.Kernel32, EntryPoint = "CreateFile2", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern unsafe SafeFileHandle CreateFile2Private(
+        private static extern SafeFileHandle CreateFile2Private(
             string lpFileName,
             int dwDesiredAccess,
             FileShare dwShareMode,
             FileMode dwCreationDisposition,
-            CREATEFILE2_EXTENDED_PARAMETERS* pCreateExParams);
+            ref CREATEFILE2_EXTENDED_PARAMETERS pCreateExParams);
 
-        internal static unsafe SafeFileHandle CreateFile2(
+        internal static SafeFileHandle CreateFile2(
             string lpFileName,
             int dwDesiredAccess,
             FileShare dwShareMode,
             FileMode dwCreationDisposition,
-            CREATEFILE2_EXTENDED_PARAMETERS* pCreateExParams)
+            ref CREATEFILE2_EXTENDED_PARAMETERS pCreateExParams)
         {
             lpFileName = PathInternal.EnsureExtendedPrefixOverMaxPath(lpFileName);
-            return CreateFile2Private(lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, pCreateExParams);
+            return CreateFile2Private(lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, ref pCreateExParams);
         }
 
         internal unsafe struct CREATEFILE2_EXTENDED_PARAMETERS

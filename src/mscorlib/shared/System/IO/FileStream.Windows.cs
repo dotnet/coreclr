@@ -1736,13 +1736,11 @@ namespace System.IO
             }
         }
 
-        private static bool s_fromAppAvailable = IsFromAppAvailable();
-
         private unsafe SafeFileHandle CreateFile2OpenHandle(FileMode mode, FileShare share, FileOptions options)
         {
             Interop.Kernel32.SECURITY_ATTRIBUTES secAttrs = GetSecAttrs(share);
 
-            int fAccess =
+            int access =
                 ((_access & FileAccess.Read) == FileAccess.Read ? GENERIC_READ : 0) |
                 ((_access & FileAccess.Write) == FileAccess.Write ? GENERIC_WRITE : 0);
 
@@ -1759,27 +1757,34 @@ namespace System.IO
             parameters.dwFileFlags = (uint)options;
             parameters.lpSecurityAttributes = &secAttrs;
 
-            using (new DisableMediaInsertionPrompt())
+            using (DisableMediaInsertionPrompt.Create())
             {
-                if (s_fromAppAvailable)
+                if (AppDomain.IsAppXModel())
                 {
-                    return ValidateFileHandle(Interop.FileApiInterop.CreateFile2FromApp(
-                        lpFileName: _path,
-                        dwDesiredAccess: fAccess,
-                        dwShareMode: share,
-                        dwCreationDisposition: mode,
-                        pCreateExParams: &parameters));
+                    return CreateFile2FromApp(_path, access, share, mode, ref parameters);
                 }
                 else
                 {
                     return ValidateFileHandle(Interop.Kernel32.CreateFile2(
                         lpFileName: _path,
-                        dwDesiredAccess: fAccess,
+                        dwDesiredAccess: access,
                         dwShareMode: share,
                         dwCreationDisposition: mode,
-                        pCreateExParams: &parameters));
+                        pCreateExParams: ref parameters));
                 }
             }
+        }
+
+        // This needed dll won't be around for coreapp (only uap/uapaot) don't allow it to inline
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private unsafe SafeFileHandle CreateFile2FromApp(string path, int access, FileShare share, FileMode mode, ref Interop.Kernel32.CREATEFILE2_EXTENDED_PARAMETERS parameters)
+        {
+            return ValidateFileHandle(Interop.FileApiInterop.CreateFile2FromApp(
+                lpFileName: _path,
+                dwDesiredAccess: access,
+                dwShareMode: share,
+                dwCreationDisposition: mode,
+                pCreateExParams: ref parameters));
         }
 
         private SafeFileHandle ValidateFileHandle(SafeFileHandle fileHandle)
