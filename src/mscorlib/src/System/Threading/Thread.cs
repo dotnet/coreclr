@@ -133,7 +133,7 @@ namespace System.Threading
         // Prior to making any changes to this field, please reach out to the VS Debugger 
         // team to make sure that your changes are not going to prevent the debugger
         // from working.
-        private int _ManagedThreadId;              // INT32
+        private int _managedThreadId;              // INT32
 
 #pragma warning restore 414
 #pragma warning restore 169
