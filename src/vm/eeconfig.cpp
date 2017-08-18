@@ -99,7 +99,7 @@ void ConfigSource::Add(ConfigSource* prev)
 
 /**************************************************************/
 // Poor mans narrow
-LPUTF8 EEConfig::NarrowWideChar(__inout_z LPWSTR str)
+LPUTF8 NarrowWideChar(__inout_z LPWSTR str)
 {
     CONTRACT (LPUTF8)
     {
@@ -381,6 +381,10 @@ HRESULT EEConfig::Init()
     fTieredCompilation = false;
 #endif
     
+#if defined(FEATURE_GDBJIT) && defined(_DEBUG)
+    pszGDBJitElfDump = NULL;
+#endif // FEATURE_GDBJIT && _DEBUG
+
     // After initialization, register the code:#GetConfigValueCallback method with code:CLRConfig to let
     // CLRConfig access config files. This is needed because CLRConfig lives outside the VM and can't
     // statically link to EEConfig.
@@ -1235,6 +1239,14 @@ HRESULT EEConfig::sync()
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation) != 0;
 #endif
+
+#if defined(FEATURE_GDBJIT) && defined(_DEBUG)
+    {
+        LPWSTR pszGDBJitElfDumpW = NULL;
+        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_GDBJitElfDump, &pszGDBJitElfDumpW);
+        pszGDBJitElfDump = NarrowWideChar(pszGDBJitElfDumpW);
+    }
+#endif // FEATURE_GDBJIT && _DEBUG
 
     return hr;
 }

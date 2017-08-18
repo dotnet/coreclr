@@ -286,6 +286,18 @@ public:
     bool          TieredCompilation(void)           const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
 #endif
 
+#if defined(FEATURE_GDBJIT) && defined(_DEBUG)
+    inline bool ShouldDumpElfOnMethod(LPCUTF8 methodName) const
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+            PRECONDITION(CheckPointer(methodName, NULL_OK));
+        } CONTRACTL_END
+        return RegexOrExactMatch(pszGDBJitElfDump, methodName);
+    }
+#endif // FEATURE_GDBJIT && _DEBUG
+
     BOOL PInvokeRestoreEsp(BOOL fDefault) const
     {
         LIMITED_METHOD_CONTRACT;
@@ -317,8 +329,6 @@ public:
 #endif //FEATURE_COMINTEROP
     bool InteropValidatePinnedObjects()             const { LIMITED_METHOD_CONTRACT;  return m_fInteropValidatePinnedObjects; }
     bool InteropLogArguments()                      const { LIMITED_METHOD_CONTRACT;  return m_fInteropLogArguments; }
-
-    static LPUTF8 NarrowWideChar(__inout_z LPWSTR str);
 
 #ifdef _DEBUG
     bool GenDebuggableCode(void)                    const {LIMITED_METHOD_CONTRACT;  return fDebuggable; }
@@ -1099,6 +1109,10 @@ private: //----------------------------------------------------------------
 #if defined(FEATURE_TIERED_COMPILATION)
     bool fTieredCompilation;
 #endif
+
+#if defined(FEATURE_GDBJIT) && defined(_DEBUG)
+    LPCUTF8 pszGDBJitElfDump;
+#endif // FEATURE_GDBJIT && _DEBUG
 
 public:
 

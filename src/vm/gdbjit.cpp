@@ -2492,18 +2492,10 @@ void NotifyGdb::OnMethodPrepared(MethodDesc* methodDescPtr)
 
     symfile_addr = elfBuilder.Export(&symfile_size);
 
-#if _DEBUG
-    static LPCUTF8 pszGDBJitElfDump = 0;
-
-    if (!pszGDBJitElfDump)
-    {
-        LPWSTR pszGDBJitElfDumpW = NULL;
-        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_GDBJitElfDump, &pszGDBJitElfDumpW);
-        pszGDBJitElfDump = EEConfig::NarrowWideChar(pszGDBJitElfDumpW);
-    }
-
+#ifdef _DEBUG
     LPCUTF8 methodName = methodDescPtr->GetName();
-    if (EEConfig::RegexOrExactMatch(pszGDBJitElfDump, methodName))
+
+    if (g_pConfig->ShouldDumpElfOnMethod(methodName))
     {
         DumpElf(methodName, symfile_addr, symfile_size);
     }
