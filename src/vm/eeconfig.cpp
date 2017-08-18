@@ -99,7 +99,7 @@ void ConfigSource::Add(ConfigSource* prev)
 
 /**************************************************************/
 // Poor mans narrow
-LPUTF8 NarrowWideChar(__inout_z LPWSTR str)
+LPUTF8 EEConfig::NarrowWideChar(__inout_z LPWSTR str)
 {
     CONTRACT (LPUTF8)
     {

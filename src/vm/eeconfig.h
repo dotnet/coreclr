@@ -326,6 +326,7 @@ public:
     bool ShouldExposeExceptionsInCOMToConsole()     const {LIMITED_METHOD_CONTRACT;  return (iExposeExceptionsInCOM & 1) != 0; }
     bool ShouldExposeExceptionsInCOMToMsgBox()      const {LIMITED_METHOD_CONTRACT;  return (iExposeExceptionsInCOM & 2) != 0; }
 
+    static LPUTF8 NarrowWideChar(__inout_z LPWSTR str);
     static bool RegexOrExactMatch(LPCUTF8 regex, LPCUTF8 input);
 
     inline bool ShouldPrestubHalt(MethodDesc* pMethodInfo) const
