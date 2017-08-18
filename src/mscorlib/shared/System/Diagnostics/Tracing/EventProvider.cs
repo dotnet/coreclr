@@ -88,6 +88,7 @@ namespace System.Diagnostics.Tracing
         private List<SessionInfo> m_liveSessions;        // current live sessions (Tuple<sessionIdBit, etwSessionId>)
         private bool m_enabled;                          // Enabled flag from Trace callback
         private string m_providerName;                   // Control name
+        private Guid m_providerId;                       // Control Guid
         internal bool m_disposed;                        // when true provider has unregistered
 
         [ThreadStatic]
@@ -140,12 +141,12 @@ namespace System.Diagnostics.Tracing
         // <SatisfiesLinkDemand Name="Win32Exception..ctor(System.Int32)" />
         // <ReferencesCritical Name="Method: EtwEnableCallBack(Guid&, Int32, Byte, Int64, Int64, Void*, Void*):Void" Ring="1" />
         // </SecurityKernel>
-        internal unsafe void Register(ref EventSource eventSource)
+        internal unsafe void Register(EventSource eventSource)
         {
             uint status;
             m_etwCallback = new UnsafeNativeMethods.ManifestEtw.EtwEnableCallback(EtwEnableCallBack);
 
-            status = EventRegister(ref eventSource, m_etwCallback);
+            status = EventRegister(eventSource, m_etwCallback);
             if (status != 0)
             {
                 throw new ArgumentException(Win32Native.GetMessage(unchecked((int)status)));
@@ -446,7 +447,7 @@ namespace System.Diagnostics.Tracing
                 buffer = space;
                 var hr = 0;
 
-                fixed (string* provider = &m_providerName)
+                fixed (Guid* provider = &m_providerId)
                 {
                     hr = UnsafeNativeMethods.ManifestEtw.EnumerateTraceGuidsEx(UnsafeNativeMethods.ManifestEtw.TRACE_QUERY_INFO_CLASS.TraceGuidQueryInfo,
                         provider, sizeof(Guid), buffer, buffSize, ref buffSize);
@@ -1183,11 +1184,12 @@ namespace System.Diagnostics.Tracing
 
         // These are look-alikes to the Manifest based ETW OS APIs that have been shimmed to work
         // either with Manifest ETW or Classic ETW (if Manifest based ETW is not available).  
-        private unsafe uint EventRegister(ref EventSource eventSource, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback)
+        private unsafe uint EventRegister(EventSource eventSource, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback)
         {
-            m_providerName = eventSource.GetName();
+            m_providerName = eventSource.Name;
+            m_providerId = eventSource.Guid;
             m_etwCallback = enableCallback;
-            return m_eventProvider.EventRegister(ref eventSource, enableCallback, null, ref m_regHandle);
+            return m_eventProvider.EventRegister(eventSource, enableCallback, null, ref m_regHandle);
         }
 
         private uint EventUnregister(long registrationHandle)
@@ -1220,13 +1222,14 @@ namespace System.Diagnostics.Tracing
     {
         // Register an event provider.
         unsafe uint IEventProvider.EventRegister(
-            ref EventSource eventSource,
+            EventSource eventSource,
             UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
             void* callbackContext,
             ref long registrationHandle)
         {
+            Guid providerId = eventSource.Guid;
             return UnsafeNativeMethods.ManifestEtw.EventRegister(
-                ref eventSource.GetGuid(),
+                ref providerId,
                 enableCallback,
                 callbackContext,
                 ref registrationHandle);
@@ -1277,7 +1280,7 @@ namespace System.Diagnostics.Tracing
     internal sealed class NoOpEventProvider : IEventProvider
     {
         unsafe uint IEventProvider.EventRegister(
-            ref string providerName,
+            EventSource eventSource,
             UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
             void* callbackContext,
             ref long registrationHandle)
