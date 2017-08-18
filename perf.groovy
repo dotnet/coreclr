@@ -118,7 +118,7 @@ def static getOSGroup(def os) {
                         }
 
                         def archiveSettings = new ArchivalSettings()
-                        archiveSettings.addFiles('bin/toArchive/')
+                        archiveSettings.addFiles('bin/toArchive/**')
                         archiveSettings.addFiles('machinedata.json')
 
                         Utilities.addArchival(newJob, archiveSettings)
@@ -341,7 +341,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
         }
 
         def archiveSettings = new ArchivalSettings()
-        archiveSettings.addFiles('bin/toArchive/')
+        archiveSettings.addFiles('bin/toArchive/**')
         archiveSettings.addFiles('machinedata.json')
 
         Utilities.addArchival(newJob, archiveSettings)
@@ -629,7 +629,7 @@ parallel(
                     }
 
                     def archiveSettings = new ArchivalSettings()
-                    archiveSettings.addFiles('bin/toArchive/')
+                    archiveSettings.addFiles('bin/toArchive/**')
                     archiveSettings.addFiles('machinedata.json')
 
                     Utilities.addArchival(newJob, archiveSettings)
