@@ -318,6 +318,8 @@ public:
     bool InteropValidatePinnedObjects()             const { LIMITED_METHOD_CONTRACT;  return m_fInteropValidatePinnedObjects; }
     bool InteropLogArguments()                      const { LIMITED_METHOD_CONTRACT;  return m_fInteropLogArguments; }
 
+    static LPUTF8 NarrowWideChar(__inout_z LPWSTR str);
+
 #ifdef _DEBUG
     bool GenDebuggableCode(void)                    const {LIMITED_METHOD_CONTRACT;  return fDebuggable; }
     bool IsStressOn(void)                           const {LIMITED_METHOD_CONTRACT;  return fStressOn; }
@@ -326,7 +328,6 @@ public:
     bool ShouldExposeExceptionsInCOMToConsole()     const {LIMITED_METHOD_CONTRACT;  return (iExposeExceptionsInCOM & 1) != 0; }
     bool ShouldExposeExceptionsInCOMToMsgBox()      const {LIMITED_METHOD_CONTRACT;  return (iExposeExceptionsInCOM & 2) != 0; }
 
-    static LPUTF8 NarrowWideChar(__inout_z LPWSTR str);
     static bool RegexOrExactMatch(LPCUTF8 regex, LPCUTF8 input);
 
     inline bool ShouldPrestubHalt(MethodDesc* pMethodInfo) const
