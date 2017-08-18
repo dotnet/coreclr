@@ -205,7 +205,7 @@ namespace System.Threading
 
         public override int GetHashCode()
         {
-            return _ManagedThreadId;
+            return _managedThreadId;
         }
 
         extern public new int ManagedThreadId
