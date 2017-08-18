@@ -117,11 +117,12 @@ void EventPipeEventPayload::Flatten()
     {
         if (!this->IsFlattened())
         {
-            m_pData = new (nothrow) BYTE[m_size];
-            if (m_pData != NULL)
+            BYTE* tmp_pData = new (nothrow) BYTE[m_size];
+            if (tmp_pData != NULL)
             {
                 m_performedAllocation = true;
-                this->CopyData(m_pData);
+                this->CopyData(tmp_pData);
+                m_pData = tmp_pData;
             }
         }
     }
@@ -139,7 +140,7 @@ void EventPipeEventPayload::CopyData(BYTE *pDst)
 
     if(m_size > 0)
     {
-        if(m_pData != NULL)
+        if(this->IsFlattened())
         {
             memcpy(pDst, m_pData, m_size);
         }
