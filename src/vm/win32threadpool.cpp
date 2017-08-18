@@ -269,6 +269,22 @@ retry:
     }
 }
 
+DWORD GetDefaultMinLimitWorkerThreads(DWORD numProcessors)
+{
+    CONTRACTL
+    {
+        MODE_ANY;
+        GC_NOTRIGGER;
+        NOTHROW;
+    }
+    CONTRACTL_END;
+
+    // There is a significant O(N^2) cost to threads in the thread pool
+    // Set the minimum to some reasonable thread count with manageable scalability
+    // Experiments have shown 4-8 to be very manageable
+    return min(4, numProcessors);
+}
+
 DWORD GetDefaultMaxLimitWorkerThreads(DWORD minLimit)
 {
     CONTRACTL
@@ -418,7 +434,7 @@ BOOL ThreadpoolMgr::Initialize()
     // initialize Worker and CP thread settings
     DWORD forceMin;
     forceMin = GetForceMinWorkerThreadsValue();
-    MinLimitTotalWorkerThreads = forceMin > 0 ? (LONG)forceMin : (LONG)NumberOfProcessors;
+    MinLimitTotalWorkerThreads = forceMin > 0 ? (LONG)forceMin : (LONG)GetDefaultMinLimitWorkerThreads(NumberOfProcessors);
 
     DWORD forceMax;
     forceMax = GetForceMaxWorkerThreadsValue();
@@ -428,7 +444,7 @@ BOOL ThreadpoolMgr::Initialize()
     counts.NumActive = 0;
     counts.NumWorking = 0;
     counts.NumRetired = 0;
-    counts.MaxWorking = MinLimitTotalWorkerThreads;
+    counts.MaxWorking = max(min((LONG)NumberOfProcessors, MaxLimitTotalWorkerThreads), MinLimitTotalWorkerThreads);
     WorkerCounter.counts.AsLongLong = counts.AsLongLong;
 
 #ifdef _DEBUG
