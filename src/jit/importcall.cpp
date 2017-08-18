@@ -45,7 +45,6 @@ public:
         , constrainedResolvedToken(pConstrainedResolvedToken)
         , callInfo(callInfo)
         , newobjThis(newobjThis)
-        , prefixFlags(prefixFlags)
         , rawILOffset(rawILOffset)
         , ilOffset(compiler->impCurILOffset(rawILOffset, true))
     {
@@ -53,7 +52,6 @@ public:
 
         clsFlags = 0;
         mflags   = 0;
-        argFlags = 0;
 
         constraintCallThisTransform = CORINFO_NO_THIS_TRANSFORM;
 
@@ -65,7 +63,6 @@ public:
         exactContextHnd         = nullptr;
         szCanTailCallFailReason = nullptr;
         ldftnToken              = nullptr;
-        extraArg                = nullptr;
 
         exactContextNeedsRuntimeLookup = false;
         bIntrinsicImported             = false;
@@ -78,12 +75,12 @@ public:
     }
 
     //------------------------------------------------------------------------
-    // impImportCall: see the Compiler::impImportCall description.
+    // ImportCall: see the Compiler::impImportCall description.
     // All parameters are initialized in the contructor.
     //
     // Returns:
     //    Type of the call's return value.
-    var_types importCall()
+    var_types ImportCall()
     {
         assert(opcode == CEE_CALL || opcode == CEE_CALLVIRT || opcode == CEE_NEWOBJ || opcode == CEE_CALLI);
 
@@ -117,7 +114,7 @@ public:
 
         if (opcode == CEE_CALLI)
         {
-            createCalli();
+            CreateCalli();
         }
         else // (opcode != CEE_CALLI)
         {
@@ -146,7 +143,7 @@ public:
 #endif
             if (compiler->compIsForInlining())
             {
-                if (!checkInlineRestrictions())
+                if (!CallSatisfiesInlineRestrictions())
                 {
                     assert(compiler->compDonotInline());
                     return TYP_UNDEF;
@@ -176,7 +173,7 @@ public:
 
             if ((mflags & CORINFO_FLG_INTRINSIC) && !constrainedResolvedToken)
             {
-                if (!createIntrinsicNode())
+                if (!CreateIntrinsicNode())
                 {
                     assert(compiler->compDonotInline());
                     return TYP_UNDEF;
@@ -238,7 +235,7 @@ public:
                     case CORINFO_VIRTUALCALL_STUB:
                     {
 
-                        if (!createVirtualCallStubNode())
+                        if (!CreateVirtualCallStubNode())
                         {
                             assert(compiler->compDonotInline());
                             return TYP_UNDEF;
@@ -269,7 +266,7 @@ public:
                         // OK, We've been told to call via LDVIRTFTN, so just
                         // take the call now....
 
-                        args = compiler->impPopList(sig->numArgs, &argFlags, sig);
+                        args = compiler->impPopList(sig->numArgs, sig);
 
                         GenTreePtr thisPtr = compiler->impPopStack().val;
                         thisPtr =
@@ -319,7 +316,7 @@ public:
 
                     case CORINFO_CALL:
                     {
-                        createSimpleCallNode();
+                        CreateSimpleCallNode();
 
                         break;
                     }
@@ -582,15 +579,15 @@ public:
 
                 goto DONE;
             }
-            else if ((opcode == CEE_CALLI) && !isManagedCall(sig->callConv))
+            else if ((opcode == CEE_CALLI) && !IsManagedCall(sig->callConv))
             {
-                if (!getPInvokeCookie())
+                if (!GetPInvokeCookie())
                 {
                     return TYP_UNDEF;
                 }
             }
 
-            if (!createArgumentList())
+            if (!CreateArgumentList())
             {
                 return TYP_UNDEF;
             }
@@ -599,7 +596,7 @@ public:
             // The "this" pointer for "newobj"
             if (opcode == CEE_NEWOBJ)
             {
-                importNewObj();
+                ImportNewObj();
                 return callRetTyp;
             }
 
@@ -607,7 +604,7 @@ public:
 
             if (tailCall != 0)
             {
-                checkTailCall();
+                CheckTailCall();
             }
 
             // Note: we assume that small return types are already normalized by the managed callee
@@ -658,18 +655,18 @@ public:
             }
         }
 
-        pushResult();
+        PushResult();
 
         return callRetTyp;
     }
 
 private:
     //------------------------------------------------------------------------
-    // checkInlineRestrictions: Check does this call satisfy inlining restrictions.
+    // CallSatisfiesInlineRestrictions: Check does this call satisfy inlining restrictions.
     //
     // Return Value:
     //    true if does, false if not.
-    bool checkInlineRestrictions()
+    bool CallSatisfiesInlineRestrictions()
     {
         /* Does this call site have security boundary restrictions? */
         if (compiler->impInlineInfo->inlineCandidateInfo->dwRestrictions & INLINE_RESPECT_BOUNDARY)
@@ -722,11 +719,11 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // createIntrinsicNode: Create intrinsic call node. Set bIntrinsicImported if succeed.
+    // CreateIntrinsicNode: Create intrinsic call node. Set bIntrinsicImported if succeed.
     //
     // Return Value:
     //    false if importation should be aborted, true if not.
-    bool createIntrinsicNode()
+    bool CreateIntrinsicNode()
     {
         call = compiler->impIntrinsic(newobjThis, clsHnd, methHnd, sig, resolvedToken->token, readonlyCall,
                                       (canTailCall && (tailCall != 0)), &intrinsicID);
@@ -761,9 +758,9 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // createSimpleCallNode: Create call node for a non-virtual, non-interface etc. call.
+    // CreateSimpleCallNode: Create call node for a non-virtual, non-interface etc. call.
     //
-    void createSimpleCallNode()
+    void CreateSimpleCallNode()
     {
         call = compiler->gtNewCallNode(CT_USER_FUNC, callInfo->hMethod, callRetTyp, nullptr, ilOffset);
 
@@ -785,11 +782,11 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // createVirtualCallStubNode: Create call node for virtualCallStub.
+    // CreateVirtualCallStubNode: Create call node for virtualCallStub.
     //
     // Return Value:
     //    true if import was successful, false if can't import.
-    bool createVirtualCallStubNode()
+    bool CreateVirtualCallStubNode()
     {
         assert(!(mflags & CORINFO_FLG_STATIC)); // can't call a static method
         assert(!(clsFlags & CORINFO_FLG_VALUECLASS));
@@ -872,9 +869,9 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // importNewObj: Import call for the new object opcode.
+    // ImportNewObj: Import call for the new object opcode.
     //
-    void importNewObj()
+    void ImportNewObj()
     {
         if (clsFlags & CORINFO_FLG_VAROBJSIZE)
         {
@@ -950,11 +947,11 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // getPInvokeCookie: Get PInvokeCookie and set it to call tree,
+    // GetPInvokeCookie: Get PInvokeCookie and set it to call tree,
     //
     // Return Value:
     //    false if can't get cookie for PInvoke, true if it is set fine
-    bool getPInvokeCookie()
+    bool GetPInvokeCookie()
     {
         if (!compiler->info.compCompHnd->canGetCookieForPInvokeCalliSig(sig))
         {
@@ -1003,9 +1000,9 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // checkTailCall: Check possibility of tail call transformation and set canTailCall flag.
+    // CheckTailCall: Check possibility of tail call transformation and set canTailCall flag.
     //
-    void checkTailCall()
+    void CheckTailCall()
     {
         // This check cannot be performed for implicit tail calls for the reason
         // that impIsImplicitTailCallCandidate() is not checking whether return
@@ -1151,12 +1148,14 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // createArgumentList: Create the argument list for the call tree.
+    // CreateArgumentList: Create the argument list for the call tree.
     //
     // Return Value:
     //    true if arg list was created, false if error occurred.
-    bool createArgumentList()
+    bool CreateArgumentList()
     {
+        GenTreeArgList* extraArg = nullptr;
+
         //-------------------------------------------------------------------------
         // Special case - for varargs we have an implicit last argument
         if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_VARARG)
@@ -1338,8 +1337,7 @@ private:
 
         //-------------------------------------------------------------------------
         // The main group of arguments
-
-        args = call->gtCall.gtCallArgs = compiler->impPopList(sig->numArgs, &argFlags, sig, extraArg);
+        args = call->gtCall.gtCallArgs = compiler->impPopList(sig->numArgs, sig, extraArg);
 
         if (args)
         {
@@ -1395,9 +1393,9 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // createCalli: Create calli tree, set signature and callRetType.
+    // CreateCalli: Create calli tree, set signature and callRetType.
     //
-    void createCalli()
+    void CreateCalli()
     {
         /* Get the call site sig */
         compiler->eeGetSig(resolvedToken->token, compiler->info.compScopeHnd, compiler->impTokenLookupContextHandle,
@@ -1436,7 +1434,7 @@ private:
 
         if (compiler->IsTargetAbi(CORINFO_CORERT_ABI))
         {
-            if (isManagedCall(calliSig.callConv))
+            if (IsManagedCall(calliSig.callConv))
             {
                 compiler->addFatPointerCandidate(call->AsCall());
             }
@@ -1444,9 +1442,9 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // pushResult: Push or append the result of the call.
+    // PushResult: Push or append the result of the call.
     //
-    void pushResult()
+    void PushResult()
     {
         if (callRetTyp == TYP_VOID)
         {
@@ -1584,7 +1582,7 @@ private:
                 functions (pinvoke). The pinvoke stub does the normalization, but we need to do it here
                 if we use the shorter inlined pinvoke stub. */
 
-                if (checkForSmallType() && varTypeIsIntegral(callRetTyp) &&
+                if (CheckForSmallType() && varTypeIsIntegral(callRetTyp) &&
                     genTypeSize(callRetTyp) < genTypeSize(TYP_INT))
                 {
                     call = compiler->gtNewCastNode(genActualType(callRetTyp), call, callRetTyp);
@@ -1596,12 +1594,12 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // checkForSmallType: Check does the current importing call need
+    // CheckForSmallType: Check does the current importing call need
     // a check for small return type.
     //
     // Return Value:
     //    true if it does, false instead.
-    bool checkForSmallType()
+    bool CheckForSmallType()
     {
         // We only need to cast the return value of pinvoke inlined calls that return small types
 
@@ -1637,13 +1635,13 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // isManagedCall: Determinate does callConv correspond to managed call.
+    // IsManagedCall: Determinate does callConv correspond to managed call.
     //
     //    callConv - call convention
     //
     // Return Value:
     //    true if it is managed call, false instead.
-    static bool isManagedCall(CorInfoCallConv callConv)
+    static bool IsManagedCall(CorInfoCallConv callConv)
     {
         return ((callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_STDCALL) &&
                ((callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_C) &&
@@ -1670,11 +1668,9 @@ private:
 
     unsigned        clsFlags;
     unsigned        mflags;
-    unsigned        argFlags;
     GenTreePtr      call;
     GenTreePtr      newobjThis;
     GenTreeArgList* args;
-    GenTreeArgList* extraArg;
 
     bool exactContextNeedsRuntimeLookup;
     bool canTailCall;
@@ -1683,7 +1679,6 @@ private:
     const char* szCanTailCallFailReason;
 
     int tailCall;
-    int prefixFlags;
 
     IL_OFFSET  rawILOffset;
     IL_OFFSETX ilOffset;
@@ -1722,5 +1717,5 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 {
     CallImporter callImporter(this, opcode, pResolvedToken, pConstrainedResolvedToken, newobjThis, prefixFlags,
                               callInfo, rawILOffset);
-    return callImporter.importCall();
+    return callImporter.ImportCall();
 }
