@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <PropertyGroup>
+    <RestoreOutputPath>$(MSBuildThisFileDirectory)obj</RestoreOutputPath>
+    <OutputPath>$(BinDir)</OutputPath>
+    <Language>C#</Language>
+    <ContainsPackageReferences>true</ContainsPackageReferences>
+    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <NuGetTargetMoniker>.NETCoreApp,Version=v1.1</NuGetTargetMoniker>
+    <NugetTargetMonikerShort>netcoreapp1.1</NugetTargetMonikerShort>
+    <NugetRuntimeIdentifier>win10-$(Platform)</NugetRuntimeIdentifier>
+    <RuntimeIdentifiers>win10-x86;win10-x64;win10-arm</RuntimeIdentifiers>
+    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</PackageTargetFallback>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="FileApiInterop">
+      <Version>1.0.0-preview-01</Version>
+    </PackageReference>
+  </ItemGroup>
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+  <PropertyGroup>
+    <ProjectAssetsFile>$(RestoreOutputPath)\project.assets.json</ProjectAssetsFile>
+  </PropertyGroup>
+</Project>
