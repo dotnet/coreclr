@@ -384,7 +384,7 @@
       "isSecret": true
     },
     "VsoRepositoryName": {
-      "value": "DotNet-CoreClr-Trusted"
+      "value": "DotNet-CoreCLR-Trusted"
     }
   },
   "demands": [
