@@ -1906,7 +1906,6 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
         assert((attrSize == EA_4BYTE) || (attrSize == EA_PTRSIZE) // Only for x64
                || (attrSize == EA_16BYTE)                         // only for x64
                || (ins == INS_movzx) || (ins == INS_movsx));
-
         size = 3;
     }
     else
@@ -1939,7 +1938,8 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
         // REX.W prefix
         size += emitGetRexPrefixSize(ins);
     }
-    else if (IsExtendedReg(reg, EA_PTRSIZE) || IsExtendedReg(rgx, EA_PTRSIZE) || IsExtendedReg(id->idReg1(), attrSize))
+    else if (IsExtendedReg(reg, EA_PTRSIZE) || IsExtendedReg(rgx, EA_PTRSIZE) ||
+             ((ins != INS_call) && IsExtendedReg(id->idReg1(), attrSize)))
     {
         // Should have a REX byte
         size += emitGetRexPrefixSize(ins);
@@ -1962,6 +1962,14 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
                 size++;
             }
 #endif
+            return size;
+        }
+
+        // If this is just "call reg", we're done.
+        if (id->idIsCallRegPtr())
+        {
+            assert(ins == INS_call);
+            assert(dsp == 0);
             return size;
         }
 
@@ -3520,6 +3528,10 @@ void emitter::emitIns_R_I(instruction ins, emitAttr attr, regNumber reg, ssize_t
                 if (IsSSEOrAVXInstruction(ins))
                 {
                     sz = 5;
+                }
+                else if (size == EA_1BYTE && reg == REG_EAX && !instrIs3opImul(ins))
+                {
+                    sz = 2;
                 }
                 else
                 {
