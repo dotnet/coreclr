@@ -265,7 +265,8 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_LIST:
         case GT_FIELD_LIST:
         case GT_ARGPLACE:
-            // Nothing to do
+            // Should always be marked contained.
+            assert(!"LIST, FIELD_LIST and ARGPLACE nodes should always be marked contained.");
             break;
 
         case GT_PUTARG_STK:
@@ -3237,7 +3238,10 @@ void CodeGen::genLeaInstruction(GenTreeAddrMode* lea)
             }
             else // offset is zero
             {
-                emit->emitIns_R_R(INS_mov, size, lea->gtRegNum, memBase->gtRegNum);
+                if (lea->gtRegNum != memBase->gtRegNum)
+                {
+                    emit->emitIns_R_R(INS_mov, size, lea->gtRegNum, memBase->gtRegNum);
+                }
             }
         }
         else
