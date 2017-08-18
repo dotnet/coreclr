@@ -189,11 +189,11 @@ private:
                     goto done;
                 maxLineLen = lineLen;
             }
-            char* separatorChar = strchr(line, '-');
+            char* separatorChar = strstr(line, " - ");;
 
             // See man page of proc to get format for /proc/self/mountinfo file
             int sscanfRet = sscanf_s(separatorChar, 
-                                     "- %s %*s %s",
+                                     " - %s %*s %s",
                                      filesystemType, lineLen+1,
                                      options, lineLen+1);
             if (sscanfRet != 2)
