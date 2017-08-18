@@ -17422,6 +17422,12 @@ void Compiler::fgMorph()
 
     EndPhase(PHASE_MORPH_INLINE);
 
+    if (IsTargetAbi(CORINFO_CORERT_ABI) && doesMethodHaveFatPointer())
+    {
+        /* Add CoreRT fat pointers blocks/trees. */
+        fgTransformFatCalli();
+    }
+
     /* Add any internal blocks/trees we may need */
 
     fgAddInternal();
