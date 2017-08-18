@@ -403,7 +403,7 @@
     },
     "VsoRepositoryName": {
       "value": "DotNet-CoreCLR-Trusted",
-	  "allowOverride": true
+      "allowOverride": true
     }
   },
   "demands": [
