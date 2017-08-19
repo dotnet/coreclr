@@ -15,7 +15,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Compile>
-        <Visible>true</Visible>
+      <Visible>true</Visible>
     </Compile>
   </ItemDefinitionGroup>
   <ItemGroup>
