@@ -129,7 +129,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\jithelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\Unsafe.cs" />
     <Compile Condition="'$(FeatureICastable)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\ICastable.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RuntimeWrappedException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\ConditionalWeakTable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\AsyncMethodBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TaskAwaiter.cs" />
