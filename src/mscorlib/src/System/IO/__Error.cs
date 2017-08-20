@@ -16,6 +16,7 @@
 ===========================================================*/
 
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Win32Native = Microsoft.Win32.Win32Native;
 using System.Text;
@@ -120,10 +121,7 @@ namespace System.IO
                     throw new DriveNotFoundException(SR.Format(SR.IO_DriveNotFound_Drive, str));
 
                 case Win32Native.ERROR_INVALID_PARAMETER:
-                    if (!String.IsNullOrEmpty(str)) // temporary code to see whether we're losing paths
-                    {
-                        Environment.FailFast("### IOException for ERROR_INVALID_PARAMETER: '" + str + "' " + Win32Native.GetMessage(errorCode));
-                    }
+                    Debug.Assert(String.IsNullOrEmpty(str), "message should include path");
                     throw new IOException(Win32Native.GetMessage(errorCode), Win32Native.MakeHRFromErrorCode(errorCode));
 
                 case Win32Native.ERROR_SHARING_VIOLATION:
@@ -138,17 +136,11 @@ namespace System.IO
                     throw new IOException(SR.Format(SR.IO_FileExists_Name, str), Win32Native.MakeHRFromErrorCode(errorCode));
 
                 case Win32Native.ERROR_OPERATION_ABORTED:
-                    if (!String.IsNullOrEmpty(str)) // temporary code to see whether we're losing paths
-                    {
-                        Environment.FailFast("### IOException for ERROR_OPERATION_ABORTED: '" + str + "'' " + Win32Native.GetMessage(errorCode));
-                    }                
+                    Debug.Assert(String.IsNullOrEmpty(str), "message should include path");
                     throw new OperationCanceledException();
 
                 default:
-                    if (!String.IsNullOrEmpty(str)) // temporary code to see whether we're losing paths
-                    {
-                        Environment.FailFast("### IOException for DEFAULT: '" + str + "' " + Win32Native.GetMessage(errorCode));
-                    }
+                    Debug.Assert(String.IsNullOrEmpty(str), "message should include path");
                     throw new IOException(Win32Native.GetMessage(errorCode), Win32Native.MakeHRFromErrorCode(errorCode));
             }
         }
