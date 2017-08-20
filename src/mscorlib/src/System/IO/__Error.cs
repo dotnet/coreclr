@@ -16,6 +16,7 @@
 ===========================================================*/
 
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Win32Native = Microsoft.Win32.Win32Native;
 using System.Text;
@@ -94,7 +95,7 @@ namespace System.IO
                     if (str.Length == 0)
                         throw new FileNotFoundException(SR.IO_FileNotFound);
                     else
-                        throw new FileNotFoundException(SR.Format(SR.IO_FileNotFound_FileName, str), str);
+                        throw new FileNotFoundException(SR.Format(SR.IO_FileNotFound_FileName, str));
 
                 case Win32Native.ERROR_PATH_NOT_FOUND:
                     if (str.Length == 0)
@@ -111,7 +112,7 @@ namespace System.IO
                 case Win32Native.ERROR_ALREADY_EXISTS:
                     if (str.Length == 0)
                         goto default;
-                    throw new IOException(SR.Format(SR.IO_AlreadyExists_Name, str), Win32Native.MakeHRFromErrorCode(errorCode), str);
+                    throw new IOException(SR.Format(SR.IO_AlreadyExists_Name, str), Win32Native.MakeHRFromErrorCode(errorCode));
 
                 case Win32Native.ERROR_FILENAME_EXCED_RANGE:
                     throw new PathTooLongException(SR.Format(SR.IO_PathTooLong_Path, str));
@@ -120,24 +121,36 @@ namespace System.IO
                     throw new DriveNotFoundException(SR.Format(SR.IO_DriveNotFound_Drive, str));
 
                 case Win32Native.ERROR_INVALID_PARAMETER:
-                    throw new IOException(Win32Native.GetMessage(errorCode), Win32Native.MakeHRFromErrorCode(errorCode), str);
+                    if (!String.IsNullOrEmpty(str)) // temporary code to see whether we're losing paths
+                    {
+                        Environment.FailFast("### IOException for ERROR_INVALID_PARAMETER: '" + str + "' " + Win32Native.GetMessage(errorCode));
+                    }
+                    throw new IOException(Win32Native.GetMessage(errorCode), Win32Native.MakeHRFromErrorCode(errorCode));
 
                 case Win32Native.ERROR_SHARING_VIOLATION:
                     if (str.Length == 0)
-                        throw new IOException(SR.IO_SharingViolation_NoFileName, Win32Native.MakeHRFromErrorCode(errorCode), str);
+                        throw new IOException(SR.IO_SharingViolation_NoFileName, Win32Native.MakeHRFromErrorCode(errorCode));
                     else
-                        throw new IOException(SR.Format(SR.IO_SharingViolation_File, str), Win32Native.MakeHRFromErrorCode(errorCode), str);
+                        throw new IOException(SR.Format(SR.IO_SharingViolation_File, str), Win32Native.MakeHRFromErrorCode(errorCode));
 
                 case Win32Native.ERROR_FILE_EXISTS:
                     if (str.Length == 0)
                         goto default;
-                    throw new IOException(SR.Format(SR.IO_FileExists_Name, str), Win32Native.MakeHRFromErrorCode(errorCode), str);
+                    throw new IOException(SR.Format(SR.IO_FileExists_Name, str), Win32Native.MakeHRFromErrorCode(errorCode));
 
                 case Win32Native.ERROR_OPERATION_ABORTED:
+                    if (!String.IsNullOrEmpty(str)) // temporary code to see whether we're losing paths
+                    {
+                        Environment.FailFast("### IOException for ERROR_OPERATION_ABORTED: '" + str + "'' " + Win32Native.GetMessage(errorCode));
+                    }                
                     throw new OperationCanceledException();
 
                 default:
-                    throw new IOException(Win32Native.GetMessage(errorCode), Win32Native.MakeHRFromErrorCode(errorCode), str);
+                    if (!String.IsNullOrEmpty(str)) // temporary code to see whether we're losing paths
+                    {
+                        Environment.FailFast("### IOException for DEFAULT: '" + str + "' " + Win32Native.GetMessage(errorCode));
+                    }
+                    throw new IOException(Win32Native.GetMessage(errorCode), Win32Native.MakeHRFromErrorCode(errorCode));
             }
         }
 
