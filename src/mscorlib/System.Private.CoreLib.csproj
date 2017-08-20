@@ -294,7 +294,6 @@
     <Compile Include="$(BclSourcesRoot)\System\MulticastDelegate.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BCLDebug.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Activator.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\AccessViolationException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppDomain.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppDomainSetup.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppDomainManager.cs" />
