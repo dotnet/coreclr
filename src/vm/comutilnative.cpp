@@ -2850,11 +2850,9 @@ COMNlsHashProvider::COMNlsHashProvider()
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
     bUseRandomHashing = FALSE;
     pEntropy = NULL;
     pDefaultSeed = NULL;
-#endif // FEATURE_RANDOMIZED_STRING_HASHING
 }
 
 INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen, BOOL forceRandomHashing, INT64 additionalEntropy)
@@ -2866,12 +2864,6 @@ INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen, BOOL forceRan
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_RANDOMIZED_STRING_HASHING
-   _ASSERTE(forceRandomHashing == false);
-   _ASSERTE(additionalEntropy == 0);
-#endif
-
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
     if(bUseRandomHashing || forceRandomHashing)
     {
         int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
@@ -2891,11 +2883,8 @@ INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen, BOOL forceRan
     }
     else
     {
-#endif // FEATURE_RANDOMIZED_STRING_HASHING
         return ::HashString(szStr);
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
     }
-#endif // FEATURE_RANDOMIZED_STRING_HASHING
 }
 
 
@@ -2908,12 +2897,6 @@ INT32 COMNlsHashProvider::HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, BOOL forceRando
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_RANDOMIZED_STRING_HASHING
-   _ASSERTE(forceRandomHashing == false);
-   _ASSERTE(additionalEntropy == 0);
-#endif
-
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
     if(bUseRandomHashing || forceRandomHashing)
     {
         int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
@@ -2935,7 +2918,6 @@ INT32 COMNlsHashProvider::HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, BOOL forceRando
     }
     else
     {
-#endif // FEATURE_RANDOMIZED_STRING_HASHING 
         // Ok, lets build the hashcode -- mostly lifted from GetHashCode() in String.cs, for strings.
         int hash1 = 5381;
         int hash2 = hash1;
@@ -2961,9 +2943,7 @@ INT32 COMNlsHashProvider::HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, BOOL forceRando
 
         return hash1 + (hash2 * 1566083941);
 
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
     }
-#endif // FEATURE_RANDOMIZED_STRING_HASHING
 
 }
 
@@ -2976,12 +2956,6 @@ INT32 COMNlsHashProvider::HashiStringKnownLower80(LPCWSTR szStr, INT32 strLen, B
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_RANDOMIZED_STRING_HASHING
-   _ASSERTE(forceRandomHashing == false);
-   _ASSERTE(additionalEntropy == 0);
-#endif
-
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
     if(bUseRandomHashing || forceRandomHashing)
     {
         WCHAR buf[SYMCRYPT_MARVIN32_INPUT_BLOCK_SIZE * 8];
@@ -3034,15 +3008,11 @@ INT32 COMNlsHashProvider::HashiStringKnownLower80(LPCWSTR szStr, INT32 strLen, B
     }
     else
     {
-#endif // FEATURE_RANDOMIZED_STRING_HASHING
         return ::HashiStringKnownLower80(szStr);
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
     }
-#endif // FEATURE_RANDOMIZED_STRING_HASHING
 }
 
 
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
 void COMNlsHashProvider::InitializeDefaultSeed()
 {
     CONTRACTL {
@@ -3127,7 +3097,6 @@ void COMNlsHashProvider::CreateMarvin32Seed(INT64 additionalEntropy, PSYMCRYPT_M
 
     SymCryptMarvin32ExpandSeed(pExpandedMarvinSeed, (PCBYTE) &entropy, SYMCRYPT_MARVIN32_SEED_SIZE);
 }
-#endif // FEATURE_RANDOMIZED_STRING_HASHING
 
 #ifdef FEATURE_COREFX_GLOBALIZATION
 INT32 QCALLTYPE CoreFxGlobalization::HashSortKey(PCBYTE pSortKey, INT32 cbSortKey, BOOL forceRandomizedHashing, INT64 additionalEntropy)

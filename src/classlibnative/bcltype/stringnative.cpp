@@ -155,8 +155,6 @@ FCIMPL4(Object *, COMString::StringInitCharPtrPartial, StringObject *stringThis,
 }
 FCIMPLEND
 
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
-
 inline COMNlsHashProvider * GetCurrentNlsHashProvider()
 {
     LIMITED_METHOD_CONTRACT;
@@ -195,7 +193,6 @@ BOOL QCALLTYPE COMString::UseRandomizedHashing() {
 
     return bUseRandomizedHashing;
 }
-#endif
 
 /*===============================IsFastSort===============================
 **Action: Call the helper to walk the string and see if we have any high chars.
