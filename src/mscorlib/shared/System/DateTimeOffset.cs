@@ -129,9 +129,7 @@ namespace System
         }
 
         // Returns a DateTimeOffset representing the current date and time. The
-        // resolution of the returned value depends on the system timer. For
-        // Windows NT 3.5 and later the timer resolution is approximately 10ms.
-        //
+        // resolution of the returned value depends on the system timer.
         public static DateTimeOffset Now
         {
             get
