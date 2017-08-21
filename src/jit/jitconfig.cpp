@@ -14,6 +14,7 @@ JitConfigValues JitConfig;
 void JitConfigValues::MethodSet::initialize(const wchar_t* list, ICorJitHost* host)
 {
     assert(m_list == nullptr);
+    assert(m_names == nullptr);
 
     enum State
     {
