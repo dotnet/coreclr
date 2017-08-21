@@ -401,7 +401,7 @@ namespace System.Threading
             (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
 
         internal bool ThreadRequestNeeded(int count) => (count < ThreadPoolGlobals.processorCount) &&
-            ((count < workItems.Count) || (WorkStealingQueueList.wsqActive > 0));
+            (!workItems.IsEmpty || (WorkStealingQueueList.wsqActive > 0));
 
         internal void EnsureThreadRequested()
         {
@@ -425,7 +425,7 @@ namespace System.Threading
             }
         }
 
-        internal void MarkThreadRequestSatisfied(bool dequeSuccessful)
+        internal void MarkThreadRequestSatisfied(bool dequeueSuccessful)
         {
             //
             // The VM has called us, so one of our outstanding thread requests has been satisfied.
@@ -434,16 +434,17 @@ namespace System.Threading
             // by the time we reach this point.
             //
             int count = numOutstandingThreadRequests;
-            if (dequeSuccessful && ThreadRequestNeeded(count))
-            {
-                // If we gated threads due to too many outstanding requests and queue was not empty
-                // Request another thread.
-                ThreadPool.RequestWorkerThread();
-                return;
-            }
 
             while (count > 0)
             {
+                if (dequeueSuccessful && (count == ThreadPoolGlobals.processorCount) && ThreadRequestNeeded(count - 1))
+                {
+                    // If we gated threads due to too many outstanding requests and queue was not empty
+                    // Request another thread.
+                    ThreadPool.RequestWorkerThread();
+                    return;
+                }
+
                 int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count - 1, count);
                 if (prev == count)
                 {
