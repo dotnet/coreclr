@@ -1759,11 +1759,12 @@ struct Elf_Symbol {
     Elf_Symbol() : m_name(nullptr), m_off(0), m_value(0), m_section(0), m_size(0) {}
 };
 
-static int countFuncs(const SymbolsInfo *lines, int nlines)
+template <class T>
+static int countFuncs(T &arr, int n)
 {
     int count = 0;
-    for (int i = 0; i < nlines; i++) {
-        if (lines[i].ilOffset == ICorDebugInfo::PROLOG)
+    for (int i = 0; i < n; i++) {
+        if (arr[i].ilOffset == ICorDebugInfo::PROLOG)
         {
             count++;
         }
@@ -1771,10 +1772,11 @@ static int countFuncs(const SymbolsInfo *lines, int nlines)
     return count;
 }
 
-static int getNextPrologueIndex(int from, const SymbolsInfo *lines, int nlines)
+template <class T>
+static int getNextPrologueIndex(int from, T &arr, int n)
 {
-    for (int i = from; i < nlines; ++i) {
-        if (lines[i].ilOffset == ICorDebugInfo::PROLOG)
+    for (int i = from; i < n; ++i) {
+        if (arr[i].ilOffset == ICorDebugInfo::PROLOG)
         {
             return i;
         }
@@ -2574,23 +2576,73 @@ bool NotifyGdb::EmitFrameInfo(Elf_Builder &elfBuilder, PCODE pCode, TADDR codeSi
 #ifdef FEATURE_GDBJIT_SYMTAB
 bool NotifyGdb::EmitSymtab(Elf_Builder &elfBuilder, MethodDesc* methodDescPtr, PCODE pCode, TADDR codeSize)
 {
-    int symbolCount = 2;
-    NewArrayHolder<Elf_Symbol> symbolNames = new Elf_Symbol[symbolCount];
+    NewArrayHolder<DebuggerILToNativeMap> map = nullptr;
+    NewArrayHolder<Elf_Symbol> symbols = nullptr;
+    NewArrayHolder<NewArrayHolder<char>> symbolNames = nullptr;
 
-    symbolNames[0].m_name = "";
+    ULONG32 numMap;
+    int symbolCount;
 
-    symbolNames[1].m_name = methodDescPtr->GetName();
-    symbolNames[1].m_value = pCode;
-    symbolNames[1].m_size = codeSize;
+    LPCUTF8 methodName = methodDescPtr->GetName();
+
+    if (GetMethodNativeMap(methodDescPtr, &numMap, map, NULL, NULL) == S_OK)
+    {
+        int methodCount = countFuncs(map, numMap);
+        symbolCount = methodCount + 1;
+        symbols = new Elf_Symbol[symbolCount];
+
+        if (methodCount > 1)
+            symbolNames = new NewArrayHolder<char>[methodCount - 1];
+
+        int startIndex = getNextPrologueIndex(0, map, numMap);
+
+        int methodNameSize = strlen(methodName) + 10;
+
+        for (int i = 1; i < symbolCount; ++i)
+        {
+            int endIndex = getNextPrologueIndex(startIndex + 1, map, numMap);
+
+            PCODE methodStart = map[startIndex].nativeStartOffset;
+            TADDR methodSize = endIndex == -1 ? codeSize - methodStart : map[endIndex].nativeStartOffset - methodStart;
+
+            if (i == 1)
+            {
+                symbols[i].m_name = methodName;
+            }
+            else
+            {
+                int symbolNameIndex = i - 2;
+                symbolNames[symbolNameIndex] = new char[methodNameSize];
+                sprintf_s(symbolNames[symbolNameIndex], methodNameSize, "%s_%d", methodName, symbolNameIndex + 1);
+                symbols[i].m_name = symbolNames[symbolNameIndex];
+            }
+
+            symbols[i].m_value = pCode + methodStart;
+            symbols[i].m_size = methodSize;
+
+            startIndex = endIndex;
+        }
+    }
+    else
+    {
+        symbolCount = 2;
+        symbols = new Elf_Symbol[symbolCount];
+
+        symbols[1].m_name = methodName;
+        symbols[1].m_value = pCode;
+        symbols[1].m_size = codeSize;
+    }
+
+    symbols[0].m_name = "";
 
     MemBuf sectSymTab, sectStrTab;
 
-    if (!BuildStringTableSection(sectStrTab, symbolNames, symbolCount))
+    if (!BuildStringTableSection(sectStrTab, symbols, symbolCount))
     {
         return false;
     }
 
-    if (!BuildSymbolTableSection(sectSymTab, pCode, codeSize, 1, symbolNames, symbolCount, 0))
+    if (!BuildSymbolTableSection(sectSymTab, pCode, codeSize, symbolCount - 1, symbols, symbolCount, 0))
     {
         return false;
     }
