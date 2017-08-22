@@ -3,14 +3,14 @@
   <PropertyGroup>
     <!-- Central place to set the versions of all nuget packages produced in the repo -->
     <PackageVersion Condition="'$(PackageVersion)' == ''">2.0.1</PackageVersion>
-    
+
     <!-- Set the boolean below to true to generate packages with stabilized versions -->
-    <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
+    <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">true</StabilizePackageVersion>
     <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
 
     <PreReleaseLabel>servicing</PreReleaseLabel>
   </PropertyGroup>
-  
+
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
     <CoreFxCurrentRef>766d73a9d334865d22eb8938ca605a427ce1271c</CoreFxCurrentRef>
@@ -47,7 +47,7 @@
       <BuildInfoPath>$(BaseDotNetBuildInfo)coreclr/$(DependencyBranch)</BuildInfoPath>
       <CurrentRef>$(CoreClrCurrentRef)</CurrentRef>
     </RemoteDependencyBuildInfo>
-    
+
     <DependencyBuildInfo Include="@(RemoteDependencyBuildInfo)">
       <RawVersionsBaseUrl>https://raw.githubusercontent.com/dotnet/versions</RawVersionsBaseUrl>
     </DependencyBuildInfo>
