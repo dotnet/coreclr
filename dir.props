@@ -57,7 +57,7 @@
 
     <BinDir>$(__BinDir)\</BinDir>
     <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)Product\$(BuildOS).$(BuildArch).$(BuildType)\</BinDir>
-    
+
     <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(RootBinDir)obj\$(BuildOS).$(BuildArch).$(BuildType)</__IntermediatesDir>
     <IntermediateOutputRootPath Condition="'$(IntermediateOutputRootPath)' == ''">$(__IntermediatesDir)\</IntermediateOutputRootPath>
 
@@ -154,9 +154,9 @@
 
     <!-- Central place to set the versions of all nuget packages produced in the repo -->
     <Version Condition="'$(MSBuildProjectExtension)' == '.pkgproj' and '$(Version)' == ''">1.1.3</Version>
-    
+
     <!-- Set the boolean below to true to generate packages with stabilized versions -->
-    <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
+    <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">true</StabilizePackageVersion>
     <StableVersion Condition="'$(MSBuildProjectExtension)' == '.pkgproj' and '$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(Version)</StableVersion>
 
     <!-- On Windows, MSbuild still runs against Desktop FX while it runs on .NET Core on non-Windows. this requires
