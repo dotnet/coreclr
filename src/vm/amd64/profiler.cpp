@@ -169,7 +169,16 @@ ProfileArgIterator::ProfileArgIterator(MetaSig * pSig, void * platformSpecificHa
                     index++;
                 }
 
+#ifdef UNIX_AMD64_ABI
+                switch (index)
+               {
+                case 0: pData->hiddenArg = (LPVOID)pData->rdi; break;
+                case 1: pData->hiddenArg = (LPVOID)pData->rsi; break;
+                case 2: pData->hiddenArg = (LPVOID)pData->rdx; break;
+                }
+#else
                 pData->hiddenArg = *(LPVOID*)((LPBYTE)pData->profiledRsp + (index * sizeof(SIZE_T)));
+#endif // UNIX_AMD64_ABI
             }
         }
         else
@@ -321,7 +330,11 @@ LPVOID ProfileArgIterator::GetThis(void)
     {
         if (m_argIterator.HasThis())
         {
+#ifdef UNIX_AMD64_ABI
+            return (LPVOID)pData->rdi;
+#else
             return *(LPVOID*)((LPBYTE)pData->profiledRsp);
+#endif // UNIX_AMD64_ABI
         }
     }
 
