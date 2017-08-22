@@ -218,6 +218,10 @@ def static isGcReliabilityFramework(def scenario) {
     return (scenario == 'gc_reliability_framework')
 }
 
+def static isStandaloneGc(def scenario) {
+    return (scenario == 'standalone_gc')
+}
+
 def static scenarioNeedsPri1Build(def scenario) {
     return (scenario == 'pri1' || scenario == 'pri1r2r' || scenario == 'gcstress15_pri1r2r'|| scenario == 'coverage' || isGcReliabilityFramework(scenario))
 }
@@ -1574,6 +1578,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         }
 
                         runtestArguments = "${lowerConfiguration} ${arch} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${runilasmroundtripStr} ${gcTestArguments} ${illinkArguments} collectdumps"
+                        if (isStandaloneGc(scenario)) {
+                            buildCommands += "set COMPlus_GCUseStandalone=1"
+                            buildCommands += "set COMPlus_GCStandaloneLocation=%WORKSPACE%\\bin\\Product\\Windows_NT.${arch}.${configuration}\\gc.dll"
+                        }
 
                         if (Constants.jitStressModeScenarios.containsKey(scenario)) {
                             def stepScriptLocation = "%WORKSPACE%\\SetStressModes.bat"
@@ -2690,6 +2698,17 @@ combinedScenarios.each { scenario ->
 
                                 if (isGCStressRelatedTesting(scenario)) {
                                     shell('./init-tools.sh')
+                                }
+
+                                // Setup environment when running with a standalone GC
+                                if (isStandaloneGc(scenario)) {
+                                    def sharedLibSuffix = "so"
+                                    if (osGroup != 'Linux') {
+                                        sharedLibSuffix = "dylib"
+                                    }
+
+                                    shell('export COMPlus_GCUseStandalone=1')
+                                    shell("export COMPlus_GCStandaloneLocation=${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}/gc.${sharedLibSuffix}")
                                 }
 
                                 shell("""./tests/runtest.sh \\
