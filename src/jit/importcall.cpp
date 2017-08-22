@@ -26,11 +26,10 @@ public:
     // CallImporter constructor
     //
     // Arguments:
-    //    compiler
-    //
+    //    compiler - the compiler instance
+    //    look at Compiler::impImportCal for the others arguments.
     // Notes:
-    //    The constructor takes care of initializing the variables that are used
-    //    during the call importation.
+    // CallImporter doesn't change input arguments.
     CallImporter(Compiler*               compiler,
                  OPCODE                  opcode,
                  CORINFO_RESOLVED_TOKEN* pResolvedToken,
@@ -43,8 +42,8 @@ public:
         , opcode(opcode)
         , resolvedToken(pResolvedToken)
         , constrainedResolvedToken(pConstrainedResolvedToken)
-        , callInfo(callInfo)
         , newobjThis(newobjThis)
+        , callInfo(callInfo)
         , rawILOffset(rawILOffset)
         , ilOffset(compiler->impCurILOffset(rawILOffset, true))
     {
@@ -1650,15 +1649,23 @@ private:
     }
 
 private:
-    Compiler* compiler;
-    var_types callRetTyp;
-    OPCODE    opcode;
-
-    CORINFO_SIG_INFO*       sig;
-    CORINFO_RESOLVED_TOKEN* ldftnToken;
+    // The constructor arguments.
+    Compiler*               compiler;
+    OPCODE                  opcode;
     CORINFO_RESOLVED_TOKEN* resolvedToken;
     CORINFO_RESOLVED_TOKEN* constrainedResolvedToken;
+    GenTreePtr              newobjThis;
     CORINFO_CALL_INFO*      callInfo;
+    IL_OFFSET               rawILOffset;
+
+    var_types callRetTyp; // Result call return type.
+
+    GenTreePtr      call; // Result call node.
+    GenTreeArgList* args;
+
+    CORINFO_SIG_INFO* sig;
+
+    CORINFO_RESOLVED_TOKEN* ldftnToken; // Delegate token for newObj.
 
     CORINFO_METHOD_HANDLE  methHnd;
     CORINFO_CLASS_HANDLE   clsHnd;
@@ -1666,11 +1673,8 @@ private:
     CORINFO_THIS_TRANSFORM constraintCallThisTransform;
     CORINFO_CONTEXT_HANDLE exactContextHnd;
 
-    unsigned        clsFlags;
-    unsigned        mflags;
-    GenTreePtr      call;
-    GenTreePtr      newobjThis;
-    GenTreeArgList* args;
+    unsigned clsFlags;
+    unsigned mflags;
 
     bool exactContextNeedsRuntimeLookup;
     bool canTailCall;
@@ -1680,7 +1684,6 @@ private:
 
     int tailCall;
 
-    IL_OFFSET  rawILOffset;
     IL_OFFSETX ilOffset;
 
     CorInfoIntrinsics intrinsicID;
