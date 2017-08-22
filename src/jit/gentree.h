@@ -946,7 +946,7 @@ public:
 #define GTF_IND_ARR_LEN             0x80000000 // GT_IND   -- the indirection represents an array length (of the REF
                                                //             contribution to its argument).
 #define GTF_IND_VOLATILE            0x40000000 // GT_IND   -- the load or store must use volatile sematics (this is a nop on X86)
-#define GTF_IND_NONFAULTING         0x20000000 // GT_IND   -- An indir that cannot fault.
+#define GTF_IND_NONFAULTING         0x20000000 // Operations for which OperIsIndirOrArrLength() is true  -- An indir that cannot fault.
 #define GTF_IND_TGTANYWHERE         0x10000000 // GT_IND   -- the target could be anywhere
 #define GTF_IND_TLS_REF             0x08000000 // GT_IND   -- the target is accessed via TLS
 #define GTF_IND_ASG_LHS             0x04000000 // GT_IND   -- this GT_IND node is (the effective val) of the LHS of an
@@ -1547,6 +1547,11 @@ public:
         return OperIsIndir(gtOper);
     }
 
+    bool OperIsIndirOrArrLength() const
+    {
+        return OperIsIndir() || (gtOper == GT_ARR_LENGTH);
+    }
+
     static bool OperIsImplicitIndir(genTreeOps gtOper)
     {
         switch (gtOper)
@@ -1783,7 +1788,9 @@ public:
     // Returns true if it is a GT_COPY or GT_RELOAD of a multi-reg call node
     inline bool IsCopyOrReloadOfMultiRegCall() const;
 
-    bool OperMayThrow();
+    bool OperRequiresAsgFlag();
+
+    bool OperMayThrow(Compiler* comp);
 
     unsigned GetScaleIndexMul();
     unsigned GetScaleIndexShf();
@@ -3921,7 +3928,7 @@ struct GenTreeCmpXchg : public GenTree
     {
         // There's no reason to do a compare-exchange on a local location, so we'll assume that all of these
         // have global effects.
-        gtFlags |= GTF_GLOB_EFFECT;
+        gtFlags |= (GTF_GLOB_REF | GTF_ASG);
     }
 #if DEBUGGABLE_GENTREE
     GenTreeCmpXchg() : GenTree()
