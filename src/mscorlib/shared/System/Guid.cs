@@ -33,20 +33,21 @@ namespace System
         private byte _j; // Do not rename (binary serialization)
         private byte _k; // Do not rename (binary serialization)
 
-
         ////////////////////////////////////////////////////////////////////////////////
         //  Constructors
         ////////////////////////////////////////////////////////////////////////////////
 
         // Creates a new guid from an array of bytes.
-        //
         public Guid(byte[] b)
+         : this(new ReadOnlySpan<byte>(b ?? throw new ArgumentNullException(nameof(b))))
         {
-            if (b == null)
-                throw new ArgumentNullException(nameof(b));
+        }
+
+        // Creates a new guid from a read-only span.
+        public Guid(ReadOnlySpan<byte> b)
+        {
             if (b.Length != 16)
                 throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "16"), nameof(b));
-            Contract.EndContractBlock();
 
             _a = b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0];
             _b = (short)(b[5] << 8 | b[4]);
@@ -172,19 +173,23 @@ namespace System
             {
                 _throwStyle = canThrow;
             }
+
             internal void SetFailure(Exception nativeException)
             {
                 _failure = ParseFailureKind.NativeException;
                 _innerException = nativeException;
             }
+
             internal void SetFailure(ParseFailureKind failure, string failureMessageID)
             {
                 SetFailure(failure, failureMessageID, null, null, null);
             }
+
             internal void SetFailure(ParseFailureKind failure, string failureMessageID, object failureMessageFormatArgument)
             {
                 SetFailure(failure, failureMessageID, failureMessageFormatArgument, null, null);
             }
+
             internal void SetFailure(ParseFailureKind failure, string failureMessageID, object failureMessageFormatArgument,
                                      string failureArgumentName, Exception innerException)
             {
@@ -964,26 +969,37 @@ namespace System
         // Returns an unsigned byte array containing the GUID.
         public byte[] ToByteArray()
         {
-            byte[] g = new byte[16];
-
-            g[0] = (byte)(_a);
-            g[1] = (byte)(_a >> 8);
-            g[2] = (byte)(_a >> 16);
-            g[3] = (byte)(_a >> 24);
-            g[4] = (byte)(_b);
-            g[5] = (byte)(_b >> 8);
-            g[6] = (byte)(_c);
-            g[7] = (byte)(_c >> 8);
-            g[8] = _d;
-            g[9] = _e;
-            g[10] = _f;
-            g[11] = _g;
-            g[12] = _h;
-            g[13] = _i;
-            g[14] = _j;
-            g[15] = _k;
-
+            var g = new byte[16];
+            TryWriteBytes(g);
             return g;
+        }
+
+        // Returns whether bytes are sucessfully written to given span.
+        public bool TryWriteBytes(Span<byte> destination)
+        {
+            if (destination.Length < 16)
+            {
+                return false;
+            }
+
+            destination[0] = (byte)(_a);
+            destination[1] = (byte)(_a >> 8);
+            destination[2] = (byte)(_a >> 16);
+            destination[3] = (byte)(_a >> 24);
+            destination[4] = (byte)(_b);
+            destination[5] = (byte)(_b >> 8);
+            destination[6] = (byte)(_c);
+            destination[7] = (byte)(_c >> 8);
+            destination[8] = _d;
+            destination[9] = _e;
+            destination[10] = _f;
+            destination[11] = _g;
+            destination[12] = _h;
+            destination[13] = _i;
+            destination[14] = _j;
+            destination[15] = _k;
+
+            return true;
         }
 
         // Returns the guid in "registry" format.
@@ -1222,80 +1238,77 @@ namespace System
             return 9;
         }
 
-        // IFormattable interface
-        // We currently ignore provider
-        public string ToString(string format, IFormatProvider provider)
+        // Returns whether the guid is successfully formatted as a span. 
+        public bool TryFormat(Span<char> destination, out int charsWritten, string format = null)
         {
             if (format == null || format.Length == 0)
                 format = "D";
 
-            string guidString;
-            int offset = 0;
+            // all acceptable format strings are of length 1
+            if (format.Length != 1) 
+                throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
+
             bool dash = true;
             bool hex = false;
+            bool setBraces = false;
+            bool curly = false;
+            int guidSize;
 
-            if (format.Length != 1)
+            switch (char.ToUpperInvariant(format[0]))
             {
-                // all acceptable format strings are of length 1
-                throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
+                case 'D':
+                    guidSize = 36;
+                    break;
+                case 'N':
+                    dash = false;
+                    guidSize = 32;
+                    break;
+                case 'B':
+                    setBraces = true;
+                    curly = true;
+                    guidSize = 38;
+                    break;
+                case 'P':
+                    setBraces = true;
+                    guidSize = 38;
+                    break;
+                case 'X':
+                    setBraces = true;
+                    curly = true;
+                    dash = false;
+                    hex = true;
+                    guidSize = 68;
+                    break;
+                default:
+                    throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
             }
 
-            char formatCh = format[0];
-            if (formatCh == 'D' || formatCh == 'd')
+            if (destination.Length < guidSize)
             {
-                guidString = string.FastAllocateString(36);
+                charsWritten = 0;
+                return false;
             }
-            else if (formatCh == 'N' || formatCh == 'n')
+
+            int offset = 0;
+
+            // Only sets part of destination after verifying that destination is large enough.
+            if (setBraces)
             {
-                guidString = string.FastAllocateString(32);
-                dash = false;
-            }
-            else if (formatCh == 'B' || formatCh == 'b')
-            {
-                guidString = string.FastAllocateString(38);
-                unsafe
+                if (curly)
                 {
-                    fixed (char* guidChars = guidString)
-                    {
-                        guidChars[offset++] = '{';
-                        guidChars[37] = '}';
-                    }
+                    destination[offset++] = '{';
+                    destination[guidSize - 1] = '}';
                 }
-            }
-            else if (formatCh == 'P' || formatCh == 'p')
-            {
-                guidString = string.FastAllocateString(38);
-                unsafe
+                else
                 {
-                    fixed (char* guidChars = guidString)
-                    {
-                        guidChars[offset++] = '(';
-                        guidChars[37] = ')';
-                    }
+                    destination[offset++] = '(';
+                    destination[guidSize - 1] = ')';
                 }
-            }
-            else if (formatCh == 'X' || formatCh == 'x')
-            {
-                guidString = string.FastAllocateString(68);
-                unsafe
-                {
-                    fixed (char* guidChars = guidString)
-                    {
-                        guidChars[offset++] = '{';
-                        guidChars[67] = '}';
-                    }
-                }
-                dash = false;
-                hex = true;
-            }
-            else
-            {
-                throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
             }
 
             unsafe
             {
-                fixed (char* guidChars = guidString)
+                fixed (char* guidChars = &destination.DangerousGetPinnableReference())
                 {
                     if (hex)
                     {
@@ -1328,17 +1341,67 @@ namespace System
                         // [{|(]dddddddd[-]dddd[-]dddd[-]dddd[-]dddddddddddd[}|)]
                         offset += HexsToChars(guidChars + offset, _a >> 24, _a >> 16);
                         offset += HexsToChars(guidChars + offset, _a >> 8, _a);
-                        if (dash) guidChars[offset++] = '-';
+                        if (dash)
+                            guidChars[offset++] = '-';
                         offset += HexsToChars(guidChars + offset, _b >> 8, _b);
-                        if (dash) guidChars[offset++] = '-';
+                        if (dash)
+                            guidChars[offset++] = '-';
                         offset += HexsToChars(guidChars + offset, _c >> 8, _c);
-                        if (dash) guidChars[offset++] = '-';
+                        if (dash)
+                            guidChars[offset++] = '-';
                         offset += HexsToChars(guidChars + offset, _d, _e);
-                        if (dash) guidChars[offset++] = '-';
+                        if (dash)
+                            guidChars[offset++] = '-';
                         offset += HexsToChars(guidChars + offset, _f, _g);
                         offset += HexsToChars(guidChars + offset, _h, _i);
                         offset += HexsToChars(guidChars + offset, _j, _k);
                     }
+                }
+            }
+
+            charsWritten = guidSize;
+            return true;
+        }
+
+        // IFormattable interface
+        // We currently ignore provider
+        public string ToString(string format, IFormatProvider provider)
+        {
+            if (format == null || format.Length == 0)
+                format = "D";
+
+            // all acceptable format strings are of length 1
+            if (format.Length != 1)
+                throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
+
+            string guidString;
+
+            switch (char.ToUpperInvariant(format[0]))
+            {
+                case 'D':
+                    guidString = string.FastAllocateString(36);
+                    break;
+                case 'N':
+                    guidString = string.FastAllocateString(32);
+                    break;
+                case 'B':
+                case 'P':
+                    guidString = string.FastAllocateString(38);
+                    break;
+                case 'X':
+                    guidString = string.FastAllocateString(68);
+                    break;
+                default:
+                    throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
+            }
+
+            unsafe
+            {
+                fixed (char* guidChars = guidString)
+                {
+                    int bytesWritten;
+                    bool result = TryFormat(new Span<char>((void*)guidChars, guidString.Length), out bytesWritten, format);
+                    Debug.Assert(result && bytesWritten == guidString.Length, "Formatting guid should have succeeded.");
                 }
             }
             return guidString;
