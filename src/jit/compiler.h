@@ -2086,6 +2086,10 @@ public:
 
     GenTreePtr gtNewIndexRef(var_types typ, GenTreePtr arrayOp, GenTreePtr indexOp);
 
+    GenTreeArrLen* gtNewArrLen(var_types typ, GenTreePtr arrayOp, int lenOffset);
+
+    GenTreePtr gtNewIndir(var_types typ, GenTreePtr addr);
+
     GenTreeArgList* gtNewArgList(GenTreePtr op);
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2);
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2, GenTreePtr op3);
@@ -2139,7 +2143,7 @@ public:
 
     GenTreePtr gtReplaceTree(GenTreePtr stmt, GenTreePtr tree, GenTreePtr replacementTree);
 
-    void gtUpdateSideEffects(GenTreePtr tree, unsigned oldGtFlags, unsigned newGtFlags);
+    void gtUpdateSideEffects(GenTreePtr stmt);
 
     // Returns "true" iff the complexity (not formally defined, but first interpretation
     // is #of nodes in subtree) of "tree" is greater than "limit".
@@ -4748,7 +4752,11 @@ private:
 
     void fgFixupStructReturn(GenTreePtr call);
     GenTreePtr fgMorphLocalVar(GenTreePtr tree, bool forceRemorph);
+
+public:
     bool fgAddrCouldBeNull(GenTreePtr addr);
+
+private:
     GenTreePtr fgMorphField(GenTreePtr tree, MorphAddrContext* mac);
     bool fgCanFastTailCall(GenTreeCall* call);
     void fgMorphTailCall(GenTreeCall* call);
@@ -4913,6 +4921,9 @@ private:
     void                fgMarkAddressExposedLocals();
     bool fgNodesMayInterfere(GenTree* store, GenTree* load);
 
+    static fgWalkPreFn  fgUpdateSideEffectsPre;
+    static fgWalkPostFn fgUpdateSideEffectsPost;
+
     // Returns true if the type of tree is of size at least "width", or if "tree" is not a
     // local variable.
     bool fgFitsInOrNotLoc(GenTreePtr tree, unsigned width);
@@ -4956,8 +4967,7 @@ protected:
     LclVarDsc* optIsTrackedLocal(GenTreePtr tree);
 
 public:
-    void optRemoveRangeCheck(
-        GenTreePtr tree, GenTreePtr stmt, bool updateCSEcounts, unsigned sideEffFlags = 0, bool forceRemove = false);
+    void optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt);
     bool optIsRangeCheckRemovable(GenTreePtr tree);
 
 protected:
@@ -5659,7 +5669,7 @@ public:
     VARSET_TP optCopyPropKillSet;
 
     // Copy propagation functions.
-    void optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, LclNumToGenTreePtrStack* curSsaName);
+    bool optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
     bool optIsSsaLocal(GenTreePtr tree);

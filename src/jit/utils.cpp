@@ -1489,6 +1489,10 @@ void HelperCallProperties::init()
                 noThrow = true;
                 break;
 
+            case CORINFO_HELP_DBG_IS_JUST_MY_CODE:
+                noThrow = true;
+                break;
+
             // Not sure how to handle optimization involving the rest of these  helpers
             default:
 

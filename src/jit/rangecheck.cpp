@@ -190,19 +190,28 @@ bool RangeCheck::BetweenBounds(Range& range, int lower, GenTreePtr upper)
     return false;
 }
 
-void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreePtr treeParent)
+bool RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreePtr treeParent)
 {
     // Check if we are dealing with a bounds check node.
-    if (treeParent->OperGet() != GT_COMMA)
+    GenTreePtr tree;
+    if (treeParent == stmt->gtStmt.gtStmtExpr)
     {
-        return;
+        tree = treeParent;
+        treeParent = nullptr;
+    }
+    else if (treeParent->OperGet() == GT_COMMA)
+    {
+        tree = treeParent->gtOp.gtOp1;
+    }
+    else
+    {
+        return false;
     }
 
     // If we are not looking at array bounds check, bail.
-    GenTreePtr tree = treeParent->gtOp.gtOp1;
     if (!tree->OperIsBoundsCheck())
     {
-        return;
+        return false;
     }
 
     GenTreeBoundsChk* bndsChk = tree->AsBoundsChk();
@@ -239,7 +248,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
         unsigned iconFlags = 0;
         if (!m_pCompiler->optIsTreeKnownIntValue(true, treeIndex, &idxVal, &iconFlags))
         {
-            return;
+            return false;
         }
 
         JITDUMP("[RangeCheck::OptimizeRangeCheck] Is index %d in <0, arrLenVn VN%X sz:%d>.\n", idxVal, arrLenVn,
@@ -247,8 +256,9 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
         if (arrSize > 0 && idxVal < arrSize && idxVal >= 0)
         {
             JITDUMP("Removing range check\n");
-            m_pCompiler->optRemoveRangeCheck(treeParent, stmt, true, GTF_ASG, true /* force remove */);
-            return;
+            m_pCompiler->compCurBB = block;
+            m_pCompiler->optRemoveRangeCheck((treeParent != nullptr) ? treeParent : tree, stmt);
+            return true;
         }
     }
 
@@ -266,13 +276,13 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
     {
         // Note: If we had stack depth too deep in the GetRange call, we'd be
         // too deep even in the DoesOverflow call. So return early.
-        return;
+        return false;
     }
 
     if (DoesOverflow(block, stmt, treeIndex, path))
     {
         JITDUMP("Method determined to overflow.\n");
-        return;
+        return false;
     }
 
     JITDUMP("Range value %s\n", range.ToString(m_pCompiler->getAllocatorDebugOnly()));
@@ -282,16 +292,18 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
     // If upper or lower limit is unknown, then return.
     if (range.UpperLimit().IsUnknown() || range.LowerLimit().IsUnknown())
     {
-        return;
+        return false;
     }
 
     // Is the range between the lower and upper bound values.
     if (BetweenBounds(range, 0, bndsChk->gtArrLen))
     {
         JITDUMP("[RangeCheck::OptimizeRangeCheck] Between bounds\n");
-        m_pCompiler->optRemoveRangeCheck(treeParent, stmt, true, GTF_ASG, true /* force remove */);
+
+        m_pCompiler->optRemoveRangeCheck((treeParent != nullptr) ? treeParent : tree, stmt);
+        return true;
     }
-    return;
+    return false;
 }
 
 void RangeCheck::Widen(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, SearchPath* path, Range* pRange)
@@ -1352,13 +1364,22 @@ void RangeCheck::OptimizeRangeChecks()
     {
         for (GenTreePtr stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
         {
+            bool optimizedRangeCheck = false;
             for (GenTreePtr tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
             {
                 if (IsOverBudget())
                 {
                     return;
                 }
-                OptimizeRangeCheck(block, stmt, tree);
+                if (OptimizeRangeCheck(block, stmt, tree))
+                {
+                    optimizedRangeCheck = true;
+                }
+            }
+            if (optimizedRangeCheck)
+            {
+                //m_pCompiler->fgMorphBlockStmt(block, stmt->AsStmt() DEBUGARG("OptimizeRangeChecks"));
+                m_pCompiler->gtUpdateSideEffects(stmt);
             }
         }
     }

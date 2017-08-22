@@ -865,6 +865,7 @@ public:
 #define GTF_USE_FLAGS   0x00001000 // Indicates that this node uses the flags bits.
 
 #define GTF_MAKE_CSE    0x00002000 // Hoisted expression: try hard to make this into CSE (see optPerformHoistExpr)
+
 #define GTF_DONT_CSE    0x00004000 // Don't bother CSE'ing this expr
 #define GTF_COLON_COND  0x00008000 // This node is conditionally executed (part of ? :)
 
@@ -1547,6 +1548,11 @@ public:
         return OperIsIndir(gtOper);
     }
 
+    bool OperIsIndirOrArrLength() const
+    {
+        return OperIsIndir() || (gtOper == GT_ARR_LENGTH);
+    }
+
     static bool OperIsImplicitIndir(genTreeOps gtOper)
     {
         switch (gtOper)
@@ -1783,7 +1789,10 @@ public:
     // Returns true if it is a GT_COPY or GT_RELOAD of a multi-reg call node
     inline bool IsCopyOrReloadOfMultiRegCall() const;
 
-    bool OperMayThrow();
+    // Returns true if it is a MultiRegOp
+    inline bool IsMultiReg() const;
+
+    bool OperMayThrow(Compiler* comp);
 
     unsigned GetScaleIndexMul();
     unsigned GetScaleIndexShf();
@@ -3921,7 +3930,7 @@ struct GenTreeCmpXchg : public GenTree
     {
         // There's no reason to do a compare-exchange on a local location, so we'll assume that all of these
         // have global effects.
-        gtFlags |= GTF_GLOB_EFFECT;
+        gtFlags |= (GTF_GLOB_REF | GTF_ASG);
     }
 #if DEBUGGABLE_GENTREE
     GenTreeCmpXchg() : GenTree()

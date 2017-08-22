@@ -1953,7 +1953,8 @@ GenTreePtr Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedTok
             gtNewArgList(ctxTree, gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr, GTF_ICON_TOKEN_HDL, 0,
                                                       nullptr, compileTimeHandle));
 
-        return gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, GTF_EXCEPT, helperArgs);
+        unsigned flags = this->s_helperCallProperties.NoThrow(pRuntimeLookup->helper) ? 0 : GTF_EXCEPT;
+        return gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, flags, helperArgs);
     }
 
     // Slot pointer
@@ -1977,7 +1978,7 @@ GenTreePtr Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedTok
         }
 
         if (i != 0)
-        {
+        {            
             slotPtrTree = gtNewOperNode(GT_IND, TYP_I_IMPL, slotPtrTree);
             slotPtrTree->gtFlags |= GTF_IND_NONFAULTING;
             slotPtrTree->gtFlags |= GTF_IND_INVARIANT;
@@ -2053,7 +2054,8 @@ GenTreePtr Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedTok
     GenTreeArgList* helperArgs =
         gtNewArgList(ctxTree, gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr, GTF_ICON_TOKEN_HDL, 0, nullptr,
                                                   compileTimeHandle));
-    GenTreePtr helperCall = gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, GTF_EXCEPT, helperArgs);
+    unsigned flags = this->s_helperCallProperties.NoThrow(pRuntimeLookup->helper) ? 0 : GTF_EXCEPT;
+    GenTreePtr helperCall = gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, flags, helperArgs);
 
     // Check for null and possibly call helper
     GenTreePtr relop = gtNewOperNode(GT_NE, TYP_INT, handle, gtNewIconNode(0, TYP_I_IMPL));
@@ -3482,7 +3484,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             // on a local are probably pretty useless anyway, so we probably don't care.
 
             op1 = gtNewOperNode(interlockedOperator, genActualType(callType), op1, op2);
-            op1->gtFlags |= GTF_GLOB_EFFECT;
+            op1->gtFlags |= GTF_GLOB_REF | GTF_ASG;
             retNode = op1;
             break;
 #endif // _TARGET_XARCH_
@@ -3492,7 +3494,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             assert(sig->numArgs == 0);
 
             op1 = new (this, GT_MEMORYBARRIER) GenTree(GT_MEMORYBARRIER, TYP_VOID);
-            op1->gtFlags |= GTF_GLOB_EFFECT;
+            op1->gtFlags |= GTF_GLOB_REF | GTF_ASG;
             retNode = op1;
             break;
 
@@ -3523,8 +3525,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             op1 = impPopStack().val;
             if (!opts.MinOpts() && !opts.compDbgCode)
             {
-                GenTreeArrLen* arrLen =
-                    new (this, GT_ARR_LENGTH) GenTreeArrLen(TYP_INT, op1, offsetof(CORINFO_String, stringLen));
+                GenTreeArrLen* arrLen = gtNewArrLen(TYP_INT, op1, offsetof(CORINFO_String, stringLen));
                 op1 = arrLen;
             }
             else
@@ -5376,7 +5377,8 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
         }
 
         GenTreeArgList* args = gtNewArgList(op2, impGetStructAddr(exprToBox, operCls, (unsigned)CHECK_SPILL_ALL, true));
-        op1                  = gtNewHelperCallNode(boxHelper, TYP_REF, GTF_EXCEPT, args);
+        unsigned flags = this->s_helperCallProperties.NoThrow(boxHelper) ? 0 : GTF_EXCEPT;
+        op1                  = gtNewHelperCallNode(boxHelper, TYP_REF, flags, args);
     }
 
     /* Push the result back on the stack, */
@@ -11369,7 +11371,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 /* Special case: integer/long division may throw an exception */
 
-                if (varTypeIsIntegral(op1->TypeGet()) && op1->OperMayThrow())
+                if (varTypeIsIntegral(op1->TypeGet()) && op1->OperMayThrow(this))
                 {
                     op1->gtFlags |= GTF_EXCEPT;
                 }
@@ -14148,7 +14150,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 GenTreeArgList* helperArgs = gtNewArgList(op1);
 
-                op1 = gtNewHelperCallNode(helper, TYP_STRUCT, GTF_EXCEPT, helperArgs);
+                unsigned flags = this->s_helperCallProperties.NoThrow(helper) ? 0 : GTF_EXCEPT;
+                op1 = gtNewHelperCallNode(helper, TYP_STRUCT, flags, helperArgs);
 
                 // The handle struct is returned in register
                 op1->gtCall.gtReturnType = TYP_REF;
@@ -14982,8 +14985,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (!opts.MinOpts() && !opts.compDbgCode)
                 {
                     /* Use GT_ARR_LENGTH operator so rng check opts see this */
-                    GenTreeArrLen* arrLen =
-                        new (this, GT_ARR_LENGTH) GenTreeArrLen(TYP_INT, op1, offsetof(CORINFO_Array, length));
+                    GenTreeArrLen* arrLen = gtNewArrLen(TYP_INT, op1, offsetof(CORINFO_Array, length));
 
                     /* Mark the block as containing a length expression */
 
@@ -14999,12 +15001,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     /* Create the expression "*(array_addr + ArrLenOffs)" */
                     op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
                                         gtNewIconNode(offsetof(CORINFO_Array, length), TYP_I_IMPL));
-                    op1 = gtNewOperNode(GT_IND, TYP_INT, op1);
+                    op1 = gtNewIndir(TYP_INT, op1);
                     op1->gtFlags |= GTF_IND_ARR_LEN;
-                }
-
-                /* An indirection will cause a GPF if the address is null */
-                op1->gtFlags |= GTF_EXCEPT;
+                }                
 
                 /* Push the result back on the stack */
                 impPushOnStack(op1, tiRetVal);

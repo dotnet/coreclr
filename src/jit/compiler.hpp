@@ -1228,6 +1228,61 @@ inline GenTreePtr Compiler::gtNewIndexRef(var_types typ, GenTreePtr arrayOp, Gen
     return gtIndx;
 }
 
+//------------------------------------------------------------------------------
+// gtNewArrLen : Helper to create an array length node.
+//
+//
+// Arguments:
+//    typ      -  Type of the node
+//    arrayOp  -  Array node
+//    lenOffset - Offset of the length field
+//
+// Return Value:
+//    New GT_ARR_LENGTH node
+
+inline GenTreeArrLen* Compiler::gtNewArrLen(var_types typ, GenTreePtr arrayOp, int lenOffset)
+{
+    GenTreeArrLen* arrLen = new (this, GT_ARR_LENGTH)
+        GenTreeArrLen(typ, arrayOp, lenOffset);
+
+    if (fgAddrCouldBeNull(arrayOp))
+    {
+        arrLen->gtFlags |= GTF_EXCEPT;
+    }
+    else
+    {
+        arrLen->gtFlags |= GTF_IND_NONFAULTING;
+    }
+
+    return arrLen;
+}
+
+//------------------------------------------------------------------------------
+// gtNewIndir : Helper to create an indirection node.
+//
+// Arguments:
+//    typ   -  Type of the node
+//    addr  -  Address of the indirection
+//
+// Return Value:
+//    New GT_IND node
+
+inline GenTreePtr Compiler::gtNewIndir(var_types typ, GenTreePtr addr)
+{
+    GenTreePtr indir = gtNewOperNode(GT_IND, typ, addr);
+
+    if (fgAddrCouldBeNull(addr))
+    {
+        indir->gtFlags |= GTF_EXCEPT;
+    }
+    else
+    {
+        indir->gtFlags |= GTF_IND_NONFAULTING;
+    }
+
+    return indir;
+}
+
 /*****************************************************************************
  *
  *  Create (and check for) a "nothing" node, i.e. a node that doesn't produce
@@ -1512,8 +1567,14 @@ inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
 {
     assert(!OperIsConst(oper)); // use ChangeOperLeaf() instead
 
+    unsigned mask = GTF_COMMON_MASK;
+    if (this->OperIsIndirOrArrLength() && OperIsIndir(oper))
+    {
+        mask |= GTF_IND_NONFAULTING;
+    }
     SetOper(oper, vnUpdate);
-    gtFlags &= GTF_COMMON_MASK;
+    gtFlags &= mask;
+    
 
     // Do "oper"-specific initializations...
     switch (oper)
@@ -1529,8 +1590,13 @@ inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
 
 inline void GenTree::ChangeOperUnchecked(genTreeOps oper)
 {
+    unsigned mask = GTF_COMMON_MASK;
+    if (this->OperIsIndirOrArrLength() && OperIsIndir(oper))
+    {
+        mask |= GTF_IND_NONFAULTING;
+    }
     SetOperRaw(oper); // Trust the caller and don't use SetOper()
-    gtFlags &= GTF_COMMON_MASK;
+    gtFlags &= mask;
 }
 
 /*****************************************************************************
