@@ -14,7 +14,7 @@ def static addRebootPostStep(def job) {
             flexiblePublish {
                 conditionalAction {
                     condition {
-                        status('ABORTED', 'FAILURE', 'SUCCESS')
+                        status('ABORTED', 'SUCCESS')
                     }
                     steps {
                         shell('echo hello!')
