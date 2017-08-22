@@ -2017,27 +2017,6 @@ void fgArgInfo::SortArgs()
     assert(begTab == (endTab + 1));
     assert(argsRemaining == 0);
 
-#if !FEATURE_FIXED_OUT_ARGS
-    // Finally build the regArgList
-    //
-    callTree->gtCall.regArgList      = NULL;
-    callTree->gtCall.regArgListCount = regCount;
-
-    unsigned regInx = 0;
-    for (curInx = 0; curInx < argCount; curInx++)
-    {
-        fgArgTabEntryPtr curArgTabEntry = argTable[curInx];
-
-        if (curArgTabEntry->regNum != REG_STK)
-        {
-            // Encode the argument register in the register mask
-            //
-            callTree->gtCall.regArgList[regInx] = curArgTabEntry->regNum;
-            regInx++;
-        }
-    }
-#endif // !FEATURE_FIXED_OUT_ARGS
-
     argsSorted = true;
 }
 

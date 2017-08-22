@@ -7641,11 +7641,6 @@ GenTreePtr Compiler::gtCloneExpr(
                     ? gtCloneExpr(tree->gtCall.gtCallLateArgs, addFlags, deepVarNum, deepVarVal)->AsArgList()
                     : nullptr;
 
-#if !FEATURE_FIXED_OUT_ARGS
-            copy->gtCall.regArgList      = tree->gtCall.regArgList;
-            copy->gtCall.regArgListCount = tree->gtCall.regArgListCount;
-#endif
-
             // The call sig comes from the EE and doesn't change throughout the compilation process, meaning
             // we only really need one physical copy of it. Therefore a shallow pointer copy will suffice.
             // (Note that this still holds even if the tree we are cloning was created by an inlinee compiler,
@@ -8065,35 +8060,9 @@ GenTreePtr Compiler::gtGetThisArg(GenTreeCall* call)
             }
         }
 
-        if (call->gtCallLateArgs)
+        if (call->gtCallLateArgs != nullptr)
         {
-            regNumber        thisReg         = REG_ARG_0;
-            unsigned         argNum          = 0;
-            fgArgTabEntryPtr thisArgTabEntry = gtArgEntryByArgNum(call, argNum);
-            GenTreePtr       result          = thisArgTabEntry->node;
-
-#if !FEATURE_FIXED_OUT_ARGS
-            GenTreePtr lateArgs = call->gtCallLateArgs;
-            regList    list     = call->regArgList;
-            int        index    = 0;
-            while (lateArgs != NULL)
-            {
-                assert(lateArgs->gtOper == GT_LIST);
-                assert(index < call->regArgListCount);
-                regNumber curArgReg = list[index];
-                if (curArgReg == thisReg)
-                {
-                    if (optAssertionPropagatedCurrentStmt)
-                        result = lateArgs->gtOp.gtOp1;
-
-                    assert(result == lateArgs->gtOp.gtOp1);
-                }
-
-                lateArgs = lateArgs->gtOp.gtOp2;
-                index++;
-            }
-#endif
-            return result;
+            return gtArgEntryByArgNum(call, 0)->node;
         }
     }
     return nullptr;
@@ -11138,9 +11107,6 @@ void Compiler::gtDispTree(GenTreePtr   tree,
                                 (call->gtControlExpr == lastChild) ? IIArcBottom : IIArc, "control expr", topOnly);
                 }
 
-#if !FEATURE_FIXED_OUT_ARGS
-                regList list = call->regArgList;
-#endif
                 /* process the late argument list */
                 int lateArgIndex = 0;
                 for (GenTreeArgList* lateArgs = call->gtCallLateArgs; lateArgs;
@@ -11395,10 +11361,7 @@ void Compiler::gtGetLateArgMsg(
     assert(curArgTabEntry);
     regNumber argReg = curArgTabEntry->regNum;
 
-#if !FEATURE_FIXED_OUT_ARGS
-    assert(lateArgIndex < call->regArgListCount);
-    assert(argReg == call->regArgList[lateArgIndex]);
-#else
+#if FEATURE_FIXED_OUT_ARGS
     if (argReg == REG_STK)
     {
         sprintf_s(bufp, bufLength, "arg%d in out+%02x%c", curArgTabEntry->argNum,
