@@ -13,7 +13,7 @@
 
 Volatile<BOOL> SampleProfiler::s_profilingEnabled = false;
 Thread* SampleProfiler::s_pSamplingThread = NULL;
-const SString SampleProfiler::s_providerName = SString(u"SampleProfilerProvider");
+const WCHAR* SampleProfiler::s_providerName = W("SampleProfilerProvider");
 EventPipeProvider* SampleProfiler::s_pEventPipeProvider = NULL;
 EventPipeEvent* SampleProfiler::s_pThreadTimeEvent = NULL;
 BYTE* SampleProfiler::s_pPayloadExternal = NULL;
@@ -36,7 +36,7 @@ void SampleProfiler::Enable()
 
     if(s_pEventPipeProvider == NULL)
     {
-        s_pEventPipeProvider = EventPipe::CreateProvider(s_providerName);
+        s_pEventPipeProvider = EventPipe::CreateProvider(SL(s_providerName));
         s_pThreadTimeEvent = s_pEventPipeProvider->AddEvent(
             0, /* eventID */
             0, /* keywords */

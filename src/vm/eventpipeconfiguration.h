@@ -100,7 +100,7 @@ private:
 
     // The provider name for the configuration event pipe provider.
     // This provider is used to emit configuration events.
-    static const SString s_configurationProviderName;
+    const static WCHAR* s_configurationProviderName;
 
     // True if rundown is enabled.
     Volatile<bool> m_rundownEnabled;

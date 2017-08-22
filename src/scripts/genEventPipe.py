@@ -122,9 +122,9 @@ def generateClrEventPipeWriteEventsImpl(
     WriteEventImpl.append(
         "    EventPipeProvider" +
         providerPrettyName +
-        " = EventPipe::CreateProvider(" +
+        " = EventPipe::CreateProvider(SL(" +
         providerPrettyName +
-        "Name);\n")
+        "Name));\n")
     for eventNode in eventNodes:
         eventName = eventNode.getAttribute('symbol')
         templateName = eventNode.getAttribute('template')
@@ -401,7 +401,7 @@ bool WriteToBuffer(const T &value, char *&buffer, unsigned int& offset, unsigned
 
         eventpipeImpl.write(header)
         eventpipeImpl.write(
-            "SString const %sName = SString(u\"%s\");\n" % (
+            "const WCHAR* %sName = W(\"%s\");\n" % (
                 providerPrettyName,
                 providerPrettyName
             )

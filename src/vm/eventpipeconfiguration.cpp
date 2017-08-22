@@ -10,7 +10,7 @@
 
 #ifdef FEATURE_PERFTRACING
 
-const SString EventPipeConfiguration::s_configurationProviderName = W("EventPipeConfigurationProvider");
+const WCHAR* EventPipeConfiguration::s_configurationProviderName = W("EventPipeConfigurationProvider");
 
 EventPipeConfiguration::EventPipeConfiguration()
 {
@@ -57,7 +57,7 @@ void EventPipeConfiguration::Initialize()
     CONTRACTL_END;
 
     // Create the configuration provider.
-    m_pConfigProvider = EventPipe::CreateProvider(s_configurationProviderName);
+    m_pConfigProvider = EventPipe::CreateProvider(SL(s_configurationProviderName));
 
     // Create the metadata event.
     m_pMetadataEvent = m_pConfigProvider->AddEvent(
