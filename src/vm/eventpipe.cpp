@@ -73,7 +73,12 @@ EventPipeEventPayload::EventPipeEventPayload(EventData **pBlobs, unsigned int bl
     m_blobCount = blobCount;
     m_performedAllocation = false;
 
-    S_UINT32 tmp_size = S_UINT32(blobCount) * S_UINT32(sizeof(EventData));
+    S_UINT32 tmp_size = S_UINT32(0);
+    for (unsigned int i=0; i<m_blobCount; i++)
+    {
+        tmp_size += S_UINT32(m_pBlobs[i]->Size);
+    }
+
     if (tmp_size.IsOverflow())
     {
         // If there is an overflow, drop the data and create an empty payload
@@ -148,10 +153,10 @@ void EventPipeEventPayload::CopyData(BYTE *pDst)
         else if(m_pBlobs != NULL)
         {
             unsigned int offset = 0;
-            for(int i=0; i<m_blobCount; i++)
+            for(unsigned int i=0; i<m_blobCount; i++)
             {
-                memcpy(pDst + offset, m_pBlobs[i], sizeof(EventData));
-                offset += sizeof(EventData);
+                memcpy(pDst + offset, (BYTE*)m_pBlobs[i]->Ptr, m_pBlobs[i]->Size);
+                offset += m_pBlobs[i]->Size;
             }
         }
     }
