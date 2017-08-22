@@ -22627,7 +22627,7 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 
                     // We used to refine the temp type here based on
                     // the actual arg, but we now do this up front, when
-                    // creating the temp, over in impFetchArg.
+                    // creating the temp, over in impInlineFetchArg.
                     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef DEBUG
