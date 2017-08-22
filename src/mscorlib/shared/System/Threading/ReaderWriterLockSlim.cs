@@ -984,7 +984,7 @@ namespace System.Threading
                 EnterMyLock();
                 --numWaiters;
 
-                if (waiterSignaledState != WaiterStates.None)
+                if (waitSuccessful && waiterSignaledState != WaiterStates.None)
                 {
                     // Indicate that a signaled waiter of this type has woken. Since non-read waiters are signaled to wake one
                     // at a time, we avoid waking up more than one waiter of that type upon successive enter/exit loops until
