@@ -385,7 +385,7 @@ HRESULT EEConfig::Init()
     pszGDBJitElfDump = NULL;
 #endif // FEATURE_GDBJIT && _DEBUG
 
-#if defined(FEATURE_GDBJIT)
+#if defined(FEATURE_GDBJIT_FRAME)
     fGDBJitEmitDebugFrame = false;
 #endif
 
