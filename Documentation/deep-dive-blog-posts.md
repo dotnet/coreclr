@@ -1,6 +1,6 @@
 ## List of blog posts that provide a 'deep-dive' into the CoreCLR source code
 
-### Posts take a high-level look at the entire source:
+### Posts that take a high-level look at the entire source:
 
 - [A Hitchhikers Guide to the CoreCLR Source Code](http://mattwarren.org/2017/03/23/Hitchhikers-Guide-to-the-CoreCLR-Source-Code/)
 - [The 68 things the CLR does before executing a single line of your code](http://mattwarren.org/2017/02/07/The-68-things-the-CLR-does-before-executing-a-single-line-of-your-code/)
