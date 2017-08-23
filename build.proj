@@ -7,7 +7,7 @@
     <Project Include="src\build.proj" />
   </ItemGroup>
 
-  <Import Project="dir.targets" />
+  <!--<Import Project="dir.targets" />-->
 
   <Import Project="dir.traversal.targets" />
 
