@@ -61,6 +61,7 @@ namespace System.Threading
         // instance of ReaderWriterLockSlim.  It does NOT protect the memory associated with 
         // the events that hang off this lock (eg writeEvent, readEvent upgradeEvent).
         private int _myLock;
+        private byte _myLockSpinCountStart;      // where to start the count of spinning.   Used to optimize spin overhead.  
 
         //The variables controlling spinning behavior of Mylock(which is a spin-lock)
 
@@ -91,13 +92,94 @@ namespace System.Threading
         private static long s_nextLockID;
         private long _lockID;
 
+        // TODO this should should probably be no more than 10 (5 is probably pretty good).  
+        // but it should not matter too much because SpinHistory will trim spinning if it 
+        // does not benefit for a particular lock.  
+        private const int MaxSpinCount = 15;
+
+        #region SpinOptimization
+        /// <summary>
+        /// We don't want to spin more than we have to, so we want monitor how much spinning we do and what
+        /// was successful.   We do this with class (well struct actually).   The intuition is that the 
+        /// spin count is basically a measure of time, and by looking at how long you waited in the past
+        /// you can decide whether it is worth spinning in the future.   Using the same count that worked
+        /// the last time is a good guess at what you should spin this time.  
+        /// 
+        /// By far the most important thing this class does is remember when spinning FAILED (which is when
+        /// spinCount maxes out to MaxSpinCount) and to NOT spin in that case for a while (e.g. 100 times)
+        /// so that we have very low overhead for spinning if it was shown to NOT be useful in the past.   
+        /// 
+        /// The usage of this class is simple.  You ask for the starting spin count, and when you complete 
+        /// your spinning you notify the class what the final spin count you used was (thus if spinning 
+        /// failed it will be MaxSpinCount)
+        /// 
+        /// Today we just remember the last spin count, you could average the last several if that is useful
+        /// without having to change the interface.   
+        /// </summary>        
+        struct SpinHistory
+        {
+            // When spinning failed in the past, have to decide how long until we try spinning again
+            // That is what NoSpinCount is.  We let this number of attempts happen before trying to 
+            // spin again.
+            const int NoSpinCount = 100;
+
+            /// <summary>
+            ///  Get a good spin count to start from.  It will something > MaxSpinCount if no spinning
+            ///  should be done.   
+            /// </summary>
+            /// <returns>The staring spin count to use. </returns>
+            public int GetStartSpinCount()
+            {
+                return spinHistory;
+            }
+
+            /// <summary>
+            /// Report the final spin count after spinning so that we can choose a good spin count
+            /// the next time.   resultingSpinCount should be MaxSpinCount if spinning failed.  
+            /// </summary>
+            public void Update(int resultingSpinCount)
+            {
+                int newSpinHistory;
+                // Did spinnning succeed? 
+                if (resultingSpinCount < MaxSpinCount)
+                {
+                    // Yes, then use a slightly smaller spin next time (since we will grow if needed
+                    // and otherwise we never adjust down)
+                    newSpinHistory = resultingSpinCount;
+                    if (newSpinHistory > 0)
+                        --newSpinHistory;
+                }
+                else
+                {
+                    // spinning failed, if this is the first time we failed bump the count by NoSpinCount
+                    // so that it takes us some time before we try spinning again.  
+                    newSpinHistory = spinHistory;
+                    if (newSpinHistory < MaxSpinCount)
+                        newSpinHistory = MaxSpinCount + NoSpinCount;
+                    else
+                    {
+                        // We failed in the past, count down until we try spinning again.  
+                        --newSpinHistory;
+                        if (newSpinHistory < MaxSpinCount)
+                            newSpinHistory = 0;        // after 100 times, try again at 0, to see if we can succeed this time.   
+                    }
+                }
+                Debug.Assert((byte)newSpinHistory == newSpinHistory);        // Insure no trucnation.
+                spinHistory = (byte) newSpinHistory;
+            }
+
+            byte spinHistory;  // Today this is roughly just the last spin count, but it could be a running average in the future.   
+        }
+
+        private SpinHistory _readSpinHistory;         
+        private SpinHistory _writeSpinHistory;
+        #endregion 
+
         // See comments on ReaderWriterCount.
         [ThreadStatic]
         private static ReaderWriterCount t_rwc;
 
         private bool _fUpgradeThreadHoldingRead;
-
-        private const int MaxSpinCount = 20;
 
         //The uint, that contains info like if the writer lock is held, num of 
         //readers etc.
@@ -352,10 +434,8 @@ namespace System.Threading
             }
 
             bool retVal = true;
-
-            int spincount = 0;
-
-            for (; ;)
+            int spinCount = _readSpinHistory.GetStartSpinCount();
+            for (;;)
             {
                 // We can enter a read lock if there are only read-locks have been given out
                 // and a writer is not trying to get in.  
@@ -368,13 +448,13 @@ namespace System.Threading
                     break;
                 }
 
-                if (spincount < MaxSpinCount)
+                if (spinCount < MaxSpinCount && ShouldSpinForEnterAnyRead())
                 {
                     ExitMyLock();
                     if (timeout.IsExpired)
                         return false;
-                    spincount++;
-                    SpinWait(spincount);
+                    spinCount++;
+                    SpinWait(spinCount);
                     EnterMyLock();
                     //The per-thread structure may have been recycled as the lock is acquired (due to message pumping), load again.
                     if (IsRwHashEntryChanged(lrwc))
@@ -399,7 +479,7 @@ namespace System.Threading
                 if (IsRwHashEntryChanged(lrwc))
                     lrwc = GetThreadRWCount(false);
             }
-
+            _readSpinHistory.Update(spinCount);
             ExitMyLock();
             return retVal;
         }
@@ -480,10 +560,9 @@ namespace System.Threading
                 }
             }
 
-            int spincount = 0;
+            int spinCount = _writeSpinHistory.GetStartSpinCount();
             bool retVal = true;
-
-            for (; ;)
+            for (;;)
             {
                 if (IsWriterAcquired())
                 {
@@ -528,13 +607,13 @@ namespace System.Threading
                     }
                 }
 
-                if (spincount < MaxSpinCount)
+                if (spinCount < MaxSpinCount && ShouldSpinForEnterAnyWrite(upgradingToWrite))
                 {
                     ExitMyLock();
                     if (timeout.IsExpired)
                         return false;
-                    spincount++;
-                    SpinWait(spincount);
+                    spinCount++;
+                    SpinWait(spinCount);
                     EnterMyLock();
                     continue;
                 }
@@ -570,9 +649,8 @@ namespace System.Threading
                         return false;
                 }
             }
-
+            _writeSpinHistory.Update(spinCount);
             Debug.Assert((_owners & WRITER_HELD) > 0);
-
             if (_fIsReentrant)
             {
                 if (IsRwHashEntryChanged(lrwc))
@@ -671,10 +749,8 @@ namespace System.Threading
             }
 
             bool retVal = true;
-
-            int spincount = 0;
-
-            for (; ;)
+            int spinCount = _writeSpinHistory.GetStartSpinCount();
+            for (;;)
             {
                 //Once an upgrade lock is taken, it's like having a reader lock held
                 //until upgrade or downgrade operations are performed.              
@@ -686,13 +762,13 @@ namespace System.Threading
                     break;
                 }
 
-                if (spincount < MaxSpinCount)
+                if (spinCount < MaxSpinCount && ShouldSpinForEnterAnyRead())
                 {
                     ExitMyLock();
                     if (timeout.IsExpired)
                         return false;
-                    spincount++;
-                    SpinWait(spincount);
+                    spinCount++;
+                    SpinWait(spinCount);
                     EnterMyLock();
                     continue;
                 }
@@ -709,6 +785,7 @@ namespace System.Threading
                 if (!retVal)
                     return false;
             }
+            _writeSpinHistory.Update(spinCount);
 
             if (_fIsReentrant)
             {
@@ -1059,6 +1136,25 @@ namespace System.Threading
             return _owners & READER_MASK;
         }
 
+        private bool ShouldSpinForEnterAnyRead()
+        {
+            // If there is a write waiter or write upgrade waiter, the waiter would block a reader from acquiring the RW lock 
+            // because the waiter takes precedence. In that case, the reader is not likely to make progress by spinning. 
+            // Although another thread holding a write lock would prevent this thread from acquiring a read lock, it is by 
+            // itself not a good enough reason to skip spinning. 
+            return _fNoWaiters || (_numWriteWaiters == 0 && _numWriteUpgradeWaiters == 0);
+        }
+
+        private bool ShouldSpinForEnterAnyWrite(bool isUpgradeToWrite)
+        {
+            // If there is a write upgrade waiter, the waiter would block a writer from acquiring the RW lock because the waiter 
+            // holds a read lock. In that case, the writer is not likely to make progress by spinning. Regarding upgrading to a 
+            // write lock, there is no type of waiter that would block the upgrade from happening. Although another thread 
+            // holding a read or write lock would prevent this thread from acquiring the write lock, it is by itself not a good 
+            // enough reason to skip spinning. 
+            return isUpgradeToWrite || _numWriteUpgradeWaiters == 0;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnterMyLock()
         {
@@ -1069,15 +1165,17 @@ namespace System.Threading
         private void EnterMyLockSpin()
         {
             int pc = Environment.ProcessorCount;
-            for (int i = 0; ; i++)
+            for (int spinCount = _myLockSpinCountStart; ;)
             {
-                if (i < LockSpinCount && pc > 1)
+                if (spinCount < LockSpinCount && pc > 1)
                 {
-                    RuntimeThread.SpinWait(LockSpinCycles * (i + 1)); // Wait a few dozen instructions to let another processor release lock.
+                    RuntimeThread.SpinWait(LockSpinCycles * (spinCount + 1)); // Wait a few dozen instructions to let another processor release lock.
+                    spinCount++;
                 }
-                else if (i < (LockSpinCount + LockSleep0Count))
+                else if (spinCount < (LockSpinCount + LockSleep0Count))
                 {
                     RuntimeThread.Sleep(0);   // Give up my quantum.  
+                    spinCount++;
                 }
                 else
                 {
@@ -1085,7 +1183,18 @@ namespace System.Threading
                 }
 
                 if (_myLock == 0 && Interlocked.CompareExchange(ref _myLock, 1, 0) == 0)
+                {
+                    // Set the _myLockSpinCountStart for the next time.  
+                    // We start our spin count slightly smaller than what worked before.  This
+                    // keeps the time between probes more optimial (lessens contention for the 
+                    // memory bus that the probe of _myLock will cause).  
+                    if (2 <= spinCount)
+                        spinCount -= 2;
+                    else
+                        spinCount = 0;
+                    _myLockSpinCountStart = (byte) spinCount;    
                     return;
+                }
             }
         }
 
@@ -1101,10 +1210,13 @@ namespace System.Threading
 
         private static void SpinWait(int SpinCount)
         {
-            //Exponential back-off
+            // Back off quadratically.  (delta between probes grows linearlly) 
             if ((SpinCount < 5) && (Environment.ProcessorCount > 1))
             {
-                RuntimeThread.SpinWait(LockSpinCycles * SpinCount);
+                // We want to spin longer (we chose 2x) before probing than we do
+                // for MyLock because the overhead doing the probe is potentially
+                // significantly higher than for MyLock
+                RuntimeThread.SpinWait((LockSpinCycles * 2) * SpinCount);
             }
             else
             {
