@@ -277,11 +277,6 @@ namespace System
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="info"/> argument is null.</exception>
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-            {
-                throw new ArgumentNullException(nameof(info));
-            }
-
             base.GetObjectData(info, context);
 
             Exception[] innerExceptions = new Exception[m_innerExceptions.Count];
@@ -453,17 +448,20 @@ namespace System
         /// <returns>A string representation of the current exception.</returns>
         public override string ToString()
         {
-            string text = base.ToString();
+            StringBuilder text = new StringBuilder();
+            text.Append(base.ToString());
 
             for (int i = 0; i < m_innerExceptions.Count; i++)
             {
-                text = String.Format(
-                    CultureInfo.InvariantCulture,
-                    SR.AggregateException_ToString,
-                    text, Environment.NewLine, i, m_innerExceptions[i].ToString(), "<---", Environment.NewLine);
+                text.Append(Environment.NewLine);
+                text.Append("---> ");
+                text.Append(string.Format(CultureInfo.InvariantCulture, SR.AggregateException_InnerException, i));
+                text.Append(m_innerExceptions[i].ToString());
+                text.Append("<---");
+                text.Append(Environment.NewLine);
             }
 
-            return text;
+            return text.ToString();
         }
 
         /// <summary>
