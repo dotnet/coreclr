@@ -40,7 +40,7 @@ namespace Tracing.Tests.Common
 
             // Enable the provider.
             config.EnableProvider(providerName, keywords, level);
-            //
+
             // Sample profiler.
             providerName = "SampleProfileProvider";
             keywords = 0x0;
