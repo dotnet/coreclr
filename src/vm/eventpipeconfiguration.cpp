@@ -303,8 +303,8 @@ void EventPipeConfiguration::EnableRundown()
     _ASSERTE(m_pEnabledProviderList == NULL);
     const unsigned int numRundownProviders = 2;
     EventPipeProviderConfiguration rundownProviders[numRundownProviders];
-    rundownProviders[0] = EventPipeProviderConfiguration(W("e13c0d23-ccbc-4e12-931b-d9cc2eee27e4"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose)); // Public provider.
-    rundownProviders[1] = EventPipeProviderConfiguration(W("a669021c-c450-4609-a035-5af59af4df18"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose)); // Rundown provider.
+    rundownProviders[0] = EventPipeProviderConfiguration(W("DotNETRuntime"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose)); // Public provider.
+    rundownProviders[1] = EventPipeProviderConfiguration(W("DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose)); // Rundown provider.
 
     // Enable rundown.
     m_rundownEnabled = true;
