@@ -57,7 +57,7 @@ namespace Tracing.Tests
                 System.IO.File.Delete(outputFilename);
             }
 
-            return pass ? 100 : 0;
+            return pass ? 100 : -1;
         }
     }
 }
