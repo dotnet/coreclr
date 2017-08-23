@@ -20,7 +20,6 @@ namespace Tracing.Tests
     {
         private static int messageIterations = 10000;
         private static int trivialSize = 0x100000;
-        private static bool keepOutput = true;
 
         public static TraceConfiguration GetConfig(EventSource eventSource, string outputFile="default.netperf")
         {
@@ -47,7 +46,17 @@ namespace Tracing.Tests
 
         static int Main(string[] args)
         {
-            string outputFilename = System.IO.Path.GetTempPath() + Guid.NewGuid().ToString() + ".netperf";
+            bool keepOutput = false;
+            // Use the first arg as an output filename if there is one
+            string outputFilename = null;
+            if (args.Length >= 1) {
+                outputFilename = args[0];
+                keepOutput = true;
+            }
+            else {
+                outputFilename = System.IO.Path.GetTempPath() + Guid.NewGuid().ToString() + ".netperf";
+            }
+
             SimpleEventSource eventSource = new SimpleEventSource();
 
             Console.WriteLine("\tStart: Enable tracing.");
