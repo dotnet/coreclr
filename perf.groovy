@@ -37,6 +37,10 @@ def static getOSGroup(def os) {
                     }
 
                     ['full_opt', 'min_opt'].each { opt_level ->
+                        if (isSmoketest && opt_level == 'min_opt') {
+                            return
+                        }
+
                         def architecture = arch
                         def jobName = isSmoketest ? "perf_perflab_${os}_${arch}_${opt_level}_${jit}_smoketest" : "perf_perflab_${os}_${arch}_${opt_level}_${jit}"
                         def testEnv = ""
