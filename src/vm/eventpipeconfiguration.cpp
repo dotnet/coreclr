@@ -10,7 +10,7 @@
 
 #ifdef FEATURE_PERFTRACING
 
-const WCHAR* EventPipeConfiguration::s_configurationProviderName = W("EventPipeConfigurationProvider");
+const WCHAR* EventPipeConfiguration::s_configurationProviderName = W("Microsoft-DotNETCore-EventPipeConfiguration");
 
 EventPipeConfiguration::EventPipeConfiguration()
 {
@@ -349,7 +349,7 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     memcpy(currentPtr, (BYTE*)providerName.GetUnicode(), providerNameLength);
     currentPtr += providerNameLength;
 
-    // Write the event ID.
+    // Write the event name as null-terminated unicode.
     memcpy(currentPtr, &eventID, sizeof(eventID));
     currentPtr += sizeof(eventID);
 

@@ -403,7 +403,7 @@ bool WriteToBuffer(const T &value, char *&buffer, unsigned int& offset, unsigned
         eventpipeImpl.write(
             "const WCHAR* %sName = W(\"%s\");\n" % (
                 providerPrettyName,
-                providerPrettyName
+                providerName
             )
         )
         eventpipeImpl.write(

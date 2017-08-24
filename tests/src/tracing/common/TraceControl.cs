@@ -28,21 +28,21 @@ namespace Tracing.Tests.Common
             TraceConfiguration config = new TraceConfiguration(outputFile, circularBufferMB);
             // Setup the provider values.
             // Public provider.
-            string providerName = "DotNETRuntime";
+            string providerName = "Microsoft-Windows-DotNETRuntime";
             UInt64 keywords = 0x4c14fccbd;
 
             // Enable the provider.
             config.EnableProvider(providerName, keywords, level);
 
             // Private provider.
-            providerName = "DotNETRuntimePrivate";
+            providerName = "Microsoft-Windows-DotNETRuntimePrivate";
             keywords = 0x4002000b;
 
             // Enable the provider.
             config.EnableProvider(providerName, keywords, level);
 
             // Sample profiler.
-            providerName = "SampleProfileProvider";
+            providerName = "Microsoft-DotNETCore-SampleProfiler";
             keywords = 0x0;
 
             // Enable the provider.

@@ -358,7 +358,7 @@ public:
     static void QCALLTYPE Disable();
 
     static INT_PTR QCALLTYPE CreateProvider(
-        SString providerName,
+        __in_z LPCWSTR providerName,
         EventPipeCallback pCallbackFunc);
 
     static INT_PTR QCALLTYPE DefineEvent(

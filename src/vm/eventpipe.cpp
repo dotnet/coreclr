@@ -700,7 +700,7 @@ void QCALLTYPE EventPipeInternal::Disable()
 }
 
 INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
-    SString providerName,
+    __in_z LPCWSTR providerName,
     EventPipeCallback pCallbackFunc)
 {
     QCALL_CONTRACT;
@@ -709,7 +709,7 @@ INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
 
     BEGIN_QCALL;
 
-    pProvider = EventPipe::CreateProvider(providerName, pCallbackFunc, NULL);
+    pProvider = EventPipe::CreateProvider(SL(providerName), pCallbackFunc, NULL);
 
     END_QCALL;
 

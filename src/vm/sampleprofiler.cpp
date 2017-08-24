@@ -13,7 +13,7 @@
 
 Volatile<BOOL> SampleProfiler::s_profilingEnabled = false;
 Thread* SampleProfiler::s_pSamplingThread = NULL;
-const WCHAR* SampleProfiler::s_providerName = W("SampleProfilerProvider");
+const WCHAR* SampleProfiler::s_providerName = W("Microsoft-DotNETCore-SampleProfiler");
 EventPipeProvider* SampleProfiler::s_pEventPipeProvider = NULL;
 EventPipeEvent* SampleProfiler::s_pThreadTimeEvent = NULL;
 BYTE* SampleProfiler::s_pPayloadExternal = NULL;
