@@ -41,25 +41,25 @@ class EventPipeEventPayload
 {
 private:
     BYTE *m_pData;
-    EventData **m_pBlobs;
-    unsigned int m_blobCount;
+    EventData **m_pEventData;
+    unsigned int m_eventDataCount;
     unsigned int m_size;
-    bool m_performedAllocation;
+    bool m_allocatedData;
 
-    // If the data is stored only as an array of blobs, create a flat buffer and copy into it
+    // If the data is stored only as an array of EventData objects, create a flat buffer and copy into it
     void Flatten();
 
 public:
     // Build this payload with a flat buffer inside
     EventPipeEventPayload(BYTE *pData, unsigned int length);
 
-    // Build this payload to contain an array of EventData blobs
-    EventPipeEventPayload(EventData **pBlobs, unsigned int blobCount);
+    // Build this payload to contain an array of EventData objects
+    EventPipeEventPayload(EventData **pEventData, unsigned int eventDataCount);
 
     // If a buffer was allocated internally, delete it
     ~EventPipeEventPayload();
     
-    // Copy the data (whether flat or array of blobs) into a flat buffer at pDst
+    // Copy the data (whether flat or array of objects) into a flat buffer at pDst
     // Assumes that pDst points to an appropriatly sized buffer
     void CopyData(BYTE *pDst);
 
@@ -84,11 +84,11 @@ public:
         return m_size;
     }
 
-    EventData** GetBlobData() const
+    EventData** GetEventDataArray() const
     {
         LIMITED_METHOD_CONTRACT;
 
-        return m_pBlobs;
+        return m_pEventData;
     }
 };
 
@@ -249,13 +249,13 @@ class EventPipe
         // Delete a provider.
         static void DeleteProvider(EventPipeProvider *pProvider);
 
-        // Write out an event.
+        // Write out an event from a flat buffer.
         // Data is written as a serialized blob matching the ETW serialization conventions.
         static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
-        // Write out an event.
+        // Write out an event from an EventData array.
         // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+        static void WriteEvent(EventPipeEvent &event, EventData **pEventData, unsigned int eventDataCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
         // Write out a sample profile event.
         static void WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData = NULL, unsigned int length = 0);
@@ -383,8 +383,8 @@ public:
     static void QCALLTYPE WriteEventData(
         INT_PTR eventHandle,
         unsigned int eventID,
-        EventData **pBlobs,
-        unsigned int blobCount,
+        EventData **pEventData,
+        unsigned int eventDataCount,
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 };
 

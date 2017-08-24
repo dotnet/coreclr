@@ -51,14 +51,14 @@ EventPipeEventPayload::EventPipeEventPayload(BYTE *pData, unsigned int length)
     CONTRACTL_END;
 
     m_pData = pData;
-    m_pBlobs = NULL;
-    m_blobCount = 0;
-    m_performedAllocation = false;
+    m_pEventData = NULL;
+    m_eventDataCount = 0;
+    m_allocatedData = false;
 
     m_size = length;
 }
 
-EventPipeEventPayload::EventPipeEventPayload(EventData **pBlobs, unsigned int blobCount)
+EventPipeEventPayload::EventPipeEventPayload(EventData **pEventData, unsigned int eventDataCount)
 {
     CONTRACTL
     {
@@ -69,24 +69,25 @@ EventPipeEventPayload::EventPipeEventPayload(EventData **pBlobs, unsigned int bl
     CONTRACTL_END;
 
     m_pData = NULL;
-    m_pBlobs = pBlobs;
-    m_blobCount = blobCount;
-    m_performedAllocation = false;
+    m_pEventData = pEventData;
+    m_eventDataCount = eventDataCount;
+    m_allocatedData = false;
 
     S_UINT32 tmp_size = S_UINT32(0);
-    for (unsigned int i=0; i<m_blobCount; i++)
+    for (unsigned int i=0; i<m_eventDataCount; i++)
     {
-        tmp_size += S_UINT32(m_pBlobs[i]->Size);
+        tmp_size += S_UINT32(m_pEventData[i]->Size);
     }
 
     if (tmp_size.IsOverflow())
     {
         // If there is an overflow, drop the data and create an empty payload
-        m_pBlobs = NULL;
-        m_blobCount = 0;
+        m_pEventData = NULL;
+        m_eventDataCount = 0;
         m_size = 0;
     }
-    else{
+    else
+    {
         m_size = tmp_size.Value();
     }
 }
@@ -101,7 +102,7 @@ EventPipeEventPayload::~EventPipeEventPayload()
     }
     CONTRACTL_END;
 
-    if(m_performedAllocation && m_pData != NULL)
+    if(m_allocatedData && m_pData != NULL)
     {
         delete[] m_pData;
         m_pData = NULL;
@@ -120,13 +121,13 @@ void EventPipeEventPayload::Flatten()
 
     if(m_size > 0)
     {
-        if (!this->IsFlattened())
+        if (!IsFlattened())
         {
             BYTE* tmp_pData = new (nothrow) BYTE[m_size];
             if (tmp_pData != NULL)
             {
-                m_performedAllocation = true;
-                this->CopyData(tmp_pData);
+                m_allocatedData = true;
+                CopyData(tmp_pData);
                 m_pData = tmp_pData;
             }
         }
@@ -145,18 +146,18 @@ void EventPipeEventPayload::CopyData(BYTE *pDst)
 
     if(m_size > 0)
     {
-        if(this->IsFlattened())
+        if(IsFlattened())
         {
             memcpy(pDst, m_pData, m_size);
         }
 
-        else if(m_pBlobs != NULL)
+        else if(m_pEventData != NULL)
         {
             unsigned int offset = 0;
-            for(unsigned int i=0; i<m_blobCount; i++)
+            for(unsigned int i=0; i<m_eventDataCount; i++)
             {
-                memcpy(pDst + offset, (BYTE*)m_pBlobs[i]->Ptr, m_pBlobs[i]->Size);
-                offset += m_pBlobs[i]->Size;
+                memcpy(pDst + offset, (BYTE*)m_pEventData[i]->Ptr, m_pEventData[i]->Size);
+                offset += m_pEventData[i]->Size;
             }
         }
     }
@@ -172,9 +173,9 @@ BYTE* EventPipeEventPayload::GetFlatData()
     }
     CONTRACTL_END;
 
-    if (!this->IsFlattened())
+    if (!IsFlattened())
     {
-        this->Flatten();
+        Flatten();
     }
     return m_pData;
 }
@@ -437,7 +438,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
     EventPipe::WriteEventInternal(event, payload, pActivityId, pRelatedActivityId);
 }
 
-void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned int blobCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
+void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pEventData, unsigned int eventDataCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
 {
     CONTRACTL
     {
@@ -447,7 +448,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pBlobs, unsigned i
     }
     CONTRACTL_END;
 
-    EventPipeEventPayload payload(pBlobs, blobCount);
+    EventPipeEventPayload payload(pEventData, eventDataCount);
     EventPipe::WriteEventInternal(event, payload, pActivityId, pRelatedActivityId);
 }
 
@@ -777,8 +778,8 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
 void QCALLTYPE EventPipeInternal::WriteEventData(
     INT_PTR eventHandle,
     unsigned int eventID,
-    EventData **pBlobs,
-    unsigned int blobCount,
+    EventData **pEventData,
+    unsigned int eventDataCount,
     LPCGUID pActivityId,
     LPCGUID pRelatedActivityId)
 {
@@ -787,7 +788,7 @@ void QCALLTYPE EventPipeInternal::WriteEventData(
 
     _ASSERTE(eventHandle != NULL);
     EventPipeEvent *pEvent = reinterpret_cast<EventPipeEvent *>(eventHandle);
-    EventPipe::WriteEvent(*pEvent, pBlobs, blobCount, pActivityId, pRelatedActivityId);
+    EventPipe::WriteEvent(*pEvent, pEventData, eventDataCount, pActivityId, pRelatedActivityId);
 
     END_QCALL;
 }
