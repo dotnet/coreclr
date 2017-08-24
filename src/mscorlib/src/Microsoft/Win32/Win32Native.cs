@@ -676,14 +676,6 @@ namespace Microsoft.Win32
         // From WinStatus.h
         internal const int STATUS_ACCOUNT_RESTRICTION = unchecked((int)0xC000006E);
 
-        // Use this to translate error codes like the above into HRESULTs like
-        // 0x80070006 for ERROR_INVALID_HANDLE
-        internal static int MakeHRFromErrorCode(int errorCode)
-        {
-            BCLDebug.Assert((0xFFFF0000 & errorCode) == 0, "This is an HRESULT, not an error code!");
-            return unchecked(((int)0x80070000) | errorCode);
-        }
-
         // Win32 Structs in N/Direct style
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         [BestFitMapping(false)]
