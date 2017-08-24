@@ -12,7 +12,7 @@ namespace System.Runtime.CompilerServices
     /// </summary>
     public sealed class RuntimeWrappedException : Exception
     {
-        private Object _wrappedException;
+        private Object m_wrappedException; // EE expects this name
 
 #if CORECLR
         private RuntimeWrappedException(Object thrownObject)
@@ -23,7 +23,9 @@ namespace System.Runtime.CompilerServices
 #endif
             : base(SR.RuntimeWrappedException)
         {
-            HResult = System.HResults.COR_E_RUNTIMEWRAPPED;
+            HResult = __HResults.COR_E_RUNTIMEWRAPPED;
+            m_wrappedException = thrownObject;
+        }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
@@ -32,7 +34,7 @@ namespace System.Runtime.CompilerServices
 
         public Object WrappedException
         {
-            get { return _wrappedException; }
+            get { return m_wrappedException; }
         }
     }
 }
