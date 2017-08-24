@@ -6893,8 +6893,13 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
     }
     else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_ADD_BYTE_OFFSET)->GetMemberDef())
     {
+#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
+        // 32 bit
         static BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_ADD, CEE_RET };
-
+#else
+        // 64 bit
+        static BYTE ilcode[] = { CEE_LDARG_0, CEE_CONV_U8, CEE_LDARG_1, CEE_ADD, CEE_CONV_I, CEE_RET };
+#endif // _TARGET_ARM_ || _TARGET_X86_
         methInfo->ILCode = const_cast<BYTE*>(ilcode);
         methInfo->ILCodeSize = sizeof(ilcode);
         methInfo->maxStack = 2;

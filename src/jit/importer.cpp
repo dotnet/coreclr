@@ -11280,6 +11280,19 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 op2 = impPopStack().val;
                 op1 = impPopStack().val;
 
+#ifdef FEATURE_CORECLR
+                if (IsOperArithmetic(oper))
+                {
+                    const var_types tiOp1 = op1->TypeGet();
+                    const var_types tiOp2 = op2->TypeGet();
+
+                    if (tiOp1 == TYP_BYREF && (tiOp2 != TYP_BYREF && tiOp2 != TYP_INT))
+                    {
+                        BADCODE("Address plus non-int32 is not allowed. See ECMA-335 @ Table III.2");
+                    }
+                }
+#endif // FEATURE_CORECLR
+
 #if !CPU_HAS_FP_SUPPORT
                 if (varTypeIsFloating(op1->gtType))
                 {

@@ -379,6 +379,7 @@
   IL_01bd:  br         IL_023a
 
   IL_01c2:  ldloca.s   V_11
+            conv.i8
   IL_01c4:  ldloc.0
   IL_01c5:  conv.i8
   IL_01c6:  ldc.i4.4
@@ -401,6 +402,7 @@
   IL_01f0:  br.s       IL_023a
 
   IL_01f2:  ldloca.s   V_11
+            conv.i8
   IL_01f4:  ldloc.0
   IL_01f5:  conv.i8
   IL_01f6:  ldc.i4.4

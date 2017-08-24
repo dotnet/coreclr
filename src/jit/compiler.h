@@ -3098,6 +3098,7 @@ public:
     static bool IsTargetIntrinsic(CorInfoIntrinsics intrinsicId);
     static bool IsMathIntrinsic(CorInfoIntrinsics intrinsicId);
     static bool IsMathIntrinsic(GenTreePtr tree);
+    static bool IsOperArithmetic(genTreeOps oper);
 
 private:
     //----------------- Importing the method ----------------------------------
