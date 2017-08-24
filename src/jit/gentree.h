@@ -865,7 +865,6 @@ public:
 #define GTF_USE_FLAGS   0x00001000 // Indicates that this node uses the flags bits.
 
 #define GTF_MAKE_CSE    0x00002000 // Hoisted expression: try hard to make this into CSE (see optPerformHoistExpr)
-
 #define GTF_DONT_CSE    0x00004000 // Don't bother CSE'ing this expr
 #define GTF_COLON_COND  0x00008000 // This node is conditionally executed (part of ? :)
 

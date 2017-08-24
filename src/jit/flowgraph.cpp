@@ -7056,10 +7056,16 @@ GenTreeCall* Compiler::fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls)
     return fgGetStaticsCCtorHelper(cls, info.compCompHnd->getSharedCCtorHelper(cls));
 }
 
+//------------------------------------------------------------------------------
+// fgAddrCouldBeNull : Check whether the address tree can represent null.
 //
-// Returns true unless the address expression could
-// never represent a NULL
 //
+// Arguments:
+//    addr     -  Address to check
+//
+// Return Value:
+//    True is address could be null; false otherwise
+
 bool Compiler::fgAddrCouldBeNull(GenTreePtr addr)
 {
     if ((addr->gtOper == GT_CNS_INT) && addr->IsIconHandle())
@@ -20869,8 +20875,6 @@ void Compiler::fgDebugCheckFlags(GenTreePtr tree)
             chkFlags |= GTF_ASG;
         }
 
-        /* Note that it is OK for treeFlags not to have a GTF_EXCEPT,
-           AssertionProp's non-Null may have cleared it */
         if (tree->OperMayThrow(this))
         {
             chkFlags |= GTF_EXCEPT;

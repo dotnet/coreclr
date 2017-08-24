@@ -5748,10 +5748,15 @@ GenTreePtr GenTree::gtGetParent(GenTreePtr** parentChildPtrPtr) const
     return parent;
 }
 
-/*****************************************************************************
- *
- *  Returns true if the given operator may cause an exception.
- */
+ //------------------------------------------------------------------------------
+ // OperMayThrow : Check whether the operation may throw.
+ //
+ //
+ // Arguments:
+ //    comp      -  Compiler instance
+ //
+ // Return Value:
+ //    True if the given operator may cause an exception
 
 bool GenTree::OperMayThrow(Compiler* comp)
 {
@@ -7893,6 +7898,7 @@ DONE:
 //
 // Notes:
 //    The caller must ensure that the original statement has been sequenced,
+//    and the side effect flags are updated on the statement nodes,
 //    but this method will sequence 'replacementTree', and insert it into the
 //    proper place in the statement sequence.
 
@@ -7976,26 +7982,26 @@ GenTreePtr Compiler::gtReplaceTree(GenTreePtr stmt, GenTreePtr tree, GenTreePtr 
 }
 
 //------------------------------------------------------------------------
-// gtUpdateSideEffects: Update the side effects for ancestors.
+// gtUpdateSideEffects: Update the side effects for statement tree nodes.
 //
 // Arguments:
-//    treeParent      - The immediate parent node.
-//    oldGtFlags      - The stale gtFlags.
-//    newGtFlags      - The new gtFlags.
-//
-//
-// Assumptions:
-//    Linear order of the stmt has been established.
-//
-// Notes:
-//    The routine is used for updating the stale side effect flags for ancestor
-//    nodes starting from treeParent up to the top-level stmt expr.
+//    stmt            - The statement to update side effects on
 
 void Compiler::gtUpdateSideEffects(GenTreePtr stmt)
 {
     fgWalkTree(&stmt->gtStmt.gtStmtExpr, fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
 }
 
+//------------------------------------------------------------------------
+// fgUpdateSideEffectsPre: Update the side effects based on the tree operation.
+//
+// Arguments:
+//    pTree            - Pointer to the tree to update the side effects
+//    fgWalkPre        - Walk data
+//
+// Notes:
+//    This method currently only updates GTF_EXCEPT and GTF_ASG flags. The other side effect
+//    flags may remain unnecessarily (conservatively) set.
 
 Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPre(GenTreePtr* pTree, fgWalkData* fgWalkPre)
 {
@@ -8025,6 +8031,17 @@ Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPre(GenTreePtr* pTree, fgWal
 
     return WALK_CONTINUE;
 }
+
+//------------------------------------------------------------------------
+// fgUpdateSideEffectsPost: Update the side effects of the parent based on the tree's flags.
+//
+// Arguments:
+//    pTree            - Pointer to the tree
+//    fgWalkPost        - Walk data
+//
+// Notes:
+//    The routine is used for updating the stale side effect flags for ancestor
+//    nodes starting from treeParent up to the top-level stmt expr.
 
 Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPost(GenTreePtr* pTree, fgWalkData* fgWalkPost)
 {
