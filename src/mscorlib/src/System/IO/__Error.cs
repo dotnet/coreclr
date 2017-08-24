@@ -16,7 +16,6 @@
 ===========================================================*/
 
 using System;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Win32Native = Microsoft.Win32.Win32Native;
 using System.Text;
