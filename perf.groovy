@@ -158,7 +158,7 @@ def static getOSGroup(def os) {
                                 }
                                 def jitt = ""
                                 if (jit != 'ryujit') {
-                                    jitt = '\\W+${jit}'
+                                    jitt = "\\W+${jit}"
                                 }
 
                                 builder.triggerOnlyOnComment()
@@ -246,7 +246,7 @@ def static getOSGroup(def os) {
 
                         def jitt = ""
                         if (jit != 'ryujit') {
-                            jitt = '\\W+${jit}'
+                            jitt = "\\W+${jit}"
                         }
 
                         TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
@@ -649,7 +649,7 @@ parallel(
                         }
                         def jitt = ""
                         if (jit != 'ryujit') {
-                            jitt = '\\W+${jit}'
+                            jitt = "\\W+${jit}"
                         }
 
                         TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
