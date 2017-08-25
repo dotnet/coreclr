@@ -10,17 +10,15 @@ internal partial class Interop
 {
     internal partial class FileApiInterop
     {
-#pragma warning disable BCL0015 // Not part of our whitelist
-        [DllImport("FileApiInterop.dll", EntryPoint = "CreateFile2FromApp", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern SafeFileHandle CreateFile2FromAppPrivate(
+        [DllImport(Libraries.Kernel32, EntryPoint = "CreateFile2", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern SafeFileHandle CreateFile2Private(
             string lpFileName,
             int dwDesiredAccess,
             FileShare dwShareMode,
             FileMode dwCreationDisposition,
             ref Kernel32.CREATEFILE2_EXTENDED_PARAMETERS pCreateExParams);
-#pragma warning restore BCL0015
 
-        internal static SafeFileHandle CreateFile2FromApp(
+        internal static SafeFileHandle CreateFile2(
             string lpFileName,
             int dwDesiredAccess,
             FileShare dwShareMode,
@@ -28,7 +26,7 @@ internal partial class Interop
             ref Kernel32.CREATEFILE2_EXTENDED_PARAMETERS pCreateExParams)
         {
             lpFileName = PathInternal.EnsureExtendedPrefixOverMaxPath(lpFileName);
-            return CreateFile2FromAppPrivate(lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, ref pCreateExParams);
+            return CreateFile2Private(lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, ref pCreateExParams);
         }
     }
 }
