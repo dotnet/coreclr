@@ -2,10 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers;
+using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
+using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
-using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
+using System.Runtime.InteropServices;
 
 namespace System
 {
@@ -58,7 +61,7 @@ namespace System
 
             int arrayLength = array.Length;
             if ((uint)start > (uint)arrayLength)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+                ThrowHelper.ThrowArgumentOutOfRangeException();
 
             _arrayOrOwnedMemory = array;
             _index = start;
@@ -84,7 +87,7 @@ namespace System
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+                ThrowHelper.ThrowArgumentOutOfRangeException();
 
             _arrayOrOwnedMemory = array;
             _index = start;
@@ -180,7 +183,7 @@ namespace System
             }
         }
 
-        public MemoryHandle Retain(bool pin = false)
+        public unsafe MemoryHandle Retain(bool pin = false)
         {
             MemoryHandle memoryHandle;
             if (pin)
@@ -192,11 +195,8 @@ namespace System
                 else
                 {
                     var handle = GCHandle.Alloc(Unsafe.As<T[]>(_arrayOrOwnedMemory), GCHandleType.Pinned);
-                    unsafe
-                    {
-                        var pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
-                        memoryHandle = new MemoryHandle(null, pointer, handle);
-                    }
+                    void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
+                    memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
             }
             else
@@ -235,7 +235,7 @@ namespace System
                 return true;
             }
 
-            arraySegment = default;
+            arraySegment = default(ArraySegment<T>);
             return false;
         }
 
@@ -278,7 +278,17 @@ namespace System
         [EditorBrowsable( EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return HashingHelper.CombineHashCodes(_arrayOrOwnedMemory.GetHashCode(), (_index & bitMask).GetHashCode(), _length.GetHashCode());
+            return CombineHashCodes(_arrayOrOwnedMemory.GetHashCode(), (_index & bitMask).GetHashCode(), _length.GetHashCode());
+        }
+        
+        private static int CombineHashCodes(int left, int right)
+        {
+            return ((left << 5) + left) ^ right;
+        }
+
+        private static int CombineHashCodes(int h1, int h2, int h3)
+        {
+            return CombineHashCodes(CombineHashCodes(h1, h2), h3);
         }
 
     }

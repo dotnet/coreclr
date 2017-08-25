@@ -13,15 +13,15 @@ namespace System.Buffers
         void* _pointer;
         GCHandle _handle;
 
-        bool _disposed = false;
-
-        public MemoryHandle(IRetainable owner, void* pinnedPointer = null, GCHandle handle = default)
+        [CLSCompliant(false)]
+        public MemoryHandle(IRetainable owner, void* pinnedPointer = null, GCHandle handle = default(GCHandle))
         {
             _pointer = pinnedPointer;
             _handle = handle;
             _owner = owner;
         }
 
+        [CLSCompliant(false)]
         public void* PinnedPointer 
         {
             get 
@@ -33,32 +33,18 @@ namespace System.Buffers
 
         public void Dispose()
         { 
-            Dispose(true);
-            GC.SuppressFinalize(this);           
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (_disposed)
-                return; 
-
-            if (disposing) 
+            if (_handle.IsAllocated) 
             {
-                if (_handle.IsAllocated) 
-                {
-                    _handle.Free();
-                }
-
-                if (_owner != null) 
-                {
-                    _owner.Release();
-                    _owner = null;
-                }
+                _handle.Free();
             }
 
-            _pointer = null;
+            if (_owner != null) 
+            {
+                _owner.Release();
+                _owner = null;
+            }
 
-            _disposed = true;
+            _pointer = null;           
         }
         
     }
