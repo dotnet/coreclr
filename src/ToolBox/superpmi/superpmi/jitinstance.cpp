@@ -212,8 +212,7 @@ HRESULT JitInstance::StartUp(char*          PathToJit,
 
 bool JitInstance::reLoad(MethodContext* firstContext)
 {
-    // TODO: Memory leaks here, but CILJit::ProcessShutdownWork is very expensive.
-    FreeLibrary(hLib); 
+    FreeLibrary(hLib);
 
     // Load Library
     hLib = ::LoadLibraryA(PathToTempJit);
@@ -429,4 +428,19 @@ void JitInstance::freeArray(void* array)
 void JitInstance::freeLongLivedArray(void* array)
 {
     HeapFree(ourHeap, 0, array);
+}
+
+// Reset JitConfig, that stores Enviroment variables.
+bool JitInstance::resetConfig(MethodContext* firstContext)
+{
+    if (pnjitStartup != nullptr)
+    {
+        mc = firstContext;
+        ICorJitHost* newHost = new JitHost(*this);
+        pnjitStartup(newHost);
+        delete jitHost;
+        jitHost = newHost;
+        return true;
+    }
+    return false;
 }
