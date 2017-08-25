@@ -53,7 +53,7 @@ void record_global_mechanism (int mech_index)
 }
 #endif //GC_CONFIG_DRIVEN
 
-int32_t g_bLowMemoryFromHost = 0;
+int32_t g_bLowMemoryFromHost = 1;
 
 #ifdef WRITE_BARRIER_CHECK
 
