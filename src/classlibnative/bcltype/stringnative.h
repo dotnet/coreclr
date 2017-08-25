@@ -86,7 +86,6 @@ public:
 #endif // FEATURE_COMINTEROP
 
     static FCDECL3(INT32, Marvin32HashString, StringObject* thisRefUNSAFE, INT32 strLen, INT64 additionalEntropy);
-    static BOOL QCALLTYPE UseRandomizedHashing();
 
 };
 

@@ -258,18 +258,13 @@ class COMNlsHashProvider {
 public:
     COMNlsHashProvider();
 
-    INT32 HashString(LPCWSTR szStr, SIZE_T strLen, BOOL forceRandomHashing, INT64 additionalEntropy);
-    INT32 HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, BOOL forceRandomHashing, INT64 additionalEntropy);
-    INT32 HashiStringKnownLower80(LPCWSTR lpszStr, INT32 strLen, BOOL forceRandomHashing, INT64 additionalEntropy);
+    INT32 HashString(LPCWSTR szStr, SIZE_T strLen, INT64 additionalEntropy);
+    INT32 HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, INT64 additionalEntropy);
 
     static COMNlsHashProvider s_NlsHashProvider;
 
-    void SetUseRandomHashing(BOOL useRandomHashing) { LIMITED_METHOD_CONTRACT; bUseRandomHashing = useRandomHashing; }
-    BOOL GetUseRandomHashing() { LIMITED_METHOD_CONTRACT; return bUseRandomHashing; }
-
 
 private:
-    BOOL bUseRandomHashing;
     PBYTE pEntropy;
     PCSYMCRYPT_MARVIN32_EXPANDED_SEED pDefaultSeed;
 

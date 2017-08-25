@@ -140,7 +140,7 @@ INT32 QCALLTYPE COMNlsInfo::InternalGetGlobalizedHashCode(INT_PTR handle, LPCWST
             NewApis::LCMapStringEx(handle != NULL ? NULL : localeName, dwFlags, string, length, (LPWSTR)pByte, byteCount, NULL,NULL, (LPARAM) handle);
         }
 
-        iReturnHash = COMNlsHashProvider::s_NlsHashProvider.HashSortKey(pByte, byteCount, true, additionalEntropy);
+        iReturnHash = COMNlsHashProvider::s_NlsHashProvider.HashSortKey(pByte, byteCount, additionalEntropy);
     }
     END_QCALL;
     return(iReturnHash);

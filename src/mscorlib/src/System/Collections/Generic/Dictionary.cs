@@ -92,7 +92,7 @@ namespace System.Collections.Generic
             if (capacity > 0) Initialize(capacity);
             this.comparer = comparer ?? EqualityComparer<TKey>.Default;
 
-            if (HashHelpers.s_UseRandomizedStringHashing && this.comparer == EqualityComparer<string>.Default)
+            if (this.comparer == EqualityComparer<string>.Default)
             {
                 this.comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Default;
             }
@@ -454,10 +454,8 @@ namespace System.Collections.Generic
             buckets[targetBucket] = index;
             version++;
 
-            // In case we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
-            // in this case will be EqualityComparer<string>.Default.
-            // Note, randomized string hashing is turned on by default on coreclr so EqualityComparer<string>.Default will 
-            // be using randomized string hashing
+            // If we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
+            // i.e. EqualityComparer<string>.Default.
 
             if (collisionCount > HashHelpers.HashCollisionThreshold && comparer == NonRandomizedStringEqualityComparer.Default)
             {

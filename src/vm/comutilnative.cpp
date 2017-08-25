@@ -2850,12 +2850,11 @@ COMNlsHashProvider::COMNlsHashProvider()
 {
     LIMITED_METHOD_CONTRACT;
 
-    bUseRandomHashing = FALSE;
     pEntropy = NULL;
     pDefaultSeed = NULL;
 }
 
-INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen, BOOL forceRandomHashing, INT64 additionalEntropy)
+INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen, INT64 additionalEntropy)
 {
     CONTRACTL {
         THROWS;
@@ -2864,154 +2863,49 @@ INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen, BOOL forceRan
     }
     CONTRACTL_END;
 
-    if(bUseRandomHashing || forceRandomHashing)
+    int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
+    
+    if(additionalEntropy == 0)
     {
-        int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
-        
-        if(additionalEntropy == 0)
-        {
-            SymCryptMarvin32(GetDefaultSeed(), (PCBYTE) szStr, strLen * sizeof(WCHAR), (PBYTE) &marvinResult);
-        }
-        else
-        {
-            SYMCRYPT_MARVIN32_EXPANDED_SEED seed;
-            CreateMarvin32Seed(additionalEntropy, &seed);
-            SymCryptMarvin32(&seed, (PCBYTE) szStr, strLen * sizeof(WCHAR), (PBYTE) &marvinResult);
-        }
-
-        return marvinResult[0] ^ marvinResult[1];
+        SymCryptMarvin32(GetDefaultSeed(), (PCBYTE) szStr, strLen * sizeof(WCHAR), (PBYTE) &marvinResult);
     }
     else
     {
-        return ::HashString(szStr);
-    }
-}
-
-
-INT32 COMNlsHashProvider::HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, BOOL forceRandomHashing, INT64 additionalEntropy)
-{
-    CONTRACTL {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if(bUseRandomHashing || forceRandomHashing)
-    {
-        int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
-        
-        // Sort Keys are terminated with a null byte which we didn't hash using the old algorithm, 
-        // so we don't have it with Marvin32 either.
-        if(additionalEntropy == 0)
-        {
-            SymCryptMarvin32(GetDefaultSeed(), pSrc, cbSrc - 1, (PBYTE) &marvinResult);
-        }
-        else
-        {
-            SYMCRYPT_MARVIN32_EXPANDED_SEED seed;       
-            CreateMarvin32Seed(additionalEntropy, &seed);
-            SymCryptMarvin32(&seed, pSrc, cbSrc - 1, (PBYTE) &marvinResult);
-        }
- 
-        return marvinResult[0] ^ marvinResult[1];
-    }
-    else
-    {
-        // Ok, lets build the hashcode -- mostly lifted from GetHashCode() in String.cs, for strings.
-        int hash1 = 5381;
-        int hash2 = hash1;
-        const BYTE *pB = pSrc;
-        BYTE    c;
-
-        while (pB != 0 && *pB != 0) {
-            hash1 = ((hash1 << 5) + hash1) ^ *pB;
-            c = pB[1];
-
-            //
-            // FUTURE: Update NewAPis::LCMapStringEx to perhaps use a different, bug free, Win32 API on Win2k3 to workaround the issue discussed below.
-            //
-            // On Win2k3 Server, LCMapStringEx(LCMAP_SORTKEY) output does not correspond to CompareString in all cases, breaking the .NET GetHashCode<->Equality Contract
-            // Due to a fluke in our GetHashCode method, we avoided this issue due to the break out of the loop on the binary-zero byte.
-            //
-            if (c == 0)
-                break;
-
-            hash2 = ((hash2 << 5) + hash2) ^ c;
-            pB += 2;
-        }
-
-        return hash1 + (hash2 * 1566083941);
-
-    }
-
-}
-
-INT32 COMNlsHashProvider::HashiStringKnownLower80(LPCWSTR szStr, INT32 strLen, BOOL forceRandomHashing, INT64 additionalEntropy)
-{
-    CONTRACTL {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if(bUseRandomHashing || forceRandomHashing)
-    {
-        WCHAR buf[SYMCRYPT_MARVIN32_INPUT_BLOCK_SIZE * 8];
-        SYMCRYPT_MARVIN32_STATE marvinState;
         SYMCRYPT_MARVIN32_EXPANDED_SEED seed;
+        CreateMarvin32Seed(additionalEntropy, &seed);
+        SymCryptMarvin32(&seed, (PCBYTE) szStr, strLen * sizeof(WCHAR), (PBYTE) &marvinResult);
+    }
 
-        if(additionalEntropy == 0)
-        {
-            SymCryptMarvin32Init(&marvinState, GetDefaultSeed());
-        }
-        else
-        {
-            CreateMarvin32Seed(additionalEntropy, &seed);
-            SymCryptMarvin32Init(&marvinState, &seed);
-        }
+    return marvinResult[0] ^ marvinResult[1];
+}
 
-        LPCWSTR szEnd = szStr + strLen;
 
-        const UINT A_TO_Z_RANGE = (UINT)('z' - 'a');
+INT32 COMNlsHashProvider::HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, INT64 additionalEntropy)
+{
+    CONTRACTL {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
 
-        while (szStr != szEnd)
-        {
-            size_t count = (sizeof(buf) / sizeof(buf[0]));
-
-            if ((size_t)(szEnd - szStr) < count)
-                count = (size_t)(szEnd - szStr);
-
-            for (size_t i = 0; i<count; i++)
-            {
-                WCHAR c = szStr[i];
-
-                if ((UINT)(c - 'a') <= A_TO_Z_RANGE)  // if (c >='a' && c <= 'z') 
-                {
-                   //If we have a lowercase character, ANDing off 0x20
-                   // will make it an uppercase character.
-                   c &= ~0x20;
-                }
-
-                buf[i] = c;
-            }
-
-            szStr += count;
-
-            SymCryptMarvin32Append(&marvinState, (PCBYTE) &buf, sizeof(WCHAR) * count);
-        }
-
-        int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
-        SymCryptMarvin32Result(&marvinState, (PBYTE) &marvinResult);
-        return marvinResult[0] ^ marvinResult[1];
+    int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
+    
+    // Sort Keys are terminated with a null byte which we didn't hash using the old algorithm, 
+    // so we don't have it with Marvin32 either.
+    if(additionalEntropy == 0)
+    {
+        SymCryptMarvin32(GetDefaultSeed(), pSrc, cbSrc - 1, (PBYTE) &marvinResult);
     }
     else
     {
-        return ::HashiStringKnownLower80(szStr);
+        SYMCRYPT_MARVIN32_EXPANDED_SEED seed;       
+        CreateMarvin32Seed(additionalEntropy, &seed);
+        SymCryptMarvin32(&seed, pSrc, cbSrc - 1, (PBYTE) &marvinResult);
     }
-}
 
+    return marvinResult[0] ^ marvinResult[1];
+}
 
 void COMNlsHashProvider::InitializeDefaultSeed()
 {
@@ -3097,23 +2991,6 @@ void COMNlsHashProvider::CreateMarvin32Seed(INT64 additionalEntropy, PSYMCRYPT_M
 
     SymCryptMarvin32ExpandSeed(pExpandedMarvinSeed, (PCBYTE) &entropy, SYMCRYPT_MARVIN32_SEED_SIZE);
 }
-
-#ifdef FEATURE_COREFX_GLOBALIZATION
-INT32 QCALLTYPE CoreFxGlobalization::HashSortKey(PCBYTE pSortKey, INT32 cbSortKey, BOOL forceRandomizedHashing, INT64 additionalEntropy)
-{
-    QCALL_CONTRACT;
-
-    INT32 retVal = 0;
-
-    BEGIN_QCALL;
-
-    retVal = COMNlsHashProvider::s_NlsHashProvider.HashSortKey(pSortKey, cbSortKey, forceRandomizedHashing, additionalEntropy);
-
-    END_QCALL;
-
-    return retVal;
-}
-#endif //FEATURE_COREFX_GLOBALIZATION
 
 static MethodTable * g_pStreamMT;
 static WORD g_slotBeginRead, g_slotEndRead;

@@ -113,7 +113,6 @@ DEFINE_CLASS_U(System,       AppDomainSetup,                 AppDomainSetupObjec
 DEFINE_FIELD_U(_Entries,                           AppDomainSetupObject,   m_Entries)
 DEFINE_FIELD_U(_AppBase,                           AppDomainSetupObject,   m_AppBase)
 DEFINE_FIELD_U(_CompatFlags,                       AppDomainSetupObject,   m_CompatFlags)
-DEFINE_FIELD_U(_UseRandomizedStringHashing,        AppDomainSetupObject,   m_UseRandomizedStringHashing)
 
 DEFINE_CLASS(ARG_ITERATOR,          System,                 ArgIterator)
 DEFINE_CLASS_U(System,              ArgIterator,            VARARGS)  // Includes a SigPointer.

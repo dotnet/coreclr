@@ -1898,8 +1898,6 @@ class AppDomainSetupObject : public Object
     PTRARRAYREF m_Entries;
     STRINGREF m_AppBase;
     OBJECTREF m_CompatFlags;
-    CLR_BOOL m_UseRandomizedStringHashing;
-
 
   protected:
     AppDomainSetupObject() { LIMITED_METHOD_CONTRACT; }
