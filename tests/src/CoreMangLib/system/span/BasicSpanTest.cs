@@ -133,7 +133,7 @@ class My
 
         try
         {
-            new Span<ValueTypeWithPointers>(pointerToStack).Slice(1);
+            new Span<ValueTypeWithPointers>(pointerToStack, 1);
             AssertTrue(false, "Expected exception for value types with references not thrown");
         }
         catch (System.ArgumentException ex)
@@ -144,7 +144,7 @@ class My
 
         try
         {
-            new Span<ReferenceType>(pointerToStack).Slice(1);
+            new Span<ReferenceType>(pointerToStack, 1);
             AssertTrue(false, "Expected exception for reference types not thrown");
         }
         catch (System.ArgumentException ex)
@@ -377,7 +377,7 @@ class My
             });
         byte* pointerToStack = stackalloc byte[256];
 
-        var result = source.TryCopyTo(new Span<byte>(pointerToStack).Slice(4));
+        var result = source.TryCopyTo(new Span<byte>(pointerToStack, 4));
 
         AssertTrue(result, "Failed to copy value types without pointers to unamanaged memory");
         for (int i = 0; i < 4; i++)
