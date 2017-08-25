@@ -4999,6 +4999,15 @@ GetProcessAffinityMask(
   OUT PDWORD_PTR lpSystemAffinityMask
 );
 
+PALIMPORT
+BOOL
+PALAPI
+SetThreadIdealProcessorEx(
+  IN HANDLE hThread,
+  IN PPROCESSOR_NUMBER lpIdealProcessor,
+  OUT PPROCESSOR_NUMBER lpPreviousIdealProcessor
+);
+
 //
 // The types of events that can be logged.
 //
