@@ -507,7 +507,8 @@ struct MSLAYOUT DacpReJitData : ZeroInit<DacpReJitData>
     Flags                           flags;
     CLRDATA_ADDRESS                 NativeCodeAddr;
 };
-    
+
+
 struct MSLAYOUT DacpMethodDescData : ZeroInit<DacpMethodDescData>
 {
     BOOL            bHasNativeCode;
@@ -551,6 +552,7 @@ struct MSLAYOUT DacpMethodDescData : ZeroInit<DacpMethodDescData>
             );
     }
 };
+
 
 struct MSLAYOUT DacpMethodDescTransparencyData : ZeroInit<DacpMethodDescTransparencyData>
 {
