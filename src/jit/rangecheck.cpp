@@ -190,7 +190,7 @@ bool RangeCheck::BetweenBounds(Range& range, int lower, GenTreePtr upper)
     return false;
 }
 
-bool RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreePtr treeParent)
+void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreePtr treeParent)
 {
     // Check if we are dealing with a bounds check node.
     GenTreePtr tree;
@@ -205,13 +205,13 @@ bool RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
     }
     else
     {
-        return false;
+        return;
     }
 
     // If we are not looking at array bounds check, bail.
     if (!tree->OperIsBoundsCheck())
     {
-        return false;
+        return;
     }
 
     GenTreeBoundsChk* bndsChk = tree->AsBoundsChk();
@@ -248,7 +248,7 @@ bool RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
         unsigned iconFlags = 0;
         if (!m_pCompiler->optIsTreeKnownIntValue(true, treeIndex, &idxVal, &iconFlags))
         {
-            return false;
+            return;
         }
 
         JITDUMP("[RangeCheck::OptimizeRangeCheck] Is index %d in <0, arrLenVn VN%X sz:%d>.\n", idxVal, arrLenVn,
@@ -258,7 +258,7 @@ bool RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
             JITDUMP("Removing range check\n");
             m_pCompiler->compCurBB = block;
             m_pCompiler->optRemoveRangeCheck((treeParent != nullptr) ? treeParent : tree, stmt);
-            return true;
+            return;
         }
     }
 
@@ -276,13 +276,13 @@ bool RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
     {
         // Note: If we had stack depth too deep in the GetRange call, we'd be
         // too deep even in the DoesOverflow call. So return early.
-        return false;
+        return;
     }
 
     if (DoesOverflow(block, stmt, treeIndex, path))
     {
         JITDUMP("Method determined to overflow.\n");
-        return false;
+        return;
     }
 
     JITDUMP("Range value %s\n", range.ToString(m_pCompiler->getAllocatorDebugOnly()));
@@ -292,7 +292,7 @@ bool RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
     // If upper or lower limit is unknown, then return.
     if (range.UpperLimit().IsUnknown() || range.LowerLimit().IsUnknown())
     {
-        return false;
+        return;
     }
 
     // Is the range between the lower and upper bound values.
@@ -301,9 +301,9 @@ bool RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
         JITDUMP("[RangeCheck::OptimizeRangeCheck] Between bounds\n");
 
         m_pCompiler->optRemoveRangeCheck((treeParent != nullptr) ? treeParent : tree, stmt);
-        return true;
+        return;
     }
-    return false;
+    return;
 }
 
 void RangeCheck::Widen(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, SearchPath* path, Range* pRange)
@@ -1371,15 +1371,7 @@ void RangeCheck::OptimizeRangeChecks()
                 {
                     return;
                 }
-                if (OptimizeRangeCheck(block, stmt, tree))
-                {
-                    optimizedRangeCheck = true;
-                }
-            }
-            if (optimizedRangeCheck)
-            {
-                //m_pCompiler->fgMorphBlockStmt(block, stmt->AsStmt() DEBUGARG("OptimizeRangeChecks"));
-                m_pCompiler->gtUpdateSideEffects(stmt);
+                OptimizeRangeCheck(block, stmt, tree);
             }
         }
     }

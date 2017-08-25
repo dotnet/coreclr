@@ -3201,7 +3201,8 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 if (stmtInfoDirty)
                 {
                     gtUpdateSideEffects(compCurStmt);
-                    //fgMorphBlockStmt(block, compCurStmt->AsStmt() DEBUGARG("fgInterBlockLocalVarLiveness"));
+                    gtSetStmtInfo(compCurStmt);
+                    fgSetStmtSeq(compCurStmt);
                 }
 
 #ifdef DEBUG

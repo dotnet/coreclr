@@ -1977,7 +1977,7 @@ GenTreePtr Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedTok
         }
 
         if (i != 0)
-        {            
+        {
             slotPtrTree = gtNewOperNode(GT_IND, TYP_I_IMPL, slotPtrTree);
             slotPtrTree->gtFlags |= GTF_IND_NONFAULTING;
             slotPtrTree->gtFlags |= GTF_IND_INVARIANT;

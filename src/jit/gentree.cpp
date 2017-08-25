@@ -8037,7 +8037,7 @@ Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPre(GenTreePtr* pTree, fgWal
 //
 // Arguments:
 //    pTree            - Pointer to the tree
-//    fgWalkPost        - Walk data
+//    fgWalkPost       - Walk data
 //
 // Notes:
 //    The routine is used for updating the stale side effect flags for ancestor

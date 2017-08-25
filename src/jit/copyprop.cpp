@@ -287,13 +287,15 @@ bool Compiler::optIsSsaLocal(GenTreePtr tree)
     return tree->IsLocal() && !fgExcludeFromSsa(tree->AsLclVarCommon()->GetLclNum());
 }
 
-/**************************************************************************************
- *
- * Perform copy propagation using currently live definitions on the current block's
- * variables. Also as new definitions are encountered update the "curSsaName" which
- * tracks the currently live definitions.
- *
- */
+ //------------------------------------------------------------------------------
+ // optBlockCopyProp : Perform copy propagation using currently live definitions on the current block's
+ //                    variables. Also as new definitions are encountered update the "curSsaName" which
+ //                    tracks the currently live definitions.
+ //
+ // Arguments:
+ //    block       -  Block the tree belongs to
+ //    curSsaName  -  The map from lclNum to its recently live definitions as a stack
+
 void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
 {
     JITDUMP("Copy Assertion for BB%02u\n", block->bbNum);

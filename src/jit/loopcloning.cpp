@@ -44,7 +44,6 @@ GenTreePtr LC_Array::ToGenTree(Compiler* comp)
         if (oper == ArrLen)
         {
             GenTreePtr arrLen = comp->gtNewArrLen(TYP_INT, arr, offsetof(CORINFO_Array, length));
-            //arrLen->gtFlags |= GTF_IND_NONFAULTING;
             return arrLen;
         }
         else

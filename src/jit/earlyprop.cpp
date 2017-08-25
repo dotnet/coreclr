@@ -200,7 +200,7 @@ void Compiler::optEarlyProp()
                 }
             }
 
-            // Morph the stmt and update the evaluation order if the stmt has been rewritten.
+            // Update side effects and the evaluation order if the stmt has been rewritten.
             if (isRewritten)
             {
                 gtUpdateSideEffects(stmt);

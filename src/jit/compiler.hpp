@@ -1121,6 +1121,18 @@ inline GenTreePtr Compiler::gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd, 
 
 /*****************************************************************************/
 
+//------------------------------------------------------------------------------
+// gtNewHelperCallNode : Helper to create a call helper node.
+//
+//
+// Arguments:
+//    helper    - Call helper
+//    type      - Type of the node
+//    args      - Call args
+//
+// Return Value:
+//    New CT_HELPER node
+
 inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args)
 {
     unsigned flags = this->s_helperCallProperties.NoThrow((CorInfoHelpFunc)helper) ? 0 : GTF_EXCEPT;

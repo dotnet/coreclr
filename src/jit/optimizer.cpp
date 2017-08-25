@@ -4914,8 +4914,6 @@ void Compiler::optPerformStaticOptimizations(unsigned loopNum, LoopCloneContext*
                 LcJaggedArrayOptInfo* arrIndexInfo = optInfo->AsLcJaggedArrayOptInfo();
                 compCurBB                          = arrIndexInfo->arrIndex.useBlock;
                 optRemoveRangeCheck(arrIndexInfo->arrIndex.bndsChks[arrIndexInfo->dim], arrIndexInfo->stmt);
-                //fgMorphBlockStmt(compCurBB, arrIndexInfo->stmt->AsStmt() DEBUGARG("optPerformStaticOptimizations"));
-                gtUpdateSideEffects(arrIndexInfo->stmt);
                 DBEXEC(dynamicPath, optDebugLogLoopCloning(arrIndexInfo->arrIndex.useBlock, arrIndexInfo->stmt));
             }
             break;
@@ -7917,10 +7915,12 @@ void Compiler::optRemoveTree(GenTreePtr deadTree, GenTreePtr keepList)
     fgWalkTreePre(&deadTree, optRemoveTreeVisitor, (void*)keepList);
 }
 
-/*****************************************************************************
- *
- *  Given an array index node, mark it as not needing a range check.
- */
+ //------------------------------------------------------------------------------
+ // optRemoveRangeCheck : Given an array index node, mark it as not needing a range check.
+ //
+ // Arguments:
+ //    tree   -  Range check tree
+ //    stmt   -  Statement the tree belongs to
 
 void Compiler::optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt)
 {
@@ -7954,7 +7954,7 @@ void Compiler::optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt)
     }
 #endif
 
-    GenTreePtr sideEffList = nullptr;    
+    GenTreePtr sideEffList = nullptr;
     
     gtExtractSideEffList(bndsChkTree, &sideEffList, GTF_ASG);
     
@@ -7974,6 +7974,8 @@ void Compiler::optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt)
         stmt->gtStmt.gtStmtExpr = (sideEffList != nullptr) ? sideEffList : gtNewNothingNode();
         stmt->gtStmt.gtStmtExpr->gtFlags |= GTF_DONT_CSE;
     }
+
+    gtUpdateSideEffects(stmt);
 
     /* Recalculate the gtCostSz, etc... */
     gtSetStmtInfo(stmt);
