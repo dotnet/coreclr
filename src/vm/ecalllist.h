@@ -127,7 +127,6 @@ FCFuncStart(gStringFuncs)
     FCFuncElement("TryGetTrailByte", COMString::FCTryGetTrailByte)
 #endif // FEATURE_COMINTEROP
     FCFuncElement("InternalMarvin32HashString", COMString::Marvin32HashString)
-    QCFuncElement("InternalUseRandomizedHashing", COMString::UseRandomizedHashing) 
 FCFuncEnd()
 
 FCFuncStart(gStringBufferFuncs)

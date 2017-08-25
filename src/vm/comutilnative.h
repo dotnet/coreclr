@@ -263,7 +263,6 @@ public:
 
     static COMNlsHashProvider s_NlsHashProvider;
 
-
 private:
     PBYTE pEntropy;
     PCSYMCRYPT_MARVIN32_EXPANDED_SEED pDefaultSeed;
@@ -277,7 +276,7 @@ private:
 #ifdef FEATURE_COREFX_GLOBALIZATION
 class CoreFxGlobalization {
 public:
-  static INT32 QCALLTYPE HashSortKey(PCBYTE pSortKey, INT32 cbSortKey, BOOL forceRandomizedHashing, INT64 additionalEntropy);
+  static INT32 QCALLTYPE HashSortKey(PCBYTE pSortKey, INT32 cbSortKey);
 };
 #endif // FEATURE_COREFX_GLOBALIZATION
 
