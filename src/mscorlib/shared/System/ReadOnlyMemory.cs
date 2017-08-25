@@ -17,11 +17,11 @@ namespace System
         // The highest order bit of _index is used to discern whether _arrayOrOwnedMemory is an array or an owned memory
         // if (_index >> 31) == 1, object _arrayOrOwnedMemory is an OwnedMemory<T>
         // else, object _arrayOrOwnedMemory is a T[]
-        readonly object _arrayOrOwnedMemory;
-        readonly int _index;
-        readonly int _length;
+        private readonly object _arrayOrOwnedMemory;
+        private readonly int _index;
+        private readonly int _length;
 
-        private const int bitMask = 0x7FFFFFFF;
+        private const int RemoveOwnedFlagBitMask = 0x7FFFFFFF;
 
         /// <summary>
         /// Creates a new memory over the entirety of the target array.
@@ -39,33 +39,6 @@ namespace System
             _arrayOrOwnedMemory = array;
             _index = 0;
             _length = array.Length;
-        }
-
-        /// <summary>
-        /// Creates a new memory over the portion of the target array beginning
-        /// at 'start' index and covering the remainder of the array.
-        /// </summary>
-        /// <param name="array">The target array.</param>
-        /// <param name="start">The index at which to begin the memory.</param>
-        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="array"/> is a null
-        /// reference (Nothing in Visual Basic).</exception>
-        /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
-        /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> is not in the range (&lt;0 or &gt;=Length).
-        /// </exception>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlyMemory(T[] array, int start)
-        {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-
-            int arrayLength = array.Length;
-            if ((uint)start > (uint)arrayLength)
-                ThrowHelper.ThrowArgumentOutOfRangeException();
-
-            _arrayOrOwnedMemory = array;
-            _index = start;
-            _length = arrayLength - start;
         }
 
         /// <summary>
@@ -98,8 +71,13 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ReadOnlyMemory(OwnedMemory<T> owner, int index, int length)
         {
+            if (owner == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.ownedMemory);
+            if (index < 0 || length < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+
             _arrayOrOwnedMemory = owner;
-            _index = index | (1 << 31); // Before using _index, check if _index < 0, then 'and' it with bitMask
+            _index = index | (1 << 31); // Before using _index, check if _index < 0, then 'and' it with RemoveOwnedFlagBitMask
             _length = length;
         }
 
@@ -116,7 +94,7 @@ namespace System
         /// <summary>
         /// Returns an empty <see cref="Memory{T}"/>
         /// </summary>
-        public static ReadOnlyMemory<T> Empty { get; } = OwnedMemory<T>.EmptyArray;
+        public static ReadOnlyMemory<T> Empty => Array.Empty<T>();
 
         /// <summary>
         /// The number of items in the memory.
@@ -141,10 +119,8 @@ namespace System
             if ((uint)start > (uint)_length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            // There is no need to 'and' _index by the bit mask here 
-            // since the constructor will set the highest order bit again anyway
             if (_index < 0)
-                return new ReadOnlyMemory<T>(Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory), _index + start, _length - start);
+                return new ReadOnlyMemory<T>(Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory), (_index & RemoveOwnedFlagBitMask) + start, _length - start);
             return new ReadOnlyMemory<T>(Unsafe.As<T[]>(_arrayOrOwnedMemory), _index + start, _length - start);
         }
 
@@ -162,10 +138,8 @@ namespace System
             if ((uint)start > (uint)_length || (uint)length > (uint)(_length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            // There is no need to 'and' _index by the bit mask here 
-            // since the constructor will set the highest order bit again anyway
             if (_index < 0)
-                return new ReadOnlyMemory<T>(Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory), _index + start, length);
+                return new ReadOnlyMemory<T>(Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory), (_index & RemoveOwnedFlagBitMask) + start, length);
             return new ReadOnlyMemory<T>(Unsafe.As<T[]>(_arrayOrOwnedMemory), _index + start, length);
         }
 
@@ -178,7 +152,7 @@ namespace System
             get
             {
                 if (_index < 0)
-                    return Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory).AsSpan(_index & bitMask, _length);
+                    return Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory).AsSpan(_index & RemoveOwnedFlagBitMask, _length);
                 return new ReadOnlySpan<T>(Unsafe.As<T[]>(_arrayOrOwnedMemory), _index, _length);
             }
         }
@@ -208,7 +182,9 @@ namespace System
                 }
                 else
                 {
-                    memoryHandle = new MemoryHandle(null);
+                    var array = Unsafe.As<T[]>(_arrayOrOwnedMemory);
+                    void* pointer = Unsafe.Add<T>((void*)Unsafe.AsPointer(ref array[0]), _index);
+                    memoryHandle = new MemoryHandle(null, pointer);
                 }
             }
             return memoryHandle;
@@ -225,7 +201,7 @@ namespace System
             {
                 if (Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory).TryGetArray(out var segment))
                 {
-                    arraySegment = new ArraySegment<T>(segment.Array, segment.Offset + (_index & bitMask), _length);
+                    arraySegment = new ArraySegment<T>(segment.Array, segment.Offset + (_index & RemoveOwnedFlagBitMask), _length);
                     return true;
                 }
             }
@@ -240,7 +216,7 @@ namespace System
         }
 
         /// <summary>
-        /// Copies the contents of this span from the memory into a new array.  This heap
+        /// Copies the contents from the memory into a new array.  This heap
         /// allocates, so should generally be avoided, however it is sometimes
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
@@ -271,14 +247,14 @@ namespace System
         {
             return
                 _arrayOrOwnedMemory == other._arrayOrOwnedMemory &&
-                (_index & bitMask) == (other._index & bitMask) &&
+                _index == other._index &&
                 _length == other._length;
         }
 
         [EditorBrowsable( EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return CombineHashCodes(_arrayOrOwnedMemory.GetHashCode(), (_index & bitMask).GetHashCode(), _length.GetHashCode());
+            return CombineHashCodes(_arrayOrOwnedMemory.GetHashCode(), (_index & RemoveOwnedFlagBitMask).GetHashCode(), _length.GetHashCode());
         }
         
         private static int CombineHashCodes(int left, int right)

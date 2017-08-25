@@ -9,27 +9,20 @@ namespace System.Buffers
 {
     public unsafe struct MemoryHandle : IDisposable
     {
-        IRetainable _owner;
-        void* _pointer;
-        GCHandle _handle;
+        private IRetainable _owner;
+        private void* _pointer;
+        private GCHandle _handle;
 
         [CLSCompliant(false)]
         public MemoryHandle(IRetainable owner, void* pinnedPointer = null, GCHandle handle = default(GCHandle))
         {
+            _owner = owner;
             _pointer = pinnedPointer;
             _handle = handle;
-            _owner = owner;
         }
 
         [CLSCompliant(false)]
-        public void* PinnedPointer 
-        {
-            get 
-            {
-                if (_pointer == null) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.Memory_PointerIsNull);
-                return _pointer;
-            }
-        }
+        public void* PinnedPointer => _pointer;
 
         public void Dispose()
         { 

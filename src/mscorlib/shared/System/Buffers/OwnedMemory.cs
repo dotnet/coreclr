@@ -9,8 +9,6 @@ namespace System.Buffers
 {
     public abstract class OwnedMemory<T> : IDisposable, IRetainable
     {
-        protected OwnedMemory() { }
-
         public abstract int Length { get; }
 
         public abstract Span<T> AsSpan(int index, int length);
@@ -21,21 +19,12 @@ namespace System.Buffers
             return AsSpan(0, Length);
         }
 
-        public Memory<T> Memory
+        public Memory<T> AsMemory
         {
             get 
             {
                 if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedMemory<T>), ExceptionResource.Memory_ThrowIfDisposed);
                 return new Memory<T>(this, 0, Length);
-            }
-        }
-
-        public ReadOnlyMemory<T> ReadOnlyMemory
-        {
-            get 
-            {
-                if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedMemory<T>), ExceptionResource.Memory_ThrowIfDisposed);
-                return new ReadOnlyMemory<T>(this, 0, Length);
             }
         }
 
@@ -47,6 +36,7 @@ namespace System.Buffers
         {
             if (IsRetained) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.Memory_OutstandingReferences);
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         protected abstract void Dispose(bool disposing);
@@ -58,8 +48,6 @@ namespace System.Buffers
         public abstract void Retain();
 
         public abstract bool Release();
-
-        internal static readonly T[] EmptyArray = new T[0];
 
     }
 }

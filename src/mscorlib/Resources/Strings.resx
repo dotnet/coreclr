@@ -3655,12 +3655,9 @@
     <value>The write lock is being released without being held.</value>
   </data>
   <data name="Memory_ThrowIfDisposed" xml:space="preserve">
-    <value>The memory has been disposed.</value>
+    <value>Memory&lt;T&gt; has been disposed.</value>
   </data>
   <data name="Memory_OutstandingReferences" xml:space="preserve">
-    <value>Outstanding references detected that need to be released first</value>
-  </data>
-  <data name="Memory_PointerIsNull" xml:space="preserve">
-    <value>Cannot get pointer since it is null.</value>
+    <value>Release all references before disposing this instance.</value>
   </data>
 </root>

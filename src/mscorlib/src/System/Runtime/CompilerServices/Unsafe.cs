@@ -48,14 +48,14 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Reinterprets the given reference as a reference to a value of type <typeparamref name="TTo"/>.
+        /// Casts the given object to the specified type.
         /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T As<T>(object o) where T : class
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            // See getILIntrinsicImplementationForUnsafe for how this happens.
             throw new InvalidOperationException();
         }
 
@@ -67,7 +67,7 @@ namespace System.Runtime.CompilerServices
         public static ref TTo As<TFrom, TTo>(ref TFrom source)
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            // See getILIntrinsicImplementationForUnsafe for how this happens.
             throw new InvalidOperationException();
         }
 

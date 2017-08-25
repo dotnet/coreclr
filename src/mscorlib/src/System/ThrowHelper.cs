@@ -431,7 +431,8 @@ namespace System
         pHandle,
         values,
         task,
-        s
+        s,
+        ownedMemory
     }
 
     //
@@ -526,7 +527,6 @@ namespace System
         TaskCompletionSourceT_TrySetException_NoExceptions,
         Memory_ThrowIfDisposed,
         Memory_OutstandingReferences,
-        Memory_PointerIsNull,
         InvalidOperation_WrongAsyncResultOrEndCalledMultiple,
         ConcurrentDictionary_ConcurrencyLevelMustBePositive,
         ConcurrentDictionary_CapacityMustNotBeNegative,
