@@ -7467,7 +7467,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                 // because pResolvedToken is an interface method and interface types make a poor generic context.
                 if (pConstrainedResolvedToken)
                 {
-                    instParam = impTokenToHandle(pConstrainedResolvedToken, &runtimeLookup, TRUE /*mustRestoreHandle*/, FALSE /* importParent */);
+                    instParam = impTokenToHandle(pConstrainedResolvedToken, &runtimeLookup, TRUE /*mustRestoreHandle*/,
+                                                 FALSE /* importParent */);
                 }
                 else
                 {
