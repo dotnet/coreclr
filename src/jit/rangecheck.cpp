@@ -193,22 +193,13 @@ bool RangeCheck::BetweenBounds(Range& range, int lower, GenTreePtr upper)
 void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreePtr treeParent)
 {
     // Check if we are dealing with a bounds check node.
-    GenTreePtr tree;
-    if (treeParent == stmt->gtStmt.gtStmtExpr)
-    {
-        tree = treeParent;
-        treeParent = nullptr;
-    }
-    else if (treeParent->OperGet() == GT_COMMA)
-    {
-        tree = treeParent->gtOp.gtOp1;
-    }
-    else
+    if (treeParent->OperGet() != GT_COMMA)
     {
         return;
     }
 
     // If we are not looking at array bounds check, bail.
+    GenTreePtr tree = treeParent->gtOp.gtOp1;
     if (!tree->OperIsBoundsCheck())
     {
         return;
@@ -256,8 +247,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
         if (arrSize > 0 && idxVal < arrSize && idxVal >= 0)
         {
             JITDUMP("Removing range check\n");
-            m_pCompiler->compCurBB = block;
-            m_pCompiler->optRemoveRangeCheck((treeParent != nullptr) ? treeParent : tree, stmt);
+            m_pCompiler->optRemoveRangeCheck(treeParent, stmt, true, GTF_ASG, true /* force remove */);
             return;
         }
     }
@@ -299,9 +289,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreePtr stmt, GenTreeP
     if (BetweenBounds(range, 0, bndsChk->gtArrLen))
     {
         JITDUMP("[RangeCheck::OptimizeRangeCheck] Between bounds\n");
-
-        m_pCompiler->optRemoveRangeCheck((treeParent != nullptr) ? treeParent : tree, stmt);
-        return;
+        m_pCompiler->optRemoveRangeCheck(treeParent, stmt, true, GTF_ASG, true /* force remove */);
     }
     return;
 }
@@ -1364,7 +1352,6 @@ void RangeCheck::OptimizeRangeChecks()
     {
         for (GenTreePtr stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
         {
-            bool optimizedRangeCheck = false;
             for (GenTreePtr tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
             {
                 if (IsOverBudget())

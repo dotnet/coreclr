@@ -7929,22 +7929,13 @@ void Compiler::optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt)
 #endif
 
     noway_assert(stmt->gtOper == GT_STMT);
+    noway_assert(tree->gtOper == GT_COMMA);
 
-    GenTreePtr bndsChkTree;
-
-    if (tree->gtOper == GT_COMMA)
-    {
-        bndsChkTree = tree->gtOp.gtOp1;
-    }
-    else
-    {
-        noway_assert(stmt->gtStmt.gtStmtExpr == tree);
-        bndsChkTree = tree;
-    }
+    GenTreePtr bndsChkTree = tree->gtOp.gtOp1;
 
     noway_assert(bndsChkTree->OperIsBoundsCheck());
 
-    GenTreeBoundsChk* bndsChk = bndsChkTree->AsBoundsChk();
+    GenTreeBoundsChk* bndsChk = tree->gtOp.gtOp1->AsBoundsChk();
 
 #ifdef DEBUG
     if (verbose)
@@ -7957,23 +7948,15 @@ void Compiler::optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt)
     GenTreePtr sideEffList = nullptr;
     
     gtExtractSideEffList(bndsChkTree, &sideEffList, GTF_ASG);
-    
+
     // Decrement the ref counts for any LclVars that are being deleted
     //
     optRemoveTree(bndsChkTree, sideEffList);
 
     // Just replace the bndsChk with a NOP as an operand to the GT_COMMA, if there are no side effects.
-    if (tree->gtOper == GT_COMMA)
-    {
-        tree->gtOp.gtOp1 = (sideEffList != nullptr) ? sideEffList : gtNewNothingNode();
-        // TODO-CQ: We should also remove the GT_COMMA, but in any case we can no longer CSE the GT_COMMA.
-        tree->gtFlags |= GTF_DONT_CSE;
-    }
-    else
-    {
-        stmt->gtStmt.gtStmtExpr = (sideEffList != nullptr) ? sideEffList : gtNewNothingNode();
-        stmt->gtStmt.gtStmtExpr->gtFlags |= GTF_DONT_CSE;
-    }
+    tree->gtOp.gtOp1 = (sideEffList != nullptr) ? sideEffList : gtNewNothingNode();
+    // TODO-CQ: We should also remove the GT_COMMA, but in any case we can no longer CSE the GT_COMMA.
+    tree->gtFlags |= GTF_DONT_CSE;
 
     gtUpdateSideEffects(stmt);
 
@@ -7985,8 +7968,6 @@ void Compiler::optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt)
     {
         fgSetStmtSeq(stmt);
     }
-
-    // The caller of this method is expected to remorph the statement.
 
 #ifdef DEBUG
     if (verbose)
