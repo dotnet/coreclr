@@ -2058,7 +2058,6 @@ public:
 
     GenTreeCall* gtNewHelperCallNode(unsigned        helper,
                                      var_types       type,
-                                     unsigned        flags = 0,
                                      GenTreeArgList* args  = nullptr);
 
     GenTreePtr gtNewLclvNode(unsigned lnum, var_types type, IL_OFFSETX ILoffs = BAD_IL_OFFSET);
