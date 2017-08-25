@@ -75,17 +75,17 @@
     #define USE_UPPER_ADDRESS       0
 
 #elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+    // Set to 1 when we want to keep our main JIT codeheap near the load address of clr.dll
+    // Note that Class static variables are also stored in the JIT code heap area. 
+    #define USE_UPPER_ADDRESS       1
+
+    // These four defines only have an effect when running on an OS without ASLR - pre-Vista.
+    // because the clr.dll has to load in the 0x644_00000000 memory region
     #define UPPER_ADDRESS_MAPPING_FACTOR 2
     #define CLR_UPPER_ADDRESS_MIN   0x64400000000
     #define CODEHEAP_START_ADDRESS  0x64480000000
     #define CLR_UPPER_ADDRESS_MAX   0x644FC000000
-
-#if !defined(FEATURE_PAL)
-    #define USE_UPPER_ADDRESS       1
-#else
-    #define USE_UPPER_ADDRESS       0
-#endif // !FEATURE_PAL
-
 #else
     #error Please add a new #elif clause and define all portability macros for the new platform
 #endif
