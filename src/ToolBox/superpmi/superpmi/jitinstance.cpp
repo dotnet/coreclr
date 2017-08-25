@@ -212,7 +212,8 @@ HRESULT JitInstance::StartUp(char*          PathToJit,
 
 bool JitInstance::reLoad(MethodContext* firstContext)
 {
-    FreeLibrary(hLib);
+    // TODO: Memory leaks here, but CILJit::ProcessShutdownWork is very expensive.
+    FreeLibrary(hLib); 
 
     // Load Library
     hLib = ::LoadLibraryA(PathToTempJit);

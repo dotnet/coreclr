@@ -304,6 +304,19 @@ int __cdecl main(int argc, char* argv[])
             }
         }
 
+        if (mc->wasEnviromentChanged())
+        {
+            // Each MC can have the own set of enviroment variables set.
+            // Jit reads these variables only once in JitStartUp.
+            // We have to reload the jit, if we want to take enviroment changes.
+            jit->reLoad(mc);
+            if (o.nameOfJit2 != nullptr)
+            {
+                jit2->reLoad(mc);
+            }
+        }
+
+
         // I needed to reason about what crl contains at any point in time
         // Here is my guess based on reading the code so far
         // crl initially contains the CompileResult from the MCH file
