@@ -268,6 +268,22 @@ GetProcAddress(
     IN HMODULE hModule,
     IN LPCSTR lpProcName)
 {
+    return GetVersionedProcAddress(hModule, lpProcName, nullptr);
+}
+
+/*++
+Function:
+  GetVersionedProcAddress
+
+Does the same as GetProcAddress but takes a version string as an additional argument.
+--*/
+FARPROC
+PALAPI
+GetVersionedProcAddress(
+    IN HMODULE hModule,
+    IN LPCSTR lpProcName,
+    IN LPCSTR lpProcVersion)
+{
     MODSTRUCT *module;
     FARPROC ProcAddress = nullptr;
     LPCSTR symbolName = lpProcName;
@@ -311,7 +327,7 @@ GetProcAddress(
     // If we're looking for a symbol inside the PAL, we try the PAL_ variant
     // first because otherwise we run the risk of having the non-PAL_
     // variant preferred over the PAL's implementation.
-    if (pal_module && module->dl_handle == pal_module->dl_handle)
+    if (pal_module && module->dl_handle == pal_module->dl_handle && lpProcVersion == nullptr)
     {
         int iLen = 4 + strlen(lpProcName) + 1;
         LPSTR lpPALProcName = (LPSTR) alloca(iLen);
@@ -338,7 +354,29 @@ GetProcAddress(
     // inside the PAL, fall back to a normal search.
     if (ProcAddress == nullptr)
     {
-        ProcAddress = (FARPROC) dlsym(module->dl_handle, lpProcName);
+#ifdef HAVE_DLVSYM
+        // When version is empty, call dlsym to find the base version.
+        // Only do the lookup when the system supports dlvsym. When dlvsym
+        // isn't supported, calling dlsym would return the latest version.
+        if ((lpProcVersion != nullptr) && (*lpProcVersion == '\0'))
+        {
+            lpProcVersion = nullptr;
+        }
+#endif
+        if (lpProcVersion == nullptr)
+        {
+            ProcAddress = (FARPROC) dlsym(module->dl_handle, lpProcName);
+        }
+        else
+        {
+#if HAVE_DLVSYM
+            ProcAddress = (FARPROC) dlvsym(module->dl_handle, lpProcName, lpProcVersion);
+#else
+            TRACE("dlvsym not supported\n");
+            SetLastError(ERROR_NOT_SUPPORTED);
+            goto done;
+#endif
+        }
     }
 
     if (ProcAddress)

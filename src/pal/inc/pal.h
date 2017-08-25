@@ -2792,6 +2792,14 @@ GetProcAddress(
     IN LPCSTR lpProcName);
 
 PALIMPORT
+FARPROC
+PALAPI
+GetVersionedProcAddress(
+    IN HMODULE hModule,
+    IN LPCSTR lpProcName,
+    IN LPCSTR lpVersion);
+
+PALIMPORT
 BOOL
 PALAPI
 FreeLibrary(

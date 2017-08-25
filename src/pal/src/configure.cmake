@@ -1358,4 +1358,8 @@ else() # Anything else is Linux
   set(HAVE_SCHED_OTHER_ASSIGNABLE 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
+set(CMAKE_REQUIRED_LIBRARIES dl)
+  check_function_exists(dlvsym HAVE_DLVSYM)
+set(CMAKE_REQUIRED_LIBRARIES)
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
