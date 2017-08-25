@@ -38,8 +38,11 @@ function exit_if_path_absent {
     fi
 }
 
+
+# Below variables will be determined by arguments or have default value.
 __abi="arm"
 __buildConfig="Release"
+__COMPLUS_OPTIONS=" "
 
 # Parse command line arguments
 for arg in "$@"
@@ -56,6 +59,12 @@ do
         if [[ "$__buildConfig" != "Debug" && "$__buildConfig" != "Release" && "$__buildConfig" != "Checked" ]]; then
             exit_with_error "--buildConfig can be Debug, Checked or Release" true
         fi
+        ;;
+    --ryujit)
+        if [[ "$__buildConfig" != "Release" ]]; then
+            exit_with_error "--ryujit is only avalable for Release by now" true
+        fi
+        COMPLUS_OPTIONS+=" COMPlus_AltJit=*"
         ;;
     -v|--verbose)
         __verboseFlag="verbose"
@@ -105,7 +114,7 @@ rm -f -v ${__ROOTFS_DIR}${ARM_CHROOT_HOME_DIR}/bin/CoreFxBinDir/libcoreclrtracep
 
 chroot ${__ROOTFS_DIR} /bin/bash -x <<EOF
     cd ${ARM_CHROOT_HOME_DIR}
-    ./tests/runtest.sh --sequential\
+    env ${COMPLUS_OPTIONS} ./tests/runtest.sh --sequential\
                        --coreClrBinDir=${ARM_CHROOT_HOME_DIR}/bin/Product/${__buildDirName} \
                        --mscorlibDir=${ARM_CHROOT_HOME_DIR}/bin/Product/${__buildDirName} \
                        --testNativeBinDir=${ARM_CHROOT_HOME_DIR}/bin/obj/${__buildDirName}/tests \
