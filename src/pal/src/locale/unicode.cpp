@@ -285,28 +285,6 @@ CharNextExA(
 
 /*++
 Function:
-GetConsoleCP
-
-See MSDN doc.
---*/
-UINT
-PALAPI
-GetConsoleCP(
-     VOID)
-{
-    UINT nRet = 0;
-    PERF_ENTRY(GetConsoleCP);
-    ENTRY("GetConsoleCP()\n");
-     
-    nRet = GetACP();
-
-    LOGEXIT("GetConsoleCP returns UINT %d\n", nRet );
-    PERF_EXIT(GetConsoleCP);
-    return nRet;
-}
-
-/*++
-Function:
 GetConsoleOutputCP
 
 See MSDN doc.

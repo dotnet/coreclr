@@ -520,7 +520,6 @@ file_io/findfirstfilea/test1,1
 file_io/findnextfilea/test1,1
 file_io/findnextfilew/test1,1
 file_io/flushfilebuffers/test1,1
-file_io/getconsolecp/test1,1
 file_io/getconsoleoutputcp/test1,1
 file_io/getcurrentdirectorya/test1,1
 file_io/getcurrentdirectoryw/test1,1

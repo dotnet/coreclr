@@ -1060,12 +1060,6 @@ FlushFileBuffers(
 PALIMPORT
 UINT
 PALAPI
-GetConsoleCP(
-         VOID);
-
-PALIMPORT
-UINT
-PALAPI
 GetConsoleOutputCP(
            VOID);
 
