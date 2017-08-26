@@ -14,14 +14,9 @@ namespace System.Runtime.CompilerServices
     {
         private Object _wrappedException; // EE expects this name
 
-#if CORECLR
-        private
-#else
         // Not an api but has to be public as System.Linq.Expression invokes this through Reflection when an expression
         // throws an object that doesn't derive from Exception.
-        public
-#endif
-        RuntimeWrappedException(Object thrownObject)
+        public RuntimeWrappedException(Object thrownObject)
             : base(SR.RuntimeWrappedException)
         {
             HResult = __HResults.COR_E_RUNTIMEWRAPPED;
