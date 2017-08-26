@@ -1049,15 +1049,6 @@ FileTimeToSystemTime(
             IN CONST FILETIME *lpFileTime,
             OUT LPSYSTEMTIME lpSystemTime);
 
-PALIMPORT
-BOOL
-PALAPI
-FileTimeToDosDateTime(
-    IN CONST FILETIME *lpFileTime,
-    OUT LPWORD lpFatDate,
-    OUT LPWORD lpFatTime
-    );
-
 
 
 PALIMPORT

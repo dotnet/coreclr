@@ -514,7 +514,6 @@ file_io/deletefilew/test1,1
 file_io/errorpathnotfound/test1,1
 file_io/errorpathnotfound/test2,1
 file_io/errorpathnotfound/test3,1
-file_io/filetimetodosdatetime/test1,1
 file_io/findclose/test1,1
 file_io/findfirstfilea/test1,1
 #file_io/findfirstfilew/test1,1
