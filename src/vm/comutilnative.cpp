@@ -2880,7 +2880,7 @@ INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen, INT64 additio
 }
 
 
-INT32 COMNlsHashProvider::HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, INT64 additionalEntropy)
+INT32 COMNlsHashProvider::HashSortKey(PCBYTE pSrc, SIZE_T cbSrc)
 {
     CONTRACTL {
         THROWS;
@@ -2893,16 +2893,7 @@ INT32 COMNlsHashProvider::HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, INT64 additiona
     
     // Sort Keys are terminated with a null byte which we didn't hash using the old algorithm, 
     // so we don't have it with Marvin32 either.
-    if(additionalEntropy == 0)
-    {
-        SymCryptMarvin32(GetDefaultSeed(), pSrc, cbSrc - 1, (PBYTE) &marvinResult);
-    }
-    else
-    {
-        SYMCRYPT_MARVIN32_EXPANDED_SEED seed;       
-        CreateMarvin32Seed(additionalEntropy, &seed);
-        SymCryptMarvin32(&seed, pSrc, cbSrc - 1, (PBYTE) &marvinResult);
-    }
+    SymCryptMarvin32(GetDefaultSeed(), pSrc, cbSrc - 1, (PBYTE) &marvinResult);
 
     return marvinResult[0] ^ marvinResult[1];
 }

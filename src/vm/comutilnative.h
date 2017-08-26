@@ -259,7 +259,7 @@ public:
     COMNlsHashProvider();
 
     INT32 HashString(LPCWSTR szStr, SIZE_T strLen, INT64 additionalEntropy);
-    INT32 HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, INT64 additionalEntropy);
+    INT32 HashSortKey(PCBYTE pSrc, SIZE_T cbSrc);
 
     static COMNlsHashProvider s_NlsHashProvider;
 
