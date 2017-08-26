@@ -33,6 +33,8 @@ namespace System
         internal const int E_BOUNDS = unchecked((int)0x8000000B);
         internal const int E_CHANGED_STATE = unchecked((int)0x8000000C);
         internal const int E_FAIL = unchecked((int)0x80004005);
+        internal const int E_HANDLE = unchecked((int)0x80070006);
+        internal const int E_INVALIDARG = unchecked((int)0x80070057);
         internal const int E_POINTER = unchecked((int)0x80004003);
         internal const int E_NOTIMPL = unchecked((int)0x80004001);
         internal const int REGDB_E_CLASSNOTREG = unchecked((int)0x80040154);
