@@ -2,22 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//============================================================
-//
-// 
-//
-//  Purpose: Exception for accessing a drive that is not available.
-//
-//
-//============================================================
-
-using System;
 using System.Runtime.Serialization;
 
 namespace System.IO
 {
-    //Thrown when trying to access a drive that is not availabe.
-    internal class DriveNotFoundException : IOException
+    //Thrown when trying to access a drive that is not available.
+    public class DriveNotFoundException : IOException
     {
         public DriveNotFoundException()
             : base(SR.Arg_DriveNotFoundException)
@@ -25,8 +15,14 @@ namespace System.IO
             HResult = HResults.COR_E_DIRECTORYNOTFOUND;
         }
 
-        public DriveNotFoundException(String message)
+        public DriveNotFoundException(string message)
             : base(message)
+        {
+            HResult = HResults.COR_E_DIRECTORYNOTFOUND;
+        }
+
+        public DriveNotFoundException(string message, Exception innerException)
+            : base(message, innerException)
         {
             HResult = HResults.COR_E_DIRECTORYNOTFOUND;
         }
