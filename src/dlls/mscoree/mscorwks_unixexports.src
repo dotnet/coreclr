@@ -93,7 +93,6 @@ SetErrorMode
 SetEvent
 SetFileAttributesW
 SetFilePointer
-SetFileTime
 SysAllocStringLen
 SysFreeString
 SysStringLen

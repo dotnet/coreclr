@@ -53,6 +53,5 @@ add_subdirectory(SetEndOfFile)
 add_subdirectory(SetFileAttributesA)
 add_subdirectory(SetFileAttributesW)
 add_subdirectory(SetFilePointer)
-add_subdirectory(SetFileTime)
 add_subdirectory(WriteFile)
 

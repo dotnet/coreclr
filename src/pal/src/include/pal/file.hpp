@@ -128,15 +128,6 @@ namespace CorUnix
         );
 
     PAL_ERROR
-    InternalSetFileTime(
-        CPalThread *pThread,
-        IN HANDLE hFile,
-        IN CONST FILETIME *lpCreationTime,
-        IN CONST FILETIME *lpLastAccessTime,
-        IN CONST FILETIME *lpLastWriteTime
-        );
-
-    PAL_ERROR
     InternalGetFileTime(
         CPalThread *pThread,
         IN HANDLE hFile,

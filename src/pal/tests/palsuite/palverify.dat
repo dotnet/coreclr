@@ -581,10 +581,6 @@ file_io/setfilepointer/test1,1
 file_io/setfilepointer/test2,1
 file_io/setfilepointer/test3,1
 file_io/setfilepointer/test4,1
-file_io/setfiletime/test1,1
-file_io/setfiletime/test2,1
-file_io/setfiletime/test3,1
-file_io/setfiletime/test4,1
 file_io/writefile/test1,1
 file_io/writefile/test2,1
 file_io/writefile/test3,1

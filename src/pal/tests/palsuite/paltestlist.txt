@@ -604,10 +604,6 @@ file_io/SetFilePointer/test4/paltest_setfilepointer_test4
 file_io/SetFilePointer/test5/paltest_setfilepointer_test5
 file_io/SetFilePointer/test6/paltest_setfilepointer_test6
 file_io/SetFilePointer/test7/paltest_setfilepointer_test7
-file_io/SetFileTime/test1/paltest_setfiletime_test1
-file_io/SetFileTime/test2/paltest_setfiletime_test2
-file_io/SetFileTime/test3/paltest_setfiletime_test3
-file_io/SetFileTime/test4/paltest_setfiletime_test4
 file_io/WriteFile/test1/paltest_writefile_test1
 file_io/WriteFile/test3/paltest_writefile_test3
 file_io/WriteFile/test4/paltest_writefile_test4

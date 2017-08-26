@@ -1022,15 +1022,6 @@ CompareFileTime(
 PALIMPORT
 BOOL
 PALAPI
-SetFileTime(
-        IN HANDLE hFile,
-        IN CONST FILETIME *lpCreationTime,
-        IN CONST FILETIME *lpLastAccessTime,
-        IN CONST FILETIME *lpLastWriteTime);
-
-PALIMPORT
-BOOL
-PALAPI
 GetFileTime(
         IN HANDLE hFile,
         OUT LPFILETIME lpCreationTime,
