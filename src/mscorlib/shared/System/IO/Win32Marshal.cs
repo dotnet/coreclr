@@ -63,7 +63,10 @@ namespace System.IO
                     return new IOException(SR.Format(SR.IO_AlreadyExists_Name, path), MakeHRFromErrorCode(errorCode));
 
                 case Interop.Errors.ERROR_FILENAME_EXCED_RANGE:
-                    return new PathTooLongException(SR.Format(SR.IO_PathTooLong_Path, path));
+                    if (path.Length == 0)
+                        return new PathTooLongException(SR.IO_PathTooLong);
+                    else
+                        return new PathTooLongException(SR.Format(SR.IO_PathTooLong_Path, path));
 
                 case Interop.Errors.ERROR_INVALID_DRIVE:
                     throw new DriveNotFoundException(SR.Format(SR.IO_DriveNotFound_Drive, path));                    
