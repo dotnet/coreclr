@@ -119,7 +119,7 @@ namespace System
         internal const int CORSEC_E_MIN_GRANT_FAIL = unchecked((int)0x80131417);
         internal const int CORSEC_E_NO_EXEC_PERM = unchecked((int)0x80131418);
         internal const int CORSEC_E_POLICY_EXCEPTION = unchecked((int)0x80131416);
-        internal const int CORSEC_E_XMLSYNTAX = unchecked((int)0x80131418);
+        internal const int CORSEC_E_XMLSYNTAX = unchecked((int)0x80131419);
         internal const int NTE_FAIL = unchecked((int)0x80090020);
         internal const int CORSEC_E_CRYPTO = unchecked((int)0x80131430);
         internal const int CORSEC_E_CRYPTO_UNEX_OPER = unchecked((int)0x80131431);
