@@ -497,7 +497,6 @@
     <Compile Include="$(BclSourcesRoot)\System\IO\BinaryReader.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\Directory.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\SearchOption.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IO\DriveNotFoundException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\File.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileLoadException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileNotFoundException.CoreCLR.cs" />
