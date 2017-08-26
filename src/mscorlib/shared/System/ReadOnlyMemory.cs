@@ -120,8 +120,8 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
             if (_index < 0)
-                return new ReadOnlyMemory<T>(Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory), (_index & RemoveOwnedFlagBitMask) + start, _length - start);
-            return new ReadOnlyMemory<T>(Unsafe.As<T[]>(_arrayOrOwnedMemory), _index + start, _length - start);
+                return new ReadOnlyMemory<T>((OwnedMemory<T>)_arrayOrOwnedMemory, (_index & RemoveOwnedFlagBitMask) + start, _length - start);
+            return new ReadOnlyMemory<T>((T[])_arrayOrOwnedMemory, _index + start, _length - start);
         }
 
         /// <summary>
@@ -139,8 +139,8 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
             if (_index < 0)
-                return new ReadOnlyMemory<T>(Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory), (_index & RemoveOwnedFlagBitMask) + start, length);
-            return new ReadOnlyMemory<T>(Unsafe.As<T[]>(_arrayOrOwnedMemory), _index + start, length);
+                return new ReadOnlyMemory<T>((OwnedMemory<T>)_arrayOrOwnedMemory, (_index & RemoveOwnedFlagBitMask) + start, length);
+            return new ReadOnlyMemory<T>((T[])_arrayOrOwnedMemory, _index + start, length);
         }
 
         /// <summary>
@@ -152,8 +152,8 @@ namespace System
             get
             {
                 if (_index < 0)
-                    return Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory).AsSpan(_index & RemoveOwnedFlagBitMask, _length);
-                return new ReadOnlySpan<T>(Unsafe.As<T[]>(_arrayOrOwnedMemory), _index, _length);
+                    return ((OwnedMemory<T>)_arrayOrOwnedMemory).AsSpan(_index & RemoveOwnedFlagBitMask, _length);
+                return new ReadOnlySpan<T>((T[])_arrayOrOwnedMemory, _index, _length);
             }
         }
 
@@ -164,11 +164,11 @@ namespace System
             {
                 if (_index < 0)
                 {
-                    memoryHandle = Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory).Pin();
+                    memoryHandle = ((OwnedMemory<T>)_arrayOrOwnedMemory).Pin();
                 }
                 else
                 {
-                    var handle = GCHandle.Alloc(Unsafe.As<T[]>(_arrayOrOwnedMemory), GCHandleType.Pinned);
+                    var handle = GCHandle.Alloc((T[])_arrayOrOwnedMemory, GCHandleType.Pinned);
                     void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
                     memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
@@ -177,12 +177,12 @@ namespace System
             {
                 if (_index < 0)
                 {
-                    Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory).Retain();
-                    memoryHandle = new MemoryHandle(Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory));
+                    ((OwnedMemory<T>)_arrayOrOwnedMemory).Retain();
+                    memoryHandle = new MemoryHandle((OwnedMemory<T>)_arrayOrOwnedMemory);
                 }
                 else
                 {
-                    var array = Unsafe.As<T[]>(_arrayOrOwnedMemory);
+                    var array = (T[])_arrayOrOwnedMemory;
                     void* pointer = array.Length > 0 ? 
                                     Unsafe.Add<T>((void*)Unsafe.AsPointer(ref array[0]), _index) :
                                     null;
@@ -201,7 +201,7 @@ namespace System
         {
             if (_index < 0)
             {
-                if (Unsafe.As<OwnedMemory<T>>(_arrayOrOwnedMemory).TryGetArray(out var segment))
+                if (((OwnedMemory<T>)_arrayOrOwnedMemory).TryGetArray(out var segment))
                 {
                     arraySegment = new ArraySegment<T>(segment.Array, segment.Offset + (_index & RemoveOwnedFlagBitMask), _length);
                     return true;
@@ -209,7 +209,7 @@ namespace System
             }
             else
             {
-                arraySegment = new ArraySegment<T>(Unsafe.As<T[]>(_arrayOrOwnedMemory), _index, _length);
+                arraySegment = new ArraySegment<T>((T[])_arrayOrOwnedMemory, _index, _length);
                 return true;
             }
 
