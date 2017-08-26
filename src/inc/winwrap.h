@@ -67,7 +67,6 @@
 
 // wincrypt.h
 #undef CryptAcquireContext
-#undef CryptGetDefaultProvider
 #undef CryptSignHash
 #undef CryptVerifySignature
 
@@ -372,7 +371,6 @@
 
 // wincrypt.h
 #define WszCryptAcquireContext CryptAcquireContextW
-#define WszCryptGetDefaultProvider CryptGetDefaultProviderW
 #define WszCryptSignHash CryptSignHashW
 #define WszCryptVerifySignature CryptVerifySignatureW
 
