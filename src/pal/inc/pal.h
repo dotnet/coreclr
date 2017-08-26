@@ -706,28 +706,6 @@ CreateFileW(
 #define CreateFile CreateFileA
 #endif
 
-PALIMPORT
-BOOL
-PALAPI
-LockFile(
-    IN HANDLE hFile,
-    IN DWORD dwFileOffsetLow,
-    IN DWORD dwFileOffsetHigh,
-    IN DWORD nNumberOfBytesToLockLow,
-    IN DWORD nNumberOfBytesToLockHigh
-    );
-
-PALIMPORT
-BOOL
-PALAPI
-UnlockFile(
-    IN HANDLE hFile,
-    IN DWORD dwFileOffsetLow,
-    IN DWORD dwFileOffsetHigh,
-    IN DWORD nNumberOfBytesToUnlockLow,
-    IN DWORD nNumberOfBytesToUnlockHigh
-    );
-
 
 PALIMPORT
 DWORD

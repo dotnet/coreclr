@@ -118,26 +118,6 @@ namespace CorUnix
         );
 
     PAL_ERROR
-    InternalLockFile(
-        CPalThread *pThread,
-        HANDLE hFile,
-        DWORD dwFileOffsetLow,
-        DWORD dwFileOffsetHigh,
-        DWORD nNumberOfBytesToLockLow,
-        DWORD nNumberOfBytesToLockHigh
-        );
-
-    PAL_ERROR
-    InternalUnlockFile(
-        CPalThread *pThread,
-        HANDLE hFile,
-        DWORD dwFileOffsetLow,
-        DWORD dwFileOffsetHigh,
-        DWORD nNumberOfBytesToUnlockLow,
-        DWORD nNumberOfBytesToUnlockHigh
-        );
-
-    PAL_ERROR
     InternalSetFilePointer(
         CPalThread *pThread,
         HANDLE hFile,
