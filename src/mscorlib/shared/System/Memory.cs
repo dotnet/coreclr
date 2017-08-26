@@ -199,7 +199,7 @@ namespace System
                 {
                     var array = (T[])_arrayOrOwnedMemory;
                     void* pointer = array.Length > 0 ? 
-                                    Unsafe.Add<T>((void*)Unsafe.AsPointer(ref array[0]), _index) :
+                                    Unsafe.AsPointer(ref array[_index]) :
                                     null;
                     memoryHandle = new MemoryHandle(null, pointer);
                 }
