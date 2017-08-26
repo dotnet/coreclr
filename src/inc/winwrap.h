@@ -129,7 +129,6 @@
 #undef GetMessage
 
 #undef SendMessage
-#undef SendMessageTimeout
 #undef CharLower
 #undef CharNext
 #undef MessageBox
@@ -197,7 +196,6 @@
 #define WszGetUserObjectInformation GetUserObjectInformationW
 #define WszGetMessage GetMessageW
 #define WszSendMessage SendMessageW
-#define WszSendMessageTimeout SendMessageTimeoutW
 #define WszCharLower CharLowerW
 #define WszCharNext CharNextW
 #define WszMessageBox LateboundMessageBoxW
