@@ -98,7 +98,6 @@ file_io/GetTempPathW/test1/paltest_gettemppathw_test1
 file_io/MoveFileA/test1/paltest_movefilea_test1
 file_io/MoveFileExA/test1/paltest_movefileexa_test1
 file_io/MoveFileExW/test1/paltest_movefileexw_test1
-file_io/MoveFileW/test1/paltest_movefilew_test1
 file_io/ReadFile/test1/paltest_readfile_test1
 file_io/SetFileAttributesA/test1/paltest_setfileattributesa_test1
 file_io/SetFileAttributesA/test4/paltest_setfileattributesa_test4

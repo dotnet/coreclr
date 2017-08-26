@@ -749,19 +749,6 @@ DeleteFileW(
 
 
 
-PALIMPORT
-BOOL
-PALAPI
-MoveFileW(
-     IN LPCWSTR lpExistingFileName,
-     IN LPCWSTR lpNewFileName);
-
-#ifdef UNICODE
-#define MoveFile MoveFileW
-#else
-#define MoveFile MoveFileA
-#endif
-
 #define MOVEFILE_REPLACE_EXISTING      0x00000001
 #define MOVEFILE_COPY_ALLOWED          0x00000002
 

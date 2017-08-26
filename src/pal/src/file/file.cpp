@@ -1281,36 +1281,6 @@ MoveFileA(
 
 /*++
 Function:
-  MoveFileW
-
-See MSDN doc.
---*/
-BOOL
-PALAPI
-MoveFileW(
-     IN LPCWSTR lpExistingFileName,
-     IN LPCWSTR lpNewFileName)
-{
-    BOOL bRet;
-
-    PERF_ENTRY(MoveFileW);
-    ENTRY("MoveFileW(lpExistingFileName=%p (%S), lpNewFileName=%p (%S))\n",
-          lpExistingFileName?lpExistingFileName:W16_NULLSTRING,
-          lpExistingFileName?lpExistingFileName:W16_NULLSTRING,
-          lpNewFileName?lpNewFileName:W16_NULLSTRING,
-          lpNewFileName?lpNewFileName:W16_NULLSTRING);
-
-    bRet = MoveFileExW( lpExistingFileName,
-            lpNewFileName,
-            MOVEFILE_COPY_ALLOWED );
-
-    LOGEXIT("MoveFileW returns BOOL %d\n", bRet);
-    PERF_EXIT(MoveFileW);
-    return bRet;
-}
-
-/*++
-Function:
   MoveFileExA
 
 See MSDN doc.

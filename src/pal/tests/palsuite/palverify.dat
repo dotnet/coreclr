@@ -557,7 +557,6 @@ file_io/gettempfilenamew/test3,1
 file_io/gettemppatha/test1,1
 file_io/gettemppathw/test1,1
 file_io/movefileexw/test1,1
-file_io/movefilew/test1,1
 #file_io/readfile/test1,1
 file_io/readfile/test2,1
 file_io/readfile/test3,1
