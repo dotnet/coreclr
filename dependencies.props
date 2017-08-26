@@ -13,14 +13,14 @@
   
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>0dc149f3113f488e69aa21ad53acc2c825e2b8ed</CoreFxCurrentRef>
+    <CoreFxCurrentRef>966c4202d64c0a1145b75adf69e53f706553d9f0</CoreFxCurrentRef>
     <CoreClrCurrentRef>154fd0869f9462f56fee89cc8e1c5e10674185a7</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
     <CoreFxPackageVersion>4.5.0-preview1-25531-01</CoreFxPackageVersion>
-    <PlatformPackageVersion>2.1.0-preview1-25626-04</PlatformPackageVersion>
+    <PlatformPackageVersion>2.1.0-preview1-25626-05</PlatformPackageVersion>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
