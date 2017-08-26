@@ -591,7 +591,6 @@ CharNextExA(
 #define MB_TOPMOST              0x00040000L
 
 #define MB_NOFOCUS                  0x00008000L
-#define MB_SETFOREGROUND            0x00010000L
 #define MB_DEFAULT_DESKTOP_ONLY     0x00020000L
 
 // Note: this is the NT 4.0 and greater value.
