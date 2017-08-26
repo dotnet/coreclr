@@ -54,7 +54,6 @@ GetEnvironmentStringsW
 GetEnvironmentVariableW
 GetFileAttributesExW
 GetFileSize
-GetFileType
 GetFullPathNameW
 GetLongPathNameW
 GetProcAddress

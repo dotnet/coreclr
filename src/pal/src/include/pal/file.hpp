@@ -102,13 +102,6 @@ namespace CorUnix
         );
 
     PAL_ERROR
-    InternalGetFileType(
-        CPalThread *pThread,
-        HANDLE hFile,
-        DWORD *pdwFileType
-        );
-
-    PAL_ERROR
     InternalCreatePipe(
         CPalThread *pThread,
         HANDLE *phReadPipe,

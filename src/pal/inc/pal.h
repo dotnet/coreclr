@@ -1057,18 +1057,6 @@ PALAPI
 FlushFileBuffers(
          IN HANDLE hFile);
 
-#define FILE_TYPE_UNKNOWN         0x0000
-#define FILE_TYPE_DISK            0x0001
-#define FILE_TYPE_CHAR            0x0002
-#define FILE_TYPE_PIPE            0x0003
-#define FILE_TYPE_REMOTE          0x8000
-
-PALIMPORT
-DWORD
-PALAPI
-GetFileType(
-        IN HANDLE hFile);
-
 PALIMPORT
 UINT
 PALAPI
