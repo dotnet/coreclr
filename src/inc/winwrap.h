@@ -20,17 +20,6 @@
 #if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
 #endif
-#if !defined(WIN32_LEAN_AND_MEAN)
-#define INC_OLE2
-#endif
-
-#ifdef _WIN64
-#define HIWORD64(p)     ((ULONG_PTR)(p) >> 16)
-#else
-#define HIWORD64        HIWORD
-#endif
-
-#define SAFEDELARRAY(p) if ((p) != NULL) { delete [] p; (p) = NULL; }
 
 //
 // WinCE uniformly uses cdecl calling convention on x86. __stdcall is defined as __cdecl in SDK.
