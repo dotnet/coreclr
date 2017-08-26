@@ -1008,10 +1008,8 @@ namespace System
             return !String.Equals(a, b);
         }
 
-        // Do not remove!
-        // This method is called by reflection in System.Xml
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int InternalMarvin32HashString(string s, int strLen);
+        private static extern int InternalMarvin32HashString(string s, int strLen);
 
         // Gets a hash code for this string.  If strings A and B are such that A.Equals(B), then
         // they will return the same hash code.
