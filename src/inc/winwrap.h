@@ -101,7 +101,6 @@
 #undef GetTempFileName
 #undef SetCurrentDirectory
 #undef GetCurrentDirectory
-#undef GetDiskFreeSpace
 #undef CreateDirectory
 #undef RemoveDirectory
 #undef GetFullPathName
@@ -191,7 +190,6 @@
 #define WszEndUpdateResource EndUpdateResourceW
 #define WszGetPrivateProfileInt GetPrivateProfileIntW
 #define WszGetSystemDirectory GetSystemDirectoryW
-#define WszGetDiskFreeSpace GetDiskFreeSpaceW
 #define WszCreateNamedPipe CreateNamedPipeW
 #define WszWaitNamedPipe WaitNamedPipeW
 #define WszRegisterEventSource RegisterEventSourceW

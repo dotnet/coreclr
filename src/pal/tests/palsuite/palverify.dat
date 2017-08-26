@@ -515,7 +515,6 @@ file_io/deletefilew/test1,1
 file_io/errorpathnotfound/test1,1
 file_io/errorpathnotfound/test2,1
 file_io/errorpathnotfound/test3,1
-#file_io/errorpathnotfound/test4,1
 file_io/filetimetodosdatetime/test1,1
 file_io/findclose/test1,1
 file_io/findfirstfilea/test1,1
@@ -527,7 +526,6 @@ file_io/getconsolecp/test1,1
 file_io/getconsoleoutputcp/test1,1
 file_io/getcurrentdirectorya/test1,1
 file_io/getcurrentdirectoryw/test1,1
-file_io/getdiskfreespacew/test1,1
 #file_io/getfileattributesa/test1,1
 #file_io/getfileattributesexw/test1,1
 file_io/getfileattributesexw/test2,1

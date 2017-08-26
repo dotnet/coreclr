@@ -4737,20 +4737,6 @@ GetSystemInfo(
 PALIMPORT
 BOOL
 PALAPI
-GetDiskFreeSpaceW(
-          LPCWSTR lpDirectoryName,
-          LPDWORD lpSectorsPerCluster,
-          LPDWORD lpBytesPerSector,
-          LPDWORD lpNumberOfFreeClusters,
-          LPDWORD lpTotalNumberOfClusters);
-
-#ifdef UNICODE
-#define GetDiskFreeSpace GetDiskFreeSpaceW
-#endif
-
-PALIMPORT
-BOOL
-PALAPI
 CreatePipe(
     OUT PHANDLE hReadPipe,
     OUT PHANDLE hWritePipe,
