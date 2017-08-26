@@ -635,12 +635,6 @@ MessageBoxW(
 #endif // _CRTIMP
 
 /******************* winbase.h Entrypoints and defines ************************/
-PALIMPORT
-BOOL
-PALAPI
-AreFileApisANSI(
-        VOID);
-
 typedef struct _SECURITY_ATTRIBUTES {
             DWORD nLength;
             LPVOID lpSecurityDescriptor;

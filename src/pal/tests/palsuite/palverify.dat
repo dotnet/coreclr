@@ -498,7 +498,6 @@ exception_handling/pal_try_leave_finally/test1,1
 exception_handling/raiseexception/test1,1
 exception_handling/raiseexception/test2,1
 exception_handling/raiseexception/test3,1
-file_io/arefileapisansi/test1,1
 file_io/comparefiletime/test1,1
 file_io/copyfilea/test1,1
 file_io/copyfilea/test2,1
