@@ -1020,15 +1020,6 @@ CompareFileTime(
         IN CONST FILETIME *lpFileTime2);
 
 PALIMPORT
-BOOL
-PALAPI
-GetFileTime(
-        IN HANDLE hFile,
-        OUT LPFILETIME lpCreationTime,
-        OUT LPFILETIME lpLastAccessTime,
-        OUT LPFILETIME lpLastWriteTime);
-
-PALIMPORT
 VOID
 PALAPI
 GetSystemTimeAsFileTime(

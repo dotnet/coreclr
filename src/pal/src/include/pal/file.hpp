@@ -127,15 +127,6 @@ namespace CorUnix
         PLONG lpNewFilePointerLow
         );
 
-    PAL_ERROR
-    InternalGetFileTime(
-        CPalThread *pThread,
-        IN HANDLE hFile,
-        OUT LPFILETIME lpCreationTime,
-        OUT LPFILETIME lpLastAccessTime,
-        OUT LPFILETIME lpLastWriteTime
-        );
-
     BOOL
     RealPathHelper(LPCSTR lpUnixPath, PathCharString& lpBuffer);
     /*++

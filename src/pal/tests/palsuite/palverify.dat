@@ -529,12 +529,6 @@ file_io/getcurrentdirectoryw/test1,1
 #file_io/getfileattributesexw/test1,1
 file_io/getfileattributesexw/test2,1
 #file_io/getfileattributesw/test1,1
-file_io/getfiletime/test1,1
-file_io/getfiletime/test2,1
-file_io/getfiletime/test3,1
-file_io/getfiletime/test4,1
-file_io/getfiletime/test6,1
-file_io/getfiletime/test7,1
 file_io/getfiletype/test1,1
 file_io/getfiletype/test2,1
 file_io/getfiletype/test3,1
