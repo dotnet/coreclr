@@ -4744,33 +4744,6 @@ CreatePipe(
     IN DWORD nSize
     );
 
-PALIMPORT
-BOOL
-PALAPI
-DeregisterEventSource (
-    IN HANDLE hEventLog
-    );
-
-PALIMPORT
-HANDLE
-PALAPI
-RegisterEventSourceA (
-    IN OPTIONAL LPCSTR lpUNCServerName,
-    IN     LPCSTR lpSourceName
-    );
-PALIMPORT
-HANDLE
-PALAPI
-RegisterEventSourceW (
-    IN OPTIONAL LPCWSTR lpUNCServerName,
-    IN     LPCWSTR lpSourceName
-    );
-#ifdef UNICODE
-#define RegisterEventSource  RegisterEventSourceW
-#else
-#define RegisterEventSource  RegisterEventSourceA
-#endif // !UNICODE
-
 //
 // NUMA related APIs
 //
@@ -4943,40 +4916,6 @@ GetProcessAffinityMask(
 #define EVENTLOG_INFORMATION_TYPE       0x0004
 #define EVENTLOG_AUDIT_SUCCESS          0x0008
 #define EVENTLOG_AUDIT_FAILURE          0x0010
-
-PALIMPORT
-BOOL
-PALAPI
-ReportEventA (
-    IN     HANDLE     hEventLog,
-    IN     WORD       wType,
-    IN     WORD       wCategory,
-    IN     DWORD      dwEventID,
-    IN OPTIONAL PSID       lpUserSid,
-    IN     WORD       wNumStrings,
-    IN     DWORD      dwDataSize,
-    IN OPTIONAL LPCSTR *lpStrings,
-    IN OPTIONAL LPVOID lpRawData
-    );
-PALIMPORT
-BOOL
-PALAPI
-ReportEventW (
-    IN     HANDLE     hEventLog,
-    IN     WORD       wType,
-    IN     WORD       wCategory,
-    IN     DWORD      dwEventID,
-    IN OPTIONAL PSID       lpUserSid,
-    IN     WORD       wNumStrings,
-    IN     DWORD      dwDataSize,
-    IN OPTIONAL LPCWSTR *lpStrings,
-    IN OPTIONAL LPVOID lpRawData
-    );
-#ifdef UNICODE
-#define ReportEvent  ReportEventW
-#else
-#define ReportEvent  ReportEventA
-#endif // !UNICODE
 
 PALIMPORT
 HRESULT

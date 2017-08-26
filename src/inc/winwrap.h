@@ -120,8 +120,6 @@
 #undef CreateHardLink
 #undef CreateNamedPipe
 #undef WaitNamedPipe
-#undef RegisterEventSource
-#undef ReportEvent
 #undef LookupPrivilegeValue
 #undef GetVersionEx
 
@@ -192,8 +190,6 @@
 #define WszGetSystemDirectory GetSystemDirectoryW
 #define WszCreateNamedPipe CreateNamedPipeW
 #define WszWaitNamedPipe WaitNamedPipeW
-#define WszRegisterEventSource RegisterEventSourceW
-#define WszReportEvent ReportEventW
 #define WszLookupPrivilegeValue LookupPrivilegeValueW
 
 // winuser.h
