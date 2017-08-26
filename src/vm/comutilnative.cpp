@@ -2854,7 +2854,7 @@ COMNlsHashProvider::COMNlsHashProvider()
     pDefaultSeed = NULL;
 }
 
-INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen, INT64 additionalEntropy)
+INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen)
 {
     CONTRACTL {
         THROWS;
@@ -2865,16 +2865,7 @@ INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen, INT64 additio
 
     int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
     
-    if(additionalEntropy == 0)
-    {
-        SymCryptMarvin32(GetDefaultSeed(), (PCBYTE) szStr, strLen * sizeof(WCHAR), (PBYTE) &marvinResult);
-    }
-    else
-    {
-        SYMCRYPT_MARVIN32_EXPANDED_SEED seed;
-        CreateMarvin32Seed(additionalEntropy, &seed);
-        SymCryptMarvin32(&seed, (PCBYTE) szStr, strLen * sizeof(WCHAR), (PBYTE) &marvinResult);
-    }
+    SymCryptMarvin32(GetDefaultSeed(), (PCBYTE) szStr, strLen * sizeof(WCHAR), (PBYTE) &marvinResult);
 
     return marvinResult[0] ^ marvinResult[1];
 }
@@ -2963,24 +2954,6 @@ PCBYTE COMNlsHashProvider::GetEntropy()
     }
  
     return (PCBYTE) pEntropy;
-}
-
-
-void COMNlsHashProvider::CreateMarvin32Seed(INT64 additionalEntropy, PSYMCRYPT_MARVIN32_EXPANDED_SEED pExpandedMarvinSeed)
-{
-    CONTRACTL {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    INT64 *pEntropy = (INT64*) GetEntropy();
-    INT64 entropy;
-
-    entropy = *pEntropy ^ additionalEntropy;
-
-    SymCryptMarvin32ExpandSeed(pExpandedMarvinSeed, (PCBYTE) &entropy, SYMCRYPT_MARVIN32_SEED_SIZE);
 }
 
 static MethodTable * g_pStreamMT;

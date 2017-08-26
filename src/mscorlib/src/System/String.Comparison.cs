@@ -1011,13 +1011,13 @@ namespace System
         // Do not remove!
         // This method is called by reflection in System.Xml
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int InternalMarvin32HashString(string s, int strLen, long additionalEntropy);
+        internal static extern int InternalMarvin32HashString(string s, int strLen);
 
         // Gets a hash code for this string.  If strings A and B are such that A.Equals(B), then
         // they will return the same hash code.
         public override int GetHashCode()
         {
-            return InternalMarvin32HashString(this, this.Length, 0);
+            return InternalMarvin32HashString(this, this.Length);
         }
 
         // Gets a hash code for this string and this comparison. If strings A and B and comparition C are such

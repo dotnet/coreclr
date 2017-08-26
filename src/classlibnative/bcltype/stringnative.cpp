@@ -161,7 +161,7 @@ inline COMNlsHashProvider * GetCurrentNlsHashProvider()
     return &COMNlsHashProvider::s_NlsHashProvider;
 }
 
-FCIMPL3(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE, INT32 strLen, INT64 additionalEntropy) {
+FCIMPL3(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE, INT32 strLen) {
     FCALL_CONTRACT;
 
     int iReturnHash = 0;
@@ -171,7 +171,7 @@ FCIMPL3(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE, INT32
     }
 
     BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    iReturnHash = GetCurrentNlsHashProvider()->HashString(thisRefUNSAFE->GetBuffer(), thisRefUNSAFE->GetStringLength(), additionalEntropy);
+    iReturnHash = GetCurrentNlsHashProvider()->HashString(thisRefUNSAFE->GetBuffer(), thisRefUNSAFE->GetStringLength());
     END_SO_INTOLERANT_CODE;
 
     FC_GC_POLL_RET();

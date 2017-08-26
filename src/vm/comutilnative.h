@@ -258,7 +258,7 @@ class COMNlsHashProvider {
 public:
     COMNlsHashProvider();
 
-    INT32 HashString(LPCWSTR szStr, SIZE_T strLen, INT64 additionalEntropy);
+    INT32 HashString(LPCWSTR szStr, SIZE_T strLen);
     INT32 HashSortKey(PCBYTE pSrc, SIZE_T cbSrc);
 
     static COMNlsHashProvider s_NlsHashProvider;
@@ -270,7 +270,6 @@ private:
     PCBYTE GetEntropy();
     PCSYMCRYPT_MARVIN32_EXPANDED_SEED GetDefaultSeed();
     void InitializeDefaultSeed();
-    void CreateMarvin32Seed(INT64 additionalEntropy, PSYMCRYPT_MARVIN32_EXPANDED_SEED pExpandedMarvinSeed);
 };
 
 #ifdef FEATURE_COREFX_GLOBALIZATION
