@@ -2956,6 +2956,23 @@ PCBYTE COMNlsHashProvider::GetEntropy()
     return (PCBYTE) pEntropy;
 }
 
+#ifdef FEATURE_COREFX_GLOBALIZATION
+INT32 QCALLTYPE CoreFxGlobalization::HashSortKey(PCBYTE pSortKey, INT32 cbSortKey)
+{
+    QCALL_CONTRACT;
+
+    INT32 retVal = 0;
+
+    BEGIN_QCALL;
+
+    retVal = COMNlsHashProvider::s_NlsHashProvider.HashSortKey(pSortKey, cbSortKey);
+
+    END_QCALL;
+
+    return retVal;
+}
+#endif //FEATURE_COREFX_GLOBALIZATION
+
 static MethodTable * g_pStreamMT;
 static WORD g_slotBeginRead, g_slotEndRead;
 static WORD g_slotBeginWrite, g_slotEndWrite;
