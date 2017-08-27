@@ -28,7 +28,6 @@
 #include "corhost.h"
 #include "win32threadpool.h"
 #include "jitinterface.h"
-#include "appdomainstack.inl"
 #include "eventtrace.h"
 #include "comutilnative.h"
 #include "finalizerthread.h"
@@ -53,6 +52,10 @@
 #ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
 #include "olecontexthelpers.h"
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
+
+#ifdef FEATURE_PERFTRACING
+#include "eventpipebuffermanager.h"
+#endif // FEATURE_PERFTRACING
 
 
 
@@ -492,7 +495,6 @@ void Thread::ChooseThreadCPUGroupAffinity()
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -512,7 +514,6 @@ void Thread::ChooseThreadCPUGroupAffinity()
     CPUGroupInfo::SetThreadGroupAffinity(GetThreadHandle(), &groupAffinity, NULL);
     m_wCPUGroup = groupAffinity.Group;
     m_pAffinityMask = groupAffinity.Mask;
-#endif // !FEATURE_PAL
 }
 
 void Thread::ClearThreadCPUGroupAffinity()
@@ -524,7 +525,6 @@ void Thread::ClearThreadCPUGroupAffinity()
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -542,7 +542,6 @@ void Thread::ClearThreadCPUGroupAffinity()
 
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
-#endif // !FEATURE_PAL
 }
 
 DWORD Thread::StartThread()
@@ -925,14 +924,6 @@ Thread* SetupUnstartedThread(BOOL bRequiresTSL)
     return pThread;
 }
 
-FCIMPL0(INT32, GetRuntimeId_Wrapper)
-{
-    FCALL_CONTRACT;
-
-    return GetRuntimeId();
-}
-FCIMPLEND
-
 //-------------------------------------------------------------------------
 // Public function: DestroyThread()
 // Destroys the specified Thread object, for a thread which is about to die.
@@ -988,6 +979,16 @@ void DestroyThread(Thread *th)
         th->SetThreadState(Thread::TS_ReportDead);
         th->OnThreadTerminate(FALSE);
     }
+
+#ifdef FEATURE_PERFTRACING
+    // Before the thread dies, mark its buffers as no longer owned
+    // so that they can be cleaned up after the thread dies.
+    EventPipeBufferList *pBufferList = th->GetEventPipeBufferList();
+    if(pBufferList != NULL)
+    {
+        pBufferList->SetOwnedByThread(false);
+    }
+#endif // FEATURE_PERFTRACING
 }
 
 //-------------------------------------------------------------------------
@@ -1083,6 +1084,16 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
 #ifdef ENABLE_CONTRACTS_DATA
     m_pClrDebugState = NULL;
 #endif //ENABLE_CONTRACTS_DATA
+
+#ifdef FEATURE_PERFTRACING
+    // Before the thread dies, mark its buffers as no longer owned
+    // so that they can be cleaned up after the thread dies.
+    EventPipeBufferList *pBufferList = m_pEventPipeBufferList.Load();
+    if(pBufferList != NULL)
+    {
+        pBufferList->SetOwnedByThread(false);
+    }
+#endif // FEATURE_PERFTRACING
 
     FastInterlockOr((ULONG*)&m_State, (int) (Thread::TS_Detached | Thread::TS_ReportDead));
     // Do not touch Thread object any more.  It may be destroyed.
@@ -1354,7 +1365,7 @@ void InitThreadManager()
 
     // All patched helpers should fit into one page.
     // If you hit this assert on retail build, there is most likely problem with BBT script.
-    _ASSERTE_ALL_BUILDS("clr/src/VM/threads.cpp", (BYTE*)JIT_PatchedCodeLast - (BYTE*)JIT_PatchedCodeStart < PAGE_SIZE);
+    _ASSERTE_ALL_BUILDS("clr/src/VM/threads.cpp", (BYTE*)JIT_PatchedCodeLast - (BYTE*)JIT_PatchedCodeStart < (ptrdiff_t)GetOsPageSize());
 
     // I am using virtual protect to cover the entire range that this code falls in.
     // 
@@ -1567,7 +1578,7 @@ void Dbg_TrackSyncStack::EnterSync(UINT_PTR caller, void *pAwareLock)
     STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::EnterSync, IP=%p, Recursion=%d, MonitorHeld=%d, HoldingThread=%p.\n",
                     caller,
                     ((AwareLock*)pAwareLock)->m_Recursion,
-                    ((AwareLock*)pAwareLock)->m_MonitorHeld,
+                    ((AwareLock*)pAwareLock)->m_MonitorHeld.LoadWithoutBarrier(),
                     ((AwareLock*)pAwareLock)->m_HoldingThread );
 
     if (m_Active)
@@ -1593,7 +1604,7 @@ void Dbg_TrackSyncStack::LeaveSync(UINT_PTR caller, void *pAwareLock)
     STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::LeaveSync, IP=%p, Recursion=%d, MonitorHeld=%d, HoldingThread=%p.\n",
                     caller,
                     ((AwareLock*)pAwareLock)->m_Recursion,
-                    ((AwareLock*)pAwareLock)->m_MonitorHeld,
+                    ((AwareLock*)pAwareLock)->m_MonitorHeld.LoadWithoutBarrier(),
                     ((AwareLock*)pAwareLock)->m_HoldingThread );
 
     if (m_Active)
@@ -2002,12 +2013,15 @@ Thread::Thread()
     
     m_fGCSpecial = FALSE;
 
-#if !defined(FEATURE_PAL)
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
-#endif
 
     m_pAllLoggedTypes = NULL;
+
+#ifdef FEATURE_PERFTRACING
+    m_pEventPipeBufferList = NULL;
+    m_eventWriteInProgress = false;
+#endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
 }
 
@@ -2510,7 +2524,7 @@ void UndoRevert(BOOL bReverted, HANDLE hToken)
 // We don't want ::CreateThread() calls scattered throughout the source.  So gather
 // them all here.
 
-BOOL Thread::CreateNewThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args)
+BOOL Thread::CreateNewThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args, LPCWSTR pName)
 {
     CONTRACTL {
         NOTHROW;
@@ -2537,6 +2551,7 @@ BOOL Thread::CreateNewThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, voi
     bRet = CreateNewOSThread(stackSize, start, args);
 #ifndef FEATURE_PAL
     UndoRevert(bReverted, token);
+    SetThreadName(m_ThreadHandle, pName);
 #endif // !FEATURE_PAL
 
     return bRet;
@@ -2550,7 +2565,7 @@ DWORD WINAPI Thread::intermediateThreadProc(PVOID arg)
     WRAPPER_NO_CONTRACT;
 
     m_offset_counter++;
-    if (m_offset_counter * offset_multiplier > PAGE_SIZE)
+    if (m_offset_counter * offset_multiplier > (int) GetOsPageSize())
         m_offset_counter = 0;
 
     (void)_alloca(m_offset_counter * offset_multiplier);
@@ -2665,11 +2680,11 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
     dwCreationFlags |= STACK_SIZE_PARAM_IS_A_RESERVATION;
 
 #ifndef FEATURE_PAL // the PAL does its own adjustments as necessary
-    if (sizeToCommitOrReserve != 0 && sizeToCommitOrReserve <= OS_PAGE_SIZE)
+    if (sizeToCommitOrReserve != 0 && sizeToCommitOrReserve <= GetOsPageSize())
     {
         // On Windows, passing a value that is <= one page size bizarrely causes the OS to use the default stack size instead of
         // a minimum, which is undesirable. This adjustment fixes that issue to use a minimum stack size (typically 64 KB).
-        sizeToCommitOrReserve = OS_PAGE_SIZE + 1;
+        sizeToCommitOrReserve = GetOsPageSize() + 1;
     }
 #endif // !FEATURE_PAL
 
@@ -5074,7 +5089,7 @@ void Thread::SafeUpdateLastThrownObject(void)
     {
         EX_TRY
         {
-            IGCHandleTable *pHandleTable = GCHandleTableUtilities::GetGCHandleTable();
+            IGCHandleManager *pHandleTable = GCHandleUtilities::GetGCHandleManager();
 
             // Creating a duplicate handle here ensures that the AD of the last thrown object
             // matches the domain of the current throwable.
@@ -6498,7 +6513,7 @@ void Thread::HandleThreadInterrupt (BOOL fWaitForADUnload)
 }
 
 #ifdef _DEBUG
-#define MAXSTACKBYTES (2 * PAGE_SIZE)
+#define MAXSTACKBYTES (2 * GetOsPageSize())
 void CleanStackForFastGCStress ()
 {
     CONTRACTL {
@@ -7092,16 +7107,16 @@ HRESULT Thread::CLRSetThreadStackGuarantee(SetThreadStackGuaranteeScope fScope)
         int ThreadGuardPages = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ThreadGuardPages);
         if (ThreadGuardPages == 0)
         {
-            uGuardSize += (EXTRA_PAGES * PAGE_SIZE);
+            uGuardSize += (EXTRA_PAGES * GetOsPageSize());
         }
         else
         {
-            uGuardSize += (ThreadGuardPages * PAGE_SIZE);
+            uGuardSize += (ThreadGuardPages * GetOsPageSize());
         }
 
 #else // _WIN64
 #ifdef _DEBUG
-        uGuardSize += (1 * PAGE_SIZE);    // one extra page for debug infrastructure
+        uGuardSize += (1 * GetOsPageSize());    // one extra page for debug infrastructure
 #endif // _DEBUG
 #endif // _WIN64
 
@@ -7145,14 +7160,14 @@ UINT_PTR Thread::GetLastNormalStackAddress(UINT_PTR StackLimit)
     UINT_PTR cbStackGuarantee = GetStackGuarantee();
 
     // Here we take the "hard guard region size", the "stack guarantee" and the "fault page" and add them
-    // all together.  Note that the "fault page" is the reason for the extra OS_PAGE_SIZE below.  The OS
+    // all together.  Note that the "fault page" is the reason for the extra GetOsPageSize() below.  The OS
     // will guarantee us a certain amount of stack remaining after a stack overflow.  This is called the
     // "stack guarantee".  But to do this, it has to fault on the page before that region as the app is
     // allowed to fault at the very end of that page.  So, as a result, the last normal stack address is
     // one page sooner.
     return StackLimit + (cbStackGuarantee 
 #ifndef FEATURE_PAL
-            + OS_PAGE_SIZE 
+            + GetOsPageSize()
 #endif // !FEATURE_PAL
             + HARD_GUARD_REGION_SIZE);
 }
@@ -7253,7 +7268,7 @@ static void DebugLogStackRegionMBIs(UINT_PTR uLowAddress, UINT_PTR uHighAddress)
 
         UINT_PTR uRegionSize = uStartOfNextRegion - uStartOfThisRegion;
 
-        LOG((LF_EH, LL_INFO1000, "0x%p -> 0x%p (%d pg)  ", uStartOfThisRegion, uStartOfNextRegion - 1, uRegionSize / OS_PAGE_SIZE));
+        LOG((LF_EH, LL_INFO1000, "0x%p -> 0x%p (%d pg)  ", uStartOfThisRegion, uStartOfNextRegion - 1, uRegionSize / GetOsPageSize()));
         DebugLogMBIFlags(meminfo.State, meminfo.Protect);
         LOG((LF_EH, LL_INFO1000, "\n"));
 
@@ -7292,7 +7307,7 @@ void Thread::DebugLogStackMBIs()
     UINT_PTR uStackSize         = uStackBase - uStackLimit;
 
     LOG((LF_EH, LL_INFO1000, "----------------------------------------------------------------------\n"));
-    LOG((LF_EH, LL_INFO1000, "Stack Snapshot 0x%p -> 0x%p (%d pg)\n", uStackLimit, uStackBase, uStackSize / OS_PAGE_SIZE));
+    LOG((LF_EH, LL_INFO1000, "Stack Snapshot 0x%p -> 0x%p (%d pg)\n", uStackLimit, uStackBase, uStackSize / GetOsPageSize()));
     if (pThread)
     {
         LOG((LF_EH, LL_INFO1000, "Last normal addr: 0x%p\n", pThread->GetLastNormalStackAddress()));
@@ -7514,7 +7529,7 @@ BOOL Thread::CanResetStackTo(LPCVOID stackPointer)
     // We need to have enough space to call back into the EE from the handler, so we use the twice the entry point amount.
     // We need enough to do work and enough that partway through that work we won't probe and COMPlusThrowSO.
 
-    const INT_PTR iStackSizeThreshold        = (ADJUST_PROBE(DEFAULT_ENTRY_PROBE_AMOUNT * 2) * OS_PAGE_SIZE);
+    const INT_PTR iStackSizeThreshold        = (ADJUST_PROBE(DEFAULT_ENTRY_PROBE_AMOUNT * 2) * GetOsPageSize());
 
     if (iStackSpaceLeft > iStackSizeThreshold)
     {
@@ -7557,7 +7572,7 @@ BOOL Thread::IsStackSpaceAvailable(float numPages)
 
     // If we have access to the stack guarantee (either in the guard region or we've tripped the guard page), then
     // use that.
-    if ((iStackSpaceLeft/OS_PAGE_SIZE) < numPages && !DetermineIfGuardPagePresent()) 
+    if ((iStackSpaceLeft/GetOsPageSize()) < numPages && !DetermineIfGuardPagePresent())
     {    
         UINT_PTR stackGuarantee = GetStackGuarantee();
         // GetLastNormalStackAddress actually returns the 2nd to last stack page on the stack. We'll add that to our available
@@ -7565,9 +7580,9 @@ BOOL Thread::IsStackSpaceAvailable(float numPages)
         //
         // All these values are OS supplied, and will never overflow. (If they do, that means the stack is on the order
         // over GB, which isn't possible.
-        iStackSpaceLeft += stackGuarantee + OS_PAGE_SIZE;
+        iStackSpaceLeft += stackGuarantee + GetOsPageSize();
     }
-    if ((iStackSpaceLeft/OS_PAGE_SIZE) < numPages)
+    if ((iStackSpaceLeft/GetOsPageSize()) < numPages)
     {
         return FALSE;
     }
@@ -7703,13 +7718,13 @@ VOID Thread::RestoreGuardPage()
     // to change the size of the guard region, we'll just go ahead and protect the next page down from where we are
     // now. The guard page will get pushed forward again, just like normal, until the next stack overflow.
         approxStackPointer   = (UINT_PTR)GetCurrentSP();
-        guardPageBase        = (UINT_PTR)ALIGN_DOWN(approxStackPointer, OS_PAGE_SIZE) - OS_PAGE_SIZE;
+        guardPageBase        = (UINT_PTR)ALIGN_DOWN(approxStackPointer, GetOsPageSize()) - GetOsPageSize();
 
         // OS uses soft guard page to update the stack info in TEB.  If our guard page is not beyond the current stack, the TEB
         // will not be updated, and then OS's check of stack during exception will fail.
         if (approxStackPointer >= guardPageBase)
         {
-            guardPageBase -= OS_PAGE_SIZE;
+            guardPageBase -= GetOsPageSize();
         }
     // If we're currently "too close" to the page we want to mark as a guard then the call to VirtualProtect to set
     // PAGE_GUARD will fail, but it won't return an error. Therefore, we protect the page, then query it to make
@@ -7739,7 +7754,7 @@ VOID Thread::RestoreGuardPage()
             }
             else
             {
-                guardPageBase -= OS_PAGE_SIZE;
+                guardPageBase -= GetOsPageSize();
             }
         }
     }
@@ -8074,9 +8089,6 @@ void Thread::InitContext()
     m_pDomain = m_Context->GetDomain();
     _ASSERTE(m_pDomain);
     m_pDomain->ThreadEnter(this, NULL);
-
-    // Every thread starts in the default domain, so push it here.
-    PushDomain((ADID)DefaultADID);
 }
 
 void Thread::ClearContext()
@@ -8102,7 +8114,6 @@ void Thread::ClearContext()
     m_fDisableComObjectEagerCleanup = false;
 #endif //FEATURE_COMINTEROP
     m_Context = NULL;
-    m_ADStack.ClearDomainStack();
 }
 
 
@@ -8365,7 +8376,6 @@ void Thread::EnterContextRestricted(Context *pContext, ContextTransitionFrame *p
 
         _ASSERTE(pFrame);
 
-        PushDomain(pDomain->GetId());
         STRESS_LOG1(LF_APPDOMAIN, LL_INFO100000, "Entering into ADID=%d\n", pDomain->GetId().m_dwId);
 
 
@@ -8522,7 +8532,6 @@ void Thread::ReturnToContext(ContextTransitionFrame *pFrame)
 
     if (fChangedDomains)
     {
-        pADOnStack = m_ADStack.PopDomain();
         STRESS_LOG2(LF_APPDOMAIN, LL_INFO100000, "Returning from %d to %d\n", pADOnStack.m_dwId, pReturnContext->GetDomain()->GetId().m_dwId);
 
         _ASSERTE(pADOnStack == m_pDomain->GetId());
@@ -10645,7 +10654,6 @@ void Thread::FullResetThread()
 
     GCX_FORBID();
     DeleteThreadStaticData();
-    ResetSecurityInfo();
 
     m_alloc_context.alloc_bytes = 0;
     m_fPromoted = FALSE;

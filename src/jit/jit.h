@@ -225,21 +225,6 @@
 #endif
 #endif
 
-// Macros for defining strongly-typed enums. Use as follows:
-//
-// DECLARE_TYPED_ENUM(FooEnum,BYTE)
-// {
-//    fooTag1, fooTag2
-// }
-// END_DECLARE_TYPED_ENUM(FooEnum, BYTE)
-//
-// VC++ understands the syntax to declare these directly, e.g., "enum FooEnum : BYTE",
-// but GCC does not, so we use typedefs.
-
-#define DECLARE_TYPED_ENUM(tag, baseType) enum tag : baseType
-
-#define END_DECLARE_TYPED_ENUM(tag, baseType) ;
-
 #include "corhdr.h"
 #include "corjit.h"
 #include "jitee.h"
@@ -276,14 +261,14 @@
 #define FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY(x)
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND))
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND))
 #define FEATURE_PUT_STRUCT_ARG_STK 1
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x) , x
 #define PUT_STRUCT_ARG_STK_ONLY(x) x
-#else // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)))
+#else // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x)
 #define PUT_STRUCT_ARG_STK_ONLY(x)
-#endif // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)))
+#endif // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
 
 #if defined(UNIX_AMD64_ABI)
 #define UNIX_AMD64_ABI_ONLY_ARG(x) , x
@@ -422,8 +407,6 @@ typedef ptrdiff_t ssize_t;
 
 #define CSE_INTO_HANDLERS 0
 
-#define CAN_DISABLE_DFA 1 // disable data flow for minopts
-
 #define LARGE_EXPSET 1   // Track 64 or 32 assertions/copies/consts/rangechecks
 #define ASSERTION_PROP 1 // Enable value/assertion propagation
 
@@ -531,11 +514,10 @@ const bool dspGCtbls = true;
 #endif // !DEBUG
 
 #ifdef DEBUG
-void JitDump(const char* pcFormat, ...);
 #define JITDUMP(...)                                                                                                   \
     {                                                                                                                  \
         if (JitTls::GetCompiler()->verbose)                                                                            \
-            JitDump(__VA_ARGS__);                                                                                      \
+            logf(__VA_ARGS__);                                                                                         \
     }
 #define JITLOG(x)                                                                                                      \
     {                                                                                                                  \

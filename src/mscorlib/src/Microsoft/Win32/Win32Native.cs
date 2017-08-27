@@ -93,7 +93,6 @@ namespace Microsoft.Win32
     using System.Security;
     using System.Text;
     using System.Configuration.Assemblies;
-    using System.Runtime.Remoting;
     using System.Runtime.InteropServices;
     using System.Threading;
     using Microsoft.Win32.SafeHandles;
@@ -171,7 +170,6 @@ namespace Microsoft.Win32
         internal const int MUI_LANG_NEUTRAL_PE_FILE = 0x100;
         internal const int MUI_NON_LANG_NEUTRAL_FILE = 0x200;
 
-        internal const int LOAD_LIBRARY_AS_DATAFILE = 0x00000002;
         internal const int LOAD_STRING_MAX_LENGTH = 500;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -328,6 +326,7 @@ namespace Microsoft.Win32
         // Win32 ACL-related constants:
         internal const int READ_CONTROL = 0x00020000;
         internal const int SYNCHRONIZE = 0x00100000;
+        internal const int MAXIMUM_ALLOWED = 0x02000000;
 
         internal const int STANDARD_RIGHTS_READ = READ_CONTROL;
         internal const int STANDARD_RIGHTS_WRITE = READ_CONTROL;
@@ -343,30 +342,17 @@ namespace Microsoft.Win32
         internal const int SEMAPHORE_MODIFY_STATE = 0x00000002;
         internal const int EVENT_MODIFY_STATE = 0x00000002;
         internal const int MUTEX_MODIFY_STATE = 0x00000001;
-        internal const int MUTEX_ALL_ACCESS = 0x001F0001;
 
+        // CreateEventEx: flags
+        internal const uint CREATE_EVENT_MANUAL_RESET = 0x1;
+        internal const uint CREATE_EVENT_INITIAL_SET = 0x2;
+
+        // CreateMutexEx: flags
+        internal const uint CREATE_MUTEX_INITIAL_OWNER = 0x1;
 
         internal const int LMEM_FIXED = 0x0000;
         internal const int LMEM_ZEROINIT = 0x0040;
         internal const int LPTR = (LMEM_FIXED | LMEM_ZEROINIT);
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        internal class OSVERSIONINFO
-        {
-            internal OSVERSIONINFO()
-            {
-                OSVersionInfoSize = (int)Marshal.SizeOf(this);
-            }
-
-            // The OSVersionInfoSize field must be set to Marshal.SizeOf(this)
-            internal int OSVersionInfoSize = 0;
-            internal int MajorVersion = 0;
-            internal int MinorVersion = 0;
-            internal int BuildNumber = 0;
-            internal int PlatformId = 0;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-            internal String CSDVersion = null;
-        }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         internal class OSVERSIONINFOEX
@@ -400,7 +386,6 @@ namespace Microsoft.Win32
             internal int bInheritHandle = 0;
         }
 
-        [Serializable]
         [StructLayout(LayoutKind.Sequential)]
         internal struct WIN32_FILE_ATTRIBUTE_DATA
         {
@@ -461,13 +446,11 @@ namespace Microsoft.Win32
         internal const String USER32 = "user32.dll";
         internal const String OLE32 = "ole32.dll";
         internal const String OLEAUT32 = "oleaut32.dll";
-        internal const String NTDLL = "ntdll.dll";
 #else //FEATURE_PAL
         internal const String KERNEL32 = "libcoreclr";
         internal const String USER32   = "libcoreclr";
         internal const String OLE32    = "libcoreclr";
         internal const String OLEAUT32 = "libcoreclr";
-        internal const String NTDLL    = "libcoreclr";
 #endif //FEATURE_PAL         
         internal const String ADVAPI32 = "advapi32.dll";
         internal const String SHELL32 = "shell32.dll";
@@ -475,9 +458,6 @@ namespace Microsoft.Win32
         internal const String CRYPT32 = "crypt32.dll";
         internal const String SECUR32 = "secur32.dll";
         internal const String MSCORWKS = "coreclr.dll";
-
-        // From WinBase.h
-        internal const int SEM_FAILCRITICALERRORS = 1;
 
         [DllImport(KERNEL32, CharSet = CharSet.Auto, BestFitMapping = true)]
         internal static extern int FormatMessage(int dwFlags, IntPtr lpSource,
@@ -508,10 +488,6 @@ namespace Microsoft.Win32
 
         [DllImport(KERNEL32, SetLastError = true)]
         internal static extern IntPtr LocalFree(IntPtr handle);
-
-        // MSDN says the length is a SIZE_T.
-        [DllImport(NTDLL, EntryPoint = "RtlZeroMemory")]
-        internal static extern void ZeroMemory(IntPtr address, UIntPtr length);
 
         internal static bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX buffer)
         {
@@ -565,16 +541,16 @@ namespace Microsoft.Win32
         internal static extern bool ResetEvent(SafeWaitHandle handle);
 
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern SafeWaitHandle CreateEvent(SECURITY_ATTRIBUTES lpSecurityAttributes, bool isManualReset, bool initialState, String name);
+        internal static extern SafeWaitHandle CreateEventEx(SECURITY_ATTRIBUTES lpSecurityAttributes, string name, uint flags, uint desiredAccess);
 
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern SafeWaitHandle OpenEvent(/* DWORD */ int desiredAccess, bool inheritHandle, String name);
+        internal static extern SafeWaitHandle OpenEvent(uint desiredAccess, bool inheritHandle, string name);
 
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern SafeWaitHandle CreateMutex(SECURITY_ATTRIBUTES lpSecurityAttributes, bool initialOwner, String name);
+        internal static extern SafeWaitHandle CreateMutexEx(SECURITY_ATTRIBUTES lpSecurityAttributes, string name, uint flags, uint desiredAccess);
 
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern SafeWaitHandle OpenMutex(/* DWORD */ int desiredAccess, bool inheritHandle, String name);
+        internal static extern SafeWaitHandle OpenMutex(uint desiredAccess, bool inheritHandle, string name);
 
         [DllImport(KERNEL32, SetLastError = true)]
         internal static extern bool ReleaseMutex(SafeWaitHandle handle);
@@ -586,30 +562,14 @@ namespace Microsoft.Win32
         internal static unsafe extern int WriteFile(SafeFileHandle handle, byte* bytes, int numBytesToWrite, out int numBytesWritten, IntPtr mustBeZero);
 
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern SafeWaitHandle CreateSemaphore(SECURITY_ATTRIBUTES lpSecurityAttributes, int initialCount, int maximumCount, String name);
+        internal static extern SafeWaitHandle CreateSemaphoreEx(SECURITY_ATTRIBUTES lpSecurityAttributes, int initialCount, int maximumCount, string name, uint flags, uint desiredAccess);
 
         [DllImport(KERNEL32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool ReleaseSemaphore(SafeWaitHandle handle, int releaseCount, out int previousCount);
 
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern SafeWaitHandle OpenSemaphore(/* DWORD */ int desiredAccess, bool inheritHandle, String name);
-
-        // Will be in winnls.h
-        internal const int FIND_STARTSWITH = 0x00100000; // see if value is at the beginning of source
-        internal const int FIND_ENDSWITH = 0x00200000; // see if value is at the end of source
-        internal const int FIND_FROMSTART = 0x00400000; // look for value in source, starting at the beginning
-        internal const int FIND_FROMEND = 0x00800000; // look for value in source, starting at the end
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct NlsVersionInfoEx
-        {
-            internal int dwNLSVersionInfoSize;
-            internal int dwNLSVersion;
-            internal int dwDefinedVersion;
-            internal int dwEffectiveId;
-            internal Guid guidCustomVersion;
-        }
+        internal static extern SafeWaitHandle OpenSemaphore(uint desiredAccess, bool inheritHandle, string name);
 
         [DllImport(KERNEL32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
         internal static extern int GetSystemDirectory([Out]StringBuilder sb, int length);
@@ -733,7 +693,6 @@ namespace Microsoft.Win32
         }
 
         // Win32 Structs in N/Direct style
-        [Serializable]
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         [BestFitMapping(false)]
         internal class WIN32_FIND_DATA
@@ -774,26 +733,8 @@ namespace Microsoft.Win32
         [DllImport(KERNEL32)]
         internal static extern bool FindClose(IntPtr handle);
 
-        [DllImport(KERNEL32, SetLastError = true, ExactSpelling = true)]
-        internal static extern uint GetCurrentDirectoryW(uint nBufferLength, char[] lpBuffer);
-
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern bool GetFileAttributesEx(String name, int fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation);
-
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern bool SetCurrentDirectory(String path);
-
-        [DllImport(KERNEL32, SetLastError = false, EntryPoint = "SetErrorMode", ExactSpelling = true)]
-        private static extern int SetErrorMode_VistaAndOlder(int newMode);
-
-        // RTM versions of Win7 and Windows Server 2008 R2
-        private static readonly Version ThreadErrorModeMinOsVersion = new Version(6, 1, 7600);
-
-        // this method uses the thread-safe version of SetErrorMode on Windows 7 / Windows Server 2008 R2 operating systems.
-        internal static int SetErrorMode(int newMode)
-        {
-            return SetErrorMode_VistaAndOlder(newMode);
-        }
 
         internal const int LCID_SUPPORTED = 0x00000002;  // supported locale ids
 
@@ -847,14 +788,6 @@ namespace Microsoft.Win32
         [DllImport(ADVAPI32, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern int RegOpenKeyEx(SafeRegistryHandle hKey, String lpSubKey,
                     int ulOptions, int samDesired, out SafeRegistryHandle hkResult);
-
-        [DllImport(ADVAPI32, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern int RegQueryInfoKey(SafeRegistryHandle hKey, [Out]StringBuilder lpClass,
-                    int[] lpcbClass, IntPtr lpReserved_MustBeZero, ref int lpcSubKeys,
-                    int[] lpcbMaxSubKeyLen, int[] lpcbMaxClassLen,
-                    ref int lpcValues, int[] lpcbMaxValueNameLen,
-                    int[] lpcbMaxValueLen, int[] lpcbSecurityDescriptor,
-                    int[] lpftLastWriteTime);
 
         [DllImport(ADVAPI32, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern int RegQueryValueEx(SafeRegistryHandle hKey, String lpValueName,

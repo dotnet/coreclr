@@ -2,9 +2,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Needed due to the cmunged files being in the binary folders, the set(CMAKE_INCLUDE_CURRENT_DIR ON) is not enough
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}) 
-
-include_directories(${CLR_DIR}/src/gc)
-
 include_directories(${ARCH_SOURCES_DIR})
 
 add_definitions(-DUNICODE)
@@ -13,11 +10,15 @@ add_definitions(-D_UNICODE)
 
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   foreach (Config DEBUG CHECKED)  
-     set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:WRITE_BARRIER_CHECK=1>)
+    if(NOT FEATURE_STANDALONE_GC_ONLY)
+      set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:WRITE_BARRIER_CHECK=1>)
+    endif(NOT FEATURE_STANDALONE_GC_ONLY)
   endforeach (Config)
 else()
   if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    add_definitions(-DWRITE_BARRIER_CHECK=1)
+    if(NOT FEATURE_STANDALONE_GC_ONLY)
+      add_definitions(-DWRITE_BARRIER_CHECK=1)
+    endif(NOT FEATURE_STANDALONE_GC_ONLY)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
 
@@ -29,8 +30,11 @@ if(FEATURE_GDBJIT)
     set(VM_SOURCES_GDBJIT
         gdbjit.cpp
     )
-    add_definitions(-DFEATURE_GDBJIT)
 endif(FEATURE_GDBJIT)
+
+if(FEATURE_JIT_PITCHING)
+   add_definitions(-DFEATURE_JIT_PITCHING)
+endif(FEATURE_JIT_PITCHING)
 
 set(VM_SOURCES_DAC_AND_WKS_COMMON
     appdomain.cpp
@@ -43,6 +47,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     classhash.cpp
     clsload.cpp
     codeman.cpp
+    codeversion.cpp
     comdelegate.cpp
     contractimpl.cpp
     coreassemblyspec.cpp
@@ -69,10 +74,12 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     fptrstubs.cpp
     frames.cpp
     gcheaputilities.cpp
+    gchandleutilities.cpp
     genericdict.cpp
     generics.cpp
     hash.cpp
     hillclimbing.cpp
+    ilinstrumentation.cpp
     ilstubcache.cpp
     ilstubresolver.cpp
     inlinetracking.cpp
@@ -93,8 +100,6 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     precode.cpp
     prestub.cpp
     rejit.cpp
-    securitydescriptor.cpp
-    securitydescriptorassembly.cpp
     sigformat.cpp
     siginfo.cpp
     spinlock.cpp
@@ -118,11 +123,23 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     zapsig.cpp
 )
 
+set( GC_SOURCES_DAC_AND_WKS_COMMON
+  ../gc/handletable.cpp
+  ../gc/handletablecore.cpp
+  ../gc/handletablescan.cpp
+  ../gc/objecthandle.cpp)
+
 if(FEATURE_READYTORUN)
     list(APPEND VM_SOURCES_DAC_AND_WKS_COMMON
         readytoruninfo.cpp
     )
 endif(FEATURE_READYTORUN)
+
+if(FEATURE_JIT_PITCHING)
+    list(APPEND VM_SOURCES_DAC_AND_WKS_COMMON
+        codepitchingmanager.cpp
+    )
+endif(FEATURE_JIT_PITCHING)
 
 set(VM_SOURCES_DAC
     ${VM_SOURCES_DAC_AND_WKS_COMMON}
@@ -130,10 +147,12 @@ set(VM_SOURCES_DAC
     threaddebugblockinginfo.cpp
 )
 
+set(GC_SOURCES_DAC
+    ${GC_SOURCES_DAC_AND_WKS_COMMON})
+
 set(VM_SOURCES_WKS
     ${VM_SOURCES_DAC_AND_WKS_COMMON}
     appdomainnative.cpp
-    appdomainstack.cpp
     assemblyname.cpp
     assemblynative.cpp
     assemblyspec.cpp
@@ -155,7 +174,6 @@ set(VM_SOURCES_WKS
     comthreadpool.cpp
     comutilnative.cpp
     comwaithandle.cpp
-    coverage.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
     dllimportcallback.cpp
@@ -165,14 +183,23 @@ set(VM_SOURCES_WKS
     eepolicy.cpp
     eetoprofinterfaceimpl.cpp
     eventpipe.cpp
+    eventpipeconfiguration.cpp
+    eventpipeevent.cpp
+    eventpipeeventinstance.cpp
+    eventpipefile.cpp
     eventpipejsonfile.cpp
+    eventpipeprovider.cpp
+    eventpipebuffer.cpp
+    eventpipebuffermanager.cpp
     eventstore.cpp
+    fastserializer.cpp
     fcall.cpp
     fieldmarshaler.cpp
     finalizerthread.cpp
     frameworkexceptionloader.cpp
     gccover.cpp
-    gcenv.ee.cpp
+    gcenv.ee.static.cpp
+    gcenv.ee.common.cpp
     gchelpers.cpp
     genmeth.cpp
     hosting.cpp
@@ -183,7 +210,6 @@ set(VM_SOURCES_WKS
     interpreter.cpp
     invokeutil.cpp
     jithelpers.cpp
-    listlock.cpp
     managedmdimport.cpp
     marshalnative.cpp
     marvin32.cpp
@@ -214,14 +240,6 @@ set(VM_SOURCES_WKS
     runtimehandles.cpp
     safehandle.cpp
     sampleprofiler.cpp
-    security.cpp
-    securityattributes.cpp
-    securitydeclarative.cpp
-    securitydeclarativecache.cpp
-    securitydescriptorappdomain.cpp
-    securitymeta.cpp
-    securitypolicy.cpp
-    securitytransparentassembly.cpp
     sha1.cpp
     simplerwlock.cpp
     sourceline.cpp
@@ -238,16 +256,34 @@ set(VM_SOURCES_WKS
     threaddebugblockinginfo.cpp
     threadsuspend.cpp
     typeparse.cpp
-    verifier.cpp
     weakreferencenative.cpp
     ${VM_SOURCES_GDBJIT}
 )
+
+set(GC_SOURCES_WKS
+    ${GC_SOURCES_DAC_AND_WKS_COMMON}
+    ../gc/gcconfig.cpp
+    ../gc/gccommon.cpp
+    ../gc/gcscan.cpp
+    ../gc/gcsvr.cpp
+    ../gc/gcwks.cpp
+    ../gc/gchandletable.cpp
+    ../gc/gceesvr.cpp
+    ../gc/gceewks.cpp
+    ../gc/softwarewritewatch.cpp
+    ../gc/handletablecache.cpp)
 
 if(FEATURE_EVENT_TRACE)
     list(APPEND VM_SOURCES_WKS
         eventtrace.cpp
         )
 endif(FEATURE_EVENT_TRACE)
+
+if(FEATURE_STANDALONE_GC)
+    list(APPEND VM_SOURCES_WKS
+        gcenv.ee.standalone.cpp
+        )
+endif(FEATURE_STANDALONE_GC)
 
 if(NOT FEATURE_STANDALONE_GC)
     list(APPEND VM_SOURCES_WKS
@@ -476,9 +512,29 @@ list(APPEND VM_SOURCES_DAC
     ${VM_SOURCES_DAC_AND_WKS_ARCH}
 )
 
+# The default option for FEATURE_STANDALONE_GC builds a standalone
+# and non-standalone GC, linking the non-standalone GC into coreclr.dll.
+# For testing purposes, FEATURE_STANDALONE_GC_ONLY instead only builds and
+# links the non-standalone GC into coreclr.dll.
+if (NOT FEATURE_STANDALONE_GC_ONLY)
+    list(APPEND VM_SOURCES_WKS
+        ${GC_SOURCES_WKS}
+    )
+endif(NOT FEATURE_STANDALONE_GC_ONLY)
+
+# The DAC does need GC sources in order to link correctly, even if
+# it's not used.
+list(APPEND VM_SOURCES_DAC
+    ${GC_SOURCES_DAC}
+)
+
 convert_to_absolute_path(VM_SOURCES_WKS ${VM_SOURCES_WKS})
 convert_to_absolute_path(VM_SOURCES_WKS_ARCH_ASM ${VM_SOURCES_WKS_ARCH_ASM})
 convert_to_absolute_path(VM_SOURCES_DAC ${VM_SOURCES_DAC})
 
 add_subdirectory(dac)
 add_subdirectory(wks)
+
+if(CLR_CMAKE_PLATFORM_LINUX)
+    add_subdirectory($ENV{__IntermediatesDir}/Generated/eventpipe ${CMAKE_CURRENT_BINARY_DIR}/eventpipe)
+endif(CLR_CMAKE_PLATFORM_LINUX)

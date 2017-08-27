@@ -22,14 +22,12 @@
 #include "stackprobe.h"
 #include "eeconfig.h"
 #include "eehash.h"
-#include "objecthandle.h"
 #include "interoputil.h"
 #include "typedesc.h"
 #include "virtualcallstub.h"
 #include "contractimpl.h"
 #include "dynamicmethod.h"
 #include "peimagelayout.inl"
-#include "security.h"
 #include "eventtrace.h"
 #include "invokeutil.h"
 
@@ -129,8 +127,6 @@ static BOOL CheckCAVisibilityFromDecoratedType(MethodTable* pCAMT, MethodDesc* p
     
     StaticAccessCheckContext accessContext(NULL, pDecoratedMT, pDecoratedModule->GetAssembly());
 
-    // Don't do transparency check here. Custom attributes have different transparency rules. 
-    // The checks are done by AllowCriticalCustomAttributes and CheckLinktimeDemands in CustomAttribute.cs.
     return ClassLoader::CanAccess(
         &accessContext, 
         pCAMT,
@@ -138,9 +134,7 @@ static BOOL CheckCAVisibilityFromDecoratedType(MethodTable* pCAMT, MethodDesc* p
         dwAttr,
         pCACtor,
         NULL,
-        *AccessCheckOptions::s_pNormalAccessChecks,
-        FALSE,
-        FALSE);
+        *AccessCheckOptions::s_pNormalAccessChecks);
 }
 
 BOOL QCALLTYPE RuntimeMethodHandle::IsCAVisibleFromDecoratedType(
@@ -173,190 +167,6 @@ BOOL QCALLTYPE RuntimeMethodHandle::IsCAVisibleFromDecoratedType(
 }
 
 // static
-BOOL QCALLTYPE RuntimeMethodHandle::IsSecurityCritical(MethodDesc *pMD)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pMD));
-    }
-    CONTRACTL_END;
-
-    BOOL fIsCritical = TRUE;
-
-    BEGIN_QCALL;
-
-    if (pMD == NULL)
-        COMPlusThrowArgumentNull(NULL, W("Arg_InvalidHandle"));
-
-    fIsCritical = Security::IsMethodCritical(pMD);
-
-    END_QCALL;
-
-    return fIsCritical;
-}
-
-// static
-BOOL QCALLTYPE RuntimeMethodHandle::IsSecuritySafeCritical(MethodDesc *pMD)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pMD));
-    }
-    CONTRACTL_END;
-
-    BOOL fIsSafeCritical = TRUE;
-
-    BEGIN_QCALL;
-
-    if (pMD == NULL)
-        COMPlusThrowArgumentNull(NULL, W("Arg_InvalidHandle"));
-
-    fIsSafeCritical = Security::IsMethodSafeCritical(pMD);
-
-    END_QCALL;
-
-    return fIsSafeCritical;
-}
-
-// static
-BOOL QCALLTYPE RuntimeMethodHandle::IsSecurityTransparent(MethodDesc *pMD)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pMD));
-    }
-    CONTRACTL_END;
-
-    BOOL fIsTransparent = TRUE;
-
-    BEGIN_QCALL;
-
-    if (pMD == NULL)
-        COMPlusThrowArgumentNull(NULL, W("Arg_InvalidHandle"));
-
-    fIsTransparent = Security::IsMethodTransparent(pMD);
-
-    END_QCALL;
-
-    return fIsTransparent;
-}
-
-FCIMPL2(FC_BOOL_RET, RuntimeMethodHandle::IsTokenSecurityTransparent, ReflectModuleBaseObject *pModuleUNSAFE, INT32 tkToken) {
-    CONTRACTL {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    REFLECTMODULEBASEREF refModule = (REFLECTMODULEBASEREF)ObjectToOBJECTREF(pModuleUNSAFE);
-
-    if(refModule == NULL)
-        FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
-
-    Module *pModule = refModule->GetModule();
-
-    BOOL bIsSecurityTransparent = TRUE;
-    
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refModule);
-    {
-        bIsSecurityTransparent = Security::IsTokenTransparent(pModule, tkToken);
-    }
-    HELPER_METHOD_FRAME_END();
-
-    FC_RETURN_BOOL(bIsSecurityTransparent );
-
-}
-FCIMPLEND
-
-static bool DoAttributeTransparencyChecks(Assembly *pAttributeAssembly, Assembly *pDecoratedAssembly)
-{
-    CONTRACTL
-    {
-        THROWS;
-        MODE_COOPERATIVE;
-        GC_TRIGGERS;
-        PRECONDITION(CheckPointer(pAttributeAssembly));
-        PRECONDITION(CheckPointer(pDecoratedAssembly));
-    }
-    CONTRACTL_END;
-
-    // Do transparency checks - if both the decorated assembly and attribute use the v4 security model,
-    // then we can do a direct transparency check.  However, if the decorated assembly uses the v2
-    // security model, then we need to convert the security critical attribute to looking as though it
-    // has a LinkDemand for full trust.
-    const SecurityTransparencyBehavior *pTargetTransparency = pDecoratedAssembly->GetSecurityTransparencyBehavior();
-    const SecurityTransparencyBehavior *pAttributeTransparency = pAttributeAssembly->GetSecurityTransparencyBehavior();
-
-    // v2 transparency did not impose checks for using its custom attributes, so if the attribute is
-    // defined in an assembly using the v2 transparency model then we don't need to do any
-    // additional checks.
-    if (pAttributeTransparency->DoAttributesRequireTransparencyChecks())
-    {
-        if (pTargetTransparency->CanTransparentCodeCallLinkDemandMethods() &&
-            pAttributeTransparency->CanCriticalMembersBeConvertedToLinkDemand())
-        {
-            // We have a v4 critical attribute being applied to a v2 transparent target. Since v2
-            // transparency doesn't understand externally visible critical attributes, we convert the
-            // attribute to a LinkDemand for full trust.  v2 transparency did not convert
-            // LinkDemands on its attributes into full demands so we do not do that second level of
-            // conversion here either.
-            Security::FullTrustLinkDemand(pDecoratedAssembly);
-            return true;
-        }
-        else
-        {
-            // If we are here either the target of the attribute uses the v4 security model, or the
-            // attribute itself uses the v2 model.  In these cases, we cannot perform a conversion of
-            // the critical attribute into a LinkDemand, and we have an error condition.
-            return false;
-        }
-    }
-
-    return true;
-}
-
-FCIMPL3(void, RuntimeMethodHandle::CheckLinktimeDemands, ReflectMethodObject *pMethodUNSAFE, ReflectModuleBaseObject *pModuleUNSAFE, CLR_BOOL isDecoratedTargetSecurityTransparent) 
-{
-    CONTRACTL 
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(pModuleUNSAFE));
-        PRECONDITION(CheckPointer(pMethodUNSAFE));
-    }
-    CONTRACTL_END;
-
-    if(!Security::IsTransparencyEnforcementEnabled())
-    {
-        FCUnique(0xb0);
-        return;
-    }
-
-    REFLECTMETHODREF refMethod = (REFLECTMETHODREF)ObjectToOBJECTREF(pMethodUNSAFE);
-    REFLECTMODULEBASEREF refModule = (REFLECTMODULEBASEREF)ObjectToOBJECTREF(pModuleUNSAFE);
-
-    HELPER_METHOD_FRAME_BEGIN_2(refMethod, refModule);
-    {
-        MethodDesc *pCallee = refMethod->GetMethod(); // pCallee is the CA ctor or CA setter method
-        Module *pDecoratedModule = refModule->GetModule();
-
-        bool isAttributeSecurityCritical = Security::IsMethodCritical(pCallee) &&
-                                           !Security::IsMethodSafeCritical(pCallee);
-
-        if (isDecoratedTargetSecurityTransparent && isAttributeSecurityCritical)
-        {
-            if (!DoAttributeTransparencyChecks(pCallee->GetAssembly(), pDecoratedModule->GetAssembly()))
-            {
-                SecurityTransparent::ThrowMethodAccessException(pCallee);
-            }
-        }
-
-    }
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
 NOINLINE static ReflectClassBaseObject* GetRuntimeTypeHelper(LPVOID __me, TypeHandle typeHandle, OBJECTREF keepAlive)
 {
     FC_INNER_PROLOG_NO_ME_SETUP();
@@ -729,101 +539,6 @@ FCIMPL1(FC_BOOL_RET, RuntimeFieldHandle::AcquiresContextFromThis, FieldDesc *pFi
 
 }
 FCIMPLEND
-
-// static
-BOOL QCALLTYPE RuntimeFieldHandle::IsSecurityCritical(FieldDesc *pFD)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pFD));
-    }
-    CONTRACTL_END;
-
-    BOOL fIsCritical = FALSE;
-
-    BEGIN_QCALL;
-
-    fIsCritical = Security::IsFieldCritical(pFD);
-
-    END_QCALL;
-
-    return fIsCritical;
-}
-
-// static
-BOOL QCALLTYPE RuntimeFieldHandle::IsSecuritySafeCritical(FieldDesc *pFD)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pFD));
-    }
-    CONTRACTL_END;
-
-    BOOL fIsSafeCritical = FALSE;
-
-    BEGIN_QCALL;
-
-    fIsSafeCritical = Security::IsFieldSafeCritical(pFD);
-
-    END_QCALL;
-
-    return fIsSafeCritical;
-}
-
-// static
-BOOL QCALLTYPE RuntimeFieldHandle::IsSecurityTransparent(FieldDesc *pFD)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pFD));
-    }
-    CONTRACTL_END;
-
-    BOOL fIsTransparent = FALSE;
-
-    BEGIN_QCALL;
-
-    fIsTransparent = Security::IsFieldTransparent(pFD);
-
-    END_QCALL;
-
-    return fIsTransparent;
-}
-
-// static
-void QCALLTYPE RuntimeFieldHandle::CheckAttributeAccess(FieldDesc *pFD, QCall::ModuleHandle pModule)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pFD));
-        PRECONDITION(CheckPointer(pModule.m_pModule));
-    }
-    CONTRACTL_END;
-    
-    if(!Security::IsTransparencyEnforcementEnabled())
-    {
-        FCUnique(0xb1);
-        return;
-    }
-
-    BEGIN_QCALL;
-
-    if (Security::IsFieldCritical(pFD) && !Security::IsFieldSafeCritical(pFD))
-    {
-        GCX_COOP();
-
-        if (!DoAttributeTransparencyChecks(pFD->GetModule()->GetAssembly(), pModule->GetAssembly()))
-        {
-            ThrowFieldAccessException(NULL, pFD, TRUE, IDS_E_CRITICAL_FIELD_ACCESS_DENIED);
-        }
-    }
-
-    END_QCALL;
-}
 
 FCIMPL1(ReflectModuleBaseObject*, RuntimeTypeHandle::GetModule, ReflectClassBaseObject *pTypeUNSAFE) {
     CONTRACTL {
@@ -1252,6 +967,24 @@ FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsInterface, ReflectClassBaseObject *pTy
 }
 FCIMPLEND;
 
+
+FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsByRefLike, ReflectClassBaseObject *pTypeUNSAFE)
+{
+    CONTRACTL {
+        FCALL_CHECK;
+    }
+    CONTRACTL_END;
+    
+    REFLECTCLASSBASEREF refType = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(pTypeUNSAFE);
+
+    _ASSERTE(refType != NULL);
+
+    TypeHandle typeHandle = refType->GetType();
+
+    FC_RETURN_BOOL(typeHandle.IsByRefLike());
+}
+FCIMPLEND
+
 BOOL 
 QCALLTYPE 
 RuntimeTypeHandle::IsVisible(
@@ -1277,112 +1010,6 @@ RuntimeTypeHandle::IsVisible(
     
     return fIsExternallyVisible;
 } // RuntimeTypeHandle::IsVisible
-
-// static
-BOOL QCALLTYPE RuntimeTypeHandle::IsSecurityCritical(EnregisteredTypeHandle pTypeHandle)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pTypeHandle));
-    }
-    CONTRACTL_END;
-
-    BOOL fIsCritical = FALSE;
-
-    BEGIN_QCALL;
-
-    MethodTable *pMT = TypeHandle::FromPtr(pTypeHandle).GetMethodTable();
-    if (pMT != NULL)
-    {
-        fIsCritical = Security::IsTypeCritical(pMT);
-    }
-
-    END_QCALL;
-
-    return fIsCritical;
-}
-
-// static
-BOOL QCALLTYPE RuntimeTypeHandle::IsSecuritySafeCritical(EnregisteredTypeHandle pTypeHandle)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pTypeHandle));
-    }
-    CONTRACTL_END;
-
-    BOOL fIsSafeCritical = FALSE;
-
-    BEGIN_QCALL;
-
-    MethodTable *pMT = TypeHandle::FromPtr(pTypeHandle).GetMethodTable();
-    if (pMT != NULL)
-    {
-        fIsSafeCritical = Security::IsTypeSafeCritical(pMT);
-    }
-
-    END_QCALL;
-
-    return fIsSafeCritical;
-}
-
-// static
-BOOL QCALLTYPE RuntimeTypeHandle::IsSecurityTransparent(EnregisteredTypeHandle pTypeHandle)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pTypeHandle));
-    }
-    CONTRACTL_END;
-
-    BOOL fIsTransparent = TRUE;
-
-    BEGIN_QCALL;
-
-    MethodTable * pMT = TypeHandle::FromPtr(pTypeHandle).GetMethodTable();
-    if (pMT != NULL)
-    {
-        fIsTransparent = Security::IsTypeTransparent(pMT);
-    }
-    
-    END_QCALL;
-
-    return fIsTransparent;
-}
-    
-FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::HasProxyAttribute, ReflectClassBaseObject *pTypeUNSAFE) {
-    CONTRACTL {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    REFLECTCLASSBASEREF refType = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(pTypeUNSAFE);
-
-    if (refType == NULL)
-        FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
-
-    TypeHandle typeHandle = refType->GetType();
-    
-    // TODO: Justify this
-    if (typeHandle.IsGenericVariable())
-        FC_RETURN_BOOL(FALSE);
-        
-    if (typeHandle.IsTypeDesc()) {
-        if (!typeHandle.IsArray()) 
-            FC_RETURN_BOOL(FALSE);
-    }  
-    
-    MethodTable* pMT= typeHandle.GetMethodTable();
-    
-    if (!pMT) 
-        FCThrowRes(kArgumentException, W("Arg_InvalidHandle"));
-
-    FC_RETURN_BOOL(pMT->GetClass()->HasRemotingProxyAttribute());
-}
-FCIMPLEND
 
 FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::IsComObject, ReflectClassBaseObject *pTypeUNSAFE, CLR_BOOL isGenericCOM) {
 #ifdef FEATURE_COMINTEROP
@@ -1508,7 +1135,8 @@ PVOID QCALLTYPE RuntimeTypeHandle::GetGCHandle(EnregisteredTypeHandle pTypeHandl
     GCX_COOP();
 
     TypeHandle th = TypeHandle::FromPtr(pTypeHandle);
-    objHandle = th.GetDomain()->CreateTypedHandle(NULL, handleType);
+    assert(handleType >= HNDTYPE_WEAK_SHORT && handleType <= HNDTYPE_WEAK_WINRT);
+    objHandle = th.GetDomain()->CreateTypedHandle(NULL, static_cast<HandleType>(handleType));
     th.GetLoaderAllocator()->RegisterHandleForCleanup(objHandle);
 
     END_QCALL;
@@ -2615,6 +2243,10 @@ void QCALLTYPE RuntimeMethodHandle::Destroy(MethodDesc * pMethod)
     // Fire Unload Dynamic Method Event here
     ETW::MethodLog::DynamicMethodDestroyed(pMethod);
 
+    BEGIN_PIN_PROFILER(CORProfilerIsMonitoringDynamicFunctionUnloads());
+    g_profControlBlock.pProfInterface->DynamicMethodUnloaded((FunctionID)pMethod);
+    END_PIN_PROFILER();
+
     pDynamicMethodDesc->Destroy();
 
     END_QCALL;
@@ -3467,3 +3099,4 @@ void QCALLTYPE RuntimeMethodHandle::GetCallerType(QCall::StackCrawlMarkHandle pS
 
     return;
 }
+

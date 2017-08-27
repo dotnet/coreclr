@@ -22,9 +22,14 @@
 #undef Sleep
 #endif // Sleep
 
-#include "env/gcenv.os.h"
+#include "../gc/env/gcenv.os.h"
 
 #define MAX_PTR ((uint8_t*)(~(ptrdiff_t)0))
+
+#ifdef FEATURE_PAL
+uint32_t g_pageSizeUnixInl = 0;
+#endif
+
 
 // Initialize the interface implementation
 // Return:
@@ -32,6 +37,11 @@
 bool GCToOSInterface::Initialize()
 {
     LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_PAL
+    g_pageSizeUnixInl = GetOsPageSize();
+#endif
+
     return true;
 }
 
@@ -171,13 +181,18 @@ void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t fl
     LIMITED_METHOD_CONTRACT;
 
     DWORD memFlags = (flags & VirtualReserveFlags::WriteWatch) ? (MEM_RESERVE | MEM_WRITE_WATCH) : MEM_RESERVE;
+
+    // This is not strictly necessary for a correctness standpoint. Windows already guarantees
+    // allocation granularity alignment when using MEM_RESERVE, so aligning the size here has no effect.
+    // However, ClrVirtualAlloc does expect the size to be aligned to the allocation granularity.
+    size_t aligned_size = (size + g_SystemInfo.dwAllocationGranularity - 1) & ~static_cast<size_t>(g_SystemInfo.dwAllocationGranularity - 1);
     if (alignment == 0)
     {
-        return ::ClrVirtualAlloc(0, size, memFlags, PAGE_READWRITE);
+        return ::ClrVirtualAlloc(0, aligned_size, memFlags, PAGE_READWRITE);
     }
     else
     {
-        return ::ClrVirtualAllocAligned(0, size, memFlags, PAGE_READWRITE, alignment);
+        return ::ClrVirtualAllocAligned(0, aligned_size, memFlags, PAGE_READWRITE, alignment);
     }
 }
 
@@ -294,7 +309,7 @@ bool GCToOSInterface::GetWriteWatch(bool resetState, void* address, size_t size,
     ULONG granularity;
 
     bool success = ::GetWriteWatch(flags, address, size, pageAddresses, (ULONG_PTR*)pageAddressesCount, &granularity) == 0;
-    _ASSERTE (granularity == OS_PAGE_SIZE);
+    _ASSERTE (granularity == GetOsPageSize());
 
     return success;
 }
@@ -329,11 +344,7 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uint
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifndef FEATURE_PAL
     return !!::GetProcessAffinityMask(GetCurrentProcess(), (PDWORD_PTR)processMask, (PDWORD_PTR)systemMask);
-#else
-    return false;
-#endif
 }
 
 // Get number of processors assigned to the current process
@@ -648,7 +659,6 @@ bool GCToOSInterface::CreateThread(GCThreadFunction function, void* param, GCThr
 
     SetThreadPriority(gc_thread, /* THREAD_PRIORITY_ABOVE_NORMAL );*/ THREAD_PRIORITY_HIGHEST );
 
-#ifndef FEATURE_PAL
     if (affinity->Group != GCThreadAffinity::None)
     {
         _ASSERTE(affinity->Processor != GCThreadAffinity::None);
@@ -665,12 +675,18 @@ bool GCToOSInterface::CreateThread(GCThreadFunction function, void* param, GCThr
     {
         SetThreadAffinityMask(gc_thread, (DWORD_PTR)1 << affinity->Processor);
     }
-#endif // !FEATURE_PAL
 
     ResumeThread(gc_thread);
     CloseHandle(gc_thread);
 
     return true;
+}
+
+uint32_t GCToOSInterface::GetTotalProcessorCount()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return g_SystemInfo.dwNumberOfProcessors;
 }
 
 // Initialize the critical section
@@ -700,3 +716,208 @@ void CLRCriticalSection::Leave()
     WRAPPER_NO_CONTRACT;
     UnsafeLeaveCriticalSection(&m_cs);
 }
+
+// An implementatino of GCEvent that delegates to
+// a CLREvent, which in turn delegates to the PAL. This event
+// is also host-aware.
+class GCEvent::Impl
+{
+private:
+    CLREvent m_event;
+
+public:
+    Impl() = default;
+
+    bool IsValid()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        return !!m_event.IsValid();
+    }
+
+    void CloseEvent()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        assert(m_event.IsValid());
+        m_event.CloseEvent();
+    }
+
+    void Set()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        assert(m_event.IsValid());
+        m_event.Set();
+    }
+
+    void Reset()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        assert(m_event.IsValid());
+        m_event.Reset();
+    }
+
+    uint32_t Wait(uint32_t timeout, bool alertable)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        assert(m_event.IsValid());
+        return m_event.Wait(timeout, alertable);
+    }
+
+    bool CreateAutoEvent(bool initialState)
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+        } CONTRACTL_END;
+
+        return !!m_event.CreateAutoEventNoThrow(initialState);
+    }
+
+    bool CreateManualEvent(bool initialState)
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+        } CONTRACTL_END;
+
+        return !!m_event.CreateManualEventNoThrow(initialState);
+    }
+
+    bool CreateOSAutoEvent(bool initialState)
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+        } CONTRACTL_END;
+
+        return !!m_event.CreateOSAutoEventNoThrow(initialState);
+    }
+
+    bool CreateOSManualEvent(bool initialState)
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+        } CONTRACTL_END;
+
+        return !!m_event.CreateOSManualEventNoThrow(initialState);
+    }
+};
+
+GCEvent::GCEvent()
+  : m_impl(nullptr)
+{
+}
+
+void GCEvent::CloseEvent()
+{
+    WRAPPER_NO_CONTRACT;
+
+    assert(m_impl != nullptr);
+    m_impl->CloseEvent();
+}
+
+void GCEvent::Set()
+{
+    WRAPPER_NO_CONTRACT;
+
+    assert(m_impl != nullptr);
+    m_impl->Set();
+}
+
+void GCEvent::Reset()
+{
+    WRAPPER_NO_CONTRACT;
+
+    assert(m_impl != nullptr);
+    m_impl->Reset();
+}
+
+uint32_t GCEvent::Wait(uint32_t timeout, bool alertable)
+{
+    WRAPPER_NO_CONTRACT;
+
+    assert(m_impl != nullptr);
+    return m_impl->Wait(timeout, alertable);
+}
+
+bool GCEvent::CreateManualEventNoThrow(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    assert(m_impl == nullptr);
+    NewHolder<GCEvent::Impl> event = new (nothrow) GCEvent::Impl();
+    if (!event)
+    {
+        return false;
+    }
+
+    event->CreateManualEvent(initialState);
+    m_impl = event.Extract();
+    return true;
+}
+
+bool GCEvent::CreateAutoEventNoThrow(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    assert(m_impl == nullptr);
+    NewHolder<GCEvent::Impl> event = new (nothrow) GCEvent::Impl();
+    if (!event)
+    {
+        return false;
+    }
+
+    event->CreateAutoEvent(initialState);
+    m_impl = event.Extract();
+    return IsValid();
+}
+
+bool GCEvent::CreateOSAutoEventNoThrow(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    assert(m_impl == nullptr);
+    NewHolder<GCEvent::Impl> event = new (nothrow) GCEvent::Impl();
+    if (!event)
+    {
+        return false;
+    }
+
+    event->CreateOSAutoEvent(initialState);
+    m_impl = event.Extract();
+    return IsValid();
+}
+
+bool GCEvent::CreateOSManualEventNoThrow(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    assert(m_impl == nullptr);
+    NewHolder<GCEvent::Impl> event = new (nothrow) GCEvent::Impl();
+    if (!event)
+    {
+        return false;
+    }
+
+    event->CreateOSManualEvent(initialState);
+    m_impl = event.Extract();
+    return IsValid();
+}
+

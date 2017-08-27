@@ -17,29 +17,6 @@
 ** thread safety. If a reader writer lock is available, then that may be used
 ** with a Dictionary to get the same thread safety guarantee. 
 ** 
-** Reader writer locks don't exist in silverlight, so we do the following as a
-** result of removing non-generic collections from silverlight: 
-** 1. If the Hashtable was fully synchronized, then we replace it with a 
-**    Dictionary with full locks around reads/writes (same thread safety
-**    guarantee).
-** 2. Otherwise, the Hashtable has the default MR/SW thread safety behavior, 
-**    so we do one of the following on a case-by-case basis:
-**    a. If the race condition can be addressed by rearranging the code and using a temp
-**       variable (for example, it's only populated immediately after created)
-**       then we address the race condition this way and use Dictionary.
-**    b. If there's concern about degrading performance with the increased 
-**       locking, we ifdef with FEATURE_NONGENERIC_COLLECTIONS so we can at 
-**       least use Hashtable in the desktop build, but Dictionary with full 
-**       locks in silverlight builds. Note that this is heavier locking than 
-**       MR/SW, but this is the only option without rewriting (or adding back)
-**       the reader writer lock. 
-**    c. If there's no performance concern (e.g. debug-only code) we 
-**       consistently replace Hashtable with Dictionary plus full locks to 
-**       reduce complexity.
-**    d. Most of serialization is dead code in silverlight. Instead of updating
-**       those Hashtable occurences in serialization, we carved out references 
-**       to serialization such that this code doesn't need to build in 
-**       silverlight. 
 ===========================================================*/
 
 namespace System.Collections.Generic
@@ -48,6 +25,7 @@ namespace System.Collections.Generic
     using System.Collections;
     using System.Diagnostics;
     using System.Diagnostics.Contracts;
+    using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
 
     /// <summary>
@@ -74,6 +52,7 @@ namespace System.Collections.Generic
     [DebuggerTypeProxy(typeof(Mscorlib_DictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
     public class Dictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>, ISerializable, IDeserializationCallback
     {
         private struct Entry
@@ -96,10 +75,10 @@ namespace System.Collections.Generic
         private Object _syncRoot;
 
         // constants for serialization
-        private const String VersionName = "Version";
-        private const String HashSizeName = "HashSize";  // Must save buckets.Length
-        private const String KeyValuePairsName = "KeyValuePairs";
-        private const String ComparerName = "Comparer";
+        private const String VersionName = "Version"; // Do not rename (binary serialization)
+        private const String HashSizeName = "HashSize"; // Do not rename (binary serialization). Must save buckets.Length
+        private const String KeyValuePairsName = "KeyValuePairs"; // Do not rename (binary serialization)
+        private const String ComparerName = "Comparer"; // Do not rename (binary serialization)
 
         public Dictionary() : this(0, null) { }
 
@@ -428,8 +407,7 @@ namespace System.Collections.Generic
 
             if (buckets == null) Initialize(0);
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-            int targetBucket = hashCode % buckets.Length;
-
+            int targetBucket = hashCode % buckets.Length;            
 #if FEATURE_RANDOMIZED_STRING_HASHING
             int collisionCount = 0;
 #endif
@@ -452,7 +430,6 @@ namespace System.Collections.Generic
 
                     return false;
                 }
-
 #if FEATURE_RANDOMIZED_STRING_HASHING
                 collisionCount++;
 #endif
@@ -599,27 +576,40 @@ namespace System.Collections.Generic
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;
                 int last = -1;
-                for (int i = buckets[bucket]; i >= 0; last = i, i = entries[i].next)
+                int i = buckets[bucket];
+                while (i >= 0)
                 {
-                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
+                    ref Entry entry = ref entries[i];
+
+                    if (entry.hashCode == hashCode && comparer.Equals(entry.key, key))
                     {
                         if (last < 0)
                         {
-                            buckets[bucket] = entries[i].next;
+                            buckets[bucket] = entry.next;
                         }
                         else
                         {
-                            entries[last].next = entries[i].next;
+                            entries[last].next = entry.next;
                         }
-                        entries[i].hashCode = -1;
-                        entries[i].next = freeList;
-                        entries[i].key = default(TKey);
-                        entries[i].value = default(TValue);
+                        entry.hashCode = -1;
+                        entry.next = freeList;
+
+                        if (RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
+                        {
+                            entry.key = default(TKey);
+                        }
+                        if (RuntimeHelpers.IsReferenceOrContainsReferences<TValue>())
+                        {
+                            entry.value = default(TValue);
+                        }
                         freeList = i;
                         freeCount++;
                         version++;
                         return true;
                     }
+
+                    last = i;
+                    i = entry.next;
                 }
             }
             return false;
@@ -640,30 +630,43 @@ namespace System.Collections.Generic
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;
                 int last = -1;
-                for (int i = buckets[bucket]; i >= 0; last = i, i = entries[i].next)
+                int i = buckets[bucket];
+                while (i >= 0)
                 {
-                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
+                    ref Entry entry = ref entries[i];
+
+                    if (entry.hashCode == hashCode && comparer.Equals(entry.key, key))
                     {
                         if (last < 0)
                         {
-                            buckets[bucket] = entries[i].next;
+                            buckets[bucket] = entry.next;
                         }
                         else
                         {
-                            entries[last].next = entries[i].next;
+                            entries[last].next = entry.next;
                         }
 
-                        value = entries[i].value;
+                        value = entry.value;
 
-                        entries[i].hashCode = -1;
-                        entries[i].next = freeList;
-                        entries[i].key = default(TKey);
-                        entries[i].value = default(TValue);
+                        entry.hashCode = -1;
+                        entry.next = freeList;
+
+                        if (RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
+                        {
+                            entry.key = default(TKey);
+                        }
+                        if (RuntimeHelpers.IsReferenceOrContainsReferences<TValue>())
+                        {
+                            entry.value = default(TValue);
+                        }
                         freeList = i;
                         freeCount++;
                         version++;
                         return true;
                     }
+
+                    last = i;
+                    i = entry.next;
                 }
             }
             value = default(TValue);
@@ -681,22 +684,6 @@ namespace System.Collections.Generic
             value = default(TValue);
             return false;
         }
-
-        // Method similar to TryGetValue that returns the value instead of putting it in an out param.
-        public TValue GetValueOrDefault(TKey key) => GetValueOrDefault(key, default(TValue));
-
-        // Method similar to TryGetValue that returns the value instead of putting it in an out param. If the entry
-        // doesn't exist, returns the defaultValue instead.
-        public TValue GetValueOrDefault(TKey key, TValue defaultValue)
-        {
-            int i = FindEntry(key);
-            if (i >= 0)
-            {
-                return entries[i].value;
-            }
-            return defaultValue;
-        }
-
         public bool TryAdd(TKey key, TValue value) => TryInsert(key, value, InsertionBehavior.None);
 
         bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly
@@ -922,7 +909,6 @@ namespace System.Collections.Generic
             }
         }
 
-        [Serializable]
         public struct Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>,
             IDictionaryEnumerator
         {
@@ -955,13 +941,13 @@ namespace System.Collections.Generic
                 // dictionary.count+1 could be negative if dictionary.count is Int32.MaxValue
                 while ((uint)index < (uint)dictionary.count)
                 {
-                    if (dictionary.entries[index].hashCode >= 0)
+                    ref Entry entry = ref dictionary.entries[index++];
+
+                    if (entry.hashCode >= 0)
                     {
-                        current = new KeyValuePair<TKey, TValue>(dictionary.entries[index].key, dictionary.entries[index].value);
-                        index++;
+                        current = new KeyValuePair<TKey, TValue>(entry.key, entry.value);
                         return true;
                     }
-                    index++;
                 }
 
                 index = dictionary.count + 1;
@@ -1051,7 +1037,6 @@ namespace System.Collections.Generic
 
         [DebuggerTypeProxy(typeof(Mscorlib_DictionaryKeyCollectionDebugView<,>))]
         [DebuggerDisplay("Count = {Count}")]
-        [Serializable]
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey>
         {
             private Dictionary<TKey, TValue> dictionary;
@@ -1202,7 +1187,6 @@ namespace System.Collections.Generic
                 get { return ((ICollection)dictionary).SyncRoot; }
             }
 
-            [Serializable]
             public struct Enumerator : IEnumerator<TKey>, System.Collections.IEnumerator
             {
                 private Dictionary<TKey, TValue> dictionary;
@@ -1231,13 +1215,13 @@ namespace System.Collections.Generic
 
                     while ((uint)index < (uint)dictionary.count)
                     {
-                        if (dictionary.entries[index].hashCode >= 0)
+                        ref Entry entry = ref dictionary.entries[index++];
+
+                        if (entry.hashCode >= 0)
                         {
-                            currentKey = dictionary.entries[index].key;
-                            index++;
+                            currentKey = entry.key;
                             return true;
                         }
-                        index++;
                     }
 
                     index = dictionary.count + 1;
@@ -1281,7 +1265,6 @@ namespace System.Collections.Generic
 
         [DebuggerTypeProxy(typeof(Mscorlib_DictionaryValueCollectionDebugView<,>))]
         [DebuggerDisplay("Count = {Count}")]
-        [Serializable]
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue>
         {
             private Dictionary<TKey, TValue> dictionary;
@@ -1430,7 +1413,6 @@ namespace System.Collections.Generic
                 get { return ((ICollection)dictionary).SyncRoot; }
             }
 
-            [Serializable]
             public struct Enumerator : IEnumerator<TValue>, System.Collections.IEnumerator
             {
                 private Dictionary<TKey, TValue> dictionary;
@@ -1459,13 +1441,13 @@ namespace System.Collections.Generic
 
                     while ((uint)index < (uint)dictionary.count)
                     {
-                        if (dictionary.entries[index].hashCode >= 0)
+                        ref Entry entry = ref dictionary.entries[index++];
+
+                        if (entry.hashCode >= 0)
                         {
-                            currentValue = dictionary.entries[index].value;
-                            index++;
+                            currentValue = entry.value;
                             return true;
                         }
-                        index++;
                     }
                     index = dictionary.count + 1;
                     currentValue = default(TValue);

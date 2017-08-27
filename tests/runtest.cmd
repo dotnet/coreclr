@@ -44,6 +44,7 @@ set __LongGCTests=
 set __GCSimulatorTests=
 set __AgainstPackages=
 set __JitDisasm=
+set __IlasmRoundTrip=
 set __CollectDumps=
 
 :Arg_Loop
@@ -59,6 +60,7 @@ if /i "%1" == "-help" goto Usage
 if /i "%1" == "x64"                   (set __BuildArch=x64&set __MSBuildBuildArch=x64&shift&goto Arg_Loop)
 if /i "%1" == "x86"                   (set __BuildArch=x86&set __MSBuildBuildArch=x86&shift&goto Arg_Loop)
 if /i "%1" == "arm"                   (set __BuildArch=arm&set __MSBuildBuildArch=arm&shift&goto Arg_Loop)
+if /i "%1" == "arm64"                 (set __BuildArch=arm64&set __MSBuildBuildArch=arm64&shift&goto Arg_Loop)
 
 if /i "%1" == "debug"                 (set __BuildType=Debug&shift&goto Arg_Loop)
 if /i "%1" == "release"               (set __BuildType=Release&shift&goto Arg_Loop)
@@ -78,10 +80,12 @@ if /i "%1" == "jitstressregs"         (set COMPlus_JitStressRegs=%2&shift&shift&
 if /i "%1" == "jitminopts"            (set COMPlus_JITMinOpts=1&shift&shift&goto Arg_Loop)
 if /i "%1" == "jitforcerelocs"        (set COMPlus_ForceRelocs=1&shift&shift&goto Arg_Loop)
 if /i "%1" == "jitdisasm"             (set __JitDisasm=1&shift&goto Arg_Loop)
+if /i "%1" == "ilasmroundtrip"        (set __IlasmRoundTrip=1&shift&goto Arg_Loop)
 if /i "%1" == "GenerateLayoutOnly"    (set __GenerateLayoutOnly=1&shift&goto Arg_Loop)
 if /i "%1" == "PerfTests"             (set __PerfTests=true&shift&goto Arg_Loop)
 if /i "%1" == "runcrossgentests"      (set RunCrossGen=true&shift&goto Arg_Loop)
 if /i "%1" == "link"                  (set DoLink=true&set ILLINK=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "tieredcompilation"     (set COMPLUS_EXPERIMENTAL_TieredCompilation=1&shift&goto Arg_Loop)
 
 REM change it to COMPlus_GCStress when we stop using xunit harness
 if /i "%1" == "gcstresslevel"         (set __GCSTRESSLEVEL=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
@@ -177,7 +181,7 @@ echo %__MsgPrefix%Using Default CORE_ROOT as %CORE_ROOT%
 echo %__MsgPrefix%Copying Built binaries from %__BinDir% to %CORE_ROOT%
 if exist "%CORE_ROOT%" rd /s /q "%CORE_ROOT%"
 md "%CORE_ROOT%"
-xcopy /s "%__BinDir%" "%CORE_ROOT%"
+xcopy "%__BinDir%" "%CORE_ROOT%"
 
 :SkipCoreRootSetup
 
@@ -199,6 +203,8 @@ call :PrecompileFX
 :SkipPrecompileFX
 
 if  defined __GenerateLayoutOnly (
+    REM Delete the unecessary mscorlib.ni file.
+    del %CORE_ROOT%\mscorlib.ni.dll
     exit /b 0
 )
 
@@ -233,6 +239,7 @@ if "%__CollectDumps%"=="true" (
 echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%
 echo %__MsgPrefix%Starting the test run ...
 
+REM Delete the unecessary mscorlib.ni file.
 del %CORE_ROOT%\mscorlib.ni.dll
 
 set __BuildLogRootName=TestRunResults
@@ -406,6 +413,11 @@ if defined __JitDisasm (
     set RunningJitDisasm=1
 )
 
+if defined __IlasmRoundTrip (
+    echo Running Ilasm round trip
+    set RunningIlasmRoundTrip=1
+)
+
 set __BuildLogRootName=Tests_GenerateRuntimeLayout
 call :msbuild "%__ProjectFilesDir%\runtest.proj" /p:GenerateRuntimeLayout=true 
 if errorlevel 1 (
@@ -419,30 +431,49 @@ exit /b 0
 
 
 :Usage
+@REM NOTE: The caret character is used to escape meta-characters known to the CMD shell. This character does
+@REM NOTE: not appear in output. Thus, while it might look like in lines below that the "-" are not aligned,
+@REM NOTE: they are in the output (and please keep them aligned).
 echo.
 echo Usage:
-echo   %0 BuildArch BuildType [TestEnv TEST_ENV_SCRIPT] [VSVersion] CORE_ROOT
+echo   %0 [options] [^<CORE_ROOT^>]
+echo.
 echo where:
 echo.
-echo./? -? /h -h /help -help: view this message.
-echo BuildArch- Optional parameter - x64 or x86 ^(default: x64^).
-echo BuildType- Optional parameter - Debug, Release, or Checked ^(default: Debug^).
-echo TestEnv- Optional parameter - this will run a custom script to set custom test environment settings.
-echo VSVersion- Optional parameter - VS2015 or VS2017 ^(default: VS2017^)
-echo AgainstPackages - Optional parameter - this indicates that we are running tests that were built against packages
-echo GenerateLayoutOnly - If specified will not run the tests and will only create the Runtime Dependency Layout
-echo link "ILlink"      - Runs the tests after linking via ILlink
-echo RunCrossgenTests   - Runs ReadytoRun tests
-echo jitstress n        - Runs the tests with COMPlus_JitStress=n
-echo jitstressregs n    - Runs the tests with COMPlus_JitStressRegs=n
-echo jitminopts         - Runs the tests with COMPlus_JITMinOpts=1
-echo jitforcerelocs     - Runs the tests with COMPlus_ForceRelocs=1
-echo jitdisasm          - Runs jit-dasm on the tests
-echo gcstresslevel n    - Runs the tests with COMPlus_GCStress=n
-echo     0: None                                1: GC on all allocs and 'easy' places
-echo     2: GC on transitions to preemptive GC  4: GC on every allowable JITed instr
-echo     8: GC on every allowable NGEN instr   16: GC only on a unique stack trace
-echo CORE_ROOT The path to the runtime  
+echo./? -? /h -h /help -help   - View this message.
+echo ^<build_architecture^>      - Specifies build architecture: x64, x86, arm, or arm64 ^(default: x64^).
+echo ^<build_type^>              - Specifies build type: Debug, Release, or Checked ^(default: Debug^).
+echo VSVersion ^<vs_version^>    - VS2015 or VS2017 ^(default: VS2017^).
+echo TestEnv ^<test_env_script^> - Run a custom script before every test to set custom test environment settings.
+echo AgainstPackages           - This indicates that we are running tests that were built against packages.
+echo GenerateLayoutOnly        - If specified will not run the tests and will only create the Runtime Dependency Layout
+echo sequential                - Run tests sequentially (no parallelism).
+echo crossgen                  - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests.
+echo link ^<ILlink^>             - Runs the tests after linking via the IL linker ^<ILlink^>.
+echo RunCrossgenTests          - Runs ReadytoRun tests
+echo jitstress ^<n^>             - Runs the tests with COMPlus_JitStress=n
+echo jitstressregs ^<n^>         - Runs the tests with COMPlus_JitStressRegs=n
+echo jitminopts                - Runs the tests with COMPlus_JITMinOpts=1
+echo jitforcerelocs            - Runs the tests with COMPlus_ForceRelocs=1
+echo jitdisasm                 - Runs jit-dasm on the tests
+echo ilasmroundtrip            - Runs ilasm round trip on the tests
+echo longgc                    - Run the long-running GC tests
+echo gcsimulator               - Run the GC Simulator tests
+echo gcstresslevel ^<n^>         - Runs the tests with COMPlus_GCStress=n. n=0 means no GC Stress. Otherwise, n is a bitmask of the following:
+echo                               1: GC on all allocations and 'easy' places
+echo                               2: GC on transitions to preemptive GC
+echo                               4: GC on every allowable JITed instruction
+echo                               8: GC on every allowable NGEN instruction
+echo                              16: GC only on a unique stack trace
+echo tieredcompilation         - Run the tests with COMPlus_EXPERIMENTAL_TieredCompilation=1
+echo msbuildargs ^<args...^>     - Pass all subsequent args directly to msbuild invocations.
+echo ^<CORE_ROOT^>               - Path to the runtime to test (if specified).
+echo.
+echo Note that arguments are not case-sensitive.
+echo.
+echo Examples:
+echo   %0 x86 checked
+echo   %0 x64 release GenerateLayoutOnly
 exit /b 1
 
 :NoVS

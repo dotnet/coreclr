@@ -13,7 +13,6 @@
 
 
 using System;
-using System.Runtime.Remoting;
 using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 using System.Globalization;
@@ -22,7 +21,6 @@ using System.Diagnostics.Contracts;
 
 namespace System
 {
-    [Serializable]
     public class MissingMemberException : MemberAccessException, ISerializable
     {
         public MissingMemberException()
@@ -45,9 +43,7 @@ namespace System
 
         protected MissingMemberException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
-            ClassName = (String)info.GetString("MMClassName");
-            MemberName = (String)info.GetString("MMMemberName");
-            Signature = (byte[])info.GetValue("MMSignature", typeof(byte[]));
+            throw new PlatformNotSupportedException();
         }
 
         public override String Message
@@ -78,15 +74,7 @@ namespace System
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-            {
-                throw new ArgumentNullException(nameof(info));
-            }
-            Contract.EndContractBlock();
             base.GetObjectData(info, context);
-            info.AddValue("MMClassName", ClassName, typeof(String));
-            info.AddValue("MMMemberName", MemberName, typeof(String));
-            info.AddValue("MMSignature", Signature, typeof(byte[]));
         }
 
 

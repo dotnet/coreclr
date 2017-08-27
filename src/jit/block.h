@@ -49,7 +49,7 @@ typedef BitVec_ValRet_T ASSERT_VALRET_TP;
 
 // clang-format off
 
-DECLARE_TYPED_ENUM(BBjumpKinds, BYTE)
+enum BBjumpKinds : BYTE
 {
     BBJ_EHFINALLYRET,// block ends with 'endfinally' (for finally or fault)
     BBJ_EHFILTERRET, // block ends with 'endfilter'
@@ -64,8 +64,7 @@ DECLARE_TYPED_ENUM(BBjumpKinds, BYTE)
     BBJ_SWITCH,      // block ends with a switch statement
 
     BBJ_COUNT
-}
-END_DECLARE_TYPED_ENUM(BBjumpKinds, BYTE)
+};
 
 // clang-format on
 
@@ -139,10 +138,9 @@ enum ThisInitState
 
 struct EntryState
 {
-    ThisInitState thisInitialized : 8; // used to track whether the this ptr is initialized (we could use
-                                       // fewer bits here)
-    unsigned    esStackDepth : 24;     // size of esStack
-    StackEntry* esStack;               // ptr to  stack
+    ThisInitState thisInitialized; // used to track whether the this ptr is initialized.
+    unsigned      esStackDepth;    // size of esStack
+    StackEntry*   esStack;         // ptr to  stack
 };
 
 // Enumeration of the kinds of memory whose state changes the compiler tracks
@@ -519,7 +517,8 @@ struct BasicBlock : private LIR::Range
                         bool      showFlags = false,
                         bool showPreds = true); // Print a simple basic block header for various output, including a
                                                 // list of predecessors and successors.
-#endif                                          // DEBUG
+    const char* dspToString(int blockNumPadding = 0);
+#endif // DEBUG
 
     typedef unsigned weight_t; // Type used to hold block and edge weights
                                // Note that for CLR v2.0 and earlier our
@@ -706,33 +705,42 @@ struct BasicBlock : private LIR::Range
         BBswtDesc*  bbJumpSwt;  // switch descriptor
     };
 
-    // NumSucc() gives the number of successors, and GetSucc() allows one to iterate over them.
+    // NumSucc() gives the number of successors, and GetSucc() returns a given numbered successor.
     //
-    // The behavior of both for blocks that end in BBJ_EHFINALLYRET (a return from a finally or fault block)
-    // depends on whether "comp" is non-null. If it is null, then the block is considered to have no
-    // successor. If it is non-null, we figure out the actual successors. Some cases will want one behavior,
-    // other cases the other.  For example, IL verification requires that these blocks end in an empty operand
+    // There are two versions of these functions: ones that take a Compiler* and ones that don't. You must
+    // always use a matching set. Thus, if you call NumSucc() without a Compiler*, you must also call
+    // GetSucc() without a Compiler*.
+    //
+    // The behavior of NumSucc()/GetSucc() is different when passed a Compiler* for blocks that end in:
+    // (1) BBJ_EHFINALLYRET (a return from a finally or fault block)
+    // (2) BBJ_EHFILTERRET (a return from EH filter block)
+    // (3) BBJ_SWITCH
+    //
+    // For BBJ_EHFINALLYRET, if no Compiler* is passed, then the block is considered to have no
+    // successor. If Compiler* is passed, we figure out the actual successors. Some cases will want one behavior,
+    // other cases the other. For example, IL verification requires that these blocks end in an empty operand
     // stack, and since the dataflow analysis of IL verification is concerned only with the contents of the
     // operand stack, we can consider the finally block to have no successors. But a more general dataflow
     // analysis that is tracking the contents of local variables might want to consider *all* successors,
     // and would pass the current Compiler object.
     //
-    // Similarly, BBJ_EHFILTERRET blocks are assumed to have no successors if "comp" is null; if non-null,
-    // NumSucc/GetSucc yields the first block of the try blocks handler.
+    // Similarly, BBJ_EHFILTERRET blocks are assumed to have no successors if Compiler* is not passed; if
+    // Compiler* is passed, NumSucc/GetSucc yields the first block of the try block's handler.
     //
-    // Also, the behavior for switches changes depending on the value of "comp". If it is null, then all
-    // switch successors are returned. If it is non-null, then only unique switch successors are returned;
-    // the duplicate successors are omitted.
+    // For BBJ_SWITCH, if Compiler* is not passed, then all switch successors are returned. If Compiler*
+    // is passed, then only unique switch successors are returned; the duplicate successors are omitted.
     //
     // Note that for BBJ_COND, which has two successors (fall through and condition true branch target),
     // only the unique targets are returned. Thus, if both targets are the same, NumSucc() will only return 1
     // instead of 2.
-    //
-    // Returns the number of successors of "this".
-    unsigned NumSucc(Compiler* comp = nullptr);
 
-    // Returns the "i"th successor.  Requires (0 <= i < NumSucc()).
-    BasicBlock* GetSucc(unsigned i, Compiler* comp = nullptr);
+    // NumSucc: Returns the number of successors of "this".
+    unsigned NumSucc();
+    unsigned NumSucc(Compiler* comp);
+
+    // GetSucc: Returns the "i"th successor. Requires (0 <= i < NumSucc()).
+    BasicBlock* GetSucc(unsigned i);
+    BasicBlock* GetSucc(unsigned i, Compiler* comp);
 
     BasicBlock* GetUniquePred(Compiler* comp);
 
@@ -1045,6 +1053,7 @@ struct BasicBlock : private LIR::Range
     // in the BB list with that stamp (in this field); then we can tell if (e.g.) predecessors are
     // still in the BB list by whether they have the same stamp (with high probability).
     unsigned bbTraversalStamp;
+    unsigned bbID;
 #endif // DEBUG
 
     ThisInitState bbThisOnEntry();
@@ -1067,8 +1076,6 @@ struct BasicBlock : private LIR::Range
     GenTree* firstNode();
     GenTree* lastNode();
 
-    bool containsStatement(GenTree* statement);
-
     bool endsWithJmpMethod(Compiler* comp);
 
     bool endsWithTailCall(Compiler* comp,
@@ -1085,8 +1092,7 @@ struct BasicBlock : private LIR::Range
     GenTreeStmt* FirstNonPhiDef();
     GenTree*     FirstNonPhiDefOrCatchArgAsg();
 
-    BasicBlock()
-        : VARSET_INIT_NOCOPY(bbLiveIn, VarSetOps::UninitVal()), VARSET_INIT_NOCOPY(bbLiveOut, VarSetOps::UninitVal())
+    BasicBlock() : bbLiveIn(VarSetOps::UninitVal()), bbLiveOut(VarSetOps::UninitVal())
     {
     }
 

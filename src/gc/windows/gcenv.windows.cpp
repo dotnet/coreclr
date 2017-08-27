@@ -11,6 +11,7 @@
 #include "env/gcenv.structs.h"
 #include "env/gcenv.base.h"
 #include "env/gcenv.os.h"
+#include "env/gcenv.windows.inl"
 
 GCSystemInfo g_SystemInfo;
 
@@ -138,6 +139,8 @@ bool GCToOSInterface::Initialize()
     g_SystemInfo.dwNumberOfProcessors = systemInfo.dwNumberOfProcessors;
     g_SystemInfo.dwPageSize = systemInfo.dwPageSize;
     g_SystemInfo.dwAllocationGranularity = systemInfo.dwAllocationGranularity;
+
+    assert(systemInfo.dwPageSize == 0x1000);
 
     return true;
 }
@@ -603,6 +606,15 @@ bool GCToOSInterface::CreateThread(GCThreadFunction function, void* param, GCThr
     return true;
 }
 
+// Gets the total number of processors on the machine, not taking
+// into account current process affinity.
+// Return:
+//  Number of processors on the machine
+uint32_t GCToOSInterface::GetTotalProcessorCount()
+{
+    return g_SystemInfo.dwNumberOfProcessors;
+}
+
 // Initialize the critical section
 void CLRCriticalSection::Initialize()
 {
@@ -626,3 +638,145 @@ void CLRCriticalSection::Leave()
 {
     ::LeaveCriticalSection(&m_cs);
 }
+
+// WindowsEvent is an implementation of GCEvent that forwards
+// directly to Win32 APIs.
+class GCEvent::Impl
+{
+private:
+    HANDLE m_hEvent;
+
+public:
+    Impl() : m_hEvent(INVALID_HANDLE_VALUE) {}
+
+    bool IsValid() const
+    {
+        return m_hEvent != INVALID_HANDLE_VALUE;
+    }
+
+    void Set()
+    {
+        assert(IsValid());
+        BOOL result = SetEvent(m_hEvent);
+        assert(result && "SetEvent failed");
+    }
+
+    void Reset()
+    {
+        assert(IsValid());
+        BOOL result = ResetEvent(m_hEvent);
+        assert(result && "ResetEvent failed");
+    }
+
+    uint32_t Wait(uint32_t timeout, bool alertable)
+    {
+        UNREFERENCED_PARAMETER(alertable);
+        assert(IsValid());
+
+        return WaitForSingleObject(m_hEvent, timeout);
+    }
+
+    void CloseEvent()
+    {
+        assert(IsValid());
+        BOOL result = CloseHandle(m_hEvent);
+        assert(result && "CloseHandle failed");
+        m_hEvent = INVALID_HANDLE_VALUE;
+    }
+
+    bool CreateAutoEvent(bool initialState)
+    {
+        m_hEvent = CreateEvent(nullptr, false, initialState, nullptr);
+        return IsValid();
+    }
+
+    bool CreateManualEvent(bool initialState)
+    {
+        m_hEvent = CreateEvent(nullptr, true, initialState, nullptr);
+        return IsValid();
+    }
+};
+
+GCEvent::GCEvent()
+  : m_impl(nullptr)
+{
+}
+
+void GCEvent::CloseEvent()
+{
+    assert(m_impl != nullptr);
+    m_impl->CloseEvent();
+}
+
+void GCEvent::Set()
+{
+    assert(m_impl != nullptr);
+    m_impl->Set();
+}
+
+void GCEvent::Reset()
+{
+    assert(m_impl != nullptr);
+    m_impl->Reset();
+}
+
+uint32_t GCEvent::Wait(uint32_t timeout, bool alertable)
+{
+    assert(m_impl != nullptr);
+    return m_impl->Wait(timeout, alertable);
+}
+
+bool GCEvent::CreateAutoEventNoThrow(bool initialState)
+{
+    // [DESKTOP TODO] The difference between events and OS events is
+    // whether or not the hosting API is made aware of them. When (if)
+    // we implement hosting support for Local GC, we will need to be
+    // aware of the host here.
+    return CreateOSAutoEventNoThrow(initialState);
+}
+
+bool GCEvent::CreateManualEventNoThrow(bool initialState)
+{
+    // [DESKTOP TODO] The difference between events and OS events is
+    // whether or not the hosting API is made aware of them. When (if)
+    // we implement hosting support for Local GC, we will need to be
+    // aware of the host here.
+    return CreateOSManualEventNoThrow(initialState);
+}
+
+bool GCEvent::CreateOSAutoEventNoThrow(bool initialState)
+{
+    assert(m_impl == nullptr);
+    std::unique_ptr<GCEvent::Impl> event(new (std::nothrow) GCEvent::Impl());
+    if (!event)
+    {
+        return false;
+    }
+
+    if (!event->CreateAutoEvent(initialState))
+    {
+        return false;
+    }
+
+    m_impl = event.release();
+    return true;
+}
+
+bool GCEvent::CreateOSManualEventNoThrow(bool initialState)
+{
+    assert(m_impl == nullptr);
+    std::unique_ptr<GCEvent::Impl> event(new (std::nothrow) GCEvent::Impl());
+    if (!event)
+    {
+        return false;
+    }
+
+    if (!event->CreateManualEvent(initialState))
+    {
+        return false;
+    }
+
+    m_impl = event.release();
+    return true;
+}
+

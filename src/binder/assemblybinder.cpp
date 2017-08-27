@@ -89,38 +89,66 @@ namespace BINDER_SPACE
             AssemblyVersion *pRequestedVersion = pRequestedName->GetVersion();
             AssemblyVersion *pFoundVersion = pFoundName->GetVersion();
 
-            //
-            // If the AssemblyRef has no version, we can treat it as requesting the most accommodating version (0.0.0.0). In
-            // that case, skip version checking and allow the bind.
-            //
-            if (!pRequestedName->HaveAssemblyVersion())
+            do
             {
-                return hr;
-            }
+                if (!pRequestedVersion->HasMajor())
+                {
+                    // An unspecified requested version component matches any value for the same component in the found version,
+                    // regardless of lesser-order version components
+                    break;
+                }
+                if (!pFoundVersion->HasMajor() || pRequestedVersion->GetMajor() > pFoundVersion->GetMajor())
+                {
+                    // - A specific requested version component does not match an unspecified value for the same component in
+                    //   the found version, regardless of lesser-order version components
+                    // - Or, the requested version is greater than the found version
+                    hr = FUSION_E_APP_DOMAIN_LOCKED;
+                    break;
+                }
+                if (pRequestedVersion->GetMajor() < pFoundVersion->GetMajor())
+                {
+                    // The requested version is less than the found version
+                    break;
+                }
 
-            //
-            // This if condition is paired with the one above that checks for pRequestedName
-            // not having an assembly version.  If we didn't exit in the above if condition,
-            // and satisfy this one's requirements, we're in a situation where the assembly
-            // Ref has a version, but the Def doesn't, which cannot succeed a bind
-            //
-            _ASSERTE(pRequestedName->HaveAssemblyVersion());
-            if (!pFoundName->HaveAssemblyVersion())
-            {
-                hr = FUSION_E_APP_DOMAIN_LOCKED;
-            }
-            else if (pRequestedVersion->IsEqualFeatureVersion(pFoundVersion))
-            {
-                // Now service version matters
-                if (pRequestedVersion->IsLargerServiceVersion(pFoundVersion))
+                if (!pRequestedVersion->HasMinor())
+                {
+                    break;
+                }
+                if (!pFoundVersion->HasMinor() || pRequestedVersion->GetMinor() > pFoundVersion->GetMinor())
                 {
                     hr = FUSION_E_APP_DOMAIN_LOCKED;
+                    break;
                 }
-            }
-            else if (pRequestedVersion->IsLargerFeatureVersion(pFoundVersion))
-            {
-                hr = FUSION_E_APP_DOMAIN_LOCKED;
-            }
+                if (pRequestedVersion->GetMinor() < pFoundVersion->GetMinor())
+                {
+                    break;
+                }
+
+                if (!pRequestedVersion->HasBuild())
+                {
+                    break;
+                }
+                if (!pFoundVersion->HasBuild() || pRequestedVersion->GetBuild() > pFoundVersion->GetBuild())
+                {
+                    hr = FUSION_E_APP_DOMAIN_LOCKED;
+                    break;
+                }
+                if (pRequestedVersion->GetBuild() < pFoundVersion->GetBuild())
+                {
+                    break;
+                }
+
+                if (!pRequestedVersion->HasRevision())
+                {
+                    break;
+                }
+                if (!pFoundVersion->HasRevision() || pRequestedVersion->GetRevision() > pFoundVersion->GetRevision())
+                {
+                    hr = FUSION_E_APP_DOMAIN_LOCKED;
+                    break;
+                }
+            } while (false);
 
             if (pApplicationContext->IsTpaListProvided() && hr == FUSION_E_APP_DOMAIN_LOCKED)
             {
@@ -685,26 +713,21 @@ namespace BINDER_SPACE
 
         StackSString sCoreLib;
 
-        // At run-time, System.Private.CoreLib.ni.dll is typically always available, and
-        // System.Private.CoreLib.dll is typically not.  So check for the NI first.
+        // At run-time, System.Private.CoreLib.dll is expected to be the NI image.
         sCoreLib = sCoreLibDir;
-        sCoreLib.Append(CoreLibName_NI_W);
-        if (!fBindToNativeImage || FAILED(AssemblyBinder::GetAssembly(sCoreLib,
-                                               FALSE /* fInspectionOnly */,
-                                               TRUE /* fIsInGAC */,
-                                               TRUE /* fExplicitBindToNativeImage */,
-                                               &pSystemAssembly)))
-        {
-            // If System.Private.CoreLib.ni.dll is unavailable, look for System.Private.CoreLib.dll instead
-            sCoreLib = sCoreLibDir;
-            sCoreLib.Append(CoreLibName_IL_W);
-            IF_FAIL_GO(AssemblyBinder::GetAssembly(sCoreLib,
+        sCoreLib.Append(CoreLibName_IL_W);
+        BOOL fExplicitBindToNativeImage = (fBindToNativeImage == true)? TRUE:FALSE;
+#ifdef FEATURE_NI_BIND_FALLBACK
+        // Some non-Windows platforms do not automatically generate the NI image as CoreLib.dll.
+        // If those platforms also do not support automatic fallback from NI to IL, bind as IL.
+        fExplicitBindToNativeImage = FALSE;
+#endif // FEATURE_NI_BIND_FALLBACK
+        IF_FAIL_GO(AssemblyBinder::GetAssembly(sCoreLib,
                                                    FALSE /* fInspectionOnly */,
                                                    TRUE /* fIsInGAC */,
-                                                   FALSE /* fExplicitBindToNativeImage */,
+                                                   fExplicitBindToNativeImage,
                                                    &pSystemAssembly));
-        }
-
+        
         *ppSystemAssembly = pSystemAssembly.Extract();
 
     Exit:
@@ -1601,8 +1624,13 @@ namespace BINDER_SPACE
                 IF_FAIL_GO(BinderHasNativeHeader(pNativePEImage, &hasHeader));
                 if (!hasHeader)
                 {
-                     pPEImage = pNativePEImage;
-                     pNativePEImage = NULL;
+                    BinderReleasePEImage(pPEImage);
+                    BinderReleasePEImage(pNativePEImage);
+
+                    BINDER_LOG_ENTER(W("BinderAcquirePEImageIL"));
+                    hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, false);
+                    BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImageIL"), hr);
+                    IF_FAIL_GO(hr);
                 }
             }
 

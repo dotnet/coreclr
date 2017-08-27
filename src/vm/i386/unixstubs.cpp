@@ -6,11 +6,6 @@
 
 extern "C"
 {
-    void ThrowControlForThread(FaultingExceptionFrame *pfef)
-    {
-        PORTABILITY_ASSERT("Implement for PAL");
-    }
-
     void ProfileEnterNaked(FunctionIDOrClientID functionIDOrClientID)    
     {
         PORTABILITY_ASSERT("Implement for PAL");
@@ -54,11 +49,5 @@ EXTERN_C VOID JIT_TailCallLeave()
 PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(T_DISPATCHER_CONTEXT * pDispatcherContext)
 {
     PORTABILITY_ASSERT("GetCONTEXTFromRedirectedStubStackFrame");
-    return NULL;
-}
-
-FaultingExceptionFrame *GetFrameFromRedirectedStubStackFrame(DISPATCHER_CONTEXT *pDispatcherContext)
-{
-    PORTABILITY_ASSERT("GetFrameFromRedirectedStubStackFrame");
     return NULL;
 }

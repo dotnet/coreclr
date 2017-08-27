@@ -161,7 +161,7 @@ enum NDirectStubFlags
 #endif // FEATURE_COMINTEROP
     NDIRECTSTUB_FL_NGENEDSTUBFORPROFILING   = 0x00000100,
     NDIRECTSTUB_FL_GENERATEDEBUGGABLEIL     = 0x00000200,
-    NDIRECTSTUB_FL_HASDECLARATIVESECURITY   = 0x00000400,
+    // unused                               = 0x00000400,
     NDIRECTSTUB_FL_UNMANAGED_CALLI          = 0x00000800,
     NDIRECTSTUB_FL_TRIGGERCCTOR             = 0x00001000,
 #ifdef FEATURE_COMINTEROP
@@ -198,8 +198,10 @@ enum ILStubTypes
     ILSTUB_ARRAYOP_SET                   = 0x80000002,
     ILSTUB_ARRAYOP_ADDRESS               = 0x80000004,
 #endif
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
     ILSTUB_MULTICASTDELEGATE_INVOKE      = 0x80000010,
+#endif
+#ifdef FEATURE_STUBS_AS_IL
     ILSTUB_UNBOXINGILSTUB                = 0x80000020,
     ILSTUB_INSTANTIATINGSTUB             = 0x80000040,
     ILSTUB_SECUREDELEGATE_INVOKE         = 0x80000080,
@@ -221,7 +223,6 @@ inline bool SF_IsHRESULTSwapping       (DWORD dwStubFlags) { LIMITED_METHOD_CONT
 inline bool SF_IsReverseStub           (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags < NDIRECTSTUB_FL_INVALID && 0 != (dwStubFlags & NDIRECTSTUB_FL_REVERSE_INTEROP)); }
 inline bool SF_IsNGENedStubForProfiling(DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags < NDIRECTSTUB_FL_INVALID && 0 != (dwStubFlags & NDIRECTSTUB_FL_NGENEDSTUBFORPROFILING)); }
 inline bool SF_IsDebuggableStub        (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags < NDIRECTSTUB_FL_INVALID && 0 != (dwStubFlags & NDIRECTSTUB_FL_GENERATEDEBUGGABLEIL)); }
-inline bool SF_IsStubWithDemand        (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags < NDIRECTSTUB_FL_INVALID && 0 != (dwStubFlags & NDIRECTSTUB_FL_HASDECLARATIVESECURITY)); }
 inline bool SF_IsCALLIStub             (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags < NDIRECTSTUB_FL_INVALID && 0 != (dwStubFlags & NDIRECTSTUB_FL_UNMANAGED_CALLI)); }
 inline bool SF_IsStubWithCctorTrigger  (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags < NDIRECTSTUB_FL_INVALID && 0 != (dwStubFlags & NDIRECTSTUB_FL_TRIGGERCCTOR)); }
 inline bool SF_IsForNumParamBytes      (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags < NDIRECTSTUB_FL_INVALID && 0 != (dwStubFlags & NDIRECTSTUB_FL_FOR_NUMPARAMBYTES)); }
@@ -232,9 +233,12 @@ inline bool SF_IsArrayOpStub           (DWORD dwStubFlags) { LIMITED_METHOD_CONT
                                                                                               (dwStubFlags == ILSTUB_ARRAYOP_ADDRESS)); }
 #endif
 
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
+inline bool SF_IsMulticastDelegateStub  (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_MULTICASTDELEGATE_INVOKE); }
+#endif
+
 #ifdef FEATURE_STUBS_AS_IL
 inline bool SF_IsSecureDelegateStub  (DWORD dwStubFlags)    { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_SECUREDELEGATE_INVOKE); }
-inline bool SF_IsMulticastDelegateStub  (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_MULTICASTDELEGATE_INVOKE); }
 inline bool SF_IsUnboxingILStub         (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_UNBOXINGILSTUB); }
 inline bool SF_IsInstantiatingStub      (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_INSTANTIATINGSTUB); }
 #endif
@@ -293,10 +297,6 @@ inline void SF_ConsistencyCheck(DWORD dwStubFlags)
     // Field accessors are always HRESULT swapping
     CONSISTENCY_CHECK(!(SF_IsFieldGetterStub(dwStubFlags) && !SF_IsHRESULTSwapping(dwStubFlags)));
     CONSISTENCY_CHECK(!(SF_IsFieldSetterStub(dwStubFlags) && !SF_IsHRESULTSwapping(dwStubFlags)));
-
-    // Reverse and CALLI stubs don't have demands
-    CONSISTENCY_CHECK(!(SF_IsReverseStub(dwStubFlags) && SF_IsStubWithDemand(dwStubFlags)));
-    CONSISTENCY_CHECK(!(SF_IsCALLIStub(dwStubFlags) && SF_IsStubWithDemand(dwStubFlags)));
 
     // Delegate stubs are not COM
     CONSISTENCY_CHECK(!(SF_IsDelegateStub(dwStubFlags) && SF_IsCOMStub(dwStubFlags)));

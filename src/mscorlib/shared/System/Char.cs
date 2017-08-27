@@ -21,12 +21,13 @@ namespace System
 {
     [Serializable]
     [StructLayout(LayoutKind.Sequential)]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
     public struct Char : IComparable, IComparable<Char>, IEquatable<Char>, IConvertible
     {
         //
         // Member Variables
         //
-        internal char m_value;
+        private char m_value; // Do not rename (binary serialization)
 
         //
         // Public Constants
@@ -273,11 +274,11 @@ namespace System
             // U+000d = <control> CARRIAGE RETURN
             // U+0085 = <control> NEXT LINE
             // U+00a0 = NO-BREAK SPACE
-            if ((c == ' ') || (c >= '\x0009' && c <= '\x000d') || c == '\x00a0' || c == '\x0085')
-            {
-                return (true);
-            }
-            return (false);
+            return
+                c == ' ' ||
+                (uint)(c - '\x0009') <= ('\x000d' - '\x0009') || // (c >= '\x0009' && c <= '\x000d')
+                c == '\x00a0' ||
+                c == '\x0085';
         }
 
         /*===============================ISWHITESPACE===================================

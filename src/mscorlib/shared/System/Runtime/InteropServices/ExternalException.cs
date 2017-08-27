@@ -21,7 +21,6 @@ namespace System.Runtime.InteropServices
     // Base exception for COM Interop errors &; Structured Exception Handler
     // exceptions.
     // 
-    [Serializable]
     public class ExternalException : SystemException
     {
         public ExternalException()
@@ -51,6 +50,7 @@ namespace System.Runtime.InteropServices
         protected ExternalException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
 
         public virtual int ErrorCode

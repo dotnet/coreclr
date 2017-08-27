@@ -15,7 +15,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class NotSupportedException : SystemException
     {
         public NotSupportedException()
@@ -36,6 +35,9 @@ namespace System
             HResult = __HResults.COR_E_NOTSUPPORTED;
         }
 
-        protected NotSupportedException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected NotSupportedException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

@@ -14,14 +14,17 @@ namespace Functions
         private const double acosDoubleDelta = 0.0004;
         private const double acosDoubleExpectedResult = 7852.4108380716079;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount=AcosDoubleIterations)]
         public static void AcosDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    AcosDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        AcosDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {acosDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {acosDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

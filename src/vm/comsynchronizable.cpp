@@ -20,7 +20,6 @@
 #include "excep.h"
 #include "vars.hpp"
 #include "field.h"
-#include "security.h"
 #include "comsynchronizable.h"
 #include "dbginterface.h"
 #include "comdelegate.h"
@@ -28,6 +27,10 @@
 #include "callhelpers.h"
 #include "appdomain.hpp"
 #include "appdomain.inl"
+
+#ifndef FEATURE_PAL
+#include "utilcode.h"
+#endif
 
 #include "newapis.h"
 
@@ -235,7 +238,7 @@ void ThreadNative::KickOffThread_Worker(LPVOID ptr)
     delete args->share;
     args->share = 0;
 
-    MethodDesc *pMeth = ((DelegateEEClass*)( gc.orDelegate->GetMethodTable()->GetClass() ))->m_pInvokeMethod;
+    MethodDesc *pMeth = ((DelegateEEClass*)( gc.orDelegate->GetMethodTable()->GetClass() ))->GetInvokeMethod();
     _ASSERTE(pMeth);
     MethodDescCallSite invokeMethod(pMeth, &gc.orDelegate);
 
@@ -1543,8 +1546,17 @@ void QCALLTYPE ThreadNative::InformThreadNameChange(QCall::ThreadHandle thread, 
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
-
+    
     Thread* pThread = &(*thread);
+
+#ifndef FEATURE_PAL
+    // Set on Windows 10 Creators Update and later machines the unmanaged thread name as well. That will show up in ETW traces and debuggers which is very helpful
+    // if more and more threads get a meaningful name
+    if (len > 0 && name != NULL)
+    {
+        SetThreadName(pThread->GetThreadHandle(), name);
+    }
+#endif
 
 #ifdef PROFILING_SUPPORTED
     {

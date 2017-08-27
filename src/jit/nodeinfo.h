@@ -25,7 +25,6 @@ public:
         dstCandsIndex          = 0;
         internalCandsIndex     = 0;
         isLocalDefUse          = false;
-        isHelperCallWithKills  = false;
         isLsraAdded            = false;
         isDelayFree            = false;
         hasDelayFreeSrc        = false;
@@ -33,6 +32,7 @@ public:
         regOptional            = false;
         definesAnyRegisters    = false;
         isInternalRegDelayFree = false;
+        isNoRegCompare         = false;
 #ifdef DEBUG
         isInitialized = false;
 #endif
@@ -117,9 +117,6 @@ public:
     // nodes, or top-level nodes that are non-void.
     unsigned char isLocalDefUse : 1;
 
-    // isHelperCallWithKills is set when this is a helper call that kills more than just its in/out regs.
-    unsigned char isHelperCallWithKills : 1;
-
     // Is this node added by LSRA, e.g. as a resolution or copy/reload move.
     unsigned char isLsraAdded : 1;
 
@@ -147,6 +144,9 @@ public:
     // Whether internal register needs to be different from targetReg
     // in which result is produced.
     unsigned char isInternalRegDelayFree : 1;
+
+    // True if this is a compare feeding a JTRUE that doesn't need to be generated into a register.
+    unsigned char isNoRegCompare : 1;
 
 #ifdef DEBUG
     // isInitialized is set when the tree node is handled.

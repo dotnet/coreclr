@@ -178,14 +178,6 @@ HRESULT EEConfig::Init()
     iGCHeapVerify = 0;          // Heap Verification OFF by default
 #endif
 
-#ifdef _DEBUG // TRACE_GC
-    iGCtraceStart = INT_MAX; // Set to huge value so GCtrace is off by default
-    iGCtraceEnd   = INT_MAX;
-    iGCtraceFac   = 0;
-    iGCprnLvl     = DEFAULT_GC_PRN_LVL;
-    
-#endif
-
 #if defined(STRESS_HEAP) || defined(_DEBUG)
     iGCStress     = 0;
 #endif
@@ -235,31 +227,20 @@ HRESULT EEConfig::Init()
     fLegacyComVTableLayout = false;
     fLegacyVirtualMethodCallVerification = false;
     fNewComVTableLayout = false;
-    iImpersonationPolicy = IMP_DEFAULT;
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
     // By default, there is not pre-V4 CSE policy
     fLegacyCorruptedStateExceptionsPolicy = false;
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-#ifdef _DEBUG
-    fLogTransparencyErrors = false;
-#endif // _DEBUG
-    fLegacyLoadMscorsnOnStartup = false;
-    fBypassStrongNameVerification = true;
-    fGeneratePublisherEvidence = true;
-    fEnforceFIPSPolicy = true;
-    fLegacyHMACMode = false;
     fNgenBindOptimizeNonGac = false;
     fStressLog = false;
     fCacheBindingFailures = true;
-    fDisableFusionUpdatesFromADManager = false;
     fDisableCommitThreadStack = false;
     fProbeForStackOverflow = true;
     
     INDEBUG(fStressLog = true;)
 
-    fVerifyAllOnLoad = false;
 #ifdef _DEBUG
     fExpandAllOnLoad = false;
     fDebuggable = false;
@@ -293,9 +274,6 @@ HRESULT EEConfig::Init()
     // LS in DAC builds. Initialized via the environment variable TestDataConsistency
     fTestDataConsistency = false;
 #endif
-    
-    // TlbImp Stuff
-    fTlbImpSkipLoading = false;
 
     // In Thread::SuspendThread(), default the timeout to 2 seconds.  If the suspension
     // takes longer, assert (but keep trying).
@@ -326,10 +304,6 @@ HRESULT EEConfig::Init()
 #endif
 
     iRequireZaps = REQUIRE_ZAPS_NONE;
-
-#ifdef _TARGET_AMD64_
-    pDisableNativeImageLoadList = NULL;
-#endif
 
     // new loader behavior switches
 
@@ -407,6 +381,14 @@ HRESULT EEConfig::Init()
     fTieredCompilation = false;
 #endif
     
+#if defined(FEATURE_GDBJIT) && defined(_DEBUG)
+    pszGDBJitElfDump = NULL;
+#endif // FEATURE_GDBJIT && _DEBUG
+
+#if defined(FEATURE_GDBJIT_FRAME)
+    fGDBJitEmitDebugFrame = false;
+#endif
+
     // After initialization, register the code:#GetConfigValueCallback method with code:CLRConfig to let
     // CLRConfig access config files. This is needed because CLRConfig lives outside the VM and can't
     // statically link to EEConfig.
@@ -487,11 +469,6 @@ HRESULT EEConfig::Cleanup()
     
     if (pForbidZapsExcludeList)
         delete pForbidZapsExcludeList;
-#endif
-
-#ifdef _TARGET_AMD64_
-    if (pDisableNativeImageLoadList)
-        delete pDisableNativeImageLoadList;
 #endif
 
 #ifdef FEATURE_COMINTEROP
@@ -996,16 +973,6 @@ HRESULT EEConfig::sync()
     }
 #endif
 
-#ifdef _TARGET_AMD64_
-    if (!IsCompilationProcess())
-    {
-        NewArrayHolder<WCHAR> wszDisableNativeImageLoadList;
-        IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_DisableNativeImageLoadList, &wszDisableNativeImageLoadList));
-        if (wszDisableNativeImageLoadList)
-            pDisableNativeImageLoadList = new AssemblyNamesList(wszDisableNativeImageLoadList);
-    }
-#endif
-
 #ifdef FEATURE_LOADER_OPTIMIZATION
     dwSharePolicy           = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_LoaderOptimization, dwSharePolicy);
 #endif
@@ -1124,11 +1091,6 @@ HRESULT EEConfig::sync()
 
     fJitVerificationDisable = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_JitVerificationDisable, fJitVerificationDisable)         != 0);
 
-    fLogTransparencyErrors = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_Security_LogTransparencyErrors) != 0;
-
-    // TlbImp stuff
-    fTlbImpSkipLoading = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_TlbImpSkipLoading, fTlbImpSkipLoading) != 0);
-
     iExposeExceptionsInCOM = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_ExposeExceptionsInCOM, iExposeExceptionsInCOM);
 #endif
 
@@ -1140,9 +1102,6 @@ HRESULT EEConfig::sync()
 
     fEnableRCWCleanupOnSTAShutdown = (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EnableRCWCleanupOnSTAShutdown) != 0);
 #endif // FEATURE_COMINTEROP
-
-    //Eager verification of all assemblies.
-    fVerifyAllOnLoad = (GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_VerifyAllOnLoad, fVerifyAllOnLoad) != 0);
 
 #ifdef _DEBUG
     fExpandAllOnLoad = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_ExpandAllOnLoad, fExpandAllOnLoad) != 0);
@@ -1285,6 +1244,17 @@ HRESULT EEConfig::sync()
     fTieredCompilation = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation) != 0;
 #endif
 
+#if defined(FEATURE_GDBJIT) && defined(_DEBUG)
+    {
+        LPWSTR pszGDBJitElfDumpW = NULL;
+        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_GDBJitElfDump, &pszGDBJitElfDumpW);
+        pszGDBJitElfDump = NarrowWideChar(pszGDBJitElfDumpW);
+    }
+#endif // FEATURE_GDBJIT && _DEBUG
+
+#if defined(FEATURE_GDBJIT_FRAME)
+    fGDBJitEmitDebugFrame = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_GDBJitEmitDebugFrame) != 0;
+#endif
     return hr;
 }
 
@@ -1400,19 +1370,6 @@ HRESULT EEConfig::GetConfiguration_DontUse_(__in_z LPCWSTR pKey, ConfigSearch di
     }
 }        
 
-LPCWSTR EEConfig::GetProcessBindingFile()
-{
-    LIMITED_METHOD_CONTRACT;
-    return g_pszHostConfigFile;
-}
-
-SIZE_T EEConfig::GetSizeOfProcessBindingFile()
-{
-    LIMITED_METHOD_CONTRACT;
-    return g_dwHostConfigFile;
-}
-
-
 bool EEConfig::RequireZap(LPCUTF8 assemblyName) const
 {
     LIMITED_METHOD_CONTRACT;
@@ -1454,18 +1411,6 @@ bool EEConfig::ExcludeReadyToRun(LPCUTF8 assemblyName) const
 
     return false;
 }
-
-#ifdef _TARGET_AMD64_
-bool EEConfig::DisableNativeImageLoad(LPCUTF8 assemblyName) const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (pDisableNativeImageLoadList != NULL && pDisableNativeImageLoadList->IsInList(assemblyName))
-        return true;
-
-    return false;
-}
-#endif
 
 /**************************************************************/
 #ifdef _DEBUG

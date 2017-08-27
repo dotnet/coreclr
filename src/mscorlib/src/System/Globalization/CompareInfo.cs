@@ -20,7 +20,6 @@ using System.Runtime.Serialization;
 namespace System.Globalization
 {
     [Flags]
-    [Serializable]
     public enum CompareOptions
     {
         None = 0x00000000,
@@ -35,6 +34,7 @@ namespace System.Globalization
     }
 
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public partial class CompareInfo : IDeserializationCallback
     {
         // Mask used to check if IndexOf()/LastIndexOf()/IsPrefix()/IsPostfix() has the right flags.
@@ -64,20 +64,23 @@ namespace System.Globalization
         // locale, which is what SCOMPAREINFO does.
 
         [OptionalField(VersionAdded = 2)]
-        private string _name;  // The name used to construct this CompareInfo
-        [NonSerialized] 
-        private string _sortName; // The name that defines our behavior
+        private string m_name;  // The name used to construct this CompareInfo. Do not rename (binary serialization)
+
+        [NonSerialized]
+        private string _sortName; // The name that defines our behavior.
 
         [OptionalField(VersionAdded = 3)]
-        private SortVersion _sortVersion;
+        private SortVersion m_SortVersion; // Do not rename (binary serialization)
 
         // _invariantMode is defined for the perf reason as accessing the instance field is faster than access the static property GlobalizationMode.Invariant
-        [NonSerialized] 
+        [NonSerialized]
         private readonly bool _invariantMode = GlobalizationMode.Invariant;
+        
+        private int culture; // Do not rename (binary serialization). The fields sole purpose is to support Desktop serialization.
 
         internal CompareInfo(CultureInfo culture)
         {
-            _name = culture._name;
+            m_name = culture._name;
             InitSort(culture);
         }
 
@@ -217,7 +220,7 @@ namespace System.Globalization
         [OnDeserializing]
         private void OnDeserializing(StreamingContext ctx)
         {
-            _name = null;
+            m_name = null;
         }
 
         void IDeserializationCallback.OnDeserialization(Object sender)
@@ -233,14 +236,26 @@ namespace System.Globalization
 
         private void OnDeserialized()
         {
-            if (_name != null)
+            // If we didn't have a name, use the LCID
+            if (m_name == null)
             {
-                InitSort(CultureInfo.GetCultureInfo(_name));
+                // From whidbey, didn't have a name
+                CultureInfo ci = CultureInfo.GetCultureInfo(this.culture);
+                m_name = ci._name;
+            }
+            else
+            {
+                InitSort(CultureInfo.GetCultureInfo(m_name));
             }
         }
 
         [OnSerializing]
-        private void OnSerializing(StreamingContext ctx) { }
+        private void OnSerializing(StreamingContext ctx)
+        {
+            // This is merely for serialization compatibility with Whidbey/Orcas, it can go away when we don't want that compat any more.
+            culture = CultureInfo.GetCultureInfo(this.Name).LCID; // This is the lcid of the constructing culture (still have to dereference to get target sort)
+            Contract.Assert(m_name != null, "CompareInfo.OnSerializing - expected m_name to be set already");
+        }
 
         ///////////////////////////----- Name -----/////////////////////////////////
         //
@@ -259,10 +274,10 @@ namespace System.Globalization
         {
             get
             {
-                Debug.Assert(_name != null, "CompareInfo.Name Expected _name to be set");
-                if (_name == "zh-CHT" || _name == "zh-CHS")
+                Debug.Assert(m_name != null, "CompareInfo.Name Expected _name to be set");
+                if (m_name == "zh-CHT" || m_name == "zh-CHS")
                 {
-                    return _name;
+                    return m_name;
                 }
 
                 return _sortName;
@@ -752,7 +767,6 @@ namespace System.Globalization
             return IndexOfCore(source, new string(value, 1), startIndex, count, options, null);
         }
 
-
         public unsafe virtual int IndexOf(string source, string value, int startIndex, int count, CompareOptions options)
         {
             // Validate inputs
@@ -800,6 +814,53 @@ namespace System.Globalization
                 return IndexOfOrdinal(source, value, startIndex, count, ignoreCase: (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
 
             return IndexOfCore(source, value, startIndex, count, options, null);
+        }
+
+        // The following IndexOf overload is mainly used by String.Replace. This overload assumes the parameters are already validated
+        // and the caller is passing a valid matchLengthPtr pointer.
+        internal unsafe int IndexOf(string source, string value, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
+        {
+            Debug.Assert(source != null);
+            Debug.Assert(value != null);
+            Debug.Assert(startIndex >= 0);
+            Debug.Assert(matchLengthPtr != null);
+            *matchLengthPtr = 0;
+
+            if (source.Length == 0)
+            {
+                if (value.Length == 0)
+                {
+                    return 0;
+                }
+                return -1;
+            }
+
+            if (startIndex >= source.Length)
+            {
+                return -1;
+            }
+
+            if (options == CompareOptions.OrdinalIgnoreCase)
+            {
+                int res = IndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
+                if (res >= 0)
+                {
+                    *matchLengthPtr = value.Length;
+                }
+                return res;
+            }
+
+            if (_invariantMode)
+            {
+                int res = IndexOfOrdinal(source, value, startIndex, count, ignoreCase: (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
+                if (res >= 0)
+                {
+                    *matchLengthPtr = value.Length;
+                }
+                return res;
+            }
+
+            return IndexOfCore(source, value, startIndex, count, options, matchLengthPtr);
         }
 
         internal int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
@@ -1162,11 +1223,11 @@ namespace System.Globalization
         {
             get
             {
-                if (_sortVersion == null)
+                if (m_SortVersion == null)
                 {
                     if (_invariantMode)
                     {
-                        _sortVersion = new SortVersion(0, CultureInfo.LOCALE_INVARIANT, new Guid(0, 0, 0, 0, 0, 0, 0,
+                        m_SortVersion = new SortVersion(0, CultureInfo.LOCALE_INVARIANT, new Guid(0, 0, 0, 0, 0, 0, 0,
                                                                         (byte) (CultureInfo.LOCALE_INVARIANT >> 24),
                                                                         (byte) ((CultureInfo.LOCALE_INVARIANT  & 0x00FF0000) >> 16),
                                                                         (byte) ((CultureInfo.LOCALE_INVARIANT  & 0x0000FF00) >> 8),
@@ -1174,11 +1235,11 @@ namespace System.Globalization
                     }
                     else
                     {
-                        _sortVersion = GetSortVersion();
+                        m_SortVersion = GetSortVersion();
                     }
                 }
 
-                return _sortVersion;
+                return m_SortVersion;
             }
         }
 

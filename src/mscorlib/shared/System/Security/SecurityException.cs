@@ -7,7 +7,6 @@ using System.Runtime.Serialization;
 
 namespace System.Security
 {
-    [Serializable]
     public class SecurityException : SystemException
     {
         public SecurityException()
@@ -46,6 +45,7 @@ namespace System.Security
         protected SecurityException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
 
         public override string ToString() => base.ToString();

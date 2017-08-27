@@ -4,14 +4,19 @@
 
 #include "createdump.h"
 
-CrashInfo::CrashInfo(pid_t pid, DataTarget& dataTarget) :
+// This is for the PAL_VirtualUnwindOutOfProc read memory adapter.
+CrashInfo* g_crashInfo;
+
+CrashInfo::CrashInfo(pid_t pid, ICLRDataTarget* dataTarget, bool sos) :
     m_ref(1),
     m_pid(pid),
     m_ppid(-1),
     m_name(nullptr),
+    m_sos(sos),
     m_dataTarget(dataTarget)
 {
-    dataTarget.AddRef();
+    g_crashInfo = this;
+    dataTarget->AddRef();
     m_auxvValues.fill(0);
 }
 
@@ -39,7 +44,7 @@ CrashInfo::~CrashInfo()
         const_cast<MemoryRegion&>(region).Cleanup();
     }
     m_otherMappings.clear();
-    m_dataTarget.Release();
+    m_dataTarget->Release();
 }
 
 STDMETHODIMP
@@ -56,7 +61,7 @@ CrashInfo::QueryInterface(
     }
     else
     {
-        *Interface = NULL;
+        *Interface = nullptr;
         return E_NOINTERFACE;
     }
 }
@@ -84,10 +89,14 @@ CrashInfo::EnumMemoryRegion(
     /* [in] */ CLRDATA_ADDRESS address,
     /* [in] */ ULONG32 size)
 {
-    InsertMemoryRegion(address, size);
+    InsertMemoryRegion((ULONG_PTR)address, size);
     return S_OK;
 }
 
+//
+// Suspends all the threads and creating a list of them. Should be the first before 
+// gather any info about the process.
+//
 bool 
 CrashInfo::EnumerateAndSuspendThreads()
 {
@@ -107,20 +116,25 @@ CrashInfo::EnumerateAndSuspendThreads()
         pid_t tid = static_cast<pid_t>(strtol(entry->d_name, nullptr, 10));
         if (tid != 0)
         {
-            //  Reference: http://stackoverflow.com/questions/18577956/how-to-use-ptrace-to-get-a-consistent-view-of-multiple-threads
-            if (ptrace(PTRACE_ATTACH, tid, nullptr, nullptr) != -1)
+            // Don't suspend the threads if running under sos
+            if (!m_sos)
             {
-                int waitStatus;
-                waitpid(tid, &waitStatus, __WALL);     
-
-                // Add to the list of (suspended) threads
-                ThreadInfo* thread = new ThreadInfo(tid);
-                m_threads.push_back(thread);
+                //  Reference: http://stackoverflow.com/questions/18577956/how-to-use-ptrace-to-get-a-consistent-view-of-multiple-threads
+                if (ptrace(PTRACE_ATTACH, tid, nullptr, nullptr) != -1)
+                {
+                    int waitStatus;
+                    waitpid(tid, &waitStatus, __WALL);
+                }
+                else
+                {
+                    fprintf(stderr, "ptrace(ATTACH, %d) FAILED %s\n", tid, strerror(errno));
+                    closedir(taskDir);
+                    return false;
+                }
             }
-            else 
-            {
-                fprintf(stderr, "ptrace(ATTACH, %d) FAILED %s\n", tid, strerror(errno));
-            }
+            // Add to the list of threads
+            ThreadInfo* thread = new ThreadInfo(tid);
+            m_threads.push_back(thread);
         }
     }
 
@@ -128,8 +142,11 @@ CrashInfo::EnumerateAndSuspendThreads()
     return true;
 }
 
+//
+// Gather all the necessary crash dump info.
+//
 bool
-CrashInfo::GatherCrashInfo(const char* pszExePath, MINIDUMP_TYPE minidumpType)
+CrashInfo::GatherCrashInfo(const char* programPath, MINIDUMP_TYPE minidumpType)
 {
     // Get the process info
     if (!GetStatus(m_pid, &m_ppid, &m_tgid, &m_name))
@@ -139,7 +156,7 @@ CrashInfo::GatherCrashInfo(const char* pszExePath, MINIDUMP_TYPE minidumpType)
     // Get the info about the threads (registers, etc.)
     for (ThreadInfo* thread : m_threads)
     {
-        if (!thread->Initialize())
+        if (!thread->Initialize(m_sos ? m_dataTarget : nullptr))
         {
             return false;
         }
@@ -149,33 +166,71 @@ CrashInfo::GatherCrashInfo(const char* pszExePath, MINIDUMP_TYPE minidumpType)
     {
         return false;
     }
-    // Get shared module debug info
-    if (!GetDSOInfo())
-    {
-        return false;
-    }
     // Gather all the module memory mappings (from /dev/$pid/maps)
     if (!EnumerateModuleMappings())
     {
         return false;
     }
-    // Gather all the useful memory regions from the DAC
-    if (!EnumerateMemoryRegionsWithDAC(pszExePath, minidumpType))
+    // Get shared module debug info
+    if (!GetDSOInfo())
     {
         return false;
     }
-    // Add the thread's stack and some code memory to core
-    for (ThreadInfo* thread : m_threads)
+ 
+    for (const MemoryRegion& region : m_moduleAddresses)
     {
-        uint64_t start;
-        size_t size;
+        region.Trace();
+    }
 
-        // Add the thread's stack and some of the code 
-        thread->GetThreadStack(*this, &start, &size); 
-        InsertMemoryRegion(start, size);
-
-        thread->GetThreadCode(&start, &size);
-        InsertMemoryRegion(start, size);
+    // If full memory dump, include everything regardless of permissions
+    if (minidumpType & MiniDumpWithFullMemory)
+    {
+        for (const MemoryRegion& region : m_moduleMappings)
+        {
+            InsertMemoryBackedRegion(region);
+        }
+        for (const MemoryRegion& region : m_otherMappings)
+        {
+            InsertMemoryBackedRegion(region);
+        }
+    }
+    // Add all the heap (read/write) memory regions (m_otherMappings contains the heaps)
+    else if (minidumpType & MiniDumpWithPrivateReadWriteMemory)
+    {
+        for (const MemoryRegion& region : m_otherMappings)
+        {
+            if (region.Permissions() == (PF_R | PF_W))
+            {
+                InsertMemoryBackedRegion(region);
+            }
+        }
+    }
+    // Gather all the useful memory regions from the DAC
+    if (!EnumerateMemoryRegionsWithDAC(programPath, minidumpType))
+    {
+        return false;
+    }
+    if ((minidumpType & MiniDumpWithFullMemory) == 0)
+    {
+        // Add the thread's stack and some code memory to core
+        for (ThreadInfo* thread : m_threads)
+        {
+            // Add the thread's stack
+            thread->GetThreadStack(*this);
+        }
+        // All the regions added so far has been backed by memory. Now add the rest of 
+        // mappings so the debuggers like lldb see that an address is code (PF_X) even
+        // if it isn't actually in the core dump.
+        for (const MemoryRegion& region : m_moduleMappings)
+        {
+            assert(!region.IsBackedByMemory());
+            InsertMemoryRegion(region);
+        }
+        for (const MemoryRegion& region : m_otherMappings)
+        {
+            assert(!region.IsBackedByMemory());
+            InsertMemoryRegion(region);
+        }
     }
     // Join all adjacent memory regions
     CombineMemoryRegions();
@@ -185,12 +240,18 @@ CrashInfo::GatherCrashInfo(const char* pszExePath, MINIDUMP_TYPE minidumpType)
 void
 CrashInfo::ResumeThreads()
 {
-    for (ThreadInfo* thread : m_threads)
+    if (!m_sos)
     {
-        thread->ResumeThread();
+        for (ThreadInfo* thread : m_threads)
+        {
+            thread->ResumeThread();
+        }
     }
 }
 
+//
+// Get the auxv entries to use and add to the core dump
+//
 bool 
 CrashInfo::GetAuxvEntries()
 {
@@ -216,7 +277,7 @@ CrashInfo::GetAuxvEntries()
         if (auxvEntry.a_type < AT_MAX) 
         {
             m_auxvValues[auxvEntry.a_type] = auxvEntry.a_un.a_val;
-            TRACE("AUXV: %lu = %016lx\n", auxvEntry.a_type, auxvEntry.a_un.a_val);
+            TRACE("AUXV: %" PRIu " = %" PRIxA "\n", auxvEntry.a_type, auxvEntry.a_un.a_val);
             result = true;
         }
     }
@@ -225,13 +286,16 @@ CrashInfo::GetAuxvEntries()
     return result;
 }
 
+//
+// Get the module mappings for the core dump NT_FILE notes
+//
 bool
 CrashInfo::EnumerateModuleMappings()
 {
     // Here we read /proc/<pid>/maps file in order to parse it and figure out what it says 
     // about a library we are looking for. This file looks something like this:
     //
-    // [address]      [perms] [offset] [dev] [inode]     [pathname] - HEADER is not preset in an actual file
+    // [address]          [perms] [offset] [dev] [inode] [pathname] - HEADER is not preset in an actual file
     //
     // 35b1800000-35b1820000 r-xp 00000000 08:02 135522  /usr/lib64/ld-2.15.so
     // 35b1a1f000-35b1a20000 r--p 0001f000 08:02 135522  /usr/lib64/ld-2.15.so
@@ -241,7 +305,7 @@ CrashInfo::EnumerateModuleMappings()
     // 35b1dac000-35b1fac000 ---p 001ac000 08:02 135870  /usr/lib64/libc-2.15.so
     // 35b1fac000-35b1fb0000 r--p 001ac000 08:02 135870  /usr/lib64/libc-2.15.so
     // 35b1fb0000-35b1fb2000 rw-p 001b0000 08:02 135870  /usr/lib64/libc-2.15.so
-    char* line = NULL;
+    char* line = nullptr;
     size_t lineLen = 0;
     int count = 0;
     ssize_t read;
@@ -252,7 +316,7 @@ CrashInfo::EnumerateModuleMappings()
     assert(chars > 0 && chars <= sizeof(mapPath));
 
     FILE* mapsFile = fopen(mapPath, "r");
-    if (mapsFile == NULL)
+    if (mapsFile == nullptr)
     {
         fprintf(stderr, "fopen(%s) FAILED %s\n", mapPath, strerror(errno));
         return false;
@@ -273,33 +337,41 @@ CrashInfo::EnumerateModuleMappings()
         char* permissions = nullptr;
         char* moduleName = nullptr;
 
-        int c = 0;
-        if ((c = sscanf(line, "%lx-%lx %m[-rwxsp] %lx %*[:0-9a-f] %*d %ms\n", &start, &end, &permissions, &offset, &moduleName)) == 5)
+        int c = sscanf(line, "%" PRIx64 "-%" PRIx64 " %m[-rwxsp] %" PRIx64 " %*[:0-9a-f] %*d %ms\n", &start, &end, &permissions, &offset, &moduleName);
+        if (c == 4 || c == 5)
         {
-            if (linuxGateAddress != nullptr && reinterpret_cast<void*>(start) == linuxGateAddress)
-            {
-                InsertMemoryRegion(start, end - start);
-                free(moduleName);
+            // r = read
+            // w = write
+            // x = execute
+            // s = shared
+            // p = private (copy on write)
+            uint32_t regionFlags = 0;
+            if (strchr(permissions, 'r')) {
+                regionFlags |= PF_R;
+            }
+            if (strchr(permissions, 'w')) {
+                regionFlags |= PF_W;
+            }
+            if (strchr(permissions, 'x')) {
+                regionFlags |= PF_X;
+            }
+            if (strchr(permissions, 's')) {
+                regionFlags |= MEMORY_REGION_FLAG_SHARED;
+            }
+            if (strchr(permissions, 'p')) {
+                regionFlags |= MEMORY_REGION_FLAG_PRIVATE;
+            }
+            MemoryRegion memoryRegion(regionFlags, start, end, offset, moduleName);
+
+            if (moduleName != nullptr && *moduleName == '/') {
+                m_moduleMappings.insert(memoryRegion);
             }
             else {
-                uint32_t permissionFlags = 0;
-                if (strchr(permissions, 'r')) {
-                    permissionFlags |= PF_R;
-                }
-                if (strchr(permissions, 'w')) {
-                    permissionFlags |= PF_W;
-                }
-                if (strchr(permissions, 'x')) {
-                    permissionFlags |= PF_X;
-                }
-                MemoryRegion memoryRegion(permissionFlags, start, end, offset, moduleName);
-
-                if (moduleName != nullptr && *moduleName == '/') {
-                    m_moduleMappings.insert(memoryRegion);
-                }
-                else {
-                    m_otherMappings.insert(memoryRegion);
-                }
+                m_otherMappings.insert(memoryRegion);
+            }
+            if (linuxGateAddress != nullptr && reinterpret_cast<void*>(start) == linuxGateAddress)
+            {
+                InsertMemoryBackedRegion(memoryRegion);
             }
             free(permissions);
         }
@@ -310,12 +382,12 @@ CrashInfo::EnumerateModuleMappings()
         TRACE("Module mappings:\n");
         for (const MemoryRegion& region : m_moduleMappings)
         {
-            region.Print();
+            region.Trace();
         }
         TRACE("Other mappings:\n");
         for (const MemoryRegion& region : m_otherMappings)
         {
-            region.Print();
+            region.Trace();
         }
     }
 
@@ -325,79 +397,22 @@ CrashInfo::EnumerateModuleMappings()
     return true;
 }
 
-bool
-CrashInfo::EnumerateMemoryRegionsWithDAC(const char *pszExePath, MINIDUMP_TYPE minidumpType)
-{
-    PFN_CLRDataCreateInstance pfnCLRDataCreateInstance = nullptr;
-    ICLRDataEnumMemoryRegions *clrDataEnumRegions = nullptr;
-    HMODULE hdac = nullptr;
-    HRESULT hr = S_OK;
-    bool result = false;
-
-    // We assume that the DAC is in the same location as this createdump exe
-    ArrayHolder<char> dacPath = new char[MAX_LONGPATH];
-    strcpy_s(dacPath, MAX_LONGPATH, pszExePath);
-    char *last = strrchr(dacPath, '/');
-    if (last != nullptr)
-    {
-        *(last + 1) = '\0';
-    }
-    else
-    {
-        dacPath[0] = '\0';
-    }
-    strcat_s(dacPath, MAX_LONGPATH, MAKEDLLNAME_A("mscordaccore"));
-    
-    // Load and initialize the DAC
-    hdac = LoadLibraryA(dacPath);
-    if (hdac == nullptr)
-    {
-        fprintf(stderr, "LoadLibraryA(%s) FAILED %d\n", (char*)dacPath, GetLastError());
-        goto exit;
-    }
-    pfnCLRDataCreateInstance = (PFN_CLRDataCreateInstance)GetProcAddress(hdac, "CLRDataCreateInstance");
-    if (pfnCLRDataCreateInstance == nullptr)
-    {
-        fprintf(stderr, "GetProcAddress(CLRDataCreateInstance) FAILED %d\n", GetLastError());
-        goto exit;
-    }
-    hr = pfnCLRDataCreateInstance(__uuidof(ICLRDataEnumMemoryRegions), &m_dataTarget, (void**)&clrDataEnumRegions);
-    if (FAILED(hr))
-    {
-        fprintf(stderr, "CLRDataCreateInstance(ICLRDataEnumMemoryRegions) FAILED %08x\n", hr);
-        goto exit;
-    }
-    // Calls CrashInfo::EnumMemoryRegion for each memory region found by the DAC
-    hr = clrDataEnumRegions->EnumMemoryRegions(this, minidumpType, CLRDATA_ENUM_MEM_DEFAULT);
-    if (FAILED(hr))
-    {
-        fprintf(stderr, "EnumMemoryRegions FAILED %08x\n", hr);
-        goto exit;
-    }
-    result = true;
-exit:
-    if (clrDataEnumRegions != nullptr)
-    {
-        clrDataEnumRegions->Release();
-    }
-    if (hdac != nullptr)
-    {
-        FreeLibrary(hdac);
-    }
-    return result;
-}
-
+//
+// All the shared (native) module info to the core dump
+//
 bool
 CrashInfo::GetDSOInfo()
 {
     Phdr* phdrAddr = reinterpret_cast<Phdr*>(m_auxvValues[AT_PHDR]);
     int phnum = m_auxvValues[AT_PHNUM];
     assert(m_auxvValues[AT_PHENT] == sizeof(Phdr));
+    assert(phnum != PN_XNUM);
 
     if (phnum <= 0 || phdrAddr == nullptr) {
         return false;
     }
-    TRACE("DSO: phdr %p phnum %d\n", phdrAddr, phnum);
+    uint64_t baseAddress = (uint64_t)phdrAddr - sizeof(Ehdr);
+    TRACE("DSO: base %" PRIA PRIx64 " phdr %p phnum %d\n", baseAddress, phdrAddr, phnum);
 
     // Search for the program PT_DYNAMIC header 
     ElfW(Dyn)* dynamicAddr = nullptr;
@@ -405,21 +420,29 @@ CrashInfo::GetDSOInfo()
     {
         Phdr ph;
         if (!ReadMemory(phdrAddr, &ph, sizeof(ph))) {
+            fprintf(stderr, "ReadMemory(%p, %" PRIx ") phdr FAILED\n", phdrAddr, sizeof(ph));
             return false;
         }
-        TRACE("DSO: phdr %p type %d (%x) vaddr %016lx memsz %016lx offset %016lx\n", 
+        TRACE("DSO: phdr %p type %d (%x) vaddr %" PRIxA " memsz %" PRIxA " offset %" PRIxA "\n",
             phdrAddr, ph.p_type, ph.p_type, ph.p_vaddr, ph.p_memsz, ph.p_offset);
 
-        if (ph.p_type == PT_DYNAMIC) 
+        switch (ph.p_type)
         {
+        case PT_DYNAMIC:
             dynamicAddr = reinterpret_cast<ElfW(Dyn)*>(ph.p_vaddr);
-        }
-        else if (ph.p_type == PT_GNU_EH_FRAME)
-        {
-            if (ph.p_vaddr != 0 && ph.p_memsz != 0)
-            {
+            break;
+
+        case PT_NOTE:
+        case PT_GNU_EH_FRAME:
+            if (ph.p_vaddr != 0 && ph.p_memsz != 0) {
                 InsertMemoryRegion(ph.p_vaddr, ph.p_memsz);
             }
+            break;
+
+        case PT_LOAD:
+            MemoryRegion region(0, ph.p_vaddr, ph.p_vaddr + ph.p_memsz, baseAddress);
+            m_moduleAddresses.insert(region);
+            break;
         }
     }
 
@@ -432,9 +455,10 @@ CrashInfo::GetDSOInfo()
     for (;;) {
         ElfW(Dyn) dyn;
         if (!ReadMemory(dynamicAddr, &dyn, sizeof(dyn))) {
+            fprintf(stderr, "ReadMemory(%p, %" PRIx ") dyn FAILED\n", dynamicAddr, sizeof(dyn));
             return false;
         }
-        TRACE("DSO: dyn %p tag %ld (%lx) d_ptr %016lx\n", dynamicAddr, dyn.d_tag, dyn.d_tag, dyn.d_un.d_ptr);
+        TRACE("DSO: dyn %p tag %" PRId " (%" PRIx ") d_ptr %" PRIxA "\n", dynamicAddr, dyn.d_tag, dyn.d_tag, dyn.d_un.d_ptr);
         if (dyn.d_tag == DT_DEBUG) {
             rdebugAddr = reinterpret_cast<struct r_debug*>(dyn.d_un.d_ptr);
         }
@@ -448,26 +472,318 @@ CrashInfo::GetDSOInfo()
     TRACE("DSO: rdebugAddr %p\n", rdebugAddr);
     struct r_debug debugEntry;
     if (!ReadMemory(rdebugAddr, &debugEntry, sizeof(debugEntry))) {
+        fprintf(stderr, "ReadMemory(%p, %" PRIx ") r_debug FAILED\n", rdebugAddr, sizeof(debugEntry));
         return false;
     }
 
     // Add the DSO link_map entries
+    ArrayHolder<char> moduleName = new char[PATH_MAX];
     for (struct link_map* linkMapAddr = debugEntry.r_map; linkMapAddr != nullptr;) {
         struct link_map map;
         if (!ReadMemory(linkMapAddr, &map, sizeof(map))) {
+            fprintf(stderr, "ReadMemory(%p, %" PRIx ") link_map FAILED\n", linkMapAddr, sizeof(map));
             return false;
         }
-        char moduleName[257] = { 0 };
+        // Read the module's name and make sure the memory is added to the core dump
+        int i = 0;
         if (map.l_name != nullptr) {
-            if (!ReadMemory(map.l_name, &moduleName, sizeof(moduleName) - 1)) {
-                return false;
+            for (; i < PATH_MAX; i++)
+            {
+                if (!ReadMemory(map.l_name + i, &moduleName[i], 1)) {
+                    TRACE("DSO: ReadMemory link_map name %p + %d FAILED\n", map.l_name, i);
+                    break;
+                }
+                if (moduleName[i] == '\0') {
+                    break;
+                }
             }
         }
-        TRACE("DSO: link_map entry %p l_ld %p l_addr %lx %s\n", linkMapAddr, map.l_ld, map.l_addr, moduleName);
+        moduleName[i] = '\0';
+        TRACE("\nDSO: link_map entry %p l_ld %p l_addr (Ehdr) %" PRIx " %s\n", linkMapAddr, map.l_ld, map.l_addr, (char*)moduleName);
+
+        // Read the ELF header and info adding it to the core dump
+        if (!GetELFInfo(map.l_addr)) {
+            return false;
+        }
         linkMapAddr = map.l_next;
     }
 
     return true;
+}
+
+//
+// Add all the necessary ELF headers to the core dump
+//
+bool
+CrashInfo::GetELFInfo(uint64_t baseAddress)
+{
+    if (baseAddress == 0) {
+        return true;
+    }
+    Ehdr ehdr;
+    if (!ReadMemory((void*)baseAddress, &ehdr, sizeof(ehdr))) {
+        fprintf(stderr, "ReadMemory(%p, %" PRIx ") ehdr FAILED\n", (void*)baseAddress, sizeof(ehdr));
+        return false;
+    }
+    int phnum = ehdr.e_phnum;
+    assert(phnum != PN_XNUM);
+    assert(ehdr.e_phentsize == sizeof(Phdr));
+#ifdef BIT64
+    assert(ehdr.e_ident[EI_CLASS] == ELFCLASS64);
+#else
+    assert(ehdr.e_ident[EI_CLASS] == ELFCLASS32);
+#endif
+    assert(ehdr.e_ident[EI_DATA] == ELFDATA2LSB);
+
+    TRACE("ELF: type %d mach 0x%x ver %d flags 0x%x phnum %d phoff %" PRIxA " phentsize 0x%02x shnum %d shoff %" PRIxA " shentsize 0x%02x shstrndx %d\n",
+        ehdr.e_type, ehdr.e_machine, ehdr.e_version, ehdr.e_flags, phnum, ehdr.e_phoff, ehdr.e_phentsize, ehdr.e_shnum, ehdr.e_shoff, ehdr.e_shentsize, ehdr.e_shstrndx);
+
+    if (ehdr.e_phoff != 0 && phnum > 0)
+    {
+        Phdr* phdrAddr = reinterpret_cast<Phdr*>(baseAddress + ehdr.e_phoff);
+
+        // Add the program headers and search for the module's note and unwind info segments
+        for (int i = 0; i < phnum; i++, phdrAddr++)
+        {
+            Phdr ph;
+            if (!ReadMemory(phdrAddr, &ph, sizeof(ph))) {
+                fprintf(stderr, "ReadMemory(%p, %" PRIx ") phdr FAILED\n", phdrAddr, sizeof(ph));
+                return false;
+            }
+            TRACE("ELF: phdr %p type %d (%x) vaddr %" PRIxA " memsz %" PRIxA " paddr %" PRIxA " filesz %" PRIxA " offset %" PRIxA " align %" PRIxA "\n",
+                phdrAddr, ph.p_type, ph.p_type, ph.p_vaddr, ph.p_memsz, ph.p_paddr, ph.p_filesz, ph.p_offset, ph.p_align);
+
+            switch (ph.p_type)
+            {
+            case PT_DYNAMIC:
+            case PT_NOTE:
+            case PT_GNU_EH_FRAME:
+                if (ph.p_vaddr != 0 && ph.p_memsz != 0) {
+                    InsertMemoryRegion(baseAddress + ph.p_vaddr, ph.p_memsz);
+                }
+                break;
+
+            case PT_LOAD:
+                MemoryRegion region(0, baseAddress + ph.p_vaddr, baseAddress + ph.p_vaddr + ph.p_memsz, baseAddress);
+                m_moduleAddresses.insert(region);
+                break;
+            }
+        }
+    }
+
+    return true;
+}
+
+//
+// Enumerate all the memory regions using the DAC memory region support given a minidump type
+//
+bool
+CrashInfo::EnumerateMemoryRegionsWithDAC(const char* programPath, MINIDUMP_TYPE minidumpType)
+{
+    PFN_CLRDataCreateInstance pfnCLRDataCreateInstance = nullptr;
+    ICLRDataEnumMemoryRegions* pClrDataEnumRegions = nullptr;
+    IXCLRDataProcess* pClrDataProcess = nullptr;
+    HMODULE hdac = nullptr;
+    HRESULT hr = S_OK;
+    bool result = false;
+
+    // We assume that the DAC is in the same location as this createdump exe
+    std::string dacPath;
+    dacPath.append(programPath);
+    dacPath.append("/");
+    dacPath.append(MAKEDLLNAME_A("mscordaccore"));
+
+    // Load and initialize the DAC
+    hdac = LoadLibraryA(dacPath.c_str());
+    if (hdac == nullptr)
+    {
+        fprintf(stderr, "LoadLibraryA(%s) FAILED %d\n", dacPath.c_str(), GetLastError());
+        goto exit;
+    }
+    pfnCLRDataCreateInstance = (PFN_CLRDataCreateInstance)GetProcAddress(hdac, "CLRDataCreateInstance");
+    if (pfnCLRDataCreateInstance == nullptr)
+    {
+        fprintf(stderr, "GetProcAddress(CLRDataCreateInstance) FAILED %d\n", GetLastError());
+        goto exit;
+    }
+    if ((minidumpType & MiniDumpWithFullMemory) == 0)
+    {
+        hr = pfnCLRDataCreateInstance(__uuidof(ICLRDataEnumMemoryRegions), m_dataTarget, (void**)&pClrDataEnumRegions);
+        if (FAILED(hr))
+        {
+            fprintf(stderr, "CLRDataCreateInstance(ICLRDataEnumMemoryRegions) FAILED %08x\n", hr);
+            goto exit;
+        }
+        // Calls CrashInfo::EnumMemoryRegion for each memory region found by the DAC
+        hr = pClrDataEnumRegions->EnumMemoryRegions(this, minidumpType, CLRDATA_ENUM_MEM_DEFAULT);
+        if (FAILED(hr))
+        {
+            fprintf(stderr, "EnumMemoryRegions FAILED %08x\n", hr);
+            goto exit;
+        }
+    }
+    hr = pfnCLRDataCreateInstance(__uuidof(IXCLRDataProcess), m_dataTarget, (void**)&pClrDataProcess);
+    if (FAILED(hr))
+    {
+        fprintf(stderr, "CLRDataCreateInstance(IXCLRDataProcess) FAILED %08x\n", hr);
+        goto exit;
+    }
+    if (!EnumerateManagedModules(pClrDataProcess))
+    {
+        goto exit;
+    }
+    if (!UnwindAllThreads(pClrDataProcess))
+    {
+        goto exit;
+    }
+    result = true;
+exit:
+    if (pClrDataEnumRegions != nullptr)
+    {
+        pClrDataEnumRegions->Release();
+    }
+    if (pClrDataProcess != nullptr)
+    {
+        pClrDataProcess->Release();
+    }
+    if (hdac != nullptr)
+    {
+        FreeLibrary(hdac);
+    }
+    return result;
+}
+
+//
+// Enumerate all the managed modules and replace the module mapping with the module name found.
+//
+bool
+CrashInfo::EnumerateManagedModules(IXCLRDataProcess* pClrDataProcess)
+{
+    CLRDATA_ENUM enumModules = 0;
+    bool result = true;
+    HRESULT hr = S_OK;
+
+    if (FAILED(hr = pClrDataProcess->StartEnumModules(&enumModules))) {
+        fprintf(stderr, "StartEnumModules FAILED %08x\n", hr);
+        return false;
+    }
+
+    while (true)
+    {
+        ReleaseHolder<IXCLRDataModule> pClrDataModule;
+        if ((hr = pClrDataProcess->EnumModule(&enumModules, &pClrDataModule)) != S_OK) {
+            break;
+        }
+
+        DacpGetModuleData moduleData;
+        if (SUCCEEDED(hr = moduleData.Request(pClrDataModule.GetPtr())))
+        {
+            TRACE("MODULE: %" PRIA PRIx64 " dyn %d inmem %d file %d pe %" PRIA PRIx64 " pdb %" PRIA PRIx64, moduleData.LoadedPEAddress, moduleData.IsDynamic, 
+                moduleData.IsInMemory, moduleData.IsFileLayout, moduleData.PEFile, moduleData.InMemoryPdbAddress);
+
+            if (!moduleData.IsDynamic && moduleData.LoadedPEAddress != 0)
+            {
+                ArrayHolder<WCHAR> wszUnicodeName = new WCHAR[MAX_LONGPATH + 1];
+                if (SUCCEEDED(hr = pClrDataModule->GetFileName(MAX_LONGPATH, nullptr, wszUnicodeName)))
+                {
+                    char* pszName = (char*)malloc(MAX_LONGPATH + 1);
+                    if (pszName == nullptr) {
+                        fprintf(stderr, "Allocating module name FAILED\n");
+                        result = false;
+                        break;
+                    }
+                    sprintf_s(pszName, MAX_LONGPATH, "%S", (WCHAR*)wszUnicodeName);
+                    TRACE(" %s\n", pszName);
+
+                    // Change the module mapping name
+                    ReplaceModuleMapping(moduleData.LoadedPEAddress, pszName);
+                }
+                else {
+                    TRACE("\nModule.GetFileName FAILED %08x\n", hr);
+                }
+            }
+            else {
+                TRACE("\n");
+            }
+        }
+        else {
+            TRACE("moduleData.Request FAILED %08x\n", hr);
+        }
+    }
+
+    if (enumModules != 0) {
+        pClrDataProcess->EndEnumModules(enumModules);
+    }
+
+    return result;
+}
+
+//
+// Unwind all the native threads to ensure that the dwarf unwind info is added to the core dump.
+//
+bool
+CrashInfo::UnwindAllThreads(IXCLRDataProcess* pClrDataProcess)
+{
+    // For each native and managed thread
+    for (ThreadInfo* thread : m_threads)
+    {
+        if (!thread->UnwindThread(*this, pClrDataProcess)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+//
+// Replace an existing module mapping with one with a different name.
+//
+void
+CrashInfo::ReplaceModuleMapping(CLRDATA_ADDRESS baseAddress, const char* pszName)
+{
+    // Add or change the module mapping for this PE image. The managed assembly images are
+    // already in the module mappings list but in .NET 2.0 they have the name "/dev/zero".
+    MemoryRegion region(PF_R | PF_W | PF_X, (ULONG_PTR)baseAddress, (ULONG_PTR)(baseAddress + PAGE_SIZE), 0, pszName);
+    const auto& found = m_moduleMappings.find(region);
+    if (found == m_moduleMappings.end())
+    {
+        m_moduleMappings.insert(region);
+
+        if (g_diagnostics) {
+            TRACE("MODULE: ADD ");
+            region.Trace();
+        }
+    }
+    else
+    {
+        // Create the new memory region with the managed assembly name.
+        MemoryRegion newRegion(*found, pszName);
+
+        // Remove and cleanup the old one
+        m_moduleMappings.erase(found);
+        const_cast<MemoryRegion&>(*found).Cleanup();
+
+        // Add the new memory region
+        m_moduleMappings.insert(newRegion);
+
+        if (g_diagnostics) {
+            TRACE("MODULE: REPLACE ");
+            newRegion.Trace();
+        }
+    }
+}
+
+//
+// Returns the module base address for the IP or 0.
+//
+uint64_t CrashInfo::GetBaseAddress(uint64_t ip)
+{
+    MemoryRegion search(0, ip, ip, 0);
+    const MemoryRegion* found = SearchMemoryRegions(m_moduleAddresses, search);
+    if (found == nullptr) {
+        return 0;
+    }
+    // The memory region Offset() is the base address of the module
+    return found->Offset();
 }
 
 //
@@ -477,7 +793,7 @@ bool
 CrashInfo::ReadMemory(void* address, void* buffer, size_t size)
 {
     uint32_t read = 0;
-    if (FAILED(m_dataTarget.ReadVirtual(reinterpret_cast<CLRDATA_ADDRESS>(address), reinterpret_cast<PBYTE>(buffer), size, &read)))
+    if (FAILED(m_dataTarget->ReadVirtual(reinterpret_cast<CLRDATA_ADDRESS>(address), reinterpret_cast<PBYTE>(buffer), size, &read)))
     {
         return false;
     }
@@ -492,6 +808,8 @@ CrashInfo::ReadMemory(void* address, void* buffer, size_t size)
 void
 CrashInfo::InsertMemoryRegion(uint64_t address, size_t size)
 {
+    assert(size < UINT_MAX);
+
     // Round to page boundary
     uint64_t start = address & PAGE_MASK;
     assert(start > 0);
@@ -500,36 +818,110 @@ CrashInfo::InsertMemoryRegion(uint64_t address, size_t size)
     uint64_t end = ((address + size) + (PAGE_SIZE - 1)) & PAGE_MASK;
     assert(end > 0);
 
-    MemoryRegion memoryRegionFull(start, end);
+    InsertMemoryRegion(MemoryRegion(GetMemoryRegionFlags(start) | MEMORY_REGION_FLAG_MEMORY_BACKED, start, end));
+}
 
-    // First check if the full memory region can be added without conflicts
-    const auto& found = m_memoryRegions.find(memoryRegionFull);
+//
+// Adds a memory backed flagged copy of the memory region. The file name is not preserved.
+//
+void
+CrashInfo::InsertMemoryBackedRegion(const MemoryRegion& region)
+{
+    InsertMemoryRegion(MemoryRegion(region, region.Flags() | MEMORY_REGION_FLAG_MEMORY_BACKED));
+}
+
+//
+// Add a memory region to the list
+//
+void
+CrashInfo::InsertMemoryRegion(const MemoryRegion& region)
+{
+    // First check if the full memory region can be added without conflicts and is fully valid.
+    const auto& found = m_memoryRegions.find(region);
     if (found == m_memoryRegions.end())
     {
-        // Add full memory region
-        m_memoryRegions.insert(memoryRegionFull);
+        // If the region is valid, add the full memory region
+        if (ValidRegion(region)) {
+            m_memoryRegions.insert(region);
+            return;
+        }
     }
     else
     {
-        // The memory region is not wholely contained in region found
-        if (!found->Contains(memoryRegionFull))
+        // If the memory region is wholly contained in region found and both have the 
+        // same backed by memory state, we're done.
+        if (found->Contains(region) && (found->IsBackedByMemory() == region.IsBackedByMemory())) {
+            return;
+        }
+    }
+    // Either part of the region was invalid, part of it hasn't been added or the backed
+    // by memory state is different.
+    uint64_t start = region.StartAddress();
+
+    // The region overlaps/conflicts with one already in the set so add one page at a 
+    // time to avoid the overlapping pages.
+    uint64_t numberPages = region.Size() / PAGE_SIZE;
+
+    for (int p = 0; p < numberPages; p++, start += PAGE_SIZE)
+    {
+        MemoryRegion memoryRegionPage(region.Flags(), start, start + PAGE_SIZE);
+
+        const auto& found = m_memoryRegions.find(memoryRegionPage);
+        if (found == m_memoryRegions.end())
         {
-            // The region overlaps/conflicts with one already in the set so 
-            // add one page at a time to avoid the overlapping pages.
-            uint64_t numberPages = (end - start) >> PAGE_SHIFT;
+            // All the single pages added here will be combined in CombineMemoryRegions()
+            if (ValidRegion(memoryRegionPage)) {
+                m_memoryRegions.insert(memoryRegionPage);
+            }
+        }
+        else {
+            assert(found->IsBackedByMemory() || !region.IsBackedByMemory());
+        }
+    }
+}
 
-            for (int p = 0; p < numberPages; p++, start += PAGE_SIZE)
+//
+// Get the memory region flags for a start address
+//
+uint32_t 
+CrashInfo::GetMemoryRegionFlags(uint64_t start)
+{
+    MemoryRegion search(0, start, start + PAGE_SIZE);
+    const MemoryRegion* region = SearchMemoryRegions(m_moduleMappings, search);
+    if (region != nullptr) {
+        return region->Flags();
+    }
+    region = SearchMemoryRegions(m_otherMappings, search);
+    if (region != nullptr) {
+        return region->Flags();
+    }
+    TRACE("GetMemoryRegionFlags: FAILED\n");
+    return PF_R | PF_W | PF_X;
+}
+
+//
+// Validates a memory region
+//
+bool
+CrashInfo::ValidRegion(const MemoryRegion& region)
+{
+    if (region.IsBackedByMemory())
+    {
+        uint64_t start = region.StartAddress();
+
+        uint64_t numberPages = region.Size() / PAGE_SIZE;
+        for (int p = 0; p < numberPages; p++, start += PAGE_SIZE)
+        {
+            BYTE buffer[1];
+            uint32_t read;
+
+            if (FAILED(m_dataTarget->ReadVirtual(start, buffer, 1, &read)))
             {
-                MemoryRegion memoryRegion(start, start + PAGE_SIZE);
-
-                const auto& found = m_memoryRegions.find(memoryRegion);
-                if (found == m_memoryRegions.end())
-                {
-                    m_memoryRegions.insert(memoryRegion);
-                }
+                return false;
             }
         }
     }
+    return true;
 }
 
 //
@@ -542,28 +934,34 @@ CrashInfo::CombineMemoryRegions()
 
     std::set<MemoryRegion> memoryRegionsNew;
 
+    // MEMORY_REGION_FLAG_SHARED and MEMORY_REGION_FLAG_PRIVATE are internal flags that 
+    // don't affect the core dump so ignore them when comparing the flags.
+    uint32_t flags = m_memoryRegions.begin()->Flags() & (MEMORY_REGION_FLAG_MEMORY_BACKED | MEMORY_REGION_FLAG_PERMISSIONS_MASK);
     uint64_t start = m_memoryRegions.begin()->StartAddress();
     uint64_t end = start;
 
     for (const MemoryRegion& region : m_memoryRegions)
     {
-        if (end == region.StartAddress())
+        // To combine a region it needs to be contiguous, same permissions and memory backed flag.
+        if ((end == region.StartAddress()) && 
+            (flags == (region.Flags() & (MEMORY_REGION_FLAG_MEMORY_BACKED | MEMORY_REGION_FLAG_PERMISSIONS_MASK))))
         {
             end = region.EndAddress();
         }
         else
         {
-            MemoryRegion memoryRegion(start, end);
+            MemoryRegion memoryRegion(flags, start, end);
             assert(memoryRegionsNew.find(memoryRegion) == memoryRegionsNew.end());
             memoryRegionsNew.insert(memoryRegion);
 
+            flags = region.Flags() & (MEMORY_REGION_FLAG_MEMORY_BACKED | MEMORY_REGION_FLAG_PERMISSIONS_MASK);
             start = region.StartAddress();
             end = region.EndAddress();
         }
     }
 
     assert(start != end);
-    MemoryRegion memoryRegion(start, end);
+    MemoryRegion memoryRegion(flags, start, end);
     assert(memoryRegionsNew.find(memoryRegion) == memoryRegionsNew.end());
     memoryRegionsNew.insert(memoryRegion);
 
@@ -572,16 +970,33 @@ CrashInfo::CombineMemoryRegions()
     if (g_diagnostics)
     {
         TRACE("Memory Regions:\n");
-        uint64_t total = 0;
         for (const MemoryRegion& region : m_memoryRegions)
         {
-            region.Print();
-            total += region.Size();
+            region.Trace();
         }
-        TRACE("Total %ld bytes (%ld pages) to write\n", total, total >> PAGE_SHIFT);
     }
 }
 
+//
+// Searches for a memory region given an address.
+//
+const MemoryRegion* 
+CrashInfo::SearchMemoryRegions(const std::set<MemoryRegion>& regions, const MemoryRegion& search)
+{
+    std::set<MemoryRegion>::iterator found = regions.find(search);
+    for (; found != regions.end(); found++)
+    {
+        if (search.StartAddress() >= found->StartAddress() && search.StartAddress() < found->EndAddress())
+        {
+            return &*found;
+        }
+    }
+	return nullptr;
+}
+
+//
+// Get the process or thread status
+//
 bool
 CrashInfo::GetStatus(pid_t pid, pid_t* ppid, pid_t* tgid, char** name)
 {
@@ -604,11 +1019,11 @@ CrashInfo::GetStatus(pid_t pid, pid_t* ppid, pid_t* tgid, char** name)
     {
         if (strncmp("PPid:\t", line, 6) == 0)
         {
-            *ppid = _atoi64(line + 6);
+            *ppid = atoll(line + 6);
         }
         else if (strncmp("Tgid:\t", line, 6) == 0)
         {
-            *tgid = _atoi64(line + 6);
+            *tgid = atoll(line + 6);
         }
         else if (strncmp("Name:\t", line, 6) == 0)
         {

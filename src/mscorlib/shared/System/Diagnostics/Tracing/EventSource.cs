@@ -4,15 +4,9 @@
 
 // This program uses code hyperlinks available as part of the HyperAddin Visual Studio plug-in.
 // It is available from http://www.codeplex.com/hyperAddin 
-#if PLATFORM_WINDOWS
-
-#define FEATURE_MANAGED_ETW
-
-#if !ES_BUILD_STANDALONE && !CORECLR && !ES_BUILD_PN
+#if PLATFORM_WINDOWS && !ES_BUILD_STANDALONE && !CORECLR && !ES_BUILD_PN
 #define FEATURE_ACTIVITYSAMPLING
 #endif // !ES_BUILD_STANDALONE
-
-#endif // PLATFORM_WINDOWS
 
 #if ES_BUILD_STANDALONE
 #define FEATURE_MANAGED_ETW_CHANNELS
@@ -692,6 +686,106 @@ namespace System.Diagnostics.Tracing
             Initialize(eventSourceGuid, eventSourceName, traits);
         }
 
+#if FEATURE_PERFTRACING
+        // Generate the serialized blobs that describe events for all strongly typed events (that is events that define strongly
+        // typed event methods. Dynamically defined events (that use Write) hare defined on the fly and are handled elsewhere.
+        private unsafe void DefineEventPipeEvents()
+        {
+            Debug.Assert(m_eventData != null);
+            Debug.Assert(m_provider != null);
+            int cnt = m_eventData.Length;
+            for (int i = 0; i < cnt; i++)
+            {
+                uint eventID = (uint)m_eventData[i].Descriptor.EventId;
+                if (eventID == 0)
+                    continue;
+
+                string eventName = m_eventData[i].Name;
+                Int64 keywords = m_eventData[i].Descriptor.Keywords;
+                uint eventVersion = m_eventData[i].Descriptor.Version;
+                uint level = m_eventData[i].Descriptor.Level;
+
+                // evnetID          : 4 bytes
+                // eventName        : (eventName.Length + 1) * 2 bytes
+                // keywords         : 8 bytes
+                // eventVersion     : 4 bytes
+                // level            : 4 bytes
+                // parameterCount   : 4 bytes
+                uint metadataLength = 24 + ((uint)eventName.Length + 1) * 2;
+
+                // Increase the metadataLength for the types of all parameters.
+                metadataLength += (uint)m_eventData[i].Parameters.Length * 4;
+
+                // Increase the metadataLength for the names of all parameters.
+                foreach (var parameter in m_eventData[i].Parameters)
+                {
+                    string parameterName = parameter.Name;
+                    metadataLength = metadataLength + ((uint)parameterName.Length + 1) * 2;
+                }
+
+                byte[] metadata = new byte[metadataLength];
+
+                // Write metadata: evnetID, eventName, keywords, eventVersion, level, parameterCount, param1 type, param1 name...
+                fixed (byte *pMetadata = metadata)
+                {
+                    uint offset = 0;
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, eventID);
+                    fixed(char *pEventName = eventName)
+                    {
+                        WriteToBuffer(pMetadata, metadataLength, ref offset, (byte *)pEventName, ((uint)eventName.Length + 1) * 2);
+                    }
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, keywords);
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, eventVersion);
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, level);
+                    WriteToBuffer(pMetadata, metadataLength, ref offset, (uint)m_eventData[i].Parameters.Length);
+                    foreach (var parameter in m_eventData[i].Parameters)
+                    {
+                        // Write parameter type.
+                        WriteToBuffer(pMetadata, metadataLength, ref offset, (uint)Type.GetTypeCode(parameter.ParameterType));
+                        
+                        // Write parameter name.
+                        string parameterName = parameter.Name;
+                        fixed (char *pParameterName = parameterName)
+                        {
+                            WriteToBuffer(pMetadata, metadataLength, ref offset, (byte *)pParameterName, ((uint)parameterName.Length + 1) * 2);
+                        }
+                    }
+                    Debug.Assert(metadataLength == offset);
+                    IntPtr eventHandle = m_provider.m_eventProvider.DefineEventHandle(eventID, eventName, keywords, eventVersion, level, pMetadata, metadataLength);
+                    m_eventData[i].EventHandle = eventHandle; 
+                }
+            }
+        }
+
+        // Copy src to buffer and modify the offset.
+        // Note: We know the buffer size ahead of time to make sure no buffer overflow.
+        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte *src, uint srcLength)
+        {
+            Debug.Assert(bufferLength >= (offset + srcLength));
+            for (int i = 0; i < srcLength; i++)
+            {
+                *(byte *)(buffer + offset + i) = *(byte *)(src + i);
+            }
+            offset += srcLength;
+        }
+
+        // Copy uint value to buffer.
+        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, uint value)
+        {
+            Debug.Assert(bufferLength >= (offset + 4));
+            *(uint *)(buffer + offset) = value;
+            offset += 4;
+        }
+
+        // Copy long value to buffer.
+        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, long value)
+        {
+            Debug.Assert(bufferLength >= (offset + 8));
+            *(long *)(buffer + offset) = value;
+            offset += 8;
+        }           
+#endif
+
         internal virtual void GetMetadata(out Guid eventSourceGuid, out string eventSourceName, out EventMetadata[] eventData, out byte[] manifestBytes)
         {
             //
@@ -1040,7 +1134,8 @@ namespace System.Diagnostics.Tracing
             /// Address where the one argument lives (if this points to managed memory you must ensure the
             /// managed object is pinned.
             /// </summary>
-            public IntPtr DataPointer { get { return (IntPtr)m_Ptr; } set { m_Ptr = unchecked((long)value); } }
+            public unsafe IntPtr DataPointer { get { return (IntPtr)(void*)m_Ptr; } set { m_Ptr = unchecked((ulong)(void*)value); } }
+
             /// <summary>
             /// Size of the argument referenced by DataPointer
             /// </summary>
@@ -1056,14 +1151,14 @@ namespace System.Diagnostics.Tracing
             /// <param name="reserved">Value for reserved: 2 for per-provider metadata, 1 for per-event metadata</param>
             internal unsafe void SetMetadata(byte* pointer, int size, int reserved)
             {
-                this.m_Ptr = (long)(ulong)(UIntPtr)pointer;
+                this.m_Ptr = (ulong)pointer;
                 this.m_Size = size;
                 this.m_Reserved = reserved; // Mark this descriptor as containing tracelogging-compatible metadata.
             }
 
             //Important, we pass this structure directly to the Win32 EventWrite API, so this structure must be layed out exactly
             // the way EventWrite wants it.  
-            internal long m_Ptr;
+            internal ulong m_Ptr;
             internal int m_Size;
 #pragma warning disable 0649
             internal int m_Reserved;       // Used to pad the size to match the Win32 API
@@ -1185,7 +1280,7 @@ namespace System.Diagnostics.Tracing
                                     // by default the Descriptor.Keyword will have the perEventSourceSessionId bit 
                                     // mask set to 0x0f so, when all ETW sessions want the event we don't need to 
                                     // synthesize a new one
-                                    if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
+                                    if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                                 else
@@ -1205,7 +1300,7 @@ namespace System.Diagnostics.Tracing
                                         m_eventData[eventId].Descriptor.Task,
                                         unchecked((long)etwSessions.ToEventKeywords() | origKwd));
 
-                                    if (!m_provider.WriteEvent(ref desc, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
+                                    if (!m_provider.WriteEvent(ref desc, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                             }
@@ -1235,7 +1330,7 @@ namespace System.Diagnostics.Tracing
 #else
                         if (!SelfDescribingEvents)
                         {
-                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
+                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
                                 ThrowEventSourceException(m_eventData[eventId].Name);
                         }
                         else
@@ -1328,6 +1423,7 @@ namespace System.Diagnostics.Tracing
             if (disposing)
             {
 #if FEATURE_MANAGED_ETW
+#if !FEATURE_PERFTRACING
                 // Send the manifest one more time to ensure circular buffers have a chance to get to this information
                 // even in scenarios with a high volume of ETW events.
                 if (m_eventSourceEnabled)
@@ -1340,6 +1436,7 @@ namespace System.Diagnostics.Tracing
                     { }           // If it fails, simply give up.   
                     m_eventSourceEnabled = false;
                 }
+#endif
                 if (m_provider != null)
                 {
                     m_provider.Dispose();
@@ -1474,6 +1571,7 @@ namespace System.Diagnostics.Tracing
                 // Set m_provider, which allows this.  
                 m_provider = provider;
 
+#if PLATFORM_WINDOWS
 #if (!ES_BUILD_STANDALONE && !ES_BUILD_PN)
                 // API available on OS >= Win 8 and patched Win 7.
                 // Disable only for FrameworkEventSource to avoid recursion inside exception handling.
@@ -1492,8 +1590,8 @@ namespace System.Diagnostics.Tracing
 
                     metadataHandle.Free();
                 }
+#endif // PLATFORM_WINDOWS
 #endif // FEATURE_MANAGED_ETW
-
                 Debug.Assert(!m_eventSourceEnabled);     // We can't be enabled until we are completely initted.  
                 // We are logically completely initialized at this point.  
                 m_completelyInited = true;
@@ -1945,7 +2043,7 @@ namespace System.Diagnostics.Tracing
                                     // by default the Descriptor.Keyword will have the perEventSourceSessionId bit 
                                     // mask set to 0x0f so, when all ETW sessions want the event we don't need to 
                                     // synthesize a new one
-                                    if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, pActivityId, childActivityID, args))
+                                    if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                                 else
@@ -1962,7 +2060,7 @@ namespace System.Diagnostics.Tracing
                                         m_eventData[eventId].Descriptor.Task,
                                         unchecked((long)etwSessions.ToEventKeywords() | origKwd));
 
-                                    if (!m_provider.WriteEvent(ref desc, pActivityId, childActivityID, args))
+                                    if (!m_provider.WriteEvent(ref desc, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
                                         ThrowEventSourceException(m_eventData[eventId].Name);
                                 }
                             }
@@ -1992,7 +2090,7 @@ namespace System.Diagnostics.Tracing
 #else
                         if (!SelfDescribingEvents)
                         {
-                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, pActivityId, childActivityID, args))
+                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
                                 ThrowEventSourceException(m_eventData[eventId].Name);
                         }
                         else
@@ -2102,32 +2200,26 @@ namespace System.Diagnostics.Tracing
 #endif //!ES_BUILD_PCL
         }
 
-        private int GetParamLenghtIncludingByteArray(ParameterInfo[] parameters)
-        {
-            int sum = 0;
-            foreach (ParameterInfo info in parameters)
-            {
-                if (info.ParameterType == typeof(byte[]))
-                {
-                    sum += 2;
-                }
-                else
-                {
-                    sum++;
-                }
-            }
-
-            return sum;
-        }
-
         unsafe private void WriteToAllListeners(int eventId, Guid* childActivityID, int eventDataCount, EventSource.EventData* data)
         {
             // We represent a byte[] as a integer denoting the length  and then a blob of bytes in the data pointer. This causes a spurious
             // warning because eventDataCount is off by one for the byte[] case since a byte[] has 2 items associated it. So we want to check
             // that the number of parameters is correct against the byte[] case, but also we the args array would be one too long if
             // we just used the modifiedParamCount here -- so we need both.
-            int paramCount = m_eventData[eventId].Parameters.Length;
-            int modifiedParamCount = GetParamLenghtIncludingByteArray(m_eventData[eventId].Parameters);
+            int paramCount = GetParameterCount(m_eventData[eventId]);
+            int modifiedParamCount = 0;
+            for (int i = 0; i < paramCount; i++)
+            {
+                Type parameterType = GetDataType(m_eventData[eventId], i);
+                if (parameterType == typeof(byte[]))
+                {
+                    modifiedParamCount += 2;
+                }
+                else
+                {
+                    modifiedParamCount++;
+                }
+            }
             if (eventDataCount != modifiedParamCount)
             {
                 ReportOutOfBandMessage(Resources.GetResourceString("EventSource_EventParametersMismatch", eventId, eventDataCount, paramCount), true);
@@ -2200,7 +2292,7 @@ namespace System.Diagnostics.Tracing
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         private unsafe void WriteEventString(EventLevel level, long keywords, string msgString)
         {
-#if FEATURE_MANAGED_ETW
+#if FEATURE_MANAGED_ETW && !FEATURE_PERFTRACING
             if (m_provider != null)
             {
                 string eventName = "EventSourceMessage";
@@ -2236,7 +2328,7 @@ namespace System.Diagnostics.Tracing
                         data.Ptr = (ulong)msgStringPtr;
                         data.Size = (uint)(2 * (msgString.Length + 1));
                         data.Reserved = 0;
-                        m_provider.WriteEvent(ref descr, null, null, 1, (IntPtr)((void*)&data));
+                        m_provider.WriteEvent(ref descr, IntPtr.Zero, null, null, 1, (IntPtr)((void*)&data));
                     }
                 }
             }
@@ -2521,6 +2613,7 @@ namespace System.Diagnostics.Tracing
         partial struct EventMetadata
         {
             public EventDescriptor Descriptor;
+            public IntPtr EventHandle;              // EventPipeEvent handle.
             public EventTags Tags;
             public bool EnabledForAnyListener;      // true if any dispatcher has this event turned on
             public bool EnabledForETW;              // is this event on for the OS ETW data dispatcher?
@@ -2683,11 +2776,13 @@ namespace System.Diagnostics.Tracing
                     {
                         // eventSourceDispatcher == null means this is the ETW manifest
 
+#if !FEATURE_PERFTRACING
                         // Note that we unconditionally send the manifest whenever we are enabled, even if
                         // we were already enabled.   This is because there may be multiple sessions active
                         // and we can't know that all the sessions have seen the manifest.  
                         if (!SelfDescribingEvents)
                             SendManifest(m_rawManifest);
+#endif
                     }
 
 #if FEATURE_ACTIVITYSAMPLING
@@ -2811,12 +2906,14 @@ namespace System.Diagnostics.Tracing
                 }
                 else
                 {
+#if !FEATURE_PERFTRACING
                     if (commandArgs.Command == EventCommand.SendManifest)
                     {
                         // TODO: should we generate the manifest here if we hadn't already?
                         if (m_rawManifest != null)
                             SendManifest(m_rawManifest);
                     }
+#endif
 
                     // These are not used for non-update commands and thus should always be 'default' values
                     // Debug.Assert(enable == true);
@@ -3036,6 +3133,7 @@ namespace System.Diagnostics.Tracing
                 {
                     // GetMetadata failed, so we have to set it via reflection.
                     Debug.Assert(m_rawManifest == null);
+
                     m_rawManifest = CreateManifestAndDescriptors(this.GetType(), Name, this);
                     Debug.Assert(m_eventData != null);
 
@@ -3069,6 +3167,10 @@ namespace System.Diagnostics.Tracing
                         dispatcher.m_EventEnabled = new bool[m_eventData.Length];
                     dispatcher = dispatcher.m_Next;
                 }
+#if FEATURE_PERFTRACING
+                // Initialize the EventPipe event handles.
+                DefineEventPipeEvents();
+#endif
             }
             if (s_currentPid == 0)
             {
@@ -3123,7 +3225,7 @@ namespace System.Diagnostics.Tracing
                     dataDescrs[1].Size = (uint)Math.Min(dataLeft, chunkSize);
                     if (m_provider != null)
                     {
-                        if (!m_provider.WriteEvent(ref manifestDescr, null, null, 2, (IntPtr)dataDescrs))
+                        if (!m_provider.WriteEvent(ref manifestDescr, IntPtr.Zero, null, null, 2, (IntPtr)dataDescrs))
                         {
                             // Turns out that if users set the BufferSize to something less than 64K then WriteEvent
                             // can fail.   If we get this failure on the first chunk try again with something smaller
@@ -3169,7 +3271,11 @@ namespace System.Diagnostics.Tracing
         // When that is the case, we have the build the custom assemblies on a member by hand.         
         internal static Attribute GetCustomAttributeHelper(MemberInfo member, Type attributeType, EventManifestOptions flags = EventManifestOptions.None)
         {
+#if !ES_BUILD_PN
+            // On ProjectN, ReflectionOnly() always equals false.  AllowEventSourceOverride is an option that allows either Microsoft.Diagnostics.Tracing or
+            // System.Diagnostics.Tracing EventSource to be considered valid.  This should not mattter anywhere but in Microsoft.Diagnostics.Tracing (nuget package).
             if (!member.Module.Assembly.ReflectionOnly() && (flags & EventManifestOptions.AllowEventSourceOverride) == 0)
+#endif // !ES_BUILD_PN
             {
                 // Let the runtime to the work for us, since we can execute code in this context.
                 Attribute firstAttribute = null;
@@ -3690,6 +3796,7 @@ namespace System.Diagnostics.Tracing
             eventData[eventAttribute.EventId].Message = eventAttribute.Message;
             eventData[eventAttribute.EventId].ActivityOptions = eventAttribute.ActivityOptions;
             eventData[eventAttribute.EventId].HasRelatedActivityID = hasRelatedActivityID;
+            eventData[eventAttribute.EventId].EventHandle = IntPtr.Zero;
         }
 
         // Helper used by code:CreateManifestAndDescriptors that trims the m_eventData array to the correct
@@ -4835,10 +4942,10 @@ namespace System.Diagnostics.Tracing
             get
             {
                 // For contract based events we create the list lazily.
-                if (m_payloadNames == null)
+                // You can have m_payloadNames be null in the TraceLogging case (EventID < 0) so only
+                // do the lazy init if you know it is contract based (EventID >= 0)
+                if (EventId >= 0 && m_payloadNames == null)
                 {
-                    // Self described events are identified by id -1.
-                    Debug.Assert(EventId != -1);
 
                     var names = new List<string>();
                     foreach (var parameter in m_eventSource.m_eventData[EventId].Parameters)
@@ -5535,7 +5642,7 @@ namespace System.Diagnostics.Tracing
                 // make sure current activity is still in the set:
                 activeActivities[EventSource.InternalCurrentThreadActivityId] = Environment.TickCount;
             }
-            // add child activity to list of actives
+            // add child activity to list of activities
             activeActivities[*childActivityID] = Environment.TickCount;
 
         }

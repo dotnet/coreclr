@@ -134,6 +134,17 @@ RETAIL_CONFIG_DWORD_INFO(EXTERNAL_FinalizeOnShutdown, W("FinalizeOnShutdown"), D
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_ARMEnabled, W("ARMEnabled"), (DWORD)0, "Set it to 1 to enable ARM")
 
 //
+// Jit Pitching
+//
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitPitchEnabled, W("JitPitchEnabled"), (DWORD)0, "Set it to 1 to enable Jit Pitching")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitPitchMemThreshold, W("JitPitchMemThreshold"), (DWORD)0, "Do Jit Pitching when code heap usage is larger than this (in bytes)")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitPitchMethodSizeThreshold, W("JitPitchMethodSizeThreshold"), (DWORD)0, "Do Jit Pitching for methods whose native code size larger than this (in bytes)")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitPitchTimeInterval, W("JitPitchTimeInterval"), (DWORD)0, "Time interval between Jit Pitchings in ms")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitPitchPrintStat, W("JitPitchPrintStat"), (DWORD)0, "Print statistics about Jit Pitching")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitPitchMinVal, W("JitPitchMinVal"), (DWORD)0, "Do Jit Pitching if the value of the inner counter greater than this value (for debugging purpose only)")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitPitchMaxVal, W("JitPitchMaxVal"), (DWORD)0xffffffff, "Do Jit Pitching the value of the inner counter less then this value (for debuggin purpose only)")
+
+//
 // Assembly Loader
 //
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_DesignerNamespaceResolutionEnabled, W("designerNamespaceResolution"), FALSE, "Set it to 1 to enable DesignerNamespaceResolve event for WinRT types", CLRConfig::IgnoreEnv | CLRConfig::IgnoreHKLM | CLRConfig::IgnoreHKCU | CLRConfig::FavorConfigFile)
@@ -325,7 +336,6 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCLogFileSize, W("GCLogFileSize"), 0, "Spec
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCCompactRatio, W("GCCompactRatio"), 0, "Specifies the ratio compacting GCs vs sweeping ")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCPollType, W("GCPollType"), "")
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_NewGCCalc, W("NewGCCalc"), "", CLRConfig::REGUTIL_default)
-RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCprnLvl, W("GCprnLvl"), "Specifies the maximum level of GC logging")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCRetainVM, W("GCRetainVM"), 0, "When set we put the segments that should be deleted on a standby list (instead of releasing them back to the OS) which will be considered to satisfy new segment requests (note that the same thing can be specified via API which is the supported way)")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCSegmentSize, W("GCSegmentSize"), "Specifies the managed heap segment size")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCLOHCompact, W("GCLOHCompact"), "Specifies the LOH compaction mode")
@@ -334,9 +344,6 @@ RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_GCStress, W("GCStress"), 0, "trigger GCs at
 CONFIG_DWORD_INFO_EX(INTERNAL_GcStressOnDirectCalls, W("GcStressOnDirectCalls"), 0, "whether to trigger a GC on direct calls", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCStressStart, W("GCStressStart"), 0, "start GCStress after N stress GCs have been attempted")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressStartAtJit, W("GCStressStartAtJit"), 0, "start GCStress after N items are jitted")
-RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCtraceEnd, W("GCtraceEnd"), "Specifies the index of the GC when the logging should end")
-CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_GCtraceFacility, W("GCtraceFacility"), "Specifies where to log to (this allows you to log to console, the stress log or a normal CLR log (good when you need to correlate the GC activities with other CLR activities)")
-RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCtraceStart, W("GCtraceStart"), "Specifies the index of the GC when the logging should start")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_gcTrimCommitOnLowMemory, W("gcTrimCommitOnLowMemory"), "When set we trim the committed space more aggressively for the ephemeral seg. This is used for running many instances of server processes where they want to keep as little memory committed as possible")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_BGCSpinCount, W("BGCSpinCount"), 140, "Specifies the bgc spin count")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_BGCSpin, W("BGCSpin"), 2, "Specifies the bgc spin time")
@@ -346,6 +353,8 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCNumaAware, W("GCNumaAware"), 1, "Specifie
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCCpuGroup, W("GCCpuGroup"), 0, "Specifies if to enable GC to support CPU groups")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCHeapCount, W("GCHeapCount"), 0, "")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCNoAffinitize, W("GCNoAffinitize"), 0, "")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCUseStandalone, W("GCUseStandalone"), 0, "")
+RETAIL_CONFIG_STRING_INFO(EXTERNAL_GCStandaloneLocation, W("GCStandaloneLocation"), "")
 
 //
 // IBC
@@ -459,20 +468,6 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_StackSamplingNumMethods, W("StackSamplingNu
 RETAIL_CONFIG_STRING_INFO_EX(INTERNAL_AltJitNgen, W("AltJitNgen"), "Enables AltJit for NGEN and selectively limits it to the specified methods.", CLRConfig::REGUTIL_default)
 #endif // defined(ALLOW_SXS_JIT_NGEN)
 CONFIG_DWORD_INFO_EX(INTERNAL_JitNoCMOV, W("JitNoCMOV"), 0, "", CLRConfig::REGUTIL_default)
-
-#if defined(_TARGET_AMD64_)
-// UseRyuJIT is only looked up in HKLM in the registry, not in config files or environment variables. It should only be set by the .NET 4.6 (and later version) installers,
-// not by users. See the "RyuJIT Compatibility Fallback Design Specification.docx" document for details.
-RETAIL_CONFIG_DWORD_INFO_EX(INTERNAL_UseRyuJit, W("UseRyuJIT"), 0, "Set to 1 by .NET 4.6 installer to indicate RyuJIT should be used, not JIT64.", CLRConfig::IgnoreEnv | CLRConfig::IgnoreHKCU | CLRConfig::IgnoreConfigFiles)
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_UseLegacyJit, W("useLegacyJit"), 0, "Set to 1 to do all JITing with compatjit.dll. Only applicable to x64.")
-RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_DisableNativeImageLoadList, W("DisableNativeImageLoadList"), "Refuse to load native images corresponding to one of the assemblies on this semicolon-delimited list of assembly names.", CLRConfig::REGUTIL_default)
-#endif
-
-#if defined(_TARGET_X86_)
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_UseWindowsX86CoreLegacyJit, W("UseWindowsX86CoreLegacyJit"), 0, "Set to 1 to do all JITing with compatjit.dll. Only applicable to Windows x86 .NET Core.")
-#endif
-
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_RequireLegacyJit, W("RequireLegacyJit"), 0, "Set to 1 to require the use of legacy JIT (via COMPlus_useLegacyJit=1 or COMPlus_UseWindowsX86CoreLegacyJit=1).")
 
 CONFIG_STRING_INFO_EX(INTERNAL_JitValNumCSE,  W("JitValNumCSE"),  "Enables ValNum CSE for the specified methods", CLRConfig::REGUTIL_default) 
 CONFIG_STRING_INFO_EX(INTERNAL_JitLexicalCSE, W("JitLexicalCSE"), "Enables Lexical CSE for the specified methods", CLRConfig::REGUTIL_default) 
@@ -852,6 +847,7 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_ProfAPI_ValidateNGENInstrumentation, W("Pro
 
 #ifdef FEATURE_PERFMAP
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_PerfMapEnabled, W("PerfMapEnabled"), 0, "This flag is used on Linux to enable writing /tmp/perf-$pid.map. It is disabled by default", CLRConfig::REGUTIL_default)
+RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_PerfMapIgnoreSignal, W("PerfMapIgnoreSignal"), 0, "When perf map is enabled, this option will configure the specified signal to be accepeted and ignored as a marker in the perf logs.  It is disabled by default", CLRConfig::REGUTIL_default)
 #endif
 
 //
@@ -1057,6 +1053,16 @@ RETAIL_CONFIG_DWORD_INFO(EXTERNAL_AllowDComReflection, W("AllowDComReflection"),
 // Performance Tracing
 //
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_PerformanceTracing, W("PerformanceTracing"), 0, "Enable/disable performance tracing.  Non-zero values enable tracing.")
+
+#ifdef FEATURE_GDBJIT
+//
+// GDBJIT
+//
+CONFIG_STRING_INFO(INTERNAL_GDBJitElfDump, W("GDBJitElfDump"), "Dump ELF for specified method")
+#ifdef FEATURE_GDBJIT_FRAME
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_GDBJitEmitDebugFrame, W("GDBJitEmitDebugFrame"), TRUE, "Enable .debug_frame generation")
+#endif
+#endif
 
 //
 // Unknown

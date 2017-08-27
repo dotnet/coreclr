@@ -428,9 +428,14 @@ void GCHeap::SetGCInProgress(bool fInProgress)
     GcInProgress = fInProgress;
 }
 
-CLREvent * GCHeap::GetWaitForGCEvent()
+void GCHeap::SetWaitForGCEvent()
 {
-    return WaitForGCEvent;
+    WaitForGCEvent->Set();
+}
+
+void GCHeap::ResetWaitForGCEvent()
+{
+    WaitForGCEvent->Reset();
 }
 
 void GCHeap::WaitUntilConcurrentGCComplete()
@@ -462,7 +467,7 @@ void gc_heap::fire_etw_allocation_event (size_t allocation_amount, int gen_numbe
 
     EX_TRY
     {
-        TypeHandle th = GetThread()->GetTHAllocContextObj();
+        TypeHandle th = GCToEEInterface::GetThread()->GetTHAllocContextObj();
 
         if (th != 0)
         {
@@ -520,7 +525,7 @@ void gc_heap::fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject)
 }
 #endif // FEATURE_EVENT_TRACE
 
-uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int time_out_ms)
+uint32_t gc_heap::user_thread_wait (GCEvent *event, BOOL no_mode_change, int time_out_ms)
 {
     Thread* pCurThread = NULL;
     bool mode = false;
@@ -528,7 +533,7 @@ uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int ti
     
     if (!no_mode_change)
     {
-        pCurThread = GetThread();
+        pCurThread = GCToEEInterface::GetThread();
         mode = pCurThread ? GCToEEInterface::IsPreemptiveGCDisabled(pCurThread) : false;
         if (mode)
         {

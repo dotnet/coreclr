@@ -220,15 +220,15 @@ private:
 /*          The following describes an instruction group                */
 /************************************************************************/
 
-DECLARE_TYPED_ENUM(insGroupPlaceholderType, unsigned char)
+enum insGroupPlaceholderType : unsigned char
 {
     IGPT_PROLOG, // currently unused
-        IGPT_EPILOG,
+    IGPT_EPILOG,
 #if FEATURE_EH_FUNCLETS
-        IGPT_FUNCLET_PROLOG, IGPT_FUNCLET_EPILOG,
+    IGPT_FUNCLET_PROLOG,
+    IGPT_FUNCLET_EPILOG,
 #endif // FEATURE_EH_FUNCLETS
-}
-END_DECLARE_TYPED_ENUM(insGroupPlaceholderType, unsigned char)
+};
 
 #if defined(_MSC_VER) && defined(_TARGET_ARM_)
 // ARM aligns structures that contain 64-bit ints or doubles on 64-bit boundaries. This causes unwanted
@@ -452,16 +452,21 @@ protected:
 
     void* emitGetMem(size_t sz);
 
-    DECLARE_TYPED_ENUM(opSize, unsigned)
+    enum opSize : unsigned
     {
-        OPSZ1 = 0, OPSZ2 = 1, OPSZ4 = 2, OPSZ8 = 3, OPSZ16 = 4, OPSZ32 = 5, OPSZ_COUNT = 6,
+        OPSZ1      = 0,
+        OPSZ2      = 1,
+        OPSZ4      = 2,
+        OPSZ8      = 3,
+        OPSZ16     = 4,
+        OPSZ32     = 5,
+        OPSZ_COUNT = 6,
 #ifdef _TARGET_AMD64_
         OPSZP = OPSZ8,
 #else
         OPSZP = OPSZ4,
 #endif
-    }
-    END_DECLARE_TYPED_ENUM(opSize, unsigned)
+    };
 
 #define OPSIZE_INVALID ((opSize)0xffff)
 
@@ -507,14 +512,13 @@ protected:
     /*          The following describes a single instruction                */
     /************************************************************************/
 
-    DECLARE_TYPED_ENUM(insFormat, unsigned)
+    enum insFormat : unsigned
     {
 #define IF_DEF(en, op1, op2) IF_##en,
 #include "emitfmts.h"
 
         IF_COUNT
-    }
-    END_DECLARE_TYPED_ENUM(insFormat, unsigned)
+    };
 
 #define AM_DISP_BITS ((sizeof(unsigned) * 8) - 2 * (REGNUM_BITS + 1) - 2)
 #define AM_DISP_BIG_VAL (-(1 << (AM_DISP_BITS - 1)))
@@ -553,12 +557,13 @@ protected:
 #ifdef _TARGET_ARM_
     unsigned insEncodeSetFlags(insFlags sf);
 
-    DECLARE_TYPED_ENUM(insSize, unsigned)
+    enum insSize : unsigned
     {
-        ISZ_16BIT, ISZ_32BIT, ISZ_48BIT // pseudo-instruction for conditional branch with imm24 range,
-                                        // encoded as IT of condition followed by an unconditional branch
-    }
-    END_DECLARE_TYPED_ENUM(insSize, unsigned)
+        ISZ_16BIT,
+        ISZ_32BIT,
+        ISZ_48BIT // pseudo-instruction for conditional branch with imm24 range,
+                  // encoded as IT of condition followed by an unconditional branch
+    };
 
     unsigned insEncodeShiftOpts(insOpts opt);
     unsigned insEncodePUW_G0(insOpts opt, int imm);
@@ -718,7 +723,7 @@ protected:
 #define ID_EXTRA_BITFIELD_BITS (16)
 
 #elif defined(_TARGET_ARM64_)
-// For Arm64, we have used 15 bits from the second DWORD.
+// For Arm64, we have used 16 bits from the second DWORD.
 #define ID_EXTRA_BITFIELD_BITS (16)
 #elif defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
 // For xarch !LEGACY_BACKEND, we have used 14 bits from the second DWORD.
@@ -828,6 +833,8 @@ protected:
         unsigned _idCnsReloc : 1; // LargeCns is an RVA and needs reloc tag
         unsigned _idDspReloc : 1; // LargeDsp is an RVA and needs reloc tag
 
+#define ID_EXTRA_RELOC_BITS (2)
+
 #define ID_EXTRA_REG_BITS (0)
 
 #define ID_EXTRA_BITS (ID_EXTRA_BITFIELD_BITS + ID_EXTRA_RELOC_BITS + ID_EXTRA_REG_BITS)
@@ -882,14 +889,16 @@ protected:
         void checkSizes();
 
         union idAddrUnion {
-            // TODO-Cleanup: We should really add a DEBUG-only tag to this union so we can add asserts
-            // about reading what we think is here, to avoid unexpected corruption issues.
+// TODO-Cleanup: We should really add a DEBUG-only tag to this union so we can add asserts
+// about reading what we think is here, to avoid unexpected corruption issues.
 
+#ifndef _TARGET_ARM64_
             emitLclVarAddr iiaLclVar;
-            BasicBlock*    iiaBBlabel;
-            insGroup*      iiaIGlabel;
-            BYTE*          iiaAddr;
-            emitAddrMode   iiaAddrMode;
+#endif
+            BasicBlock*  iiaBBlabel;
+            insGroup*    iiaIGlabel;
+            BYTE*        iiaAddr;
+            emitAddrMode iiaAddrMode;
 
             CORINFO_FIELD_HANDLE iiaFieldHnd; // iiaFieldHandle is also used to encode
                                               // an offset into the JIT data constant area
@@ -920,11 +929,14 @@ protected:
 
             struct
             {
+#ifdef _TARGET_ARM64_
+                // For 64-bit architecture this 32-bit structure can pack with these unsigned bit fields
+                emitLclVarAddr iiaLclVar;
+                unsigned       _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
+                GCtype         _idGCref2 : 2;
+#endif
                 regNumber _idReg3 : REGNUM_BITS;
                 regNumber _idReg4 : REGNUM_BITS;
-#ifdef _TARGET_ARM64_
-                unsigned _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
-#endif
             };
 #elif defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
             struct
@@ -1071,6 +1083,21 @@ protected:
             _idReg1 = reg;
             assert(reg == _idReg1);
         }
+
+#ifdef _TARGET_ARM64_
+        GCtype idGCrefReg2() const
+        {
+            assert(!idIsTiny());
+            assert(!idIsSmallDsc());
+            return (GCtype)idAddr()->_idGCref2;
+        }
+        void idGCrefReg2(GCtype gctype)
+        {
+            assert(!idIsTiny());
+            assert(!idIsSmallDsc());
+            idAddr()->_idGCref2 = gctype;
+        }
+#endif // _TARGET_ARM64_
 
         regNumber idReg2() const
         {
@@ -1691,7 +1718,9 @@ private:
     CORINFO_FIELD_HANDLE emitFltOrDblConst(GenTreeDblCon* tree, emitAttr attr = EA_UNKNOWN);
     regNumber emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src);
     regNumber emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src1, GenTree* src2);
-    void emitInsMov(instruction ins, emitAttr attr, GenTree* node);
+    void emitInsLoadInd(instruction ins, emitAttr attr, regNumber dstReg, GenTreeIndir* mem);
+    void emitInsStoreInd(instruction ins, emitAttr attr, GenTreeStoreInd* mem);
+    void emitInsStoreLcl(instruction ins, emitAttr attr, GenTreeLclVarCommon* varNode);
     insFormat emitMapFmtForIns(insFormat fmt, instruction ins);
     insFormat emitMapFmtAtoM(insFormat fmt);
     void emitHandleMemOp(GenTreeIndir* indir, instrDesc* id, insFormat fmt, instruction ins);
@@ -2006,6 +2035,9 @@ public:
 
     // Returns true if the instruction may write to more than one register.
     bool emitInsMayWriteMultipleRegs(instrDesc* id);
+
+    // Returns "true" if instruction "id->idIns()" writes to a LclVar stack slot pair.
+    bool emitInsWritesToLclVarStackLocPair(instrDesc* id);
 #endif // _TARGET_ARMARCH_
 
     /************************************************************************/
@@ -2159,6 +2191,11 @@ public:
                               WORD  fRelocType,     /* IN */
                               WORD  slotNum   = 0,  /* IN */
                               INT32 addlDelta = 0); /* IN */
+
+#ifdef _TARGET_ARM_
+    void emitHandlePCRelativeMov32(void* location, /* IN */
+                                   void* target);  /* IN */
+#endif
 
     void emitRecordCallSite(ULONG                 instrOffset,   /* IN */
                             CORINFO_SIG_INFO*     callSig,       /* IN */

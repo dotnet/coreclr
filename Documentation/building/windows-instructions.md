@@ -15,7 +15,7 @@ Visual Studio must be installed. Supported versions:
 - [Visual Studio 2017](https://www.visualstudio.com/downloads/) (Community, Professional, Enterprise).  The community version is completely free.  
 
 For Visual Studio 2015:
-* To debug managed code, ensure you have installed at least [Visual Studio 2015 Update 3](https://www.visualstudio.com/en-us/news/releasenotes/vs2015-update3-vs).
+* Ensure you have installed at least [Visual Studio 2015 Update 3](https://www.visualstudio.com/en-us/news/releasenotes/vs2015-update3-vs).
 * Make sure that you install "VC++ Tools". By default, they will not be installed.
 * To build for Arm32, Make sure that you have the Windows SDK for Windows 10 installed (or selected to be installed as part of VS installation). To explicitly install Windows SDK, download it from here: [Windows SDK for Windows 10](https://developer.microsoft.com/en-us/windows/downloads)
 
@@ -93,7 +93,7 @@ Powershell version must be 3.0 or higher. This should be the case for Windows 8 
 ## DotNet Core SDK
 While not strictly needed to build or tests the .NET Core repository, having the .NET Core SDK installed lets 
 you use the dotnet.exe command to run .NET Core applications in the 'normal' way.   We use this in the 
-[Using Your Build](Documentation/workflow/UsingYourBuild.md) instructions.  Visual Studio 2015 (update 3) should have
+[Using Your Build](../workflow/UsingYourBuild.md) instructions.  Visual Studio 2015 (update 3) should have
 installed the .NET Core SDK, but in case it did not you can get it from the [Installing the .Net Core SDK](https://www.microsoft.com/net/core) page.  
 
 ## Adding to the default PATH variable
@@ -141,8 +141,8 @@ full rebuild.
 
 Build has a number of options that you can learn about using build -?.   Some of the more important options are
 
- * skiptests - don't build the tests.   This can shorten build times quite a bit, but means you can't run tests.
- * release - build the 'Release' build type that does not have extra development-time checking compiled in.
+ * -skiptests - don't build the tests.   This can shorten build times quite a bit, but means you can't run tests.
+ * -release - build the 'Release' build type that does not have extra development-time checking compiled in.
  * -rebuild - force the build not to be incremental but to recompile everything.   
  You want this if you are going to do performance testing on your build. 
 

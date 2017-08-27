@@ -444,6 +444,11 @@ LPVOID EEHeapAllocInProcessHeap(DWORD dwFlags, SIZE_T dwBytes)
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_SO_TOLERANT;
 
+#ifdef _DEBUG
+    // Check whether (indispensable) implicit casting in ClrAllocInProcessHeapBootstrap is safe.
+    static FastAllocInProcessHeapFunc pFunc = EEHeapAllocInProcessHeap;
+#endif
+
     static HANDLE ProcessHeap = NULL;
 
     // We need to guarentee a very small stack consumption in allocating.  And we can't allow
@@ -475,12 +480,15 @@ BOOL EEHeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 #ifdef _DEBUG
         GlobalAllocStore::RemoveAlloc (lpMem);
 
-        // Check the heap handle to detect heap contamination
-        lpMem = (BYTE*)lpMem - OS_HEAP_ALIGN;
-        HANDLE storedHeapHandle = *((HANDLE*)lpMem);
-        if(storedHeapHandle != hHeap)
-            _ASSERTE(!"Heap contamination detected! HeapFree was called on a heap other than the one that memory was allocated from.\n"
-                      "Possible cause: you used new (executable) to allocate the memory, but didn't use DeleteExecutable() to free it.");
+        if (lpMem != NULL)
+        {
+            // Check the heap handle to detect heap contamination
+            lpMem = (BYTE*)lpMem - OS_HEAP_ALIGN;
+            HANDLE storedHeapHandle = *((HANDLE*)lpMem);
+            if(storedHeapHandle != hHeap)
+                _ASSERTE(!"Heap contamination detected! HeapFree was called on a heap other than the one that memory was allocated from.\n"
+                         "Possible cause: you used new (executable) to allocate the memory, but didn't use DeleteExecutable() to free it.");
+        }
 #endif
         // DON'T REMOVE THIS SEEMINGLY USELESS CAST
         //
@@ -505,6 +513,11 @@ BOOL EEHeapFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem)
         MODE_ANY;
     }
     CONTRACTL_END;
+
+#ifdef _DEBUG
+    // Check whether (indispensable) implicit casting in ClrFreeInProcessHeapBootstrap is safe.
+    static FastFreeInProcessHeapFunc pFunc = EEHeapFreeInProcessHeap;
+#endif
 
     // Take a look at comment in EEHeapFree and EEHeapAllocInProcessHeap, obviously someone
     // needs to take a little time to think more about this code.

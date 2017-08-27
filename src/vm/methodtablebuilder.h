@@ -223,16 +223,12 @@ private:
     BOOL IsDelegate() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsDelegate(); } 
     BOOL IsNested() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsNested(); } 
     BOOL HasFieldsWhichMustBeInited() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->HasFieldsWhichMustBeInited(); } 
-    BOOL HasRemotingProxyAttribute() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->HasRemotingProxyAttribute(); } 
     BOOL IsBlittable() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsBlittable(); } 
     PTR_MethodDescChunk GetChunks() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->GetChunks(); } 
     BOOL HasExplicitFieldOffsetLayout() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->HasExplicitFieldOffsetLayout(); } 
     BOOL IsManagedSequential() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsManagedSequential(); } 
     BOOL HasExplicitSize() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->HasExplicitSize(); } 
-    BOOL RequiresLinktimeCheck() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->RequiresLinktimeCheck(); } 
-    BOOL RequiresLinktimeCheckHostProtectionOnly() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->RequiresLinkTimeCheckHostProtectionOnly(); }     
-    
-    SecurityProperties* GetSecurityProperties() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->GetSecurityProperties(); } 
+
 #ifdef _DEBUG
     BOOL IsAppDomainAgilityDone() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsAppDomainAgilityDone(); } 
     LPCUTF8 GetDebugClassName() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->GetDebugClassName(); } 
@@ -261,7 +257,6 @@ private:
     void SetNumBoxedRegularStatics(WORD x) { WRAPPER_NO_CONTRACT; GetHalfBakedClass()->SetNumBoxedRegularStatics(x); } 
     void SetNumBoxedThreadStatics(WORD x) { WRAPPER_NO_CONTRACT; GetHalfBakedClass()->SetNumBoxedThreadStatics(x); } 
     void SetAlign8Candidate() { WRAPPER_NO_CONTRACT; GetHalfBakedClass()->SetAlign8Candidate(); } 
-    void SetHasRemotingProxyAttribute() { WRAPPER_NO_CONTRACT; GetHalfBakedClass()->SetHasRemotingProxyAttribute(); } 
     void SetHasOverLayedFields() { WRAPPER_NO_CONTRACT; GetHalfBakedClass()->SetHasOverLayedFields(); } 
     void SetNonGCRegularStaticFieldBytes(DWORD x) { WRAPPER_NO_CONTRACT; GetHalfBakedClass()->SetNonGCRegularStaticFieldBytes(x); } 
     void SetNonGCThreadStaticFieldBytes(DWORD x) { WRAPPER_NO_CONTRACT; GetHalfBakedClass()->SetNonGCThreadStaticFieldBytes(x); } 
@@ -2636,18 +2631,6 @@ private:
     GetMethodClassification(METHOD_TYPE type);
 
     // --------------------------------------------------------------------------------------------
-    // Will determine if a method requires or inherits any security settings and will set the
-    // appropriate flags on the MethodDesc.
-    VOID
-    SetSecurityFlagsOnMethod(
-        bmtRTMethod *       pParentMethod,
-        MethodDesc*         pNewMD,
-        mdToken             tokMethod,
-        DWORD               dwMemberAttrs,
-        bmtInternalInfo*    bmtInternal,
-        bmtMetaDataInfo*    bmtMetaData);
-
-    // --------------------------------------------------------------------------------------------
     // Essentially, this is a helper method that combines calls to InitMethodDesc and 
     // SetSecurityFlagsOnMethod. It then assigns the newly initialized MethodDesc to 
     // the bmtMDMethod.
@@ -2749,7 +2732,7 @@ private:
         bmtMDMethod *       pImplMethod,
         DWORD               cSlots,
         DWORD *             rgSlots,
-        MethodDesc **       rgDeclMD);
+        RelativePointer<MethodDesc *> *       rgDeclMD);
 
     // --------------------------------------------------------------------------------------------
     // Places a methodImpl pair where the decl is declared by the type being built.
@@ -2758,7 +2741,7 @@ private:
         bmtMDMethod *    pDecl,
         bmtMDMethod *    pImpl,
         DWORD*           slots,
-        MethodDesc**     replaced,
+        RelativePointer<MethodDesc *> *     replaced,
         DWORD*           pSlotIndex);
 
     // --------------------------------------------------------------------------------------------
@@ -2768,7 +2751,7 @@ private:
         bmtRTMethod *     pDecl,
         bmtMDMethod *     pImpl,
         DWORD*            slots,
-        MethodDesc**      replaced,
+        RelativePointer<MethodDesc *> *      replaced,
         DWORD*            pSlotIndex);
 
     // --------------------------------------------------------------------------------------------
@@ -2778,7 +2761,7 @@ private:
         bmtRTMethod *     pDecl,
         bmtMDMethod *     pImpl,
         DWORD*            slots,
-        MethodDesc**      replaced,
+        RelativePointer<MethodDesc *> *      replaced,
         DWORD*            pSlotIndex);
 
     // --------------------------------------------------------------------------------------------
@@ -2860,22 +2843,6 @@ private:
 
     VOID HandleGCForValueClasses(
         MethodTable **);
-
-    // These methods deal with inheritance security. They're executed
-    // after the type has been constructed, but before it is published.
-    VOID VerifyMethodInheritanceSecurityHelper(
-        MethodDesc *pParentMD,
-        MethodDesc *pChildMD);
-
-    VOID VerifyClassInheritanceSecurityHelper(
-        MethodTable *pParentMT,
-        MethodTable *pChildMT);
-
-    VOID ConvertLinkDemandToInheritanceDemand(MethodDesc *pMDLinkDemand);
-
-    VOID VerifyInheritanceSecurity();
-
-    VOID VerifyEquivalenceSecurity();
 
     VOID VerifyVirtualMethodsImplemented(MethodTable::MethodData * hMTData);
 

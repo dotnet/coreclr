@@ -116,7 +116,7 @@ HRESULT ClrDataAccess::EnumMemCollectImages()
                     ulSize = file->GetLoadedIL()->GetSize();
                 }
 
-                // memory are mapped in in OS_PAGE_SIZE size.
+                // memory are mapped in in GetOsPageSize() size.
                 // Some memory are mapped in but some are not. You cannot
                 // write all in one block. So iterating through page size
                 //
@@ -129,7 +129,7 @@ HRESULT ClrDataAccess::EnumMemCollectImages()
                     // MethodHeader MethodDesc::GetILHeader. Without this RVA,
                     // all locals are broken. In case, you are asked about this question again.
                     //
-                    ulSizeBlock = ulSize > OS_PAGE_SIZE ? OS_PAGE_SIZE : ulSize;
+                    ulSizeBlock = ulSize > GetOsPageSize() ? GetOsPageSize() : ulSize;
                     ReportMem(pStartAddr, ulSizeBlock, false);
                     pStartAddr += ulSizeBlock;
                     ulSize -= ulSizeBlock;
@@ -221,9 +221,6 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
 #define DEFINE_DACVAR(id_type, size_type, id, var) \
     ReportMem(m_globalBase + g_dacGlobals.id, sizeof(size_type));
 
-#define DEFINE_DACVAR_SVR(id_type, size_type, id, var) \
-    ReportMem(m_globalBase + g_dacGlobals.id, sizeof(size_type));
-
 #ifdef FEATURE_PAL
     // Add the dac table memory in coreclr
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED ( ReportMem(m_globalBase + DAC_TABLE_RVA, sizeof(g_dacGlobals)); )
@@ -301,7 +298,6 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pEnumClass.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pThreadClass.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pFreeObjectMethodTable.EnumMem(); )
-    CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pObjectCtorMD.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_fHostConfig.EnumMem(); )
 
         // These two static pointers are pointed to static data of byte[]
@@ -374,7 +370,6 @@ HRESULT ClrDataAccess::EnumMemoryRegionsWorkerHeap(IN CLRDataEnumMemoryFlags fla
 
     // now dump the memory get dragged in by using DAC API implicitly.
     m_dumpStats.m_cbImplicity = m_instances.DumpAllInstances(m_enumMemCb);
-    status = m_memStatus;
 
     // Do not let any remaining implicitly enumerated memory leak out.
     Flush();
@@ -394,7 +389,7 @@ HRESULT ClrDataAccess::DumpManagedObject(CLRDataEnumMemoryFlags flags, OBJECTREF
 {
     SUPPORTS_DAC;
 
-    HRESULT     status = S_OK;
+    HRESULT status = S_OK;
 
     if (objRef == NULL)
     {
@@ -1616,7 +1611,6 @@ HRESULT ClrDataAccess::EnumMemoryRegionsWorkerSkinny(IN CLRDataEnumMemoryFlags f
 
     // now dump the memory get dragged in by using DAC API implicitly.
     m_dumpStats.m_cbImplicity = m_instances.DumpAllInstances(m_enumMemCb);
-    status = m_memStatus;
 
     // Do not let any remaining implicitly enumerated memory leak out.
     Flush();
@@ -1667,7 +1661,6 @@ HRESULT ClrDataAccess::EnumMemoryRegionsWorkerMicroTriage(IN CLRDataEnumMemoryFl
 
     // now dump the memory get dragged in by using DAC API implicitly.
     m_dumpStats.m_cbImplicity = m_instances.DumpAllInstances(m_enumMemCb);
-    status = m_memStatus;
 
     // Do not let any remaining implicitly enumerated memory leak out.
     Flush();
@@ -1811,8 +1804,6 @@ HRESULT ClrDataAccess::EnumMemoryRegionsWorkerCustom()
         status = E_INVALIDARG;
     }
 
-    status = m_memStatus;
-
     return S_OK;
 }
 
@@ -1935,7 +1926,6 @@ ClrDataAccess::EnumMemoryRegions(IN ICLRDataEnumMemoryRegionsCallback* callback,
 
     // We should not be trying to enumerate while we have an enumeration outstanding
     _ASSERTE(m_enumMemCb==NULL);
-    m_memStatus = S_OK;
     m_enumMemCb = callback;
 
     // QI for ICLRDataEnumMemoryRegionsCallback2 will succeed only for Win8+. 

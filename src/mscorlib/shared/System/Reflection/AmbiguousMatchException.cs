@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 
 namespace System.Reflection
 {
-    [Serializable]
     public sealed class AmbiguousMatchException : SystemException
     {
         public AmbiguousMatchException()
@@ -25,11 +24,6 @@ namespace System.Reflection
             : base(message, inner)
         {
             HResult = __HResults.COR_E_AMBIGUOUSMATCH;
-        }
-
-        internal AmbiguousMatchException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
         }
     }
 }

@@ -153,7 +153,12 @@ namespace System.Runtime.InteropServices
         }
 
         public static bool IsComObject(object o)
-        { 
+        {
+            if (o == null)
+            {
+                throw new ArgumentNullException(nameof(o));
+            }
+
             return false;
         }
 
@@ -168,11 +173,6 @@ namespace System.Runtime.InteropServices
         }
 
         public static int ReleaseComObject(object o)
-        {
-            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
-        }
-
-        public static void ZeroFreeBSTR(System.IntPtr s)
         {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }

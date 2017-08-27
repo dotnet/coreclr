@@ -16,7 +16,7 @@ namespace System.Globalization
         {
             _sortName = culture.SortName;
 
-            _name = culture._name;
+            m_name = culture._name;
             _sortName = culture.SortName;
 
             if (_invariantMode)
@@ -199,7 +199,7 @@ namespace System.Globalization
             {
                 if (matchLengthPtr != null)
                     *matchLengthPtr = 0;
-                return 0;
+                return startIndex;
             }
 
             if (source.Length == 0)
@@ -469,6 +469,7 @@ namespace System.Globalization
             Debug.Assert(!_invariantMode);
 
             Interop.Kernel32.NlsVersionInfoEx nlsVersion = new Interop.Kernel32.NlsVersionInfoEx();
+            nlsVersion.dwNLSVersionInfoSize = Marshal.SizeOf(typeof(Interop.Kernel32.NlsVersionInfoEx));
             Interop.Kernel32.GetNLSVersionEx(Interop.Kernel32.COMPARE_STRING, _sortName, &nlsVersion);
             return new SortVersion(
                         nlsVersion.dwNLSVersion,

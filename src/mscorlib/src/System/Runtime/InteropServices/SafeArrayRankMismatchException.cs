@@ -16,7 +16,6 @@ using System.Runtime.Serialization;
 
 namespace System.Runtime.InteropServices
 {
-    [Serializable]
     public class SafeArrayRankMismatchException : SystemException
     {
         public SafeArrayRankMismatchException()
@@ -39,6 +38,7 @@ namespace System.Runtime.InteropServices
 
         protected SafeArrayRankMismatchException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

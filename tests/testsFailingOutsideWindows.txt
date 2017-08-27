@@ -57,6 +57,7 @@ JIT/Methodical/Boxing/xlang/_dbgsin_cs_il/_dbgsin_cs_il.sh
 JIT/Methodical/Boxing/xlang/_odbgsin_cs_il/_odbgsin_cs_il.sh
 JIT/Methodical/Boxing/xlang/_orelsin_cs_il/_orelsin_cs_il.sh
 JIT/Methodical/Boxing/xlang/_relsin_cs_il/_relsin_cs_il.sh
+JIT/Regression/JitBlue/GitHub_11408/GitHub_11408/GitHub_11408.sh
 Interop/StructMarshalling/PInvoke/MarshalStructAsLayoutExp/MarshalStructAsLayoutExp.sh
 GC/LargeMemory/Allocation/finalizertest/finalizertest.sh
 GC/LargeMemory/API/gc/reregisterforfinalize/reregisterforfinalize.sh
@@ -70,8 +71,6 @@ GC/Features/BackgroundGC/foregroundgc/foregroundgc.sh
 GC/Features/LOHFragmentation/lohfragmentation/lohfragmentation.sh
 GC/Features/SustainedLowLatency/scenario/scenario.sh
 GC/Regressions/dev10bugs/536168/536168/536168.sh
-GC/Stress/Framework/ReliabilityFramework/ReliabilityFramework.sh
-GC/Scenarios/DoublinkList/doublinkgen/doublinkgen.sh
 Loader/classloader/TypeGeneratorTests/TypeGeneratorTest612/Generated612/Generated612.sh
 Loader/classloader/TypeGeneratorTests/TypeGeneratorTest613/Generated613/Generated613.sh
 Loader/classloader/TypeGeneratorTests/TypeGeneratorTest614/Generated614/Generated614.sh

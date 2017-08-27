@@ -13,7 +13,6 @@
 
 using System;
 using System.Globalization;
-using System.Runtime.Remoting;
 using System.Runtime.Serialization;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -23,7 +22,6 @@ using System.Diagnostics.Contracts;
 
 namespace System
 {
-    [Serializable]
     public class TypeLoadException : SystemException, ISerializable
     {
         public TypeLoadException()
@@ -106,33 +104,16 @@ namespace System
 
         protected TypeLoadException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            ClassName = info.GetString("TypeLoadClassName");
-            AssemblyName = info.GetString("TypeLoadAssemblyName");
-            MessageArg = info.GetString("TypeLoadMessageArg");
-            ResourceId = info.GetInt32("TypeLoadResourceID");
+            throw new PlatformNotSupportedException();
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void GetTypeLoadExceptionMessage(int resourceId, StringHandleOnStack retString);
 
-        //We can rely on the serialization mechanism on Exception to handle most of our needs, but
-        //we need to add a few fields of our own.
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
             base.GetObjectData(info, context);
-            info.AddValue("TypeLoadClassName", ClassName, typeof(String));
-            info.AddValue("TypeLoadAssemblyName", AssemblyName, typeof(String));
-            info.AddValue("TypeLoadMessageArg", MessageArg, typeof(String));
-            info.AddValue("TypeLoadResourceID", ResourceId);
         }
 
         // If ClassName != null, GetMessage will construct on the fly using it

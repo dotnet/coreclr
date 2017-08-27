@@ -76,19 +76,23 @@ namespace System.IO
         // "\\server\share").
         public static string GetDirectoryName(string path)
         {
-            if (path != null)
-            {
-                PathInternal.CheckInvalidPathChars(path);
-                path = PathInternal.NormalizeDirectorySeparators(path);
-                int root = PathInternal.GetRootLength(path);
+            if (path == null)
+                return null;
 
-                int i = path.Length;
-                if (i > root)
-                {
-                    while (i > root && !PathInternal.IsDirectorySeparator(path[--i])) ;
-                    return path.Substring(0, i);
-                }
+            if (PathInternal.IsEffectivelyEmpty(path))
+                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
+
+            PathInternal.CheckInvalidPathChars(path);
+            path = PathInternal.NormalizeDirectorySeparators(path);
+            int root = PathInternal.GetRootLength(path);
+
+            int i = path.Length;
+            if (i > root)
+            {
+                while (i > root && !PathInternal.IsDirectorySeparator(path[--i])) ;
+                return path.Substring(0, i);
             }
+            
             return null;
         }
 
@@ -160,6 +164,30 @@ namespace System.IO
             char* pRandomFileName = stackalloc char[RandomFileNameLength];
             Populate83FileNameFromRandomBytes(pKey, KeyLength, pRandomFileName, RandomFileNameLength);
             return new string(pRandomFileName, 0, RandomFileNameLength);
+        }
+
+        /// <summary>
+        /// Returns true if the path is fixed to a specific drive or UNC path. This method does no
+        /// validation of the path (URIs will be returned as relative as a result).
+        /// Returns false if the path specified is relative to the current drive or working directory.
+        /// </summary>
+        /// <remarks>
+        /// Handles paths that use the alternate directory separator.  It is a frequent mistake to
+        /// assume that rooted paths <see cref="Path.IsPathRooted(string)"/> are not relative.  This isn't the case.
+        /// "C:a" is drive relative- meaning that it will be resolved against the current directory
+        /// for C: (rooted, but relative). "C:\a" is rooted and not relative (the current directory
+        /// will not be used to modify the path).
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown if <paramref name="path"/> is null.
+        /// </exception>
+        public static bool IsPathFullyQualified(string path)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            return !PathInternal.IsPartiallyQualified(path);
         }
 
         // Tests if a path includes a file extension. The result is
@@ -487,7 +515,7 @@ namespace System.IO
         private static string GetRelativePath(string relativeTo, string path, StringComparison comparisonType)
         {
             if (string.IsNullOrEmpty(relativeTo)) throw new ArgumentNullException(nameof(relativeTo));
-            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentNullException(nameof(path));
+            if (PathInternal.IsEffectivelyEmpty(path)) throw new ArgumentNullException(nameof(path));
             Debug.Assert(comparisonType == StringComparison.Ordinal || comparisonType == StringComparison.OrdinalIgnoreCase);
 
             relativeTo = GetFullPath(relativeTo);

@@ -5,10 +5,33 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <CLRTestKind>BuildOnly</CLRTestKind>
+    <IsTestProject>false</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-     <DnuSourceList Include="$(CORE_ROOT)\.nuget\pkg" /> 
+    <PackageReference Include="Microsoft.NETCore.ILAsm">
+      <Version>$(CoreClrPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETCore.ILDAsm">
+      <Version>$(CoreClrPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETCore.Jit">
+      <Version>$(CoreClrPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETCore.Runtime.CoreCLR">
+      <Version>$(CoreClrPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETCore.TestHost">
+      <Version>$(CoreClrPackageVersion)</Version>
+    </PackageReference>
   </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>
+    <PackageTargetFallback>$(PackageTargetFallback);portable-net45+win8</PackageTargetFallback>
+    <RuntimeIdentifiers>$(TargetRid)</RuntimeIdentifiers>
+    <ContainsPackageReferences>true</ContainsPackageReferences>
+    <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>
+  </PropertyGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <Target Name="Build"
      DependsOnTargets="ResolveReferences" /> 

@@ -56,6 +56,7 @@
 //   T  -- TypedReference -- TypedReference 
 //   G  --      -- Generic type variable
 //   M  --      -- Generic method variable
+//   GI --      -- Generic type instantiation
 //
 
 //#DEFINE_METASIG
@@ -128,6 +129,8 @@
 #define G(n) METASIG_ATOM(ELEMENT_TYPE_VAR) METASIG_ATOM(n)
 #define M(n) METASIG_ATOM(ELEMENT_TYPE_MVAR) METASIG_ATOM(n)
 
+#define GI(type, n, x) METASIG_ATOM(ELEMENT_TYPE_GENERICINST) type METASIG_ATOM(n) x
+
 // The references to other types have special definition in some cases
 #ifndef C
 #define C(x) METASIG_ATOM(ELEMENT_TYPE_CLASS) METASIG_ATOM(CLASS__ ## x % 0x100) METASIG_ATOM(CLASS__ ## x / 0x100)
@@ -144,6 +147,8 @@
 
 #define G(n) METASIG_ATOM(ELEMENT_TYPE_VAR)
 #define M(n) METASIG_ATOM(ELEMENT_TYPE_MVAR)
+
+#define GI(type, n, x) METASIG_ATOM(ELEMENT_TYPE_GENERICINST)
 
 // The references to other types have special definition in some cases
 #ifndef C
@@ -343,9 +348,6 @@ DEFINE_METASIG(SM(ArrByte_RetObj, a(b), j))
 DEFINE_METASIG(SM(ArrByte_Bool_RetObj, a(b) F, j))
 DEFINE_METASIG(SM(ArrByte_ArrByte_RefObj_RetObj, a(b) a(b) r(j), j))
 DEFINE_METASIG_T(SM(PtrSByt_Int_Int_Encoding_RetStr, P(B) i i C(ENCODING), s))
-DEFINE_METASIG_T(SM(Evidence_RetEvidence, C(EVIDENCE), C(EVIDENCE)))
-DEFINE_METASIG_T(SM(Evidence_Asm_RetEvidence, C(EVIDENCE) C(ASSEMBLY), C(EVIDENCE)))
-DEFINE_METASIG_T(IM(Evidence_RetVoid, C(EVIDENCE), v))
 
 DEFINE_METASIG_T(SM(Void_RetRuntimeTypeHandle, _, g(RT_TYPE_HANDLE)))
 DEFINE_METASIG(SM(Void_RetIntPtr, _, I))
@@ -385,6 +387,7 @@ DEFINE_METASIG(IM(Bool_Bool_RetStr, F F, s))
 
 DEFINE_METASIG(IM(PtrChar_RetVoid, P(u), v))
 DEFINE_METASIG(IM(PtrChar_Int_Int_RetVoid, P(u) i i, v))
+DEFINE_METASIG_T(IM(ReadOnlySpanOfChar_RetVoid, GI(g(READONLY_SPAN), 1, u), v))
 DEFINE_METASIG(IM(PtrSByt_RetVoid, P(B), v))
 DEFINE_METASIG(IM(PtrSByt_Int_Int_RetVoid, P(B) i i, v))
 DEFINE_METASIG_T(IM(PtrSByt_Int_Int_Encoding_RetVoid, P(B) i i C(ENCODING), v))
@@ -396,6 +399,7 @@ DEFINE_METASIG(IM(ArrChar_Int_Int_RetStr, a(u) i i, s))
 DEFINE_METASIG(IM(Char_Int_RetStr, u i, s))
 DEFINE_METASIG(IM(PtrChar_RetStr, P(u), s))
 DEFINE_METASIG(IM(PtrChar_Int_Int_RetStr, P(u) i i, s))
+DEFINE_METASIG_T(IM(ReadOnlySpanOfChar_RetStr, GI(g(READONLY_SPAN), 1, u), s))
 DEFINE_METASIG(IM(Obj_Int_RetIntPtr, j i, I))
 
 DEFINE_METASIG(IM(Char_Char_RetStr, u u, s))
@@ -408,6 +412,8 @@ DEFINE_METASIG(IM(Int_RefIntPtr_RefIntPtr_RefIntPtr_RetVoid, i r(I) r(I) r(I), v
 DEFINE_METASIG(IM(Int_RetStr, i, s))
 DEFINE_METASIG(IM(Int_RetVoid, i, v))
 DEFINE_METASIG(IM(Int_RetBool, i, F))
+DEFINE_METASIG(IM(Int_Int_RetVoid, i i, v))
+DEFINE_METASIG(IM(Int_Int_Int_RetVoid, i i i, v))
 DEFINE_METASIG(IM(Int_Int_Int_Int_RetVoid, i i i i, v))
 DEFINE_METASIG_T(IM(Obj_EventArgs_RetVoid, j C(EVENT_ARGS), v))
 DEFINE_METASIG_T(IM(Obj_UnhandledExceptionEventArgs_RetVoid, j C(UNHANDLED_EVENTARGS), v))
@@ -516,12 +522,8 @@ DEFINE_METASIG_T(IM(LicenseInteropHelper_GetLicInfo, g(RT_TYPE_HANDLE) r(i) r(i)
 
 // App Domain related defines
 DEFINE_METASIG(IM(Bool_Str_Str_ArrStr_ArrStr_RetVoid, F s s a(s) a(s), v))
-DEFINE_METASIG_T(IM(LoaderOptimization_RetVoid, g(LOADER_OPTIMIZATION), v))
-DEFINE_METASIG_T(IM(Evidence_Evidence_Bool_IntPtr_Bool_RetVoid, C(EVIDENCE) C(EVIDENCE) F I F, v))
-DEFINE_METASIG_T(SM(Str_Evidence_AppDomainSetup_RetAppDomain, s C(EVIDENCE) C(APPDOMAIN_SETUP), C(APP_DOMAIN)))
-DEFINE_METASIG_T(SM(Str_Evidence_Str_Str_Bool_RetAppDomain, s C(EVIDENCE) s s F, C(APP_DOMAIN)))
 DEFINE_METASIG_T(SM(Str_RetAppDomain, s, C(APP_DOMAIN)))
-DEFINE_METASIG_T(SM(Str_AppDomainSetup_Evidence_Evidence_IntPtr_Str_ArrStr_ArrStr_RetObj, s C(APPDOMAIN_SETUP) C(EVIDENCE) C(EVIDENCE) I s a(s) a(s), j))
+DEFINE_METASIG_T(SM(Str_AppDomainSetup_ArrStr_ArrStr_RetObj, s C(APPDOMAIN_SETUP) a(s) a(s), j))
 #ifdef FEATURE_COMINTEROP
 // System.AppDomain.OnReflectionOnlyNamespaceResolveEvent
 DEFINE_METASIG_T(IM(Assembly_Str_RetArrAssembly, C(ASSEMBLY) s, a(C(ASSEMBLY))))
@@ -615,6 +617,7 @@ DEFINE_METASIG_T(IM(IAsyncResult_RetVoid, C(IASYNCRESULT), v))
 #undef T
 #undef G
 #undef M
+#undef GI
 
 #undef _
 

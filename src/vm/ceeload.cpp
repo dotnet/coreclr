@@ -20,7 +20,6 @@
 #include "reflectclasswriter.h"
 #include "method.hpp"
 #include "stublink.h"
-#include "security.h"
 #include "cgensys.h"
 #include "excep.h"
 #include "dbginterface.h"
@@ -98,85 +97,6 @@
 #define CEE_FILE_GEN_GROWTH_COLLECTIBLE 2048
 
 #define NGEN_STATICS_ALLCLASSES_WERE_LOADED -1
-
-
-//---------------------------------------------------------------------------------------
-InstrumentedILOffsetMapping::InstrumentedILOffsetMapping()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    m_cMap  = 0;
-    m_rgMap = NULL;
-    _ASSERTE(IsNull());
-}
-
-//---------------------------------------------------------------------------------------
-//
-// Check whether there is any mapping information stored in this object.
-//
-// Notes:
-//    The memory should be alive throughout the process lifetime until 
-//    the Module containing the instrumented method is destructed.
-//
-
-BOOL InstrumentedILOffsetMapping::IsNull()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    _ASSERTE((m_cMap == 0) == (m_rgMap == NULL));
-    return (m_cMap == 0);
-}
-
-#if !defined(DACCESS_COMPILE)
-//---------------------------------------------------------------------------------------
-//
-// Release the memory used by the array of COR_IL_MAPs.
-//
-// Notes:
-//    * The memory should be alive throughout the process lifetime until the Module containing 
-//      the instrumented method is destructed.
-//    * This struct should be read-only in DAC builds.
-//
-
-void InstrumentedILOffsetMapping::Clear()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (m_rgMap != NULL)
-    {
-        delete [] m_rgMap;
-    }
-
-    m_cMap  = 0;
-    m_rgMap = NULL;
-}
-#endif // !DACCESS_COMPILE
-
-#if !defined(DACCESS_COMPILE)
-void InstrumentedILOffsetMapping::SetMappingInfo(SIZE_T cMap, COR_IL_MAP * rgMap)
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE((cMap == 0) == (rgMap == NULL));
-    m_cMap = cMap;
-    m_rgMap = ARRAY_PTR_COR_IL_MAP(rgMap);
-}
-#endif // !DACCESS_COMPILE
-
-SIZE_T InstrumentedILOffsetMapping::GetCount() const
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    _ASSERTE((m_cMap == 0) == (m_rgMap == NULL));
-    return m_cMap;
-}
-
-ARRAY_PTR_COR_IL_MAP InstrumentedILOffsetMapping::GetOffsets() const
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    _ASSERTE((m_cMap == 0) == (m_rgMap == NULL));
-    return m_rgMap;
-}
 
 BOOL Module::HasInlineTrackingMap()
 {
@@ -467,6 +387,7 @@ void Module::InitializeForProfiling()
     }
     else // ReadyToRun image
     {
+#ifdef FEATURE_READYTORUN
         // We already setup the m_methodProfileList in the ReadyToRunInfo constructor
         if (m_methodProfileList != nullptr)
         {
@@ -476,6 +397,7 @@ void Module::InitializeForProfiling()
             // Enable profiling if the ZapBBInstr value says to
             m_nativeImageProfiling = GetAssembly()->IsInstrumented();
         }
+#endif
     }
 
 #ifdef FEATURE_LAZY_COW_PAGES
@@ -500,11 +422,6 @@ void Module::InitializeNativeImage(AllocMemTracker* pamTracker)
         PRECONDITION(HasNativeImage());
     }
     CONTRACTL_END;
-
-    if(m_pModuleSecurityDescriptor)
-    {
-        _ASSERTE(m_pModuleSecurityDescriptor->GetModule() == this);
-    }
 
     PEImageLayout * pNativeImage = GetNativeImage();
 
@@ -606,9 +523,6 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
         {
             FastInterlockOr(&m_dwPersistedFlags, LOW_LEVEL_SYSTEM_ASSEMBLY_BY_NAME);
         }
-
-        _ASSERT(m_pModuleSecurityDescriptor == NULL);
-        m_pModuleSecurityDescriptor = new ModuleSecurityDescriptor(this);
     }
 
     m_dwTransientFlags &= ~((DWORD)CLASSES_FREED);  // Set flag indicating LookupMaps are now in a consistent and destructable state
@@ -1450,9 +1364,6 @@ void Module::Destruct()
 #endif // FEATURE_PREJIT
     {
         m_file->Release();
-
-        if (m_pModuleSecurityDescriptor)
-            delete m_pModuleSecurityDescriptor;
     }
 
     // If this module was loaded as domain-specific, then 
@@ -2892,7 +2803,7 @@ BOOL Module::IsPreV4Assembly()
 }
 
 
-ArrayDPTR(FixupPointer<PTR_MethodTable>) ModuleCtorInfo::GetGCStaticMTs(DWORD index)
+ArrayDPTR(RelativeFixupPointer<PTR_MethodTable>) ModuleCtorInfo::GetGCStaticMTs(DWORD index)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -3554,13 +3465,6 @@ PTR_BaseDomain Module::GetDomain()
 
 #ifndef DACCESS_COMPILE 
 
-IAssemblySecurityDescriptor *Module::GetSecurityDescriptor()
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE(m_pAssembly != NULL);
-    return m_pAssembly->GetSecurityDescriptor();
-}
-
 #ifndef CROSSGEN_COMPILE
 void Module::StartUnload()
 {
@@ -3815,7 +3719,6 @@ ISymUnmanagedReader *Module::GetISymUnmanagedReader(void)
     {
         INSTANCE_CHECK;
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-        PRECONDITION(Security::IsResolved(GetAssembly()));
         THROWS;
         WRAPPER(GC_TRIGGERS);
         MODE_ANY;
@@ -4040,16 +3943,7 @@ BOOL Module::IsSymbolReadingEnabled()
 #endif // DEBUGGING_SUPPORTED
 
 
-    // Default policy - only read symbols corresponding to full-trust assemblies.
-    // Note that there is no strong (cryptographic) connection between a symbol file and its assembly.
-        // The intent here is just to ensure that the common high-risk scenarios (AppLaunch, etc)
-        // will never be able to load untrusted PDB files.
-    // 
-        if (GetSecurityDescriptor()->IsFullyTrusted())
-        {
-            return TRUE;
-        }
-    return FALSE;
+    return TRUE;
 }
 
 // At this point, this is only called when we're creating an appdomain
@@ -5713,7 +5607,7 @@ DomainAssembly * Module::LoadAssembly(
         {
             spec.SetWindowsRuntimeType(szWinRtTypeNamespace, szWinRtTypeClassName);
         }
-        pDomainAssembly = GetAppDomain()->LoadDomainAssembly(&spec, pFile, FILE_LOADED, NULL);
+        pDomainAssembly = GetAppDomain()->LoadDomainAssembly(&spec, pFile, FILE_LOADED);
     }
 
     if (pDomainAssembly != NULL)
@@ -6465,10 +6359,6 @@ BOOL Module::CanExecuteCode()
     // preferred base address. If they have any relocs, these may
     // not have been fixed up.
     if (!pPEAssembly->IsDll() && !pPEAssembly->IsILOnly())
-        return FALSE;
-
-    // If the assembly does not have FullTrust, we should not execute its code.
-    if (!pAssembly->GetSecurityDescriptor()->IsFullyTrusted())
         return FALSE;
 #endif // FEATURE_PREJIT
 
@@ -7404,7 +7294,9 @@ mdMethodDef Module::LookupIbcMethodToken(TypeHandle enclosingType, mdToken ibcTo
     ibcName.tkEnclosingClass = LookupIbcTypeToken(pExternalModule, ibcName.tkIbcNestedClass, optionalFullNameOut);
        
     if (IsNilToken(ibcName.tkEnclosingClass))
-        THROW_BAD_FORMAT(BFA_MISSING_IBC_EXTERNAL_TYPE, this);
+    {
+        COMPlusThrow(kTypeLoadException, IDS_IBC_MISSING_EXTERNAL_TYPE);
+    }
 
     if (optionalFullNameOut != NULL)
     {
@@ -7464,121 +7356,7 @@ mdMethodDef Module::LookupIbcMethodToken(TypeHandle enclosingType, mdToken ibcTo
     return mdResult;
 }
 
-SString *  Module::IBCErrorNameString()
-{
-    CONTRACT(SString *)
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END;
-
-    if (m_pIBCErrorNameString == NULL)
-    {
-        m_pIBCErrorNameString = new SString();
-    }
-
-    RETURN m_pIBCErrorNameString;
-}
-
-void Module::IBCTypeLoadFailed(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry, 
-                               SString& exceptionMessage, SString* typeNameError)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        PRECONDITION(CheckPointer(pBlobSigEntry));
-    }
-    CONTRACTL_END
-
-    //
-    // Print an error message for the type load failure
-    // 
-    StackSString msg(W("Failed to load type token "));
-    SString typeName;
-
-    char buff[16];
-    sprintf_s(buff, COUNTOF(buff), "%08x", pBlobSigEntry->blob.token); 
-    StackSString szToken(SString::Ascii, &buff[0]);
-    msg += szToken;
-
-    if (!exceptionMessage.IsEmpty())
-    {
-        if ((typeNameError != NULL) && !typeNameError->IsEmpty())
-        {
-            msg += W(" for the profile data in ");
-            msg.Append(exceptionMessage);
-            msg += W(".");
-
-            msg += W("  The type was ");
-            msg.Append(*typeNameError);
-            msg += W(".");
-        }
-        else
-        {
-            msg += W(" from profile data. The error is ");
-            msg.Append(exceptionMessage);
-        }
-    }
-    msg += W("\n");
-
-    GetSvcLogger()->Log(msg, LogLevel_Info);
-}
-
-void Module::IBCMethodLoadFailed(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry, 
-                                 SString& exceptionMessage, SString* methodNameError)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        PRECONDITION(CheckPointer(pBlobSigEntry));
-    }
-    CONTRACTL_END
-
-    //
-    // Print an error message for the type load failure
-    // 
-    StackSString msg(W("Failed to load method token "));
-
-    char buff[16];
-    sprintf_s(buff, COUNTOF(buff), "%08x", pBlobSigEntry->blob.token); 
-    StackSString szToken(SString::Ascii, &buff[0]);
-    msg += szToken;
-
-    if (!exceptionMessage.IsEmpty())
-    {
-        if ((methodNameError != NULL) && !methodNameError->IsEmpty())
-        {
-            msg += W(" for the profile data in ");
-            msg.Append(exceptionMessage);
-            msg += W(".");
-
-            msg += W("  The method was ");
-            msg.Append(*methodNameError);
-            msg += W(".\n");
-        }
-        else
-        {
-            msg += W(" from profile data. The error is ");
-            msg.Append(exceptionMessage);
-        }
-    }
-    msg += W("\n");
-
-    GetSvcLogger()->Log(msg, LogLevel_Info);
-}
-
-TypeHandle Module::LoadIBCTypeHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry)
+TypeHandle Module::LoadIBCTypeHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry)
 {
     CONTRACT(TypeHandle)
     {
@@ -7602,8 +7380,6 @@ TypeHandle Module::LoadIBCTypeHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEn
 
     EX_TRY
     {
-        IBCErrorNameString()->Clear();
-
         // This is what ZapSig::FindTypeHandleFromSignature does...
         // 
         SigTypeContext typeContext;  // empty type context
@@ -7621,11 +7397,7 @@ TypeHandle Module::LoadIBCTypeHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEn
     }
     EX_CATCH
     {
-        CONTRACT_VIOLATION(ThrowsViolation);
-
-        StackSString exceptionMessage;
-        GET_EXCEPTION()->GetMessage(exceptionMessage);
-        IBCTypeLoadFailed(pBlobSigEntry, exceptionMessage, IBCErrorNameString());
+        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
         loadedType = TypeHandle();
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -7635,7 +7407,7 @@ TypeHandle Module::LoadIBCTypeHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEn
 
 //---------------------------------------------------------------------------------------
 // 
-MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobSigEntry)
+MethodDesc* Module::LoadIBCMethodHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobSigEntry)
 {
     CONTRACT(MethodDesc*)
     {
@@ -7664,8 +7436,6 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
     //  
     EX_TRY
     {
-        IBCErrorNameString()->Clear();
-
         // This is what ZapSig::FindTypeHandleFromSignature does...
         //
         SigTypeContext typeContext;   // empty type context
@@ -7684,11 +7454,7 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
     }
     EX_CATCH
     {
-        CONTRACT_VIOLATION(ThrowsViolation);
-
-        StackSString exceptionMessage;
-        GET_EXCEPTION()->GetMessage(exceptionMessage);
-        IBCTypeLoadFailed(pBlobSigEntry, exceptionMessage, IBCErrorNameString());
+        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
         enclosingType = TypeHandle();
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -7752,14 +7518,9 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
 
                 if (IsNilToken(methodToken))
                 {
-                    SString * fullTypeName = IBCErrorNameString();
-                    fullTypeName->Clear();
-                    this->LookupIbcMethodToken(enclosingType, ibcToken, fullTypeName);
-
-                    THROW_BAD_FORMAT(BFA_MISSING_IBC_EXTERNAL_METHOD, this);
+                    COMPlusThrow(kTypeLoadException, IDS_IBC_MISSING_EXTERNAL_METHOD);
                 }
             }
-
 
             SigTypeContext methodTypeContext( enclosingType );
             pMethod = MemberLoader::GetMethodDescFromMemberDefOrRefOrSpec(
@@ -7786,13 +7547,23 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
 
             for (DWORD i = 0; i < nargs; i++)
             {
-                pInst[i] = p.GetTypeHandleThrowing( this,
+                TypeHandle curInst;
+
+                curInst = p.GetTypeHandleThrowing( this,
                               &typeContext,
                               ClassLoader::LoadTypes,
                               CLASS_LOADED,
                               FALSE,
                               NULL,
                               pZapSigContext);
+
+                // curInst will be nullptr when the type fails the versioning bubble check
+                if (curInst.IsNull() && IsReadyToRunCompilation())
+                {
+                    COMPlusThrow(kTypeLoadException, IDS_IBC_MISSING_EXTERNAL_TYPE);
+                }
+
+                pInst[i] = curInst;
                 IfFailThrow(p.SkipExactlyOne());
             }
 
@@ -7803,26 +7574,26 @@ MethodDesc* Module::LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * pBlobS
             inst = pMethod->LoadMethodInstantiation();
         }
 
+        // We should now be able to create an instantiation for this generic method
+
         // This must be called even if nargs == 0, in order to create an instantiating
         // stub for static methods in generic classees if needed, also for BoxedEntryPointStubs
         // in non-generic structs.
+        const bool allowInstParam = !(isInstantiatingStub || isUnboxingStub);
+
         pMethod = MethodDesc::FindOrCreateAssociatedMethodDesc(pMethod, pOwnerMT,
-                                                               isUnboxingStub,
-                                                               inst,
-                                                               !(isInstantiatingStub || isUnboxingStub));
+                                                               isUnboxingStub, 
+                                                               inst, allowInstParam);
 
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE)
         g_pConfig->DebugCheckAndForceIBCFailure(EEConfig::CallSite_3);
 #endif
-
     }
     EX_CATCH
     {
-        CONTRACT_VIOLATION(ThrowsViolation);
-
-        StackSString exceptionMessage;
-        GET_EXCEPTION()->GetMessage(exceptionMessage);
-        IBCMethodLoadFailed(pBlobSigEntry, exceptionMessage, IBCErrorNameString());
+        // Catch any kTypeLoadException that we may have thrown above
+        //
+        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
         pMethod = NULL;
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -8125,7 +7896,8 @@ void Module::ExpandAll(DataImage *image)
     //
     // Load all the reported parameterized types and methods
     //
-    CORBBTPROF_BLOB_ENTRY *pBlobEntry = GetProfileData()->GetBlobStream();
+    CorProfileData *  profileData = this->GetProfileData();
+    CORBBTPROF_BLOB_ENTRY *pBlobEntry = profileData->GetBlobStream();
     
     if (pBlobEntry != NULL)
     {
@@ -8136,7 +7908,8 @@ void Module::ExpandAll(DataImage *image)
                 _ASSERTE(pBlobEntry->type == ParamTypeSpec);
                 CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry = (CORBBTPROF_BLOB_PARAM_SIG_ENTRY *) pBlobEntry;
 
-                TypeHandle th = LoadIBCTypeHelper(pBlobSigEntry);
+                TypeHandle th = LoadIBCTypeHelper(image, pBlobSigEntry);
+
                 if (!th.IsNull())
                 {
                     image->GetPreloader()->TriageTypeForZap(th, TRUE);
@@ -8147,15 +7920,60 @@ void Module::ExpandAll(DataImage *image)
                 _ASSERTE(pBlobEntry->type == ParamMethodSpec);
                 CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry = (CORBBTPROF_BLOB_PARAM_SIG_ENTRY *) pBlobEntry;
                 
-                MethodDesc *pMD = LoadIBCMethodHelper(pBlobSigEntry);
-                if (pMD != NULL)
-                {
-                    image->GetPreloader()->TriageMethodForZap(pMD, TRUE);
-                }
+                MethodDesc *pMD = LoadIBCMethodHelper(image, pBlobSigEntry);
             }
             pBlobEntry = pBlobEntry->GetNextEntry();
         }
         _ASSERTE(pBlobEntry->type == EndOfBlobStream);
+    }
+
+    //
+    // Record references to all of the hot methods specifiled by MethodProfilingData array
+    // We call MethodReferencedByCompiledCode to indicate that we plan on compiling this method
+    //
+    CORBBTPROF_TOKEN_INFO * pMethodProfilingData = profileData->GetTokenFlagsData(MethodProfilingData);
+    DWORD                   cMethodProfilingData = profileData->GetTokenFlagsCount(MethodProfilingData);
+    for (unsigned int i = 0; (i < cMethodProfilingData); i++)
+    {
+        mdToken token = pMethodProfilingData[i].token;
+        DWORD   profilingFlags = pMethodProfilingData[i].flags;
+
+        // We call MethodReferencedByCompiledCode only when the profile data indicates that 
+        // we executed (i.e read) the code for the method
+        //
+        if (profilingFlags & (1 << ReadMethodCode))
+        {
+            if (TypeFromToken(token) == mdtMethodDef)
+            {
+                MethodDesc *  pMD = LookupMethodDef(token);
+                //
+                // Record a reference to a hot non-generic method 
+                //
+                image->GetPreloader()->MethodReferencedByCompiledCode((CORINFO_METHOD_HANDLE)pMD);
+            }
+            else if (TypeFromToken(token) == ibcMethodSpec)
+            {
+                CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry = profileData->GetBlobSigEntry(token);
+
+                if (pBlobSigEntry != NULL)
+                {
+                    _ASSERTE(pBlobSigEntry->blob.token == token);
+                    MethodDesc * pMD = LoadIBCMethodHelper(image, pBlobSigEntry);
+
+                    if (pMD != NULL)
+                    {
+                        // Occasionally a non-instantiated generic method shows up in the IBC data, we should NOT compile it.
+                        if (!pMD->IsTypicalMethodDefinition())
+                        {
+                            //
+                            // Record a reference to a hot instantiated generic method 
+                            //
+                            image->GetPreloader()->MethodReferencedByCompiledCode((CORINFO_METHOD_HANDLE)pMD);
+                        }
+                    }
+                }
+            }
+        }
     }
     
     {
@@ -8282,6 +8100,8 @@ void Module::SaveTypeHandle(DataImage *  image,
 #endif // _DEBUG
 }
 
+#ifndef DACCESS_COMPILE
+
 void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
 {
     STANDARD_VM_CONTRACT;
@@ -8303,7 +8123,7 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
     // items numElementsHot...i-1 are cold
     for (i = 0; i < numElements; i++)
     {
-        MethodTable *ppMTTemp = ppMT[i];
+        MethodTable *ppMTTemp = ppMT[i].GetValue();
 
         // Count the number of boxed statics along the way
         totalBoxedStatics += ppMTTemp->GetNumBoxedRegularStatics();
@@ -8317,8 +8137,8 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
         if (hot)
         {
             // swap ppMT[i] and ppMT[numElementsHot] to maintain the loop invariant
-            ppMT[i] = ppMT[numElementsHot];
-            ppMT[numElementsHot] = ppMTTemp;
+            ppMT[i].SetValue(ppMT[numElementsHot].GetValue());
+            ppMT[numElementsHot].SetValue(ppMTTemp);
 
             numElementsHot++;
         }
@@ -8343,11 +8163,11 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
 
     for (i = 0; i < numElementsHot; i++)
     {
-        hashArray[i] = GenerateHash(ppMT[i], HOT);
+        hashArray[i] = GenerateHash(ppMT[i].GetValue(), HOT);
     }
     for (i = numElementsHot; i < numElements; i++)
     {
-        hashArray[i] = GenerateHash(ppMT[i], COLD);
+        hashArray[i] = GenerateHash(ppMT[i].GetValue(), COLD);
     }
 
     // Sort the two arrays by hash values to create regions with the same hash values.
@@ -8410,7 +8230,7 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
     // make cctorInfoCold point to the first cold element
     cctorInfoCold   = cctorInfoHot + numElementsHot;
 
-    ppHotGCStaticsMTs   = (totalBoxedStatics != 0) ? new FixupPointer<PTR_MethodTable>[totalBoxedStatics] : NULL;
+    ppHotGCStaticsMTs   = (totalBoxedStatics != 0) ? new RelativeFixupPointer<PTR_MethodTable>[totalBoxedStatics] : NULL;
     numHotGCStaticsMTs  = totalBoxedStatics;
 
     DWORD iGCStaticMT = 0;
@@ -8426,7 +8246,7 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
             ppColdGCStaticsMTs = ppHotGCStaticsMTs + numHotGCStaticsMTs;
         }
 
-        MethodTable* pMT = ppMT[i];
+        MethodTable* pMT = ppMT[i].GetValue();
         ClassCtorInfoEntry* pEntry = &cctorInfoHot[i];
 
         WORD numBoxedStatics = pMT->GetNumBoxedRegularStatics();
@@ -8456,7 +8276,7 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
                     == (iGCStaticMT - pEntry->firstBoxedStaticMTIndex) * sizeof(MethodTable*));
 
                 TypeHandle th = pField->GetFieldTypeHandleThrowing();
-                ppHotGCStaticsMTs[iGCStaticMT++].SetValue(th.GetMethodTable());
+                ppHotGCStaticsMTs[iGCStaticMT++].SetValueMaybeNull(th.GetMethodTable());
 
                 numFoundBoxedStatics++;
             }
@@ -8479,7 +8299,7 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
 
     if (numElements > 0)
         image->StoreStructure(ppMT,
-                                sizeof(MethodTable *) * numElements,
+                                sizeof(RelativePointer<MethodTable *>) * numElements,
                                 DataImage::ITEM_MODULE_CCTOR_INFO_HOT);
 
     if (numElements > numElementsHot)
@@ -8496,7 +8316,7 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
     if ( numHotGCStaticsMTs )
     {
         // Save the mt templates
-        image->StoreStructure( ppHotGCStaticsMTs, numHotGCStaticsMTs * sizeof(MethodTable*),
+        image->StoreStructure( ppHotGCStaticsMTs, numHotGCStaticsMTs * sizeof(RelativeFixupPointer<MethodTable*>),
                                 DataImage::ITEM_GC_STATIC_HANDLES_HOT);
     }
     else
@@ -8507,7 +8327,7 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
     if ( numColdGCStaticsMTs )
     {
         // Save the hot mt templates
-        image->StoreStructure( ppColdGCStaticsMTs, numColdGCStaticsMTs * sizeof(MethodTable*),
+        image->StoreStructure( ppColdGCStaticsMTs, numColdGCStaticsMTs * sizeof(RelativeFixupPointer<MethodTable*>),
                                 DataImage::ITEM_GC_STATIC_HANDLES_COLD);
     }
     else
@@ -8516,6 +8336,7 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
     }
 }
 
+#endif // !DACCESS_COMPILE
 
 bool Module::AreAllClassesFullyLoaded()
 {
@@ -8774,7 +8595,7 @@ void Module::Save(DataImage *image)
                             if (pBlobEntry->token == token)
                             {
                                 CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry = (CORBBTPROF_BLOB_PARAM_SIG_ENTRY *) pBlobEntry;
-                                TypeHandle th = LoadIBCTypeHelper(pBlobSigEntry);
+                                TypeHandle th = LoadIBCTypeHelper(image, pBlobSigEntry);
                                 
                                 if (!th.IsNull())
                                 {
@@ -9040,12 +8861,6 @@ void Module::Save(DataImage *image)
     {
         image->StoreStructure(m_pDynamicStaticsInfo, m_maxDynamicEntries*sizeof(DynamicStaticsInfo),
                                           DataImage::ITEM_DYNAMIC_STATICS_INFO_TABLE);
-    }
-
-    // save the module security descriptor
-    if (m_pModuleSecurityDescriptor)
-    {
-        m_pModuleSecurityDescriptor->Save(image);
     }
 
     InlineTrackingMap *inlineTrackingMap = image->GetInlineTrackingMap();
@@ -9322,13 +9137,20 @@ void Module::PlaceType(DataImage *image, TypeHandle th, DWORD profilingFlags)
         {
             if (pMT->HasPerInstInfo())
             {
-                Dictionary ** pPerInstInfo = pMT->GetPerInstInfo();
+                DPTR(MethodTable::PerInstInfoElem_t) pPerInstInfo = pMT->GetPerInstInfo();
 
                 BOOL fIsEagerBound = pMT->CanEagerBindToParentDictionaries(image, NULL);
 
                 if (fIsEagerBound)
                 {
-                    image->PlaceInternedStructureForAddress(pPerInstInfo, CORCOMPILE_SECTION_READONLY_SHARED_HOT, CORCOMPILE_SECTION_READONLY_HOT);
+                    if (MethodTable::PerInstInfoElem_t::isRelative)
+                    {
+                        image->PlaceStructureForAddress(pPerInstInfo, CORCOMPILE_SECTION_READONLY_HOT);
+                    }
+                    else
+                    {
+                        image->PlaceInternedStructureForAddress(pPerInstInfo, CORCOMPILE_SECTION_READONLY_SHARED_HOT, CORCOMPILE_SECTION_READONLY_HOT);
+                    }
                 }
                 else
                 {
@@ -9539,7 +9361,7 @@ void Module::Arrange(DataImage *image)
                     //
                     // decode generic type signature
                     //
-                    TypeHandle th = LoadIBCTypeHelper(pBlobSigEntry);
+                    TypeHandle th = LoadIBCTypeHelper(image, pBlobSigEntry);
 
                     //
                     // Place a hot instantiated type and it's data
@@ -9550,7 +9372,7 @@ void Module::Arrange(DataImage *image)
             else if (TypeFromToken(token) == mdtFieldDef)
             {
                 FieldDesc *pFD = LookupFieldDef(token);
-                if (pFD && pFD->IsILOnlyRVAField())
+                if (pFD && pFD->IsRVA())
                 {
                     if (entry->flags & (1 << RVAFieldData))
                     {
@@ -9607,7 +9429,7 @@ void Module::Arrange(DataImage *image)
                 else // (pBlobSigEntry  != NULL)
                 {
                     _ASSERTE(pBlobSigEntry->blob.token == token);
-                    MethodDesc * pMD = LoadIBCMethodHelper(pBlobSigEntry);
+                    MethodDesc * pMD = LoadIBCMethodHelper(image, pBlobSigEntry);
                     
                     if (pMD != NULL)
                     {
@@ -9658,7 +9480,7 @@ void ModuleCtorInfo::Fixup(DataImage *image)
 
         for (DWORD i=0; i<numElements; i++)
         {
-            image->FixupPointerField(ppMT, i * sizeof(ppMT[0]));
+            image->FixupRelativePointerField(ppMT, i * sizeof(ppMT[0]));
         }
     }
     else
@@ -9735,7 +9557,6 @@ void Module::Fixup(DataImage *image)
 
     image->ZeroField(this, offsetof(Module, m_pProfilingBlobTable), sizeof(m_pProfilingBlobTable));
     image->ZeroField(this, offsetof(Module, m_pProfileData), sizeof(m_pProfileData));
-    image->ZeroPointerField(this, offsetof(Module, m_pIBCErrorNameString));
 
     image->ZeroPointerField(this, offsetof(Module, m_pNgenStats));
 
@@ -10030,17 +9851,6 @@ void Module::Fixup(DataImage *image)
         }
     }
 
-    // fix up module security descriptor
-    if (m_pModuleSecurityDescriptor)
-    {
-        image->FixupPointerField(this, offsetof(Module, m_pModuleSecurityDescriptor));
-        m_pModuleSecurityDescriptor->Fixup(image);
-    }
-    else
-    {
-        image->ZeroPointerField(this, offsetof(Module, m_pModuleSecurityDescriptor));
-    }
-
     // If we failed to load some types we need to reset the pointers to the static offset tables so they'll be
     // rebuilt at runtime.
     if (m_pRegularStaticOffsets != (PTR_DWORD)NGEN_STATICS_ALLCLASSES_WERE_LOADED)
@@ -10292,11 +10102,37 @@ void Module::RestoreMethodTablePointer(RelativeFixupPointer<PTR_MethodTable> * p
 
     if (ppMT->IsTagged((TADDR)ppMT))
     {
-        RestoreMethodTablePointerRaw(ppMT->GetValuePtr((TADDR)ppMT), pContainingModule, level);
+        RestoreMethodTablePointerRaw(ppMT->GetValuePtr(), pContainingModule, level);
     }
     else
     {
-        ClassLoader::EnsureLoaded(ppMT->GetValue((TADDR)ppMT), level);
+        ClassLoader::EnsureLoaded(ppMT->GetValue(), level);
+    }
+}
+
+/*static*/
+void Module::RestoreMethodTablePointer(PlainPointer<PTR_MethodTable> * ppMT,
+                                       Module *pContainingModule,
+                                       ClassLoadLevel level)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (ppMT->IsNull())
+        return;
+
+    if (ppMT->IsTagged())
+    {
+        RestoreMethodTablePointerRaw(ppMT->GetValuePtr(), pContainingModule, level);
+    }
+    else
+    {
+        ClassLoader::EnsureLoaded(ppMT->GetValue(), level);
     }
 }
 
@@ -10431,7 +10267,7 @@ PTR_Module Module::RestoreModulePointerIfLoaded(DPTR(RelativeFixupPointer<PTR_Mo
         return ppModule->GetValue(dac_cast<TADDR>(ppModule));
 
 #ifndef DACCESS_COMPILE 
-    PTR_Module * ppValue = ppModule->GetValuePtr(dac_cast<TADDR>(ppModule));
+    PTR_Module * ppValue = ppModule->GetValuePtr();
 
     // Ensure that the compiler won't fetch the value twice
     TADDR fixup = VolatileLoadWithoutBarrier((TADDR *)ppValue);
@@ -10484,7 +10320,7 @@ void Module::RestoreModulePointer(RelativeFixupPointer<PTR_Module> * ppModule, M
     if (!ppModule->IsTagged((TADDR)ppModule))
         return;
 
-    PTR_Module * ppValue = ppModule->GetValuePtr((TADDR)ppModule);
+    PTR_Module * ppValue = ppModule->GetValuePtr();
 
     // Ensure that the compiler won't fetch the value twice
     TADDR fixup = VolatileLoadWithoutBarrier((TADDR *)ppValue);
@@ -10638,7 +10474,7 @@ void Module::RestoreTypeHandlePointer(RelativeFixupPointer<TypeHandle> * pHandle
 
     if (pHandle->IsTagged((TADDR)pHandle))
     {
-        RestoreTypeHandlePointerRaw(pHandle->GetValuePtr((TADDR)pHandle), pContainingModule, level);
+        RestoreTypeHandlePointerRaw(pHandle->GetValuePtr(), pContainingModule, level);
     }
     else
     {
@@ -10740,7 +10576,7 @@ void Module::RestoreMethodDescPointer(RelativeFixupPointer<PTR_MethodDesc> * ppM
 
     if (ppMD->IsTagged((TADDR)ppMD))
     {
-        RestoreMethodDescPointerRaw(ppMD->GetValuePtr((TADDR)ppMD), pContainingModule, level);
+        RestoreMethodDescPointerRaw(ppMD->GetValuePtr(), pContainingModule, level);
     }
     else
     {
@@ -10749,7 +10585,7 @@ void Module::RestoreMethodDescPointer(RelativeFixupPointer<PTR_MethodDesc> * ppM
 }
 
 /*static*/
-void Module::RestoreFieldDescPointer(FixupPointer<PTR_FieldDesc> * ppFD)
+void Module::RestoreFieldDescPointer(RelativeFixupPointer<PTR_FieldDesc> * ppFD)
 {
     CONTRACTL
     {
@@ -10758,6 +10594,9 @@ void Module::RestoreFieldDescPointer(FixupPointer<PTR_FieldDesc> * ppFD)
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    if (!ppFD->IsTagged())
+        return;
 
     PTR_FieldDesc * ppValue = ppFD->GetValuePtr();
 
@@ -10770,7 +10609,7 @@ void Module::RestoreFieldDescPointer(FixupPointer<PTR_FieldDesc> * ppFD)
         CONSISTENCY_CHECK((CORCOMPILE_UNTAG_TOKEN(fixup)>>32) == 0);
 #endif
 
-        Module * pContainingModule = ExecutionManager::FindZapModule(dac_cast<TADDR>(ppValue));
+        Module * pContainingModule = ExecutionManager::FindZapModule((TADDR)ppValue);
         PREFIX_ASSUME(pContainingModule != NULL);
 
         RVA fixupRva = (RVA) CORCOMPILE_UNTAG_TOKEN(fixup);
@@ -12770,6 +12609,11 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
     if (!m_nativeImageProfiling)
         return;
 
+    if (flagnum >= CORBBTPROF_TOKEN_MAX_NUM_FLAGS)
+    {
+        return;
+    }
+
     mdToken rid = RidFromToken(token);
     CorTokenType  tkType  = (CorTokenType) TypeFromToken(token);
     SectionFormat tkKind  = (SectionFormat) (tkType >> 24);
@@ -12798,8 +12642,9 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
     else if (tkKind == (SectionFormat) (ibcMethodSpec >> 24))
         tkKind = IbcMethodSpecSection;
 
+    _ASSERTE(tkKind >= 0);
     _ASSERTE(tkKind < SectionFormatCount);
-    if (tkKind >= SectionFormatCount)
+    if (tkKind < 0 || tkKind >= SectionFormatCount)
     {
         return;
     }
@@ -13031,7 +12876,8 @@ idTypeSpec Module::LogInstantiatedType(TypeHandle typeHnd, ULONG flagNum)
         // We can relax this if we allow a (duplicate) MethodTable to live
         // in any module (which might be needed for ngen of generics)
 #ifdef FEATURE_PREJIT
-        PRECONDITION(this == GetPreferredZapModuleForTypeHandle(typeHnd));
+        // All callsites already do this...
+        // PRECONDITION(this == GetPreferredZapModuleForTypeHandle(typeHnd));
 #endif
     }
     CONTRACT_END;
@@ -13702,7 +13548,10 @@ void LookupMapBase::CreateHotItemList(DataImage *image, CorProfileData *profileD
                 for (DWORD ii = 0; ii < numItems; ii++)
                 {
                     if (itemList[ii].value != NULL)
-                        RelativePointer<TADDR>::SetValueMaybeNullAtPtr(dac_cast<TADDR>(&itemList[ii].value), itemList[ii].value);
+                    {
+                        RelativePointer<TADDR> *pRelPtr = (RelativePointer<TADDR> *)&itemList[ii].value;
+                        pRelPtr->SetValueMaybeNull(itemList[ii].value);
+                    }
                 }
 
                 if (itemList != NULL)
@@ -14052,7 +13901,7 @@ ModuleCtorInfo::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 
     // This class is contained so do not enumerate 'this'.
     DacEnumMemoryRegion(dac_cast<TADDR>(ppMT), numElements *
-                        sizeof(TADDR));
+                        sizeof(RelativePointer<MethodTable *>));
     DacEnumMemoryRegion(dac_cast<TADDR>(cctorInfoHot), numElementsHot *
                         sizeof(ClassCtorInfoEntry));
     DacEnumMemoryRegion(dac_cast<TADDR>(cctorInfoCold),
@@ -14269,97 +14118,6 @@ LPCWSTR Module::GetPathForErrorMessages()
     }
 }
 
-#ifndef DACCESS_COMPILE
-BOOL IsVerifiableWrapper(MethodDesc* pMD)
-{
-    BOOL ret = FALSE;
-    //EX_TRY contains _alloca, so I can't use this inside of a loop.  4wesome.
-    EX_TRY
-    {
-        ret = pMD->IsVerifiable();
-    }
-    EX_CATCH
-    {
-        //if the method has a security exception, it will fly through IsVerifiable.  Shunt
-        //to the unverifiable path below.
-    }
-    EX_END_CATCH(RethrowTerminalExceptions)
-    return ret;
-}
-#endif //DACCESS_COMPILE
-void Module::VerifyAllMethods()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-#ifndef DACCESS_COMPILE
-    //If the EE isn't started yet, it's not safe to jit.  We fail in COM jitting a p/invoke.
-    if (!g_fEEStarted)
-        return;
-
-    struct Local
-    {
-        static bool VerifyMethodsForTypeDef(Module * pModule, mdTypeDef td)
-        {
-            bool ret = true;
-            TypeHandle th = ClassLoader::LoadTypeDefThrowing(pModule, td, ClassLoader::ThrowIfNotFound,
-                                                             ClassLoader::PermitUninstDefOrRef);
-
-            MethodTable * pMT = th.GetMethodTable();
-            MethodTable::MethodIterator it(pMT);
-            for (; it.IsValid(); it.Next())
-            {
-                MethodDesc * pMD = it.GetMethodDesc();
-                if (pMD->HasILHeader() && Security::IsMethodTransparent(pMD)
-                    && (g_pObjectCtorMD != pMD))
-                {
-                    if (!IsVerifiableWrapper(pMD))
-                    {
-#ifdef _DEBUG
-                        SString s;
-                        if (LoggingOn(LF_VERIFIER, LL_ERROR))
-                            TypeString::AppendMethodDebug(s, pMD);
-                        LOG((LF_VERIFIER, LL_ERROR, "Transparent Method (0x%p), %S is unverifiable\n",
-                             pMD, s.GetUnicode()));
-#endif
-                        ret = false;
-                    }
-                }
-            }
-            return ret;
-        }
-    };
-    //Verify all methods in a module eagerly, forcing them to get loaded.
-
-    IMDInternalImport * pMDI = GetMDImport();
-    HENUMTypeDefInternalHolder hEnum(pMDI);
-    mdTypeDef td;
-    hEnum.EnumTypeDefInit();
-
-    bool isAllVerifiable = true;
-    //verify global methods
-    if (GetGlobalMethodTable())
-    {
-        //verify everything in the MT.
-        if (!Local::VerifyMethodsForTypeDef(this, COR_GLOBAL_PARENT_TOKEN))
-            isAllVerifiable = false;
-    }
-    while (pMDI->EnumTypeDefNext(&hEnum, &td))
-    {
-        //verify everything
-        if (!Local::VerifyMethodsForTypeDef(this, td))
-            isAllVerifiable = false;
-    }
-    if (!isAllVerifiable)
-        EEFileLoadException::Throw(GetFile(), COR_E_VERIFICATION);
-#endif //DACCESS_COMPILE
-}
-
-
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE) && !defined(CROSS_COMPILE)
 void Module::ExpandAll()
 {
@@ -14391,16 +14149,7 @@ void Module::ExpandAll()
                     || pMD->HasClassInstantiation())
                 && (pMD->MayHaveNativeCode() && !pMD->IsFCallOrIntrinsic()))
             {
-                COR_ILMETHOD * ilHeader = pMD->GetILHeader();
-                COR_ILMETHOD_DECODER::DecoderStatus ignored;
-                NewHolder<COR_ILMETHOD_DECODER> pHeader(new COR_ILMETHOD_DECODER(ilHeader,
-                                                                                 pMD->GetMDImport(),
-                                                                                 &ignored));
-#ifdef FEATURE_INTERPRETER
-                pMD->MakeJitWorker(pHeader, CORJIT_FLAGS(CORJIT_FLAGS::CORJIT_FLAG_MAKEFINALCODE));
-#else
-                pMD->MakeJitWorker(pHeader, CORJIT_FLAGS());
-#endif
+                pMD->PrepareInitialCode();
             }
         }
         static void CompileMethodsForMethodTable(MethodTable * pMT)
@@ -14470,9 +14219,6 @@ void Module::ExpandAll()
     };
     //Jit all methods eagerly
 
-    /* XXX Thu 4/26/2007
-     * This code is lifted mostly from code:Module::VerifyAllMethods
-     */
     IMDInternalImport * pMDI = GetMDImport();
     HENUMTypeDefInternalHolder hEnum(pMDI);
     mdTypeDef td;

@@ -6,8 +6,6 @@
 #ifndef GCIMPL_H_
 #define GCIMPL_H_
 
-#define CLREvent CLREventStatic
-
 #ifdef SERVER_GC
 #define MULTIPLE_HEAPS 1
 #endif  // SERVER_GC
@@ -93,7 +91,8 @@ public:
 
     bool RuntimeStructuresValid();
 
-    CLREvent * GetWaitForGCEvent();
+    void SetWaitForGCEvent();
+    void ResetWaitForGCEvent();
 
     HRESULT Initialize ();
 
@@ -242,7 +241,7 @@ public:	// FIX
     void TemporaryDisableConcurrentGC();
     bool IsConcurrentGCEnabled();
 
-    PER_HEAP_ISOLATED   CLREvent *WaitForGCEvent;     // used for syncing w/GC
+    PER_HEAP_ISOLATED   GCEvent *WaitForGCEvent;     // used for syncing w/GC
 
     PER_HEAP_ISOLATED    CFinalize* m_Finalize;
 
@@ -255,7 +254,7 @@ private:
         // to threads returning to cooperative mode is down after gc.
         // In other words, if the sequence in GCHeap::RestartEE changes,
         // the condition here may have to change as well.
-        return g_TrapReturningThreads == 0;
+        return !GCToEEInterface::TrapReturningThreads();
     }
 public:
     //return TRUE if GC actually happens, otherwise FALSE

@@ -10,6 +10,7 @@ using System.Security;
 using System.Text;
 using System.Threading;
 using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 
 namespace System
 {
@@ -398,7 +399,7 @@ namespace System
                 baseOffset = baseOffset + match.Rule.BaseUtcOffsetDelta;
                 if (match.Rule.HasDaylightSaving)
                 {
-                    isDaylightSavings = GetIsDaylightSavingsFromUtc(time, timeYear, match.Offset, match.Rule, out isAmbiguousLocalDst, Local);
+                    isDaylightSavings = GetIsDaylightSavingsFromUtc(time, timeYear, match.Offset, match.Rule, null, out isAmbiguousLocalDst, Local);
                     baseOffset += (isDaylightSavings ? match.Rule.DaylightDelta : TimeSpan.Zero /* FUTURE: rule.StandardDelta */);
                 }
             }
@@ -576,8 +577,8 @@ namespace System
                     // read LastEntry   {(yearN, 1, 1) - MaxValue       }
 
                     // read the FirstEntry and LastEntry key values (ex: "1980", "2038")
-                    int first = (int)dynamicKey.GetValue(FirstEntryValue, -1);
-                    int last = (int)dynamicKey.GetValue(LastEntryValue, -1);
+                    int first = (int)dynamicKey.GetValue(FirstEntryValue, -1, RegistryValueOptions.None);
+                    int last = (int)dynamicKey.GetValue(LastEntryValue, -1, RegistryValueOptions.None);
 
                     if (first == -1 || last == -1 || first > last)
                     {
@@ -587,7 +588,7 @@ namespace System
 
                     // read the first year entry
                     Win32Native.RegistryTimeZoneInformation dtzi;
-                    byte[] regValue = dynamicKey.GetValue(first.ToString(CultureInfo.InvariantCulture)) as byte[];
+                    byte[] regValue = dynamicKey.GetValue(first.ToString(CultureInfo.InvariantCulture), null, RegistryValueOptions.None) as byte[];
                     if (regValue == null || regValue.Length != RegByteLength)
                     {
                         rules = null;
@@ -620,7 +621,7 @@ namespace System
                     // read the middle year entries
                     for (int i = first + 1; i < last; i++)
                     {
-                        regValue = dynamicKey.GetValue(i.ToString(CultureInfo.InvariantCulture)) as byte[];
+                        regValue = dynamicKey.GetValue(i.ToString(CultureInfo.InvariantCulture), null, RegistryValueOptions.None) as byte[];
                         if (regValue == null || regValue.Length != RegByteLength)
                         {
                             rules = null;
@@ -640,7 +641,7 @@ namespace System
                     }
 
                     // read the last year entry
-                    regValue = dynamicKey.GetValue(last.ToString(CultureInfo.InvariantCulture)) as byte[];
+                    regValue = dynamicKey.GetValue(last.ToString(CultureInfo.InvariantCulture), null, RegistryValueOptions.None) as byte[];
                     dtzi = new Win32Native.RegistryTimeZoneInformation(regValue);
                     if (regValue == null || regValue.Length != RegByteLength)
                     {
@@ -719,7 +720,7 @@ namespace System
                 }
 
                 Win32Native.RegistryTimeZoneInformation registryTimeZoneInfo;
-                byte[] regValue = key.GetValue(TimeZoneInfoValue) as byte[];
+                byte[] regValue = key.GetValue(TimeZoneInfoValue, null, RegistryValueOptions.None) as byte[];
                 if (regValue == null || regValue.Length != RegByteLength) return false;
                 registryTimeZoneInfo = new Win32Native.RegistryTimeZoneInformation(regValue);
 
@@ -756,7 +757,7 @@ namespace System
                 //
                 if (result)
                 {
-                    string registryStandardName = key.GetValue(StandardValue, string.Empty) as string;
+                    string registryStandardName = key.GetValue(StandardValue, string.Empty, RegistryValueOptions.None) as string;
                     result = string.Equals(registryStandardName, timeZone.StandardName, StringComparison.Ordinal);
                 }
                 return result;
@@ -851,14 +852,14 @@ namespace System
         private static string TryGetLocalizedNameByNativeResource(string filePath, int resource)
         {
             using (SafeLibraryHandle handle =
-                       UnsafeNativeMethods.LoadLibraryEx(filePath, IntPtr.Zero, Win32Native.LOAD_LIBRARY_AS_DATAFILE))
+                       Interop.Kernel32.LoadLibraryExW(filePath, IntPtr.Zero, Interop.Kernel32.LOAD_LIBRARY_AS_DATAFILE))
             {
                 if (!handle.IsInvalid)
                 {
                     StringBuilder localizedResource = StringBuilderCache.Acquire(Win32Native.LOAD_STRING_MAX_LENGTH);
                     localizedResource.Length = Win32Native.LOAD_STRING_MAX_LENGTH;
 
-                    int result = UnsafeNativeMethods.LoadString(handle, resource,
+                    int result = Interop.User32.LoadStringW(handle, resource,
                                      localizedResource, localizedResource.Length);
 
                     if (result != 0)
@@ -884,9 +885,9 @@ namespace System
             daylightName = string.Empty;
 
             // read the MUI_ registry keys
-            string displayNameMuiResource = key.GetValue(MuiDisplayValue, string.Empty) as string;
-            string standardNameMuiResource = key.GetValue(MuiStandardValue, string.Empty) as string;
-            string daylightNameMuiResource = key.GetValue(MuiDaylightValue, string.Empty) as string;
+            string displayNameMuiResource = key.GetValue(MuiDisplayValue, string.Empty, RegistryValueOptions.None) as string;
+            string standardNameMuiResource = key.GetValue(MuiStandardValue, string.Empty, RegistryValueOptions.None) as string;
+            string daylightNameMuiResource = key.GetValue(MuiDaylightValue, string.Empty, RegistryValueOptions.None) as string;
 
             // try to load the strings from the native resource DLL(s)
             if (!string.IsNullOrEmpty(displayNameMuiResource))
@@ -907,15 +908,15 @@ namespace System
             // fallback to using the standard registry keys
             if (string.IsNullOrEmpty(displayName))
             {
-                displayName = key.GetValue(DisplayValue, string.Empty) as string;
+                displayName = key.GetValue(DisplayValue, string.Empty, RegistryValueOptions.None) as string;
             }
             if (string.IsNullOrEmpty(standardName))
             {
-                standardName = key.GetValue(StandardValue, string.Empty) as string;
+                standardName = key.GetValue(StandardValue, string.Empty, RegistryValueOptions.None) as string;
             }
             if (string.IsNullOrEmpty(daylightName))
             {
-                daylightName = key.GetValue(DaylightValue, string.Empty) as string;
+                daylightName = key.GetValue(DaylightValue, string.Empty, RegistryValueOptions.None) as string;
             }
 
             return true;
@@ -964,7 +965,7 @@ namespace System
                 }
 
                 Win32Native.RegistryTimeZoneInformation defaultTimeZoneInformation;
-                byte[] regValue = key.GetValue(TimeZoneInfoValue) as byte[];
+                byte[] regValue = key.GetValue(TimeZoneInfoValue, null, RegistryValueOptions.None) as byte[];
                 if (regValue == null || regValue.Length != RegByteLength)
                 {
                     // the registry value could not be cast to a byte array

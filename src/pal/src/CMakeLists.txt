@@ -93,10 +93,10 @@ elseif(PAL_CMAKE_PLATFORM_ARCH_I386)
   set(PAL_ARCH_SOURCES_DIR i386)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
+if(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
   # Currently the _xstate is not available on Alpine Linux
   add_definitions(-DXSTATE_SUPPORTED)
-endif(CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
+endif(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
 
 if(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
   # Setting RLIMIT_NOFILE breaks debugging of coreclr on Alpine Linux for some reason
@@ -147,6 +147,7 @@ set(SOURCES
   debug/debug.cpp
   exception/seh.cpp
   exception/signal.cpp
+  exception/remote-unwind.cpp
   file/directory.cpp
   file/disk.cpp
   file/file.cpp
@@ -174,13 +175,13 @@ set(SOURCES
   misc/error.cpp
   misc/errorstrings.cpp
   misc/fmtmessage.cpp
-  misc/identity.cpp
   misc/miscpalapi.cpp
   misc/msgbox.cpp
   misc/strutil.cpp
   misc/sysinfo.cpp
   misc/time.cpp
   misc/utils.cpp
+  numa/numa.cpp
   objmgr/palobjbase.cpp
   objmgr/shmobject.cpp
   objmgr/shmobjectmanager.cpp
@@ -371,6 +372,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
     ${KVM}
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+
+if(HAVE_NUMA_H)
+  target_link_libraries(coreclrpal
+    numa
+  )
+endif(HAVE_NUMA_H)
 
 add_subdirectory(examples)
 

@@ -35,6 +35,8 @@ check_include_files(libunwind.h HAVE_LIBUNWIND_H)
 check_include_files(runetype.h HAVE_RUNETYPE_H)
 check_include_files(semaphore.h HAVE_SEMAPHORE_H)
 check_include_files(sys/prctl.h HAVE_PRCTL_H)
+check_include_files(numa.h HAVE_NUMA_H)
+check_include_files(pthread_np.h HAVE_PTHREAD_NP_H)
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
   set(CMAKE_REQUIRED_FLAGS "-ldl")
@@ -49,8 +51,8 @@ check_include_files(sys/sysctl.h HAVE_SYS_SYSCTL_H)
 check_include_files(gnu/lib-names.h HAVE_GNU_LIBNAMES_H)
 
 check_function_exists(kqueue HAVE_KQUEUE)
-check_function_exists(getpwuid_r HAVE_GETPWUID_R)
 
+check_library_exists(c sched_getaffinity "" HAVE_SCHED_GETAFFINITY)
 check_library_exists(pthread pthread_create "" HAVE_LIBPTHREAD)
 check_library_exists(c pthread_create "" HAVE_PTHREAD_IN_LIBC)
 
@@ -69,6 +71,7 @@ check_library_exists(${PTHREAD_LIBRARY} pthread_attr_get_np "" HAVE_PTHREAD_ATTR
 check_library_exists(${PTHREAD_LIBRARY} pthread_getattr_np "" HAVE_PTHREAD_GETATTR_NP)
 check_library_exists(${PTHREAD_LIBRARY} pthread_getcpuclockid "" HAVE_PTHREAD_GETCPUCLOCKID)
 check_library_exists(${PTHREAD_LIBRARY} pthread_sigqueue "" HAVE_PTHREAD_SIGQUEUE)
+check_library_exists(${PTHREAD_LIBRARY} pthread_getaffinity_np "" HAVE_PTHREAD_GETAFFINITY_NP)
 
 check_function_exists(sigreturn HAVE_SIGRETURN)
 check_function_exists(_thread_sys_sigreturn HAVE__THREAD_SYS_SIGRETURN)
@@ -96,6 +99,7 @@ check_function_exists(directio HAVE_DIRECTIO)
 check_function_exists(semget HAS_SYSV_SEMAPHORES)
 check_function_exists(pthread_mutex_init HAS_PTHREAD_MUTEXES)
 check_function_exists(ttrace HAVE_TTRACE)
+check_function_exists(pipe2 HAVE_PIPE2)
 set(CMAKE_REQUIRED_LIBRARIES unwind unwind-generic)
 check_cxx_source_compiles("
 #include <libunwind.h>
@@ -118,6 +122,14 @@ int main(int argc, char **argv) {
   return 0;
 }" HAVE_UNW_GET_ACCESSORS)
 set(CMAKE_REQUIRED_LIBRARIES)
+
+check_cxx_source_compiles("
+#include <pthread_np.h>
+int main(int argc, char **argv) {
+  cpuset_t cpuSet;
+
+  return 0;
+}" HAVE_CPUSET_T)
 
 check_struct_has_member ("struct stat" st_atimespec "sys/types.h;sys/stat.h" HAVE_STAT_TIMESPEC)
 check_struct_has_member ("struct stat" st_atimensec "sys/types.h;sys/stat.h" HAVE_STAT_NSEC)
@@ -406,6 +418,9 @@ int main()
 
   exit(ret);
 }" HAVE_CLOCK_MONOTONIC)
+
+check_library_exists(pthread pthread_condattr_setclock "" HAVE_PTHREAD_CONDATTR_SETCLOCK)
+
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -1007,6 +1022,25 @@ int main(int argc, char **argv)
 
     return 0;
 }" HAVE_XSW_USAGE)
+
+check_cxx_source_compiles("
+#include <signal.h>
+
+int main(int argc, char **argv)
+{
+    struct _xstate xstate;
+    struct _fpx_sw_bytes bytes;
+    return 0;
+}" HAVE_PUBLIC_XSTATE_STRUCT)
+
+check_cxx_source_compiles("
+#include <sys/prctl.h>
+
+int main(int argc, char **argv)
+{
+    int flag = (int)PR_SET_PTRACER;
+    return 0;
+}" HAVE_PR_SET_PTRACER)
 
 set(CMAKE_REQUIRED_LIBRARIES pthread)
 check_cxx_source_compiles("

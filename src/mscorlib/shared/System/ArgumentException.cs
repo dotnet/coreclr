@@ -20,7 +20,6 @@ namespace System
     // the contract of the method.  Ideally it should give a meaningful error
     // message describing what was wrong and which parameter is incorrect.
     // 
-    [Serializable]
     public class ArgumentException : SystemException
     {
         private String _paramName;
@@ -65,13 +64,12 @@ namespace System
         protected ArgumentException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            _paramName = info.GetString("ParamName");
+            throw new PlatformNotSupportedException();
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
-            info.AddValue("ParamName", _paramName, typeof(String));
         }
 
         public override String Message

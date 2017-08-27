@@ -107,6 +107,8 @@ void WriteBarrier(Object ** dst, Object * ref)
     ErectWriteBarrier(dst, ref);
 }
 
+extern "C" bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleManager** gcHandleManager, GcDacVars* gcDacVars);
+
 int __cdecl main(int argc, char* argv[])
 {
     //
@@ -123,15 +125,15 @@ int __cdecl main(int argc, char* argv[])
     //
     static MethodTable freeObjectMT;
     freeObjectMT.InitializeFreeObject();
-    g_pFreeObjectMethodTable = &freeObjectMT;
+    g_gc_pFreeObjectMethodTable = &freeObjectMT;
 
     //
     // Initialize GC heap
     //
     GcDacVars dacVars;
     IGCHeap *pGCHeap;
-    IGCHandleTable *pGCHandleTable;
-    if (!InitializeGarbageCollector(nullptr, &pGCHeap, &pGCHandleTable, &dacVars))
+    IGCHandleManager *pGCHandleManager;
+    if (!InitializeGarbageCollector(nullptr, &pGCHeap, &pGCHandleManager, &dacVars))
     {
         return -1;
     }
@@ -140,9 +142,9 @@ int __cdecl main(int argc, char* argv[])
         return -1;
 
     //
-    // Initialize handle table
+    // Initialize handle manager
     //
-    if (!pGCHandleTable->Initialize())
+    if (!pGCHandleManager->Initialize())
         return -1;
 
     //

@@ -9,12 +9,10 @@
 using System.Diagnostics.Contracts;
 
 using System;
-using System.Runtime.Remoting;
 using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     internal sealed class Empty : ISerializable
     {
         private Empty()
@@ -30,12 +28,7 @@ namespace System
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-            {
-                throw new ArgumentNullException(nameof(info));
-            }
-            Contract.EndContractBlock();
-            UnitySerializationHolder.GetUnitySerializationInfo(info, UnitySerializationHolder.EmptyUnity, null, null);
+            throw new PlatformNotSupportedException();
         }
     }
 }

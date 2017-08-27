@@ -197,7 +197,10 @@ BOOL IsRundownNgenKeywordEnabledAndNotSuppressed()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return 
+    return
+#ifdef FEATURE_PERFTRACING
+        EventPipeHelper::Enabled() ||
+#endif // FEATURE_PERFTRACING
     (
         ETW_TRACING_CATEGORY_ENABLED(
             MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, 
@@ -1340,7 +1343,7 @@ void BulkComLogger::LogAllComObjects()
     // We need to do work in HandleWalkCallback which may trigger a GC.  We cannot do this while
     // enumerating the handle table.  Instead, we will build a list of RefCount handles we found
     // during the handle table enumeration first (m_enumResult) during this enumeration:
-    Ref_TraceRefCountHandles(BulkComLogger::HandleWalkCallback, uintptr_t(this), 0);
+    GCHandleUtilities::GetGCHandleManager()->TraceRefCountedHandles(BulkComLogger::HandleWalkCallback, uintptr_t(this), 0);
 
     // Now that we have all of the object handles, we will walk all of the handles and write the
     // etw events.
@@ -4465,10 +4468,10 @@ extern "C"
 
 #ifdef _TARGET_AMD64_
             // We only do this on amd64  (NOT ARM, because ARM uses frame based stack crawling)
-            // If we have turned on the JIT keyword to the VERBOSE setting (needed to get JIT names) then
+            // If we have turned on the JIT keyword to the INFORMATION setting (needed to get JIT names) then
             // we assume that we also want good stack traces so we need to publish unwind information so
             // ETW can get at it
-            if(bIsPublicTraceHandle && ETW_CATEGORY_ENABLED((*context), TRACE_LEVEL_VERBOSE, CLR_RUNDOWNJIT_KEYWORD))
+            if(bIsPublicTraceHandle && ETW_CATEGORY_ENABLED((*context), TRACE_LEVEL_INFORMATION, CLR_RUNDOWNJIT_KEYWORD))
                 UnwindInfoTable::PublishUnwindInfo(g_fEEStarted != FALSE);
 #endif
 
@@ -4886,12 +4889,10 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
             UINT startupFlags = 0;
             PathString dllPath;
             UINT8 Sku = 0;
-            _ASSERTE(g_fEEManagedEXEStartup ||   //CLR started due to a managed exe
-                g_fEEIJWStartup ||               //CLR started as a mixed mode Assembly
-                CLRHosted() || g_fEEHostedStartup || //CLR started through one of the Hosting API CLRHosted() returns true if CLR started through the V2 Interface while 
-                                                    // g_fEEHostedStartup is true if CLR is hosted through the V1 API.
-                g_fEEComActivatedStartup ||      //CLR started as a COM object
-                g_fEEOtherStartup  );            //In case none of the 4 above mentioned cases are true for example ngen, ildasm then we asssume its a "other" startup
+            _ASSERTE(CLRHosted() || g_fEEHostedStartup || // CLR started through one of the Hosting API CLRHosted() returns true if CLR started through the V2 Interface while 
+                                                          // g_fEEHostedStartup is true if CLR is hosted through the V1 API.
+                     g_fEEComActivatedStartup ||          //CLR started as a COM object
+                     g_fEEOtherStartup  );                //In case none of the 4 above mentioned cases are true for example ngen, ildasm then we asssume its a "other" startup
 
             Sku = ETW::InfoLog::InfoStructs::CoreCLR;
         
@@ -4914,18 +4915,7 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
 
 
             // Determine the startupmode
-            if(g_fEEIJWStartup)
-            {
-                //IJW Mode
-                startupMode = ETW::InfoLog::InfoStructs::IJW;
-            }
-            else if(g_fEEManagedEXEStartup) 
-            {
-                //managed exe
-                startupMode = ETW::InfoLog::InfoStructs::ManagedExe;
-                lpwszCommandLine = WszGetCommandLine();
-            }
-            else if (CLRHosted() || g_fEEHostedStartup)
+            if (CLRHosted() || g_fEEHostedStartup)
             {
                 //Hosted CLR
                 startupMode = ETW::InfoLog::InfoStructs::HostedCLR;
@@ -6760,9 +6750,9 @@ VOID ETW::MethodLog::SendHelperEvent(ULONGLONG ullHelperStartAddress, ULONG ulHe
                                      ulHelperSize, 
                                      0, 
                                      methodFlags, 
-                                     NULL, 
+                                     NULL,
                                      pHelperName, 
-                                     NULL, 
+                                     NULL,
                                      GetClrInstanceId());
     }
 }
@@ -6844,7 +6834,7 @@ VOID ETW::MethodLog::SendEventsForJitMethodsHelper(BaseDomain *pDomainFilter,
         // manager locks.
         // see code:#TableLockHolder
         ReJITID rejitID =
-            fGetReJitIDs ? pMD->GetReJitManager()->GetReJitIdNoLock(pMD, codeStart) : 0;
+            fGetReJitIDs ? ReJitManager::GetReJitIdNoLock(pMD, codeStart) : 0;
 
         // There are small windows of time where the heap iterator may come across a
         // codeStart that is not yet published to the MethodDesc. This may happen if
@@ -6972,8 +6962,8 @@ VOID ETW::MethodLog::SendEventsForJitMethods(BaseDomain *pDomainFilter, LoaderAl
         // We only support getting rejit IDs when filtering by domain.
         if (pDomainFilter)
         {
-            ReJitManager::TableLockHolder lkRejitMgrSharedDomain(SharedDomain::GetDomain()->GetReJitManager());
-            ReJitManager::TableLockHolder lkRejitMgrModule(pDomainFilter->GetReJitManager());
+            CodeVersionManager::TableLockHolder lkRejitMgrSharedDomain(SharedDomain::GetDomain()->GetCodeVersionManager());
+            CodeVersionManager::TableLockHolder lkRejitMgrModule(pDomainFilter->GetCodeVersionManager());
             SendEventsForJitMethodsHelper(pDomainFilter,
                 pLoaderAllocatorFilter,
                 dwEventOptions,
@@ -7385,3 +7375,12 @@ VOID ETW::EnumerationLog::EnumerationHelper(Module *moduleFilter, BaseDomain *do
 }
 
 #endif // !FEATURE_REDHAWK
+
+#ifdef FEATURE_PERFTRACING
+#include "eventpipe.h"
+bool EventPipeHelper::Enabled()
+{
+    LIMITED_METHOD_CONTRACT;
+    return EventPipe::Enabled();
+}
+#endif // FEATURE_PERFTRACING

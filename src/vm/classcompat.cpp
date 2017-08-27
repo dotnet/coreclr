@@ -25,14 +25,12 @@
 #include "threads.h"
 #include "stublink.h"
 #include "dllimport.h"
-#include "verifier.hpp"
 #include "jitinterface.h"
 #include "eeconfig.h"
 #include "log.h"
 #include "fieldmarshaler.h"
 #include "cgensys.h"
 #include "gcheaputilities.h"
-#include "security.h"
 #include "dbginterface.h"
 #include "comdelegate.h"
 #include "sigformat.h"
@@ -55,7 +53,6 @@
 #include "clrtocomcall.h"
 #include "runtimecallablewrapper.h"
 
-#include "listlock.inl"
 #include "generics.h"
 #include "contractimpl.h"
 
@@ -1308,11 +1305,6 @@ VOID MethodTableBuilder::BuildInteropVTable_PlaceVtableMethods(
         InterfaceInfo_t *pCurItfInfo = &(bmtInterface->pInterfaceMap[wCurInterface]);
         // The interface we are attempting to place
         MethodTable *pInterface = pCurItfInfo->m_pMethodTable;
-
-        _ASSERTE(!(pCurItfInfo->IsDeclaredOnClass() &&
-           !pInterface->IsExternallyVisible() &&
-                 pInterface->GetAssembly() != bmtType->pModule->GetAssembly() &&
-           !Security::CanSkipVerification(GetAssembly()->GetDomainAssembly())));
 
         // Did we place this interface already due to the parent class's interface placement?
         if (pCurItfInfo->GetInteropStartSlot() != MethodTable::NO_SLOT)
@@ -2821,32 +2813,6 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
         {
             Classification = mcIL;
         }
-
-
-#ifdef _DEBUG
-        // We don't allow stack based declarative security on ecalls, fcalls and
-        // other special purpose methods implemented by the EE (the interceptor
-        // we use doesn't play well with non-jitted stubs).
-        if ((Classification == mcFCall || Classification == mcEEImpl) &&
-            (IsMdHasSecurity(dwMemberAttrs) || IsTdHasSecurity(GetAttrClass())))
-        {
-            DWORD dwSecFlags;
-            DWORD dwNullDeclFlags;
-
-            if (IsTdHasSecurity(GetAttrClass()) &&
-                SUCCEEDED(Security::GetDeclarationFlags(pMDInternalImport, GetCl(), &dwSecFlags, &dwNullDeclFlags)))
-            {
-                CONSISTENCY_CHECK_MSG(!(dwSecFlags & ~dwNullDeclFlags & DECLSEC_RUNTIME_ACTIONS),
-                                      "Cannot add stack based declarative security to a class containing an ecall/fcall/special method.");
-            }
-            if (IsMdHasSecurity(dwMemberAttrs) &&
-                SUCCEEDED(Security::GetDeclarationFlags(pMDInternalImport, tok, &dwSecFlags, &dwNullDeclFlags)))
-            {
-                CONSISTENCY_CHECK_MSG(!(dwSecFlags & ~dwNullDeclFlags & DECLSEC_RUNTIME_ACTIONS),
-                                      "Cannot add stack based declarative security to an ecall/fcall/special method.");
-            }
-        }
-#endif // _DEBUG
 
         // Generic methods should always be mcInstantiated
         if (!((numGenericMethodArgs == 0) || ((Classification & mdcClassification) == mcInstantiated)))

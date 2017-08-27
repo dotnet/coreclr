@@ -15,7 +15,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class OverflowException : ArithmeticException
     {
         public OverflowException()
@@ -36,6 +35,9 @@ namespace System
             HResult = __HResults.COR_E_OVERFLOW;
         }
 
-        protected OverflowException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected OverflowException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

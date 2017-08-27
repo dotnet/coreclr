@@ -32,6 +32,7 @@ function print_usage {
     echo '                                     specified by --testRootDir. Multiple of this switch may be specified.'
     echo '  --testDirFile=<path>             : Run tests only in the directories specified by the file at <path>. Paths are listed'
     echo '                                     one line, relative to the directory specified by --testRootDir.'
+    echo '  --build-overlay-only             : Build coreoverlay only, and skip running tests.'
     echo '  --runFailingTestsOnly            : Run only the tests that are disabled on this platform due to unexpected failures.'
     echo '                                     Failing tests are listed in coreclr/tests/failingTestsOutsideWindows.txt, one per'
     echo '                                     line, as paths to .sh files relative to the directory specified by --testRootDir.'
@@ -51,15 +52,16 @@ function print_usage {
     echo '  --jitforcerelocs                 : Runs the tests with COMPlus_ForceRelocs=1'
     echo '  --jitdisasm                      : Runs jit-dasm on the tests'
     echo '  --gcstresslevel=<n>              : Runs the tests with COMPlus_GCStress=n'
+    echo '  --ilasmroundtrip                 : Runs ilasm round trip on the tests'
     echo '    0: None                                1: GC on all allocs and '"'easy'"' places'
     echo '    2: GC on transitions to preemptive GC  4: GC on every allowable JITed instr'
     echo '    8: GC on every allowable NGEN instr   16: GC only on a unique stack trace'
     echo '  --long-gc                        : Runs the long GC tests'
     echo '  --gcsimulator                    : Runs the GCSimulator tests'
+    echo '  --tieredcompilation              : Runs the tests with COMPlus_EXPERIMENTAL_TieredCompilation=1'
     echo '  --link <ILlink>                  : Runs the tests after linking via ILlink'
     echo '  --show-time                      : Print execution sequence and running time for each test'
     echo '  --no-lf-conversion               : Do not execute LF conversion before running test script'
-    echo '  --build-overlay-only             : Exit after overlay directory is populated'
     echo '  --limitedDumpGeneration          : Enables the generation of a limited number of core dumps if test(s) crash, even if ulimit'
     echo '                                     is zero when launching this script. This option is intended for use in CI.'
     echo '  --xunitOutputPath=<path>         : Create xUnit XML report at the specifed path (default: <test root>/coreclrtests.xml)'
@@ -406,7 +408,7 @@ function precompile_overlay_assemblies {
                 $overlayDir/crossgen /Platform_Assemblies_Paths $overlayDir $filename 1> $filename.stdout 2>$filename.stderr
                 local exitCode=$?
                 if [[ $exitCode != 0 ]]; then
-                    if grep -q -e '(COR_E_ASSEMBLYEXPECTED)' $filename.stderr; then
+                    if grep -q -e '0x80131018' $filename.stderr; then
                         printf "\n\t$filename is not a managed assembly.\n\n"
                     else
                         echo Unable to precompile $filename.
@@ -476,6 +478,10 @@ function load_unsupported_tests {
 function load_failing_tests {
     # Load the list of tests that fail on this platform. These tests are disabled (skipped) temporarily, pending investigation.
     failingTests=($(read_array "$(dirname "$0")/testsFailingOutsideWindows.txt"))
+   
+    if [ "$ARCH" == "arm64" ]; then
+        failingTests+=($(read_array "$(dirname "$0")/testsFailingOnArm64.txt"))
+    fi
 }
 
 function load_playlist_tests {
@@ -570,6 +576,14 @@ function set_up_core_dump_generation {
 }
 
 function print_info_from_core_file {
+
+    #### temporary
+    if [ "$ARCH" == "arm64" ]; then
+        echo "Not inspecting core dumps on arm64 at the moment."
+        return
+    fi
+    ####
+
     local core_file_name=$1
     local executable_name=$2
 
@@ -975,6 +989,7 @@ illinker=
 verbose=0
 doCrossgen=0
 jitdisasm=0
+ilasmroundtrip=
 
 for i in "$@"
 do
@@ -1005,8 +1020,14 @@ do
             export ILLINK=${i#*=}
             export DoLink=true
             ;;
+        --tieredcompilation)
+            export COMPlus_EXPERIMENTAL_TieredCompilation=1
+            ;;
         --jitdisasm)
             jitdisasm=1
+            ;;
+        --ilasmroundtrip)
+            ((ilasmroundtrip = 1))
             ;;
         --testRootDir=*)
             testRootDir=${i#*=}
@@ -1139,6 +1160,11 @@ if [[ ! "$jitdisasm" -eq 0 ]]; then
     export RunningJitDisasm=1
 fi
 
+if [ ! -z "$ilasmroundtrip" ]; then
+    echo "Running Ilasm round trip"
+    export RunningIlasmRoundTrip=1
+fi
+
 # If this is a coverage run, make sure the appropriate args have been passed
 if [ "$CoreClrCoverage" == "ON" ]
 then
@@ -1178,7 +1204,7 @@ precompile_overlay_assemblies
 
 if [ "$buildOverlayOnly" == "ON" ];
 then
-    echo "Build overlay directory \'$coreOverlayDir\' complete."
+    echo "Build overlay directory '$coreOverlayDir' complete."
     exit 0
 fi
 
@@ -1196,7 +1222,7 @@ fi
 if [ "$ARCH" == "x64" ]
 then
     scriptPath=$(dirname $0)
-    ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$coreOverlayDir
+    ${scriptPath}/setup-stress-dependencies.sh --outputDir=$coreOverlayDir
 else
     if [ "$ARCH" != "arm64" ]
     then

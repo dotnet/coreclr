@@ -25,8 +25,6 @@ uint32_t* g_card_bundle_table = nullptr;
 // This is the global GC heap, maintained by the VM.
 GPTR_IMPL(IGCHeap, g_pGCHeap);
 
-IGCHandleTable* g_pGCHandleTable = nullptr;
-
 GcDacVars g_gc_dac_vars;
 GPTR_IMPL(GcDacVars, g_gcDacGlobals);
 
@@ -38,37 +36,3 @@ bool g_sw_ww_enabled_for_gc_heap = false;
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
 gc_alloc_context g_global_alloc_context = {};
-
-// Debug-only validation for handle.
-void ValidateHandleAndAppDomain(OBJECTHANDLE handle)
-{
-#ifdef _DEBUG_IMPL
-    OBJECTREF objRef = ObjectToOBJECTREF(*(Object**)handle);
-    VALIDATEOBJECTREF(objRef);
-
-    IGCHandleTable *pHandleTable = GCHandleTableUtilities::GetGCHandleTable();
-
-    DWORD context = (DWORD)pHandleTable->GetHandleContext(handle);
-
-    ADIndex appDomainIndex = ADIndex(context);
-    AppDomain *domain = SystemDomain::GetAppDomainAtIndex(appDomainIndex);
-
-    // Access to a handle in an unloaded domain is not allowed
-    assert(domain != nullptr);
-    assert(!domain->NoAccessToHandleTable());
-
-#if CHECK_APP_DOMAIN_LEAKS
-    if (g_pConfig->AppDomainLeaks() && objRef != NULL)
-    {
-        if (appDomainIndex.m_dwIndex)
-        {
-            objRef->TryAssignAppDomain(domain);
-        }
-        else
-        {
-            objRef->TrySetAppDomainAgile();
-        }
-    }
-#endif // CHECK_APP_DOMAIN_LEAKS
-#endif // _DEBUG_IMPL
-}

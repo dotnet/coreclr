@@ -46,7 +46,7 @@ public:
     // PInvoke stub helpers
     //-------------------------------------------------------
 
-    static FCDECL1(double,          DateMarshaler__ConvertToNative,  INT64 managedDate);
+    static FCDECL1_V(double,        DateMarshaler__ConvertToNative,  INT64 managedDate);
     static FCDECL1_V(INT64,         DateMarshaler__ConvertToManaged, double nativeDate);
 
     static FCDECL4(void,            ValueClassMarshaler__ConvertToNative, LPVOID pDest, LPVOID pSrc, MethodTable* pMT, OBJECTREF *ppCleanupWorkListOnStack);
@@ -153,7 +153,7 @@ public:
     static FCDECL2(ReflectClassBaseObject *,    WinRTTypeNameConverter__GetTypeFromWinRTTypeName, StringObject *pWinRTTypeNameUNSAFE, CLR_BOOL *pbIsPrimitive);
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
     static FCDECL2(void,            MulticastDebuggerTraceHelper, Object*, INT32);
 #endif
 };

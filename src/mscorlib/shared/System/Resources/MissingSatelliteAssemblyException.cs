@@ -20,7 +20,6 @@ using System.Runtime.Serialization;
 
 namespace System.Resources
 {
-    [Serializable]
     public class MissingSatelliteAssemblyException : SystemException
     {
         private String _cultureName;
@@ -53,6 +52,7 @@ namespace System.Resources
         protected MissingSatelliteAssemblyException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
 
         public String CultureName

@@ -44,6 +44,13 @@
 #define UtilMessageBoxNonLocalizedVA __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 #define WszMessageBox __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 
+// Hot cache lines need to be aligned to cache line size to improve performance
+#if defined(ARM64)
+#define MAX_CACHE_LINE_SIZE 128
+#else
+#define MAX_CACHE_LINE_SIZE 64
+#endif
+
 //========================================================================
 // More convenient names for integer types of a guaranteed size.
 //========================================================================
@@ -356,27 +363,8 @@ HRESULT VMPostError(                    // Returned error.
 //=====================================================================
 // Displays the messaage box or logs the message, corresponding to the last COM+ error occurred
 void VMDumpCOMErrors(HRESULT hrErr);
-HRESULT LoadMscorsn();
 
 #include "nativevaraccessors.h"
-
-#ifndef FEATURE_PAL
-
-HRESULT WszSHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, size_t cchPath, __out_ecount(MAX_LONGPATH) LPWSTR pszwPath);
-HRESULT WszShellExecute(HWND hwnd, LPCTSTR lpOperation, LPCTSTR lpFile, LPCTSTR lpParameters, LPCTSTR lpDirectory, INT nShowCmd);
-
-#ifndef DACCESS_COMPILE
-#include "shellapi.h"
-HRESULT WszShellExecuteEx(LPSHELLEXECUTEINFO lpExecInfo);
-#endif // #ifndef DACCESS_COMPILE
-
-#endif // !FEATURE_PAL
-
-BOOL GetUserDir(__out_ecount(bufferCount) WCHAR * buffer, size_t bufferCount, BOOL fRoaming);
-BOOL GetInternetCacheDir(__out_ecount(bufferCount) WCHAR * buffer, size_t bufferCount );
-
-HRESULT GetUserSidString (HANDLE hToken,  __deref_out LPWSTR *wszSid);
-BOOL IsUserProfileLoaded();
 
 //======================================================================
 // Stack friendly registry helpers
@@ -1083,7 +1071,7 @@ public:
         MODULE_LOAD_NOTIFICATION=1,
         MODULE_UNLOAD_NOTIFICATION=2,
         JIT_NOTIFICATION=3,
-        JIT_DISCARD_NOTIFICATION=4,
+        JIT_PITCHING_NOTIFICATION=4,
         EXCEPTION_NOTIFICATION=5,
         GC_NOTIFICATION= 6,
         CATCH_ENTER_NOTIFICATION = 7,
@@ -1091,7 +1079,7 @@ public:
     
     // called from the runtime
     static void DoJITNotification(MethodDesc *MethodDescPtr);
-    static void DoJITDiscardNotification(MethodDesc *MethodDescPtr);    
+    static void DoJITPitchingNotification(MethodDesc *MethodDescPtr);
     static void DoModuleLoadNotification(Module *Module);
     static void DoModuleUnloadNotification(Module *Module);
     static void DoExceptionNotification(class Thread* ThreadPtr);
@@ -1101,7 +1089,7 @@ public:
     // called from the DAC
     static int GetType(TADDR Args[]);
     static BOOL ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr);
-    static BOOL ParseJITDiscardNotification(TADDR Args[], TADDR& MethodDescPtr);
+    static BOOL ParseJITPitchingNotification(TADDR Args[], TADDR& MethodDescPtr);
     static BOOL ParseModuleLoadNotification(TADDR Args[], TADDR& ModulePtr);
     static BOOL ParseModuleUnloadNotification(TADDR Args[], TADDR& ModulePtr);
     static BOOL ParseExceptionNotification(TADDR Args[], TADDR& ThreadPtr);

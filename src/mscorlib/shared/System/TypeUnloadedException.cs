@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class TypeUnloadedException : SystemException
     {
         public TypeUnloadedException()
@@ -26,13 +25,11 @@ namespace System
         {
             HResult = __HResults.COR_E_TYPEUNLOADED;
         }
-
-        //
-        // This constructor is required for serialization;
-        //
+        
         protected TypeUnloadedException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

@@ -15,7 +15,6 @@ namespace System
     // The MemberAccessException is thrown when trying to access a class
     // member fails.
     // 
-    [Serializable]
     public class MemberAccessException : SystemException
     {
         // Creates a new MemberAccessException with its message string set to
@@ -43,6 +42,9 @@ namespace System
             HResult = __HResults.COR_E_MEMBERACCESS;
         }
 
-        protected MemberAccessException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected MemberAccessException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

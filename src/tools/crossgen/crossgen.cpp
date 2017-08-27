@@ -109,6 +109,7 @@ void PrintUsageHelper()
        W("    /? or /help          - Display this screen\n")
        W("    /nologo              - Prevents displaying the logo\n")
        W("    /silent              - Do not display completion message\n")
+       W("    /verbose             - Display verbose information\n")
        W("    @response.rsp        - Process command line arguments from specified\n")
        W("                           response file\n")
        W("    /partialtrust        - Assembly will be run in a partial trust domain.\n")
@@ -311,31 +312,12 @@ void PopulateTPAList(SString path, LPCWSTR pwszMask, SString &refTPAList, bool f
             bool fAddDelimiter = (refTPAList.GetCount() > 0)?true:false;
             bool fAddFileToTPAList = true;
             LPCWSTR pwszFilename = folderEnumerator.GetFileName();
-            if (fCompilingMscorlib)
+            
+            // No NIs are supported when creating NI images (other than NI of System.Private.CoreLib.dll).
+            if (!fCreatePDB)
             {
-                // When compiling CoreLib, no ".ni.dll" should be on the TPAList.
+                // Only CoreLib's ni.dll should be in the TPAList for the compilation of non-mscorlib assemblies.
                 if (StringEndsWith((LPWSTR)pwszFilename, W(".ni.dll")))
-                {
-                    fAddFileToTPAList = false;
-                }
-            }
-            else
-            {
-                // When creating PDBs, we must ensure that .ni.dlls are in the TPAList
-                if (!fCreatePDB)
-                {
-                    // Only CoreLib's ni.dll should be in the TPAList for the compilation of non-mscorlib assemblies.
-                    if (StringEndsWith((LPWSTR)pwszFilename, W(".ni.dll")))
-                    {
-                        if (!StringEndsWith((LPWSTR)pwszFilename, CoreLibName_NI_W))
-                        {
-                            fAddFileToTPAList = false;
-                        }
-                    }
-                }
-                
-                // Ensure that CoreLib's IL version is also not on the TPAlist for this case.                
-                if (StringEndsWith((LPWSTR)pwszFilename, CoreLibName_IL_W))
                 {
                     fAddFileToTPAList = false;
                 }
@@ -503,6 +485,10 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         {
             dwFlags |= NGENWORKER_FLAGS_SILENT;
         }
+        else if (MatchParameter(*argv, W("verbose")))
+        {
+            dwFlags |= NGENWORKER_FLAGS_VERBOSE;
+        }
         else if (MatchParameter(*argv, W("Tuning")))
         {
             dwFlags |= NGENWORKER_FLAGS_TUNING;
@@ -639,7 +625,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argv++;
             argc--;
 
-            // Clear the /fulltrust flag - /CreatePDB does not work with any other flags.
+            // Clear any extra flags - using /CreatePDB fails if any of these are set.
             dwFlags = dwFlags & ~(NGENWORKER_FLAGS_FULLTRUSTDOMAIN | NGENWORKER_FLAGS_READYTORUN);
 
             // Parse: <directory to store PDB>

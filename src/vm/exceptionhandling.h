@@ -10,13 +10,16 @@
 
 #ifdef WIN64EXCEPTIONS
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
+#define USE_PER_FRAME_PINVOKE_INIT
+#endif // _TARGET_ARM_ || _TARGET_X86_
+
+
 // This address lies in the NULL pointer partition of the process memory.
 // Accessing it will result in AV.
 #define INVALID_RESUME_ADDRESS 0x000000000000bad0
 
 #include "exstatecommon.h"
-
-LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo);
 
 EXTERN_C EXCEPTION_DISPOSITION
 ProcessCLRException(IN     PEXCEPTION_RECORD     pExceptionRecord
@@ -24,17 +27,6 @@ ProcessCLRException(IN     PEXCEPTION_RECORD     pExceptionRecord
       NOT_WIN64_ARG(IN     ULONG                 MemoryStackFp),
                     IN OUT PT_CONTEXT            pContextRecord,
                     IN OUT PT_DISPATCHER_CONTEXT pDispatcherContext);
-
-
-#ifndef FEATURE_PAL
-void __declspec(noinline)
-ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord,
-                 UINT_PTR          ReturnValue,
-                 UINT_PTR          TargetIP,
-                 UINT_PTR          TargetFrameSp);
-#endif // !FEATURE_PAL
-
-typedef DWORD_PTR   (HandlerFn)(UINT_PTR uStackFrame, Object* pExceptionObj);
 
 enum CLRUnwindStatus { UnwindPending, FirstPassComplete, SecondPassComplete };
 
@@ -203,7 +195,11 @@ public:
         DWORD dwExceptionFlags,
         StackFrame sf,
         Thread* pThread,
-        StackTraceState STState ARM_ARG(PVOID pICFSetAsLimitFrame));
+        StackTraceState STState
+#ifdef USE_PER_FRAME_PINVOKE_INIT
+        , PVOID pICFSetAsLimitFrame
+#endif // USE_PER_FRAME_PINVOKE_INIT
+        );
 
     CLRUnwindStatus ProcessExplicitFrame(
         CrawlFrame* pcfThisFrame,
@@ -801,7 +797,7 @@ private:
     {
         //
         // Due to the unexpected growth of the ExceptionTracker struct, 
-        // OS_PAGE_SIZE does not seem appropriate anymore on x64, and
+        // GetOsPageSize() does not seem appropriate anymore on x64, and
         // we should behave the same on x64 as on ia64 regardless of
         // the difference between the page sizes on the platforms.
         //

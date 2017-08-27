@@ -33,7 +33,10 @@ extern bool g_diagnostics;
 #include <xcordebug.h>
 #include <mscoree.h>
 #include <dumpcommon.h>
+typedef int T_CONTEXT;
+#include <dacprivate.h>
 #include <arrayholder.h>
+#include <releaseholder.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -46,6 +49,8 @@ extern bool g_diagnostics;
 #include <fcntl.h>
 #include <elf.h>
 #include <link.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <map>
 #include <set>
 #include <vector>

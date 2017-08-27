@@ -17,7 +17,6 @@
 #include "eeconfig.h"
 #include "product_version.h"
 #include "eventtrace.h"
-#include "security.h"
 #include "corperm.h"
 #include "dbginterface.h"
 #include "peimagelayout.inl"
@@ -207,23 +206,6 @@ template<class T> void CoTaskFree(T *p)
 
 NEW_WRAPPER_TEMPLATE1(CoTaskNewHolder, CoTaskFree<_TYPE>);
 
-BOOL PEFile::CanLoadLibrary()
-{
-    WRAPPER_NO_CONTRACT;
-
-    // Dynamic and resource modules don't need LoadLibrary.
-    if (IsDynamic() || IsResource()||IsLoaded())
-        return TRUE;
-
-    // If we're been granted skip verification, OK
-    if (HasSkipVerification())
-        return TRUE;
-
-    // Otherwise, we can only load if IL only.
-    return IsILOnly();
-}
-
-
 
 //-----------------------------------------------------------------------------------------------------
 // Catch attempts to load x64 assemblies on x86, etc.
@@ -312,11 +294,6 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
     }
 #endif
 
-    // Don't do this if we are unverifiable
-    if (!CanLoadLibrary())
-        ThrowHR(SECURITY_E_UNVERIFIABLE);
-
-
     // We need contents now
     if (!HasNativeImage())
     {
@@ -376,9 +353,22 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
 #endif
         {
             if (GetILimage()->IsFile())
-                GetILimage()->LoadFromMapped();
+            {
+#ifdef PLATFORM_UNIX
+                if (GetILimage()->IsILOnly())
+                {
+                    GetILimage()->Load();
+                }
+                else
+#endif // PLATFORM_UNIX
+                {
+                    GetILimage()->LoadFromMapped();
+                }
+            }
             else
+            {
                 GetILimage()->LoadNoFile();
+            }
         }
     }
 
@@ -392,7 +382,6 @@ void PEFile::SetLoadedHMODULE(HMODULE hMod)
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckPointer(hMod));
-        PRECONDITION(CanLoadLibrary());
         POSTCONDITION(CheckLoaded());
         THROWS;
         GC_TRIGGERS;
@@ -1241,17 +1230,6 @@ BOOL PEAssembly::CheckNativeImageVersion(PEImage *peimage)
     }
 
     CorCompileConfigFlags configFlags = PEFile::GetNativeImageConfigFlagsWithOverrides();
-
-    if (IsSystem())
-    {
-        // Require instrumented flags for mscorlib when collecting IBC data
-        CorCompileConfigFlags instrumentationConfigFlags = (CorCompileConfigFlags) (configFlags & CORCOMPILE_CONFIG_INSTRUMENTATION);
-        if ((info->wConfigFlags & instrumentationConfigFlags) != instrumentationConfigFlags)
-        {
-            ExternalLog(LL_ERROR, "Instrumented native image for System.Private.CoreLib.dll expected.");
-            ThrowHR(COR_E_NI_AND_RUNTIME_VERSION_MISMATCH);
-        }
-    }
 
     // Otherwise, match regardless of the instrumentation flags
     configFlags = (CorCompileConfigFlags) (configFlags & ~(CORCOMPILE_CONFIG_INSTRUMENTATION_NONE | CORCOMPILE_CONFIG_INSTRUMENTATION));
@@ -2849,12 +2827,22 @@ PTR_ICLRPrivBinder PEFile::GetBindingContext()
     
     PTR_ICLRPrivBinder pBindingContext = NULL;
     
-    // Mscorlib is always bound in context of the TPA Binder. However, since it gets loaded and published
-    // during EEStartup *before* TPAbinder is initialized, we dont have a binding context to publish against.
+    // CoreLibrary is always bound in context of the TPA Binder. However, since it gets loaded and published
+    // during EEStartup *before* DefaultContext Binder (aka TPAbinder) is initialized, we dont have a binding context to publish against.
     // Thus, we will always return NULL for its binding context.
     if (!IsSystem())
     {
         pBindingContext = dac_cast<PTR_ICLRPrivBinder>(GetHostAssembly());
+        if (!pBindingContext)
+        {
+            // If we do not have any binding context, check if we are dealing with
+            // a dynamically emitted assembly and if so, use its fallback load context
+            // binder reference.
+            if (IsDynamic())
+            {
+                pBindingContext = GetFallbackLoadContextBinder();
+            }
+        }
     }
     
     return pBindingContext;

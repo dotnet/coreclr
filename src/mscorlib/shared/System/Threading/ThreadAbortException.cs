@@ -18,17 +18,11 @@ using System.Runtime.Serialization;
 
 namespace System.Threading
 {
-    [Serializable]
     public sealed class ThreadAbortException : SystemException
     {
-        private ThreadAbortException()
+        internal ThreadAbortException()
         {
             HResult = __HResults.COR_E_THREADABORTED;
-        }
-
-        internal ThreadAbortException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
         }
 
         public object ExceptionState => null;

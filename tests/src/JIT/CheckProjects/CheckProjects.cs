@@ -52,9 +52,9 @@ internal class ScanProjectFiles
 
             if (binIndex < 0)
             {
-                Console.WriteLine("CORE_ROOT must be set to full path to repo test dir; was '{0}'.",
-                    coreRoot);
-                return -1;
+                Console.WriteLine("No bin directory found in CORE_ROOT path `{0}`," + 
+                    " so no checking will be performed.", coreRoot);
+                return 100;
             }
 
             string repoRoot = coreRoot.Substring(0, binIndex);
@@ -78,15 +78,19 @@ internal class ScanProjectFiles
 
         if (!Directory.Exists(projectRoot))
         {
-            Console.WriteLine("Project directory does not exist");
-            return -1;
+            Console.WriteLine("Project directory does not exist, so no checking will be performed.");
+            return 100;
         }
 
         DirectoryInfo projectRootDir = new DirectoryInfo(projectRoot);
 
         foreach (FileInfo f in projectRootDir.GetFiles("*.*proj", SearchOption.AllDirectories))
         {
-            ParseAndUpdateProj(f.FullName, s_tryAndFix);
+            if (!f.FullName.Contains("JIT\\config") && !f.FullName.Contains("JIT/config"))
+            {
+                ParseAndUpdateProj(f.FullName, s_tryAndFix);
+            }
+
         }
 
         Console.WriteLine("{0} projects, {1} needed fixes, {2} fixes deferred, {3} were fixed",

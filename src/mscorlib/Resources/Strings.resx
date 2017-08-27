@@ -88,9 +88,6 @@
   <data name="Acc_ReadOnly" xml:space="preserve">
     <value>Cannot set a constant field.</value>
   </data>
-  <data name="Acc_RvaStatic" xml:space="preserve">
-    <value>SkipVerification permission is needed to modify an image-based (RVA) static field.</value>
-  </data>
   <data name="Access_Void" xml:space="preserve">
     <value>Cannot create an instance of void.</value>
   </data>
@@ -353,7 +350,7 @@
     <value>Operation is not valid due to the current state of the object.</value>
   </data>
   <data name="Arg_InvalidSearchPattern" xml:space="preserve">
-    <value>Search pattern cannot contain ".." to move up directories and can be contained only internally in file/directory names, as in "a..b".</value>
+    <value>Search pattern '{0}' cannot contain ".." to move up directories and can be contained only internally in file/directory names, as in "a..b".</value>
   </data>
   <data name="Arg_InvalidTypeInRetType" xml:space="preserve">
     <value>The return Type contains some invalid type (i.e. null, ByRef)</value>
@@ -589,11 +586,11 @@
   <data name="Arg_ParmCnt" xml:space="preserve">
     <value>Parameter count mismatch.</value>
   </data>
-  <data name="Arg_PathIllegal" xml:space="preserve">
-    <value>The path is not of a legal form.</value>
+  <data name="Arg_PathEmpty" xml:space="preserve">
+    <value>The path is empty.</value>
   </data>
-  <data name="Arg_PathIllegalUNC" xml:space="preserve">
-    <value>The UNC path should be of the form \\\\server\\share.</value>
+  <data name="Arg_PathIllegalUNC_Path" xml:space="preserve">
+    <value>The UNC path '{0}' should be of the form \\\\server\\share.</value>
   </data>
   <data name="Arg_PlatformNotSupported" xml:space="preserve">
     <value>Operation is not supported on this platform.</value>
@@ -867,9 +864,6 @@
   </data>
   <data name="Argument_CannotSetParentToInterface" xml:space="preserve">
     <value>Cannot set parent to an interface.</value>
-  </data>
-  <data name="Argument_CantCallSecObjFunc" xml:space="preserve">
-    <value>Cannot evaluate a security function.</value>
   </data>
   <data name="Argument_CodepageNotSupported" xml:space="preserve">
     <value>{0} is not a supported code page.</value>
@@ -1384,8 +1378,8 @@
   <data name="Argument_PathEmpty" xml:space="preserve">
     <value>Path cannot be the empty string or all whitespace.</value>
   </data>
-  <data name="Argument_PathFormatNotSupported" xml:space="preserve">
-    <value>The given path's format is not supported.</value>
+  <data name="Argument_PathFormatNotSupported_Path" xml:space="preserve">
+    <value>The format of the path '{0}' is not supported.</value>
   </data>
   <data name="Argument_PreAllocatedAlreadyAllocated" xml:space="preserve">
     <value>'preAllocated' is already in use.</value>
@@ -1627,9 +1621,6 @@
   </data>
   <data name="ArgumentOutOfRange_ArrayLBAndLength" xml:space="preserve">
     <value>Higher indices will exceed Int32.MaxValue because of large lower bound and/or length.</value>
-  </data>
-  <data name="ArgumentOutOfRange_ArrayListInsert" xml:space="preserve">
-    <value>Insertion index was out of range. Must be non-negative and less than or equal to size.</value>
   </data>
   <data name="ArgumentOutOfRange_BadHourMinuteSecond" xml:space="preserve">
     <value>Hour, Minute, and Second parameters describe an un-representable DateTime.</value>
@@ -2706,7 +2697,7 @@
     <value>Could not find file '{0}'.</value>
   </data>
   <data name="IO_AlreadyExists_Name" xml:space="preserve">
-    <value>Cannot create "{0}" because a file or directory with the same name already exists.</value>
+    <value>Cannot create '{0}' because a file or directory with the same name already exists.</value>
   </data>
   <data name="IO_BindHandleFailed" xml:space="preserve">
     <value>BindHandle for ThreadPool failed on this handle.</value>
@@ -2728,9 +2719,6 @@
   </data>
   <data name="IO_InvalidStringLen_Len" xml:space="preserve">
     <value>BinaryReader encountered an invalid string length of {0} characters.</value>
-  </data>
-  <data name="IO_NoPermissionToDirectoryName" xml:space="preserve">
-    <value>&lt;Path discovery permission to the specified directory was denied.&gt;</value>
   </data>
   <data name="IO_SeekAppendOverwrite" xml:space="preserve">
     <value>Unable seek backward to overwrite data that previously existed in a file opened in Append mode.</value>
@@ -2758,6 +2746,9 @@
   </data>
   <data name="IO_PathTooLong" xml:space="preserve">
     <value>The specified file name or path is too long, or a component of the specified path is too long.</value>
+  </data>
+  <data name="IO_PathTooLong_Path" xml:space="preserve">
+    <value>The path '{0}' is too long, or a component of the specified path is too long.</value>
   </data>
   <data name="IO_UnknownFileName" xml:space="preserve">
     <value>[Unknown]</value>
@@ -2863,9 +2854,6 @@
   </data>
   <data name="NotSupported_AppX" xml:space="preserve">
     <value>{0} is not supported in AppX.</value>
-  </data>
-  <data name="NotSupported_AssemblyLoadCodeBase" xml:space="preserve">
-    <value>Assembly.Load with a Codebase is not supported.</value>
   </data>
   <data name="NotSupported_AssemblyLoadFromHash" xml:space="preserve">
     <value>Assembly.LoadFrom with hashValue is not supported.</value>
@@ -3188,6 +3176,9 @@
   <data name="PlatformNotSupported_WinRT" xml:space="preserve">
     <value>Windows Runtime is not supported on this operating system.</value>
   </data>
+  <data name="PlatformNotSupported_OverlappedIO" xml:space="preserve">
+    <value>This API is specific to the way in which Windows handles asynchronous I/O, and is not supported on this platform.</value>
+  </data>
   <data name="Policy_CannotLoadSemiTrustAssembliesDuringInit" xml:space="preserve">
     <value>All assemblies loaded as part of AppDomain initialization must be fully trusted.</value>
   </data>
@@ -3289,6 +3280,9 @@
   </data>
   <data name="Serialization_DateTimeTicksOutOfRange" xml:space="preserve">
     <value>Invalid serialized DateTime data. Ticks must be between DateTime.MinValue.Ticks and DateTime.MaxValue.Ticks.</value>
+  </data>
+  <data name="Serialization_DelegatesNotSupported" xml:space="preserve">
+    <value>Serializing delegates is not supported on this platform.</value>
   </data>
   <data name="Serialization_InsufficientDeserializationState" xml:space="preserve">
     <value>Insufficient state to deserialize the object. Missing field '{0}'. More information is needed.</value>
@@ -3575,17 +3569,8 @@
   <data name="LockRecursionException_RecursiveWriteNotAllowed" xml:space="preserve">
     <value>Recursive write lock acquisitions not allowed in this mode.</value>
   </data>
-  <data name="LockRecursionException_ReadAfterWriteNotAllowed" xml:space="preserve">
-    <value>A read lock may not be acquired with the write lock held in this mode.</value>
-  </data>
   <data name="LockRecursionException_RecursiveUpgradeNotAllowed" xml:space="preserve">
     <value>Recursive upgradeable lock acquisitions not allowed in this mode.</value>
-  </data>
-  <data name="LockRecursionException_RecursiveReadNotAllowed" xml:space="preserve">
-    <value>Recursive read lock acquisitions not allowed in this mode.</value>
-  </data>
-  <data name="LockRecursionException_WriteAfterReadNotAllowed" xml:space="preserve">
-    <value>Write lock may not be acquired with read lock held. This pattern is prone to deadlocks. Please ensure that read locks are released before taking a write lock. If an upgrade is necessary, use an upgrade lock in place of the read lock.</value>
   </data>
   <data name="LockRecursionException_WriteAfterReadNotAllowed" xml:space="preserve">
     <value>Write lock may not be acquired with read lock held. This pattern is prone to deadlocks. Please ensure that read locks are released before taking a write lock. If an upgrade is necessary, use an upgrade lock in place of the read lock.</value>

@@ -19,7 +19,6 @@
 #include <stdlib.h>
 
 #include "assemblyspec.hpp"
-#include "security.h"
 #include "eeconfig.h"
 #include "strongname.h"
 #include "strongnameholders.h"
@@ -495,18 +494,68 @@ void AssemblySpec::AssemblyNameInit(ASSEMBLYNAMEREF* pAsmName, PEImage* pImageIn
         // version
         gc.Version = AllocateObject(pVersion);
 
-
-        MethodDescCallSite ctorMethod(METHOD__VERSION__CTOR);
-            
-        ARG_SLOT VersionArgs[5] =
+        // BaseAssemblySpec and AssemblyName properties store uint16 components for the version. Version and AssemblyVersion
+        // store int32 or uint32. When the former are initialized from the latter, the components are truncated to uint16 size.
+        // When the latter are initialized from the former, they are zero-extended to int32 size. For uint16 components, the max
+        // value is used to indicate an unspecified component. For int32 components, -1 is used. Since we're initializing a
+        // Version from an assembly version, map the uint16 unspecified value to the int32 size.
+        int componentCount = 2;
+        if (m_context.usBuildNumber != (USHORT)-1)
         {
-            ObjToArgSlot(gc.Version),
-            (ARG_SLOT) m_context.usMajorVersion,      
-            (ARG_SLOT) m_context.usMinorVersion,
-            (ARG_SLOT) m_context.usBuildNumber,
-            (ARG_SLOT) m_context.usRevisionNumber,
-        };
-        ctorMethod.Call(VersionArgs);
+            ++componentCount;
+            if (m_context.usRevisionNumber != (USHORT)-1)
+            {
+                ++componentCount;
+            }
+        }
+        switch (componentCount)
+        {
+            case 2:
+            {
+                // Call Version(int, int) because Version(int, int, int, int) does not allow passing the unspecified value -1
+                MethodDescCallSite ctorMethod(METHOD__VERSION__CTOR_Ix2);
+                ARG_SLOT VersionArgs[] =
+                {
+                    ObjToArgSlot(gc.Version),
+                    (ARG_SLOT) m_context.usMajorVersion,
+                    (ARG_SLOT) m_context.usMinorVersion
+                };
+                ctorMethod.Call(VersionArgs);
+                break;
+            }
+
+            case 3:
+            {
+                // Call Version(int, int, int) because Version(int, int, int, int) does not allow passing the unspecified value -1
+                MethodDescCallSite ctorMethod(METHOD__VERSION__CTOR_Ix3);
+                ARG_SLOT VersionArgs[] =
+                {
+                    ObjToArgSlot(gc.Version),
+                    (ARG_SLOT) m_context.usMajorVersion,
+                    (ARG_SLOT) m_context.usMinorVersion,
+                    (ARG_SLOT) m_context.usBuildNumber
+                };
+                ctorMethod.Call(VersionArgs);
+                break;
+            }
+
+            default:
+            {
+                // Call Version(int, int, int, int)
+                _ASSERTE(componentCount == 4);
+                MethodDescCallSite ctorMethod(METHOD__VERSION__CTOR_Ix4);
+                ARG_SLOT VersionArgs[] =
+                {
+                    ObjToArgSlot(gc.Version),
+                    (ARG_SLOT) m_context.usMajorVersion,
+                    (ARG_SLOT) m_context.usMinorVersion,
+                    (ARG_SLOT) m_context.usBuildNumber,
+                    (ARG_SLOT) m_context.usRevisionNumber
+                };
+                ctorMethod.Call(VersionArgs);
+                break;
+            }
+        }
     }
     
     // cultureinfo
@@ -527,13 +576,13 @@ void AssemblySpec::AssemblyNameInit(ASSEMBLYNAMEREF* pAsmName, PEImage* pImageIn
         
         strCtor.Call(args);
     }
-    
 
     // public key or token byte array
     if (m_pbPublicKeyOrToken)
-        Security::CopyEncodingToByteArray((BYTE*) m_pbPublicKeyOrToken,
-                                          m_cbPublicKeyOrToken,
-                                          (OBJECTREF*) &gc.PublicKeyOrToken);
+    {
+        gc.PublicKeyOrToken = (U1ARRAYREF)AllocatePrimitiveArray(ELEMENT_TYPE_U1, m_cbPublicKeyOrToken);
+        memcpyNoGCRefs(gc.PublicKeyOrToken->m_Array, m_pbPublicKeyOrToken, m_cbPublicKeyOrToken);
+    }
 
     // simple name
     if(GetName())
@@ -719,7 +768,7 @@ PEAssembly *AssemblySpec::ResolveAssemblyFile(AppDomain *pDomain, BOOL fPreBind)
 }
 
 
-Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, AssemblyLoadSecurity *pLoadSecurity, BOOL fThrowOnFileNotFound, BOOL fRaisePrebindEvents, StackCrawlMark *pCallerStackMark)
+Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, BOOL fThrowOnFileNotFound, BOOL fRaisePrebindEvents, StackCrawlMark *pCallerStackMark)
 {
     CONTRACTL
     {
@@ -729,7 +778,7 @@ Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, AssemblyLoadSecu
     }
     CONTRACTL_END;
  
-    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, pLoadSecurity, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark);
+    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark);
     if (pDomainAssembly == NULL) {
         _ASSERTE(!fThrowOnFileNotFound);
         return NULL;
@@ -785,15 +834,6 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
         
         // ICLRPrivAssembly implements ICLRPrivBinder and thus, "is a" binder in a manner of semantics.
         pParentAssemblyBinder = pParentPEAssembly->GetBindingContext();
-        if (pParentAssemblyBinder == NULL)
-        {
-            if (pParentPEAssembly->IsDynamic())
-            {
-                // If the parent assembly is dynamically generated, then use its fallback load context
-                // as the binder.
-                pParentAssemblyBinder = pParentPEAssembly->GetFallbackLoadContextBinder();
-            }
-        }
     }
 
     if (GetPreferFallbackLoadContextBinder())
@@ -811,13 +851,12 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
         //
         // 1) Domain Neutral assembly
         // 2) Entrypoint assembly
-        // 3) RefEmitted assembly
-        // 4) AssemblyLoadContext.LoadFromAssemblyName
+        // 3) AssemblyLoadContext.LoadFromAssemblyName
         //
         // For (1) and (2), we will need to bind against the DefaultContext binder (aka TPA Binder). This happens
         // below if we do not find the parent assembly binder.
         //
-        // For (3) and (4), fetch the fallback load context binder reference.
+        // For (3), fetch the fallback load context binder reference.
         
         pParentAssemblyBinder = GetFallbackLoadContextBinderForRequestingAssembly();
     }
@@ -867,7 +906,6 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
 }
 
 DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
-                                                 AssemblyLoadSecurity *pLoadSecurity,
                                                  BOOL fThrowOnFileNotFound,
                                                  BOOL fRaisePrebindEvents,
                                                  StackCrawlMark *pCallerStackMark)
@@ -922,11 +960,11 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
     }
 
 
-    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark, pLoadSecurity));
+    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound, fRaisePrebindEvents, pCallerStackMark));
     if (pFile == NULL)
         RETURN NULL;
 
-    pAssembly = pDomain->LoadDomainAssembly(this, pFile, targetLevel, pLoadSecurity);
+    pAssembly = pDomain->LoadDomainAssembly(this, pFile, targetLevel);
 
     RETURN pAssembly;
 }

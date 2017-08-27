@@ -14,7 +14,6 @@
 #include "arraynative.h"
 #include "excep.h"
 #include "field.h"
-#include "security.h"
 #include "invokeutil.h"
 
 #include "arraynative.inl"
@@ -319,14 +318,16 @@ ArrayNative::AssignArrayEnum ArrayNative::CanAssignArrayTypeNoGC(const BASEARRAY
             return AssignDontKnow;
     }
     
-    const CorElementType srcElType = srcTH.GetSignatureCorElementType();
-    const CorElementType destElType = destTH.GetSignatureCorElementType();
+    const CorElementType srcElType = srcTH.GetVerifierCorElementType();
+    const CorElementType destElType = destTH.GetVerifierCorElementType();
     _ASSERTE(srcElType < ELEMENT_TYPE_MAX);
     _ASSERTE(destElType < ELEMENT_TYPE_MAX);
 
     // Copying primitives from one type to another
     if (CorTypeInfo::IsPrimitiveType_NoThrow(srcElType) && CorTypeInfo::IsPrimitiveType_NoThrow(destElType))
     {
+        if (srcElType == destElType)
+            return AssignWillWork;
         if (InvokeUtil::CanPrimitiveWiden(destElType, srcElType))
             return AssignPrimitiveWiden;
         else
@@ -349,10 +350,6 @@ ArrayNative::AssignArrayEnum ArrayNative::CanAssignArrayTypeNoGC(const BASEARRAY
     if (srcTH.IsInterface() && destElType != ELEMENT_TYPE_VALUETYPE)
         return AssignMustCast;
 
-    // Enum is stored as a primitive of type dest.
-    if (srcTH.IsEnum() && srcTH.GetInternalCorElementType() == destElType)
-        return AssignWillWork;
-    
     return AssignDontKnow;
 }
 
@@ -405,14 +402,16 @@ ArrayNative::AssignArrayEnum ArrayNative::CanAssignArrayType(const BASEARRAYREF 
             return AssignWrongType;
     }
     
-    const CorElementType srcElType = srcTH.GetSignatureCorElementType();
-    const CorElementType destElType = destTH.GetSignatureCorElementType();
+    const CorElementType srcElType = srcTH.GetVerifierCorElementType();
+    const CorElementType destElType = destTH.GetVerifierCorElementType();
     _ASSERTE(srcElType < ELEMENT_TYPE_MAX);
     _ASSERTE(destElType < ELEMENT_TYPE_MAX);
 
     // Copying primitives from one type to another
     if (CorTypeInfo::IsPrimitiveType_NoThrow(srcElType) && CorTypeInfo::IsPrimitiveType_NoThrow(destElType))
     {
+        if (srcElType == destElType)
+            return AssignWillWork;
         if (InvokeUtil::CanPrimitiveWiden(destElType, srcElType))
             return AssignPrimitiveWiden;
         else
@@ -435,10 +434,6 @@ ArrayNative::AssignArrayEnum ArrayNative::CanAssignArrayType(const BASEARRAYREF 
     if (srcTH.IsInterface() && destElType != ELEMENT_TYPE_VALUETYPE)
         return AssignMustCast;
 
-    // Enum is stored as a primitive of type dest.
-    if (srcTH.IsEnum() && srcTH.GetInternalCorElementType() == destElType)
-        return AssignWillWork;
-    
     return AssignWrongType;
 }
 
@@ -631,8 +626,8 @@ void ArrayNative::PrimitiveWiden(BASEARRAYREF pSrc, unsigned int srcIndex, BASEA
     TypeHandle srcTH = pSrc->GetArrayElementTypeHandle();
     TypeHandle destTH = pDest->GetArrayElementTypeHandle();
 
-    const CorElementType srcElType = srcTH.GetSignatureCorElementType();
-    const CorElementType destElType = destTH.GetSignatureCorElementType();
+    const CorElementType srcElType = srcTH.GetVerifierCorElementType();
+    const CorElementType destElType = destTH.GetVerifierCorElementType();
     const unsigned int srcSize = GetSizeForCorElementType(srcElType);
     const unsigned int destSize = GetSizeForCorElementType(destElType);
 
@@ -1125,22 +1120,6 @@ void ArrayNative::CheckElementType(TypeHandle elementType)
     {
         MethodTable *pMT = elementType.AsMethodTable();
 
-        // TODO: We also should check for type/member visibility here. To do that we can replace
-        // the following chunk of code with a simple InvokeUtil::CanAccessClass call.
-        // But it's too late to make this change in Dev10 and we want SL4 to be compatible with Dev10.
-        if (Security::TypeRequiresTransparencyCheck(pMT))
-        {
-            // The AccessCheckOptions flag doesn't matter because we just need to get the caller.
-            RefSecContext sCtx(AccessCheckOptions::kMemberAccess);
-
-            AccessCheckOptions accessCheckOptions(InvokeUtil::GetInvocationAccessCheckType(),
-                                                  NULL /*pAccessContext*/,
-                                                  TRUE /*throwIfTargetIsInaccessible*/,
-                                                  pMT  /*pTargetMT*/);
-            
-            accessCheckOptions.DemandMemberAccessOrFail(&sCtx, pMT, FALSE /*visibilityCheck*/);
-        }        
-
         // Check for byref-like types.
         if (pMT->IsByRefLike())
             COMPlusThrow(kNotSupportedException, W("NotSupported_ByRefLikeArray"));
@@ -1172,7 +1151,6 @@ void ArrayNative::CheckElementType(TypeHandle elementType)
     CorElementType etType = elementType.GetSignatureCorElementType();
     if (etType == ELEMENT_TYPE_PTR || etType == ELEMENT_TYPE_FNPTR)
     {
-        Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_SKIP_VER);
         return;
     }
 

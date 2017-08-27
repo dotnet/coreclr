@@ -23,7 +23,6 @@
 #include "object.h"
 #include "field.h"
 #include "excep.h"
-#include "security.h"
 #include "eeconfig.h"
 #include "corhost.h"
 #include "nativeoverlapped.h"
@@ -340,25 +339,6 @@ RegisterWaitForSingleObjectCallback_Worker(LPVOID ptr)
     GCPROTECT_END();
 }
 
-
-void ResetThreadSecurityState(Thread* pThread)
-{
-    CONTRACTL 
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    } CONTRACTL_END;
-    
-    if (pThread)
-    {
-        pThread->ResetSecurityInfo();
-    }
-}
-
-// this holder resets our thread's security state
-typedef Holder<Thread*, DoNothing<Thread*>, ResetThreadSecurityState> ThreadSecurityStateHolder;
-
 VOID NTAPI RegisterWaitForSingleObjectCallback(PVOID delegateInfo, BOOLEAN TimerOrWaitFired)
 {
     Thread* pThread = GetThread();
@@ -385,9 +365,6 @@ VOID NTAPI RegisterWaitForSingleObjectCallback(PVOID delegateInfo, BOOLEAN Timer
     _ASSERTE(pThread->m_dwLockCount == 0);
 
     GCX_COOP();
-
-    // this holder resets our thread's security state when exiting this scope
-    ThreadSecurityStateHolder  secState(pThread);
 
     RegisterWaitForSingleObjectCallback_Args args = { ((DelegateInfo*) delegateInfo), TimerOrWaitFired };
 
@@ -719,8 +696,6 @@ void __stdcall BindIoCompletionCallbackStubEx(DWORD ErrorCode,
             pHolderThread = pThread; 
         }
 
-        ThreadSecurityStateHolder  secState(pHolderThread);
-
         BindIoCompletion_Args args = {ErrorCode, numBytesTransferred, lpOverlapped, &fProcessed};
         appDomain.Release();
         ManagedThreadBase::ThreadPool(ADID(overlapped->GetAppDomainId()), BindIoCompletionCallBack_Worker, &args);
@@ -875,11 +850,8 @@ VOID WINAPI AppDomainTimerCallback(PVOID delegateInfo, BOOLEAN timerOrWaitFired)
 
     GCX_COOP();
 
-    {
-        ThreadSecurityStateHolder  secState(pThread);
-        ManagedThreadBase::ThreadPool(((DelegateInfo*)delegateInfo)->m_appDomainId, AppDomainTimerCallback_Worker, NULL);
-    }
-    
+    ManagedThreadBase::ThreadPool(((DelegateInfo*)delegateInfo)->m_appDomainId, AppDomainTimerCallback_Worker, NULL);
+
     // We should have released all locks.
     _ASSERTE(g_fEEShutDown || pThread->m_dwLockCount == 0 || pThread->m_fRudeAborted);
 }

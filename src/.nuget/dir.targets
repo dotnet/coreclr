@@ -32,10 +32,10 @@
 
     <ItemGroup Condition="'$(HasCrossTargetComponents)'=='true'">
       <NativeWithSymbolFile Include="@(CrossArchitectureSpecificNativeFileAndSymbol)">
-        <TargetPath>runtimes/$(CrossTargetComponentFolder)_$(PackagePlatform)/native</TargetPath>
+        <TargetPath>runtimes/$(CrossTargetComponentFolder)_$(Platform)/native</TargetPath>
       </NativeWithSymbolFile>
       <NativeWithSymbolFile Include="@(CrossArchitectureSpecificToolFile)">
-        <TargetPath>tools/$(CrossTargetComponentFolder)_$(PackagePlatform)</TargetPath>
+        <TargetPath>tools/$(CrossTargetComponentFolder)_$(Platform)</TargetPath>
       </NativeWithSymbolFile>
     </ItemGroup>
 
@@ -51,6 +51,8 @@
       <WindowsNativeFile Include="@(NativeWithSymbolFile)"
                          Condition="'%(NativeWithSymbolFile.Extension)'=='.dll' OR '%(NativeWithSymbolFile.Extension)'=='.exe'" />
       <WindowsSymbolFile Include="@(WindowsNativeFile -> '%(RootDir)%(Directory)PDB\%(Filename).pdb')" />
+      <!-- Crossgened files (on windows) have both a *.pdb and a *.ni.pdb symbol file.  Include the *.ni.pdb file as well if it exists. -->
+      <WindowsSymbolFile Include="@(WindowsNativeFile -> '%(RootDir)%(Directory)PDB\%(Filename).ni.pdb')" />
 
       <!--
         Search for all xplat symbol file extensions on every xplat native binary. Some binaries have
@@ -84,5 +86,19 @@
     </ItemGroup>
   </Target>
 
+  <!-- OverrideLicenseUrl is temporary till we update the buildtools to v2 -->  
+  <Target Name="OverrideLicenseUrl" BeforeTargets="GenerateNuSpec">
+    <PropertyGroup>
+      <LicenseUrl>https://github.com/dotnet/coreclr/blob/master/LICENSE.TXT</LicenseUrl>
+    </PropertyGroup>
+  </Target>
+
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory)\.., dir.targets))\dir.targets" />
+  <ItemGroup>
+    <!-- Add version file to packages -->
+    <File Condition="Exists('$(SyncInfoFile)')"
+          Include="$(SyncInfoFile)">
+          <SkipPackageFileCheck>true</SkipPackageFileCheck>
+    </File>
+  </ItemGroup>
 </Project>

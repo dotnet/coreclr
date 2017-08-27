@@ -21,7 +21,6 @@ using System.Runtime.Serialization;
 namespace System
 {
     [Obsolete("This type previously indicated an unspecified fatal error in the runtime. The runtime no longer raises this exception so this type is obsolete.")]
-    [Serializable]
     public sealed class ExecutionEngineException : SystemException
     {
         public ExecutionEngineException()
@@ -41,7 +40,5 @@ namespace System
         {
             HResult = __HResults.COR_E_EXECUTIONENGINE;
         }
-
-        internal ExecutionEngineException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }

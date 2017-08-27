@@ -146,8 +146,10 @@ namespace System.IO
         private SearchOption searchOption;
         private String fullPath;
         private String normalizedSearchPath;
-        private int oldMode;
-
+#if !PLATFORM_UNIX
+        private int _oldMode;
+        private bool _setBackOldMode;
+#endif
         internal FileSystemEnumerableIterator(String path, String originalUserPath, String searchPattern, SearchOption searchOption, SearchResultHandler<TSource> resultHandler, bool checkHost)
         {
             Contract.Requires(path != null);
@@ -156,7 +158,9 @@ namespace System.IO
             Contract.Requires(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
             Contract.Requires(resultHandler != null);
 
-            oldMode = Win32Native.SetErrorMode(Win32Native.SEM_FAILCRITICALERRORS);
+#if !PLATFORM_UNIX
+            _setBackOldMode = Interop.Kernel32.SetThreadErrorMode(Interop.Kernel32.SEM_FAILCRITICALERRORS, out _oldMode);
+#endif
 
             searchStack = new List<Directory.SearchData>();
 
@@ -284,7 +288,14 @@ namespace System.IO
             }
             finally
             {
-                Win32Native.SetErrorMode(oldMode);
+#if !PLATFORM_UNIX
+                if (_setBackOldMode)
+                {
+                    uint _ignore;
+                    Interop.Kernel32.SetThreadErrorMode(_oldMode, out _ignore);
+                }
+#endif
+
                 base.Dispose(disposing);
             }
         }
@@ -485,17 +496,14 @@ namespace System.IO
         {
             Contract.Requires(searchPattern != null);
 
-            // Win32 normalization trims only U+0020.
-            String tempSearchPattern = searchPattern.TrimEnd(PathInternal.s_trimEndChars);
-
             // Make this corner case more useful, like dir
-            if (tempSearchPattern.Equals("."))
+            if (searchPattern.Equals("."))
             {
-                tempSearchPattern = "*";
+                return "*";
             }
 
-            PathInternal.CheckSearchPattern(tempSearchPattern);
-            return tempSearchPattern;
+            PathInternal.CheckSearchPattern(searchPattern);
+            return searchPattern;
         }
 
         private static String GetNormalizedSearchCriteria(String fullSearchString, String fullPathMod)

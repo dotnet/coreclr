@@ -4,7 +4,7 @@
 
 class CrashInfo;
 
-class DataTarget : public ICLRDataTarget, ICorDebugDataTarget4
+class DumpDataTarget : public ICLRDataTarget
 {
 private:
     LONG m_ref;                         // reference count
@@ -13,8 +13,8 @@ private:
     CrashInfo* m_crashInfo;
 
 public:
-    DataTarget(pid_t pid);
-    virtual ~DataTarget();
+    DumpDataTarget(pid_t pid);
+    virtual ~DumpDataTarget();
     bool Initialize(CrashInfo* crashInfo);
 
     //
@@ -79,12 +79,4 @@ public:
         /* [size_is][in] */ BYTE *inBuffer,
         /* [in] */ ULONG32 outBufferSize,
         /* [size_is][out] */ BYTE *outBuffer);
-
-    //
-    // ICorDebugDataTarget4
-    //
-    virtual HRESULT STDMETHODCALLTYPE VirtualUnwind(
-        /* [in] */ DWORD threadId,
-        /* [in] */ ULONG32 contextSize,
-        /* [in, out, size_is(contextSize)] */ PBYTE context);
 };

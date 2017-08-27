@@ -3,20 +3,25 @@ project(protononjit)
 add_definitions(-DALT_JIT)
 add_definitions(-DFEATURE_NO_HOST)
 add_definitions(-DSELF_NO_HOST)
-add_definitions(-DFEATURE_READYTORUN_COMPILER)
 remove_definitions(-DFEATURE_MERGE_JIT_AND_ENGINE)
 
 remove_definitions(-DFEATURE_SIMD)
 remove_definitions(-DFEATURE_AVX_SUPPORT)
 
+if(FEATURE_READYTORUN)
+  add_definitions(-DFEATURE_READYTORUN_COMPILER)
+endif(FEATURE_READYTORUN)
+
 if (CLR_CMAKE_PLATFORM_ARCH_I386)
     remove_definitions(-D_TARGET_X86_=1)
     add_definitions(-D_TARGET_ARM_)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_ARM_SOURCES})
+    set(JIT_ARCH_LINK_LIBRARIES gcinfo_arm)
 elseif(CLR_CMAKE_PLATFORM_ARCH_AMD64)
     remove_definitions(-D_TARGET_AMD64_=1)
     add_definitions(-D_TARGET_ARM64_)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_ARM64_SOURCES})
+    set(JIT_ARCH_LINK_LIBRARIES gcinfo_arm64)
 else()
     clr_unknown_arch()
 endif()
@@ -49,7 +54,7 @@ set_property(TARGET protononjit APPEND_STRING PROPERTY LINK_DEPENDS ${JIT_EXPORT
 
 set(RYUJIT_LINK_LIBRARIES
    utilcodestaticnohost
-   gcinfo
+   ${JIT_ARCH_LINK_LIBRARIES}
 )
 
 if(CLR_CMAKE_PLATFORM_UNIX)

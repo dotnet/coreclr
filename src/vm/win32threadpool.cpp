@@ -86,7 +86,7 @@ SVAL_IMPL(LONG,ThreadpoolMgr,MaxFreeCPThreads);                   // = MaxFreeCP
 Volatile<LONG> ThreadpoolMgr::NumCPInfrastructureThreads = 0;      // number of threads currently busy handling draining cycle
 
 // Cacheline aligned, hot variable
-DECLSPEC_ALIGN(64) SVAL_IMPL(ThreadpoolMgr::ThreadCounter, ThreadpoolMgr, WorkerCounter);
+DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) SVAL_IMPL(ThreadpoolMgr::ThreadCounter, ThreadpoolMgr, WorkerCounter);
 
 SVAL_IMPL(LONG,ThreadpoolMgr,MinLimitTotalWorkerThreads);          // = MaxLimitCPThreadsPerCPU * number of CPUS
 SVAL_IMPL(LONG,ThreadpoolMgr,MaxLimitTotalWorkerThreads);        // = MaxLimitCPThreadsPerCPU * number of CPUS
@@ -97,7 +97,7 @@ LONG    ThreadpoolMgr::cpuUtilizationAverage = 0;
 HillClimbing ThreadpoolMgr::HillClimbingInstance;
 
 // Cacheline aligned, 3 hot variables updated in a group
-DECLSPEC_ALIGN(64) LONG ThreadpoolMgr::PriorCompletedWorkRequests = 0;
+DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) LONG ThreadpoolMgr::PriorCompletedWorkRequests = 0;
 DWORD ThreadpoolMgr::PriorCompletedWorkRequestsTime;
 DWORD ThreadpoolMgr::NextCompletedWorkRequestsTime;
 
@@ -116,10 +116,10 @@ int ThreadpoolMgr::ThreadAdjustmentInterval;
 LONG ThreadpoolMgr::Initialization=0;           // indicator of whether the threadpool is initialized.
 
 // Cacheline aligned, hot variable
-DECLSPEC_ALIGN(64) unsigned int ThreadpoolMgr::LastDequeueTime; // used to determine if work items are getting thread starved
+DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) unsigned int ThreadpoolMgr::LastDequeueTime; // used to determine if work items are getting thread starved
 
 // Move out of from preceeding variables' cache line
-DECLSPEC_ALIGN(64) int ThreadpoolMgr::offset_counter = 0;
+DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) int ThreadpoolMgr::offset_counter = 0;
 
 SPTR_IMPL(WorkRequest,ThreadpoolMgr,WorkRequestHead);        // Head of work request queue
 SPTR_IMPL(WorkRequest,ThreadpoolMgr,WorkRequestTail);        // Head of work request queue
@@ -144,17 +144,17 @@ HANDLE ThreadpoolMgr::TimerThread=NULL;
 Thread *ThreadpoolMgr::pTimerThread=NULL;
 
 // Cacheline aligned, hot variable
-DECLSPEC_ALIGN(64) DWORD ThreadpoolMgr::LastTickCount;
+DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) DWORD ThreadpoolMgr::LastTickCount;
 
 #ifdef _DEBUG
 DWORD ThreadpoolMgr::TickCountAdjustment=0;
 #endif
 
 // Cacheline aligned, hot variable
-DECLSPEC_ALIGN(64) LONG  ThreadpoolMgr::GateThreadStatus=GATE_THREAD_STATUS_NOT_RUNNING;
+DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) LONG  ThreadpoolMgr::GateThreadStatus=GATE_THREAD_STATUS_NOT_RUNNING;
 
 // Move out of from preceeding variables' cache line
-DECLSPEC_ALIGN(64) ThreadpoolMgr::RecycledListsWrapper ThreadpoolMgr::RecycledLists;
+DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) ThreadpoolMgr::RecycledListsWrapper ThreadpoolMgr::RecycledLists;
 
 ThreadpoolMgr::TimerInfo *ThreadpoolMgr::TimerInfosToBeRecycled = NULL;
 
@@ -1758,7 +1758,7 @@ DWORD WINAPI ThreadpoolMgr::intermediateThreadProc(PVOID arg)
     STATIC_CONTRACT_SO_INTOLERANT;
 
     offset_counter++;
-    if (offset_counter * offset_multiplier > PAGE_SIZE)
+    if (offset_counter * offset_multiplier > (int)GetOsPageSize())
         offset_counter = 0;
 
     (void)_alloca(offset_counter * offset_multiplier);
@@ -1815,8 +1815,8 @@ Thread* ThreadpoolMgr::CreateUnimpersonatedThread(LPTHREAD_START_ROUTINE lpStart
         // CreateNewThread takes care of reverting any impersonation - so dont do anything here.
         bOK = pThread->CreateNewThread(0,               // default stack size
                                        lpStartAddress,
-                                       lpArgs           //arguments
-                                       );
+                                       lpArgs,           //arguments
+                                       W(".NET Core ThreadPool"));
     }
     else {
 #ifndef FEATURE_PAL
@@ -4755,15 +4755,30 @@ DWORD ThreadpoolMgr::FireTimers()
                                   timerInfo,
                                   QUEUE_ONLY /* TimerInfo take care of deleting*/);
 
-                timerInfo->FiringTime = currentTime+timerInfo->Period;
+                if (timerInfo->Period != 0 && timerInfo->Period != (ULONG)-1)
+                {
+                    ULONG nextFiringTime = timerInfo->FiringTime + timerInfo->Period;
+                    DWORD firingInterval;
+                    if (TimeExpired(timerInfo->FiringTime, currentTime, nextFiringTime))
+                    {
+                        // Enough time has elapsed to fire the timer yet again. The timer is not able to keep up with the short
+                        // period, have it fire 1 ms from now to avoid spinning without a delay.
+                        timerInfo->FiringTime = currentTime + 1;
+                        firingInterval = 1;
+                    }
+                    else
+                    {
+                        timerInfo->FiringTime = nextFiringTime;
+                        firingInterval = TimeInterval(nextFiringTime, currentTime);
+                    }
 
-                if ((timerInfo->Period != 0) && (timerInfo->Period != (ULONG) -1) && (nextFiringInterval > timerInfo->Period))
-                    nextFiringInterval = timerInfo->Period;
+                    if (firingInterval < nextFiringInterval)
+                        nextFiringInterval = firingInterval;
+                }
             }
-
             else
             {
-                DWORD firingInterval = TimeInterval(timerInfo->FiringTime,currentTime);
+                DWORD firingInterval = TimeInterval(timerInfo->FiringTime, currentTime);
                 if (firingInterval < nextFiringInterval)
                     nextFiringInterval = firingInterval;
             }

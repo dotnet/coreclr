@@ -126,6 +126,8 @@ void jitShutdown()
 #ifdef FEATURE_TRACELOGGING
     JitTelemetry::NotifyDllProcessDetach();
 #endif
+
+    g_jitInitialized = false;
 }
 
 #ifndef FEATURE_MERGE_JIT_AND_ENGINE
@@ -345,9 +347,7 @@ void CILJit::ProcessShutdownWork(ICorStaticInfo* statInfo)
         // Continue, by shutting down this JIT as well.
     }
 
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
     jitShutdown();
-#endif
 
     Compiler::ProcessShutdownWork(statInfo);
 }
@@ -1295,7 +1295,7 @@ const char* Compiler::eeGetMethodName(CORINFO_METHOD_HANDLE method, const char**
         // If it's something unknown from a RET VM, or from SuperPMI, then use our own helper name table.
         if ((strcmp(name, "AnyJITHelper") == 0) || (strcmp(name, "Yickish helper name") == 0))
         {
-            if (ftnNum < CORINFO_HELP_COUNT)
+            if ((unsigned)ftnNum < CORINFO_HELP_COUNT)
             {
                 name = jitHlpFuncTable[ftnNum];
             }

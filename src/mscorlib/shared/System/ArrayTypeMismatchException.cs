@@ -18,7 +18,6 @@ namespace System
     // The ArrayMismatchException is thrown when an attempt to store
     // an object of the wrong type within an array occurs.
     // 
-    [Serializable]
     public class ArrayTypeMismatchException : SystemException
     {
         // Creates a new ArrayMismatchException with its message string set to
@@ -46,6 +45,9 @@ namespace System
             HResult = __HResults.COR_E_ARRAYTYPEMISMATCH;
         }
 
-        protected ArrayTypeMismatchException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected ArrayTypeMismatchException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

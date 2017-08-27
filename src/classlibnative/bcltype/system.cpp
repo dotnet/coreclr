@@ -316,12 +316,6 @@ FCIMPL0(StringObject*, SystemNative::_GetModuleFileName)
 }
 FCIMPLEND
 
-FCIMPL0(StringObject*, SystemNative::GetDeveloperPath)
-{
-    return NULL;
-}
-FCIMPLEND
-
 FCIMPL0(StringObject*, SystemNative::GetRuntimeDirectory)
 {
     FCALL_CONTRACT;
@@ -349,24 +343,6 @@ FCIMPL0(StringObject*, SystemNative::GetRuntimeDirectory)
 }
 FCIMPLEND
 
-FCIMPL0(StringObject*, SystemNative::GetHostBindingFile);
-{
-    FCALL_CONTRACT;
-
-    STRINGREF refRetVal = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);
-
-    LPCWSTR wszFile = g_pConfig->GetProcessBindingFile();
-    if(wszFile) 
-        refRetVal = StringObject::NewString(wszFile);
-
-    HELPER_METHOD_FRAME_END();
-    return (StringObject*)OBJECTREFToObject(refRetVal);
-}
-FCIMPLEND
-
-
 INT32 QCALLTYPE SystemNative::GetProcessorCount()
 {
     QCALL_CONTRACT;
@@ -393,31 +369,17 @@ INT32 QCALLTYPE SystemNative::GetProcessorCount()
         processorCount = systemInfo.dwNumberOfProcessors;
     }
 
+#ifdef FEATURE_PAL
+    uint32_t cpuLimit;
+
+    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < processorCount)
+        processorCount = cpuLimit;
+#endif
+
     END_QCALL;
 
     return processorCount;
 }
-
-#ifdef FEATURE_CLASSIC_COMINTEROP
-
-LPVOID QCALLTYPE SystemNative::GetRuntimeInterfaceImpl(
-    /*in*/ REFCLSID clsid,
-    /*in*/ REFIID   riid)
-{
-    QCALL_CONTRACT;
-
-    LPVOID pUnk = NULL;
-
-    BEGIN_QCALL;
-
-    IfFailThrow(E_NOINTERFACE);
-
-    END_QCALL;
-
-    return pUnk;
-}
-
-#endif
 
 FCIMPL0(FC_BOOL_RET, SystemNative::HasShutdownStarted)
 {

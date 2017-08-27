@@ -14,7 +14,6 @@ using System.Runtime.Serialization;
 
 namespace System.Threading
 {
-    [Serializable]
     public class AbandonedMutexException : SystemException
     {
         private int _mutexIndex = -1;
@@ -62,6 +61,7 @@ namespace System.Threading
         protected AbandonedMutexException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
 
         private void SetupException(int location, WaitHandle handle)

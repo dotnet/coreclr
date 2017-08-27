@@ -13,7 +13,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public sealed class DataMisalignedException : SystemException
     {
         public DataMisalignedException()
@@ -33,7 +32,5 @@ namespace System
         {
             HResult = __HResults.COR_E_DATAMISALIGNED;
         }
-
-        internal DataMisalignedException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }

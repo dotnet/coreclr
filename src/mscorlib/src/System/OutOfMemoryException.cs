@@ -17,7 +17,6 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-    [Serializable]
     public class OutOfMemoryException : SystemException
     {
         public OutOfMemoryException()
@@ -40,6 +39,7 @@ namespace System
 
         protected OutOfMemoryException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
     }
 }

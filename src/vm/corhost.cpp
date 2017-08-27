@@ -75,7 +75,7 @@ SVAL_IMPL_INIT(ECustomDumpFlavor, CCLRErrorReportingManager, g_ECustomDumpFlavor
 #ifndef DACCESS_COMPILE
 
 extern void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading);
-extern HRESULT STDMETHODCALLTYPE CoInitializeEE(DWORD fFlags);
+extern HRESULT STDAPICALLTYPE CoInitializeEE(DWORD fFlags);
 extern void PrintToStdOutA(const char *pszString);
 extern void PrintToStdOutW(const WCHAR *pwzString);
 extern BOOL g_fEEHostedStartup;
@@ -689,8 +689,6 @@ HRESULT CorHost2::_CreateAppDomain(
     EX_TRY
 #endif    
     {
-        pDomain->SetAppDomainManagerInfo(wszAppDomainManagerAssemblyName,wszAppDomainManagerTypeName,eInitializeNewDomainFlags_None);
-
         GCX_COOP();
     
         struct 
@@ -698,7 +696,6 @@ HRESULT CorHost2::_CreateAppDomain(
             STRINGREF friendlyName;
             PTRARRAYREF propertyNames;
             PTRARRAYREF propertyValues;
-            STRINGREF sandboxName;
             OBJECTREF setupInfo;
             OBJECTREF adSetup;
         } _gc;
@@ -722,27 +719,13 @@ HRESULT CorHost2::_CreateAppDomain(
             }
         }
 
-        if (dwFlags & APPDOMAIN_SECURITY_SANDBOXED)
-        {
-            _gc.sandboxName = StringObject::NewString(W("Internet"));
-        }
-        else
-        {
-            _gc.sandboxName = StringObject::NewString(W("FullTrust"));
-        }
-
         MethodDescCallSite prepareDataForSetup(METHOD__APP_DOMAIN__PREPARE_DATA_FOR_SETUP);
 
-        ARG_SLOT args[8];
+        ARG_SLOT args[4];
         args[0]=ObjToArgSlot(_gc.friendlyName);
         args[1]=ObjToArgSlot(NULL);
-        args[2]=ObjToArgSlot(NULL);
-        args[3]=ObjToArgSlot(NULL);
-        //CoreCLR shouldn't have dependencies on parent app domain.
-        args[4]=ObjToArgSlot(NULL);
-        args[5]=ObjToArgSlot(_gc.sandboxName);
-        args[6]=ObjToArgSlot(_gc.propertyNames);
-        args[7]=ObjToArgSlot(_gc.propertyValues);
+        args[2]=ObjToArgSlot(_gc.propertyNames);
+        args[3]=ObjToArgSlot(_gc.propertyValues);
 
         _gc.setupInfo=prepareDataForSetup.Call_RetOBJECTREF(args);
 
@@ -864,11 +847,6 @@ HRESULT CorHost2::_CreateDelegate(
     AssemblySpec spec;
     spec.Init(szAssemblyName);
     Assembly* pAsm=spec.LoadAssembly(FILE_ACTIVE);
-
-    // we have no signature to check so allowing calling partially trusted code
-    // can result in an exploit
-    if (!pAsm->GetSecurityDescriptor()->IsFullyTrusted())    
-          ThrowHR(COR_E_SECURITY);
 
     TypeHandle th=pAsm->GetLoader()->LoadTypeByNameThrowing(pAsm,NULL,szClassName);
     MethodDesc* pMD=NULL;
@@ -1201,6 +1179,11 @@ HRESULT  GetCLRRuntimeHost(REFIID riid, IUnknown **ppUnk)
 
 STDMETHODIMP CorHost2::UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone)
 {
+    return UnloadAppDomain2(dwDomainId, fWaitUntilDone, nullptr);
+}
+
+STDMETHODIMP CorHost2::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDone, int *pLatchedExitCode)
+{
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_SO_TOLERANT;
 
@@ -1249,14 +1232,23 @@ STDMETHODIMP CorHost2::UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone)
         }
         END_ENTRYPOINT_NOTHROW;
 
+        if (pLatchedExitCode)
+        {
+            *pLatchedExitCode = GetLatchedExitCode();
+        }
+
         return hr;
     }
-    else
 
-    return CorRuntimeHostBase::UnloadAppDomain(dwDomainId, fWaitUntilDone);
+    return CorRuntimeHostBase::UnloadAppDomain2(dwDomainId, fWaitUntilDone, pLatchedExitCode);
 }
 
-HRESULT CorRuntimeHostBase::UnloadAppDomain(DWORD dwDomainId, BOOL fSync)
+HRESULT CorRuntimeHostBase::UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone)
+{
+    return UnloadAppDomain2(dwDomainId, fWaitUntilDone, nullptr);
+}
+
+HRESULT CorRuntimeHostBase::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDone, int *pLatchedExitCode)
 {
     CONTRACTL
     {
@@ -1282,7 +1274,7 @@ HRESULT CorRuntimeHostBase::UnloadAppDomain(DWORD dwDomainId, BOOL fSync)
         //
         // However, for a thread that holds the loader lock, unloading the appDomain is
         // not a supported scenario. Thus, we should not be ending up in this code
-        // path for the FAULT violation. 
+        // path for the FAULT violation.
         //
         // Hence, the CONTRACT_VIOLATION below for overriding the FORBID_FAULT
         // for this scope only.
@@ -1292,17 +1284,22 @@ HRESULT CorRuntimeHostBase::UnloadAppDomain(DWORD dwDomainId, BOOL fSync)
         )
         {
             return HOST_E_CLRNOTAVAILABLE;
-        }   
+        }
     }
-    
+
     BEGIN_ENTRYPOINT_NOTHROW;
 
     // We do not use BEGIN_EXTERNAL_ENTRYPOINT here because
     // we do not want to setup Thread.  Process may be OOM, and we want Unload
     // to work.
-    hr =  AppDomain::UnloadById(ADID(dwDomainId), fSync);
+    hr =  AppDomain::UnloadById(ADID(dwDomainId), fWaitUntilDone);
 
     END_ENTRYPOINT_NOTHROW;
+
+    if (pLatchedExitCode)
+    {
+        *pLatchedExitCode = GetLatchedExitCode();
+    }
 
     return hr;
 }
@@ -1403,6 +1400,14 @@ HRESULT CorHost2::QueryInterface(REFIID riid, void **ppUnk)
             FastInterlockCompareExchange((LONG*)&m_Version, version, 0);
 
         *ppUnk = static_cast<ICLRRuntimeHost2 *>(this);
+    }
+    else if (riid == IID_ICLRRuntimeHost4)
+    {
+        ULONG version = 4;
+        if (m_Version == 0)
+            FastInterlockCompareExchange((LONG*)&m_Version, version, 0);
+
+        *ppUnk = static_cast<ICLRRuntimeHost4 *>(this);
     }
     else if (riid == IID_ICLRExecutionManager)
     {
@@ -1545,23 +1550,9 @@ LONG CorHost2::m_RefCount = 0;
 
 IHostControl *CorHost2::m_HostControl = NULL;
 
-LPCWSTR CorHost2::s_wszAppDomainManagerAsm = NULL;
-LPCWSTR CorHost2::s_wszAppDomainManagerType = NULL;
-EInitializeNewDomainFlags CorHost2::s_dwDomainManagerInitFlags = eInitializeNewDomainFlags_None;
-
-
 #ifdef _DEBUG
 extern void ValidateHostInterface();
 #endif
-
-// fusion's global copy of host assembly manager stuff
-BOOL g_bFusionHosted = FALSE;
-
-/*static*/ BOOL CorHost2::IsLoadFromBlocked() // LoadFrom, LoadFile and Load(byte[]) are blocked in certain hosting scenarios
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE; // as g_pHostAsmList is not defined for CoreCLR; hence above expression will be FALSE.
-}
 
 static Volatile<BOOL> fOneOnly = 0;
 
@@ -2298,19 +2289,6 @@ HRESULT CorHost2::GetCLRControl(ICLRControl** pCLRControl)
     return hr;
 }
 
-
-LPCWSTR CorHost2::GetAppDomainManagerAsm()
-{
-    LIMITED_METHOD_CONTRACT;
-    return NULL;
-}
-
-LPCWSTR CorHost2::GetAppDomainManagerType()
-{
-    LIMITED_METHOD_CONTRACT;
-    return NULL;
-}
-
 // static
 EInitializeNewDomainFlags CorHost2::GetAppDomainManagerInitializeNewDomainFlags()
 {
@@ -2543,7 +2521,7 @@ HRESULT CCLRErrorReportingManager::BucketParamsCache::SetAt(BucketParameterIndex
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (index >= InvalidBucketParamIndex)
+    if (index < 0 || index >= InvalidBucketParamIndex)
     {
         _ASSERTE(!"bad bucket parameter index");
         return E_INVALIDARG;
@@ -4249,9 +4227,9 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualProtect(LPVOID lpAddress,
                 //
                 // because the section following UEF will also be included in the region size
                 // if it has the same protection as the UEF section.
-                DWORD dwUEFSectionPageCount = ((pUEFSection->Misc.VirtualSize + OS_PAGE_SIZE - 1)/OS_PAGE_SIZE);
+                DWORD dwUEFSectionPageCount = ((pUEFSection->Misc.VirtualSize + GetOsPageSize() - 1)/GetOsPageSize());
 
-                BYTE* pAddressOfFollowingSection = pStartOfUEFSection + (OS_PAGE_SIZE * dwUEFSectionPageCount);
+                BYTE* pAddressOfFollowingSection = pStartOfUEFSection + (GetOsPageSize() * dwUEFSectionPageCount);
                 
                 // Ensure that the section following us is having different memory protection
                 MEMORY_BASIC_INFORMATION nextSectionInfo;

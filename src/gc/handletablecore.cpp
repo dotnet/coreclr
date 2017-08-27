@@ -14,6 +14,7 @@
 #include "common.h"
 
 #include "gcenv.h"
+#include "gcenv.inl"
 #include "gc.h"
 
 #ifndef FEATURE_REDHAWK
@@ -516,14 +517,14 @@ BOOL SegmentInitialize(TableSegment *pSegment, HandleTable *pTable)
 
 #ifndef FEATURE_REDHAWK // todo: implement SafeInt
     // Prefast overflow sanity check the addition
-    if (!ClrSafeInt<uint32_t>::addition(dwCommit, g_SystemInfo.dwPageSize, dwCommit))
+    if (!ClrSafeInt<uint32_t>::addition(dwCommit, OS_PAGE_SIZE, dwCommit))
     {
         return FALSE;
     }
 #endif // !FEATURE_REDHAWK
 
     // Round down to the dwPageSize
-    dwCommit &= ~(g_SystemInfo.dwPageSize - 1);
+    dwCommit &= ~(OS_PAGE_SIZE - 1);
 
     // commit the header
     if (!GCToOSInterface::VirtualCommit(pSegment, dwCommit))
@@ -908,7 +909,7 @@ void SegmentCompactAsyncPinHandles(TableSegment *pSegment, TableSegment **ppWork
 
 
 // Mark AsyncPinHandles ready to be cleaned when the marker job is processed
-BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment)
+BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment, const AsyncPinCallbackContext &callbackCtx)
 {
     CONTRACTL
     {
@@ -945,11 +946,10 @@ BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment)
             _UNCHECKED_OBJECTREF value = *pValue;
             if (!HndIsNullOrDestroyedHandle(value))
             {
-                _ASSERTE (value->GetMethodTable() == g_pOverlappedDataClass);
-                OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)value));
-                if (overlapped->GetAppDomainId() != DefaultADID && overlapped->HasCompleted())
+                // calls back into the VM using the callback given to
+                // Ref_HandleAsyncPinHandles
+                if (callbackCtx.Invoke((Object*)value))
                 {
-                    overlapped->HandleAsyncPinHandle();
                     result = TRUE;
                 }
             }
@@ -961,12 +961,12 @@ BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment)
 }
 
 // Replace an async pin handle with one from default domain
-void SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTargetTable)
+bool SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTargetTable)
 {
     CONTRACTL
     {
         GC_NOTRIGGER;
-        THROWS;
+        NOTHROW;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -975,7 +975,7 @@ void SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTarge
     if (uBlock == BLOCK_INVALID)
     {
         // There is no pinning handles.
-        return;
+        return true;
     }
     for (uBlock = 0; uBlock < pSegment->bEmptyLine; uBlock ++)
     {
@@ -1003,19 +1003,28 @@ void SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTarge
                     overlapped->m_userObject = NULL;
                 }
                 BashMTForPinnedObject(ObjectToOBJECTREF(value));
-                overlapped->m_pinSelf = CreateAsyncPinningHandle((HHANDLETABLE)pTargetTable,ObjectToOBJECTREF(value));
+
+                overlapped->m_pinSelf = HndCreateHandle((HHANDLETABLE)pTargetTable, HNDTYPE_ASYNCPINNED, ObjectToOBJECTREF(value));
+                if (!overlapped->m_pinSelf)
+                {
+                    // failed to allocate a new handle - callers have to handle this.
+                    return false;
+                }
+
                 *pValue = NULL;
             }
             pValue ++;
         } while (pValue != pLast);
     }
+
+    return true;
 }
 
 // Mark all non-pending AsyncPinHandle ready for cleanup.
 // We will queue a marker Overlapped to io completion port.  We use the marker
 // to make sure that all iocompletion jobs before this marker have been processed.
 // After that we can free the async pinned handles.
-BOOL TableHandleAsyncPinHandles(HandleTable *pTable)
+BOOL TableHandleAsyncPinHandles(HandleTable *pTable, const AsyncPinCallbackContext &callbackCtx)
 {
     CONTRACTL
     {
@@ -1034,7 +1043,7 @@ BOOL TableHandleAsyncPinHandles(HandleTable *pTable)
 
     while (pSegment)
     {
-        if (SegmentHandleAsyncPinHandles (pSegment))
+        if (SegmentHandleAsyncPinHandles (pSegment, callbackCtx))
         {
             result = TRUE;
         }
@@ -1067,6 +1076,7 @@ void TableRelocateAsyncPinHandles(HandleTable *pTable, HandleTable *pTargetTable
 
     BOOL fGotException = FALSE;
     TableSegment *pSegment = pTable->pSegmentList;
+    bool wasSuccessful = true;
     
 #ifdef _DEBUG
     // on debug builds, execute the OOM path 10% of the time.
@@ -1075,21 +1085,18 @@ void TableRelocateAsyncPinHandles(HandleTable *pTable, HandleTable *pTargetTable
 #endif
 
     // Step 1: replace pinning handles with ones from default domain
-    EX_TRY
+    while (pSegment)
     {
-        while (pSegment)
+        wasSuccessful = wasSuccessful && SegmentRelocateAsyncPinHandles (pSegment, pTargetTable);
+        if (!wasSuccessful)
         {
-            SegmentRelocateAsyncPinHandles (pSegment, pTargetTable);
-            pSegment = pSegment->pNextSegment;
+            break;
         }
-    }
-    EX_CATCH
-    {
-        fGotException = TRUE;
-    }
-    EX_END_CATCH(SwallowAllExceptions);
 
-    if (!fGotException)
+        pSegment = pSegment->pNextSegment;
+    }
+
+    if (wasSuccessful)
     {
         return;
     }
@@ -1437,7 +1444,7 @@ uint32_t SegmentInsertBlockFromFreeListWorker(TableSegment *pSegment, uint32_t u
                 void * pvCommit = pSegment->rgValue + (uCommitLine * HANDLE_HANDLES_PER_BLOCK);
 
                 // we should commit one more page of handles
-                uint32_t dwCommit = g_SystemInfo.dwPageSize;
+                uint32_t dwCommit = OS_PAGE_SIZE;
 
                 // commit the memory
                 if (!GCToOSInterface::VirtualCommit(pvCommit, dwCommit))
@@ -1585,12 +1592,15 @@ void SegmentResortChains(TableSegment *pSegment)
 
     // clear the sort flag for this segment
     pSegment->fResortChains = FALSE;
+    BOOL fScavengingOccurred = FALSE;
 
     // first, do we need to scavenge any blocks?
     if (pSegment->fNeedsScavenging)
     {
         // clear the scavenge flag
         pSegment->fNeedsScavenging = FALSE;
+
+        fScavengingOccurred = TRUE;
 
         // we may need to explicitly scan the user data chain too
         BOOL fCleanupUserData = FALSE;
@@ -1751,6 +1761,21 @@ void SegmentResortChains(TableSegment *pSegment)
             if (pSegment->rgBlockType[pSegment->rgHint[uType]] != uType)
                 pSegment->rgHint[uType] = bBlock;
         }
+        else
+        {
+            // No blocks of this type were found in the rgBlockType array, meaning either there were no
+            // such blocks on entry to this function (in which case the associated tail is guaranteed
+            // to already be marked invalid) OR that there were blocks but all of them were reclaimed
+            // by the scavenging logic above (in which case the associated tail is guaranteed to point
+            // to one of the scavenged blocks). In the latter case, the tail is currently "stale"
+            // and therefore needs to be manually updated.
+            if (pSegment->rgTail[uType] != BLOCK_INVALID)
+            {
+                _ASSERTE(fScavengingOccurred);
+                pSegment->rgTail[uType] = BLOCK_INVALID;
+                pSegment->rgHint[uType] = BLOCK_INVALID;
+            }
+        }
     }
 
     // store the new free list head
@@ -1784,7 +1809,7 @@ BOOL DoesSegmentNeedsToTrimExcessPages(TableSegment *pSegment)
     if (uEmptyLine < uDecommitLine)
     {
         // derive some useful info about the page size
-        uintptr_t dwPageRound = (uintptr_t)g_SystemInfo.dwPageSize - 1;
+        uintptr_t dwPageRound = (uintptr_t)OS_PAGE_SIZE - 1;
         uintptr_t dwPageMask  = ~dwPageRound;
 
         // compute the address corresponding to the empty line
@@ -1828,7 +1853,7 @@ void SegmentTrimExcessPages(TableSegment *pSegment)
     if (uEmptyLine < uDecommitLine)
     {
         // derive some useful info about the page size
-        uintptr_t dwPageRound = (uintptr_t)g_SystemInfo.dwPageSize - 1;
+        uintptr_t dwPageRound = (uintptr_t)OS_PAGE_SIZE - 1;
         uintptr_t dwPageMask  = ~dwPageRound;
 
         // compute the address corresponding to the empty line
@@ -1850,7 +1875,7 @@ void SegmentTrimExcessPages(TableSegment *pSegment)
             pSegment->bCommitLine = (uint8_t)((dwLo - (size_t)pSegment->rgValue) / HANDLE_BYTES_PER_BLOCK);
 
             // compute the address for the new decommit line
-            size_t dwDecommitAddr = dwLo - g_SystemInfo.dwPageSize;
+            size_t dwDecommitAddr = dwLo - OS_PAGE_SIZE;
 
             // assume a decommit line of zero until we know otheriwse
             uDecommitLine = 0;
@@ -2542,6 +2567,14 @@ uint32_t BlockFreeHandles(TableSegment *pSegment, uint32_t uBlock, OBJECTHANDLE 
     if (fAllMasksWeTouchedAreFree)
     {
         // is the block unlocked?
+        // NOTE: This check is incorrect and defeats the intended purpose of scavenging. If the
+        // current block is locked and has just been emptied, then it cannot be removed right now
+        // and therefore will nominally need to be scavenged. The only code that triggers
+        // scavenging is in SegmentRemoveFreeBlocks, and setting the flag is the only way to
+        // trigger a call into SegmentRemoveFreeBlocks call. As a result, by NOT setting the flag
+        // this code is generally PREVENTING scavenging in exactly the cases where scavenging is
+        // needed. The code is not being changed because it has always been this way and scavenging
+        // itself generally has extremely low value.
         if (!BlockIsLocked(pSegment, uBlock))
         {
             // tell the caller it might be a good idea to scan for free blocks
@@ -2719,9 +2752,8 @@ void TableFreeBulkUnpreparedHandles(HandleTable *pTable, uint32_t uType, const O
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         WRAPPER(GC_TRIGGERS);
-        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
 

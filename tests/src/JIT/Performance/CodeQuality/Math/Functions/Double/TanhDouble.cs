@@ -14,14 +14,17 @@ namespace Functions
         private const double tanhDoubleDelta = 0.0004;
         private const double tanhDoubleExpectedResult = 0.76159415578341827;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = TanhDoubleIterations)]
         public static void TanhDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    TanhDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        TanhDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {tanhDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {tanhDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

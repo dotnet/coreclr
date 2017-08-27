@@ -31,14 +31,12 @@
 #include "cgensys.h"
 #include "comtoclrcall.h"
 #include "clrtocomcall.h"
-#include "objecthandle.h"
 #include "comutilnative.h"
 #include "eeconfig.h"
 #include "interoputil.h"
 #include "dispex.h"
 #include "perfcounters.h"
 #include "guidfromname.h"
-#include "security.h"
 #include "comconnectionpoints.h"
 #include <objsafe.h>    // IID_IObjctSafe
 #include "virtualcallstub.h"
@@ -48,6 +46,7 @@
 #include "rcwwalker.h"
 #include "windowsruntimebufferhelper.h"
 #include "winrttypenameconverter.h"
+#include "typestring.h"
 
 #ifdef MDA_SUPPORTED
 const int DEBUG_AssertSlots = 50;
@@ -1933,28 +1932,6 @@ IUnknown* SimpleComCallWrapper::QIStandardInterface(REFIID riid)
         }
         break;
 
-    CASE_IID_INLINE(  enum_IObjectSafety            ,0xCB5BDC81,0x93C1,0x11cf,0x8F,0x20,0x00,0x80,0x5F,0x2C,0xD0,0x64)
-        {
-            // Don't implement IObjectSafety by default.
-            // Use IObjectSafety only for IE Hosting or similar hosts
-            // which create sandboxed AppDomains.
-            // Unconditionally implementing IObjectSafety would allow
-            // Untrusted scripts to use managed components.
-            // Managed components could implement their own IObjectSafety to
-            // override this.
-            BOOL bShouldProvideIObjectSafety=FALSE;
-            {
-                GCX_COOP();
-                AppDomainFromIDHolder pDomain(GetDomainID(), FALSE);
-                if (!pDomain.IsUnloaded()) 
-                    bShouldProvideIObjectSafety=!pDomain->GetSecurityDescriptor()->IsFullyTrusted();
-            }
-
-            if(bShouldProvideIObjectSafety)
-                RETURN QIStandardInterface(enum_IObjectSafety);
-        }
-        break;
-
     CASE_IID_INLINE(  enum_IAgileObject            ,0x94ea2b94,0xe9cc,0x49e0,0xc0,0xff,0xee,0x64,0xca,0x8f,0x5b,0x90)
         {
             // Don't implement IAgileObject if we are aggregated, if we are in a non AppX process, if the object explicitly implements IMarshal,
@@ -2665,32 +2642,6 @@ void ComCallWrapper::FreeWrapper(ComCallWrapperCache *pWrapperCache)
     pWrapperCache->Release();
 }
 
-void ComCallWrapper::DoScriptingSecurityCheck()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // If the object is shared or agile, and the current domain doesn't have
-    //  UmgdCodePermission, we fail the call.
-    AppDomain* pCurrDomain = GetThread()->GetDomain();
-    ADID currID = pCurrDomain->GetId();
-
-    ADID ccwID = m_pSimpleWrapper->GetRawDomainID();
-    
-    if (currID != ccwID)
-    {
-        IApplicationSecurityDescriptor* pASD = pCurrDomain->GetSecurityDescriptor();
-
-        if (!pASD->CanCallUnmanagedCode())
-            Security::ThrowSecurityException(g_SecurityPermissionClassName, SPFLAGSUNMANAGEDCODE);
-    }
-}
-
 //--------------------------------------------------------------------------
 //ComCallWrapper* ComCallWrapper::CreateWrapper(OBJECTREF* ppObj, ComCallWrapperTemplate *pTemplate, ComCallWrapper *pClassCCW)
 // this function should be called only with pre-emptive GC disabled
@@ -3322,9 +3273,7 @@ inline IUnknown * ComCallWrapper::GetComIPFromCCW_VisibilityCheck(
     }
     CONTRACT_END;
 
-        // Ensure that the interface we are passing out was defined in trusted code.
-    if ((!(flags & GetComIPFromCCW::SuppressSecurityCheck) && pIntfComMT->IsDefinedInUntrustedCode()) ||
-        // Do a visibility check if needed.
+    if (// Do a visibility check if needed.
         ((flags & GetComIPFromCCW::CheckVisibility) && (!pIntfComMT->IsComVisible())))
     {
         //  If not, fail to return the interface.
@@ -3746,10 +3695,8 @@ IUnknown* ComCallWrapper::GetComIPFromCCW(ComCallWrapper *pWrap, REFIID riid, Me
     ComMethodTable * pIntfComMT = ComMethodTable::ComMethodTableFromIP(pIntf);
 
     // Manual inlining of GetComIPFromCCW_VisibilityCheck() for common case.
-    if (// Ensure that the interface we are passing out was defined in trusted code.
-        (!(flags & GetComIPFromCCW::SuppressSecurityCheck) && pIntfComMT->IsDefinedInUntrustedCode())
-        // Do a visibility check if needed.
-        || ((flags & GetComIPFromCCW::CheckVisibility) && (!pIntfComMT->IsComVisible())))
+    if (// Do a visibility check if needed.
+        ((flags & GetComIPFromCCW::CheckVisibility) && (!pIntfComMT->IsComVisible())))
     {
         //  If not, fail to return the interface.
         SafeRelease(pIntf);
@@ -5044,7 +4991,7 @@ void ComMethodTable::LayOutDelegateMethodTable()
 
     // Some space for a CALL xx xx xx xx stub is reserved before the beginning of the MethodDesc
     ComCallMethodDescHolder NewMDHolder = (ComCallMethodDesc *) (pMethodDescMemory + COMMETHOD_PREPAD);
-    MethodDesc* pInvokeMD = ((DelegateEEClass *)(pDelegateMT->GetClass()))->m_pInvokeMethod;
+    MethodDesc* pInvokeMD = ((DelegateEEClass *)(pDelegateMT->GetClass()))->GetInvokeMethod();
     
     if (pInvokeMD->IsSharedByGenericInstantiations())
     {
@@ -5500,12 +5447,6 @@ ComMethodTable* ComCallWrapperTemplate::GetClassComMT()
 
     MethodTable *pMT = m_thClass.GetMethodTable();
 
-    // Preload the policy for these classes before we take the lock.
-    for (MethodTable* pMethodTable = pMT; pMethodTable != NULL; pMethodTable = pMethodTable->GetParentMethodTable())
-    {
-        Security::CanCallUnmanagedCode(pMethodTable->GetModule());
-    }
-
     // We haven't set it up yet, generate one.
     ComMethodTable* pClassComMT; 
     if (pMT->IsDelegate() && (pMT->IsProjectedFromWinRT() || WinRTTypeNameConverter::IsRedirectedType(pMT)))
@@ -5935,12 +5876,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForClass(MethodTable
     if (IsTypeVisibleFromCom(TypeHandle(pComMT->m_pMT)))
         pComMT->m_Flags |= enum_ComVisible;
 
-    if (!Security::CanCallUnmanagedCode(pComMT->m_pMT->GetModule()))
-    {
-        pComMT->m_Flags |= enum_IsUntrusted;
-    }
-
-
 #if _DEBUG
     {
         // In debug set all the vtable slots to 0xDEADCA11.
@@ -6021,11 +5956,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForInterface(MethodT
     // Determine if the interface is a COM imported class interface.
     if (pItfClass->GetClass()->IsComClassInterface())
         pComMT->m_Flags |= enum_ComClassItf;
-
-    if (!Security::CanCallUnmanagedCode(pComMT->m_pMT->GetModule()))
-    {
-        pComMT->m_Flags |= enum_IsUntrusted;
-    }
 
 #ifdef _DEBUG
     {
@@ -6112,11 +6042,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForBasic(MethodTable
     if (pMT->GetClass()->IsComClassInterface())
         pComMT->m_Flags |= enum_ComClassItf;
 
-    if (!Security::CanCallUnmanagedCode(pMT->GetModule()))
-    {
-        pComMT->m_Flags |= enum_IsUntrusted;
-    }
-
 #ifdef MDA_SUPPORTED
 #ifdef _DEBUG
     {
@@ -6197,11 +6122,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForDelegate(MethodTa
     pMTForIID->GetGuid(&pComMT->m_IID, TRUE);
 
     pComMT->m_Flags |= enum_GuidGenerated;
-
-    if (!Security::CanCallUnmanagedCode(pComMT->m_pMT->GetModule()))
-    {
-        pComMT->m_Flags |= enum_IsUntrusted;
-    }
 
 #if _DEBUG
     {
@@ -6335,11 +6255,6 @@ ComCallWrapperTemplate* ComCallWrapperTemplate::CreateTemplate(TypeHandle thClas
 
     // Preload the policy for this interface
     CCWInterfaceMapIterator it(thClass, pClsFact, true);
-    while (it.Next())
-    {
-        Module *pModule = it.GetInterface()->GetModule();
-        Security::CanCallUnmanagedCode(pModule);
-    }
 
     // Num interfaces in the template.
     unsigned numInterfaces = it.GetCount();

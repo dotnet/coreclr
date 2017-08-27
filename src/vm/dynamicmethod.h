@@ -107,6 +107,7 @@ class LCGMethodResolver : public DynamicResolver
     friend class ExecutionManager;
     friend class EEJitManager;
     friend class HostCodeHeap;
+    friend struct ExecutionManager::JumpStubCache;
 
 public:
     void Destroy(BOOL fDomainUnload = FALSE);
@@ -162,7 +163,7 @@ private:
     ChunkAllocator m_jitTempData;
     DynamicStringLiteral* m_DynamicStringLiterals;
     IndCellList * m_UsedIndCellList;    // list to keep track of all the indirection cells used by the jitted code
-    JumpStubBlockHeader* m_jumpStubBlock;
+    ExecutionManager::JumpStubCache * m_pJumpStubCache;
 };  // class LCGMethodResolver
 
 //---------------------------------------------------------------------------------------
@@ -286,7 +287,7 @@ private:
 public:
     // Space for header is reserved immediately before. It is not included in size.
     virtual void* AllocMemForCode_NoThrow(size_t header, size_t size, DWORD alignment) DAC_EMPTY_RET(NULL);
-    
+
     virtual ~HostCodeHeap() DAC_EMPTY();
 
     LoaderAllocator* GetAllocator() { return m_pAllocator; }
@@ -305,6 +306,11 @@ protected:
     friend class LCGMethodResolver;
 
     void FreeMemForCode(void * codeStart);
+
+#if defined(FEATURE_JIT_PITCHING)
+public:
+    PTR_EEJitManager GetJitManager() { return m_pJitManager; }
+#endif
 
 }; // class HostCodeHeap
 

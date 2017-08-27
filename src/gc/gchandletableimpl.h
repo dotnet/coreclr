@@ -6,43 +6,74 @@
 #define GCHANDLETABLE_H_
 
 #include "gcinterface.h"
+#include "objecthandle.h"
 
-class GCHandleTable : public IGCHandleTable
+class GCHandleStore : public IGCHandleStore
+{
+public:
+    virtual void Uproot();
+
+    virtual bool ContainsHandle(OBJECTHANDLE handle);
+
+    virtual OBJECTHANDLE CreateHandleOfType(Object* object, HandleType type);
+
+    virtual OBJECTHANDLE CreateHandleOfType(Object* object, HandleType type, int heapToAffinitizeTo);
+
+    virtual OBJECTHANDLE CreateHandleWithExtraInfo(Object* object, HandleType type, void* pExtraInfo);
+
+    virtual OBJECTHANDLE CreateDependentHandle(Object* primary, Object* secondary);
+
+    virtual void RelocateAsyncPinnedHandles(IGCHandleStore* pTarget);
+
+    virtual bool EnumerateAsyncPinnedHandles(async_pin_enum_fn callback, void* context);
+
+    virtual ~GCHandleStore();
+
+    HandleTableBucket _underlyingBucket;
+};
+
+extern GCHandleStore* g_gcGlobalHandleStore;
+
+class GCHandleManager : public IGCHandleManager
 {
 public:
     virtual bool Initialize();
 
     virtual void Shutdown();
 
-    virtual void* GetGlobalHandleStore();
-
-    virtual void* CreateHandleStore(void* context);
-
     virtual void* GetHandleContext(OBJECTHANDLE handle);
 
-    virtual void DestroyHandleStore(void* store);
+    virtual IGCHandleStore* GetGlobalHandleStore();
 
-    virtual void UprootHandleStore(void* store);
+    virtual IGCHandleStore* CreateHandleStore(void* context);
 
-    virtual bool ContainsHandle(void* store, OBJECTHANDLE handle);
+    virtual void DestroyHandleStore(IGCHandleStore* store);
 
-    virtual OBJECTHANDLE CreateHandleOfType(void* store, Object* object, int type);
-
-    virtual OBJECTHANDLE CreateHandleOfType(void* store, Object* object, int type, int heapToAffinitizeTo);
-
-    virtual OBJECTHANDLE CreateHandleWithExtraInfo(void* store, Object* object, int type, void* pExtraInfo);
-
-    virtual OBJECTHANDLE CreateDependentHandle(void* store, Object* primary, Object* secondary);
-
-    virtual OBJECTHANDLE CreateGlobalHandleOfType(Object* object, int type);
+    virtual OBJECTHANDLE CreateGlobalHandleOfType(Object* object, HandleType type);
 
     virtual OBJECTHANDLE CreateDuplicateHandle(OBJECTHANDLE handle);
 
-    virtual void DestroyHandleOfType(OBJECTHANDLE handle, int type);
+    virtual void DestroyHandleOfType(OBJECTHANDLE handle, HandleType type);
 
     virtual void DestroyHandleOfUnknownType(OBJECTHANDLE handle);
 
+    virtual void SetExtraInfoForHandle(OBJECTHANDLE handle, HandleType type, void* pExtraInfo);
+
     virtual void* GetExtraInfoFromHandle(OBJECTHANDLE handle);
+
+    virtual void StoreObjectInHandle(OBJECTHANDLE handle, Object* object);
+
+    virtual bool StoreObjectInHandleIfNull(OBJECTHANDLE handle, Object* object);
+
+    virtual void SetDependentHandleSecondary(OBJECTHANDLE handle, Object* object);
+
+    virtual Object* GetDependentHandleSecondary(OBJECTHANDLE handle);
+
+    virtual Object* InterlockedCompareExchangeObjectInHandle(OBJECTHANDLE handle, Object* object, Object* comparandObject);
+
+    virtual HandleType HandleFetchType(OBJECTHANDLE handle);
+
+    virtual void TraceRefCountedHandles(HANDLESCANPROC callback, uintptr_t param1, uintptr_t param2);
 };
 
 #endif  // GCHANDLETABLE_H_

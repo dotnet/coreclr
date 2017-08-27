@@ -206,9 +206,6 @@
 #undef CommConfigDialog
 #undef GetDefaultCommConfig
 #undef SetDefaultCommConfig
-#undef GetComputerName
-#undef SetComputerName
-#undef GetUserName
 #undef LogonUser
 #undef CreateProcessAsUser
 #undef GetCurrentHwProfile
@@ -478,9 +475,6 @@
 #define WszCommConfigDialog CommConfigDialogW
 #define WszGetDefaultCommConfig GetDefaultCommConfigW
 #define WszSetDefaultCommConfig SetDefaultCommConfigW
-#define WszGetComputerName GetComputerNameW
-#define WszSetComputerName SetComputerNameW
-#define WszGetUserName GetUserNameW
 #define WszLogonUser LogonUserW
 #define WszCreateProcessAsUser CreateProcessAsUserW
 #define WszGetCurrentHwProfile GetCurrentHwProfileW
@@ -652,7 +646,7 @@
 
 // CoreSystem has CreateSemaphoreExW but not CreateSemaphoreW.
 #undef WszCreateSemaphore
-#define WszCreateSemaphore(_secattr, _count, _maxcount, _name) CreateSemaphoreExW((_secattr), (_count), (_maxcount), (_name), 0, SEMAPHORE_ALL_ACCESS)
+#define WszCreateSemaphore(_secattr, _count, _maxcount, _name) CreateSemaphoreExW((_secattr), (_count), (_maxcount), (_name), 0, MAXIMUM_ALLOWED | SYNCHRONIZE | SEMAPHORE_MODIFY_STATE)
 
 // Same deal as above for GetFileVersionInfo/GetFileVersionInfoSize.
 #undef GetFileVersionInfo

@@ -100,21 +100,18 @@ namespace System.IO
             // Jump to the end of the file if opened as Append.
             if (_mode == FileMode.Append)
             {
-                _appendStart = SeekCore(0, SeekOrigin.End);
+                _appendStart = SeekCore(_fileHandle, 0, SeekOrigin.End);
             }
         }
 
         /// <summary>Initializes a stream from an already open file handle (file descriptor).</summary>
-        /// <param name="handle">The handle to the file.</param>
-        /// <param name="bufferSize">The size of the buffer to use when buffering.</param>
-        /// <param name="useAsyncIO">Whether access to the stream is performed asynchronously.</param>
-        private void InitFromHandle(SafeFileHandle handle)
+        private void InitFromHandle(SafeFileHandle handle, FileAccess access, bool useAsyncIO)
         {
-            if (_useAsyncIO)
+            if (useAsyncIO)
                 _asyncState = new AsyncState();
 
-            if (CanSeekCore) // use non-virtual CanSeekCore rather than CanSeek to avoid making virtual call during ctor
-                SeekCore(0, SeekOrigin.Current);
+            if (CanSeekCore(handle)) // use non-virtual CanSeekCore rather than CanSeek to avoid making virtual call during ctor
+                SeekCore(handle, 0, SeekOrigin.Current);
         }
 
         /// <summary>Translates the FileMode, FileAccess, and FileOptions values into flags to be passed when opening the file.</summary>
@@ -189,26 +186,27 @@ namespace System.IO
         }
 
         /// <summary>Gets a value indicating whether the current stream supports seeking.</summary>
-        public override bool CanSeek => CanSeekCore;
+        public override bool CanSeek => CanSeekCore(_fileHandle);
 
         /// <summary>Gets a value indicating whether the current stream supports seeking.</summary>
-        /// <remarks>Separated out of CanSeek to enable making non-virtual call to this logic.</remarks>
-        private bool CanSeekCore
+        /// <remarks>
+        /// Separated out of CanSeek to enable making non-virtual call to this logic.
+        /// We also pass in the file handle to allow the constructor to use this before it stashes the handle.
+        /// </remarks>
+        private bool CanSeekCore(SafeFileHandle fileHandle)
         {
-            get
+            if (fileHandle.IsClosed)
             {
-                if (_fileHandle.IsClosed)
-                {
-                    return false;
-                }
-
-                if (!_canSeek.HasValue)
-                {
-                    // Lazily-initialize whether we're able to seek, tested by seeking to our current location.
-                    _canSeek = Interop.Sys.LSeek(_fileHandle, 0, Interop.Sys.SeekWhence.SEEK_CUR) >= 0;
-                }
-                return _canSeek.Value;
+                return false;
             }
+
+            if (!_canSeek.HasValue)
+            {
+                // Lazily-initialize whether we're able to seek, tested by seeking to our current location.
+                _canSeek = Interop.Sys.LSeek(fileHandle, 0, Interop.Sys.SeekWhence.SEEK_CUR) >= 0;
+            }
+
+            return _canSeek.Value;
         }
 
         private long GetLengthInternal()
@@ -288,13 +286,20 @@ namespace System.IO
             }
         }
 
+        private void FlushWriteBufferForWriteByte()
+        {
+            _asyncState?.Wait();
+            try { FlushWriteBuffer(); }
+            finally { _asyncState?.Release(); }
+        }
+
         /// <summary>Writes any data in the write buffer to the underlying stream and resets the buffer.</summary>
         private void FlushWriteBuffer()
         {
             AssertBufferInvariants();
             if (_writePos > 0)
             {
-                WriteNative(GetBuffer(), 0, _writePos);
+                WriteNative(new ReadOnlySpan<byte>(GetBuffer(), 0, _writePos));
                 _writePos = 0;
             }
         }
@@ -357,7 +362,7 @@ namespace System.IO
 
             if (_filePosition != value)
             {
-                SeekCore(value, SeekOrigin.Begin);
+                SeekCore(_fileHandle, value, SeekOrigin.Begin);
             }
 
             CheckFileCall(Interop.Sys.FTruncate(_fileHandle, value));
@@ -367,54 +372,17 @@ namespace System.IO
             {
                 if (origPos < value)
                 {
-                    SeekCore(origPos, SeekOrigin.Begin);
+                    SeekCore(_fileHandle, origPos, SeekOrigin.Begin);
                 }
                 else
                 {
-                    SeekCore(0, SeekOrigin.End);
+                    SeekCore(_fileHandle, 0, SeekOrigin.End);
                 }
             }
         }
 
         /// <summary>Reads a block of bytes from the stream and writes the data in a given buffer.</summary>
-        /// <param name="array">
-        /// When this method returns, contains the specified byte array with the values between offset and 
-        /// (offset + count - 1) replaced by the bytes read from the current source.
-        /// </param>
-        /// <param name="offset">The byte offset in array at which the read bytes will be placed.</param>
-        /// <param name="count">The maximum number of bytes to read. </param>
-        /// <returns>
-        /// The total number of bytes read into the buffer. This might be less than the number of bytes requested 
-        /// if that number of bytes are not currently available, or zero if the end of the stream is reached.
-        /// </returns>
-        public override int Read(byte[] array, int offset, int count)
-        {
-            ValidateReadWriteArgs(array, offset, count);
-
-            if (_useAsyncIO)
-            {
-                _asyncState.Wait();
-                try { return ReadCore(array, offset, count); }
-                finally { _asyncState.Release(); }
-            }
-            else
-            {
-                return ReadCore(array, offset, count);
-            }
-        }
-
-        /// <summary>Reads a block of bytes from the stream and writes the data in a given buffer.</summary>
-        /// <param name="array">
-        /// When this method returns, contains the specified byte array with the values between offset and 
-        /// (offset + count - 1) replaced by the bytes read from the current source.
-        /// </param>
-        /// <param name="offset">The byte offset in array at which the read bytes will be placed.</param>
-        /// <param name="count">The maximum number of bytes to read. </param>
-        /// <returns>
-        /// The total number of bytes read into the buffer. This might be less than the number of bytes requested 
-        /// if that number of bytes are not currently available, or zero if the end of the stream is reached.
-        /// </returns>
-        private int ReadCore(byte[] array, int offset, int count)
+        private int ReadSpan(Span<byte> destination)
         {
             PrepareForReading();
 
@@ -431,16 +399,16 @@ namespace System.IO
                 // If we're not able to seek, then we're not able to rewind the stream (i.e. flushing
                 // a read buffer), in which case we don't want to use a read buffer.  Similarly, if
                 // the user has asked for more data than we can buffer, we also want to skip the buffer.
-                if (!CanSeek || (count >= _bufferLength))
+                if (!CanSeek || (destination.Length >= _bufferLength))
                 {
                     // Read directly into the user's buffer
                     _readPos = _readLength = 0;
-                    return ReadNative(array, offset, count);
+                    return ReadNative(destination);
                 }
                 else
                 {
                     // Read into our buffer.
-                    _readLength = numBytesAvailable = ReadNative(GetBuffer(), 0, _bufferLength);
+                    _readLength = numBytesAvailable = ReadNative(GetBuffer());
                     _readPos = 0;
                     if (numBytesAvailable == 0)
                     {
@@ -456,8 +424,8 @@ namespace System.IO
 
             // Now that we know there's data in the buffer, read from it into the user's buffer.
             Debug.Assert(numBytesAvailable > 0, "Data must be in the buffer to be here");
-            int bytesRead = Math.Min(numBytesAvailable, count);
-            Buffer.BlockCopy(GetBuffer(), _readPos, array, offset, bytesRead);
+            int bytesRead = Math.Min(numBytesAvailable, destination.Length);
+            new Span<byte>(GetBuffer(), _readPos, bytesRead).CopyTo(destination);
             _readPos += bytesRead;
 
             // We may not have had enough data in the buffer to completely satisfy the user's request.
@@ -468,38 +436,33 @@ namespace System.IO
             // behavior, we do the same thing here on Unix.  Note that we may still get less the requested 
             // amount, as the OS may give us back fewer than we request, either due to reaching the end of 
             // file, or due to its own whims.
-            if (!readFromOS && bytesRead < count)
+            if (!readFromOS && bytesRead < destination.Length)
             {
-                Debug.Assert(_readPos == _readLength, "bytesToRead should only be < count if numBytesAvailable < count");
+                Debug.Assert(_readPos == _readLength, "bytesToRead should only be < destination.Length if numBytesAvailable < destination.Length");
                 _readPos = _readLength = 0; // no data left in the read buffer
-                bytesRead += ReadNative(array, offset + bytesRead, count - bytesRead);
+                bytesRead += ReadNative(destination.Slice(bytesRead));
             }
 
             return bytesRead;
         }
 
-        /// <summary>Unbuffered, reads a block of bytes from the stream and writes the data in a given buffer.</summary>
-        /// <param name="array">
-        /// When this method returns, contains the specified byte array with the values between offset and 
-        /// (offset + count - 1) replaced by the bytes read from the current source.
-        /// </param>
-        /// <param name="offset">The byte offset in array at which the read bytes will be placed.</param>
-        /// <param name="count">The maximum number of bytes to read. </param>
+        /// <summary>Unbuffered, reads a block of bytes from the file handle into the given buffer.</summary>
+        /// <param name="buffer">The buffer into which data from the file is read.</param>
         /// <returns>
         /// The total number of bytes read into the buffer. This might be less than the number of bytes requested 
         /// if that number of bytes are not currently available, or zero if the end of the stream is reached.
         /// </returns>
-        private unsafe int ReadNative(byte[] array, int offset, int count)
+        private unsafe int ReadNative(Span<byte> buffer)
         {
             FlushWriteBuffer(); // we're about to read; dump the write buffer
 
             VerifyOSHandlePosition();
 
             int bytesRead;
-            fixed (byte* bufPtr = array)
+            fixed (byte* bufPtr = &buffer.DangerousGetPinnableReference())
             {
-                bytesRead = CheckFileCall(Interop.Sys.Read(_fileHandle, bufPtr + offset, count));
-                Debug.Assert(bytesRead <= count);
+                bytesRead = CheckFileCall(Interop.Sys.Read(_fileHandle, bufPtr, buffer.Length));
+                Debug.Assert(bytesRead <= buffer.Length);
             }
             _filePosition += bytesRead;
             return bytesRead;
@@ -578,7 +541,7 @@ namespace System.IO
                     {
                         byte[] b = thisRef._asyncState._buffer;
                         thisRef._asyncState._buffer = null; // remove reference to user's buffer
-                        return thisRef.ReadCore(b, thisRef._asyncState._offset, thisRef._asyncState._count);
+                        return thisRef.ReadSpan(new Span<byte>(b, thisRef._asyncState._offset, thisRef._asyncState._count));
                     }
                     finally { thisRef._asyncState.Release(); }
                 }, this, CancellationToken.None, TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -589,55 +552,22 @@ namespace System.IO
             }
         }
 
-        /// <summary>
-        /// Reads a byte from the stream and advances the position within the stream
-        /// by one byte, or returns -1 if at the end of the stream.
-        /// </summary>
-        /// <returns>The unsigned byte cast to an Int32, or -1 if at the end of the stream.</returns>
-        public override int ReadByte()
+        /// <summary>Reads from the file handle into the buffer, overwriting anything in it.</summary>
+        private int FillReadBufferForReadByte()
         {
-            if (_useAsyncIO)
-            {
-                _asyncState.Wait();
-                try { return ReadByteCore(); }
-                finally { _asyncState.Release(); }
-            }
-            else
-            {
-                return ReadByteCore();
-            }
+            _asyncState?.Wait();
+            try { return ReadNative(_buffer); }
+            finally { _asyncState?.Release(); }
         }
 
         /// <summary>Writes a block of bytes to the file stream.</summary>
-        /// <param name="array">The buffer containing data to write to the stream.</param>
-        /// <param name="offset">The zero-based byte offset in array from which to begin copying bytes to the stream.</param>
-        /// <param name="count">The maximum number of bytes to write.</param>
-        public override void Write(byte[] array, int offset, int count)
-        {
-            ValidateReadWriteArgs(array, offset, count);
-
-            if (_useAsyncIO)
-            {
-                _asyncState.Wait();
-                try { WriteCore(array, offset, count); }
-                finally { _asyncState.Release(); }
-            }
-            else
-            {
-                WriteCore(array, offset, count);
-            }
-        }
-
-        /// <summary>Writes a block of bytes to the file stream.</summary>
-        /// <param name="array">The buffer containing data to write to the stream.</param>
-        /// <param name="offset">The zero-based byte offset in array from which to begin copying bytes to the stream.</param>
-        /// <param name="count">The maximum number of bytes to write.</param>
-        private void WriteCore(byte[] array, int offset, int count)
+        /// <param name="source">The buffer containing data to write to the stream.</param>
+        private void WriteSpan(ReadOnlySpan<byte> source)
         {
             PrepareForWriting();
 
             // If no data is being written, nothing more to do.
-            if (count == 0)
+            if (source.Length == 0)
             {
                 return;
             }
@@ -649,21 +579,17 @@ namespace System.IO
                 // If there's space remaining in the buffer, then copy as much as
                 // we can from the user's buffer into ours.
                 int spaceRemaining = _bufferLength - _writePos;
-                if (spaceRemaining > 0)
+                if (spaceRemaining >= source.Length)
                 {
-                    int bytesToCopy = Math.Min(spaceRemaining, count);
-                    Buffer.BlockCopy(array, offset, GetBuffer(), _writePos, bytesToCopy);
-                    _writePos += bytesToCopy;
-
-                    // If we've successfully copied all of the user's data, we're done.
-                    if (count == bytesToCopy)
-                    {
-                        return;
-                    }
-
-                    // Otherwise, keep track of how much more data needs to be handled.
-                    offset += bytesToCopy;
-                    count -= bytesToCopy;
+                    source.CopyTo(new Span<byte>(GetBuffer()).Slice(_writePos));
+                    _writePos += source.Length;
+                    return;
+                }
+                else if (spaceRemaining > 0)
+                {
+                    source.Slice(0, spaceRemaining).CopyTo(new Span<byte>(GetBuffer()).Slice(_writePos));
+                    _writePos += spaceRemaining;
+                    source = source.Slice(spaceRemaining);
                 }
 
                 // At this point, the buffer is full, so flush it out.
@@ -674,35 +600,33 @@ namespace System.IO
             // the user's looking to write more data than we can store in the buffer),
             // skip the buffer.  Otherwise, put the remaining data into the buffer.
             Debug.Assert(_writePos == 0);
-            if (count >= _bufferLength)
+            if (source.Length >= _bufferLength)
             {
-                WriteNative(array, offset, count);
+                WriteNative(source);
             }
             else
             {
-                Buffer.BlockCopy(array, offset, GetBuffer(), _writePos, count);
-                _writePos = count;
+                source.CopyTo(new Span<byte>(GetBuffer()));
+                _writePos = source.Length;
             }
         }
 
         /// <summary>Unbuffered, writes a block of bytes to the file stream.</summary>
-        /// <param name="array">The buffer containing data to write to the stream.</param>
-        /// <param name="offset">The zero-based byte offset in array from which to begin copying bytes to the stream.</param>
-        /// <param name="count">The maximum number of bytes to write.</param>
-        private unsafe void WriteNative(byte[] array, int offset, int count)
+        /// <param name="source">The buffer containing data to write to the stream.</param>
+        private unsafe void WriteNative(ReadOnlySpan<byte> source)
         {
             VerifyOSHandlePosition();
 
-            fixed (byte* bufPtr = array)
+            fixed (byte* bufPtr = &source.DangerousGetPinnableReference())
             {
+                int offset = 0;
+                int count = source.Length;
                 while (count > 0)
                 {
                     int bytesWritten = CheckFileCall(Interop.Sys.Write(_fileHandle, bufPtr + offset, count));
-                    Debug.Assert(bytesWritten <= count);
-
                     _filePosition += bytesWritten;
-                    count -= bytesWritten;
                     offset += bytesWritten;
+                    count -= bytesWritten;
                 }
             }
         }
@@ -772,7 +696,7 @@ namespace System.IO
                     // differences in certain FileStream behaviors between Windows and Unix when multiple 
                     // asynchronous operations are issued against the stream to execute concurrently; on 
                     // Unix the operations will be serialized due to the usage of a semaphore, but the 
-                    // position /length information won't be updated until after the write has completed, 
+                    // position/length information won't be updated until after the write has completed, 
                     // whereas on Windows it may happen before the write has completed.
 
                     Debug.Assert(t.Status == TaskStatus.RanToCompletion);
@@ -781,7 +705,7 @@ namespace System.IO
                     {
                         byte[] b = thisRef._asyncState._buffer;
                         thisRef._asyncState._buffer = null; // remove reference to user's buffer
-                        thisRef.WriteCore(b, thisRef._asyncState._offset, thisRef._asyncState._count);
+                        thisRef.WriteSpan(new ReadOnlySpan<byte>(b, thisRef._asyncState._offset, thisRef._asyncState._count));
                     }
                     finally { thisRef._asyncState.Release(); }
                 }, this, CancellationToken.None, TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -789,25 +713,6 @@ namespace System.IO
             else
             {
                 return base.WriteAsync(buffer, offset, count, cancellationToken);
-            }
-        }
-
-        /// <summary>
-        /// Writes a byte to the current position in the stream and advances the position
-        /// within the stream by one byte.
-        /// </summary>
-        /// <param name="value">The byte to write to the stream.</param>
-        public override void WriteByte(byte value) // avoids an array allocation in the base implementation
-        {
-            if (_useAsyncIO)
-            {
-                _asyncState.Wait();
-                try { WriteByteCore(value); }
-                finally { _asyncState.Release(); }
-            }
-            else
-            {
-                WriteByteCore(value);
             }
         }
 
@@ -851,16 +756,16 @@ namespace System.IO
             long oldPos = 0;
             if (_appendStart >= 0)
             {
-                oldPos = SeekCore(0, SeekOrigin.Current);
+                oldPos = SeekCore(_fileHandle, 0, SeekOrigin.Current);
             }
 
             // Jump to the new location
-            long pos = SeekCore(offset, origin);
+            long pos = SeekCore(_fileHandle, offset, origin);
 
             // Prevent users from overwriting data in a file that was opened in append mode.
             if (_appendStart != -1 && pos < _appendStart)
             {
-                SeekCore(oldPos, SeekOrigin.Begin);
+                SeekCore(_fileHandle, oldPos, SeekOrigin.Begin);
                 throw new IOException(SR.IO_SeekAppendOverwrite);
             }
 
@@ -875,12 +780,12 @@ namespace System.IO
         /// point for offset, using a value of type SeekOrigin.
         /// </param>
         /// <returns>The new position in the stream.</returns>
-        private long SeekCore(long offset, SeekOrigin origin)
+        private long SeekCore(SafeFileHandle fileHandle, long offset, SeekOrigin origin)
         {
-            Debug.Assert(!_fileHandle.IsClosed && (GetType() != typeof(FileStream) || CanSeek)); // verify that we can seek, but only if CanSeek won't be a virtual call (which could happen in the ctor)
+            Debug.Assert(!fileHandle.IsClosed && (GetType() != typeof(FileStream) || CanSeekCore(fileHandle))); // verify that we can seek, but only if CanSeek won't be a virtual call (which could happen in the ctor)
             Debug.Assert(origin >= SeekOrigin.Begin && origin <= SeekOrigin.End);
 
-            long pos = CheckFileCall(Interop.Sys.LSeek(_fileHandle, offset, (Interop.Sys.SeekWhence)(int)origin)); // SeekOrigin values are the same as Interop.libc.SeekWhence values
+            long pos = CheckFileCall(Interop.Sys.LSeek(fileHandle, offset, (Interop.Sys.SeekWhence)(int)origin)); // SeekOrigin values are the same as Interop.libc.SeekWhence values
             _filePosition = pos;
             return pos;
         }

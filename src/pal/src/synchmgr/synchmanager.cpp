@@ -450,7 +450,7 @@ namespace CorUnix
         if (dwTimeout != INFINITE)
         {
             // Calculate absolute timeout
-            palErr = GetAbsoluteTimeout(dwTimeout, &tsAbsTmo);
+            palErr = GetAbsoluteTimeout(dwTimeout, &tsAbsTmo, /*fPreferMonotonicClock*/ TRUE);
             if (NO_ERROR != palErr)
             {
                 ERROR("Failed to convert timeout to absolute timeout\n");
@@ -949,7 +949,7 @@ namespace CorUnix
         if (SharedObject == odObjectDomain)
         {
             SharedID shridSynchData = m_cacheSHRSynchData.Get(pthrCurrent);
-            if (NULLSharedID == shridSynchData)
+            if (NULL == shridSynchData)
             {
                 ERROR("Unable to allocate shared memory\n");
                 return ERROR_NOT_ENOUGH_MEMORY;
@@ -962,8 +962,8 @@ namespace CorUnix
             _ASSERT_MSG(NULL != psdSynchData, "Bad shared memory pointer\n");
 
             // Initialize waiting list pointers
-            psdSynchData->SetWTLHeadShrPtr(NULLSharedID);
-            psdSynchData->SetWTLTailShrPtr(NULLSharedID);
+            psdSynchData->SetWTLHeadShrPtr(NULL);
+            psdSynchData->SetWTLTailShrPtr(NULL);
 
             // Store shared pointer to this object
             psdSynchData->SetSharedThis(shridSynchData);
@@ -984,7 +984,7 @@ namespace CorUnix
             psdSynchData->SetWTLTailPtr(NULL);
 
             // Set shared this pointer to NULL
-            psdSynchData->SetSharedThis(NULLSharedID);
+            psdSynchData->SetSharedThis(NULL);
 
             *ppvSynchData = static_cast<void *>(psdSynchData);
         }
@@ -1572,7 +1572,7 @@ namespace CorUnix
         ptnwdWorkerThreadNativeData =
             &pSynchManager->m_pthrWorker->synchronizationInfo.m_tnwdNativeData;
 
-        palErr = GetAbsoluteTimeout(WorkerThreadTerminationTimeout, &tsAbsTmo);
+        palErr = GetAbsoluteTimeout(WorkerThreadTerminationTimeout, &tsAbsTmo, /*fPreferMonotonicClock*/ TRUE);
         if (NO_ERROR != palErr)
         {
             ERROR("Failed to convert timeout to absolute timeout\n");
@@ -2019,7 +2019,7 @@ namespace CorUnix
         if (SynchWorkerCmdRemoteSignal == swcWorkerCmd ||
             SynchWorkerCmdDelegatedObjectSignaling == swcWorkerCmd)
         {
-            SharedID shridMarshaledId = NULLSharedID;
+            SharedID shridMarshaledId = NULL;
 
             TRACE("Received %s cmd\n",
                   (swcWorkerCmd == SynchWorkerCmdRemoteSignal) ?
@@ -2499,7 +2499,7 @@ namespace CorUnix
         WaitingThreadsListNode * pWLNode = SharedIDToTypePointer(WaitingThreadsListNode, shridWLNode);
 
         _ASSERT_MSG(gPID != pWLNode->dwProcessId, "WakeUpRemoteThread called on local thread\n");
-        _ASSERT_MSG(NULLSharedID != shridWLNode, "NULL shared identifier\n");
+        _ASSERT_MSG(NULL != shridWLNode, "NULL shared identifier\n");
         _ASSERT_MSG(NULL != pWLNode, "Bad shared wait list node identifier (%p)\n", (VOID*)shridWLNode);
         _ASSERT_MSG(MsgSize <= PIPE_BUF, "Message too long [MsgSize=%d PIPE_BUF=%d]\n", MsgSize, (int)PIPE_BUF);
 
@@ -2556,7 +2556,7 @@ namespace CorUnix
             SharedIDToTypePointer(CSynchData, shridSynchData);
 
         _ASSERT_MSG(gPID != dwTargetProcessId, " called on local thread\n");
-        _ASSERT_MSG(NULLSharedID != shridSynchData, "NULL shared identifier\n");
+        _ASSERT_MSG(NULL != shridSynchData, "NULL shared identifier\n");
         _ASSERT_MSG(NULL != psdSynchData, "Bad shared SynchData identifier (%p)\n", (VOID*)shridSynchData);
         _ASSERT_MSG(MsgSize <= PIPE_BUF, "Message too long [MsgSize=%d PIPE_BUF=%d]\n", MsgSize, (int)PIPE_BUF);
 
@@ -3525,12 +3525,22 @@ namespace CorUnix
         }
 #else // !CORECLR
         int rgiPipe[] = { -1, -1 };
-        if (pipe(rgiPipe) == -1)
+        int pipeRv =
+#if HAVE_PIPE2
+            pipe2(rgiPipe, O_CLOEXEC);
+#else
+            pipe(rgiPipe);
+#endif // HAVE_PIPE2
+        if (pipeRv == -1)
         {
             ERROR("Unable to create the process pipe\n");
             fRet = false;
             goto CPP_exit;
         }
+#if !HAVE_PIPE2
+        fcntl(rgiPipe[0], F_SETFD, FD_CLOEXEC); // make pipe non-inheritable, if possible
+        fcntl(rgiPipe[1], F_SETFD, FD_CLOEXEC);
+#endif // !HAVE_PIPE2
 #endif // !CORECLR
 
 #if HAVE_KQUEUE && !HAVE_BROKEN_FIFO_KEVENT
@@ -3727,7 +3737,7 @@ namespace CorUnix
         PAL_ERROR palError = NO_ERROR;
         CSynchData *psdLocal = reinterpret_cast<CSynchData *>(pvLocalSynchData);
         CSynchData *psdShared = NULL;
-        SharedID shridSynchData = NULLSharedID;
+        SharedID shridSynchData = NULL;
         SharedID *rgshridWTLNodes = NULL;
         CObjectType *pot = NULL;
         ULONG ulcWaitingThreads;
@@ -3749,7 +3759,7 @@ namespace CorUnix
         //
 
         shridSynchData = m_cacheSHRSynchData.Get(pthrCurrent);
-        if (NULLSharedID == shridSynchData)
+        if (NULL == shridSynchData)
         {
             ERROR("Unable to allocate shared memory\n");
             palError = ERROR_NOT_ENOUGH_MEMORY;
@@ -3827,8 +3837,8 @@ namespace CorUnix
         // for the waiting threads
         //
 
-        psdShared->SetWTLHeadShrPtr(NULLSharedID);
-        psdShared->SetWTLTailShrPtr(NULLSharedID);
+        psdShared->SetWTLHeadShrPtr(NULL);
+        psdShared->SetWTLTailShrPtr(NULL);
 
         if (0 < ulcWaitingThreads)
         {
@@ -4010,7 +4020,7 @@ namespace CorUnix
 
     CThreadSynchronizationInfo::CThreadSynchronizationInfo() :
             m_tsThreadState(TS_IDLE),
-            m_shridWaitAwakened(NULLSharedID),
+            m_shridWaitAwakened(NULL),
             m_lLocalSynchLockCount(0),
             m_lSharedSynchLockCount(0),
             m_ownedNamedMutexListHead(nullptr)
@@ -4027,9 +4037,9 @@ namespace CorUnix
     CThreadSynchronizationInfo::~CThreadSynchronizationInfo()
     {
         DeleteCriticalSection(&m_ownedNamedMutexListLock);
-        if (NULLSharedID != m_shridWaitAwakened)
+        if (NULL != m_shridWaitAwakened)
         {
-            RawSharedObjectFree(m_shridWaitAwakened);
+            free(m_shridWaitAwakened);
         }
     }
 
@@ -4078,9 +4088,11 @@ namespace CorUnix
         int iRet;
         const int MaxUnavailableResourceRetries = 10;
         int iEagains;
-        m_shridWaitAwakened = RawSharedObjectAlloc(sizeof(DWORD),
-                                                   DefaultSharedPool);
-        if (NULLSharedID == m_shridWaitAwakened)
+        pthread_condattr_t attrs;
+        pthread_condattr_t *attrsPtr = nullptr;
+
+        m_shridWaitAwakened = malloc(sizeof(DWORD));
+        if (NULL == m_shridWaitAwakened)
         {
             ERROR("Fail allocating thread wait status shared object\n");
             palErr = ERROR_NOT_ENOUGH_MEMORY;
@@ -4095,6 +4107,36 @@ namespace CorUnix
 
         VolatileStore<DWORD>(pdwWaitState, TWS_ACTIVE);
         m_tsThreadState = TS_STARTING;
+
+#if HAVE_CLOCK_MONOTONIC && HAVE_PTHREAD_CONDATTR_SETCLOCK
+        attrsPtr = &attrs;
+        iRet = pthread_condattr_init(&attrs);
+        if (0 != iRet)
+        {
+            ERROR("Failed to initialize thread synchronization condition attribute "
+                  "[error=%d (%s)]\n", iRet, strerror(iRet));
+            if (ENOMEM == iRet)
+            {
+                palErr = ERROR_NOT_ENOUGH_MEMORY;
+            }
+            else
+            {
+                palErr = ERROR_INTERNAL_ERROR;
+            }
+            goto IPrC_exit;
+        }
+
+        // Ensure that the pthread_cond_timedwait will use CLOCK_MONOTONIC
+        iRet = pthread_condattr_setclock(&attrs, CLOCK_MONOTONIC);
+        if (0 != iRet)
+        {
+            ERROR("Failed set thread synchronization condition timed wait clock "
+                  "[error=%d (%s)]\n", iRet, strerror(iRet));
+            palErr = ERROR_INTERNAL_ERROR;
+            pthread_condattr_destroy(&attrs);
+            goto IPrC_exit;
+        }
+#endif // HAVE_CLOCK_MONOTONIC && HAVE_PTHREAD_CONDATTR_SETCLOCK
 
         iEagains = 0;
     Mutex_retry:
@@ -4121,7 +4163,9 @@ namespace CorUnix
 
         iEagains = 0;
     Cond_retry:
-        iRet = pthread_cond_init(&m_tnwdNativeData.cond, NULL);
+
+        iRet = pthread_cond_init(&m_tnwdNativeData.cond, attrsPtr);
+
         if (0 != iRet)
         {
             ERROR("Failed creating thread synchronization condition "
@@ -4146,6 +4190,10 @@ namespace CorUnix
         m_tnwdNativeData.fInitialized = true;
 
     IPrC_exit:
+        if (attrsPtr != nullptr)
+        {
+            pthread_condattr_destroy(attrsPtr);
+        }
         if (NO_ERROR != palErr)
         {
             m_tsThreadState = TS_FAILED;
@@ -4515,27 +4563,37 @@ namespace CorUnix
 
     Converts a relative timeout to an absolute one.
     --*/
-    PAL_ERROR CPalSynchronizationManager::GetAbsoluteTimeout(DWORD dwTimeout, struct timespec * ptsAbsTmo)
+    PAL_ERROR CPalSynchronizationManager::GetAbsoluteTimeout(DWORD dwTimeout, struct timespec * ptsAbsTmo, BOOL fPreferMonotonicClock)
     {
         PAL_ERROR palErr = NO_ERROR;
         int iRet;
 
-#if HAVE_WORKING_CLOCK_GETTIME
-        // Not every platform implements a (working) clock_gettime
-        iRet = clock_gettime(CLOCK_REALTIME, ptsAbsTmo);
-#elif HAVE_WORKING_GETTIMEOFDAY
-        // Not every platform implements a (working) gettimeofday
-        struct timeval tv;
-        iRet = gettimeofday(&tv, NULL);
-        if (0 == iRet)
+#if HAVE_CLOCK_MONOTONIC && HAVE_PTHREAD_CONDATTR_SETCLOCK
+        if (fPreferMonotonicClock)
         {
-            ptsAbsTmo->tv_sec  = tv.tv_sec;
-            ptsAbsTmo->tv_nsec = tv.tv_usec * tccMicroSecondsToNanoSeconds;
+            iRet = clock_gettime(CLOCK_MONOTONIC, ptsAbsTmo);
         }
+        else
+        {
+#endif        
+#if HAVE_WORKING_CLOCK_GETTIME
+            // Not every platform implements a (working) clock_gettime
+            iRet = clock_gettime(CLOCK_REALTIME, ptsAbsTmo);
+#elif HAVE_WORKING_GETTIMEOFDAY
+            // Not every platform implements a (working) gettimeofday
+            struct timeval tv;
+            iRet = gettimeofday(&tv, NULL);
+            if (0 == iRet)
+            {
+                ptsAbsTmo->tv_sec  = tv.tv_sec;
+                ptsAbsTmo->tv_nsec = tv.tv_usec * tccMicroSecondsToNanoSeconds;
+            }
 #else
-        #error "Don't know how to get hi-res current time on this platform"
+            #error "Don't know how to get hi-res current time on this platform"
 #endif // HAVE_WORKING_CLOCK_GETTIME, HAVE_WORKING_GETTIMEOFDAY
-
+#if HAVE_CLOCK_MONOTONIC && HAVE_PTHREAD_CONDATTR_SETCLOCK
+        }
+#endif
         if (0 == iRet)
         {
             ptsAbsTmo->tv_sec  += dwTimeout / tccSecondsToMillieSeconds;

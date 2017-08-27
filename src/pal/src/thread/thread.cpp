@@ -130,10 +130,13 @@ CObjectType CorUnix::otThread(
                 otiThread,
                 ThreadCleanupRoutine,
                 ThreadInitializationRoutine,
-                0, //sizeof(CThreadImmutableData),
+                0,      // sizeof(CThreadImmutableData),
+                NULL,   // No immutable data copy routine
+                NULL,   // No immutable data cleanup routine
                 sizeof(CThreadProcessLocalData),
-                0, //sizeof(CThreadSharedData),
-                0, // THREAD_ALL_ACCESS,
+                NULL,   // No process local data cleanup routine
+                0,      // sizeof(CThreadSharedData),
+                0,      // THREAD_ALL_ACCESS,
                 CObjectType::SecuritySupported,
                 CObjectType::SecurityInfoNotPersisted,
                 CObjectType::UnnamedObject,
@@ -579,7 +582,7 @@ CorUnix::InternalCreateThread(
     if (alignedStackSize != 0)
     {
         // Some systems require the stack size to be aligned to the page size
-        if (sizeof(alignedStackSize) <= sizeof(dwStackSize) && alignedStackSize + (VIRTUAL_PAGE_SIZE - 1) < alignedStackSize)
+        if (sizeof(alignedStackSize) <= sizeof(dwStackSize) && alignedStackSize + (GetVirtualPageSize() - 1) < alignedStackSize)
         {
             // When coming here from the public API surface, the incoming value is originally a nonnegative signed int32, so
             // this shouldn't happen
@@ -589,7 +592,7 @@ CorUnix::InternalCreateThread(
             palError = ERROR_INVALID_PARAMETER;
             goto EXIT;
         }
-        alignedStackSize = ALIGN_UP(alignedStackSize, VIRTUAL_PAGE_SIZE);
+        alignedStackSize = ALIGN_UP(alignedStackSize, GetVirtualPageSize());
     }
 
     // Ignore the STACK_SIZE_PARAM_IS_A_RESERVATION flag
@@ -633,15 +636,21 @@ CorUnix::InternalCreateThread(
 
     fAttributesInitialized = TRUE;
 
+    if (alignedStackSize == 0)
+    {
+        // The thread is to be created with default stack size. Use the default stack size
+        // override that was determined during the PAL initialization.
+        alignedStackSize = g_defaultStackSize;
+    }
+
     /* adjust the stack size if necessary */
     if (alignedStackSize != 0)
     {
 #ifdef PTHREAD_STACK_MIN
-        const size_t MinStackSize = PTHREAD_STACK_MIN;
+        size_t MinStackSize = ALIGN_UP(PTHREAD_STACK_MIN, GetVirtualPageSize());
 #else // !PTHREAD_STACK_MIN
-        const size_t MinStackSize = 64 * 1024; // this value is typically accepted by pthread_attr_setstacksize()
+        size_t MinStackSize = 64 * 1024; // this value is typically accepted by pthread_attr_setstacksize()
 #endif // PTHREAD_STACK_MIN
-        _ASSERTE(IS_ALIGNED(MinStackSize, VIRTUAL_PAGE_SIZE));
         if (alignedStackSize < MinStackSize)
         {
             // Adjust the stack size to a minimum value that is likely to be accepted by pthread_attr_setstacksize(). If this

@@ -2,8 +2,8 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <PackageTargetRuntime>$(MinOSForArch)-$(PackagePlatform)</PackageTargetRuntime>
-    <LongNamePlatform>$(PackagePlatform)</LongNamePlatform>
-    <LongNamePlatform Condition="'$(LongNamePlatform)'=='x64'">amd64</LongNamePlatform>
+    <LongNamePlatform>$(Platform)</LongNamePlatform>
+    <LongNamePlatform Condition="'$(Platform)'=='x64'">amd64</LongNamePlatform>
     <CrossTargetPlatform>$(CrossTargetComponentFolder)</CrossTargetPlatform>
     <CrossTargetPlatform Condition="'$(CrossTargetPlatform)'=='x64'">amd64</CrossTargetPlatform>
     <LongNameSuffix>_$(LongNamePlatform)_$(LongNamePlatform)_$(MajorVersion).$(MinorVersion).$(BuildNumberMajor).0$(BuildNumberMinor)</LongNameSuffix>
@@ -19,9 +19,8 @@
     <NativeBinary Include="$(BinDir)mscorrc.debug.dll" />
     <NativeBinary Include="$(BinDir)mscorrc.dll" />
     <NativeBinary Include="$(BinDir)sos.dll" />
-    <NativeBinary Include="$(BinDir)System.Private.CoreLib.ni.dll" />
     <NativeBinary Include="$(UniversalCRTSDKDir)Redist\ucrt\DLLs\$(BuildArch)\*.dll" Condition="'$(BuildType)'=='Release' AND '$(BuildArch)' != 'arm64'" />
-    <ArchitectureSpecificLibFile Include="$(BinDir)System.Private.CoreLib.dll" />
+    <NativeBinary Include="$(BinDir)System.Private.CoreLib.dll" />
     <ArchitectureSpecificLibFile Include="$(BinDir)SOS.NETCore.dll" />
     <ArchitectureSpecificToolFile Include="$(BinDir)crossgen.exe" />
     <CrossArchitectureSpecificToolFile Include="$(BinDir)$(CrossTargetComponentFolder)\crossgen.exe" />
@@ -45,7 +44,7 @@
     <LongNameFile Include="$(BinDir)$(CrossTargetComponentFolder)\mscordaccore.dll;
                            $(BinDir)$(CrossTargetComponentFolder)\sos.dll"
                   Condition="'$(HasCrossTargetComponents)'=='true'">
-      <TargetPath>tools\$(CrossTargetComponentFolder)_$(PackagePlatform)\%(FileName)$(CrossTargetLongNameSuffix)%(Extension)</TargetPath>
+      <TargetPath>tools\$(CrossTargetComponentFolder)_$(Platform)\%(FileName)$(CrossTargetLongNameSuffix)%(Extension)</TargetPath>
     </LongNameFile>
   </ItemGroup>
 </Project>

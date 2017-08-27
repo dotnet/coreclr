@@ -1,36 +1,146 @@
 # Exception Handling Write Through Optimization.
 
-Write through is an optimization done on local variables that live across exception handling flow like a handler, filter, or finally so that they can be enregistered - treated as a register candidate - throughout a method.  For each variable live across one of these constructs, the minimum requirement is that a store to the variables location on the stack is placed between a reaching definition and any point of control flow leading to the handler, as well as a load between any return from a filter or finally and an upward exposed use.  Conceptually this maintains the value of the variable on the stack across the exceptional flow which would kill any live registers.  This transformation splits a local variable into multiple enregisterable compiler temporaries backed by the local variable on the stack. For local vars that additionally have appearances within a eh construct, a load from the stack local is inserted to a temp that will be enregistered within the handler.
+Write through is an optimization done on local variables that live across
+exception handling flow like a handler, filter, or finally so that they can be
+enregistered - treated as a register candidate - throughout a method.  For each
+variable live across one of these constructs, the minimum requirement is that a
+store to the variables location on the stack is placed between a reaching
+definition and any point of control flow leading to the handler, as well as a
+load between any return from a filter or finally and an upward exposed use.
+Conceptually this maintains the value of the variable on the stack across the
+exceptional flow which would kill any live registers.  This transformation splits
+a local variable into an enregisterable compiler temporary backed by
+the local variable on the stack. For local vars that additionally have
+appearances within an eh construct, a load from the stack local is inserted to
+a temp that will be enregistered within the handler.
 
 ## Motivation
 
-Historically the JIT has not done this transformation because exception handling was rare and thus the transformation was not worth the compile time.  Additionally it was easy to make the recomendation to users to remove EH from performance critical methods since they had control of where the EH appeared.  Neither of these points remain true as we increase our focus on cloud workloads.  The use of non-blocking async calls are common in performance critical paths for these workloads and async injects exception handling constructs to implement the feature.  This in combination with the long standing use of EH in 'foreach' and 'using' statements means that we are seeing EH constructs that are difficult for the user to manage or remove high in the profile (Techempower on Kestrel is a good example).  Given these cloud workloads doing the transformation would be a clear benefit.
+Historically the JIT has not done this transformation because exception
+handling was rare and thus the transformation was not worth the compile time.
+Additionally it was easy to make the recomendation to users to remove EH from
+performance critical methods since they had control of where the EH appeared.
+Neither of these points remain true as we increase our focus on cloud
+workloads.  The use of non-blocking async calls are common in performance
+critical paths for these workloads and async injects exception handling
+constructs to implement the feature.  This in combination with the long
+standing use of EH in 'foreach' and 'using' statements means that we are seeing
+EH constructs that are difficult for the user to manage or remove high in the
+profile (Techempower on Kestrel is a good example).  It's also good to consider
+that in MSIL, basic operations can raise semantically meaningful exceptions
+(unlike say C++, where an explicit throw is required to raise an exception) so
+injected handlers can end up pessimizing a number of local variables in the
+method. Given this combination of issues in cloud workloads doing the
+transformation should be a clear benefit.
 
 ## Design
 
-The goal of the design is to preserve the constraints listed above - i.e. preserve a correct value on the stack for any local var that crosses an EH edge in the flow graph. To ensure that the broad set of global optimizations can act on the IR shape produced by this transformation and that phase ordering issues do not block enregistration opportunities the write through phase will be staged just prior to SSA build after morph and it will do a full walk of the IR rewriting appearances to proxies as well as inserting reloads at the appropriate blocks in the flow graph as indicated by EH control flow semantics. To preserve the needed values on the stack a store will also be inserted after every definition to copy the new value in the proxy back to the stack location.  This will leave non optimal number of stores (too many) but with the strategy that the more expensive analysis to eliminate/better place stores will be staged as a global optimization in a higher compilation tier.
+The goal of the design is to preserve the constraints listed above - i.e.
+preserve a correct value on the stack for any local var that crosses an EH edge
+in the flow graph. To ensure that the broad set of global optimizations can act
+on the IR shape produced by this transformation and that phase ordering issues
+do not block enregistration opportunities the write through phase will be
+staged just prior to SSA build after morph and it will do a full walk of the
+IR rewriting appearances to proxies as well as inserting reloads at the
+appropriate blocks in the flow graph as indicated by EH control flow semantics.
+To preserve the needed values on the stack a store will also be inserted after
+every definition to copy the new value in the proxy back to the stack location.
+This will leave non optimal number of stores (too many) but with the strategy
+that the more expensive analysis to eliminate/better place stores will be
+staged as a global optimization in a higher compilation tier.
+
+There are a number of wrinkles informing this design based on how the JIT models EH:
+- The jit does not explicitly model the exception flow, so a given block and
+  even a given statement within a block may have multiple exception-raising sites.
+- For statements within protected regions, and for all variables live into any
+  reachable handler, the jit assumes all definitions within the region can
+  potentially reach uses in the handlers, since the exact interleaving of
+  definition points and exception points is not known. Hence every definition
+  is a reaching definition, even both values back from to back stores with no
+  read of the variable in between.
+- The jit does not model which handlers are reachable from a given protected region,
+  so considers a variable live into a handler if it is live into any handler in the method.
+
+It is posible to do better than the "store every definition" approch outlined
+in the design, but the expectation is that this would require posibly
+modifying the model in the JIT and staging more throughput intensive analyses.
+With these considerations this design was selected and further improvements
+left to future optimization.
 
 ### Throughput
 
-To identify EH crossing local vars global liveness is necessary.  This comes at the significant cost of the liveness analysis.  To mitigate this the write through phase is staged immediately before SSA build for the global optimizer.  Since the typical case is that there is no EH, the liveness analysis in write through can be reused directly by SSA build.  For the case where EH local vars are present liveness today must be rebuilt for SSA since new local vars have been added, but incremental update to the RyuJIT liveness analysis can be implemented (worklist based live analysis) to improve the throughput.  Additionally the write through transformation does a full IR walk - also expensive - to replace EH local var appearances with proxies and insert transfers to and from the stack for EH flow, given this initial implementations may need to be staged as part of AOT (crossgen) compiles until tiering can move the more expensive analysis out of the startup path.
+To identify EH crossing local vars global liveness is necessary.  This comes at
+the significant cost of the liveness analysis.  To mitigate this the write
+through phase is staged immediately before SSA build for the global optimizer.
+Since the typical case is that there is no EH, the liveness analysis in write
+through can be reused directly by SSA build.  For the case where EH local vars
+are present liveness today must be rebuilt for SSA since new local vars have
+been added, but incremental update to the RyuJIT liveness analysis can be
+implemented (worklist based live analysis) to improve the throughput.
+Additionally the write through transformation does a full IR walk - also
+expensive - to replace EH local var appearances with proxies and insert
+transfers to and from the stack for EH flow, given this initial implementations
+may need to be staged as part of AOT (crossgen) compiles until tiering can move
+the more expensive analysis out of the startup path.
 
 ### Algorithm
+
 On the IR directly before SSA build:
-- Run global liveness to identify local vars that cross EH boundaries (as a byproduct of this these local vars are marked "do not enregister")
+- Run global liveness to identify local vars that cross EH boundaries (as a
+  byproduct of this these local vars are marked "do not enregister")
 - Foreach EH local var create a new local var "proxy" that can be enregisterd.
 - Iterate each block in the flow graph doing the following:
   * Foreach tree in block do a post order traversal and
     - Replace all appearances of EH local vars with the defined proxy
     - Insert a copy of proxy definition back to the EH local var (on the stack)
-  * If EH handler entry block insert reloads from EH local var to proxy at block head
-  * If finally or filter exit, insert reloads from EH local var to proxy at successor block heads
-- For method entry block, insert reloads from parameter EH local vars to proxies
+  * If EH handler entry block insert reloads from EH local var to proxy at
+    block head
+  * If finally or filter exit, insert reloads from EH local var to proxy at
+    successor block heads
+- For method entry block, insert reloads from parameter EH local vars to
+  proxies
 
-At end no proxy should be live across EH flow and all value updates will be written back to the stack location.
+At end no proxy should be live across EH flow and all value updates will be
+written back to the stack location.
+
+### Alternate Algorithm: In LSRA
+
+* Add a flag to identify Intervals as "WriteThru". This would be set on all lclVars
+  considered by liveness to be exceptVars.
+* Additionally, add a flag to identify RefPositions as "WriteThru". The motivation
+  for having both, is that in the exception var case, we want to create all defs as
+  write-thru, but for other purposes we may want to make some defs write-thru
+  (i.e. they spill but the target register remains live), but not all defs for a given lclVar.
+* During liveness, mark exception vars as `lvLiveInOutOfHndlr`, but not `lvDoNotEnregister`.
+* During interval creation, if a lclVar is marked `lvLiveInOutOfHndlr`, set `isWriteThru` on the interval.
+* Set handler entry blocks as having no predecessor for register-mapping purposes.
+  - Leave the inVarToRegMaps empty (all incoming vars on stack)
+* Set the outVarToRegMap to empty for EH exit blocks.
+* During allocation, treat isWriteThru interval defs and uses differently:
+  - A def is always marked writeThru if it is assigned a register. If it doesn't get a register
+    at all, it is marked spillAfter as per usual.
+  - A use is never marked spillAfter (as the stack location is always valid at a use).
+* During resolution/writeback:
+  - Mark all isWriteThru defs with `GTF_SPILL`, as for `spillAfter`, but keep the reg assignment,
+    and the interval stays active.
+  - Assert that uses of isWriteThru intervals are never marked spillAfter
+* During `genFnProlog()`, ensure that incoming reg parameters that have register assoginments also
+  get stored to stack if they are marked lvLiveInOutOfHndlr.
+
+#### Challenges/Issues with the LSRA approach above:
+
+* Liveness currently adds all exceptVars to the live-in for blocks where `ehBlockHasExnFlowDsc` returns true.
+  This results in more "artificial" liveness than strictly entry to and exit from EH regions.
+* In some cases, write-thru may be worse, performance-wise, than always using memory, if the EH local is
+  infrequently referenced in non-EH code. This is a slightly different issue than known spill placement
+  and allocation issues, but is related (i.e. when to choose not to keep the register live, and simply
+  create the value in memory if that doesn't require a register).
 
 ## Next steps
 
-The initial prototype that produced the example bellow is currently being improved to make it production ready.  At the same time a more extensive suite of example tests are being developed. 
+The initial prototype that produced the example bellow is currently being
+improved to make it production ready.  At the same time a more extensive suite
+of example tests are being developed. 
 
 - [X] Proof of concept prototype.
 - [ ] Production implementation of WriteThru phase.
@@ -42,7 +152,8 @@ The initial prototype that produced the example bellow is currently being improv
 
 ## Example
 
-The following is a simple example that shows enregistration for a local var live, and modified, through a catch.
+The following is a simple example that shows enregistration for a local var
+live, and modified, through a catch.
 
 #### Source code snippet
 

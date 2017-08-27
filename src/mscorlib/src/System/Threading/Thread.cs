@@ -128,7 +128,12 @@ namespace System.Threading
 
         private IntPtr DONT_USE_InternalThread;        // Pointer
         private int m_Priority;                     // INT32
-        private int m_ManagedThreadId;              // INT32
+
+        // The following field is required for interop with the VS Debugger
+        // Prior to making any changes to this field, please reach out to the VS Debugger 
+        // team to make sure that your changes are not going to prevent the debugger
+        // from working.
+        private int _managedThreadId;              // INT32
 
 #pragma warning restore 414
 #pragma warning restore 169
@@ -200,7 +205,7 @@ namespace System.Threading
 
         public override int GetHashCode()
         {
-            return m_ManagedThreadId;
+            return _managedThreadId;
         }
 
         extern public new int ManagedThreadId
@@ -313,9 +318,6 @@ namespace System.Threading
         public static new void Sleep(int millisecondsTimeout)
         {
             SleepInternal(millisecondsTimeout);
-            // Ensure we don't return to app code when the pause is underway
-            if (AppDomainPauseManager.IsPaused)
-                AppDomainPauseManager.ResumeEvent.WaitOneWithoutFAS();
         }
 
         public static void Sleep(TimeSpan timeout)
@@ -555,7 +557,6 @@ namespace System.Threading
     // declaring a local var of this enum type and passing it by ref into a function that needs to do a
     // stack crawl will both prevent inlining of the calle and pass an ESP point to stack crawl to
     // Declaring these in EH clauses is illegal; they must declared in the main method body
-    [Serializable]
     internal enum StackCrawlMark
     {
         LookForMe = 0,

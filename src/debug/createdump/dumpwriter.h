@@ -24,19 +24,22 @@
 
 #define PH_HDR_CANARY 0xFFFF
 
+#ifndef NT_FILE
+#define NT_FILE		0x46494c45
+#endif
+
 class DumpWriter : IUnknown
 {
 private:
     LONG m_ref;                         // reference count
     int m_fd;
-    DataTarget& m_dataTarget;
     CrashInfo& m_crashInfo;
     BYTE m_tempBuffer[0x4000];
 
 public:
-    DumpWriter(DataTarget& dataTarget, CrashInfo& crashInfo);
+    DumpWriter(CrashInfo& crashInfo);
     virtual ~DumpWriter();
-    bool OpenDump(char* dumpFileName);
+    bool OpenDump(const char* dumpFileName);
     bool WriteDump();
 
     // IUnknown
@@ -57,18 +60,15 @@ private:
     const size_t GetThreadInfoSize() const 
     {
         return m_crashInfo.Threads().size() * ((sizeof(Nhdr) + 8 + sizeof(prstatus_t))
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
             + sizeof(Nhdr) + 8 + sizeof(user_fpregs_struct)
 #endif
 #if defined(__i386__)
             + sizeof(Nhdr) + 8 + sizeof(user_fpxregs_struct)
 #endif
+#if defined(__arm__) && defined(__VFP_FP__) && !defined(__SOFTFP__)
+            + sizeof(Nhdr) + 8 + sizeof(user_vfpregs_struct)
+#endif
         );
     }
 };
-
-static inline int sex()
-{
-  int probe = 1;
-  return !*(char *)&probe;
-}
