@@ -83,7 +83,6 @@ ReleaseMutex
 ReleaseSemaphore
 RemoveDirectoryW
 ResetEvent
-RtlZeroMemory
 SetCurrentDirectoryW
 SetEndOfFile
 SetEnvironmentVariableW

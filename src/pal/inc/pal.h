@@ -2793,13 +2793,6 @@ RtlMoveMemory(
           IN CONST VOID *Source,
           IN SIZE_T Length);
 
-PALIMPORT
-VOID
-PALAPI
-RtlZeroMemory(
-    IN PVOID Destination,
-    IN SIZE_T Length);
-
 #define MoveMemory memmove
 #define CopyMemory memcpy
 #define FillMemory(Destination,Length,Fill) memset((Destination),(Fill),(Length))
