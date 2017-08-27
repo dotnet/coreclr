@@ -2575,13 +2575,6 @@ MapViewOfFileEx(
           IN DWORD dwFileOffsetLow,
           IN SIZE_T dwNumberOfBytesToMap,
           IN LPVOID lpBaseAddress);
-          
-PALIMPORT
-BOOL
-PALAPI
-FlushViewOfFile(
-        IN LPVOID lpBaseAddress,
-        IN SIZE_T dwNumberOfBytesToFlush);
 
 PALIMPORT
 BOOL
