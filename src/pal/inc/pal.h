@@ -1549,13 +1549,6 @@ ExitThread(
        IN DWORD dwExitCode);
 
 PALIMPORT
-BOOL
-PALAPI
-GetExitCodeThread(
-           IN HANDLE hThread,
-           IN LPDWORD lpExitCode);
-
-PALIMPORT
 DWORD
 PALAPI
 ResumeThread(
