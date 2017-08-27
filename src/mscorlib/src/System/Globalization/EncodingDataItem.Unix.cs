@@ -4,7 +4,6 @@
 
 namespace System.Globalization
 {
-    [Serializable]
     internal class CodePageDataItem
     {
         private readonly int _codePage;
@@ -59,7 +58,7 @@ namespace System.Globalization
             {
                 if (_displayNameResourceKey == null)
                 {
-                    _displayNameResourceKey = "Globalization.cp_" + CodePage;
+                    _displayNameResourceKey = "Globalization_cp_" + CodePage;
                 }
 
                 return _displayNameResourceKey;

@@ -1,5 +1,5 @@
 
-#The Book of the Runtime
+# The Book of the Runtime
 
 Welcome to the Book of the Runtime (BOTR) for the .NET Runtime.   This contains 
 a collection of articles about the non-trivial internals of the .NET Runtime.   Its
@@ -26,6 +26,7 @@ Below is a table of contents.
 - [What Every Dev needs to Know About Exceptions in the Runtime](exceptions.md)
 - [ReadyToRun Overview](readytorun-overview.md)
 - [CLR ABI](clr-abi.md)
+- [Cross-platform Minidumps](xplat-minidump-generation.md)
 
 
 It may be possible that this table is not complete.  You can get a complete list 

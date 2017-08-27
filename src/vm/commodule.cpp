@@ -9,7 +9,6 @@
 #include "reflectclasswriter.h"
 #include "class.h"
 #include "corpolicy.h"
-#include "security.h"
 #include "ceesectionstring.h"
 #include <cor.h>
 #include "typeparse.h"
@@ -45,12 +44,6 @@ static ISymUnmanagedWriter **CreateISymWriterForDynamicModule(ReflectionModule *
     // 
     ESymbolFormat symFormatToUse = eSymbolFormatILDB;
 
-#ifndef FEATURE_CORECLR // On desktop only we still use PDB format if the symbols are savable to disk
-    if(mod->GetAssembly()->HasSaveAccess())
-    {
-        symFormatToUse = eSymbolFormatPDB;
-    }
-#endif
    
     static ConfigDWORD dbgForcePDBSymbols;
     if(dbgForcePDBSymbols.val_DontUse_(W("DbgForcePDBSymbols"), 0) == 1)
@@ -121,46 +114,6 @@ static ISymUnmanagedWriter **CreateISymWriterForDynamicModule(ReflectionModule *
     }
 }
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-//****************************************
-// This function creates a dynamic module underneath the current assembly.
-//****************************************
-void QCALLTYPE COMModule::DefineDynamicModule(QCall::AssemblyHandle pContainingAssembly, BOOL emitSymbolInfo, LPCWSTR pModuleName, LPCWSTR pFilename, QCall::StackCrawlMarkHandle stackMark, LPVOID* ppInternalSymWriter, QCall::ObjectHandleOnStack retModule, BOOL fIsTransient, INT32* ptkFile)
-{
-    QCALL_CONTRACT;
-
-    ReflectionModule * mod = NULL;
-
-    BEGIN_QCALL;
-
-    Assembly * pAssembly = pContainingAssembly->GetAssembly();
-    _ASSERTE(pAssembly);
-
-    // always create a dynamic module. Note that the name conflict
-    // checking is done in managed side.
-
-    mod = pAssembly->CreateDynamicModule(pModuleName, pFilename, fIsTransient, ptkFile);
-
-    mod->SetCreatingAssembly( SystemDomain::GetCallersAssembly( stackMark ) );
-
-    // If we need to emit symbol info, we setup the proper symbol
-    // writer for this module now.
-    if (emitSymbolInfo)
-    {
-        ISymUnmanagedWriter **pWriter = CreateISymWriterForDynamicModule(mod, pFilename);
-        if (ppInternalSymWriter)
-        {
-            *ppInternalSymWriter = pWriter;
-        }
-    }
-
-    GCX_COOP();
-    retModule.Set(mod->GetExposedObject());
-    END_QCALL;
-
-    return;
-}
-#endif //FEATURE_MULTIMODULE_ASSEMBLIES
 //===============================================================================================
 // Attaches an unmanaged symwriter to a newly created dynamic module.
 //===============================================================================================
@@ -951,13 +904,6 @@ void QCALLTYPE COMModule::GetFullyQualifiedName(QCall::ModuleHandle pModule, QCa
     {
         LPCWSTR fileName = pModule->GetPath();
         if (*fileName != 0) {
-#ifndef FEATURE_CORECLR
-            // workaround - lie about where mscorlib is. Mscorlib is now loaded out of the GAC, 
-            // but some apps query its location to find the system directory. (Notably CodeDOM)
-            if (pModule->IsSystem())
-                retString.Set(SystemDomain::System()->BaseLibrary());
-            else
-#endif // !FEATURE_CORECLR
             {
 #ifdef FEATURE_WINDOWSPHONE
                 //
@@ -1099,12 +1045,7 @@ Object* GetTypesInner(Module* pModule)
 
     // Allocate the COM+ array
     bSystemAssembly = (pModule->GetAssembly() == SystemDomain::SystemAssembly());
-#ifdef FEATURE_REMOTING
-    // we skip the TransparentProxy type if this is mscorlib, so we can make the array one element smaller
-    AllocSize = !bSystemAssembly ? dwNumTypeDefs : dwNumTypeDefs - 1;
-#else
     AllocSize = dwNumTypeDefs;
-#endif
     refArrClasses = (PTRARRAYREF) AllocateObjectArray(AllocSize, MscorlibBinder::GetClass(CLASS__CLASS));
 
     int curPos = 0;
@@ -1182,60 +1123,6 @@ Object* GetTypesInner(Module* pModule)
     RETURN(OBJECTREFToObject(refArrClasses));
 }
 
-#if defined(FEATURE_X509) && defined(FEATURE_CAS_POLICY)
-//+--------------------------------------------------------------------------
-//  
-//  Member:     COMModule::GetSignerCertificate()
-//  
-//  Synopsis:   Gets the certificate with which the module was signed.
-//
-//  Effects:    Creates an X509Certificate and returns it.
-// 
-//  Arguments:  None.
-//
-//  Returns:    OBJECTREF to an X509Certificate object containing the 
-//              signer certificate.
-//
-//---------------------------------------------------------------------------
-
-void QCALLTYPE COMModule::GetSignerCertificate(QCall::ModuleHandle pModule, QCall::ObjectHandleOnStack retData)
-{
-    QCALL_CONTRACT;
-    
-    BEGIN_QCALL;
-
-    PCOR_TRUST                  pCorTrust = NULL;
-    IAssemblySecurityDescriptor* pSecDesc = NULL;
-    PBYTE                       pbSigner = NULL;
-    DWORD                       cbSigner = 0;
-
-    // ******** Get the security descriptor ********
-
-    // Get a pointer to the module security descriptor
-    pSecDesc = pModule->GetSecurityDescriptor();
-    _ASSERTE(pSecDesc);
-
-    // ******** Get COR_TRUST info from module security descriptor ********
-    if (FAILED(pSecDesc->LoadSignature(&pCorTrust)))
-    {
-        COMPlusThrow(kArgumentNullException, W("InvalidOperation_MetaDataError"));
-    }
-
-    if( pCorTrust )
-    {
-        // Get a pointer to the signer certificate information in the COR_TRUST
-        pbSigner = pCorTrust->pbSigner;
-        cbSigner = pCorTrust->cbSigner;
-
-        if( pbSigner && cbSigner )
-        {
-            retData.SetByteArray(pbSigner, cbSigner);
-        }
-    }
-
-    END_QCALL;
-}
-#endif // #if defined(FEATURE_X509) && defined(FEATURE_CAS_POLICY)
 
 FCIMPL1(FC_BOOL_RET, COMModule::IsResource, ReflectModuleBaseObject* pModuleUNSAFE)
 {
@@ -1248,7 +1135,6 @@ FCIMPL1(FC_BOOL_RET, COMModule::IsResource, ReflectModuleBaseObject* pModuleUNSA
 }
 FCIMPLEND
 
-#ifdef FEATURE_CORECLR
 
 //---------------------------------------------------------------------
 // Helper code for PunkSafeHandle class. This does the Release in the
@@ -1283,6 +1169,5 @@ FCIMPL0(void*, COMPunkSafeHandle::nGetDReleaseTarget)
     return (void*)DReleaseTarget;
 }
 FCIMPLEND
-#endif //FEATURE_CORECLR
 
 

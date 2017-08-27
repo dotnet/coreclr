@@ -13,9 +13,6 @@
 #define CEELOAD_H_
 
 #include "common.h"
-#ifdef FEATURE_FUSION
-#include <fusion.h>
-#endif
 #include "vars.hpp" // for LPCUTF8
 #include "hash.h"
 #include "clsload.hpp"
@@ -50,12 +47,13 @@
 #include "readytoruninfo.h"
 #endif
 
+#include "ilinstrumentation.h"
+
 class PELoader;
 class Stub;
 class MethodDesc;
 class FieldDesc;
 class Crst;
-class IAssemblySecurityDescriptor;
 class ClassConverter;
 class RefClassWriter;
 class ReflectionModule;
@@ -76,15 +74,17 @@ class MethodTable;
 class AppDomain;
 class DynamicMethodTable;
 struct CerPrepInfo;
-class ModuleSecurityDescriptor;
 #ifdef FEATURE_PREJIT
 class CerNgenRootTable;
 struct MethodContextElement;
 class TypeHandleList;
 class ProfileEmitter;
-class ReJitManager;
+class CodeVersionManager;
+class CallCounter;
+class TieredCompilationManager;
 class TrackingMap;
-class PersistentInlineTrackingMap;
+struct MethodInModule;
+class PersistentInlineTrackingMapNGen;
 
 // Hash table parameter of available classes (name -> module/class) hash
 #define AVAILABLE_CLASSES_HASH_BUCKETS 1024
@@ -95,7 +95,6 @@ class PersistentInlineTrackingMap;
 #define GUID_TO_TYPE_HASH_BUCKETS 16
             
 // The native symbol reader dll name
-#ifdef FEATURE_CORECLR
 #if defined(_AMD64_)
 #define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.amd64.dll")
 #elif defined(_X86_)
@@ -107,11 +106,8 @@ class PersistentInlineTrackingMap;
 //#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.arm64.dll")
 #define NATIVE_SYMBOL_READER_DLL W("diasymreader.dll")
 #endif
-#else
-#define NATIVE_SYMBOL_READER_DLL W("diasymreader.dll")
-#endif
 
-typedef DPTR(PersistentInlineTrackingMap) PTR_PersistentInlineTrackingMap;
+typedef DPTR(PersistentInlineTrackingMapNGen) PTR_PersistentInlineTrackingMapNGen;
 
 extern VerboseLevel g_CorCompileVerboseLevel;
 #endif  // FEATURE_PREJIT
@@ -317,7 +313,10 @@ template <typename TYPE>
 struct LookupMap : LookupMapBase
 {
     static TYPE GetValueAt(PTR_TADDR pValue, TADDR* pFlags, TADDR supportedFlags);
+
+#ifndef DACCESS_COMPILE
     static void SetValueAt(PTR_TADDR pValue, TYPE value, TADDR flags);
+#endif // DACCESS_COMPILE
 
     TYPE GetElement(DWORD rid, TADDR* pFlags);
     void SetElement(DWORD rid, TYPE value, TADDR flags);
@@ -374,6 +373,7 @@ public:
         SetElement(rid, value, flags);
     }
 
+#ifndef DACCESS_COMPILE
     void AddFlag(DWORD rid, TADDR flag)
     {
         WRAPPER_NO_CONTRACT;
@@ -394,6 +394,7 @@ public:
         TYPE existingValue = GetValueAt(pElement, &existingFlags, supportedFlags);
         SetValueAt(pElement, existingValue, existingFlags | flag);
     }
+#endif // DACCESS_COMPILE
 
     //
     // Try to store an association in a map. Will never throw or fail.
@@ -621,7 +622,7 @@ struct ModuleCtorInfo
     DWORD                   numElements;
     DWORD                   numLastAllocated;
     DWORD                   numElementsHot;
-    DPTR(PTR_MethodTable)   ppMT;           // size is numElements
+    DPTR(RelativePointer<PTR_MethodTable>) ppMT; // size is numElements
     PTR_ClassCtorInfoEntry  cctorInfoHot;   // size is numElementsHot
     PTR_ClassCtorInfoEntry  cctorInfoCold;  // size is numElements-numElementsHot
 
@@ -630,8 +631,8 @@ struct ModuleCtorInfo
     DWORD                   numHotHashes;
     DWORD                   numColdHashes;
 
-    ArrayDPTR(FixupPointer<PTR_MethodTable>) ppHotGCStaticsMTs;            // hot table
-    ArrayDPTR(FixupPointer<PTR_MethodTable>) ppColdGCStaticsMTs;           // cold table
+    ArrayDPTR(RelativeFixupPointer<PTR_MethodTable>) ppHotGCStaticsMTs;            // hot table
+    ArrayDPTR(RelativeFixupPointer<PTR_MethodTable>) ppColdGCStaticsMTs;           // cold table
 
     DWORD                   numHotGCStaticsMTs;
     DWORD                   numColdGCStaticsMTs;
@@ -667,7 +668,13 @@ struct ModuleCtorInfo
         return hashVal;
     };
 
-    ArrayDPTR(FixupPointer<PTR_MethodTable>) GetGCStaticMTs(DWORD index);
+    ArrayDPTR(RelativeFixupPointer<PTR_MethodTable>) GetGCStaticMTs(DWORD index);
+
+    PTR_MethodTable GetMT(DWORD i)
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return ppMT[i].GetValue(dac_cast<TADDR>(ppMT) + i * sizeof(RelativePointer<PTR_MethodTable>));
+    }
 
 #ifdef FEATURE_PREJIT
 
@@ -678,11 +685,11 @@ struct ModuleCtorInfo
     class ClassCtorInfoEntryArraySort : public CQuickSort<DWORD>
     {
     private:
-        PTR_MethodTable *m_pBase1;
+        DPTR(RelativePointer<PTR_MethodTable>) m_pBase1;
 
     public:
         //Constructor
-        ClassCtorInfoEntryArraySort(DWORD *base, PTR_MethodTable *base1, int count)
+        ClassCtorInfoEntryArraySort(DWORD *base, DPTR(RelativePointer<PTR_MethodTable>) base1, int count)
           : CQuickSort<DWORD>(base, count)
         {
             WRAPPER_NO_CONTRACT;
@@ -703,6 +710,7 @@ struct ModuleCtorInfo
                 return 1;
         }
         
+#ifndef DACCESS_COMPILE
         // Swap is overwriten so that we can sort both the MethodTable pointer
         // array and the ClassCtorInfoEntry array in parrallel.
         FORCEINLINE void Swap(SSIZE_T iFirst, SSIZE_T iSecond)
@@ -718,10 +726,11 @@ struct ModuleCtorInfo
             m_pBase[iFirst] = m_pBase[iSecond];
             m_pBase[iSecond] = sTemp;
 
-            sTemp1 = m_pBase1[iFirst];
-            m_pBase1[iFirst] = m_pBase1[iSecond];
-            m_pBase1[iSecond] = sTemp1;
+            sTemp1 = m_pBase1[iFirst].GetValueMaybeNull();
+            m_pBase1[iFirst].SetValueMaybeNull(m_pBase1[iSecond].GetValueMaybeNull());
+            m_pBase1[iSecond].SetValueMaybeNull(sTemp1);
         }
+#endif // !DACCESS_COMPILE
     };
 #endif // FEATURE_PREJIT
 };
@@ -1088,104 +1097,6 @@ typedef SHash<DynamicILBlobTraits> DynamicILBlobTable;
 typedef DPTR(DynamicILBlobTable) PTR_DynamicILBlobTable;
 
 
-// declare an array type of COR_IL_MAP entries
-typedef ArrayDPTR(COR_IL_MAP) ARRAY_PTR_COR_IL_MAP;
-
-//---------------------------------------------------------------------------------------
-//
-// A profiler may instrument a method by changing the IL.  This is typically done when the profiler receives
-// a JITCompilationStarted notification.  The profiler also has the option to provide the runtime with 
-// a mapping between original IL offsets and instrumented IL offsets.  This struct is a simple container
-// for storing the mapping information.  We store the mapping information on the Module class, where it can
-// be accessed by the debugger from out-of-process.
-//
-
-class InstrumentedILOffsetMapping
-{
-public:
-    InstrumentedILOffsetMapping();
-
-    // Check whether there is any mapping information stored in this object.
-    BOOL IsNull();
-
-#if !defined(DACCESS_COMPILE)
-    // Release the memory used by the array of COR_IL_MAPs.
-    void Clear();
-
-    void SetMappingInfo(SIZE_T cMap, COR_IL_MAP * rgMap);
-#endif // !DACCESS_COMPILE
-
-    SIZE_T               GetCount()   const;
-    ARRAY_PTR_COR_IL_MAP GetOffsets() const;
-
-private:
-    SIZE_T               m_cMap;        // the number of elements in m_rgMap
-    ARRAY_PTR_COR_IL_MAP m_rgMap;       // an array of COR_IL_MAPs
-};
-
-//---------------------------------------------------------------------------------------
-//
-// Hash table entry for storing InstrumentedILOffsetMapping.  This is keyed by the MethodDef token.
-//
-
-struct ILOffsetMappingEntry
-{
-    ILOffsetMappingEntry()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-
-        m_methodToken = mdMethodDefNil; 
-        // No need to initialize m_mapping.  The default ctor of InstrumentedILOffsetMapping does the job.
-    }
-
-    ILOffsetMappingEntry(mdMethodDef token, InstrumentedILOffsetMapping mapping)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-
-        m_methodToken = token;
-        m_mapping     = mapping;
-    }
-
-    mdMethodDef                 m_methodToken;
-    InstrumentedILOffsetMapping m_mapping;
-};
-
-//---------------------------------------------------------------------------------------
-//
-// This class is used to create the hash table for the instrumented IL offset mapping.
-// It encapsulates the desired behaviour of the templated hash table and implements 
-// the various functions needed by the hash table.
-//
-
-class ILOffsetMappingTraits : public NoRemoveSHashTraits<DefaultSHashTraits<ILOffsetMappingEntry> >
-{
-public:
-    typedef mdMethodDef key_t;
-
-    static key_t GetKey(element_t e)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return e.m_methodToken;
-    }
-    static BOOL Equals(key_t k1, key_t k2)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return (k1 == k2);
-    }
-    static count_t Hash(key_t k)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return (count_t)(size_t)k;
-    }
-    static const element_t Null() 
-    { 
-        LIMITED_METHOD_DAC_CONTRACT; 
-        ILOffsetMappingEntry e; 
-        return e; 
-    }
-    static bool IsNull(const element_t &e) { LIMITED_METHOD_DAC_CONTRACT; return e.m_methodToken == mdMethodDefNil; }
-};
-
 // ESymbolFormat specified the format used by a symbol stream
 typedef enum 
 {
@@ -1193,11 +1104,6 @@ typedef enum
     eSymbolFormatPDB,       /* PDB format from diasymreader.dll - only safe for trusted scenarios */
     eSymbolFormatILDB       /* ILDB format from ildbsymbols.dll */
 }ESymbolFormat;
-
-
-// Hash table of profiler-provided instrumented IL offset mapping, keyed by the MethodDef token
-typedef SHash<ILOffsetMappingTraits> ILOffsetMappingTable;
-typedef DPTR(ILOffsetMappingTable) PTR_ILOffsetMappingTable;
 
 
 #ifdef FEATURE_COMINTEROP
@@ -1726,7 +1632,6 @@ private:
 
     PTR_ProfilingBlobTable  m_pProfilingBlobTable;   // While performing IBC instrumenting this hashtable is populated with the External defs
     CorProfileData *        m_pProfileData;          // While ngen-ing with IBC optimizations this contains a link to the IBC data for the assembly
-    SString *               m_pIBCErrorNameString;   // Used when reporting IBC type loading errors
 
     // Profile information
     BOOL                            m_nativeImageProfiling;
@@ -1785,40 +1690,6 @@ private:
     NgenStats                *m_pNgenStats;
 #endif // FEATURE_PREJIT
 
-#ifdef FEATURE_MIXEDMODE 
-    // LoaderHeap for storing thunks
-    PTR_LoaderHeap           m_pThunkHeap;
-
-    // Self-initializing accessor for thunk heap
-    LoaderHeap              *GetThunkHeap();
-    // Self-initializing accessor for domain-independent thunk heap
-    LoaderHeap              *GetDllThunkHeap();
-
-
-public:
-    UMEntryThunk*            GetADThunkTable();
-    void                     SetADThunkTable(UMEntryThunk* pTable);
-
-protected:
-    // Domain that the IJW fixups were applied in
-    ADID                    m_DomainIdOfIJWFixups;
-
-public:
-    ADID                    GetDomainIdOfIJWFixups()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERT(m_DomainIdOfIJWFixups != ADID());
-        return m_DomainIdOfIJWFixups;
-    }
-
-    void                     SetDomainIdOfIJWFixups(ADID id)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERT(id != ADID());
-        m_DomainIdOfIJWFixups = id;
-    }
-
-#endif // FEATURE_MIXEDMODE
 
 protected:
 
@@ -1830,6 +1701,7 @@ protected:
 protected:
 #ifndef DACCESS_COMPILE
     virtual void Initialize(AllocMemTracker *pamTracker, LPCWSTR szName = NULL);
+    void InitializeForProfiling();
 #ifdef FEATURE_PREJIT 
     void InitializeNativeImage(AllocMemTracker* pamTracker);
 #endif
@@ -1868,9 +1740,6 @@ protected:
 
     void ApplyMetaData();
 
-#ifdef FEATURE_MIXEDMODE
-    void FixupVTables();
-#endif 
 
     void FreeClassTables();
 
@@ -1925,8 +1794,12 @@ protected:
 
     ClassLoader *GetClassLoader();
     PTR_BaseDomain GetDomain();
-    ReJitManager * GetReJitManager();
-    IAssemblySecurityDescriptor* GetSecurityDescriptor();
+#ifdef FEATURE_CODE_VERSIONING
+    CodeVersionManager * GetCodeVersionManager();
+#endif
+#ifdef FEATURE_TIERED_COMPILATION
+    CallCounter * GetCallCounter();
+#endif
 
     mdFile GetModuleRef()
     {
@@ -2185,11 +2058,6 @@ protected:
 
     virtual void ReleaseILData();
 
-#ifdef FEATURE_FUSION
-    void FusionCopyPDBs(LPCWSTR moduleName);
-    // This function will return PDB stream if exist.
-    HRESULT GetHostPdbStream(IStream **ppStream);
-#endif // FEATURE_FUSION
 
 #endif // DACCESS_COMPILE
 
@@ -2679,7 +2547,8 @@ public:
     void NotifyProfilerLoadFinished(HRESULT hr);
 #endif // PROFILING_SUPPORTED
 
-    PTR_PersistentInlineTrackingMap GetNgenInlineTrackingMap();
+    BOOL HasInlineTrackingMap();
+    COUNT_T GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
 
 public:
     void NotifyEtwLoadFinished(HRESULT hr);
@@ -2708,10 +2577,6 @@ public:
 
     BOOL CanExecuteCode();
 
-#ifdef FEATURE_MIXEDMODE
-    LPVOID GetUMThunk(LPVOID pManagedIp, PCCOR_SIGNATURE pSig, ULONG cSig);
-    LPVOID GetMUThunk(LPVOID pUnmanagedIp, PCCOR_SIGNATURE pSig, ULONG cSig);
-#endif // FEATURE_MIXEDMODE
 
     // This data is only valid for NGEN'd modules, and for modules we're creating at NGEN time.
     ModuleCtorInfo* GetZapModuleCtorInfo()
@@ -2723,9 +2588,6 @@ public:
 
  private:
 
-#ifdef FEATURE_MIXEDMODE 
-    class MUThunkHash *m_pMUThunkHash;
-#endif // FEATURE_MIXEDMODE
 
  public:
 #ifndef DACCESS_COMPILE
@@ -2788,6 +2650,8 @@ public:
     }
 #endif // FEATURE_PREJIT
 
+
+    BOOL            HasNativeOrReadyToRunImage();
     PEImageLayout * GetNativeOrReadyToRunImage();
     PTR_CORCOMPILE_IMPORT_SECTION GetImportSections(COUNT_T *pCount);
     PTR_CORCOMPILE_IMPORT_SECTION GetImportSectionFromIndex(COUNT_T index);
@@ -2950,8 +2814,11 @@ public:
     static void RestoreMethodDescPointer(RelativeFixupPointer<PTR_MethodDesc> * ppMD,
                                          Module *pContainingModule = NULL,
                                          ClassLoadLevel level = CLASS_LOADED);
+    static void RestoreFieldDescPointer(RelativeFixupPointer<PTR_FieldDesc> * ppFD);
 
-    static void RestoreFieldDescPointer(FixupPointer<PTR_FieldDesc> * ppFD);
+    static void RestoreMethodTablePointer(PlainPointer<PTR_MethodTable> * ppMT,
+                                          Module *pContainingModule = NULL,
+                                          ClassLoadLevel level = CLASS_LOADED);
 
     static void RestoreModulePointer(RelativeFixupPointer<PTR_Module> * ppModule, Module *pContainingModule);
 
@@ -2987,19 +2854,11 @@ public:
     void SetProfileData(CorProfileData * profileData);
     CorProfileData *GetProfileData();
 
-
     mdTypeDef     LookupIbcTypeToken(  Module *   pExternalModule, mdToken ibcToken, SString* optionalFullNameOut = NULL);
     mdMethodDef   LookupIbcMethodToken(TypeHandle enclosingType,   mdToken ibcToken, SString* optionalFullNameOut = NULL);
 
-    SString *     IBCErrorNameString();
-
-    void          IBCTypeLoadFailed(  CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry, 
-                                      SString& exceptionMessage, SString* typeNameError);
-    void          IBCMethodLoadFailed(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry, 
-                                      SString& exceptionMessage, SString* typeNameError);
-
-    TypeHandle    LoadIBCTypeHelper(  CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
-    MethodDesc *  LoadIBCMethodHelper(CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
+    TypeHandle    LoadIBCTypeHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
+    MethodDesc *  LoadIBCMethodHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
  
 
     void ExpandAll(DataImage *image);
@@ -3120,6 +2979,10 @@ public:
     static void ProfileDataAllocateTokenLists(ProfileEmitter * pEmitter, TokenProfileData* pTokenProfileData);
     HRESULT WriteMethodProfileDataLogFile(bool cleanup);
     static void WriteAllModuleProfileData(bool cleanup);
+    void SetMethodProfileList(CORCOMPILE_METHOD_PROFILE_LIST * value)
+    {
+        m_methodProfileList = value;
+    }
 
     void CreateProfilingData();
     void DeleteProfilingData();
@@ -3394,12 +3257,6 @@ public:
     //-----------------------------------------------------------------------------------------
     BOOL                    IsPreV4Assembly();
 
-#ifdef FEATURE_CER
-    //-----------------------------------------------------------------------------------------
-    // Get reliability contract info, see ConstrainedExecutionRegion.cpp for details.
-    //-----------------------------------------------------------------------------------------
-    DWORD                   GetReliabilityContract();
-#endif
 
     //-----------------------------------------------------------------------------------------
     // Parse/Return NeutralResourcesLanguageAttribute if it exists (updates Module member variables at ngen time)
@@ -3408,50 +3265,11 @@ public:
 
 protected:
 
-#ifdef FEATURE_CER
-    Volatile<DWORD>         m_dwReliabilityContract;
-#endif
 
     // initialize Crst controlling the Dynamic IL hashtables
     void                    InitializeDynamicILCrst();
 
 public:
-#if !defined(DACCESS_COMPILE) && defined(FEATURE_CER)
-
-    // Support for getting and creating information about Constrained Execution Regions rooted in this module.
-
-    // Access to CerPrepInfo, the structure used to track CERs prepared at runtime (as opposed to ngen time). GetCerPrepInfo will
-    // return the structure associated with the given method desc if it exists or NULL otherwise. CreateCerPrepInfo will get the
-    // structure if it exists or allocate and return a new struct otherwise. Creation of CerPrepInfo structures is automatically
-    // synchronized by the CerCrst (lazily allocated as needed).
-    CerPrepInfo *GetCerPrepInfo(MethodDesc *pMD);
-    CerPrepInfo *CreateCerPrepInfo(MethodDesc *pMD);
-
-#ifdef FEATURE_PREJIT
-    // Access to CerNgenRootTable which holds holds information for all the CERs rooted at a method in this module (that were
-    // discovered during an ngen).
-
-    // Add a list of MethodContextElements representing a CER to the root table keyed by the MethodDesc* of the root method. Creates
-    // or expands the root table as necessary.
-    void AddCerListToRootTable(MethodDesc *pRootMD, MethodContextElement *pList);
-
-    // Returns true if the given method is a CER root detected at ngen time.
-    bool IsNgenCerRootMethod(MethodDesc *pMD);
-
-    // Restores the CER rooted at this method (no-op if this method isn't a CER root).
-    void RestoreCer(MethodDesc *pMD);
-#endif // FEATURE_PREJIT
-
-    Crst *GetCerCrst()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pCerCrst;
-    }
-#endif // !DACCESS_COMPILE && FEATURE_CER
-
-#ifdef FEATURE_CORECLR
-    void VerifyAllMethods();
-#endif //FEATURE_CORECLR
 
     CrstBase *GetLookupTableCrst()
     {
@@ -3460,13 +3278,6 @@ public:
     }
 
 private:
-#ifdef FEATURE_CER
-    EEPtrHashTable       *m_pCerPrepInfo;       // Root methods prepared for Constrained Execution Regions
-    Crst                 *m_pCerCrst;           // Mutex protecting update access to both of the above hashes
-#ifdef FEATURE_PREJIT
-    CerNgenRootTable     *m_pCerNgenRootTable;  // Root methods of CERs found during ngen and requiring runtime restoration
-#endif
-#endif
 
     // This struct stores the data used by the managed debugging infrastructure.  If it turns out that 
     // the debugger is increasing the size of the Module class by too much, we can consider allocating
@@ -3498,7 +3309,7 @@ private:
     DebuggerSpecificData  m_debuggerSpecificData;
 
     // This is a compressed read only copy of m_inlineTrackingMap, which is being saved to NGEN image.
-    PTR_PersistentInlineTrackingMap m_persistentInlineTrackingMap;
+    PTR_PersistentInlineTrackingMapNGen m_pPersistentInlineTrackingMapNGen;
 
 
     LPCSTR               *m_AssemblyRefByNameTable;  // array that maps mdAssemblyRef tokens into their simple name
@@ -3517,8 +3328,6 @@ private:
 #endif // defined(FEATURE_PREJIT)
 
 public:
-    ModuleSecurityDescriptor* m_pModuleSecurityDescriptor;
-
 #if !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
     PTR_Assembly GetNativeMetadataAssemblyRefFromCache(DWORD rid)
     {

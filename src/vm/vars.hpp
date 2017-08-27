@@ -66,18 +66,13 @@ typedef unsigned short wchar_t;
 #include <corpriv.h>
 #include <cordbpriv.h>
 
-#ifndef FEATURE_CORECLR
-#include <metahost.h>
-#endif // !FEATURE_CORECLR
 
 #include "eeprofinterfaces.h"
 #include "eehash.h"
 
-#ifdef FEATURE_CAS_POLICY
-#include "certificatecache.h"
-#endif
-
 #include "profilepriv.h"
+
+#include "gcinterface.h"
 
 class ClassLoader;
 class LoaderHeap;
@@ -103,23 +98,6 @@ class RCWCleanupList;
 #endif // FEATURE_COMINTEROP
 class BBSweep;
 struct IAssemblyUsageLog;
-
-//
-// object handles are opaque types that track object pointers
-//
-#ifndef DACCESS_COMPILE
-
-struct OBJECTHANDLE__
-{
-    void* unused;
-};
-typedef struct OBJECTHANDLE__* OBJECTHANDLE;
-
-#else
-
-typedef TADDR OBJECTHANDLE;
-
-#endif
 
 //
 // loader handles are opaque types that track object pointers that have a lifetime
@@ -184,12 +162,6 @@ class OBJECTREF {
         class TransparentProxyObject* m_asTP;
 
         class ReflectClassBaseObject* m_asReflectClass;
-#ifdef FEATURE_COMPRESSEDSTACK        
-        class CompressedStackObject* m_asCompressedStack;
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
-#if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-        class SecurityContextObject* m_asSecurityContext;
-#endif // #if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
         class ExecutionContextObject* m_asExecutionContext;
         class AppDomainBaseObject* m_asAppDomainBase;
         class PermissionSetObject* m_asPermissionSetObject;
@@ -402,9 +374,7 @@ GPTR_DECL(MethodTable,      g_pStringClass);
 GPTR_DECL(MethodTable,      g_pArrayClass);
 GPTR_DECL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_DECL(MethodTable,      g_pNullableClass);
-#ifdef FEATURE_SPAN_OF_T
 GPTR_DECL(MethodTable,      g_pByReferenceClass);
-#endif
 GPTR_DECL(MethodTable,      g_pExceptionClass);
 GPTR_DECL(MethodTable,      g_pThreadAbortExceptionClass);
 GPTR_DECL(MethodTable,      g_pOutOfMemoryExceptionClass);
@@ -417,12 +387,6 @@ GPTR_DECL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_DECL(MethodTable,      g_pValueTypeClass);
 GPTR_DECL(MethodTable,      g_pEnumClass);
 GPTR_DECL(MethodTable,      g_pThreadClass);
-#ifdef FEATURE_CER
-GPTR_DECL(MethodTable,      g_pCriticalFinalizerObjectClass);
-#endif
-#ifndef FEATURE_CORECLR
-GPTR_DECL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
-#endif // !FEATURE_CORECLR
 GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
@@ -438,20 +402,13 @@ GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 GPTR_DECL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
 
-#ifdef FEATURE_CER
-GPTR_DECL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
-#endif
 GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
-GPTR_DECL(MethodDesc,       g_pObjectCtorMD);
 GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 
 //<TODO> @TODO Remove eventually - determines whether the verifier throws an exception when something fails</TODO>
 EXTERN bool                 g_fVerifierOff;
 
-#ifndef FEATURE_CORECLR
-EXTERN IAssemblyUsageLog   *g_pIAssemblyUsageLogGac;
-#endif
 
 // Global System Information
 extern SYSTEM_INFO g_SystemInfo;
@@ -492,10 +449,6 @@ extern DWORD g_dwHandles;
 typedef DPTR(RCWCleanupList) PTR_RCWCleanupList;
 GPTR_DECL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
-
-#ifdef FEATURE_CAS_POLICY
-EXTERN CertificateCache *g_pCertificateCache;
-#endif 
 
 #ifdef FEATURE_IPCMAN
 // support for IPCManager
@@ -575,12 +528,6 @@ EXTERN Volatile<BOOL> g_fEEStarted;
 EXTERN BOOL g_fComStarted;
 #endif
 
-#if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
-//
-// Pointer to the activated CLR interface provided by the shim.
-//
-EXTERN ICLRRuntimeInfo *g_pCLRRuntime;
-#endif
 
 //
 // Global state variables indicating which stage of shutdown we are in
@@ -644,14 +591,6 @@ EXTERN const char g_psBaseLibraryTLB[];
 #endif  // FEATURE_COMINTEROP
 #endif // DACCESS_COMPILE
 
-EXTERN const WCHAR g_pwzClickOnceEnv_FullName[];
-EXTERN const WCHAR g_pwzClickOnceEnv_Manifest[];
-EXTERN const WCHAR g_pwzClickOnceEnv_Parameter[];
-
-#ifdef FEATURE_LOADER_OPTIMIZATION
-EXTERN DWORD g_dwGlobalSharePolicy;
-#endif
-
 //
 // Do we own the lifetime of the process, ie. is it an EXE?
 //
@@ -671,17 +610,6 @@ extern const DWORD g_rgPrimes[71];
 //
 extern LPWSTR g_pCachedCommandLine;
 extern LPWSTR g_pCachedModuleFileName;
-
-//
-// Host configuration file. One per process.
-//
-extern LPCWSTR g_pszHostConfigFile;
-extern SIZE_T  g_dwHostConfigFile;
-
-// AppDomainManager type
-extern LPWSTR g_wszAppDomainManagerAsm;
-extern LPWSTR g_wszAppDomainManagerType;
-extern bool g_fDomainManagerInitialized;
 
 //
 // Macros to check debugger and profiler settings.

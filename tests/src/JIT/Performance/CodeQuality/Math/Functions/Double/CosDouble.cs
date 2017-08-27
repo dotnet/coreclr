@@ -14,14 +14,17 @@ namespace Functions
         private const double cosDoubleDelta = 0.0006283185307180;
         private const double cosDoubleExpectedResult = -1.0000000005924159;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = CosDoubleIterations)]
         public static void CosDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    CosDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        CosDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {cosDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {cosDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

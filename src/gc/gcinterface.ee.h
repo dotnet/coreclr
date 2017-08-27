@@ -9,16 +9,16 @@
 // of the execution engine. Everything that the GC does that requires the EE
 // to be informed or that requires EE action must go through this interface.
 //
-// When FEATURE_STANDALONE_GC is defined, this class is named IGCToCLR and is
+// When BUILD_AS_STANDALONE is defined, this class is named IGCToCLR and is
 // an abstract class. The EE will provide a class that fulfills this interface,
-// and the GC will dispatch virtually on it to call into the EE. When FEATURE_STANDALONE_GC
+// and the GC will dispatch virtually on it to call into the EE. When BUILD_AS_STANDALONE
 // is not defined, this class is named GCToEEInterface and the GC will dispatch statically on it.
 class IGCToCLR {
 public:
     // Suspends the EE for the given reason.
     virtual
     void SuspendEE(SUSPEND_REASON reason) = 0;
-    
+
     // Resumes all paused threads, with a boolean indicating
     // if the EE is being restarted because a GC is complete.
     virtual
@@ -77,6 +77,15 @@ public:
     virtual
     void DisablePreemptiveGC(Thread * pThread) = 0;
 
+    // Gets the Thread instance for the current thread, or null if no thread
+    // instance is associated with this thread.
+    virtual
+    Thread* GetThread() = 0;
+
+    // Returns whether or not a thread suspension is pending.
+    virtual
+    bool TrapReturningThreads() = 0;
+
     // Retrieves the alloc context associated with a given thread.
     virtual
     gc_alloc_context * GetAllocContext(Thread * pThread) = 0;
@@ -133,6 +142,55 @@ public:
     // be finalized.
     virtual
     void EnableFinalization(bool foundFinalizers) = 0;
+
+    // Signals to the EE that the GC encountered a fatal error and can't recover.
+    virtual
+    void HandleFatalError(unsigned int exitCode) = 0;
+
+    // Asks the EE if it wants a particular object to be finalized when unloading
+    // an app domain.
+    virtual
+    bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj) = 0;
+
+    // Offers the EE the option to finalize the given object eagerly, i.e.
+    // not on the finalizer thread but on the current thread. The
+    // EE returns true if it finalized the object eagerly and the GC does not
+    // need to do so, and false if it chose not to eagerly finalize the object
+    // and it's up to the GC to finalize it later.
+    virtual
+    bool EagerFinalized(Object* obj) = 0;
+
+    // Asks the EE if it wishes for the current GC to be a blocking GC. The GC will
+    // only invoke this callback when it intends to do a full GC, so at this point
+    // the EE can opt to elevate that collection to be a blocking GC and not a background one.
+    virtual
+    bool ForceFullGCToBeBlocking() = 0;
+
+    // Retrieves the method table for the free object, a special kind of object used by the GC
+    // to keep the heap traversable. Conceptually, the free object is similar to a managed array
+    // of bytes: it consists of an object header (like all objects) and a "numComponents" field,
+    // followed by some number of bytes of space that's free on the heap.
+    //
+    // The free object allows the GC to traverse the heap because it can inspect the numComponents
+    // field to see how many bytes to skip before the next object on a heap segment begins.
+    virtual
+    MethodTable* GetFreeObjectMethodTable() = 0;
+
+    // Asks the EE for the value of a given configuration key. If the EE does not know or does not
+    // have a value for the requeested config key, false is returned and the value of the passed-in
+    // pointer is undefined. Otherwise, true is returned and the config key's value is written to
+    // the passed-in pointer.
+    virtual
+    bool GetBooleanConfigValue(const char* key, bool* value) = 0;
+
+    virtual
+    bool GetIntConfigValue(const char* key, int64_t* value) = 0;
+
+    virtual
+    bool GetStringConfigValue(const char* key, const char** value) = 0;
+
+    virtual
+    void FreeStringConfigValue(const char* value) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

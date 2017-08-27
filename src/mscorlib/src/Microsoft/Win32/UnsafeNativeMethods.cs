@@ -2,27 +2,22 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace Microsoft.Win32 {
-    using Microsoft.Win32;
+namespace Microsoft.Win32
+{
     using Microsoft.Win32.SafeHandles;
     using System;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.ConstrainedExecution;
-    using System.Runtime.InteropServices;
-    using System.Runtime.Serialization;
-    using System.Runtime.Versioning;
-    using System.Security;
-    using System.Security.Permissions;
-    using System.Text;
     using System.Diagnostics.Tracing;
+    using System.Runtime.InteropServices;
+    using System.Security;
+    using System.Text;
 
     [SuppressUnmanagedCodeSecurityAttribute()]
-    internal static class UnsafeNativeMethods {
-
-        [DllImport(Win32Native.KERNEL32, EntryPoint="GetTimeZoneInformation", SetLastError = true, ExactSpelling = true)]
+    internal static class UnsafeNativeMethods
+    {
+        [DllImport(Win32Native.KERNEL32, EntryPoint = "GetTimeZoneInformation", SetLastError = true, ExactSpelling = true)]
         internal static extern int GetTimeZoneInformation(out Win32Native.TimeZoneInformation lpTimeZoneInformation);
 
-        [DllImport(Win32Native.KERNEL32, EntryPoint="GetDynamicTimeZoneInformation", SetLastError = true, ExactSpelling = true)]
+        [DllImport(Win32Native.KERNEL32, EntryPoint = "GetDynamicTimeZoneInformation", SetLastError = true, ExactSpelling = true)]
         internal static extern int GetDynamicTimeZoneInformation(out Win32Native.DynamicTimeZoneInformation lpDynamicTimeZoneInformation);
 
         // 
@@ -36,7 +31,7 @@ namespace Microsoft.Win32 {
         //   PULONGLONG  pululEnumerator
         // );
         // 
-        [DllImport(Win32Native.KERNEL32, EntryPoint="GetFileMUIPath", SetLastError = true, ExactSpelling = true)]
+        [DllImport(Win32Native.KERNEL32, EntryPoint = "GetFileMUIPath", SetLastError = true, ExactSpelling = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool GetFileMUIPath(
                                      int flags,
@@ -49,19 +44,6 @@ namespace Microsoft.Win32 {
                                      StringBuilder fileMuiPath,
                                      ref int fileMuiPathLength,
                                      ref Int64 enumerator);
-
-
-        [DllImport(Win32Native.USER32, EntryPoint="LoadStringW",  SetLastError=true, CharSet=CharSet.Unicode, ExactSpelling=true, CallingConvention=CallingConvention.StdCall)]
-        internal static extern int LoadString(SafeLibraryHandle handle, int id, [Out] StringBuilder buffer, int bufferLength);
-
-        [DllImport(Win32Native.KERNEL32, CharSet=System.Runtime.InteropServices.CharSet.Unicode, SetLastError=true)]
-        internal static extern SafeLibraryHandle LoadLibraryEx(string libFilename, IntPtr reserved, int flags);        
-                
-        [DllImport(Win32Native.KERNEL32, CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        internal static extern bool FreeLibrary(IntPtr hModule);
-
 
         [SuppressUnmanagedCodeSecurityAttribute()]
         internal static unsafe class ManifestEtw
@@ -119,19 +101,6 @@ namespace Microsoft.Win32 {
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage")]
             [DllImport(Win32Native.ADVAPI32, ExactSpelling = true, EntryPoint = "EventUnregister", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
             internal static extern uint EventUnregister([In] long registrationHandle);
-
-            //
-            // Writing (Publishing/Logging) APIs
-            //
-            // 
-            [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage")]
-            [DllImport(Win32Native.ADVAPI32, ExactSpelling = true, EntryPoint = "EventWrite", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-            internal static extern unsafe int EventWrite(
-                    [In] long registrationHandle,
-                    [In] ref EventDescriptor eventDescriptor,
-                    [In] int userDataCount,
-                    [In] EventProvider.EventData* userData
-                    );
 
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage")]
             [DllImport(Win32Native.ADVAPI32, ExactSpelling = true, EntryPoint = "EventWriteString", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
@@ -260,15 +229,14 @@ namespace Microsoft.Win32 {
                 void* OutBuffer,
                 int OutBufferSize,
                 ref int ReturnLength);
-
         }
+
 #if FEATURE_COMINTEROP
         [DllImport("combase.dll", PreserveSig = true)]
         internal static extern int RoGetActivationFactory(
             [MarshalAs(UnmanagedType.HString)] string activatableClassId,
             [In] ref Guid iid,
-            [Out,MarshalAs(UnmanagedType.IInspectable)] out Object factory);
+            [Out, MarshalAs(UnmanagedType.IInspectable)] out Object factory);
 #endif
-
     }
 }

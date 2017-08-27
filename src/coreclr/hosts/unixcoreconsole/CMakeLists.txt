@@ -23,11 +23,12 @@ endif(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL 
 # pthread by the process executable ensures that all locks are initialized properly.
 target_link_libraries(coreconsole
     unixcoreruncommon
-    pthread
 )
 
-add_dependencies(coreconsole
-    coreclr
-)
+if(NOT CLR_CMAKE_PLATFORM_ANDROID)
+  target_link_libraries(coreconsole
+    pthread
+  )
+endif()
 
 install_clr(coreconsole)

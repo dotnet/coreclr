@@ -13,8 +13,9 @@
 **
 ** 
 ===========================================================*/
-namespace System.Resources {
 
+namespace System.Resources
+{
     using System;
     using System.Collections;
     using System.Collections.Generic;
@@ -41,7 +42,6 @@ namespace System.Resources {
     //
     internal class ManifestBasedResourceGroveler : IResourceGroveler
     {
-
         private ResourceManager.ResourceManagerMediator _mediator;
 
         public ManifestBasedResourceGroveler(ResourceManager.ResourceManagerMediator mediator)
@@ -52,7 +52,6 @@ namespace System.Resources {
             _mediator = mediator;
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
         public ResourceSet GrovelForResourceSet(CultureInfo culture, Dictionary<String, ResourceSet> localResourceSets, bool tryParents, bool createIfNotExists, ref StackCrawlMark stackMark)
         {
             Debug.Assert(culture != null, "culture shouldn't be null; check caller");
@@ -132,7 +131,6 @@ namespace System.Resources {
 
         private CultureInfo UltimateFallbackFixup(CultureInfo lookForCulture)
         {
-
             CultureInfo returnCulture = lookForCulture;
 
             // If our neutral resources were written in this culture AND we know the main assembly
@@ -155,15 +153,18 @@ namespace System.Resources {
             Debug.Assert(a != null, "assembly != null");
             string cultureName = null;
             short fallback = 0;
-            if (GetNeutralResourcesLanguageAttribute(((RuntimeAssembly)a).GetNativeHandle(), 
-                                                        JitHelpers.GetStringHandleOnStack(ref cultureName), 
-                                                        out fallback)) {
-                if ((UltimateResourceFallbackLocation)fallback < UltimateResourceFallbackLocation.MainAssembly || (UltimateResourceFallbackLocation)fallback > UltimateResourceFallbackLocation.Satellite) {
-                    throw new ArgumentException(Environment.GetResourceString("Arg_InvalidNeutralResourcesLanguage_FallbackLoc", fallback));
+            if (GetNeutralResourcesLanguageAttribute(((RuntimeAssembly)a).GetNativeHandle(),
+                                                        JitHelpers.GetStringHandleOnStack(ref cultureName),
+                                                        out fallback))
+            {
+                if ((UltimateResourceFallbackLocation)fallback < UltimateResourceFallbackLocation.MainAssembly || (UltimateResourceFallbackLocation)fallback > UltimateResourceFallbackLocation.Satellite)
+                {
+                    throw new ArgumentException(SR.Format(SR.Arg_InvalidNeutralResourcesLanguage_FallbackLoc, fallback));
                 }
                 fallbackLocation = (UltimateResourceFallbackLocation)fallback;
             }
-            else {
+            else
+            {
                 fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
                 return CultureInfo.InvariantCulture;
             }
@@ -180,17 +181,15 @@ namespace System.Resources {
                 // fires, please fix the build process for the BCL directory.
                 if (a == typeof(Object).Assembly)
                 {
-                    Debug.Assert(false, System.CoreLib.Name+"'s NeutralResourcesLanguageAttribute is a malformed culture name! name: \"" + cultureName + "\"  Exception: " + e);
+                    Debug.Assert(false, System.CoreLib.Name + "'s NeutralResourcesLanguageAttribute is a malformed culture name! name: \"" + cultureName + "\"  Exception: " + e);
                     return CultureInfo.InvariantCulture;
                 }
 
-                throw new ArgumentException(Environment.GetResourceString("Arg_InvalidNeutralResourcesLanguage_Asm_Culture", a.ToString(), cultureName), e);
+                throw new ArgumentException(SR.Format(SR.Arg_InvalidNeutralResourcesLanguage_Asm_Culture, a.ToString(), cultureName), e);
             }
         }
 
-        // Constructs a new ResourceSet for a given file name.  The logic in
-        // here avoids a ReflectionPermission check for our RuntimeResourceSet
-        // for perf and working set reasons.
+        // Constructs a new ResourceSet for a given file name.
         // Use the assembly to resolve assembly manifest resource references.
         // Note that is can be null, but probably shouldn't be.
         // This method could use some refactoring. One thing at a time.
@@ -202,10 +201,10 @@ namespace System.Resources {
             if (store.CanSeek && store.Length > 4)
             {
                 long startPos = store.Position;
-                
+
                 // not disposing because we want to leave stream open
                 BinaryReader br = new BinaryReader(store);
-                
+
                 // Look for our magic number as a little endian Int32.
                 int bytes = br.ReadInt32();
                 if (bytes == ResourceManager.MagicNumber)
@@ -237,7 +236,7 @@ namespace System.Resources {
                         // resMgrHeaderVersion is older than this ResMgr version.
                         // We should add in backwards compatibility support here.
 
-                        throw new NotSupportedException(Environment.GetResourceString("NotSupported_ObsoleteResourcesFile", _mediator.MainAssembly.GetSimpleName()));
+                        throw new NotSupportedException(SR.Format(SR.NotSupported_ObsoleteResourcesFile, _mediator.MainAssembly.GetSimpleName()));
                     }
 
                     store.Position = startPos;
@@ -247,13 +246,7 @@ namespace System.Resources {
                     // the abbreviated ones emitted by InternalResGen.
                     if (CanUseDefaultResourceClasses(readerTypeName, resSetTypeName))
                     {
-                        RuntimeResourceSet rs;
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-                        rs = new RuntimeResourceSet(store, assembly);
-#else
-                        rs = new RuntimeResourceSet(store);
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
-                        return rs;
+                        return new RuntimeResourceSet(store);
                     }
                     else
                     {
@@ -263,16 +256,9 @@ namespace System.Resources {
                         args[0] = store;
                         IResourceReader reader = (IResourceReader)Activator.CreateInstance(readerType, args);
 
-                        Object[] resourceSetArgs =
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-                            new Object[2];
-#else
- new Object[1];
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
+                        Object[] resourceSetArgs = new Object[1];
                         resourceSetArgs[0] = reader;
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-                        resourceSetArgs[1] = assembly;
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
+
                         Type resSetType;
                         if (_mediator.UserResourceSet == null)
                         {
@@ -294,19 +280,11 @@ namespace System.Resources {
                 {
                     store.Position = startPos;
                 }
-
             }
 
             if (_mediator.UserResourceSet == null)
             {
-                // Explicitly avoid CreateInstance if possible, because it
-                // requires ReflectionPermission to call private & protected
-                // constructors.  
-#if LOOSELY_LINKED_RESOURCE_REFERENCE                
-                return new RuntimeResourceSet(store, assembly);
-#else
                 return new RuntimeResourceSet(store);
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
             }
             else
             {
@@ -327,14 +305,12 @@ namespace System.Resources {
                     args = new Object[1];
                     args[0] = store;
                     rs = (ResourceSet)Activator.CreateInstance(_mediator.UserResourceSet, args);
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-                    rs.Assembly = assembly;
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
+
                     return rs;
                 }
                 catch (MissingMethodException e)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResMgrBadResSet_Type", _mediator.UserResourceSet.AssemblyQualifiedName), e);
+                    throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResMgrBadResSet_Type, _mediator.UserResourceSet.AssemblyQualifiedName), e);
                 }
             }
         }
@@ -362,7 +338,7 @@ namespace System.Resources {
         // case-insensitive lookup rules.  Yes, this is slow.  The metadata
         // dev lead refuses to make all assembly manifest resource lookups case-insensitive,
         // even optionally case-insensitive.        
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         private Stream CaseInsensitiveManifestResourceStreamLookup(RuntimeAssembly satellite, String name)
         {
             Contract.Requires(satellite != null, "satellite shouldn't be null; check caller");
@@ -394,7 +370,7 @@ namespace System.Resources {
                     }
                     else
                     {
-                        throw new MissingManifestResourceException(Environment.GetResourceString("MissingManifestResource_MultipleBlobs", givenName, satellite.ToString()));
+                        throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_MultipleBlobs, givenName, satellite.ToString()));
                     }
                 }
             }
@@ -412,7 +388,6 @@ namespace System.Resources {
             return satellite.GetManifestResourceStream(canonicalName, ref stackMark, canSkipSecurityCheck);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
         private RuntimeAssembly GetSatelliteAssembly(CultureInfo lookForCulture, ref StackCrawlMark stackMark)
         {
             if (!_mediator.LookedForSatelliteContractVersion)
@@ -493,7 +468,7 @@ namespace System.Resources {
         private String GetSatelliteAssemblyName()
         {
             String satAssemblyName = _mediator.MainAssembly.GetSimpleName();
-                satAssemblyName += ".resources";
+            satAssemblyName += ".resources";
             return satAssemblyName;
         }
 
@@ -522,7 +497,7 @@ namespace System.Resources {
             {
                 missingCultureName = "<invariant>";
             }
-            throw new MissingSatelliteAssemblyException(Environment.GetResourceString("MissingSatelliteAssembly_Culture_Name", _mediator.NeutralResourcesCulture, satAssemName), missingCultureName);
+            throw new MissingSatelliteAssemblyException(SR.Format(SR.MissingSatelliteAssembly_Culture_Name, _mediator.NeutralResourcesCulture, satAssemName), missingCultureName);
         }
 
         private void HandleResourceStreamMissing(String fileName)
@@ -531,8 +506,8 @@ namespace System.Resources {
             if (_mediator.MainAssembly == typeof(Object).Assembly && _mediator.BaseName.Equals(System.CoreLib.Name))
             {
                 // This would break CultureInfo & all our exceptions.
-                Debug.Assert(false, "Couldn't get " + System.CoreLib.Name+ResourceManager.ResFileExtension + " from "+System.CoreLib.Name+"'s assembly" + Environment.NewLine + Environment.NewLine + "Are you building the runtime on your machine?  Chances are the BCL directory didn't build correctly.  Type 'build -c' in the BCL directory.  If you get build errors, look at buildd.log.  If you then can't figure out what's wrong (and you aren't changing the assembly-related metadata code), ask a BCL dev.\n\nIf you did NOT build the runtime, you shouldn't be seeing this and you've found a bug.");
-                
+                Debug.Assert(false, "Couldn't get " + System.CoreLib.Name + ResourceManager.ResFileExtension + " from " + System.CoreLib.Name + "'s assembly" + Environment.NewLine + Environment.NewLine + "Are you building the runtime on your machine?  Chances are the BCL directory didn't build correctly.  Type 'build -c' in the BCL directory.  If you get build errors, look at buildd.log.  If you then can't figure out what's wrong (and you aren't changing the assembly-related metadata code), ask a BCL dev.\n\nIf you did NOT build the runtime, you shouldn't be seeing this and you've found a bug.");
+
                 // We cannot continue further - simply FailFast.
                 string mesgFailFast = System.CoreLib.Name + ResourceManager.ResFileExtension + " couldn't be found!  Large parts of the BCL won't work!";
                 System.Environment.FailFast(mesgFailFast);
@@ -543,12 +518,12 @@ namespace System.Resources {
             if (_mediator.LocationInfo != null && _mediator.LocationInfo.Namespace != null)
                 resName = _mediator.LocationInfo.Namespace + Type.Delimiter;
             resName += fileName;
-            throw new MissingManifestResourceException(Environment.GetResourceString("MissingManifestResource_NoNeutralAsm", resName, _mediator.MainAssembly.GetSimpleName()));
+            throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_NoNeutralAsm, resName, _mediator.MainAssembly.GetSimpleName()));
         }
 
-            [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-            [System.Security.SuppressUnmanagedCodeSecurity]
-            [return: MarshalAs(UnmanagedType.Bool)]
-            internal static extern bool GetNeutralResourcesLanguageAttribute(RuntimeAssembly assemblyHandle, StringHandleOnStack cultureName, out short fallbackLocation);
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [System.Security.SuppressUnmanagedCodeSecurity]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetNeutralResourcesLanguageAttribute(RuntimeAssembly assemblyHandle, StringHandleOnStack cultureName, out short fallbackLocation);
     }
 }

@@ -336,12 +336,33 @@ private:
     COUNT_T                     m_cRawProfileData;
     CorProfileData *            m_pCorProfileData;
 
-    // ProfileData hash table
+public:
+    enum CompileStatus {
+        // Failure status values are negative
+        LOOKUP_FAILED    = -2,
+        COMPILE_FAILED   = -1,
+
+        // Info status values are [0..9]
+        NOT_COMPILED          =  0,
+        COMPILE_EXCLUDED      =  1,
+        COMPILE_HOT_EXCLUDED  =  2,
+        COMPILE_COLD_EXCLUDED =  3,
+
+        // Successful status values are 10 or greater
+        COMPILE_SUCCEED  = 10,
+        ALREADY_COMPILED = 11
+    };
+
+private:
+    // A hash table entry that contains the profile infomation and the CompileStatus for a given method
     struct ProfileDataHashEntry
     {
-        mdMethodDef md;       // A copy of the method.token of the profile data
-        DWORD       size;     // A copy of the size of the profile data
-        ULONG       pos;
+        mdMethodDef   md;       // The method.token, also used as the key for the ProfileDataHashTable
+        DWORD         size;     // The size of the CORBBTPROF_BLOCK_DATA region, set by ZapImage::hashBBProfileData()
+        ULONG         pos;      // the offset to the CORBBTPROF_BLOCK_DATA region, set by ZapImage::hashBBProfileData()
+
+        unsigned      flags;    // The methodProfilingDataFlags, set by ZapImage::CompileHotRegion()
+        CompileStatus status;   // The compileResult, set by ZapImage::CompileHotRegion()
     };
 
     class ProfileDataHashTraits : public NoRemoveSHashTraits< DefaultSHashTraits<ProfileDataHashEntry> >
@@ -365,8 +386,24 @@ private:
             return (count_t)k;
         }
 
-        static const element_t Null() { LIMITED_METHOD_CONTRACT; ProfileDataHashEntry e; e.pos = 0; e.size = 0; e.md = 0; return e; } // Assuming method profile data cannot start from position 0.
-        static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e.pos == 0; }
+        static const element_t Null()
+        {
+            LIMITED_METHOD_CONTRACT; 
+            ProfileDataHashEntry e; 
+            e.md = 0; 
+            e.size = 0; 
+            e.pos = 0;
+            e.flags = 0;
+            e.status = NOT_COMPILED;
+            return e;
+        }
+
+        static bool IsNull(const element_t &e)
+        {
+            LIMITED_METHOD_CONTRACT;
+            // returns true if both md and pos are zero
+            return (e.md == 0) && (e.pos == 0);
+        }
     };
     typedef SHash<ProfileDataHashTraits> ProfileDataHashTable;
 
@@ -557,6 +594,8 @@ private:
     void OutputEntrypointsTableForReadyToRun();
     void OutputDebugInfoForReadyToRun();
     void OutputTypesTableForReadyToRun(IMDInternalImport * pMDImport);
+    void OutputInliningTableForReadyToRun();
+    void OutputProfileDataForReadyToRun();
 
     void CopyDebugDirEntry();
     void CopyWin32VersionResource();
@@ -650,11 +689,6 @@ public:
     {
         return m_CompiledMethods.Lookup(handle);
     }
-
-
-    enum CompileStatus { LOOKUP_FAILED   = -2, COMPILE_FAILED   = -1,       // Failure
-                         NOT_COMPILED    =  0, COMPILE_EXCLUDED =  1,       // Info
-                         COMPILE_SUCCEED = 10, ALREADY_COMPILED = 11};      // Success
 
     static void __stdcall TryCompileMethodStub(LPVOID pContext, CORINFO_METHOD_HANDLE hStub, CORJIT_FLAGS jitFlags);
 
@@ -795,7 +829,7 @@ public:
 
     // Returns ZapImage
     virtual ZapImage * GetZapImage();
-    void Error(mdToken token, HRESULT error, LPCWSTR message);
+    void Error(mdToken token, HRESULT error, UINT resID, LPCWSTR message);
 
     // Returns virtual section for EE datastructures
     ZapVirtualSection * GetSection(CorCompileSection section)
@@ -811,6 +845,7 @@ public:
     void RehydrateBlobStream();
     HRESULT RehydrateProfileData();
     HRESULT hashBBProfileData ();
+    void hashBBUpdateFlagsAndCompileResult(mdToken token, unsigned methodProfilingDataFlags, CompileStatus compileResult);
 
     void              LoadProfileData();
     CorProfileData *  NewProfileData();
@@ -818,7 +853,11 @@ public:
     bool              CanConvertIbcData();
 
     CompileStatus     CompileProfileDataWorker(mdToken token, unsigned methodProfilingDataFlags);
-    void              CompileProfileData();
+
+    void              ProfileDisableInlining();
+    void              CompileHotRegion();
+    void              CompileColdRegion();
+    void              PlaceMethodIL();
 };
 
 class BinaryWriter

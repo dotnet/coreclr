@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System {
-    
+namespace System
+{
     using System;
     using System.Runtime.InteropServices;
     using System.Runtime.CompilerServices;
@@ -16,6 +16,19 @@ namespace System {
     [StructLayout(LayoutKind.Sequential)]
     public struct ArgIterator
     {
+        private IntPtr ArgCookie;               // Cookie from the EE.
+
+        // The SigPointer structure consists of the following members.  (Note: this is an inline native SigPointer data type)
+        private IntPtr sigPtr;                  // Pointer to remaining signature.
+        private IntPtr sigPtrLen;               // Remaining length of the pointer
+
+        // Note, sigPtrLen is actually a DWORD, but on 64bit systems this structure becomes
+        // 8-byte aligned, which requires us to pad it.
+
+        private IntPtr ArgPtr;                  // Pointer to remaining args.
+        private int RemainingArgs;           // # of remaining args.
+
+#if VARARGS_ENABLED //The JIT doesn't support Varargs calling convention.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern ArgIterator(IntPtr arglist);
 
@@ -34,7 +47,6 @@ namespace System {
         // This is much like the C va_start macro
 
         [CLSCompliant(false)]
-
         public unsafe ArgIterator(RuntimeArgumentHandle arglist, void* ptr) : this(arglist.Value, ptr)
         {
         }
@@ -119,19 +131,56 @@ namespace System {
         // Inherited from object
         public override bool Equals(Object o)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NYI"));
+            throw new NotSupportedException(SR.NotSupported_NYI);
+        }
+#else
+        public ArgIterator(RuntimeArgumentHandle arglist)
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 
-        private IntPtr ArgCookie;               // Cookie from the EE.
+        [CLSCompliant(false)]
+        public unsafe ArgIterator(RuntimeArgumentHandle arglist, void* ptr)
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
+        }
 
-        // The SigPointer structure consists of the following members.  (Note: this is an inline native SigPointer data type)
-        private IntPtr sigPtr;                  // Pointer to remaining signature.
-        private IntPtr sigPtrLen;               // Remaining length of the pointer
+        public void End()
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
+        }
 
-        // Note, sigPtrLen is actually a DWORD, but on 64bit systems this structure becomes
-        // 8-byte aligned, which requires us to pad it.
-            
-        private IntPtr ArgPtr;                  // Pointer to remaining args.
-        private int    RemainingArgs;           // # of remaining args.
+        public override bool Equals(Object o)
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
+        }
+
+        public override int GetHashCode()
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
+        }
+
+        [System.CLSCompliantAttribute(false)]
+        public System.TypedReference GetNextArg()
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
+        }
+
+        [System.CLSCompliantAttribute(false)]
+        public System.TypedReference GetNextArg(System.RuntimeTypeHandle rth)
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
+        }
+
+        public unsafe System.RuntimeTypeHandle GetNextArgType()
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
+        }
+
+        public int GetRemainingCount()
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
+        }
+#endif //VARARGS_ENABLED
     }
 }

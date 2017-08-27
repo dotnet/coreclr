@@ -30,14 +30,13 @@
 #include "corhost.h"
 #include "comdelegate.h"
 #include "finalizerthread.h"
-#include "gcscan.h"
 
 #ifdef FEATURE_COMINTEROP
 #include "runtimecallablewrapper.h"
 #endif // FEATURE_COMINTEROP
 
-// Allocate 1 page worth. Typically enough
-#define MAXSYNCBLOCK (PAGE_SIZE-sizeof(void*))/sizeof(SyncBlock)
+// Allocate 4K worth. Typically enough
+#define MAXSYNCBLOCK (0x1000-sizeof(void*))/sizeof(SyncBlock)
 #define SYNC_TABLE_INITIAL_SIZE 250
 
 //#define DUMP_SB
@@ -2518,7 +2517,7 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
         //rest of the DWORD is SyncBlk Index
         if (!(bits & BIT_SBLK_IS_HASHCODE))
         {
-            if (bVerifySyncBlkIndex  && GCScan::GetGcRuntimeStructuresValid ())
+            if (bVerifySyncBlkIndex  && GCHeapUtilities::GetGCHeap()->RuntimeStructuresValid ())
             {
                 DWORD sbIndex = bits & MASK_SYNCBLOCKINDEX;
                 ASSERT_AND_CHECK(SyncTableEntry::GetSyncTableEntry()[sbIndex].m_Object == obj);             
@@ -3298,10 +3297,6 @@ bool AwareLock::Contention(INT32 timeOut)
 
     COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cContention++);
 
-#ifndef FEATURE_CORECLR
-    // Fire a contention start event for a managed contention
-    FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
-#endif // !FEATURE_CORECLR
 
     LogContention();
     Thread      *pCurThread = GetThread();
@@ -3406,9 +3401,6 @@ entered: ;
         Enter();
         bEntered = TRUE;
     }
-#ifndef FEATURE_CORECLR
-    FireEtwContentionStop(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
-#endif // !FEATURE_CORECLR
     return bEntered;
 }
 
@@ -3541,18 +3533,7 @@ BOOL SyncBlock::Wait(INT32 timeOut, BOOL exitContext)
         Context* defaultContext;
         defaultContext = pCurThread->GetDomain()->GetDefaultContext();
         _ASSERTE(defaultContext);
-#ifdef FEATURE_REMOTING
-        if (exitContext &&
-            targetContext != defaultContext)
-        {
-            Context::MonitorWaitArgs waitArgs = {timeOut, &syncState, &isTimedOut};
-            Context::CallBackInfo callBackInfo = {Context::MonitorWait_callback, (void*) &waitArgs};
-            Context::RequestCallBack(CURRENT_APPDOMAIN_ID, defaultContext, &callBackInfo);
-        }
-        else
-#else
         _ASSERTE( exitContext==NULL || targetContext == defaultContext);
-#endif            
         {
             isTimedOut = pCurThread->Block(timeOut, &syncState);
         }

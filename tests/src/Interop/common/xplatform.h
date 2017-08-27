@@ -53,9 +53,14 @@
 
 #endif //_WIN32
 
-#ifndef WINAPI
-#define WINAPI __stdcall
-#endif
+// The default P/Invoke calling convetion is STDCALL on Window, but CDECL on Unix.
+#ifdef _WIN32
+#define CALLBACK    __stdcall
+#define NATIVEAPI   __stdcall
+#else // _WIN32
+#define CALLBACK
+#define NATIVEAPI
+#endif // !_WIN32
 
 #ifndef _MSC_VER
 #if __i386__
@@ -189,7 +194,9 @@ int wcsncpy_s(LPWSTR strDestination, size_t size1, LPCWSTR strSource)
 
 }
 
-int wmemcmp(LPWSTR str1, LPWSTR str2,size_t len)
+#define wcsncmp wmemcmp
+
+int wmemcmp(LPCWSTR str1, LPCWSTR str2,size_t len)
 {
 	// < 0 str1 less than str2
 	// 0  str1 identical to str2

@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -16,12 +16,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security;
-using System.Security.Permissions;
 using System.Runtime.InteropServices;
 using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
 
 // The class will be part of the current System.Threading namespace
+
 namespace System.Threading
 {
     /// <summary>
@@ -39,7 +39,6 @@ namespace System.Threading
     /// completed.
     /// </para>
     /// </remarks>
-    [ComVisible(false)]
     [DebuggerDisplay("Current Count = {m_currentCount}")]
     public class SemaphoreSlim : IDisposable
     {
@@ -86,7 +85,7 @@ namespace System.Threading
         private sealed class TaskNode : Task<bool>, IThreadPoolWorkItem
         {
             internal TaskNode Prev, Next;
-            internal TaskNode() : base() {}
+            internal TaskNode() : base() { }
 
             void IThreadPoolWorkItem.ExecuteWorkItem()
             {
@@ -179,13 +178,13 @@ namespace System.Threading
             if (initialCount < 0 || initialCount > maxCount)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(initialCount), initialCount, GetResourceString("SemaphoreSlim_ctor_InitialCountWrong"));
+                    nameof(initialCount), initialCount, SR.SemaphoreSlim_ctor_InitialCountWrong);
             }
 
             //validate input
             if (maxCount <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(maxCount), maxCount, GetResourceString("SemaphoreSlim_ctor_MaxCountWrong"));
+                throw new ArgumentOutOfRangeException(nameof(maxCount), maxCount, SR.SemaphoreSlim_ctor_MaxCountWrong);
             }
 
             m_maxCount = maxCount;
@@ -242,7 +241,7 @@ namespace System.Threading
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
-                    nameof(timeout), timeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(timeout), timeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             // Call wait with the timeout milliseconds
@@ -272,7 +271,7 @@ namespace System.Threading
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
-                    nameof(timeout), timeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(timeout), timeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             // Call wait with the timeout milliseconds
@@ -315,7 +314,7 @@ namespace System.Threading
             if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(millisecondsTimeout), millisecondsTimeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(millisecondsTimeout), millisecondsTimeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -372,7 +371,7 @@ namespace System.Threading
                     Debug.Assert(m_asyncTail != null, "tail should not be null if head isn't");
                     asyncWaitTask = WaitAsync(millisecondsTimeout, cancellationToken);
                 }
-                    // There are no async waiters, so we can proceed with normal synchronous waiting.
+                // There are no async waiters, so we can proceed with normal synchronous waiting.
                 else
                 {
                     // If the count > 0 we are good to move on.
@@ -401,7 +400,7 @@ namespace System.Threading
                     // defer to synchronous waiters in priority, which means that if it's possible an asynchronous
                     // waiter didn't get released because a synchronous waiter was present, we need to ensure
                     // that synchronous waiter succeeds so that they have a chance to release.
-                    Debug.Assert(!waitSuccessful || m_currentCount > 0, 
+                    Debug.Assert(!waitSuccessful || m_currentCount > 0,
                         "If the wait was successful, there should be count available.");
                     if (m_currentCount > 0)
                     {
@@ -576,7 +575,7 @@ namespace System.Threading
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
-                    nameof(timeout), timeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(timeout), timeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             // Call wait with the timeout milliseconds
@@ -609,7 +608,7 @@ namespace System.Threading
             if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(millisecondsTimeout), millisecondsTimeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(millisecondsTimeout), millisecondsTimeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             // Bail early for cancellation
@@ -630,9 +629,9 @@ namespace System.Threading
                     // No counts, if timeout is zero fail fast
                     return s_falseTask;
                 }
-                    // If there aren't, create and return a task to the caller.
-                    // The task will be completed either when they've successfully acquired
-                    // the semaphore or when the timeout expired or cancellation was requested.
+                // If there aren't, create and return a task to the caller.
+                // The task will be completed either when they've successfully acquired
+                // the semaphore or when the timeout expired or cancellation was requested.
                 else
                 {
                     Debug.Assert(m_currentCount == 0, "m_currentCount should never be negative");
@@ -773,7 +772,7 @@ namespace System.Threading
             if (releaseCount < 1)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(releaseCount), releaseCount, GetResourceString("SemaphoreSlim_Release_CountWrong"));
+                    nameof(releaseCount), releaseCount, SR.SemaphoreSlim_Release_CountWrong);
             }
             int returnCount;
 
@@ -884,7 +883,7 @@ namespace System.Threading
         }
 
 
-        
+
         /// <summary>
         /// Private helper method to wake up waiters when a cancellationToken gets canceled.
         /// </summary>
@@ -907,18 +906,10 @@ namespace System.Threading
         {
             if (m_lockObj == null)
             {
-                throw new ObjectDisposedException(null, GetResourceString("SemaphoreSlim_Disposed"));
+                throw new ObjectDisposedException(null, SR.SemaphoreSlim_Disposed);
             }
         }
 
-        /// <summary>
-        /// local helper function to retrieve the exception string message from the resource file
-        /// </summary>
-        /// <param name="str">The key string</param>
-        private static string GetResourceString(string str)
-        {
-            return Environment.GetResourceString(str);
-        }
         #endregion
     }
 }

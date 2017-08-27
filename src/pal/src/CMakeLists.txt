@@ -45,6 +45,9 @@ else()
     elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l)
         set(PAL_CMAKE_PLATFORM_ARCH_ARM 1)
         add_definitions(-D_ARM_)
+    elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL arm)
+        set(PAL_CMAKE_PLATFORM_ARCH_ARM 1)
+        add_definitions(-D_ARM_)
     elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
         set(PAL_CMAKE_PLATFORM_ARCH_ARM64 1)
         add_definitions(-D_ARM64_)
@@ -77,19 +80,23 @@ add_definitions(-D_FILE_OFFSET_BITS=64)
 if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
   add_definitions(-DBIT64=1)
   add_definitions(-D_WIN64=1)
+  set(PAL_ARCH_SOURCES_DIR amd64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
   add_definitions(-DBIT32=1)
+  set(PAL_ARCH_SOURCES_DIR arm)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
   add_definitions(-DBIT64=1)
   add_definitions(-D_WIN64=1)
+  set(PAL_ARCH_SOURCES_DIR arm64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_I386)
   add_definitions(-DBIT32=1)
+  set(PAL_ARCH_SOURCES_DIR i386)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
+if(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
   # Currently the _xstate is not available on Alpine Linux
   add_definitions(-DXSTATE_SUPPORTED)
-endif(CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
+endif(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
 
 if(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
   # Setting RLIMIT_NOFILE breaks debugging of coreclr on Alpine Linux for some reason
@@ -101,35 +108,19 @@ set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -Wl,--no
 
 add_compile_options(-fPIC)
 
-if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
-  set(ARCH_SOURCES
-    arch/amd64/context2.S
-    arch/amd64/debugbreak.S
-    arch/amd64/exceptionhelper.S
-    arch/amd64/processor.cpp
+set(ARCH_SOURCES
+  arch/${PAL_ARCH_SOURCES_DIR}/context2.S
+  arch/${PAL_ARCH_SOURCES_DIR}/debugbreak.S
+  arch/${PAL_ARCH_SOURCES_DIR}/exceptionhelper.S
+  arch/${PAL_ARCH_SOURCES_DIR}/processor.cpp
+)
+
+if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  list(APPEND PLATFORM_SOURCES
+    arch/${PAL_ARCH_SOURCES_DIR}/callsignalhandlerwrapper.S
+    arch/${PAL_ARCH_SOURCES_DIR}/signalhandlerhelper.cpp
   )
-elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
-  set(ARCH_SOURCES
-    arch/arm/context2.S
-    arch/arm/debugbreak.S
-    arch/arm/exceptionhelper.S
-    arch/arm/processor.cpp
-  )
-elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
-  set(ARCH_SOURCES
-    arch/arm64/context2.S
-    arch/arm64/debugbreak.S
-    arch/arm64/exceptionhelper.S
-    arch/arm64/processor.cpp
-  )
-elseif(PAL_CMAKE_PLATFORM_ARCH_I386)
-  set(ARCH_SOURCES
-    arch/i386/context2.S
-    arch/i386/debugbreak.S
-    arch/i386/exceptionhelper.S
-    arch/i386/processor.cpp
-  )
-endif()
+endif(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 if(PAL_CMAKE_PLATFORM_ARCH_ARM)
   set_source_files_properties(exception/seh.cpp PROPERTIES COMPILE_FLAGS -Wno-error=inline-asm)
@@ -156,6 +147,7 @@ set(SOURCES
   debug/debug.cpp
   exception/seh.cpp
   exception/signal.cpp
+  exception/remote-unwind.cpp
   file/directory.cpp
   file/disk.cpp
   file/file.cpp
@@ -177,19 +169,19 @@ set(SOURCES
   map/virtual.cpp
   memory/heap.cpp
   memory/local.cpp
+  misc/cgroup.cpp
   misc/dbgmsg.cpp
   misc/environ.cpp
   misc/error.cpp
   misc/errorstrings.cpp
   misc/fmtmessage.cpp
-  misc/identity.cpp
   misc/miscpalapi.cpp
   misc/msgbox.cpp
   misc/strutil.cpp
   misc/sysinfo.cpp
   misc/time.cpp
   misc/utils.cpp
-  misc/version.cpp
+  numa/numa.cpp
   objmgr/palobjbase.cpp
   objmgr/shmobject.cpp
   objmgr/shmobjectmanager.cpp
@@ -281,30 +273,77 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     find_library(UNWIND_ARCH NAMES unwind-arm)
   endif()
 
+  if(PAL_CMAKE_PLATFORM_ARCH_ARM64)
+    find_library(UNWIND_ARCH NAMES unwind-aarch64)
+  endif()
+
   if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
     find_library(UNWIND_ARCH NAMES unwind-x86_64)
   endif()
 
-  if(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
+  if(CLR_CMAKE_PLATFORM_ALPINE_LINUX OR CLR_CMAKE_PLATFORM_ANDROID)
     find_library(INTL intl)
   endif()
 
-  find_library(UNWIND NAMES unwind)
-  find_library(UNWIND_GENERIC NAMES unwind-generic)
+  # On Android, we don't need to link with gcc_s, pthread and rt
+  if(NOT CLR_CMAKE_PLATFORM_ANDROID)
+    target_link_libraries(coreclrpal
+      gcc_s
+      pthread
+      rt
+    )
+  endif()
 
-  target_link_libraries(coreclrpal
-    gcc_s
-    pthread
-    rt
-    dl
-    uuid
-  )
+  if(CLR_CMAKE_PLATFORM_ANDROID)
+    find_library(LZMA NAMES lzma)
+
+    if(LZMA STREQUAL LZMA-NOTFOUND)
+      message(FATAL_ERROR "Cannot find liblzma.")
+    endif(LZMA STREQUAL LZMA-NOTFOUND)
+
+    target_link_libraries(coreclrpal
+      gnustl_shared
+      android-support
+      android-glob
+      ${LZMA})
+  endif()
+
+  find_library(UNWIND NAMES unwind)
 
   if(UNWIND STREQUAL UNWIND-NOTFOUND)
     message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8-dev and libunwind8.")
   endif(UNWIND STREQUAL UNWIND-NOTFOUND)
 
   target_link_libraries(coreclrpal ${UNWIND})
+
+  if(CLR_MAKE_PLATFORM_ANDROID)
+    find_library(ANDROID_SUPPORT NAMES android-support)
+    find_library(ANDROID_GLOB NAMES android-glob)
+    find_library(INTL NAMES intl)
+
+    if(UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
+      message(FATAL_ERROR "Cannot find libunwind.")
+    endif()
+
+    if(ANDROID_SUPPORT STREQUAL ANDROID_SUPPORT-NOTFOUND)
+      message(FATAL_ERROR "Cannot find android-support.")
+    endif()
+
+    if(ANDROID_GLOB STREQUAL ANDROID_GLOB-NOTFOUND)
+      message(FATAL_ERROR "Cannot find android-glob.")
+    endif()
+
+    if(INTL STREQUAL INTL-NOTFOUND)
+      message(FATAL_ERROR "Cannot find libintl.")
+    endif()
+  endif()
+
+  find_library(UNWIND_GENERIC NAMES unwind-generic)
+
+  target_link_libraries(coreclrpal
+    dl
+    uuid
+  )
 
   if(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)
     target_link_libraries(coreclrpal ${UNWIND_GENERIC})
@@ -333,6 +372,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
     ${KVM}
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+
+if(HAVE_NUMA_H)
+  target_link_libraries(coreclrpal
+    numa
+  )
+endif(HAVE_NUMA_H)
 
 add_subdirectory(examples)
 

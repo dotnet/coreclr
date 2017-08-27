@@ -206,9 +206,6 @@
 #undef CommConfigDialog
 #undef GetDefaultCommConfig
 #undef SetDefaultCommConfig
-#undef GetComputerName
-#undef SetComputerName
-#undef GetUserName
 #undef LogonUser
 #undef CreateProcessAsUser
 #undef GetCurrentHwProfile
@@ -478,13 +475,9 @@
 #define WszCommConfigDialog CommConfigDialogW
 #define WszGetDefaultCommConfig GetDefaultCommConfigW
 #define WszSetDefaultCommConfig SetDefaultCommConfigW
-#define WszGetComputerName GetComputerNameW
-#define WszSetComputerName SetComputerNameW
-#define WszGetUserName GetUserNameW
 #define WszLogonUser LogonUserW
 #define WszCreateProcessAsUser CreateProcessAsUserW
 #define WszGetCurrentHwProfile GetCurrentHwProfileW
-#define WszGetVersionEx GetVersionExW
 #define WszCreateJobObject CreateJobObjectW
 #define WszOpenJobObject OpenJobObjectW
 
@@ -633,16 +626,6 @@
 #define WszRegQueryValueExTrue RegQueryValueExW
 #define WszRegQueryStringValueEx RegQueryValueExW
 
-#ifndef FEATURE_CORECLR
-#define WszRegDeleteKey RegDeleteKeyW
-#define WszRegCreateKeyEx ClrRegCreateKeyEx
-#define WszRegSetValueEx RegSetValueExW
-#define WszRegDeleteValue RegDeleteValueW
-#define WszRegLoadKey RegLoadKeyW
-#define WszRegUnLoadKey RegUnLoadKeyW
-#define WszRegRestoreKey RegRestoreKeyW
-#define WszRegReplaceKey RegReplaceKeyW
-#endif //#ifndef FEATURE_CORECLR
 
 #define WszRegQueryInfoKey RegQueryInfoKeyW
 #define WszRegEnumValue RegEnumValueW
@@ -663,7 +646,7 @@
 
 // CoreSystem has CreateSemaphoreExW but not CreateSemaphoreW.
 #undef WszCreateSemaphore
-#define WszCreateSemaphore(_secattr, _count, _maxcount, _name) CreateSemaphoreExW((_secattr), (_count), (_maxcount), (_name), 0, SEMAPHORE_ALL_ACCESS)
+#define WszCreateSemaphore(_secattr, _count, _maxcount, _name) CreateSemaphoreExW((_secattr), (_count), (_maxcount), (_name), 0, MAXIMUM_ALLOWED | SYNCHRONIZE | SEMAPHORE_MODIFY_STATE)
 
 // Same deal as above for GetFileVersionInfo/GetFileVersionInfoSize.
 #undef GetFileVersionInfo
@@ -934,8 +917,6 @@ __forceinline LONGLONG __InterlockedExchangeAdd64(LONGLONG volatile * Addend, LO
 #define CLR_VER_SERVICEPACKMAJOR            0x0000020
 #define CLR_VER_SUITENAME                   0x0000040
 #define CLR_VER_PRODUCT_TYPE                0x0000080
-
-BOOL GetOSVersion(LPOSVERSIONINFOW osVer);
 
 // Output printf-style formatted text to the debugger if it's present or stdout otherwise.
 inline void DbgWPrintf(const LPCWSTR wszFormat, ...)

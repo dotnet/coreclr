@@ -36,7 +36,6 @@ class PendingTypeLoadTable;
 class EEClass;
 class Thread;
 class EETypeHashTable;
-class IAssemblySecurityDescriptor;
 class DynamicResolver;
 class SigPointer;
 
@@ -318,7 +317,6 @@ public:
     virtual MethodTable*    GetCallerMT() = 0;          // The class that wants access; NULL if interop caller.
     virtual Assembly*       GetCallerAssembly() = 0;    // Assembly containing that class.
     virtual bool            IsCalledFromInterop() = 0;
-    virtual bool            IsCallerCritical() = 0; // Can we do a quick check for caller's transparency status?    
 };
 
 class StaticAccessCheckContext : public AccessCheckContext
@@ -368,8 +366,6 @@ public:
         return false;
     }
 
-    virtual bool IsCallerCritical();
-
 private:
     MethodDesc*     m_pCallerMethod;
     MethodTable*    m_pCallerMT;
@@ -408,19 +404,6 @@ public:
         // CoreCLR: Do RestrictedMemberAcess visibility checks but bypass transparency checks.
         kRestrictedMemberAccessNoTransparency,
 
-#ifndef FEATURE_CORECLR
-        // Used by DynamicMethod with kRestrictedMemberAccess in Win8 immersive mode.
-        // Desktop: Equals kNormalAccessibilityChecks for non-framework code calling framework code,
-        //          kRestrictedMemberAccess otherwise.
-        kUserCodeOnlyRestrictedMemberAccess,
-
-        // A variation of kUserCodeOnlyRestrictedMemberAccess, but without transparency checks.
-        // This is used for reflection invocation in Win8 immersive when all domains on the call stack is full trust.
-        // This is an optimization to avoid stackwalks for transparency checks in full trust.
-        // Note that both kUserCodeOnlyRestrictedMemberAccess and kUserCodeOnlyRestrictedMemberAccessNoTransparency
-        // are needed because we restrict user code from accessing framework internals in Win8 immersive even in full trust.
-        kUserCodeOnlyRestrictedMemberAccessNoTransparency
-#endif
     };
 
     AccessCheckOptions(
@@ -443,8 +426,7 @@ public:
 
     AccessCheckOptions(
         const AccessCheckOptions & templateAccessCheckOptions,
-        BOOL                       throwIfTargetIsInaccessible,
-        BOOL                       skipCheckForCriticalCode = FALSE);
+        BOOL                       throwIfTargetIsInaccessible);
 
     // Follow standard rules for doing accessability
     BOOL DoNormalAccessibilityChecks() const 
@@ -472,11 +454,7 @@ public:
     BOOL TransparencyCheckNeeded() const
     {
         LIMITED_METHOD_CONTRACT;
-#ifdef FEATURE_CORECLR
         return (m_accessCheckType != kNormalAccessNoTransparency && m_accessCheckType != kRestrictedMemberAccessNoTransparency);
-#else //FEATURE_CORECLR
-        return (m_accessCheckType != kUserCodeOnlyRestrictedMemberAccessNoTransparency);
-#endif //FEATURE_CORECLR
     }
 
     static AccessCheckOptions* s_pNormalAccessChecks;
@@ -489,8 +467,7 @@ private:
         BOOL                throwIfTargetIsInaccessible,
         MethodTable *       pTargetMT,
         MethodDesc *        pTargetMD, 
-        FieldDesc *         pTargetFD,
-        BOOL                skipCheckForCriticalCode = FALSE);
+        FieldDesc *         pTargetFD);
 
     BOOL DemandMemberAccess(AccessCheckContext *pContext, MethodTable * pTargetMT, BOOL visibilityCheck) const;
 
@@ -511,27 +488,22 @@ private:
     DynamicResolver *       m_pAccessContext;
     // If the target is not accessible, should the API return FALSE, or should it throw an exception?
     BOOL                    m_fThrowIfTargetIsInaccessible;
-    // flag to enable legacy behavior in ClassLoader::CanAccessMemberForExtraChecks.
-    BOOL                    m_fSkipCheckForCriticalCode;
 };
 
 void DECLSPEC_NORETURN ThrowFieldAccessException(MethodDesc *pCallerMD,
                                                  FieldDesc *pFD,
-                                                 BOOL isTransparencyError,
                                                  UINT messageID = 0,
                                                  Exception *pInnerException = NULL,
                                                  BOOL fAccessingFrameworkCode = FALSE);
 
 void DECLSPEC_NORETURN ThrowMethodAccessException(MethodDesc *pCallerMD,
                                                   MethodDesc *pCalleeMD,
-                                                  BOOL isTransparencyError,
                                                   UINT messageID = 0,
                                                   Exception *pInnerException = NULL,
                                                   BOOL fAccessingFrameworkCode = FALSE);
 
 void DECLSPEC_NORETURN ThrowTypeAccessException(MethodDesc *pCallerMD,
                                                 MethodTable *pMT,
-                                                BOOL isTransparencyError,
                                                 UINT messageID = 0,
                                                 Exception *pInnerException = NULL,
                                                 BOOL fAccessingFrameworkCode = FALSE);
@@ -907,8 +879,7 @@ public:
         AccessCheckContext*     pContext,
         MethodTable*            pTargetClass,
         Assembly*               pTargetAssembly,
-        const AccessCheckOptions &  accessCheckOptions = *AccessCheckOptions::s_pNormalAccessChecks,
-        BOOL                    checkTargetTypeTransparency = TRUE);
+        const AccessCheckOptions &  accessCheckOptions = *AccessCheckOptions::s_pNormalAccessChecks);
 
     static BOOL CanAccess(
         AccessCheckContext*     pContext,
@@ -917,16 +888,7 @@ public:
         DWORD                   dwMemberAttrs, 
         MethodDesc*             pOptionalTargetMethod, 
         FieldDesc*              pOptionalTargetField,
-        const AccessCheckOptions &  accessCheckOptions = *AccessCheckOptions::s_pNormalAccessChecks,
-        BOOL                    checkTargetMethodTransparency = TRUE,
-        BOOL                    checkTargetTypeTransparency = TRUE);
-
-    static BOOL CanAccessClassForExtraChecks(
-        AccessCheckContext*     pContext,
-        MethodTable*            pTargetClass,
-        Assembly*               pTargetAssembly,
-        const AccessCheckOptions & accessCheckOptions,
-        BOOL                    checkTargetTypeTransparency);
+        const AccessCheckOptions &  accessCheckOptions = *AccessCheckOptions::s_pNormalAccessChecks);
 
     static BOOL CanAccessFamilyVerification(
         TypeHandle              thCurrentClass,
@@ -939,21 +901,6 @@ private:
         MethodDesc*             pOptionalTargetMethod,
         const AccessCheckOptions & accessCheckOptions);
 
-    static BOOL CanAccessMemberForExtraChecks(
-        AccessCheckContext*     pContext,
-        MethodTable*            pTargetExactMT,
-        MethodDesc*             pOptionalTargetMethod,
-        FieldDesc*              pOptionalTargetField,
-        const AccessCheckOptions & accessCheckOptions,
-        BOOL                    checkTargetMethodTransparency);
-
-    static BOOL CanAccessSigForExtraChecks(
-        AccessCheckContext*     pContext,
-        MethodDesc*             pTargetMethodSig,
-        MethodTable*            pTargetExactMT,
-        const AccessCheckOptions & accessCheckOptions,
-        BOOL                    checkTargetTransparency);
-
     static BOOL CanAccessFamily(
         MethodTable*            pCurrentClass,
         MethodTable*            pTargetClass);
@@ -965,9 +912,7 @@ private:
         DWORD                   dwMemberAttrs,
         MethodDesc*             pOptionalTargetMethod, 
         FieldDesc*              pOptionalTargetField,
-        const AccessCheckOptions &  accessCheckOptions = *AccessCheckOptions::s_pNormalAccessChecks,
-        BOOL                    checkTargetMethodTransparency = TRUE,
-        BOOL                    checkTargetTypeTransparency = TRUE);
+        const AccessCheckOptions &  accessCheckOptions = *AccessCheckOptions::s_pNormalAccessChecks);
 
 
 public:

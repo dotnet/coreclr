@@ -14,14 +14,17 @@ namespace Functions
         private const double ceilingDoubleDelta = 0.0004;
         private const double ceilingDoubleExpectedResult = 2500;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = CeilingDoubleIterations)]
         public static void CeilingDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    CeilingDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        CeilingDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {ceilingDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {ceilingDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

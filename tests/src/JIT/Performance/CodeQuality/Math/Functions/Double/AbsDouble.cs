@@ -14,14 +14,17 @@ namespace Functions
         private const double absDoubleDelta = 0.0004;
         private const double absDoubleExpectedResult = 2499.9999999999659;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount=AbsDoubleIterations)]
         public static void AbsDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    AbsDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        AbsDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {absDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {absDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

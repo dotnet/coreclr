@@ -172,6 +172,31 @@
 #define _TARGET_ARMARCH_
 #endif
 
+// If the UNIX_AMD64_ABI is defined make sure that _TARGET_AMD64_ is also defined.
+#if defined(UNIX_AMD64_ABI)
+#if !defined(_TARGET_AMD64_)
+#error When UNIX_AMD64_ABI is defined you must define _TARGET_AMD64_ defined as well.
+#endif
+#endif
+
+// If the UNIX_X86_ABI is defined make sure that _TARGET_X86_ is also defined.
+#if defined(UNIX_X86_ABI)
+#if !defined(_TARGET_X86_)
+#error When UNIX_X86_ABI is defined you must define _TARGET_X86_ defined as well.
+#endif
+#endif
+
+#if defined(PLATFORM_UNIX)
+#define _HOST_UNIX_
+#endif
+
+// Are we generating code to target Unix? This is true if we will run on Unix (_HOST_UNIX_ is defined).
+// It's also true if we are building an altjit targetting Unix, which we determine by checking if either
+// UNIX_AMD64_ABI or UNIX_X86_ABI is defined.
+#if defined(_HOST_UNIX_) || ((defined(UNIX_AMD64_ABI) || defined(UNIX_X86_ABI)) && defined(ALT_JIT))
+#define _TARGET_UNIX_
+#endif
+
 // --------------------------------------------------------------------------------
 // IMAGE_FILE_MACHINE_TARGET
 // --------------------------------------------------------------------------------
@@ -190,23 +215,15 @@
 
 // Include the AMD64 unwind codes when appropriate.
 #if defined(_TARGET_AMD64_)
-#include "win64unwind.h"
+// We need to temporarily set PLATFORM_UNIX, if necessary, to get the Unix-specific unwind codes.
+#if defined(_TARGET_UNIX_) && !defined(_HOST_UNIX_)
+#define PLATFORM_UNIX
 #endif
-
-// Macros for defining strongly-typed enums. Use as follows:
-//
-// DECLARE_TYPED_ENUM(FooEnum,BYTE)
-// {
-//    fooTag1, fooTag2
-// }
-// END_DECLARE_TYPED_ENUM(FooEnum, BYTE)
-//
-// VC++ understands the syntax to declare these directly, e.g., "enum FooEnum : BYTE",
-// but GCC does not, so we use typedefs.
-
-#define DECLARE_TYPED_ENUM(tag, baseType) enum tag : baseType
-
-#define END_DECLARE_TYPED_ENUM(tag, baseType) ;
+#include "win64unwind.h"
+#if defined(_TARGET_UNIX_) && !defined(_HOST_UNIX_)
+#undef PLATFORM_UNIX
+#endif
+#endif
 
 #include "corhdr.h"
 #include "corjit.h"
@@ -215,23 +232,6 @@
 #define __OPERATOR_NEW_INLINE 1 // indicate that I will define these
 #define __PLACEMENT_NEW_INLINE  // don't bring in the global placement new, it is easy to make a mistake
                                 // with our new(compiler*) pattern.
-
-#if COR_JIT_EE_VER > 460
-#define NO_CLRCONFIG // Don't bring in the usual CLRConfig infrastructure, since the JIT uses the JIT/EE
-                     // interface to retrieve config values.
-
-// This is needed for contract.inl when FEATURE_STACK_PROBE is enabled.
-struct CLRConfig
-{
-    static struct ConfigKey
-    {
-    } EXTERNAL_NO_SO_NOT_MAINLINE;
-    static DWORD GetConfigValue(const ConfigKey& key)
-    {
-        return 0;
-    }
-};
-#endif
 
 #include "utilcode.h" // this defines assert as _ASSERTE
 #include "host.h"     // this redefines assert for the JIT to use assertAbort
@@ -261,14 +261,14 @@ struct CLRConfig
 #define FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY(x)
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND))
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND))
 #define FEATURE_PUT_STRUCT_ARG_STK 1
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x) , x
 #define PUT_STRUCT_ARG_STK_ONLY(x) x
-#else // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)))
+#else // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x)
 #define PUT_STRUCT_ARG_STK_ONLY(x)
-#endif // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)))
+#endif // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
 
 #if defined(UNIX_AMD64_ABI)
 #define UNIX_AMD64_ABI_ONLY_ARG(x) , x
@@ -407,8 +407,6 @@ typedef ptrdiff_t ssize_t;
 
 #define CSE_INTO_HANDLERS 0
 
-#define CAN_DISABLE_DFA 1 // disable data flow for minopts
-
 #define LARGE_EXPSET 1   // Track 64 or 32 assertions/copies/consts/rangechecks
 #define ASSERTION_PROP 1 // Enable value/assertion propagation
 
@@ -516,11 +514,10 @@ const bool dspGCtbls = true;
 #endif // !DEBUG
 
 #ifdef DEBUG
-void JitDump(const char* pcFormat, ...);
 #define JITDUMP(...)                                                                                                   \
     {                                                                                                                  \
         if (JitTls::GetCompiler()->verbose)                                                                            \
-            JitDump(__VA_ARGS__);                                                                                      \
+            logf(__VA_ARGS__);                                                                                         \
     }
 #define JITLOG(x)                                                                                                      \
     {                                                                                                                  \
@@ -723,17 +720,6 @@ private:
 #ifdef ICECAP
 #include "icapexp.h"
 #include "icapctrl.h"
-#endif
-
-/*****************************************************************************/
-
-#define SECURITY_CHECK 1
-#define VERIFY_IMPORTER 1
-
-/*****************************************************************************/
-
-#if !defined(RELOC_SUPPORT)
-#define RELOC_SUPPORT 1
 #endif
 
 /*****************************************************************************/

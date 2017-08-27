@@ -40,6 +40,8 @@
     #include "comcache.h"
 #endif // FEATURE_COMINTEROP
 
+#include "arraynative.inl"
+
 #define STACK_OVERFLOW_MESSAGE   W("StackOverflowException")
 
 //These are defined in System.ParseNumbers and should be kept in sync.
@@ -777,50 +779,7 @@ FCIMPL1(FC_BOOL_RET, ExceptionNative::IsTransient, INT32 hresult)
 }
 FCIMPLEND
 
-#ifndef FEATURE_CORECLR
 
-FCIMPL3(StringObject *, ExceptionNative::StripFileInfo, Object *orefExcepUNSAFE, StringObject *orefStrUNSAFE, CLR_BOOL isRemoteStackTrace)
-{
-    FCALL_CONTRACT;
-
-    OBJECTREF orefExcep = ObjectToOBJECTREF(orefExcepUNSAFE);
-    STRINGREF orefStr = (STRINGREF)ObjectToOBJECTREF(orefStrUNSAFE);
-
-    if (orefStr == NULL)
-    {
-        return NULL;
-    }
-
-    HELPER_METHOD_FRAME_BEGIN_RET_2(orefExcep, orefStr);
-
-    if (isRemoteStackTrace)
-    {
-        if (!AppX::IsAppXProcess() && ExceptionTypeOverridesStackTraceGetter(orefExcep->GetMethodTable()))
-        {
-            // In classic processes, the remote stack trace could have been generated using a custom get_StackTrace
-            // override which means that we would not be able to parse is - strip the whole string by returning NULL.
-            orefStr = NULL;
-        }
-    }
-
-    if (orefStr != NULL)
-    {
-        SString stackTrace;
-        orefStr->GetSString(stackTrace);
-
-        StripFileInfoFromStackTrace(stackTrace);
-
-        orefStr = AllocateString(stackTrace);
-    }
-
-    HELPER_METHOD_FRAME_END();
-    return (StringObject *)OBJECTREFToObject(orefStr);
-}
-FCIMPLEND
-
-#endif // !FEATURE_CORECLR
-
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
 // This FCall sets a flag against the thread exception state to indicate to
 // IL_Throw and the StackTraceInfo implementation to account for the fact
 // that we have restored a foreign exception dispatch details.
@@ -1021,7 +980,6 @@ FCIMPL1(Object*, ExceptionNative::CopyDynamicMethods, Object* pDynamicMethodsUNS
 }
 FCIMPLEND
 
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
 BSTR BStrFromString(STRINGREF s)
 {
@@ -1538,11 +1496,28 @@ FCIMPL5(VOID, Buffer::InternalBlockCopy, ArrayBase *src, int srcOffset, ArrayBas
 }
 FCIMPLEND
 
+void QCALLTYPE MemoryNative::Clear(void *dst, size_t length)
+{
+    QCALL_CONTRACT;
+
+    memset(dst, 0, length);
+}
+
+FCIMPL3(VOID, MemoryNative::BulkMoveWithWriteBarrier, void *dst, void *src, size_t byteCount)
+{
+    FCALL_CONTRACT;
+
+    InlinedMemmoveGCRefsHelper(dst, src, byteCount);
+
+    FC_GC_POLL();
+}
+FCIMPLEND
+
 void QCALLTYPE Buffer::MemMove(void *dst, void *src, size_t length)
 {
     QCALL_CONTRACT;
 
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_CORESYSTEM)
+#if !defined(FEATURE_CORESYSTEM)
     // Callers of memcpy do expect and handle access violations in some scenarios.
     // Access violations in the runtime dll are turned into fail fast by the vector exception handler by default.
     // We need to supress this behavior for CoreCLR using AVInRuntimeImplOkayHolder because of memcpy is statically linked in.
@@ -1802,9 +1777,9 @@ int QCALLTYPE GCInterface::StartNoGCRegion(INT64 totalSize, BOOL lohSizeKnown, I
     GCX_COOP();
 
     retVal = GCHeapUtilities::GetGCHeap()->StartNoGCRegion((ULONGLONG)totalSize, 
-                                                  lohSizeKnown,
+                                                  !!lohSizeKnown,
                                                   (ULONGLONG)lohSize,
-                                                  disallowFullBlockingGC);
+                                                  !!disallowFullBlockingGC);
 
     END_QCALL;
 
@@ -1893,7 +1868,7 @@ void QCALLTYPE GCInterface::Collect(INT32 generation, INT32 mode)
     //We don't need to check the top end because the GC will take care of that.
 
     GCX_COOP();
-    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, FALSE, mode);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, mode);
 
     END_QCALL;
 }
@@ -2356,7 +2331,7 @@ NOINLINE void GCInterface::GarbageCollectModeAny(int generation)
     CONTRACTL_END;
 
     GCX_COOP();
-    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, FALSE, collection_non_blocking);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, collection_non_blocking);
 }
 
 //
@@ -2609,9 +2584,23 @@ FCIMPL2_IV(INT64,COMInterlocked::ExchangeAdd64, INT64 *location, INT64 value)
 }
 FCIMPLEND
 
+FCIMPL0(void, COMInterlocked::FCMemoryBarrier)
+{
+    FCALL_CONTRACT;
+
+    MemoryBarrier();
+    FC_GC_POLL();
+}
+FCIMPLEND
+
 #include <optdefault.h>
 
+void QCALLTYPE COMInterlocked::MemoryBarrierProcessWide()
+{
+    QCALL_CONTRACT;
 
+    FlushProcessWriteBuffers();
+}
 
 FCIMPL6(INT32, ManagedLoggingHelper::GetRegistryLoggingValues, CLR_BOOL* bLoggingEnabled, CLR_BOOL* bLogToConsole, INT32 *iLogLevel, CLR_BOOL* bPerfWarnings, CLR_BOOL* bCorrectnessWarnings, CLR_BOOL* bSafeHandleStackTraces)
 {
@@ -2635,14 +2624,146 @@ FCIMPL6(INT32, ManagedLoggingHelper::GetRegistryLoggingValues, CLR_BOOL* bLoggin
 }
 FCIMPLEND
 
-// Return true if the valuetype does not contain pointer and is tightly packed
+static BOOL HasOverriddenMethod(MethodTable* mt, MethodTable* classMT, WORD methodSlot)
+{
+    CONTRACTL{
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        SO_TOLERANT;
+    } CONTRACTL_END;
+
+    _ASSERTE(mt != NULL);
+    _ASSERTE(classMT != NULL);
+    _ASSERTE(methodSlot != 0);
+
+    PCODE actual = mt->GetRestoredSlot(methodSlot);
+    PCODE base = classMT->GetRestoredSlot(methodSlot);
+
+    if (actual == base)
+    {
+        return FALSE;
+    }
+
+    if (!classMT->IsZapped())
+    {
+        // If mscorlib is JITed, the slots can be patched and thus we need to compare the actual MethodDescs
+        // to detect match reliably
+        if (MethodTable::GetMethodDescForSlotAddress(actual) == MethodTable::GetMethodDescForSlotAddress(base))
+        {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static BOOL CanCompareBitsOrUseFastGetHashCode(MethodTable* mt)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+    } CONTRACTL_END;
+
+    _ASSERTE(mt != NULL);
+
+    if (mt->HasCheckedCanCompareBitsOrUseFastGetHashCode())
+    {
+        return mt->CanCompareBitsOrUseFastGetHashCode();
+    }
+
+    if (mt->ContainsPointers()
+        || mt->IsNotTightlyPacked())
+    {
+        mt->SetHasCheckedCanCompareBitsOrUseFastGetHashCode();
+        return FALSE;
+    }
+
+    MethodTable* valueTypeMT = MscorlibBinder::GetClass(CLASS__VALUE_TYPE);
+    WORD slotEquals = MscorlibBinder::GetMethod(METHOD__VALUE_TYPE__EQUALS)->GetSlot();
+    WORD slotGetHashCode = MscorlibBinder::GetMethod(METHOD__VALUE_TYPE__GET_HASH_CODE)->GetSlot();
+
+    // Check the input type.
+    if (HasOverriddenMethod(mt, valueTypeMT, slotEquals)
+        || HasOverriddenMethod(mt, valueTypeMT, slotGetHashCode))
+    {
+        mt->SetHasCheckedCanCompareBitsOrUseFastGetHashCode();
+
+        // If overridden Equals or GetHashCode found, stop searching further.
+        return FALSE;
+    }
+
+    BOOL canCompareBitsOrUseFastGetHashCode = TRUE;
+
+    // The type itself did not override Equals or GetHashCode, go for its fields.
+    ApproxFieldDescIterator iter = ApproxFieldDescIterator(mt, ApproxFieldDescIterator::INSTANCE_FIELDS);
+    for (FieldDesc* pField = iter.Next(); pField != NULL; pField = iter.Next())
+    {
+        if (pField->GetFieldType() == ELEMENT_TYPE_VALUETYPE)
+        {
+            // Check current field type.
+            MethodTable* fieldMethodTable = pField->GetApproxFieldTypeHandleThrowing().GetMethodTable();
+            if (!CanCompareBitsOrUseFastGetHashCode(fieldMethodTable))
+            {
+                canCompareBitsOrUseFastGetHashCode = FALSE;
+                break;
+            }
+        }
+        else if (pField->GetFieldType() == ELEMENT_TYPE_R8
+                || pField->GetFieldType() == ELEMENT_TYPE_R4)
+        {
+            // We have double/single field, cannot compare in fast path.
+            canCompareBitsOrUseFastGetHashCode = FALSE;
+            break;
+        }
+    }
+
+    // We've gone through all instance fields. It's time to cache the result.
+    // Note SetCanCompareBitsOrUseFastGetHashCode(BOOL) ensures the checked flag
+    // and canCompare flag being set atomically to avoid race.
+    mt->SetCanCompareBitsOrUseFastGetHashCode(canCompareBitsOrUseFastGetHashCode);
+
+    return canCompareBitsOrUseFastGetHashCode;
+}
+
+NOINLINE static FC_BOOL_RET CanCompareBitsHelper(MethodTable* mt, OBJECTREF objRef)
+{
+    FC_INNER_PROLOG(ValueTypeHelper::CanCompareBits);
+
+    _ASSERTE(mt != NULL);
+    _ASSERTE(objRef != NULL);
+
+    BOOL ret = FALSE;
+
+    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH|Frame::FRAME_ATTR_CAPTURE_DEPTH_2, objRef);
+
+    ret = CanCompareBitsOrUseFastGetHashCode(mt);
+
+    HELPER_METHOD_FRAME_END();
+    FC_INNER_EPILOG();
+
+    FC_RETURN_BOOL(ret);
+}
+
+// Return true if the valuetype does not contain pointer, is tightly packed, 
+// does not have floating point number field and does not override Equals method.
 FCIMPL1(FC_BOOL_RET, ValueTypeHelper::CanCompareBits, Object* obj)
 {
     FCALL_CONTRACT;
 
     _ASSERTE(obj != NULL);
     MethodTable* mt = obj->GetMethodTable();
-    FC_RETURN_BOOL(!mt->ContainsPointers() && !mt->IsNotTightlyPacked());
+
+    if (mt->HasCheckedCanCompareBitsOrUseFastGetHashCode())
+    {
+        FC_RETURN_BOOL(mt->CanCompareBitsOrUseFastGetHashCode());
+    }
+
+    OBJECTREF objRef(obj);
+
+    FC_INNER_RETURN(FC_BOOL_RET, CanCompareBitsHelper(mt, objRef));
 }
 FCIMPLEND
 
@@ -2661,12 +2782,6 @@ FCIMPL2(FC_BOOL_RET, ValueTypeHelper::FastEqualsCheck, Object* obj1, Object* obj
 }
 FCIMPLEND
 
-static BOOL CanUseFastGetHashCodeHelper(MethodTable *mt)
-{
-    LIMITED_METHOD_CONTRACT;
-    return !mt->ContainsPointers() && !mt->IsNotTightlyPacked();
-}
-
 static INT32 FastGetValueTypeHashCodeHelper(MethodTable *mt, void *pObjRef)
 {
     CONTRACTL
@@ -2675,7 +2790,6 @@ static INT32 FastGetValueTypeHashCodeHelper(MethodTable *mt, void *pObjRef)
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
         SO_TOLERANT;
-        PRECONDITION(CanUseFastGetHashCodeHelper(mt));
     } CONTRACTL_END;
 
     INT32 hashCode = 0;
@@ -2701,9 +2815,19 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
     INT32 hashCode = 0;
     INT32 *pObj = (INT32*)pObjRef;
 
+    BOOL canUseFastGetHashCodeHelper = FALSE;
+    if (mt->HasCheckedCanCompareBitsOrUseFastGetHashCode())
+    {
+        canUseFastGetHashCodeHelper = mt->CanCompareBitsOrUseFastGetHashCode();
+    }
+    else
+    {
+        canUseFastGetHashCodeHelper = CanCompareBitsOrUseFastGetHashCode(mt);
+    }
+
     // While we shouln't get here directly from ValueTypeHelper::GetHashCode, if we recurse we need to 
     // be able to handle getting the hashcode for an embedded structure whose hashcode is computed by the fast path.
-    if (CanUseFastGetHashCodeHelper(mt))
+    if (canUseFastGetHashCodeHelper)
     {
         return FastGetValueTypeHashCodeHelper(mt, pObjRef);
     }
@@ -2808,17 +2932,29 @@ FCIMPL1(INT32, ValueTypeHelper::GetHashCode, Object* objUNSAFE)
     // we munge the class index with two big prime numbers
     hashCode = typeID * 711650207 + 2506965631U;
 
-    if (CanUseFastGetHashCodeHelper(pMT))
+    BOOL canUseFastGetHashCodeHelper = FALSE;
+    if (pMT->HasCheckedCanCompareBitsOrUseFastGetHashCode())
+    {
+        canUseFastGetHashCodeHelper = pMT->CanCompareBitsOrUseFastGetHashCode();
+    }
+    else
+    {
+        HELPER_METHOD_FRAME_BEGIN_RET_1(obj);
+        canUseFastGetHashCodeHelper = CanCompareBitsOrUseFastGetHashCode(pMT);
+        HELPER_METHOD_FRAME_END();
+    }
+
+    if (canUseFastGetHashCodeHelper)
     {
         hashCode ^= FastGetValueTypeHashCodeHelper(pMT, obj->UnBox());
     }
     else
     {
-        HELPER_METHOD_FRAME_BEGIN_RET_1(obj);        
+        HELPER_METHOD_FRAME_BEGIN_RET_1(obj);
         hashCode ^= RegularGetValueTypeHashCode(pMT, obj->UnBox());
         HELPER_METHOD_FRAME_END();
     }
-    
+
     return hashCode;
 }
 FCIMPLEND
@@ -2853,67 +2989,8 @@ FCIMPL1(INT32, ValueTypeHelper::GetHashCodeOfPtr, LPVOID ptr)
 }
 FCIMPLEND
 
-#ifndef FEATURE_CORECLR
-FCIMPL1(OBJECTHANDLE, SizedRefHandle::Initialize, Object* _obj)
-{
-    FCALL_CONTRACT;
 
-    OBJECTHANDLE result = 0; 
-    OBJECTREF obj(_obj);
-
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-
-    result = GetAppDomain()->CreateSizedRefHandle(obj);
-
-    HELPER_METHOD_FRAME_END();
-
-    return result;
-}
-FCIMPLEND
-
-FCIMPL1(VOID, SizedRefHandle::Free, OBJECTHANDLE handle)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(handle != NULL);
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-
-    DestroySizedRefHandle(handle);
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-FCIMPL1(LPVOID, SizedRefHandle::GetTarget, OBJECTHANDLE handle)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(handle != NULL);
-
-    OBJECTREF objRef = NULL;
-
-    objRef = ObjectFromHandle(handle);
-
-    FCUnique(0x33);
-    return *((LPVOID*)&objRef);
-}
-FCIMPLEND
-
-FCIMPL1(INT64, SizedRefHandle::GetApproximateSize, OBJECTHANDLE handle)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(handle != NULL);
-
-    return (INT64)HndGetHandleExtraInfo(handle);
-}
-FCIMPLEND
-#endif //!FEATURE_CORECLR
-
-#ifdef FEATURE_CORECLR
 COMNlsHashProvider COMNlsHashProvider::s_NlsHashProvider;
-#endif // FEATURE_CORECLR
 
 
 COMNlsHashProvider::COMNlsHashProvider()

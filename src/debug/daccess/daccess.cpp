@@ -29,6 +29,7 @@
 #endif
 
 #include "dwbucketmanager.hpp"
+#include "gcinterface.dac.h"
 
 // To include definiton of IsThrowableThreadAbortException
 // #include <exstatecommon.h>
@@ -5235,7 +5236,7 @@ ClrDataAccess::FollowStubStep(
         // this and redirect to the actual code.
         methodDesc = trace.GetMethodDesc();
         if (methodDesc->IsPreImplemented() &&
-            !methodDesc->IsPointingToNativeCode() &&
+            !methodDesc->IsPointingToStableNativeCode() &&
             !methodDesc->IsGenericMethodDefinition() &&
             methodDesc->HasNativeCode())
         {
@@ -6305,8 +6306,6 @@ bool ClrDataAccess::ReportMem(TADDR addr, TSIZE_T size, bool fExpectSuccess /*= 
         status = m_enumMemCb->EnumMemoryRegion(TO_CDADDR(addr), enumSize);
         if (status != S_OK)
         {
-            m_memStatus = status;
-
             // If dump generation was cancelled, allow us to throw upstack so we'll actually quit.
             if ((fExpectSuccess) && (status != COR_E_OPERATIONCANCELED))
                 return false;
@@ -7934,7 +7933,6 @@ STDAPI OutOfProcessExceptionEventDebuggerLaunchCallback(__in PDWORD pContext,
 
 // DacHandleEnum
 
-#include "handletablepriv.h"
 #include "comcallablewrapper.h"
 
 DacHandleWalker::DacHandleWalker()
@@ -7976,7 +7974,7 @@ HRESULT DacHandleWalker::Init(ClrDataAccess *dac, UINT types[], UINT typeCount, 
 {
     SUPPORTS_DAC;
     
-    if (gen < 0 || gen > (int)GCHeapUtilities::GetMaxGeneration())
+    if (gen < 0 || gen > (int)*g_gcDacGlobals->max_gen)
         return E_INVALIDARG;
         
     mGenerationFilter = gen;
@@ -7988,7 +7986,7 @@ HRESULT DacHandleWalker::Init(UINT32 typemask)
 {
     SUPPORTS_DAC;
     
-    mMap = &g_HandleTableMap;
+    mMap = g_gcDacGlobals->handle_table_map;
     mTypeMask = typemask;
     
     return S_OK;
@@ -8066,7 +8064,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
         {
             for (int i = 0; i < max_slots; ++i)
             {
-                HHANDLETABLE hTable = mMap->pBuckets[mIndex]->pTable[i];
+                DPTR(dac_handle_table) hTable = mMap->pBuckets[mIndex]->pTable[i];
                 if (hTable)
                 {
                     // Yikes!  The handle table callbacks don't produce the handle type or 
@@ -8080,8 +8078,8 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                     {
                         if (mask & 1)
                         {
-                            HandleTable *pTable = (HandleTable *)hTable;
-                            PTR_AppDomain pDomain = SystemDomain::GetAppDomainAtIndex(pTable->uADIndex);
+                            dac_handle_table *pTable = hTable;
+                            PTR_AppDomain pDomain = SystemDomain::GetAppDomainAtIndex(ADIndex(pTable->uADIndex));
                             param.AppDomain = TO_CDADDR(pDomain.GetAddr());
                             param.Type = handleType;
                             
@@ -8091,7 +8089,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                                 HndScanHandlesForGC(hTable, callback, 
                                                     (LPARAM)&param, 0, 
                                                      &handleType, 1, 
-                                                     mGenerationFilter, GCHeapUtilities::GetMaxGeneration(), 0);
+                                                     mGenerationFilter, *g_gcDacGlobals->max_gen, 0);
                             else
                                 HndEnumHandles(hTable, &handleType, 1, callback, (LPARAM)&param, 0, FALSE);
                         }

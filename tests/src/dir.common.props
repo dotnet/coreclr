@@ -37,7 +37,7 @@
   <PropertyGroup>
     <OSPlatformConfig>$(BuildOS).$(Platform).$(Configuration)</OSPlatformConfig>
     <BaseOutputPath>$(ProjectDir)\..\bin\tests</BaseOutputPath>
-    <BaseOutputPath Condition="'$(__TestRootDir)' != ''">$(__TestRootDir)\</BaseOutputPath>
+    <BaseOutputPath Condition="'$(__TestRootDir)' != ''">$(__TestRootDir)</BaseOutputPath>
     <BaseOutputPathWithConfig>$(BaseOutputPath)\$(OSPlatformConfig)\</BaseOutputPathWithConfig>
     <BinDir>$(BaseOutputPathWithConfig)</BinDir>
     <BaseIntermediateOutputPath>$(ProjectDir)\..\bin\tests\obj\$(OSPlatformConfig)\Managed\</BaseIntermediateOutputPath>
@@ -50,14 +50,6 @@
     <TestWorkingDir Condition="'$(TestWorkingDir)'==''">$(BaseOutputPath)\testStagingDir\</TestWorkingDir>
     <TestPath Condition="'$(TestPath)'==''">$(TestWorkingDir)$(OSPlatformConfig)\$(MSBuildProjectName)/</TestPath>
   </PropertyGroup>
-
-  <!-- Setup the output location for the project.json generated for the local CoreCLR build. -->
-  <PropertyGroup>
-    <TestRuntimeProjectJsonDir>$(BaseOutputPath)\test_runtime</TestRuntimeProjectJsonDir>
-    <TestRuntimeProjectJson>$(TestRuntimeProjectJsonDir)\project.json</TestRuntimeProjectJson>
-    <TestRuntimeProjectLockJson>$(TestRuntimeProjectJsonDir)\project.lock.json</TestRuntimeProjectLockJson>
-  </PropertyGroup>
-
 
 </Project>
 

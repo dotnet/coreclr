@@ -197,7 +197,10 @@ BOOL IsRundownNgenKeywordEnabledAndNotSuppressed()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return 
+    return
+#ifdef FEATURE_PERFTRACING
+        EventPipeHelper::Enabled() ||
+#endif // FEATURE_PERFTRACING
     (
         ETW_TRACING_CATEGORY_ENABLED(
             MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, 
@@ -439,8 +442,8 @@ VOID ETW::GCLog::GCSettingsEvent()
             ETW::GCLog::ETW_GC_INFO Info;
 
             Info.GCSettings.ServerGC = GCHeapUtilities::IsServerHeap ();
-            Info.GCSettings.SegmentSize = GCHeapUtilities::GetGCHeap()->GetValidSegmentSize (FALSE);
-            Info.GCSettings.LargeObjectSegmentSize = GCHeapUtilities::GetGCHeap()->GetValidSegmentSize (TRUE);
+            Info.GCSettings.SegmentSize = GCHeapUtilities::GetGCHeap()->GetValidSegmentSize (false);
+            Info.GCSettings.LargeObjectSegmentSize = GCHeapUtilities::GetGCHeap()->GetValidSegmentSize (true);
             FireEtwGCSettings_V1(Info.GCSettings.SegmentSize, Info.GCSettings.LargeObjectSegmentSize, Info.GCSettings.ServerGC, GetClrInstanceId());
         }  
         GCHeapUtilities::GetGCHeap()->DiagTraceGCSegments();
@@ -1035,7 +1038,7 @@ HRESULT ETW::GCLog::ForceGCForDiagnostics()
         
         hr = GCHeapUtilities::GetGCHeap()->GarbageCollect(
             -1,     // all generations should be collected
-            FALSE,  // low_memory_p
+            false,  // low_memory_p
             collection_blocking);
 
 #ifndef FEATURE_REDHAWK
@@ -1340,7 +1343,7 @@ void BulkComLogger::LogAllComObjects()
     // We need to do work in HandleWalkCallback which may trigger a GC.  We cannot do this while
     // enumerating the handle table.  Instead, we will build a list of RefCount handles we found
     // during the handle table enumeration first (m_enumResult) during this enumeration:
-    Ref_TraceRefCountHandles(BulkComLogger::HandleWalkCallback, uintptr_t(this), 0);
+    GCHandleUtilities::GetGCHandleManager()->TraceRefCountedHandles(BulkComLogger::HandleWalkCallback, uintptr_t(this), 0);
 
     // Now that we have all of the object handles, we will walk all of the handles and write the
     // etw events.
@@ -4310,42 +4313,15 @@ HRESULT ETW::CEtwTracer::Register()
 {
     WRAPPER_NO_CONTRACT;
 
-#ifndef FEATURE_CORESYSTEM
-    OSVERSIONINFO osVer;
-    osVer.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-
-    if (GetOSVersion(&osVer) == FALSE) {
-        return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
-    }
-    else if (osVer.dwMajorVersion < ETW_SUPPORTED_MAJORVER) {
-        return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
-    }
-
-    // if running on OS < Longhorn, skip registration unless reg key is set
-    // since ETW reg is expensive (in both time and working set) on older OSes
-    if (osVer.dwMajorVersion < ETW_ENABLED_MAJORVER && !g_fEnableETW && !CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_PreVistaETWEnabled))
-        return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
-
-    // If running on OS >= Longhorn, skip registration if ETW is not enabled
-    if (osVer.dwMajorVersion >= ETW_ENABLED_MAJORVER && !g_fEnableETW && !CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_VistaAndAboveETWEnabled))
-        return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
-#endif
-
     EventRegisterMicrosoft_Windows_DotNETRuntime();
     EventRegisterMicrosoft_Windows_DotNETRuntimePrivate();
     EventRegisterMicrosoft_Windows_DotNETRuntimeRundown();
 
     // Stress Log ETW events are available only on the desktop version of the runtime
-#ifndef FEATURE_CORECLR
-    EventRegisterMicrosoft_Windows_DotNETRuntimeStress();
-#endif // !FEATURE_CORECLR
 
     MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context.RegistrationHandle = Microsoft_Windows_DotNETRuntimeHandle;
     MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context.RegistrationHandle = Microsoft_Windows_DotNETRuntimePrivateHandle;
     MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context.RegistrationHandle = Microsoft_Windows_DotNETRuntimeRundownHandle;
-#ifndef FEATURE_CORECLR
-    MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_Context.RegistrationHandle = Microsoft_Windows_DotNETRuntimeStressHandle;
-#endif // !FEATURE_CORECLR
 
     return S_OK;
 }
@@ -4371,9 +4347,6 @@ HRESULT ETW::CEtwTracer::UnRegister()
     EventUnregisterMicrosoft_Windows_DotNETRuntime();
     EventUnregisterMicrosoft_Windows_DotNETRuntimePrivate();
     EventUnregisterMicrosoft_Windows_DotNETRuntimeRundown();
-#ifndef FEATURE_CORECLR
-    EventUnregisterMicrosoft_Windows_DotNETRuntimeStress();
-#endif // !FEATURE_CORECLR
     return S_OK;
 }
 
@@ -4495,10 +4468,10 @@ extern "C"
 
 #ifdef _TARGET_AMD64_
             // We only do this on amd64  (NOT ARM, because ARM uses frame based stack crawling)
-            // If we have turned on the JIT keyword to the VERBOSE setting (needed to get JIT names) then
+            // If we have turned on the JIT keyword to the INFORMATION setting (needed to get JIT names) then
             // we assume that we also want good stack traces so we need to publish unwind information so
             // ETW can get at it
-            if(bIsPublicTraceHandle && ETW_CATEGORY_ENABLED((*context), TRACE_LEVEL_VERBOSE, CLR_RUNDOWNJIT_KEYWORD))
+            if(bIsPublicTraceHandle && ETW_CATEGORY_ENABLED((*context), TRACE_LEVEL_INFORMATION, CLR_RUNDOWNJIT_KEYWORD))
                 UnwindInfoTable::PublishUnwindInfo(g_fEEStarted != FALSE);
 #endif
 
@@ -4916,18 +4889,12 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
             UINT startupFlags = 0;
             PathString dllPath;
             UINT8 Sku = 0;
-            _ASSERTE(g_fEEManagedEXEStartup ||   //CLR started due to a managed exe
-                g_fEEIJWStartup ||               //CLR started as a mixed mode Assembly
-                CLRHosted() || g_fEEHostedStartup || //CLR started through one of the Hosting API CLRHosted() returns true if CLR started through the V2 Interface while 
-                                                    // g_fEEHostedStartup is true if CLR is hosted through the V1 API.
-                g_fEEComActivatedStartup ||      //CLR started as a COM object
-                g_fEEOtherStartup  );            //In case none of the 4 above mentioned cases are true for example ngen, ildasm then we asssume its a "other" startup
+            _ASSERTE(CLRHosted() || g_fEEHostedStartup || // CLR started through one of the Hosting API CLRHosted() returns true if CLR started through the V2 Interface while 
+                                                          // g_fEEHostedStartup is true if CLR is hosted through the V1 API.
+                     g_fEEComActivatedStartup ||          //CLR started as a COM object
+                     g_fEEOtherStartup  );                //In case none of the 4 above mentioned cases are true for example ngen, ildasm then we asssume its a "other" startup
 
-#ifdef FEATURE_CORECLR
             Sku = ETW::InfoLog::InfoStructs::CoreCLR;
-#else
-            Sku = ETW::InfoLog::InfoStructs::DesktopCLR;
-#endif //FEATURE_CORECLR
         
             //version info for clr.dll
             USHORT vmMajorVersion = VER_MAJORVERSION;
@@ -4946,44 +4913,9 @@ VOID ETW::InfoLog::RuntimeInformation(INT32 type)
             PCWSTR lpwszCommandLine = W("");
             
 
-#ifndef FEATURE_CORECLR
-            startupFlags = CorHost2::GetStartupFlags();
-
-            // Some of the options specified by the startup flags can be overwritten by config files. 
-            // Strictly speaking since the field in this event is called StartupFlags there's nothing 
-            // wrong with just showing the actual startup flags but it makes it less useful (a more 
-            // appropriate name for the field is StartupOptions).
-            startupFlags &= ~STARTUP_CONCURRENT_GC;
-            if (g_pConfig->GetGCconcurrent())
-                startupFlags |= STARTUP_CONCURRENT_GC;
-
-            if (g_pConfig->DefaultSharePolicy() != AppDomain::SHARE_POLICY_UNSPECIFIED)
-            {
-                startupFlags &= ~STARTUP_LOADER_OPTIMIZATION_MASK;
-                startupFlags |= g_pConfig->DefaultSharePolicy() << 1;
-            }
-
-            startupFlags &= ~STARTUP_LEGACY_IMPERSONATION;
-            startupFlags &= ~STARTUP_ALWAYSFLOW_IMPERSONATION;
-            if (g_pConfig->ImpersonationMode() == IMP_NOFLOW)
-                startupFlags |= STARTUP_LEGACY_IMPERSONATION;
-            else if (g_pConfig->ImpersonationMode() == IMP_ALWAYSFLOW)
-                startupFlags |= STARTUP_ALWAYSFLOW_IMPERSONATION;
-#endif //!FEATURE_CORECLR
 
             // Determine the startupmode
-            if(g_fEEIJWStartup)
-            {
-                //IJW Mode
-                startupMode = ETW::InfoLog::InfoStructs::IJW;
-            }
-            else if(g_fEEManagedEXEStartup) 
-            {
-                //managed exe
-                startupMode = ETW::InfoLog::InfoStructs::ManagedExe;
-                lpwszCommandLine = WszGetCommandLine();
-            }
-            else if (CLRHosted() || g_fEEHostedStartup)
+            if (CLRHosted() || g_fEEHostedStartup)
             {
                 //Hosted CLR
                 startupMode = ETW::InfoLog::InfoStructs::HostedCLR;
@@ -5454,9 +5386,6 @@ VOID ETW::MethodLog::MethodTableRestored(MethodTable *pMethodTable)
                                          TRACE_LEVEL_INFORMATION, 
                                          CLR_STARTENUMERATION_KEYWORD))
         {
-#ifdef FEATURE_REMOTING
-            if(!pMethodTable->IsTransparentProxy())
-#endif
             {
                 MethodTable::MethodIterator iter(pMethodTable);
                 for (; iter.IsValid(); iter.Next())
@@ -5477,9 +5406,6 @@ VOID ETW::MethodLog::MethodTableRestored(MethodTable *pMethodTable)
 VOID ETW::SecurityLog::StrongNameVerificationStart(DWORD dwInFlags, __in LPWSTR strFullyQualifiedAssemblyName)
 {
     WRAPPER_NO_CONTRACT;
-#ifndef FEATURE_CORECLR
-    FireEtwStrongNameVerificationStart_V1(dwInFlags, 0, strFullyQualifiedAssemblyName, GetClrInstanceId());
-#endif // !FEATURE_CORECLR
 }
 
 
@@ -5489,9 +5415,6 @@ VOID ETW::SecurityLog::StrongNameVerificationStart(DWORD dwInFlags, __in LPWSTR 
 VOID ETW::SecurityLog::StrongNameVerificationStop(DWORD dwInFlags,ULONG result, __in LPWSTR strFullyQualifiedAssemblyName)
 {
     WRAPPER_NO_CONTRACT;
-#ifndef FEATURE_CORECLR
-    FireEtwStrongNameVerificationStop_V1(dwInFlags, result, strFullyQualifiedAssemblyName, GetClrInstanceId());
-#endif // !FEATURE_CORECLR
 }
 
 /****************************************************************************/
@@ -5832,9 +5755,6 @@ VOID ETW::LoaderLog::SendAssemblyEvent(Assembly *pAssembly, DWORD dwEventOptions
     ULONGLONG ullAssemblyId = (ULONGLONG)pAssembly;
     ULONGLONG ullDomainId = (ULONGLONG)pAssembly->GetDomain();
     ULONGLONG ullBindingID = 0;
-#if (defined FEATURE_PREJIT) && (defined FEATURE_FUSION)  
-    ullBindingID = pAssembly->GetManifestFile()->GetBindingID();
-#endif
     ULONG ulAssemblyFlags = ((bIsDomainNeutral ? ETW::LoaderLog::LoaderStructs::DomainNeutralAssembly : 0) |
                              (bIsDynamicAssembly ? ETW::LoaderLog::LoaderStructs::DynamicAssembly : 0) |
                              (bHasNativeImage ? ETW::LoaderLog::LoaderStructs::NativeAssembly : 0) |
@@ -6830,9 +6750,9 @@ VOID ETW::MethodLog::SendHelperEvent(ULONGLONG ullHelperStartAddress, ULONG ulHe
                                      ulHelperSize, 
                                      0, 
                                      methodFlags, 
-                                     NULL, 
+                                     NULL,
                                      pHelperName, 
-                                     NULL, 
+                                     NULL,
                                      GetClrInstanceId());
     }
 }
@@ -6853,11 +6773,8 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
     if (!pModule)
         return;
 
-    PEImageLayout * pLoadedLayout = pModule->GetFile()->GetLoaded();
-    _ASSERTE(pLoadedLayout != NULL);
-
 #ifdef FEATURE_READYTORUN
-    if (pLoadedLayout->HasReadyToRunHeader())
+    if (pModule->IsReadyToRun())
     {
         ReadyToRunInfo::MethodIterator mi(pModule->GetReadyToRunInfo());
         while (mi.Next())
@@ -6917,7 +6834,7 @@ VOID ETW::MethodLog::SendEventsForJitMethodsHelper(BaseDomain *pDomainFilter,
         // manager locks.
         // see code:#TableLockHolder
         ReJITID rejitID =
-            fGetReJitIDs ? pMD->GetReJitManager()->GetReJitIdNoLock(pMD, codeStart) : 0;
+            fGetReJitIDs ? ReJitManager::GetReJitIdNoLock(pMD, codeStart) : 0;
 
         // There are small windows of time where the heap iterator may come across a
         // codeStart that is not yet published to the MethodDesc. This may happen if
@@ -7045,8 +6962,8 @@ VOID ETW::MethodLog::SendEventsForJitMethods(BaseDomain *pDomainFilter, LoaderAl
         // We only support getting rejit IDs when filtering by domain.
         if (pDomainFilter)
         {
-            ReJitManager::TableLockHolder lkRejitMgrSharedDomain(SharedDomain::GetDomain()->GetReJitManager());
-            ReJitManager::TableLockHolder lkRejitMgrModule(pDomainFilter->GetReJitManager());
+            CodeVersionManager::TableLockHolder lkRejitMgrSharedDomain(SharedDomain::GetDomain()->GetCodeVersionManager());
+            CodeVersionManager::TableLockHolder lkRejitMgrModule(pDomainFilter->GetCodeVersionManager());
             SendEventsForJitMethodsHelper(pDomainFilter,
                 pLoaderAllocatorFilter,
                 dwEventOptions,
@@ -7458,3 +7375,12 @@ VOID ETW::EnumerationLog::EnumerationHelper(Module *moduleFilter, BaseDomain *do
 }
 
 #endif // !FEATURE_REDHAWK
+
+#ifdef FEATURE_PERFTRACING
+#include "eventpipe.h"
+bool EventPipeHelper::Enabled()
+{
+    LIMITED_METHOD_CONTRACT;
+    return EventPipe::Enabled();
+}
+#endif // FEATURE_PERFTRACING

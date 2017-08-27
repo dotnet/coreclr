@@ -27,15 +27,14 @@
 #include "arraynative.h"
 #include "stringnative.h"
 #include "stringbuffer.h"
-#include "securityimperative.h"
-#include "securitystackwalk.h"
 #include "objectnative.h"
 #include "comdelegate.h"
 #include "customattribute.h"
 #include "comdynamic.h"
-#include "commethodrental.h"
+#include "excep.h"
+#include "fcall.h"
 #include "nlsinfo.h"
-#include "calendardata.h"
+#include "clrconfignative.h"
 #include "commodule.h"
 #include "marshalnative.h"
 #include "system.h"
@@ -46,19 +45,11 @@
 #include "decimal.h"
 #include "currency.h"
 #include "comdatetime.h"
-#include "comisolatedstorage.h"
-#include "securityconfig.h"
 #include "number.h"
 #include "compatibilityswitch.h"
-#ifdef FEATURE_REMOTING
-#include "remotingnative.h"
-#include "message.h"
-#include "stackbuildersink.h"
-#endif
 #include "debugdebugger.h"
 #include "assemblyname.hpp"
 #include "assemblynative.hpp"
-#include "rwlock.h"
 #include "comthreadpool.h"
 #include "comwaithandle.h"
 #include "nativeoverlapped.h"
@@ -71,41 +62,18 @@
 #include "reflectioninvocation.h"
 #include "managedmdimport.hpp"
 #include "synchronizationcontextnative.h"
-#include "newcompressedstack.h"
 #include "commemoryfailpoint.h"
 #include "typestring.h"
 #include "comdependenthandle.h"
 #include "weakreferencenative.h"
 #include "varargsnative.h"
 
-#ifndef FEATURE_CORECLR
-#include "confighelper.h"
-#include "console.h"
-#endif
-
 #ifdef MDA_SUPPORTED 
 #include "mdaassistants.h"
 #endif
 
-#ifdef FEATURE_CRYPTO
-#include "cryptography.h"
-#endif // FEATURE_CRYPTO
-
-#ifndef FEATURE_CORECLR
-#include "securityprincipal.h"
-#endif // !FEATURE_CORECLR
-
-#ifdef FEATURE_X509
-#include "x509certificate.h"
-#endif // FEATURE_X509
-
-#include "coverage.h"
-
 #ifdef FEATURE_COMINTEROP
 #include "variant.h"
-#ifdef FEATURE_COMINTEROP_TLB_SUPPORT
-#include "comtypelibconverter.h"
-#endif
 #include "oavariant.h"
 #include "registration.h"
 #include "mngstdinterfaces.h"
@@ -115,14 +83,8 @@
 #include "stubhelpers.h"
 #include "ilmarshalers.h"
 
-#include "hostexecutioncontext.h"
-
 #ifdef FEATURE_MULTICOREJIT
 #include "multicorejit.h"
-#endif
-
-#ifdef FEATURE_COMINTEROP
-#include "clrprivtypecachereflectiononlywinrt.h"
 #endif
 
 #ifdef FEATURE_COMINTEROP
@@ -131,6 +93,7 @@
 
 #if defined(FEATURE_EVENTSOURCE_XPLAT)
 #include "nativeeventsource.h"
+#include "eventpipe.h"
 #endif //defined(FEATURE_EVENTSOURCE_XPLAT)
 
 #endif // CROSSGEN_MSCORLIB

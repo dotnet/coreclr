@@ -52,6 +52,9 @@
     IMPORT $g_GCShadowEnd
 #endif // WRITE_BARRIER_CHECK
 
+    IMPORT JIT_GetSharedNonGCStaticBase_Helper
+    IMPORT JIT_GetSharedGCStaticBase_Helper
+
     TEXTAREA
 
 ;; LPVOID __stdcall GetCurrentIP(void);
@@ -159,6 +162,7 @@
         RestoreRegMS 26, X26
         RestoreRegMS 27, X27
         RestoreRegMS 28, X28
+        RestoreRegMS 29, X29
 
 Done
         ; Its imperative that the return value of HelperMethodFrameRestoreState is zero
@@ -322,8 +326,7 @@ NotInHeap
 ;   x15  : trashed
 ;
     WRITE_BARRIER_ENTRY JIT_WriteBarrier
-        dmb      ST
-        str      x15, [x14]
+        stlr     x15, [x14]
 
 #ifdef WRITE_BARRIER_CHECK
         ; Update GC Shadow Heap  
@@ -351,7 +354,7 @@ NotInHeap
 
         ; Ensure that the write to the shadow heap occurs before the read from the GC heap so that race
         ; conditions are caught by INVALIDGCVALUE.
-        dmb      sy
+        dmb      ish
 
         ; if ([x14] == x15) goto end
         ldr      x13, [x14]
@@ -991,16 +994,6 @@ UM2MThunk_WrapperHelper_RegArgumentsSetup
 
         ; This helper enables us to call into a funclet after restoring Fp register
         NESTED_ENTRY CallEHFunclet
-
-        ; Using below prolog instead of PROLOG_SAVE_REG_PAIR fp,lr, #-16!
-        ; is intentional. Above statement would also emit instruction to save
-        ; sp in fp. If sp is saved in fp in prolog then it is not expected that fp can change in the body
-        ; of method. However, this method needs to be able to change fp before calling funclet.
-        ; This is required to access locals in funclet.
-        PROLOG_SAVE_REG_PAIR x19,x20, #-16!
-        PROLOG_SAVE_REG   fp, #0
-        PROLOG_SAVE_REG   lr, #8
-
         ; On entry:
         ;
         ; X0 = throwable        
@@ -1008,17 +1001,42 @@ UM2MThunk_WrapperHelper_RegArgumentsSetup
         ; X2 = address of X19 register in CONTEXT record; used to restore the non-volatile registers of CrawlFrame
         ; X3 = address of the location where the SP of funclet's caller (i.e. this helper) should be saved.
         ;
+
+        ; Using below prolog instead of PROLOG_SAVE_REG_PAIR fp,lr, #-16!
+        ; is intentional. Above statement would also emit instruction to save
+        ; sp in fp. If sp is saved in fp in prolog then it is not expected that fp can change in the body
+        ; of method. However, this method needs to be able to change fp before calling funclet.
+        ; This is required to access locals in funclet.
+        PROLOG_SAVE_REG_PAIR_NO_FP fp,lr, #-96!
+
+        ; Spill callee saved registers
+        PROLOG_SAVE_REG_PAIR   x19, x20, 16
+        PROLOG_SAVE_REG_PAIR   x21, x22, 32
+        PROLOG_SAVE_REG_PAIR   x23, x24, 48
+        PROLOG_SAVE_REG_PAIR   x25, x26, 64
+        PROLOG_SAVE_REG_PAIR   x27, x28, 80
+
         ; Save the SP of this function. We cannot store SP directly.
         mov fp, sp
         str fp, [x3]
 
+        ldp x19, x20, [x2, #0]
+        ldp x21, x22, [x2, #16]
+        ldp x23, x24, [x2, #32]
+        ldp x25, x26, [x2, #48]
+        ldp x27, x28, [x2, #64]
         ldr fp, [x2, #80] ; offset of fp in CONTEXT relative to X19
 
         ; Invoke the funclet
         blr x1
         nop
 
-        EPILOG_RESTORE_REG_PAIR   fp, lr, #16!
+        EPILOG_RESTORE_REG_PAIR   x19, x20, 16
+        EPILOG_RESTORE_REG_PAIR   x21, x22, 32
+        EPILOG_RESTORE_REG_PAIR   x23, x24, 48
+        EPILOG_RESTORE_REG_PAIR   x25, x26, 64
+        EPILOG_RESTORE_REG_PAIR   x27, x28, 80
+        EPILOG_RESTORE_REG_PAIR   fp, lr, #96!
         EPILOG_RETURN
 
         NESTED_END CallEHFunclet
@@ -1180,8 +1198,9 @@ Success
 Promote
                                   ; Move this entry to head postion of the chain
         mov     x16, #256
-        str     x16, [x13]         ; be quick to reset the counter so we don't get a bunch of contending threads
+        str     x16, [x13]        ; be quick to reset the counter so we don't get a bunch of contending threads
         orr     x11, x11, #PROMOTE_CHAIN_FLAG   ; set PROMOTE_CHAIN_FLAG 
+        mov     x12, x9           ; We pass the ResolveCacheElem to ResolveWorkerAsmStub instead of the DispatchToken
 
 Fail           
         b       ResolveWorkerAsmStub ; call the ResolveWorkerAsmStub method to transition into the VM
@@ -1309,6 +1328,63 @@ Fail
     fmov d0, x1
     LEAF_END
 #endif
+
+;
+; JIT Static access helpers when coreclr host specifies single appdomain flag 
+;
+
+; ------------------------------------------------------------------
+; void* JIT_GetSharedNonGCStaticBase(SIZE_T moduleDomainID, DWORD dwClassDomainID)
+
+    LEAF_ENTRY JIT_GetSharedNonGCStaticBase_SingleAppDomain
+    ; If class is not initialized, bail to C++ helper
+    add x2, x0, #DomainLocalModule__m_pDataBlob
+    ldrb w2, [x2, w1]
+    tst w2, #1
+    beq CallHelper1
+
+    ret lr
+
+CallHelper1
+    ; Tail call JIT_GetSharedNonGCStaticBase_Helper
+    b JIT_GetSharedNonGCStaticBase_Helper
+    LEAF_END
+
+
+; ------------------------------------------------------------------
+; void* JIT_GetSharedNonGCStaticBaseNoCtor(SIZE_T moduleDomainID, DWORD dwClassDomainID)
+
+    LEAF_ENTRY JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain
+    ret lr
+    LEAF_END
+
+
+; ------------------------------------------------------------------
+; void* JIT_GetSharedGCStaticBase(SIZE_T moduleDomainID, DWORD dwClassDomainID)
+
+    LEAF_ENTRY JIT_GetSharedGCStaticBase_SingleAppDomain
+    ; If class is not initialized, bail to C++ helper
+    add x2, x0, #DomainLocalModule__m_pDataBlob
+    ldrb w2, [x2, w1]
+    tst w2, #1
+    beq CallHelper2
+
+    ldr x0, [x0, #DomainLocalModule__m_pGCStatics]
+    ret lr
+
+CallHelper2
+    ; Tail call Jit_GetSharedGCStaticBase_Helper
+    b JIT_GetSharedGCStaticBase_Helper
+    LEAF_END
+
+
+; ------------------------------------------------------------------
+; void* JIT_GetSharedGCStaticBaseNoCtor(SIZE_T moduleDomainID, DWORD dwClassDomainID)
+
+    LEAF_ENTRY JIT_GetSharedGCStaticBaseNoCtor_SingleAppDomain
+    ldr x0, [x0, #DomainLocalModule__m_pGCStatics]
+    ret lr
+    LEAF_END
 
 ; Must be at very end of file
     END

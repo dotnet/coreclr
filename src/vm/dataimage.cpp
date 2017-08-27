@@ -12,7 +12,6 @@
 #include "compile.h"
 
 #include "field.h"
-#include "constrainedexecutionregion.h"
 
 //
 // Include Zapper infrastructure here
@@ -127,12 +126,7 @@ DataImage::DataImage(Module *module, CEEPreloader *preloader)
     m_pZapImage->m_pDataImage = this;
 
     m_pInternedStructures = new InternedStructureHashTable();
-
-#ifdef FEATURE_CORECLR
-    m_inlineTrackingMap = NULL;
-#else
     m_inlineTrackingMap = new InlineTrackingMap();
-#endif
 }
 
 DataImage::~DataImage()
@@ -744,9 +738,7 @@ FORCEINLINE static CorCompileSection GetSectionForNodeType(ZapNodeType type)
 
     // SECTION_READONLY_WARM
     case NodeTypeForItemKind(DataImage::ITEM_METHOD_TABLE):
-    case NodeTypeForItemKind(DataImage::ITEM_VTABLE_CHUNK):
     case NodeTypeForItemKind(DataImage::ITEM_INTERFACE_MAP):
-    case NodeTypeForItemKind(DataImage::ITEM_DICTIONARY):
     case NodeTypeForItemKind(DataImage::ITEM_DISPATCH_MAP):
     case NodeTypeForItemKind(DataImage::ITEM_GENERICS_STATIC_FIELDDESCS):
     case NodeTypeForItemKind(DataImage::ITEM_GC_STATIC_HANDLES_COLD):
@@ -755,6 +747,10 @@ FORCEINLINE static CorCompileSection GetSectionForNodeType(ZapNodeType type)
     case NodeTypeForItemKind(DataImage::ITEM_PROPERTY_NAME_SET):
     case NodeTypeForItemKind(DataImage::ITEM_STORED_METHOD_SIG_READONLY_WARM):
         return CORCOMPILE_SECTION_READONLY_WARM;
+
+    case NodeTypeForItemKind(DataImage::ITEM_DICTIONARY):
+    case NodeTypeForItemKind(DataImage::ITEM_VTABLE_CHUNK):
+        return CORCOMPILE_SECTION_READONLY_VCHUNKS_AND_DICTIONARY;
 
     // SECTION_CLASS_COLD
     case NodeTypeForItemKind(DataImage::ITEM_PARAM_TYPEDESC):
@@ -896,10 +892,6 @@ void DataImage::FixupRVAs()
     FixupModuleRVAs();
     FixupRvaStructure();
 
-#ifdef FEATURE_CER
-    if (m_module->m_pCerNgenRootTable != NULL)
-        m_module->m_pCerNgenRootTable->FixupRVAs(this);
-#endif
 
     // Dev11 bug 181494 instrumentation
     if (m_Fixups.GetCount() != m_iCurrentFixup) EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);

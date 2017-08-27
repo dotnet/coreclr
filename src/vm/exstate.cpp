@@ -102,7 +102,7 @@ void ThreadExceptionState::FreeAllStackTraces()
     }
 }
 
-void ThreadExceptionState::ClearThrowablesForUnload(HandleTableBucket* pHndTblBucket)
+void ThreadExceptionState::ClearThrowablesForUnload(IGCHandleStore* handleStore)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -116,7 +116,7 @@ void ThreadExceptionState::ClearThrowablesForUnload(HandleTableBucket* pHndTblBu
           pNode != NULL;
           pNode = pNode->m_pPrevNestedInfo)
     {
-        if (pHndTblBucket->Contains(pNode->m_hThrowable))
+        if (handleStore->ContainsHandle(pNode->m_hThrowable))
         {
             pNode->DestroyExceptionHandle();
         }

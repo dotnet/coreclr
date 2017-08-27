@@ -14,7 +14,6 @@
 
 #include <ex.h>
 
-#include "objecthandle.h"
 #include "runtimeexceptionkind.h"
 #include "interoputil.h"
 
@@ -28,11 +27,9 @@ struct StackTraceElement
     UINT_PTR        ip;
     UINT_PTR        sp;
     PTR_MethodDesc  pFunc;
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
     // TRUE if this element represents the last frame of the foreign
     // exception stack trace.
     BOOL			fIsLastFrameFromForeignStackTrace;
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
     bool operator==(StackTraceElement const & rhs) const
     {
@@ -681,21 +678,13 @@ class EEFileLoadException : public EEException
     
   private:
     SString m_name;
-#ifdef FEATURE_FUSION	
-    IFusionBindLog *m_pFusionLog;
-#else
     void  *m_pFusionLog;
-#endif
     HRESULT m_hr;       
                         
 
   public:
 
-#ifdef FEATURE_FUSION	
-    EEFileLoadException(const SString &name, HRESULT hr, IFusionBindLog *pFusionLog = NULL, Exception *pInnerException = NULL);
-#else
     EEFileLoadException(const SString &name, HRESULT hr, void *pFusionLog = NULL,  Exception *pInnerException = NULL);
-#endif
     ~EEFileLoadException();
 
     // virtual overrides
@@ -709,10 +698,6 @@ class EEFileLoadException : public EEException
     OBJECTREF CreateThrowable();
 
     static RuntimeExceptionKind GetFileLoadKind(HRESULT hr);
-#ifdef FEATURE_FUSION	
-    static void DECLSPEC_NORETURN Throw(AssemblySpec *pSpec, IFusionBindLog *pFusionLog, HRESULT hr, Exception *pInnerException = NULL);
-    static void DECLSPEC_NORETURN Throw(IAssembly *pIAssembly, IHostAssembly *pIHostAssembly, HRESULT hr, Exception *pInnerException = NULL);
-#endif
     static void DECLSPEC_NORETURN Throw(AssemblySpec *pSpec, HRESULT hr, Exception *pInnerException = NULL);
     static void DECLSPEC_NORETURN Throw(PEFile *pFile, HRESULT hr, Exception *pInnerException = NULL);
     static void DECLSPEC_NORETURN Throw(LPCWSTR path, HRESULT hr, Exception *pInnerException = NULL);
@@ -1110,7 +1095,7 @@ inline EEMessageException::EEMessageException(HRESULT hr)
 }
 
 inline EEMessageException::EEMessageException(HRESULT hr, bool fUseCOMException)
-  : EEException(GetKindFromHR(hr, fUseCOMException)),
+  : EEException(GetKindFromHR(hr, !fUseCOMException)),
     m_hr(hr),
     m_resID(0)
 {

@@ -5,8 +5,7 @@
     <DebuggingSupportedBuild>true</DebuggingSupportedBuild>
     <EnCSupported Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'amd64')">true</EnCSupported>
     <EnableDownlevelForNls Condition="'$(CrossTargetArchitecture)' != ''">true</EnableDownlevelForNls>
-    <FeatureArrayStubAsIL Condition="('$(TargetArch)' == 'arm') or ('$(TargetArch)' == 'amd64') or ('$(TargetArch)' == 'arm64')">true</FeatureArrayStubAsIL>
-    <FeatureStubsAsIL Condition="'$(TargetArch)' == 'arm64'">true</FeatureStubsAsIL>
+    <FeatureCodeVersioning>true</FeatureCodeVersioning>
     <FeatureCominteropApartmentSupport>true</FeatureCominteropApartmentSupport>
     <FeatureDbiDebugging>true</FeatureDbiDebugging>
     <FeatureDbiOopDebugging_HostLocal>false</FeatureDbiOopDebugging_HostLocal>
@@ -15,6 +14,7 @@
     <FeatureDbiOopDebugging_HostOneCorex86 Condition="'$(TargetArch)' == 'i386' or '$(TargetArch)' == 'arm'">true</FeatureDbiOopDebugging_HostOneCorex86>
     <FeatureDbiOopDebugging_HostOneCoreamd64 Condition="'$(TargetArch)' == 'amd64'">true</FeatureDbiOopDebugging_HostOneCoreamd64>
     <FeatureEventTrace>true</FeatureEventTrace>
+    <FeatureTieredCompilation>true</FeatureTieredCompilation>
     <FeatureFrameworkInternal>true</FeatureFrameworkInternal>
     <FeatureHijack>true</FeatureHijack>
     <FeatureInteropDebugging Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'amd64')">true</FeatureInteropDebugging>
@@ -38,7 +38,6 @@
     <FeatureUseAsmGCWriteBarriers>true</FeatureUseAsmGCWriteBarriers>
     <!-- Setting this to "false" works only for workstation GC, not server. -->
     <FeatureSymDiff>true</FeatureSymDiff>
-    <FeatureReadyToRun Condition="'$(TargetArch)'!='arm64'">true</FeatureReadyToRun>
     <FeatureClassicCominterop>true</FeatureClassicCominterop>
     <FeatureCominterop>true</FeatureCominterop>
     <FeatureICastable>true</FeatureICastable>
@@ -49,7 +48,8 @@
     <FeatureRandomizedStringHashing>true</FeatureRandomizedStringHashing>
     <!-- The rejit feature is available only on supported architectures (x86 & x64) -->
     <FeatureReJIT Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'amd64')">true</FeatureReJIT>
-    <FeatureManagedEtw>true</FeatureManagedEtw>
+    <FeatureManagedEtw>false</FeatureManagedEtw>
+    <FeatureManagedEtwChannels>true</FeatureManagedEtwChannels>
     <BinderDebugLog Condition="'$(_BuildType)'=='dbg'">true</BinderDebugLog>
     <FeatureAppX>true</FeatureAppX>
     <FeatureWinMDResilient>true</FeatureWinMDResilient>
@@ -66,6 +66,8 @@
     <FeaturePal>true</FeaturePal>
     <FeatureXplatEventSource>true</FeatureXplatEventSource>
 
+    <FeatureArrayStubAsIL>true</FeatureArrayStubAsIL>
+    <FeatureMulticastStubAsIL>true</FeatureMulticastStubAsIL>
     <FeatureStubsAsIL>true</FeatureStubsAsIL>
 
     <!-- Windows specific features -->
@@ -76,13 +78,21 @@
     <FeatureCominterop>false</FeatureCominterop>
     <FeatureCominteropUnmanagedActivation>false</FeatureCominteropUnmanagedActivation>
     <FeatureCominteropWinRTManagedActivation>false</FeatureCominteropWinRTManagedActivation>
-    <FeatureManagedEtw>false</FeatureManagedEtw>
 
     <FeatureCoreFxGlobalization>true</FeatureCoreFxGlobalization>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetsUnix)' != 'true'">
+  <PropertyGroup Condition="'$(TargetsWindows)' == 'true'">
+    <FeatureArrayStubAsIL Condition="'$(TargetArch)' != 'i386'">true</FeatureArrayStubAsIL>
+    <FeatureMulticastStubAsIL Condition="'$(TargetArch)' != 'i386'">true</FeatureMulticastStubAsIL>
+    <FeatureManagedEtw>true</FeatureManagedEtw>
+    <FeatureStubsAsIL Condition="'$(TargetArch)' == 'arm64'">true</FeatureStubsAsIL>
     <FeatureUseLcid>true</FeatureUseLcid>
     <FeatureImplicitLongPath>true</FeatureImplicitLongPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetsLinux)' == 'true'">
+    <FeatureManagedEtw>true</FeatureManagedEtw>
+    <FeaturePerfTracing>true</FeaturePerfTracing>
   </PropertyGroup>
 </Project>

@@ -6,43 +6,22 @@
 #include <cstddef>
 #include <cassert>
 #include <memory>
-
-// The CoreCLR PAL defines _POSIX_C_SOURCE to avoid calling non-posix pthread functions.
-// This isn't something we want, because we're totally fine using non-posix functions.
-#if defined(__APPLE__)
- #define _DARWIN_C_SOURCE
-#endif // definfed(__APPLE__)
-
 #include <pthread.h>
 #include <signal.h>
 #include "config.h"
 
-// clang typedefs uint64_t to be unsigned long long, which clashes with
-// PAL/MSVC's unsigned long, causing linker errors. This ugly hack
-// will go away once the GC doesn't depend on PAL headers.
-typedef unsigned long uint64_t_hack;
-#define uint64_t uint64_t_hack
-static_assert(sizeof(uint64_t) == 8, "unsigned long isn't 8 bytes");
-
-#ifndef __out_z
-#define __out_z
-#endif // __out_z
-
 #include "gcenv.structs.h"
 #include "gcenv.base.h"
 #include "gcenv.os.h"
+#include "gcenv.unix.inl"
 
-#ifndef FEATURE_STANDALONE_GC
- #error "A GC-private implementation of GCToOSInterface should only be used with FEATURE_STANDALONE_GC"
-#endif // FEATURE_STANDALONE_GC
-
-#ifdef HAVE_SYS_TIME_H
+#if HAVE_SYS_TIME_H
  #include <sys/time.h>
 #else
  #error "sys/time.h required by GC PAL for the time being"
 #endif // HAVE_SYS_TIME_
 
-#ifdef HAVE_SYS_MMAN_H
+#if HAVE_SYS_MMAN_H
  #include <sys/mman.h>
 #else
  #error "sys/mman.h required by GC PAL"
@@ -56,33 +35,34 @@ static_assert(sizeof(uint64_t) == 8, "unsigned long isn't 8 bytes");
 #include <sched.h> // sched_yield
 #include <errno.h>
 #include <unistd.h> // sysconf
-
-// The number of milliseconds in a second.
-static const int tccSecondsToMilliSeconds = 1000;
-
-// The number of microseconds in a second.
-static const int tccSecondsToMicroSeconds = 1000000;
-
-// The number of microseconds in a millisecond.
-static const int tccMilliSecondsToMicroSeconds = 1000;
-
-// The number of nanoseconds in a millisecond.
-static const int tccMilliSecondsToNanoSeconds = 1000000;
+#include "globals.h"
 
 // The cachced number of logical CPUs observed.
 static uint32_t g_logicalCpuCount = 0;
 
 // Helper memory page used by the FlushProcessWriteBuffers
-static uint8_t g_helperPage[OS_PAGE_SIZE] __attribute__((aligned(OS_PAGE_SIZE)));
+static uint8_t* g_helperPage = 0;
 
 // Mutex to make the FlushProcessWriteBuffersMutex thread safe
 static pthread_mutex_t g_flushProcessWriteBuffersMutex;
+
+size_t GetRestrictedPhysicalMemoryLimit();
+bool GetWorkingSetSize(size_t* val);
+bool GetCpuLimit(uint32_t* val);
+
+static size_t g_RestrictedPhysicalMemoryLimit = 0;
+
+uint32_t g_pageSizeUnixInl = 0;
 
 // Initialize the interface implementation
 // Return:
 //  true if it has succeeded, false if it has failed
 bool GCToOSInterface::Initialize()
 {
+    int pageSize = sysconf( _SC_PAGE_SIZE );
+
+    g_pageSizeUnixInl = uint32_t((pageSize > 0) ? pageSize : 0x1000);
+
     // Calculate and cache the number of processors on this machine
     int cpuCount = sysconf(_SC_NPROCESSORS_ONLN);
     if (cpuCount == -1)
@@ -91,6 +71,15 @@ bool GCToOSInterface::Initialize()
     }
 
     g_logicalCpuCount = cpuCount;
+
+    assert(g_helperPage == 0);
+
+    g_helperPage = static_cast<uint8_t*>(mmap(0, OS_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
+
+    if(g_helperPage == MAP_FAILED)
+    {
+        return false;
+    }
 
     // Verify that the s_helperPage is really aligned to the g_SystemInfo.dwPageSize
     assert((((size_t)g_helperPage) & (OS_PAGE_SIZE - 1)) == 0);
@@ -112,6 +101,14 @@ bool GCToOSInterface::Initialize()
         return false;
     }
 
+#if HAVE_MACH_ABSOLUTE_TIME
+    kern_return_t machRet;
+    if ((machRet = mach_timebase_info(&g_TimebaseInfo)) != KERN_SUCCESS)
+    {
+        return false;
+    }
+#endif // HAVE_MACH_ABSOLUTE_TIME
+
     return true;
 }
 
@@ -122,6 +119,8 @@ void GCToOSInterface::Shutdown()
     assert(ret == 0);
     ret = pthread_mutex_destroy(&g_flushProcessWriteBuffersMutex);
     assert(ret == 0);
+
+    munmap(g_helperPage, OS_PAGE_SIZE);
 }
 
 // Get numeric id of the current thread if possible on the
@@ -343,8 +342,20 @@ bool GCToOSInterface::VirtualDecommit(void* address, size_t size)
 //  true if it has succeeded, false if it has failed
 bool GCToOSInterface::VirtualReset(void * address, size_t size, bool unlock)
 {
-    // TODO(CoreCLR#1259) pipe to madvise?
-    return false;
+    int st;
+#if HAVE_MADV_FREE
+    // Try to use MADV_FREE if supported. It tells the kernel that the application doesn't
+    // need the pages in the range. Freeing the pages can be delayed until a memory pressure
+    // occurs.
+    st = madvise(address, size, MADV_FREE);
+    if (st != 0)
+#endif    
+    {
+        // In case the MADV_FREE is not supported, use MADV_DONTNEED
+        st = madvise(address, size, MADV_DONTNEED);
+    }
+
+    return (st == 0);
 }
 
 // Check if the OS supports write watching
@@ -390,6 +401,18 @@ size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
     return 0;
 }
 
+/*++
+Function:
+  GetFullAffinityMask
+
+Get affinity mask for the specified number of processors with all
+the processors enabled.
+--*/
+static uintptr_t GetFullAffinityMask(int cpuCount)
+{
+    return ((uintptr_t)1 << (cpuCount)) - 1;
+}
+
 // Get affinity mask of the current process
 // Parameters:
 //  processMask - affinity mask for the specified process
@@ -403,10 +426,62 @@ size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
 //  A process affinity mask is a subset of the system affinity mask. A process is only allowed
 //  to run on the processors configured into a system. Therefore, the process affinity mask cannot
 //  specify a 1 bit for a processor when the system affinity mask specifies a 0 bit for that processor.
-bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uintptr_t* systemMask)
+bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processAffinityMask, uintptr_t* systemAffinityMask)
 {
-    // TODO(segilles) processor detection
-    return false;
+    if (g_logicalCpuCount > 64)
+    {
+        *processAffinityMask = 0;
+        *systemAffinityMask = 0;
+        return true;
+    }
+
+    uintptr_t systemMask = GetFullAffinityMask(g_logicalCpuCount);
+
+#if HAVE_SCHED_GETAFFINITY
+
+    int pid = getpid();
+    cpu_set_t cpuSet;
+    int st = sched_getaffinity(pid, sizeof(cpu_set_t), &cpuSet);
+    if (st == 0)
+    {
+        uintptr_t processMask = 0;
+
+        for (int i = 0; i < g_logicalCpuCount; i++)
+        {
+            if (CPU_ISSET(i, &cpuSet))
+            {
+                processMask |= ((uintptr_t)1) << i;
+            }
+        }
+
+        *processAffinityMask = processMask;
+        *systemAffinityMask = systemMask;
+        return true;
+    }
+    else if (errno == EINVAL)
+    {
+        // There are more processors than can fit in a cpu_set_t
+        // return zero in both masks.
+        *processAffinityMask = 0;
+        *systemAffinityMask = 0;
+        return true;
+    }
+    else
+    {
+        // We should not get any of the errors that the sched_getaffinity can return since none
+        // of them applies for the current thread, so this is an unexpected kind of failure.
+        return false;
+    }
+
+#else // HAVE_SCHED_GETAFFINITY
+
+    // There is no API to manage thread affinity, so let's return both affinity masks
+    // with all the CPUs on the system set.
+    *systemAffinityMask = systemMask;
+    *processAffinityMask = systemMask;
+    return true;
+
+#endif // HAVE_SCHED_GETAFFINITY
 }
 
 // Get number of processors assigned to the current process
@@ -414,7 +489,35 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uint
 //  The number of processors
 uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 {
-    return g_logicalCpuCount;
+    uintptr_t pmask, smask;
+    uint32_t cpuLimit;
+
+    if (!GetCurrentProcessAffinityMask(&pmask, &smask))
+        return 1;
+
+    pmask &= smask;
+
+    int count = 0;
+    while (pmask)
+    {
+        pmask &= (pmask - 1);
+        count++;
+    }
+
+    // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
+    // than 64 processors, which would leave us with a count of 0.  Since the GC
+    // expects there to be at least one processor to run on (and thus at least one
+    // heap), we'll return 64 here if count is 0, since there are likely a ton of
+    // processors available in that case.  The GC also cannot (currently) handle
+    // the case where there are more than 64 processors, so we will return a
+    // maximum of 64 here.
+    if (count == 0 || count > 64)
+        count = 64;
+
+    if (GetCpuLimit(&cpuLimit) && cpuLimit < count)
+        count = cpuLimit;
+
+    return count;
 }
 
 // Return the size of the user-mode portion of the virtual address space of this process.
@@ -442,6 +545,18 @@ size_t GCToOSInterface::GetVirtualMemoryLimit()
 //  specified, it returns amount of actual physical memory.
 uint64_t GCToOSInterface::GetPhysicalMemoryLimit()
 {
+    size_t restricted_limit;
+    // The limit was not cached
+    if (g_RestrictedPhysicalMemoryLimit == 0)
+    {
+        restricted_limit = GetRestrictedPhysicalMemoryLimit();
+        VolatileStore(&g_RestrictedPhysicalMemoryLimit, restricted_limit);
+    }
+    restricted_limit = g_RestrictedPhysicalMemoryLimit;
+
+    if (restricted_limit != 0 && restricted_limit != SIZE_T_MAX)
+        return restricted_limit;
+
     long pages = sysconf(_SC_PHYS_PAGES);
     if (pages == -1) 
     {
@@ -471,14 +586,14 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
 
         uint64_t available = 0;
         uint32_t load = 0;
+        size_t used;
 
         // Get the physical memory in use - from it, we can get the physical memory available.
         // We do this only when we have the total physical memory available.
-        if (total > 0)
+        if (total > 0 && GetWorkingSetSize(&used))
         {
-            available = sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE);
-            uint64_t used = total - available;
-            load = (uint32_t)((used * 100) / total);
+            available = total > used ? total-used : 0; 
+            load = (uint32_t)(((float)used * 100) / (float)total);
         }
 
         if (memory_load != nullptr)
@@ -599,6 +714,18 @@ bool GCToOSInterface::CreateThread(GCThreadFunction function, void* param, GCThr
 
     return (st == 0);
 }
+
+// Gets the total number of processors on the machine, not taking
+// into account current process affinity.
+// Return:
+//  Number of processors on the machine
+uint32_t GCToOSInterface::GetTotalProcessorCount()
+{
+    // Calculated in GCToOSInterface::Initialize using
+    // sysconf(_SC_NPROCESSORS_ONLN)
+    return g_logicalCpuCount;
+}
+
 
 // Initialize the critical section
 void CLRCriticalSection::Initialize()

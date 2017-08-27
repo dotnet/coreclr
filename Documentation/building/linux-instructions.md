@@ -18,8 +18,8 @@ Toolchain Setup
 Install the following packages for the toolchain: 
 
 - cmake 
-- llvm-3.5 
-- clang-3.5 
+- llvm-3.5 (llvm-3.9 for ARM cross build)
+- clang-3.5 (clang-3.9 for ARM cross build)
 - lldb-3.6
 - lldb-3.6-dev 
 - libunwind8 
@@ -30,6 +30,8 @@ Install the following packages for the toolchain:
 - libcurl4-openssl-dev
 - libssl-dev
 - uuid-dev
+- libkrb5-dev
+- libnuma-dev (optional, enables numa support)
 
 In order to get lldb-3.6 on Ubuntu 14.04, we need to add an additional package source:
 
@@ -39,17 +41,25 @@ ellismg@linux:~$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-
 ellismg@linux:~$ sudo apt-get update
 ```
 
+If you are going to cross build for ARM, you need llvm-3.9 and clang-3.9 and please add below package source instead for Ubuntu 14.04.
+```
+hqueue@linux:~$ echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+hqueue@linux:~$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
+hqueue@linux:~$ sudo apt-get update
+```
+For other version of Debian/Ubuntu, please visit http://apt.llvm.org/.
+
 Then install the packages you need:
 
 ```
-ellismg@linux:~$ sudo apt-get install cmake llvm-3.5 clang-3.5 lldb-3.6 lldb-3.6-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev uuid-dev
+ellismg@linux:~$ sudo apt-get install cmake llvm-3.5 clang-3.5 lldb-3.6 lldb-3.6-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev uuid-dev libnuma-dev libkrb5-dev
 ```
 
 You now have all the required components.
 
-If you are using Fedora 23 or 24, then you will need to install the following packages:
+If you are using Fedora, then you will need to install the following packages:
 
-`$ sudo dnf install llvm cmake clang lldb-devel libunwind-devel lttng-ust-devel libuuid-devel libicu-devel`
+`$ sudo dnf install llvm cmake clang lldb-devel libunwind-devel lttng-ust-devel libuuid-devel libicu-devel numactl-devel`
 
 Git Setup
 ---------
@@ -61,7 +71,7 @@ Set the maximum number of file-handles
 
 To ensure that your system can allocate enough file-handles for the corefx build run `sysctl fs.file-max`. If it is less than 100000, add `fs.file-max = 100000` to `/etc/sysctl.conf`, and then run `sudo sysctl -p`.
 
-On Fedora 23 or 24:
+On Fedora:
 
 `$ sudo dnf install mono-devel`
 
@@ -120,6 +130,8 @@ index 1ed3dbf..c643032 100644
 How to enable -O3 optimization level for ARM/Linux
 ==================================================
 
+If you are using clang-3.9, -O3 optimization is enabled as default and you can skip this section.
+If you are using older version of clang, please follow instructions in this section to enable -O3 optimization.
 Currently, we can build coreclr with -O1 flag of clang in release build mode for Linux/ARM without any bugfix of llvm-3.6. This instruction is to enable -O3 optimization level of clang on Linux/ARM by fixing the bug of llvm.
 
 First, download latest version from the clang-3.6/llvm-3.6 upstream: 

@@ -25,14 +25,13 @@
 #include "stackwalk.h"
 
 #include "dacdbiimpl.h"
-#ifndef FEATURE_CORECLR
-#include "assemblyusagelogmanager.h"
-#endif
 
 #ifdef FEATURE_COMINTEROP
 #include "runtimecallablewrapper.h"
 #include "comcallablewrapper.h"
 #endif // FEATURE_COMINTEROP
+
+#include "request_common.h"
 
 //-----------------------------------------------------------------------------
 // Have standard enter and leave macros at the DacDbi boundary to enforce 
@@ -904,14 +903,15 @@ void DacDbiInterfaceImpl::GetNativeVarData(MethodDesc *    pMethodDesc,
 // pEntryCount is the number of valid entries in nativeMap, and it may be adjusted downwards
 // as part of the composition.
 //-----------------------------------------------------------------------------
-void DacDbiInterfaceImpl::ComposeMapping(InstrumentedILOffsetMapping profilerILMap, ICorDebugInfo::OffsetMapping nativeMap[], ULONG32* pEntryCount)
+void DacDbiInterfaceImpl::ComposeMapping(const InstrumentedILOffsetMapping * pProfilerILMap, ICorDebugInfo::OffsetMapping nativeMap[], ULONG32* pEntryCount)
 {
     // Translate the IL offset if the profiler has provided us with a mapping.
     // The ICD public API should always expose the original IL offsets, but GetBoundaries() 
     // directly accesses the debug info, which stores the instrumented IL offsets.
 
     ULONG32 entryCount = *pEntryCount;
-    if (!profilerILMap.IsNull())
+    // The map pointer could be NULL or there could be no entries in the map, in either case no work to do
+    if (pProfilerILMap && !pProfilerILMap->IsNull())
     {
         // If we did instrument, then we can't have any sequence points that
         // are "in-between" the old-->new map that the profiler gave us.
@@ -926,7 +926,7 @@ void DacDbiInterfaceImpl::ComposeMapping(InstrumentedILOffsetMapping profilerILM
         ULONG32 prevILOffset = (ULONG32)(ICorDebugInfo::MAX_ILNUM);
         for (ULONG32 i = 0; i < entryCount; i++)
         {
-            ULONG32 origILOffset = TranslateInstrumentedILOffsetToOriginal(nativeMap[i].ilOffset, &profilerILMap);
+            ULONG32 origILOffset = TranslateInstrumentedILOffsetToOriginal(nativeMap[i].ilOffset, pProfilerILMap);
 
             if (origILOffset == prevILOffset)
             {
@@ -1004,12 +1004,12 @@ void DacDbiInterfaceImpl::GetSequencePoints(MethodDesc *     pMethodDesc,
 
     // if there is a rejit IL map for this function, apply that in preference to load-time mapping
 #ifdef FEATURE_REJIT
-    ReJitManager * pReJitMgr = pMethodDesc->GetReJitManager();
-    ReJitInfo* pReJitInfo = pReJitMgr->FindReJitInfo(dac_cast<PTR_MethodDesc>(pMethodDesc), (PCODE)startAddr, 0);
-    if (pReJitInfo != NULL)
+    CodeVersionManager * pCodeVersionManager = pMethodDesc->GetCodeVersionManager();
+    NativeCodeVersion nativeCodeVersion = pCodeVersionManager->GetNativeCodeVersion(dac_cast<PTR_MethodDesc>(pMethodDesc), (PCODE)startAddr);
+    if (!nativeCodeVersion.IsNull())
     {
-        InstrumentedILOffsetMapping rejitMapping = pReJitInfo->m_pShared->m_instrumentedILMap;
-        ComposeMapping(rejitMapping, mapCopy, &entryCount);
+        const InstrumentedILOffsetMapping * pRejitMapping = nativeCodeVersion.GetILCodeVersion().GetInstrumentedILMap();
+        ComposeMapping(pRejitMapping, mapCopy, &entryCount);
     }
     else
     {
@@ -1017,7 +1017,7 @@ void DacDbiInterfaceImpl::GetSequencePoints(MethodDesc *     pMethodDesc,
         // if there is a profiler load-time mapping and not a rejit mapping, apply that instead
         InstrumentedILOffsetMapping loadTimeMapping =
             pMethodDesc->GetModule()->GetInstrumentedILOffsetMapping(pMethodDesc->GetMemberDef());
-        ComposeMapping(loadTimeMapping, mapCopy, &entryCount);
+        ComposeMapping(&loadTimeMapping, mapCopy, &entryCount);
 #ifdef FEATURE_REJIT
     }
 #endif
@@ -3249,12 +3249,6 @@ CORDB_ADDRESS DacDbiInterfaceImpl::GetThreadOrContextStaticAddress(VMPTR_FieldDe
     {
         fieldAddress = pRuntimeThread->GetStaticFieldAddrNoCreate(pFieldDesc, NULL);
     }
-#ifdef FEATURE_REMOTING
-    else if (pFieldDesc->IsContextStatic())
-    {
-        fieldAddress = PTR_TO_TADDR(pRuntimeThread->GetContext()->GetStaticFieldAddrNoCreate(pFieldDesc));
-    }
-#endif
     else
     {
         // In case we have more special cases added later, this will allow us to notice the need to
@@ -3473,12 +3467,7 @@ void DacDbiInterfaceImpl::GetStackFramesFromException(VMPTR_Object vmObject, Dac
             currentFrame.vmDomainFile.SetHostPtr(pDomainFile);
             currentFrame.ip = currentElement.ip;
             currentFrame.methodDef = currentElement.pFunc->GetMemberDef();
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
             currentFrame.isLastForeignExceptionFrame = currentElement.fIsLastFrameFromForeignStackTrace;
-#else
-            // for CLRs lacking exception dispatch info just set it to 0
-            currentFrame.isLastForeignExceptionFrame = 0;
-#endif
         }
     }
 }
@@ -3930,9 +3919,7 @@ BOOL DacDbiInterfaceImpl::IsAssemblyFullyTrusted(VMPTR_DomainAssembly vmDomainAs
 {
     DD_ENTER_MAY_THROW;
 
-    DomainAssembly * pAssembly = vmDomainAssembly.GetDacPtr();
-    IAssemblySecurityDescriptor * pSecDisc = pAssembly->GetSecurityDescriptor();
-    return pSecDisc->IsFullyTrusted();
+    return TRUE;
 }
 
 // Get the full path and file name to the assembly's manifest module.
@@ -4541,29 +4528,6 @@ void DacDbiInterfaceImpl::MarkDebuggerAttached(BOOL fAttached)
 
 }
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-// Enumerate all the Connections in the process.
-void DacDbiInterfaceImpl::EnumerateConnections(FP_CONNECTION_CALLBACK fpCallback, void * pUserData)
-{
-    DD_ENTER_MAY_THROW;
-
-    ConnectionNameHashEntry * pConnection;
-    
-    HASHFIND hashfind;
-
-    pConnection = CCLRDebugManager::FindFirst(&hashfind);
-    while (pConnection)
-    {    
-        DWORD id = pConnection->m_dwConnectionId;
-        LPCWSTR pName = pConnection->m_pwzName;
-        
-        fpCallback(id, pName, pUserData);
-
-        // now get the next connection record
-        pConnection = CCLRDebugManager::FindNext(&hashfind);
-    }
-}
-#endif
 
 
 // Enumerate all threads in the process. 
@@ -4783,14 +4747,7 @@ DWORD DacDbiInterfaceImpl::GetUniqueThreadID(VMPTR_Thread vmThread)
     Thread * pThread = vmThread.GetDacPtr();
     _ASSERTE(pThread != NULL);
 
-    if (CLRTaskHosted())
-    {
-        return pThread->GetThreadId();
-    }
-    else
-    {
-        return pThread->GetOSThreadId();
-    }
+    return pThread->GetOSThreadId();
 }
 
 // Return the object handle to the managed Exception object of the current exception
@@ -5494,15 +5451,8 @@ CorDebugUserState DacDbiInterfaceImpl::GetPartialUserState(VMPTR_Thread vmThread
         result |= USER_WAIT_SLEEP_JOIN;          
     }
 
-    // Don't report a SuspendRequested if the thread has actually Suspended.
-    if ((ts & Thread::TS_UserSuspendPending) && (ts & Thread::TS_SyncSuspended))
-    {
-        result |= USER_SUSPENDED;
-    }
-    else if (ts & Thread::TS_UserSuspendPending)
-    {
-        result |= USER_SUSPEND_REQUESTED;
-    }
+    // CoreCLR does not support user-requested thread suspension
+    _ASSERTE(!(ts & Thread::TS_UserSuspendPending));
 
     if (pThread->IsThreadPoolThread())
     {
@@ -5684,28 +5634,7 @@ VMPTR_Object DacDbiInterfaceImpl::GetObject(CORDB_ADDRESS ptr)
 
 HRESULT DacDbiInterfaceImpl::EnableNGENPolicy(CorDebugNGENPolicy ePolicy)
 {
-#ifndef FEATURE_CORECLR
-    DD_ENTER_MAY_THROW;
-
-    // translate from our publicly exposed enum to the appropriate internal value
-    AssemblyUsageLogManager::ASSEMBLY_USAGE_LOG_FLAGS asmFlag = AssemblyUsageLogManager::ASSEMBLY_USAGE_LOG_FLAGS_NONE;
-
-    switch (ePolicy)
-    {
-    case DISABLE_LOCAL_NIC:
-        asmFlag = AssemblyUsageLogManager::ASSEMBLY_USAGE_LOG_FLAGS_APPLOCALNGENDISABLED;
-        break;
-    default:
-        return E_INVALIDARG;
-    }
-
-    // we should have made some selection
-    _ASSERTE(asmFlag != AssemblyUsageLogManager::ASSEMBLY_USAGE_LOG_FLAGS_NONE);
-
-    return AssemblyUsageLogManager::SetUsageLogFlag(asmFlag, TRUE);
-#else
     return E_NOTIMPL;
-#endif // FEATURE_CORECLR
 }
 
 HRESULT DacDbiInterfaceImpl::SetNGENCompilerFlags(DWORD dwFlags)
@@ -5790,7 +5719,7 @@ BOOL DacDbiInterfaceImpl::IsVmObjectHandleValid(VMPTR_OBJECTHANDLE vmHandle)
     {
         OBJECTREF objRef = ObjectFromHandle((OBJECTHANDLE)vmHandle.GetDacPtr());
 
-        // NULL is certinally valid...
+        // NULL is certainly valid...
         if (objRef != NULL)
         {
             if (objRef->ValidateObjectWithPossibleAV())
@@ -6636,7 +6565,6 @@ HRESULT DacHeapWalker::ListNearObjects(CORDB_ADDRESS obj, CORDB_ADDRESS *pPrev, 
     return hr;
 }
 
-#include "gceewks.cpp"
 HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
 {
     // Scrape basic heap details
@@ -6645,16 +6573,20 @@ HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
     if (pHeaps == NULL)
         return E_OUTOFMEMORY;
 
-    pHeaps[0].YoungestGenPtr = (CORDB_ADDRESS)WKS::generation_table[0].allocation_context.alloc_ptr;
-    pHeaps[0].YoungestGenLimit = (CORDB_ADDRESS)WKS::generation_table[0].allocation_context.alloc_limit;
+    dac_generation gen0 = *GenerationTableIndex(g_gcDacGlobals->generation_table, 0);
+    dac_generation gen1 = *GenerationTableIndex(g_gcDacGlobals->generation_table, 1);
+    dac_generation gen2 = *GenerationTableIndex(g_gcDacGlobals->generation_table, 2);
+    dac_generation loh  = *GenerationTableIndex(g_gcDacGlobals->generation_table, 3);
+    pHeaps[0].YoungestGenPtr = (CORDB_ADDRESS)gen0.allocation_context.alloc_ptr;
+    pHeaps[0].YoungestGenLimit = (CORDB_ADDRESS)gen0.allocation_context.alloc_limit;
 
-    pHeaps[0].Gen0Start = (CORDB_ADDRESS)WKS::generation_table[0].allocation_start;
-    pHeaps[0].Gen0End = (CORDB_ADDRESS)WKS::gc_heap::alloc_allocated.GetAddr();
-    pHeaps[0].Gen1Start = (CORDB_ADDRESS)WKS::generation_table[1].allocation_start;
+    pHeaps[0].Gen0Start = (CORDB_ADDRESS)gen0.allocation_start;
+    pHeaps[0].Gen0End = (CORDB_ADDRESS)*g_gcDacGlobals->alloc_allocated;
+    pHeaps[0].Gen1Start = (CORDB_ADDRESS)gen1.allocation_start;
     
     // Segments
-    int count = GetSegmentCount(WKS::generation_table[NUMBERGENERATIONS-1].start_segment);
-    count += GetSegmentCount(WKS::generation_table[NUMBERGENERATIONS-2].start_segment);
+    int count = GetSegmentCount(loh.start_segment);
+    count += GetSegmentCount(gen2.start_segment);
 
     pHeaps[0].SegmentCount = count;
     pHeaps[0].Segments = new (nothrow) SegmentData[count];
@@ -6662,14 +6594,14 @@ HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
         return E_OUTOFMEMORY;
     
     // Small object heap segments
-    WKS::heap_segment *seg = WKS::generation_table[NUMBERGENERATIONS-2].start_segment;
+    DPTR(dac_heap_segment) seg = gen2.start_segment;
     int i = 0;
     for (; seg && (i < count); ++i)
     {
         pHeaps[0].Segments[i].Start = (CORDB_ADDRESS)seg->mem;
-        if (seg == WKS::gc_heap::ephemeral_heap_segment)
+        if (seg.GetAddr() == (TADDR)*g_gcDacGlobals->ephemeral_heap_segment)
         {
-            pHeaps[0].Segments[i].End = (CORDB_ADDRESS)WKS::gc_heap::alloc_allocated.GetAddr();
+            pHeaps[0].Segments[i].End = (CORDB_ADDRESS)*g_gcDacGlobals->alloc_allocated;
             pHeaps[0].Segments[i].Generation = 1;
             pHeaps[0].EphemeralSegment = i;
         }
@@ -6683,7 +6615,7 @@ HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
     }
 
     // Large object heap segments
-    seg = WKS::generation_table[NUMBERGENERATIONS-1].start_segment;
+    seg = loh.start_segment;
     for (; seg && (i < count); ++i)
     {
         pHeaps[0].Segments[i].Generation = 3;
@@ -7185,7 +7117,7 @@ void DacDbiInterfaceImpl::GetGCHeapInformation(COR_HEAPINFO * pHeapInfo)
     DD_ENTER_MAY_THROW;
     
     size_t heapCount = 0;
-    pHeapInfo->areGCStructuresValid = GCScan::GetGcRuntimeStructuresValid();
+    pHeapInfo->areGCStructuresValid = *g_gcDacGlobals->gc_structures_invalid_cnt == 0;
     
 #ifdef FEATURE_SVR_GC
     if (GCHeapUtilities::IsServerHeap())
@@ -7218,26 +7150,36 @@ HRESULT DacDbiInterfaceImpl::GetPEFileMDInternalRW(VMPTR_PEFile vmPEFile, OUT TA
 HRESULT DacDbiInterfaceImpl::GetReJitInfo(VMPTR_Module vmModule, mdMethodDef methodTk, OUT VMPTR_ReJitInfo* pvmReJitInfo)
 {
     DD_ENTER_MAY_THROW;
-    if (pvmReJitInfo == NULL)
+    _ASSERTE(!"You shouldn't be calling this - use GetActiveRejitILCodeVersionNode instead");
+    return S_OK;
+}
+
+HRESULT DacDbiInterfaceImpl::GetActiveRejitILCodeVersionNode(VMPTR_Module vmModule, mdMethodDef methodTk, OUT VMPTR_ILCodeVersionNode* pVmILCodeVersionNode)
+{
+    DD_ENTER_MAY_THROW;
+    if (pVmILCodeVersionNode == NULL)
         return E_INVALIDARG;
 #ifdef FEATURE_REJIT
     PTR_Module pModule = vmModule.GetDacPtr();
-    ReJitManager * pReJitMgr = pModule->GetReJitManager();
-    PTR_ReJitInfo pReJitInfoCurrent = pReJitMgr->FindNonRevertedReJitInfo(pModule, methodTk);
-    // if the token lookup failed, we need to search again by method desc
-    // The rejit manager will index by token if the method isn't loaded when RequestReJIT runs
-    // and by methoddesc if it was loaded
-    if (pReJitInfoCurrent == NULL)
+    CodeVersionManager * pCodeVersionManager = pModule->GetCodeVersionManager();
+    // Be careful, there are two different definitions of 'active' being used here
+    // For the CodeVersionManager, the active IL version is whatever one should be used in the next invocation of the method
+    // 'rejit active' narrows that to only include rejit IL bodies where the profiler has already provided the definition
+    // for the new IL (ilCodeVersion.GetRejitState()==ILCodeVersion::kStateActive). It is possible that the code version 
+    // manager's active IL version hasn't yet asked the profiler for the IL body to use, in which case we want to filter it
+    //  out from the return in this method.
+    ILCodeVersion activeILVersion = pCodeVersionManager->GetActiveILCodeVersion(pModule, methodTk);
+    if (activeILVersion.IsNull() || activeILVersion.GetRejitState() != ILCodeVersion::kStateActive)
     {
-        MethodDesc* pMD = pModule->LookupMethodDef(methodTk);
-        if (pMD != NULL)
-        {
-            pReJitInfoCurrent = pReJitMgr->FindNonRevertedReJitInfo(dac_cast<PTR_MethodDesc>(pMD));
-        }
+        pVmILCodeVersionNode->SetDacTargetPtr(0);
     }
-    pvmReJitInfo->SetDacTargetPtr(PTR_TO_TADDR(pReJitInfoCurrent));
+    else
+    {
+        pVmILCodeVersionNode->SetDacTargetPtr(PTR_TO_TADDR(activeILVersion.AsNode()));
+    }
 #else
-    pvmReJitInfo->SetDacTargetPtr(0);
+    _ASSERTE(!"You shouldn't be calling this - rejit is not supported in this build");
+    pVmILCodeVersionNode->SetDacTargetPtr(0);
 #endif
     return S_OK;
 }
@@ -7245,15 +7187,22 @@ HRESULT DacDbiInterfaceImpl::GetReJitInfo(VMPTR_Module vmModule, mdMethodDef met
 HRESULT DacDbiInterfaceImpl::GetReJitInfo(VMPTR_MethodDesc vmMethod, CORDB_ADDRESS codeStartAddress, OUT VMPTR_ReJitInfo* pvmReJitInfo)
 {
     DD_ENTER_MAY_THROW;
-    if (pvmReJitInfo == NULL)
+    _ASSERTE(!"You shouldn't be calling this - use GetNativeCodeVersionNode instead");
+    return S_OK;
+}
+
+HRESULT DacDbiInterfaceImpl::GetNativeCodeVersionNode(VMPTR_MethodDesc vmMethod, CORDB_ADDRESS codeStartAddress, OUT VMPTR_NativeCodeVersionNode* pVmNativeCodeVersionNode)
+{
+    DD_ENTER_MAY_THROW;
+    if (pVmNativeCodeVersionNode == NULL)
         return E_INVALIDARG;
 #ifdef FEATURE_REJIT
     PTR_MethodDesc pMD = vmMethod.GetDacPtr();
-    ReJitManager * pReJitMgr = pMD->GetReJitManager();
-    PTR_ReJitInfo pReJitInfoCurrent = pReJitMgr->FindReJitInfo(pMD, (PCODE)codeStartAddress, 0);
-    pvmReJitInfo->SetDacTargetPtr(PTR_TO_TADDR(pReJitInfoCurrent));
+    CodeVersionManager * pCodeVersionManager = pMD->GetCodeVersionManager();
+    NativeCodeVersion codeVersion = pCodeVersionManager->GetNativeCodeVersion(pMD, (PCODE)codeStartAddress);
+    pVmNativeCodeVersionNode->SetDacTargetPtr(PTR_TO_TADDR(codeVersion.AsNode()));
 #else
-    pvmReJitInfo->SetDacTargetPtr(0);
+    pVmNativeCodeVersionNode->SetDacTargetPtr(0);
 #endif
     return S_OK;
 }
@@ -7261,14 +7210,21 @@ HRESULT DacDbiInterfaceImpl::GetReJitInfo(VMPTR_MethodDesc vmMethod, CORDB_ADDRE
 HRESULT DacDbiInterfaceImpl::GetSharedReJitInfo(VMPTR_ReJitInfo vmReJitInfo, OUT VMPTR_SharedReJitInfo* pvmSharedReJitInfo)
 {
     DD_ENTER_MAY_THROW;
-    if (pvmSharedReJitInfo == NULL)
+    _ASSERTE(!"You shouldn't be calling this - use GetLCodeVersionNode instead");
+    return S_OK;
+}
+
+HRESULT DacDbiInterfaceImpl::GetILCodeVersionNode(VMPTR_NativeCodeVersionNode vmNativeCodeVersionNode, VMPTR_ILCodeVersionNode* pVmILCodeVersionNode)
+{
+    DD_ENTER_MAY_THROW;
+    if (pVmILCodeVersionNode == NULL)
         return E_INVALIDARG;
 #ifdef FEATURE_REJIT
-    ReJitInfo* pReJitInfo = vmReJitInfo.GetDacPtr();
-    pvmSharedReJitInfo->SetDacTargetPtr(PTR_TO_TADDR(pReJitInfo->m_pShared));
+    NativeCodeVersionNode* pNativeCodeVersionNode = vmNativeCodeVersionNode.GetDacPtr();
+    pVmILCodeVersionNode->SetDacTargetPtr(PTR_TO_TADDR(pNativeCodeVersionNode->GetILCodeVersion().AsNode()));
 #else
-    _ASSERTE(!"You shouldn't be calling this - how did you get a ReJitInfo?");
-    pvmSharedReJitInfo->SetDacTargetPtr(0);
+    _ASSERTE(!"You shouldn't be calling this - rejit is not supported in this build");
+    pVmILCodeVersionNode->SetDacTargetPtr(0);
 #endif
     return S_OK;
 }
@@ -7276,15 +7232,31 @@ HRESULT DacDbiInterfaceImpl::GetSharedReJitInfo(VMPTR_ReJitInfo vmReJitInfo, OUT
 HRESULT DacDbiInterfaceImpl::GetSharedReJitInfoData(VMPTR_SharedReJitInfo vmSharedReJitInfo, DacSharedReJitInfo* pData)
 {
     DD_ENTER_MAY_THROW;
+    _ASSERTE(!"You shouldn't be calling this - use GetILCodeVersionNodeData instead");
+    return S_OK;
+}
+
+HRESULT DacDbiInterfaceImpl::GetILCodeVersionNodeData(VMPTR_ILCodeVersionNode vmILCodeVersionNode, DacSharedReJitInfo* pData)
+{
+    DD_ENTER_MAY_THROW;
 #ifdef FEATURE_REJIT
-    SharedReJitInfo* pSharedReJitInfo = vmSharedReJitInfo.GetDacPtr();
-    pData->m_state = pSharedReJitInfo->GetState();
-    pData->m_pbIL = PTR_TO_CORDB_ADDRESS(pSharedReJitInfo->m_pbIL);
-    pData->m_dwCodegenFlags = pSharedReJitInfo->m_dwCodegenFlags;
-    pData->m_cInstrumentedMapEntries = (ULONG)pSharedReJitInfo->m_instrumentedILMap.GetCount();
-    pData->m_rgInstrumentedMapEntries = PTR_TO_CORDB_ADDRESS(dac_cast<ULONG_PTR>(pSharedReJitInfo->m_instrumentedILMap.GetOffsets()));
+    ILCodeVersionNode* pILCodeVersionNode = vmILCodeVersionNode.GetDacPtr();
+    pData->m_state = pILCodeVersionNode->GetRejitState();
+    pData->m_pbIL = PTR_TO_CORDB_ADDRESS(dac_cast<ULONG_PTR>(pILCodeVersionNode->GetIL()));
+    pData->m_dwCodegenFlags = pILCodeVersionNode->GetJitFlags();
+    const InstrumentedILOffsetMapping* pMapping = pILCodeVersionNode->GetInstrumentedILMap();
+    if (pMapping)
+    {
+        pData->m_cInstrumentedMapEntries = (ULONG)pMapping->GetCount();
+        pData->m_rgInstrumentedMapEntries = PTR_TO_CORDB_ADDRESS(dac_cast<ULONG_PTR>(pMapping->GetOffsets()));
+    }
+    else
+    {
+        pData->m_cInstrumentedMapEntries = 0;
+        pData->m_rgInstrumentedMapEntries = 0;
+    }
 #else
-    _ASSERTE(!"You shouldn't be calling this - how did you get a SharedReJitInfo?");
+    _ASSERTE(!"You shouldn't be calling this - rejit isn't supported in this build");
 #endif
     return S_OK;
 }

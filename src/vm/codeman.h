@@ -91,10 +91,8 @@ typedef struct
 } EH_CLAUSE_ENUMERATOR;
 class EECodeInfo;
 
-#define PAGE_MASK               (PAGE_SIZE-1)
-#define PAGE_ALIGN              ~(PAGE_MASK)
-#define ROUND_DOWN_TO_PAGE(x)   ( (size_t) (x)              & PAGE_ALIGN)
-#define ROUND_UP_TO_PAGE(x)     (((size_t) (x) + PAGE_MASK) & PAGE_ALIGN)
+#define ROUND_DOWN_TO_PAGE(x)   ( (size_t) (x)                        & ~((size_t)GetOsPageSize()-1))
+#define ROUND_UP_TO_PAGE(x)     (((size_t) (x) + (GetOsPageSize()-1)) & ~((size_t)GetOsPageSize()-1))
 
 enum StubCodeBlockKind : int
 {
@@ -181,7 +179,7 @@ public:
         return phdrMDesc;
     }
 #if defined(FEATURE_GDBJIT)
-    PTR_BYTE                GetCalledMethods()
+    VOID*                GetCalledMethods()
     {
         SUPPORTS_DAC;
         return pCalledMethods;
@@ -371,6 +369,8 @@ struct CodeHeapRequestInfo
     bool         m_isCollectible;
     
     bool   IsDynamicDomain()                    { return m_isDynamicDomain;    }
+    void   SetDynamicDomain()                   { m_isDynamicDomain = true;    }
+
     bool   IsCollectible()                      { return m_isCollectible;      }
     
     size_t getRequestSize()                     { return m_requestSize;        }
@@ -463,7 +463,7 @@ typedef struct _HeapList
     TADDR               startAddress;
     TADDR               endAddress;     // the current end of the used portion of the Heap
 
-    TADDR               mapBase;        // "startAddress" rounded down to PAGE_SIZE. pHdrMap is relative to this address
+    TADDR               mapBase;        // "startAddress" rounded down to GetOsPageSize(). pHdrMap is relative to this address
     PTR_DWORD           pHdrMap;        // bit array used to find the start of methods
 
     size_t              maxCodeHeapSize;// Size of the entire contiguous block of memory
@@ -1097,7 +1097,7 @@ private :
                              size_t header, size_t blockSize, unsigned align,
                              HeapList ** ppCodeHeap /* Writeback, Can be null */ );
 
-    DomainCodeHeapList *GetCodeHeapList(MethodDesc *pMD, LoaderAllocator *pAllocator, BOOL fDynamicOnly = FALSE);
+    DomainCodeHeapList *GetCodeHeapList(CodeHeapRequestInfo *pInfo, LoaderAllocator *pAllocator, BOOL fDynamicOnly = FALSE);
     DomainCodeHeapList *CreateCodeHeapList(CodeHeapRequestInfo *pInfo);
     LoaderHeap* GetJitMetaHeap(MethodDesc *pMD);
 #endif // !CROSSGEN_COMPILE
@@ -1200,12 +1200,6 @@ public:
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     HINSTANCE           m_JITCompilerOther; // Stores the handle of the legacy JIT, if one is loaded.
 #endif
-
-    // TRUE if the legacy/compat JIT was loaded successfully and will be used.
-    // This is available in all builds so if COMPlus_RequireLegacyJit=1 is set in a test,
-    // the test will fail in any build where the legacy JIT is not loaded, even if legacy
-    // fallback is not available in that build. This prevents unexpected silent successes.
-    BOOL                m_fLegacyJitUsed;
 
 #ifdef ALLOW_SXS_JIT
     //put these at the end so that we don't mess up the offsets in the DAC.
@@ -1490,6 +1484,7 @@ private:
     static unsigned m_LCG_JumpStubBlockAllocCount;
     static unsigned m_LCG_JumpStubBlockFullCount;
 
+public:
     struct JumpStubCache
     {
         JumpStubCache() 

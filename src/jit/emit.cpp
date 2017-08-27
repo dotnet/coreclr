@@ -1027,7 +1027,7 @@ void emitter::emitBegFN(bool hasFramePtr
     emitPlaceholderList = emitPlaceholderLast = nullptr;
 
 #ifdef JIT32_GCENCODER
-    emitEpilogList = emitEpilogLast = NULL;
+    emitEpilogList = emitEpilogLast = nullptr;
 #endif // JIT32_GCENCODER
 
     /* We don't have any jumps */
@@ -1215,14 +1215,12 @@ size_t emitter::emitGenEpilogLst(size_t (*fp)(void*, unsigned), void* cp)
     EpilogList* el;
     size_t      sz;
 
-    for (el = emitEpilogList, sz = 0; el; el = el->elNext)
+    for (el = emitEpilogList, sz = 0; el != nullptr; el = el->elNext)
     {
-        assert(el->elIG->igFlags & IGF_EPILOG);
+        assert(el->elLoc.GetIG()->igFlags & IGF_EPILOG);
 
-        UNATIVE_OFFSET ofs =
-            el->elIG->igOffs; // The epilog starts at the beginning of the IG, so the IG offset is correct
-
-        sz += fp(cp, ofs);
+        // The epilog starts at the location recorded in the epilog list.
+        sz += fp(cp, el->elLoc.CodeOffset(this));
     }
 
     return sz;
@@ -1383,7 +1381,6 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
         id->idOpSize(EA_SIZE(opsz));
     }
 
-#if RELOC_SUPPORT
     // Amd64: ip-relative addressing is supported even when not generating relocatable ngen code
     if (EA_IS_DSP_RELOC(opsz)
 #ifndef _TARGET_AMD64_
@@ -1402,7 +1399,6 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
         /* instruction has an immediate constant that is relocatable */
         id->idSetIsCnsReloc();
     }
-#endif
 
 #if EMITTER_STATS
     emitTotalInsCnt++;
@@ -1476,8 +1472,8 @@ void emitter::emitBegProlog()
     /* Nothing is live on entry to the prolog */
 
     // These were initialized to Empty at the start of compilation.
-    VarSetOps::ClearD(emitComp, emitInitGCrefVars);
-    VarSetOps::ClearD(emitComp, emitPrevGCrefVars);
+    VarSetOps::OldStyleClearD(emitComp, emitInitGCrefVars);
+    VarSetOps::OldStyleClearD(emitComp, emitPrevGCrefVars);
     emitInitGCrefRegs = RBM_NONE;
     emitPrevGCrefRegs = RBM_NONE;
     emitInitByrefRegs = RBM_NONE;
@@ -1957,22 +1953,20 @@ void emitter::emitBegFnEpilog(insGroup* igPh)
 
 #ifdef JIT32_GCENCODER
 
-    EpilogList* el = new (emitComp, CMK_GC) EpilogList;
-    el->elNext     = NULL;
-    el->elIG       = emitCurIG;
+    EpilogList* el = new (emitComp, CMK_GC) EpilogList();
 
-    if (emitEpilogLast)
+    if (emitEpilogLast != nullptr)
+    {
         emitEpilogLast->elNext = el;
+    }
     else
+    {
         emitEpilogList = el;
+    }
 
     emitEpilogLast = el;
 
 #endif // JIT32_GCENCODER
-
-    /* Remember current position so that we can compute total epilog size */
-
-    emitEpilogBegLoc.CaptureLocation(this);
 }
 
 /*****************************************************************************
@@ -1984,22 +1978,17 @@ void emitter::emitEndFnEpilog()
 {
     emitEndPrologEpilog();
 
-    UNATIVE_OFFSET newSize;
-    UNATIVE_OFFSET epilogBegCodeOffset = emitEpilogBegLoc.CodeOffset(this);
-#ifdef _TARGET_XARCH_
+#ifdef JIT32_GCENCODER
+    assert(emitEpilogLast != nullptr);
+
+    UNATIVE_OFFSET epilogBegCodeOffset          = emitEpilogLast->elLoc.CodeOffset(this);
     UNATIVE_OFFSET epilogExitSeqStartCodeOffset = emitExitSeqBegLoc.CodeOffset(this);
-#else
-    UNATIVE_OFFSET epilogExitSeqStartCodeOffset = emitCodeOffset(emitCurIG, emitCurOffset());
-#endif
-
-    newSize = epilogExitSeqStartCodeOffset - epilogBegCodeOffset;
-
-#ifdef _TARGET_X86_
+    UNATIVE_OFFSET newSize                      = epilogExitSeqStartCodeOffset - epilogBegCodeOffset;
 
     /* Compute total epilog size */
-
     assert(emitEpilogSize == 0 || emitEpilogSize == newSize); // All epilogs must be identical
-    emitEpilogSize                     = newSize;
+    emitEpilogSize = newSize;
+
     UNATIVE_OFFSET epilogEndCodeOffset = emitCodeOffset(emitCurIG, emitCurOffset());
     assert(epilogExitSeqStartCodeOffset != epilogEndCodeOffset);
 
@@ -2019,8 +2008,7 @@ void emitter::emitEndFnEpilog()
                );
         emitExitSeqSize = newSize;
     }
-
-#endif // _TARGET_X86_
+#endif // JIT32_GCENCODER
 }
 
 #if FEATURE_EH_FUNCLETS
@@ -2068,6 +2056,16 @@ void emitter::emitEndFuncletEpilog()
 #endif // FEATURE_EH_FUNCLETS
 
 #ifdef JIT32_GCENCODER
+
+//
+// emitter::emitStartEpilog:
+//   Mark the current position so that we can later compute the total epilog size.
+//
+void emitter::emitStartEpilog()
+{
+    assert(emitEpilogLast != nullptr);
+    emitEpilogLast->elLoc.CaptureLocation(this);
+}
 
 /*****************************************************************************
  *
@@ -3223,8 +3221,11 @@ void emitter::emitDispIG(insGroup* ig, insGroup* igPrev, bool verbose)
         {
             printf("<END>");
         }
-        printf(", BB=%08XH (BB%02u)", dspPtr(igPh->igPhData->igPhBB),
-               (igPh->igPhData->igPhBB != nullptr) ? igPh->igPhData->igPhBB->bbNum : 0);
+
+        if (igPh->igPhData->igPhBB != nullptr)
+        {
+            printf(", %s", igPh->igPhData->igPhBB->dspToString());
+        }
 
         emitDispIGflags(igPh->igFlags);
 
@@ -3343,7 +3344,7 @@ void emitter::emitDispIGlist(bool verbose)
 void emitter::emitDispGCinfo()
 {
     printf("Emitter GC tracking info:");
-    printf("\n  emitPrevGCrefVars(0x%p)=%016llX ", dspPtr(&emitPrevGCrefVars), emitPrevGCrefVars);
+    printf("\n  emitPrevGCrefVars ");
     dumpConvertedVarSet(emitComp, emitPrevGCrefVars);
     printf("\n  emitPrevGCrefRegs(0x%p)=", dspPtr(&emitPrevGCrefRegs));
     printRegMaskInt(emitPrevGCrefRegs);
@@ -3351,7 +3352,7 @@ void emitter::emitDispGCinfo()
     printf("\n  emitPrevByrefRegs(0x%p)=", dspPtr(&emitPrevByrefRegs));
     printRegMaskInt(emitPrevByrefRegs);
     emitDispRegSet(emitPrevByrefRegs);
-    printf("\n  emitInitGCrefVars(0x%p)=%016llX ", dspPtr(&emitInitGCrefVars), emitInitGCrefVars);
+    printf("\n  emitInitGCrefVars ");
     dumpConvertedVarSet(emitComp, emitInitGCrefVars);
     printf("\n  emitInitGCrefRegs(0x%p)=", dspPtr(&emitInitGCrefRegs));
     printRegMaskInt(emitInitGCrefRegs);
@@ -3359,7 +3360,7 @@ void emitter::emitDispGCinfo()
     printf("\n  emitInitByrefRegs(0x%p)=", dspPtr(&emitInitByrefRegs));
     printRegMaskInt(emitInitByrefRegs);
     emitDispRegSet(emitInitByrefRegs);
-    printf("\n  emitThisGCrefVars(0x%p)=%016llX ", dspPtr(&emitThisGCrefVars), emitThisGCrefVars);
+    printf("\n  emitThisGCrefVars ");
     dumpConvertedVarSet(emitComp, emitThisGCrefVars);
     printf("\n  emitThisGCrefRegs(0x%p)=", dspPtr(&emitThisGCrefRegs));
     printRegMaskInt(emitThisGCrefRegs);
@@ -4233,7 +4234,7 @@ void emitter::emitCheckFuncletBranch(instrDesc* jmp, insGroup* jmpIG)
     // meets one of those criteria...
     assert(jmp->idIsBound());
 
-#ifdef _TARGET_AMD64_
+#ifdef _TARGET_XARCH_
     // An lea of a code address (for constant data stored with the code)
     // is treated like a jump for emission purposes but is not really a jump so
     // we don't have to check anything here.
@@ -4405,6 +4406,12 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     emitFullyInt   = fullyInt;
     emitFullGCinfo = fullPtrMap;
 
+#ifndef UNIX_X86_ABI
+    emitFullArgInfo = !emitHasFramePtr;
+#else
+    emitFullArgInfo = fullPtrMap;
+#endif
+
 #if EMITTER_STATS
     GCrefsTable.record(emitGCrFrameOffsCnt);
     emitSizeTable.record(static_cast<unsigned>(emitSizeMethod));
@@ -4419,7 +4426,10 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 #if EMIT_TRACK_STACK_DEPTH
     /* Convert max. stack depth from # of bytes to # of entries */
 
-    emitMaxStackDepth /= sizeof(int);
+    unsigned maxStackDepthIn4ByteElements = emitMaxStackDepth / sizeof(int);
+    JITDUMP("Converting emitMaxStackDepth from bytes (%d) to elements (%d)\n", emitMaxStackDepth,
+            maxStackDepthIn4ByteElements);
+    emitMaxStackDepth = maxStackDepthIn4ByteElements;
 
     /* Should we use the simple stack */
 
@@ -4499,7 +4509,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     //
     if (emitComp->fgHaveProfileData())
     {
-        if (emitComp->fgCalledWeight > (BB_VERY_HOT_WEIGHT * emitComp->fgNumProfileRuns))
+        if (emitComp->fgCalledCount > (BB_VERY_HOT_WEIGHT * emitComp->fgProfileRunsCount()))
         {
             allocMemFlag = CORJIT_ALLOCMEM_FLG_16BYTE_ALIGN;
         }
@@ -4557,7 +4567,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     /* Assume no live GC ref variables on entry */
 
-    VarSetOps::ClearD(emitComp, emitThisGCrefVars); // This is initialized to Empty at the start of codegen.
+    VarSetOps::OldStyleClearD(emitComp, emitThisGCrefVars); // This is initialized to Empty at the start of codegen.
     emitThisGCrefRegs = emitThisByrefRegs = RBM_NONE;
     emitThisGCrefVset                     = true;
 
@@ -4714,12 +4724,14 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 // printf("Variable #%2u/%2u is at stack offset %d\n", num, indx, offs);
 
 #ifdef JIT32_GCENCODER
+#ifndef WIN64EXCEPTIONS
                 /* Remember the frame offset of the "this" argument for synchronized methods */
                 if (emitComp->lvaIsOriginalThisArg(num) && emitComp->lvaKeepAliveAndReportThis())
                 {
                     emitSyncThisObjOffs = offs;
                     offs |= this_OFFSET_FLAG;
                 }
+#endif
 #endif // JIT32_GCENCODER
 
                 if (dsc->TypeGet() == TYP_BYREF)
@@ -5505,12 +5517,14 @@ void emitter::emitGCvarLiveSet(int offs, GCtype gcType, BYTE* addr, ssize_t disp
 
     desc->vpdNext = nullptr;
 
+#if !defined(JIT32_GCENCODER) || !defined(WIN64EXCEPTIONS)
     /* the lower 2 bits encode props about the stk ptr */
 
     if (offs == emitSyncThisObjOffs)
     {
         desc->vpdVarNum |= this_OFFSET_FLAG;
     }
+#endif
 
     if (gcType == GCT_BYREF)
     {
@@ -5597,10 +5611,17 @@ void emitter::emitGCvarDeadSet(int offs, BYTE* addr, ssize_t disp)
     if (EMITVERBOSE)
     {
         GCtype gcType = (desc->vpdVarNum & byref_OFFSET_FLAG) ? GCT_BYREF : GCT_GCREF;
-        bool   isThis = (desc->vpdVarNum & this_OFFSET_FLAG) != 0;
+#if !defined(JIT32_GCENCODER) || !defined(WIN64EXCEPTIONS)
+        bool isThis = (desc->vpdVarNum & this_OFFSET_FLAG) != 0;
 
         printf("[%08X] %s%s var died at [%s", dspPtr(desc), GCtypeStr(gcType), isThis ? "this-ptr" : "",
                emitGetFrameReg());
+#else
+        bool isPinned = (desc->vpdVarNum & pinned_OFFSET_FLAG) != 0;
+
+        printf("[%08X] %s%s var died at [%s", dspPtr(desc), GCtypeStr(gcType), isPinned ? "pinned" : "",
+               emitGetFrameReg());
+#endif
 
         if (offs < 0)
         {
@@ -6814,7 +6835,7 @@ void emitter::emitStackPushLargeStk(BYTE* addr, GCtype gcType, unsigned count)
         *u2.emitArgTrackTop++ = (BYTE)gcType;
         assert(u2.emitArgTrackTop <= u2.emitArgTrackTab + emitMaxStackDepth);
 
-        if (!emitHasFramePtr || needsGC(gcType))
+        if (emitFullArgInfo || needsGC(gcType))
         {
             if (emitFullGCinfo)
             {
@@ -6886,7 +6907,7 @@ void emitter::emitStackPopLargeStk(BYTE* addr, bool isCall, unsigned char callIn
 
         // This is an "interesting" argument
 
-        if (!emitHasFramePtr || needsGC(gcType))
+        if (emitFullArgInfo || needsGC(gcType))
         {
             argRecCnt += 1;
         }
@@ -7034,7 +7055,7 @@ void emitter::emitStackKillArgs(BYTE* addr, unsigned count, unsigned char callIn
 
         /* We're about to kill the corresponding (pointer) arg records */
 
-        if (emitHasFramePtr)
+        if (!emitFullArgInfo)
         {
             u2.emitGcArgTrackCnt -= gcCnt.Value();
         }
@@ -7095,6 +7116,29 @@ void emitter::emitRecordRelocation(void* location,            /* IN */
     codeGen->getDisAssembler().disRecordRelocation((size_t)location, (size_t)target);
 #endif // defined(LATE_DISASM)
 }
+
+#ifdef _TARGET_ARM_
+/*****************************************************************************
+ *  A helper for handling a Thumb-Mov32 of position-independent (PC-relative) value
+ *
+ *  This routine either records relocation for the location with the EE,
+ *  or creates a virtual relocation entry to perform offset fixup during
+ *  compilation without recording it with EE - depending on which of
+ *  absolute/relocative relocations mode are used for code section.
+ */
+void emitter::emitHandlePCRelativeMov32(void* location, /* IN */
+                                        void* target)   /* IN */
+{
+    if (emitComp->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_RELATIVE_CODE_RELOCS))
+    {
+        emitRecordRelocation(location, target, IMAGE_REL_BASED_REL_THUMB_MOV32_PCREL);
+    }
+    else
+    {
+        emitRecordRelocation(location, target, IMAGE_REL_BASED_THUMB_MOV32);
+    }
+}
+#endif // _TARGET_ARM_
 
 /*****************************************************************************
  *  A helper for recording a call site with the EE.

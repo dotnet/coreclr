@@ -14,7 +14,9 @@
 #define INSTRFMT_K64
 #include <stublink.h>
 
+#ifndef FEATURE_PAL
 #define USE_REDIRECT_FOR_GCSTRESS
+#endif // FEATURE_PAL
 
 EXTERN_C void getFPReturn(int fpSize, INT64 *pRetVal);
 EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
@@ -76,6 +78,18 @@ typedef INT64 StackElemType;
 
 // !! This expression assumes STACK_ELEM_SIZE is a power of 2.
 #define StackElemSize(parmSize) (((parmSize) + STACK_ELEM_SIZE - 1) & ~((ULONG)(STACK_ELEM_SIZE - 1)))
+
+
+#ifdef FEATURE_PAL // TODO-ARM64-WINDOWS Add JIT_Stelem_Ref support
+//
+// JIT HELPERS.
+//
+// Create alias for optimized implementations of helpers provided on this platform
+//
+// optimized static helpers
+#define JIT_Stelem_Ref                      JIT_Stelem_Ref
+#endif
+
 
 //**********************************************************************
 // Frames
@@ -479,6 +493,7 @@ struct DECLSPEC_ALIGN(16) UMEntryThunkCode
     TADDR       m_pvSecretParam;
 
     void Encode(BYTE* pTargetCode, void* pvSecretParam);
+    void Poison();
 
     LPCBYTE GetEntryPoint() const
     {
@@ -511,6 +526,16 @@ struct HijackArgs
              DWORD64 X1;  
          }; 
         size_t ReturnValue[2];
+    };
+    union
+    {
+        struct {  
+             DWORD64 D0;  
+             DWORD64 D1;  
+             DWORD64 D2;  
+             DWORD64 D3;  
+         }; 
+        size_t FPReturnValue[4];
     };
 };
 

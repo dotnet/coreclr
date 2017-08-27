@@ -28,7 +28,6 @@ using System.Diagnostics.Contracts;
 using System.Diagnostics.Tracing;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Security.Permissions;
 
 namespace System.Runtime.CompilerServices
 {
@@ -145,7 +144,6 @@ namespace System.Runtime.CompilerServices
 
                     etwLog.TaskWaitContinuationComplete(continuationId);
                 });
-                
             }
 
             /// <summary>WaitCallback that invokes the Action supplied as object state.</summary>
@@ -158,7 +156,7 @@ namespace System.Runtime.CompilerServices
             private static void RunAction(object state) { ((Action)state)(); }
 
             /// <summary>Ends the await operation.</summary>
-            public void GetResult() {} // Nop. It exists purely because the compiler pattern demands it.
+            public void GetResult() { } // Nop. It exists purely because the compiler pattern demands it.
         }
     }
 }

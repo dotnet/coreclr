@@ -983,7 +983,7 @@ void ZapMethodEntryPoint::Resolve(ZapImage * pImage)
     {
         mdMethodDef token;
         pImage->GetCompileInfo()->GetMethodDef(GetHandle(), &token);
-        pImage->Error(token, S_OK, W("MapMethodEntryPoint failed"));
+        pImage->Error(token, S_OK, 0, W("MapMethodEntryPoint failed"));
     }
     else
 #endif
@@ -1200,6 +1200,28 @@ void ZapUnwindData::Save(ZapWriter * pZapWriter)
     ULONG personalityRoutine = GetPersonalityRoutine(pImage)->GetRVA();
     pZapWriter->Write(&personalityRoutine, sizeof(personalityRoutine));
 #endif //REDHAWK
+}
+
+#elif defined(_TARGET_X86_)
+
+UINT ZapUnwindData::GetAlignment()
+{
+    return sizeof(BYTE);
+}
+
+DWORD ZapUnwindData::GetSize()
+{
+    return ZapBlob::GetSize();
+}
+
+void ZapUnwindData::Save(ZapWriter * pZapWriter)
+{
+    ZapImage * pImage = ZapImage::GetImage(pZapWriter);
+
+    PVOID pData = GetData();
+    DWORD dwSize = GetBlobSize();
+
+    pZapWriter->Write(pData, dwSize);
 }
 
 #elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)

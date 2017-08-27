@@ -4,29 +4,43 @@ usage()
 {
     echo "Usage: $0 [BuildArch] [LinuxCodeName] [lldbx.y] [--skipunmount]"
     echo "BuildArch can be: arm(default), armel, arm64, x86"
-    echo "LinuxCodeName - optional, Code name for Linux, can be: trusty(default), vivid, wily, xenial. If BuildArch is armel, LinuxCodeName is jessie(default) or tizen."
-    echo "lldbx.y - optional, LLDB version, can be: lldb3.6(default), lldb3.8"
+    echo "LinuxCodeName - optional, Code name for Linux, can be: trusty(default), vivid, wily, xenial, zesty. If BuildArch is armel, LinuxCodeName is jessie(default) or tizen."
+    echo "lldbx.y - optional, LLDB version, can be: lldb3.6(default), lldb3.8, lldb3.9, lldb4.0, no-lldb"
     echo "--skipunmount - optional, will skip the unmount of rootfs folder."
-
     exit 1
 }
 
 __LinuxCodeName=trusty
-
 __CrossDir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 __InitialDir=$PWD
 __BuildArch=arm
 __UbuntuArch=armhf
 __UbuntuRepo="http://ports.ubuntu.com/"
-__UbuntuPackagesBase="build-essential libunwind8-dev gettext symlinks liblttng-ust-dev libicu-dev"
 __LLDB_Package="lldb-3.6-dev"
-__UnprocessedBuildArgs=
 __SkipUnmount=0
 
-for i in "$@"
-    do
-        lowerI="$(echo $i | awk '{print tolower($0)}')"
-        case $lowerI in
+# base development support
+__UbuntuPackages="build-essential"
+
+# symlinks fixer
+__UbuntuPackages+=" symlinks"
+
+# CoreCLR and CoreFX dependencies
+__UbuntuPackages+=" gettext"
+__UbuntuPackages+=" libunwind8-dev"
+__UbuntuPackages+=" liblttng-ust-dev"
+__UbuntuPackages+=" libicu-dev"
+
+# CoreFX dependencies
+__UbuntuPackages+=" libcurl4-openssl-dev"
+__UbuntuPackages+=" libkrb5-dev"
+__UbuntuPackages+=" libssl-dev"
+__UbuntuPackages+=" zlib1g-dev"
+
+__UnprocessedBuildArgs=
+for i in "$@" ; do
+    lowerI="$(echo $i | awk '{print tolower($0)}')"
+    case $lowerI in
         -?|-h|--help)
             usage
             exit 1
@@ -56,6 +70,15 @@ for i in "$@"
         lldb3.8)
             __LLDB_Package="lldb-3.8-dev"
             ;;
+        lldb3.9)
+            __LLDB_Package="lldb-3.9-dev"
+            ;;
+        lldb4.0)
+            __LLDB_Package="lldb-4.0-dev"
+            ;;
+        no-lldb)
+            unset __LLDB_Package
+            ;;
         vivid)
             if [ "$__LinuxCodeName" != "jessie" ]; then
                 __LinuxCodeName=vivid
@@ -69,6 +92,11 @@ for i in "$@"
         xenial)
             if [ "$__LinuxCodeName" != "jessie" ]; then
                 __LinuxCodeName=xenial
+            fi
+            ;;
+        zesty)
+            if [ "$__LinuxCodeName" != "jessie" ]; then
+                __LinuxCodeName=zesty
             fi
             ;;
         jessie)
@@ -95,11 +123,11 @@ for i in "$@"
 done
 
 if [ "$__BuildArch" == "armel" ]; then
-     __LLDB_Package="lldb-3.5-dev"
+    __LLDB_Package="lldb-3.5-dev"
 fi
+__UbuntuPackages+=" ${__LLDB_Package:-}"
 
 __RootfsDir="$__CrossDir/rootfs/$__BuildArch"
-__UbuntuPackages="$__UbuntuPackagesBase $__LLDB_Package"
 
 if [[ -n "$ROOTFS_DIR" ]]; then
     __RootfsDir=$ROOTFS_DIR
@@ -122,6 +150,12 @@ if [[ -n $__LinuxCodeName ]]; then
 
     if [ $__SkipUnmount == 0 ]; then
         umount $__RootfsDir/*
+    fi
+
+    if [[ "$__BuildArch" == "arm" && "$__LinuxCodeName" == "trusty" ]]; then
+        pushd $__RootfsDir
+        patch -p1 < $__CrossDir/$__BuildArch/trusty.patch
+        popd
     fi
 elif [ "$__Tizen" == "tizen" ]; then
     ROOTFS_DIR=$__RootfsDir $__CrossDir/$__BuildArch/tizen-build-rootfs.sh

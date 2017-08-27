@@ -14,14 +14,17 @@ namespace Functions
         private const double sinhDoubleDelta = 0.0004;
         private const double sinhDoubleExpectedResult = 1.17520119337903;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = SinhDoubleIterations)]
         public static void SinhDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    SinhDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        SinhDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {sinhDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {sinhDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

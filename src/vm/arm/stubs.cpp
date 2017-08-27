@@ -16,14 +16,9 @@
 #include "field.h"
 #include "dllimportcallback.h"
 #include "dllimport.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "eeconfig.h"
 #include "cgensys.h"
 #include "asmconstants.h"
-#include "security.h"
-#include "securitydescriptor.h"
 #include "virtualcallstub.h"
 #include "gcdump.h"
 #include "rtlfunctions.h"
@@ -1336,6 +1331,13 @@ BOOL DoesSlotCallPrestub(PCODE pCode)
 {
     PTR_WORD pInstr = dac_cast<PTR_WORD>(PCODEToPINSTR(pCode));
 
+#ifdef HAS_COMPACT_ENTRYPOINTS
+    if (MethodDescChunk::GetMethodDescFromCompactEntryPoint(pCode, TRUE) != NULL)
+    {
+        return TRUE;
+    }
+#endif // HAS_COMPACT_ENTRYPOINTS
+
     // FixupPrecode
     if (pInstr[0] == 0x46fc && // // mov r12, pc
         pInstr[1] == 0xf8df &&
@@ -2484,12 +2486,6 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 }
 #endif
 
-void PInvokeStubForHost(void)
-{ 
-    // Hosted P/Invoke is not implemented on ARM. See ARMTODO in code:CorHost2::SetHostControl.
-    UNREACHABLE();
-}
-
 class UMEntryThunk * UMEntryThunk::Decode(void *pCallback)
 {
     _ASSERTE(offsetof(UMEntryThunkCode, m_code) == 0);
@@ -2523,6 +2519,12 @@ void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
     m_pvSecretParam = (TADDR)pvSecretParam;
 
     FlushInstructionCache(GetCurrentProcess(),&m_code,sizeof(m_code));
+}
+
+void UMEntryThunkCode::Poison()
+{
+    // Insert 'udf 0xff' at the entry point
+    m_code[0] = 0xdeff;
 }
 
 ///////////////////////////// UNIMPLEMENTED //////////////////////////////////
@@ -2563,9 +2565,9 @@ static const LPVOID InlineGetThreadLocations[] = {
 
 //EXTERN_C Object* JIT_TrialAllocSFastMP(CORINFO_CLASS_HANDLE typeHnd_);
 Object* JIT_TrialAllocSFastMP(CORINFO_CLASS_HANDLE typeHnd_);
-EXTERN_C Object* JIT_NewArr1OBJ_MP(CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size);
+EXTERN_C Object* JIT_NewArr1OBJ_MP(CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 EXTERN_C Object* AllocateStringFastMP(CLR_I4 cch);
-EXTERN_C Object* JIT_NewArr1VC_MP(CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size);
+EXTERN_C Object* JIT_NewArr1VC_MP(CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 EXTERN_C Object* JIT_BoxFastMP(CORINFO_CLASS_HANDLE type, void* unboxedData);
 
 
@@ -2650,7 +2652,7 @@ void InitJITHelpers1()
         ))
     {
 
-        _ASSERTE(GCHeapUtilities::UseAllocationContexts());
+        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
         // If the TLS for Thread is low enough use the super-fast helpers
         if (gThreadTLSIndex < TLS_MINIMUM_AVAILABLE)
         {
@@ -2675,7 +2677,6 @@ void InitJITHelpers1()
     }
 
 
-#ifdef FEATURE_CORECLR
     if(IsSingleAppDomain())
     {
         SetJitHelperFunction(CORINFO_HELP_GETSHARED_GCSTATIC_BASE,          JIT_GetSharedGCStaticBase_SingleAppDomain);
@@ -2684,7 +2685,6 @@ void InitJITHelpers1()
         SetJitHelperFunction(CORINFO_HELP_GETSHARED_NONGCSTATIC_BASE_NOCTOR,JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain);
     }
     else
-#endif
     if (gAppDomainTLSIndex >= TLS_MINIMUM_AVAILABLE)
     {
         SetJitHelperFunction(CORINFO_HELP_GETSHARED_GCSTATIC_BASE,          JIT_GetSharedGCStaticBase_Portable);
@@ -3514,177 +3514,6 @@ VOID ResetCurrentContext()
 }
 #endif // !DACCESS_COMPILE
 
-#if defined(FEATURE_REMOTING) && !defined(CROSSGEN_COMPILE)
-
-#ifndef DACCESS_COMPILE
-PCODE CTPMethodTable::CreateThunkForVirtualMethod(DWORD dwSlot, BYTE *startaddr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(CheckPointer(startaddr));
-    }
-    CONTRACTL_END;
-
-    WORD *pCode = (WORD*)((ULONG_PTR)startaddr);
-
-    // Slot literal is split into four pieces in the mov instruction:
-    //  imm4:i:imm3:imm8
-    _ASSERTE(FitsInU2(dwSlot));
-    WORD imm4 = ((WORD)dwSlot & 0xf000) >> 12;
-    WORD i    = ((WORD)dwSlot & 0x0800) >> 11;
-    WORD imm3 = ((WORD)dwSlot & 0x0700) >> 8;
-    WORD imm8 =  (WORD)dwSlot & 0x00ff;
-
-    // f240 0c00    mov r12, #dwSlot
-    // f8df f000    ldr pc, [pc, #0]
-    // ???? ????    dcd TransparentProxyStub
-
-    *pCode++ = 0xf240 | (i << 10) | imm4;
-    *pCode++ = 0x0c00 | (imm3 << 12) | imm8;
-    *pCode++ = 0xf8df;
-    *pCode++ = 0xf000;
-    *((PCODE*)pCode) = GetTPStubEntryPoint();
-
-    _ASSERTE(CVirtualThunkMgr::IsThunkByASM((PCODE)startaddr));
-
-    return (PCODE)(startaddr + THUMB_CODE);
-}
-#endif // DACCESS_COMPILE
-
-BOOL CVirtualThunkMgr::IsThunkByASM(PCODE startaddr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(startaddr != NULL);
-    }
-    CONTRACTL_END;
-
-#ifndef DACCESS_COMPILE
-    PTR_WORD pInstr = dac_cast<PTR_WORD>(PCODEToPINSTR(startaddr));
-
-    return (((pInstr[0] & 0xf240) == 0xf240) &&
-            ((pInstr[1] & 0x0c00) == 0x0c00) &&
-            (pInstr[2] == 0xf8df) &&
-            (pInstr[3] == 0xf000) &&
-            (*(PCODE*)&pInstr[4] == CTPMethodTable::GetTPStubEntryPoint()));
-#else
-    DacNotImpl();
-    return FALSE;
-#endif
-}
-
-MethodDesc *CVirtualThunkMgr::GetMethodDescByASM(PCODE startaddr, MethodTable *pMT)
-{
-    CONTRACT (MethodDesc*)
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(startaddr != NULL);
-        PRECONDITION(CheckPointer(pMT));
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END;
-
-    _ASSERTE(IsThunkByASM(startaddr));
-
-    PTR_WORD pInstr = dac_cast<PTR_WORD>(PCODEToPINSTR(startaddr));
-
-    WORD i    = (pInstr[0] & 0x0400) >> 10;
-    WORD imm4 =  pInstr[0] & 0x000f;
-    WORD imm3 = (pInstr[1] & 0x7000) >> 12;
-    WORD imm8 =  pInstr[1] & 0x00ff;
-
-    WORD wSlot = (imm4 << 12) | (i << 11) | (imm3 << 8) | imm8;
-
-    RETURN (pMT->GetMethodDescForSlot(wSlot));
-}
-
-#ifndef DACCESS_COMPILE
-
-BOOL CVirtualThunkMgr::DoTraceStub(PCODE stubStartAddress, TraceDestination *trace)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(stubStartAddress != NULL);
-        PRECONDITION(CheckPointer(trace));
-    }
-    CONTRACTL_END;
-
-    TADDR pInstr = PCODEToPINSTR(stubStartAddress);
-
-    BOOL bIsStub = FALSE;
-
-    // Find a thunk whose code address matching the starting address
-    LPBYTE pThunk = FindThunk((LPBYTE)pInstr);
-    if (pThunk)
-    {
-        LONG destAddress = 0;
-
-        // The stub target address is stored as an absolute pointer 8 byte into the thunk.
-        destAddress = *(LONG*)(pThunk + 8);
-
-        // We cannot tell where the stub will end up until OnCall is reached.
-        // So we tell the debugger to run till OnCall is reached and then
-        // come back and ask us again for the actual destination address of
-        // the call
-
-        Stub *stub = Stub::RecoverStub((TADDR)destAddress);
-
-        trace->InitForFramePush(stub->GetPatchAddress());
-        bIsStub = TRUE;
-    }
-
-    return bIsStub;
-}
-
-extern "C" UINT_PTR __stdcall CRemotingServices__CheckForContextMatch(Object* pStubData)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;    // due to the Object parameter
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(pStubData));
-    }
-    CONTRACTL_END;
-
-    UINT_PTR contextID  = *(UINT_PTR*)pStubData->UnBox();
-    UINT_PTR contextCur = (UINT_PTR)GetThread()->m_Context;
-    return (contextCur != contextID);   // chosen to match x86 convention
-}
-
-// Return true if the current context matches that of the transparent proxy given.
-BOOL CTPMethodTable__GenericCheckForContextMatch(Object* orTP)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;    // due to the Object parameter
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    Object *StubData = OBJECTREFToObject(((TransparentProxyObject*)orTP)->GetStubData());
-    CTPMethodTable::CheckContextCrossingProc *pfnCheckContextCrossing =
-            (CTPMethodTable::CheckContextCrossingProc*)(((TransparentProxyObject*)orTP)->GetStub());
-    return pfnCheckContextCrossing(StubData) == 0;
-}
-
-#endif // !DACCESS_COMPILE
-
-#endif // FEATURE_REMOTING && !CROSSGEN_COMPILE
 
 #ifdef FEATURE_COMINTEROP
 void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target)

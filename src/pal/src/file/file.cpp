@@ -18,6 +18,9 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(FILE); // some headers have code with asserts, so do this first
+
 #include "pal/thread.hpp"
 #include "pal/file.hpp"
 #include "shmfilelockmgr.hpp"
@@ -25,7 +28,6 @@ Abstract:
 #include "pal/stackstring.hpp"
 
 #include "pal/palinternal.h"
-#include "pal/dbgmsg.h"
 #include "pal/file.h"
 #include "pal/filetime.h"
 #include "pal/utils.h"
@@ -42,8 +44,6 @@ Abstract:
 
 using namespace CorUnix;
 
-SET_DEFAULT_DEBUG_CHANNEL(FILE);
-
 int MaxWCharToAcpLengthFactor = 3;
 
 PAL_ERROR
@@ -53,6 +53,12 @@ InternalSetFilePointerForUnixFd(
     PLONG lpDistanceToMoveHigh,
     DWORD dwMoveMethod,
     PLONG lpNewFilePointerLow
+    );
+
+void
+CFileProcessLocalDataCleanupRoutine(
+    CPalThread *pThread,
+    IPalObject *pObjectToCleanup
     );
 
 void
@@ -68,7 +74,10 @@ CObjectType CorUnix::otFile(
                 FileCleanupRoutine,
                 NULL,   // No initialization routine
                 0,      // No immutable data
+                NULL,   // No immutable data copy routine
+                NULL,   // No immutable data cleanup routine
                 sizeof(CFileProcessLocalData),
+                CFileProcessLocalDataCleanupRoutine,
                 0,      // No shared data
                 GENERIC_READ|GENERIC_WRITE,  // Ignored -- no Win32 object security support
                 CObjectType::SecuritySupported,
@@ -84,6 +93,34 @@ CObjectType CorUnix::otFile(
 CAllowedObjectTypes CorUnix::aotFile(otiFile);
 static CSharedMemoryFileLockMgr _FileLockManager;
 IFileLockManager *CorUnix::g_pFileLockManager = &_FileLockManager;
+
+void
+CFileProcessLocalDataCleanupRoutine(
+    CPalThread *pThread,
+    IPalObject *pObjectToCleanup
+    )
+{
+    PAL_ERROR palError;
+    CFileProcessLocalData *pLocalData = NULL;
+    IDataLock *pLocalDataLock = NULL;
+
+    palError = pObjectToCleanup->GetProcessLocalData(
+        pThread,
+        ReadLock,
+        &pLocalDataLock,
+        reinterpret_cast<void**>(&pLocalData)
+        );
+
+    if (NO_ERROR != palError)
+    {
+        ASSERT("Unable to obtain data to cleanup file object");
+        return;
+    }
+
+    free(pLocalData->unix_filename);
+
+    pLocalDataLock->ReleaseLock(pThread, FALSE);
+}
 
 void
 FileCleanupRoutine(
@@ -738,10 +775,12 @@ CorUnix::InternalCreateFile(
         goto done;
     }
 
-    if (strcpy_s(pLocalData->unix_filename, sizeof(pLocalData->unix_filename), lpUnixPath) != SAFECRT_SUCCESS)
+    _ASSERTE(pLocalData->unix_filename == NULL);
+    pLocalData->unix_filename = strdup(lpUnixPath);
+    if (pLocalData->unix_filename == NULL)
     {
-        palError = ERROR_INSUFFICIENT_BUFFER;
-        TRACE("strcpy_s failed!\n");
+        ASSERT("Unable to copy string\n");
+        palError = ERROR_INTERNAL_ERROR;
         goto done;
     }
 
@@ -2999,8 +3038,11 @@ OUT  PLARGE_INTEGER lpFileSize)
             &dwFileSizeHigh
             );
 
-        lpFileSize->u.LowPart = dwFileSizeLow;
-        lpFileSize->u.HighPart = dwFileSizeHigh;
+        if (NO_ERROR == palError)
+        {
+            lpFileSize->u.LowPart = dwFileSizeLow;
+            lpFileSize->u.HighPart = dwFileSizeHigh;
+        }
     }
     else
     {
@@ -4053,14 +4095,14 @@ CorUnix::InternalCreatePipe(
 
     /* enable close-on-exec for both pipes; if one gets passed to CreateProcess
        it will be "uncloseonexeced" in order to be inherited */
-    if(-1 == fcntl(readWritePipeDes[0],F_SETFD,1))
+    if(-1 == fcntl(readWritePipeDes[0],F_SETFD,FD_CLOEXEC))
     {
         ASSERT("can't set close-on-exec flag; fcntl() failed. errno is %d "
              "(%s)\n", errno, strerror(errno));
         palError = ERROR_INTERNAL_ERROR;
         goto InternalCreatePipeExit;
     }
-    if(-1 == fcntl(readWritePipeDes[1],F_SETFD,1))
+    if(-1 == fcntl(readWritePipeDes[1],F_SETFD,FD_CLOEXEC))
     {
         ASSERT("can't set close-on-exec flag; fcntl() failed. errno is %d "
              "(%s)\n", errno, strerror(errno));
@@ -4561,7 +4603,7 @@ static HANDLE init_std_handle(HANDLE * pStd, FILE *stream)
 
     /* duplicate the FILE *, so that we can fclose() in FILECloseHandle without
        closing the original */
-    new_fd = dup(fileno(stream));
+    new_fd = fcntl(fileno(stream), F_DUPFD_CLOEXEC, 0); // dup, but with CLOEXEC
     if(-1 == new_fd)
     {
         ERROR("dup() failed; errno is %d (%s)\n", errno, strerror(errno));

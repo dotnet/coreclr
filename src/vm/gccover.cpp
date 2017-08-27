@@ -160,7 +160,7 @@ void SetupGcCoverage(MethodDesc* pMD, BYTE* methodStartPtr) {
     {
         BaseDomain* pDomain = pMD->GetDomain();
         // Enter the global lock which protects the list of all functions being JITd
-        ListLockHolder pJitLock(pDomain->GetJitLock());
+        JitListLock::LockHolder pJitLock(pDomain->GetJitLock());
 
 
         // It is possible that another thread stepped in before we entered the global lock for the first time.
@@ -175,14 +175,14 @@ void SetupGcCoverage(MethodDesc* pMD, BYTE* methodStartPtr) {
 #ifdef _DEBUG 
             description = pMD->m_pszDebugMethodName;
 #endif
-            ListLockEntryHolder pEntry(ListLockEntry::Find(pJitLock, pMD, description));
+            ReleaseHolder<JitListLockEntry> pEntry(JitListLockEntry::Find(pJitLock, pMD->GetInitialCodeVersion(), description));
 
             // We have an entry now, we can release the global lock
             pJitLock.Release();
 
             // Take the entry lock
             {
-                ListLockEntryLockHolder pEntryLock(pEntry, FALSE);
+                JitListLockEntry::LockHolder pEntryLock(pEntry, FALSE);
 
                 if (pEntryLock.DeadlockAwareAcquire())
                 {
@@ -1035,6 +1035,10 @@ static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr) {
         unsigned int regnum = (instrPtr[0] & 0x78) >> 3;
         return (BYTE *)getRegVal(regnum, regs);
     }
+    else
+    {
+        return 0; // Not a call.
+    }
 #elif defined(_TARGET_ARM64_)
    if (((*reinterpret_cast<DWORD*>(instrPtr)) & 0xFC000000) == 0x94000000)
    {
@@ -1565,10 +1569,10 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
             
             _ASSERTE(pThread->PreemptiveGCDisabled());    // Epilogs should be in cooperative mode, no GC can happen right now. 
             bool gcHappened = gcCover->gcCount != GCHeapUtilities::GetGCHeap()->GetGcCount();
-            checkAndUpdateReg(gcCover->callerRegs.Edi, *regDisp.pEdi, gcHappened);
-            checkAndUpdateReg(gcCover->callerRegs.Esi, *regDisp.pEsi, gcHappened);
-            checkAndUpdateReg(gcCover->callerRegs.Ebx, *regDisp.pEbx, gcHappened);
-            checkAndUpdateReg(gcCover->callerRegs.Ebp, *regDisp.pEbp, gcHappened);
+            checkAndUpdateReg(gcCover->callerRegs.Edi, *regDisp.GetEdiLocation(), gcHappened);
+            checkAndUpdateReg(gcCover->callerRegs.Esi, *regDisp.GetEsiLocation(), gcHappened);
+            checkAndUpdateReg(gcCover->callerRegs.Ebx, *regDisp.GetEbxLocation(), gcHappened);
+            checkAndUpdateReg(gcCover->callerRegs.Ebp, *regDisp.GetEbpLocation(), gcHappened);
             
             gcCover->gcCount = GCHeapUtilities::GetGCHeap()->GetGcCount();
 
@@ -1759,7 +1763,10 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
     // Do the actual stress work
     //
 
-    if (!GCHeapUtilities::GetGCHeap()->StressHeap())
+    // BUG(github #10318) - when not using allocation contexts, the alloc lock
+    // must be acquired here. Until fixed, this assert prevents random heap corruption.
+    assert(GCHeapUtilities::UseThreadAllocationContexts());
+    if (!GCHeapUtilities::GetGCHeap()->StressHeap(GetThread()->GetAllocContext()))
         UpdateGCStressInstructionWithoutGC ();
 
     // Must flush instruction cache before returning as instruction has been modified.

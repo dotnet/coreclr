@@ -3,7 +3,7 @@
 # This file invokes cmake and generates the build system for Clang.
 #
 
-if [ $# -lt 4 -o $# -gt 8 ]
+if [ $# -lt 4 ]
 then
   echo "Usage..."
   echo "gen-buildsys-clang.sh <path to top level CMakeLists.txt> <ClangMajorVersion> <ClangMinorVersion> <Architecture> [build flavor] [coverage] [ninja] [cmakeargs]"
@@ -139,21 +139,42 @@ if [[ -n "$CROSSCOMPILE" ]]; then
     fi
     cmake_extra_defines="$cmake_extra_defines -C $CONFIG_DIR/tryrun.cmake"
     cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=$CONFIG_DIR/toolchain.cmake"
+    cmake_extra_defines="$cmake_extra_defines -DCLR_UNIX_CROSS_BUILD=1"
+fi
+if [ $OS == "Linux" ]; then
+    linux_id_file="/etc/os-release"
+    if [[ -n "$CROSSCOMPILE" ]]; then
+        linux_id_file="$ROOTFS_DIR/$linux_id_file"
+    fi
+    if [[ -e $linux_id_file ]]; then
+        source $linux_id_file
+        cmake_extra_defines="$cmake_extra_defines -DCLR_CMAKE_LINUX_ID=$ID"
+    fi
 fi
 if [ "$build_arch" == "armel" ]; then
     cmake_extra_defines="$cmake_extra_defines -DARM_SOFTFP=1"
 fi
 
+clang_version=$( $CC --version | head -1 | sed 's/[^0-9]*\([0-9]*\.[0-9]*\).*/\1/' )
+# Use O1 option when the clang version is smaller than 3.9
+# Otherwise use O3 option in release build
+if [[ ( ${clang_version%.*} -eq 3  &&  ${clang_version#*.} -lt 9 ) &&
+      (  "$build_arch" == "arm" || "$build_arch" == "armel" ) ]]; then
+    overridefile=clang-compiler-override-arm.txt
+else
+    overridefile=clang-compiler-override.txt
+fi
+
 cmake \
   -G "$generator" \
-  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=$1/src/pal/tools/clang-compiler-override.txt" \
+  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=$1/src/pal/tools/$overridefile" \
   "-DCMAKE_AR=$llvm_ar" \
   "-DCMAKE_LINKER=$llvm_link" \
   "-DCMAKE_NM=$llvm_nm" \
   "-DCMAKE_OBJDUMP=$llvm_objdump" \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
-  "-DCMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=1 " \
+  "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
   "-DCLR_CMAKE_BUILD_TESTS=$build_tests" \
   $cmake_extra_defines \
   $__UnprocessedCMakeArgs \

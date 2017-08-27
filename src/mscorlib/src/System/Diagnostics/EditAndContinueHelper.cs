@@ -11,12 +11,12 @@
 **
 =============================================================================*/
 
-namespace System.Diagnostics {
-    
-    using System;
-    
-    [Serializable]
-    internal sealed class EditAndContinueHelper 
+
+using System;
+
+namespace System.Diagnostics
+{
+    internal sealed class EditAndContinueHelper
     {
 #pragma warning disable 169
 #pragma warning disable 414  // Field is not used from managed.

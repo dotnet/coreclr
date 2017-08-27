@@ -23,16 +23,11 @@
 #include "object.h"
 #include "field.h"
 #include "excep.h"
-#include "security.h"
 #include "eeconfig.h"
 #include "corhost.h"
 #include "nativeoverlapped.h"
 #include "comsynchronizable.h"
-#ifdef FEATURE_REMOTING
-#include "crossdomaincalls.h"
-#else
 #include "callhelpers.h"
-#endif
 #include "appdomain.inl"
 /*****************************************************************************************************/
 #ifdef _DEBUG
@@ -300,17 +295,6 @@ void QCALLTYPE ThreadPoolNative::InitializeVMTp(CLR_BOOL* pEnableWorkerTracking)
     END_QCALL;
 }
 
-
-FCIMPL0(FC_BOOL_RET, ThreadPoolNative::IsThreadPoolHosted)
-{
-    FCALL_CONTRACT;
-
-    FCUnique(0x22);
-
-    FC_RETURN_BOOL(ThreadpoolMgr::IsThreadPoolHosted());
-}
-FCIMPLEND
-
 /*****************************************************************************************************/
 
 struct RegisterWaitForSingleObjectCallback_Args
@@ -355,25 +339,6 @@ RegisterWaitForSingleObjectCallback_Worker(LPVOID ptr)
     GCPROTECT_END();
 }
 
-
-void ResetThreadSecurityState(Thread* pThread)
-{
-    CONTRACTL 
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    } CONTRACTL_END;
-    
-    if (pThread)
-    {
-        pThread->ResetSecurityInfo();
-    }
-}
-
-// this holder resets our thread's security state
-typedef Holder<Thread*, DoNothing<Thread*>, ResetThreadSecurityState> ThreadSecurityStateHolder;
-
 VOID NTAPI RegisterWaitForSingleObjectCallback(PVOID delegateInfo, BOOLEAN TimerOrWaitFired)
 {
     Thread* pThread = GetThread();
@@ -400,9 +365,6 @@ VOID NTAPI RegisterWaitForSingleObjectCallback(PVOID delegateInfo, BOOLEAN Timer
     _ASSERTE(pThread->m_dwLockCount == 0);
 
     GCX_COOP();
-
-    // this holder resets our thread's security state when exiting this scope
-    ThreadSecurityStateHolder  secState(pThread);
 
     RegisterWaitForSingleObjectCallback_Args args = { ((DelegateInfo*) delegateInfo), TimerOrWaitFired };
 
@@ -632,31 +594,6 @@ void SetAsyncResultProperties(
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_SO_TOLERANT;
 
-#ifndef FEATURE_CORECLR
-    ASYNCRESULTREF asyncResult = overlapped->m_asyncResult;
-    // only filestream is expected to have a null delegate in which
-    // case we do the necessary book-keeping here. However, for robustness
-    // we should make sure that the asyncResult is indeed an instance of
-    // FileStreamAsyncResult
-    if (asyncResult->GetMethodTable() == g_pAsyncFileStream_AsyncResultClass)
-    {
-        // Handle reading from & writing to closed pipes. It's possible for
-        // an async read on a pipe to be issued and then the pipe is closed,
-        // returning this error.  This may very well be necessary. -BG
-        if (dwErrorCode == ERROR_BROKEN_PIPE || dwErrorCode == ERROR_NO_DATA)
-            dwErrorCode = 0;
-        asyncResult->SetErrorCode(dwErrorCode);
-        asyncResult->SetNumBytes(dwNumBytes);
-        asyncResult->SetCompletedAsynchronously();
-        asyncResult->SetIsComplete();
-
-        // Signal the event - the OS does not do this for us.
-        WAITHANDLEREF waitHandle = asyncResult->GetWaitHandle();
-        HANDLE h = waitHandle->GetWaitHandle();
-        if ((h != NULL) && (h != (HANDLE) -1))
-            UnsafeSetEvent(h);
-    }
-#endif // !FEATURE_CORECLR
 }
 
 VOID BindIoCompletionCallBack_Worker(LPVOID args)
@@ -698,13 +635,6 @@ VOID BindIoCompletionCallBack_Worker(LPVOID args)
         // no user delegate to callback
         _ASSERTE((overlapped->m_iocbHelper == NULL) || !"This is benign, but should be optimized");
 
-#ifndef FEATURE_CORECLR
-        // we cannot do this at threadpool initialization time since mscorlib may not have been loaded
-        if (!g_pAsyncFileStream_AsyncResultClass)
-        {
-            g_pAsyncFileStream_AsyncResultClass = MscorlibBinder::GetClass(CLASS__FILESTREAM_ASYNCRESULT);
-        }
-#endif // !FEATURE_CORECLR
 
         SetAsyncResultProperties(overlapped, ErrorCode, numBytesTransferred);
     }
@@ -765,8 +695,6 @@ void __stdcall BindIoCompletionCallbackStubEx(DWORD ErrorCode,
         {
             pHolderThread = pThread; 
         }
-
-        ThreadSecurityStateHolder  secState(pHolderThread);
 
         BindIoCompletion_Args args = {ErrorCode, numBytesTransferred, lpOverlapped, &fProcessed};
         appDomain.Release();
@@ -922,11 +850,8 @@ VOID WINAPI AppDomainTimerCallback(PVOID delegateInfo, BOOLEAN timerOrWaitFired)
 
     GCX_COOP();
 
-    {
-        ThreadSecurityStateHolder  secState(pThread);
-        ManagedThreadBase::ThreadPool(((DelegateInfo*)delegateInfo)->m_appDomainId, AppDomainTimerCallback_Worker, NULL);
-    }
-    
+    ManagedThreadBase::ThreadPool(((DelegateInfo*)delegateInfo)->m_appDomainId, AppDomainTimerCallback_Worker, NULL);
+
     // We should have released all locks.
     _ASSERTE(g_fEEShutDown || pThread->m_dwLockCount == 0 || pThread->m_fRudeAborted);
 }

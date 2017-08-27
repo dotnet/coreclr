@@ -15,6 +15,8 @@ int32_t g_TrapReturningThreads;
 
 EEConfig * g_pConfig;
 
+gc_alloc_context g_global_alloc_context;
+
 bool CLREventStatic::CreateManualEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, TRUE, bInitialState, NULL);
@@ -135,7 +137,7 @@ void ThreadStore::AttachCurrentThread()
 
 void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {
-    g_theGCHeap->SetGCInProgress(TRUE);
+    g_theGCHeap->SetGCInProgress(true);
 
     // TODO: Implement
 }
@@ -144,7 +146,7 @@ void GCToEEInterface::RestartEE(bool bFinishedGC)
 {
     // TODO: Implement
 
-    g_theGCHeap->SetGCInProgress(FALSE);
+    g_theGCHeap->SetGCInProgress(false);
 }
 
 void GCToEEInterface::GcScanRoots(promote_func* fn,  int condemned, int max_gen, ScanContext* sc)
@@ -186,6 +188,16 @@ void GCToEEInterface::EnablePreemptiveGC(Thread * pThread)
 void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
 {
     pThread->DisablePreemptiveGC();
+}
+
+Thread* GCToEEInterface::GetThread()
+{
+    return ::GetThread();
+}
+
+bool GCToEEInterface::TrapReturningThreads()
+{
+    return !!g_TrapReturningThreads;
 }
 
 gc_alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
@@ -263,59 +275,48 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
     // TODO: Implement for finalization
 }
 
-bool IsGCSpecialThread()
+void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 {
-    // TODO: Implement for background GC
+    abort();
+}
+
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
+{
+    return true;
+}
+
+bool GCToEEInterface::ForceFullGCToBeBlocking()
+{
     return false;
 }
 
-bool IsGCThread()
+bool GCToEEInterface::EagerFinalized(Object* obj)
+{
+    // The sample does not finalize anything eagerly.
+    return false;
+}
+
+bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
 {
     return false;
 }
 
-void SwitchToWriteWatchBarrier()
+bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
 {
+    return false;
 }
 
-void SwitchToNonWriteWatchBarrier()
+bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
 {
+    return false;
 }
 
-void LogSpewAlways(const char * /*fmt*/, ...)
+void GCToEEInterface::FreeStringConfigValue(const char *value)
 {
+
 }
 
-uint32_t CLRConfig::GetConfigValue(ConfigDWORDInfo eType)
+MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
 {
-    switch (eType)
-    {
-    case UNSUPPORTED_BGCSpinCount:
-        return 140;
-
-    case UNSUPPORTED_BGCSpin:
-        return 2;
-
-    case UNSUPPORTED_GCLogEnabled:
-    case UNSUPPORTED_GCLogFile:
-    case UNSUPPORTED_GCLogFileSize:
-    case EXTERNAL_GCStressStart:
-    case INTERNAL_GCStressStartAtJit:
-    case INTERNAL_DbgDACSkipVerifyDlls:
-        return 0;
-
-    case Config_COUNT:
-    default:
-#ifdef _MSC_VER
-#pragma warning(suppress:4127) // Constant conditional expression in ASSERT below
-#endif
-        ASSERT(!"Unknown config value type");
-        return 0;
-    }
-}
-
-HRESULT CLRConfig::GetConfigValue(ConfigStringInfo /*eType*/, TCHAR * * outVal)
-{
-    *outVal = NULL;
-    return 0;
+    return g_pFreeObjectMethodTable;
 }

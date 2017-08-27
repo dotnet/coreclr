@@ -19,9 +19,7 @@ static bool strictArmAsm;
 struct CnsVal
 {
     ssize_t cnsVal;
-#ifdef RELOC_SUPPORT
-    bool cnsReloc;
-#endif
+    bool    cnsReloc;
 };
 
 #ifdef DEBUG
@@ -466,7 +464,7 @@ static bool emitIns_valid_imm_for_movi(INT64 imm, emitAttr size);
 static bool emitIns_valid_imm_for_fmov(double immDbl);
 
 // true if this 'imm' can be encoded as a input operand to an add instruction
-static bool emitIns_valid_imm_for_add(INT64 imm, emitAttr size);
+static bool emitIns_valid_imm_for_add(INT64 imm, emitAttr size = EA_8BYTE);
 
 // true if this 'imm' can be encoded as a input operand to a cmp instruction
 static bool emitIns_valid_imm_for_cmp(INT64 imm, emitAttr size);
@@ -726,7 +724,8 @@ void emitIns_R_R_R_I(instruction ins,
                      regNumber   reg2,
                      regNumber   reg3,
                      ssize_t     imm,
-                     insOpts     opt = INS_OPTS_NONE);
+                     insOpts     opt      = INS_OPTS_NONE,
+                     emitAttr    attrReg2 = EA_UNKNOWN);
 
 void emitIns_R_R_R_Ext(instruction ins,
                        emitAttr    attr,
@@ -759,7 +758,13 @@ void emitIns_S(instruction ins, emitAttr attr, int varx, int offs);
 
 void emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int varx, int offs);
 
+void emitIns_S_S_R_R(
+    instruction ins, emitAttr attr, emitAttr attr2, regNumber ireg, regNumber ireg2, int varx, int offs);
+
 void emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int varx, int offs);
+
+void emitIns_R_R_S_S(
+    instruction ins, emitAttr attr, emitAttr attr2, regNumber ireg, regNumber ireg2, int varx, int offs);
 
 void emitIns_S_I(instruction ins, emitAttr attr, int varx, int offs, int val);
 

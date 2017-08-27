@@ -57,6 +57,7 @@ EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 //#define HAS_REMOTING_PRECODE                  1    // TODO: Implement
 #define HAS_FIXUP_PRECODE                       1
 #define HAS_FIXUP_PRECODE_CHUNKS                1
+#define FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS 1
 
 // ThisPtrRetBufPrecode one is necessary for closed delegates over static methods with return buffer
 #define HAS_THISPTR_RETBUF_PRECODE              1
@@ -262,9 +263,15 @@ struct CalleeSavedRegistersPointers {
 #ifdef UNIX_AMD64_ABI
 #define THIS_REG RDI
 #define THIS_kREG kRDI
+
+#define ARGUMENT_kREG1 kRDI
+#define ARGUMENT_kREG2 kRSI
 #else
 #define THIS_REG RCX
 #define THIS_kREG kRCX
+
+#define ARGUMENT_kREG1 kRCX
+#define ARGUMENT_kREG2 kRDX
 #endif
 
 #ifdef UNIX_AMD64_ABI
@@ -381,6 +388,9 @@ void EncodeLoadAndJumpThunk (LPBYTE pBuffer, LPVOID pv, LPVOID pTarget);
 // Get Rel32 destination, emit jumpStub if necessary
 INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMethod, LoaderAllocator *pLoaderAllocator = NULL);
 
+// Get Rel32 destination, emit jumpStub if necessary into a preallocated location
+INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCODE jumpStubAddr);
+
 void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target);
 
 void emitJump(LPBYTE pBuffer, LPVOID target);
@@ -462,6 +472,7 @@ struct DECLSPEC_ALIGN(8) UMEntryThunkCode
     BYTE            m_padding2[5];
 
     void Encode(BYTE* pTargetCode, void* pvSecretParam);
+    void Poison();
 
     LPCBYTE GetEntryPoint() const
     {

@@ -18,41 +18,6 @@ WARNING:   When setting properties based on their current state (for example:
 -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <Target
-    Name="GetIlasmRoundTripBashScript"
-    Returns="$(IlasmRoundTripBashScript)">
-    <PropertyGroup>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)).Replace("\","/"))</InputAssemblyName>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
-      <DisassemblyName>$(MSBuildProjectName).dasm.il</DisassemblyName>
-      <TargetAssemblyName>$(MSBuildProjectName).asm.exe</TargetAssemblyName>
-
-      <IlasmRoundTrip Condition="'$(ReferenceLocalMscorlib)'!=''">false</IlasmRoundTrip>
-
-      <IlasmRoundTripBashScript Condition="'$(IlasmRoundTrip)'=='true'">
-      <![CDATA[
-echo "$CORE_ROOT/ildasm" -raweh -out=$(DisassemblyName) $(InputAssemblyName)
-"$CORE_ROOT/ildasm" -raweh -out=$(DisassemblyName) $(InputAssemblyName)
-_ERRORLEVEL=$?
-if [  $ERRORLEVEL -ne 0 ]
-then
-  echo EXECUTION OF ILDASM - FAILED $ERRORLEVEL
-  exit 1
-fi
-
-echo "$CORE_ROOT/ilasm" -output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
-"$CORE_ROOT/ilasm" -output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
-_ERRORLEVEL=$?
-if [ $ERRORLEVEL -ne 0 ]
-then
-  echo EXECUTION OF ILASM - FAILED $ERRORLEVEL
-  exit 1
-fi
-      ]]>
-      </IlasmRoundTripBashScript>
-    </PropertyGroup>
-  </Target>
-
   <!-- This is here because of this bug: http://blogs.msdn.com/b/msbuild/archive/2006/01/03/508629.aspx-->
   <Target Name="FetchExternalPropertiesForXpalt">
     <!--Call GetExecuteShFullPath to get ToRunProject cmd file Path  -->
@@ -103,21 +68,25 @@ fi
 
     <Message Text="Project depends on $(_CLRTestToRunFileFullPath)." Condition="'$(_CLRTestNeedsProjectToRun)' == 'True'" />
 
-    <PropertyGroup>        
+    <PropertyGroup>
+      <!-- An exit code of 2 indicates "Skipped" for regular non-windows runs, but "Failed" in Helix -->
+      <GCBashScriptExitCode Condition="'$(BuildTestsAgainstPackages)' != 'true'">2</GCBashScriptExitCode>
+      <GCBashScriptExitCode Condition="'$(BuildTestsAgainstPackages)' == 'true'">0</GCBashScriptExitCode>
+
       <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(GCStressIncompatible)' == 'true'"><![CDATA[
 $(BashCLRTestEnvironmentCompatibilityCheck)
 if [ ! -z "$COMPlus_GCStress" ]
 then
   echo SKIPPING EXECUTION BECAUSE COMPlus_GCStress IS SET
-  exit 0
+  exit $(GCBashScriptExitCode)
 fi
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
       <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'"><![CDATA[
 $(BashCLRTestEnvironmentCompatibilityCheck)
-if [ \( ! -z "$COMPlus_JitStress" \) -o \( ! -z "$COMPlus_JitStressRegs" \) -o \( ! -z "$COMPlus_JITMinOpts" \) ]
+if [[ ( ! -z "$COMPlus_JitStress" ) || ( ! -z "$COMPlus_JitStressRegs" ) || ( ! -z "$COMPlus_JITMinOpts" ) || ( ! -z "$COMPlus_TailcallStress" ) || ( ! -z "$COMPlus_EXPERIMENTAL_TieredCompilation" ) ]]
 then
-  echo "SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts) IS SET"
-  exit 0
+  echo "SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress, COMPlus_EXPERIMENTAL_TieredCompilation) IS SET"
+  exit $(GCBashScriptExitCode)
 fi
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
       <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(HeapVerifyIncompatible)' == 'true'"><![CDATA[
@@ -125,7 +94,7 @@ $(BashCLRTestEnvironmentCompatibilityCheck)
 if [ ! -z "$COMPlus_HeapVerify" ]
 then
   echo SKIPPING EXECUTION BECAUSE COMPlus_HeapVerify IS SET
-  exit 0
+  exit $(GCBashScriptExitCode)
 fi
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
 
@@ -164,7 +133,7 @@ fi
         <Command><![CDATA[        export _DebuggerFullPath="${i#*=}"
         if [ ! -f "$_DebuggerFullPath" ]
         then
-            echo The Debugger FullPath \"$_DebuggerFullPath\" doesn\'t exist
+            echo "The Debugger FullPath %5C%22${_DebuggerFullPath}%5C%22 does not exist"
             usage
         fi]]></Command>
         <Description>Run testcases under debugger.</Description>
@@ -179,25 +148,123 @@ fi
       </BashCLRTestExecutionScriptArgument>
     </ItemGroup>
 
-    
-    <PropertyGroup>
-      <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"$CORE_ROOT/corerun"</_CLRTestRunFile>
-      <BashCLRTestLaunchCmds Condition="'$(IlasmRoundTrip)'=='true'"><![CDATA[
-echo $(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments 
-$(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments 
-if [  $? -ne $CLRTestExpectedExitCode ]
+      <PropertyGroup>
+          <ReflectionRootsXml>$(MSBuildProjectName).reflect.xml</ReflectionRootsXml>
+          <BashLinkerTestLaunchCmds>
+              <![CDATA[
+# Linker commands
+
+LinkBin=__Link
+Assemblies="-a System.Private.CoreLib"
+ReflectionRoots=
+
+shopt -s nullglob
+
+if [ ! -z "$DoLink" ]; 
 then
-  echo END EXECUTION OF IL{D}ASM BINARY - FAILED $? vs $CLRTestExpectedExitCode
-  echo FAILED
-  exit 1
+  if [ ! -x "$ILLINK" ]; 
+  then
+    echo "Illink executable [$ILLINK] Invalid"
+    exit 1
+  fi
+  
+  # Clean up old Linked binaries, if any
+  rm -rf $LinkBin
+    
+  # Remove Native images, since the goal is to run from Linked binaries
+  rm -f *.ni.*
+
+  # Use hints for reflection roots, if provided in $(ReflectionRootsXml)
+  if [ -f $(ReflectionRootsXml) ]; 
+  then
+    ReflectionRoots="-x $(ReflectionRootsXml)"
+  fi
+
+  # Include all .exe files in this directory as entry points (some tests had multiple .exe file modules)
+  for bin in *.exe *.dll; 
+  do 
+    Assemblies="$Assemblies -a ${bin%.*}"
+  done
+
+  # Run dotnet-linker
+  # Run the Linker such that all assemblies except System.Private.Corlib.dll are linked
+  # Debug symbol generation needs some fixes, and is currently omitted.
+  # Once this is fixed, add -b true option.
+  echo "$ILLINK -out $LinkBin -d $CORE_ROOT -c link -l none -t $Assemblies $ReflectionRoots"
+  $ILLINK -out $LinkBin -d $CORE_ROOT -c link -l none -t $Assemblies $ReflectionRoots
+  ERRORLEVEL=$?
+  if [  $ERRORLEVEL -ne 0 ]
+  then
+    echo ILLINK FAILED $ERRORLEVEL
+    if [ -z "$KeepLinkedBinaries" ]; 
+    then
+      rm -rf $LinkBin
+    fi
+    exit 1
+  fi
+  
+  # Copy CORECLR native binaries to $LinkBin, 
+  # so that we can run the test based on that directory
+  cp $CORE_ROOT/*.so $LinkBin/
+  cp $CORE_ROOT/corerun $LinkBin/
+
+  # Copy some files that may be arguments
+  for f in *.txt;
+  do
+    [ -e "$f" ] && cp $f $LinkBin
+  done
+
+  ExePath=$LinkBin/$(InputAssemblyName)
+  export CORE_ROOT=$PWD/$LinkBin
+fi
+]]>
+          </BashLinkerTestLaunchCmds>
+          <BashLinkerTestCleanupCmds>
+              <![CDATA[
+# Clean up the LinkBin directories after test execution.
+# Otherwise, RunTests may run out of disk space.
+
+if [ ! -z "$DoLink" ]; 
+then
+  if [ -z "$KeepLinkedBinaries" ]; 
+  then
+    rm -rf $LinkBin
+  fi
+fi
+]]>
+          </BashLinkerTestCleanupCmds>
+      </PropertyGroup>
+      <PropertyGroup>
+      <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"$CORE_ROOT/corerun"</_CLRTestRunFile>
+      <BashCLRTestLaunchCmds><![CDATA[
+if [ -z "$DoLink" -a ! -z "$RunningIlasmRoundTrip" ];
+then
+  echo $(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments
+  $(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments
+  if [  $? -ne $CLRTestExpectedExitCode ]
+  then
+    echo END EXECUTION OF IL{D}ASM BINARY - FAILED $? vs $CLRTestExpectedExitCode
+    echo FAILED
+    exit 1
+  fi
 fi
       ]]></BashCLRTestLaunchCmds>
 
-      <BashCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'"><![CDATA[
+      <BashCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'">
+    <![CDATA[
+ExePath=$(InputAssemblyName)
+$(BashLinkerTestLaunchCmds)
 $(BashCLRTestLaunchCmds)
-echo $_DebuggerFullPath $(_CLRTestRunFile) $(InputAssemblyName) $CLRTestExecutionArguments 
-$_DebuggerFullPath $(_CLRTestRunFile) $(InputAssemblyName) $CLRTestExecutionArguments 
+if [ ! -z ${RunCrossGen+x} ]%3B then
+  TakeLock
+fi
+echo $_DebuggerFullPath $(_CLRTestRunFile) $ExePath $CLRTestExecutionArguments 
+$_DebuggerFullPath $(_CLRTestRunFile) $ExePath $CLRTestExecutionArguments 
 CLRTestExitCode=$?
+if [ ! -z ${RunCrossGen+x} ]%3B then
+  ReleaseLock
+fi
+$(BashLinkerTestCleanupCmds)
       ]]></BashCLRTestLaunchCmds>
       <BashCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'RunOnly'"><![CDATA[
 $(BashCLRTestLaunchCmds)
@@ -229,10 +296,6 @@ CLRTestExpectedExitCode=0
     <!-- Raise an error if any value in _RequiredProperties is missing  -->
     <Error Condition=" '%(_RequiredProperties.Value)'=='' "
       Text="Missing required test property [%(_RequiredProperties.Identity)]. Something isn't plumbed through correctly.  Contact $(_CLRTestBuildSystemOwner)." />
-      <!-- TODO: this is weird.  Consider eliminating it. -->
-    <GenerateParamList ArgumentItems="@(BashCLRTestExecutionScriptArgument)">
-      <Output TaskParameter="ParamList" PropertyName="_CLRTestParamList"/>
-    </GenerateParamList>
     <PropertyGroup>
       <!--
       This generates the script portion to parse all of the command line arguments.
@@ -274,6 +337,7 @@ $(BashCLRTestArgPrep)
       <!-- NOTE! semicolons must be escaped with %3B boooo -->
       <_CLRTestExecutionScriptText>
         <![CDATA[
+%23%21/usr/bin/env bash
 TakeLock()
 {
     echo "in takeLock"
@@ -308,7 +372,6 @@ $(BashCLRTestEnvironmentCompatibilityCheck)
 $(BashCLRTestArgPrep)
 $(BashCLRTestExitCodePrep)
 $(JitDisasmBashScript)
-# IlasmRoundTrip Script
 $(IlasmRoundTripBashScript)
 # PreCommands
 $(BashCLRTestPreCommands)

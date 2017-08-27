@@ -25,13 +25,13 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // same code for all platforms, hence it is here instead of in the targetXXX.cpp
 // files.
 
-#ifdef PLATFORM_UNIX
+#ifdef _TARGET_UNIX_
 // Should we distinguish Mac? Can we?
 // Should we distinguish flavors of Unix? Can we?
 const char* Target::g_tgtPlatformName = "Unix";
-#else  // !PLATFORM_UNIX
+#else  // !_TARGET_UNIX_
 const char* Target::g_tgtPlatformName = "Windows";
-#endif // !PLATFORM_UNIX
+#endif // !_TARGET_UNIX_
 
 /*****************************************************************************/
 
@@ -698,18 +698,24 @@ const char* refCntWtd2str(unsigned refCntWtd)
 
     nump = (nump == num1) ? num2 : num1;
 
-    unsigned valueInt  = refCntWtd / BB_UNITY_WEIGHT;
-    unsigned valueFrac = refCntWtd % BB_UNITY_WEIGHT;
-
-    if (valueFrac == 0)
+    if (refCntWtd == BB_MAX_WEIGHT)
     {
-        sprintf_s(temp, bufSize, "%2u  ", valueInt);
+        sprintf_s(temp, bufSize, "MAX   ");
     }
     else
     {
-        sprintf_s(temp, bufSize, "%2u.%1u", valueInt, (valueFrac * 10 / BB_UNITY_WEIGHT));
-    }
+        unsigned valueInt  = refCntWtd / BB_UNITY_WEIGHT;
+        unsigned valueFrac = refCntWtd % BB_UNITY_WEIGHT;
 
+        if (valueFrac == 0)
+        {
+            sprintf_s(temp, bufSize, "%u   ", valueInt);
+        }
+        else
+        {
+            sprintf_s(temp, bufSize, "%u.%02u", valueInt, (valueFrac * 100 / BB_UNITY_WEIGHT));
+        }
+    }
     return temp;
 }
 
@@ -780,7 +786,7 @@ void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
     }
 
     // Allocate some persistent memory
-    ICorJitHost* jitHost = JitHost::getJitHost();
+    ICorJitHost* jitHost = g_jitHost;
     m_ranges             = (Range*)jitHost->allocateMemory(capacity * sizeof(Range));
     m_entries            = capacity;
 
@@ -1309,6 +1315,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_NEW_MDARR:
             case CORINFO_HELP_NEWARR_1_DIRECT:
             case CORINFO_HELP_NEWARR_1_OBJ:
+            case CORINFO_HELP_NEWARR_1_R2R_DIRECT:
             case CORINFO_HELP_READYTORUN_NEWARR_1:
 
                 mayFinalize   = true; // These may run a finalizer
@@ -1358,6 +1365,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_ISINSTANCEOFCLASS:
             case CORINFO_HELP_ISINSTANCEOFANY:
             case CORINFO_HELP_READYTORUN_ISINSTANCEOF:
+            case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE:
 
                 isPure  = true;
                 noThrow = true; // These return null for a failing cast
@@ -1411,9 +1419,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_GETGENERICS_GCSTATIC_BASE:
             case CORINFO_HELP_GETGENERICS_NONGCSTATIC_BASE:
             case CORINFO_HELP_READYTORUN_STATIC_BASE:
-#if COR_JIT_EE_VERSION > 460
             case CORINFO_HELP_READYTORUN_GENERIC_STATIC_BASE:
-#endif // COR_JIT_EE_VERSION > 460
 
                 // These may invoke static class constructors
                 // These can throw InvalidProgram exception if the class can not be constructed
@@ -1463,9 +1469,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_VERIFICATION:
             case CORINFO_HELP_RNGCHKFAIL:
             case CORINFO_HELP_THROWDIVZERO:
-#if COR_JIT_EE_VERSION > 460
             case CORINFO_HELP_THROWNULLREF:
-#endif // COR_JIT_EE_VERSION
             case CORINFO_HELP_THROW:
             case CORINFO_HELP_RETHROW:
 
@@ -1747,7 +1751,7 @@ double FloatingPointUtils::round(double x)
 {
     // If the number has no fractional part do nothing
     // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
-    if (x == ((double)((__int64)x)))
+    if (x == (double)((INT64)x))
     {
         return x;
     }
@@ -1764,4 +1768,378 @@ double FloatingPointUtils::round(double x)
     }
 
     return _copysign(flrTempVal, x);
+}
+
+// Windows x86 and Windows ARM/ARM64 may not define _copysignf() but they do define _copysign().
+// We will redirect the macro to this other functions if the macro is not defined for the platform.
+// This has the side effect of a possible implicit upcasting for arguments passed in and an explicit
+// downcasting for the _copysign() call.
+#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)) && !defined(FEATURE_PAL)
+
+#if !defined(_copysignf)
+#define _copysignf (float)_copysign
+#endif
+
+#endif
+
+// Rounds a single-precision floating-point value to the nearest integer,
+// and rounds midpoint values to the nearest even number.
+// Note this should align with classlib in floatsingle.cpp
+// Specializing for x86 using a x87 instruction is optional since
+// this outcome is identical across targets.
+float FloatingPointUtils::round(float x)
+{
+    // If the number has no fractional part do nothing
+    // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
+    if (x == (float)((INT32)x))
+    {
+        return x;
+    }
+
+    // We had a number that was equally close to 2 integers.
+    // We need to return the even one.
+
+    float tempVal    = (x + 0.5f);
+    float flrTempVal = floorf(tempVal);
+
+    if ((flrTempVal == tempVal) && (fmodf(tempVal, 2.0f) != 0))
+    {
+        flrTempVal -= 1.0f;
+    }
+
+    return _copysignf(flrTempVal, x);
+}
+
+namespace MagicDivide
+{
+template <int TableBase = 0, int TableSize, typename Magic>
+static const Magic* TryGetMagic(const Magic (&table)[TableSize], typename Magic::DivisorType index)
+{
+    if ((index < TableBase) || (TableBase + TableSize <= index))
+    {
+        return nullptr;
+    }
+
+    const Magic* p = &table[index - TableBase];
+
+    if (p->magic == 0)
+    {
+        return nullptr;
+    }
+
+    return p;
+};
+
+template <typename T>
+struct UnsignedMagic
+{
+    typedef T DivisorType;
+
+    T    magic;
+    bool add;
+    int  shift;
+};
+
+template <typename T>
+const UnsignedMagic<T>* TryGetUnsignedMagic(T divisor)
+{
+    return nullptr;
+}
+
+template <>
+const UnsignedMagic<uint32_t>* TryGetUnsignedMagic(uint32_t divisor)
+{
+    static const UnsignedMagic<uint32_t> table[]{
+        {0xaaaaaaab, false, 1}, // 3
+        {},
+        {0xcccccccd, false, 2}, // 5
+        {0xaaaaaaab, false, 2}, // 6
+        {0x24924925, true, 3},  // 7
+        {},
+        {0x38e38e39, false, 1}, // 9
+        {0xcccccccd, false, 3}, // 10
+        {0xba2e8ba3, false, 3}, // 11
+        {0xaaaaaaab, false, 3}, // 12
+    };
+
+    return TryGetMagic<3>(table, divisor);
+}
+
+template <>
+const UnsignedMagic<uint64_t>* TryGetUnsignedMagic(uint64_t divisor)
+{
+    static const UnsignedMagic<uint64_t> table[]{
+        {0xaaaaaaaaaaaaaaab, false, 1}, // 3
+        {},
+        {0xcccccccccccccccd, false, 2}, // 5
+        {0xaaaaaaaaaaaaaaab, false, 2}, // 6
+        {0x2492492492492493, true, 3},  // 7
+        {},
+        {0xe38e38e38e38e38f, false, 3}, // 9
+        {0xcccccccccccccccd, false, 3}, // 10
+        {0x2e8ba2e8ba2e8ba3, false, 1}, // 11
+        {0xaaaaaaaaaaaaaaab, false, 3}, // 12
+    };
+
+    return TryGetMagic<3>(table, divisor);
+}
+
+//------------------------------------------------------------------------
+// GetUnsignedMagic: Generates a magic number and shift amount for the magic
+// number unsigned division optimization.
+//
+// Arguments:
+//    d     - The divisor
+//    add   - Pointer to a flag indicating the kind of code to generate
+//    shift - Pointer to the shift value to be returned
+//
+// Returns:
+//    The magic number.
+//
+// Notes:
+//    This code is adapted from _The_PowerPC_Compiler_Writer's_Guide_, pages 57-58.
+//    The paper is based on "Division by invariant integers using multiplication"
+//    by Torbjorn Granlund and Peter L. Montgomery in PLDI 94
+
+template <typename T>
+T GetUnsignedMagic(T d, bool* add /*out*/, int* shift /*out*/)
+{
+    assert((d >= 3) && !isPow2(d));
+
+    const UnsignedMagic<T>* magic = TryGetUnsignedMagic(d);
+
+    if (magic != nullptr)
+    {
+        *shift = magic->shift;
+        *add   = magic->add;
+        return magic->magic;
+    }
+
+    typedef typename jitstd::make_signed<T>::type ST;
+
+    const unsigned bits       = sizeof(T) * 8;
+    const unsigned bitsMinus1 = bits - 1;
+    const T        twoNMinus1 = T(1) << bitsMinus1;
+
+    *add        = false;
+    const T  nc = -ST(1) - -ST(d) % ST(d);
+    unsigned p  = bitsMinus1;
+    T        q1 = twoNMinus1 / nc;
+    T        r1 = twoNMinus1 - (q1 * nc);
+    T        q2 = (twoNMinus1 - 1) / d;
+    T        r2 = (twoNMinus1 - 1) - (q2 * d);
+    T        delta;
+
+    do
+    {
+        p++;
+
+        if (r1 >= (nc - r1))
+        {
+            q1 = 2 * q1 + 1;
+            r1 = 2 * r1 - nc;
+        }
+        else
+        {
+            q1 = 2 * q1;
+            r1 = 2 * r1;
+        }
+
+        if ((r2 + 1) >= (d - r2))
+        {
+            if (q2 >= (twoNMinus1 - 1))
+            {
+                *add = true;
+            }
+
+            q2 = 2 * q2 + 1;
+            r2 = 2 * r2 + 1 - d;
+        }
+        else
+        {
+            if (q2 >= twoNMinus1)
+            {
+                *add = true;
+            }
+
+            q2 = 2 * q2;
+            r2 = 2 * r2 + 1;
+        }
+
+        delta = d - 1 - r2;
+
+    } while ((p < (bits * 2)) && ((q1 < delta) || ((q1 == delta) && (r1 == 0))));
+
+    *shift = p - bits; // resulting shift
+    return q2 + 1;     // resulting magic number
+}
+
+uint32_t GetUnsigned32Magic(uint32_t d, bool* add /*out*/, int* shift /*out*/)
+{
+    return GetUnsignedMagic<uint32_t>(d, add, shift);
+}
+
+#ifdef _TARGET_64BIT_
+uint64_t GetUnsigned64Magic(uint64_t d, bool* add /*out*/, int* shift /*out*/)
+{
+    return GetUnsignedMagic<uint64_t>(d, add, shift);
+}
+#endif
+
+template <typename T>
+struct SignedMagic
+{
+    typedef T DivisorType;
+
+    T   magic;
+    int shift;
+};
+
+template <typename T>
+const SignedMagic<T>* TryGetSignedMagic(T divisor)
+{
+    return nullptr;
+}
+
+template <>
+const SignedMagic<int32_t>* TryGetSignedMagic(int32_t divisor)
+{
+    static const SignedMagic<int32_t> table[]{
+        {0x55555556, 0}, // 3
+        {},
+        {0x66666667, 1}, // 5
+        {0x2aaaaaab, 0}, // 6
+        {0x92492493, 2}, // 7
+        {},
+        {0x38e38e39, 1}, // 9
+        {0x66666667, 2}, // 10
+        {0x2e8ba2e9, 1}, // 11
+        {0x2aaaaaab, 1}, // 12
+    };
+
+    return TryGetMagic<3>(table, divisor);
+}
+
+template <>
+const SignedMagic<int64_t>* TryGetSignedMagic(int64_t divisor)
+{
+    static const SignedMagic<int64_t> table[]{
+        {0x5555555555555556, 0}, // 3
+        {},
+        {0x6666666666666667, 1}, // 5
+        {0x2aaaaaaaaaaaaaab, 0}, // 6
+        {0x4924924924924925, 1}, // 7
+        {},
+        {0x1c71c71c71c71c72, 0}, // 9
+        {0x6666666666666667, 2}, // 10
+        {0x2e8ba2e8ba2e8ba3, 1}, // 11
+        {0x2aaaaaaaaaaaaaab, 1}, // 12
+    };
+
+    return TryGetMagic<3>(table, divisor);
+}
+
+//------------------------------------------------------------------------
+// GetSignedMagic: Generates a magic number and shift amount for
+// the magic number division optimization.
+//
+// Arguments:
+//    denom - The denominator
+//    shift - Pointer to the shift value to be returned
+//
+// Returns:
+//    The magic number.
+//
+// Notes:
+//    This code is previously from UTC where it notes it was taken from
+//   _The_PowerPC_Compiler_Writer's_Guide_, pages 57-58. The paper is is based on
+//   is "Division by invariant integers using multiplication" by Torbjorn Granlund
+//   and Peter L. Montgomery in PLDI 94
+
+template <typename T>
+T GetSignedMagic(T denom, int* shift /*out*/)
+{
+    const SignedMagic<T>* magic = TryGetSignedMagic(denom);
+
+    if (magic != nullptr)
+    {
+        *shift = magic->shift;
+        return magic->magic;
+    }
+
+    const int bits         = sizeof(T) * 8;
+    const int bits_minus_1 = bits - 1;
+
+    typedef typename jitstd::make_unsigned<T>::type UT;
+
+    const UT two_nminus1 = UT(1) << bits_minus_1;
+
+    int p;
+    UT  absDenom;
+    UT  absNc;
+    UT  delta;
+    UT  q1;
+    UT  r1;
+    UT  r2;
+    UT  q2;
+    UT  t;
+    T   result_magic;
+    int result_shift;
+    int iters = 0;
+
+    absDenom = abs(denom);
+    t        = two_nminus1 + ((unsigned int)denom >> 31);
+    absNc    = t - 1 - (t % absDenom);        // absolute value of nc
+    p        = bits_minus_1;                  // initialize p
+    q1       = two_nminus1 / absNc;           // initialize q1 = 2^p / abs(nc)
+    r1       = two_nminus1 - (q1 * absNc);    // initialize r1 = rem(2^p, abs(nc))
+    q2       = two_nminus1 / absDenom;        // initialize q1 = 2^p / abs(denom)
+    r2       = two_nminus1 - (q2 * absDenom); // initialize r1 = rem(2^p, abs(denom))
+
+    do
+    {
+        iters++;
+        p++;
+        q1 *= 2; // update q1 = 2^p / abs(nc)
+        r1 *= 2; // update r1 = rem(2^p / abs(nc))
+
+        if (r1 >= absNc)
+        { // must be unsigned comparison
+            q1++;
+            r1 -= absNc;
+        }
+
+        q2 *= 2; // update q2 = 2^p / abs(denom)
+        r2 *= 2; // update r2 = rem(2^p / abs(denom))
+
+        if (r2 >= absDenom)
+        { // must be unsigned comparison
+            q2++;
+            r2 -= absDenom;
+        }
+
+        delta = absDenom - r2;
+    } while (q1 < delta || (q1 == delta && r1 == 0));
+
+    result_magic = q2 + 1; // resulting magic number
+    if (denom < 0)
+    {
+        result_magic = -result_magic;
+    }
+    *shift = p - bits; // resulting shift
+
+    return result_magic;
+}
+
+int32_t GetSigned32Magic(int32_t d, int* shift /*out*/)
+{
+    return GetSignedMagic<int32_t>(d, shift);
+}
+
+#ifdef _TARGET_64BIT_
+int64_t GetSigned64Magic(int64_t d, int* shift /*out*/)
+{
+    return GetSignedMagic<int64_t>(d, shift);
+}
+#endif
 }

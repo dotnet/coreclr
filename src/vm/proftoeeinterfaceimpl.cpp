@@ -986,7 +986,7 @@ HRESULT AllowObjectInspection()
 
 #endif // PROFILING_SUPPORTED
 
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+#if defined(PROFILING_SUPPORTED) || defined(FEATURE_EVENT_TRACE)
 
 //---------------------------------------------------------------------------------------
 //
@@ -1022,7 +1022,7 @@ ClassID SafeGetClassIDFromObject(Object * pObj)
 
 //---------------------------------------------------------------------------------------
 //
-// Callback of type walk_fn used by GCHeapUtilities::DiagWalkObject.  Keeps a count of each
+// Callback of type walk_fn used by IGCHeap::DiagWalkObject.  Keeps a count of each
 // object reference found.
 //
 // Arguments:
@@ -1033,7 +1033,7 @@ ClassID SafeGetClassIDFromObject(Object * pObj)
 //      Always returns TRUE to object walker so it walks the entire object
 //
 
-BOOL CountContainedObjectRef(Object * pBO, void * context)
+bool CountContainedObjectRef(Object * pBO, void * context)
 {
     LIMITED_METHOD_CONTRACT;
     // Increase the count
@@ -1044,7 +1044,7 @@ BOOL CountContainedObjectRef(Object * pBO, void * context)
 
 //---------------------------------------------------------------------------------------
 //
-// Callback of type walk_fn used by GCHeapUtilities::DiagWalkObject.  Stores each object reference
+// Callback of type walk_fn used by IGCHeap::DiagWalkObject.  Stores each object reference
 // encountered into an array.
 //
 // Arguments:
@@ -1058,7 +1058,7 @@ BOOL CountContainedObjectRef(Object * pBO, void * context)
 //      Always returns TRUE to object walker so it walks the entire object
 //
 
-BOOL SaveContainedObjectRef(Object * pBO, void * context)
+bool SaveContainedObjectRef(Object * pBO, void * context)
 {
     LIMITED_METHOD_CONTRACT;
     // Assign the value
@@ -1096,7 +1096,7 @@ BOOL SaveContainedObjectRef(Object * pBO, void * context)
 //
 extern bool s_forcedGCInProgress;
 
-BOOL HeapWalkHelper(Object * pBO, void * pvContext)
+bool HeapWalkHelper(Object * pBO, void * pvContext)
 {
     CONTRACTL
     {
@@ -1221,7 +1221,7 @@ BOOL HeapWalkHelper(Object * pBO, void * pvContext)
 //      Currently always returns TRUE
 //
 
-BOOL AllocByClassHelper(Object * pBO, void * pv)
+bool AllocByClassHelper(Object * pBO, void * pv)
 {
     CONTRACTL
     {
@@ -2117,7 +2117,7 @@ HRESULT ProfToEEInterfaceImpl::GetFunctionFromIP2(LPCBYTE ip, FunctionID * pFunc
     if (pReJitId != NULL)
     {
         MethodDesc * pMD = codeInfo.GetMethodDesc();
-        *pReJitId = pMD->GetReJitManager()->GetReJitId(pMD, codeInfo.GetStartAddress());
+        *pReJitId = ReJitManager::GetReJitId(pMD, codeInfo.GetStartAddress());
     }
 
     return S_OK;
@@ -2592,13 +2592,24 @@ HRESULT ProfToEEInterfaceImpl::GetCodeInfo3(FunctionID functionId,
         hr = ValidateParametersForGetCodeInfo(pMethodDesc, cCodeInfos, codeInfos);
         if (SUCCEEDED(hr))
         {
-            hr = GetCodeInfoFromCodeStart(
-                // Note here that we must consult the rejit manager to determine the code
-                // start address
-                pMethodDesc->GetReJitManager()->GetCodeStart(pMethodDesc, reJitId),
-                cCodeInfos,
-                pcCodeInfos,
-                codeInfos);
+            CodeVersionManager* pCodeVersionManager = pMethodDesc->GetCodeVersionManager();
+            ILCodeVersion ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMethodDesc, reJitId);
+
+            // Now that tiered compilation can create more than one jitted code version for the same rejit id
+            // we are arbitrarily choosing the first one to return. To return all of them we'd presumably need
+            // a new profiler API.
+            NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMethodDesc);
+            for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+            {
+                PCODE pCodeStart = iter->GetNativeCode();
+                hr = GetCodeInfoFromCodeStart(
+                    pCodeStart,
+                    cCodeInfos,
+                    pcCodeInfos,
+                    codeInfos);
+                break;
+            }
+            
         }
     }
     EX_CATCH_HRESULT(hr);
@@ -3557,90 +3568,7 @@ HRESULT ProfToEEInterfaceImpl::GetContextStaticAddress(ClassID classId,
          fieldToken, 
          contextId));
     
-#ifdef FEATURE_REMOTING
-
-    //
-    // Check for NULL parameters
-    //
-    if ((classId == NULL) || (contextId == NULL) || (ppAddress == NULL))
-    {
-        return E_INVALIDARG;
-    }
-
-    if (GetThread() == NULL)
-    {
-        return CORPROF_E_NOT_MANAGED_THREAD;
-    }
-
-    if (GetAppDomain() == NULL)
-    {
-        return E_FAIL;
-    }
-
-    TypeHandle typeHandle = TypeHandle::FromPtr((void *)classId);
-
-    //
-    // If this class is not fully restored, that is all the information we can get at this time.
-    //
-    if (!typeHandle.IsRestored())
-    {
-        return CORPROF_E_DATAINCOMPLETE;
-    }
-
-    //
-    // Get the field descriptor object
-    //
-    FieldDesc *pFieldDesc = typeHandle.GetModule()->LookupFieldDef(fieldToken);
-
-    if (pFieldDesc == NULL)
-    {
-        return E_INVALIDARG;
-    }
-
-    //
-    // Verify this field is of the right type
-    //
-    if(!pFieldDesc->IsStatic() ||
-       !pFieldDesc->IsContextStatic() ||
-       pFieldDesc->IsRVA() ||
-       pFieldDesc->IsThreadStatic())
-    {
-        return E_INVALIDARG;
-    }
-
-    // It may seem redundant to try to retrieve the same method table from GetEnclosingMethodTable, but classId 
-    // leads to the instantiated method table while GetEnclosingMethodTable returns the uninstantiated one.
-    MethodTable *pMethodTable = pFieldDesc->GetEnclosingMethodTable();
-
-    //
-    // Check that the data is available
-    //
-    if (!IsClassOfMethodTableInited(pMethodTable, GetAppDomain()))
-    {
-        return CORPROF_E_DATAINCOMPLETE;
-    }
-
-    //
-    // Get the context
-    //
-    Context *pContext = reinterpret_cast<Context *>(contextId);
-
-    //
-    // Store the result and return
-    //
-    PTR_VOID pAddress = pContext->GetStaticFieldAddrNoCreate(pFieldDesc);
-    if (pAddress == NULL)
-    {
-        return E_INVALIDARG;
-    }
-
-    *ppAddress = pAddress;
-
-    return S_OK;
-
-#else // FEATURE_REMOTING
     return E_NOTIMPL;
-#endif // FEATURE_REMOTING
 }
 
 /*
@@ -4727,16 +4655,10 @@ HRESULT ProfToEEInterfaceImpl::SetILInstrumentedCodeMap(FunctionID functionId,
     if (!pMethodDesc ->IsRestored())
         return CORPROF_E_DATAINCOMPLETE;
 
-#ifdef FEATURE_CORECLR
     if (g_pDebugInterface == NULL)
     {
         return CORPROF_E_DEBUGGING_DISABLED;
     }
-#else
-    // g_pDebugInterface is initialized on startup on desktop CLR, regardless of whether a debugger
-    // or profiler is loaded.  So it should always be available.
-    _ASSERTE(g_pDebugInterface != NULL);
-#endif // FEATURE_CORECLR
 
     COR_IL_MAP * rgNewILMapEntries = new (nothrow) COR_IL_MAP[cILMapEntries];
 
@@ -5181,16 +5103,10 @@ HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping2(FunctionID functionId,
         return E_INVALIDARG;
     }
 
-#ifdef FEATURE_CORECLR
     if (g_pDebugInterface == NULL)
     {
         return CORPROF_E_DEBUGGING_DISABLED;
     }
-#else
-    // g_pDebugInterface is initialized on startup on desktop CLR, regardless of whether a debugger
-    // or profiler is loaded.  So it should always be available.
-    _ASSERTE(g_pDebugInterface != NULL);
-#endif // FEATURE_CORECLR
 
     return (g_pDebugInterface->GetILToNativeMapping(pMD, cMap, pcMap, map));
 #else
@@ -6520,7 +6436,7 @@ HRESULT ProfToEEInterfaceImpl::GetFunctionFromIP3(LPCBYTE ip, FunctionID * pFunc
     if (pReJitId != NULL)
     {
         MethodDesc * pMD = codeInfo.GetMethodDesc();
-        *pReJitId = pMD->GetReJitManager()->GetReJitId(pMD, codeInfo.GetStartAddress());
+        *pReJitId = ReJitManager::GetReJitId(pMD, codeInfo.GetStartAddress());
     }
 
     return S_OK;
@@ -6927,7 +6843,7 @@ HRESULT ProfToEEInterfaceImpl::GetClassLayout(ClassID classID,
     // running into - attempting to get the class layout for all types at module load time.
     // If we don't detect this the runtime will AV during the field iteration below. Feel
     // free to eliminate this check when a more complete solution is available.
-    if (CORCOMPILE_IS_POINTER_TAGGED(*(typeHandle.AsMethodTable()->GetParentMethodTablePtr())))
+    if (typeHandle.AsMethodTable()->GetParentMethodTablePlainOrRelativePointerPtr()->IsTagged())
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -7411,7 +7327,7 @@ Loop:
                 REGDISPLAY rd;
                 ZeroMemory(&rd, sizeof(rd));
 
-                rd.pEbp = &ctxCur.Ebp;
+                rd.SetEbpLocation(&ctxCur.Ebp);
                 rd.SP = ctxCur.Esp;
                 rd.ControlPC = ctxCur.Eip;
 
@@ -7422,7 +7338,7 @@ Loop:
                     &codeManState, 
                     NULL);
 
-                ctxCur.Ebp = *(rd.pEbp);
+                ctxCur.Ebp = *rd.GetEbpLocation();
                 ctxCur.Esp = rd.SP;
                 ctxCur.Eip = rd.ControlPC;
             }
@@ -8334,7 +8250,7 @@ HRESULT ProfToEEInterfaceImpl::GetReJITIDs(
 
     MethodDesc * pMD = FunctionIdToMethodDesc(functionId);
 
-    return pMD->GetReJitManager()->GetReJITIDs(pMD, cReJitIds, pcReJitIds, reJitIds);
+    return ReJitManager::GetReJITIDs(pMD, cReJitIds, pcReJitIds, reJitIds);
 }
 
 HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
@@ -8681,11 +8597,7 @@ HRESULT ProfToEEInterfaceImpl::GetRuntimeInformation(USHORT * pClrInstanceId,
 
     if (pRuntimeType != NULL)
     {
-#ifdef FEATURE_CORECLR
         *pRuntimeType = COR_PRF_CORE_CLR;
-#else // FEATURE_CORECLR
-        *pRuntimeType = COR_PRF_DESKTOP_CLR;
-#endif // FEATURE_CORECLR
     }
 
     if (pMajorVersion != NULL)
@@ -9413,8 +9325,7 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
         return CORPROF_E_DATAINCOMPLETE;
     }
 
-    PersistentInlineTrackingMap *inliningMap = inlinersModule->GetNgenInlineTrackingMap();
-    if (inliningMap == NULL)
+    if (!inlinersModule->HasInlineTrackingMap())
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -9427,14 +9338,14 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
     EX_TRY
     {
         // Trying to use static buffer
-        COUNT_T methodsAvailable = inliningMap->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
+        COUNT_T methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
 
         // If static buffer is not enough, allocate an array.
         if (methodsAvailable > staticBufferSize)
         {
             DWORD dynamicBufferSize = methodsAvailable;
             dynamicBuffer = methodsBuffer = new MethodInModule[dynamicBufferSize];
-            methodsAvailable = inliningMap->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
+            methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
             if (methodsAvailable > dynamicBufferSize)
             {
                 _ASSERTE(!"Ngen image inlining info changed, this shouldn't be possible.");

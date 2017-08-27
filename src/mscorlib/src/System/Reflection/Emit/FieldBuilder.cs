@@ -4,19 +4,15 @@
 
 // 
 
-namespace System.Reflection.Emit 
+namespace System.Reflection.Emit
 {
     using System.Runtime.InteropServices;
     using System;
     using CultureInfo = System.Globalization.CultureInfo;
     using System.Reflection;
-    using System.Security.Permissions;
     using System.Diagnostics.Contracts;
-    
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_FieldBuilder))]
-[System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class FieldBuilder : FieldInfo, _FieldBuilder
+
+    public sealed class FieldBuilder : FieldInfo
     {
         #region Private Data Members
         private int m_fieldTok;
@@ -28,36 +24,36 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        internal FieldBuilder(TypeBuilder typeBuilder, String fieldName, Type type, 
+        internal FieldBuilder(TypeBuilder typeBuilder, String fieldName, Type type,
             Type[] requiredCustomModifiers, Type[] optionalCustomModifiers, FieldAttributes attributes)
         {
             if (fieldName == null)
                 throw new ArgumentNullException(nameof(fieldName));
 
             if (fieldName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(fieldName));
+                throw new ArgumentException(SR.Argument_EmptyName, nameof(fieldName));
 
             if (fieldName[0] == '\0')
-                throw new ArgumentException(Environment.GetResourceString("Argument_IllegalName"), nameof(fieldName));
+                throw new ArgumentException(SR.Argument_IllegalName, nameof(fieldName));
 
             if (type == null)
                 throw new ArgumentNullException(nameof(type));
 
             if (type == typeof(void))
-                throw new ArgumentException(Environment.GetResourceString("Argument_BadFieldType"));
+                throw new ArgumentException(SR.Argument_BadFieldType);
             Contract.EndContractBlock();
 
             m_fieldName = fieldName;
             m_typeBuilder = typeBuilder;
             m_fieldType = type;
             m_Attributes = attributes & ~FieldAttributes.ReservedMask;
-            
+
             SignatureHelper sigHelp = SignatureHelper.GetFieldSigHelper(m_typeBuilder.Module);
             sigHelp.AddArgument(type, requiredCustomModifiers, optionalCustomModifiers);
 
             int sigLength;
             byte[] signature = sigHelp.InternalGetSignature(out sigLength);
-            
+
             m_fieldTok = TypeBuilder.DefineField(m_typeBuilder.GetModuleBuilder().GetNativeHandle(),
                 typeBuilder.TypeToken.Token, fieldName, signature, sigLength, m_Attributes);
 
@@ -71,8 +67,6 @@ namespace System.Reflection.Emit
         {
             ModuleBuilder.SetFieldRVAContent(m_typeBuilder.GetModuleBuilder().GetNativeHandle(), m_tkField.Token, data, size);
         }
-
-        internal TypeBuilder GetTypeBuilder() { return m_typeBuilder; }
         #endregion
 
         #region MemberInfo Overrides
@@ -80,20 +74,20 @@ namespace System.Reflection.Emit
         {
             get { return m_fieldTok; }
         }
-        
+
         public override Module Module
         {
             get { return m_typeBuilder.Module; }
         }
 
-        public override String Name 
+        public override String Name
         {
-            get {return m_fieldName; }
+            get { return m_fieldName; }
         }
 
-        public override Type DeclaringType 
+        public override Type DeclaringType
         {
-            get 
+            get
             {
                 if (m_typeBuilder.m_isHiddenGlobalType == true)
                     return null;
@@ -101,10 +95,10 @@ namespace System.Reflection.Emit
                 return m_typeBuilder;
             }
         }
-        
-        public override Type ReflectedType 
+
+        public override Type ReflectedType
         {
-            get 
+            get
             {
                 if (m_typeBuilder.m_isHiddenGlobalType == true)
                     return null;
@@ -116,35 +110,35 @@ namespace System.Reflection.Emit
         #endregion
 
         #region FieldInfo Overrides
-        public override Type FieldType 
+        public override Type FieldType
         {
             get { return m_fieldType; }
         }
 
         public override Object GetValue(Object obj)
-        { 
-            // NOTE!!  If this is implemented, make sure that this throws 
-            // a NotSupportedException for Save-only dynamic assemblies.
-            // Otherwise, it could cause the .cctor to be executed.
-
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule"));
-        }
-
-        public override void SetValue(Object obj,Object val,BindingFlags invokeAttr,Binder binder,CultureInfo culture)
-        { 
-            // NOTE!!  If this is implemented, make sure that this throws 
-            // a NotSupportedException for Save-only dynamic assemblies.
-            // Otherwise, it could cause the .cctor to be executed.
-
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule"));
-        }
-
-        public override RuntimeFieldHandle FieldHandle 
         {
-            get { throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule")); }
+            // NOTE!!  If this is implemented, make sure that this throws 
+            // a NotSupportedException for Save-only dynamic assemblies.
+            // Otherwise, it could cause the .cctor to be executed.
+
+            throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override FieldAttributes Attributes 
+        public override void SetValue(Object obj, Object val, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
+        {
+            // NOTE!!  If this is implemented, make sure that this throws 
+            // a NotSupportedException for Save-only dynamic assemblies.
+            // Otherwise, it could cause the .cctor to be executed.
+
+            throw new NotSupportedException(SR.NotSupported_DynamicModule);
+        }
+
+        public override RuntimeFieldHandle FieldHandle
+        {
+            get { throw new NotSupportedException(SR.NotSupported_DynamicModule); }
+        }
+
+        public override FieldAttributes Attributes
         {
             get { return m_Attributes; }
         }
@@ -154,60 +148,42 @@ namespace System.Reflection.Emit
         #region ICustomAttributeProvider Implementation
         public override Object[] GetCustomAttributes(bool inherit)
         {
-             
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule"));
+            throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
-            
+
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-             
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule"));
+            throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-             
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule"));
+            throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
         #endregion
 
         #region Public Members
-        public FieldToken GetToken() 
+        public FieldToken GetToken()
         {
             return m_tkField;
         }
 
-        public void SetOffset(int iOffset) 
+        public void SetOffset(int iOffset)
         {
-            m_typeBuilder.ThrowIfCreated();     
-   
+            m_typeBuilder.ThrowIfCreated();
+
             TypeBuilder.SetFieldLayoutOffset(m_typeBuilder.GetModuleBuilder().GetNativeHandle(), GetToken().Token, iOffset);
         }
 
-        [Obsolete("An alternate API is available: Emit the MarshalAs custom attribute instead. http://go.microsoft.com/fwlink/?linkid=14202")]
-        public void SetMarshal(UnmanagedMarshal unmanagedMarshal)
+        public void SetConstant(Object defaultValue)
         {
-            if (unmanagedMarshal == null)
-                throw new ArgumentNullException(nameof(unmanagedMarshal));
-            Contract.EndContractBlock();
-
             m_typeBuilder.ThrowIfCreated();
 
-            byte[] ubMarshal = unmanagedMarshal.InternalGetBytes();
-
-            TypeBuilder.SetFieldMarshal(m_typeBuilder.GetModuleBuilder().GetNativeHandle(), GetToken().Token, ubMarshal, ubMarshal.Length);
-        }
-
-        public void SetConstant(Object defaultValue) 
-        {
-            m_typeBuilder.ThrowIfCreated();  
-      
             TypeBuilder.SetConstantValue(m_typeBuilder.GetModuleBuilder(), GetToken().Token, m_fieldType, defaultValue);
         }
-        
 
-[System.Runtime.InteropServices.ComVisible(true)]
+
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
             if (con == null)

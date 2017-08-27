@@ -35,7 +35,7 @@ namespace System
             {
                 // The value of APP_CONTEXT_BASE_DIRECTORY key has to be a string and it is not allowed to be any other type. 
                 // Otherwise the caller will get invalid cast exception
-                return (string) AppDomain.CurrentDomain.GetData("APP_CONTEXT_BASE_DIRECTORY") ?? AppDomain.CurrentDomain.BaseDirectory;
+                return (string)AppDomain.CurrentDomain.GetData("APP_CONTEXT_BASE_DIRECTORY") ?? AppDomain.CurrentDomain.BaseDirectory;
             }
         }
 
@@ -72,19 +72,19 @@ namespace System
         }
 
         public static event System.EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> FirstChanceException
-        {  
-            add  
-            {  
-                AppDomain.CurrentDomain.FirstChanceException += value;  
-            }  
-            remove  
-            {  
-                AppDomain.CurrentDomain.FirstChanceException -= value;  
-            }  
-        }  
+        {
+            add
+            {
+                AppDomain.CurrentDomain.FirstChanceException += value;
+            }
+            remove
+            {
+                AppDomain.CurrentDomain.FirstChanceException -= value;
+            }
+        }
 
         public static event System.EventHandler ProcessExit;
-        public static event System.EventHandler Unloading;
+        internal static event System.EventHandler Unloading;
 
         private static void OnProcessExit(object sender, EventArgs e)
         {
@@ -116,7 +116,7 @@ namespace System
             if (switchName == null)
                 throw new ArgumentNullException(nameof(switchName));
             if (switchName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(switchName));
+                throw new ArgumentException(SR.Argument_EmptyName, nameof(switchName));
 
             // By default, the switch is not enabled.
             isEnabled = false;
@@ -144,7 +144,7 @@ namespace System
                     }
 
                     // We get the value of isEnabled from the value that we stored in the dictionary
-                    isEnabled = (switchValue & SwitchValueState.HasTrueValue) == SwitchValueState.HasTrueValue; 
+                    isEnabled = (switchValue & SwitchValueState.HasTrueValue) == SwitchValueState.HasTrueValue;
 
                     // 2. The switch has a valid value AND we have checked for overrides
                     if ((switchValue & SwitchValueState.HasLookedForOverride) == SwitchValueState.HasLookedForOverride)
@@ -212,7 +212,7 @@ namespace System
             if (switchName == null)
                 throw new ArgumentNullException(nameof(switchName));
             if (switchName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(switchName));
+                throw new ArgumentException(SR.Argument_EmptyName, nameof(switchName));
 
             SwitchValueState switchValue = (isEnabled ? SwitchValueState.HasTrueValue : SwitchValueState.HasFalseValue)
                                             | SwitchValueState.HasLookedForOverride;

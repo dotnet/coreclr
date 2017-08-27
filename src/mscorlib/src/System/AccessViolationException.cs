@@ -11,41 +11,40 @@
 **
 =============================================================================*/
 
-namespace System 
-{   
-    
-    using System;
-    using System.Runtime.Serialization;
-    [System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable]
-    public class AccessViolationException : SystemException 
+using System;
+using System.Runtime.Serialization;
+
+namespace System
+{
+    public class AccessViolationException : SystemException
     {
-        public AccessViolationException() 
-            : base(Environment.GetResourceString("Arg_AccessViolationException")) 
+        public AccessViolationException()
+            : base(SR.Arg_AccessViolationException)
         {
-            SetErrorCode(__HResults.E_POINTER);
-        }
-    
-        public AccessViolationException(String message) 
-            : base(message) 
-        {
-            SetErrorCode(__HResults.E_POINTER);
-        }
-        
-        public AccessViolationException(String message, Exception innerException) 
-            : base(message, innerException) 
-        {
-            SetErrorCode(__HResults.E_POINTER);
+            HResult = __HResults.E_POINTER;
         }
 
-        protected AccessViolationException(SerializationInfo info, StreamingContext context) : base(info, context) {}
+        public AccessViolationException(String message)
+            : base(message)
+        {
+            HResult = __HResults.E_POINTER;
+        }
+
+        public AccessViolationException(String message, Exception innerException)
+            : base(message, innerException)
+        {
+            HResult = __HResults.E_POINTER;
+        }
+
+        protected AccessViolationException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
 
 #pragma warning disable 169  // Field is not used from managed.
         private IntPtr _ip;             // Address of faulting instruction.
         private IntPtr _target;         // Address that could not be accessed.
         private int _accessType;        // 0:read, 1:write
 #pragma warning restore 169
-
     }
-
 }

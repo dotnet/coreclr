@@ -11,6 +11,13 @@ namespace System.Diagnostics.Tracing
 {
     public partial class EventSource
     {
+#if FEATURE_MANAGED_ETW && FEATURE_PERFTRACING
+        // For non-Windows, we use a thread-local variable to hold the activity ID.
+        // On Windows, ETW has it's own thread-local variable and we participate in its use.
+        [ThreadStatic]
+        private static Guid s_currentThreadActivityId;
+#endif // FEATURE_MANAGED_ETW && FEATURE_PERFTRACING
+
         // ActivityID support (see also WriteEventWithRelatedActivityIdCore)
         /// <summary>
         /// When a thread starts work that is on behalf of 'something else' (typically another 
@@ -40,9 +47,13 @@ namespace System.Diagnostics.Tracing
             // We ignore errors to keep with the convention that EventSources do not throw errors.
             // Note we can't access m_throwOnWrites because this is a static method.  
 
+#if FEATURE_PERFTRACING
+            s_currentThreadActivityId = activityId;
+#elif PLATFORM_WINDOWS
             if (UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
                 UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_GET_SET_ID,
                 ref activityId) == 0)
+#endif // FEATURE_PERFTRACING
             {
 #if FEATURE_ACTIVITYSAMPLING
                 var activityDying = s_activityDying;
@@ -86,9 +97,14 @@ namespace System.Diagnostics.Tracing
             // We ignore errors to keep with the convention that EventSources do not throw errors.
             // Note we can't access m_throwOnWrites because this is a static method.  
 
+#if FEATURE_PERFTRACING
+            oldActivityThatWillContinue = s_currentThreadActivityId;
+            s_currentThreadActivityId = activityId;
+#elif PLATFORM_WINDOWS
             UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
                 UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_GET_SET_ID,
                     ref oldActivityThatWillContinue);
+#endif // FEATURE_PERFTRACING
 #endif // FEATURE_MANAGED_ETW
 
             // We don't call the activityDying callback here because the caller has declared that
@@ -108,9 +124,13 @@ namespace System.Diagnostics.Tracing
                 // errors. Note we can't access m_throwOnWrites because this is a static method.
                 Guid retVal = new Guid();
 #if FEATURE_MANAGED_ETW
+#if FEATURE_PERFTRACING
+                retVal = s_currentThreadActivityId;
+#elif PLATFORM_WINDOWS
                 UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
                     UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_GET_ID,
                     ref retVal);
+#endif // FEATURE_PERFTRACING
 #endif // FEATURE_MANAGED_ETW
                 return retVal;
             }
@@ -128,12 +148,12 @@ namespace System.Diagnostics.Tracing
 
         private static string GetResourceString(string key, params object[] args)
         {
-            return Environment.GetResourceString(key, args);
+            return SR.Format(SR.GetResourceString(key), args);
         }
-        
+
         private static readonly bool m_EventSourcePreventRecursion = false;
     }
-    
+
     internal partial class ManifestBuilder
     {
         private string GetTypeNameHelper(Type type)
@@ -174,13 +194,13 @@ namespace System.Diagnostics.Tracing
                         return "win:Pointer";
                     else if ((type.IsArray || type.IsPointer) && type.GetElementType() == typeof(byte))
                         return "win:Binary";
-                        
+
                     ManifestError(Resources.GetResourceString("EventSource_UnsupportedEventTypeInManifest", type.Name), true);
                     return string.Empty;
             }
         }
     }
-    
+
     internal partial class EventProvider
     {
         internal unsafe int SetInformation(
@@ -197,7 +217,7 @@ namespace System.Diagnostics.Tracing
                     status = UnsafeNativeMethods.ManifestEtw.EventSetInformation(
                         m_regHandle,
                         eventInfoClass,
-                        (void *)data,
+                        (void*)data,
                         (int)dataSize);
                 }
                 catch (TypeLoadException)
@@ -209,12 +229,12 @@ namespace System.Diagnostics.Tracing
             return status;
         }
     }
-    
+
     internal static class Resources
     {
         internal static string GetResourceString(string key, params object[] args)
         {
-            return Environment.GetResourceString(key, args);
+            return SR.Format(SR.GetResourceString(key), args);
         }
     }
 }

@@ -205,9 +205,9 @@ inline void *__cdecl operator new(size_t, void *_P)
 
 #endif // DEBUG
 
-#define NTAPI       __stdcall
-#define WINAPI      __stdcall
-#define CALLBACK    __stdcall
+#define NTAPI       __cdecl
+#define WINAPI      __cdecl
+#define CALLBACK    __cdecl
 #define NTSYSAPI
 
 #define _WINNT_
@@ -249,10 +249,10 @@ inline void *__cdecl operator new(size_t, void *_P)
 
 #define interface struct
 
-#define STDMETHODCALLTYPE    __stdcall
+#define STDMETHODCALLTYPE    __cdecl
 #define STDMETHODVCALLTYPE   __cdecl
 
-#define STDAPICALLTYPE       __stdcall
+#define STDAPICALLTYPE       __cdecl
 #define STDAPIVCALLTYPE      __cdecl
 
 #define STDMETHODIMP         HRESULT STDMETHODCALLTYPE
@@ -1083,17 +1083,6 @@ typename std::remove_reference<T>::type&& move( T&& t );
 
 typedef DWORD OLE_COLOR;
 
-typedef union __m128i {
-    __int8              m128i_i8[16];
-    __int16             m128i_i16[8];
-    __int32             m128i_i32[4];    
-    __int64             m128i_i64[2];
-    unsigned __int8     m128i_u8[16];
-    unsigned __int16    m128i_u16[8];
-    unsigned __int32    m128i_u32[4];
-    unsigned __int64    m128i_u64[2];
-} __m128i;
-
 #define PF_COMPARE_EXCHANGE_DOUBLE          2
 
 typedef VOID (NTAPI * WAITORTIMERCALLBACKFUNC) (PVOID, BOOLEAN );
@@ -1110,7 +1099,7 @@ typedef struct _LIST_ENTRY {
    struct _LIST_ENTRY *Blink;
 } LIST_ENTRY, *PLIST_ENTRY;
 
-typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
+typedef VOID (NTAPI *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 
 // PORTABILITY_ASSERT and PORTABILITY_WARNING macros are meant to be used to
 // mark places in the code that needs attention for portability. The usual
@@ -1491,17 +1480,13 @@ typedef struct _DISPATCHER_CONTEXT {
 
 #elif defined(_X86_)
 
-typedef struct _EXCEPTION_REGISTRATION_RECORD {
-    struct _EXCEPTION_REGISTRATION_RECORD *Next;
-    PEXCEPTION_ROUTINE Handler;
-} EXCEPTION_REGISTRATION_RECORD;
-
 typedef struct _DISPATCHER_CONTEXT {
     DWORD ControlPc;
     DWORD ImageBase;
     PRUNTIME_FUNCTION FunctionEntry;
     DWORD EstablisherFrame;
     DWORD TargetIp;
+    PKNONVOLATILE_CONTEXT CurrentNonVolatileContextRecord;
     PCONTEXT ContextRecord;
     PEXCEPTION_ROUTINE LanguageHandler;
     PVOID HandlerData;

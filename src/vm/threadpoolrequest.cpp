@@ -21,22 +21,18 @@
 #include "object.h"
 #include "field.h"
 #include "excep.h"
-#include "security.h"
 #include "eeconfig.h"
 #include "corhost.h"
 #include "nativeoverlapped.h"
-#ifdef FEATURE_REMOTING
-#include "crossdomaincalls.h"
-#endif
 #include "appdomain.inl"
 
-BYTE PerAppDomainTPCountList::s_padding[64 - sizeof(LONG)];
+BYTE PerAppDomainTPCountList::s_padding[MAX_CACHE_LINE_SIZE - sizeof(LONG)];
 // Make this point to unmanaged TP in case, no appdomains have initialized yet.
 // Cacheline aligned, hot variable
-DECLSPEC_ALIGN(64) LONG PerAppDomainTPCountList::s_ADHint = -1;
+DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) LONG PerAppDomainTPCountList::s_ADHint = -1;
 
 // Move out of from preceeding variables' cache line
-DECLSPEC_ALIGN(64) UnManagedPerAppDomainTPCount PerAppDomainTPCountList::s_unmanagedTPCount;
+DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) UnManagedPerAppDomainTPCount PerAppDomainTPCountList::s_unmanagedTPCount;
 //The list of all per-appdomain work-request counts.
 ArrayListStatic PerAppDomainTPCountList::s_appDomainIndexList;
 
@@ -371,11 +367,8 @@ void UnManagedPerAppDomainTPCount::SetAppDomainRequestsActive()
         LONG prevCount = FastInterlockCompareExchange(&m_outstandingThreadRequestCount, count+1, count);
         if (prevCount == count)
         {
-            if (!CLRThreadpoolHosted())
-            {
-                ThreadpoolMgr::MaybeAddWorkingWorker();
-                ThreadpoolMgr::EnsureGateThreadRunning();
-            }
+            ThreadpoolMgr::MaybeAddWorkingWorker();
+            ThreadpoolMgr::EnsureGateThreadRunning();
             break;
         }
         count = prevCount;
@@ -611,11 +604,8 @@ void ManagedPerAppDomainTPCount::SetAppDomainRequestsActive()
             LONG prev = FastInterlockCompareExchange(&m_numRequestsPending, count+1, count);
             if (prev == count)
             {
-                if (!CLRThreadpoolHosted())
-                {
-                    ThreadpoolMgr::MaybeAddWorkingWorker();
-                    ThreadpoolMgr::EnsureGateThreadRunning();
-                }
+                ThreadpoolMgr::MaybeAddWorkingWorker();
+                ThreadpoolMgr::EnsureGateThreadRunning();
                 break;
             }
             count = prev;
@@ -691,7 +681,7 @@ void ManagedPerAppDomainTPCount::ClearAppDomainUnloading()
     // AD.
     //
     VolatileStore(&m_numRequestsPending, (LONG)ThreadpoolMgr::NumberOfProcessors);
-    if (!CLRThreadpoolHosted() && ThreadpoolMgr::IsInitialized())
+    if (ThreadpoolMgr::IsInitialized())
     {
         ThreadpoolMgr::MaybeAddWorkingWorker();
         ThreadpoolMgr::EnsureGateThreadRunning();
@@ -761,9 +751,6 @@ void ManagedPerAppDomainTPCount::DispatchWorkItem(bool* foundWork, bool* wasNotR
     // TODO: fix this another way!
     //        if (IsRequestPending())
             {
-                //This holder resets our thread's security state when exiting this scope
-                ThreadSecurityStateHolder  secState(pThread);
-
                 ManagedThreadBase::ThreadPool(appDomainId, QueueUserWorkItemManagedCallback, wasNotRecalled);
             }
 

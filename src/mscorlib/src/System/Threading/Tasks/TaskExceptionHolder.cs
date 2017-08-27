@@ -70,9 +70,9 @@ namespace System.Threading.Tasks
 
         private static void EnsureADUnloadCallbackRegistered()
         {
-            if (s_adUnloadEventHandler == null && 
-                Interlocked.CompareExchange( ref s_adUnloadEventHandler,
-                                             AppDomainUnloadCallback, 
+            if (s_adUnloadEventHandler == null &&
+                Interlocked.CompareExchange(ref s_adUnloadEventHandler,
+                                             AppDomainUnloadCallback,
                                              null) == null)
             {
                 AppDomain.CurrentDomain.DomainUnload += s_adUnloadEventHandler;
@@ -93,7 +93,7 @@ namespace System.Threading.Tasks
             // We need to do this filtering because all TaskExceptionHolders will be finalized during shutdown or unload
             // regardles of reachability of the task (i.e. even if the user code was about to observe the task's exception),
             // which can otherwise lead to spurious crashes during shutdown.
-            if (m_faultExceptions != null && !m_isHandled && 
+            if (m_faultExceptions != null && !m_isHandled &&
                 !Environment.HasShutdownStarted && !AppDomain.CurrentDomain.IsFinalizingForUnload() && !s_domainUnloadStarted)
             {
                 // We don't want to crash the finalizer thread if any ThreadAbortExceptions 
@@ -124,14 +124,14 @@ namespace System.Threading.Tasks
                 // will have been marked as handled before even getting here.
 
                 // Give users a chance to keep this exception from crashing the process
-                
+
                 // First, publish the unobserved exception and allow users to observe it
                 AggregateException exceptionToThrow = new AggregateException(
-                    Environment.GetResourceString("TaskExceptionHolder_UnhandledException"),
+                    SR.TaskExceptionHolder_UnhandledException,
                     m_faultExceptions);
                 UnobservedTaskExceptionEventArgs ueea = new UnobservedTaskExceptionEventArgs(exceptionToThrow);
                 TaskScheduler.PublishUnobservedTaskException(m_task, ueea);
-                
+
                 // Now, if we are still unobserved and we're configured to crash on unobserved, throw the exception.
                 // We need to publish the event above even if we're not going to crash, hence
                 // why this check doesn't come at the beginning of the method.
@@ -144,23 +144,6 @@ namespace System.Threading.Tasks
 
         /// <summary>Gets whether the exception holder is currently storing any exceptions for faults.</summary>
         internal bool ContainsFaultList { get { return m_faultExceptions != null; } }
-
-        /// <summary>
-        /// Add an exception to the holder.  This will ensure the holder is
-        /// in the proper state (handled/unhandled) depending on the list's contents.
-        /// </summary>
-        /// <param name="exceptionObject">
-        /// An exception object (either an Exception, an ExceptionDispatchInfo,
-        /// an IEnumerable{Exception}, or an IEnumerable{ExceptionDispatchInfo}) 
-        /// to add to the list.
-        /// </param>
-        /// <remarks>
-        /// Must be called under lock.
-        /// </remarks>
-        internal void Add(object exceptionObject)
-        {
-            Add(exceptionObject, representsCancellation: false);
-        }
 
         /// <summary>
         /// Add an exception to the holder.  This will ensure the holder is
@@ -181,7 +164,7 @@ namespace System.Threading.Tasks
         {
             Contract.Requires(exceptionObject != null, "TaskExceptionHolder.Add(): Expected a non-null exceptionObject");
             Contract.Requires(
-                exceptionObject is Exception || exceptionObject is IEnumerable<Exception> || 
+                exceptionObject is Exception || exceptionObject is IEnumerable<Exception> ||
                 exceptionObject is ExceptionDispatchInfo || exceptionObject is IEnumerable<ExceptionDispatchInfo>,
                 "TaskExceptionHolder.Add(): Expected Exception, IEnumerable<Exception>, ExceptionDispatchInfo, or IEnumerable<ExceptionDispatchInfo>");
 
@@ -197,16 +180,16 @@ namespace System.Threading.Tasks
         private void SetCancellationException(object exceptionObject)
         {
             Contract.Requires(exceptionObject != null, "Expected exceptionObject to be non-null.");
-            
-            Debug.Assert(m_cancellationException == null, 
-                "Expected SetCancellationException to be called only once.");
-                // Breaking this assumption will overwrite a previously OCE,
-                // and implies something may be wrong elsewhere, since there should only ever be one.
 
-            Debug.Assert(m_faultExceptions == null, 
+            Debug.Assert(m_cancellationException == null,
+                "Expected SetCancellationException to be called only once.");
+            // Breaking this assumption will overwrite a previously OCE,
+            // and implies something may be wrong elsewhere, since there should only ever be one.
+
+            Debug.Assert(m_faultExceptions == null,
                 "Expected SetCancellationException to be called before any faults were added.");
-                // Breaking this assumption shouldn't hurt anything here, but it implies something may be wrong elsewhere.
-                // If this changes, make sure to only conditionally mark as handled below.
+            // Breaking this assumption shouldn't hurt anything here, but it implies something may be wrong elsewhere.
+            // If this changes, make sure to only conditionally mark as handled below.
 
             // Store the cancellation exception
             var oce = exceptionObject as OperationCanceledException;
@@ -284,21 +267,21 @@ namespace System.Threading.Tasks
                             exceptions.AddRange(ediColl);
 #if DEBUG
                             Debug.Assert(exceptions.Count > 0, "There should be at least one dispatch info.");
-                            foreach(var tmp in exceptions)
+                            foreach (var tmp in exceptions)
                             {
                                 Debug.Assert(tmp != null, "No dispatch infos should be null");
                             }
 #endif
                         }
-                            // Anything else is a programming error
+                        // Anything else is a programming error
                         else
                         {
-                            throw new ArgumentException(Environment.GetResourceString("TaskExceptionHolder_UnknownExceptionType"), nameof(exceptionObject));
+                            throw new ArgumentException(SR.TaskExceptionHolder_UnknownExceptionType, nameof(exceptionObject));
                         }
                     }
                 }
             }
-                
+
 
             // If all of the exceptions are ThreadAbortExceptions and/or
             // AppDomainUnloadExceptions, we do not want the finalization

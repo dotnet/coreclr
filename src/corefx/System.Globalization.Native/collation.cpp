@@ -327,12 +327,6 @@ bool CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lpStr, i
 
 }
 
-extern "C" int32_t GlobalizationNative_GetSortVersion()
-{
-    // we didn't use UCOL_TAILORINGS_VERSION because it is deprecated in ICU v5
-    return UCOL_RUNTIME_VERSION << 16 | UCOL_BUILDER_VERSION;
-}
-
 extern "C" ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandle** ppSortHandle)
 {
     assert(ppSortHandle != nullptr);
@@ -407,6 +401,26 @@ const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t opti
     return pCollator;
 }
 
+extern "C" int32_t GlobalizationNative_GetSortVersion(SortHandle* pSortHandle)
+{
+    UErrorCode err = U_ZERO_ERROR;
+    const UCollator* pColl = GetCollatorFromSortHandle(pSortHandle, 0, &err);
+    int32_t result = 0;
+
+    if (U_SUCCESS(err))
+    {
+        ucol_getVersion(pColl, (uint8_t *) &result);
+    }
+    else
+    {
+        assert(false && "Unexpected ucol_getVersion to fail.");
+
+        // we didn't use UCOL_TAILORINGS_VERSION because it is deprecated in ICU v5
+        result = UCOL_RUNTIME_VERSION << 16 | UCOL_BUILDER_VERSION;
+    }
+    return result;
+}
+
 /*
 Function:
 CompareString
@@ -440,7 +454,8 @@ extern "C" int32_t GlobalizationNative_IndexOf(
                         int32_t cwTargetLength, 
                         const UChar* lpSource, 
                         int32_t cwSourceLength, 
-                        int32_t options)
+                        int32_t options,
+                        int32_t* pMatchedLength)
 {
     static_assert(USEARCH_DONE == -1, "managed side requires -1 for not found");
 
@@ -455,6 +470,13 @@ extern "C" int32_t GlobalizationNative_IndexOf(
         if (U_SUCCESS(err))
         {
             result = usearch_first(pSearch, &err);
+
+            // if the search was successful,
+            // we'll try to get the matched string length.
+            if(result != USEARCH_DONE && pMatchedLength != NULL)
+            { 
+                *pMatchedLength = usearch_getMatchedLength(pSearch);	
+            }
             usearch_close(pSearch);
         }
     }

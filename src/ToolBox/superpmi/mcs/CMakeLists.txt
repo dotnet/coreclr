@@ -1,8 +1,5 @@
 project(mcs)
 
-remove_definitions(-DUNICODE)
-remove_definitions(-D_UNICODE)
-
 add_definitions(-DFEATURE_NO_HOST)
 add_definitions(-DSELF_NO_HOST)
 
@@ -44,6 +41,7 @@ set(MCS_SOURCES
     ../superpmi-shared/spmiutil.cpp
     ../superpmi-shared/tocfile.cpp
     ../superpmi-shared/typeutils.cpp
+    ../superpmi-shared/spmidumphelper.cpp
 )
 
 add_precompiled_header(

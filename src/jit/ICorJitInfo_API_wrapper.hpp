@@ -122,14 +122,13 @@ CORINFO_MODULE_HANDLE WrapICorJitInfo::getMethodModule(
 void WrapICorJitInfo::getMethodVTableOffset(
             CORINFO_METHOD_HANDLE       method,                 /* IN */
             unsigned*                   offsetOfIndirection,    /* OUT */
-            unsigned*                   offsetAfterIndirection  /* OUT */)
+            unsigned*                   offsetAfterIndirection, /* OUT */
+            bool*                       isRelative              /* OUT */)
 {
     API_ENTER(getMethodVTableOffset);
-    wrapHnd->getMethodVTableOffset(method, offsetOfIndirection, offsetAfterIndirection);
+    wrapHnd->getMethodVTableOffset(method, offsetOfIndirection, offsetAfterIndirection, isRelative);
     API_LEAVE(getMethodVTableOffset);
 }
-
-#if COR_JIT_EE_VERSION > 460
 
 CorInfoIntrinsics WrapICorJitInfo::getIntrinsicID(
             CORINFO_METHOD_HANDLE       method,
@@ -140,18 +139,6 @@ CorInfoIntrinsics WrapICorJitInfo::getIntrinsicID(
     API_LEAVE(getIntrinsicID);
     return temp;
 }
-
-#else
-
-CorInfoIntrinsics WrapICorJitInfo::getIntrinsicID(CORINFO_METHOD_HANDLE method)
-{
-    API_ENTER(getIntrinsicID);
-    CorInfoIntrinsics temp = wrapHnd->getIntrinsicID(method);
-    API_LEAVE(getIntrinsicID);
-    return temp;
-}
-
-#endif
 
 bool WrapICorJitInfo::isInSIMDModule(CORINFO_CLASS_HANDLE classHnd)
 {
@@ -202,17 +189,6 @@ BOOL WrapICorJitInfo::isCompatibleDelegate(
     API_LEAVE(isCompatibleDelegate);
     return temp;
 }
-
-BOOL WrapICorJitInfo::isDelegateCreationAllowed(
-            CORINFO_CLASS_HANDLE        delegateHnd,
-            CORINFO_METHOD_HANDLE       calleeHnd)
-{
-    API_ENTER(isDelegateCreationAllowed);
-    BOOL temp = wrapHnd->isDelegateCreationAllowed(delegateHnd, calleeHnd);
-    API_LEAVE(isDelegateCreationAllowed);
-    return temp;
-}
-
 
 CorInfoInstantiationVerification WrapICorJitInfo::isInstantiationOfVerifiedGeneric(
             CORINFO_METHOD_HANDLE   method /* IN  */)
@@ -281,8 +257,6 @@ void WrapICorJitInfo::resolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResol
     API_LEAVE(resolveToken);
 }
 
-#if COR_JIT_EE_VERSION > 460
-
 bool WrapICorJitInfo::tryResolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken)
 {
     API_ENTER(tryResolveToken);
@@ -290,8 +264,6 @@ bool WrapICorJitInfo::tryResolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pRe
     API_LEAVE(tryResolveToken);
     return success;
 }
-
-#endif
 
 void WrapICorJitInfo::findSig(
             CORINFO_MODULE_HANDLE       module,
@@ -617,8 +589,6 @@ CorInfoHelpFunc WrapICorJitInfo::getUnBoxHelper(
     return temp;
 }
 
-#if COR_JIT_EE_VERSION > 460
-
 bool WrapICorJitInfo::getReadyToRunHelper(
             CORINFO_RESOLVED_TOKEN * pResolvedToken,
             CORINFO_LOOKUP_KIND *    pGenericLookupKind,
@@ -634,26 +604,12 @@ bool WrapICorJitInfo::getReadyToRunHelper(
 void WrapICorJitInfo::getReadyToRunDelegateCtorHelper(
     CORINFO_RESOLVED_TOKEN * pTargetMethod,
     CORINFO_CLASS_HANDLE     delegateType,
-    CORINFO_CONST_LOOKUP *   pLookup)
+    CORINFO_LOOKUP *   pLookup)
 {
     API_ENTER(getReadyToRunDelegateCtorHelper);
     wrapHnd->getReadyToRunDelegateCtorHelper(pTargetMethod, delegateType, pLookup);
     API_LEAVE(getReadyToRunDelegateCtorHelper);
 }
-
-#else
-
-void WrapICorJitInfo::getReadyToRunHelper(
-            CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CorInfoHelpFunc          id,
-            CORINFO_CONST_LOOKUP *   pLookup)
-{
-    API_ENTER(getReadyToRunHelper);
-    wrapHnd->getReadyToRunHelper(pResolvedToken, id, pLookup);
-    API_LEAVE(getReadyToRunHelper);
-}
-
-#endif
 
 const char* WrapICorJitInfo::getHelperName(
             CorInfoHelpFunc funcNum)
@@ -1094,8 +1050,6 @@ size_t WrapICorJitInfo::findNameOfToken(
     return result;
 }
 
-#if COR_JIT_EE_VERSION > 460
-
 bool WrapICorJitInfo::getSystemVAmd64PassStructInRegisterDescriptor(
         /* IN */    CORINFO_CLASS_HANDLE        structHnd,
         /* OUT */   SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structPassInRegDescPtr)
@@ -1105,8 +1059,6 @@ bool WrapICorJitInfo::getSystemVAmd64PassStructInRegisterDescriptor(
     API_LEAVE(getSystemVAmd64PassStructInRegisterDescriptor);
     return result;
 }
-
-#endif
 
 DWORD WrapICorJitInfo::getThreadTLSIndex(
                 void                  **ppIndirection)
@@ -1133,14 +1085,6 @@ LONG * WrapICorJitInfo::getAddrOfCaptureThreadGlobal(
     LONG * temp = wrapHnd->getAddrOfCaptureThreadGlobal(ppIndirection);
     API_LEAVE(getAddrOfCaptureThreadGlobal);
     return temp;
-}
-
-SIZE_T*       WrapICorJitInfo::getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module)
-{
-    API_ENTER(getAddrModuleDomainID);
-    SIZE_T* result = wrapHnd->getAddrModuleDomainID(module);
-    API_LEAVE(getAddrModuleDomainID);
-    return result;
 }
 
 void* WrapICorJitInfo::getHelperFtn(
@@ -1271,8 +1215,6 @@ void* WrapICorJitInfo::getAddressOfPInvokeFixup(
     return temp;
 }
 
-#if COR_JIT_EE_VERSION > 460
-
 void WrapICorJitInfo::getAddressOfPInvokeTarget(
                 CORINFO_METHOD_HANDLE   method,
                 CORINFO_CONST_LOOKUP   *pLookup)
@@ -1281,8 +1223,6 @@ void WrapICorJitInfo::getAddressOfPInvokeTarget(
     wrapHnd->getAddressOfPInvokeTarget(method, pLookup);
     API_LEAVE(getAddressOfPInvokeTarget);
 }
-
-#endif
 
 LPVOID WrapICorJitInfo::GetCookieForPInvokeCalliSig(
         CORINFO_SIG_INFO* szMetaSig,
@@ -1474,8 +1414,6 @@ void* WrapICorJitInfo::getTailCallCopyArgsThunk(
 //
 /*********************************************************************************/
 
-#if COR_JIT_EE_VERSION > 460
-
 DWORD WrapICorJitInfo::getJitFlags(CORJIT_FLAGS *jitFlags, DWORD sizeInBytes)
 {
     API_ENTER(getJitFlags);
@@ -1488,8 +1426,6 @@ bool WrapICorJitInfo::runWithErrorTrap(void(*function)(void*), void *param)
 {
     return wrapHnd->runWithErrorTrap(function, param);
 }
-
-#endif
 
 IEEMemoryManager* WrapICorJitInfo::getMemoryManager()
 {
@@ -1659,6 +1595,27 @@ DWORD WrapICorJitInfo::getExpectedTargetArchitecture()
     DWORD result = wrapHnd->getExpectedTargetArchitecture();
     API_LEAVE(getExpectedTargetArchitecture);
     return result;
+}
+
+CORINFO_METHOD_HANDLE WrapICorJitInfo::resolveVirtualMethod(
+    CORINFO_METHOD_HANDLE       virtualMethod,          /* IN */
+    CORINFO_CLASS_HANDLE        implementingClass,      /* IN */
+    CORINFO_CONTEXT_HANDLE      ownerType = NULL        /* IN */
+)
+{
+    API_ENTER(resolveVirtualMethod);
+    CORINFO_METHOD_HANDLE result = wrapHnd->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
+    API_LEAVE(resolveVirtualMethod);
+    return result;
+}
+
+void WrapICorJitInfo::expandRawHandleIntrinsic(
+    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+    CORINFO_GENERICHANDLE_RESULT *  pResult)
+{
+    API_ENTER(expandRawHandleIntrinsic);
+    wrapHnd->expandRawHandleIntrinsic(pResolvedToken, pResult);
+    API_LEAVE(expandRawHandleIntrinsic);
 }
 
 /**********************************************************************************/

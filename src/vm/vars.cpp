@@ -69,9 +69,7 @@ GPTR_IMPL(MethodTable,      g_pStringClass);
 GPTR_IMPL(MethodTable,      g_pArrayClass);
 GPTR_IMPL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_IMPL(MethodTable,      g_pNullableClass);
-#ifdef FEATURE_SPAN_OF_T
 GPTR_IMPL(MethodTable,      g_pByReferenceClass);
-#endif
 GPTR_IMPL(MethodTable,      g_pExceptionClass);
 GPTR_IMPL(MethodTable,      g_pThreadAbortExceptionClass);
 GPTR_IMPL(MethodTable,      g_pOutOfMemoryExceptionClass);
@@ -82,12 +80,6 @@ GPTR_IMPL(MethodTable,      g_pMulticastDelegateClass);
 GPTR_IMPL(MethodTable,      g_pValueTypeClass);
 GPTR_IMPL(MethodTable,      g_pEnumClass);
 GPTR_IMPL(MethodTable,      g_pThreadClass);
-#ifdef FEATURE_CER
-GPTR_IMPL(MethodTable,      g_pCriticalFinalizerObjectClass);
-#endif
-#ifndef FEATURE_CORECLR
-GPTR_IMPL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
-#endif // !FEATURE_CORECLR
 GPTR_IMPL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_IMPL(MethodTable,      g_pOverlappedDataClass);
 
@@ -105,12 +97,8 @@ GPTR_IMPL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
 
 
-#ifdef FEATURE_CER
-GPTR_IMPL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
-#endif
 GPTR_IMPL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
-GPTR_IMPL(MethodDesc,       g_pObjectCtorMD);
 GPTR_IMPL(MethodDesc,       g_pObjectFinalizerMD);
 
 GPTR_IMPL(Thread,g_pFinalizerThread);
@@ -138,9 +126,6 @@ GPTR_IMPL(RCWCleanupList,g_pRCWCleanupList);
 // <TODO> @TODO Remove eventually - </TODO> determines whether the verifier throws an exception when something fails
 bool                g_fVerifierOff;
 
-#ifndef FEATURE_CORECLR
-IAssemblyUsageLog   *g_pIAssemblyUsageLogGac;
-#endif
 
 // <TODO> @TODO - PROMOTE. </TODO>
 OBJECTHANDLE         g_pPreallocatedOutOfMemoryException;
@@ -150,10 +135,6 @@ OBJECTHANDLE         g_pPreallocatedRudeThreadAbortException;
 OBJECTHANDLE         g_pPreallocatedThreadAbortException;
 OBJECTHANDLE         g_pPreallocatedSentinelObject;
 OBJECTHANDLE         g_pPreallocatedBaseException;
-
-#ifdef FEATURE_CAS_POLICY
-CertificateCache *g_pCertificateCache = NULL;
-#endif
 
 // 
 //
@@ -249,14 +230,6 @@ bool g_fShutDownCOM = false;
 
 DWORD g_FinalizerWaiterStatus = 0;
 
-const WCHAR g_pwzClickOnceEnv_FullName[] = W("__COR_COMMAND_LINE_APP_FULL_NAME__");
-const WCHAR g_pwzClickOnceEnv_Manifest[] = W("__COR_COMMAND_LINE_MANIFEST__");
-const WCHAR g_pwzClickOnceEnv_Parameter[] = W("__COR_COMMAND_LINE_PARAMETER__");
-
-#ifdef FEATURE_LOADER_OPTIMIZATION
-DWORD g_dwGlobalSharePolicy = AppDomain::SHARE_POLICY_UNSPECIFIED;
-#endif
-
 //
 // Do we own the lifetime of the process, ie. is it an EXE?
 //
@@ -273,15 +246,6 @@ bool g_fInControlC = false;
 //
 LPWSTR g_pCachedCommandLine = NULL;
 LPWSTR g_pCachedModuleFileName = 0;
-
-// host configuration file. If set, it is added to every AppDomain (fusion context)
-LPCWSTR  g_pszHostConfigFile = NULL;
-SIZE_T  g_dwHostConfigFile = 0;
-
-// AppDomainManager assembly and type names provided as environment variables.
-LPWSTR g_wszAppDomainManagerAsm = NULL;
-LPWSTR g_wszAppDomainManagerType = NULL;
-bool g_fDomainManagerInitialized = false;
 
 //
 // IJW needs the shim HINSTANCE

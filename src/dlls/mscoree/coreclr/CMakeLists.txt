@@ -5,6 +5,10 @@ if (WIN32)
 
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ENTRY:CoreDllMain")
     
+    # Incremental linking results in the linker inserting extra padding and routing function calls via thunks that can break the 
+    # invariants (e.g. size of region between Jit_PatchedCodeLast-Jit_PatchCodeStart needs to fit in a page).
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /INCREMENTAL:NO")
+
     # Delay load libraries required for WinRT as that is not supported on all platforms
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DELAYLOAD:api-ms-win-core-winrt-string-l1-1-0.dll")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DELAYLOAD:api-ms-win-core-winrt-l1-1-0.dll")
@@ -79,7 +83,6 @@ set(CORECLR_LIBRARIES
     debug-pal
     ${LIB_UNWINDER}
     cee_wks
-    gc_wks
     ${END_LIBRARY_GROUP} # End group of libraries that have circular references
     mdcompiler_wks
     mdruntime_wks
@@ -125,17 +128,17 @@ else()
     )
 endif(WIN32)
 
-if(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_STANDALONE_GC)
-    list(APPEND CORECLR_LIBRARIES
-        gc_unix
-    )
-endif(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_STANDALONE_GC)
-
 if(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_EVENT_TRACE)
     list(APPEND CORECLR_LIBRARIES
         eventprovider
   )
 endif(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_EVENT_TRACE)
+
+if(CLR_CMAKE_PLATFORM_LINUX)
+    list(APPEND CORECLR_LIBRARIES
+        eventpipe
+  )
+endif(CLR_CMAKE_PLATFORM_LINUX)
 
 target_link_libraries(coreclr ${CORECLR_LIBRARIES}) 
 
@@ -159,23 +162,22 @@ if(WIN32)
     endif()
 
     add_custom_command(
-        TARGET coreclr
-        POST_BUILD
+        DEPENDS coreclr mscordaccore mscordbi ${CLR_DIR}/src/debug/daccess/daccess.cpp
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/inject_debug_resources.timestamp
         COMMAND ${CMAKE_CXX_COMPILER} /P /EP /TP ${PREPROCESS_DEFINITIONS} ${INC_DIR} /Fi${CMAKE_CURRENT_BINARY_DIR}/daccess.i  ${CLR_DIR}/src/debug/daccess/daccess.cpp
         COMMAND ${BuildToolsDir}/dactablegen.exe /dac:${CMAKE_CURRENT_BINARY_DIR}/daccess.i /pdb:${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/coreclr.pdb /dll:$<TARGET_FILE:coreclr> /bin:${CMAKE_CURRENT_BINARY_DIR}/wks.bin
         COMMAND ${BuildToolsDir}/InjectResource.exe /bin:${CMAKE_CURRENT_BINARY_DIR}/wks.bin /dll:$<TARGET_FILE:coreclr>
         COMMAND ${BuildToolsDir}/GenClrDebugResource.exe /dac:$<TARGET_FILE:mscordaccore> /dbi:$<TARGET_FILE:mscordbi> /sku:onecoreclr /out:${CMAKE_CURRENT_BINARY_DIR}/clrDebugResource.bin
         COMMAND ${BuildToolsDir}/InjectResource.exe /bin:${CMAKE_CURRENT_BINARY_DIR}/clrDebugResource.bin /dll:$<TARGET_FILE:coreclr> /name:CLRDEBUGINFO
-        COMMENT Add dactable & debug resources to coreclr
+        COMMAND ${BuildToolsDir}/InjectResource.exe /bin:${CMAKE_CURRENT_SOURCE_DIR}/dump_helper_resource.bin /dll:$<TARGET_FILE:coreclr> /name:MINIDUMP_AUXILIARY_PROVIDER
+        COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/inject_debug_resources.timestamp
+        COMMENT Add dactable, debug resources, and dump helper resources to coreclr
     )
-else()
-    add_custom_command(
-        TARGET coreclr
-        POST_BUILD
-        VERBATIM 
-        COMMAND sh ${CLR_DIR}/src/pal/tools/gen-dactable-rva.sh $<TARGET_FILE:coreclr> ${GENERATED_INCLUDE_DIR}/dactablerva.h
-        COMMENT Generating ${GENERATED_INCLUDE_DIR}/dactablerva.h
-    )
+
+    if(NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
+        add_custom_target(inject_debug_resources ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/inject_debug_resources.timestamp)
+    endif()
+
 endif(WIN32)
 
 # add the install targets

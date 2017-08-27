@@ -16,30 +16,30 @@
 **
 =============================================================================*/
 
-namespace System {
-    
-    using System;
-    using System.Runtime.Serialization;
 
-    [Serializable]
+using System;
+using System.Runtime.Serialization;
+
+namespace System
+{
     public sealed class InsufficientMemoryException : OutOfMemoryException
     {
-        public InsufficientMemoryException() 
-            : base(GetMessageFromNativeResources(ExceptionMessageKind.OutOfMemory)) {
-            SetErrorCode(__HResults.COR_E_INSUFFICIENTMEMORY);
-        }
-    
-        public InsufficientMemoryException(String message) 
-            : base(message) {
-            SetErrorCode(__HResults.COR_E_INSUFFICIENTMEMORY);
-        }
-        
-        public InsufficientMemoryException(String message, Exception innerException) 
-            : base(message, innerException) {
-            SetErrorCode(__HResults.COR_E_INSUFFICIENTMEMORY);
+        public InsufficientMemoryException()
+            : base(GetMessageFromNativeResources(ExceptionMessageKind.OutOfMemory))
+        {
+            HResult = __HResults.COR_E_INSUFFICIENTMEMORY;
         }
 
-        private InsufficientMemoryException(SerializationInfo info, StreamingContext context) : base(info, context) {
+        public InsufficientMemoryException(String message)
+            : base(message)
+        {
+            HResult = __HResults.COR_E_INSUFFICIENTMEMORY;
+        }
+
+        public InsufficientMemoryException(String message, Exception innerException)
+            : base(message, innerException)
+        {
+            HResult = __HResults.COR_E_INSUFFICIENTMEMORY;
         }
     }
 }

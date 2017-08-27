@@ -39,6 +39,16 @@ typedef ucontext_t native_context_t;
 #else   // HAVE_UCONTEXT_T
 #error Native context type is not known on this platform!
 #endif  // HAVE_UCONTEXT_T
+
+#if defined(XSTATE_SUPPORTED) && !HAVE_PUBLIC_XSTATE_STRUCT
+namespace asm_sigcontext
+{
+#include <asm/sigcontext.h>
+};
+using asm_sigcontext::_fpx_sw_bytes;
+using asm_sigcontext::_xstate;
+#endif // defined(XSTATE_SUPPORTED) && !HAVE_PUBLIC_XSTATE_STRUCT
+
 #else // !HAVE_MACH_EXCEPTIONS
 #include <mach/kern_return.h>
 #include <mach/mach_port.h>
@@ -248,8 +258,7 @@ inline void *FPREG_Xstate_Ymmh(const ucontext_t *uc)
 
 #define MCREG_Sp(mc)      ((mc).sp)
 #define MCREG_Pc(mc)      ((mc).pc)
-#define MCREG_PState(mc)  ((mc).pstate)
-#define MCREG_Cpsr(mc)    ((mc).cpsr)
+#define MCREG_Cpsr(mc)    ((mc).pstate)
 #else
     // For FreeBSD, as found in x86/ucontext.h
 #define MCREG_Rbp(mc)	    ((mc).mc_rbp)
@@ -637,6 +646,21 @@ Return value :
 
 --*/
 LPVOID GetNativeContextPC(const native_context_t *context);
+
+/*++
+Function :
+    GetNativeContextSP
+
+    Returns the stack pointer from the native context.
+
+Parameters :
+    const native_context_t *native : native context
+
+Return value :
+    The stack pointer from the native context.
+
+--*/
+LPVOID GetNativeContextSP(const native_context_t *context);
 
 /*++
 Function :

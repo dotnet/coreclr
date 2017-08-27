@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 ////////////////////////////////////////////////////////////////////////////
 //
 //
@@ -15,16 +14,13 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-namespace System.Globalization {
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Runtime.Serialization;
 
-    using System;
-    using System.Runtime.Serialization;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
-
-    [Serializable] 
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public partial class RegionInfo
+namespace System.Globalization
+{
+    public class RegionInfo
     {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //
@@ -37,12 +33,12 @@ namespace System.Globalization {
         //
         // Name of this region (ie: es-US): serialized, the field used for deserialization
         //
-        internal String m_name;
+        internal String _name;
 
         //
         // The CultureData instance that we are going to read data from.
         //
-        [NonSerialized]internal CultureData m_cultureData;
+        internal CultureData _cultureData;
 
         //
         // The RegionInfo for our current region
@@ -60,125 +56,94 @@ namespace System.Globalization {
         //  In Silverlight we enforce that RegionInfos must be created with a full culture name
         //
         ////////////////////////////////////////////////////////////////////////
-        public RegionInfo(String name) {
-            if (name==null)
+        public RegionInfo(String name)
+        {
+            if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
             if (name.Length == 0) //The InvariantCulture has no matching region
-            { 
-                throw new ArgumentException(Environment.GetResourceString("Argument_NoRegionInvariantCulture"), nameof(name));
+            {
+                throw new ArgumentException(SR.Argument_NoRegionInvariantCulture, nameof(name));
             }
-            
+
             Contract.EndContractBlock();
 
             //
-            // First try it as an entire culture. We must have user override as true here so
-            // that we can pick up custom cultures *before* built-in ones (if they want to
-            // prefer built-in cultures they will pass "us" instead of "en-US").
+            // For CoreCLR we only want the region names that are full culture names
             //
-            this.m_cultureData = CultureData.GetCultureDataForRegion(name,true);
-            // this.m_name = name.ToUpper(CultureInfo.InvariantCulture);
-
-            if (this.m_cultureData == null)
+            _cultureData = CultureData.GetCultureDataForRegion(name, true);
+            if (_cultureData == null)
                 throw new ArgumentException(
                     String.Format(
                         CultureInfo.CurrentCulture,
-                        Environment.GetResourceString("Argument_InvalidCultureName"), name), nameof(name));
+                        SR.Argument_InvalidCultureName, name), nameof(name));
 
 
             // Not supposed to be neutral
-            if (this.m_cultureData.IsNeutralCulture)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidNeutralRegionName", name), nameof(name));
+            if (_cultureData.IsNeutralCulture)
+                throw new ArgumentException(SR.Format(SR.Argument_InvalidNeutralRegionName, name), nameof(name));
 
             SetName(name);
         }
 
-#if FEATURE_USE_LCID
-        // We'd rather people use the named version since this doesn't allow custom locales
         public RegionInfo(int culture)
         {
             if (culture == CultureInfo.LOCALE_INVARIANT) //The InvariantCulture has no matching region
             { 
-                throw new ArgumentException(Environment.GetResourceString("Argument_NoRegionInvariantCulture"));
+                throw new ArgumentException(SR.Argument_NoRegionInvariantCulture);
             }
-            
+
             if (culture == CultureInfo.LOCALE_NEUTRAL)
             {
                 // Not supposed to be neutral
-                throw new ArgumentException(Environment.GetResourceString("Argument_CultureIsNeutral", culture), nameof(culture));
+                throw new ArgumentException(SR.Format(SR.Argument_CultureIsNeutral, culture), nameof(culture));
             }
 
             if (culture == CultureInfo.LOCALE_CUSTOM_DEFAULT)
             {
                 // Not supposed to be neutral
-                throw new ArgumentException(Environment.GetResourceString("Argument_CustomCultureCannotBePassedByNumber", culture), nameof(culture));
+                throw new ArgumentException(SR.Format(SR.Argument_CustomCultureCannotBePassedByNumber, culture), nameof(culture));
             }
             
-            this.m_cultureData = CultureData.GetCultureData(culture,true);
-            this.m_name = this.m_cultureData.SREGIONNAME;
+            _cultureData = CultureData.GetCultureData(culture, true);
+            _name = _cultureData.SREGIONNAME;
 
-            if (this.m_cultureData.IsNeutralCulture)
+            if (_cultureData.IsNeutralCulture)
             {
                 // Not supposed to be neutral
-                throw new ArgumentException(Environment.GetResourceString("Argument_CultureIsNeutral", culture), nameof(culture));
+                throw new ArgumentException(SR.Format(SR.Argument_CultureIsNeutral, culture), nameof(culture));
             }
-            m_cultureId = culture;
         }
-#endif
-        
+
         internal RegionInfo(CultureData cultureData)
         {
-            this.m_cultureData = cultureData;
-            this.m_name = this.m_cultureData.SREGIONNAME;
+            _cultureData = cultureData;
+            _name = _cultureData.SREGIONNAME;
         }
 
         private void SetName(string name)
         {
             // Use the name of the region we found
-            this.m_name = this.m_cultureData.SREGIONNAME;
+            _name = _cultureData.SREGIONNAME;
         }
 
-#region Serialization 
-        //
-        //  m_cultureId is needed for serialization only to detect the case if the region info is created using the name or using the LCID.
-        //  in case m_cultureId is zero means that the RigionInfo is created using name. otherwise it is created using LCID.
-        //
-
-        [OptionalField(VersionAdded = 2)]
-        int m_cultureId;
-        // the following field is defined to keep the compatibility with Everett.
-        // don't change/remove the names/types of these field.
-        [OptionalField(VersionAdded = 2)]
-        internal int m_dataItem = 0;
+        [OnSerializing]
+        private void OnSerializing(StreamingContext ctx) { }
 
         [OnDeserialized]
         private void OnDeserialized(StreamingContext ctx)
         {
-            // This won't happen anyway since CoreCLR doesn't support serialization
-            this.m_cultureData = CultureData.GetCultureData(m_name, true);
+            _cultureData = CultureData.GetCultureData(_name, true);
 
-            if (this.m_cultureData == null)
+            if (_cultureData == null)
+            {
                 throw new ArgumentException(
-                    String.Format(
-                        CultureInfo.CurrentCulture,
-                        Environment.GetResourceString("Argument_InvalidCultureName"), m_name), nameof(m_name));
+                    String.Format(CultureInfo.CurrentCulture, SR.Argument_InvalidCultureName, _name),
+                    "_name");
+            }
 
-            if (m_cultureId == 0)
-            {
-                SetName(this.m_name);
-            }
-            else
-            {
-                this.m_name = this.m_cultureData.SREGIONNAME;
-            }
+            _name = _cultureData.SREGIONNAME;
         }
-
-        [OnSerializing] 
-        private void OnSerializing(StreamingContext ctx) 
-        { 
-            // Used to fill in everett data item, unnecessary now
-        }   
-#endregion Serialization
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -189,15 +154,17 @@ namespace System.Globalization {
         //  thread.
         //
         ////////////////////////////////////////////////////////////////////////
-        public static RegionInfo CurrentRegion {
-            get {
+        public static RegionInfo CurrentRegion
+        {
+            get
+            {
                 RegionInfo temp = s_currentRegionInfo;
                 if (temp == null)
                 {
-                    temp = new RegionInfo(CultureInfo.CurrentCulture.m_cultureData);
+                    temp = new RegionInfo(CultureInfo.CurrentCulture._cultureData);
 
                     // Need full name for custom cultures
-                    temp.m_name=temp.m_cultureData.SREGIONNAME;
+                    temp._name = temp._cultureData.SREGIONNAME;
                     s_currentRegionInfo = temp;
                 }
                 return temp;
@@ -211,10 +178,12 @@ namespace System.Globalization {
         //  Returns the name of the region (ie: en-US)
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual String Name {
-            get {
-                Debug.Assert(m_name != null, "Expected RegionInfo.m_name to be populated already");
-                return (m_name);
+        public virtual String Name
+        {
+            get
+            {
+                Debug.Assert(_name != null, "Expected RegionInfo._name to be populated already");
+                return (_name);
             }
         }
 
@@ -229,7 +198,7 @@ namespace System.Globalization {
         {
             get
             {
-                return (this.m_cultureData.SENGCOUNTRY);
+                return (_cultureData.SENGCOUNTRY);
             }
         }
 
@@ -242,11 +211,11 @@ namespace System.Globalization {
         //  if the current UI language is en-US)
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual String DisplayName 
+        public virtual String DisplayName
         {
-            get 
+            get
             {
-                return (this.m_cultureData.SLOCALIZEDCOUNTRY);
+                return (_cultureData.SLOCALIZEDCOUNTRY);
             }
         }
 
@@ -259,12 +228,11 @@ namespace System.Globalization {
         //  WARNING: You need a full locale name for this to make sense.        
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual String NativeName
         {
             get
             {
-                return (this.m_cultureData.SNATIVECOUNTRY);
+                return (_cultureData.SNATIVECOUNTRY);
             }
         }
 
@@ -279,10 +247,9 @@ namespace System.Globalization {
         {
             get
             {
-                return (this.m_cultureData.SISO3166CTRYNAME);
+                return (_cultureData.SISO3166CTRYNAME);
             }
         }
-
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -295,7 +262,7 @@ namespace System.Globalization {
         {
             get
             {
-                return (this.m_cultureData.SISO3166CTRYNAME2);
+                return (_cultureData.SISO3166CTRYNAME2);
             }
         }
 
@@ -310,9 +277,11 @@ namespace System.Globalization {
         {
             get
             {
-                return (this.m_cultureData.SABBREVCTRYNAME);
+                // ThreeLetterWindowsRegionName is really same as ThreeLetterISORegionName 
+                return ThreeLetterISORegionName;
             }
         }
+
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -321,20 +290,20 @@ namespace System.Globalization {
         //  Returns true if this region uses the metric measurement system
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual bool IsMetric {
-            get {
-                int value = this.m_cultureData.IMEASURE;
-                return (value==0);
+        public virtual bool IsMetric
+        {
+            get
+            {
+                int value = _cultureData.IMEASURE;
+                return (value == 0);
             }
         }
 
-
-        [System.Runtime.InteropServices.ComVisible(false)]        
         public virtual int GeoId 
         {
-            get 
+            get
             {
-                return (this.m_cultureData.IGEOID);
+                return (_cultureData.IGEOID);
             }
         }
 
@@ -345,29 +314,27 @@ namespace System.Globalization {
         //  English name for this region's currency, ie: Swiss Franc
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
-        public virtual String CurrencyEnglishName
+        public virtual string CurrencyEnglishName
         {
             get
             {
-                return (this.m_cultureData.SENGLISHCURRENCY);
+                return (_cultureData.SENGLISHCURRENCY);
             }
         }
 
         ////////////////////////////////////////////////////////////////////////
         //
-        //  CurrencyEnglishName
+        //  CurrencyNativeName
         //
-        //  English name for this region's currency, ie: Schweizer Franken
+        //  Native name for this region's currency, ie: Schweizer Franken
         //  WARNING: You need a full locale name for this to make sense.
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
-        public virtual String CurrencyNativeName
+        public virtual string CurrencyNativeName
         {
             get
             {
-                return (this.m_cultureData.SNATIVECURRENCY);
+                return (_cultureData.SNATIVECURRENCY);
             }
         }
 
@@ -378,9 +345,11 @@ namespace System.Globalization {
         //  Currency Symbol for this locale, ie: Fr. or $
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual String CurrencySymbol {
-            get {
-                return (this.m_cultureData.SCURRENCY);
+        public virtual String CurrencySymbol
+        {
+            get
+            {
+                return (_cultureData.SCURRENCY);
             }
         }
 
@@ -391,9 +360,11 @@ namespace System.Globalization {
         //  ISO Currency Symbol for this locale, ie: CHF
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual String ISOCurrencySymbol {
-            get {
-                return (this.m_cultureData.SINTLSYMBOL);
+        public virtual String ISOCurrencySymbol
+        {
+            get
+            {
+                return (_cultureData.SINTLSYMBOL);
             }
         }
 
@@ -444,6 +415,6 @@ namespace System.Globalization {
         public override String ToString()
         {
             return (Name);
-        }    
+        }
     }
 }

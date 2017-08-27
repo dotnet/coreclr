@@ -33,9 +33,8 @@ from collections import defaultdict
 ################################################################################
 
 g_arm64ci_path = os.path.join(os.environ["USERPROFILE"], "bin")
-g_dotnet_url = "https://go.microsoft.com/fwlink/?LinkID=831469"
-g_test_url = "https://clrjit.blob.core.windows.net/arm64ci/CoreCLRTests-2c0a2c05ba82460a8d8a4b1e2d98e908e59d5d54.zip"
-g_x64_client_url = "https://clrjit.blob.core.windows.net/arm64ci/x64_client.zip"
+g_dotnet_url = "https://clrjit.blob.core.windows.net/arm64ci/dotnet-sdk.zip"
+g_x64_client_url = "https://clrjit.blob.core.windows.net/arm64ci/x64_client_2_0_update.zip"
 
 ################################################################################
 # Argument Parser
@@ -88,6 +87,34 @@ def copy_core_root(core_root):
 
    except OSError as error:
       log("Core Root not copied. Error: %s" % error)
+      sys.exit(1)
+
+   return new_location
+
+def copy_tests(test_location):
+   """ Copy the test directory to the current dir as "tests"
+   Args:
+      test_location (str): location of the tests directory
+   Returns:
+      copy_location (str): name of the location, for now hardcoded to tests
+                         : for backcompat in the old system
+   """
+
+   new_location = "tests"
+
+   # Delete used instances.
+   if os.path.isdir(new_location):
+      try:
+         shutil.rmtree(new_location)
+      except:
+         assert not os.path.isdir(new_location)
+
+   try:
+      shutil.copytree(test_location, new_location)
+
+   except OSError as error:
+      log("Test location not copied. Error: %s" % error)
+      sys.exit(1)
 
    return new_location
 
@@ -199,7 +226,7 @@ def validate_args(args):
    build_type = args.build_type
    scenario = args.scenario
    key_location = args.key_location
-   force_update = args.force_update
+   force_update = True
 
    def validate_arg(arg, check):
       """ Validate an individual arg
@@ -219,8 +246,45 @@ def validate_args(args):
 
    valid_arches = ["arm", "arm64"]
    valid_build_types = ["debug", "checked", "release"]
-   valid_scenarios = ["default", "pri1r2r", "gcstress0x3", "gcstress0xc"]
 
+   valid_jit_stress_regs_numbers = ["1", "2", "3", "4", "8", "10", "80"]
+
+   jit_stress_scenarios = ["jitstress1", "jitstress2"]
+   jitstressregs_scenarios = ["jitstressregs" + item for item in valid_jit_stress_regs_numbers]
+   gc_stress_scenarios = ["gcstress0x3", "gcstress0xc"]
+   
+   combo_scenarios = []
+
+   # GCStress 3 + JitStressX
+   combo_scenarios += [gc_stress_scenarios[0] + "_" + item for item in jit_stress_scenarios]
+
+   # GCStress C + JitStressX
+   combo_scenarios += [gc_stress_scenarios[1] + "_" + item for item in jit_stress_scenarios]
+   
+   # GCStress 3 + JitStressRegsX
+   combo_scenarios += [gc_stress_scenarios[0] + "_" + item for item in jitstressregs_scenarios]
+
+   # GCStress C + JitStressRegsX
+   combo_scenarios += [gc_stress_scenarios[1] + "_" + item for item in jitstressregs_scenarios]
+
+   combo_scenarios.append("minopts_zapdisable")
+   combo_scenarios.append("tailcallstress_zapdisable")
+
+   valid_scenarios = ["default",
+                      "pri1r2r",
+                      "minopts",
+                      "zapdisable",
+                      "tailcallstress",
+                      "zapdisable"]
+
+   valid_scenarios += jitstressregs_scenarios
+   valid_scenarios += jit_stress_scenarios
+   valid_scenarios += gc_stress_scenarios
+   valid_scenarios += combo_scenarios
+
+   # Add the ryujit scenarios
+   valid_scenarios += ["ryujit_" + item for item in valid_scenarios]
+   
    validate_arg(repo_root, lambda item: os.path.isdir(item))
    validate_arg(arch, lambda item: item.lower() in valid_arches)
    validate_arg(build_type, lambda item: item.lower() in valid_build_types)
@@ -249,14 +313,27 @@ def validate_args(args):
 
 def main(args):
    global g_arm64ci_path
-   global g_test_url
 
    repo_root, arch, build_type, scenario, key_location, force_update = validate_args(args)
+
+   cwd = os.getcwd()
+   os.chdir(repo_root)
+
+   runtest_location = os.path.join(repo_root, "tests", "runtest.cmd")
+   args = [runtest_location, "GenerateLayoutOnly", arch, build_type]
+   subprocess.check_call(args)
+
+   os.chdir(cwd)
 
    core_root = os.path.join(repo_root,
                             "bin",
                             "Product",
                             "Windows_NT.%s.%s" % (arch, build_type))
+
+   test_location = os.path.join(repo_root,
+                                "bin",
+                                "tests",
+                                "Windows_NT.%s.%s" % (arch, build_type))
 
    cli_location = setup_cli(force_update=force_update)
    add_item_to_path(cli_location)
@@ -269,6 +346,9 @@ def main(args):
    core_root = copy_core_root(core_root)
    log("Copied core_root to %s." % core_root)
 
+   test_location = copy_tests(test_location)
+   log("Copied test location to %s." % test_location)
+
    # Make sure the lst file is copied into the core_root
    lst_file = os.path.join(repo_root, "tests", arch, "Tests.lst")
    shutil.copy2(lst_file, core_root)
@@ -280,7 +360,7 @@ def main(args):
            build_type, 
            scenario, 
            core_root, 
-           g_test_url]
+           test_location]
 
    log(" ".join(args))
    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

@@ -15,7 +15,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
@@ -27,11 +26,16 @@ namespace System
     // three fields from an ArraySegment may not see the same ArraySegment from one call to another
     // (ie, users could assign a new value to the old location).  
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public struct ArraySegment<T> : IList<T>, IReadOnlyList<T>
     {
-        private readonly T[] _array;
-        private readonly int _offset;
-        private readonly int _count;
+        // Do not replace the array allocation with Array.Empty. We don't want to have the overhead of
+        // instantiating another generic type in addition to ArraySegment<T> for new type parameters.
+        public static ArraySegment<T> Empty { get; } = new ArraySegment<T>(new T[0]);
+
+        private readonly T[] _array; // Do not rename (binary serialization)
+        private readonly int _offset; // Do not rename (binary serialization)
+        private readonly int _count; // Do not rename (binary serialization)
 
         public ArraySegment(T[] array)
         {
@@ -46,14 +50,11 @@ namespace System
 
         public ArraySegment(T[] array, int offset, int count)
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (offset < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.offset, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            if (count < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            if (array.Length - offset < count)
-                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
+            // Validate arguments, check is minimal instructions with reduced branching for inlinable fast-path
+            // Negative values discovered though conversion to high values when converted to unsigned
+            // Failure should be rare and location determination and message is delegated to failure functions
+            if (array == null || (uint)offset > (uint)array.Length || (uint)count > (uint)(array.Length - offset))
+                ThrowHelper.ThrowArraySegmentCtorValidationFailedExceptions(array, offset, count);
             Contract.EndContractBlock();
 
             _array = array;
@@ -61,62 +62,37 @@ namespace System
             _count = count;
         }
 
-        public T[] Array
+        public T[] Array => _array;
+
+        public int Offset => _offset;
+
+        public int Count => _count;
+
+        public T this[int index]
         {
             get
             {
-                Debug.Assert(    (null == _array && 0 == _offset && 0 == _count)
-                                 || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
-                                "ArraySegment is invalid");
+                if ((uint)index >= (uint)_count)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+                }
 
-                return _array;
+                return _array[_offset + index];
             }
-        }
-
-        public int Offset
-        {
-            get
+            set
             {
-                // Since copying value types is not atomic & callers cannot atomically 
-                // read all three fields, we cannot guarantee that Offset is within 
-                // the bounds of Array.  That is our intent, but let's not specify 
-                // it as a postcondition - force callers to re-verify this themselves
-                // after reading each field out of an ArraySegment into their stack.
-                Contract.Ensures(Contract.Result<int>() >= 0);
+                if ((uint)index >= (uint)_count)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+                }
 
-                Debug.Assert(    (null == _array && 0 == _offset && 0 == _count)
-                                 || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
-                                "ArraySegment is invalid");
-
-                return _offset;
-            }
-        }
-
-        public int Count
-        {
-            get
-            {
-                // Since copying value types is not atomic & callers cannot atomically 
-                // read all three fields, we cannot guarantee that Count is within 
-                // the bounds of Array.  That's our intent, but let's not specify 
-                // it as a postcondition - force callers to re-verify this themselves
-                // after reading each field out of an ArraySegment into their stack.
-                Contract.Ensures(Contract.Result<int>() >= 0);
-
-                Debug.Assert(     (null == _array && 0 == _offset && 0 == _count)
-                                  || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
-                                "ArraySegment is invalid");
-
-                return _count;
+                _array[_offset + index] = value;
             }
         }
 
         public Enumerator GetEnumerator()
         {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
-
+            ThrowInvalidOperationIfDefault();
             return new Enumerator(this);
         }
 
@@ -126,15 +102,36 @@ namespace System
             {
                 return 0;
             }
-            
+
             int hash = 5381;
             hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _offset);
             hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _count);
-            
+
             // The array hash is expected to be an evenly-distributed mixture of bits,
             // so rather than adding the cost of another rotation we just xor it.
             hash ^= _array.GetHashCode();
             return hash;
+        }
+
+        public void CopyTo(T[] destination) => CopyTo(destination, 0);
+
+        public void CopyTo(T[] destination, int destinationIndex)
+        {
+            ThrowInvalidOperationIfDefault();
+            System.Array.Copy(_array, _offset, destination, destinationIndex, _count);
+        }
+
+        public void CopyTo(ArraySegment<T> destination)
+        {
+            ThrowInvalidOperationIfDefault();
+            destination.ThrowInvalidOperationIfDefault();
+
+            if (_count > destination._count)
+            {
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            }
+
+            System.Array.Copy(_array, _offset, destination._array, destination._offset, _count);
         }
 
         public override bool Equals(Object obj)
@@ -144,30 +141,69 @@ namespace System
             else
                 return false;
         }
-    
+
         public bool Equals(ArraySegment<T> obj)
         {
             return obj._array == _array && obj._offset == _offset && obj._count == _count;
         }
-    
+
+        public ArraySegment<T> Slice(int index)
+        {
+            ThrowInvalidOperationIfDefault();
+            
+            if ((uint)index > (uint)_count)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+            }
+
+            return new ArraySegment<T>(_array, _offset + index, _count - index);
+        }
+
+        public ArraySegment<T> Slice(int index, int count)
+        {
+            ThrowInvalidOperationIfDefault();
+
+            if ((uint)index > (uint)_count || (uint)count > (uint)(_count - index))
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+            }
+
+            return new ArraySegment<T>(_array, _offset + index, count);
+        }
+
+        public T[] ToArray()
+        {
+            ThrowInvalidOperationIfDefault();
+
+            if (_count == 0)
+            {
+                return Empty._array;
+            }
+
+            var array = new T[_count];
+            System.Array.Copy(_array, _offset, array, 0, _count);
+            return array;
+        }
+
         public static bool operator ==(ArraySegment<T> a, ArraySegment<T> b)
         {
             return a.Equals(b);
         }
-        
+
         public static bool operator !=(ArraySegment<T> a, ArraySegment<T> b)
         {
             return !(a == b);
         }
+
+        public static implicit operator ArraySegment<T>(T[] array) => new ArraySegment<T>(array);
 
         #region IList<T>
         T IList<T>.this[int index]
         {
             get
             {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-                if (index < 0 || index >=  _count)
+                ThrowInvalidOperationIfDefault();
+                if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
 
@@ -176,8 +212,7 @@ namespace System
 
             set
             {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+                ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
@@ -188,9 +223,7 @@ namespace System
 
         int IList<T>.IndexOf(T item)
         {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
+            ThrowInvalidOperationIfDefault();
 
             int index = System.Array.IndexOf<T>(_array, item, _offset, _count);
 
@@ -216,8 +249,7 @@ namespace System
         {
             get
             {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+                ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
@@ -250,9 +282,7 @@ namespace System
 
         bool ICollection<T>.Contains(T item)
         {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
+            ThrowInvalidOperationIfDefault();
 
             int index = System.Array.IndexOf<T>(_array, item, _offset, _count);
 
@@ -260,15 +290,6 @@ namespace System
                             (index >= _offset && index < _offset + _count));
 
             return index >= 0;
-        }
-
-        void ICollection<T>.CopyTo(T[] array, int arrayIndex)
-        {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
-
-            System.Array.Copy(_array, _offset, array, arrayIndex, _count);
         }
 
         bool ICollection<T>.Remove(T item)
@@ -288,7 +309,14 @@ namespace System
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         #endregion
 
-        [Serializable]
+        private void ThrowInvalidOperationIfDefault()
+        {
+            if (_array == null)
+            {
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            }
+        }
+
         public struct Enumerator : IEnumerator<T>
         {
             private readonly T[] _array;

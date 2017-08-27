@@ -14,14 +14,17 @@ namespace Functions
         private const double asinDoubleDelta = 0.0004;
         private const double asinDoubleExpectedResult = 1.5707959028763392;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = AsinDoubleIterations)]
         public static void AsinDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    AsinDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        AsinDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {asinDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {asinDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

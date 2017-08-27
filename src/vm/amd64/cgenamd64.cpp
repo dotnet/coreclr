@@ -670,6 +670,19 @@ void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
     _ASSERTE(DbgIsExecutable(&m_movR10[0], &m_jmpRAX[3]-&m_movR10[0]));
 }
 
+void UMEntryThunkCode::Poison()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    m_movR10[0] = X86_INSTR_INT3;
+}
+
 UMEntryThunk* UMEntryThunk::Decode(LPVOID pCallback)
 {
     LIMITED_METHOD_CONTRACT;
@@ -721,6 +734,35 @@ INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMe
             _ASSERTE(!"jump stub was not in expected range");
             EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
         }
+    }
+
+    _ASSERTE(FitsInI4(offset));
+    return static_cast<INT32>(offset);
+}
+
+INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCODE jumpStubAddr)
+{
+    CONTRACTL
+    {
+        THROWS; // emitBackToBackJump may throw (see emitJump)
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    TADDR baseAddr = (TADDR)pRel32 + 4;
+    _ASSERTE(FitsInI4(jumpStubAddr - baseAddr));
+
+    INT_PTR offset = target - baseAddr;
+    if (!FitsInI4(offset) INDEBUG(|| PEDecoder::GetForceRelocs()))
+    {
+        offset = jumpStubAddr - baseAddr;
+        if (!FitsInI4(offset))
+        {
+            _ASSERTE(!"jump stub was not in expected range");
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+
+        emitBackToBackJump((LPBYTE)jumpStubAddr, (LPVOID)target);
     }
 
     _ASSERTE(FitsInI4(offset));

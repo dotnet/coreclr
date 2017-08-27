@@ -55,9 +55,6 @@ public:
         : m_fCheckedCaller(false),
           m_fCheckedPerm(false),
           m_fCallerHasPerm(false),
-#ifdef FEATURE_REMOTING
-          m_fSkippingRemoting(false),
-#endif
           m_pCaller(NULL),
           m_pCallerDomain(NULL),
           m_accessCheckType(accessCheckType)
@@ -69,14 +66,6 @@ public:
     virtual MethodDesc* GetCallerMethod();
     virtual Assembly* GetCallerAssembly();
     virtual bool IsCalledFromInterop();
-
-    // The caller will be computed lazily by the reflection system.
-    virtual bool IsCallerCritical()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        return false;
-    }
     
     AccessCheckOptions::AccessCheckType GetAccessCheckType() const
     {
@@ -91,9 +80,6 @@ private:
     bool            m_fCheckedPerm;
     bool            m_fCallerHasPerm;
 	
-#ifdef FEATURE_REMOTING
-    bool            m_fSkippingRemoting;
-#endif
     
     // @review GENERICS: 
     // These method descriptors may be shared between compatible instantiations
@@ -243,9 +229,6 @@ public:
                                MethodTable*     pInstanceMT,
                                FieldDesc*       pTargetField);
 
-    // If a method has a linktime demand attached, perform it.
-    static void CheckLinktimeDemand(RefSecContext *pCtx, MethodDesc *pMeth);
-
     //
     // Check to see if the target of a reflection operation is on a remote object
     //
@@ -271,16 +254,8 @@ public:
         if (pTargetMT == NULL)
             return FALSE;
 
-#ifdef FEATURE_REMOTING
-        if (pTargetMT->IsTransparentProxy())
-            return TRUE;
-#endif
         return FALSE;
     }
-
-    static BOOL IsCriticalWithConversionToFullDemand(MethodTable* pMT);
-    static BOOL IsCriticalWithConversionToFullDemand(MethodDesc* pMD, MethodTable* pInstanceMT);
-    static BOOL IsCriticalWithConversionToFullDemand(FieldDesc* pFD, MethodTable* pInstanceMT);
 
     static AccessCheckOptions::AccessCheckType GetInvocationAccessCheckType(BOOL targetRemoted = FALSE);
 

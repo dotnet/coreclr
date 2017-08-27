@@ -32,6 +32,7 @@ function print_usage {
     echo '                                     specified by --testRootDir. Multiple of this switch may be specified.'
     echo '  --testDirFile=<path>             : Run tests only in the directories specified by the file at <path>. Paths are listed'
     echo '                                     one line, relative to the directory specified by --testRootDir.'
+    echo '  --build-overlay-only             : Build coreoverlay only, and skip running tests.'
     echo '  --runFailingTestsOnly            : Run only the tests that are disabled on this platform due to unexpected failures.'
     echo '                                     Failing tests are listed in coreclr/tests/failingTestsOutsideWindows.txt, one per'
     echo '                                     line, as paths to .sh files relative to the directory specified by --testRootDir.'
@@ -43,23 +44,27 @@ function print_usage {
     echo '  -h|--help                        : Show usage information.'
     echo '  --useServerGC                    : Enable server GC for this test run'
     echo '  --test-env                       : Script to set environment variables for tests'
+    echo '  --crossgen                       : Precompiles the framework managed assemblies'
     echo '  --runcrossgentests               : Runs the ready to run tests' 
     echo '  --jitstress=<n>                  : Runs the tests with COMPlus_JitStress=n'
     echo '  --jitstressregs=<n>              : Runs the tests with COMPlus_JitStressRegs=n'
     echo '  --jitminopts                     : Runs the tests with COMPlus_JITMinOpts=1'
     echo '  --jitforcerelocs                 : Runs the tests with COMPlus_ForceRelocs=1'
     echo '  --jitdisasm                      : Runs jit-dasm on the tests'
-    echo '  --gcstresslevel n                : Runs the tests with COMPlus_GCStress=n'
+    echo '  --gcstresslevel=<n>              : Runs the tests with COMPlus_GCStress=n'
+    echo '  --ilasmroundtrip                 : Runs ilasm round trip on the tests'
     echo '    0: None                                1: GC on all allocs and '"'easy'"' places'
     echo '    2: GC on transitions to preemptive GC  4: GC on every allowable JITed instr'
     echo '    8: GC on every allowable NGEN instr   16: GC only on a unique stack trace'
     echo '  --long-gc                        : Runs the long GC tests'
     echo '  --gcsimulator                    : Runs the GCSimulator tests'
+    echo '  --tieredcompilation              : Runs the tests with COMPlus_EXPERIMENTAL_TieredCompilation=1'
+    echo '  --link <ILlink>                  : Runs the tests after linking via ILlink'
     echo '  --show-time                      : Print execution sequence and running time for each test'
     echo '  --no-lf-conversion               : Do not execute LF conversion before running test script'
-    echo '  --build-overlay-only             : Exit after overlay directory is populated'
     echo '  --limitedDumpGeneration          : Enables the generation of a limited number of core dumps if test(s) crash, even if ulimit'
     echo '                                     is zero when launching this script. This option is intended for use in CI.'
+    echo '  --xunitOutputPath=<path>         : Create xUnit XML report at the specifed path (default: <test root>/coreclrtests.xml)'
     echo ''
     echo 'Runtime Code Coverage options:'
     echo '  --coreclr-coverage               : Optional argument to get coreclr code coverage reports'
@@ -116,14 +121,6 @@ case $OSName in
         libExtension="so"
         ;;
 esac
-
-# clean up any existing dumpling remnants from previous runs.
-dumplingsListPath="$PWD/dumplings.txt"
-if [ -f "$dumplingsListPath" ]; then
-    rm "$dumplingsListPath"
-fi
-
-find . -type f -name "local_dumplings.txt" -exec rm {} \;
 
 function xunit_output_begin {
     xunitOutputPath=$testRootDir/coreclrtests.xml
@@ -346,9 +343,6 @@ function create_core_overlay {
     if [ ! -d "$coreClrBinDir" ]; then
         exit_with_error "$errorSource" "Directory specified by --coreClrBinDir does not exist: $coreClrBinDir"
     fi
-    if [ ! -f "$mscorlibDir/mscorlib.dll" ]; then
-        exit_with_error "$errorSource" "mscorlib.dll was not found in: $mscorlibDir"
-    fi
     if [ -z "$coreFxBinDir" ]; then
         exit_with_error "$errorSource" "One of --coreOverlayDir or --coreFxBinDir must be specified." "$printUsage"
     fi
@@ -362,12 +356,12 @@ function create_core_overlay {
     mkdir "$coreOverlayDir"
 
     cp -f -v "$coreFxBinDir/"* "$coreOverlayDir/" 2>/dev/null
-    cp -f -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
-    cp -f -v "$mscorlibDir/mscorlib.dll" "$coreOverlayDir/" 2>/dev/null
+    cp -f -p -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
     if [ -d "$mscorlibDir/bin" ]; then
         cp -f -v "$mscorlibDir/bin/"* "$coreOverlayDir/" 2>/dev/null
     fi
-    cp -n -v "$testDependenciesDir"/* "$coreOverlayDir/" 2>/dev/null
+    cp -f -v "$testDependenciesDir/"xunit* "$coreOverlayDir/" 2>/dev/null
+    cp -n -v "$testDependenciesDir/"* "$coreOverlayDir/" 2>/dev/null
     if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
         # Test dependencies come from a Windows build, and mscorlib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/mscorlib.ni.dll"
@@ -379,12 +373,24 @@ function create_core_overlay {
     copy_test_native_bin_to_test_root
 }
 
+declare -a skipCrossGenFiles
+
+function is_skip_crossgen_test {
+    for skip in "${skipCrossGenFiles[@]}"; do
+        if [ "$1" == "$skip" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 function precompile_overlay_assemblies {
+    skipCrossGenFiles=($(read_array "$(dirname "$0")/skipCrossGenFiles.$ARCH.txt"))
 
     if [ $doCrossgen == 1 ]; then
         local overlayDir=$CORE_ROOT
 
-        filesToPrecompile=$(ls -trh $overlayDir/*.dll)
+        filesToPrecompile=$(find -L $overlayDir -iname \*.dll -not -iname \*.ni.dll -not -iname \*-ms-win-\* -type f )
         for fileToPrecompile in ${filesToPrecompile}
         do
             local filename=${fileToPrecompile}
@@ -395,20 +401,23 @@ function precompile_overlay_assemblies {
                     echo Unable to generate dasm for $filename
                 fi
             else
-                # Precompile any assembly except mscorlib since we already have its NI image available.
-                if [[ "$filename" != *"mscorlib.dll"* ]]; then
-                    if [[ "$filename" != *"mscorlib.ni.dll"* ]]; then
-                        echo Precompiling $filename
-                        $overlayDir/crossgen /Platform_Assemblies_Paths $overlayDir $filename 2>/dev/null
-                        local exitCode=$?
-                        if [ $exitCode == -2146230517 ]; then
-                            echo $filename is not a managed assembly.
-                        elif [ $exitCode != 0 ]; then
-                            echo Unable to precompile $filename.
-                        else
-                            echo Successfully precompiled $filename
-                        fi
+                if is_skip_crossgen_test "$(basename $filename)"; then
+                    continue
+                fi
+                echo Precompiling $filename
+                $overlayDir/crossgen /Platform_Assemblies_Paths $overlayDir $filename 1> $filename.stdout 2>$filename.stderr
+                local exitCode=$?
+                if [[ $exitCode != 0 ]]; then
+                    if grep -q -e '0x80131018' $filename.stderr; then
+                        printf "\n\t$filename is not a managed assembly.\n\n"
+                    else
+                        echo Unable to precompile $filename.
+                        cat $filename.stdout
+                        cat $filename.stderr
+                        exit $exitCode
                     fi
+                else
+                    rm $filename.{stdout,stderr}
                 fi
             fi
         done
@@ -469,6 +478,10 @@ function load_unsupported_tests {
 function load_failing_tests {
     # Load the list of tests that fail on this platform. These tests are disabled (skipped) temporarily, pending investigation.
     failingTests=($(read_array "$(dirname "$0")/testsFailingOutsideWindows.txt"))
+   
+    if [ "$ARCH" == "arm64" ]; then
+        failingTests+=($(read_array "$(dirname "$0")/testsFailingOnArm64.txt"))
+    fi
 }
 
 function load_playlist_tests {
@@ -563,6 +576,14 @@ function set_up_core_dump_generation {
 }
 
 function print_info_from_core_file {
+
+    #### temporary
+    if [ "$ARCH" == "arm64" ]; then
+        echo "Not inspecting core dumps on arm64 at the moment."
+        return
+    fi
+    ####
+
     local core_file_name=$1
     local executable_name=$2
 
@@ -591,7 +612,7 @@ function print_info_from_core_file {
 
 function download_dumpling_script {
     echo "Downloading latest version of dumpling script."
-    wget "https://raw.githubusercontent.com/Microsoft/dotnet-reliability/master/src/triage.python/dumpling.py"
+    wget "https://dumpling.azurewebsites.net/api/client/dumpling.py"
 
     local dumpling_script="dumpling.py"
     chmod +x $dumpling_script
@@ -622,8 +643,11 @@ function upload_core_file_to_dumpling {
         paths_to_add=$coreClrBinDir
     fi
 
+    # Ensure the script has Unix line endings
+    perl -pi -e 's/\r\n|\n|\r/\n/g' "$dumpling_script"
+
     # The output from this will include a unique ID for this dump.
-    ./$dumpling_script "--corefile" "$core_file_name" "upload" "--addpaths" $paths_to_add "--squelch" | tee -a $dumpling_file
+    ./$dumpling_script "upload" "--dumppath" "$core_file_name" "--incpaths" $paths_to_add "--properties" "Project=CoreCLR" "--squelch" | tee -a $dumpling_file
 }
 
 function preserve_core_file {
@@ -957,7 +981,7 @@ buildOverlayOnly=
 gcsimulator=
 longgc=
 limitedCoreDumps=
-
+illinker=
 ((disableEventLogging = 0))
 ((serverGC = 0))
 
@@ -965,6 +989,7 @@ limitedCoreDumps=
 verbose=0
 doCrossgen=0
 jitdisasm=0
+ilasmroundtrip=
 
 for i in "$@"
 do
@@ -991,8 +1016,18 @@ do
         --jitforcerelocs)
             export COMPlus_ForceRelocs=1
             ;;
+        --link=*)
+            export ILLINK=${i#*=}
+            export DoLink=true
+            ;;
+        --tieredcompilation)
+            export COMPlus_EXPERIMENTAL_TieredCompilation=1
+            ;;
         --jitdisasm)
             jitdisasm=1
+            ;;
+        --ilasmroundtrip)
+            ((ilasmroundtrip = 1))
             ;;
         --testRootDir=*)
             testRootDir=${i#*=}
@@ -1072,6 +1107,9 @@ do
         --limitedDumpGeneration)
             limitedCoreDumps=ON
             ;;
+        --xunitOutputPath=*)
+            xunitOutputPath=${i#*=}
+            ;;
         *)
             echo "Unknown switch: $i"
             print_usage
@@ -1122,6 +1160,11 @@ if [[ ! "$jitdisasm" -eq 0 ]]; then
     export RunningJitDisasm=1
 fi
 
+if [ ! -z "$ilasmroundtrip" ]; then
+    echo "Running Ilasm round trip"
+    export RunningIlasmRoundTrip=1
+fi
+
 # If this is a coverage run, make sure the appropriate args have been passed
 if [ "$CoreClrCoverage" == "ON" ]
 then
@@ -1161,7 +1204,7 @@ precompile_overlay_assemblies
 
 if [ "$buildOverlayOnly" == "ON" ];
 then
-    echo "Build overlay directory \'$coreOverlayDir\' complete."
+    echo "Build overlay directory '$coreOverlayDir' complete."
     exit 0
 fi
 
@@ -1179,14 +1222,24 @@ fi
 if [ "$ARCH" == "x64" ]
 then
     scriptPath=$(dirname $0)
-    ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$coreOverlayDir
+    ${scriptPath}/setup-stress-dependencies.sh --outputDir=$coreOverlayDir
 else
-    echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
+    if [ "$ARCH" != "arm64" ]
+    then
+        echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
+    fi
 fi
 
 export __TestEnv=$testEnv
 
 cd "$testRootDir"
+
+dumplingsListPath="$testRootDir/dumplings.txt"
+
+# clean up any existing dumpling remnants from previous runs.
+rm -f "$dumplingsListPath"
+find $testRootDir -type f -name "local_dumplings.txt" -exec rm {} \;
+
 time_start=$(date +"%s")
 if [ -z "$testDirectories" ]
 then
@@ -1208,8 +1261,7 @@ finish_remaining_tests
 
 print_results
 
-echo "constructing $dumplingsListPath"
-find . -type f -name "local_dumplings.txt" -exec cat {} \; > $dumplingsListPath
+find $testRootDir -type f -name "local_dumplings.txt" -exec cat {} \; > $dumplingsListPath
 
 if [ -s $dumplingsListPath ]; then
     cat $dumplingsListPath

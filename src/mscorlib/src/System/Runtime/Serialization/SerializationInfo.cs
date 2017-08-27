@@ -11,26 +11,24 @@
 **
 **
 ===========================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Globalization;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Security;
+using System.Runtime.CompilerServices;
+
 namespace System.Runtime.Serialization
 {
-
-    using System;
-    using System.Collections.Generic;
-    using System.Reflection;
-    using System.Runtime.Remoting;
-    using System.Globalization;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
-    using System.Security;
-    using System.Runtime.CompilerServices;
-
-    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class SerializationInfo
     {
         private const int defaultSize = 4;
         private const string s_mscorlibAssemblySimpleName = System.CoreLib.Name;
         private const string s_mscorlibFileName = s_mscorlibAssemblySimpleName + ".dll";
-        
+
         // Even though we have a dictionary, we're still keeping all the arrays around for back-compat. 
         // Otherwise we may run into potentially breaking behaviors like GetEnumerator() not returning entries in the same order they were added.
         internal String[] m_members;
@@ -95,7 +93,7 @@ namespace System.Runtime.Serialization
                     throw new ArgumentNullException(nameof(value));
                 }
                 Contract.EndContractBlock();
-           
+
                 m_fullTypeName = value;
                 isFullTypeNameSetExplicit = true;
             }
@@ -114,9 +112,9 @@ namespace System.Runtime.Serialization
                     throw new ArgumentNullException(nameof(value));
                 }
                 Contract.EndContractBlock();
-                if (this.requireSameTokenInPartialTrust)
+                if (requireSameTokenInPartialTrust)
                 {
-                    DemandForUnsafeAssemblyNameAssignments(this.m_assemName, value);
+                    DemandForUnsafeAssemblyNameAssignments(m_assemName, value);
                 }
                 m_assemName = value;
                 isAssemblyNameSetExplicit = true;
@@ -131,7 +129,7 @@ namespace System.Runtime.Serialization
             }
             Contract.EndContractBlock();
 
-            if (this.requireSameTokenInPartialTrust)
+            if (requireSameTokenInPartialTrust)
             {
                 DemandForUnsafeAssemblyNameAssignments(this.ObjectType.Assembly.FullName, type.Assembly.FullName);
             }
@@ -146,47 +144,8 @@ namespace System.Runtime.Serialization
             }
         }
 
-        private static bool Compare(byte[] a, byte[] b)
-        {
-            // if either or both assemblies do not have public key token, we should demand, hence, returning false will force a demand
-            if (a == null || b == null || a.Length == 0 || b.Length == 0 || a.Length != b.Length)
-            {
-                return false;
-            }
-            else
-            {
-                for (int i = 0; i < a.Length; i++)
-                {
-                    if (a[i] != b[i]) return false;
-                }
-
-                return true;
-            }
-        }
-
         internal static void DemandForUnsafeAssemblyNameAssignments(string originalAssemblyName, string newAssemblyName)
         {
-        }
-
-        internal static bool IsAssemblyNameAssignmentSafe(string originalAssemblyName, string newAssemblyName)
-        {
-            if (originalAssemblyName == newAssemblyName)
-            {
-                return true;
-            }
-
-            AssemblyName originalAssembly = new AssemblyName(originalAssemblyName);
-            AssemblyName newAssembly = new AssemblyName(newAssemblyName);
-
-            // mscorlib will get loaded by the runtime regardless of its string casing or its public key token,
-            // so setting the assembly name to mscorlib must always be protected by a demand
-            if (string.Equals(newAssembly.Name, s_mscorlibAssemblySimpleName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(newAssembly.Name, s_mscorlibFileName, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            return Compare(originalAssembly.GetPublicKeyToken(), newAssembly.GetPublicKeyToken());
         }
 
         public int MemberCount
@@ -371,7 +330,7 @@ namespace System.Runtime.Serialization
             if (m_nameToIndex.ContainsKey(name))
             {
                 BCLDebug.Trace("SER", "[SerializationInfo.AddValue]Tried to add ", name, " twice to the SI.");
-                throw new SerializationException(Environment.GetResourceString("Serialization_SameNameTwice"));
+                throw new SerializationException(SR.Serialization_SameNameTwice);
             }
             m_nameToIndex.Add(name, m_currMember);
 
@@ -422,7 +381,6 @@ namespace System.Runtime.Serialization
                 m_data[index] = value;
                 m_types[index] = type;
             }
-
         }
 
         private int FindElement(String name)
@@ -456,7 +414,7 @@ namespace System.Runtime.Serialization
             int index = FindElement(name);
             if (index == -1)
             {
-                throw new SerializationException(Environment.GetResourceString("Serialization_NotFound", name));
+                throw new SerializationException(SR.Format(SR.Serialization_NotFound, name));
             }
 
             Debug.Assert(index < m_data.Length, "[SerializationInfo.GetElement]index<m_data.Length");
@@ -467,7 +425,6 @@ namespace System.Runtime.Serialization
             return m_data[index];
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         private Object GetElementNoThrow(String name, out Type foundType)
         {
             int index = FindElement(name);
@@ -492,7 +449,6 @@ namespace System.Runtime.Serialization
 
         public Object GetValue(String name, Type type)
         {
-
             if ((object)type == null)
             {
                 throw new ArgumentNullException(nameof(type));
@@ -501,7 +457,7 @@ namespace System.Runtime.Serialization
 
             RuntimeType rt = type as RuntimeType;
             if (rt == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeType"));
+                throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
             Type foundType;
             Object value;
@@ -518,7 +474,6 @@ namespace System.Runtime.Serialization
             return m_converter.Convert(value, type);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         internal Object GetValueNoThrow(String name, Type type)
         {
             Type foundType;
@@ -740,23 +695,5 @@ namespace System.Runtime.Serialization
             }
             return m_converter.ToString(value);
         }
-
-        internal string[] MemberNames
-        {
-            get
-            {
-                return m_members;
-            }
-
-        }
-
-        internal object[] MemberValues
-        {
-            get
-            {
-                return m_data;
-            }
-        }
-
     }
 }

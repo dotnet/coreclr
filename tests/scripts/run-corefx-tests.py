@@ -17,6 +17,7 @@
 ##########################################################################
 
 import argparse
+import distutils.dir_util
 import os
 import re
 import shutil
@@ -118,7 +119,7 @@ def validate_args(args):
     validate_arg(fx_branch, lambda item: True)
 
     if fx_commit is None:
-        fx_commit = '551fe49174378adcbf785c0ab12fc69355cef6e8' if fx_branch == 'master' else 'HEAD'
+        fx_commit = 'HEAD'
 
     if clr_root is None:
         clr_root = nth_dirname(os.path.abspath(sys.argv[0]), 3)
@@ -148,7 +149,6 @@ def validate_args(args):
 
     return args
 
-
 def nth_dirname(path, n):
     """ Find the Nth parent directory of the given path
     Args:
@@ -167,19 +167,6 @@ def nth_dirname(path, n):
 
     return path
 
-
-def dotnet_rid_os(dotnet_path):
-    """ Determine the OS identifier from the RID as reported by dotnet
-    Args:
-        dotnet_path (str): path to folder containing dotnet(.exe)
-    Returns:
-        rid_os (str): OS component of RID as reported by dotnet
-    """
-    dotnet_info = subprocess.check_output([os.path.join(dotnet_path, 'dotnet'), '--info'])
-    m = re.search('^\s*RID:\s+([^-]*)-(\S*)\s*$', dotnet_info, re.MULTILINE)
-    return m.group(1)
-
-
 def log(message):
     """ Print logging information
     Args:
@@ -188,7 +175,6 @@ def log(message):
 
     print '[%s]: %s' % (sys.argv[0], message)
 
-
 ##########################################################################
 # Main
 ##########################################################################
@@ -196,6 +182,8 @@ def log(message):
 def main(args):
     global Corefx_url
     global Unix_name_map
+
+    testing = False
 
     arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script = validate_args(
         args)
@@ -212,95 +200,96 @@ def main(args):
     # To delete the files with non-ascii characters, when rmtree fails due to those
     # files, we then will call rd on Windows.
 
-    if os.path.exists(fx_root):
+    if not testing and os.path.exists(fx_root):
         if Is_windows:
-            vbcscompiler_running = True
-            while vbcscompiler_running:
+            while True:
                 res = subprocess.check_output(['tasklist'])
                 if not 'VBCSCompiler.exe' in res:
-                    vbcscompiler_running = False
+                   break                
         os.chdir(fx_root)
         os.system('git clean -fxd')
         os.chdir(clr_root)
         shutil.rmtree(fx_root, onerror=del_rw)
 
+    # Clone the corefx branch
+
     command = 'git clone -b %s --single-branch %s %s' % (
         fx_branch, Corefx_url, fx_root)
-
     log(command)
-
-    testing = False
-
     if testing:
-        os.makedirs(fx_root)
+        if not os.path.exists(fx_root):
+            os.makedirs(fx_root)
         returncode = 0
     else:
         returncode = os.system(command)
 
-    if returncode != 0:
-        sys.exit(returncode)
-
-
-    command = "git -C %s checkout %s" % (
-        fx_root, fx_commit)
-
-    log(command)
-
-    if testing:
-        returncode = 0
-    else:
-        returncode = os.system(command)
-
-    if returncode != 0:
-        sys.exit(returncode)
+    # Change directory to the corefx root
 
     cwd = os.getcwd()
-    log('cd ' + fx_root)
+    log('[cd] ' + fx_root)
     os.chdir(fx_root)
 
-    if Is_windows:
-        command = '.\\build.cmd'
-        if env_script is not None:
-            command = ('cmd /c %s&&' % env_script) + command
-    else:
-        # CoreFx build.sh requires HOME to be set, and it isn't by default
-        # under our CI.
+    # Checkout the appropriate corefx commit
+
+    command = "git checkout %s" % fx_commit
+    log(command)
+    returncode = 0 if testing else os.system(command)
+    if not returncode == 0:
+        sys.exit(returncode)
+
+    # On Unix, coreFx build.sh requires HOME to be set, and it isn't by default
+    # under our CI system, so set it now.
+
+    if not Is_windows:
         fx_home = os.path.join(fx_root, 'tempHome')
         if not os.path.exists(fx_home):
             os.makedirs(fx_home)
         os.putenv('HOME', fx_home)
         log('HOME=' + fx_home)
 
-        command = './build.sh'
+    # Determine the RID to specify the to corefix build scripts.  This seems to
+    # be way harder than it ought to be.
+ 
+    # Gather up some arguments to pass to both build and build-tests.
+
+    config_args = '-Release -os:%s -buildArch:%s' % (clr_os, arch)
+
+    # Run the primary (non-test) corefx build
+
+    command = ' '.join(('build.cmd' if Is_windows else './build.sh',
+                        config_args,
+                        '-- /p:CoreCLROverridePath=%s' % core_root))
+
+    log(command)
+    returncode = 0 if testing else os.system(command)
+    if returncode != 0:
+        sys.exit(returncode)
+
+    # Build the build-tests command line.
+
+    if Is_windows:
+        command = 'build-tests.cmd'
+        if env_script is not None:
+            command = ('cmd /c %s&&' % env_script) + command
+    else:
+        command = './build-tests.sh'
         if env_script is not None:
             command = ('. %s;' % env_script) + command
 
-    if testing:
-        rid_os = dotnet_rid_os('')
-    else:
-        if clr_os == "Windows_NT":
-            rid_os = "win7"
-        else:
-            rid_os = dotnet_rid_os(os.path.join(clr_root, 'Tools', 'dotnetcli'))
-
     command = ' '.join((
         command,
-        '-Release',
-        '-TestNugetRuntimeId=%s-%s' % (rid_os, arch),
+        config_args,
         '--',
-        '/p:BUILDTOOLS_OVERRIDE_RUNTIME="%s"' % core_root,
         '/p:WithoutCategories=IgnoreForCI'
     ))
 
     if not Is_windows:
         command += ' /p:TestWithLocalNativeLibraries=true'
 
-    log(command)
+    # Run the corefx test build and run the tests themselves.
 
-    if testing:
-        returncode = 0
-    else:
-        returncode = os.system(command)
+    log(command)
+    returncode = 0 if testing else os.system(command)
 
     sys.exit(returncode)
 

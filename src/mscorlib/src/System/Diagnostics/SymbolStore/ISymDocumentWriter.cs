@@ -12,19 +12,19 @@
 **
 ** 
 ===========================================================*/
-namespace System.Diagnostics.SymbolStore {
-    
-    using System;
-    
+
+using System;
+
+namespace System.Diagnostics.SymbolStore
+{
     // Interface does not need to be marked with the serializable attribute
-    [System.Runtime.InteropServices.ComVisible(true)]
     public interface ISymbolDocumentWriter
     {
         // SetSource will store the raw source for a document into the
         // symbol store. An array of unsigned bytes is used instead of
         // character data to accommodate a wider variety of "source".
         void SetSource(byte[] source);
-    
+
         // Check sum support.
         void SetCheckSum(Guid algorithmId, byte[] checkSum);
     }

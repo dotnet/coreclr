@@ -11,7 +11,6 @@
 #include "object.h"
 #include "method.hpp"
 #include "comdelegate.h"
-#include "security.h"
 #include "field.h"
 #include "contractimpl.h"
 #include "nibblemapmacros.h"
@@ -272,7 +271,7 @@ DynamicMethodDesc* DynamicMethodTable::GetDynamicMethod(BYTE *psig, DWORD sigSiz
     // the store sig part of the method desc
     pNewMD->SetStoredMethodSig((PCCOR_SIGNATURE)psig, sigSize);
     // the dynamic part of the method desc
-    pNewMD->m_pszMethodName = name;
+    pNewMD->m_pszMethodName.SetValueMaybeNull(name);
 
     pNewMD->m_dwExtendedFlags = mdPublic | mdStatic | DynamicMethodDesc::nomdLCGMethod;
 
@@ -330,7 +329,7 @@ HeapList* HostCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, EEJitManager 
     size_t MaxCodeHeapSize  = pInfo->getRequestSize();
     size_t ReserveBlockSize = MaxCodeHeapSize + sizeof(HeapList);
 
-    ReserveBlockSize += sizeof(TrackAllocation) + PAGE_SIZE; // make sure we have enough for the allocation
+    ReserveBlockSize += sizeof(TrackAllocation) + GetOsPageSize(); // make sure we have enough for the allocation
     // take a conservative size for the nibble map, we may change that later if appropriate
     size_t nibbleMapSize = ROUND_UP_TO_PAGE(HEAP2MAPSIZE(ROUND_UP_TO_PAGE(ALIGN_UP(ReserveBlockSize, VIRTUAL_ALLOC_RESERVE_GRANULARITY))));
     size_t heapListSize = (sizeof(HeapList) + CODE_SIZE_ALIGN - 1) & (~(CODE_SIZE_ALIGN - 1));
@@ -343,7 +342,7 @@ HeapList* HostCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, EEJitManager 
                             (HostCodeHeap*)pCodeHeap, ReserveBlockSize, pCodeHeap->m_TotalBytesAvailable, reservedData, nibbleMapSize));
 
     BYTE *pBuffer = pCodeHeap->InitCodeHeapPrivateData(ReserveBlockSize, reservedData, nibbleMapSize);
-    _ASSERTE(((size_t)pBuffer & PAGE_MASK) == 0);
+    _ASSERTE(IS_ALIGNED(pBuffer, GetOsPageSize()));
     LOG((LF_BCL, LL_INFO100, "Level2 - CodeHeap creation {0x%p} - base addr 0x%p, size available 0x%p, nibble map ptr 0x%p\n",
                             (HostCodeHeap*)pCodeHeap, pCodeHeap->m_pBaseAddr, pCodeHeap->m_TotalBytesAvailable, pBuffer));
 
@@ -754,7 +753,7 @@ void* HostCodeHeap::AllocMemory_NoThrow(size_t size, DWORD alignment)
         }
         _ASSERTE(size > availableInFreeList);
         size_t sizeToCommit = size - availableInFreeList; 
-        sizeToCommit = (size + PAGE_SIZE - 1) & (~(PAGE_SIZE - 1)); // round up to page
+        sizeToCommit = ROUND_UP_TO_PAGE(size); // round up to page
 
         if (m_pLastAvailableCommittedAddr + sizeToCommit <= m_pBaseAddr + m_TotalBytesAvailable)
         {
@@ -884,16 +883,16 @@ void DynamicMethodDesc::Destroy(BOOL fDomainUnload)
     LoaderAllocator *pLoaderAllocator = GetLoaderAllocatorForCode();
 
     LOG((LF_BCL, LL_INFO1000, "Level3 - Destroying DynamicMethod {0x%p}\n", this));
-    if (m_pSig)
+    if (!m_pSig.IsNull())
     {
-        delete[] (BYTE*)m_pSig;
-        m_pSig = NULL;
+        delete[] (BYTE*)m_pSig.GetValue();
+        m_pSig.SetValueMaybeNull(NULL);
     }
     m_cSig = 0;
-    if (m_pszMethodName)
+    if (!m_pszMethodName.IsNull())
     {
-        delete[] m_pszMethodName;
-        m_pszMethodName = NULL;
+        delete[] m_pszMethodName.GetValue();
+        m_pszMethodName.SetValueMaybeNull(NULL);
     }
 
     GetLCGMethodResolver()->Destroy(fDomainUnload);
@@ -917,7 +916,7 @@ void LCGMethodResolver::Reset()
     m_DynamicStringLiterals = NULL;
     m_recordCodePointer     = NULL;
     m_UsedIndCellList       = NULL;
-    m_jumpStubBlock         = NULL;
+    m_pJumpStubCache        = NULL;
     m_next                  = NULL;
     m_Code                  = NULL;
 }
@@ -1035,19 +1034,24 @@ void LCGMethodResolver::Destroy(BOOL fDomainUnload)
             m_recordCodePointer = NULL;
         }
 
-        JumpStubBlockHeader* current = m_jumpStubBlock;
-        JumpStubBlockHeader* next;
-        while (current)
+        if (m_pJumpStubCache != NULL)
         {
-            next = current->m_next;
+            JumpStubBlockHeader* current = m_pJumpStubCache->m_pBlocks;            
+            while (current)
+            {
+                JumpStubBlockHeader* next = current->m_next;
 
-            HostCodeHeap *pHeap = current->GetHostCodeHeap();
-            LOG((LF_BCL, LL_INFO1000, "Level3 - Resolver {0x%p} - Release reference to heap {%p, vt(0x%x)} \n", current, pHeap, *(size_t*)pHeap));
-            pHeap->m_pJitManager->FreeCodeMemory(pHeap, current);
+                HostCodeHeap *pHeap = current->GetHostCodeHeap();
+                LOG((LF_BCL, LL_INFO1000, "Level3 - Resolver {0x%p} - Release reference to heap {%p, vt(0x%x)} \n", current, pHeap, *(size_t*)pHeap));
+                pHeap->m_pJitManager->FreeCodeMemory(pHeap, current);
 
-            current = next;
+                current = next;
+            }
+            m_pJumpStubCache->m_pBlocks = NULL;
+
+            delete m_pJumpStubCache;
+            m_pJumpStubCache = NULL;
         }
-        m_jumpStubBlock = NULL;
 
         if (m_managedResolver)
         {

@@ -894,6 +894,8 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
             case 0x01:                           // ADD mod/rm
             case 0x03:
+            case 0x11:                           // ADC mod/rm
+            case 0x13:
             case 0x29:                           // SUB mod/rm
             case 0x2B:
                 datasize = 0;
@@ -1295,10 +1297,10 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
     ctx.Esi = lazyState->_esi = baseState->_esi;
     ctx.Ebx = lazyState->_ebx = baseState->_ebx;
 
-    nonVolRegPtrs.Edi = &(lazyState->_edi);
-    nonVolRegPtrs.Esi = &(lazyState->_esi);
-    nonVolRegPtrs.Ebx = &(lazyState->_ebx);
-    nonVolRegPtrs.Ebp = &(lazyState->_ebp);
+    nonVolRegPtrs.Edi = &(baseState->_edi);
+    nonVolRegPtrs.Esi = &(baseState->_esi);
+    nonVolRegPtrs.Ebx = &(baseState->_ebx);
+    nonVolRegPtrs.Ebp = &(baseState->_ebp);
 
     PCODE pvControlPc;
 
@@ -1322,6 +1324,8 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 #endif // DACCESS_COMPILE
 
         pvControlPc = GetIP(&ctx);
+
+        _ASSERTE(pvControlPc != 0);
 
         if (funCallDepth > 0)
         {

@@ -14,14 +14,17 @@ namespace Functions
         private const double coshDoubleDelta = 0.0004;
         private const double coshDoubleExpectedResult = 5876.0060465657216;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = CoshDoubleIterations)]
         public static void CoshDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    CoshDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        CoshDoubleTest();
+                    }
                 }
             }
         }
@@ -40,7 +43,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {coshDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {coshDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

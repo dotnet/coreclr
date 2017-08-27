@@ -53,7 +53,7 @@ MethodDesc * ReadyToRunInfo::GetMethodDescForEntryPoint(PCODE entryPoint)
     }
     CONTRACTL_END;
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && defined(FEATURE_PAL))
     // A normal method entry point is always 8 byte aligned, but a funclet can start at an odd address.
     // Since PtrHashMap can't handle odd pointers, check for this case and return NULL.
     if ((entryPoint & 0x1) != 0)
@@ -483,6 +483,12 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
         return NULL;
     }
 
+    if (CORProfilerDisableAllNGenImages() || CORProfilerUseProfileImages())
+    {
+        DoLog("Ready to Run disabled - profiler disabled native images");
+        return NULL;
+    }
+
     if (g_pConfig->ExcludeReadyToRun(pModule->GetSimpleName()))
     {
         DoLog("Ready to Run disabled - module on exclusion list");
@@ -491,13 +497,8 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
 
     if (!pLayout->IsNativeMachineFormat())
     {
-#ifdef FEATURE_CORECLR
         // For CoreCLR, be strict about disallowing machine mismatches.
         COMPlusThrowHR(COR_E_BADIMAGEFORMAT);
-#else
-        DoLog("Ready to Run disabled - mismatched architecture");
-        return NULL;
-#endif
     }
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
@@ -538,11 +539,11 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
 
     DoLog("Ready to Run initialized successfully");
 
-    return new (pMemory) ReadyToRunInfo(pModule, pLayout, pHeader);
+    return new (pMemory) ReadyToRunInfo(pModule, pLayout, pHeader, pamTracker);
 }
 
-ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYTORUN_HEADER * pHeader)
-    : m_pModule(pModule), m_pLayout(pLayout), m_pHeader(pHeader), m_Crst(CrstLeafLock)
+ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYTORUN_HEADER * pHeader, AllocMemTracker *pamTracker)
+    : m_pModule(pModule), m_pLayout(pLayout), m_pHeader(pHeader), m_Crst(CrstLeafLock), m_pPersistentInlineTrackingMap(NULL)
 {
     STANDARD_VM_CONTRACT;
 
@@ -593,6 +594,30 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
     {
         LockOwner lock = {&m_Crst, IsOwnerOfCrst};
         m_entryPointToMethodDescMap.Init(TRUE, &lock);
+    }
+
+    // For format version 2.1 and later, there is an optional inlining table 
+    if (IsImageVersionAtLeast(2, 1))
+    {
+        IMAGE_DATA_DIRECTORY * pInlineTrackingInfoDir = FindSection(READYTORUN_SECTION_INLINING_INFO);
+        if (pInlineTrackingInfoDir != NULL)
+        {
+            const BYTE* pInlineTrackingMapData = (const BYTE*)GetImage()->GetDirectoryData(pInlineTrackingInfoDir);
+            PersistentInlineTrackingMapR2R::TryLoad(pModule, pInlineTrackingMapData, pInlineTrackingInfoDir->Size,
+                                                    pamTracker, &m_pPersistentInlineTrackingMap);
+        }
+    }
+    // Fpr format version 2.2 and later, there is an optional profile-data section
+    if (IsImageVersionAtLeast(2, 2))
+    {
+        IMAGE_DATA_DIRECTORY * pProfileDataInfoDir = FindSection(READYTORUN_SECTION_PROFILEDATA_INFO);
+        if (pProfileDataInfoDir != NULL)
+        {
+            CORCOMPILE_METHOD_PROFILE_LIST * pMethodProfileList;
+            pMethodProfileList = (CORCOMPILE_METHOD_PROFILE_LIST *)GetImage()->GetDirectoryData(pProfileDataInfoDir);
+
+            pModule->SetMethodProfileList(pMethodProfileList);  
+        }
     }
 }
 
@@ -857,6 +882,14 @@ DWORD ReadyToRunInfo::GetFieldBaseOffset(MethodTable * pMT)
     dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, dwAlignment);
 
     return (DWORD)sizeof(Object) + dwCumulativeInstanceFieldPos - dwOffsetBias;
+}
+
+BOOL ReadyToRunInfo::IsImageVersionAtLeast(int majorVersion, int minorVersion)
+{
+	LIMITED_METHOD_CONTRACT;
+	return (m_pHeader->MajorVersion == majorVersion && m_pHeader->MinorVersion >= minorVersion) ||
+		   (m_pHeader->MajorVersion > majorVersion);
+
 }
 
 #endif // DACCESS_COMPILE

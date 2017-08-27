@@ -12,15 +12,16 @@
 **
 ** 
 ===========================================================*/
+
+using System;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Runtime.Versioning;
+
 namespace System.Collections.Generic
 {
-    using System;
-    using System.Globalization;
-    using System.Runtime.CompilerServices;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
-    using System.Runtime.Versioning;
-    
     #region ArraySortHelper for single arrays
 
     internal interface IArraySortHelper<TKey>
@@ -36,8 +37,6 @@ namespace System.Collections.Generic
         // Large value types may benefit from a smaller number.
         internal const int IntrosortSizeThreshold = 16;
 
-        internal const int QuickSortDepthThreshold = 32;
-
         internal static int FloorLog2(int n)
         {
             int result = 0;
@@ -49,18 +48,18 @@ namespace System.Collections.Generic
             return result;
         }
 
-        internal static void ThrowOrIgnoreBadComparer(Object comparer) {
-            throw new ArgumentException(Environment.GetResourceString("Arg_BogusIComparer", comparer));
+        internal static void ThrowOrIgnoreBadComparer(Object comparer)
+        {
+            throw new ArgumentException(SR.Format(SR.Arg_BogusIComparer, comparer));
         }
-
     }
 
-    [TypeDependencyAttribute("System.Collections.Generic.GenericArraySortHelper`1")]     
-    internal class ArraySortHelper<T>  
+    [TypeDependencyAttribute("System.Collections.Generic.GenericArraySortHelper`1")]
+    internal class ArraySortHelper<T>
         : IArraySortHelper<T>
     {
-        static volatile IArraySortHelper<T> defaultArraySortHelper;
-        
+        private static volatile IArraySortHelper<T> defaultArraySortHelper;
+
         public static IArraySortHelper<T> Default
         {
             get
@@ -71,8 +70,8 @@ namespace System.Collections.Generic
 
                 return sorter;
             }
-        }                
-        
+        }
+
         private static IArraySortHelper<T> CreateArraySortHelper()
         {
             if (typeof(IComparable<T>).IsAssignableFrom(typeof(T)))
@@ -81,7 +80,7 @@ namespace System.Collections.Generic
             }
             else
             {
-                defaultArraySortHelper = new ArraySortHelper<T>();                        
+                defaultArraySortHelper = new ArraySortHelper<T>();
             }
             return defaultArraySortHelper;
         }
@@ -91,7 +90,7 @@ namespace System.Collections.Generic
         public void Sort(T[] keys, int index, int length, IComparer<T> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
-            Debug.Assert( index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
+            Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             // Add a try block here to detect IComparers (or their
             // underlying IComparables, etc) that are bogus.
@@ -110,7 +109,7 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -127,7 +126,7 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -150,7 +149,7 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -241,9 +240,9 @@ namespace System.Collections.Generic
                     }
                     if (partitionSize == 3)
                     {
-                        SwapIfGreater(keys, comparer, lo, hi-1);
+                        SwapIfGreater(keys, comparer, lo, hi - 1);
                         SwapIfGreater(keys, comparer, lo, hi);
-                        SwapIfGreater(keys, comparer, hi-1, hi);
+                        SwapIfGreater(keys, comparer, hi - 1, hi);
                         return;
                     }
 
@@ -369,13 +368,12 @@ namespace System.Collections.Generic
         }
     }
 
-    [Serializable()]
     internal class GenericArraySortHelper<T>
         : IArraySortHelper<T>
         where T : IComparable<T>
     {
         // Do not add a constructor to this class because ArraySortHelper<T>.CreateSortHelper will not execute it
-        
+
         #region IArraySortHelper<T> Members
 
         public void Sort(T[] keys, int index, int length, IComparer<T> comparer)
@@ -400,7 +398,7 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -422,7 +420,7 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -485,7 +483,7 @@ namespace System.Collections.Generic
 
         private static void Swap(T[] a, int i, int j)
         {
-            if(i!=j)
+            if (i != j)
             {
                 T t = a[i];
                 a[i] = a[j];
@@ -529,9 +527,9 @@ namespace System.Collections.Generic
                     }
                     if (partitionSize == 3)
                     {
-                        SwapIfGreaterWithItems(keys, lo, hi-1);
+                        SwapIfGreaterWithItems(keys, lo, hi - 1);
                         SwapIfGreaterWithItems(keys, lo, hi);
-                        SwapIfGreaterWithItems(keys, hi-1, hi);
+                        SwapIfGreaterWithItems(keys, hi - 1, hi);
                         return;
                     }
 
@@ -662,7 +660,7 @@ namespace System.Collections.Generic
         }
     }
 
-#endregion
+    #endregion
 
     #region ArraySortHelper for paired key and value arrays
 
@@ -675,7 +673,7 @@ namespace System.Collections.Generic
     internal class ArraySortHelper<TKey, TValue>
         : IArraySortHelper<TKey, TValue>
     {
-        static volatile IArraySortHelper<TKey, TValue> defaultArraySortHelper;
+        private static volatile IArraySortHelper<TKey, TValue> defaultArraySortHelper;
 
         public static IArraySortHelper<TKey, TValue> Default
         {
@@ -724,7 +722,7 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -755,12 +753,12 @@ namespace System.Collections.Generic
 
         private static void Swap(TKey[] keys, TValue[] values, int i, int j)
         {
-            if(i!=j)
+            if (i != j)
             {
                 TKey k = keys[i];
                 keys[i] = keys[j];
                 keys[j] = k;
-                if(values != null)
+                if (values != null)
                 {
                     TValue v = values[i];
                     values[i] = values[j];
@@ -810,9 +808,9 @@ namespace System.Collections.Generic
                     }
                     if (partitionSize == 3)
                     {
-                        SwapIfGreaterWithItems(keys, values, comparer, lo, hi-1);
+                        SwapIfGreaterWithItems(keys, values, comparer, lo, hi - 1);
                         SwapIfGreaterWithItems(keys, values, comparer, lo, hi);
-                        SwapIfGreaterWithItems(keys, values, comparer, hi-1, hi);
+                        SwapIfGreaterWithItems(keys, values, comparer, hi - 1, hi);
                         return;
                     }
 
@@ -913,12 +911,12 @@ namespace System.Collections.Generic
                 if (!(comparer.Compare(d, keys[lo + child - 1]) < 0))
                     break;
                 keys[lo + i - 1] = keys[lo + child - 1];
-                if(values != null)
+                if (values != null)
                     values[lo + i - 1] = values[lo + child - 1];
                 i = child;
             }
             keys[lo + i - 1] = d;
-            if(values != null)
+            if (values != null)
                 values[lo + i - 1] = dValue;
         }
 
@@ -942,12 +940,12 @@ namespace System.Collections.Generic
                 while (j >= lo && comparer.Compare(t, keys[j]) < 0)
                 {
                     keys[j + 1] = keys[j];
-                    if(values != null)
+                    if (values != null)
                         values[j + 1] = values[j];
                     j--;
                 }
                 keys[j + 1] = t;
-                if(values != null)
+                if (values != null)
                     values[j + 1] = tValue;
             }
         }
@@ -960,8 +958,8 @@ namespace System.Collections.Generic
         public void Sort(TKey[] keys, TValue[] values, int index, int length, IComparer<TKey> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
-            Debug.Assert( index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
-            
+            Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
+
             // Add a try block here to detect IComparers (or their
             // underlying IComparables, etc) that are bogus.
             try
@@ -974,14 +972,14 @@ namespace System.Collections.Generic
                 {
                     ArraySortHelper<TKey, TValue>.IntrospectiveSort(keys, values, index, length, comparer);
                 }
-            }                    
+            }
             catch (IndexOutOfRangeException)
             {
                 IntrospectiveSortUtilities.ThrowOrIgnoreBadComparer(comparer);
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -1006,12 +1004,12 @@ namespace System.Collections.Generic
 
         private static void Swap(TKey[] keys, TValue[] values, int i, int j)
         {
-            if(i != j)
+            if (i != j)
             {
                 TKey k = keys[i];
                 keys[i] = keys[j];
                 keys[j] = k;
-                if(values != null)
+                if (values != null)
                 {
                     TValue v = values[i];
                     values[i] = values[j];
@@ -1059,9 +1057,9 @@ namespace System.Collections.Generic
                     }
                     if (partitionSize == 3)
                     {
-                        SwapIfGreaterWithItems(keys, values, lo, hi-1);
+                        SwapIfGreaterWithItems(keys, values, lo, hi - 1);
                         SwapIfGreaterWithItems(keys, values, lo, hi);
-                        SwapIfGreaterWithItems(keys, values, hi-1, hi);
+                        SwapIfGreaterWithItems(keys, values, hi - 1, hi);
                         return;
                     }
 
@@ -1106,10 +1104,10 @@ namespace System.Collections.Generic
 
             while (left < right)
             {
-                if(pivot == null)
+                if (pivot == null)
                 {
                     while (left < (hi - 1) && keys[++left] == null) ;
-                    while (right > lo && keys[--right] != null);
+                    while (right > lo && keys[--right] != null) ;
                 }
                 else
                 {
@@ -1167,12 +1165,12 @@ namespace System.Collections.Generic
                 if (keys[lo + child - 1] == null || keys[lo + child - 1].CompareTo(d) < 0)
                     break;
                 keys[lo + i - 1] = keys[lo + child - 1];
-                if(values != null)
+                if (values != null)
                     values[lo + i - 1] = values[lo + child - 1];
                 i = child;
             }
             keys[lo + i - 1] = d;
-            if(values != null)
+            if (values != null)
                 values[lo + i - 1] = dValue;
         }
 
@@ -1191,16 +1189,16 @@ namespace System.Collections.Generic
             {
                 j = i;
                 t = keys[i + 1];
-                tValue = (values != null)? values[i + 1] : default(TValue);
+                tValue = (values != null) ? values[i + 1] : default(TValue);
                 while (j >= lo && (t == null || t.CompareTo(keys[j]) < 0))
                 {
                     keys[j + 1] = keys[j];
-                    if(values != null)
+                    if (values != null)
                         values[j + 1] = values[j];
                     j--;
                 }
                 keys[j + 1] = t;
-                if(values != null)
+                if (values != null)
                     values[j + 1] = tValue;
             }
         }

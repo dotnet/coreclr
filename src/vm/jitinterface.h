@@ -19,7 +19,7 @@
 #ifndef FEATURE_PAL
 #define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((32*1024)-1)   // when generating JIT code
 #else // !FEATURE_PAL
-#define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((OS_PAGE_SIZE / 2) - 1)
+#define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((GetOsPageSize() / 2) - 1)
 #endif // !FEATURE_PAL
 
 class Stub;
@@ -215,9 +215,10 @@ extern FCDECL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength
 extern FCDECL1(StringObject*, UnframedAllocateString, DWORD stringLength);
 extern FCDECL1(StringObject*, FramedAllocateString, DWORD stringLength);
 
-extern FCDECL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE typeHnd_, INT_PTR size);
-extern FCDECL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE typeHnd_, INT_PTR size);
-extern FCDECL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE typeHnd_, INT_PTR size);
+extern FCDECL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
+extern FCDECL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
+extern FCDECL2(Object*, JIT_NewArr1_R2R, CORINFO_CLASS_HANDLE arrayTypeHnd_, INT_PTR size);
+extern FCDECL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 
 #ifndef JIT_Stelem_Ref
 #define JIT_Stelem_Ref JIT_Stelem_Ref_Portable
@@ -317,6 +318,7 @@ private:
     PBYTE   m_pWriteWatchTableImmediate;    // PREGROW | POSTGROW | SVR | WRITE_WATCH |
     PBYTE   m_pLowerBoundImmediate;         // PREGROW | POSTGROW |     | WRITE_WATCH |
     PBYTE   m_pCardTableImmediate;          // PREGROW | POSTGROW | SVR | WRITE_WATCH |
+    PBYTE   m_pCardBundleTableImmediate;    // PREGROW | POSTGROW | SVR | WRITE_WATCH |
     PBYTE   m_pUpperBoundImmediate;         //         | POSTGROW |     | WRITE_WATCH |
 };
 
@@ -325,8 +327,8 @@ private:
 #ifdef _WIN64
 EXTERN_C FCDECL1(Object*, JIT_TrialAllocSFastMP_InlineGetThread, CORINFO_CLASS_HANDLE typeHnd_);
 EXTERN_C FCDECL2(Object*, JIT_BoxFastMP_InlineGetThread, CORINFO_CLASS_HANDLE type, void* data);
-EXTERN_C FCDECL2(Object*, JIT_NewArr1VC_MP_InlineGetThread, CORINFO_CLASS_HANDLE typeHnd_, INT_PTR size);
-EXTERN_C FCDECL2(Object*, JIT_NewArr1OBJ_MP_InlineGetThread, CORINFO_CLASS_HANDLE typeHnd_, INT_PTR size);
+EXTERN_C FCDECL2(Object*, JIT_NewArr1VC_MP_InlineGetThread, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
+EXTERN_C FCDECL2(Object*, JIT_NewArr1OBJ_MP_InlineGetThread, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 
 #endif // _WIN64
 
@@ -343,20 +345,23 @@ EXTERN_C FCDECL1_V(INT32, JIT_Dbl2IntOvf, double val);
 EXTERN_C FCDECL2_VV(float, JIT_FltRem, float dividend, float divisor);
 EXTERN_C FCDECL2_VV(double, JIT_DblRem, double dividend, double divisor);
 
-#if !defined(_WIN64) && !defined(_TARGET_X86_)
+#ifndef BIT64
+#ifdef _TARGET_X86_
+// JIThelp.asm
+EXTERN_C void STDCALL JIT_LLsh();
+EXTERN_C void STDCALL JIT_LRsh();
+EXTERN_C void STDCALL JIT_LRsz();
+#else // _TARGET_X86_
 EXTERN_C FCDECL2_VV(UINT64, JIT_LLsh, UINT64 num, int shift);
 EXTERN_C FCDECL2_VV(INT64, JIT_LRsh, INT64 num, int shift);
 EXTERN_C FCDECL2_VV(UINT64, JIT_LRsz, UINT64 num, int shift);
-#endif
+#endif // !_TARGET_X86_
+#endif // !BIT64
 
 #ifdef _TARGET_X86_
 
 extern "C"
 {
-    void STDCALL JIT_LLsh();                      // JIThelp.asm
-    void STDCALL JIT_LRsh();                      // JIThelp.asm
-    void STDCALL JIT_LRsz();                      // JIThelp.asm
-
     void STDCALL JIT_CheckedWriteBarrierEAX(); // JIThelp.asm/JIThelp.s
     void STDCALL JIT_CheckedWriteBarrierEBX(); // JIThelp.asm/JIThelp.s
     void STDCALL JIT_CheckedWriteBarrierECX(); // JIThelp.asm/JIThelp.s
@@ -378,11 +383,11 @@ extern "C"
     void STDCALL JIT_WriteBarrierEDI();        // JIThelp.asm/JIThelp.s
     void STDCALL JIT_WriteBarrierEBP();        // JIThelp.asm/JIThelp.s
 
-    void STDCALL JIT_WriteBarrierStart();
-    void STDCALL JIT_WriteBarrierLast();
+    void STDCALL JIT_WriteBarrierGroup();
+    void STDCALL JIT_WriteBarrierGroup_End();
 
-    void STDCALL JIT_PatchedWriteBarrierStart();
-    void STDCALL JIT_PatchedWriteBarrierLast();
+    void STDCALL JIT_PatchedWriteBarrierGroup();
+    void STDCALL JIT_PatchedWriteBarrierGroup_End();
 }
 
 void ValidateWriteBarrierHelpers();
@@ -391,8 +396,7 @@ void ValidateWriteBarrierHelpers();
 
 extern "C"
 {
-#ifdef _TARGET_X86_
-    // UNIXTODO: Disable JIT_EndCatch after revising the jitter not to use this (for x86/Linux)
+#ifndef WIN64EXCEPTIONS
     void STDCALL JIT_EndCatch();               // JIThelp.asm/JIThelp.s
 #endif // _TARGET_X86_
 
@@ -414,59 +418,11 @@ extern "C"
     void STDCALL JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle);
 };
 
-#ifndef FEATURE_CORECLR
-//
-// Obfluscators that are hacking into the JIT expect certain methods to exist in certain places of CEEInfo vtable. Add artifical slots 
-// to the vtable to avoid breaking apps by .NET 4.5 in-place update.
-//
-
-class ICorMethodInfo_Hack
-{
-public:
-    virtual const char* __stdcall ICorMethodInfo_Hack_getMethodName (CORINFO_METHOD_HANDLE ftnHnd, const char** scopeName) = 0;
-};
-
-class ICorModuleInfo_Hack
-{
-public:
-    virtual void ICorModuleInfo_Hack_dummy() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-};
-
-class ICorClassInfo_Hack
-{
-public:
-    virtual void ICorClassInfo_Hack_dummy1() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy2() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy3() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy4() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy5() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy6() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy7() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy8() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy9() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy10() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy11() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy12() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy13() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-    virtual void ICorClassInfo_Hack_dummy14() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-
-    virtual mdMethodDef __stdcall ICorClassInfo_Hack_getMethodDefFromMethod(CORINFO_METHOD_HANDLE hMethod) = 0;
-};
-
-class ICorStaticInfo_Hack : public virtual ICorMethodInfo_Hack, public virtual ICorModuleInfo_Hack, public virtual ICorClassInfo_Hack
-{
-    virtual void ICorStaticInfo_Hack_dummy() { LIMITED_METHOD_CONTRACT; UNREACHABLE(); };
-};
-
-#endif // FEATURE_CORECLR
 
 
 /*********************************************************************/
 /*********************************************************************/
 class CEEInfo : public ICorJitInfo
-#ifndef FEATURE_CORECLR
-    , public virtual ICorStaticInfo_Hack
-#endif
 {
     friend class CEEDynamicCodeInfo;
     
@@ -565,7 +521,7 @@ public:
     void getReadyToRunDelegateCtorHelper(
             CORINFO_RESOLVED_TOKEN * pTargetMethod,
             CORINFO_CLASS_HANDLE     delegateType,
-            CORINFO_CONST_LOOKUP *   pLookup
+            CORINFO_LOOKUP *   pLookup
             );
 
     CorInfoInitClassResult initClass(
@@ -771,8 +727,24 @@ public:
     void getMethodVTableOffset (
             CORINFO_METHOD_HANDLE methodHnd,
             unsigned * pOffsetOfIndirection,
-            unsigned * pOffsetAfterIndirection
-            );
+            unsigned * pOffsetAfterIndirection,
+            bool * isRelative);
+
+    CORINFO_METHOD_HANDLE resolveVirtualMethod(
+        CORINFO_METHOD_HANDLE virtualMethod,
+        CORINFO_CLASS_HANDLE implementingClass,
+        CORINFO_CONTEXT_HANDLE ownerType
+        );
+
+    CORINFO_METHOD_HANDLE resolveVirtualMethodHelper(
+        CORINFO_METHOD_HANDLE virtualMethod,
+        CORINFO_CLASS_HANDLE implementingClass,
+        CORINFO_CONTEXT_HANDLE ownerType
+        );
+
+    void expandRawHandleIntrinsic(
+        CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+        CORINFO_GENERICHANDLE_RESULT *  pResult);
 
     CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                      bool * pMustExpand = NULL);
@@ -809,11 +781,6 @@ public:
             CORINFO_METHOD_HANDLE       method,
             CORINFO_CLASS_HANDLE        delegateCls,
             BOOL*                       pfIsOpenDelegate);
-
-    // Determines whether the delegate creation obeys security transparency rules
-    BOOL isDelegateCreationAllowed (
-            CORINFO_CLASS_HANDLE        delegateHnd,
-            CORINFO_METHOD_HANDLE       calleeHnd);
 
     // ICorFieldInfo stuff
     const char* getFieldName (CORINFO_FIELD_HANDLE field,
@@ -930,10 +897,6 @@ public:
 
     DWORD getThreadTLSIndex(void **ppIndirection);
     const void * getInlinedCallFrameVptr(void **ppIndirection);
-
-    // Returns the address of the domain neutral module id. This only makes sense for domain neutral (shared)
-    // modules
-    SIZE_T* getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module);
 
     LONG * getAddrOfCaptureThreadGlobal(void **ppIndirection);
     void* getHelperFtn(CorInfoHelpFunc    ftnNum,                 /* IN  */
@@ -1089,16 +1052,17 @@ public:
 
     DWORD getExpectedTargetArchitecture();
 
-    CEEInfo(MethodDesc * fd = NULL, bool fVerifyOnly = false) :
+    CEEInfo(MethodDesc * fd = NULL, bool fVerifyOnly = false, bool fAllowInlining = true) :
         m_pOverride(NULL),
         m_pMethodBeingCompiled(fd),
         m_fVerifyOnly(fVerifyOnly),
         m_pThread(GetThread()),
         m_hMethodForSecurity_Key(NULL),
-        m_pMethodForSecurity_Value(NULL)
+        m_pMethodForSecurity_Value(NULL),
 #if defined(FEATURE_GDBJIT)
-        , m_pCalledMethods(NULL)
+        m_pCalledMethods(NULL),
 #endif
+        m_allowInlining(fAllowInlining)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -1190,6 +1154,8 @@ protected:
 #if defined(FEATURE_GDBJIT)
     CalledMethod *          m_pCalledMethods;
 #endif
+
+    bool                    m_allowInlining;
 
     // Tracking of module activation dependencies. We have two flavors: 
     // - Fast one that gathers generic arguments from EE handles, but does not work inside generic context.
@@ -1367,8 +1333,8 @@ public:
 #endif
 
     CEEJitInfo(MethodDesc* fd,  COR_ILMETHOD_DECODER* header, 
-               EEJitManager* jm, bool fVerifyOnly)
-        : CEEInfo(fd, fVerifyOnly),
+               EEJitManager* jm, bool fVerifyOnly, bool allowInlining = true)
+        : CEEInfo(fd, fVerifyOnly, allowInlining),
           m_jitManager(jm),
           m_CodeHeader(NULL),
           m_ILHeader(header),
@@ -1501,7 +1467,6 @@ protected :
         void*                   m_pvGphProfilerHandle;
     } m_gphCache;
 
-
 };
 #endif // CROSSGEN_COMPILE
 
@@ -1582,41 +1547,6 @@ class TailCallFrame;
 EXTERN_C void JIT_TailCallHelperStub_ReturnAddress();
 
 #endif // _TARGET_AMD64_ || _TARGET_ARM_
-
-
-#ifdef _TARGET_X86_
-
-class JIT_TrialAlloc
-{
-public:
-    enum Flags
-    {
-        NORMAL       = 0x0,
-        MP_ALLOCATOR = 0x1,
-        SIZE_IN_EAX  = 0x2,
-        OBJ_ARRAY    = 0x4,
-        ALIGN8       = 0x8,     // insert a dummy object to insure 8 byte alignment (until the next GC)
-        ALIGN8OBJ    = 0x10,
-        NO_FRAME     = 0x20,    // call is from unmanaged code - don't try to put up a frame
-    };
-
-    static void *GenAllocSFast(Flags flags);
-    static void *GenBox(Flags flags);
-    static void *GenAllocArray(Flags flags);
-    static void *GenAllocString(Flags flags);
-
-private:
-    static void EmitAlignmentRoundup(CPUSTUBLINKER *psl,X86Reg regTestAlign, X86Reg regToAdj, Flags flags);
-    static void EmitDummyObject(CPUSTUBLINKER *psl, X86Reg regTestAlign, Flags flags);
-    static void EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *noAlloc, Flags flags);
-    static void EmitNoAllocCode(CPUSTUBLINKER *psl, Flags flags);
-
-#if CHECK_APP_DOMAIN_LEAKS
-    static void EmitSetAppDomain(CPUSTUBLINKER *psl);
-    static void EmitCheckRestore(CPUSTUBLINKER *psl);
-#endif
-};
-#endif // _TARGET_X86_
 
 void *GenFastGetSharedStaticBase(bool bCheckCCtor);
 

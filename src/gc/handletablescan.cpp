@@ -949,7 +949,7 @@ static void VerifyObjectAndAge(_UNCHECKED_OBJECTREF *pValue, _UNCHECKED_OBJECTRE
     if (minAge >= GEN_MAX_AGE || (minAge > thisAge && thisAge < static_cast<int>(g_theGCHeap->GetMaxGeneration())))
     {
         _ASSERTE(!"Fatal Error in HandleTable.");
-        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        GCToEEInterface::HandleFatalError(COR_E_EXECUTIONENGINE);
     }
 }
 
@@ -1423,7 +1423,7 @@ PTR_TableSegment CALLBACK StandardSegmentIterator(PTR_HandleTable pTable, PTR_Ta
 {
     CONTRACTL
     {
-        WRAPPER(THROWS);
+        WRAPPER(NOTHROW);
         WRAPPER(GC_TRIGGERS);
         FORBID_FAULT;
         SUPPORTS_DAC;

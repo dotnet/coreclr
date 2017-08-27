@@ -31,14 +31,16 @@
 #include "debuginfostore.h"
 #include "strsafe.h"
 
-#ifdef FEATURE_CORECLR
 #include "configuration.h"
-#endif
 
 #ifdef _WIN64
 #define CHECK_DUPLICATED_STRUCT_LAYOUTS
 #include "../debug/daccess/fntableaccess.h"
 #endif // _WIN64
+
+#ifdef FEATURE_PERFMAP
+#include "perfmap.h"
+#endif
 
 #define MAX_M_ALLOCATED         (16 * 1024)
 
@@ -987,6 +989,13 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
 
     return pUnwindInfo;
 
+#elif defined(_TARGET_X86_)
+    PTR_UNWIND_INFO pUnwindInfo(dac_cast<PTR_UNWIND_INFO>(moduleBase + RUNTIME_FUNCTION__GetUnwindInfoAddress(pRuntimeFunction)));
+
+    *pSize = sizeof(UNWIND_INFO);
+
+    return pUnwindInfo;
+
 #elif defined(_TARGET_ARM_)
 
     // if this function uses packed unwind data then at least one of the two least significant bits
@@ -1214,7 +1223,6 @@ EEJitManager::EEJitManager()
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     m_JITCompilerOther = NULL;
 #endif
-    m_fLegacyJitUsed   = FALSE;
 
 #ifdef ALLOW_SXS_JIT
     m_alternateJit     = NULL;
@@ -1366,8 +1374,8 @@ void EEJitManager::SetCpuInfo()
 enum JIT_LOAD_JIT_ID
 {
     JIT_LOAD_MAIN = 500,    // The "main" JIT. Normally, this is named "clrjit.dll". Start at a number that is somewhat uncommon (i.e., not zero or 1) to help distinguish from garbage, in process dumps.
-    JIT_LOAD_LEGACY,        // The "legacy" JIT. Normally, this is named "compatjit.dll". This applies to AMD64 on Windows desktop, or x86 on Windows .NET Core.
-    JIT_LOAD_ALTJIT         // An "altjit". By default, named "protojit.dll". Used both internally, as well as externally for JIT CTP builds.
+    // 501 is JIT_LOAD_LEGACY on some platforms; please do not reuse this value.
+    JIT_LOAD_ALTJIT = 502   // An "altjit". By default, named "protojit.dll". Used both internally, as well as externally for JIT CTP builds.
 };
 
 enum JIT_LOAD_STATUS
@@ -1397,12 +1405,12 @@ struct JIT_LOAD_DATA
 // Here's the global data for JIT load and initialization state.
 JIT_LOAD_DATA g_JitLoadData;
 
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
 // Global that holds the path to custom JIT location
 extern "C" LPCWSTR g_CLRJITPath = nullptr;
 
-#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
 
 // LoadAndInitializeJIT: load the JIT dll into the process, and initialize it (call the UtilCode initialization function,
@@ -1439,7 +1447,6 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
 
     HRESULT hr = E_FAIL;
 
-#ifdef FEATURE_CORECLR
     PathString CoreClrFolderHolder;
     extern HINSTANCE g_hThisInst;
     bool havePath = false;
@@ -1482,9 +1489,6 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
         }
     }
 
-#else
-    hr = g_pCLRRuntime->LoadLibrary(pwzJitName, phJit);
-#endif
 
     if (SUCCEEDED(hr))
     {
@@ -1493,25 +1497,9 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
         EX_TRY
         {
             bool fContinueToLoadJIT = false;
-#if !defined(FEATURE_CORECLR)
-            typedef void (__stdcall* psxsJitStartup) (CoreClrCallbacks const &);
-            psxsJitStartup sxsJitStartupFn = (psxsJitStartup) GetProcAddress(*phJit, "sxsJitStartup");
-
-            if (sxsJitStartupFn)
-            {
-                pJitLoadData->jld_status = JIT_LOAD_STATUS_DONE_GET_SXSJITSTARTUP;
-
-                CoreClrCallbacks cccallbacks = GetClrCallbacks();
-                (*sxsJitStartupFn) (cccallbacks);
-
-                pJitLoadData->jld_status = JIT_LOAD_STATUS_DONE_CALL_SXSJITSTARTUP;
-                fContinueToLoadJIT = true;
-            }
-#else // FEATURE_CORECLR
             // For CoreCLR, we never use "sxsJitStartup" as that is Desktop utilcode initialization
             // specific. Thus, assume we always got 
             fContinueToLoadJIT = true;
-#endif // !defined(FEATURE_CORECLR)
 
             if (fContinueToLoadJIT)
             {
@@ -1643,105 +1631,6 @@ BOOL EEJitManager::LoadJIT()
 
     // Set as a courtesy to code:CorCompileGetRuntimeDll
     s_ngenCompilerDll = m_JITCompiler;
-
-#if (defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)) || (defined(_TARGET_X86_) && defined(FEATURE_CORECLR))
-    // If COMPlus_UseLegacyJit=1, then we fall back to compatjit.dll.
-    //
-    // This fallback mechanism was introduced for Visual Studio "14" Preview, when JIT64 (the legacy JIT) was replaced with
-    // RyuJIT. It was desired to provide a fallback mechanism in case comptibility problems (or other bugs)
-    // were discovered by customers. Setting this COMPLUS variable to 1 does not affect NGEN: existing NGEN images continue
-    // to be used, and all subsequent NGEN compilations continue to use the new JIT.
-    //
-    // If this is a compilation process, then we don't allow specifying a fallback JIT. This is a case where, when NGEN'ing,
-    // we sometimes need to JIT some things (such as when we are NGEN'ing mscorlib). In that case, we want to use exactly
-    // the same JIT as NGEN uses. And NGEN doesn't follow the COMPlus_UseLegacyJit=1 switch -- it always uses clrjit.dll.
-    //
-    // Note that we always load and initialize the default JIT. This is to handle cases where obfuscators rely on
-    // LoadLibrary("clrjit.dll") returning the module handle of the JIT, and then they call GetProcAddress("getJit") to get
-    // the EE-JIT interface. They also do this without also calling sxsJitStartup()!
-    //
-    // In addition, for reasons related to servicing, we only use RyuJIT when the registry value UseRyuJIT (type DWORD), under
-    // key HKLM\SOFTWARE\Microsoft\.NETFramework, is set to 1. Otherwise, we fall back to JIT64. Note that if this value
-    // is set, we also must use JIT64 for all NGEN compilations as well.
-    //
-    // See the document "RyuJIT Compatibility Fallback Specification.docx" for details.
-    //
-    // For .NET Core 1.2, RyuJIT for x86 is the primary jit (clrjit.dll) and JIT32 for x86 is the fallback, legacy JIT (compatjit.dll).
-    // Thus, the COMPlus_useLegacyJit=1 mechanism has been enabled for x86 CoreCLR. This scenario does not have the UseRyuJIT
-    // registry key, nor the AppX binder mode.
-
-#if defined(FEATURE_CORECLR)
-    bool fUseRyuJit = true;
-#else
-    bool fUseRyuJit = UseRyuJit();
-#endif
-
-    if ((!IsCompilationProcess() || !fUseRyuJit) &&     // Use RyuJIT for all NGEN, unless we're falling back to JIT64 for everything.
-        (newJitCompiler != nullptr))    // the main JIT must successfully load before we try loading the fallback JIT
-    {
-        BOOL fUsingCompatJit = FALSE;
-
-        if (!fUseRyuJit)
-        {
-            fUsingCompatJit = TRUE;
-        }
-
-        if (!fUsingCompatJit)
-        {
-#if defined(FEATURE_CORECLR)
-            DWORD useLegacyJit = Configuration::GetKnobBooleanValue(W("System.JIT.UseWindowsX86CoreLegacyJit"), CLRConfig::EXTERNAL_UseWindowsX86CoreLegacyJit);
-#else
-            DWORD useLegacyJit = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_UseLegacyJit); // uncached access, since this code is run no more than one time
-#endif
-            if (useLegacyJit == 1)
-            {
-                fUsingCompatJit = TRUE;
-            }
-        }
-
-#if defined(FEATURE_APPX_BINDER)
-        if (!fUsingCompatJit)
-        {
-            // AppX applications don't have a .config file for per-app configuration. So, we allow the placement of a single
-            // distinguished file, "UseLegacyJit.txt" in the root of the app's package to indicate that the app should fall
-            // back to JIT64. This same file is also used to prevent this app from participating in AutoNgen.
-            if (AppX::IsAppXProcess())
-            {
-                WCHAR szPathName[MAX_LONGPATH];
-                UINT32 cchPathName = MAX_LONGPATH;
-                if (AppX::FindFileInCurrentPackage(L"UseLegacyJit.txt", &cchPathName, szPathName, PACKAGE_FILTER_HEAD) == S_OK)
-                {
-                    fUsingCompatJit = TRUE;
-                }
-            }
-        }
-#endif // FEATURE_APPX_BINDER
-
-        if (fUsingCompatJit)
-        {
-            // Now, load the compat jit and initialize it.
-
-            LPCWSTR pwzJitName = MAKEDLLNAME_W(W("compatjit"));
-
-            // Note: if the compatjit fails to load, we ignore it, and continue to use the main JIT for
-            // everything. You can imagine a policy where if the user requests the compatjit, and we fail
-            // to load it, that we fail noisily. We don't do that currently.
-            ICorJitCompiler* fallbackICorJitCompiler;
-            g_JitLoadData.jld_id = JIT_LOAD_LEGACY;
-            LoadAndInitializeJIT(pwzJitName, &m_JITCompilerOther, &fallbackICorJitCompiler, &g_JitLoadData);
-            if (fallbackICorJitCompiler != nullptr)
-            {
-                // Tell the main JIT to fall back to the "fallback" JIT compiler, in case some
-                // obfuscator tries to directly call the main JIT's getJit() function.
-                newJitCompiler->setRealJit(fallbackICorJitCompiler);
-
-                // Now, the compat JIT will be used.
-                m_fLegacyJitUsed = TRUE;
-            }
-        }
-    }
-#endif // (defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)) || (defined(_TARGET_X86_) && defined(FEATURE_CORECLR))
-
 #endif // !FEATURE_MERGE_JIT_AND_ENGINE
 
 #ifdef ALLOW_SXS_JIT
@@ -2301,7 +2190,7 @@ HeapList* EEJitManager::NewCodeHeap(CodeHeapRequestInfo *pInfo, DomainCodeHeapLi
     } CONTRACT_END;
 
     size_t initialRequestSize = pInfo->getRequestSize();
-    size_t minReserveSize = VIRTUAL_ALLOC_RESERVE_GRANULARITY; //     ( 64 KB)           
+    size_t minReserveSize = VIRTUAL_ALLOC_RESERVE_GRANULARITY; //     ( 64 KB)
 
 #ifdef _WIN64
     if (pInfo->m_hiAddr == 0)
@@ -2505,12 +2394,12 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
     {
         // Let us create a new heap.
 
-        DomainCodeHeapList *pList = GetCodeHeapList(pInfo->m_pMD, pInfo->m_pAllocator);
+        DomainCodeHeapList *pList = GetCodeHeapList(pInfo, pInfo->m_pAllocator);
         if (pList == NULL)
         {
             // not found so need to create the first one
             pList = CreateCodeHeapList(pInfo);
-            _ASSERTE(pList == GetCodeHeapList(pInfo->m_pMD, pInfo->m_pAllocator));
+            _ASSERTE(pList == GetCodeHeapList(pInfo, pInfo->m_pAllocator));
         }
         _ASSERTE(pList);
 
@@ -2593,22 +2482,28 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, CorJitAll
 
     SIZE_T totalSize = blockSize;
 
+    CodeHeader * pCodeHdr = NULL;
+
+    CodeHeapRequestInfo requestInfo(pMD);
+#if defined(FEATURE_JIT_PITCHING)
+    if (pMD && pMD->IsPitchable() && CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitPitchMethodSizeThreshold) < blockSize)
+    {
+        requestInfo.SetDynamicDomain();
+    }
+#endif
+
 #if defined(USE_INDIRECT_CODEHEADER)
     SIZE_T realHeaderSize = offsetof(RealCodeHeader, unwindInfos[0]) + (sizeof(T_RUNTIME_FUNCTION) * nUnwindInfos); 
 
     // if this is a LCG method then we will be allocating the RealCodeHeader
     // following the code so that the code block can be removed easily by 
     // the LCG code heap.
-    if (pMD->IsLCGMethod())
+    if (requestInfo.IsDynamicDomain())
     {
         totalSize = ALIGN_UP(totalSize, sizeof(void*)) + realHeaderSize;
         static_assert_no_msg(CODE_SIZE_ALIGN >= sizeof(void*));
     }
 #endif  // USE_INDIRECT_CODEHEADER
-
-    CodeHeader * pCodeHdr = NULL;
-
-    CodeHeapRequestInfo requestInfo(pMD);
 
     // Scope the lock
     {
@@ -2636,7 +2531,7 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, CorJitAll
         pCodeHdr = ((CodeHeader *)pCode) - 1;
 
 #ifdef USE_INDIRECT_CODEHEADER
-        if (pMD->IsLCGMethod())
+        if (requestInfo.IsDynamicDomain())
         {
             pCodeHdr->SetRealCodeHeader((BYTE*)pCode + ALIGN_UP(blockSize, sizeof(void*)));
         }
@@ -2665,7 +2560,7 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, CorJitAll
     RETURN(pCodeHdr);
 }
 
-EEJitManager::DomainCodeHeapList *EEJitManager::GetCodeHeapList(MethodDesc *pMD, LoaderAllocator *pAllocator, BOOL fDynamicOnly)
+EEJitManager::DomainCodeHeapList *EEJitManager::GetCodeHeapList(CodeHeapRequestInfo *pInfo, LoaderAllocator *pAllocator, BOOL fDynamicOnly)
 {
     CONTRACTL {
         NOTHROW;
@@ -2679,7 +2574,7 @@ EEJitManager::DomainCodeHeapList *EEJitManager::GetCodeHeapList(MethodDesc *pMD,
 
     // get the appropriate list of heaps
     // pMD is NULL for NGen modules during Module::LoadTokenTables
-    if (fDynamicOnly || (pMD != NULL && pMD->IsLCGMethod()))
+    if (fDynamicOnly || (pInfo != NULL && pInfo->IsDynamicDomain()))
     {
         ppList = m_DynamicDomainCodeHeaps.Table();
         count = m_DynamicDomainCodeHeaps.Count();
@@ -2720,7 +2615,7 @@ HeapList* EEJitManager::GetCodeHeap(CodeHeapRequestInfo *pInfo)
 
     // loop through the m_DomainCodeHeaps to find the AppDomain
     // if not found, then create it
-    DomainCodeHeapList *pList = GetCodeHeapList(pInfo->m_pMD, pInfo->m_pAllocator);
+    DomainCodeHeapList *pList = GetCodeHeapList(pInfo, pInfo->m_pAllocator);
     if (pList)
     {
         // Set pResult to the largest non-full HeapList
@@ -2841,7 +2736,7 @@ bool EEJitManager::CanUseCodeHeap(CodeHeapRequestInfo *pInfo, HeapList *pCodeHea
        }
    }
 
-   return retVal; 
+   return retVal;
 }
 
 EEJitManager::DomainCodeHeapList * EEJitManager::CreateCodeHeapList(CodeHeapRequestInfo *pInfo)
@@ -3217,8 +3112,8 @@ void EEJitManager::RemoveJitData (CodeHeader * pCHdr, size_t GCinfo_len, size_t 
 
             LCGMethodResolver * pResolver = pMD->AsDynamicMethodDesc()->GetLCGMethodResolver();
 
-            // Clear the pointer only if it matches what we are about to free. There may be cases where the JIT is reentered and
-            // the method JITed multiple times.
+            // Clear the pointer only if it matches what we are about to free. 
+            // There can be cases where the JIT is reentered and we JITed the method multiple times.
             if (pResolver->m_recordCodePointer == codeStart)
                 pResolver->m_recordCodePointer = NULL;
         }
@@ -4404,7 +4299,6 @@ LPCWSTR ExecutionManager::GetJitName()
 
     LPCWSTR  pwzJitName = NULL;
 
-#if defined(FEATURE_CORECLR)
 #if !defined(CROSSGEN_COMPILE)
     if (g_CLRJITPath != nullptr)
     {
@@ -4419,10 +4313,6 @@ LPCWSTR ExecutionManager::GetJitName()
         }
     }
 #endif // !defined(CROSSGEN_COMPILE)
-#else // !FEATURE_CORECLR
-    // Try to obtain a name for the jit library from the env. variable
-    IfFailThrow(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_JitName, const_cast<LPWSTR *>(&pwzJitName)));
-#endif // !FEATURE_CORECLR
     
     if (NULL == pwzJitName)
     {
@@ -4930,7 +4820,7 @@ void ExecutionManager::Unload(LoaderAllocator *pLoaderAllocator)
     */
     StackwalkCache::Invalidate(pLoaderAllocator);
 
-    JumpStubCache * pJumpStubCache = (JumpStubCache *)pLoaderAllocator->m_pJumpStubCache;
+    JumpStubCache * pJumpStubCache = (JumpStubCache *) pLoaderAllocator->m_pJumpStubCache;
     if (pJumpStubCache != NULL)
     {
         delete pJumpStubCache;
@@ -4999,18 +4889,33 @@ PCODE ExecutionManager::jumpStub(MethodDesc* pMD, PCODE target,
     PCODE jumpStub = NULL;
 
     if (pLoaderAllocator == NULL)
+    {
         pLoaderAllocator = pMD->GetLoaderAllocatorForCode();
+    }
     _ASSERTE(pLoaderAllocator != NULL);
 
-    bool isLCG = pMD && pMD->IsLCGMethod();
+    bool                 isLCG          = pMD && pMD->IsLCGMethod();
+    LCGMethodResolver *  pResolver      = nullptr;
+    JumpStubCache *      pJumpStubCache = (JumpStubCache *) pLoaderAllocator->m_pJumpStubCache;
+
+    if (isLCG)
+    {
+        pResolver      = pMD->AsDynamicMethodDesc()->GetLCGMethodResolver();
+        pJumpStubCache = pResolver->m_pJumpStubCache;
+    }
 
     CrstHolder ch(&m_JumpStubCrst);
-
-    JumpStubCache * pJumpStubCache = (JumpStubCache *)pLoaderAllocator->m_pJumpStubCache;
     if (pJumpStubCache == NULL)
     {
         pJumpStubCache = new JumpStubCache();
-        pLoaderAllocator->m_pJumpStubCache = pJumpStubCache;
+        if (isLCG)
+        {
+            pResolver->m_pJumpStubCache = pJumpStubCache;
+        }
+        else
+        {
+            pLoaderAllocator->m_pJumpStubCache = pJumpStubCache;
+        }
     }
 
     if (isLCG)
@@ -5063,9 +4968,19 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
         POSTCONDITION(RETVAL != NULL);
     } CONTRACT_END;
 
-    BYTE *                 jumpStub = NULL;
-    bool                   isLCG    = pMD && pMD->IsLCGMethod();
-    JumpStubBlockHeader ** ppHead   = isLCG ? &(pMD->AsDynamicMethodDesc()->GetLCGMethodResolver()->m_jumpStubBlock) : &(((JumpStubCache *)(pLoaderAllocator->m_pJumpStubCache))->m_pBlocks);
+    DWORD            numJumpStubs   = DEFAULT_JUMPSTUBS_PER_BLOCK;  // a block of 32 JumpStubs
+    BYTE *           jumpStub       = NULL;
+    bool             isLCG          = pMD && pMD->IsLCGMethod();
+    JumpStubCache *  pJumpStubCache = (JumpStubCache *) pLoaderAllocator->m_pJumpStubCache;
+
+    if (isLCG)
+    {
+        LCGMethodResolver *  pResolver;
+        pResolver      = pMD->AsDynamicMethodDesc()->GetLCGMethodResolver();
+        pJumpStubCache = pResolver->m_pJumpStubCache;
+    }
+
+    JumpStubBlockHeader ** ppHead   = &(pJumpStubCache->m_pBlocks);
     JumpStubBlockHeader *  curBlock = *ppHead;
     
     // allocate a new jumpstub from 'curBlock' if it is not fully allocated
@@ -5084,7 +4999,6 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
                 goto DONE;
             }
         }
-
         curBlock = curBlock->m_next;
     }
 
@@ -5092,6 +5006,24 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
 
     if (isLCG)
     {
+        // For LCG we request a small block of 4 jumpstubs, because we can not share them
+        // with any other methods and very frequently our method only needs one jump stub.
+        // Using 4 gives a request size of (32 + 4*12) or 80 bytes.
+        // Also note that request sizes are rounded up to a multiples of 16.
+        // The request size is calculated into 'blockSize' in allocJumpStubBlock.
+        // For x64 the value of BACK_TO_BACK_JUMP_ALLOCATE_SIZE is 12 bytes
+        // and the sizeof(JumpStubBlockHeader) is 32.
+        //
+
+        numJumpStubs = 4;
+
+#ifdef _TARGET_AMD64_
+        // Note this these values are not requirements, instead we are 
+        // just confirming the values that are mentioned in the comments.
+        _ASSERTE(BACK_TO_BACK_JUMP_ALLOCATE_SIZE == 12);
+        _ASSERTE(sizeof(JumpStubBlockHeader) == 32);
+#endif
+
         // Increment counter of LCG jump stub block allocations
         m_LCG_JumpStubBlockAllocCount++;
     }
@@ -5101,9 +5033,12 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
         m_normal_JumpStubBlockAllocCount++;
     }
 
-    // allocJumpStubBlock will allocate from the LoaderCodeHeap for normal methods and HostCodeHeap for LCG methods
-    // this can throw an OM exception
-    curBlock = ExecutionManager::GetEEJitManager()->allocJumpStubBlock(pMD, DEFAULT_JUMPSTUBS_PER_BLOCK, loAddr, hiAddr, pLoaderAllocator);
+    // allocJumpStubBlock will allocate from the LoaderCodeHeap for normal methods
+    // and will alocate from a HostCodeHeap for LCG methods.
+    //
+    // note that this can throw an OOM exception
+
+    curBlock = ExecutionManager::GetEEJitManager()->allocJumpStubBlock(pMD, numJumpStubs, loAddr, hiAddr, pLoaderAllocator);
 
     jumpStub = (BYTE *) curBlock + sizeof(JumpStubBlockHeader) + ((size_t) curBlock->m_used * BACK_TO_BACK_JUMP_ALLOCATE_SIZE);
 
@@ -5123,25 +5058,20 @@ DONE:
 
     emitBackToBackJump(jumpStub, (void*) target);
 
-    if (isLCG)
-    {
-        // always get a new jump stub for LCG method
-        // We don't share jump stubs among different LCG methods so that the jump stubs used
-        // by every LCG method can be cleaned up individually
-        // There is not much benefit to share jump stubs within one LCG method anyway.
-    }
-    else
-    {
-        JumpStubCache * pJumpStubCache = (JumpStubCache *)pLoaderAllocator->m_pJumpStubCache;
-        _ASSERTE(pJumpStubCache != NULL);
+#ifdef FEATURE_PERFMAP
+    PerfMap::LogStubs(__FUNCTION__, "emitBackToBackJump", (PCODE)jumpStub, BACK_TO_BACK_JUMP_ALLOCATE_SIZE);
+#endif
 
-        JumpStubEntry entry;
+    // We always add the new jumpstub to the jumpStubCache 
+    //
+    _ASSERTE(pJumpStubCache != NULL);
 
-        entry.m_target = target;
-        entry.m_jumpStub = (PCODE)jumpStub;
+    JumpStubEntry entry;
 
-        pJumpStubCache->m_Table.Add(entry);
-    }
+    entry.m_target = target;
+    entry.m_jumpStub = (PCODE)jumpStub;
+
+    pJumpStubCache->m_Table.Add(entry);
 
     curBlock->m_used++;    // record that we have used up one more jumpStub in the block
 
@@ -5601,9 +5531,9 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
             g_IBCLogger.LogMethodCodeAccess(*ppMethodDesc);
         }
 
-        //Get the function entry that corresponds to the real method desc.
+        // Get the function entry that corresponds to the real method desc.
         _ASSERTE((RelativePc >= RUNTIME_FUNCTION__BeginAddress(FunctionEntry)));
-    
+
         if (pCodeInfo)
         {
             pCodeInfo->m_relOffset = (DWORD)

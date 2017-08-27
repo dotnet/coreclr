@@ -321,8 +321,8 @@ Compiler::fgWalkResult Compiler::optCSE_MaskHelper(GenTreePtr* pTree, fgWalkData
 //
 void Compiler::optCSE_GetMaskData(GenTreePtr tree, optCSE_MaskData* pMaskData)
 {
-    pMaskData->CSE_defMask = BitVecOps::MakeCopy(cseTraits, cseEmpty);
-    pMaskData->CSE_useMask = BitVecOps::MakeCopy(cseTraits, cseEmpty);
+    pMaskData->CSE_defMask = BitVecOps::MakeEmpty(cseTraits);
+    pMaskData->CSE_useMask = BitVecOps::MakeEmpty(cseTraits);
     fgWalkTreePre(&tree, optCSE_MaskHelper, (void*)pMaskData);
 }
 
@@ -498,10 +498,7 @@ void Compiler::optValnumCSE_Init()
     // Init traits and full/empty bitvectors.  This will be used to track the
     // individual cse indexes.
     cseTraits = new (getAllocator()) BitVecTraits(EXPSET_SZ, this);
-    cseFull   = BitVecOps::UninitVal();
-    cseEmpty  = BitVecOps::UninitVal();
-    BitVecOps::AssignNoCopy(cseTraits, cseFull, BitVecOps::MakeFull(cseTraits));
-    BitVecOps::AssignNoCopy(cseTraits, cseEmpty, BitVecOps::MakeEmpty(cseTraits));
+    cseFull   = BitVecOps::MakeFull(cseTraits);
 
     /* Allocate and clear the hash bucket table */
 
@@ -509,6 +506,9 @@ void Compiler::optValnumCSE_Init()
 
     optCSECandidateCount = 0;
     optDoCSE             = false; // Stays false until we find duplicate CSE tree
+
+    // optCseCheckedBoundMap is unused in most functions, allocated only when used
+    optCseCheckedBoundMap = nullptr;
 }
 
 /*****************************************************************************
@@ -700,8 +700,17 @@ unsigned Compiler::optValnumCSE_Locate()
             noway_assert(stmt->gtOper == GT_STMT);
 
             /* We walk the tree in the forwards direction (bottom up) */
+            bool stmtHasArrLenCandidate = false;
             for (tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
             {
+                if (tree->OperIsCompare() && stmtHasArrLenCandidate)
+                {
+                    // Check if this compare is a function of (one of) the checked
+                    // bound candidate(s); we may want to update its value number.
+                    // if the array length gets CSEd
+                    optCseUpdateCheckedBoundMap(tree);
+                }
+
                 if (!optIsCSEcandidate(tree))
                 {
                     continue;
@@ -715,9 +724,14 @@ unsigned Compiler::optValnumCSE_Locate()
                 }
 
                 // Don't CSE constant values, instead let the Value Number
-                // based Assertion Prop phase handle them.
+                // based Assertion Prop phase handle them.  Here, unlike
+                // the rest of optCSE, we use the conservative value number
+                // rather than the liberal one, since the conservative one
+                // is what the Value Number based Assertion Prop will use
+                // and the point is to avoid optimizing cases that it will
+                // handle.
                 //
-                if (vnStore->IsVNConstant(vnlib))
+                if (vnStore->IsVNConstant(tree->GetVN(VNK_Conservative)))
                 {
                     continue;
                 }
@@ -729,6 +743,11 @@ unsigned Compiler::optValnumCSE_Locate()
                 if (CSEindex != 0)
                 {
                     noway_assert(((unsigned)tree->gtCSEnum) == CSEindex);
+                }
+
+                if (IS_CSE_INDEX(CSEindex) && (tree->OperGet() == GT_ARR_LENGTH))
+                {
+                    stmtHasArrLenCandidate = true;
                 }
             }
         }
@@ -746,6 +765,101 @@ unsigned Compiler::optValnumCSE_Locate()
     optCSEstop();
 
     return 1;
+}
+
+//------------------------------------------------------------------------
+// optCseUpdateCheckedBoundMap: Check if this compare is a tractable function of
+//                     a checked bound that is a CSE candidate, and insert
+//                     an entry in the optCseCheckedBoundMap if so.  This facilitates
+//                     subsequently updating the compare's value number if
+//                     the bound gets CSEd.
+//
+// Arguments:
+//    compare - The compare node to check
+
+void Compiler::optCseUpdateCheckedBoundMap(GenTreePtr compare)
+{
+    assert(compare->OperIsCompare());
+
+    ValueNum  compareVN = compare->gtVNPair.GetConservative();
+    VNFuncApp cmpVNFuncApp;
+
+    if (!vnStore->GetVNFunc(compareVN, &cmpVNFuncApp) ||
+        (cmpVNFuncApp.m_func != GetVNFuncForOper(compare->OperGet(), compare->IsUnsigned())))
+    {
+        // Value numbering inferred this compare as something other
+        // than its own operator; leave its value number alone.
+        return;
+    }
+
+    // Now look for a checked bound feeding the compare
+    ValueNumStore::CompareCheckedBoundArithInfo info;
+
+    GenTreePtr boundParent = nullptr;
+
+    if (vnStore->IsVNCompareCheckedBound(compareVN))
+    {
+        // Simple compare of an bound against something else.
+
+        vnStore->GetCompareCheckedBound(compareVN, &info);
+        boundParent = compare;
+    }
+    else if (vnStore->IsVNCompareCheckedBoundArith(compareVN))
+    {
+        // Compare of a bound +/- some offset to something else.
+
+        GenTreePtr op1 = compare->gtGetOp1();
+        GenTreePtr op2 = compare->gtGetOp2();
+
+        vnStore->GetCompareCheckedBoundArithInfo(compareVN, &info);
+        if (GetVNFuncForOper(op1->OperGet(), op1->IsUnsigned()) == (VNFunc)info.arrOper)
+        {
+            // The arithmetic node is the bound's parent.
+            boundParent = op1;
+        }
+        else if (GetVNFuncForOper(op2->OperGet(), op2->IsUnsigned()) == (VNFunc)info.arrOper)
+        {
+            // The arithmetic node is the bound's parent.
+            boundParent = op2;
+        }
+    }
+
+    if (boundParent != nullptr)
+    {
+        GenTreePtr bound = nullptr;
+
+        // Find which child of boundParent is the bound.  Abort if neither
+        // conservative value number matches the one from the compare VN.
+
+        GenTreePtr child1 = boundParent->gtGetOp1();
+        if ((info.vnBound == child1->gtVNPair.GetConservative()) && IS_CSE_INDEX(child1->gtCSEnum))
+        {
+            bound = child1;
+        }
+        else
+        {
+            GenTreePtr child2 = boundParent->gtGetOp2();
+            if ((info.vnBound == child2->gtVNPair.GetConservative()) && IS_CSE_INDEX(child2->gtCSEnum))
+            {
+                bound = child2;
+            }
+        }
+
+        if (bound != nullptr)
+        {
+            // Found a checked bound feeding a compare that is a tractable function of it;
+            // record this in the map so we can update the compare VN if the bound
+            // node gets CSEd.
+
+            if (optCseCheckedBoundMap == nullptr)
+            {
+                // Allocate map on first use.
+                optCseCheckedBoundMap = new (getAllocator()) NodeToNodeMap(getAllocator());
+            }
+
+            optCseCheckedBoundMap->Set(bound, compare);
+        }
+    }
 }
 
 /*****************************************************************************
@@ -782,7 +896,7 @@ void Compiler::optValnumCSE_InitDataFlow()
         if (init_to_zero)
         {
             /* Initialize to {ZERO} prior to dataflow */
-            block->bbCseIn = BitVecOps::MakeCopy(cseTraits, cseEmpty);
+            block->bbCseIn = BitVecOps::MakeEmpty(cseTraits);
         }
         else
         {
@@ -793,7 +907,7 @@ void Compiler::optValnumCSE_InitDataFlow()
         block->bbCseOut = BitVecOps::MakeCopy(cseTraits, cseFull);
 
         /* Initialize to {ZERO} prior to locating the CSE candidates */
-        block->bbCseGen = BitVecOps::MakeCopy(cseTraits, cseEmpty);
+        block->bbCseGen = BitVecOps::MakeEmpty(cseTraits);
     }
 
     // We walk the set of CSE candidates and set the bit corresponsing to the CSEindex
@@ -847,42 +961,31 @@ void Compiler::optValnumCSE_InitDataFlow()
  */
 class CSE_DataFlow
 {
-private:
-    EXPSET_TP m_preMergeOut;
-
-    Compiler* m_pCompiler;
+    BitVecTraits* m_pBitVecTraits;
+    EXPSET_TP     m_preMergeOut;
 
 public:
-    CSE_DataFlow(Compiler* pCompiler) : m_pCompiler(pCompiler)
+    CSE_DataFlow(Compiler* pCompiler) : m_pBitVecTraits(pCompiler->cseTraits), m_preMergeOut(BitVecOps::UninitVal())
     {
-    }
-
-    Compiler* getCompiler()
-    {
-        return m_pCompiler;
     }
 
     // At the start of the merge function of the dataflow equations, initialize premerge state (to detect changes.)
     void StartMerge(BasicBlock* block)
     {
-        m_preMergeOut = BitVecOps::MakeCopy(m_pCompiler->cseTraits, block->bbCseOut);
+        BitVecOps::Assign(m_pBitVecTraits, m_preMergeOut, block->bbCseOut);
     }
 
     // During merge, perform the actual merging of the predecessor's (since this is a forward analysis) dataflow flags.
     void Merge(BasicBlock* block, BasicBlock* predBlock, flowList* preds)
     {
-        BitVecOps::IntersectionD(m_pCompiler->cseTraits, block->bbCseIn, predBlock->bbCseOut);
+        BitVecOps::IntersectionD(m_pBitVecTraits, block->bbCseIn, predBlock->bbCseOut);
     }
 
     // At the end of the merge store results of the dataflow equations, in a postmerge state.
     bool EndMerge(BasicBlock* block)
     {
-        BitVecTraits* traits   = m_pCompiler->cseTraits;
-        EXPSET_TP     mergeOut = BitVecOps::MakeCopy(traits, block->bbCseIn);
-        BitVecOps::UnionD(traits, mergeOut, block->bbCseGen);
-        BitVecOps::IntersectionD(traits, mergeOut, block->bbCseOut);
-        BitVecOps::Assign(traits, block->bbCseOut, mergeOut);
-        return (!BitVecOps::Equal(traits, mergeOut, m_preMergeOut));
+        BitVecOps::DataFlowD(m_pBitVecTraits, block->bbCseOut, block->bbCseGen, block->bbCseIn);
+        return !BitVecOps::Equal(m_pBitVecTraits, block->bbCseOut, m_preMergeOut);
     }
 };
 
@@ -948,6 +1051,8 @@ void Compiler::optValnumCSE_Availablity()
         printf("Labeling the CSEs with Use/Def information\n");
     }
 #endif
+    EXPSET_TP available_cses = BitVecOps::MakeEmpty(cseTraits);
+
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
         GenTreePtr stmt;
@@ -957,7 +1062,7 @@ void Compiler::optValnumCSE_Availablity()
 
         compCurBB = block;
 
-        EXPSET_TP available_cses = BitVecOps::MakeCopy(cseTraits, block->bbCseIn);
+        BitVecOps::Assign(cseTraits, available_cses, block->bbCseIn);
 
         optCSEweight = block->getBBWeight(this);
 
@@ -995,6 +1100,17 @@ void Compiler::optValnumCSE_Availablity()
                         }
 
                         /* This is a CSE def */
+
+                        if (desc->csdDefCount == 0)
+                        {
+                            // This is the first def visited, so copy its conservative VN
+                            desc->defConservativeVN = tree->gtVNPair.GetConservative();
+                        }
+                        else if (tree->gtVNPair.GetConservative() != desc->defConservativeVN)
+                        {
+                            // This candidate has defs with differing conservative VNs
+                            desc->defConservativeVN = ValueNumStore::NoVN;
+                        }
 
                         desc->csdDefCount += 1;
                         desc->csdDefWtCnt += stmw;
@@ -1091,6 +1207,18 @@ public:
             {
                 continue;
             }
+
+#if FEATURE_FIXED_OUT_ARGS
+            // Skip the OutgoingArgArea in computing frame size, since
+            // its size is not yet known and it doesn't affect local
+            // offsets from the frame pointer (though it may affect
+            // them from the stack pointer).
+            noway_assert(m_pCompiler->lvaOutgoingArgSpaceVar != BAD_VAR_NUM);
+            if (lclNum == m_pCompiler->lvaOutgoingArgSpaceVar)
+            {
+                continue;
+            }
+#endif // FEATURE_FIXED_OUT_ARGS
 
             bool onStack = (regAvailEstimate == 0); // true when it is likely that this LclVar will have a stack home
 
@@ -1778,6 +1906,8 @@ public:
         m_addCSEcount++; // Record that we created a new LclVar for use as a CSE temp
         m_pCompiler->optCSEcount++;
 
+        ValueNum defConservativeVN = successfulCandidate->CseDsc()->defConservativeVN;
+
         /*  Walk all references to this CSE, adding an assignment
             to the CSE temp to all defs and changing all refs to
             a simple use of the CSE temp.
@@ -1812,7 +1942,7 @@ public:
             lst                  = dsc->csdTreeList;
             GenTreePtr firstTree = lst->tslTree;
             printf("In %s, CSE (oper = %s, type = %s) has differing VNs: ", info.compFullName,
-                   GenTree::NodeName(firstTree->OperGet()), varTypeName(firstTree->TypeGet()));
+                   GenTree::OpName(firstTree->OperGet()), varTypeName(firstTree->TypeGet()));
             while (lst != NULL)
             {
                 if (IS_CSE_INDEX(lst->tslTree->gtCSEnum))
@@ -1890,6 +2020,55 @@ public:
                 //
                 cse           = m_pCompiler->gtNewLclvNode(cseLclVarNum, cseLclVarTyp);
                 cse->gtVNPair = exp->gtVNPair; // assign the proper Value Numbers
+                if (defConservativeVN != ValueNumStore::NoVN)
+                {
+                    // All defs of this CSE share the same conservative VN, and we are rewriting this
+                    // use to fetch the same value with no reload, so we can safely propagate that
+                    // conservative VN to this use.  This can help range check elimination later on.
+                    cse->gtVNPair.SetConservative(defConservativeVN);
+
+                    // If the old VN was flagged as a checked bound, propagate that to the new VN
+                    // to make sure assertion prop will pay attention to this VN.
+                    ValueNumStore* vnStore = m_pCompiler->vnStore;
+                    ValueNum       oldVN   = exp->gtVNPair.GetConservative();
+                    if (!vnStore->IsVNConstant(defConservativeVN) && vnStore->IsVNCheckedBound(oldVN))
+                    {
+                        vnStore->SetVNIsCheckedBound(defConservativeVN);
+                    }
+
+                    GenTreePtr cmp;
+                    if ((m_pCompiler->optCseCheckedBoundMap != nullptr) &&
+                        (m_pCompiler->optCseCheckedBoundMap->Lookup(exp, &cmp)))
+                    {
+                        // Propagate the new value number to this compare node as well, since
+                        // subsequent range check elimination will try to correlate it with
+                        // the other appearances that are getting CSEd.
+
+                        ValueNum oldCmpVN = cmp->gtVNPair.GetConservative();
+                        ValueNum newCmpArgVN;
+
+                        ValueNumStore::CompareCheckedBoundArithInfo info;
+                        if (vnStore->IsVNCompareCheckedBound(oldCmpVN))
+                        {
+                            // Comparison is against the bound directly.
+
+                            newCmpArgVN = defConservativeVN;
+                            vnStore->GetCompareCheckedBound(oldCmpVN, &info);
+                        }
+                        else
+                        {
+                            // Comparison is against the bound +/- some offset.
+
+                            assert(vnStore->IsVNCompareCheckedBoundArith(oldCmpVN));
+                            vnStore->GetCompareCheckedBoundArithInfo(oldCmpVN, &info);
+                            newCmpArgVN = vnStore->VNForFunc(vnStore->TypeOfVN(info.arrOp), (VNFunc)info.arrOper,
+                                                             info.arrOp, defConservativeVN);
+                        }
+                        ValueNum newCmpVN = vnStore->VNForFunc(vnStore->TypeOfVN(oldCmpVN), (VNFunc)info.cmpOper,
+                                                               info.cmpOp, newCmpArgVN);
+                        cmp->gtVNPair.SetConservative(newCmpVN);
+                    }
+                }
 #ifdef DEBUG
                 cse->gtDebugFlags |= GTF_DEBUG_VAR_CSE_REF;
 #endif // DEBUG

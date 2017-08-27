@@ -39,8 +39,6 @@ public:
 
     static FCDECL1(void, ReportThreadStatus, CLR_BOOL isWorking);
 
-    static FCDECL0(FC_BOOL_RET, IsThreadPoolHosted);
-
 
     static FCDECL7(LPVOID, CorRegisterWaitForSingleObject,
                                 Object* waitObjectUNSAFE,
@@ -67,7 +65,6 @@ public:
     static BOOL QCALLTYPE DeleteAppDomainTimer(HANDLE hTimer);
 };
 
-void ResetThreadSecurityState(Thread* pThread);
 VOID QueueUserWorkItemManagedCallback(PVOID pArg);
 void WINAPI BindIoCompletionCallbackStub(DWORD ErrorCode,
                                          DWORD numBytesTransferred,
@@ -76,8 +73,5 @@ void SetAsyncResultProperties(
     OVERLAPPEDDATAREF overlapped,
     DWORD dwErrorCode, 
     DWORD dwNumBytes);
-
-// this holder resets our thread's security state
-typedef Holder<Thread*, DoNothing<Thread*>, ResetThreadSecurityState> ThreadSecurityStateHolder;
 
 #endif

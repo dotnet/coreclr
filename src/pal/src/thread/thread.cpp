@@ -28,12 +28,15 @@ SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do
 #include "pal/handlemgr.hpp"
 #include "pal/cs.hpp"
 #include "pal/seh.hpp"
+#include "pal/signal.hpp"
 
 #include "procprivate.hpp"
 #include "pal/process.h"
 #include "pal/module.h"
 #include "pal/environ.h"
 #include "pal/init.h"
+#include "pal/utils.h"
+#include "pal/virtual.h"
 
 #if defined(__NetBSD__) && !HAVE_PTHREAD_GETCPUCLOCKID
 #include <sys/cdefs.h>
@@ -76,13 +79,6 @@ using namespace CorUnix;
 
 
 /* ------------------- Definitions ------------------------------*/
-
-// The default stack size of a newly created thread (currently 256KB)
-// when the dwStackSize parameter of PAL_CreateThread()
-// is zero. This value can be set by setting the
-// environment variable PAL_THREAD_DEFAULT_STACK_SIZE
-// (the value should be in bytes and in hex).
-DWORD CPalThread::s_dwDefaultThreadStackSize = 256*1024; 
 
 /* list of free CPalThread objects */
 static Volatile<CPalThread*> free_threads_list = NULL;
@@ -134,10 +130,13 @@ CObjectType CorUnix::otThread(
                 otiThread,
                 ThreadCleanupRoutine,
                 ThreadInitializationRoutine,
-                0, //sizeof(CThreadImmutableData),
+                0,      // sizeof(CThreadImmutableData),
+                NULL,   // No immutable data copy routine
+                NULL,   // No immutable data cleanup routine
                 sizeof(CThreadProcessLocalData),
-                0, //sizeof(CThreadSharedData),
-                0, // THREAD_ALL_ACCESS,
+                NULL,   // No process local data cleanup routine
+                0,      // sizeof(CThreadSharedData),
+                0,      // THREAD_ALL_ACCESS,
                 CObjectType::SecuritySupported,
                 CObjectType::SecurityInfoNotPersisted,
                 CObjectType::UnnamedObject,
@@ -182,6 +181,10 @@ static void InternalEndCurrentThreadWrapper(void *arg)
     // in InternalEndCurrentThread.
     InternalEndCurrentThread(pThread);
     pthread_setspecific(thObjKey, NULL);
+
+#if !HAVE_MACH_EXCEPTIONS
+    FreeSignalAlternateStack();
+#endif // !HAVE_MACH_EXCEPTIONS
 }
 
 /*++
@@ -528,6 +531,7 @@ CorUnix::InternalCreateThread(
 #endif  // PTHREAD_CREATE_MODIFIES_ERRNO
     BOOL fHoldingProcessLock = FALSE;
     int iError = 0;
+    size_t alignedStackSize;
 
     if (0 != terminator)
     {
@@ -573,7 +577,24 @@ CorUnix::InternalCreateThread(
         palError = ERROR_INVALID_PARAMETER;
         goto EXIT;
     }
-    
+
+    alignedStackSize = dwStackSize;
+    if (alignedStackSize != 0)
+    {
+        // Some systems require the stack size to be aligned to the page size
+        if (sizeof(alignedStackSize) <= sizeof(dwStackSize) && alignedStackSize + (GetVirtualPageSize() - 1) < alignedStackSize)
+        {
+            // When coming here from the public API surface, the incoming value is originally a nonnegative signed int32, so
+            // this shouldn't happen
+            ASSERT(
+                "Couldn't align the requested stack size (%Iu) to the page size because the stack size was too large\n",
+                alignedStackSize);
+            palError = ERROR_INVALID_PARAMETER;
+            goto EXIT;
+        }
+        alignedStackSize = ALIGN_UP(alignedStackSize, GetVirtualPageSize());
+    }
+
     // Ignore the STACK_SIZE_PARAM_IS_A_RESERVATION flag
     dwCreationFlags &= ~STACK_SIZE_PARAM_IS_A_RESERVATION;
     
@@ -615,43 +636,41 @@ CorUnix::InternalCreateThread(
 
     fAttributesInitialized = TRUE;
 
+    if (alignedStackSize == 0)
+    {
+        // The thread is to be created with default stack size. Use the default stack size
+        // override that was determined during the PAL initialization.
+        alignedStackSize = g_defaultStackSize;
+    }
+
     /* adjust the stack size if necessary */
-    if (0 != pthread_attr_getstacksize(&pthreadAttr, &pthreadStackSize))
+    if (alignedStackSize != 0)
     {
-        ERROR("couldn't set thread stack size\n");
-        palError = ERROR_INTERNAL_ERROR;
-        goto EXIT;        
-    }
-
-    TRACE("default pthread stack size is %d, caller requested %d (default is %d)\n",
-          pthreadStackSize, dwStackSize, CPalThread::s_dwDefaultThreadStackSize);
-
-    if (0 == dwStackSize)
-    {
-        dwStackSize = CPalThread::s_dwDefaultThreadStackSize;
-    }
-
 #ifdef PTHREAD_STACK_MIN
-    if (PTHREAD_STACK_MIN > pthreadStackSize)
-    {
-        WARN("default stack size is reported as %d, but PTHREAD_STACK_MIN is "
-             "%d\n", pthreadStackSize, PTHREAD_STACK_MIN);
-    }
-#endif
-    
-    if (pthreadStackSize < dwStackSize)
-    {
-        TRACE("setting thread stack size to %d\n", dwStackSize);
-        if (0 != pthread_attr_setstacksize(&pthreadAttr, dwStackSize))
+        size_t MinStackSize = ALIGN_UP(PTHREAD_STACK_MIN, GetVirtualPageSize());
+#else // !PTHREAD_STACK_MIN
+        size_t MinStackSize = 64 * 1024; // this value is typically accepted by pthread_attr_setstacksize()
+#endif // PTHREAD_STACK_MIN
+        if (alignedStackSize < MinStackSize)
         {
-            ERROR("couldn't set pthread stack size to %d\n", dwStackSize);
+            // Adjust the stack size to a minimum value that is likely to be accepted by pthread_attr_setstacksize(). If this
+            // function fails, typically the caller will end up throwing OutOfMemoryException under the assumption that the
+            // requested stack size is too large or the system does not have sufficient memory to create a thread. Try to
+            // prevent failing just just because the stack size value is too low.
+            alignedStackSize = MinStackSize;
+        }
+
+        TRACE("setting thread stack size to %Iu\n", alignedStackSize);
+        if (0 != pthread_attr_setstacksize(&pthreadAttr, alignedStackSize))
+        {
+            ERROR("couldn't set pthread stack size to %Iu\n", alignedStackSize);
             palError = ERROR_INTERNAL_ERROR;
             goto EXIT;
         }
     }
     else
     {
-        TRACE("using the system default thread stack size of %d\n", pthreadStackSize);
+        TRACE("using the system default thread stack size\n");
     }
 
 #if HAVE_THREAD_SELF || HAVE__LWP_SELF
@@ -1654,6 +1673,14 @@ CPalThread::ThreadEntry(
         goto fail;
     }
 
+#if !HAVE_MACH_EXCEPTIONS
+    if (!EnsureSignalAlternateStack())
+    {
+        ASSERT("Cannot allocate alternate stack for SIGSEGV!\n");
+        goto fail;
+    }
+#endif // !HAVE_MACH_EXCEPTIONS
+
 #if defined(FEATURE_PAL_SXS) && defined(_DEBUG)
     // We cannot assert yet, as we haven't set in this thread into the TLS, and so __ASSERT_ENTER
     // will fail if the assert fails and we'll crash.
@@ -1754,39 +1781,6 @@ fail:
        above should release all resources */
     return NULL;
 }
-
-
-#define PAL_THREAD_DEFAULT_STACK_SIZE "PAL_THREAD_DEFAULT_STACK_SIZE"
-
-PAL_ERROR
-CorUnix::InitializeGlobalThreadData(
-    void
-    )
-{
-    PAL_ERROR palError = NO_ERROR;
-    char *pszStackSize = NULL;
-
-    //
-    // Read in the environment to see whether we need to change the default
-    // thread stack size.
-    //
-    pszStackSize = EnvironGetenv(PAL_THREAD_DEFAULT_STACK_SIZE);
-    if (NULL != pszStackSize)
-    {
-        // Environment variable exists
-        char *pszEnd;
-        DWORD dw = PAL_strtoul(pszStackSize, &pszEnd, 16); // treat it as hex
-        if ( (pszStackSize != pszEnd) && (0 != dw) )
-        {
-            CPalThread::s_dwDefaultThreadStackSize = dw;
-        }
-
-        free(pszStackSize);
-    }
-
-    return palError;
-}
-
 
 /*++
 Function:

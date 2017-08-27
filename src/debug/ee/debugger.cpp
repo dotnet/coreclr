@@ -18,9 +18,6 @@
 #include "eeconfig.h" // This is here even for retail & free builds...
 #include "../../dlls/mscorrc/resource.h"
 
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 #include "context.h"
 #include "vars.hpp"
@@ -29,7 +26,6 @@
 #include "typeparse.h"
 #include "debuginfostore.h"
 #include "generics.h"
-#include "../../vm/security.h"
 #include "../../vm/methoditer.h"
 #include "../../vm/encee.h"
 #include "../../vm/dwreport.h"
@@ -43,9 +39,7 @@
 #include "datatest.h"
 #endif // TEST_DATA_CONSISTENCY
 
-#if defined(FEATURE_CORECLR)
 #include "dbgenginemetrics.h"
-#endif // FEATURE_CORECLR
 
 #include "../../vm/rejit.h"
 
@@ -279,20 +273,6 @@ bool IsGuardPageGone()
     bool fGuardPageGone = (pThread->DetermineIfGuardPagePresent() == FALSE);
     LOG((LF_CORDB, LL_INFO1000000, "D::IsGuardPageGone=%d\n", fGuardPageGone));
     return fGuardPageGone;
-}
-
-
-// This is called from AppDomainEnumerationIPCBlock::Lock and Unlock
-void BeginThreadAffinityHelper()
-{
-    WRAPPER_NO_CONTRACT;
-
-    Thread::BeginThreadAffinity();
-}
-void EndThreadAffinityHelper()
-{
-    WRAPPER_NO_CONTRACT;
-    Thread::EndThreadAffinity();
 }
 
 //-----------------------------------------------------------------------------
@@ -1896,7 +1876,7 @@ void Debugger::SendCreateProcess(DebuggerLockHolder * pDbgLockHolder)
     pDbgLockHolder->Acquire();
 }
 
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_PAL)
 
 HANDLE g_hContinueStartupEvent = INVALID_HANDLE_VALUE;
 
@@ -1936,7 +1916,7 @@ HANDLE OpenStartupNotificationEvent()
     WCHAR szEventName[cchEventNameBufferSize];
     swprintf_s(szEventName, cchEventNameBufferSize, StartupNotifyEventNamePrefix W("%08x"), debuggeePID);
 
-    return WszOpenEvent(EVENT_ALL_ACCESS, FALSE, szEventName);
+    return WszOpenEvent(MAXIMUM_ALLOWED | SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, szEventName);
 }
 
 void NotifyDebuggerOfTelestoStartup()
@@ -1966,7 +1946,7 @@ void NotifyDebuggerOfTelestoStartup()
     g_hContinueStartupEvent = NULL;
 }
 
-#endif // FEATURE_CORECLR && !FEATURE_PAL
+#endif // !FEATURE_PAL
 
 //---------------------------------------------------------------------------------------
 //
@@ -1999,7 +1979,7 @@ HRESULT Debugger::Startup(void)
 
     _ASSERTE(g_pEEInterface != NULL);
 
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_PAL)
     if (IsWatsonEnabled() || IsTelestoDebugPackInstalled())
     {
         // Iff the debug pack is installed, then go through the telesto debugging pipeline.
@@ -2018,7 +1998,7 @@ HRESULT Debugger::Startup(void)
         // The transport requires the debug pack to be present.  Otherwise it'll raise a fatal error.
         return S_FALSE;
     }
-#endif // FEATURE_CORECLR && !FEATURE_PAL
+#endif // !FEATURE_PAL
 
     {
         DebuggerLockHolder dbgLockHolder(this);
@@ -5200,39 +5180,6 @@ HRESULT Debugger::MapPatchToDJI( DebuggerControllerPatch *dcp,DebuggerJitInfo *d
     return S_OK;
 }
 
-//
-// Wrapper function for debugger to WaitForSingleObject. If CLR is hosted,
-// notify host before we leave runtime.
-//
-DWORD  Debugger::WaitForSingleObjectHelper(HANDLE handle, DWORD dwMilliseconds)
-{
-    CONTRACTL
-    {
-        SO_NOT_MAINLINE;
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    DWORD   dw = 0;
-    EX_TRY
-    {
-
-        // make sure that we let host know that we are leaving runtime.
-        LeaveRuntimeHolder holder((size_t)(::WaitForSingleObject));
-        dw = ::WaitForSingleObject(handle,dwMilliseconds);
-    }
-    EX_CATCH
-    {
-        // Only possibility to enter here is when Thread::LeaveRuntime
-        // throws exception.
-        dw = WAIT_ABANDONED;
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-    return dw;
-
-}
-
 
 /* ------------------------------------------------------------------------ *
  * EE Interface routines
@@ -8139,8 +8086,7 @@ LONG Debugger::NotifyOfCHFFilter(EXCEPTION_POINTERS* pExceptionPointers, PVOID p
     pExState->GetFlags()->SetDebugCatchHandlerFound();
 
 #ifdef DEBUGGING_SUPPORTED
-
-
+#ifdef DEBUGGER_EXCEPTION_INTERCEPTION_SUPPORTED
     if ( (pThread != NULL) &&
          (pThread->IsExceptionInProgress()) &&
          (pThread->GetExceptionState()->GetFlags()->DebuggerInterceptInfo()) )
@@ -8151,6 +8097,7 @@ LONG Debugger::NotifyOfCHFFilter(EXCEPTION_POINTERS* pExceptionPointers, PVOID p
         //
         ClrDebuggerDoUnwindAndIntercept(X86_FIRST_ARG(EXCEPTION_CHAIN_END) pExceptionPointers->ExceptionRecord);
     }
+#endif // DEBUGGER_EXCEPTION_INTERCEPTION_SUPPORTED
 #endif // DEBUGGING_SUPPORTED
 
     return EXCEPTION_CONTINUE_SEARCH;
@@ -9589,23 +9536,6 @@ void Debugger::LoadModule(Module* pRuntimeModule,
     SENDIPCEVENT_BEGIN(this, pThread);
 
 
-#ifdef FEATURE_FUSION
-    // Fix for issue Whidbey - 106398
-    // Populate the pdb to fusion cache.
-
-    //
-    if (pRuntimeModule->IsIStream() == FALSE)
-    {
-        SUPPRESS_ALLOCATION_ASSERTS_IN_THIS_SCOPE;
-
-        HRESULT hrCopy = S_OK;
-        EX_TRY
-        {
-            pRuntimeModule->FusionCopyPDBs(pRuntimeModule->GetPath());
-        }
-        EX_CATCH_HRESULT(hrCopy); // ignore failures
-    }
-#endif // FEATURE_FUSION
 
     DebuggerIPCEvent* ipce = NULL;
 
@@ -9804,7 +9734,6 @@ void Debugger::LoadModuleFinished(Module * pRuntimeModule, AppDomain * pAppDomai
 //   Use code:Debugger.SendUpdateModuleSymsEventAndBlock for that.
 void Debugger::SendRawUpdateModuleSymsEvent(Module *pRuntimeModule, AppDomain *pAppDomain)
 {
-// @telest - do we need an #ifdef FEATURE_FUSION here?
     CONTRACTL
     {
         NOTHROW;
@@ -11069,7 +10998,8 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             if(fValid)
             {
                 // Get the appdomain
-                ADIndex appDomainIndex = HndGetHandleADIndex(objectHandle);
+                IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+                ADIndex appDomainIndex = ADIndex(reinterpret_cast<DWORD>(mgr->GetHandleContext(objectHandle)));
                 pAppDomain = SystemDomain::GetAppDomainAtIndex(appDomainIndex);
 
                 _ASSERTE(pAppDomain != NULL);
@@ -12740,27 +12670,13 @@ CorDebugUserState Debugger::GetFullUserState(Thread *pThread)
 /******************************************************************************
  *
  * Helper for debugger to get an unique thread id
- * If we are not in Fiber mode, we can safely use OSThreadId
- * Otherwise, we will use our own unique ID.
- *
- * We will return our unique ID when our host is hosting Thread.
- *
  *
  ******************************************************************************/
 DWORD Debugger::GetThreadIdHelper(Thread *pThread)
 {
     WRAPPER_NO_CONTRACT;
 
-    if (!CLRTaskHosted())
-    {
-        // use the plain old OS Thread ID
-        return pThread->GetOSThreadId();
-    }
-    else
-    {
-        // use our unique thread ID
-        return pThread->GetThreadId();
-    }
+    return pThread->GetOSThreadId();
 }
 
 //-----------------------------------------------------------------------------
@@ -14964,21 +14880,6 @@ HRESULT Debugger::CopyModulePdb(Module* pRuntimeModule)
     }
 
     HRESULT hr = S_OK;
-#ifdef FEATURE_FUSION
-    //
-    // Populate the pdb to fusion cache.
-    //
-    if (pRuntimeModule->IsIStream() == FALSE)
-    {
-        SUPPRESS_ALLOCATION_ASSERTS_IN_THIS_SCOPE;
-        
-        EX_TRY
-        {
-            pRuntimeModule->FusionCopyPDBs(pRuntimeModule->GetPath());
-        }
-        EX_CATCH_HRESULT(hr); // ignore failures
-    }
-#endif // FEATURE_FUSION
 
     return hr;
 }
@@ -15100,15 +15001,6 @@ HRESULT Debugger::InitAppDomainIPC(void)
     // If we throw, before fully initializing this, then cleanup won't try to free
     // uninited values.
     ZeroMemory(m_pAppDomainCB, sizeof(*m_pAppDomainCB));
-
-    // Fix for issue: whidbey 143061
-    // We are creating the mutex as hold, when we unlock, the EndThreadAffinity in
-    // hosting case will be unbalanced.
-    // Ideally, I would like to fix this by creating mutex not-held and call Lock method.
-    // This way, when we clean up the OOM, (as you can tell, we never release the mutex in
-    // some error cases), we can change it to holder class.
-    //
-    Thread::BeginThreadAffinity();
 
     // Create a mutex to allow the Left and Right Sides to properly
     // synchronize. The Right Side will spin until m_hMutex is valid,
@@ -15681,7 +15573,9 @@ HRESULT Debugger::SetReference(void *objectRefAddress,
             // fixup the handle.
             OBJECTHANDLE h = vmObjectHandle.GetRawPtr();
             OBJECTREF  src = *((OBJECTREF*)&newReference);
-            HndAssignHandle(h, src);
+
+            IGCHandleManager* mgr = GCHandleUtilities::GetGCHandleManager();
+            mgr->StoreObjectInHandle(h, OBJECTREFToObject(src));
         }
 
     return S_OK;
@@ -16095,7 +15989,7 @@ BOOL Debugger::SendCtrlCToDebugger(DWORD dwCtrlType)
 
     // now wait for notification from the right side about whether or not
     // the out-of-proc debugger is handling ControlC events.
-    WaitForSingleObjectHelper(GetCtrlCMutex(), INFINITE);
+    ::WaitForSingleObject(GetCtrlCMutex(), INFINITE);
 
     return GetDebuggerHandlingCtrlC();
 }

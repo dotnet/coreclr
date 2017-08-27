@@ -18,6 +18,9 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(PAL); // some headers have code with asserts, so do this first
+
 #include "pal/thread.hpp"
 #include "pal/synchobjects.hpp"
 #include "pal/procobj.hpp"
@@ -27,7 +30,6 @@ Abstract:
 #include "../objmgr/shmobjectmanager.hpp"
 #include "pal/seh.hpp"
 #include "pal/palinternal.h"
-#include "pal/dbgmsg.h"
 #include "pal/sharedmemory.h"
 #include "pal/shmemory.h"
 #include "pal/process.h"
@@ -40,6 +42,7 @@ Abstract:
 #include "pal/debug.h"
 #include "pal/locale.h"
 #include "pal/init.h"
+#include "pal/numa.h"
 #include "pal/stackstring.hpp"
 
 #if HAVE_MACH_EXCEPTIONS
@@ -90,13 +93,14 @@ using namespace CorUnix;
 extern "C" BOOL CRTInitStdStreams( void );
 
 
-SET_DEFAULT_DEBUG_CHANNEL(PAL);
-
 Volatile<INT> init_count = 0;
 Volatile<BOOL> shutdown_intent = 0;
 Volatile<LONG> g_coreclrInitialized = 0;
 static BOOL g_fThreadDataAvailable = FALSE;
 static pthread_mutex_t init_critsec_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// The default minimum stack size
+SIZE_T g_defaultStackSize = 0;
 
 /* critical section to protect access to init_count. This is allocated on the
    very first PAL_Initialize call, and is freed afterward. */
@@ -105,7 +109,7 @@ static PCRITICAL_SECTION init_critsec = NULL;
 static int Initialize(int argc, const char *const argv[], DWORD flags);
 static BOOL INIT_IncreaseDescriptorLimit(void);
 static LPWSTR INIT_FormatCommandLine (int argc, const char * const *argv);
-static LPWSTR INIT_FindEXEPath(LPCSTR exe_name);
+static LPWSTR INIT_ConvertEXEPath(LPCSTR exe_name);
 
 #ifdef _DEBUG
 extern void PROCDumpThreadList(void);
@@ -166,6 +170,66 @@ PALAPI
 PAL_InitializeDLL()
 {
     return Initialize(0, NULL, PAL_INITIALIZE_DLL);
+}
+
+#ifndef __GLIBC__
+/*++
+Function:
+  EnsureStackSize
+
+Abstract:
+  This fixes a problem on MUSL where the initial stack size reported by the
+  pthread_attr_getstack is about 128kB, but this limit is not fixed and
+  the stack can grow dynamically. The problem is that it makes the 
+  functions ReflectionInvocation::[Try]EnsureSufficientExecutionStack 
+  to fail for real life scenarios like e.g. compilation of corefx.
+  Since there is no real fixed limit for the stack, the code below
+  ensures moving the stack limit to a value that makes reasonable
+  real life scenarios work.
+
+--*/
+__attribute__((noinline,optnone))
+void
+EnsureStackSize(SIZE_T stackSize)
+{
+    volatile uint8_t *s = (uint8_t *)_alloca(stackSize);
+    *s = 0;
+}
+#endif // __GLIBC__
+
+/*++
+Function:
+  InitializeDefaultStackSize
+
+Abstract:
+  Initializes the default stack size. 
+
+--*/
+void
+InitializeDefaultStackSize()
+{
+    char* defaultStackSizeStr = getenv("COMPlus_DefaultStackSize");
+    if (defaultStackSizeStr != NULL)
+    {
+        errno = 0;
+        // Like all numeric values specific by the COMPlus_xxx variables, it is a 
+        // hexadecimal string without any prefix.
+        long int size = strtol(defaultStackSizeStr, NULL, 16);
+
+        if (errno == 0)
+        {
+            g_defaultStackSize = max(size, PTHREAD_STACK_MIN);
+        }
+    }
+
+#ifndef __GLIBC__
+    if (g_defaultStackSize == 0)
+    {
+        // Set the default minimum stack size for MUSL to the same value as we
+        // use on Windows.
+        g_defaultStackSize = 1536 * 1024;
+    }
+#endif // __GLIBC__
 }
 
 /*++
@@ -244,6 +308,12 @@ Initialize(
 
         fFirstTimeInit = true;
 
+        InitializeDefaultStackSize();
+
+#ifndef __GLIBC__
+        EnsureStackSize(g_defaultStackSize);
+#endif // __GLIBC__
+
         // Initialize the TLS lookaside cache
         if (FALSE == TLSInitialize())
         {
@@ -263,17 +333,6 @@ Initialize(
         {
             goto CLEANUP0;
         }
-
-#if _DEBUG
-        // Verify that our page size is what we think it is. If it's
-        // different, we can't run.
-        if (VIRTUAL_PAGE_SIZE != getpagesize())
-        {
-            ASSERT("VIRTUAL_PAGE_SIZE is incorrect for this system!\n"
-                "Change include/pal/virtual.h and clr/src/inc/stdmacros.h "
-                "to reflect the correct page size of %d.\n", getpagesize());
-        }
-#endif  // _DEBUG
 
         if (!INIT_IncreaseDescriptorLimit())
         {
@@ -312,17 +371,6 @@ Initialize(
             goto CLEANUP1;
         }
 #endif // HAVE_MACH_EXCEPTIONS
-
-        //
-        // Initialize global thread data
-        //
-
-        palError = InitializeGlobalThreadData();
-        if (NO_ERROR != palError)
-        {
-            ERROR("Unable to initialize thread data\n");
-            goto CLEANUP1;
-        }
 
         //
         // Allocate the initial thread data
@@ -417,7 +465,7 @@ Initialize(
         }
 
         /* find out the application's full path */
-        exe_path = INIT_FindEXEPath(argv[0]);
+        exe_path = INIT_ConvertEXEPath(argv[0]);
         if (NULL == exe_path)
         {
             ERROR("Unable to find exe path\n");
@@ -475,27 +523,7 @@ Initialize(
             goto CLEANUP2;
         }
 
-        if (flags & PAL_INITIALIZE_SYNC_THREAD)
-        {
-            //
-            // Tell the synchronization manager to start its worker thread
-            //
-            palError = CPalSynchMgrController::StartWorker(pThread);
-            if (NO_ERROR != palError)
-            {
-                ERROR("Synch manager failed to start worker thread\n");
-                goto CLEANUP5;
-            }
-        }
-
         palError = ERROR_GEN_FAILURE;
-
-        /* initialize structured exception handling stuff (signals, etc) */
-        if (FALSE == SEHInitialize(pThread, flags))
-        {
-            ERROR("Unable to initialize SEH support\n");
-            goto CLEANUP5;
-        }
 
         if (FALSE == TIMEInitialize())
         {
@@ -518,19 +546,45 @@ Initialize(
             goto CLEANUP10;
         }
 
+        if (flags & PAL_INITIALIZE_SYNC_THREAD)
+        {
+            //
+            // Tell the synchronization manager to start its worker thread
+            //
+            palError = CPalSynchMgrController::StartWorker(pThread);
+            if (NO_ERROR != palError)
+            {
+                ERROR("Synch manager failed to start worker thread\n");
+                goto CLEANUP13;
+            }
+        }
+
+        /* initialize structured exception handling stuff (signals, etc) */
+        if (FALSE == SEHInitialize(pThread, flags))
+        {
+            ERROR("Unable to initialize SEH support\n");
+            goto CLEANUP13;
+        }
+
         if (flags & PAL_INITIALIZE_STD_HANDLES)
         {
             /* create file objects for standard handles */
             if (!FILEInitStdHandles())
             {
                 ERROR("Unable to initialize standard file handles\n");
-                goto CLEANUP13;
+                goto CLEANUP14;
             }
         }
 
         if (FALSE == CRTInitStdStreams())
         {
             ERROR("Unable to initialize CRT standard streams\n");
+            goto CLEANUP15;
+        }
+
+        if (FALSE == NUMASupportInitialize())
+        {
+            ERROR("Unable to initialize NUMA support\n");
             goto CLEANUP15;
         }
 
@@ -559,16 +613,17 @@ Initialize(
     }
     goto done;
 
+    NUMASupportCleanup();
     /* No cleanup required for CRTInitStdStreams */ 
 CLEANUP15:
     FILECleanupStdHandles();
+CLEANUP14:
+    SEHCleanup();
 CLEANUP13:
     VIRTUALCleanup();
 CLEANUP10:
     MAPCleanup();
 CLEANUP6:
-    SEHCleanup();
-CLEANUP5:
     PROCCleanupInitialProcess();
 CLEANUP2:
     free(exe_path);
@@ -659,6 +714,12 @@ PAL_InitializeCoreCLR(const char *szExePath)
     if (!LOADInitializeCoreCLRModule())
     {
         return ERROR_DLL_INIT_FAILED;
+    }
+
+    if (!PROCAbortInitialize())
+    {
+        printf("PROCAbortInitialize FAILED %d (%s)\n", errno, strerror(errno));
+        return ERROR_GEN_FAILURE;
     }
 
     if (!InitializeFlushProcessWriteBuffers())
@@ -1141,14 +1202,13 @@ static LPWSTR INIT_FormatCommandLine (int argc, const char * const *argv)
 
 /*++
 Function:
-  INIT_FindEXEPath
+  INIT_ConvertEXEPath
 
 Abstract:
-    Determine the full, canonical path of the current executable by searching
-    $PATH.
+    Check whether the executable path is valid, and convert its type (LPCSTR -> LPWSTR)
 
 Parameters:
-    LPCSTR exe_name : file to search for
+    LPCSTR exe_name : full path of the current executable
 
 Return:
     pointer to buffer containing the full path. This buffer must be released
@@ -1156,299 +1216,33 @@ Return:
 
 Notes :
     this function assumes that "exe_name" is in Unix style (no \)
-
-Notes 2:
-    This doesn't handle the case of directories with the desired name
-    (and directories are usually executable...)
 --*/
-static LPWSTR INIT_FindEXEPath(LPCSTR exe_name)
+static LPWSTR INIT_ConvertEXEPath(LPCSTR exe_path)
 {
-#ifndef __APPLE__
     PathCharString real_path;
-    LPSTR env_path;
-    LPSTR path_ptr;
-    LPSTR cur_dir;
-    INT exe_name_length;
-    BOOL need_slash;
     LPWSTR return_value;
     INT return_size;
     struct stat theStats;
-    /* if a path is specified, only search there */
-    if (strchr(exe_name, '/'))
+
+    if (!strchr(exe_path, '/'))
     {
-        if ( -1 == stat( exe_name, &theStats ) )
-        {
-            ERROR( "The file does not exist\n" );
-            return NULL;
-        }
-
-        if ( UTIL_IsExecuteBitsSet( &theStats ) )
-        {
-            if (!CorUnix::RealPathHelper(exe_name, real_path))
-            {
-                ERROR("realpath() failed!\n");
-                return NULL;
-            }
-
-            return_size=MultiByteToWideChar(CP_ACP,0,real_path,-1,NULL,0);
-            if ( 0 == return_size )
-            {
-                ASSERT("MultiByteToWideChar failure\n");
-                return NULL;
-            }
-
-            return_value = reinterpret_cast<LPWSTR>(InternalMalloc((return_size*sizeof(WCHAR))));
-            if ( NULL == return_value )
-            {
-                ERROR("Not enough memory to create full path\n");
-                return NULL;
-            }
-            else
-            {
-                if (!MultiByteToWideChar(CP_ACP, 0, real_path, -1, 
-                                        return_value, return_size))
-                {
-                    ASSERT("MultiByteToWideChar failure\n");
-                    free(return_value);
-                    return_value = NULL;
-                }
-                else
-                {
-                    TRACE("full path to executable is %s\n", real_path.GetString());
-                }
-            }
-            return return_value;
-        }
-    }
-
-    /* no path was specified : search $PATH */
-
-    env_path = EnvironGetenv("PATH");
-    if (!env_path || *env_path=='\0')
-    {
-        WARN("$PATH isn't set.\n");
-        if (env_path != NULL)
-        {
-            free(env_path);
-        }
-
-        goto last_resort;
-    }
-
-    exe_name_length=strlen(exe_name);
-
-    cur_dir=env_path;
-
-    while (cur_dir)
-    {
-        LPSTR full_path;
-        struct stat theStats;
-
-        /* skip all leading ':' */
-        while (*cur_dir==':')
-        {
-            cur_dir++;
-        }
-        if (*cur_dir=='\0')
-        {
-            break;
-        }
-
-        /* cut string at next ':' */
-        path_ptr = strchr(cur_dir, ':');
-        if (path_ptr)
-        {
-            /* check if we need to add a '/' between the path and filename */
-            need_slash=(*(path_ptr-1))!='/';
-
-            /* NULL_terminate path element */
-            *path_ptr++='\0';
-        }
-        else
-        {
-            /* check if we need to add a '/' between the path and filename */
-            need_slash=(cur_dir[strlen(cur_dir)-1])!='/';
-        }
-
-        TRACE("looking for %s in %s\n", exe_name, cur_dir);
-
-        /* build tentative full file name */
-        int iLength = (strlen(cur_dir)+exe_name_length+2);
-        full_path = reinterpret_cast<LPSTR>(InternalMalloc(iLength));
-        if (!full_path)
-        {
-            ERROR("Not enough memory!\n");
-            break;
-        }
-        
-        if (strcpy_s(full_path, iLength, cur_dir) != SAFECRT_SUCCESS)
-        {
-            ERROR("strcpy_s failed!\n");
-            free(full_path);
-            free(env_path);
-            return NULL;
-        }
-
-        if (need_slash)
-        {
-            if (strcat_s(full_path, iLength, "/") != SAFECRT_SUCCESS)
-            {
-                ERROR("strcat_s failed!\n");
-                free(full_path);
-                free(env_path);
-                return NULL;
-            }
-        }
-
-        if (strcat_s(full_path, iLength, exe_name) != SAFECRT_SUCCESS)
-        {
-            ERROR("strcat_s failed!\n");
-            free(full_path);
-            free(env_path);
-            return NULL;
-        }
-
-        /* see if file exists AND is executable */
-        if ( -1 != stat( full_path, &theStats ) )
-        {
-            if( UTIL_IsExecuteBitsSet( &theStats ) )
-            {
-                /* generate canonical path */
-                if (!CorUnix::RealPathHelper(full_path, real_path))
-                {
-                    ERROR("realpath() failed!\n");
-                    free(full_path);
-                    free(env_path);
-                    return NULL;
-                }
-                free(full_path);
-
-                return_size = MultiByteToWideChar(CP_ACP,0,real_path,-1,NULL,0);
-                if ( 0 == return_size )
-                {
-                    ASSERT("MultiByteToWideChar failure\n");
-                    free(env_path);
-                    return NULL;
-                }
-
-                return_value = reinterpret_cast<LPWSTR>(InternalMalloc((return_size*sizeof(WCHAR))));
-                if ( NULL == return_value )
-                {
-                    ERROR("Not enough memory to create full path\n");
-                    free(env_path);
-                    return NULL;
-                }
-
-                if (!MultiByteToWideChar(CP_ACP, 0, real_path, -1, return_value,
-                                    return_size))
-                {
-                    ASSERT("MultiByteToWideChar failure\n");
-                    free(return_value);
-                    return_value = NULL;
-                }
-                else
-                {
-                    TRACE("found %s in %s; real path is %s\n", exe_name,
-                          cur_dir,real_path.GetString());
-                }
-
-                free(env_path);
-                return return_value;
-            }
-        }
-
-        /* file doesn't exist : keep searching */
-        free(full_path);
-
-        /* path_ptr is NULL if there's no ':' after this directory */
-        cur_dir=path_ptr;
-    }
-
-    free(env_path);
-    TRACE("No %s found in $PATH (%s)\n", exe_name, EnvironGetenv("PATH", FALSE));
-
-last_resort:
-    /* last resort : see if the executable is in the current directory. This is
-       possible if it comes from a exec*() call. */
-    if (0 == stat(exe_name,&theStats))
-    {
-        if ( UTIL_IsExecuteBitsSet( &theStats ) )
-        {
-            if (!CorUnix::RealPathHelper(exe_name, real_path))
-            {
-                ERROR("realpath() failed!\n");
-                return NULL;
-            }
-
-            return_size = MultiByteToWideChar(CP_ACP,0,real_path,-1,NULL,0);
-            if (0 == return_size)
-            {
-                ASSERT("MultiByteToWideChar failure\n");
-                return NULL;
-            }
-
-            return_value = reinterpret_cast<LPWSTR>(InternalMalloc((return_size*sizeof(WCHAR))));
-            if (NULL == return_value)
-            {
-                ERROR("Not enough memory to create full path\n");
-                return NULL;
-            }
-            else
-            {
-                if (!MultiByteToWideChar(CP_ACP, 0, real_path, -1, 
-                                        return_value, return_size))
-                {
-                    ASSERT("MultiByteToWideChar failure\n");
-                    free(return_value);
-                    return_value = NULL;
-                }
-                else
-                {
-                    TRACE("full path to executable is %s\n", real_path.GetString());
-                }
-            }
-
-            return return_value;
-        }
-        else
-        {
-            ERROR("found %s in current directory, but it isn't executable!\n",
-                  exe_name);
-        }                                                                   
-    }
-    else
-    {
-        TRACE("last resort failed : executable %s is not in the current "
-              "directory\n",exe_name);
-    }
-
-    ERROR("executable %s not found anywhere!\n", exe_name);
-    return NULL;
-#else // !__APPLE__
-    // On the Mac we can just directly ask the OS for the executable path.
-
-    LPWSTR return_value;
-    INT return_size;
-
-    PathCharString exec_pathPS;
-    LPSTR  exec_path = exec_pathPS.OpenStringBuffer(MAX_PATH);
-    uint32_t bufsize = exec_pathPS.GetCount();
-
-    if (-1 == _NSGetExecutablePath(exec_path, &bufsize))
-    {
-        exec_pathPS.CloseBuffer(exec_pathPS.GetCount());
-        exec_path = exec_pathPS.OpenStringBuffer(bufsize);
-    }
-
-    if (_NSGetExecutablePath(exec_path, &bufsize))
-    {
-        ASSERT("_NSGetExecutablePath failure\n");
+        ERROR( "The exe path is not fully specified\n" );
         return NULL;
     }
 
-    exec_pathPS.CloseBuffer(bufsize);
+    if (-1 == stat(exe_path, &theStats))
+    {
+        ERROR( "The file does not exist\n" );
+        return NULL;
+    }
 
-    return_size = MultiByteToWideChar(CP_ACP,0,exec_path,-1,NULL,0);
+    if (!CorUnix::RealPathHelper(exe_path, real_path))
+    {
+        ERROR("realpath() failed!\n");
+        return NULL;
+    }
+
+    return_size = MultiByteToWideChar(CP_ACP, 0, real_path, -1, NULL, 0);
     if (0 == return_size)
     {
         ASSERT("MultiByteToWideChar failure\n");
@@ -1463,7 +1257,7 @@ last_resort:
     }
     else
     {
-        if (!MultiByteToWideChar(CP_ACP, 0, exec_path, -1, 
+        if (!MultiByteToWideChar(CP_ACP, 0, real_path, -1,
                                 return_value, return_size))
         {
             ASSERT("MultiByteToWideChar failure\n");
@@ -1472,10 +1266,9 @@ last_resort:
         }
         else
         {
-            TRACE("full path to executable is %s\n", exec_path);
+            TRACE("full path to executable is %s\n", real_path.GetString());
         }
     }
 
     return return_value;
-#endif // !__APPLE__
 }

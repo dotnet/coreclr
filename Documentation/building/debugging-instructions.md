@@ -22,6 +22,12 @@ Debugging CoreCLR on Windows
 
 Steps 1-8 only need to be done once, and then (9) can be repeated whenever you want to start debugging. The above can be done with Visual Studio 2013.
 
+### Using SOS with windbg or cdb on Windows ###
+
+If you know the path of the `sos.dll` for the version of your runtime, load it like `.load c:\path\to\sos\sos.dll`. Use can use the `lm` command to find the path of the "coreclr.dll" module. `.loadby sos coreclr` should also work.
+
+For more information on SOS commands click [here](https://msdn.microsoft.com/en-us/library/bb190764(v=vs.110).aspx).
+
 Debugging CoreCLR on OS X
 ==========================
 
@@ -89,7 +95,7 @@ This is the full list of commands currently supported by SOS. LLDB is case-sensi
     HistObjFind (histobjfind)
     HistClear (histclear)
 
-###Aliases###
+### Aliases ###
 
 By default you can reach all the SOS commands by using: _sos [command\_name]_
 However the common commands have been aliased so that you don't need the SOS prefix:
@@ -135,11 +141,4 @@ The "gcroot" command either crashes lldb 3.6 or returns invalid results. Works f
 Loading Linux core dumps with lldb 3.7 doesn't work. lldb 3.7 loads OS X and FreeBSD core dumps 
 just fine. lldb 3.8 loads all the platform's core dumps without problem.
 
-For more information on SOS commands see: https://msdn.microsoft.com/en-us/library/bb190764(v=vs.110).aspx
-
-Debugging Mscorlib and/or managed application
-=============================================
-
-To step into and debug managed code of Mscorlib.dll (or the managed application being executed by the runtime you built), using Visual Studio, is something that will be supported with Visual Studio 2015. We are actively working to enable this support. 
-
-Until then, you can use [WinDbg](https://msdn.microsoft.com/en-us/library/windows/hardware/ff551063(v=vs.85).aspx) and [SOS](https://msdn.microsoft.com/en-us/library/bb190764(v=vs.110).aspx) (an extension to WinDbg to support managed debugging) to step in and debug the generated managed code. This is what we do on the .NET Runtime team as well :)
+For more information on SOS commands click [here](https://msdn.microsoft.com/en-us/library/bb190764(v=vs.110).aspx).

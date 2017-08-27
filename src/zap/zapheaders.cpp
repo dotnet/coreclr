@@ -95,7 +95,7 @@ void ZapImage::SaveNativeHeader()
         // Pretend that ready-to-run images are IL-only
         nativeHeader.COR20Flags |= COMIMAGE_FLAGS_ILONLY;
 
-        // Pretend that ready-to-run images do not have native header
+        // Pretend that ready-to-run images do not have a native header
         nativeHeader.COR20Flags &= ~COMIMAGE_FLAGS_IL_LIBRARY;
 
         // Remember whether the source IL image had ReadyToRun header
@@ -171,11 +171,13 @@ void ZapImage::SaveCodeManagerEntry()
 
     if (m_stats)
     {
+#define ACCUM_SIZE(dest, src) if( src != NULL ) dest+= src->GetSize()
         // this is probably supposed to mean Hot+Unprofiled
-        m_stats->m_totalHotCodeSize = m_pHotCodeSection->GetSize(); 
-        m_stats->m_totalUnprofiledCodeSize = m_pCodeSection->GetSize();
-        m_stats->m_totalColdCodeSize = m_pColdCodeSection->GetSize();
-        m_stats->m_totalCodeSizeInProfiledMethods = m_pHotCodeSection->GetSize();
+        ACCUM_SIZE(m_stats->m_totalHotCodeSize, m_pHotCodeSection);
+        ACCUM_SIZE(m_stats->m_totalUnprofiledCodeSize, m_pCodeSection);
+        ACCUM_SIZE(m_stats->m_totalColdCodeSize, m_pColdCodeSection);
+        ACCUM_SIZE(m_stats->m_totalCodeSizeInProfiledMethods, m_pHotCodeSection);
+#undef ACCUM_SIZE
         m_stats->m_totalColdCodeSizeInProfiledMethods = codeManagerEntry.ColdUntrainedMethodOffset;
     }
 
@@ -280,6 +282,7 @@ void ZapDebugDirectory::SaveOriginalDebugDirectoryEntry(ZapWriter *pZapWriter)
 
 void ZapDebugDirectory::SaveNGenDebugDirectoryEntry(ZapWriter *pZapWriter)
 {
+#if !defined(NO_NGENPDB)
     _ASSERTE(pZapWriter);
 
     IMAGE_DEBUG_DIRECTORY debugDirectory = {0};
@@ -290,6 +293,10 @@ void ZapDebugDirectory::SaveNGenDebugDirectoryEntry(ZapWriter *pZapWriter)
     debugDirectory.Type = IMAGE_DEBUG_TYPE_CODEVIEW;
     debugDirectory.SizeOfData = m_pNGenPdbDebugData->GetSize();
     debugDirectory.AddressOfRawData = m_pNGenPdbDebugData->GetRVA();
+    // Make sure the "is portable pdb" indicator (MinorVersion == 0x504d) is clear
+    // for the NGen debug directory entry since this debug directory is copied
+    // from an existing entry which could be a portable pdb.
+    debugDirectory.MinorVersion = 0;
     {
         ZapPhysicalSection *pPhysicalSection = ZapImage::GetImage(pZapWriter)->m_pTextSection;
         DWORD dwOffset = m_pNGenPdbDebugData->GetRVA() - pPhysicalSection->GetRVA();
@@ -297,6 +304,7 @@ void ZapDebugDirectory::SaveNGenDebugDirectoryEntry(ZapWriter *pZapWriter)
         debugDirectory.PointerToRawData = pPhysicalSection->GetFilePos() + dwOffset;
     }
     pZapWriter->Write(&debugDirectory, sizeof(debugDirectory));
+#endif // NO_NGENPDB
 }
 
 void ZapDebugDirectory::Save(ZapWriter * pZapWriter)
@@ -323,7 +331,7 @@ ZapPEExports::ZapPEExports(LPCWSTR dllPath)
 
 DWORD ZapPEExports::GetSize()
 {
-	return DWORD(sizeof(IMAGE_EXPORT_DIRECTORY) + wcslen(m_dllFileName) + 1);
+	return DWORD(sizeof(IMAGE_EXPORT_DIRECTORY) + wcslen(m_dllFileName) * sizeof(BYTE) + 1);
 }
 
 void ZapPEExports::Save(ZapWriter * pZapWriter)

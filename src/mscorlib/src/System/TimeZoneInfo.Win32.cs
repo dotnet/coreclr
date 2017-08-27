@@ -3,12 +3,14 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Security;
 using System.Text;
 using System.Threading;
 using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 
 namespace System
 {
@@ -348,7 +350,7 @@ namespace System
             }
             else if (id.Length == 0 || id.Length > MaxKeyLength || id.Contains("\0"))
             {
-                throw new TimeZoneNotFoundException(Environment.GetResourceString("TimeZoneNotFound_MissingData", id));
+                throw new TimeZoneNotFoundException(SR.Format(SR.TimeZoneNotFound_MissingData, id));
             }
 
             TimeZoneInfo value;
@@ -369,15 +371,15 @@ namespace System
             }
             else if (result == TimeZoneInfoResult.InvalidTimeZoneException)
             {
-                throw new InvalidTimeZoneException(Environment.GetResourceString("InvalidTimeZone_InvalidRegistryData", id), e);
+                throw new InvalidTimeZoneException(SR.Format(SR.InvalidTimeZone_InvalidRegistryData, id), e);
             }
             else if (result == TimeZoneInfoResult.SecurityException)
             {
-                throw new SecurityException(Environment.GetResourceString("Security_CannotReadRegistryData", id), e);
+                throw new SecurityException(SR.Format(SR.Security_CannotReadRegistryData, id), e);
             }
             else
             {
-                throw new TimeZoneNotFoundException(Environment.GetResourceString("TimeZoneNotFound_MissingData", id), e);
+                throw new TimeZoneNotFoundException(SR.Format(SR.TimeZoneNotFound_MissingData, id), e);
             }
         }
 
@@ -397,7 +399,7 @@ namespace System
                 baseOffset = baseOffset + match.Rule.BaseUtcOffsetDelta;
                 if (match.Rule.HasDaylightSaving)
                 {
-                    isDaylightSavings = GetIsDaylightSavingsFromUtc(time, timeYear, match.Offset, match.Rule, out isAmbiguousLocalDst, Local);
+                    isDaylightSavings = GetIsDaylightSavingsFromUtc(time, timeYear, match.Offset, match.Rule, null, out isAmbiguousLocalDst, Local);
                     baseOffset += (isDaylightSavings ? match.Rule.DaylightDelta : TimeSpan.Zero /* FUTURE: rule.StandardDelta */);
                 }
             }
@@ -794,7 +796,7 @@ namespace System
             int resourceId;
 
             // get the path to Windows\System32
-            string system32 = Environment.UnsafeGetFolderPath(Environment.SpecialFolder.System);
+            string system32 = Environment.SystemDirectory;
 
             // trim the string "@tzres.dll" => "tzres.dll"
             string tzresDll = resources[0].TrimStart('@');
@@ -850,14 +852,14 @@ namespace System
         private static string TryGetLocalizedNameByNativeResource(string filePath, int resource)
         {
             using (SafeLibraryHandle handle =
-                       UnsafeNativeMethods.LoadLibraryEx(filePath, IntPtr.Zero, Win32Native.LOAD_LIBRARY_AS_DATAFILE))
+                       Interop.Kernel32.LoadLibraryExW(filePath, IntPtr.Zero, Interop.Kernel32.LOAD_LIBRARY_AS_DATAFILE))
             {
                 if (!handle.IsInvalid)
                 {
                     StringBuilder localizedResource = StringBuilderCache.Acquire(Win32Native.LOAD_STRING_MAX_LENGTH);
                     localizedResource.Length = Win32Native.LOAD_STRING_MAX_LENGTH;
 
-                    int result = UnsafeNativeMethods.LoadString(handle, resource,
+                    int result = Interop.User32.LoadStringW(handle, resource,
                                      localizedResource, localizedResource.Length);
 
                     if (result != 0)
@@ -1016,7 +1018,6 @@ namespace System
                     e = ex;
                     return TimeZoneInfoResult.InvalidTimeZoneException;
                 }
-
             }
         }
     }

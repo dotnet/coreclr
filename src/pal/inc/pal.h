@@ -487,15 +487,23 @@ PAL_NotifyRuntimeStarted(VOID);
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = 64;
 
 PALIMPORT
-void
+VOID
 PALAPI
-PAL_GetTransportPipeName(char *name, DWORD id, const char *suffix);
+PAL_GetTransportPipeName(
+    OUT char *name,
+    IN DWORD id,
+    IN const char *suffix);
 
 PALIMPORT
 void
 PALAPI
 PAL_InitializeDebug(
     void);
+
+PALIMPORT
+void
+PALAPI
+PAL_IgnoreProfileSignal(int signalNum);
 
 PALIMPORT
 HINSTANCE
@@ -538,7 +546,6 @@ PAL_ProbeMemory(
     BOOL fWriteAccess);
 
 /******************* winuser.h Entrypoints *******************************/
-
 PALIMPORT
 LPSTR
 PALAPI
@@ -1265,31 +1272,6 @@ SetCurrentDirectoryW(
 #define SetCurrentDirectory SetCurrentDirectoryA
 #endif
 
-// maximum length of the NETBIOS name (not including NULL)
-#define MAX_COMPUTERNAME_LENGTH 15
-
-// maximum length of the username (not including NULL)
-#define UNLEN   256
-
-PALIMPORT
-BOOL
-PALAPI
-GetUserNameW(
-    OUT LPWSTR lpBuffer,      // address of name buffer
-    IN OUT LPDWORD nSize );   // address of size of name buffer
-
-PALIMPORT
-BOOL
-PALAPI
-GetComputerNameW(
-    OUT LPWSTR lpBuffer,     // address of name buffer
-    IN OUT LPDWORD nSize);   // address of size of name buffer
-
-#ifdef UNICODE
-#define GetUserName GetUserNameW
-#define GetComputerName GetComputerNameW
-#endif // UNICODE
-
 PALIMPORT
 HANDLE
 PALAPI
@@ -1343,6 +1325,19 @@ CreateEventW(
          IN BOOL bInitialState,
          IN LPCWSTR lpName);
 
+PALIMPORT
+HANDLE
+PALAPI
+CreateEventExW(
+         IN LPSECURITY_ATTRIBUTES lpEventAttributes,
+         IN LPCWSTR lpName,
+         IN DWORD dwFlags,
+         IN DWORD dwDesiredAccess);
+
+// CreateEventExW: dwFlags
+#define CREATE_EVENT_MANUAL_RESET ((DWORD)0x1)
+#define CREATE_EVENT_INITIAL_SET ((DWORD)0x2)
+
 #ifdef UNICODE
 #define CreateEvent CreateEventW
 #else
@@ -1381,10 +1376,22 @@ CreateMutexW(
     IN BOOL bInitialOwner,
     IN LPCWSTR lpName);
 
+PALIMPORT
+HANDLE
+PALAPI
+CreateMutexExW(
+    IN LPSECURITY_ATTRIBUTES lpMutexAttributes,
+    IN LPCWSTR lpName,
+    IN DWORD dwFlags,
+    IN DWORD dwDesiredAccess);
+
+// CreateMutexExW: dwFlags
+#define CREATE_MUTEX_INITIAL_OWNER ((DWORD)0x1)
+
 #ifdef UNICODE
-#define CreateMutex  CreateMutexW
+#define CreateMutex CreateMutexW
 #else
-#define CreateMutex  CreateMutexA
+#define CreateMutex CreateMutexA
 #endif
 
 PALIMPORT
@@ -1599,19 +1606,6 @@ WaitForMultipleObjectsEx(
              IN DWORD dwMilliseconds,
              IN BOOL bAlertable);
 
-PALIMPORT
-RHANDLE
-PALAPI
-PAL_LocalHandleToRemote(
-            IN HANDLE hLocal);
-
-PALIMPORT
-HANDLE
-PALAPI
-PAL_RemoteHandleToLocal(
-            IN RHANDLE hRemote);
-
-
 #define DUPLICATE_CLOSE_SOURCE      0x00000001
 #define DUPLICATE_SAME_ACCESS       0x00000002
 
@@ -1781,7 +1775,6 @@ typedef struct _CONTEXT {
     ULONG   SegSs;
 
     UCHAR   ExtendedRegisters[MAXIMUM_SUPPORTED_EXTENSION];
-
 } CONTEXT, *PCONTEXT, *LPCONTEXT;
 
 // To support saving and loading xmm register context we need to know the offset in the ExtendedRegisters
@@ -1793,12 +1786,28 @@ typedef struct _CONTEXT {
 // support any other values in the ExtendedRegisters) but we might as well be as accurate as we can.
 #define CONTEXT_EXREG_XMM_OFFSET 160
 
+typedef struct _KNONVOLATILE_CONTEXT {
+
+    DWORD Edi;
+    DWORD Esi;
+    DWORD Ebx;
+    DWORD Ebp;
+
+} KNONVOLATILE_CONTEXT, *PKNONVOLATILE_CONTEXT;
+
 typedef struct _KNONVOLATILE_CONTEXT_POINTERS {
 
-    // TODO WIP x86/Linux, need to fix this.
-    PDWORD Ebx;
-    PDWORD Esi;
+    // The ordering of these fields should be aligned with that
+    // of corresponding fields in CONTEXT
+    //
+    // (See FillRegDisplay in inc/regdisp.h for details)
     PDWORD Edi;
+    PDWORD Esi;
+    PDWORD Ebx;
+    PDWORD Edx;
+    PDWORD Ecx;
+    PDWORD Eax;
+
     PDWORD Ebp;
 
 } KNONVOLATILE_CONTEXT_POINTERS, *PKNONVOLATILE_CONTEXT_POINTERS;
@@ -2519,16 +2528,28 @@ PAL_GetLogicalCpuCountFromOS(VOID);
 PALIMPORT
 size_t
 PALAPI
+PAL_GetRestrictedPhysicalMemoryLimit(VOID);
+
+PALIMPORT
+BOOL
+PALAPI
+PAL_GetWorkingSetSize(size_t* val);
+
+PALIMPORT
+BOOL
+PALAPI
+PAL_GetCpuLimit(UINT* val);
+
+PALIMPORT
+size_t
+PALAPI
 PAL_GetLogicalProcessorCacheSizeFromOS(VOID);
 
-typedef BOOL (*ReadMemoryWordCallback)(SIZE_T address, SIZE_T *value);
+typedef BOOL(*UnwindReadMemoryCallback)(PVOID address, PVOID buffer, SIZE_T size);
 
 PALIMPORT BOOL PALAPI PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextPointers);
 
-PALIMPORT BOOL PALAPI PAL_VirtualUnwindOutOfProc(CONTEXT *context, 
-                                                 KNONVOLATILE_CONTEXT_POINTERS *contextPointers, 
-                                                 DWORD pid, 
-                                                 ReadMemoryWordCallback readMemCallback);
+PALIMPORT BOOL PALAPI PAL_VirtualUnwindOutOfProc(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextPointers, SIZE_T baseAddress, UnwindReadMemoryCallback readMemoryCallback);
 
 #define GetLogicalProcessorCacheSizeFromOS PAL_GetLogicalProcessorCacheSizeFromOS
 
@@ -2822,6 +2843,14 @@ GetModuleFileNameExW(
 PALAPI
 LPCVOID
 PAL_GetSymbolModuleBase(void *symbol);
+
+PALIMPORT
+LPVOID
+PALAPI
+PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(
+    IN LPCVOID lpBeginAddress,
+    IN LPCVOID lpEndAddress,
+    IN SIZE_T dwSize);
 
 PALIMPORT
 LPVOID
@@ -3914,19 +3943,17 @@ typedef struct _RUNTIME_FUNCTION {
 #define STANDARD_RIGHTS_REQUIRED  (0x000F0000L)
 #define SYNCHRONIZE               (0x00100000L)
 #define READ_CONTROL              (0x00020000L)
+#define MAXIMUM_ALLOWED           (0x02000000L)
 
 #define EVENT_MODIFY_STATE        (0x0002)
-#define EVENT_ALL_ACCESS          (STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | \
-                                   0x3) 
+#define EVENT_ALL_ACCESS          (STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0x3) 
 
 #define MUTANT_QUERY_STATE        (0x0001)
-#define MUTANT_ALL_ACCESS         (STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | \
-                                   MUTANT_QUERY_STATE)
+#define MUTANT_ALL_ACCESS         (STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | MUTANT_QUERY_STATE)
 #define MUTEX_ALL_ACCESS          MUTANT_ALL_ACCESS
 
 #define SEMAPHORE_MODIFY_STATE    (0x0002)
-#define SEMAPHORE_ALL_ACCESS      (STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | \
-                                   0x3)
+#define SEMAPHORE_ALL_ACCESS      (STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0x3)
 
 #define PROCESS_TERMINATE         (0x0001)  
 #define PROCESS_CREATE_THREAD     (0x0002)  
@@ -4110,6 +4137,12 @@ PALAPI
 QueryThreadCycleTime(
     IN HANDLE ThreadHandle,
     OUT PULONG64 CycleTime);
+
+PALIMPORT
+INT
+PALAPI
+PAL_nanosleep(
+    IN long timeInNs);
 
 #ifndef FEATURE_PAL_SXS
 
@@ -4519,11 +4552,24 @@ MemoryBarrier(
     __sync_synchronize();
 }
 
+EXTERN_C
 PALIMPORT
+inline
 VOID
 PALAPI
 YieldProcessor(
-    VOID);
+    VOID)
+{
+#if defined(_X86_) || defined(_AMD64_)
+    __asm__ __volatile__(
+        "rep\n"
+        "nop");
+#elif defined(_ARM64_)
+    __asm__ __volatile__( "yield");
+#else
+    return;
+#endif
+}
 
 PALIMPORT
 DWORD
@@ -4716,18 +4762,6 @@ typedef POSVERSIONINFOEXA POSVERSIONINFOEX;
 typedef LPOSVERSIONINFOEXA LPOSVERSIONINFOEX;
 #endif
 
-PALIMPORT
-BOOL
-PALAPI
-GetVersionExW(
-          IN OUT LPOSVERSIONINFOW lpVersionInformation);
-
-#ifdef UNICODE
-#define GetVersionEx GetVersionExW
-#else
-#define GetVersionEx GetVersionExA
-#endif
-
 #define IMAGE_FILE_MACHINE_I386              0x014c
 #define IMAGE_FILE_MACHINE_ARM64             0xAA64  // ARM64 Little-Endian
 
@@ -4801,6 +4835,169 @@ RegisterEventSourceW (
 #else
 #define RegisterEventSource  RegisterEventSourceA
 #endif // !UNICODE
+
+//
+// NUMA related APIs
+//
+
+typedef enum _PROCESSOR_CACHE_TYPE { 
+  CacheUnified,
+  CacheInstruction,
+  CacheData,
+  CacheTrace
+} PROCESSOR_CACHE_TYPE;
+
+typedef struct _PROCESSOR_NUMBER {
+  WORD Group;
+  BYTE Number;
+  BYTE Reserved;
+} PROCESSOR_NUMBER, *PPROCESSOR_NUMBER;
+
+typedef enum _LOGICAL_PROCESSOR_RELATIONSHIP { 
+  RelationProcessorCore,
+  RelationNumaNode,
+  RelationCache,
+  RelationProcessorPackage,
+  RelationGroup,
+  RelationAll               = 0xffff
+} LOGICAL_PROCESSOR_RELATIONSHIP;
+
+typedef ULONG_PTR KAFFINITY;
+
+#define ANYSIZE_ARRAY 1
+
+typedef struct _GROUP_AFFINITY {
+  KAFFINITY Mask;
+  WORD      Group;
+  WORD      Reserved[3];
+} GROUP_AFFINITY, *PGROUP_AFFINITY;
+
+typedef struct _PROCESSOR_GROUP_INFO {
+  BYTE      MaximumProcessorCount;
+  BYTE      ActiveProcessorCount;
+  BYTE      Reserved[38];
+  KAFFINITY ActiveProcessorMask;
+} PROCESSOR_GROUP_INFO, *PPROCESSOR_GROUP_INFO;
+
+typedef struct _PROCESSOR_RELATIONSHIP {
+  BYTE           Flags;
+  BYTE           EfficiencyClass;
+  BYTE           Reserved[21];
+  WORD           GroupCount;
+  GROUP_AFFINITY GroupMask[ANYSIZE_ARRAY];
+} PROCESSOR_RELATIONSHIP, *PPROCESSOR_RELATIONSHIP;
+
+typedef struct _GROUP_RELATIONSHIP {
+  WORD                 MaximumGroupCount;
+  WORD                 ActiveGroupCount;
+  BYTE                 Reserved[20];
+  PROCESSOR_GROUP_INFO GroupInfo[ANYSIZE_ARRAY];
+} GROUP_RELATIONSHIP, *PGROUP_RELATIONSHIP;
+
+typedef struct _NUMA_NODE_RELATIONSHIP {
+  DWORD          NodeNumber;
+  BYTE           Reserved[20];
+  GROUP_AFFINITY GroupMask;
+} NUMA_NODE_RELATIONSHIP, *PNUMA_NODE_RELATIONSHIP;
+
+typedef struct _CACHE_RELATIONSHIP {
+  BYTE                 Level;
+  BYTE                 Associativity;
+  WORD                 LineSize;
+  DWORD                CacheSize;
+  PROCESSOR_CACHE_TYPE Type;
+  BYTE                 Reserved[20];
+  GROUP_AFFINITY       GroupMask;
+} CACHE_RELATIONSHIP, *PCACHE_RELATIONSHIP;
+
+typedef struct _SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX {
+  LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
+  DWORD                          Size;
+  union {
+    PROCESSOR_RELATIONSHIP Processor;
+    NUMA_NODE_RELATIONSHIP NumaNode;
+    CACHE_RELATIONSHIP     Cache;
+    GROUP_RELATIONSHIP     Group;
+  };
+} SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, *PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX;
+
+
+PALIMPORT
+BOOL
+PALAPI
+GetNumaHighestNodeNumber(
+  OUT PULONG HighestNodeNumber
+);
+
+PALIMPORT
+BOOL
+PALAPI
+GetNumaProcessorNodeEx(
+  IN  PPROCESSOR_NUMBER Processor,
+  OUT PUSHORT NodeNumber
+);
+
+PALIMPORT
+LPVOID
+PALAPI
+VirtualAllocExNuma(
+  IN HANDLE hProcess,
+  IN OPTIONAL LPVOID lpAddress,
+  IN SIZE_T dwSize,
+  IN DWORD flAllocationType,
+  IN DWORD flProtect,
+  IN DWORD nndPreferred
+);
+
+PALIMPORT
+BOOL
+PALAPI
+GetLogicalProcessorInformationEx(
+  IN LOGICAL_PROCESSOR_RELATIONSHIP RelationshipType,
+  OUT OPTIONAL PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX Buffer,
+  IN OUT PDWORD ReturnedLength
+);
+
+PALIMPORT
+DWORD_PTR
+PALAPI
+SetThreadAffinityMask(
+  IN HANDLE hThread,
+  IN DWORD_PTR dwThreadAffinityMask
+);
+
+PALIMPORT
+BOOL
+PALAPI
+SetThreadGroupAffinity(
+  IN HANDLE hThread,
+  IN const GROUP_AFFINITY *GroupAffinity,
+  OUT OPTIONAL PGROUP_AFFINITY PreviousGroupAffinity
+);
+
+PALIMPORT
+BOOL
+PALAPI
+GetThreadGroupAffinity(
+  IN HANDLE hThread,
+  OUT PGROUP_AFFINITY GroupAffinity
+);
+
+PALIMPORT
+VOID
+PALAPI
+GetCurrentProcessorNumberEx(
+  OUT PPROCESSOR_NUMBER ProcNumber
+);
+
+PALIMPORT
+BOOL
+PALAPI
+GetProcessAffinityMask(
+  IN HANDLE hProcess,
+  OUT PDWORD_PTR lpProcessAffinityMask,
+  OUT PDWORD_PTR lpSystemAffinityMask
+);
 
 //
 // The types of events that can be logged.
@@ -5125,6 +5322,7 @@ inline WCHAR *PAL_wcsstr(WCHAR *_S, const WCHAR *_P)
 }
 #endif
 
+#if !__has_builtin(_rotl)
 /*++
 Function:
 _rotl
@@ -5142,11 +5340,14 @@ unsigned int __cdecl _rotl(unsigned int value, int shift)
     retval = (value << shift) | (value >> (sizeof(int) * CHAR_BIT - shift));
     return retval;
 }
+#endif // !__has_builtin(_rotl)
 
 // On 64 bit unix, make the long an int.
 #ifdef BIT64
 #define _lrotl _rotl
 #endif // BIT64
+
+#if !__has_builtin(_rotr)
 
 /*++
 Function:
@@ -5165,6 +5366,8 @@ unsigned int __cdecl _rotr(unsigned int value, int shift)
     retval = (value >> shift) | (value << (sizeof(int) * CHAR_BIT - shift));
     return retval;
 }
+
+#endif // !__has_builtin(_rotr)
 
 PALIMPORT int __cdecl abs(int);
 #ifndef PAL_STDCPP_COMPAT

@@ -81,8 +81,8 @@ SET_DEFAULT_DEBUG_CHANNEL(FILE);
    Both epochs are Gregorian. 1970 - 1601 = 369. Assuming a leap
    year every four years, 369 / 4 = 92. However, 1700, 1800, and 1900
    were NOT leap years, so 89 leap years, 280 non-leap years.
-   89 * 366 + 280 * 365 = 134744 days between epochs. Of course
-   60 * 60 * 24 = 86400 seconds per day, so 134744 * 86400 =
+   89 * 366 + 280 * 365 = 134774 days between epochs. Of course
+   60 * 60 * 24 = 86400 seconds per day, so 134774 * 86400 =
    11644473600 = SECS_BETWEEN_1601_AND_1970_EPOCHS.
    
    To 2001:
@@ -504,23 +504,29 @@ PALAPI
 GetSystemTimeAsFileTime(
             OUT LPFILETIME lpSystemTimeAsFileTime)
 {
-    struct timeval Time;
-
     PERF_ENTRY(GetSystemTimeAsFileTime);
     ENTRY("GetSystemTimeAsFileTime(lpSystemTimeAsFileTime=%p)\n", 
           lpSystemTimeAsFileTime);
 
-    if ( gettimeofday( &Time, NULL ) != 0 )
+#if HAVE_WORKING_CLOCK_GETTIME
+    struct timespec Time;
+    if (clock_gettime(CLOCK_REALTIME, &Time) == 0)
     {
-        ASSERT("gettimeofday() failed");
-        /* no way to indicate failure, so set time to zero */
-        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( 0, 0 );
+        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( Time.tv_sec, Time.tv_nsec );
     }
-    else
+#else
+    struct timeval Time;
+    if (gettimeofday(&Time, NULL) == 0)
     {
         /* use (tv_usec * 1000) because 2nd arg is in nanoseconds */
-        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( Time.tv_sec,
-                                                          Time.tv_usec * 1000 );
+        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( Time.tv_sec, Time.tv_usec * 1000);
+    }
+#endif
+    else
+    {
+        /* no way to indicate failure, so set time to zero */
+        ASSERT("clock_gettime or gettimeofday failed");
+        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( 0, 0 );
     }
 
     LOGEXIT("GetSystemTimeAsFileTime returns.\n");

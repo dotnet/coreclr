@@ -11,7 +11,9 @@
 **
 **
 ===========================================================*/
-namespace System {
+
+namespace System
+{
     using System.Text;
     using System;
     using System.Runtime;
@@ -19,9 +21,9 @@ namespace System {
     using System.Globalization;
     using System.Threading;
     using System.Collections;
-    using System.Collections.Generic;    
+    using System.Collections.Generic;
     using System.Runtime.CompilerServices;
-    using System.Runtime.InteropServices;    
+    using System.Runtime.InteropServices;
     using System.Runtime.Versioning;
     using Microsoft.Win32;
     using System.Diagnostics;
@@ -36,13 +38,12 @@ namespace System {
     // instance and return the result as a new String. All comparison methods are
     // implemented as a part of String.  As with arrays, character positions
     // (indices) are zero-based.
-    
-    [ComVisible(true)]
+
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed partial class String : IComparable, ICloneable, IConvertible, IEnumerable
         , IComparable<String>, IEnumerable<char>, IEquatable<String>
     {
-        
         //
         //NOTE NOTE NOTE NOTE
         //These fields map directly onto the fields in an EE StringObject.  See object.h for the layout.
@@ -51,8 +52,8 @@ namespace System {
 
         // For empty strings, this will be '\0' since
         // strings are both null-terminated and length prefixed
-        [NonSerialized] private char m_firstChar;
-    
+        [NonSerialized] private char _firstChar;
+
         // The Empty constant holds the empty string value. It is initialized by the EE during startup.
         // It is treated as intrinsic by the JIT as so the static constructor would never run.
         // Leaving it uninitialized would confuse debuggers.
@@ -62,13 +63,14 @@ namespace System {
         //from native.
         public static readonly String Empty;
 
-        internal char FirstChar { get { return m_firstChar; } }
+        internal char FirstChar { get { return _firstChar; } }
         //
         // This is a helper method for the security team.  They need to uppercase some strings (guaranteed to be less 
         // than 0x80) before security is fully initialized.  Without security initialized, we can't grab resources (the nlp's)
         // from the assembly.  This provides a workaround for that problem and should NOT be used anywhere else.
         //
-        internal unsafe static string SmallCharToUpper(string strIn) {
+        internal unsafe static string SmallCharToUpper(string strIn)
+        {
             Contract.Requires(strIn != null);
             Contract.EndContractBlock();
             //
@@ -79,9 +81,10 @@ namespace System {
             //
             int length = strIn.Length;
             String strOut = FastAllocateString(length);
-            fixed (char * inBuff = &strIn.m_firstChar, outBuff = &strOut.m_firstChar) {
-
-                for(int i = 0; i < length; i++) {
+            fixed (char* inBuff = &strIn._firstChar, outBuff = &strOut._firstChar)
+            {
+                for (int i = 0; i < length; i++)
+                {
                     int c = inBuff[i];
                     Debug.Assert(c <= 0x7F, "string has to be ASCII");
 
@@ -91,16 +94,17 @@ namespace System {
                     outBuff[i] = (char)c;
                 }
 
-                Debug.Assert(outBuff[length]=='\0', "outBuff[length]=='\0'");
+                Debug.Assert(outBuff[length] == '\0', "outBuff[length]=='\0'");
             }
             return strOut;
         }
-    
+
         // Gets the character at a specified position.
         //
         // Spec#: Apply the precondition here using a contract assembly.  Potential perf issue.
         [System.Runtime.CompilerServices.IndexerName("Chars")]
-        public extern char this[int index] {
+        public extern char this[int index]
+        {
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
@@ -115,31 +119,32 @@ namespace System {
             if (destination == null)
                 throw new ArgumentNullException(nameof(destination));
             if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NegativeCount);
             if (sourceIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(sourceIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_Index);
             if (count > Length - sourceIndex)
-                throw new ArgumentOutOfRangeException(nameof(sourceIndex), Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
+                throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_IndexCount);
             if (destinationIndex > destination.Length - count || destinationIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(destinationIndex), Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
+                throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_IndexCount);
             Contract.EndContractBlock();
 
             // Note: fixed does not like empty arrays
             if (count > 0)
             {
-                fixed (char* src = &this.m_firstChar)
-                    fixed (char* dest = destination)
-                        wstrcpy(dest + destinationIndex, src + sourceIndex, count);
+                fixed (char* src = &_firstChar)
+                fixed (char* dest = destination)
+                    wstrcpy(dest + destinationIndex, src + sourceIndex, count);
             }
         }
-        
+
         // Returns the entire string as an array of characters.
-        unsafe public char[] ToCharArray() {
+        unsafe public char[] ToCharArray()
+        {
             int length = Length;
             if (length > 0)
             {
                 char[] chars = new char[length];
-                fixed (char* src = &this.m_firstChar) fixed (char* dest = chars)
+                fixed (char* src = &_firstChar) fixed (char* dest = chars)
                 {
                     wstrcpy(dest, src, length);
                 }
@@ -148,22 +153,22 @@ namespace System {
 
             return Array.Empty<char>();
         }
-    
+
         // Returns a substring of this string as an array of characters.
         //
         unsafe public char[] ToCharArray(int startIndex, int length)
         {
             // Range check everything.
             if (startIndex < 0 || startIndex > Length || startIndex > Length - length)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             if (length < 0)
-                throw new ArgumentOutOfRangeException(nameof(length), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
 
             if (length > 0)
             {
                 char[] chars = new char[length];
-                fixed (char* src = &this.m_firstChar) fixed (char* dest = chars)
+                fixed (char* src = &_firstChar) fixed (char* dest = chars)
                 {
                     wstrcpy(dest, src + startIndex, length);
                 }
@@ -174,16 +179,19 @@ namespace System {
         }
 
         [Pure]
-        public static bool IsNullOrEmpty(String value) {
+        public static bool IsNullOrEmpty(String value)
+        {
             return (value == null || value.Length == 0);
         }
 
         [Pure]
-        public static bool IsNullOrWhiteSpace(String value) {
+        public static bool IsNullOrWhiteSpace(String value)
+        {
             if (value == null) return true;
 
-            for(int i = 0; i < value.Length; i++) {
-                if(!Char.IsWhiteSpace(value[i])) return false;
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (!Char.IsWhiteSpace(value[i])) return false;
             }
 
             return true;
@@ -197,55 +205,60 @@ namespace System {
         /// The actually code generated for this will be one instruction and will be inlined.
         //
         // Spec#: Add postcondition in a contract assembly.  Potential perf problem.
-        public extern int Length {
+        public extern int Length
+        {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
-    
+
         // Creates a new string with the characters copied in from ptr. If
         // ptr is null, a 0-length string (like String.Empty) is returned.
         //
         [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe public extern String(char *value);
+        unsafe public extern String(char* value);
         [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe public extern String(char *value, int startIndex, int length);
-    
-        [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe public extern String(sbyte *value);
-        [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe public extern String(sbyte *value, int startIndex, int length);
+        unsafe public extern String(char* value, int startIndex, int length);
 
         [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe public extern String(sbyte *value, int startIndex, int length, Encoding enc);
-        
-        unsafe static private String CreateString(sbyte *value, int startIndex, int length, Encoding enc) {            
+        unsafe public extern String(sbyte* value);
+        [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
+        unsafe public extern String(sbyte* value, int startIndex, int length);
+
+        [CLSCompliant(false), MethodImplAttribute(MethodImplOptions.InternalCall)]
+        unsafe public extern String(sbyte* value, int startIndex, int length, Encoding enc);
+
+        unsafe static private String CreateString(sbyte* value, int startIndex, int length, Encoding enc)
+        {
             if (enc == null)
                 return new String(value, startIndex, length); // default to ANSI
 
             if (length < 0)
-                throw new ArgumentOutOfRangeException(nameof(length), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (startIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            if ((value + startIndex) < value) {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
+            if ((value + startIndex) < value)
+            {
                 // overflow check
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_PartialWCHAR);
             }
 
-            byte [] b = new byte[length];
+            byte[] b = new byte[length];
 
-            try {
+            try
+            {
                 Buffer.Memcpy(b, 0, (byte*)value, startIndex, length);
             }
-            catch(NullReferenceException) {
+            catch (NullReferenceException)
+            {
                 // If we got a NullReferencException. It means the pointer or 
                 // the index is out of range
-                throw new ArgumentOutOfRangeException(nameof(value), 
-                        Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));                
+                throw new ArgumentOutOfRangeException(nameof(value),
+                        SR.ArgumentOutOfRange_PartialWCHAR);
             }
 
             return enc.GetString(b);
         }
-        
+
         // Helper for encodings so they can talk to our buffer directly
         // stringLength must be the exact size we'll expect
         unsafe static internal String CreateStringFromEncoding(
@@ -257,17 +270,17 @@ namespace System {
             // Get our string length
             int stringLength = encoding.GetCharCount(bytes, byteLength, null);
             Debug.Assert(stringLength >= 0, "stringLength >= 0");
-            
+
             // They gave us an empty string if they needed one
             // 0 bytelength might be possible if there's something in an encoder
             if (stringLength == 0)
                 return String.Empty;
-            
+
             String s = FastAllocateString(stringLength);
-            fixed(char* pTempChars = &s.m_firstChar)
+            fixed (char* pTempChars = &s._firstChar)
             {
                 int doubleCheck = encoding.GetChars(bytes, byteLength, pTempChars, stringLength, null);
-                Debug.Assert(stringLength == doubleCheck, 
+                Debug.Assert(stringLength == doubleCheck,
                     "Expected encoding.GetChars to return same length as encoding.GetCharCount");
             }
 
@@ -275,25 +288,25 @@ namespace System {
         }
 
         // This is only intended to be used by char.ToString.
-        // It is necessary to put the code in this class instead of Char, since m_firstChar is a private member.
-        // Making m_firstChar internal would be dangerous since it would make it much easier to break String's immutability.
+        // It is necessary to put the code in this class instead of Char, since _firstChar is a private member.
+        // Making _firstChar internal would be dangerous since it would make it much easier to break String's immutability.
         internal static string CreateFromChar(char c)
         {
             string result = FastAllocateString(1);
-            result.m_firstChar = c;
+            result._firstChar = c;
             return result;
         }
-                
-        unsafe internal int GetBytesFromEncoding(byte* pbNativeBuffer, int cbNativeBuffer,Encoding encoding)
+
+        unsafe internal int GetBytesFromEncoding(byte* pbNativeBuffer, int cbNativeBuffer, Encoding encoding)
         {
             // encoding == Encoding.UTF8
-            fixed (char* pwzChar = &this.m_firstChar)
+            fixed (char* pwzChar = &_firstChar)
             {
                 return encoding.GetBytes(pwzChar, m_stringLength, pbNativeBuffer, cbNativeBuffer);
-            }            
+            }
         }
 
-        unsafe internal int ConvertToAnsi(byte *pbNativeBuffer, int cbNativeBuffer, bool fBestFit, bool fThrowOnUnmappableChar)
+        unsafe internal int ConvertToAnsi(byte* pbNativeBuffer, int cbNativeBuffer, bool fBestFit, bool fThrowOnUnmappableChar)
         {
             Debug.Assert(cbNativeBuffer >= (Length + 1) * Marshal.SystemMaxDBCSCharSize, "Insufficient buffer length passed to ConvertToAnsi");
 
@@ -305,7 +318,7 @@ namespace System {
             uint flgs = (fBestFit ? 0 : WC_NO_BEST_FIT_CHARS);
             uint DefaultCharUsed = 0;
 
-            fixed (char* pwzChar = &this.m_firstChar)
+            fixed (char* pwzChar = &_firstChar)
             {
                 nb = Win32Native.WideCharToMultiByte(
                     CP_ACP,
@@ -320,7 +333,7 @@ namespace System {
 
             if (0 != DefaultCharUsed)
             {
-                throw new ArgumentException(Environment.GetResourceString("Interop_Marshal_Unmappable_Char"));
+                throw new ArgumentException(SR.Interop_Marshal_Unmappable_Char);
             }
 
             pbNativeBuffer[nb] = 0;
@@ -340,12 +353,12 @@ namespace System {
             if (this.IsFastSort())
             {
                 // If its FastSort && one of the 4 main forms, then its already normalized
-                if( normalizationForm == NormalizationForm.FormC ||
+                if (normalizationForm == NormalizationForm.FormC ||
                     normalizationForm == NormalizationForm.FormKC ||
                     normalizationForm == NormalizationForm.FormD ||
-                    normalizationForm == NormalizationForm.FormKD )
+                    normalizationForm == NormalizationForm.FormKD)
                     return true;
-            }            
+            }
             return Normalization.IsNormalized(this, normalizationForm);
         }
 
@@ -360,10 +373,10 @@ namespace System {
             if (this.IsAscii())
             {
                 // If its FastSort && one of the 4 main forms, then its already normalized
-                if( normalizationForm == NormalizationForm.FormC ||
+                if (normalizationForm == NormalizationForm.FormC ||
                     normalizationForm == NormalizationForm.FormKC ||
                     normalizationForm == NormalizationForm.FormD ||
-                    normalizationForm == NormalizationForm.FormKD )
+                    normalizationForm == NormalizationForm.FormKD)
                     return this;
             }
             return Normalization.Normalize(this, normalizationForm);
@@ -377,27 +390,30 @@ namespace System {
         // startIndex + length - 1.
         //
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern String(char [] value, int startIndex, int length);
-    
+        public extern String(char[] value, int startIndex, int length);
+
         // Creates a new string from the characters in a subarray.  The new string will be
         // created from the characters in value.
         //
-        
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern String(char [] value);
 
-        internal static unsafe void wstrcpy(char *dmem, char *smem, int charCount)
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public extern String(char[] value);
+
+        internal static unsafe void wstrcpy(char* dmem, char* smem, int charCount)
         {
             Buffer.Memcpy((byte*)dmem, (byte*)smem, charCount * 2); // 2 used everywhere instead of sizeof(char)
         }
 
-        private String CtorCharArray(char [] value)
+        private String CtorCharArray(char[] value)
         {
-            if (value != null && value.Length != 0) {
+            if (value != null && value.Length != 0)
+            {
                 String result = FastAllocateString(value.Length);
 
-                unsafe {
-                    fixed (char* dest = &result.m_firstChar, source = value) {
+                unsafe
+                {
+                    fixed (char* dest = &result._firstChar, source = value)
+                    {
                         wstrcpy(dest, source, value.Length);
                     }
                 }
@@ -407,26 +423,29 @@ namespace System {
                 return String.Empty;
         }
 
-        private String CtorCharArrayStartLength(char [] value, int startIndex, int length)
+        private String CtorCharArrayStartLength(char[] value, int startIndex, int length)
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
 
             if (startIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
 
             if (length < 0)
-                throw new ArgumentOutOfRangeException(nameof(length), Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NegativeLength);
 
             if (startIndex > value.Length - length)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
 
-            if (length > 0) {
+            if (length > 0)
+            {
                 String result = FastAllocateString(length);
 
-                unsafe {
-                    fixed (char* dest = &result.m_firstChar, source = value) {
+                unsafe
+                {
+                    fixed (char* dest = &result._firstChar, source = value)
+                    {
                         wstrcpy(dest, source + startIndex, length);
                     }
                 }
@@ -438,29 +457,36 @@ namespace System {
 
         private String CtorCharCount(char c, int count)
         {
-            if (count > 0) {
+            if (count > 0)
+            {
                 String result = FastAllocateString(count);
                 if (c != 0)
                 {
-                    unsafe {
-                        fixed (char* dest = &result.m_firstChar) {
-                            char *dmem = dest;
-                            while (((uint)dmem & 3) != 0 && count > 0) {
+                    unsafe
+                    {
+                        fixed (char* dest = &result._firstChar)
+                        {
+                            char* dmem = dest;
+                            while (((uint)dmem & 3) != 0 && count > 0)
+                            {
                                 *dmem++ = c;
                                 count--;
                             }
                             uint cc = (uint)((c << 16) | c);
-                            if (count >= 4) {
+                            if (count >= 4)
+                            {
                                 count -= 4;
-                                do{
-                                    ((uint *)dmem)[0] = cc;
-                                    ((uint *)dmem)[1] = cc;
+                                do
+                                {
+                                    ((uint*)dmem)[0] = cc;
+                                    ((uint*)dmem)[1] = cc;
                                     dmem += 4;
                                     count -= 4;
                                 } while (count >= 0);
                             }
-                            if ((count & 2) != 0) {
-                                ((uint *)dmem)[0] = cc;
+                            if ((count & 2) != 0)
+                            {
+                                ((uint*)dmem)[0] = cc;
                                 dmem += 2;
                             }
                             if ((count & 1) != 0)
@@ -473,13 +499,13 @@ namespace System {
             else if (count == 0)
                 return String.Empty;
             else
-                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_MustBeNonNegNum", nameof(count)));
+                throw new ArgumentOutOfRangeException(nameof(count), SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(count)));
         }
 
-        private static unsafe int wcslen(char *ptr)
+        internal static unsafe int wcslen(char* ptr)
         {
-            char *end = ptr;
-            
+            char* end = ptr;
+
             // First make sure our pointer is aligned on a word boundary
             int alignment = IntPtr.Size - 1;
 
@@ -528,7 +554,7 @@ namespace System {
             // NOTE: We can access a ulong a time since the ptr is aligned,
             // and therefore we're only accessing the same word/page. (See notes
             // for the 32-bit version above.)
-            
+
             const ulong MagicMask = 0x7fff7fff7fff7fff;
 
             while (true)
@@ -556,13 +582,13 @@ namespace System {
                 end += 4;
             }
 
-            EndAt3: end++;
-            EndAt2: end++;
-            EndAt1: end++;
-            EndAt0:
+        EndAt3: end++;
+        EndAt2: end++;
+        EndAt1: end++;
+        EndAt0:
 #endif // !BIT64
 
-            FoundZero:
+        FoundZero:
             Debug.Assert(*end == 0);
 
             int count = (int)(end - ptr);
@@ -570,49 +596,54 @@ namespace System {
             return count;
         }
 
-        private unsafe String CtorCharPtr(char *ptr)
+        private unsafe String CtorCharPtr(char* ptr)
         {
             if (ptr == null)
                 return String.Empty;
 
 #if !FEATURE_PAL
             if (ptr < (char*)64000)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeStringPtrNotAtom"));
+                throw new ArgumentException(SR.Arg_MustBeStringPtrNotAtom);
 #endif // FEATURE_PAL
 
             Debug.Assert(this == null, "this == null");        // this is the string constructor, we allocate it
 
-            try {
+            try
+            {
                 int count = wcslen(ptr);
                 if (count == 0)
                     return String.Empty;
 
                 String result = FastAllocateString(count);
-                fixed (char* dest = &result.m_firstChar)
+                fixed (char* dest = &result._firstChar)
                     wstrcpy(dest, ptr, count);
                 return result;
             }
-            catch (NullReferenceException) {
-                throw new ArgumentOutOfRangeException(nameof(ptr), Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));
+            catch (NullReferenceException)
+            {
+                throw new ArgumentOutOfRangeException(nameof(ptr), SR.ArgumentOutOfRange_PartialWCHAR);
             }
         }
 
-        private unsafe String CtorCharPtrStartLength(char *ptr, int startIndex, int length)
+        private unsafe String CtorCharPtrStartLength(char* ptr, int startIndex, int length)
         {
-            if (length < 0) {
-                throw new ArgumentOutOfRangeException(nameof(length), Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
+            if (length < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NegativeLength);
             }
 
-            if (startIndex < 0) {
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+            if (startIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
             }
             Contract.EndContractBlock();
             Debug.Assert(this == null, "this == null");        // this is the string constructor, we allocate it
 
-            char *pFrom = ptr + startIndex;
-            if (pFrom < ptr) {
+            char* pFrom = ptr + startIndex;
+            if (pFrom < ptr)
+            {
                 // This means that the pointer operation has had an overflow
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_PartialWCHAR);
             }
 
             if (length == 0)
@@ -620,43 +651,67 @@ namespace System {
 
             String result = FastAllocateString(length);
 
-            try {
-                fixed (char* dest = &result.m_firstChar)
+            try
+            {
+                fixed (char* dest = &result._firstChar)
                     wstrcpy(dest, pFrom, length);
                 return result;
             }
-            catch (NullReferenceException) {
-                throw new ArgumentOutOfRangeException(nameof(ptr), Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));
+            catch (NullReferenceException)
+            {
+                throw new ArgumentOutOfRangeException(nameof(ptr), SR.ArgumentOutOfRange_PartialWCHAR);
             }
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern String(char c, int count);
 
-   
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public extern String(ReadOnlySpan<char> value);
+
+        private unsafe string CtorReadOnlySpanOfChar(ReadOnlySpan<char> value)
+        {
+            if (value.Length == 0)
+            {
+                return Empty;
+            }
+
+            string result = FastAllocateString(value.Length);
+            fixed (char* dest = &result._firstChar, src = &value.DangerousGetPinnableReference())
+            {
+                wstrcpy(dest, src, value.Length);
+            }
+            return result;
+        }
+
         // Returns this string.
-        public override String ToString() {
+        public override String ToString()
+        {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
             return this;
         }
 
-        public String ToString(IFormatProvider provider) {
+        public String ToString(IFormatProvider provider)
+        {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.EndContractBlock();
             return this;
         }
-    
+
         // Method required for the ICloneable interface.
         // There's no point in cloning a string since they're immutable, so we simply return this.
-        public Object Clone() {
+        public Object Clone()
+        {
             Contract.Ensures(Contract.Result<Object>() != null);
             Contract.EndContractBlock();
             return this;
         }
-    
-        unsafe public static String Copy (String str) {
-            if (str==null) {
+
+        unsafe public static String Copy(String str)
+        {
+            if (str == null)
+            {
                 throw new ArgumentNullException(nameof(str));
             }
             Contract.Ensures(Contract.Result<String>() != null);
@@ -666,15 +721,18 @@ namespace System {
 
             String result = FastAllocateString(length);
 
-            fixed(char* dest = &result.m_firstChar)
-                fixed(char* src = &str.m_firstChar) {
-                     wstrcpy(dest, src, length);
-                }
-             return result;
+            fixed (char* dest = &result._firstChar)
+            fixed (char* src = &str._firstChar)
+            {
+                wstrcpy(dest, src, length);
+            }
+            return result;
         }
-        
-        public static String Intern(String str) {
-            if (str==null) {
+
+        public static String Intern(String str)
+        {
+            if (str == null)
+            {
                 throw new ArgumentNullException(nameof(str));
             }
             Contract.Ensures(Contract.Result<String>().Length == str.Length);
@@ -685,8 +743,10 @@ namespace System {
         }
 
         [Pure]
-        public static String IsInterned(String str) {
-            if (str==null) {
+        public static String IsInterned(String str)
+        {
+            if (str == null)
+            {
                 throw new ArgumentNullException(nameof(str));
             }
             Contract.Ensures(Contract.Result<String>() == null || Contract.Result<String>().Length == str.Length);
@@ -699,83 +759,84 @@ namespace System {
         //
         // IConvertible implementation
         // 
-      
-        public TypeCode GetTypeCode() {
+
+        public TypeCode GetTypeCode()
+        {
             return TypeCode.String;
         }
 
-        /// <internalonly/>
-        bool IConvertible.ToBoolean(IFormatProvider provider) {
+        bool IConvertible.ToBoolean(IFormatProvider provider)
+        {
             return Convert.ToBoolean(this, provider);
         }
 
-        /// <internalonly/>
-        char IConvertible.ToChar(IFormatProvider provider) {
+        char IConvertible.ToChar(IFormatProvider provider)
+        {
             return Convert.ToChar(this, provider);
         }
 
-        /// <internalonly/>
-        sbyte IConvertible.ToSByte(IFormatProvider provider) {
+        sbyte IConvertible.ToSByte(IFormatProvider provider)
+        {
             return Convert.ToSByte(this, provider);
         }
 
-        /// <internalonly/>
-        byte IConvertible.ToByte(IFormatProvider provider) {
+        byte IConvertible.ToByte(IFormatProvider provider)
+        {
             return Convert.ToByte(this, provider);
         }
 
-        /// <internalonly/>
-        short IConvertible.ToInt16(IFormatProvider provider) {
+        short IConvertible.ToInt16(IFormatProvider provider)
+        {
             return Convert.ToInt16(this, provider);
         }
 
-        /// <internalonly/>
-        ushort IConvertible.ToUInt16(IFormatProvider provider) {
+        ushort IConvertible.ToUInt16(IFormatProvider provider)
+        {
             return Convert.ToUInt16(this, provider);
         }
 
-        /// <internalonly/>
-        int IConvertible.ToInt32(IFormatProvider provider) {
+        int IConvertible.ToInt32(IFormatProvider provider)
+        {
             return Convert.ToInt32(this, provider);
         }
 
-        /// <internalonly/>
-        uint IConvertible.ToUInt32(IFormatProvider provider) {
+        uint IConvertible.ToUInt32(IFormatProvider provider)
+        {
             return Convert.ToUInt32(this, provider);
         }
 
-        /// <internalonly/>
-        long IConvertible.ToInt64(IFormatProvider provider) {
+        long IConvertible.ToInt64(IFormatProvider provider)
+        {
             return Convert.ToInt64(this, provider);
         }
 
-        /// <internalonly/>
-        ulong IConvertible.ToUInt64(IFormatProvider provider) {
+        ulong IConvertible.ToUInt64(IFormatProvider provider)
+        {
             return Convert.ToUInt64(this, provider);
         }
 
-        /// <internalonly/>
-        float IConvertible.ToSingle(IFormatProvider provider) {
+        float IConvertible.ToSingle(IFormatProvider provider)
+        {
             return Convert.ToSingle(this, provider);
         }
 
-        /// <internalonly/>
-        double IConvertible.ToDouble(IFormatProvider provider) {
+        double IConvertible.ToDouble(IFormatProvider provider)
+        {
             return Convert.ToDouble(this, provider);
         }
 
-        /// <internalonly/>
-        Decimal IConvertible.ToDecimal(IFormatProvider provider) {
+        Decimal IConvertible.ToDecimal(IFormatProvider provider)
+        {
             return Convert.ToDecimal(this, provider);
         }
 
-        /// <internalonly/>
-        DateTime IConvertible.ToDateTime(IFormatProvider provider) {
+        DateTime IConvertible.ToDateTime(IFormatProvider provider)
+        {
             return Convert.ToDateTime(this, provider);
         }
 
-        /// <internalonly/>
-        Object IConvertible.ToType(Type type, IFormatProvider provider) {
+        Object IConvertible.ToType(Type type, IFormatProvider provider)
+        {
             return Convert.DefaultToType((IConvertible)this, type, provider);
         }
 
@@ -787,49 +848,55 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern bool IsAscii();
 
+#if FEATURE_COMINTEROP
         // Set extra byte for odd-sized strings that came from interop as BSTR.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern void SetTrailByte(byte data);
         // Try to retrieve the extra byte - returns false if not present.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern bool TryGetTrailByte(out byte data);
+#endif        
 
-        public CharEnumerator GetEnumerator() {
+        public CharEnumerator GetEnumerator()
+        {
             Contract.Ensures(Contract.Result<CharEnumerator>() != null);
             Contract.EndContractBlock();
             BCLDebug.Perf(false, "Avoid using String's CharEnumerator until C# special cases foreach on String - use the indexed property on String instead.");
             return new CharEnumerator(this);
         }
 
-        IEnumerator<char> IEnumerable<char>.GetEnumerator() {
+        IEnumerator<char> IEnumerable<char>.GetEnumerator()
+        {
             Contract.Ensures(Contract.Result<IEnumerator<char>>() != null);
             Contract.EndContractBlock();
             BCLDebug.Perf(false, "Avoid using String's CharEnumerator until C# special cases foreach on String - use the indexed property on String instead.");
             return new CharEnumerator(this);
         }
 
-        /// <internalonly/>
-        IEnumerator IEnumerable.GetEnumerator() {
+        IEnumerator IEnumerable.GetEnumerator()
+        {
             Contract.Ensures(Contract.Result<IEnumerator>() != null);
             Contract.EndContractBlock();
             BCLDebug.Perf(false, "Avoid using String's CharEnumerator until C# special cases foreach on String - use the indexed property on String instead.");
             return new CharEnumerator(this);
         }
 
-         // Copies the source String (byte buffer) to the destination IntPtr memory allocated with len bytes.
-        internal unsafe static void InternalCopy(String src, IntPtr dest,int len)
+        // Copies the source String (byte buffer) to the destination IntPtr memory allocated with len bytes.
+        internal unsafe static void InternalCopy(String src, IntPtr dest, int len)
         {
             if (len == 0)
                 return;
-            fixed(char* charPtr = &src.m_firstChar) {
-                byte* srcPtr = (byte*) charPtr;
-                byte* dstPtr = (byte*) dest;
+            fixed (char* charPtr = &src._firstChar)
+            {
+                byte* srcPtr = (byte*)charPtr;
+                byte* dstPtr = (byte*)dest;
                 Buffer.Memcpy(dstPtr, srcPtr, len);
             }
         }
 
-        internal ref char GetFirstCharRef() {
-            return ref m_firstChar;
+        internal ref char GetRawStringData()
+        {
+            return ref _firstChar;
         }
     }
 }

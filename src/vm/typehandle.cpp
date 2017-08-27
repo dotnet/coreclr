@@ -491,11 +491,7 @@ BOOL TypeHandle::IsAbstract() const
 DWORD TypeHandle::IsTransparentProxy() const
 {
     WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_REMOTING
-    return !IsTypeDesc() && AsMethodTable()->IsTransparentProxy();
-#else
     return FALSE;
-#endif
 }
 
 #ifdef FEATURE_HFA
@@ -1547,6 +1543,14 @@ BOOL TypeHandle::IsByRef()  const
     LIMITED_METHOD_CONTRACT;
 
     return(IsTypeDesc() && AsTypeDesc()->IsByRef());
+
+}
+
+BOOL TypeHandle::IsByRefLike()  const
+{ 
+    LIMITED_METHOD_CONTRACT;
+
+    return(!IsTypeDesc() && AsMethodTable()->IsByRefLike());
 
 }
 

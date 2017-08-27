@@ -381,6 +381,15 @@ public:
         return m_value;
     }
 
+    // Mark the value as read only; explicitly change the variable to the "read" phase.
+    void MarkAsReadOnly() const
+    {
+#ifdef DEBUG
+        assert(m_initialized);
+        (const_cast<PhasedVar*>(this))->m_writePhase = false;
+#endif // DEBUG
+    }
+
     // Functions/operators to write the value. Must be in the write phase.
 
     PhasedVar& operator=(const T& value)
@@ -638,6 +647,8 @@ public:
     static unsigned __int64 convertDoubleToUInt64(double d);
 
     static double round(double x);
+
+    static float round(float x);
 };
 
 // The CLR requires that critical section locks be initialized via its ClrCreateCriticalSection API...but
@@ -706,5 +717,17 @@ private:
     CritSecHolder(const CritSecHolder&) = delete;
     CritSecHolder& operator=(const CritSecHolder&) = delete;
 };
+
+namespace MagicDivide
+{
+uint32_t GetUnsigned32Magic(uint32_t d, bool* add /*out*/, int* shift /*out*/);
+#ifdef _TARGET_64BIT_
+uint64_t GetUnsigned64Magic(uint64_t d, bool* add /*out*/, int* shift /*out*/);
+#endif
+int32_t GetSigned32Magic(int32_t d, int* shift /*out*/);
+#ifdef _TARGET_64BIT_
+int64_t GetSigned64Magic(int64_t d, int* shift /*out*/);
+#endif
+}
 
 #endif // _UTILS_H_

@@ -33,8 +33,6 @@ struct DhContext
 
 class GCScan
 {
-    friend struct ::_DacGlobals;
-
   public:
 
     static void GcScanSizedRefs(promote_func* fn, int condemned, int max_gen, ScanContext* sc);
@@ -89,19 +87,7 @@ class GCScan
 
     static void VerifyHandleTable(int condemned, int max_gen, ScanContext* sc);
     
-private:
-#ifdef DACCESS_COMPILE    
-    SVAL_DECL(int32_t, m_GcStructuresInvalidCnt);
-#else
     static VOLATILE(int32_t) m_GcStructuresInvalidCnt;
-#endif //DACCESS_COMPILE
 };
-
-// These two functions are utilized to scan the heap if requested by ETW
-// or a profiler. The implementations of these two functions are in profheapwalkhelper.cpp.
-#if defined(FEATURE_EVENT_TRACE) | defined(GC_PROFILING)
-void ScanRootsHelper(Object* pObj, Object** ppRoot, ScanContext * pSC, DWORD dwFlags);
-BOOL HeapWalkHelper(Object * pBO, void * pvContext);
-#endif
 
 #endif // _GCSCAN_H_

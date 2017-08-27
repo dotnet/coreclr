@@ -110,10 +110,6 @@ private:
     // branch to on condition being false.
     static void genJumpKindsForTree(GenTreePtr cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2]);
 
-#if !defined(_TARGET_64BIT_)
-    static void genJumpKindsForTreeLongHi(GenTreePtr cmpTree, emitJumpKind jmpKind[2]);
-#endif //! defined(_TARGET_64BIT_)
-
     static bool genShouldRoundFP();
 
     GenTreeIndir indirForm(var_types type, GenTree* base);
@@ -161,6 +157,36 @@ private:
     //  Keeps track of how many bytes we've pushed on the processor's stack.
     //
     unsigned genStackLevel;
+
+    void SubtractStackLevel(unsigned adjustment)
+    {
+        assert(genStackLevel >= adjustment);
+        unsigned newStackLevel = genStackLevel - adjustment;
+        if (genStackLevel != newStackLevel)
+        {
+            JITDUMP("Adjusting stack level from %d to %d\n", genStackLevel, newStackLevel);
+        }
+        genStackLevel = newStackLevel;
+    }
+
+    void AddStackLevel(unsigned adjustment)
+    {
+        unsigned newStackLevel = genStackLevel + adjustment;
+        if (genStackLevel != newStackLevel)
+        {
+            JITDUMP("Adjusting stack level from %d to %d\n", genStackLevel, newStackLevel);
+        }
+        genStackLevel = newStackLevel;
+    }
+
+    void SetStackLevel(unsigned newStackLevel)
+    {
+        if (genStackLevel != newStackLevel)
+        {
+            JITDUMP("Setting stack level from %d to %d\n", genStackLevel, newStackLevel);
+        }
+        genStackLevel = newStackLevel;
+    }
 
 #if STACK_PROBES
     // Stack Probes
@@ -331,6 +357,10 @@ protected:
                          /* IN OUT */ bool* pUnwindStarted,
                          bool               jmpEpilog);
 
+    void genMov32RelocatableDisplacement(BasicBlock* block, regNumber reg);
+    void genMov32RelocatableDataLabel(unsigned value, regNumber reg);
+    void genMov32RelocatableImmediate(emitAttr size, unsigned value, regNumber reg);
+
     bool genUsedPopToReturn; // True if we use the pop into PC to return,
                              // False if we didn't and must branch to LR to return.
 
@@ -416,20 +446,30 @@ protected:
 
     void genPrologPadForReJit();
 
+    // clang-format off
     void genEmitCall(int                   callType,
                      CORINFO_METHOD_HANDLE methHnd,
-                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo) void* addr X86_ARG(ssize_t argSize),
-                     emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
-                     IL_OFFSETX ilOffset,
-                     regNumber  base   = REG_NA,
-                     bool       isJump = false,
-                     bool       isNoGC = false);
+                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
+                     void*                 addr
+                     X86_ARG(ssize_t argSize),
+                     emitAttr              retSize
+                     MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
+                     IL_OFFSETX            ilOffset,
+                     regNumber             base   = REG_NA,
+                     bool                  isJump = false,
+                     bool                  isNoGC = false);
+    // clang-format on
 
+    // clang-format off
     void genEmitCall(int                   callType,
                      CORINFO_METHOD_HANDLE methHnd,
-                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo) GenTreeIndir* indir X86_ARG(ssize_t argSize),
-                     emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
-                     IL_OFFSETX ilOffset);
+                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
+                     GenTreeIndir*         indir
+                     X86_ARG(ssize_t argSize),
+                     emitAttr              retSize
+                     MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
+                     IL_OFFSETX            ilOffset);
+    // clang-format on
 
     //
     // Epilog functions
@@ -470,6 +510,9 @@ protected:
     void genSetPSPSym(regNumber initReg, bool* pInitRegZeroed);
 
     void genUpdateCurrentFunclet(BasicBlock* block);
+#if defined(_TARGET_ARM_)
+    void genInsertNopForUnwinder(BasicBlock* block);
+#endif
 
 #else // FEATURE_EH_FUNCLETS
 
@@ -478,6 +521,13 @@ protected:
     {
         return;
     }
+
+#if defined(_TARGET_ARM_)
+    void genInsertNopForUnwinder(BasicBlock* block)
+    {
+        return;
+    }
+#endif
 
 #endif // FEATURE_EH_FUNCLETS
 
@@ -810,8 +860,8 @@ public:
         instruction ins, regNumber reg, TempDsc* tmp, unsigned ofs, var_types type, emitAttr size = EA_UNKNOWN);
     void inst_FS_ST(instruction ins, emitAttr size, TempDsc* tmp, unsigned ofs);
 
-    void instEmit_indCall(GenTreePtr call,
-                          size_t     argSize,
+    void instEmit_indCall(GenTreeCall* call,
+                          size_t       argSize,
                           emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize));
 
     void instEmit_RM(instruction ins, GenTreePtr tree, GenTreePtr addr, unsigned offs);
@@ -909,7 +959,11 @@ public:
 
     void instGen_Return(unsigned stkArgSize);
 
+#ifdef _TARGET_ARM64_
+    void instGen_MemoryBarrier(insBarrier barrierType = INS_BARRIER_ISH);
+#else
     void instGen_MemoryBarrier();
+#endif
 
     void instGen_Set_Reg_To_Zero(emitAttr size, regNumber reg, insFlags flags = INS_FLAGS_DONT_CARE);
 

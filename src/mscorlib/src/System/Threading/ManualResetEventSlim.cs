@@ -13,7 +13,6 @@
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 using System;
-using System.Security.Permissions;
 using System.Threading;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
@@ -21,7 +20,6 @@ using System.Diagnostics.Contracts;
 
 namespace System.Threading
 {
-
     // ManualResetEventSlim wraps a manual-reset event internally with a little bit of
     // spinning. When an event will be set imminently, it is often advantageous to avoid
     // a 4k+ cycle context switch in favor of briefly spinning. Therefore we layer on to
@@ -45,7 +43,6 @@ namespace System.Threading
     /// completed, and Reset, which should only be used when no other threads are
     /// accessing the event.
     /// </remarks>
-    [ComVisible(false)]
     [DebuggerDisplay("Set = {IsSet}")]
     public class ManualResetEventSlim : IDisposable
     {
@@ -100,7 +97,6 @@ namespace System.Threading
         /// </remarks>
         public WaitHandle WaitHandle
         {
-
             get
             {
                 ThrowIfDisposed();
@@ -167,11 +163,10 @@ namespace System.Threading
 
                 // it is possible for the max number of waiters to be exceeded via user-code, hence we use a real exception here.
                 if (value >= NumWaitersState_MaxValue)
-                    throw new InvalidOperationException(String.Format(Environment.GetResourceString("ManualResetEventSlim_ctor_TooManyWaiters"), NumWaitersState_MaxValue));
+                    throw new InvalidOperationException(String.Format(SR.ManualResetEventSlim_ctor_TooManyWaiters, NumWaitersState_MaxValue));
 
                 UpdateStateAtomically(value << NumWaitersState_ShiftCount, NumWaitersState_BitMask);
             }
-
         }
 
         //-----------------------------------------------------------------------------------
@@ -186,7 +181,6 @@ namespace System.Threading
         public ManualResetEventSlim()
             : this(false)
         {
-
         }
 
         /// <summary>
@@ -224,7 +218,7 @@ namespace System.Threading
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(spinCount),
-                    String.Format(Environment.GetResourceString("ManualResetEventSlim_ctor_SpinCountOutOfRange"), SpinCountState_MaxValue));
+                    String.Format(SR.ManualResetEventSlim_ctor_SpinCountOutOfRange, SpinCountState_MaxValue));
             }
 
             // We will suppress default spin  because the user specified a count.
@@ -238,14 +232,13 @@ namespace System.Threading
         /// <param name="spinCount">The spin count that decides when the event will block.</param>
         private void Initialize(bool initialState, int spinCount)
         {
-            this.m_combinedState = initialState ? (1 << SignalledState_ShiftCount) : 0;
+            m_combinedState = initialState ? (1 << SignalledState_ShiftCount) : 0;
             //the spinCount argument has been validated by the ctors.
             //but we now sanity check our predefined constants.
             Debug.Assert(DEFAULT_SPIN_SP >= 0, "Internal error - DEFAULT_SPIN_SP is outside the legal range.");
             Debug.Assert(DEFAULT_SPIN_SP <= SpinCountState_MaxValue, "Internal error - DEFAULT_SPIN_SP is outside the legal range.");
 
             SpinCount = PlatformHelper.IsSingleProcessor ? DEFAULT_SPIN_SP : spinCount;
-
         }
 
         /// <summary>
@@ -285,7 +278,6 @@ namespace System.Threading
             }
             else
             {
-
                 // Now that the event is published, verify that the state hasn't changed since
                 // we snapped the preInitializeState. Another thread could have done that
                 // between our initial observation above and here. The barrier incurred from
@@ -339,7 +331,6 @@ namespace System.Threading
                 Debug.Assert(m_lock != null); //if waiters>0, then m_lock has already been created.
                 lock (m_lock)
                 {
-
                     Monitor.PulseAll(m_lock);
                 }
             }
@@ -593,7 +584,7 @@ namespace System.Threading
                         }
                         else
                         {
-                            Thread.SpinWait(PlatformHelper.ProcessorCount * (4 << i));
+                            Thread.SpinWait(4 << i);
                         }
                     }
                     else if (i % HOW_MANY_YIELD_EVERY_SLEEP_1 == 0)
@@ -667,7 +658,6 @@ namespace System.Threading
                             // Now just loop back around, and the right thing will happen.  Either:
                             //     1. We had a spurious wake-up due to some other wait being canceled via a different cancellationToken (rewait)
                             // or  2. the wait was successful. (the loop will break)
-
                         }
                     }
                 }
@@ -727,7 +717,7 @@ namespace System.Threading
         private void ThrowIfDisposed()
         {
             if ((m_combinedState & Dispose_BitMask) != 0)
-                throw new ObjectDisposedException(Environment.GetResourceString("ManualResetEventSlim_Disposed"));
+                throw new ObjectDisposedException(SR.ManualResetEventSlim_Disposed);
         }
 
         /// <summary>

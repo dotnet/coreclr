@@ -12,6 +12,8 @@
 #define __LLDBSERVICES_H__
 
 #include <stdarg.h>
+#include <palrt.h>
+#include <unknwn.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,6 +83,7 @@ extern "C" {
 #define IMAGE_FILE_MACHINE_I386              0x014c  // Intel 386.
 #define IMAGE_FILE_MACHINE_ARMNT             0x01c4  // ARM Thumb-2 Little-Endian
 #define IMAGE_FILE_MACHINE_AMD64             0x8664  // AMD64 (K8)
+#define IMAGE_FILE_MACHINE_ARM64             0xAA64  // ARM64 Little-Endian
 
 // Execution status codes used for waiting,
 // for returning current status and for
@@ -107,25 +110,6 @@ extern "C" {
 #define DEBUG_STATUS_MASK                0x1f
 
 #define DEBUG_EVENT_EXCEPTION            0x00000002
-
-#ifdef DEFINE_EXCEPTION_RECORD
-
-#define EXCEPTION_MAXIMUM_PARAMETERS     15
-
-// This copy of the "64" bit record has been modified
-// by removing the alignment field to make it the same
-// as the _EXCEPTION_RECORD used in the pal defined in 
-// pal.h.
-typedef struct _EXCEPTION_RECORD64 {
-    DWORD ExceptionCode;
-    DWORD ExceptionFlags;
-    DWORD64 ExceptionRecord;
-    DWORD64 ExceptionAddress;
-    DWORD NumberParameters;
-    DWORD64 ExceptionInformation[EXCEPTION_MAXIMUM_PARAMETERS];
-} EXCEPTION_RECORD64, *PEXCEPTION_RECORD64;
-
-#endif // DEFINE_EXCEPTION_RECORD
 
 typedef struct _DEBUG_LAST_EVENT_INFO_EXCEPTION
 {

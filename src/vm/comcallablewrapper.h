@@ -17,7 +17,6 @@
 #include "vars.hpp"
 #include "stdinterfaces.h"
 #include "threads.h"
-#include "objecthandle.h"
 #include "comutilnative.h"
 #include "spinlock.h"
 #include "comtoclrcall.h"
@@ -573,7 +572,7 @@ enum Masks
     enum_SigClassLoadChecked            = 0x00000100,
     enum_ComClassItf                    = 0x00000200,
     enum_GuidGenerated                  = 0x00000400,
-    enum_IsUntrusted                    = 0x00001000,
+    // enum_unused                      = 0x00001000,
     enum_IsBasic                        = 0x00002000,
     enum_IsWinRTDelegate                = 0x00004000,
     enum_IsWinRTTrivialAggregate        = 0x00008000,
@@ -645,12 +644,6 @@ struct ComMethodTable
 
         _ASSERTE(IsIClassXOrBasicItf());
         return (CorClassIfaceAttr)(m_Flags & enum_ClassInterfaceTypeMask);
-    }
-
-    BOOL IsDefinedInUntrustedCode()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_Flags & enum_IsUntrusted) ? TRUE : FALSE;
     }
 
     BOOL IsIClassX()
@@ -1099,9 +1092,6 @@ protected:
         
         RETURN (LinkedWrapperTerminator == pWrap->m_pNext ? NULL : pWrap->m_pNext);
     }
-
-    // Helper to perform a security check for passing out CCWs late-bound to scripting code.
-    void DoScriptingSecurityCheck();
 
     // Helper to create a wrapper, pClassCCW must be specified if pTemplate->RepresentsVariantInterface()
     static ComCallWrapper* CreateWrapper(OBJECTREF* pObj, ComCallWrapperTemplate *pTemplate, ComCallWrapper *pClassCCW);
@@ -1993,13 +1983,6 @@ private:
         if (!CanRunManagedCode())
             return;
         SO_INTOLERANT_CODE_NOTHROW(GetThread(), return; );
-        ReverseEnterRuntimeHolderNoThrow REHolder;
-        if (CLRTaskHosted())                      
-        {                                         
-            HRESULT hr = REHolder.AcquireNoThrow();
-            if (FAILED(hr))
-                return;
-        }
 
         m_pWrap->Cleanup();
     }
@@ -2336,13 +2319,8 @@ inline ComCallWrapper* __stdcall ComCallWrapper::InlineGetWrapper(OBJECTREF* ppO
         pMainWrap = pClassCCW;
     else
         pMainWrap = pWrap;
-    
+
     pMainWrap->CheckMakeAgile(*ppObj);
-    
-    // If the object is agile, and this domain doesn't have UmgdCodePermission
-    //  fail the call.
-    if (pMainWrap->GetSimpleWrapper()->IsAgile())
-        pMainWrap->DoScriptingSecurityCheck();
 
     pWrap->AddRef();
     

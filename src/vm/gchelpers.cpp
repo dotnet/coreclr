@@ -21,13 +21,13 @@
 #include "threads.h"
 #include "fieldmarshaler.h"
 #include "interoputil.h"
-#include "constrainedexecutionregion.h"
 #include "dynamicmethod.h"
 #include "stubhelpers.h"
 #include "eventtrace.h"
 
 #include "excep.h"
 
+#include "gchelpers.inl"
 #include "eeprofinterfaces.inl"
 
 #ifdef FEATURE_COMINTEROP
@@ -54,10 +54,109 @@ inline gc_alloc_context* GetThreadAllocContext()
 {
     WRAPPER_NO_CONTRACT;
 
-    assert(GCHeapUtilities::UseAllocationContexts());
+    assert(GCHeapUtilities::UseThreadAllocationContexts());
 
     return & GetThread()->m_alloc_context;
 }
+
+// When not using per-thread allocation contexts, we (the EE) need to take care that
+// no two threads are concurrently modifying the global allocation context. This lock
+// must be acquired before any sort of operations involving the global allocation context
+// can occur.
+//
+// This lock is acquired by all allocations when not using per-thread allocation contexts.
+// It is acquired in two kinds of places:
+//   1) JIT_TrialAllocFastSP (and related assembly alloc helpers), which attempt to
+//      acquire it but move into an alloc slow path if acquiring fails
+//      (but does not decrement the lock variable when doing so)
+//   2) Alloc and AllocAlign8 in gchelpers.cpp, which acquire the lock using
+//      the Acquire and Release methods below.
+class GlobalAllocLock {
+    friend struct AsmOffsets;
+private:
+    // The lock variable. This field must always be first.
+    LONG m_lock;
+
+public:
+    // Creates a new GlobalAllocLock in the unlocked state.
+    GlobalAllocLock() : m_lock(-1) {}
+
+    // Copy and copy-assignment operators should never be invoked
+    // for this type
+    GlobalAllocLock(const GlobalAllocLock&) = delete;
+    GlobalAllocLock& operator=(const GlobalAllocLock&) = delete;
+
+    // Acquires the lock, spinning if necessary to do so. When this method
+    // returns, m_lock will be zero and the lock will be acquired.
+    void Acquire()
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_TRIGGERS; // switch to preemptive mode
+            MODE_COOPERATIVE;
+        } CONTRACTL_END;
+
+        DWORD spinCount = 0;
+        while(FastInterlockExchange(&m_lock, 0) != -1)
+        {
+            GCX_PREEMP();
+            __SwitchToThread(0, spinCount++);
+        }
+
+        assert(m_lock == 0);
+    }
+
+    // Releases the lock.
+    void Release()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        // the lock may not be exactly 0. This is because the
+        // assembly alloc routines increment the lock variable and
+        // jump if not zero to the slow alloc path, which eventually
+        // will try to acquire the lock again. At that point, it will
+        // spin in Acquire (since m_lock is some number that's not zero).
+        // When the thread that /does/ hold the lock releases it, the spinning
+        // thread will continue.
+        MemoryBarrier();
+        assert(m_lock >= 0);
+        m_lock = -1;
+    }
+
+    // Static helper to acquire a lock, for use with the Holder template.
+    static void AcquireLock(GlobalAllocLock *lock)
+    {
+        WRAPPER_NO_CONTRACT;
+        lock->Acquire();
+    }
+
+    // Static helper to release a lock, for use with the Holder template
+    static void ReleaseLock(GlobalAllocLock *lock)
+    {
+        WRAPPER_NO_CONTRACT;
+        lock->Release();
+    }
+
+    typedef Holder<GlobalAllocLock *, GlobalAllocLock::AcquireLock, GlobalAllocLock::ReleaseLock> Holder;
+};
+
+typedef GlobalAllocLock::Holder GlobalAllocLockHolder;
+
+struct AsmOffsets {
+    static_assert(offsetof(GlobalAllocLock, m_lock) == 0, "ASM code relies on this property");
+};
+
+// For single-proc machines, the global allocation context is protected
+// from concurrent modification by this lock.
+//
+// When not using per-thread allocation contexts, certain methods on IGCHeap
+// require that this lock be held before calling. These methods are documented
+// on the IGCHeap interface.
+extern "C"
+{
+    GlobalAllocLock g_global_alloc_lock;
+}
+
 
 // Checks to see if the given allocation size exceeds the
 // largest object size allowed - if it does, it throws
@@ -102,12 +201,12 @@ inline void CheckObjectSize(size_t alloc_size)
 //     * Call code:Alloc - When the jit helpers fall back, or we do allocations within the runtime code
 //         itself, we ultimately call here.
 //     * Call code:AllocLHeap - Used very rarely to force allocation to be on the large object heap.
-//     
+//
 // While this is a choke point into allocating an object, it is primitive (it does not want to know about
-// MethodTable and thus does not initialize that poitner. It also does not know if the object is finalizable
+// MethodTable and thus does not initialize that pointer. It also does not know if the object is finalizable
 // or contains pointers. Thus we quickly wrap this function in more user-friendly ones that know about
 // MethodTables etc. (see code:FastAllocatePrimitiveArray code:AllocateArrayEx code:AllocateObject)
-// 
+//
 // You can get an exhaustive list of code sites that allocate GC objects by finding all calls to
 // code:ProfilerObjectAllocatedCallback (since the profiler has to hook them all).
 inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
@@ -137,10 +236,16 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
-    if (GCHeapUtilities::UseAllocationContexts())
+    if (GCHeapUtilities::UseThreadAllocationContexts())
+    {
         retVal = GCHeapUtilities::GetGCHeap()->Alloc(GetThreadAllocContext(), size, flags);
+    }
     else
-        retVal = GCHeapUtilities::GetGCHeap()->Alloc(size, flags);
+    {
+        GlobalAllocLockHolder holder(&g_global_alloc_lock);
+        retVal = GCHeapUtilities::GetGCHeap()->Alloc(&g_global_alloc_context, size, flags);
+    }
+
 
     if (!retVal)
     {
@@ -172,10 +277,15 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
-    if (GCHeapUtilities::UseAllocationContexts())
+    if (GCHeapUtilities::UseThreadAllocationContexts())
+    {
         retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(GetThreadAllocContext(), size, flags);
+    }
     else
-        retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(size, flags);
+    {
+        GlobalAllocLockHolder holder(&g_global_alloc_lock);
+        retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(&g_global_alloc_context, size, flags);
+    }
 
     if (!retVal)
     {
@@ -329,11 +439,31 @@ void ThrowOutOfMemoryDimensionsExceeded()
 //
 // Handles arrays of arbitrary dimensions
 //
+// This is wrapper overload to handle TypeHandle arrayType
+//
+OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap
+                          DEBUG_ARG(BOOL bDontSetAppDomain))
+{
+    CONTRACTL
+    {
+        WRAPPER_NO_CONTRACT;
+    } CONTRACTL_END;
+
+    ArrayTypeDesc* arrayDesc = arrayType.AsArray();
+    MethodTable* pArrayMT = arrayDesc->GetMethodTable();
+
+    return AllocateArrayEx(pArrayMT, pArgs, dwNumArgs, bAllocateInLargeHeap
+                           DEBUG_ARG(bDontSetAppDomain));
+}
+
+//
+// Handles arrays of arbitrary dimensions
+//
 // If dwNumArgs is set to greater than 1 for a SZARRAY this function will recursively 
 // allocate sub-arrays and fill them in.  
 //
 // For arrays with lower bounds, pBounds is <lower bound 1>, <count 1>, <lower bound 2>, ...
-OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap 
+OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap
                           DEBUG_ARG(BOOL bDontSetAppDomain))
 {
     CONTRACTL {
@@ -354,14 +484,12 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
     }
 #endif
 
-    ArrayTypeDesc* arrayDesc = arrayType.AsArray();
-    MethodTable* pArrayMT = arrayDesc->GetMethodTable();
-    _ASSERTE(pArrayMT->CheckInstanceActivated());
+   _ASSERTE(pArrayMT->CheckInstanceActivated());
     PREFIX_ASSUME(pArrayMT != NULL);
-    CorElementType kind = arrayType.GetInternalCorElementType();
+    CorElementType kind = pArrayMT->GetInternalCorElementType();
     _ASSERTE(kind == ELEMENT_TYPE_ARRAY || kind == ELEMENT_TYPE_SZARRAY);
     
-    CorElementType elemType = arrayDesc->GetTypeParam().GetInternalCorElementType();
+    CorElementType elemType = pArrayMT->GetArrayElementType();
     // Disallow the creation of void[,] (a multi-dim  array of System.Void)
     if (elemType == ELEMENT_TYPE_VOID)
         COMPlusThrow(kArgumentException);
@@ -371,7 +499,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
 
     // IBC Log MethodTable access
     g_IBCLogger.LogMethodTableAccess(pArrayMT);
-    SetTypeHandleOnThreadForAlloc(arrayType);
+    SetTypeHandleOnThreadForAlloc(TypeHandle(pArrayMT));
 
     SIZE_T componentSize = pArrayMT->GetComponentSize();
     bool maxArrayDimensionLengthOverflow = false;
@@ -379,7 +507,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
 
     if (kind == ELEMENT_TYPE_ARRAY)
     {
-        unsigned rank = arrayDesc->GetRank();
+        unsigned rank = pArrayMT->GetRank();
         _ASSERTE(dwNumArgs == rank || dwNumArgs == 2*rank);
 
         // Morph a ARRAY rank 1 with 0 lower bound into an SZARRAY
@@ -388,7 +516,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
 
             // This recursive call doesn't go any farther, because the dwNumArgs will be 1,
             //  so don't bother with stack probe.
-            TypeHandle szArrayType = ClassLoader::LoadArrayTypeThrowing(arrayDesc->GetArrayElementTypeHandle(), ELEMENT_TYPE_SZARRAY, 1);
+            TypeHandle szArrayType = ClassLoader::LoadArrayTypeThrowing(pArrayMT->GetApproxArrayElementTypeHandle(), ELEMENT_TYPE_SZARRAY, 1);
             return AllocateArrayEx(szArrayType, &pArgs[dwNumArgs - 1], 1, bAllocateInLargeHeap DEBUG_ARG(bDontSetAppDomain));
         }
 
@@ -451,12 +579,12 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
     if (bAllocateInLargeHeap)
     {
         orArray = (ArrayBase *) AllocLHeap(totalSize, FALSE, pArrayMT->ContainsPointers());
-        orArray->SetMethodTableForLargeObject(pArrayMT);
+        orArray->SetArrayMethodTableForLargeObject(pArrayMT);
     }
     else
     {
 #ifdef FEATURE_64BIT_ALIGNMENT
-        MethodTable *pElementMT = arrayDesc->GetTypeParam().GetMethodTable();
+        MethodTable *pElementMT = pArrayMT->GetApproxArrayElementTypeHandle().GetMethodTable();
         if (pElementMT->RequiresAlign8() && pElementMT->IsValueType())
         {
             // This platform requires that certain fields are 8-byte aligned (and the runtime doesn't provide
@@ -472,7 +600,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
         {
             orArray = (ArrayBase *) Alloc(totalSize, FALSE, pArrayMT->ContainsPointers());
         }
-        orArray->SetMethodTable(pArrayMT);
+        orArray->SetArrayMethodTable(pArrayMT);
     }
 
     // Initialize Object
@@ -545,7 +673,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
                 GCStressPolicy::InhibitHolder iholder;
                 
                 // Allocate dwProvidedBounds arrays
-                if (!arrayDesc->GetArrayElementTypeHandle().IsArray())
+                if (!pArrayMT->GetApproxArrayElementTypeHandle().IsArray())
                 {
                     orArray = NULL;
                 }
@@ -556,7 +684,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
                     _ASSERTE(GetThread());
                     INTERIOR_STACK_PROBE(GetThread());
 
-                    TypeHandle subArrayType = arrayDesc->GetArrayElementTypeHandle();
+                    TypeHandle subArrayType = pArrayMT->GetApproxArrayElementTypeHandle();
                     for (UINT32 i = 0; i < cElements; i++)
                     {
                         OBJECTREF obj = AllocateArrayEx(subArrayType, &pArgs[1], dwNumArgs-1, bAllocateInLargeHeap DEBUG_ARG(bDontSetAppDomain));
@@ -699,7 +827,7 @@ OBJECTREF   FastAllocatePrimitiveArray(MethodTable* pMT, DWORD cElements, BOOL b
     }
 
     // Initialize Object
-    orObject->SetMethodTable( pMT );
+    orObject->SetArrayMethodTable( pMT );
     _ASSERTE(orObject->GetMethodTable() != NULL);
     orObject->m_NumComponents = cElements;
 
@@ -821,7 +949,7 @@ OBJECTREF AllocateObjectArray(DWORD cElements, TypeHandle ElementType)
     Thread::DisableSOCheckInHCALL disableSOCheckInHCALL;
 #endif  // FEATURE_STACK_PROBE
 #endif  // _DEBUG
-    return OBJECTREF( HCCALL2(fastObjectArrayAllocator, ArrayType.AsPtr(), cElements));
+    return OBJECTREF( HCCALL2(fastObjectArrayAllocator, ArrayType.AsArray()->GetTemplateMethodTable(), cElements));
 }
 
 STRINGREF AllocateString( DWORD cchStringLength )
@@ -1005,10 +1133,6 @@ OBJECTREF AllocateObject(MethodTable *pMT
     g_IBCLogger.LogMethodTableAccess(pMT);
     SetTypeHandleOnThreadForAlloc(TypeHandle(pMT));
 
-#ifdef FEATURE_CER
-    if (pMT->HasCriticalFinalizer())
-        PrepareCriticalFinalizerObject(pMT);
-#endif
 
 #ifdef FEATURE_COMINTEROP
 #ifdef FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
@@ -1105,16 +1229,21 @@ OBJECTREF AllocateObject(MethodTable *pMT
 //========================================================================
 
 
-#if defined(_WIN64)
-// Card byte shift is different on 64bit.
-#define card_byte_shift     11
-#else
-#define card_byte_shift     10
-#endif
-
 #define card_byte(addr) (((size_t)(addr)) >> card_byte_shift)
 #define card_bit(addr)  (1 << ((((size_t)(addr)) >> (card_byte_shift - 3)) & 7))
 
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+#define card_bundle_byte(addr) (((size_t)(addr)) >> card_bundle_byte_shift)
+
+static void SetCardBundleByte(BYTE* addr)
+{
+    BYTE* cbByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte(addr);
+    if (*cbByte != 0xFF)
+    {
+        *cbByte = 0xFF;
+    }
+}
+#endif
 
 #ifdef FEATURE_USE_ASM_GC_WRITE_BARRIERS
 
@@ -1266,6 +1395,10 @@ extern "C" HCIMPL2_RAW(VOID, JIT_CheckedWriteBarrier, Object **dst, Object *ref)
             CheckedAfterAlreadyDirtyFilter++;
 #endif
             *pCardByte = 0xFF;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+            SetCardBundleByte((BYTE*)dst);
+#endif
         }
     }
 }
@@ -1321,6 +1454,11 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrier, Object **dst, Object *ref)
             UncheckedAfterAlreadyDirtyFilter++;
 #endif
             *pCardByte = 0xFF;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+            SetCardBundleByte((BYTE*)dst);
+#endif
+
         }
     }
 }
@@ -1371,15 +1509,22 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
     }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
-    if((BYTE*) OBJECTREFToObject(ref) >= g_ephemeral_low && (BYTE*) OBJECTREFToObject(ref) < g_ephemeral_high)
+    if ((BYTE*) OBJECTREFToObject(ref) >= g_ephemeral_low && (BYTE*) OBJECTREFToObject(ref) < g_ephemeral_high)
     {
         // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered 
         // with g_lowest/highest_address check above. See comment in code:gc_heap::grow_brick_card_tables.
         BYTE* pCardByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
-        if(*pCardByte != 0xFF)
+        if (*pCardByte != 0xFF)
+        {
             *pCardByte = 0xFF;
+            
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+            SetCardBundleByte((BYTE*)dst);
+#endif
+
+        }
     }
-}        
+}
 #include <optdefault.h>
 
 void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
@@ -1413,6 +1558,11 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
             if( !((*pCardByte) & card_bit((BYTE *)dst)) )
             {
                 *pCardByte = 0xFF;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+                SetCardBundleByte((BYTE*)dst);
+#endif
+
             }
         }
     }
@@ -1442,57 +1592,11 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
 void
 SetCardsAfterBulkCopy(Object **start, size_t len)
 {
-    // Check whether the writes were even into the heap. If not there's no card update required.
-    // Also if the size is smaller than a pointer, no write barrier is required.
-    if ((BYTE*)start < g_lowest_address || (BYTE*)start >= g_highest_address || len < sizeof(uintptr_t))
+    // If the size is smaller than a pointer, no write barrier is required.
+    if (len >= sizeof(uintptr_t))
     {
-        return;
+        InlinedSetCardsAfterBulkCopyHelper(start, len);
     }
-
-
-    // Don't optimize the Generation 0 case if we are checking for write barrier violations
-    // since we need to update the shadow heap even in the generation 0 case.
-#if defined (WRITE_BARRIER_CHECK) && !defined (SERVER_GC)
-    if (g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_BARRIERCHECK)
-    {
-        for(unsigned i=0; i < len / sizeof(Object*); i++)
-        {
-            updateGCShadow(&start[i], start[i]);
-        }
-    }
-#endif //WRITE_BARRIER_CHECK && !SERVER_GC
-
-#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-    if (GCHeapUtilities::SoftwareWriteWatchIsEnabled())
-    {
-        GCHeapUtilities::SoftwareWriteWatchSetDirtyRegion(start, len);
-    }
-#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-
-    size_t startAddress = (size_t)start;
-    size_t endAddress = startAddress + len;
-    size_t startingClump = startAddress >> card_byte_shift;
-    size_t endingClump = (endAddress + (1 << card_byte_shift) - 1) >> card_byte_shift;
-
-    // calculate the number of clumps to mark (round_up(end) - start)
-    size_t clumpCount = endingClump - startingClump;
-    // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered
-    // with g_lowest/highest_address check at the beginning of this function.
-    uint8_t* card = ((uint8_t*)VolatileLoadWithoutBarrier(&g_card_table)) + startingClump;
-
-    // Fill the cards. To avoid cache line thrashing we check whether the cards have already been set before
-    // writing.
-    do
-    {
-        if (*card != 0xff)
-        {
-            *card = 0xff;
-        }
-
-        card++;
-        clumpCount--;
-    }
-    while (clumpCount != 0);
 }
 
 #if defined(_MSC_VER) && defined(_TARGET_X86_)

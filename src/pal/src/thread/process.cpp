@@ -18,6 +18,9 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(PROCESS); // some headers have code with asserts, so do this first
+
 #include "pal/procobj.hpp"
 #include "pal/thread.hpp"
 #include "pal/file.hpp"
@@ -29,7 +32,6 @@ Abstract:
 #include "pal/init.h"
 #include "pal/critsect.h"
 #include "pal/debug.h"
-#include "pal/dbgmsg.h"
 #include "pal/utils.h"
 #include "pal/environ.h"
 #include "pal/virtual.h"
@@ -47,12 +49,17 @@ Abstract:
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <signal.h>
+#if HAVE_PRCTL_H
+#include <sys/prctl.h>
+#include <sys/syscall.h>
+#endif
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <debugmacrosext.h>
 #include <semaphore.h>
 #include <stdint.h>
+#include <dlfcn.h>
 
 #ifdef __APPLE__
 #include <sys/sysctl.h>
@@ -65,17 +72,20 @@ Abstract:
 #include <kvm.h>
 #endif
 
-using namespace CorUnix;
+extern char *g_szCoreCLRPath;
 
-SET_DEFAULT_DEBUG_CHANNEL(PROCESS);
+using namespace CorUnix;
 
 CObjectType CorUnix::otProcess(
                 otiProcess,
-                NULL,
-                NULL,
-                0,
+                NULL,   // No cleanup routine
+                NULL,   // No initialization routine
+                0,      // No immutable data
+                NULL,   // No immutable data copy routine
+                NULL,   // No immutable data cleanup routine
                 sizeof(CProcProcessLocalData),
-                0,
+                NULL,   // No process local data cleanup routine
+                0,      // No shared data
                 PROCESS_ALL_ACCESS,
                 CObjectType::SecuritySupported,
                 CObjectType::SecurityInfoNotPersisted,
@@ -87,22 +97,10 @@ CObjectType CorUnix::otProcess(
                 CObjectType::NoOwner
                 );
 
-static
-DWORD
-PALAPI
-StartupHelperThread(
-    LPVOID p);
-
-static 
-BOOL 
-GetProcessIdDisambiguationKey(
-    IN DWORD processId, 
-    OUT UINT64 *disambiguationKey);
-
 //
 // Helper memory page used by the FlushProcessWriteBuffers
 //
-static int s_helperPage[VIRTUAL_PAGE_SIZE / sizeof(int)] __attribute__((aligned(VIRTUAL_PAGE_SIZE)));
+static int* s_helperPage = 0;
 
 //
 // Mutex to make the FlushProcessWriteBuffersMutex thread safe
@@ -153,6 +151,9 @@ DWORD gSID = (DWORD) -1;
 // Function to call during PAL/process shutdown/abort
 Volatile<PSHUTDOWN_CALLBACK> g_shutdownCallback = nullptr;
 
+// Crash dump generating program arguments. Initialized in PROCAbortInitialize().
+char* g_argvCreateDump[8] = { nullptr };
+
 //
 // Key used for associating CPalThread's with the underlying pthread
 // (through pthread_setspecific)
@@ -172,22 +173,30 @@ enum FILETYPE
     FILE_DIR   /*Directory*/
 };
 
+static
+DWORD
+PALAPI
+StartupHelperThread(
+    LPVOID p);
+
+static 
+BOOL 
+GetProcessIdDisambiguationKey(
+    IN DWORD processId, 
+    OUT UINT64 *disambiguationKey);
+
 PAL_ERROR
 PROCGetProcessStatus(
     CPalThread *pThread,
     HANDLE hProcess,
     PROCESS_STATE *pps,
-    DWORD *pdwExitCode
-    );
+    DWORD *pdwExitCode);
 
-static BOOL getFileName(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
-                        PathCharString& lpFileName);
-static char ** buildArgv(LPCWSTR lpCommandLine, PathCharString& lpAppPath,
-                         UINT *pnArg, BOOL prependLoader);
+static BOOL getFileName(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, PathCharString& lpFileName);
+static char ** buildArgv(LPCWSTR lpCommandLine, PathCharString& lpAppPath, UINT *pnArg, BOOL prependLoader);
 static BOOL getPath(PathCharString& lpFileName, PathCharString& lpPathFileName);
 static int checkFileType(LPCSTR lpFileName);
-static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode,
-                           BOOL bTerminateUnconditionally);
+static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode, BOOL bTerminateUnconditionally);
 
 ProcessModules *GetProcessModulesFromHandle(IN HANDLE hProcess, OUT LPDWORD lpCount);
 ProcessModules *CreateProcessModules(IN DWORD dwProcessId, OUT LPDWORD lpCount);
@@ -1382,7 +1391,7 @@ static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode, BOOL bTerminateUncon
             // (1) it doesn't run atexit handlers
             // (2) can invoke CrashReporter or produce a coredump,
             // which is appropriate for TerminateProcess calls
-            abort();
+            PROCAbort();
         }
         else
         {
@@ -1453,7 +1462,7 @@ static uint64_t HashSemaphoreName(uint64_t a, uint64_t b)
 #define HashSemaphoreName(a,b) a,b
 #endif
 
-static const char* PipeNameFormat = "/tmp/clr-debug-pipe-%d-%llu-%s";
+static const char* PipeNameFormat = TEMP_DIRECTORY_PATH "clr-debug-pipe-%d-%llu-%s";
 
 class PAL_RuntimeStartupHelper
 {
@@ -2081,9 +2090,12 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
 
   Builds the transport pipe names from the process id.
 --*/
-void 
+VOID
 PALAPI
-PAL_GetTransportPipeName(char *name, DWORD id, const char *suffix)
+PAL_GetTransportPipeName(
+    OUT char *name,
+    IN DWORD id,
+    IN const char *suffix)
 {
     UINT64 disambiguationKey = 0;
     BOOL ret = GetProcessIdDisambiguationKey(id, &disambiguationKey);
@@ -2666,6 +2678,12 @@ CreateProcessModules(
     // VM_ALLOCATE            0000000105bac000-0000000105bad000 [    4K] r--/rw- SM=SHM
     // MALLOC (admin)         0000000105bad000-0000000105bae000 [    4K] r--/rwx SM=ZER
     // MALLOC                 0000000105bae000-0000000105baf000 [    4K] rw-/rwx SM=ZER
+
+    // OS X Sierra (10.12.4 Beta)
+    // REGION TYPE                      START - END             [ VSIZE  RSDNT  DIRTY   SWAP] PRT/MAX SHRMOD PURGE    REGION DETAIL
+    // Stack                  00007fff5a930000-00007fff5b130000 [ 8192K    32K    32K     0K] rw-/rwx SM=PRV          thread 0
+    // __TEXT                 00007fffa4a0b000-00007fffa4a0d000 [    8K     8K     0K     0K] r-x/r-x SM=COW          /usr/lib/libSystem.B.dylib
+    // __TEXT                 00007fffa4bbe000-00007fffa4c15000 [  348K   348K     0K     0K] r-x/r-x SM=COW          /usr/lib/libc++.1.dylib
     char *line = NULL;
     size_t lineLen = 0;
     int count = 0;
@@ -2686,9 +2704,8 @@ CreateProcessModules(
     {
         void *startAddress, *endAddress;
         char moduleName[PATH_MAX];
-        int size;
 
-        if (sscanf_s(line, "__TEXT %p-%p [ %dK] %*[-/rwxsp] SM=%*[A-Z] %s\n", &startAddress, &endAddress, &size, moduleName, _countof(moduleName)) == 4)
+        if (sscanf_s(line, "__TEXT %p-%p [ %*[0-9K ]] %*[-/rwxsp] SM=%*[A-Z] %s\n", &startAddress, &endAddress, moduleName, _countof(moduleName)) == 3)
         {
             bool dup = false;
             for (ProcessModules *entry = listHead; entry != NULL; entry = entry->Next)
@@ -2824,7 +2841,7 @@ Return
   None
 
 --*/
-void
+VOID
 DestroyProcessModules(IN ProcessModules *listHead)
 {
     for (ProcessModules *entry = listHead; entry != NULL; )
@@ -2836,7 +2853,7 @@ DestroyProcessModules(IN ProcessModules *listHead)
 }
 
 /*++
-Function:
+Function
   PROCNotifyProcessShutdown
   
   Calls the abort handler to do any shutdown cleanup. Call be called 
@@ -2845,7 +2862,8 @@ Function:
 (no return value)
 --*/
 __attribute__((destructor)) 
-void PROCNotifyProcessShutdown()
+VOID 
+PROCNotifyProcessShutdown()
 {
     // Call back into the coreclr to clean up the debugger transport pipes
     PSHUTDOWN_CALLBACK callback = InterlockedExchangePointer(&g_shutdownCallback, NULL);
@@ -2853,6 +2871,157 @@ void PROCNotifyProcessShutdown()
     {
         callback();
     }
+}
+
+/*++
+Function
+  PROCAbortInitialize()
+  
+Abstract
+  Initialize the process abort crash dump program file path and
+  name. Doing all of this ahead of time so nothing is allocated
+  or copied in PROCAbort/signal handler.
+  
+Return
+  TRUE - succeeds, FALSE - fails
+  
+--*/
+BOOL
+PROCAbortInitialize()
+{
+    char* enabled = getenv("COMPlus_DbgEnableMiniDump");
+    if (enabled != nullptr && _stricmp(enabled, "1") == 0)
+    {
+        if (g_szCoreCLRPath == nullptr)
+        {
+            return FALSE;
+        }
+        const char* DumpGeneratorName = "createdump";
+        int programLen = strlen(g_szCoreCLRPath) + strlen(DumpGeneratorName) + 1;
+        char* program = (char*)InternalMalloc(programLen);
+        if (program == nullptr)
+        {
+            return FALSE;
+        }
+        if (strcpy_s(program, programLen, g_szCoreCLRPath) != SAFECRT_SUCCESS)
+        {
+            return FALSE;
+        }
+        char *last = strrchr(program, '/');
+        if (last != nullptr)
+        {
+            *(last + 1) = '\0';
+        }
+        else
+        {
+            program[0] = '\0';
+        }
+        if (strcat_s(program, programLen, DumpGeneratorName) != SAFECRT_SUCCESS)
+        {
+            return FALSE;
+        }
+        char* pidarg = (char*)InternalMalloc(128);
+        if (pidarg == nullptr)
+        {
+            return FALSE;
+        }
+        if (sprintf_s(pidarg, 128, "%d", gPID) == -1)
+        {
+            return FALSE;
+        }
+        const char** argv = (const char**)g_argvCreateDump;
+        *argv++ = program;
+
+        char* envvar = getenv("COMPlus_DbgMiniDumpName");
+        if (envvar != nullptr)
+        {
+            *argv++ = "--name";
+            *argv++ = envvar;
+        }
+
+        envvar = getenv("COMPlus_DbgMiniDumpType");
+        if (envvar != nullptr)
+        {
+            if (strcmp(envvar, "1") == 0)
+            {
+                *argv++ = "--normal";
+            }
+            else if (strcmp(envvar, "2") == 0)
+            {
+                *argv++ = "--withheap";
+            }
+            else if (strcmp(envvar, "3") == 0)
+            {
+                *argv++ = "--triage";
+            }
+            else if (strcmp(envvar, "4") == 0)
+            {
+                *argv++ = "--full";
+            }
+        }
+
+        envvar = getenv("COMPlus_CreateDumpDiagnostics");
+        if (envvar != nullptr && strcmp(envvar, "1") == 0)
+        {
+            *argv++ = "--diag";
+        }
+
+        *argv++ = pidarg;
+        *argv = nullptr;
+    }
+    return TRUE;
+}
+
+/*++
+Function:
+  PROCCreateCrashDumpIfEnabled
+
+  Creates crash dump of the process (if enabled). Can be
+  called from the unhandled native exception handler.
+
+(no return value)
+--*/
+VOID
+PROCCreateCrashDumpIfEnabled()
+{
+#if HAVE_PRCTL_H && HAVE_PR_SET_PTRACER
+    // If enabled, launch the create minidump utility and wait until it completes
+    if (g_argvCreateDump[0] == nullptr)
+        return;
+
+    // Fork the core dump child process.
+    pid_t childpid = fork();
+
+    // If error, write an error to trace log and abort
+    if (childpid == -1)
+    {
+        ERROR("PROCAbort: fork() FAILED %d (%s)\n", errno, strerror(errno));
+    }
+    else if (childpid == 0)
+    {
+        // Child process
+        if (execve(g_argvCreateDump[0], g_argvCreateDump, palEnvironment) == -1)
+        {
+            ERROR("PROCAbort: execve FAILED %d (%s)\n", errno, strerror(errno));
+        }
+    }
+    else
+    {
+        // Gives the child process permission to use /proc/<pid>/mem and ptrace
+        if (prctl(PR_SET_PTRACER, childpid, 0, 0, 0) == -1)
+        {
+            ERROR("PROCAbort: prctl() FAILED %d (%s)\n", errno, strerror(errno));
+        }
+        // Parent waits until the child process is done
+        int wstatus;
+        int result = waitpid(childpid, &wstatus, 0);
+        if (result != childpid)
+        {
+            ERROR("PROCAbort: waitpid FAILED result %d wstatus %d errno %d (%s)\n",
+                result, wstatus, errno, strerror(errno));
+        }
+    }
+#endif // HAVE_PRCTL_H && HAVE_PR_SET_PTRACER
 }
 
 /*++
@@ -2865,10 +3034,15 @@ Function:
   Does not return
 --*/
 PAL_NORETURN
-void
+VOID
 PROCAbort()
 {
+    // Do any shutdown cleanup before aborting or creating a core dump
     PROCNotifyProcessShutdown();
+
+    PROCCreateCrashDumpIfEnabled();
+
+    // Abort the process after waiting for the core dump to complete
     abort();
 }
 
@@ -2881,15 +3055,25 @@ Abstract
 Return
   TRUE if it succeeded, FALSE otherwise
 --*/
-BOOL InitializeFlushProcessWriteBuffers()
+BOOL 
+InitializeFlushProcessWriteBuffers()
 {
-    // Verify that the s_helperPage is really aligned to the VIRTUAL_PAGE_SIZE
-    _ASSERTE((((SIZE_T)s_helperPage) & (VIRTUAL_PAGE_SIZE - 1)) == 0);
+    _ASSERTE(s_helperPage == 0);
+
+    s_helperPage = static_cast<int*>(mmap(0, GetVirtualPageSize(), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
+
+    if(s_helperPage == MAP_FAILED)
+    {
+        return false;
+    }
+
+    // Verify that the s_helperPage is really aligned to the GetVirtualPageSize()
+    _ASSERTE((((SIZE_T)s_helperPage) & (GetVirtualPageSize() - 1)) == 0);
 
     // Locking the page ensures that it stays in memory during the two mprotect
     // calls in the FlushProcessWriteBuffers below. If the page was unmapped between
     // those calls, they would not have the expected effect of generating IPI.
-    int status = mlock(s_helperPage, VIRTUAL_PAGE_SIZE);
+    int status = mlock(s_helperPage, GetVirtualPageSize());
 
     if (status != 0)
     {
@@ -2899,7 +3083,7 @@ BOOL InitializeFlushProcessWriteBuffers()
     status = pthread_mutex_init(&flushProcessWriteBuffersMutex, NULL);
     if (status != 0)
     {
-        munlock(s_helperPage, VIRTUAL_PAGE_SIZE);
+        munlock(s_helperPage, GetVirtualPageSize());
     }
 
     return status == 0;
@@ -2932,14 +3116,14 @@ FlushProcessWriteBuffers()
     // Changing a helper memory page protection from read / write to no access 
     // causes the OS to issue IPI to flush TLBs on all processors. This also
     // results in flushing the processor buffers.
-    status = mprotect(s_helperPage, VIRTUAL_PAGE_SIZE, PROT_READ | PROT_WRITE);
+    status = mprotect(s_helperPage, GetVirtualPageSize(), PROT_READ | PROT_WRITE);
     FATAL_ASSERT(status == 0, "Failed to change helper page protection to read / write");
 
     // Ensure that the page is dirty before we change the protection so that
     // we prevent the OS from skipping the global TLB flush.
     InterlockedIncrement(s_helperPage);
 
-    status = mprotect(s_helperPage, VIRTUAL_PAGE_SIZE, PROT_NONE);
+    status = mprotect(s_helperPage, GetVirtualPageSize(), PROT_NONE);
     FATAL_ASSERT(status == 0, "Failed to change helper page protection to no access");
 
     status = pthread_mutex_unlock(&flushProcessWriteBuffersMutex);
@@ -3268,7 +3452,7 @@ Parameter
   pThread:   Thread object
 
 --*/
-void
+VOID
 CorUnix::PROCAddThread(
     CPalThread *pCurrentThread,
     CPalThread *pTargetThread
@@ -3301,7 +3485,7 @@ Parameter
 
 (no return value)
 --*/
-void
+VOID
 CorUnix::PROCRemoveThread(
     CPalThread *pCurrentThread,
     CPalThread *pTargetThread
@@ -3371,7 +3555,7 @@ Return
 --*/
 INT
 CorUnix::PROCGetNumberOfThreads(
-    void)
+    VOID)
 {
     return g_dwThreadCount;
 }
@@ -3474,7 +3658,7 @@ Note:
   This function is used in ExitThread and TerminateProcess
 
 --*/
-void
+VOID
 CorUnix::TerminateCurrentProcessNoExit(BOOL bTerminateUnconditionally)
 {
     BOOL locked;

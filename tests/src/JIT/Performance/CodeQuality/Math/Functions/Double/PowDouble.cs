@@ -15,14 +15,17 @@ namespace Functions
         private const double powDoubleDeltaY = 0.0004;
         private const double powDoubleExpectedResult = 4659.4627376138733;
 
-        [Benchmark]
+        [Benchmark(InnerIterationCount = PowDoubleIterations)]
         public static void PowDoubleBenchmark()
         {
             foreach (var iteration in Benchmark.Iterations)
             {
                 using (iteration.StartMeasurement())
                 {
-                    PowDoubleTest();
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        PowDoubleTest();
+                    }
                 }
             }
         }
@@ -41,7 +44,7 @@ namespace Functions
 
             if (diff > doubleEpsilon)
             {
-                throw new Exception($"Expected Result {powDoubleExpectedResult}; Actual Result {result}");
+                throw new Exception($"Expected Result {powDoubleExpectedResult,20:g17}; Actual Result {result,20:g17}");
             }
         }
     }

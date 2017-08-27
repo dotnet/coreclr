@@ -75,7 +75,7 @@ extern "C" {
 
 #endif  // !defined(__i386__)
 
-#define CALLBACK __stdcall
+#define CALLBACK __cdecl
 
 #if !defined(_declspec)
 #define _declspec(e)  __declspec(e)
@@ -105,7 +105,7 @@ extern "C" {
 
 #endif
 
-#define PALAPI      __stdcall
+#define PALAPI      __cdecl
 #define PALAPIV     __cdecl
 
 ////////////////////////////////////////////////////////////////////////
@@ -556,7 +556,7 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 #endif
 
 #ifndef SSIZE_T_MIN
-#define SSIZE_T_MIN I64(-9223372036854775808)
+#define SSIZE_T_MIN I64(0x8000000000000000)
 #endif
 
 #ifndef PAL_STDCPP_COMPAT

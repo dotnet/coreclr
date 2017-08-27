@@ -3,24 +3,22 @@
 // See the LICENSE file in the project root for more information.
 
 
-namespace System {
 
-    using System;
-    using System.Reflection;
-    using System.Collections.Generic;
-    using System.Runtime.InteropServices;
-    using System.Globalization;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
-    using System.Security;
-    using System.Security.Permissions;
+using System;
+using System.Reflection;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Globalization;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Security;
 
+namespace System
+{
     [Serializable]
-    [AttributeUsageAttribute(AttributeTargets.All, Inherited = true, AllowMultiple=false)] 
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_Attribute))]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public abstract class Attribute : _Attribute
+    [AttributeUsageAttribute(AttributeTargets.All, Inherited = true, AllowMultiple = false)]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
+    public abstract class Attribute
     {
         #region Private Statics
 
@@ -46,7 +44,7 @@ namespace System {
 
             //if this is an index we need to get the parameter types to help disambiguate
             Type[] indexParamTypes = GetIndexParameterTypes(element);
-            
+
 
             PropertyInfo baseProp = GetParentDefinition(element, indexParamTypes);
             while (baseProp != null)
@@ -65,12 +63,12 @@ namespace System {
             // walk up the hierarchy chain
             if (element.IsDefined(attributeType, inherit))
                 return true;
-            
+
             if (inherit)
             {
                 AttributeUsageAttribute usage = InternalGetAttributeUsage(attributeType);
 
-                if (!usage.Inherited) 
+                if (!usage.Inherited)
                     return false;
 
                 //if this is an index we need to get the parameter types to help disambiguate
@@ -96,9 +94,9 @@ namespace System {
 
             // for the current property get the base class of the getter and the setter, they might be different
             // note that this only works for RuntimeMethodInfo
-            MethodInfo propAccessor = property.GetGetMethod(true); 
+            MethodInfo propAccessor = property.GetGetMethod(true);
 
-            if (propAccessor == null) 
+            if (propAccessor == null)
                 propAccessor = property.GetSetMethod(true);
 
             RuntimeMethodInfo rtPropAccessor = propAccessor as RuntimeMethodInfo;
@@ -170,25 +168,25 @@ namespace System {
             if (rtAdd != null)
             {
                 rtAdd = rtAdd.GetParentDefinition();
-                if (rtAdd != null) 
+                if (rtAdd != null)
                     return rtAdd.DeclaringType.GetEvent(ev.Name);
             }
             return null;
         }
 
-        private static bool InternalIsDefined (EventInfo element, Type attributeType, bool inherit)
+        private static bool InternalIsDefined(EventInfo element, Type attributeType, bool inherit)
         {
             Contract.Requires(element != null);
 
             // walk up the hierarchy chain
             if (element.IsDefined(attributeType, inherit))
                 return true;
-            
+
             if (inherit)
             {
                 AttributeUsageAttribute usage = InternalGetAttributeUsage(attributeType);
 
-                if (!usage.Inherited) 
+                if (!usage.Inherited)
                     return false;
 
                 EventInfo baseEvent = GetParentDefinition(element);
@@ -248,14 +246,14 @@ namespace System {
             // class inherits from and return the respective ParameterInfo attributes
 
             List<Type> disAllowMultiple = new List<Type>();
-            Object [] objAttr;
+            Object[] objAttr;
 
             if (type == null)
                 type = typeof(Attribute);
 
-            objAttr = param.GetCustomAttributes(type, false); 
-                
-            for (int i =0;i < objAttr.Length;i++)
+            objAttr = param.GetCustomAttributes(type, false);
+
+            for (int i = 0; i < objAttr.Length; i++)
             {
                 Type objType = objAttr[i].GetType();
                 AttributeUsageAttribute attribUsage = InternalGetAttributeUsage(objType);
@@ -264,26 +262,26 @@ namespace System {
             }
 
             // Get all the attributes that have Attribute as the base class
-            Attribute [] ret = null;
-            if (objAttr.Length == 0) 
-                ret = CreateAttributeArrayHelper(type,0);
-            else 
+            Attribute[] ret = null;
+            if (objAttr.Length == 0)
+                ret = CreateAttributeArrayHelper(type, 0);
+            else
                 ret = (Attribute[])objAttr;
-            
+
             if (param.Member.DeclaringType == null) // This is an interface so we are done.
                 return ret;
-            
-            if (!inherit) 
+
+            if (!inherit)
                 return ret;
 
             ParameterInfo baseParam = GetParentDefinition(param);
 
             while (baseParam != null)
             {
-                objAttr = baseParam.GetCustomAttributes(type, false); 
-                
+                objAttr = baseParam.GetCustomAttributes(type, false);
+
                 int count = 0;
-                for (int i =0;i < objAttr.Length;i++)
+                for (int i = 0; i < objAttr.Length; i++)
                 {
                     Type objType = objAttr[i].GetType();
                     AttributeUsageAttribute attribUsage = InternalGetAttributeUsage(objType);
@@ -299,10 +297,10 @@ namespace System {
                 }
 
                 // Get all the attributes that have Attribute as the base class
-                Attribute [] attributes = CreateAttributeArrayHelper(type,count);
-                
+                Attribute[] attributes = CreateAttributeArrayHelper(type, count);
+
                 count = 0;
-                for (int i =0;i < objAttr.Length;i++)
+                for (int i = 0; i < objAttr.Length; i++)
                 {
                     if (objAttr[i] != null)
                     {
@@ -310,18 +308,18 @@ namespace System {
                         count++;
                     }
                 }
-                
-                Attribute [] temp = ret;
-                ret = CreateAttributeArrayHelper(type,temp.Length + count);
-                Array.Copy(temp,ret,temp.Length);
-                
+
+                Attribute[] temp = ret;
+                ret = CreateAttributeArrayHelper(type, temp.Length + count);
+                Array.Copy(temp, ret, temp.Length);
+
                 int offset = temp.Length;
 
-                for (int i =0;i < attributes.Length;i++) 
+                for (int i = 0; i < attributes.Length; i++)
                     ret[offset + i] = attributes[i];
 
                 baseParam = GetParentDefinition(baseParam);
-            } 
+            }
 
             return ret;
         }
@@ -339,7 +337,7 @@ namespace System {
 
             if (param.IsDefined(type, false))
                 return true;
-            
+
             if (param.Member.DeclaringType == null || !inherit) // This is an interface so we are done.
                 return false;
 
@@ -347,9 +345,9 @@ namespace System {
 
             while (baseParam != null)
             {
-                Object[] objAttr = baseParam.GetCustomAttributes(type, false); 
-                                
-                for (int i =0; i < objAttr.Length; i++)
+                Object[] objAttr = baseParam.GetCustomAttributes(type, false);
+
+                for (int i = 0; i < objAttr.Length; i++)
                 {
                     Type objType = objAttr[i].GetType();
                     AttributeUsageAttribute attribUsage = InternalGetAttributeUsage(objType);
@@ -359,7 +357,7 @@ namespace System {
                 }
 
                 baseParam = GetParentDefinition(baseParam);
-            } 
+            }
 
             return false;
         }
@@ -367,15 +365,15 @@ namespace System {
         #endregion
 
         #region Utility
-        private static void CopyToArrayList(List<Attribute> attributeList,Attribute[] attributes,Dictionary<Type, AttributeUsageAttribute> types) 
+        private static void CopyToArrayList(List<Attribute> attributeList, Attribute[] attributes, Dictionary<Type, AttributeUsageAttribute> types)
         {
-            for (int i = 0; i < attributes.Length; i++) 
+            for (int i = 0; i < attributes.Length; i++)
             {
                 attributeList.Add(attributes[i]);
 
                 Type attrType = attributes[i].GetType();
 
-                if (!types.ContainsKey(attrType)) 
+                if (!types.ContainsKey(attrType))
                     types[attrType] = InternalGetAttributeUsage(attrType);
             }
         }
@@ -397,21 +395,21 @@ namespace System {
             return Array.Empty<Type>();
         }
 
-        private static void AddAttributesToList(List<Attribute> attributeList, Attribute[] attributes, Dictionary<Type, AttributeUsageAttribute> types) 
+        private static void AddAttributesToList(List<Attribute> attributeList, Attribute[] attributes, Dictionary<Type, AttributeUsageAttribute> types)
         {
-            for (int i = 0; i < attributes.Length; i++) 
+            for (int i = 0; i < attributes.Length; i++)
             {
                 Type attrType = attributes[i].GetType();
                 AttributeUsageAttribute usage = null;
                 types.TryGetValue(attrType, out usage);
 
-                if (usage == null) 
+                if (usage == null)
                 {
                     // the type has never been seen before if it's inheritable add it to the list
                     usage = InternalGetAttributeUsage(attrType);
                     types[attrType] = usage;
 
-                    if (usage.Inherited) 
+                    if (usage.Inherited)
                         attributeList.Add(attributes[i]);
                 }
                 else if (usage.Inherited && usage.AllowMultiple)
@@ -425,7 +423,7 @@ namespace System {
         private static AttributeUsageAttribute InternalGetAttributeUsage(Type type)
         {
             // Check if the custom attributes is Inheritable
-            Object [] obj = type.GetCustomAttributes(typeof(AttributeUsageAttribute), false); 
+            Object[] obj = type.GetCustomAttributes(typeof(AttributeUsageAttribute), false);
 
             if (obj.Length == 1)
                 return (AttributeUsageAttribute)obj[0];
@@ -434,7 +432,7 @@ namespace System {
                 return AttributeUsageAttribute.Default;
 
             throw new FormatException(
-                Environment.GetResourceString("Format_AttributeUsage", type));
+                SR.Format(SR.Format_AttributeUsage, type));
         }
 
         private static Attribute[] CreateAttributeArrayHelper(Type elementType, int elementCount)
@@ -452,7 +450,7 @@ namespace System {
         {
             return GetCustomAttributes(element, type, true);
         }
-        
+
         public static Attribute[] GetCustomAttributes(MemberInfo element, Type type, bool inherit)
         {
             if (element == null)
@@ -460,17 +458,17 @@ namespace System {
 
             if (type == null)
                 throw new ArgumentNullException(nameof(type));
-            
+
             if (!type.IsSubclassOf(typeof(Attribute)) && type != typeof(Attribute))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustHaveAttributeBaseClass"));
+                throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
             Contract.EndContractBlock();
 
             switch (element.MemberType)
             {
-                case MemberTypes.Property:  
+                case MemberTypes.Property:
                     return InternalGetCustomAttributes((PropertyInfo)element, type, inherit);
 
-                case MemberTypes.Event: 
+                case MemberTypes.Event:
                     return InternalGetCustomAttributes((EventInfo)element, type, inherit);
 
                 default:
@@ -491,17 +489,17 @@ namespace System {
 
             switch (element.MemberType)
             {
-                case MemberTypes.Property:  
+                case MemberTypes.Property:
                     return InternalGetCustomAttributes((PropertyInfo)element, typeof(Attribute), inherit);
 
-                case MemberTypes.Event: 
+                case MemberTypes.Event:
                     return InternalGetCustomAttributes((EventInfo)element, typeof(Attribute), inherit);
 
                 default:
                     return element.GetCustomAttributes(typeof(Attribute), inherit) as Attribute[];
             }
         }
-        
+
         public static bool IsDefined(MemberInfo element, Type attributeType)
         {
             return IsDefined(element, attributeType, true);
@@ -515,23 +513,22 @@ namespace System {
 
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            
+
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustHaveAttributeBaseClass"));
+                throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
             Contract.EndContractBlock();
 
-            switch(element.MemberType)
+            switch (element.MemberType)
             {
-                case MemberTypes.Property:  
+                case MemberTypes.Property:
                     return InternalIsDefined((PropertyInfo)element, attributeType, inherit);
 
-                case MemberTypes.Event: 
+                case MemberTypes.Event:
                     return InternalIsDefined((EventInfo)element, attributeType, inherit);
 
                 default:
                     return element.IsDefined(attributeType, inherit);
             }
-
         }
 
         public static Attribute GetCustomAttribute(MemberInfo element, Type attributeType)
@@ -549,7 +546,7 @@ namespace System {
             if (attrib.Length == 1)
                 return attrib[0];
 
-            throw new AmbiguousMatchException(Environment.GetResourceString("RFLCT.AmbigCust"));
+            throw new AmbiguousMatchException(SR.RFLCT_AmbigCust);
         }
 
         #endregion
@@ -559,7 +556,7 @@ namespace System {
         {
             return GetCustomAttributes(element, true);
         }
-        
+
         public static Attribute[] GetCustomAttributes(ParameterInfo element, Type attributeType)
         {
             return (Attribute[])GetCustomAttributes(element, attributeType, true);
@@ -572,17 +569,17 @@ namespace System {
 
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            
+
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustHaveAttributeBaseClass"));
+                throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
 
             if (element.Member == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidParameterInfo"), nameof(element));
+                throw new ArgumentException(SR.Argument_InvalidParameterInfo, nameof(element));
 
             Contract.EndContractBlock();
 
             MemberInfo member = element.Member;
-            if (member.MemberType == MemberTypes.Method && inherit) 
+            if (member.MemberType == MemberTypes.Method && inherit)
                 return InternalParamGetCustomAttributes(element, attributeType, inherit) as Attribute[];
 
             return element.GetCustomAttributes(attributeType, inherit) as Attribute[];
@@ -594,14 +591,14 @@ namespace System {
                 throw new ArgumentNullException(nameof(element));
 
             if (element.Member == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidParameterInfo"), nameof(element));
+                throw new ArgumentException(SR.Argument_InvalidParameterInfo, nameof(element));
 
             Contract.EndContractBlock();
 
             MemberInfo member = element.Member;
-            if (member.MemberType == MemberTypes.Method && inherit) 
+            if (member.MemberType == MemberTypes.Method && inherit)
                 return InternalParamGetCustomAttributes(element, null, inherit) as Attribute[];
-            
+
             return element.GetCustomAttributes(typeof(Attribute), inherit) as Attribute[];
         }
 
@@ -618,14 +615,14 @@ namespace System {
 
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            
+
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustHaveAttributeBaseClass"));
+                throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
             Contract.EndContractBlock();
 
             MemberInfo member = element.Member;
 
-            switch(member.MemberType)
+            switch (member.MemberType)
             {
                 case MemberTypes.Method: // We need to climb up the member hierarchy            
                     return InternalParamIsDefined(element, attributeType, inherit);
@@ -636,9 +633,9 @@ namespace System {
                 case MemberTypes.Property:
                     return element.IsDefined(attributeType, false);
 
-                default: 
+                default:
                     Debug.Assert(false, "Invalid type for ParameterInfo member in Attribute class");
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidParamInfo"));
+                    throw new ArgumentException(SR.Argument_InvalidParamInfo);
             }
         }
 
@@ -662,7 +659,7 @@ namespace System {
             if (attrib.Length == 1)
                 return attrib[0];
 
-            throw new AmbiguousMatchException(Environment.GetResourceString("RFLCT.AmbigCust"));
+            throw new AmbiguousMatchException(SR.RFLCT_AmbigCust);
         }
 
         #endregion
@@ -670,7 +667,7 @@ namespace System {
         #region Module
         public static Attribute[] GetCustomAttributes(Module element, Type attributeType)
         {
-            return GetCustomAttributes (element, attributeType, true);
+            return GetCustomAttributes(element, attributeType, true);
         }
 
         public static Attribute[] GetCustomAttributes(Module element)
@@ -696,7 +693,7 @@ namespace System {
                 throw new ArgumentNullException(nameof(attributeType));
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustHaveAttributeBaseClass"));
+                throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
             Contract.EndContractBlock();
 
             return (Attribute[])element.GetCustomAttributes(attributeType, inherit);
@@ -717,10 +714,10 @@ namespace System {
                 throw new ArgumentNullException(nameof(attributeType));
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustHaveAttributeBaseClass"));
+                throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
             Contract.EndContractBlock();
 
-            return element.IsDefined(attributeType,false);
+            return element.IsDefined(attributeType, false);
         }
 
         public static Attribute GetCustomAttribute(Module element, Type attributeType)
@@ -732,7 +729,7 @@ namespace System {
         {
             // Returns an Attribute of base class/inteface attributeType on the Module or null if none exists.
             // throws an AmbiguousMatchException if there are more than one defined.
-            Attribute[] attrib = GetCustomAttributes(element,attributeType,inherit);
+            Attribute[] attrib = GetCustomAttributes(element, attributeType, inherit);
 
             if (attrib == null || attrib.Length == 0)
                 return null;
@@ -740,7 +737,7 @@ namespace System {
             if (attrib.Length == 1)
                 return attrib[0];
 
-            throw new AmbiguousMatchException(Environment.GetResourceString("RFLCT.AmbigCust"));
+            throw new AmbiguousMatchException(SR.RFLCT_AmbigCust);
         }
 
         #endregion
@@ -760,7 +757,7 @@ namespace System {
                 throw new ArgumentNullException(nameof(attributeType));
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustHaveAttributeBaseClass"));
+                throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
             Contract.EndContractBlock();
 
             return (Attribute[])element.GetCustomAttributes(attributeType, inherit);
@@ -780,12 +777,12 @@ namespace System {
             return (Attribute[])element.GetCustomAttributes(typeof(Attribute), inherit);
         }
 
-        public static bool IsDefined (Assembly element, Type attributeType)
+        public static bool IsDefined(Assembly element, Type attributeType)
         {
-            return IsDefined (element, attributeType, true);
+            return IsDefined(element, attributeType, true);
         }
 
-        public static bool IsDefined (Assembly element, Type attributeType, bool inherit)
+        public static bool IsDefined(Assembly element, Type attributeType, bool inherit)
         {
             // Returns true is a custom attribute subclass of attributeType class/interface with no inheritance walk
             if (element == null)
@@ -795,7 +792,7 @@ namespace System {
                 throw new ArgumentNullException(nameof(attributeType));
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustHaveAttributeBaseClass"));
+                throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
             Contract.EndContractBlock();
 
             return element.IsDefined(attributeType, false);
@@ -803,14 +800,14 @@ namespace System {
 
         public static Attribute GetCustomAttribute(Assembly element, Type attributeType)
         {
-            return GetCustomAttribute (element, attributeType, true);
+            return GetCustomAttribute(element, attributeType, true);
         }
 
         public static Attribute GetCustomAttribute(Assembly element, Type attributeType, bool inherit)
         {
             // Returns an Attribute of base class/inteface attributeType on the Assembly or null if none exists.
             // throws an AmbiguousMatchException if there are more than one defined.
-            Attribute[] attrib = GetCustomAttributes(element,attributeType,inherit);
+            Attribute[] attrib = GetCustomAttributes(element, attributeType, inherit);
 
             if (attrib == null || attrib.Length == 0)
                 return null;
@@ -818,7 +815,7 @@ namespace System {
             if (attrib.Length == 1)
                 return attrib[0];
 
-            throw new AmbiguousMatchException(Environment.GetResourceString("RFLCT.AmbigCust"));
+            throw new AmbiguousMatchException(SR.RFLCT_AmbigCust);
         }
 
         #endregion
@@ -949,7 +946,7 @@ namespace System {
 
         #region Public Virtual Members
         public virtual Object TypeId { get { return GetType(); } }
-        
+
         public virtual bool Match(Object obj) { return Equals(obj); }
         #endregion
 

@@ -53,9 +53,15 @@ else()
     )
 endif(WIN32)
 
+if(CLR_CMAKE_WARNINGS_ARE_ERRORS)
+    set(PYTHON_WARNING_FLAGS -Wall -Werror)
+else()
+    set(PYTHON_WARNING_FLAGS -Wall)
+endif(CLR_CMAKE_WARNINGS_ARE_ERRORS)
+
 add_custom_command(
   COMMENT "Generating Eventing Files"
-  COMMAND ${PYTHON} -B -Wall -Werror ${GenEventFilesScript} ${GenEventArgs} --man "${VM_DIR}/ClrEtwAll.man" --exc "${VM_DIR}/ClrEtwAllMeta.lst" --dummy "${GENERATED_INCLUDE_DIR}/etmdummy.h"
+  COMMAND ${PYTHON} -B ${PYTHON_WARNING_FLAGS} ${GenEventFilesScript} ${GenEventArgs} --man "${VM_DIR}/ClrEtwAll.man" --exc "${VM_DIR}/ClrEtwAllMeta.lst" --dummy "${GENERATED_INCLUDE_DIR}/etmdummy.h"
   OUTPUT ${ScriptGeneratedEventFiles}
   DEPENDS ${GenEventFilesScript} "${VM_DIR}/ClrEtwAll.man" "${VM_DIR}/ClrEtwAllMeta.lst" "${CLR_DIR}/src/scripts/genXplatEventing.py"
 )
@@ -96,6 +102,12 @@ function(add_executable_clr)
 endfunction()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
+  if(CLR_CMAKE_PLATFORM_LINUX)
+    if(CLR_CMAKE_PLATFORM_UNIX_AMD64 OR CLR_CMAKE_PLATFORM_UNIX_ARM)
+      add_subdirectory(debug/createdump)
+    endif()
+  endif(CLR_CMAKE_PLATFORM_LINUX)
+
   add_subdirectory(ToolBox/SOS/Strike)
 
   # Include the dummy c++ include files
@@ -143,12 +155,6 @@ add_subdirectory(utilcode)
 add_subdirectory(gcinfo)
 add_subdirectory(coreclr)
 add_subdirectory(jit)
-
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/jit32")
-  add_subdirectory(jit32)
-endif()
-
-add_subdirectory(gc)
 add_subdirectory(vm)
 add_subdirectory(md)
 add_subdirectory(debug)

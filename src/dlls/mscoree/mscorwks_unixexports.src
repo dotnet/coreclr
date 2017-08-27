@@ -3,6 +3,7 @@ coreclr_create_delegate
 coreclr_execute_assembly
 coreclr_initialize
 coreclr_shutdown
+coreclr_shutdown_2
 
 ; il{d}asm
 MetaDataGetDispenser
@@ -28,9 +29,12 @@ CoTaskMemRealloc
 CoTaskMemFree
 CreateDirectoryW
 CreateEventW
+CreateEventExW
 CreateFileW
 CreateMutexW
+CreateMutexExW
 CreateSemaphoreW
+CreateSemaphoreExW
 DeleteFileW
 DuplicateHandle
 FindClose
@@ -40,7 +44,6 @@ FlushFileBuffers
 FormatMessageW
 FreeEnvironmentStringsW
 GetACP
-GetComputerNameW
 GetConsoleCP
 GetConsoleOutputCP
 GetCurrentDirectoryW
@@ -55,6 +58,7 @@ GetFileType
 GetFullPathNameW
 GetLongPathNameW
 GetProcAddress
+GetProcessAffinityMask
 GetStdHandle
 GetSystemInfo
 GetTempFileNameW
@@ -102,3 +106,9 @@ GlobalMemoryStatusEx
 VirtualQuery
 WideCharToMultiByte
 WriteFile
+GetLogicalProcessorInformationEx
+SetThreadGroupAffinity
+SetThreadAffinityMask
+GetThreadGroupAffinity
+GetCurrentProcessorNumberEx
+

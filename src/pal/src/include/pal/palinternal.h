@@ -607,6 +607,14 @@ function_name() to call the system's implementation
 #undef assert
 #define assert (Use__ASSERTE_instead_of_assert) assert
 
+#ifndef __ANDROID__
+#define TEMP_DIRECTORY_PATH "/tmp/"
+#else
+// On Android, "/tmp/" doesn't exist; temporary files should go to
+// /data/local/tmp/
+#define TEMP_DIRECTORY_PATH "/data/local/tmp/"
+#endif
+
 #define PROCESS_PIPE_NAME_PREFIX ".dotnet-pal-processpipe"
 
 #ifdef __cplusplus
@@ -628,6 +636,9 @@ typedef enum _TimeConversionConstants
 
 #ifdef __cplusplus
 }
+
+bool
+ReadMemoryValueFromFile(const char* filename, size_t* val);
 
 /* This is duplicated in utilcode.h for CLR, with cooler type-traits */
 template <typename T>

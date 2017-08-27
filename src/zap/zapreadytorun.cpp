@@ -380,6 +380,23 @@ void ZapImage::OutputDebugInfoForReadyToRun()
     GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_DEBUG_INFO, pBlob);
 }
 
+void ZapImage::OutputInliningTableForReadyToRun()
+{
+    SBuffer serializedInlineTrackingBuffer;
+    m_pPreloader->GetSerializedInlineTrackingMap(&serializedInlineTrackingBuffer);
+    ZapNode * pBlob = ZapBlob::NewAlignedBlob(this, (PVOID)(const BYTE*) serializedInlineTrackingBuffer, serializedInlineTrackingBuffer.GetSize(), 4);
+    m_pDebugSection->Place(pBlob);
+    GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_INLINING_INFO, pBlob);
+}
+
+void ZapImage::OutputProfileDataForReadyToRun()
+{
+    if (m_pInstrumentSection != nullptr)
+    {
+        GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_PROFILEDATA_INFO, m_pInstrumentSection);
+    }
+}
+
 void ZapImage::OutputTypesTableForReadyToRun(IMDInternalImport * pMDImport)
 {
     NativeWriter writer;

@@ -4,6 +4,12 @@
 
 using System.Runtime.Versioning;
 
+#if BIT64
+using nuint = System.UInt64;
+#else
+using nuint = System.UInt32;
+#endif
+
 namespace System.Runtime.CompilerServices
 {
     //
@@ -37,6 +43,7 @@ namespace System.Runtime.CompilerServices
         {
             // The body of this function will be replaced by the EE with unsafe code that just returns sizeof !!T
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            typeof(T).ToString(); // Type token used by the actual method body
             throw new InvalidOperationException();
         }
 
@@ -61,7 +68,19 @@ namespace System.Runtime.CompilerServices
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.
-            typeof(T).ToString(); // Type used by the actual method body
+            typeof(T).ToString(); // Type token used by the actual method body
+            throw new InvalidOperationException();
+        }
+
+        /// <summary>
+        /// Adds an element offset to the given reference.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T AddByteOffset<T>(ref T source, nuint byteOffset)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.
             throw new InvalidOperationException();
         }
 
@@ -74,6 +93,59 @@ namespace System.Runtime.CompilerServices
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            throw new InvalidOperationException();
+        }
+
+        /// <summary>
+        /// Initializes a block of memory at the given location with a given initial value 
+        /// without assuming architecture dependent alignment of the address.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void InitBlockUnaligned(ref byte startAddress, byte value, uint byteCount)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            throw new InvalidOperationException();
+        }
+
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T ReadUnaligned<T>(void* source)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            typeof(T).ToString(); // Type token used by the actual method body
+            throw new InvalidOperationException();
+        }
+
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T ReadUnaligned<T>(ref byte source)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            typeof(T).ToString(); // Type token used by the actual method body
+            throw new InvalidOperationException();
+        }
+
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void WriteUnaligned<T>(void* destination, T value)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            typeof(T).ToString(); // Type token used by the actual method body
+            throw new InvalidOperationException();
+        }
+
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void WriteUnaligned<T>(ref byte destination, T value)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            typeof(T).ToString(); // Type token used by the actual method body
             throw new InvalidOperationException();
         }
     }

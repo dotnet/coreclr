@@ -36,6 +36,7 @@ set(VM_CROSSGEN_SOURCES
     ../generics.cpp
     ../genmeth.cpp
     ../hash.cpp
+    ../ilinstrumentation.cpp
     ../ilmarshalers.cpp
     ../ilstubcache.cpp
     ../ilstubresolver.cpp
@@ -46,7 +47,6 @@ set(VM_CROSSGEN_SOURCES
     ../contractimpl.cpp
     ../jitinterface.cpp
     ../loaderallocator.cpp
-    ../listlock.cpp
     ../memberload.cpp
     ../method.cpp
     ../methodimpl.cpp
@@ -64,16 +64,6 @@ set(VM_CROSSGEN_SOURCES
     ../pendingload.cpp
     ../precode.cpp
     ../olevariant.cpp
-    ../security.cpp
-    ../securitypolicy.cpp
-    ../securityattributes.cpp
-    ../securitydeclarative.cpp
-    ../securitydeclarativecache.cpp
-    ../securitydescriptor.cpp
-    ../securitydescriptorappdomain.cpp
-    ../securitydescriptorassembly.cpp
-    ../securitymeta.cpp
-    ../securitytransparentassembly.cpp
     ../siginfo.cpp
     ../sigformat.cpp
     ../simplerwlock.cpp
@@ -95,12 +85,6 @@ set(VM_CROSSGEN_SOURCES
     ../sha1.cpp
     ../crossgencompile.cpp
 )
-
-if(FEATURE_CER)
-    list(APPEND VM_CROSSGEN_SOURCES
-      ../constrainedexecutionregion.cpp
-        )
-endif(FEATURE_CER)
 
 if(FEATURE_READYTORUN)
     list(APPEND VM_CROSSGEN_SOURCES

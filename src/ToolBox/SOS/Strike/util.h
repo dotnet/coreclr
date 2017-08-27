@@ -1429,84 +1429,7 @@ SafeReadMemory (TO_TADDR(src), &(dst), sizeof(dst), NULL)
 
 extern "C" PDEBUG_DATA_SPACES g_ExtData;
 
-template <class T>
-class ArrayHolder    
-{
-public:
-    ArrayHolder(T *ptr)
-        : mPtr(ptr)
-    {
-    }
-
-    ~ArrayHolder()
-    {
-        Clear();
-    }
-    
-    ArrayHolder(const ArrayHolder &rhs)
-    {
-        mPtr = const_cast<ArrayHolder *>(&rhs)->Detach();
-    }
-
-    ArrayHolder &operator=(T *ptr)
-    {
-        Clear();
-        mPtr = ptr;
-        return *this;
-    }
-
-    const T &operator[](int i) const
-    {
-        return mPtr[i];
-    }
-
-    T &operator[](int i)
-    {
-        return mPtr[i];
-    }
-
-    operator const T *() const
-    {
-        return mPtr;
-    }
-
-    operator T *()
-    {
-        return mPtr;
-    }
-
-    T **operator&()
-    {
-        return &mPtr;
-    }
-
-    T *GetPtr()
-    {
-        return mPtr;
-    }
-
-    T *Detach()
-    {
-        T *ret = mPtr;
-        mPtr = NULL;
-        return ret;
-    }
-
-private:
-    void Clear()
-    {
-        if (mPtr)
-        {
-            delete [] mPtr;
-            mPtr = NULL;
-        }
-    }
-
-private:
-    T *mPtr;
-};
-
-
+#include <arrayholder.h>
 
 // This class acts a smart pointer which calls the Release method on any object
 // you place in it when the ToRelease class falls out of scope.  You may use it
@@ -2596,8 +2519,8 @@ typedef struct{
 
 /// ARM Context
 #define ARM_MAX_BREAKPOINTS_CONST     8
-#define ARM_MAX_WATCHPOINTS_CONST     4
-typedef struct {
+#define ARM_MAX_WATCHPOINTS_CONST     1
+typedef DECLSPEC_ALIGN(8) struct {
 
     DWORD ContextFlags;
 
@@ -2621,6 +2544,7 @@ typedef struct {
     DWORD Cpsr;
 
     DWORD Fpscr;
+    DWORD Padding;
     union {
         M128A_XPLAT Q[16];
         ULONGLONG D[32];
@@ -2631,6 +2555,8 @@ typedef struct {
     DWORD Bcr[ARM_MAX_BREAKPOINTS_CONST];
     DWORD Wvr[ARM_MAX_WATCHPOINTS_CONST];
     DWORD Wcr[ARM_MAX_WATCHPOINTS_CONST];
+
+    DWORD Padding2[2];
 
 } ARM_CONTEXT;
 

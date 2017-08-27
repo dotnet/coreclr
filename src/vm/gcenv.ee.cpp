@@ -11,24 +11,6 @@
  *
  */
 
-#include "common.h"
-
-#include "gcenv.h"
-
-#ifdef FEATURE_STANDALONE_GC
-#include "gcenv.ee.h"
-#else
-#include "../gc/env/gcenv.ee.h"
-#endif // FEATURE_STANDALONE_GC
-
-#include "threadsuspend.h"
-
-#ifdef FEATURE_COMINTEROP
-#include "runtimecallablewrapper.h"
-#include "rcwwalker.h"
-#include "comcallablewrapper.h"
-#endif // FEATURE_COMINTEROP
-
 void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {
     WRAPPER_NO_CONTRACT;
@@ -46,394 +28,6 @@ void GCToEEInterface::RestartEE(bool bFinishedGC)
     WRAPPER_NO_CONTRACT;
 
     ThreadSuspend::RestartEE(bFinishedGC, TRUE);
-}
-
-/*
- * GcEnumObject()
- *
- * This is the JIT compiler (or any remote code manager)
- * GC enumeration callback
- */
-
-void GcEnumObject(LPVOID pData, OBJECTREF *pObj, uint32_t flags)
-{
-    Object ** ppObj = (Object **)pObj;
-    GCCONTEXT   * pCtx  = (GCCONTEXT *) pData;
-
-    // Since we may be asynchronously walking another thread's stack,
-    // check (frequently) for stack-buffer-overrun corruptions after 
-    // any long operation
-    if (pCtx->cf != NULL)
-        pCtx->cf->CheckGSCookies();
-
-    //
-    // Sanity check that the flags contain only these three values
-    //
-    assert((flags & ~(GC_CALL_INTERIOR|GC_CALL_PINNED|GC_CALL_CHECK_APP_DOMAIN)) == 0);
-
-    // for interior pointers, we optimize the case in which
-    //  it points into the current threads stack area
-    //
-    if (flags & GC_CALL_INTERIOR)
-        PromoteCarefully(pCtx->f, ppObj, pCtx->sc, flags);
-    else
-        (pCtx->f)(ppObj, pCtx->sc, flags);
-}
-
-//-----------------------------------------------------------------------------
-void GcReportLoaderAllocator(promote_func* fn, ScanContext* sc, LoaderAllocator *pLoaderAllocator)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    if (pLoaderAllocator != NULL && pLoaderAllocator->IsCollectible())
-    {
-        Object *refCollectionObject = OBJECTREFToObject(pLoaderAllocator->GetExposedObject());
-        
-#ifdef _DEBUG
-        Object *oldObj = refCollectionObject;
-#endif
-
-        _ASSERTE(refCollectionObject != NULL);
-        fn(&refCollectionObject, sc, CHECK_APP_DOMAIN);
-        
-        // We are reporting the location of a local variable, assert it doesn't change.
-        _ASSERTE(oldObj == refCollectionObject);
-    }
-}
-
-//-----------------------------------------------------------------------------
-// Determine whether we should report the generic parameter context
-// 
-// This is meant to detect the situation where a ThreadAbortException is raised
-// in the prolog of a managed method, before the location for the generics 
-// context has been initialized; when such a TAE is raised, we are open to a
-// race with the GC (e.g. while creating the managed object for the TAE).
-// The GC would cause a stack walk, and if we report the stack location for
-// the generic param context at this time we'd crash.
-// The long term solution is to avoid raising TAEs in any non-GC safe points, 
-// and to additionally ensure that we do not expose the runtime to TAE 
-// starvation.
-inline bool SafeToReportGenericParamContext(CrawlFrame* pCF)
-{
-    LIMITED_METHOD_CONTRACT;
-    if (!pCF->IsFrameless() || !(pCF->IsActiveFrame() || pCF->IsInterrupted()))
-    {
-        return true;
-    }
-
-#ifndef USE_GC_INFO_DECODER
-
-    ICodeManager * pEECM = pCF->GetCodeManager();
-    if (pEECM != NULL && pEECM->IsInPrologOrEpilog(pCF->GetRelOffset(), pCF->GetGCInfoToken(), NULL))
-    {
-        return false;
-    }
-
-#else  // USE_GC_INFO_DECODER
-
-    GcInfoDecoder gcInfoDecoder(pCF->GetGCInfoToken(),
-            DECODE_PROLOG_LENGTH);
-    UINT32 prologLength = gcInfoDecoder.GetPrologSize();
-    if (pCF->GetRelOffset() < prologLength)
-    {
-        return false;
-    }
-
-#endif // USE_GC_INFO_DECODER
-
-    return true;
-}
-
-#if defined(WIN64EXCEPTIONS)
-
-struct FindFirstInterruptiblePointState
-{
-    unsigned offs;
-    unsigned endOffs;
-    unsigned returnOffs;
-};
-
-bool FindFirstInterruptiblePointStateCB(
-        UINT32 startOffset,
-        UINT32 stopOffset,
-        LPVOID hCallback)
-{
-    FindFirstInterruptiblePointState* pState = (FindFirstInterruptiblePointState*)hCallback;
-
-    _ASSERTE(startOffset < stopOffset);
-    _ASSERTE(pState->offs < pState->endOffs);
-
-    if (stopOffset <= pState->offs)
-    {
-        // The range ends before the requested offset.
-        return false;
-    }
-
-    // The offset is in the range.
-    if (startOffset <= pState->offs &&
-                       pState->offs < stopOffset)
-    {
-        pState->returnOffs = pState->offs;
-        return true;
-    }
-
-    // The range is completely after the desired offset. We use the range start offset, if
-    // it comes before the given endOffs. We assume that the callback is called with ranges
-    // in increasing order, so earlier ones are reported before later ones. That is, if we
-    // get to this case, it will be the closest interruptible range after the requested
-    // offset.
-
-    _ASSERTE(pState->offs < startOffset);
-    if (startOffset < pState->endOffs)
-    {
-        pState->returnOffs = startOffset;
-        return true;
-    }
-
-    return false;
-}
-
-// Find the first interruptible point in the range [offs .. endOffs) (the beginning of the range is inclusive,
-// the end is exclusive). Return -1 if no such point exists.
-unsigned FindFirstInterruptiblePoint(CrawlFrame* pCF, unsigned offs, unsigned endOffs)
-{
-#ifdef USE_GC_INFO_DECODER
-    GCInfoToken gcInfoToken = pCF->GetGCInfoToken();
-    GcInfoDecoder gcInfoDecoder(gcInfoToken, DECODE_FOR_RANGES_CALLBACK);
-
-    FindFirstInterruptiblePointState state;
-    state.offs = offs;
-    state.endOffs = endOffs;
-    state.returnOffs = -1;
-
-    gcInfoDecoder.EnumerateInterruptibleRanges(&FindFirstInterruptiblePointStateCB, &state);
-
-    return state.returnOffs;
-#else
-    PORTABILITY_ASSERT("FindFirstInterruptiblePoint");
-    return -1;
-#endif // USE_GC_INFO_DECODER
-}
-
-#endif // WIN64EXCEPTIONS
-
-//-----------------------------------------------------------------------------
-StackWalkAction GcStackCrawlCallBack(CrawlFrame* pCF, VOID* pData)
-{
-    //
-    // KEEP IN SYNC WITH DacStackReferenceWalker::Callback in debug\daccess\daccess.cpp
-    //
-
-    Frame       *pFrame;
-    GCCONTEXT   *gcctx = (GCCONTEXT*) pData;
-
-#if CHECK_APP_DOMAIN_LEAKS
-    gcctx->sc->pCurrentDomain = pCF->GetAppDomain();
-#endif //CHECK_APP_DOMAIN_LEAKS
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM)
-    {
-        gcctx->sc->pCurrentDomain = pCF->GetAppDomain();
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
-    MethodDesc *pMD = pCF->GetFunction();
-
-#ifdef GC_PROFILING
-    gcctx->sc->pMD = pMD;
-#endif //GC_PROFILING
-
-    // Clear it on exit so that we never have a stale CrawlFrame
-    ResetPointerHolder<CrawlFrame*> rph(&gcctx->cf);
-    // put it somewhere so that GcEnumObject can get to it.
-    gcctx->cf = pCF;
-
-    bool fReportGCReferences = true;
-#if defined(WIN64EXCEPTIONS)
-    // We may have unwound this crawlFrame and thus, shouldn't report the invalid
-    // references it may contain.
-    fReportGCReferences = pCF->ShouldCrawlframeReportGCReferences();
-#endif // defined(WIN64EXCEPTIONS)
-
-    if (fReportGCReferences)
-    {
-        if (pCF->IsFrameless())
-        {
-            ICodeManager * pCM = pCF->GetCodeManager();
-            _ASSERTE(pCM != NULL);
-
-            unsigned flags = pCF->GetCodeManagerFlags();
-        
-    #ifdef _TARGET_X86_
-            STRESS_LOG3(LF_GCROOTS, LL_INFO1000, "Scanning Frameless method %pM EIP = %p &EIP = %p\n", 
-                pMD, GetControlPC(pCF->GetRegisterSet()), pCF->GetRegisterSet()->PCTAddr);
-    #else
-            STRESS_LOG2(LF_GCROOTS, LL_INFO1000, "Scanning Frameless method %pM ControlPC = %p\n", 
-                pMD, GetControlPC(pCF->GetRegisterSet()));
-    #endif
-
-            _ASSERTE(pMD != 0);
-
-    #ifdef _DEBUG
-            LOG((LF_GCROOTS, LL_INFO1000, "Scanning Frame for method %s:%s\n",
-                    pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName));
-    #endif // _DEBUG
-
-            DWORD relOffsetOverride = NO_OVERRIDE_OFFSET;
-#if defined(WIN64EXCEPTIONS) && defined(USE_GC_INFO_DECODER)
-            if (pCF->ShouldParentToFuncletUseUnwindTargetLocationForGCReporting())
-            {
-                GCInfoToken gcInfoToken = pCF->GetGCInfoToken();
-                GcInfoDecoder _gcInfoDecoder(
-                                    gcInfoToken,
-                                    DECODE_CODE_LENGTH
-                                    );
-                
-                if(_gcInfoDecoder.WantsReportOnlyLeaf())
-                {
-                    // We're in a special case of unwinding from a funclet, and resuming execution in
-                    // another catch funclet associated with same parent function. We need to report roots. 
-                    // Reporting at the original throw site gives incorrect liveness information. We choose to
-                    // report the liveness information at the first interruptible instruction of the catch funclet 
-                    // that we are going to execute. We also only report stack slots, since no registers can be
-                    // live at the first instruction of a handler, except the catch object, which the VM protects 
-                    // specially. If the catch funclet has not interruptible point, we fall back and just report 
-                    // what we used to: at the original throw instruction. This might lead to bad GC behavior 
-                    // if the liveness is not correct.
-                    const EE_ILEXCEPTION_CLAUSE& ehClauseForCatch = pCF->GetEHClauseForCatch();
-                    relOffsetOverride = FindFirstInterruptiblePoint(pCF, ehClauseForCatch.HandlerStartPC,
-                                                                    ehClauseForCatch.HandlerEndPC);
-                    _ASSERTE(relOffsetOverride != NO_OVERRIDE_OFFSET);
-
-                    STRESS_LOG3(LF_GCROOTS, LL_INFO1000, "Setting override offset = %u for method %pM ControlPC = %p\n", 
-                        relOffsetOverride, pMD, GetControlPC(pCF->GetRegisterSet()));
-                }
-
-            }
-#endif // WIN64EXCEPTIONS && USE_GC_INFO_DECODER
-
-            pCM->EnumGcRefs(pCF->GetRegisterSet(),
-                            pCF->GetCodeInfo(),
-                            flags,
-                            GcEnumObject,
-                            pData,
-                            relOffsetOverride);
-
-        }
-        else
-        {
-            Frame * pFrame = pCF->GetFrame();
-
-            STRESS_LOG3(LF_GCROOTS, LL_INFO1000, 
-                "Scanning ExplicitFrame %p AssocMethod = %pM frameVTable = %pV\n", 
-                pFrame, pFrame->GetFunction(), *((void**) pFrame));
-            pFrame->GcScanRoots( gcctx->f, gcctx->sc);
-        }
-    }
-
-
-    // If we're executing a LCG dynamic method then we must promote the associated resolver to ensure it
-    // doesn't get collected and yank the method code out from under us).
-
-    // Be careful to only promote the reference -- we can also be called to relocate the reference and 
-    // that can lead to all sorts of problems since we could be racing for the relocation with the long
-    // weak handle we recover the reference from. Promoting the reference is enough, the handle in the
-    // reference will be relocated properly as long as we keep it alive till the end of the collection
-    // as long as the reference is actually maintained by the long weak handle.
-    if (pMD && gcctx->sc->promotion)
-    {
-        BOOL fMaybeCollectibleMethod = TRUE;
-
-        // If this is a frameless method then the jitmanager can answer the question of whether
-        // or not this is LCG simply by looking at the heap where the code lives, however there
-        // is also the prestub case where we need to explicitly look at the MD for stuff that isn't
-        // ngen'd
-        if (pCF->IsFrameless())
-        {
-            fMaybeCollectibleMethod = ExecutionManager::IsCollectibleMethod(pCF->GetMethodToken());
-        }
-
-        if (fMaybeCollectibleMethod && pMD->IsLCGMethod())
-        {
-            Object *refResolver = OBJECTREFToObject(pMD->AsDynamicMethodDesc()->GetLCGMethodResolver()->GetManagedResolver());
-#ifdef _DEBUG
-            Object *oldObj = refResolver;
-#endif
-            _ASSERTE(refResolver != NULL);
-            (*gcctx->f)(&refResolver, gcctx->sc, CHECK_APP_DOMAIN);
-            _ASSERTE(!pMD->IsSharedByGenericInstantiations());
-            
-            // We are reporting the location of a local variable, assert it doesn't change.
-            _ASSERTE(oldObj == refResolver);
-        }
-        else
-        {
-            if (fMaybeCollectibleMethod)
-            {
-                GcReportLoaderAllocator(gcctx->f, gcctx->sc, pMD->GetLoaderAllocator());
-            }
-
-            if (fReportGCReferences)
-            {
-                GenericParamContextType paramContextType = GENERIC_PARAM_CONTEXT_NONE;
-
-                if (pCF->IsFrameless())
-                {
-                    // We need to grab the Context Type here because there are cases where the MethodDesc
-                    // is shared, and thus indicates there should be an instantion argument, but the JIT 
-                    // was still allowed to optimize it away and we won't grab it below because we're not
-                    // reporting any references from this frame.
-                    paramContextType = pCF->GetCodeManager()->GetParamContextType(pCF->GetRegisterSet(), pCF->GetCodeInfo());
-                }
-                else
-                {
-                    if (pMD->RequiresInstMethodDescArg())
-                        paramContextType = GENERIC_PARAM_CONTEXT_METHODDESC;
-                    else if (pMD->RequiresInstMethodTableArg())
-                        paramContextType = GENERIC_PARAM_CONTEXT_METHODTABLE;
-                }
-
-                if (SafeToReportGenericParamContext(pCF))
-                {
-                    // Handle the case where the method is a static shared generic method and we need to keep the type 
-                    // of the generic parameters alive
-                    if (paramContextType == GENERIC_PARAM_CONTEXT_METHODDESC)
-                    {
-                        MethodDesc *pMDReal = dac_cast<PTR_MethodDesc>(pCF->GetParamTypeArg());
-                        _ASSERTE((pMDReal != NULL) || !pCF->IsFrameless());
-                        if (pMDReal != NULL)
-                        {
-                            GcReportLoaderAllocator(gcctx->f, gcctx->sc, pMDReal->GetLoaderAllocator());
-                        }
-                    }
-                    else if (paramContextType == GENERIC_PARAM_CONTEXT_METHODTABLE)
-                    {
-                        MethodTable *pMTReal = dac_cast<PTR_MethodTable>(pCF->GetParamTypeArg());
-                        _ASSERTE((pMTReal != NULL) || !pCF->IsFrameless());
-                        if (pMTReal != NULL)
-                        {
-                            GcReportLoaderAllocator(gcctx->f, gcctx->sc, pMTReal->GetLoaderAllocator());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Since we may be asynchronously walking another thread's stack,
-    // check (frequently) for stack-buffer-overrun corruptions after 
-    // any long operation
-    pCF->CheckGSCookies();
-
-    return SWA_CONTINUE;
 }
 
 VOID GCToEEInterface::SyncBlockCacheWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2)
@@ -626,6 +220,11 @@ void GCToEEInterface::GcStartWork (int condemned, int max_gen)
     // 
     RCWWalker::OnGCStarted(condemned);
 #endif // FEATURE_COMINTEROP
+
+    if (condemned == max_gen)
+    {
+        ThreadStore::s_pThreadStore->OnMaxGenerationGCStarted();
+    }
 }
 
 void GCToEEInterface::GcDone(int condemned)
@@ -725,10 +324,17 @@ void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* par
     }
     CONTRACTL_END;
 
-    Thread * pThread = NULL;
-    while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
+    if (GCHeapUtilities::UseThreadAllocationContexts())
     {
-        fn(pThread->GetAllocContext(), param);
+        Thread * pThread = NULL;
+        while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
+        {
+            fn(pThread->GetAllocContext(), param);
+        }
+    }
+    else
+    {
+        fn(&g_global_alloc_context, param);
     }
 }
 
@@ -750,6 +356,19 @@ void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
     pThread->DisablePreemptiveGC();
 }
 
+Thread* GCToEEInterface::GetThread()
+{
+    WRAPPER_NO_CONTRACT;
+
+    return ::GetThread();
+}
+
+bool GCToEEInterface::TrapReturningThreads()
+{
+    WRAPPER_NO_CONTRACT;
+    return !!g_TrapReturningThreads;
+}
+
 struct BackgroundThreadStubArgs
 {
     Thread* thread;
@@ -759,7 +378,7 @@ struct BackgroundThreadStubArgs
     bool hasStarted;
 };
 
-DWORD BackgroundThreadStub(void* arg)
+DWORD WINAPI BackgroundThreadStub(void* arg)
 {
     BackgroundThreadStubArgs* stubArgs = (BackgroundThreadStubArgs*)arg;
     assert (stubArgs->thread != NULL);
@@ -826,7 +445,7 @@ Thread* GCToEEInterface::CreateBackgroundThread(GCBackgroundThreadFunction threa
         return NULL;
     }
 
-    if (threadStubArgs.thread->CreateNewThread(0, (LPTHREAD_START_ROUTINE)BackgroundThreadStub, &threadStubArgs))
+    if (threadStubArgs.thread->CreateNewThread(0, (LPTHREAD_START_ROUTINE)BackgroundThreadStub, &threadStubArgs, W("Background GC")))
     {
         threadStubArgs.thread->SetBackground (TRUE, FALSE);
         threadStubArgs.thread->StartThread();
@@ -878,7 +497,9 @@ void ProfScanRootsHelper(Object** ppObject, ScanContext *pSC, uint32_t dwFlags)
     Object *pObj = *ppObject;
     if (dwFlags & GC_CALL_INTERIOR)
     {
-        pObj = GCHeapUtilities::GetGCHeap()->GetContainingObject(pObj);
+        pObj = GCHeapUtilities::GetGCHeap()->GetContainingObject(pObj, true);
+        if (pObj == nullptr)
+            return;
     }
     ScanRootsHelper(pObj, ppObject, pSC, dwFlags);
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
@@ -941,7 +562,7 @@ void GcScanRootsForProfilerAndETW(promote_func* fn, int condemned, int max_gen, 
     }
 }
 
-void ScanHandleForProfilerAndETW(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, BOOL isDependent)
+void ScanHandleForProfilerAndETW(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, bool isDependent)
 {
     ProfilingScanContext* pSC = (ProfilingScanContext*)context;
 
@@ -1002,6 +623,7 @@ void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForE
 {
     {
         ProfilingScanContext SC(fProfilerPinned);
+        unsigned max_generation = GCHeapUtilities::GetGCHeap()->GetMaxGeneration();
 
         // **** Scan roots:  Only scan roots if profiling API wants them or ETW wants them.
         if (fProfilerPinned || fShouldWalkHeapRootsForEtw)
@@ -1054,7 +676,7 @@ void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForE
         // **** Walk objects on heap: only if profiling API wants them or ETW wants them.
         if (fProfilerPinned || fShouldWalkHeapObjectsForEtw)
         {
-            GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&HeapWalkHelper, &profilerWalkHeapContext, max_generation, TRUE /* walk the large object heap */);
+            GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&HeapWalkHelper, &profilerWalkHeapContext, max_generation, true /* walk the large object heap */);
         }
 
 #ifdef FEATURE_EVENT_TRACE
@@ -1104,7 +726,7 @@ void GCProfileWalkHeap()
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 }
 
-void WalkFReachableObjects(BOOL isCritical, void* objectID)
+void WalkFReachableObjects(bool isCritical, void* objectID)
 {
 	g_profControlBlock.pProfInterface->FinalizeableObjectQueued(isCritical, (ObjectID)objectID);
 }
@@ -1122,7 +744,7 @@ void GCToEEInterface::DiagGCStart(int gen, bool isInduced)
 
         // When we're walking objects allocated by class, then we don't want to walk the large
         // object heap because then it would count things that may have been around for a while.
-        GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&AllocByClassHelper, (void *)&context, 0, FALSE);
+        GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&AllocByClassHelper, (void *)&context, 0, false);
 
         // Notify that we've reached the end of the Gen 0 scan
         g_profControlBlock.pProfInterface->EndAllocByClass(&context);
@@ -1169,13 +791,13 @@ void GCToEEInterface::DiagWalkFReachableObjects(void* gcContext)
 // don't get confused.
 void WalkMovedReferences(uint8_t* begin, uint8_t* end, 
                          ptrdiff_t reloc,
-                         size_t context, 
-                         BOOL fCompacting,
-                         BOOL fBGC)
+                         void* context, 
+                         bool fCompacting,
+                         bool fBGC)
 {
     ETW::GCLog::MovedReference(begin, end,
                                (fCompacting ? reloc : 0),
-                               context,
+                               (size_t)context,
                                fCompacting,
                                !fBGC);
 }
@@ -1187,7 +809,7 @@ void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
-        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, context, walk_for_gc);
+        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, (void*)context, walk_for_gc);
         ETW::GCLog::EndMovedReferences(context);
     }
 #endif //GC_PROFILING || FEATURE_EVENT_TRACE
@@ -1200,7 +822,7 @@ void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
-        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, context, walk_for_loh);
+        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, (void*)context, walk_for_loh);
         ETW::GCLog::EndMovedReferences(context);
     }
 #endif //GC_PROFILING || FEATURE_EVENT_TRACE
@@ -1213,7 +835,7 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
-        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, context, walk_for_bgc);
+        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, (void*)context, walk_for_bgc);
         ETW::GCLog::EndMovedReferences(context);
     }
 #endif //GC_PROFILING || FEATURE_EVENT_TRACE
@@ -1230,7 +852,14 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->card_table != nullptr);
         assert(args->lowest_address != nullptr);
         assert(args->highest_address != nullptr);
+
         g_card_table = args->card_table;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        assert(args->card_bundle_table != nullptr);
+        g_card_bundle_table = args->card_bundle_table;
+#endif
+
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         if (args->write_watch_table != nullptr)
         {
@@ -1244,9 +873,17 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         // We need to make sure that other threads executing checked write barriers
         // will see the g_card_table update before g_lowest/highest_address updates.
         // Otherwise, the checked write barrier may AV accessing the old card table
-        // with address that it does not cover. Write barriers access card table
-        // without memory barriers for performance reasons, so we need to flush
-        // the store buffers here.
+        // with address that it does not cover. 
+        //
+        // Even x86's total store ordering is insufficient here because threads reading
+        // g_card_table do so via the instruction cache, whereas g_lowest/highest_address
+        // are read via the data cache.
+        //
+        // The g_card_table update is covered by section 8.1.3 of the Intel Software
+        // Development Manual, Volume 3A (System Programming Guide, Part 1), about
+        // "cross-modifying code": We need all _executing_ threads to invalidate
+        // their instruction cache, which FlushProcessWriteBuffers achieves by sending
+        // an IPI (inter-process interrupt).
         FlushProcessWriteBuffers();
 
         g_lowest_address = args->lowest_address;
@@ -1274,15 +911,25 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(!args->requires_upper_bounds_check && "the ephemeral generation must be at the top of the heap!");
 
         g_card_table = args->card_table;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        assert(g_card_bundle_table == nullptr);
+        g_card_bundle_table = args->card_bundle_table;
+#endif
+
         FlushProcessWriteBuffers();
+        
         g_lowest_address = args->lowest_address;
         VolatileStore(&g_highest_address, args->highest_address);
         ::StompWriteBarrierResize(true, false);
 
-        // g_ephemeral_low/high aren't needed for the write barrier stomp, but they
-        // are needed in other places.
+        // StompWriteBarrierResize does not necessarily bash g_ephemeral_low
+        // usages, so we must do so here. This is particularly true on x86,
+        // where StompWriteBarrierResize will not bash g_ephemeral_low when
+        // called with the parameters (true, false), as it is above.
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
+        ::StompWriteBarrierEphemeral(true);
         return;
     case WriteBarrierOp::SwitchToWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -1315,4 +962,172 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
     {
         FinalizerThread::EnableFinalization();
     }
+}
+
+void GCToEEInterface::HandleFatalError(unsigned int exitCode)
+{
+    EEPOLICY_HANDLE_FATAL_ERROR(exitCode);
+}
+
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
+{
+    // CoreCLR does not have appdomains, so this code path is dead. Other runtimes may
+    // choose to inspect the object being finalized here.
+    // [DESKTOP TODO] Desktop looks for "agile and finalizable" objects and may choose
+    // to move them to a new app domain instead of finalizing them here.
+    return true;
+}
+
+bool GCToEEInterface::ForceFullGCToBeBlocking()
+{
+    // In theory, there is nothing fundamental that requires an AppDomain unload to induce
+    // a blocking GC. In the past, this workaround was done to fix an Stress AV, but the root
+    // cause of the AV was never discovered and this workaround remains in place.
+    //
+    // It would be nice if this were not necessary. However, it's not clear if the aformentioned
+    // stress bug is still lurking and will return if this workaround is removed. We should
+    // do some experiments: remove this workaround and see if the stress bug still repros.
+    // If so, we should find the root cause instead of relying on this.
+    return !!SystemDomain::System()->RequireAppDomainCleanup();
+}
+
+bool GCToEEInterface::EagerFinalized(Object* obj)
+{
+    MethodTable* pMT = obj->GetGCSafeMethodTable();
+    if (pMT == pWeakReferenceMT ||
+        pMT->GetCanonicalMethodTable() == pWeakReferenceOfTCanonMT)
+    {
+        FinalizeWeakReference(obj);
+        return true;
+    }
+
+    return false;
+}
+
+MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
+{
+    assert(g_pFreeObjectMethodTable != nullptr);
+    return g_pFreeObjectMethodTable;
+}
+
+// These are arbitrary, we shouldn't ever be having confrig keys or values
+// longer than these lengths.
+const size_t MaxConfigKeyLength = 255;
+const size_t MaxConfigValueLength = 255;
+
+bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    // these configuration values are given to us via startup flags.
+    if (strcmp(key, "gcServer") == 0)
+    {
+        *value = g_heap_type == GC_HEAP_SVR;
+        return true;
+    }
+
+    if (strcmp(key, "gcConcurrent") == 0)
+    {
+        *value = !!g_pConfig->GetGCconcurrent();
+        return true;
+    }
+
+    if (strcmp(key, "GCRetainVM") == 0)
+    {
+        *value = !!g_pConfig->GetGCRetainVM();
+        return true;
+    }
+
+    WCHAR configKey[MaxConfigKeyLength];
+    if (MultiByteToWideChar(CP_ACP, 0, key, -1 /* key is null-terminated */, configKey, MaxConfigKeyLength) == 0)
+    {
+        // whatever this is... it's not something we care about. (It was too long, wasn't unicode, etc.)
+        return false;
+    }
+
+    // otherwise, ask the config subsystem.
+    if (CLRConfig::IsConfigOptionSpecified(configKey))
+    {
+        CLRConfig::ConfigDWORDInfo info { configKey , 0, CLRConfig::EEConfig_default };
+        *value = CLRConfig::GetConfigValue(info) != 0;
+        return true;
+    }
+
+    return false;
+}
+
+bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    WCHAR configKey[MaxConfigKeyLength];
+    if (MultiByteToWideChar(CP_ACP, 0, key, -1 /* key is null-terminated */, configKey, MaxConfigKeyLength) == 0)
+    {
+        // whatever this is... it's not something we care about. (It was too long, wasn't unicode, etc.)
+        return false;
+    }
+
+    if (CLRConfig::IsConfigOptionSpecified(configKey))
+    {
+        CLRConfig::ConfigDWORDInfo info { configKey , 0, CLRConfig::EEConfig_default };
+        *value = CLRConfig::GetConfigValue(info);
+        return true;
+    }
+
+    return false;
+}
+
+bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    WCHAR configKey[MaxConfigKeyLength];
+    if (MultiByteToWideChar(CP_ACP, 0, key, -1 /* key is null-terminated */, configKey, MaxConfigKeyLength) == 0)
+    {
+        // whatever this is... it's not something we care about. (It was too long, wasn't unicode, etc.)
+        return false;
+    }
+
+    CLRConfig::ConfigStringInfo info { configKey, CLRConfig::EEConfig_default };
+    LPWSTR out = CLRConfig::GetConfigValue(info);
+    if (!out)
+    {
+        // config not found
+        return false;
+    }
+
+    // not allocated on the stack since it escapes this function
+    AStringHolder configResult = new (nothrow) char[MaxConfigValueLength];
+    if (!configResult)
+    {
+        CLRConfig::FreeConfigString(out);
+        return false;
+    }
+
+    if (WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */, 
+          configResult.GetValue(), MaxConfigKeyLength, nullptr, nullptr) == 0)
+    {
+        // this should only happen if the config subsystem gives us a string that's not valid
+        // unicode.
+        CLRConfig::FreeConfigString(out);
+        return false;
+    }
+
+    *value = configResult.Extract();
+    CLRConfig::FreeConfigString(out);
+    return true;
+}
+
+void GCToEEInterface::FreeStringConfigValue(const char* value)
+{
+    delete [] value;
 }

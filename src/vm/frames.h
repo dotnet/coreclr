@@ -49,11 +49,6 @@
 #endif // FEATURE_HIJACK
 //    |
 //    |
-#ifdef FEATURE_REMOTING
-//    +-GCSafeCollectionFrame   - this handles reporting for GCSafeCollections, which are
-//    |                           generally used during appdomain transitions
-//    |
-#endif // FEATURE_REMOTING
 //    |
 //    +-InlinedCallFrame        - if a call to unmanaged code is hoisted into
 //    |                           a JIT'ted caller, the calling method keeps
@@ -140,17 +135,8 @@
 //    +-FuncEvalFrame         - frame for debugger function evaluation
 #endif // DEBUGGING_SUPPORTED
 //    |
-#if defined(FEATURE_INCLUDE_ALL_INTERFACES) && defined(_TARGET_X86_)
-//    |
-//    +-ReverseEnterRuntimeFrame
-//    |
-//    +-LeaveRuntimeFrame
-//    |
-#endif
 //    |
 //    +-ExceptionFilterFrame - this frame wraps call to exception filter
-//    |
-//    +-SecurityContextFrame - place the security context of an assembly on the stack to ensure it will be included in security demands
 //
 //------------------------------------------------------------------------
 #if 0
@@ -231,9 +217,6 @@ FRAME_TYPE_NAME(HelperMethodFrame_1OBJ)
 FRAME_TYPE_NAME(HelperMethodFrame_2OBJ)
 FRAME_TYPE_NAME(HelperMethodFrame_PROTECTOBJ)
 FRAME_ABSTRACT_TYPE_NAME(FramedMethodFrame)
-#ifdef FEATURE_REMOTING
-FRAME_TYPE_NAME(TPMethodFrame)
-#endif
 FRAME_TYPE_NAME(SecureDelegateFrame)
 FRAME_TYPE_NAME(MulticastFrame)
 FRAME_ABSTRACT_TYPE_NAME(UnmanagedToManagedFrame)
@@ -261,19 +244,12 @@ FRAME_TYPE_NAME(InterpreterFrame)
 #endif // FEATURE_INTERPRETER
 FRAME_TYPE_NAME(ProtectByRefsFrame)
 FRAME_TYPE_NAME(ProtectValueClassFrame)
-#ifdef FEATURE_REMOTING
-FRAME_TYPE_NAME(GCSafeCollectionFrame)
-#endif // FEATURE_REMOTING
 FRAME_TYPE_NAME(DebuggerClassInitMarkFrame)
 FRAME_TYPE_NAME(DebuggerSecurityCodeMarkFrame)
 FRAME_TYPE_NAME(DebuggerExitFrame)
 FRAME_TYPE_NAME(DebuggerU2MCatchHandlerFrame)
 #ifdef _TARGET_X86_
 FRAME_TYPE_NAME(UMThkCallFrame)
-#endif
-#if defined(FEATURE_INCLUDE_ALL_INTERFACES) && defined(_TARGET_X86_)
-FRAME_TYPE_NAME(ReverseEnterRuntimeFrame)
-FRAME_TYPE_NAME(LeaveRuntimeFrame)
 #endif
 FRAME_TYPE_NAME(InlinedCallFrame)
 FRAME_TYPE_NAME(ContextTransitionFrame)
@@ -282,7 +258,6 @@ FRAME_TYPE_NAME(ExceptionFilterFrame)
 #if defined(_DEBUG)
 FRAME_TYPE_NAME(AssumeByrefFromJITStack)
 #endif // _DEBUG
-FRAME_TYPE_NAME(SecurityContextFrame)
 
 #undef FRAME_ABSTRACT_TYPE_NAME
 #undef FRAME_TYPE_NAME
@@ -301,7 +276,6 @@ FRAME_TYPE_NAME(SecurityContextFrame)
 #include "vars.hpp"
 #include "regdisp.h"
 #include "object.h"
-#include "objecthandle.h"
 #include <stddef.h>
 #include "siginfo.hpp"
 // context headers
@@ -661,9 +635,6 @@ public:
         TYPE_SECURITY,
         TYPE_CALL,
         TYPE_FUNC_EVAL,
-#ifdef FEATURE_REMOTING        
-        TYPE_TP_METHOD_FRAME,
-#endif        
         TYPE_MULTICAST,
         
         // HMFs and derived classes should use this so the profiling API knows it needs
@@ -845,7 +816,7 @@ private:
     friend FCDECL0(VOID, JIT_StressGC);
 #ifdef _DEBUG
     friend LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo);
-#endif // _DEBUG
+#endif
 #ifdef _WIN64
     friend Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubSecretArg);
 #endif
@@ -1758,48 +1729,6 @@ protected:
 // 
 //
 //+----------------------------------------------------------------------------
-#ifdef FEATURE_REMOTING
-class TPMethodFrame : public FramedMethodFrame
-{
-    VPTR_VTABLE_CLASS(TPMethodFrame, FramedMethodFrame)
-
-public:
-    TPMethodFrame(TransitionBlock * pTransitionBlock);
-
-    virtual int GetFrameType()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return TYPE_TP_METHOD_FRAME;
-    }
-
-    // GC protect arguments
-    virtual void GcScanRoots(promote_func *fn, ScanContext* sc);
-
-    // Our base class is a a M2U TransitionType; but we're not. So override and set us back to None.
-    ETransitionType GetTransitionType()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return TT_NONE;
-    }
-
-#if defined(_TARGET_X86_) && !defined(DACCESS_COMPILE)
-    void SetCbStackPop(UINT cbStackPop)
-    {
-        LIMITED_METHOD_CONTRACT;
-        // Number of bytes to pop for x86 is stored right before the return value
-        void * pReturnValue = GetReturnValuePtr();
-        *(((DWORD *)pReturnValue) - 1) = cbStackPop;
-    }
-#endif
-
-    // Aid the debugger in finding the actual address of callee
-    virtual BOOL TraceFrame(Thread *thread, BOOL fromPatch,
-                            TraceDestination *trace, REGDISPLAY *regs);
-
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(TPMethodFrame)
-};
-#endif // FEATURE_REMOTING
 
 //------------------------------------------------------------------------
 // This represents a call Delegate.Invoke for secure delegate
@@ -2397,11 +2326,7 @@ public:
     virtual void GcScanRoots(promote_func *fn, ScanContext* sc);
 
 #ifdef _TARGET_X86_
-    virtual void UpdateRegDisplay(const PREGDISPLAY pRD)
-    {
-        WRAPPER_NO_CONTRACT;
-        UpdateRegDisplayHelper(pRD, 0);
-    }
+    virtual void UpdateRegDisplay(const PREGDISPLAY pRD);
 #endif
 
     virtual ETransitionType GetTransitionType()
@@ -2599,28 +2524,6 @@ public:
 typedef VPTR(class InterpreterFrame) PTR_InterpreterFrame;
 #endif // FEATURE_INTERPRETER
 
-#ifdef FEATURE_REMOTING
-class GCSafeCollectionFrame : public Frame
-{
-    VPTR_VTABLE_CLASS(GCSafeCollectionFrame, Frame)
-    PTR_VOID m_pCollection;
-
-    public:
-        //--------------------------------------------------------------------
-        // This constructor pushes a new GCFrame on the frame chain.
-        //--------------------------------------------------------------------
-#ifndef DACCESS_COMPILE
-        GCSafeCollectionFrame() { }
-        GCSafeCollectionFrame(void *collection);
-#endif
-
-        virtual void GcScanRoots(promote_func *fn, ScanContext* sc);
-
-        VOID Pop();
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_DTOR(GCSafeCollectionFrame)
-};
-#endif // FEATURE_REMOTING
 
 //-----------------------------------------------------------------------------
 
@@ -2935,7 +2838,7 @@ protected:
 };
 #endif // _TARGET_X86_ && !FEATURE_PAL
 
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && defined(FEATURE_COMINTEROP)
 //-------------------------------------------------------------------------
 // Exception handler for COM to managed frame
 //  and the layout of the exception registration record structure in the stack
@@ -2955,67 +2858,8 @@ struct ComToManagedExRecord
         return &m_frame;
     }
 };
-#endif // _TARGET_X86_
+#endif // _TARGET_X86_ && FEATURE_COMINTEROP
 
-#if defined(FEATURE_INCLUDE_ALL_INTERFACES) && defined(_TARGET_X86_)
-//-----------------------------------------------------------------------------
-// ReverseEnterRuntimeFrame
-//-----------------------------------------------------------------------------
-
-class ReverseEnterRuntimeFrame : public Frame
-{
-    VPTR_VTABLE_CLASS(ReverseEnterRuntimeFrame, Frame)
-
-public:
-    //------------------------------------------------------------------------
-    // Performs cleanup on an exception unwind
-    //------------------------------------------------------------------------
-#ifndef DACCESS_COMPILE
-    virtual void ExceptionUnwind()
-    {
-        WRAPPER_NO_CONTRACT;
-         GetThread()->ReverseLeaveRuntime();
-    }
-#endif
-
-    //---------------------------------------------------------------
-    // Expose key offsets and values for stub generation.
-    //---------------------------------------------------------------
-
-    static UINT32 GetNegSpaceSize()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return sizeof(GSCookie);
-    }
-
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(ReverseEnterRuntimeFrame)
-};
-
-//-----------------------------------------------------------------------------
-// LeaveRuntimeFrame
-//-----------------------------------------------------------------------------
-
-class LeaveRuntimeFrame : public Frame
-{
-    VPTR_VTABLE_CLASS(LeaveRuntimeFrame, Frame)
-
-public:
-    //------------------------------------------------------------------------
-    // Performs cleanup on an exception unwind
-    //------------------------------------------------------------------------
-#ifndef DACCESS_COMPILE
-    virtual void ExceptionUnwind()
-    {
-        WRAPPER_NO_CONTRACT;
-         Thread::EnterRuntime();
-    }
-#endif
-
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(LeaveRuntimeFrame)
-};
-#endif
 
 //------------------------------------------------------------------------
 // This frame is pushed by any JIT'ted method that contains one or more
@@ -3203,9 +3047,6 @@ private:
     PTR_Object  m_LastThrownObjectInParentContext;                                        
     ULONG_PTR   m_LockCount;            // Number of locks the thread takes
                                         // before the transition.
-#ifndef FEATURE_CORECLR
-    ULONG_PTR   m_CriticalRegionCount;
-#endif // !FEATURE_CORECLR
     VPTR_VTABLE_CLASS(ContextTransitionFrame, Frame)
 
 public:
@@ -3244,18 +3085,6 @@ public:
         return (DWORD) m_LockCount;
     }
 
-#ifndef FEATURE_CORECLR
-    void SetCriticalRegionCount(DWORD criticalRegionCount)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_CriticalRegionCount = criticalRegionCount;
-    }
-    DWORD GetCriticalRegionCount()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (DWORD) m_CriticalRegionCount;
-    }
-#endif // !FEATURE_CORECLR
 
     // Let debugger know that we're transitioning between AppDomains.
     ETransitionType GetTransitionType()
@@ -3270,9 +3099,6 @@ public:
     , m_ReturnExecutionContext(NULL)
     , m_LastThrownObjectInParentContext(NULL)
     , m_LockCount(0)
-#ifndef FEATURE_CORECLR
-    , m_CriticalRegionCount(0)
-#endif // !FEATURE_CORECLR
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -3663,29 +3489,6 @@ public:
     // Since the "&" operator is overloaded, use this function to get to the
     // address of FrameWithCookie, rather than that of FrameWithCookie::m_frame.
     GSCookie * GetGSCookiePtr() { LIMITED_METHOD_CONTRACT; return &m_gsCookie; }
-};
-
-
-// The frame doesn't represent a transition of any sort, it's simply placed on the stack to represent an assembly that will be found
-// and checked by stackwalking security demands. This can be used in scenarios where an assembly is implicitly controlling a
-// security sensitive operation without being explicitly represented on the stack. For example, an assembly decorating one of its
-// classes or methods with a custom attribute can implicitly cause the ctor or property setters for that attribute to be executed by
-// a third party if they happen to browse the attributes on the assembly.
-// Note: This frame is pushed from managed code, so be sure to keep the layout synchronized with that in
-// bcl\system\reflection\customattribute.cs.
-class SecurityContextFrame : public Frame
-{
-    VPTR_VTABLE_CLASS(SecurityContextFrame, Frame)
-
-    Assembly *m_pAssembly;
-
-public:
-    virtual Assembly *GetAssembly() { LIMITED_METHOD_CONTRACT; return m_pAssembly; }
-
-    void SetAssembly(Assembly *pAssembly) { LIMITED_METHOD_CONTRACT; m_pAssembly = pAssembly; }
-
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(SecurityContextFrame)
 };
 
 //------------------------------------------------------------------------

@@ -13,55 +13,52 @@
 **
 **
 ===========================================================*/
-namespace System.Reflection {
+
+namespace System.Reflection
+{
     using System;
     using System.IO;
     using System.Configuration.Assemblies;
     using System.Runtime.CompilerServices;
     using CultureInfo = System.Globalization.CultureInfo;
     using System.Runtime.Serialization;
-    using System.Security.Permissions;
     using System.Runtime.InteropServices;
     using System.Runtime.Versioning;
     using System.Diagnostics.Contracts;
     using System.Text;
 
-    [Serializable]
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_AssemblyName))]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class AssemblyName : _AssemblyName, ICloneable, ISerializable, IDeserializationCallback
+    public sealed class AssemblyName : ICloneable, ISerializable, IDeserializationCallback
     {
         //
         // READ ME
         // If you modify any of these fields, you must also update the 
         // AssemblyBaseObject structure in object.h
         //
-        private String          _Name;                  // Name
-        private byte[]          _PublicKey;
-        private byte[]          _PublicKeyToken;
-        private CultureInfo     _CultureInfo;
-        private String          _CodeBase;              // Potential location to get the file
-        private Version         _Version;
-        
-        private StrongNameKeyPair            _StrongNameKeyPair;
+        private String _Name;                  // Name
+        private byte[] _PublicKey;
+        private byte[] _PublicKeyToken;
+        private CultureInfo _CultureInfo;
+        private String _CodeBase;              // Potential location to get the file
+        private Version _Version;
+
+        private StrongNameKeyPair _StrongNameKeyPair;
 
         private SerializationInfo m_siInfo; //A temporary variable which we need during deserialization.
 
-        private byte[]                _HashForControl;
+        private byte[] _HashForControl;
         private AssemblyHashAlgorithm _HashAlgorithm;
         private AssemblyHashAlgorithm _HashAlgorithmForControl;
 
         private AssemblyVersionCompatibility _VersionCompatibility;
-        private AssemblyNameFlags            _Flags;
-       
+        private AssemblyNameFlags _Flags;
+
         public AssemblyName()
-        { 
+        {
             _HashAlgorithm = AssemblyHashAlgorithm.None;
             _VersionCompatibility = AssemblyVersionCompatibility.SameMachine;
             _Flags = AssemblyNameFlags.None;
         }
-    
+
         // Set and get the name of the assembly. If this is a weak Name
         // then it optionally contains a site. For strong assembly names, 
         // the name partitions up the strong name's namespace
@@ -73,10 +70,12 @@ namespace System.Reflection {
 
         public Version Version
         {
-            get { 
+            get
+            {
                 return _Version;
             }
-            set { 
+            set
+            {
                 _Version = value;
             }
         }
@@ -84,30 +83,34 @@ namespace System.Reflection {
         // Locales, internally the LCID is used for the match.
         public CultureInfo CultureInfo
         {
-            get {
+            get
+            {
                 return _CultureInfo;
             }
-            set { 
-                _CultureInfo = value; 
+            set
+            {
+                _CultureInfo = value;
             }
         }
 
         public String CultureName
         {
-            get {
+            get
+            {
                 return (_CultureInfo == null) ? null : _CultureInfo.Name;
             }
-            set {
+            set
+            {
                 _CultureInfo = (value == null) ? null : new CultureInfo(value);
             }
         }
-    
+
         public String CodeBase
         {
             get { return _CodeBase; }
             set { _CodeBase = value; }
         }
-    
+
         public String EscapedCodeBase
         {
             get
@@ -118,25 +121,27 @@ namespace System.Reflection {
                     return EscapeCodeBase(_CodeBase);
             }
         }
-    
-        public ProcessorArchitecture  ProcessorArchitecture
+
+        public ProcessorArchitecture ProcessorArchitecture
         {
-            get {
+            get
+            {
                 int x = (((int)_Flags) & 0x70) >> 4;
-                if(x > 5) 
+                if (x > 5)
                     x = 0;
                 return (ProcessorArchitecture)x;
             }
-            set {
+            set
+            {
                 int x = ((int)value) & 0x07;
-                if(x <= 5) {
+                if (x <= 5)
+                {
                     _Flags = (AssemblyNameFlags)((int)_Flags & 0xFFFFFF0F);
                     _Flags |= (AssemblyNameFlags)(x << 4);
                 }
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public AssemblyContentType ContentType
         {
             get
@@ -156,8 +161,8 @@ namespace System.Reflection {
                 }
             }
         }
-         
-        
+
+
 
         // Make a copy of this assembly name.
         public Object Clone()
@@ -173,8 +178,8 @@ namespace System.Reflection {
                       _CodeBase,
                       _Flags,
                       _StrongNameKeyPair);
-            name._HashForControl=_HashForControl;
-            name._HashAlgorithmForControl=_HashAlgorithmForControl;
+            name._HashForControl = _HashForControl;
+            name._HashAlgorithmForControl = _HashAlgorithmForControl;
             return name;
         }
 
@@ -185,21 +190,20 @@ namespace System.Reflection {
          */
         static public AssemblyName GetAssemblyName(String assemblyFile)
         {
-            if(assemblyFile == null)
+            if (assemblyFile == null)
                 throw new ArgumentNullException(nameof(assemblyFile));
             Contract.EndContractBlock();
 
             // Assembly.GetNameInternal() will not demand path discovery 
             //  permission, so do that first.
             string fullPath = Path.GetFullPath(assemblyFile);
-            new FileIOPermission( FileIOPermissionAccess.PathDiscovery, fullPath ).Demand();
             return nGetFileInformation(fullPath);
         }
-    
+
         internal void SetHashControl(byte[] hash, AssemblyHashAlgorithm hashAlgorithm)
         {
-             _HashForControl=hash;
-             _HashAlgorithmForControl=hashAlgorithm;
+            _HashForControl = hash;
+            _HashAlgorithmForControl = hashAlgorithm;
         }
 
         // The public key that is used to verify an assemblies
@@ -245,7 +249,8 @@ namespace System.Reflection {
         public AssemblyNameFlags Flags
         {
             get { return (AssemblyNameFlags)((uint)_Flags & 0xFFFFF10F); }
-            set {
+            set
+            {
                 _Flags &= unchecked((AssemblyNameFlags)0x00000EF0);
                 _Flags |= (value & unchecked((AssemblyNameFlags)0xFFFFF10F));
             }
@@ -256,7 +261,7 @@ namespace System.Reflection {
             get { return _HashAlgorithm; }
             set { _HashAlgorithm = value; }
         }
-        
+
         public AssemblyVersionCompatibility VersionCompatibility
         {
             get { return _VersionCompatibility; }
@@ -268,86 +273,37 @@ namespace System.Reflection {
             get { return _StrongNameKeyPair; }
             set { _StrongNameKeyPair = value; }
         }
-       
+
         public String FullName
         {
-            get {
-                return nToString();
+            get
+            {
+                if (this.Name == null)
+                    return string.Empty;
+                // Do not call GetPublicKeyToken() here - that latches the result into AssemblyName which isn't a side effect we want.
+                byte[] pkt = _PublicKeyToken ?? nGetPublicKeyToken();
+                return AssemblyNameFormatter.ComputeDisplayName(Name, Version, CultureName, pkt, Flags, ContentType);
             }
         }
-    
+
         // Returns the stringized version of the assembly name.
         public override String ToString()
         {
             String s = FullName;
-            if(s == null) 
+            if (s == null)
                 return base.ToString();
-            else 
+            else
                 return s;
         }
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-                throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            //Allocate the serialization info and serialize our static data.
-            info.AddValue("_Name", _Name);
-            info.AddValue("_PublicKey", _PublicKey, typeof(byte[]));
-            info.AddValue("_PublicKeyToken", _PublicKeyToken, typeof(byte[]));
-#if FEATURE_USE_LCID
-            info.AddValue("_CultureInfo", (_CultureInfo == null) ? -1 :_CultureInfo.LCID);
-#endif
-            info.AddValue("_CodeBase", _CodeBase);
-            info.AddValue("_Version", _Version);
-            info.AddValue("_HashAlgorithm", _HashAlgorithm, typeof(AssemblyHashAlgorithm));
-            info.AddValue("_HashAlgorithmForControl", _HashAlgorithmForControl, typeof(AssemblyHashAlgorithm));
-            info.AddValue("_StrongNameKeyPair", _StrongNameKeyPair, typeof(StrongNameKeyPair));
-            info.AddValue("_VersionCompatibility", _VersionCompatibility, typeof(AssemblyVersionCompatibility));
-            info.AddValue("_Flags", _Flags, typeof(AssemblyNameFlags));
-            info.AddValue("_HashForControl",_HashForControl,typeof(byte[]));
-       }
+            throw new PlatformNotSupportedException();
+        }
 
         public void OnDeserialization(Object sender)
         {
-            // Deserialization has already been performed
-            if (m_siInfo == null)
-                return;
-
-            _Name = m_siInfo.GetString("_Name");
-            _PublicKey = (byte[]) m_siInfo.GetValue("_PublicKey", typeof(byte[]));
-            _PublicKeyToken = (byte[]) m_siInfo.GetValue("_PublicKeyToken", typeof(byte[]));
-#if FEATURE_USE_LCID
-            int lcid = (int)m_siInfo.GetInt32("_CultureInfo");
-            if (lcid != -1)
-                _CultureInfo = new CultureInfo(lcid);
-#endif
-
-            _CodeBase = m_siInfo.GetString("_CodeBase");
-            _Version = (Version) m_siInfo.GetValue("_Version", typeof(Version));
-            _HashAlgorithm = (AssemblyHashAlgorithm) m_siInfo.GetValue("_HashAlgorithm", typeof(AssemblyHashAlgorithm));
-            _StrongNameKeyPair = (StrongNameKeyPair) m_siInfo.GetValue("_StrongNameKeyPair", typeof(StrongNameKeyPair));
-            _VersionCompatibility = (AssemblyVersionCompatibility)m_siInfo.GetValue("_VersionCompatibility", typeof(AssemblyVersionCompatibility));
-            _Flags = (AssemblyNameFlags) m_siInfo.GetValue("_Flags", typeof(AssemblyNameFlags));
-
-            try {
-                _HashAlgorithmForControl = (AssemblyHashAlgorithm) m_siInfo.GetValue("_HashAlgorithmForControl", typeof(AssemblyHashAlgorithm));
-                _HashForControl = (byte[]) m_siInfo.GetValue("_HashForControl", typeof(byte[]));    
-            }
-            catch (SerializationException) { // RTM did not have these defined
-                _HashAlgorithmForControl = AssemblyHashAlgorithm.None;
-                _HashForControl = null;
-            }
-
-            m_siInfo = null;
-        }
-
-        // Constructs a new AssemblyName during deserialization.
-        internal AssemblyName(SerializationInfo info, StreamingContext context)
-        {
-            //The graph is not valid until OnDeserialization() has been called.
-            m_siInfo = info; 
+            throw new PlatformNotSupportedException();
         }
 
         public AssemblyName(String assemblyName)
@@ -357,40 +313,40 @@ namespace System.Reflection {
             Contract.EndContractBlock();
             if ((assemblyName.Length == 0) ||
                 (assemblyName[0] == '\0'))
-                throw new ArgumentException(Environment.GetResourceString("Format_StringZeroLength"));
+                throw new ArgumentException(SR.Format_StringZeroLength);
 
             _Name = assemblyName;
             nInit();
         }
 
-        static public bool ReferenceMatchesDefinition(AssemblyName reference,
-                                                             AssemblyName definition)
+        /// <summary>
+        /// Compares the simple names disregarding Version, Culture and PKT. While this clearly does not
+        /// match the intent of this api, this api has been broken this way since its debut and we cannot
+        /// change its behavior now.
+        /// </summary>
+        public static bool ReferenceMatchesDefinition(AssemblyName reference, AssemblyName definition)
         {
-            // Optimization for common use case
-            if (Object.ReferenceEquals(reference, definition))
-            {
+            if (object.ReferenceEquals(reference, definition))
                 return true;
-            }
-            return ReferenceMatchesDefinitionInternal(reference, definition, true);
+
+            if (reference == null)
+                throw new ArgumentNullException(nameof(reference));
+
+            if (definition == null)
+                throw new ArgumentNullException(nameof(definition));
+
+            string refName = reference.Name ?? string.Empty;
+            string defName = definition.Name ?? string.Empty;
+            return refName.Equals(defName, StringComparison.OrdinalIgnoreCase);
         }
 
-        
-        /// "parse" tells us to parse the simple name of the assembly as if it was the full name
-        /// almost never the right thing to do, but needed for compat
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern bool ReferenceMatchesDefinitionInternal(AssemblyName reference,
-                                                                     AssemblyName definition,
-                                                                     bool parse);  
-
-
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern void nInit(out RuntimeAssembly assembly, bool forIntrospection, bool raiseResolveEvent);
+        internal extern void nInit(out RuntimeAssembly assembly, bool raiseResolveEvent);
 
         internal void nInit()
         {
             RuntimeAssembly dummy = null;
-            nInit(out dummy, false, false);
+            nInit(out dummy, false);
         }
 
         internal void SetProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm)
@@ -437,7 +393,7 @@ namespace System.Reflection {
             return ProcessorArchitecture.None;
         }
 
-        internal void Init(String name, 
+        internal void Init(String name,
                            byte[] publicKey,
                            byte[] publicKeyToken,
                            Version version,
@@ -450,18 +406,20 @@ namespace System.Reflection {
         {
             _Name = name;
 
-            if (publicKey != null) {
+            if (publicKey != null)
+            {
                 _PublicKey = new byte[publicKey.Length];
                 Array.Copy(publicKey, _PublicKey, publicKey.Length);
             }
-    
-            if (publicKeyToken != null) {
+
+            if (publicKeyToken != null)
+            {
                 _PublicKeyToken = new byte[publicKeyToken.Length];
                 Array.Copy(publicKeyToken, _PublicKeyToken, publicKeyToken.Length);
             }
-    
+
             if (version != null)
-                _Version = (Version) version.Clone();
+                _Version = (Version)version.Clone();
 
             _CultureInfo = cultureInfo;
             _HashAlgorithm = hashAlgorithm;
@@ -486,7 +444,7 @@ namespace System.Reflection {
         {
             if (codebase == null)
                 return string.Empty;
-                
+
             int position = 0;
             char[] dest = EscapeString(codebase, 0, codebase.Length, null, ref position, true, c_DummyChar, c_DummyChar, c_DummyChar);
             if (dest == null)
@@ -534,7 +492,7 @@ namespace System.Reflection {
                         {
                             // Should be a rare case where the app tries to feed an invalid Unicode surrogates pair
                             if (count == 1 || count == end - i)
-                                throw new FormatException(Environment.GetResourceString("Arg_FormatException"));
+                                throw new FormatException(SR.Arg_FormatException);
                             // need to grab one more char as a Surrogate except when it's a bogus input
                             ++count;
                         }
@@ -550,7 +508,7 @@ namespace System.Reflection {
                         // This is the only exception that built in UriParser can throw after a Uri ctor.
                         // Should not happen unless the app tries to feed an invalid Unicode String
                         if (numberOfBytes == 0)
-                            throw new FormatException(Environment.GetResourceString("Arg_FormatException"));
+                            throw new FormatException(SR.Arg_FormatException);
 
                         i += (count - 1);
 
@@ -626,7 +584,7 @@ namespace System.Reflection {
                 dest[destPos++] = pStr[prevInputPos++];
             return dest;
         }
-        
+
         internal static void EscapeAsciiChar(char ch, char[] to, ref int pos)
         {
             to[pos++] = '%';
@@ -663,7 +621,7 @@ namespace System.Reflection {
                         ? ((int)next - (int)'A')
                         : ((int)next - (int)'a'))
                        + 10)));
-        }       
+        }
 
         private static unsafe bool IsReservedUnreservedOrHash(char c)
         {
@@ -694,7 +652,7 @@ namespace System.Reflection {
         {
             return IsAsciiLetter(character) || (character >= '0' && character <= '9');
         }
-        
+
         private static readonly char[] s_hexUpperChars = {
                                    '0', '1', '2', '3', '4', '5', '6', '7',
                                    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
@@ -702,7 +660,7 @@ namespace System.Reflection {
         private const short c_MaxAsciiCharsReallocate = 40;
         private const short c_MaxUnicodeCharsReallocate = 40;
         private const short c_MaxUTF_8BytesPerUnicodeChar = 4;
-        private const short c_EncodedCharsPerByte = 3;     
+        private const short c_EncodedCharsPerByte = 3;
         private const string RFC3986ReservedMarks = @":/?#[]@!$&'()*+,;=";
         private const string RFC3986UnreservedMarks = @"-._~";
     }

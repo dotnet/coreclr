@@ -18,10 +18,8 @@
 #include "sigparser.h"
 #include "cor.h"
 #include "corinfo.h"
+#include "volatile.h"
 
-#ifndef FEATURE_CORECLR
-#include "metahost.h"
-#endif // !FEATURE_CORECLR
 
 const char g_RTMVersion[]= "v1.0.3705";
 
@@ -440,7 +438,7 @@ void InitCodeAllocHint(SIZE_T base, SIZE_T size, int randomPageOffset)
     }
 
     // Randomize the adddress space
-    pStart += PAGE_SIZE * randomPageOffset;
+    pStart += GetOsPageSize() * randomPageOffset;
 
     s_CodeAllocStart = pStart;
     s_CodeAllocHint = pStart;
@@ -554,6 +552,8 @@ LPVOID ClrVirtualAllocAligned(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocatio
 
 #else // !FEATURE_PAL
 
+    if(alignment < GetOsPageSize()) alignment = GetOsPageSize();
+
     // UNIXTODO: Add a specialized function to PAL so that we don't have to waste memory
     dwSize += alignment;
     SIZE_T addr = (SIZE_T)ClrVirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
@@ -576,7 +576,9 @@ static DWORD ShouldInjectFaultInRange()
 // Reserves free memory within the range [pMinAddr..pMaxAddr] using
 // ClrVirtualQuery to find free memory and ClrVirtualAlloc to reserve it.
 //
-// This method only supports the flAllocationType of MEM_RESERVE
+// This method only supports the flAllocationType of MEM_RESERVE, and expects that the memory
+// is being reserved for the purpose of eventually storing executable code.
+//
 // Callers also should set dwSize to a multiple of sysInfo.dwAllocationGranularity (64k).
 // That way they can reserve a large region and commit smaller sized pages
 // from that region until it fills up.  
@@ -606,6 +608,11 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     static unsigned countOfCalls = 0;  // We log the number of tims we call this method
     countOfCalls++;                    // increment the call counter
 
+    if (dwSize == 0)
+    {
+        return nullptr;
+    }
+
     //
     // First lets normalize the pMinAddr and pMaxAddr values
     //
@@ -621,18 +628,26 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
         pMaxAddr = (BYTE *) TOP_MEMORY;
     }
 
+    // If pMaxAddr is not greater than pMinAddr we can not make an allocation
+    if (pMaxAddr <= pMinAddr)
+    {
+        return nullptr;
+    }
+
     // If pMinAddr is BOT_MEMORY and pMaxAddr is TOP_MEMORY
     // then we can call ClrVirtualAlloc instead 
     if ((pMinAddr == (BYTE *) BOT_MEMORY) && (pMaxAddr == (BYTE *) TOP_MEMORY))
     {
-        return (BYTE*) ClrVirtualAlloc(NULL, dwSize, flAllocationType, flProtect);
+        return (BYTE*) ClrVirtualAlloc(nullptr, dwSize, flAllocationType, flProtect);
     }
 
-    // If pMaxAddr is not greater than pMinAddr we can not make an allocation
-    if (dwSize == 0 || pMaxAddr <= pMinAddr)
+#ifdef FEATURE_PAL
+    pResult = (BYTE *)PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(pMinAddr, pMaxAddr, dwSize);
+    if (pResult != nullptr)
     {
-        return NULL;
+        return pResult;
     }
+#endif // FEATURE_PAL
 
     // We will do one scan from [pMinAddr .. pMaxAddr]
     // First align the tryAddr up to next 64k base address. 
@@ -731,7 +746,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 //******************************************************************************
 // NumaNodeInfo 
 //******************************************************************************
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
 /*static*/ NumaNodeInfo::PGNHNN NumaNodeInfo::m_pGetNumaHighestNodeNumber = NULL;
 /*static*/ NumaNodeInfo::PVAExN NumaNodeInfo::m_pVirtualAllocExNuma = NULL;
 
@@ -751,15 +766,19 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 /*static*/ BOOL NumaNodeInfo::m_enableGCNumaAware = FALSE;
 /*static*/ BOOL NumaNodeInfo::InitNumaNodeInfoAPI()
 {
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
     //check for numa support if multiple heaps are used
     ULONG highest = 0;
 	
     if (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCNumaAware) == 0)
         return FALSE;
 
+#ifndef FEATURE_PAL
     // check if required APIs are supported
     HMODULE hMod = GetModuleHandleW(WINDOWS_KERNEL32_DLLNAME_W);
+#else
+    HMODULE hMod = GetCLRModule();
+#endif    
     if (hMod == NULL)
         return FALSE;
 
@@ -798,7 +817,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 //******************************************************************************
 // NumaNodeInfo 
 //******************************************************************************
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
 /*static*/ CPUGroupInfo::PGLPIEx CPUGroupInfo::m_pGetLogicalProcessorInformationEx = NULL;
 /*static*/ CPUGroupInfo::PSTGA   CPUGroupInfo::m_pSetThreadGroupAffinity = NULL;
 /*static*/ CPUGroupInfo::PGTGA   CPUGroupInfo::m_pGetThreadGroupAffinity = NULL;
@@ -851,8 +870,12 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
+#ifndef FEATURE_PAL    
     HMODULE hMod = GetModuleHandleW(WINDOWS_KERNEL32_DLLNAME_W);
+#else
+    HMODULE hMod = GetCLRModule();
+#endif
     if (hMod == NULL)
         return FALSE;
 
@@ -872,15 +895,38 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     if (m_pGetCurrentProcessorNumberEx == NULL)
         return FALSE;
 
+#ifndef FEATURE_PAL    
     m_pGetSystemTimes = (PGST)GetProcAddress(hMod, "GetSystemTimes");
     if (m_pGetSystemTimes == NULL)
         return FALSE;
-
+#endif
+    
     return TRUE;
 #else
     return FALSE;
 #endif
 }
+
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
+// Calculate greatest common divisor
+DWORD GCD(DWORD u, DWORD v)
+{
+    while (v != 0)
+    {
+        DWORD dwTemp = v;
+        v = u % v;
+        u = dwTemp;
+    }
+
+    return u;
+}
+
+// Calculate least common multiple
+DWORD LCM(DWORD u, DWORD v)
+{
+    return u / GCD(u, v) * v;
+}
+#endif
 
 /*static*/ BOOL CPUGroupInfo::InitCPUGroupInfoArray()
 {
@@ -892,7 +938,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     BYTE *bBuffer = NULL;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *pSLPIEx = NULL;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *pRecord = NULL;
@@ -943,11 +989,13 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
         m_CPUGroupInfoArray[i].nr_active   = (WORD)pRecord->Group.GroupInfo[i].ActiveProcessorCount;
         m_CPUGroupInfoArray[i].active_mask = pRecord->Group.GroupInfo[i].ActiveProcessorMask;
         m_nProcessors += m_CPUGroupInfoArray[i].nr_active;
-        dwWeight *= (DWORD)m_CPUGroupInfoArray[i].nr_active;
+        dwWeight = LCM(dwWeight, (DWORD)m_CPUGroupInfoArray[i].nr_active);
     }
 
-    //NOTE: the weight setting should work fine with 4 CPU groups upto 64 LPs each. the minimum number of threads
-    //     per group before the weight overflow is 2^32/(2^6x2^6x2^6) = 2^14 (i.e. 16K threads)
+    // The number of threads per group that can be supported will depend on the number of CPU groups
+    // and the number of LPs within each processor group. For example, when the number of LPs in
+    // CPU groups is the same and is 64, the number of threads per group before weight overflow
+    // would be 2^32/2^6 = 2^26 (64M threads)
     for (DWORD i = 0; i < m_nGroups; i++)
     {
         m_CPUGroupInfoArray[i].groupWeight = dwWeight / (DWORD)m_CPUGroupInfoArray[i].nr_active;
@@ -965,7 +1013,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 {
     LIMITED_METHOD_CONTRACT;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     WORD begin   = 0;
     WORD nr_proc = 0;
 
@@ -992,7 +1040,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     BOOL enableGCCPUGroups     = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCCpuGroup) != 0;
     BOOL threadUseAllCpuGroups = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_Thread_UseAllCpuGroups) != 0;
 
@@ -1017,7 +1065,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 	BOOL hasMultipleGroups = m_nGroups > 1;
 	m_enableGCCPUGroups = enableGCCPUGroups && hasMultipleGroups;
 	m_threadUseAllCpuGroups = threadUseAllCpuGroups && hasMultipleGroups;
-#endif // _TARGET_AMD64_
+#endif // _TARGET_AMD64_ || _TARGET_ARM64_
 }
 
 /*static*/ BOOL CPUGroupInfo::IsInitialized()
@@ -1075,7 +1123,7 @@ retry:
 {
     LIMITED_METHOD_CONTRACT;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     WORD bTemp = 0;
     WORD bDiff = processor_number - bTemp;
 
@@ -1106,7 +1154,7 @@ retry:
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     // m_enableGCCPUGroups and m_threadUseAllCpuGroups must be TRUE
     _ASSERTE(m_enableGCCPUGroups && m_threadUseAllCpuGroups);
 
@@ -1127,7 +1175,7 @@ retry:
 #endif
 }
 
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
 //Lock ThreadStore before calling this function, so that updates of weights/counts are consistent
 /*static*/ void CPUGroupInfo::ChooseCPUGroupAffinity(GROUP_AFFINITY *gf)
 {
@@ -1138,7 +1186,7 @@ retry:
     }
     CONTRACTL_END;
 
-#if defined(_TARGET_AMD64_)
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     WORD i, minGroup = 0;
     DWORD minWeight = 0;
 
@@ -1181,7 +1229,7 @@ found:
 /*static*/ void CPUGroupInfo::ClearCPUGroupAffinity(GROUP_AFFINITY *gf)
 {
     LIMITED_METHOD_CONTRACT;
-#if defined(_TARGET_AMD64_)
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     // m_enableGCCPUGroups and m_threadUseAllCpuGroups must be TRUE
     _ASSERTE(m_enableGCCPUGroups && m_threadUseAllCpuGroups);
 
@@ -1206,9 +1254,6 @@ found:
 //******************************************************************************
 // Returns the number of processors that a process has been configured to run on
 //******************************************************************************
-//******************************************************************************
-// Returns the number of processors that a process has been configured to run on
-//******************************************************************************
 int GetCurrentProcessCpuCount()
 {
     CONTRACTL
@@ -1224,49 +1269,44 @@ int GetCurrentProcessCpuCount()
     if (cCPUs != 0)
         return cCPUs;
 
-#ifndef FEATURE_PAL
-
+    int count = 0;
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
-        return 1;
-
-    if (pmask == 1)
-        return 1;
-
-    pmask &= smask;
-        
-    int count = 0;
-    while (pmask)
     {
-        if (pmask & 1)
-            count++;
-                
-        pmask >>= 1;
+        count = 1;
     }
-        
-    // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
-    // than 64 processors, which would leave us with a count of 0.  Since the GC
-    // expects there to be at least one processor to run on (and thus at least one
-    // heap), we'll return 64 here if count is 0, since there are likely a ton of
-    // processors available in that case.  The GC also cannot (currently) handle
-    // the case where there are more than 64 processors, so we will return a
-    // maximum of 64 here.
-    if (count == 0 || count > 64)
-        count = 64;
+    else
+    {
+        pmask &= smask;
+
+        while (pmask)
+        {
+            pmask &= (pmask - 1);
+            count++;
+        }
+
+        // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
+        // than 64 processors, which would leave us with a count of 0.  Since the GC
+        // expects there to be at least one processor to run on (and thus at least one
+        // heap), we'll return 64 here if count is 0, since there are likely a ton of
+        // processors available in that case.  The GC also cannot (currently) handle
+        // the case where there are more than 64 processors, so we will return a
+        // maximum of 64 here.
+        if (count == 0 || count > 64)
+            count = 64;
+    }
+
+#ifdef FEATURE_PAL
+    uint32_t cpuLimit;
+
+    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < count)
+        count = cpuLimit;
+#endif
 
     cCPUs = count;
-            
+
     return count;
-
-#else // !FEATURE_PAL
-
-    SYSTEM_INFO sysInfo;
-    ::GetSystemInfo(&sysInfo);
-    cCPUs = sysInfo.dwNumberOfProcessors;
-    return sysInfo.dwNumberOfProcessors;
-
-#endif // !FEATURE_PAL
 }
 
 DWORD_PTR GetCurrentProcessCpuMask()
@@ -1289,6 +1329,36 @@ DWORD_PTR GetCurrentProcessCpuMask()
     return pmask;
 #else
     return 0;
+#endif
+}
+
+uint32_t GetOsPageSizeUncached()
+{
+    SYSTEM_INFO sysInfo;
+    ::GetSystemInfo(&sysInfo);
+    return sysInfo.dwAllocationGranularity ? sysInfo.dwAllocationGranularity : 0x1000;
+}
+
+namespace
+{
+    Volatile<uint32_t> g_pageSize = 0;
+}
+
+uint32_t GetOsPageSize()
+{
+#ifdef FEATURE_PAL
+    size_t result = g_pageSize.LoadWithoutBarrier();
+
+    if(!result)
+    {
+        result = GetOsPageSizeUncached();
+
+        g_pageSize.StoreWithoutBarrier(result);
+    }
+
+    return result;
+#else
+    return 0x1000;
 #endif
 }
 
@@ -3322,114 +3392,6 @@ BOOL FileExists(LPCWSTR filename)
     return TRUE;                
 }
 
-#ifndef FEATURE_CORECLR
-// Current users for FileLock are ngen and ngen service
-
-FileLockHolder::FileLockHolder()
-{
-    _hLock = INVALID_HANDLE_VALUE;
-}
-    
-FileLockHolder::~FileLockHolder()
-{
-    Release();
-}
-
-// the amount of time we want to wait
-#define FILE_LOCK_RETRY_TIME 100
-
-void FileLockHolder::Acquire(LPCWSTR lockName, HANDLE hInterrupt, BOOL* pInterrupted)
-{
-    WRAPPER_NO_CONTRACT;
-
-    DWORD dwErr = 0;
-    DWORD dwAccessDeniedRetry = 0;
-    const DWORD MAX_ACCESS_DENIED_RETRIES = 10;
-
-    if (pInterrupted)
-    {
-        *pInterrupted = FALSE;
-    }
-
-    _ASSERTE(_hLock == INVALID_HANDLE_VALUE);
-
-    for (;;) {
-        _hLock = WszCreateFile(lockName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_FLAG_DELETE_ON_CLOSE, NULL);
-        if (_hLock != INVALID_HANDLE_VALUE) {
-            return; 
-        }
-
-        dwErr = GetLastError();
-        // Logically we should only expect ERROR_SHARING_VIOLATION, but Windows can also return
-        // ERROR_ACCESS_DENIED for underlying NtStatus DELETE_PENDING.  That happens when another process
-        // (gacutil.exe or indexer) have the file opened.  Unfortunately there is no public API that would
-        // allow us to detect this NtStatus and distinguish it from 'real' access denied (candidates are
-        // RtlGetLastNtStatus that is not documented on MSDN and NtCreateFile that is internal and can change
-        // at any time), so we retry on access denied, but only for a limited number of times.
-        if (dwErr == ERROR_SHARING_VIOLATION ||
-            (dwErr == ERROR_ACCESS_DENIED && ++dwAccessDeniedRetry <= MAX_ACCESS_DENIED_RETRIES))
-        {
-            // Somebody is holding the lock. Let's sleep, and come back again.
-            if (hInterrupt)
-            {
-                _ASSERTE(pInterrupted && 
-                    "If you can be interrupted, you better want to know if you actually were interrupted");
-                if (WaitForSingleObject(hInterrupt, FILE_LOCK_RETRY_TIME) == WAIT_OBJECT_0)
-                {
-                      if (pInterrupted)
-                      {
-                        *pInterrupted = TRUE;
-                      }
-
-                      // We've been interrupted, so return without acquiring
-                      return;
-                }
-            }
-            else
-            {
-                ClrSleepEx(FILE_LOCK_RETRY_TIME, FALSE);
-            }
-        }
-        else {
-            ThrowHR(HRESULT_FROM_WIN32(dwErr));
-        }
-    }
-}
-
-
-HRESULT FileLockHolder::AcquireNoThrow(LPCWSTR lockName, HANDLE hInterrupt, BOOL* pInterrupted)
-{
-    HRESULT hr = S_OK;
-    
-    EX_TRY
-    {
-        Acquire(lockName, hInterrupt, pInterrupted);
-    }
-    EX_CATCH_HRESULT(hr);
-
-    return hr;
-}
-
-BOOL FileLockHolder::IsTaken(LPCWSTR lockName)
-{
-    
-    // We don't want to do an acquire the lock to know if its taken, so we want to see if the file
-    // exists. However, in situations like unplugging a machine, a DELETE_ON_CLOSE still leaves the file
-    // around. We try to delete it here. If the lock is acquired, DeleteFile will fail, as the file is
-    // not opened with SHARE_DELETE.
-    WszDeleteFile(lockName);
-
-    return FileExists(lockName);
-}
-
-void FileLockHolder::Release()
-{
-    if (_hLock != INVALID_HANDLE_VALUE) {
-        CloseHandle(_hLock);
-        _hLock = INVALID_HANDLE_VALUE;
-    }
-}
-#endif // FEATURE_CORECLR
 
 //======================================================================
 // This function returns true, if it can determine that the instruction pointer
@@ -3587,59 +3549,6 @@ RUNTIMEVERSIONINFO RUNTIMEVERSIONINFO::notDefined;
 
 BOOL IsV2RuntimeLoaded(void)
 {
-#ifndef FEATURE_CORECLR
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        CANNOT_TAKE_LOCK;
-    }
-    CONTRACTL_END;
-
-    ReleaseHolder<ICLRMetaHost>    pMetaHost(NULL);
-    ReleaseHolder<IEnumUnknown>    pEnum(NULL);
-    ReleaseHolder<IUnknown>        pUnk(NULL);
-    ReleaseHolder<ICLRRuntimeInfo> pRuntime(NULL);
-    HRESULT hr;
-
-    HModuleHolder hModule = WszLoadLibrary(MSCOREE_SHIM_W);
-    if (hModule == NULL)
-        return FALSE;
-
-    CLRCreateInstanceFnPtr pfnCLRCreateInstance = (CLRCreateInstanceFnPtr)::GetProcAddress(hModule, "CLRCreateInstance");
-    if (pfnCLRCreateInstance == NULL)
-        return FALSE;
-
-    hr = (*pfnCLRCreateInstance)(CLSID_CLRMetaHost, IID_ICLRMetaHost, (LPVOID *)&pMetaHost);
-    if (FAILED(hr))
-        return FALSE;
-
-    hr = pMetaHost->EnumerateLoadedRuntimes(GetCurrentProcess(), &pEnum);
-    if (FAILED(hr))
-        return FALSE;
-
-    while (pEnum->Next(1, &pUnk, NULL) == S_OK)
-    {
-        hr = pUnk->QueryInterface(IID_ICLRRuntimeInfo, (void **)&pRuntime);
-        if (FAILED(hr))
-            continue;
-
-        WCHAR wszVersion[30];
-        DWORD cchVersion = _countof(wszVersion);
-        hr = pRuntime->GetVersionString(wszVersion, &cchVersion);
-        if (FAILED(hr))
-            continue;
-
-        // Is it a V2 runtime?
-        if ((cchVersion < 3) || 
-            ((wszVersion[0] != W('v')) && (wszVersion[0] != W('V'))) || 
-            (wszVersion[1] != W('2')) || 
-            (wszVersion[2] != W('.')))
-            continue;
-
-        return TRUE;
-    }
-#endif //  FEATURE_CORECLR
 
     return FALSE;
 }
@@ -3650,11 +3559,6 @@ BOOL IsClrHostedLegacyComObject(REFCLSID rclsid)
     // let's simply check for all CLSIDs that are known to be runtime implemented and capped to 2.0
     return (
             rclsid == CLSID_ComCallUnmarshal ||
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-            rclsid == CLSID_CorRuntimeHost ||
-            rclsid == CLSID_CLRRuntimeHost ||
-            rclsid == CLSID_CLRProfiling ||
-#endif
             rclsid == CLSID_CorMetaDataDispenser ||
             rclsid == CLSID_CorMetaDataDispenserRuntime ||
             rclsid == CLSID_TypeNameFactory);
@@ -3663,54 +3567,6 @@ BOOL IsClrHostedLegacyComObject(REFCLSID rclsid)
 
 
 
-#if !defined(FEATURE_CORECLR) && !defined(SELF_NO_HOST) && !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
-
-namespace UtilCode
-{
-
-#pragma warning(push)
-#pragma warning(disable:4996) // For use of deprecated LoadLibraryShim
-
-    // When a NULL version is passed to LoadLibraryShim, this told the shim to bind the already-loaded
-    // runtime or to the latest runtime. In hosted environments, we already know a runtime (or two) is
-    // loaded, and since we are no longer guaranteed that a call to mscoree!LoadLibraryShim with a NULL
-    // version will return the correct runtime, this code uses the ClrCallbacks infrastructure
-    // available to get the ICLRRuntimeInfo for the runtime in which this code is hosted, and then
-    // calls ICLRRuntimeInfo::LoadLibrary to make sure that the load occurs within the context of the
-    // correct runtime.
-    HRESULT LoadLibraryShim(LPCWSTR szDllName, LPCWSTR szVersion, LPVOID pvReserved, HMODULE *phModDll)
-    {
-        HRESULT hr = S_OK;
-
-        if (szVersion != NULL)
-        {   // If a version is provided, then we just fall back to the legacy function to allow
-            // it to construct the explicit path and load from that location.
-            //@TODO: Can we verify that all callers of LoadLibraryShim in hosted environments always pass null and eliminate this code?
-            return ::LoadLibraryShim(szDllName, szVersion, pvReserved, phModDll);
-        }
-
-        //
-        // szVersion is NULL, which means we should load the DLL from the hosted environment's directory.
-        //
-
-        typedef ICLRRuntimeInfo *GetCLRRuntime_t();
-        GetCLRRuntime_t *pfnGetCLRRuntime =
-            reinterpret_cast<GetCLRRuntime_t *>((*GetClrCallbacks().m_pfnGetCLRFunction)("GetCLRRuntime"));
-        if (pfnGetCLRRuntime == NULL)
-            return E_UNEXPECTED;
-
-        ICLRRuntimeInfo* pRI = (*pfnGetCLRRuntime)();
-        if (pRI == NULL)
-            return E_UNEXPECTED;
-
-        return pRI->LoadLibrary(szDllName, phModDll);
-    }
-
-#pragma warning(pop)
-
-}
-
-#endif //!FEATURE_CORECLR && !SELF_NO_HOST && !FEATURE_UTILCODE_NO_DEPENDENCIES
 
 namespace Clr
 {

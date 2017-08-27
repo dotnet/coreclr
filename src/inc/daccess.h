@@ -602,14 +602,10 @@ typedef struct _DacGlobals
 #ifdef FEATURE_PAL
     static void Initialize();
     void InitializeEntries(TADDR baseAddress);
-#ifdef FEATURE_SVR_GC
-    void InitializeSVREntries(TADDR baseAddress);
-#endif // FEATURE_SVR_GC
 #endif // FEATURE_PAL
 
 // These will define all of the dac related mscorwks static and global variables    
 #define DEFINE_DACVAR(id_type, size, id, var)                 id_type id;
-#define DEFINE_DACVAR_SVR(id_type, size, id, var)             id_type id;
 #define DEFINE_DACVAR_NO_DUMP(id_type, size, id, var)         id_type id;
 #include "dacvars.h"
 
@@ -617,6 +613,11 @@ typedef struct _DacGlobals
     ULONG fn__ThreadpoolMgr__AsyncTimerCallbackCompletion;
     ULONG fn__DACNotifyCompilationFinished;
     ULONG fn__ThePreStub;
+
+#ifdef _TARGET_ARM_
+    ULONG fn__ThePreStubCompactARM;
+#endif // _TARGET_ARM_
+
     ULONG fn__ThePreStubPatchLabel;
     ULONG fn__PrecodeFixupThunk;
     ULONG fn__StubDispatchFixupStub;
@@ -2345,6 +2346,7 @@ typedef ArrayDPTR(signed char) PTR_SBYTE;
 typedef ArrayDPTR(const BYTE) PTR_CBYTE;
 typedef DPTR(INT8)    PTR_INT8;
 typedef DPTR(INT16)   PTR_INT16;
+typedef DPTR(UINT16)  PTR_UINT16;
 typedef DPTR(WORD)    PTR_WORD;
 typedef DPTR(USHORT)  PTR_USHORT;
 typedef DPTR(DWORD)   PTR_DWORD;
@@ -2391,6 +2393,10 @@ typedef DPTR(IMAGE_TLS_DIRECTORY)   PTR_IMAGE_TLS_DIRECTORY;
 #include <corhdr.h>
 #include <clrdata.h>
 #include <xclrdata.h>
+#endif
+
+#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
+typedef DPTR(struct _UNWIND_INFO)      PTR_UNWIND_INFO;
 #endif
 
 #ifdef _WIN64
@@ -2445,13 +2451,8 @@ typedef DPTR(PTR_PCODE) PTR_PTR_PCODE;
 #endif
 
 // Macros like MAIN_CLR_MODULE_NAME* for the DAC module
-#ifdef FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
 #define MAIN_DAC_MODULE_NAME_W  W("mscordaccore")
 #define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordaccore.dll")
-#else
-#define MAIN_DAC_MODULE_NAME_W  W("mscordacwks")
-#define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordacwks.dll")
-#endif
 
 // TARGET_CONSISTENCY_CHECK represents a condition that should not fail unless the DAC target is corrupt. 
 // This is in contrast to ASSERTs in DAC infrastructure code which shouldn't fail regardless of the memory

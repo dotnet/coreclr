@@ -22,7 +22,7 @@
 //
 // TypeNameFactory
 //
-HRESULT __stdcall TypeNameFactory::QueryInterface(REFIID riid, void **ppUnk)
+HRESULT STDMETHODCALLTYPE TypeNameFactory::QueryInterface(REFIID riid, void **ppUnk)
 {
     WRAPPER_NO_CONTRACT;
     
@@ -64,7 +64,7 @@ HRESULT TypeNameFactoryCreateObject(REFIID riid, void **ppUnk)
 }
 
 
-HRESULT __stdcall TypeNameFactory::ParseTypeName(LPCWSTR szTypeName, DWORD* pError, ITypeName** ppTypeName)
+HRESULT STDMETHODCALLTYPE TypeNameFactory::ParseTypeName(LPCWSTR szTypeName, DWORD* pError, ITypeName** ppTypeName)
 {
     CONTRACTL
     {
@@ -107,7 +107,7 @@ HRESULT __stdcall TypeNameFactory::ParseTypeName(LPCWSTR szTypeName, DWORD* pErr
     return hr;
 }
 
-HRESULT __stdcall TypeNameFactory::GetTypeNameBuilder(ITypeNameBuilder** ppTypeNameBuilder)
+HRESULT STDMETHODCALLTYPE TypeNameFactory::GetTypeNameBuilder(ITypeNameBuilder** ppTypeNameBuilder)
 {
     CONTRACTL
     {
@@ -166,7 +166,7 @@ SString* TypeName::ToString(SString* pBuf, BOOL bAssemblySpec, BOOL bSignature, 
 }
 
 
-DWORD __stdcall TypeName::AddRef() 
+DWORD STDMETHODCALLTYPE TypeName::AddRef()
 { 
     LIMITED_METHOD_CONTRACT; 
 
@@ -175,7 +175,7 @@ DWORD __stdcall TypeName::AddRef()
     return m_count; 
 }
 
-DWORD __stdcall TypeName::Release() 
+DWORD STDMETHODCALLTYPE TypeName::Release()
 { 
     CONTRACTL
     {
@@ -210,7 +210,7 @@ TypeName::~TypeName()
         m_genericArguments[i]->Release();
 }
 
-HRESULT __stdcall TypeName::QueryInterface(REFIID riid, void **ppUnk)
+HRESULT STDMETHODCALLTYPE TypeName::QueryInterface(REFIID riid, void **ppUnk)
 {
     WRAPPER_NO_CONTRACT;
     
@@ -227,7 +227,7 @@ HRESULT __stdcall TypeName::QueryInterface(REFIID riid, void **ppUnk)
     return S_OK;
 }
 
-HRESULT __stdcall TypeName::GetNameCount(DWORD* pCount)
+HRESULT STDMETHODCALLTYPE TypeName::GetNameCount(DWORD* pCount)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -239,7 +239,7 @@ HRESULT __stdcall TypeName::GetNameCount(DWORD* pCount)
     return S_OK;
 }
 
-HRESULT __stdcall TypeName::GetNames(DWORD count, BSTR* bszName, DWORD* pFetched)
+HRESULT STDMETHODCALLTYPE TypeName::GetNames(DWORD count, BSTR* bszName, DWORD* pFetched)
 {
     CONTRACTL
     {
@@ -270,7 +270,7 @@ HRESULT __stdcall TypeName::GetNames(DWORD count, BSTR* bszName, DWORD* pFetched
     return hr;
 }
 
-HRESULT __stdcall TypeName::GetTypeArgumentCount(DWORD* pCount)
+HRESULT STDMETHODCALLTYPE TypeName::GetTypeArgumentCount(DWORD* pCount)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -282,7 +282,7 @@ HRESULT __stdcall TypeName::GetTypeArgumentCount(DWORD* pCount)
     return S_OK;
 }
 
-HRESULT __stdcall TypeName::GetTypeArguments(DWORD count, ITypeName** ppArguments, DWORD* pFetched)
+HRESULT STDMETHODCALLTYPE TypeName::GetTypeArguments(DWORD count, ITypeName** ppArguments, DWORD* pFetched)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -306,7 +306,7 @@ HRESULT __stdcall TypeName::GetTypeArguments(DWORD count, ITypeName** ppArgument
     return S_OK;
 }
 
-HRESULT __stdcall TypeName::GetModifierLength(DWORD* pCount)
+HRESULT STDMETHODCALLTYPE TypeName::GetModifierLength(DWORD* pCount)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -318,7 +318,7 @@ HRESULT __stdcall TypeName::GetModifierLength(DWORD* pCount)
     return S_OK;
 }
 
-HRESULT __stdcall TypeName::GetModifiers(DWORD count, DWORD* pModifiers, DWORD* pFetched)
+HRESULT STDMETHODCALLTYPE TypeName::GetModifiers(DWORD count, DWORD* pModifiers, DWORD* pFetched)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -339,7 +339,7 @@ HRESULT __stdcall TypeName::GetModifiers(DWORD count, DWORD* pModifiers, DWORD* 
     return S_OK;
 }
 
-HRESULT __stdcall TypeName::GetAssemblyName(BSTR* pszAssemblyName)
+HRESULT STDMETHODCALLTYPE TypeName::GetAssemblyName(BSTR* pszAssemblyName)
 {
     CONTRACTL
     {
@@ -1570,15 +1570,6 @@ TypeHandle TypeName::GetTypeFromAsm(BOOL bForIntrospection)
         _ASSERTE(!"You must pass either a asm-qualified typename or an actual Assembly.");
     }
 
-#ifdef FEATURE_FUSION
-    if (th.IsNull() && bLoadTypeFromPartialNameHack && GetAssembly() && !GetAssembly()->IsEmpty())
-    {
-        DomainAssembly* pPartialBindAssemblyHack = LoadAssemblyFromPartialNameHack(GetAssembly());
-
-        if (pPartialBindAssemblyHack)
-            th = GetTypeHaveAssembly(pPartialBindAssemblyHack->GetAssembly(), bThrowIfNotFound, bIgnoreCase, NULL);
-    }
-#endif // FEATURE_FUSION
 
     if (!th.IsNull() && (!m_genericArguments.IsEmpty() || !m_signature.IsEmpty()))
     {
@@ -1819,46 +1810,6 @@ TypeName::GetTypeHaveAssemblyHelper(
     return th;
 } // TypeName::GetTypeHaveAssemblyHelper
 
-#ifdef FEATURE_FUSION
-DomainAssembly* LoadAssemblyFromPartialNameHack(SString* psszAssemblySpec, BOOL fCropPublicKey)
-{
-    CONTRACTL
-    {
-        MODE_COOPERATIVE;
-        THROWS;
-        GC_TRIGGERS;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-    
-    MethodDescCallSite loadWithPartialNameHack(METHOD__ASSEMBLY__LOAD_WITH_PARTIAL_NAME_HACK);   
-    ARG_SLOT args[2];
-    STRINGREF mszAssembly = NULL;
-    DomainAssembly* pPartialBindAssemblyHack = NULL;
-    GCPROTECT_BEGIN(mszAssembly);
-    {
-        mszAssembly = StringObject::NewString(psszAssemblySpec->GetUnicode());
-        args[0] = ObjToArgSlot(mszAssembly);
-        args[1] = BoolToArgSlot(fCropPublicKey);
-
-        ASSEMBLYREF assembly = (ASSEMBLYREF)loadWithPartialNameHack.Call_RetOBJECTREF(args);
-        
-        if (assembly != NULL)
-        {
-            pPartialBindAssemblyHack = (DomainAssembly*) assembly->GetDomainAssembly();
-
-            if (pPartialBindAssemblyHack->GetAssembly()->IsCollectible())
-            {
-                // Should not be possible to reach
-                COMPlusThrow(kNotSupportedException, W("NotSupported_CollectibleAssemblyResolve"));
-            }
-        }
-    }
-    GCPROTECT_END();
-
-    return pPartialBindAssemblyHack;
-}
-#endif // FEATURE_FUSION
 
 DomainAssembly * LoadDomainAssembly(
     SString *  psszAssemblySpec, 
@@ -1902,7 +1853,6 @@ DomainAssembly * LoadDomainAssembly(
         spec.SetParentAssembly(pRequestingAssembly->GetDomainAssembly());
     }
     
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)    
     // If the requesting assembly has Fallback LoadContext binder available,
     // then set it up in the AssemblySpec.
     if (pRequestingAssembly != NULL)
@@ -1910,7 +1860,6 @@ DomainAssembly * LoadDomainAssembly(
         PEFile *pRequestingAssemblyManifestFile = pRequestingAssembly->GetManifestFile();
         spec.SetFallbackLoadContextBinderForRequestingAssembly(pRequestingAssemblyManifestFile->GetFallbackLoadContextBinder());
     }
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 
     if (bThrowIfNotFound)
     {

@@ -21,9 +21,6 @@
 #include "eeconfig.h" // This is here even for retail & free builds...
 #include "../../dlls/mscorrc/resource.h"
 
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 #include "context.h"
 #include "vars.hpp"
@@ -1562,22 +1559,7 @@ void ResolveFuncEvalGenericArgInfo(DebuggerEval *pDE)
     
     // We better have a MethodDesc at this point.
     _ASSERTE(pDE->m_md != NULL);
-    
-    IMDInternalImport *pInternalImport = pDE->m_md->GetMDImport();
-    DWORD dwAttr;
-    if (FAILED(pInternalImport->GetMethodDefProps(pDE->m_methodToken, &dwAttr)))
-    {
-        COMPlusThrow(kArgumentException, W("Argument_InvalidGenericArg"));
-    }
-    
-    if (dwAttr & mdRequireSecObject)
-    {
-        // command window cannot evaluate a function with mdRequireSecObject is turned on because
-        // this is expecting to put a security object into caller's frame which we don't have.
-        //
-        COMPlusThrow(kArgumentException,W("Argument_CantCallSecObjFunc"));
-    }
-    
+
     ValidateFuncEvalReturnType(pDE->m_evalType , pDE->m_md->GetMethodTable());
     
     // If this is a new object operation, then we should have a .ctor.

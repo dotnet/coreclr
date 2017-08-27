@@ -35,6 +35,10 @@
 // disabled. Server GC is off by default.
 static const char* serverGcVar = "CORECLR_SERVER_GC";
 
+// Name of environment variable to control "System.Globalization.Invariant"
+// Set to 1 for Globalization Invariant mode to be true. Default is false.
+static const char* globalizationInvariantVar = "CORECLR_GLOBAL_INVARIANT";
+
 #if defined(__linux__)
 #define symlinkEntrypointExecutable "/proc/self/exe"
 #elif !defined(__APPLE__)
@@ -49,21 +53,7 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
 
     // Get path to the executable for the current process using
     // platform specific means.
-#if defined(__linux__) || (defined(__NetBSD__) && !defined(KERN_PROC_PATHNAME))
-    // On Linux, fetch the entry point EXE absolute path, inclusive of filename.
-    char exe[PATH_MAX];
-    ssize_t res = readlink(symlinkEntrypointExecutable, exe, PATH_MAX - 1);
-    if (res != -1)
-    {
-        exe[res] = '\0';
-        entrypointExecutable.assign(exe);
-        result = true;
-    }
-    else
-    {
-        result = false;
-    }
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
     
     // On Mac, we ask the OS for the absolute path to the entrypoint executable
     uint32_t lenActualPath = 0;
@@ -115,10 +105,9 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
         result = false;
     }
 #else
-    // On non-Mac OS, return the symlink that will be resolved by GetAbsolutePath
+    // On other OSs, return the symlink that will be resolved by GetAbsolutePath
     // to fetch the entrypoint EXE absolute path, inclusive of filename.
-    entrypointExecutable.assign(symlinkEntrypointExecutable);
-    result = true;
+    result = GetAbsolutePath(symlinkEntrypointExecutable, entrypointExecutable);
 #endif 
 
     return result;
@@ -275,6 +264,17 @@ void AddFilesFromDirectoryToTpaList(const char* directory, std::string& tpaList)
     closedir(dir);
 }
 
+const char* GetEnvValueBoolean(const char* envVariable)
+{
+    const char* envValue = std::getenv(envVariable);
+    if (envValue == nullptr)
+    {
+        envValue = "0";
+    }
+    // CoreCLR expects strings "true" and "false" instead of "1" and "0".
+    return (std::strcmp(envValue, "1") == 0 || strcasecmp(envValue, "true") == 0) ? "true" : "false";
+}
+
 int ExecuteManagedAssembly(
             const char* currentExeAbsolutePath,
             const char* clrFilesAbsolutePath,
@@ -314,6 +314,15 @@ int ExecuteManagedAssembly(
     GetDirectory(managedAssemblyAbsolutePath, appPath);
 
     std::string tpaList;
+    if (strlen(managedAssemblyAbsolutePath) > 0)
+    {
+        // Target assembly should be added to the tpa list. Otherwise corerun.exe
+        // may find wrong assembly to execute.
+        // Details can be found at https://github.com/dotnet/coreclr/issues/5631
+        tpaList = managedAssemblyAbsolutePath;
+        tpaList.append(":");
+    }
+
     // Construct native search directory paths
     std::string nativeDllSearchDirs(appPath);
     char *coreLibraries = getenv("CORE_LIBRARIES");
@@ -326,6 +335,7 @@ int ExecuteManagedAssembly(
             AddFilesFromDirectoryToTpaList(coreLibraries, tpaList);
         }
     }
+
     nativeDllSearchDirs.append(":");
     nativeDllSearchDirs.append(clrFilesAbsolutePath);
 
@@ -336,7 +346,7 @@ int ExecuteManagedAssembly(
     {
         coreclr_initialize_ptr initializeCoreCLR = (coreclr_initialize_ptr)dlsym(coreclrLib, "coreclr_initialize");
         coreclr_execute_assembly_ptr executeAssembly = (coreclr_execute_assembly_ptr)dlsym(coreclrLib, "coreclr_execute_assembly");
-        coreclr_shutdown_ptr shutdownCoreCLR = (coreclr_shutdown_ptr)dlsym(coreclrLib, "coreclr_shutdown");
+        coreclr_shutdown_2_ptr shutdownCoreCLR = (coreclr_shutdown_2_ptr)dlsym(coreclrLib, "coreclr_shutdown_2");
 
         if (initializeCoreCLR == nullptr)
         {
@@ -348,19 +358,15 @@ int ExecuteManagedAssembly(
         }
         else if (shutdownCoreCLR == nullptr)
         {
-            fprintf(stderr, "Function coreclr_shutdown not found in the libcoreclr.so\n");
+            fprintf(stderr, "Function coreclr_shutdown_2 not found in the libcoreclr.so\n");
         }
         else
         {
             // Check whether we are enabling server GC (off by default)
-            const char* useServerGc = std::getenv(serverGcVar);
-            if (useServerGc == nullptr)
-            {
-                useServerGc = "0";
-            }
+            const char* useServerGc = GetEnvValueBoolean(serverGcVar);
 
-            // CoreCLR expects strings "true" and "false" instead of "1" and "0".
-            useServerGc = std::strcmp(useServerGc, "1") == 0 ? "true" : "false";
+            // Check Globalization Invariant mode (false by default)
+            const char* globalizationInvariant = GetEnvValueBoolean(globalizationInvariantVar);
 
             // Allowed property names:
             // APPBASE
@@ -384,6 +390,7 @@ int ExecuteManagedAssembly(
                 "APP_NI_PATHS",
                 "NATIVE_DLL_SEARCH_DIRECTORIES",
                 "System.GC.Server",
+                "System.Globalization.Invariant",
             };
             const char *propertyValues[] = {
                 // TRUSTED_PLATFORM_ASSEMBLIES
@@ -396,6 +403,8 @@ int ExecuteManagedAssembly(
                 nativeDllSearchDirs.c_str(),
                 // System.GC.Server
                 useServerGc,
+                // System.Globalization.Invariant
+                globalizationInvariant,
             };
 
             void* hostHandle;
@@ -431,11 +440,17 @@ int ExecuteManagedAssembly(
                     exitCode = -1;
                 }
 
-                st = shutdownCoreCLR(hostHandle, domainId);
+                int latchedExitCode = 0;
+                st = shutdownCoreCLR(hostHandle, domainId, &latchedExitCode);
                 if (!SUCCEEDED(st))
                 {
                     fprintf(stderr, "coreclr_shutdown failed - status: 0x%08x\n", st);
                     exitCode = -1;
+                }
+
+                if (exitCode != -1)
+                {
+                    exitCode = latchedExitCode;
                 }
             }
         }

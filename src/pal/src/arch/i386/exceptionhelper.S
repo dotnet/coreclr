@@ -19,11 +19,14 @@
 
 LEAF_ENTRY ThrowExceptionFromContextInternal, _TEXT
         push  ebp
-        mov   eax, [esp + 12] // ebx: PAL_SEHException *
-        mov   ebx, [esp + 8]  // eax: CONTEXT *
+        mov   ecx, [esp + 12] // ecx: PAL_SEHException * (first argument for ThrowExceptionHelper)
+        mov   eax, [esp + 8]  // ebx: CONTEXT *
 
-        mov   ebp, [ebx + CONTEXT_Ebp]
-        mov   esp, [ebx + CONTEXT_Esp]
+        mov   ebp, [eax + CONTEXT_Ebp]
+        mov   esp, [eax + CONTEXT_Esp]
+        mov   ebx, [eax + CONTEXT_Ebx]
+        mov   esi, [eax + CONTEXT_Esi]
+        mov   edi, [eax + CONTEXT_Edi]
 
         // The ESP is re-initialized as the target frame's value, so the current function's
         // CFA is now right at the ESP.
@@ -33,11 +36,9 @@ LEAF_ENTRY ThrowExceptionFromContextInternal, _TEXT
         // the EBP is no longer saved in the current stack frame.
         .cfi_restore ebp
 
-        // Store PAL_SEHException as the first argument
-        push    eax
-
         // Store return address to the stack
-        mov     ebx, [ebx + CONTEXT_Eip]
-        push    ebx
+        mov     eax, [eax + CONTEXT_Eip]
+        push    eax
         jmp     EXTERNAL_C_FUNC(ThrowExceptionHelper)
+
 LEAF_END ThrowExceptionFromContextInternal, _TEXT

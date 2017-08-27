@@ -17,7 +17,6 @@ using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using System.Security.Permissions;
 using System.Threading;
 
 // Disable the "reference to volatile field not treated as volatile" error.
@@ -46,7 +45,7 @@ namespace System.Threading.Tasks
     /// and may be used from multiple threads concurrently.
     /// </para>
     /// </remarks>
-    /// <typeparam name="TResult">The type of the result value assocatied with this <see
+    /// <typeparam name="TResult">The type of the result value associated with this <see
     /// cref="TaskCompletionSource{TResult}"/>.</typeparam>
     public class TaskCompletionSource<TResult>
     {
@@ -132,7 +131,7 @@ namespace System.Threading.Tasks
         {
             // Spin wait until the completion is finalized by another thread.
             var sw = new SpinWait();
-            while (!m_task.IsCompleted) 
+            while (!m_task.IsCompleted)
                 sw.SpinOnce();
         }
 
@@ -186,7 +185,7 @@ namespace System.Threading.Tasks
         public bool TrySetException(IEnumerable<Exception> exceptions)
         {
             if (exceptions == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exceptions);
-            
+
             List<Exception> defensiveCopy = new List<Exception>();
             foreach (Exception e in exceptions)
             {
@@ -199,22 +198,6 @@ namespace System.Threading.Tasks
                 ThrowHelper.ThrowArgumentException(ExceptionResource.TaskCompletionSourceT_TrySetException_NoExceptions, ExceptionArgument.exceptions);
 
             bool rval = m_task.TrySetException(defensiveCopy);
-            if (!rval && !m_task.IsCompleted) SpinUntilCompleted();
-            return rval;
-        }
-
-        /// <summary>Attempts to transition the underlying task to the faulted state.</summary>
-        /// <param name="exceptions">The collection of exception dispatch infos to bind to this task.</param>
-        /// <returns>True if the operation was successful; otherwise, false.</returns>
-        /// <remarks>Unlike the public methods, this method doesn't currently validate that its arguments are correct.</remarks>
-        internal bool TrySetException(IEnumerable<ExceptionDispatchInfo> exceptions)
-        {
-            Debug.Assert(exceptions != null);
-#if DEBUG
-            foreach(var edi in exceptions) Debug.Assert(edi != null, "Contents must be non-null");
-#endif
-
-            bool rval = m_task.TrySetException(exceptions);
             if (!rval && !m_task.IsCompleted) SpinUntilCompleted();
             return rval;
         }
@@ -293,7 +276,7 @@ namespace System.Threading.Tasks
         public bool TrySetResult(TResult result)
         {
             bool rval = m_task.TrySetResult(result);
-            if (!rval && !m_task.IsCompleted) SpinUntilCompleted();
+            if (!rval) SpinUntilCompleted();
             return rval;
         }
 
@@ -363,7 +346,7 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
         public void SetCanceled()
         {
-            if(!TrySetCanceled())
+            if (!TrySetCanceled())
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
         }
     }

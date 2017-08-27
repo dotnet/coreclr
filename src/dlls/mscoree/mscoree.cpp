@@ -48,7 +48,7 @@ HINSTANCE g_hThisInst;  // This library.
 
 #include <process.h> // for __security_init_cookie()
 
-extern "C" IExecutionEngine* __stdcall IEE();
+extern "C" IExecutionEngine* IEE();
 
 #ifdef NO_CRT_INIT
 #define _CRT_INIT(hInstance, dwReason, lpReserved) (TRUE)
@@ -383,30 +383,6 @@ STDAPI ReOpenMetaDataWithMemoryEx(
     return hr;
 }
 
-#ifdef FEATURE_FUSION
-// ---------------------------------------------------------------------------
-// %%Function: GetAssemblyMDImport
-// This function gets the IMDAssemblyImport given the filename
-// ---------------------------------------------------------------------------
-STDAPI GetAssemblyMDImport(             // Return code.
-    LPCWSTR     szFileName,             // [in] The scope to open.
-    REFIID      riid,                   // [in] The interface desired.
-    IUnknown    **ppIUnk)               // [out] Return interface on success.
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-    HRESULT hr=S_OK;
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    hr=GetAssemblyMDInternalImport(szFileName, riid, ppIUnk);
-    END_ENTRYPOINT_NOTHROW;
-    return hr;
-}
-#endif
 
 #ifndef CROSSGEN_COMPILE
 // ---------------------------------------------------------------------------

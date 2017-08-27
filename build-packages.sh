@@ -3,16 +3,35 @@
 usage()
 {
     echo "Builds the NuGet packages from the binaries that were built in the Build product binaries step."
-    echo "Usage: build-packages -BuildArch -BuildType [portableLinux]"
+    echo "Usage: build-packages -BuildArch -BuildType"
     echo "BuildArch can be x64, x86, arm, arm64 (default is x64)"
     echo "BuildType can be release, checked, debug (default is debug)"
-    echo "portableLinux - build for Portable Linux Distribution"
     echo
     exit 1
 }
 
+initHostDistroRid()
+{
+    __HostDistroRid=""
+    if [ "$__HostOS" == "Linux" ]; then
+        if [ -e /etc/os-release ]; then
+            source /etc/os-release
+            __HostDistroRid="$ID.$VERSION_ID-$__Arch"
+        elif [ -e /etc/redhat-release ]; then
+            local redhatRelease=$(</etc/redhat-release)
+            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
+               __HostDistroRid="rhel.6-$__Arch"
+            fi
+        fi
+    fi
+
+    if [ "$__HostDistroRid" == "" ]; then
+        echo "WARNING: Can not determine runtime id for current distro."
+    fi
+}
+
 __ProjectRoot="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-__PortableLinux=0
+__IsPortableBuild=1
 
 # Use uname to determine what the OS is.
 OSName=$(uname -s)
@@ -71,13 +90,9 @@ while :; do
         __Arch=$(echo $1| cut -d'=' -f 2)
         ;;
 
-        portableLinux)
-            if [ "$__BuildOS" == "Linux" ]; then
-                __PortableLinux=1
-            else
-                echo "ERROR: portableLinux not supported for non-Linux platforms."
-                exit 1
-            fi
+        -portablebuild=false)
+            unprocessedBuildArgs="$unprocessedBuildArgs $1"
+            __IsPortableBuild=0
             ;;
         *)
         unprocessedBuildArgs="$unprocessedBuildArgs $1"
@@ -85,11 +100,17 @@ while :; do
     shift
 done
 
-# Portable builds target the base RID only for Linux based platforms
-if [ $__PortableLinux == 1 ]; then
-    export __DistroRid="linux-$__Arch"
+# Portable builds target the base RID
+if [ $__IsPortableBuild == 1 ]; then
+    if [ "$__BuildOS" == "Linux" ]; then
+        export __DistroRid="linux-$__Arch"
+    elif [ "$__BuildOS" == "OSX" ]; then
+        export __DistroRid="osx-$__Arch"
+    fi
 else
-    export __DistroRid="\${OSRid}-$__Arch"
+    # init the host distro name
+    initHostDistroRid
+    export __DistroRid="$__HostDistroRid"
 fi
 
 $__ProjectRoot/run.sh build-packages -Project=$__ProjectRoot/src/.nuget/packages.builds -DistroRid=$__DistroRid -UseSharedCompilation=false -BuildNugetPackage=false $unprocessedBuildArgs

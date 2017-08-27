@@ -883,6 +883,26 @@ bool emitter::emitInsWritesToLclVarStackLoc(instrDesc* id)
     }
 }
 
+bool emitter::emitInsWritesToLclVarStackLocPair(instrDesc* id)
+{
+    if (!id->idIsLclVar())
+        return false;
+
+    instruction ins = id->idIns();
+
+    // This list is related to the list of instructions used to store local vars in emitIns_S_S_R_R().
+    // We don't accept writing to float local vars.
+
+    switch (ins)
+    {
+        case INS_stnp:
+        case INS_stp:
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool emitter::emitInsMayWriteMultipleRegs(instrDesc* id)
 {
     instruction ins = id->idIns();
@@ -948,6 +968,8 @@ emitAttr emitter::emitInsTargetRegSize(instrDesc* id)
 
     switch (ins)
     {
+        case INS_ldarb:
+        case INS_stlrb:
         case INS_ldrb:
         case INS_strb:
         case INS_ldurb:
@@ -955,6 +977,8 @@ emitAttr emitter::emitInsTargetRegSize(instrDesc* id)
             result = EA_4BYTE;
             break;
 
+        case INS_ldarh:
+        case INS_stlrh:
         case INS_ldrh:
         case INS_strh:
         case INS_ldurh:
@@ -985,6 +1009,8 @@ emitAttr emitter::emitInsTargetRegSize(instrDesc* id)
             result = id->idOpSize();
             break;
 
+        case INS_ldar:
+        case INS_stlr:
         case INS_ldr:
         case INS_str:
         case INS_ldur:
@@ -1011,6 +1037,8 @@ emitAttr emitter::emitInsLoadStoreSize(instrDesc* id)
 
     switch (ins)
     {
+        case INS_ldarb:
+        case INS_stlrb:
         case INS_ldrb:
         case INS_strb:
         case INS_ldurb:
@@ -1020,6 +1048,8 @@ emitAttr emitter::emitInsLoadStoreSize(instrDesc* id)
             result = EA_1BYTE;
             break;
 
+        case INS_ldarh:
+        case INS_stlrh:
         case INS_ldrh:
         case INS_strh:
         case INS_ldurh:
@@ -1042,6 +1072,8 @@ emitAttr emitter::emitInsLoadStoreSize(instrDesc* id)
             result = id->idOpSize();
             break;
 
+        case INS_ldar:
+        case INS_stlr:
         case INS_ldr:
         case INS_str:
         case INS_ldur:
@@ -3858,6 +3890,26 @@ void emitter::emitIns_R_R(
             fmt = IF_DV_2M;
             break;
 
+        case INS_ldar:
+        case INS_stlr:
+            assert(isValidGeneralDatasize(size));
+
+            __fallthrough;
+
+        case INS_ldarb:
+        case INS_ldarh:
+        case INS_stlrb:
+        case INS_stlrh:
+            assert(isValidGeneralLSDatasize(size));
+            assert(isGeneralRegisterOrZR(reg1));
+            assert(isGeneralRegisterOrSP(reg2));
+            assert(insOptsNone(opt));
+
+            reg2 = encodingSPtoZR(reg2);
+
+            fmt = IF_LS_2A;
+            break;
+
         case INS_ldr:
         case INS_ldrb:
         case INS_ldrh:
@@ -5072,7 +5124,8 @@ void emitter::emitIns_R_R_R_I(instruction ins,
                               regNumber   reg2,
                               regNumber   reg3,
                               ssize_t     imm,
-                              insOpts     opt /* = INS_OPTS_NONE */)
+                              insOpts     opt /* = INS_OPTS_NONE */,
+                              emitAttr    attrReg2 /* = EA_UNKNOWN */)
 {
     emitAttr  size     = EA_SIZE(attr);
     emitAttr  elemsize = EA_UNKNOWN;
@@ -5346,6 +5399,22 @@ void emitter::emitIns_R_R_R_I(instruction ins,
     id->idReg1(reg1);
     id->idReg2(reg2);
     id->idReg3(reg3);
+
+    // Record the attribute for the second register in the pair
+    id->idGCrefReg2(GCT_NONE);
+    if (attrReg2 != EA_UNKNOWN)
+    {
+        // Record the attribute for the second register in the pair
+        assert((fmt == IF_LS_3B) || (fmt == IF_LS_3C));
+        if (EA_IS_GCREF(attrReg2))
+        {
+            id->idGCrefReg2(GCT_GCREF);
+        }
+        else if (EA_IS_BYREF(attrReg2))
+        {
+            id->idGCrefReg2(GCT_BYREF);
+        }
+    }
 
     dispIns(id);
     appendToCurIG(id);
@@ -6072,6 +6141,102 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
 
 /*****************************************************************************
  *
+ *  Add an instruction referencing two register and consectutive stack-based local variable slots.
+ */
+void emitter::emitIns_R_R_S_S(
+    instruction ins, emitAttr attr1, emitAttr attr2, regNumber reg1, regNumber reg2, int varx, int offs)
+{
+    assert((ins == INS_ldp) || (ins == INS_ldnp));
+    assert(EA_8BYTE == EA_SIZE(attr1));
+    assert(EA_8BYTE == EA_SIZE(attr2));
+    assert(isGeneralRegisterOrZR(reg1));
+    assert(isGeneralRegisterOrZR(reg2));
+    assert(offs >= 0);
+
+    emitAttr       size  = EA_SIZE(attr1);
+    insFormat      fmt   = IF_LS_3B;
+    int            disp  = 0;
+    const unsigned scale = 3;
+
+    /* Figure out the variable's frame position */
+    int  base;
+    bool FPbased;
+
+    base = emitComp->lvaFrameAddress(varx, &FPbased);
+    disp = base + offs;
+
+    // TODO-ARM64-CQ: with compLocallocUsed, should we use REG_SAVED_LOCALLOC_SP instead?
+    regNumber reg3 = FPbased ? REG_FPBASE : REG_SPBASE;
+    reg3           = encodingSPtoZR(reg3);
+
+    bool    useRegForAdr = true;
+    ssize_t imm          = disp;
+    ssize_t mask         = (1 << scale) - 1; // the mask of low bits that must be zero to encode the immediate
+    if (imm == 0)
+    {
+        useRegForAdr = false;
+    }
+    else
+    {
+        if ((imm & mask) == 0)
+        {
+            ssize_t immShift = imm >> scale; // The immediate is scaled by the size of the ld/st
+
+            if ((immShift >= -64) && (immShift <= 63))
+            {
+                fmt          = IF_LS_3C;
+                useRegForAdr = false;
+                imm          = immShift;
+            }
+        }
+    }
+
+    if (useRegForAdr)
+    {
+        regNumber rsvd = codeGen->rsGetRsvdReg();
+        emitIns_R_R_Imm(INS_add, EA_8BYTE, rsvd, reg3, imm);
+        reg3 = rsvd;
+        imm  = 0;
+    }
+
+    assert(fmt != IF_NONE);
+
+    instrDesc* id = emitNewInstrCns(attr1, imm);
+
+    id->idIns(ins);
+    id->idInsFmt(fmt);
+    id->idInsOpt(INS_OPTS_NONE);
+
+    // Record the attribute for the second register in the pair
+    if (EA_IS_GCREF(attr2))
+    {
+        id->idGCrefReg2(GCT_GCREF);
+    }
+    else if (EA_IS_BYREF(attr2))
+    {
+        id->idGCrefReg2(GCT_BYREF);
+    }
+    else
+    {
+        id->idGCrefReg2(GCT_NONE);
+    }
+
+    id->idReg1(reg1);
+    id->idReg2(reg2);
+    id->idReg3(reg3);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+    id->idSetIsLclVar();
+
+#ifdef DEBUG
+    id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
+#endif
+
+    dispIns(id);
+    appendToCurIG(id);
+}
+
+/*****************************************************************************
+ *
  *  Add an instruction referencing a stack-based local variable and a register
  */
 void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber reg1, int varx, int offs)
@@ -6189,6 +6354,102 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber reg1, int va
 
     id->idReg1(reg1);
     id->idReg2(reg2);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+    id->idSetIsLclVar();
+
+#ifdef DEBUG
+    id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
+#endif
+
+    dispIns(id);
+    appendToCurIG(id);
+}
+
+/*****************************************************************************
+ *
+ *  Add an instruction referencing consecutive stack-based local variable slots and two registers
+ */
+void emitter::emitIns_S_S_R_R(
+    instruction ins, emitAttr attr1, emitAttr attr2, regNumber reg1, regNumber reg2, int varx, int offs)
+{
+    assert((ins == INS_stp) || (ins == INS_stnp));
+    assert(EA_8BYTE == EA_SIZE(attr1));
+    assert(EA_8BYTE == EA_SIZE(attr2));
+    assert(isGeneralRegisterOrZR(reg1));
+    assert(isGeneralRegisterOrZR(reg2));
+    assert(offs >= 0);
+
+    emitAttr       size  = EA_SIZE(attr1);
+    insFormat      fmt   = IF_LS_3B;
+    int            disp  = 0;
+    const unsigned scale = 3;
+
+    /* Figure out the variable's frame position */
+    int  base;
+    bool FPbased;
+
+    base = emitComp->lvaFrameAddress(varx, &FPbased);
+    disp = base + offs;
+
+    // TODO-ARM64-CQ: with compLocallocUsed, should we use REG_SAVED_LOCALLOC_SP instead?
+    regNumber reg3 = FPbased ? REG_FPBASE : REG_SPBASE;
+    reg3           = encodingSPtoZR(reg3);
+
+    bool    useRegForAdr = true;
+    ssize_t imm          = disp;
+    ssize_t mask         = (1 << scale) - 1; // the mask of low bits that must be zero to encode the immediate
+    if (imm == 0)
+    {
+        useRegForAdr = false;
+    }
+    else
+    {
+        if ((imm & mask) == 0)
+        {
+            ssize_t immShift = imm >> scale; // The immediate is scaled by the size of the ld/st
+
+            if ((immShift >= -64) && (immShift <= 63))
+            {
+                fmt          = IF_LS_3C;
+                useRegForAdr = false;
+                imm          = immShift;
+            }
+        }
+    }
+
+    if (useRegForAdr)
+    {
+        regNumber rsvd = codeGen->rsGetRsvdReg();
+        emitIns_R_R_Imm(INS_add, EA_8BYTE, rsvd, reg3, imm);
+        reg3 = rsvd;
+        imm  = 0;
+    }
+
+    assert(fmt != IF_NONE);
+
+    instrDesc* id = emitNewInstrCns(attr1, imm);
+
+    id->idIns(ins);
+    id->idInsFmt(fmt);
+    id->idInsOpt(INS_OPTS_NONE);
+
+    // Record the attribute for the second register in the pair
+    if (EA_IS_GCREF(attr2))
+    {
+        id->idGCrefReg2(GCT_GCREF);
+    }
+    else if (EA_IS_BYREF(attr2))
+    {
+        id->idGCrefReg2(GCT_BYREF);
+    }
+    else
+    {
+        id->idGCrefReg2(GCT_NONE);
+    }
+
+    id->idReg1(reg1);
+    id->idReg2(reg2);
+    id->idReg3(reg3);
     id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
     id->idSetIsLclVar();
 
@@ -6697,12 +6958,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     {
         assert(emitNoGChelper(Compiler::eeGetHelperNum(methHnd)));
 
-        // This call will preserve the liveness of most registers
-        //
-        // - On the ARM64 the NOGC helpers will preserve all registers,
-        //   except for those listed in the RBM_CALLEE_TRASH_NOGC mask
-
-        savedSet = RBM_ALLINT & ~RBM_CALLEE_TRASH_NOGC;
+        // Get the set of registers that this call kills and remove it from the saved set.
+        savedSet = RBM_ALLINT & ~emitComp->compNoGCHelperCallKillSet(Compiler::eeGetHelperNum(methHnd));
 
         // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH
         if (isProfLeaveCB)
@@ -6842,12 +7099,10 @@ void emitter::emitIns_Call(EmitCallType          callType,
             id->idSetIsCallAddr();
         }
 
-#if RELOC_SUPPORT
         if (emitComp->opts.compReloc)
         {
             id->idSetIsDspReloc();
         }
-#endif
     }
 
 #ifdef DEBUG
@@ -7136,7 +7391,9 @@ void emitter::emitIns_Call(EmitCallType          callType,
 
 /*static*/ emitter::code_t emitter::insEncodeDatasizeLS(emitter::code_t code, emitAttr size)
 {
-    if (code & 0x00800000) // Is this a sign-extending opcode? (i.e. ldrsw, ldrsh, ldrsb)
+    bool exclusive = ((code & 0x35000000) == 0);
+
+    if ((code & 0x00800000) && !exclusive) // Is this a sign-extending opcode? (i.e. ldrsw, ldrsh, ldrsb)
     {
         assert((size == EA_4BYTE) || (size == EA_8BYTE));
         if ((code & 0x80000000) == 0) // Is it a ldrsh or ldrsb and not ldrsw ?
@@ -8239,7 +8496,7 @@ unsigned emitter::emitOutputCall(insGroup* ig, BYTE* dst, instrDesc* id, code_t 
     regMaskTP           gcrefRegs;
     regMaskTP           byrefRegs;
 
-    VARSET_TP VARSET_INIT_NOCOPY(GCvars, VarSetOps::UninitVal());
+    VARSET_TP GCvars(VarSetOps::UninitVal());
 
     // Is this a "fat" call descriptor?
     if (id->idIsLargeCall())
@@ -8374,7 +8631,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 
     assert(REG_NA == (int)REG_NA);
 
-    VARSET_TP VARSET_INIT_NOCOPY(GCvars, VarSetOps::UninitVal());
+    VARSET_TP GCvars(VarSetOps::UninitVal());
 
     /* What instruction format have we got? */
 
@@ -9330,33 +9587,34 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
     // for stores, but we ignore those cases here.)
     if (emitInsMayWriteToGCReg(id)) // True if "id->idIns()" writes to a register than can hold GC ref.
     {
-        // If we ever generate instructions that write to multiple registers,
-        // then we'd need to more work here to ensure that changes in the status of GC refs are
-        // tracked properly.
-        if (emitInsMayWriteMultipleRegs(id))
+        // We assume that "idReg1" is the primary destination register for all instructions
+        if (id->idGCref() != GCT_NONE)
         {
-            // INS_ldp etc...
-            // We assume that "idReg1" and "idReg2" are the destination register for all instructions
-            emitGCregDeadUpd(id->idReg1(), dst);
-            emitGCregDeadUpd(id->idReg2(), dst);
+            emitGCregLiveUpd(id->idGCref(), id->idReg1(), dst);
         }
         else
         {
-            // We assume that "idReg1" is the destination register for all instructions
-            if (id->idGCref() != GCT_NONE)
+            emitGCregDeadUpd(id->idReg1(), dst);
+        }
+
+        if (emitInsMayWriteMultipleRegs(id))
+        {
+            // INS_ldp etc...
+            // "idReg2" is the secondary destination register
+            if (id->idGCrefReg2() != GCT_NONE)
             {
-                emitGCregLiveUpd(id->idGCref(), id->idReg1(), dst);
+                emitGCregLiveUpd(id->idGCrefReg2(), id->idReg2(), dst);
             }
             else
             {
-                emitGCregDeadUpd(id->idReg1(), dst);
+                emitGCregDeadUpd(id->idReg2(), dst);
             }
         }
     }
 
     // Now we determine if the instruction has written to a (local variable) stack location, and either written a GC
     // ref or overwritten one.
-    if (emitInsWritesToLclVarStackLoc(id))
+    if (emitInsWritesToLclVarStackLoc(id) || emitInsWritesToLclVarStackLocPair(id))
     {
         int      varNum = id->idAddr()->iiaLclVar.lvaVarNum();
         unsigned ofs    = AlignDown(id->idAddr()->iiaLclVar.lvaOffset(), sizeof(size_t));
@@ -9382,6 +9640,31 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             if (vt == TYP_REF || vt == TYP_BYREF)
                 emitGCvarDeadUpd(adr + ofs, dst);
+        }
+        if (emitInsWritesToLclVarStackLocPair(id))
+        {
+            unsigned ofs2 = ofs + sizeof(size_t);
+            if (id->idGCrefReg2() != GCT_NONE)
+            {
+                emitGCvarLiveUpd(adr + ofs2, varNum, id->idGCrefReg2(), dst);
+            }
+            else
+            {
+                // If the type of the local is a gc ref type, update the liveness.
+                var_types vt;
+                if (varNum >= 0)
+                {
+                    // "Regular" (non-spill-temp) local.
+                    vt = var_types(emitComp->lvaTable[varNum].lvType);
+                }
+                else
+                {
+                    TempDsc* tmpDsc = emitComp->tmpFindNum(varNum);
+                    vt              = tmpDsc->tdTempType();
+                }
+                if (vt == TYP_REF || vt == TYP_BYREF)
+                    emitGCvarDeadUpd(adr + ofs2, dst);
+            }
         }
     }
 
@@ -10799,7 +11082,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
 
         if (addr->OperGet() == GT_LEA)
         {
-            offset = (int)addr->AsAddrMode()->gtOffset;
+            offset = addr->AsAddrMode()->Offset();
             if (addr->AsAddrMode()->gtScale > 0)
             {
                 assert(isPow2(addr->AsAddrMode()->gtScale));
@@ -10815,29 +11098,28 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
 
             if (offset != 0)
             {
-                regMaskTP tmpRegMask = indir->gtRsvdRegs;
-                regNumber tmpReg     = genRegNumFromMask(tmpRegMask);
-                noway_assert(tmpReg != REG_NA);
+                regNumber tmpReg = indir->GetSingleTempReg();
+
+                emitAttr addType = varTypeIsGC(memBase) ? EA_BYREF : EA_PTRSIZE;
 
                 if (emitIns_valid_imm_for_add(offset, EA_8BYTE))
                 {
                     if (lsl > 0)
                     {
                         // Generate code to set tmpReg = base + index*scale
-                        emitIns_R_R_R_I(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
+                        emitIns_R_R_R_I(INS_add, addType, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
                                         INS_OPTS_LSL);
                     }
                     else // no scale
                     {
                         // Generate code to set tmpReg = base + index
-                        emitIns_R_R_R(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum);
+                        emitIns_R_R_R(INS_add, addType, tmpReg, memBase->gtRegNum, index->gtRegNum);
                     }
 
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
 
                     // Then load/store dataReg from/to [tmpReg + offset]
                     emitIns_R_R_I(ins, ldstAttr, dataReg, tmpReg, offset);
-                    ;
                 }
                 else // large offset
                 {
@@ -10845,7 +11127,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                     codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
                     // Then add the base register
                     //      rd = rd + base
-                    emitIns_R_R_R(INS_add, EA_PTRSIZE, tmpReg, tmpReg, memBase->gtRegNum);
+                    emitIns_R_R_R(INS_add, addType, tmpReg, tmpReg, memBase->gtRegNum);
 
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
                     noway_assert(tmpReg != index->gtRegNum);
@@ -10878,9 +11160,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
             else
             {
                 // We require a tmpReg to hold the offset
-                regMaskTP tmpRegMask = indir->gtRsvdRegs;
-                regNumber tmpReg     = genRegNumFromMask(tmpRegMask);
-                noway_assert(tmpReg != REG_NA);
+                regNumber tmpReg = indir->GetSingleTempReg();
 
                 // First load/store tmpReg with the large offset constant
                 codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
@@ -11051,9 +11331,8 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
             assert(!src1->isContained());
         }
     }
-    bool      isMulOverflow = false;
-    bool      isUnsignedMul = false;
-    regNumber extraReg      = REG_NA;
+
+    bool isMulOverflow = false;
     if (dst->gtOverflowEx())
     {
         if (ins == INS_add)
@@ -11067,7 +11346,6 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
         else if (ins == INS_mul)
         {
             isMulOverflow = true;
-            isUnsignedMul = ((dst->gtFlags & GTF_UNSIGNED) != 0);
             assert(intConst == nullptr); // overflow format doesn't support an int constant operand
         }
         else
@@ -11083,17 +11361,10 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
     {
         if (isMulOverflow)
         {
-            // Make sure that we have an internal register
-            assert(genCountBits(dst->gtRsvdRegs) == 2);
+            regNumber extraReg = dst->GetSingleTempReg();
+            assert(extraReg != dst->gtRegNum);
 
-            // There will be two bits set in tmpRegsMask.
-            // Remove the bit for 'dst->gtRegNum' from 'tmpRegsMask'
-            regMaskTP tmpRegsMask = dst->gtRsvdRegs & ~genRegMask(dst->gtRegNum);
-            assert(tmpRegsMask != RBM_NONE);
-            regMaskTP tmpRegMask = genFindLowestBit(tmpRegsMask); // set tmpRegMsk to a one-bit mask
-            extraReg             = genRegNumFromMask(tmpRegMask); // set tmpReg from that mask
-
-            if (isUnsignedMul)
+            if ((dst->gtFlags & GTF_UNSIGNED) != 0)
             {
                 if (attr == EA_4BYTE)
                 {
@@ -11113,7 +11384,7 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
                     emitIns_R_R_R(ins, attr, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
                 }
 
-                // zero-sign bit comparision to detect overflow.
+                // zero-sign bit comparison to detect overflow.
                 emitIns_R_I(INS_cmp, attr, extraReg, 0);
             }
             else
@@ -11141,7 +11412,7 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
                     bitShift = 63;
                 }
 
-                // Sign bit comparision to detect overflow.
+                // Sign bit comparison to detect overflow.
                 emitIns_R_R_I(INS_cmp, attr, extraReg, dst->gtRegNum, bitShift, INS_OPTS_ASR);
             }
         }

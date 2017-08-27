@@ -11,6 +11,9 @@ project(CoreCLR)
 # Include cmake functions
 include(functions.cmake)
 
+# Include global configure settings
+include(configure.cmake)
+
 if (WIN32)
   message(STATUS "VS_PLATFORM_TOOLSET is ${CMAKE_VS_PLATFORM_TOOLSET}")
   message(STATUS "VS_PLATFORM_NAME is ${CMAKE_VS_PLATFORM_NAME}")
@@ -28,7 +31,8 @@ if(CORECLR_SET_RPATH)
     set(MACOSX_RPATH ON)
 endif(CORECLR_SET_RPATH)
 
-OPTION(CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
+OPTION(CLR_CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
+OPTION(CLR_CMAKE_WARNINGS_ARE_ERRORS "Warnings are errors" ON)
 
 # Ensure that python is present
 find_program(PYTHON python)
@@ -48,11 +52,15 @@ if (WIN32)
       endif()
 
       # Explicitly specify the assembler to be used for Arm32 compile
-      file(TO_CMAKE_PATH "$ENV{VCINSTALLDIR}\\bin\\x86_arm\\armasm.exe" CMAKE_ASM_COMPILER)
-
+      if($ENV{__VSVersion} STREQUAL "vs2015")
+        file(TO_CMAKE_PATH "$ENV{VCINSTALLDIR}\\bin\\x86_arm\\armasm.exe" CMAKE_ASM_COMPILER)
+      else()
+        file(TO_CMAKE_PATH "$ENV{VCToolsInstallDir}\\bin\\HostX86\\arm\\armasm.exe" CMAKE_ASM_COMPILER)
+      endif()
+      
       set(CMAKE_ASM_MASM_COMPILER ${CMAKE_ASM_COMPILER})
       message("CMAKE_ASM_MASM_COMPILER explicitly set to: ${CMAKE_ASM_MASM_COMPILER}") 
-      
+
       # Enable generic assembly compilation to avoid CMake generate VS proj files that explicitly
       # use ml[64].exe as the assembler.
       enable_language(ASM)
@@ -101,8 +109,8 @@ else (WIN32)
     else (CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
       # Ensure that objcopy is present
-      if (DEFINED ENV{CROSSCOMPILE} AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
-        if (CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l OR CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
+      if (CLR_UNIX_CROSS_BUILD AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
+        if (CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l OR CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm)
           find_program(OBJCOPY ${TOOLCHAIN}-objcopy)
         elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
           find_program(OBJCOPY objcopy)
@@ -149,6 +157,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
             set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1)
         elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l)
             set(CLR_CMAKE_PLATFORM_UNIX_ARM 1)
+        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL arm)
+            set(CLR_CMAKE_PLATFORM_UNIX_ARM 1)
         elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
             set(CLR_CMAKE_PLATFORM_UNIX_ARM64 1)
         elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
@@ -159,15 +169,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     endif()
     set(CLR_CMAKE_PLATFORM_LINUX 1)
 
-    # Detect Alpine Linux
-    SET(OS_RELEASE_FILENAME "/etc/os-release")
-    if (EXISTS ${OS_RELEASE_FILENAME})
-        file(READ ${OS_RELEASE_FILENAME} OS_RELEASE)
-        string(FIND "${OS_RELEASE}" "ID=alpine" CLR_CMAKE_PLATFORM_ALPINE_LINUX)
-        if(CLR_CMAKE_PLATFORM_ALPINE_LINUX EQUAL -1)
-            unset(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
-        endif(CLR_CMAKE_PLATFORM_ALPINE_LINUX EQUAL -1)
-    endif(EXISTS ${OS_RELEASE_FILENAME})
+    # Detect Linux ID
+    if(DEFINED CLR_CMAKE_LINUX_ID)
+        if(CLR_CMAKE_LINUX_ID STREQUAL ubuntu)
+            set(CLR_CMAKE_TARGET_UBUNTU_LINUX 1)
+        elseif(CLR_CMAKE_LINUX_ID STREQUAL tizen)
+            set(CLR_CMAKE_TARGET_TIZEN_LINUX 1)
+        elseif(CLR_CMAKE_LINUX_ID STREQUAL alpine)
+            set(CLR_CMAKE_PLATFORM_ALPINE_LINUX 1)
+        endif()
+        if(CLR_CMAKE_LINUX_ID STREQUAL ubuntu)
+            set(CLR_CMAKE_PLATFORM_UBUNTU_LINUX 1)
+        endif()
+    endif(DEFINED CLR_CMAKE_LINUX_ID)
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
@@ -292,7 +306,6 @@ set(CMAKE_CXX_FLAGS_CHECKED ${CLR_CXX_FLAGS_CHECKED_INIT} CACHE STRING "Flags us
 set(CMAKE_EXE_LINKER_FLAGS_CHECKED "")
 set(CMAKE_SHARED_LINKER_FLAGS_CHECKED "")
 
-# Disable the following line for UNIX altjit on Windows
 set(CMAKE_CXX_STANDARD_LIBRARIES "") # do not link against standard win32 libs i.e. kernel32, uuid, user32, etc.
 
 if (WIN32)
@@ -304,16 +317,11 @@ if (WIN32)
     endforeach (Definition)
   endforeach (Config)
 
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /guard:cf")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /guard:cf")
-
-  # Incremental linking with CFG is broken until next VS release.
-  # This needs to be appended to the last for each build type to override the default flag.
-  set(NO_INCREMENTAL_LINKER_FLAGS "/INCREMENTAL:NO")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /GUARD:CF")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /GUARD:CF")
 
   # Linker flags
   #
-  # Disable the following line for UNIX altjit on Windows
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /MANIFEST:NO") #Do not create Side-by-Side Assembly Manifest
 
   if (CLR_CMAKE_PLATFORM_ARCH_ARM)
@@ -325,10 +333,8 @@ if (WIN32)
   endif ()
     
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /LARGEADDRESSAWARE") # can handle addresses larger than 2 gigabytes
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /RELEASE") #sets the checksum in the header
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NXCOMPAT") #Compatible with Data Execution Prevention
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DYNAMICBASE") #Use address space layout randomization
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUGTYPE:cv,fixup") #debugging format
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /PDBCOMPRESS") #shrink pdb size
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG")
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /IGNORE:4197,4013,4254,4070,4221")
@@ -519,9 +525,6 @@ else ()
     clr_unknown_arch()
 endif ()
 
-# Enable for UNIX altjit on Windows - set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1)
-# Enable for UNIX altjit on Windows - add_definitions(-DCLR_CMAKE_PLATFORM_UNIX=1)
-
 #--------------------------------------
 # Compile Options
 #--------------------------------------
@@ -544,9 +547,9 @@ include(pgosupport.cmake)
 #     - project which require platform header not clr's
 #     - do not depend on clr's compile definitions
 #-----------------------------------------
-if(CLR_CMAKE_PLATFORM_UNIX)
-  add_subdirectory(src/corefx)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
+    add_subdirectory(src/corefx)
+endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_subdirectory(src/ToolBox/SOS/lldbplugin)
@@ -572,6 +575,13 @@ if(WIN32)
   add_compile_options(/Zl) # omit default library name in .OBJ
 endif(WIN32)
 
+#--------------------------------
+# Definition directives
+#  - all clr specific compile definitions should be included in this file
+#  - all clr specific feature variable should also be added in this file
+#----------------------------------
+include(clrdefinitions.cmake)
+
 #-------------------------------------
 # Include directory directives
 #-------------------------------------
@@ -581,24 +591,18 @@ include_directories("bin/obj")
 
 if(FEATURE_STANDALONE_GC)
   add_definitions(-DFEATURE_STANDALONE_GC)
-
-  if(CLR_CMAKE_PLATFORM_UNIX)
-    add_subdirectory(src/gc/unix)
-  endif(CLR_CMAKE_PLATFORM_UNIX)
+  add_subdirectory(src/gc)
 endif(FEATURE_STANDALONE_GC)
+
+if(FEATURE_STANDALONE_GC_ONLY)
+  add_definitions(-DFEATURE_STANDALONE_GC_ONLY)
+endif(FEATURE_STANDALONE_GC_ONLY)
 
 if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc")
   include_directories("src/pal/inc/rt")
   include_directories("src/pal/src/safecrt")
 endif (CLR_CMAKE_PLATFORM_UNIX)
-
-#--------------------------------
-# Definition directives
-#  - all clr specific compile definitions should be included in this file
-#  - all clr specific feature variable should also be added in this file
-#----------------------------------
-include(clrdefinitions.cmake)
 
 # Microsoft.Dotnet.BuildTools.Coreclr version
 set(BuildToolsVersion "1.0.4-prerelease")

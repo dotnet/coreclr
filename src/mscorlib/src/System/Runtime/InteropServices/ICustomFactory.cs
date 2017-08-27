@@ -4,14 +4,13 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-namespace System.Runtime.InteropServices {
 
-    using System;
+using System;
 
-[System.Runtime.InteropServices.ComVisible(true)]
+namespace System.Runtime.InteropServices
+{
     public interface ICustomFactory
     {
         MarshalByRefObject CreateInstance(Type serverType);
     }
-
 }

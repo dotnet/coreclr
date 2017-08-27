@@ -15,25 +15,14 @@
 
 #include "methodtablebuilder.h"
 
-#include "constrainedexecutionregion.h"
 #include "sigbuilder.h"
 #include "dllimport.h"
 #include "fieldmarshaler.h"
 #include "encee.h"
 #include "mdaassistants.h"
 #include "ecmakey.h"
-#include "security.h"
 #include "customattribute.h"
-
-#ifdef FEATURE_REMOTING 
-#include "objectclone.h"
-#endif
-
-#ifdef FEATURE_COMINTEROP
-#ifdef FEATURE_FUSION	
-#include "policy.h"
-#endif
-#endif
+#include "typestring.h"
 
 //*******************************************************************************
 // Helper functions to sort GCdescs by offset (decending order)
@@ -171,39 +160,6 @@ MethodTableBuilder::CreateClass( Module *pModule,
             COMPlusThrowHR(COR_E_TYPELOAD);
     }
 
-    //
-    // Initialize SecurityProperties structure
-    //
-
-    if (IsTdHasSecurity(dwAttrClass))
-    {
-        DWORD dwSecFlags;
-        DWORD dwNullDeclFlags;
-
-        hrToThrow = Security::GetDeclarationFlags(pInternalImport, cl, &dwSecFlags, &dwNullDeclFlags);
-        if (FAILED(hrToThrow))
-            COMPlusThrowHR(hrToThrow);
-
-        // Security properties is an optional field. If we have a non-default value we need to ensure the
-        // optional field descriptor has been allocated.
-        EnsureOptionalFieldsAreAllocated(pEEClass, pamTracker, pAllocator->GetLowFrequencyHeap());
-
-        pEEClass->GetSecurityProperties()->SetFlags(dwSecFlags, dwNullDeclFlags);
-    }
-
-#ifdef FEATURE_CER
-    // Cache class level reliability contract info.
-    DWORD dwReliabilityContract = ::GetReliabilityContract(pInternalImport, cl);
-    if (dwReliabilityContract != RC_NULL)
-    {
-        // Reliability contract is an optional field. If we have a non-default value we need to ensure the
-        // optional field descriptor has been allocated.
-        EnsureOptionalFieldsAreAllocated(pEEClass, pamTracker, pAllocator->GetLowFrequencyHeap());
-        
-        pEEClass->SetReliabilityContract(dwReliabilityContract);
-    }
-#endif // FEATURE_CER
-
     if (fHasLayout)
         pEEClass->SetHasLayout();
     
@@ -217,13 +173,6 @@ MethodTableBuilder::CreateClass( Module *pModule,
         // On CoreCLR, however, we do allow non-FX assemblies to have this attribute. This enables scenarios where we can
         // activate 3rd-party WinRT components outside AppContainer - 1st party WinRT components are already allowed
         // to be activated outside AppContainer (on both Desktop and CoreCLR).
-#ifdef FEATURE_FUSION
-        if (!pAssembly->IsWinMD() &&
-             Fusion::Util::IsAnyFrameworkAssembly(pAssembly->GetFusionAssemblyName()) != S_OK)
-        {
-            pAssembly->ThrowTypeLoadException(pModule->GetMDImport(), cl, IDS_EE_WINRT_TYPE_IN_ORDINARY_ASSEMBLY);
-        }
-#endif
 
         pEEClass->SetProjectedFromWinRT();
     }
@@ -1819,16 +1768,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
         VerifySelfReferencingStaticValueTypeFields_WithRVA(pByValueClassCache);
     }
     
-#ifdef FEATURE_REMOTING
-    // If the class is serializable we scan it for VTS (Version Tolerant
-    // Serialization) event methods or NotSerialized or OptionalField
-    // fields. Any such info found will be attached to the method as
-    // optional data later.
-    if (IsTdSerializable(GetAttrClass()))
-    {
-        ScanTypeForVtsInfo();
-    }
-#endif // FEATURE_REMOTING
 
     // Now setup the method table
 
@@ -1875,23 +1814,23 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #ifdef FEATURE_HFA
         CheckForHFA(pByValueClassCache);
 #endif
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF defined at the same time.
+#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING defined at the same time.
 #endif // FEATURE_HFA
         SystemVAmd64CheckForPassStructInRegister();
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
     }
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF defined at the same time.
+#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING defined at the same time.
 #endif // FEATURE_HFA
     if (HasLayout())
     {
         SystemVAmd64CheckForPassNativeStructInRegister();
     }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 #ifdef FEATURE_HFA
     if (HasLayout())
     {
@@ -1962,57 +1901,9 @@ MethodTableBuilder::BuildMethodTableThrowing(
     //
     // if there are context or thread static set the info in the method table optional members
     //
-#ifdef FEATURE_REMOTING 
-    DWORD contextStaticsSize = bmtCSInfo->dwContextStaticsSize;
-    if (contextStaticsSize != 0)
-    {
-        if (!FitsIn<WORD>(contextStaticsSize))
-        {
-            BuildMethodTableThrowException(IDS_EE_TOOMANYFIELDS);
-        }
-
-        // this is responsible for setting the flag and allocation in the loader heap
-        pMT->SetupContextStatics(GetMemTracker(), (WORD)contextStaticsSize);
-    }
-#endif // !FEATURE_REMOTING
-
-    if (!bmtProp->fNoSanityChecks)
-    {
-        // If we have a non-interface class, then do inheritance security
-        // checks on it. The check starts by checking for inheritance
-        // permission demands on the current class. If these first checks
-        // succeeded, then the cached declared method list is scanned for
-        // methods that have inheritance permission demands.
-        VerifyInheritanceSecurity();
-
-        // If this is a type equivalent class, then check to see that security 
-        // rules have been properly followed
-        VerifyEquivalenceSecurity();
-    }
 
     // Check for the RemotingProxy Attribute
-#ifdef FEATURE_REMOTING 
-    if (IsContextful())
-    {
-        PREFIX_ASSUME(g_pObjectClass != NULL);
-        // Skip mscorlib marshal-by-ref classes since they all
-        // are assumed to have the default proxy attribute
-        if (pModule != g_pObjectClass->GetModule())
-        {
-            CONTRACT_VIOLATION(LoadsTypeViolation); // This api can cause the ProxyAttribute class to be loaded.
-            CheckForRemotingProxyAttrib();
-        }
-    }
-
-    if (IsContextful() || HasRemotingProxyAttribute())
-    {
-        // Contextful and classes that have a remoting proxy attribute
-        // (whether they are MarshalByRef or ContextFul) always take the slow
-        // path of managed activation
-        pMT->SetRequiresManagedActivation();
-    }
-#endif // FEATURE_REMOTING
-    // structs with GC poitners MUST be pointer sized aligned because the GC assumes it
+    // structs with GC pointers MUST be pointer sized aligned because the GC assumes it
     if (IsValueClass() && pMT->ContainsPointers() && (bmtFP->NumInstanceFieldBytes % sizeof(void*) != 0))
     {
         BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
@@ -2066,11 +1957,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
     }
 #endif // _DEBUG
 
-#ifdef FEATURE_REMOTING
-    // Make sure the object cloner won't attempt to blit types that aren't serializable.
-    if (!IsTdSerializable(GetAttrClass()) && !IsEnum())
-        SetCannotBeBlittedByObjectCloner();
-#endif
 
     //If this is a value type, then propagate the UnsafeValueTypeAttribute from
     //its instance members to this type.
@@ -2174,22 +2060,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #pragma warning(pop)
 #endif
 
-#ifdef FEATURE_REMOTING
-BOOL
-IsSerializerRelatedInterface(MethodTable *pItfMT)
-{
-    STANDARD_VM_CONTRACT;
-
-    if (MscorlibBinder::IsClass(pItfMT, CLASS__ISERIALIZABLE))
-        return TRUE;
-    if (MscorlibBinder::IsClass(pItfMT, CLASS__IOBJECTREFERENCE))
-        return TRUE;
-    if (MscorlibBinder::IsClass(pItfMT, CLASS__IDESERIALIZATIONCB))
-        return TRUE;
-
-    return FALSE;
-}
-#endif
 
 //---------------------------------------------------------------------------------------
 // 
@@ -2213,15 +2083,6 @@ MethodTableBuilder::ResolveInterfaces(
 
     // resolve unresolved interfaces and determine the size of the largest interface (in # slots)
 
-#ifdef FEATURE_REMOTING // code for objectcloner
-    // First look through the interfaces explicitly declared by this class
-    for (DWORD i = 0; i < cBuildingInterfaceList; i++)
-    {
-        MethodTable *pInterface = pBuildingInterfaceList[i].m_pMethodTable;
-        if (IsSerializerRelatedInterface(pInterface))
-            SetCannotBeBlittedByObjectCloner();
-    }
-#endif // FEATURE_REMOTING // code for objectcloner
 
     LoadApproxInterfaceMap();
 
@@ -2239,12 +2100,6 @@ MethodTableBuilder::ResolveInterfaces(
         {
             SetHasFieldsWhichMustBeInited();
         }
-#ifdef FEATURE_REMOTING
-        if (pParentClass->CannotBeBlittedByObjectCloner())
-        {
-            SetCannotBeBlittedByObjectCloner();
-        }
-#endif
 #ifdef FEATURE_READYTORUN
         if (!(IsValueClass() || (pParentClass == g_pObjectClass)))
         {
@@ -2808,12 +2663,6 @@ MethodTableBuilder::EnumerateClassMethods()
             numGenericMethodArgs = hEnumTyPars.EnumGetCount();
 
             // We do not want to support context-bound objects with generic methods.
-#ifdef FEATURE_REMOTING 
-            if (IsContextful() && numGenericMethodArgs > 0)
-            {
-                BuildMethodTableThrowException(IDS_CLASSLOAD_CONTEXT_BOUND_GENERIC_METHOD);
-            }
-#endif // FEATURE_REMOTING
 
             if (numGenericMethodArgs != 0)
             {
@@ -3293,32 +3142,6 @@ MethodTableBuilder::EnumerateClassMethods()
         {
             type = METHOD_TYPE_NORMAL;
         }
-
-
-#ifdef _DEBUG 
-        // We don't allow stack based declarative security on ecalls, fcalls and
-        // other special purpose methods implemented by the EE (the interceptor
-        // we use doesn't play well with non-jitted stubs).
-        if ((type == METHOD_TYPE_FCALL || type == METHOD_TYPE_EEIMPL) &&
-            (IsMdHasSecurity(dwMemberAttrs) || IsTdHasSecurity(GetAttrClass())))
-        {
-            DWORD dwSecFlags;
-            DWORD dwNullDeclFlags;
-
-            if (IsTdHasSecurity(GetAttrClass()) &&
-                SUCCEEDED(Security::GetDeclarationFlags(pMDInternalImport, GetCl(), &dwSecFlags, &dwNullDeclFlags)))
-            {
-                CONSISTENCY_CHECK_MSG(!(dwSecFlags & ~dwNullDeclFlags & DECLSEC_RUNTIME_ACTIONS),
-                                      "Cannot add stack based declarative security to a class containing an ecall/fcall/special method.");
-            }
-            if (IsMdHasSecurity(dwMemberAttrs) &&
-                SUCCEEDED(Security::GetDeclarationFlags(pMDInternalImport, tok, &dwSecFlags, &dwNullDeclFlags)))
-            {
-                CONSISTENCY_CHECK_MSG(!(dwSecFlags & ~dwNullDeclFlags & DECLSEC_RUNTIME_ACTIONS),
-                                      "Cannot add stack based declarative security to an ecall/fcall/special method.");
-            }
-        }
-#endif // _DEBUG
 
         // PInvoke methods are not permitted on collectible types
         if ((type == METHOD_TYPE_NDIRECT) && GetAssembly()->IsCollectible())
@@ -3864,9 +3687,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
     DWORD   dwCurrentStaticField   = 0;
     DWORD   dwCurrentThreadStaticField = 0;
 
-#ifdef FEATURE_REMOTING 
-    DWORD   dwContextStaticsOffset  = 0;
-#endif
 
     DWORD   dwR8Fields              = 0;        // Number of R8's the class has
 
@@ -3906,11 +3726,7 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
         MethodTable * pByValueClass = NULL;
         BOOL        fIsByValue = FALSE;
         BOOL        fIsThreadStatic = FALSE;
-#ifdef FEATURE_REMOTING
-        BOOL        fIsContextStatic = FALSE;
-#else
         static const BOOL fIsContextStatic = FALSE;
-#endif
         BOOL        fHasRVA = FALSE;
 
         MetaSig fsig(pMemberSignature,
@@ -3947,16 +3763,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                 fIsThreadStatic = TRUE;
             }
 
-#ifdef FEATURE_REMOTING 
-            hr = pInternalImport->GetCustomAttributeByName(bmtMetaData->pFields[i],
-                                                           g_ContextStaticAttributeClassName,
-                                                           NULL, NULL);
-            IfFailThrow(hr);
-            if (hr == S_OK)
-            {
-                fIsContextStatic = TRUE;
-            }
-#endif // FEATURE_REMOTING
 
             if (ElementType == ELEMENT_TYPE_VALUETYPE)
             {
@@ -3973,12 +3779,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
 
             // Do some sanity checks that we are not mixing context and thread
             // relative statics.
-#ifdef FEATURE_REMOTING 
-            if (fIsThreadStatic && fIsContextStatic)
-            {
-                IfFailThrow(COR_E_TYPELOAD);
-            }
-#endif
             if (fHasRVA && (fIsThreadStatic || fIsContextStatic))
             {
                 IfFailThrow(COR_E_TYPELOAD);
@@ -4259,10 +4059,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                             SetHasNonPublicFields();
                         if (pFieldClass->HasFieldsWhichMustBeInited())
                             SetHasFieldsWhichMustBeInited();
-#ifdef FEATURE_REMOTING
-                        if (pFieldClass->CannotBeBlittedByObjectCloner())
-                            SetCannotBeBlittedByObjectCloner();
-#endif
 
 #ifdef FEATURE_READYTORUN
                         if (!(pByValueClass->IsTruePrimitive() || pByValueClass->IsEnum()))
@@ -4345,11 +4141,11 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
             {
                 if (pwalk->m_MD == bmtMetaData->pFields[i])
                 {
-
                     pLayoutFieldInfo = pwalk;
-                    CopyMemory(pNextFieldMarshaler,
-                               &(pwalk->m_FieldMarshaler),
-                               MAXFIELDMARSHALERSIZE);
+
+                    const FieldMarshaler *pSrcFieldMarshaler = (const FieldMarshaler *) &pwalk->m_FieldMarshaler;
+
+                    pSrcFieldMarshaler->CopyTo(pNextFieldMarshaler, MAXFIELDMARSHALERSIZE);
 
                     pNextFieldMarshaler->SetFieldDesc(pFD);
                     pNextFieldMarshaler->SetExternalOffset(pwalk->m_offset);
@@ -4379,19 +4175,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                   fIsContextStatic,
                   pszFieldName
                   );
-
-        // Check if the ValueType field containing non-publics is overlapped
-        if (HasExplicitFieldOffsetLayout()
-            && pLayoutFieldInfo != NULL
-            && pLayoutFieldInfo->m_fIsOverlapped
-            && pByValueClass != NULL
-            && pByValueClass->GetClass()->HasNonPublicFields())
-        {
-            if (!Security::CanSkipVerification(GetAssembly()->GetDomainAssembly()))
-            {
-                BuildMethodTableThrowException(IDS_CLASSLOAD_BADOVERLAP);
-            }
-        }
 
         // We're using FieldDesc::m_pMTOfEnclosingClass to temporarily store the field's size.
         // 
@@ -4493,14 +4276,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                             BAD_FORMAT_NOTHROW_ASSERT(!"ObjectRef in an RVA field");
                             BuildMethodTableThrowException(COR_E_BADIMAGEFORMAT, IDS_CLASSLOAD_BAD_FIELD, mdTokenNil);
                         }
-                        if (pByValueClass->GetClass()->HasNonPublicFields())
-                        {
-                            if (!Security::CanHaveRVA(GetAssembly()))
-                            {
-                                BAD_FORMAT_NOTHROW_ASSERT(!"ValueType with non-public fields as a type of an RVA field");
-                                BuildMethodTableThrowException(COR_E_BADIMAGEFORMAT, IDS_CLASSLOAD_BAD_FIELD, mdTokenNil);
-                            }
-                        }
                     }
                 }
                 
@@ -4533,14 +4308,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                 {
                     fldSize = GetSizeForCorElementType(FieldDescElementType);
                 }
-                if (!GetModule()->CheckRvaField(rva, fldSize))
-                {
-                    if (!Security::CanHaveRVA(GetAssembly()))
-                    {
-                        BAD_FORMAT_NOTHROW_ASSERT(!"Illegal RVA of a mapped field");
-                        BuildMethodTableThrowException(COR_E_BADIMAGEFORMAT, IDS_CLASSLOAD_BAD_FIELD, mdTokenNil);
-                    }
-                }
                 
                 pFD->SetOffsetRVA(rva);
             }
@@ -4554,18 +4321,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                 if (fIsByValue)
                     bmtFP->NumThreadStaticGCBoxedFields++;
             }
-#ifdef FEATURE_REMOTING 
-            else if (fIsContextStatic)
-            {
-                DWORD size = 1 << dwLog2FieldSize;
-
-                dwContextStaticsOffset = (DWORD)ALIGN_UP(dwContextStaticsOffset, size);
-
-                IfFailThrow(pFD->SetOffset(dwContextStaticsOffset)); // offset is the bucket index
-
-                dwContextStaticsOffset += size;
-            }
-#endif // FEATURE_REMOTING
             else
             {
                 bmtFP->NumRegularStaticFieldsOfSize[dwLog2FieldSize]++;
@@ -4591,14 +4346,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
         {   // RVA fields are not allowed to have GC pointers.
             BAD_FORMAT_NOTHROW_ASSERT(!"ObjectRef in an RVA self-referencing static field");
             BuildMethodTableThrowException(COR_E_BADIMAGEFORMAT, IDS_CLASSLOAD_BAD_FIELD, mdTokenNil);
-        }
-        if (HasNonPublicFields())
-        {   // RVA ValueTypes with non-public fields must be checked against security
-            if (!Security::CanHaveRVA(GetAssembly()))
-            {
-                BAD_FORMAT_NOTHROW_ASSERT(!"ValueType with non-public fields as a type of an RVA self-referencing static field");
-                BuildMethodTableThrowException(COR_E_BADIMAGEFORMAT, IDS_CLASSLOAD_BAD_FIELD, mdTokenNil);
-            }
         }
     }
     
@@ -4646,12 +4393,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
     }
 #endif // FEATURE_DOUBLE_ALIGNMENT_HINT
 
-#ifdef FEATURE_REMOTING 
-    if (pbmtCSInfo)
-    {
-        pbmtCSInfo->dwContextStaticsSize = dwContextStaticsOffset;
-    }
-#endif
 
     //========================================================================
     // END:
@@ -4694,15 +4435,6 @@ MethodTableBuilder::VerifySelfReferencingStaticValueTypeFields_WithRVA(
             {
                 DWORD rva;
                 IfFailThrow(GetMDImport()->GetFieldRVA(pFD->GetMemberDef(), &rva));
-                
-                if (!GetModule()->CheckRvaField(rva, bmtFP->NumInstanceFieldBytes))
-                {
-                    if (!Security::CanHaveRVA(GetAssembly()))
-                    {
-                        BAD_FORMAT_NOTHROW_ASSERT(!"Illegal RVA of a mapped self-referencing static field");
-                        BuildMethodTableThrowException(COR_E_BADIMAGEFORMAT, IDS_CLASSLOAD_BAD_FIELD, mdTokenNil);
-                    }
-                }
             }
         }
     }
@@ -5062,158 +4794,6 @@ VOID MethodTableBuilder::TestMethodImpl(
     return;
 }
 
-//*******************************************************************************
-void MethodTableBuilder::SetSecurityFlagsOnMethod(bmtRTMethod* pParentMethod,
-                                                  MethodDesc* pNewMD,
-                                                  mdToken tokMethod,
-                                                  DWORD dwMemberAttrs,
-                                                  bmtInternalInfo* bmtInternal,
-                                                  bmtMetaDataInfo* bmtMetaData)
-{
-    STANDARD_VM_CONTRACT;
-
-    DWORD dwMethDeclFlags = 0;
-    DWORD dwMethNullDeclFlags = 0;
-    DWORD dwClassDeclFlags = 0xffffffff;
-    DWORD dwClassNullDeclFlags = 0xffffffff;
-
-    if ( IsMdHasSecurity(dwMemberAttrs) || IsTdHasSecurity(GetAttrClass()) || pNewMD->IsNDirect() )
-    {
-        // Disable inlining for any function which does runtime declarative
-        // security actions.
-        DWORD dwRuntimeSecurityFlags = (pNewMD->GetSecurityFlagsDuringClassLoad(GetMDImport(),
-                                     tokMethod,
-                                     GetCl(),
-                                     &dwClassDeclFlags,
-                                     &dwClassNullDeclFlags,
-                                     &dwMethDeclFlags,
-                                        &dwMethNullDeclFlags) & DECLSEC_RUNTIME_ACTIONS);
-        if (dwRuntimeSecurityFlags)
-        {
-            // If we get here it means
-            // - We have some "runtime" actions on this method. We dont care about "linktime" demands
-            // - If this is a pinvoke method, then the unmanaged code access demand has not been suppressed
-            pNewMD->SetNotInline(true);
-
-            pNewMD->SetInterceptedForDeclSecurity();
-
-            if (MethodSecurityDescriptor::IsDeclSecurityCASDemandsOnly(dwRuntimeSecurityFlags, tokMethod, GetMDImport()))
-            {
-                pNewMD->SetInterceptedForDeclSecurityCASDemandsOnly();
-            }
-        }
-    }
-
-    if ( IsMdHasSecurity(dwMemberAttrs) )
-    {
-        // We only care about checks that are not empty...
-        dwMethDeclFlags &= ~dwMethNullDeclFlags;
-
-        if ( dwMethDeclFlags & (DECLSEC_LINK_CHECKS|DECLSEC_NONCAS_LINK_DEMANDS) )
-        {
-            pNewMD->SetRequiresLinktimeCheck();
-            // if the link check is due to HP and nothing else, capture that in the flags too
-            if (dwMethDeclFlags & DECLSEC_LINK_CHECKS_HPONLY)
-            {
-                pNewMD->SetRequiresLinkTimeCheckHostProtectionOnly();
-            }
-        }
-
-        if ( dwMethDeclFlags & (DECLSEC_INHERIT_CHECKS|DECLSEC_NONCAS_INHERITANCE) )
-        {
-            pNewMD->SetRequiresInheritanceCheck();
-            if (IsInterface())
-            {
-                GetHalfBakedClass()->SetSomeMethodsRequireInheritanceCheck();
-            }
-        }
-    }
-
-    // Linktime checks on a method override those on a class.
-    // If the method has an empty set of linktime checks,
-    // then don't require linktime checking for this method.
-    if (!pNewMD->RequiresLinktimeCheck() && RequiresLinktimeCheck() && !(dwMethNullDeclFlags & DECLSEC_LINK_CHECKS) )
-    {
-        
-        pNewMD->SetRequiresLinktimeCheck();
-        if (RequiresLinktimeCheckHostProtectionOnly())
-        {
-            pNewMD->SetRequiresLinkTimeCheckHostProtectionOnly();
-        }
-    }
-
-    if ( pParentMethod != NULL &&
-        (pParentMethod->GetMethodDesc()->RequiresInheritanceCheck() ||
-        pParentMethod->GetMethodDesc()->ParentRequiresInheritanceCheck()) )
-    {
-        pNewMD->SetParentRequiresInheritanceCheck();
-    }
-
-    // Methods on an interface that includes an UnmanagedCode check
-    // suppression attribute are assumed to be interop methods. We ask
-    // for linktime checks on these.
-    // Also place linktime checks on all P/Invoke calls.
-    if (
-#ifndef FEATURE_CORECLR 
-        (IsInterface() &&
-        (GetMDImport()->GetCustomAttributeByName(GetCl(),
-                                                                COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                                NULL,
-                                                                NULL) == S_OK ||
-         GetMDImport()->GetCustomAttributeByName(pNewMD->GetMemberDef(),
-                                                                COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                                NULL,
-                                                                NULL) == S_OK) ) ||
-
-#endif  // !FEATURE_CORECLR
-        pNewMD->IsNDirect() ||
-        (pNewMD->IsComPlusCall() && !IsInterface()))
-    {
-        pNewMD->SetRequiresLinktimeCheck();
-    }
-
-#if defined(FEATURE_APTCA) || defined(FEATURE_CORESYSTEM) 
-    // All public methods on public types will do a link demand of
-    // full trust, unless AllowUntrustedCaller attribute is set
-    if (
-#ifdef _DEBUG 
-        g_pConfig->Do_AllowUntrustedCaller_Checks() &&
-#endif
-        !pNewMD->RequiresLinktimeCheck())
-    {
-        // If the method is public (visible outside it's assembly),
-        // and the type is public and the assembly
-        // is not marked with AllowUntrustedCaller attribute, do
-        // a link demand for full trust on all callers note that
-        // this won't be effective on virtual overrides. The caller
-        // can allways do a virtual call on the base type / interface
-
-        if (Security::MethodIsVisibleOutsideItsAssembly(dwMemberAttrs, GetAttrClass(), IsGlobalClass()))
-        {
-            _ASSERTE(GetClassLoader());
-            _ASSERTE(GetAssembly());
-
-            // See if the Assembly has AllowUntrustedCallerChecks CA
-            // Pull this page in last
-
-            if (!GetAssembly()->AllowUntrustedCaller())
-                pNewMD->SetRequiresLinktimeCheck();
-        }
-    }
-#endif //  defined(FEATURE_APTCA) || defined(FEATURE_CORESYSTEM)
-
-    // If it's a delegate BeginInvoke, we need to do a HostProtection check for synchronization
-    if(!pNewMD->RequiresLinktimeCheck() && IsDelegate())
-    {
-        DelegateEEClass* pDelegateClass = (DelegateEEClass*)GetHalfBakedClass();
-        if(pNewMD == pDelegateClass->m_pBeginInvokeMethod)
-        {
-            pNewMD->SetRequiresLinktimeCheck();
-            pNewMD->SetRequiresLinkTimeCheckHostProtectionOnly(); // this link check is due to HP only
-        }
-        
-    }
-}
 
 //*******************************************************************************
 //
@@ -5494,10 +5074,6 @@ MethodTableBuilder::InitNewMethodDesc(
             pParentMethod = (*bmtParent->pSlotTable)[idx].Decl().AsRTMethod();
         }
     }
-
-
-    // Declarative Security
-    SetSecurityFlagsOnMethod(pParentMethod, pNewMD, pMethod->GetMethodSignature().GetToken(), pMethod->GetDeclAttrs(), bmtInternal, bmtMetaData);
 
     // Turn off inlining for any calls
     // that are marked in the metadata as not being inlineable.
@@ -6290,12 +5866,12 @@ MethodTableBuilder::InitMethodDesc(
             NDirectMethodDesc *pNewNMD = (NDirectMethodDesc*)pNewMD;
 
             // Allocate writeable data
-            pNewNMD->ndirect.m_pWriteableData = (NDirectWriteableData*)
-                AllocateFromHighFrequencyHeap(S_SIZE_T(sizeof(NDirectWriteableData)));
+            pNewNMD->ndirect.m_pWriteableData.SetValue((NDirectWriteableData*)
+                AllocateFromHighFrequencyHeap(S_SIZE_T(sizeof(NDirectWriteableData))));
 
 #ifdef HAS_NDIRECT_IMPORT_PRECODE 
-            pNewNMD->ndirect.m_pImportThunkGlue = Precode::Allocate(PRECODE_NDIRECT_IMPORT, pNewMD,
-                GetLoaderAllocator(), GetMemTracker())->AsNDirectImportPrecode();
+            pNewNMD->ndirect.m_pImportThunkGlue.SetValue(Precode::Allocate(PRECODE_NDIRECT_IMPORT, pNewMD,
+                GetLoaderAllocator(), GetMemTracker())->AsNDirectImportPrecode());
 #else // !HAS_NDIRECT_IMPORT_PRECODE
             pNewNMD->GetNDirectImportThunkGlue()->Init(pNewNMD);
 #endif // !HAS_NDIRECT_IMPORT_PRECODE
@@ -6304,14 +5880,6 @@ MethodTableBuilder::InitMethodDesc(
             pNewNMD->ndirect.m_cbStackArgumentSize = 0xFFFF;
 #endif // defined(_TARGET_X86_)
 
-#ifdef FEATURE_MIXEDMODE // IJW
-            if (RVA != 0 && IsMiUnmanaged(dwImplFlags) && IsMiNative(dwImplFlags))
-            {
-                // Note that we cannot initialize the stub directly now in the general case,
-                // as LoadLibrary may not have been performed yet.
-                pNewNMD->SetIsEarlyBound();
-            }
-#endif // FEATURE_MIXEDMODE
 
             pNewNMD->GetWriteableData()->m_pNDirectTarget = pNewNMD->GetNDirectImportThunkGlue()->GetEntrypoint();
         }
@@ -6333,18 +5901,18 @@ MethodTableBuilder::InitMethodDesc(
 
         if (strcmp(pMethodName, "Invoke") == 0)
         {
-            BAD_FORMAT_NOTHROW_ASSERT(NULL == ((DelegateEEClass*)GetHalfBakedClass())->m_pInvokeMethod);
-            ((DelegateEEClass*)GetHalfBakedClass())->m_pInvokeMethod = pNewMD;
+            BAD_FORMAT_NOTHROW_ASSERT(((DelegateEEClass*)GetHalfBakedClass())->m_pInvokeMethod.IsNull());
+            ((DelegateEEClass*)GetHalfBakedClass())->m_pInvokeMethod.SetValue(pNewMD);
         }
         else if (strcmp(pMethodName, "BeginInvoke") == 0)
         {
-            BAD_FORMAT_NOTHROW_ASSERT(NULL == ((DelegateEEClass*)GetHalfBakedClass())->m_pBeginInvokeMethod);
-            ((DelegateEEClass*)GetHalfBakedClass())->m_pBeginInvokeMethod = pNewMD;
+            BAD_FORMAT_NOTHROW_ASSERT(((DelegateEEClass*)GetHalfBakedClass())->m_pBeginInvokeMethod.IsNull());
+            ((DelegateEEClass*)GetHalfBakedClass())->m_pBeginInvokeMethod.SetValue(pNewMD);
         }
         else if (strcmp(pMethodName, "EndInvoke") == 0)
         {
-            BAD_FORMAT_NOTHROW_ASSERT(NULL == ((DelegateEEClass*)GetHalfBakedClass())->m_pEndInvokeMethod);
-            ((DelegateEEClass*)GetHalfBakedClass())->m_pEndInvokeMethod = pNewMD;
+            BAD_FORMAT_NOTHROW_ASSERT(((DelegateEEClass*)GetHalfBakedClass())->m_pEndInvokeMethod.IsNull());
+            ((DelegateEEClass*)GetHalfBakedClass())->m_pEndInvokeMethod.SetValue(pNewMD);
         }
         else
         {
@@ -6548,7 +6116,7 @@ MethodTableBuilder::PlaceMethodImpls()
     // Allocate some temporary storage. The number of overrides for a single method impl
     // cannot be greater then the number of vtable slots.
     DWORD * slots = new (&GetThread()->m_MarshalAlloc) DWORD[bmtVT->cVirtualSlots];
-    MethodDesc ** replaced = new (&GetThread()->m_MarshalAlloc) MethodDesc*[bmtVT->cVirtualSlots];
+    RelativePointer<MethodDesc *> * replaced = new (&GetThread()->m_MarshalAlloc) RelativePointer<MethodDesc*>[bmtVT->cVirtualSlots];
 
     DWORD iEntry = 0;
     bmtMDMethod * pCurImplMethod = bmtMethodImpl->GetImplementationMethod(iEntry);
@@ -6635,7 +6203,7 @@ MethodTableBuilder::WriteMethodImplData(
     bmtMDMethod * pImplMethod, 
     DWORD         cSlots, 
     DWORD *       rgSlots, 
-    MethodDesc ** rgDeclMD)
+    RelativePointer<MethodDesc *> * rgDeclMD)
 {
     STANDARD_VM_CONTRACT;
     
@@ -6665,9 +6233,9 @@ MethodTableBuilder::WriteMethodImplData(
             {
                 if (rgSlots[j] < rgSlots[i])
                 {
-                    MethodDesc * mTmp = rgDeclMD[i];
-                    rgDeclMD[i] = rgDeclMD[j];
-                    rgDeclMD[j] = mTmp;
+                    MethodDesc * mTmp = rgDeclMD[i].GetValue();
+                    rgDeclMD[i].SetValue(rgDeclMD[j].GetValue());
+                    rgDeclMD[j].SetValue(mTmp);
 
                     DWORD sTmp = rgSlots[i];
                     rgSlots[i] = rgSlots[j];
@@ -6689,7 +6257,7 @@ MethodTableBuilder::PlaceLocalDeclaration(
     bmtMDMethod * pDecl, 
     bmtMDMethod * pImpl, 
     DWORD *       slots, 
-    MethodDesc ** replaced, 
+    RelativePointer<MethodDesc *> * replaced,
     DWORD *       pSlotIndex)
 {
     CONTRACTL
@@ -6746,7 +6314,7 @@ MethodTableBuilder::PlaceLocalDeclaration(
 
     // We implement this slot, record it
     slots[*pSlotIndex] = pDecl->GetSlotIndex();
-    replaced[*pSlotIndex] = pDecl->GetMethodDesc();
+    replaced[*pSlotIndex].SetValue(pDecl->GetMethodDesc());
 
     // increment the counter
     (*pSlotIndex)++;
@@ -6757,7 +6325,7 @@ VOID MethodTableBuilder::PlaceInterfaceDeclaration(
     bmtRTMethod *     pDecl,
     bmtMDMethod *     pImpl,
     DWORD*            slots,
-    MethodDesc**      replaced,
+    RelativePointer<MethodDesc *> *      replaced,
     DWORD*            pSlotIndex)
 {
     CONTRACTL {
@@ -6862,7 +6430,7 @@ MethodTableBuilder::PlaceParentDeclaration(
     bmtRTMethod * pDecl, 
     bmtMDMethod * pImpl, 
     DWORD *       slots, 
-    MethodDesc ** replaced, 
+    RelativePointer<MethodDesc *> * replaced,
     DWORD *       pSlotIndex)
 {
     CONTRACTL {
@@ -6907,7 +6475,7 @@ MethodTableBuilder::PlaceParentDeclaration(
 
     // We implement this slot, record it
     slots[*pSlotIndex] = pDeclMD->GetSlot();
-    replaced[*pSlotIndex] = pDeclMD;
+    replaced[*pSlotIndex].SetValue(pDeclMD);
 
     // increment the counter
     (*pSlotIndex)++;
@@ -7208,12 +6776,21 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef FEATURE_REMOTING
-    // Approximation of code:MethodDesc::IsRemotingInterceptedViaPrestub
-    if (MayBeRemotingIntercepted(pMDMethod) && !IsMdVirtual(pMDMethod->GetDeclAttrs()))
+
+#ifdef FEATURE_TIERED_COMPILATION
+    // Keep in-sync with MethodDesc::IsEligibleForTieredCompilation()
+    if (g_pConfig->TieredCompilation() &&
+        !GetModule()->HasNativeOrReadyToRunImage() &&
+        (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
     {
         return TRUE;
     }
+#endif
+
+#if defined(FEATURE_JIT_PITCHING)
+    if ((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitPitchEnabled) != 0) &&
+        (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitPitchMemThreshold) != 0))
+        return TRUE;
 #endif
 
     return GetModule()->IsEditAndContinueEnabled();
@@ -7225,11 +6802,7 @@ MethodTableBuilder::MayBeRemotingIntercepted(bmtMDMethod * pMDMethod)
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef FEATURE_REMOTING
-    return (IsMarshaledByRef() || g_pObjectClass == NULL) && !IsMdStatic(pMDMethod->GetDeclAttrs());
-#else
     return FALSE;
-#endif
 }
 
 //*******************************************************************************
@@ -8412,7 +7985,7 @@ DWORD MethodTableBuilder::GetFieldSize(FieldDesc *pFD)
     return (1 << (DWORD)(DWORD_PTR&)(pFD->m_pMTOfEnclosingClass));
 }
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
 // checks whether the struct is enregisterable.
 void MethodTableBuilder::SystemVAmd64CheckForPassStructInRegister()
 {
@@ -8497,7 +8070,7 @@ void MethodTableBuilder::StoreEightByteClassification(SystemVStructRegisterPassi
     eeClass->SetEightByteClassification(helper->eightByteCount, helper->eightByteClassifications, helper->eightByteSizes);
 }
 
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 #ifdef FEATURE_HFA
 //---------------------------------------------------------------------------------------
@@ -8916,17 +8489,6 @@ MethodTableBuilder::HandleExplicitLayout(
                               IDS_CLASSLOAD_EXPLICIT_LAYOUT);
     }
 
-    if (!explicitClassTrust.IsVerifiable())
-    {
-        if (!Security::CanSkipVerification(GetAssembly()->GetDomainAssembly()))
-        {
-            ThrowFieldLayoutError(GetCl(),
-                                  GetModule(),
-                                  firstObjectOverlapOffset,
-                                  IDS_CLASSLOAD_UNVERIFIABLE_FIELD_LAYOUT);
-        }
-    }
-
     if (!explicitClassTrust.IsNonOverLayed())
     {
         SetHasOverLayedFields();
@@ -9289,7 +8851,7 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
         //
         // Non-canonical method tables either share everything or nothing so it is sufficient to check
         // just the first indirection to detect sharing.
-        if (pMT->GetVtableIndirections()[0] != pCanonMT->GetVtableIndirections()[0])
+        if (pMT->GetVtableIndirections()[0].GetValueMaybeNull() != pCanonMT->GetVtableIndirections()[0].GetValueMaybeNull())
         {
             for (DWORD i = 0; i < nParentVirtuals; i++)
             {
@@ -9316,7 +8878,7 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
             // We need to re-inherit this slot from the exact parent.
 
             DWORD indirectionIndex = MethodTable::GetIndexOfVtableIndirection(i);
-            if (pMT->GetVtableIndirections()[indirectionIndex] == pApproxParentMT->GetVtableIndirections()[indirectionIndex])
+            if (pMT->GetVtableIndirections()[indirectionIndex].GetValueMaybeNull() == pApproxParentMT->GetVtableIndirections()[indirectionIndex].GetValueMaybeNull())
             {
                 // The slot lives in a chunk shared from the approximate parent MT
                 // If so, we need to change to share the chunk from the exact parent MT
@@ -9327,7 +8889,7 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
                 _ASSERTE(MethodTable::CanShareVtableChunksFrom(pParentMT, pMT->GetLoaderModule()));
 #endif
 
-                pMT->GetVtableIndirections()[indirectionIndex] = pParentMT->GetVtableIndirections()[indirectionIndex];
+                pMT->GetVtableIndirections()[indirectionIndex].SetValueMaybeNull(pParentMT->GetVtableIndirections()[indirectionIndex].GetValueMaybeNull());
 
                 i = MethodTable::GetEndSlotForVtableIndirection(indirectionIndex, nParentVirtuals) - 1;
                 continue;
@@ -9947,267 +9509,6 @@ void MethodTableBuilder::InterfaceAmbiguityCheck(bmtInterfaceAmbiguityCheckInfo 
     InterfacesAmbiguityCheck(bmtCheckInfo,pIntf->GetModule(),pIntf->GetCl(),pItfSubstChain);
 }
 
-#ifdef FEATURE_REMOTING // affects only remoting-related info
-//*******************************************************************************
-// Private helper method used by the code below to check whether the given
-// method is annotated to be a VTS event callback.
-BOOL MethodTableBuilder::CheckForVtsEventMethod(IMDInternalImport  *pImport,
-                                                MethodDesc         *pMD,
-                                                DWORD               dwAttrs,
-                                                LPCUTF8             szAttrName,
-                                                MethodDesc        **ppMethodDesc)
-{
-    STANDARD_VM_CONTRACT;
-
-    // For each method with an attriubte we need to check that:
-    //   o  The method is not static, virtual, abstract or generic.
-    //   o  The signature is correct.
-    //   o  No other method on the same type is marked with the same
-    //      attribute.
-
-    if (pImport->GetCustomAttributeByName(pMD->GetMemberDef(),
-                                          szAttrName,
-                                          NULL,
-                                          NULL) == S_OK)
-    {
-        if (IsMdStatic(dwAttrs) ||
-            IsMdVirtual(dwAttrs) ||
-            IsMdAbstract(dwAttrs) ||
-            pMD->IsGenericMethodDefinition())
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_INVALID_VTS_METHOD, pMD->GetMemberDef());
-        }
-
-        // Check whether we've seen one of these methods before.
-        if (*ppMethodDesc != NULL)
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_TOO_MANY_VTS_METHODS, szAttrName);
-        }
-
-        // Check the signature, it should be "void M(StreamingContext)".
-        DWORD           cbSig;
-        PCCOR_SIGNATURE pSig;
-        if (FAILED(pImport->GetSigOfMethodDef(pMD->GetMemberDef(), &cbSig, &pSig)))
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
-        }
-        
-        // Should be an instance method with no generic type parameters.
-        if (CorSigUncompressCallingConv(pSig) != IMAGE_CEE_CS_CALLCONV_HASTHIS)
-            goto BadSignature;
-
-        // Should have one argument.
-        if (CorSigUncompressData(pSig) != 1)
-            goto BadSignature;
-
-        // And a return type of void.
-        if (*pSig++ != (BYTE)ELEMENT_TYPE_VOID)
-            goto BadSignature;
-
-        // The argument should be a value type.
-        if (*pSig++ != (BYTE)ELEMENT_TYPE_VALUETYPE)
-            goto BadSignature;
-
-        // Now the tricky bit: we want to verify the value type is
-        // StreamingContext, but we don't want to simply load the type since it
-        // might be any other arbitrary type and cause recursive loading
-        // problems. SO we manually check the type via the metadata APIs
-        // instead.
-        mdToken tkType = CorSigUncompressToken(pSig);
-        LPCUTF8 szType;
-        LPCUTF8 szNamespace;
-
-        // Compute type name and namespace.
-        if (TypeFromToken(tkType) == mdtTypeDef)
-        {
-            if (FAILED(pImport->GetNameOfTypeDef(tkType, &szType, &szNamespace)))
-            {
-                goto BadSignature;
-            }
-        }
-        else
-        {
-            _ASSERTE(TypeFromToken(tkType) == mdtTypeRef);
-            if (FAILED(pImport->GetNameOfTypeRef(tkType, &szNamespace, &szType)))
-            {
-                goto BadSignature;
-            }
-        }
-
-        // Do the names match?
-        if (strcmp(szType, g_StreamingContextName) != 0 ||
-            strcmp(szNamespace, g_SerializationNS))
-            goto BadSignature;
-
-        // For typedefs we can directly check whether the current module is
-        // part of mscorlib. For refs we have to dig deeper (into the token
-        // resolution scope).
-        if (TypeFromToken(tkType) == mdtTypeDef)
-        {
-            if (bmtError->pModule->GetAssembly()->GetManifestModule() != SystemDomain::SystemAssembly()->GetManifestModule())
-                goto BadSignature;
-        }
-        else
-        {
-            // The scope needs to be an assembly ref.
-            mdToken tkScope;
-            if (FAILED(pImport->GetResolutionScopeOfTypeRef(tkType, &tkScope)))
-            {
-                goto BadSignature;
-            }
-            if (TypeFromToken(tkScope) != mdtAssemblyRef)
-                goto BadSignature;
-
-            // Fetch the name and public key or public key token.
-            BYTE *pbPublicKeyOrToken;
-            DWORD cbPublicKeyOrToken;
-            LPCSTR szAssembly;
-            DWORD dwAssemblyFlags;
-            if (FAILED(pImport->GetAssemblyRefProps(
-                tkScope, 
-                (const void**)&pbPublicKeyOrToken, 
-                &cbPublicKeyOrToken, 
-                &szAssembly, 
-                NULL,               // AssemblyMetaDataInternal: we don't care about version, culture etc.
-                NULL,               // Hash value pointer, obsolete information
-                NULL,               // Byte count for above
-                &dwAssemblyFlags)))
-            {
-                goto BadSignature;
-            }
-            
-            // Validate the name.
-            if (stricmpUTF8(szAssembly, g_psBaseLibraryName) != 0)
-                goto BadSignature;
-
-            // And the public key or token, whichever was burned into the reference by the compiler. For mscorlib this is the ECMA key or
-            // token.
-            if (IsAfPublicKeyToken(dwAssemblyFlags))
-            {
-                if (cbPublicKeyOrToken != sizeof(g_rbNeutralPublicKeyToken) ||
-                    memcmp(pbPublicKeyOrToken, g_rbNeutralPublicKeyToken, cbPublicKeyOrToken) != 0)
-                    goto BadSignature;
-            }
-            else
-            {
-                if (cbPublicKeyOrToken != sizeof(g_rbNeutralPublicKey) ||
-                    memcmp(pbPublicKeyOrToken, g_rbNeutralPublicKey, cbPublicKeyOrToken) != 0)
-                    goto BadSignature;
-            }
-        }
-
-        // We managed to pass all tests; record this method.
-        *ppMethodDesc = pMD;
-
-        return TRUE;
-    }
-
-    return FALSE;
-
- BadSignature:
-    BuildMethodTableThrowException(IDS_CLASSLOAD_INVALID_VTS_SIG, pMD->GetMemberDef());
-}
-
-//*******************************************************************************
-// Names of the various VTS custom attributes
-#define VTS_ON_SERIALIZING_ATTRIBUTE    "System.Runtime.Serialization.OnSerializingAttribute"
-#define VTS_ON_SERIALIZED_ATTRIBUTE     "System.Runtime.Serialization.OnSerializedAttribute"
-#define VTS_ON_DESERIALIZING_ATTRIBUTE  "System.Runtime.Serialization.OnDeserializingAttribute"
-#define VTS_ON_DESERIALIZED_ATTRIBUTE   "System.Runtime.Serialization.OnDeserializedAttribute"
-#define VTS_OPTIONAL_FIELD_ATTRIBUTE    "System.Runtime.Serialization.OptionalFieldAttribute"
-
-//*******************************************************************************
-// Look for VTS event methods or fields with interesting serialization
-// attributes on this type (only called for serializable types).
-
-VOID MethodTableBuilder::ScanTypeForVtsInfo()
-{
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        PRECONDITION(IsTdSerializable(GetAttrClass()));
-    }
-    CONTRACTL_END;
-
-    //
-    // Do not mark System.String as needing vts info. The MethodTable bit used for VtsInfo
-    // is used for other purpose on System.String, and System.String does need VtsInfo anyway
-    // because of it is special-cased by the object cloner.
-    //
-    if (g_pStringClass == NULL)
-    {
-        LPCUTF8 name, nameSpace;
-
-        if (FAILED(GetMDImport()->GetNameOfTypeDef(GetCl(), &name, &nameSpace)))
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
-        }
-
-        if (strcmp(name, g_StringName) == 0 && strcmp(nameSpace, g_SystemNS) == 0)
-        {
-            return;
-        }
-    }    
-
-    DWORD i;
-    // Scan all the non-virtual, non-abstract, non-generic instance methods for
-    // one of the special custom attributes indicating a VTS event method.
-    DeclaredMethodIterator it(*this);
-    while (it.Next())
-    {
-        if (CheckForVtsEventMethod(GetMDImport(),
-                                   it->GetMethodDesc(),
-                                   it.Attrs(),
-                                   VTS_ON_SERIALIZING_ATTRIBUTE,
-                                   &bmtMFDescs->pOnSerializingMethod))
-            bmtMFDescs->fNeedsRemotingVtsInfo = true;
-
-        if (CheckForVtsEventMethod(GetMDImport(),
-                                   it->GetMethodDesc(),
-                                   it.Attrs(),
-                                   VTS_ON_SERIALIZED_ATTRIBUTE,
-                                   &bmtMFDescs->pOnSerializedMethod))
-            bmtMFDescs->fNeedsRemotingVtsInfo = true;
-
-        if (CheckForVtsEventMethod(GetMDImport(),
-                                   it->GetMethodDesc(),
-                                   it.Attrs(),
-                                   VTS_ON_DESERIALIZING_ATTRIBUTE,
-                                   &bmtMFDescs->pOnDeserializingMethod))
-            bmtMFDescs->fNeedsRemotingVtsInfo = true;
-
-        if (CheckForVtsEventMethod(GetMDImport(),
-                                   it->GetMethodDesc(),
-                                   it.Attrs(),
-                                   VTS_ON_DESERIALIZED_ATTRIBUTE,
-                                   &bmtMFDescs->pOnDeserializedMethod))
-            bmtMFDescs->fNeedsRemotingVtsInfo = true;
-    }
-
-    // Scan all the instance fields introduced on this type for NotSerialized or
-    // OptionalField attributes.
-    DWORD dwNumIntroducedInstanceFields = bmtEnumFields->dwNumInstanceFields;
-    FieldDesc *pFieldDescList = GetApproxFieldDescListRaw();
-    for (i = 0; i < dwNumIntroducedInstanceFields; i++)
-    {
-        FieldDesc *pFD = &pFieldDescList[i];
-        DWORD      dwFlags;
-        
-        if (FAILED(GetMDImport()->GetFieldDefProps(pFD->GetMemberDef(), &dwFlags)))
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
-        }
-        if (IsFdNotSerialized(dwFlags))
-            bmtMFDescs->SetFieldNotSerialized(i, dwNumIntroducedInstanceFields);
-        
-        if (GetMDImport()->GetCustomAttributeByName(pFD->GetMemberDef(),
-                                                                   VTS_OPTIONAL_FIELD_ATTRIBUTE,
-                                                                   NULL,
-                                                                   NULL) == S_OK)
-            bmtMFDescs->SetFieldOptionallySerialized(i, dwNumIntroducedInstanceFields);
-    }
-}
-#endif // FEATURE_REMOTING
 
 //*******************************************************************************
 void MethodTableBuilder::CheckForSystemTypes()
@@ -10220,7 +9521,6 @@ void MethodTableBuilder::CheckForSystemTypes()
     // We can exit early for generic types - there are just a few cases to check for.
     if (bmtGenerics->HasInstantiation() && g_pNullableClass != NULL)
     {
-#ifdef FEATURE_SPAN_OF_T
         _ASSERTE(g_pByReferenceClass != NULL);
         _ASSERTE(g_pByReferenceClass->IsByRefLike());
 
@@ -10237,7 +9537,6 @@ void MethodTableBuilder::CheckForSystemTypes()
 #endif
             return;
         }
-#endif
 
         _ASSERTE(g_pNullableClass->IsNullable());
 
@@ -10293,7 +9592,6 @@ void MethodTableBuilder::CheckForSystemTypes()
         {
             pMT->SetIsNullable();
         }
-#ifdef FEATURE_SPAN_OF_T
         else if (strcmp(name, g_ByReferenceName) == 0)
         {
             pMT->SetIsByRefLike();
@@ -10306,10 +9604,9 @@ void MethodTableBuilder::CheckForSystemTypes()
             pMT->SetInternalCorElementType(ELEMENT_TYPE_VALUETYPE);
 #endif
         }
-#endif
         else if (strcmp(name, g_ArgIteratorName) == 0)
         {
-            // Mark the special types that have embeded stack poitners in them
+            // Mark the special types that have embeded stack pointers in them
             pMT->SetIsByRefLike();
         }
         else if (strcmp(name, g_RuntimeArgumentHandleName) == 0)
@@ -10366,15 +9663,6 @@ void MethodTableBuilder::CheckForSystemTypes()
             // we'll set the bit here.
             pMT->SetHasCriticalFinalizer();
         }
-#ifdef FEATURE_REMOTING 
-        else if (strcmp(name, g_TransparentProxyName) == 0 && strcmp(nameSpace, g_ProxiesNS) == 0)
-        {
-            pMT->SetTransparentProxy();
-
-            // This ensures that we take the slow path in JIT_IsInstanceOfClass
-            pMT->SetHasTypeEquivalence();
-        }
-#endif // FEATURE_REMOTING
 #ifdef FEATURE_COMINTEROP 
         else
         {
@@ -10458,7 +9746,7 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
     S_SIZE_T cbTotalSize = S_SIZE_T(dwGCSize) + S_SIZE_T(sizeof(MethodTable));
 
     // vtable
-    cbTotalSize += MethodTable::GetNumVtableIndirections(dwVirtuals) * sizeof(PTR_PCODE);
+    cbTotalSize += MethodTable::GetNumVtableIndirections(dwVirtuals) * sizeof(MethodTable::VTableIndir_t);
 
 
     DWORD dwMultipurposeSlotsMask = 0;
@@ -10502,7 +9790,7 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
     if (dwNumDicts != 0)
     {
         cbTotalSize += sizeof(GenericsDictInfo);
-        cbTotalSize += S_SIZE_T(dwNumDicts) * S_SIZE_T(sizeof(TypeHandle*));
+        cbTotalSize += S_SIZE_T(dwNumDicts) * S_SIZE_T(sizeof(MethodTable::PerInstInfoElem_t));
         cbTotalSize += cbInstAndDict;
     }
 
@@ -10607,7 +9895,7 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
         {
             // Share the parent chunk
             _ASSERTE(it.GetEndSlot() <= pMTParent->GetNumVirtuals());
-            it.SetIndirectionSlot(pMTParent->GetVtableIndirections()[it.GetIndex()]);
+            it.SetIndirectionSlot(pMTParent->GetVtableIndirections()[it.GetIndex()].GetValueMaybeNull());
         }
         else
         {
@@ -10655,19 +9943,20 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
     // the dictionary pointers follow the interface map
     if (dwNumDicts)
     {
-        Dictionary** pPerInstInfo = (Dictionary**)(pData + offsetOfInstAndDict.Value() + sizeof(GenericsDictInfo));
+        MethodTable::PerInstInfoElem_t *pPerInstInfo = (MethodTable::PerInstInfoElem_t *)(pData + offsetOfInstAndDict.Value() + sizeof(GenericsDictInfo));
 
         pMT->SetPerInstInfo ( pPerInstInfo);
 
         // Fill in the dictionary for this type, if it's instantiated
         if (cbInstAndDict)
         {
-            *(pPerInstInfo + (dwNumDicts-1)) = (Dictionary*) (pPerInstInfo + dwNumDicts);
+            MethodTable::PerInstInfoElem_t *pPInstInfo = (MethodTable::PerInstInfoElem_t *)(pPerInstInfo + (dwNumDicts-1));
+            pPInstInfo->SetValueMaybeNull((Dictionary*) (pPerInstInfo + dwNumDicts));
         }
     }
 
 #ifdef _DEBUG
-    pMT->m_pWriteableData->m_dwLastVerifedGCCnt = (DWORD)-1;
+    pMT->m_pWriteableData.GetValue()->m_dwLastVerifedGCCnt = (DWORD)-1;
 #endif // _DEBUG
 
     RETURN(pMT);
@@ -10729,15 +10018,9 @@ MethodTableBuilder::SetupMethodTable2(
                    : 0;
 
 
-#ifdef FEATURE_REMOTING 
-    BOOL fHasContextStatics = (bmtCSInfo) ? (bmtCSInfo->dwContextStaticsSize) : FALSE;
-    BOOL fNeedsRemotableMethodInfo = (IsMarshaledByRef() || IsInterface() || g_pObjectClass == NULL);
-    BOOL fNeedsRemotingVtsInfo = bmtMFDescs->fNeedsRemotingVtsInfo;
-#else // !FEATURE_REMOTING
     BOOL fHasContextStatics = FALSE;
     BOOL fNeedsRemotableMethodInfo=FALSE;
     BOOL fNeedsRemotingVtsInfo = FALSE;
-#endif // !FEATURE_REMOTING
 
 #ifdef FEATURE_COLLECTIBLE_TYPES
     BOOL fCollectible = pLoaderModule->IsCollectible();
@@ -10790,7 +10073,7 @@ MethodTableBuilder::SetupMethodTable2(
                                    GetMemTracker());
 
     pMT->SetClass(pClass);
-    pClass->m_pMethodTable = pMT;
+    pClass->m_pMethodTable.SetValue(pMT);
     m_pHalfBakedMT = pMT;
 
 #ifdef _DEBUG 
@@ -10802,26 +10085,6 @@ MethodTableBuilder::SetupMethodTable2(
         pMT->SetHasRCWPerTypeData();
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_REMOTING 
-    if (bmtMFDescs->fNeedsRemotingVtsInfo)
-        pMT->SetHasRemotingVtsInfo();
-
-    if (fHasContextStatics)
-        pMT->SetHasContextStatics();
-
-    if (IsMarshaledByRef())
-    {
-        if (IsContextful())
-        {
-            COUNTER_ONLY(GetPerfCounters().m_Context.cClasses++);
-            pMT->SetIsContextful();
-        }
-        else
-        {
-            pMT->SetMarshaledByRef();
-        }
-    }
-#endif // FEATURE_REMOTING
 
     if (IsInterface())
         pMT->SetIsInterface();
@@ -10882,12 +10145,6 @@ MethodTableBuilder::SetupMethodTable2(
 
     SetNonGCRegularStaticFieldBytes (bmtProp->dwNonGCRegularStaticFieldBytes);
     SetNonGCThreadStaticFieldBytes (bmtProp->dwNonGCThreadStaticFieldBytes);
-
-    PSecurityProperties psp = GetSecurityProperties();
-    // Check whether we have any runtime actions such as Demand, Assert etc
-    // that can result in methods needing the security stub. We dont care about Linkdemands etc
-    if ( !psp || (!psp->GetRuntimeActions() && !psp->GetNullRuntimeActions()))
-        pMT->SetNoSecurityProperties();
 
 #ifdef FEATURE_TYPEEQUIVALENCE
     if (bmtProp->fHasTypeEquivalence)
@@ -11188,7 +10445,7 @@ MethodTableBuilder::SetupMethodTable2(
                 // with code:MethodDesc::SetStableEntryPointInterlocked.
                 //
                 DWORD indirectionIndex = MethodTable::GetIndexOfVtableIndirection(iCurSlot);
-                if (GetParentMethodTable()->GetVtableIndirections()[indirectionIndex] != pMT->GetVtableIndirections()[indirectionIndex])
+                if (GetParentMethodTable()->GetVtableIndirections()[indirectionIndex].GetValueMaybeNull() != pMT->GetVtableIndirections()[indirectionIndex].GetValueMaybeNull())
                     pMT->SetSlot(iCurSlot, pMD->GetMethodEntryPoint());
             }
             else
@@ -11435,59 +10692,6 @@ MethodTableBuilder::SetupMethodTable2(
     // (event callbacks or OptionalField attributes) we've previously cached the
     // additional information in the bmtMFDescs structure. Now it's time to add
     // this information as an optional extension to the MethodTable.
-#ifdef FEATURE_REMOTING 
-    if (bmtMFDescs->fNeedsRemotingVtsInfo)
-    {
-        DWORD dwNumIntroducedInstanceFields = bmtEnumFields->dwNumInstanceFields;
-        _ASSERTE(bmtAllocator == pMT->GetLoaderAllocator());
-        PTR_RemotingVtsInfo pInfo = pMT->AllocateRemotingVtsInfo(GetMemTracker(), dwNumIntroducedInstanceFields);
-
-        pInfo->m_pCallbacks[RemotingVtsInfo::VTS_CALLBACK_ON_SERIALIZING].SetValue(bmtMFDescs->pOnSerializingMethod);
-        pInfo->m_pCallbacks[RemotingVtsInfo::VTS_CALLBACK_ON_SERIALIZED].SetValue(bmtMFDescs->pOnSerializedMethod);
-        pInfo->m_pCallbacks[RemotingVtsInfo::VTS_CALLBACK_ON_DESERIALIZING].SetValue(bmtMFDescs->pOnDeserializingMethod);
-        pInfo->m_pCallbacks[RemotingVtsInfo::VTS_CALLBACK_ON_DESERIALIZED].SetValue(bmtMFDescs->pOnDeserializedMethod);
-
-        for (i = 0; i < dwNumIntroducedInstanceFields; i++)
-        {
-            if (bmtMFDescs->prfNotSerializedFields && bmtMFDescs->prfNotSerializedFields[i])
-                pInfo->SetIsNotSerialized(i);
-            if (bmtMFDescs->prfOptionallySerializedFields && bmtMFDescs->prfOptionallySerializedFields[i])
-                pInfo->SetIsOptionallySerialized(i);
-        }
-
-#if 0 
-        printf("%s has VTS info:\n", pMT->GetDebugClassName());
-        if (bmtMFDescs->pOnSerializingMethod)
-            printf("  OnSerializing: %s\n", bmtMFDescs->pOnSerializingMethod->m_pszDebugMethodName);
-        if (bmtMFDescs->pOnSerializedMethod)
-            printf("  OnSerialized: %s\n", bmtMFDescs->pOnSerializedMethod->m_pszDebugMethodName);
-        if (bmtMFDescs->pOnDeserializingMethod)
-            printf("  OnDeserializing: %s\n", bmtMFDescs->pOnDeserializingMethod->m_pszDebugMethodName);
-        if (bmtMFDescs->pOnDeserializedMethod)
-            printf("  OnDeserialized: %s\n", bmtMFDescs->pOnDeserializedMethod->m_pszDebugMethodName);
-        for (i = 0; i < dwNumIntroducedInstanceFields; i++)
-        {
-            if (bmtMFDescs->prfNotSerializedFields && bmtMFDescs->prfNotSerializedFields[i])
-            {
-                printf("  [NotSerialized] %s\n", GetApproxFieldDescListRaw()[i].m_debugName);
-                _ASSERTE(pInfo->IsNotSerialized(i));
-            }
-            else
-                _ASSERTE(!pInfo->IsNotSerialized(i));
-            if (bmtMFDescs->prfOptionallySerializedFields && bmtMFDescs->prfOptionallySerializedFields[i])
-            {
-                printf("  [OptionalField] %s\n", GetApproxFieldDescListRaw()[i].m_debugName);
-                _ASSERTE(pInfo->IsOptionallySerialized(i));
-            }
-            else
-                _ASSERTE(!pInfo->IsOptionallySerialized(i));
-        }
-        printf("------------\n\n");
-#endif // 0
-    }
-    if (fNeedsRemotableMethodInfo)
-        pMT->SetupRemotableMethodInfo(GetMemTracker());
-#endif // FEATURE_REMOTING
 }
 #ifdef _PREFAST_ 
 #pragma warning(pop)
@@ -11670,30 +10874,6 @@ VOID MethodTableBuilder::CheckForRemotingProxyAttrib()
 {
     STANDARD_VM_CONTRACT;
 
-#ifdef FEATURE_REMOTING 
-    // See if our parent class has a proxy attribute
-    _ASSERTE(g_pObjectClass != NULL);
-
-    if (!GetParentMethodTable()->GetClass()->HasRemotingProxyAttribute())
-    {
-        // Call the metadata api to look for a proxy attribute on this type
-        // Note: the api does not check for inherited attributes
-
-        // Set the flag is the type has a non-default proxy attribute
-        if(IsDefined(
-            GetModule(),
-            bmtInternal->pType->GetTypeDefToken(),
-            TypeHandle(MscorlibBinder::GetClass(CLASS__PROXY_ATTRIBUTE))))
-        {
-            SetHasRemotingProxyAttribute();
-        }
-    }
-    else
-    {
-        // parent has proxyAttribute ... mark this class as having one too!
-        SetHasRemotingProxyAttribute();
-    }
-#endif // FEATURE_REMOTING
 }
 
 
@@ -11948,70 +11128,6 @@ VOID MethodTableBuilder::SetContextfulOrByRef()
 
     }
     CONTRACTL_END;
-#ifdef FEATURE_REMOTING 
-
-    if (GetModule()->IsSystem())
-    {
-        // Check whether these classes are the root classes of contextful
-        // and marshalbyref classes i.e. System.ContextBoundObject and
-        // System.MarshalByRefObject respectively.
-        
-        // Extract the class name
-        LPCUTF8 pszClassName = NULL;
-        LPCUTF8 pszNameSpace = NULL;
-        if (FAILED(GetMDImport()->GetNameOfTypeDef(GetCl(), &pszClassName, &pszNameSpace)))
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
-        }
-        
-        StackSString ssFullyQualifiedName;
-        ns::MakePath(ssFullyQualifiedName,
-                     StackSString(SString::Utf8, pszNameSpace),
-                     StackSString(SString::Utf8, pszClassName));
-
-        if(ssFullyQualifiedName.Equals(SL(g_ContextBoundObjectClassName)))
-        {   // Set the contextful and marshalbyref flag
-            bmtProp->fIsContextful = true;
-            bmtProp->fMarshaledByRef = true;
-            return;
-        }
-
-        if(ssFullyQualifiedName.Equals(SL(g_MarshalByRefObjectClassName)))
-        {   // Set the marshalbyref flag
-            bmtProp->fMarshaledByRef = true;
-            return;
-        }
-    }
-
-    // First check whether the parent class is contextful or
-    // marshalbyref
-    if(HasParent())
-    {
-        MethodTable * pParent = GetParentMethodTable();
-        if(pParent->IsContextful())
-        {   // Set the contextful and marshalbyref flag
-            bmtProp->fIsContextful = true;
-            bmtProp->fMarshaledByRef = true;
-
-            if (bmtGenerics->GetNumGenericArgs() > 0)
-            {   // While these could work with a bit of work in the JIT,
-                // we will not support generic context-bound objects in V2.0.
-                BuildMethodTableThrowException(IDS_CLASSLOAD_GENERIC_CONTEXT_BOUND_OBJECT);
-            }
-
-            if (GetAssembly()->IsCollectible())
-            {
-                // Collectible assemblies do not support ContextBoundObject
-                BuildMethodTableThrowException(IDS_CLASSLOAD_COLLECTIBLE_CONTEXT_BOUND_OBJECT);
-            }
-        }
-
-        else if (pParent->IsMarshaledByRef())
-        {   // Set the marshalbyref flag
-            bmtProp->fMarshaledByRef = true;
-        }
-    }
-#endif // FEATURE_REMOTING
 
 }
 //*******************************************************************************
@@ -12173,130 +11289,6 @@ VOID MethodTableBuilder::HandleGCForValueClasses(MethodTable ** pByValueClassCac
 
 //*******************************************************************************
 //
-// Helper method for VerifyInheritanceSecurity
-//
-VOID MethodTableBuilder::VerifyClassInheritanceSecurityHelper(
-                                    MethodTable *pParentMT,
-                                    MethodTable *pChildMT)
-{
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        PRECONDITION(CheckPointer(pParentMT));
-        PRECONDITION(CheckPointer(pChildMT));
-    }
-    CONTRACTL_END;
-
-    //@ASSUMPTION: The current class has been resolved to the point that
-    // we can construct a reflection object on the class or its methods.
-    // This is required for the security checks.
-
-    // This method throws on failure.
-    Security::ClassInheritanceCheck(pChildMT, pParentMT);
-
-#ifndef FEATURE_CORECLR
-    // Check the entire parent chain for inheritance permission demands.
-    while (pParentMT != NULL)
-    {
-        if (pParentMT->GetClass()->RequiresInheritanceCheck())
-        {
-            // This method throws on failure.
-            Security::ClassInheritanceCheck(pChildMT, pParentMT);
-        }
-
-        pParentMT = pParentMT->GetParentMethodTable();
-    }
-#endif // !FEATURE_CORECLR
-}
-
-//*******************************************************************************
-//
-// Helper method for VerifyInheritanceSecurity
-//
-VOID MethodTableBuilder::VerifyMethodInheritanceSecurityHelper(
-                                                       MethodDesc *pParentMD,
-                                                       MethodDesc *pChildMD)
-{
-    CONTRACTL {
-        STANDARD_VM_CHECK;
-        PRECONDITION(CheckPointer(pParentMD));
-        PRECONDITION(CheckPointer(pChildMD));
-    } CONTRACTL_END;
-
-    Security::MethodInheritanceCheck(pChildMD, pParentMD);
-
-#ifndef FEATURE_CORECLR
-
-    // If no inheritance checks are required, just return.
-    if (!pParentMD->RequiresInheritanceCheck() &&
-        !pParentMD->ParentRequiresInheritanceCheck())
-    {
-        return;
-    }
-
-    DWORD dwSlot = pParentMD->GetSlot();
-
-#ifdef _DEBUG 
-    // Get the name and signature for the method so we can find the new parent method desc.
-    // We use the parent MethodDesc for this because the child could actually have a very
-    // different name in the case that the child is MethodImpling the parent.
-
-    // Get the name.
-    LPCUTF8            szName;
-    szName = pParentMD->GetName();
-
-    // Get the signature.
-    PCCOR_SIGNATURE    pSignature;
-    DWORD              cSignature;
-    pParentMD->GetSig(&pSignature, &cSignature);
-    Module            *pModule = pParentMD->GetModule();
-#endif // _DEBUG
-
-    do
-    {
-        if (pParentMD->RequiresInheritanceCheck())
-        {
-            Security::MethodInheritanceCheck(pChildMD, pParentMD);
-        }
-
-        if (pParentMD->ParentRequiresInheritanceCheck())
-        {
-            MethodTable *pGrandParentMT = pParentMD->GetMethodTable()->GetParentMethodTable();
-            CONSISTENCY_CHECK(CheckPointer(pGrandParentMT));
-
-            // Find this method in the parent.
-            // If it does exist in the parent, it would be at the same vtable slot.
-            if (dwSlot >= pGrandParentMT->GetNumVirtuals())
-            {
-                // Parent does not have this many vtable slots, so it doesn't exist there
-                pParentMD = NULL;
-            }
-            else
-            {
-                // It is in the vtable of the parent
-                pParentMD = pGrandParentMT->GetMethodDescForSlot(dwSlot);
-                _ASSERTE(pParentMD != NULL);
-
-#ifdef _DEBUG 
-                _ASSERTE(pParentMD == MemberLoader::FindMethod(pGrandParentMT,
-                    szName,
-                    pSignature,
-                    cSignature,
-                    pModule));
-#endif // _DEBUG
-            }
-        }
-        else
-        {
-            pParentMD = NULL;
-        }
-    } while (pParentMD != NULL);
-
-#endif // !FEATURE_CORECLR
-}
-
-//*******************************************************************************
-//
 // Used by BuildMethodTable
 //
 // Check for the presence of type equivalence. If present, make sure
@@ -12316,16 +11308,10 @@ void MethodTableBuilder::CheckForTypeEquivalence(
     {
         BOOL fTypeEquivalentNotPermittedDueToType = !(((IsComImport() || bmtProp->fComEventItfType) && IsInterface()) || IsValueClass() || IsDelegate());
         BOOL fTypeEquivalentNotPermittedDueToGenerics = bmtGenerics->HasInstantiation();
-        BOOL fTypeEquivalentNotPermittedDueToSecurity = !GetModule()->GetSecurityDescriptor()->IsFullyTrusted();
 
         if (fTypeEquivalentNotPermittedDueToType || fTypeEquivalentNotPermittedDueToGenerics)
         {
             BuildMethodTableThrowException(IDS_CLASSLOAD_EQUIVALENTBADTYPE);
-        }
-        else
-        if (fTypeEquivalentNotPermittedDueToSecurity)
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_EQUIVALENTNOTTRUSTED);
         }
 
         GetHalfBakedClass()->SetIsEquivalentType();
@@ -12366,390 +11352,6 @@ void MethodTableBuilder::CheckForTypeEquivalence(
         }
     }
 #endif //FEATURE_TYPEEQUIVALENCE
-}
-
-// Convert linktime security (including link demands and security critical checks) into inheritance security
-// in order to prevent partial trust code from bypassing linktime checks via clever inheritance hierarchies.
-// 
-// Arguments:
-//    pMDLinkDemand - The method containing the linktime security check that needs to be converted into an
-//                    inheritance check
-//
-// Notes:
-//   #PartialTrustInterfaceMappingCheck
-// 
-//   Partial trust code can bypass the enforcement of link time security on any public virtual method of a
-//   base type by mapping an unprotected interface back to the base method.  For instance:
-// 
-//   Full trust APTCA assembly A:
-//     class AptcaClass
-//     {
-//         [SecurityCritical]
-//         public virtual void CriticalMethod() { }
-//         
-//         [PermissionSet(SecurityAction.LinkDemand, Unrestricted = true)]
-//         public virtual void LinkDemandMethod() { }
-//     }
-// 
-//   Partial trust assembly B:
-//     interface IBypass
-//     {
-//         void CriticalMethod();
-//         void LinkDemandMethod();
-//     }
-//     
-//     class Bypass : AptcaClass, IBypass { }
-//     
-//     IBypass o = new Bypass();
-//     o.CriticalMethod();
-//     o.LinkDemandMethod();
-//     
-//  Since the static type seen by the JIT is IBypass, and there is no link time security on IBypass, the
-//  partial trust code has stepped around the link time security checks.
-//  
-//  In order to prevent this, types which:
-//    1. Are partially trusted AND
-//    2. Cause an interface to be added to the type WHICH
-//    3. Has a method implemented by a base type in a different assembly AND
-//    4. The base type method has a link time check on it
-//    
-//  Convert the link time checks into inheritance checks.  This effectively says that in order for partially
-//  trusted code to turn off link time security, it needs to have the right to directly satisfy that
-//  security itself.  Since the partial trust code can call the protected method directly, it can also
-//  easily wrap the method in an unprotected new method and call through that there is no escalation of
-//  privilege.
-//  
-//  This method is only responsible for doing the actual inheritance demand conversion. 
-//  VerifyInheritanceSecurity checks for the above set of conditions to know when such a conversion is
-//  necessary.
-// 
-void MethodTableBuilder::ConvertLinkDemandToInheritanceDemand(MethodDesc *pMDLinkDemand)
-{
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        PRECONDITION(CheckPointer(pMDLinkDemand));
-    }
-    CONTRACTL_END;
-
-    const bool fNeedTransparencyCheck = Security::IsMethodCritical(pMDLinkDemand) &&
-                                        !Security::IsMethodSafeCritical(pMDLinkDemand);
-    const bool fNeedLinkDemandCheck   = pMDLinkDemand->RequiresLinktimeCheck() &&
-                                        !pMDLinkDemand->RequiresLinkTimeCheckHostProtectionOnly();
-
-    if (fNeedTransparencyCheck)
-    {
-        // The method being mapped to is security critical, so it effectively has a link time check for full
-        // trust on it.  Therefore we need to convert to a full trust inheritance check
-        Security::FullTrustInheritanceDemand(GetAssembly());
-    }
-    else if (fNeedLinkDemandCheck)
-    {
-        // The method being mapped to is protected with a legacy link demand.  We need to retrieve the
-        // permission set that is being used to protect the code and then use it to issue an inheritance
-        // demand.
-        Security::InheritanceLinkDemandCheck(GetAssembly(), pMDLinkDemand);
-    }
-}
-
-//*******************************************************************************
-//
-// Used by BuildMethodTable
-//
-// If we have a type equivalent class, then do equivalent security
-// checks on it. The check starts by checking for that the class is 
-// transparent or treat as safe, and then does the same for any fields.
-//
-
-void MethodTableBuilder::VerifyEquivalenceSecurity()
-{
-    STANDARD_VM_CONTRACT;
-
-#ifdef FEATURE_TYPEEQUIVALENCE
-    if (!bmtProp->fIsTypeEquivalent)
-        return;
-
-    if (!GetHalfBakedMethodTable()->IsExternallyVisible())
-    {
-        BuildMethodTableThrowException(IDS_CLASSLOAD_EQUIVALENTNOTPUBLIC);
-    }
-
-    if (Security::IsTypeCritical(GetHalfBakedMethodTable()) && 
-        !Security::IsTypeSafeCritical(GetHalfBakedMethodTable()))
-    {
-        BuildMethodTableThrowException(IDS_CLASSLOAD_EQUIVALENTTRANSPARENCY);
-    }
-
-    // Iterate through every field
-    FieldDesc *pFieldDescList = GetApproxFieldDescListRaw();
-    for (UINT i = 0; i < bmtEnumFields->dwNumInstanceFields; i++)
-    {
-        FieldDesc *pFD = &pFieldDescList[i];
-
-        FieldSecurityDescriptor fieldSecDesc(pFD);
-        if (fieldSecDesc.IsCritical() && !fieldSecDesc.IsTreatAsSafe())
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_EQUIVALENTTRANSPARENCY);
-        }
-    }
-
-    // Iterate through every method
-    DeclaredMethodIterator methIt(*this);
-    while (methIt.Next())
-    {
-        MethodDesc *pMD = methIt->GetMethodDesc();
-        _ASSERTE(pMD != NULL);
-        if (pMD == NULL)
-            continue;
-            
-        MethodSecurityDescriptor methodSecDesc(pMD, FALSE);
-        if (Security::IsMethodCritical(pMD) && !Security::IsMethodSafeCritical(pMD))
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_EQUIVALENTTRANSPARENCY);
-        }
-    }
-#endif //FEATURE_TYPEEQUIVALENCE
-}
-
-//*******************************************************************************
-//
-// Used by BuildMethodTable
-//
-// If we have a non-interface class, then do inheritance security
-// checks on it. The check starts by checking for inheritance
-// permission demands on the current class. If these first checks
-// succeeded, then the cached declared method list is scanned for
-// methods that have inheritance permission demands.
-//
-
-void MethodTableBuilder::VerifyInheritanceSecurity()
-{
-    STANDARD_VM_CONTRACT;
-
-    if (IsInterface())
-        return;
-
-    if (!Security::IsTransparencyEnforcementEnabled())
-        return;
-
-    // If we have a non-interface class, then do inheritance security
-    // checks on it. The check starts by checking for inheritance
-    // permission demands on the current class. If these first checks
-    // succeeded, then the cached declared method list is scanned for
-    // methods that have inheritance permission demands.
-#ifdef FEATURE_CORECLR
-    //
-    // If we are transparent, and every class up the inheritence chain is also entirely transparent,
-    // that means that no inheritence rules could be broken.  If that's the case, we don't need to check
-    // each individual method.  We special case System.Object since it is not entirely transparent, but
-    // every member which can be overriden is.
-    // 
-    // This optimization does not currently apply for nested classes, since we may need to evaluate the
-    // outer class in the TypeSecurityDescriptor, and that could end up with a type loading recursion.
-    //
-
-    const BOOL fCurrentTypeAllTransparent = GetHalfBakedClass()->IsNested() ? FALSE : Security::IsTypeAllTransparent(GetHalfBakedMethodTable());
-    BOOL fInheritenceChainTransparent = FALSE;
-
-    if (fCurrentTypeAllTransparent)
-    {
-        fInheritenceChainTransparent = TRUE;
-        MethodTable *pParentMT = GetParentMethodTable();
-        while (fInheritenceChainTransparent &&
-                pParentMT != NULL && 
-                pParentMT != g_pObjectClass)
-        {
-            fInheritenceChainTransparent &= Security::IsTypeAllTransparent(pParentMT);
-            pParentMT = pParentMT->GetParentMethodTable();
-            if (pParentMT != NULL && pParentMT->GetClass()->IsNested())
-            {
-                fInheritenceChainTransparent = FALSE;
-            }
-
-        }
-    }
-#endif // FEATURE_CORECLR
-
-    if (GetParentMethodTable() != NULL
-#if FEATURE_CORECLR
-        && !fInheritenceChainTransparent
-#endif // FEATURE_CORECLR
-        )
-    {
-        // Check the parent for inheritance permission demands.
-        VerifyClassInheritanceSecurityHelper(GetParentMethodTable(), GetHalfBakedMethodTable());
-
-        // Iterate all the declared methods and check each of them for inheritance demands
-        DeclaredMethodIterator mIt(*this);
-        while (mIt.Next())
-        {
-            MethodDesc * pMD = mIt.GetMDMethod()->GetMethodDesc();
-            CONSISTENCY_CHECK(CheckPointer(pMD));
-
-            MethodDesc * pIntroducingMD = mIt.GetIntroducingMethodDesc();
-            if (pIntroducingMD != NULL)
-            {
-                VerifyMethodInheritanceSecurityHelper(pIntroducingMD, pMD);
-            }
-
-            // Make sure that we don't have a transparent method in a critical class; that will lead
-            // to situations where the method doesn't have access to the this pointer, so we want to
-            // fail now, rather than with a strange method access exception at invoke time
-            if (Security::IsTypeCritical(GetHalfBakedMethodTable()) &&
-                !Security::IsTypeSafeCritical(GetHalfBakedMethodTable()))
-            {
-                if (!Security::IsMethodCritical(pMD) && !pMD->IsStatic())
-                {
-                    SecurityTransparent::ThrowTypeLoadException(pMD, IDS_E_TRANSPARENT_METHOD_CRITICAL_TYPE);
-                }
-            }
-
-            // If this method is a MethodImpl, we need to verify that all
-            // decls are allowed to be overridden.
-            if (pMD->IsMethodImpl())
-            {
-                // Iterate through each decl that this method is an impl for and
-                // test that inheritance demands are met.
-                MethodImpl *pMethodImpl = pMD->GetMethodImpl();
-                for (DWORD iCurImpl = 0; iCurImpl < pMethodImpl->GetSize(); iCurImpl++)
-                {
-                    MethodDesc *pDeclMD = pMethodImpl->GetImplementedMDs()[iCurImpl];
-                    _ASSERTE(pDeclMD != NULL);
-                    // We deal with interfaces below, so don't duplicate work
-                    if (!pDeclMD->IsInterface())
-                    {
-                        VerifyMethodInheritanceSecurityHelper(pDeclMD, pMD);
-                    }
-                }
-            }
-        }
-    }
-
-    // Now we need to verify that we are meeting all inheritance demands
-    // that were placed on interfaces and their methods. The logic is as
-    // follows: for each method contributing an implementation to this type,
-    // if a method it could contribute to any interface described in the
-    // interface map, check that both method-level and type-level inheritance
-    // demands are met (only need to check type-level once per interface).
-    {
-        // We need to do a transparency check if the current type enforces the transparency inheritance
-        // rules.  As an optimizaiton, we don't bother to do the check if the module is opportunistically
-        // critical because the transparency setup for opportunitically critical assemblies by definition
-        // statisfies the inheritance rules.
-        const SecurityTransparencyBehavior *pTransparencyBehavior =
-            GetAssembly()->GetSecurityTransparencyBehavior();
-        ModuleSecurityDescriptor *pMSD =
-            ModuleSecurityDescriptor::GetModuleSecurityDescriptor(GetAssembly());
-
-        const bool fNeedTransparencyInheritanceCheck = pTransparencyBehavior->AreInheritanceRulesEnforced() &&
-                                                        !pMSD->IsOpportunisticallyCritical();
-
- 
-        // See code:PartialTrustInterfaceMappingCheck
-        IAssemblySecurityDescriptor *pASD = GetAssembly()->GetSecurityDescriptor();
-        const BOOL fNeedPartialTrustInterfaceMappingCheck = !pASD->IsFullyTrusted();
-
-        // Iterate through each interface
-        MethodTable *pMT = GetHalfBakedMethodTable();
-        MethodTable::InterfaceMapIterator itfIt = pMT->IterateInterfaceMap();
-        while (itfIt.Next())
-        {
-            // Get current interface details
-            MethodTable *pCurItfMT = itfIt.GetInterface();
-            CONSISTENCY_CHECK(CheckPointer(pCurItfMT));
-
-#ifdef FEATURE_CORECLR
-            if (fNeedTransparencyInheritanceCheck && 
-                !(Security::IsTypeAllTransparent(itfIt.GetInterface()) &&
-                    fCurrentTypeAllTransparent) 
-                )
-#else // FEATURE_CORECLR
-            EEClass * pCurItfCls = pCurItfMT->GetClass();
-            if (fNeedTransparencyInheritanceCheck ||
-                fNeedPartialTrustInterfaceMappingCheck ||
-                pCurItfCls->RequiresInheritanceCheck() ||
-                pCurItfCls->SomeMethodsRequireInheritanceCheck())
-#endif // !FEATURE_CORECLR
-            {
-                // An interface is introduced by this type either if it is explicitly declared on the
-                // type's interface list or if one of the type's explicit interfaces requires the
-                // interface.  This is detected by seeing an interface which is not declared on this
-                // type, but also wasn't implemented by our parent.
-                // 
-                // For instance:
-                // 
-                //   interface I1 { void M(); }
-                //   interface I2 : I1 { }
-                //   class B { public void M(); }
-                //   class D : B, I2 { }
-                // 
-                // In this case, when we see D pulls in I2 explictly (IsDeclaredOnType) but I1 only
-                // because I2 requires I2 (!IsDeclaredOnType and !IsImplementedByParent).
-                bmtInterfaceEntry interfaceEntry = bmtInterface->pInterfaceMap[itfIt.GetIndex()];
-                BOOL fDeclaredOnType = interfaceEntry.IsDeclaredOnType() ||
-                                        !interfaceEntry.IsImplementedByParent();
-
-                // Now iterate through every method contributing any implementation
-                // and if it lies within the interface vtable, then we must evaluate demands
-                // NOTE: Avoid caching the MethodData object for the type being built.
-                BOOL fImplementedOnCurrentType = FALSE;
-                MethodTable::MethodDataWrapper
-                    hItfImplData(MethodTable::GetMethodData(itfIt.GetInterface(), pMT, FALSE));
-                MethodTable::MethodIterator methIt(hItfImplData);
-                for (;methIt.IsValid(); methIt.Next())
-                {
-                    // Check the security only if valid method implementation exists!
-                    if (methIt.GetTarget().IsNull() == FALSE)
-                    {
-                        MethodDesc *pMDImpl = methIt.GetMethodDesc();
-                        MethodDesc *pMDInterface = methIt.GetDeclMethodDesc();
-
-                        //
-                        // Check the security method helper if either:
-                        //   1. The interface was explicitly declared by the current type (even if the
-                        //      interface implementation is found on a parent type) OR
-                        //   2. The interface implementation method is on the current type
-                        //   
-                        // For instance, we want to catch patterns such as:
-                        // 
-                        //   interface I { void M(); }
-                        //   class B { public void M(); }
-                        //   class D : B, I { }
-                        //   
-                        // In which D causes I::M to map to B::M because D brought in the interface
-                        // declaration.
-                        // 
-
-                        if (fDeclaredOnType || pMDImpl->GetMethodTable() == pMT)
-                        {
-                            // Check security on the interface for this method in its default slot placement
-                            VerifyMethodInheritanceSecurityHelper(pMDInterface, pMDImpl);
-
-                            fImplementedOnCurrentType = TRUE;
-                        }
-
-                        // See code:PartialTrustInterfaceMappingCheck - we need to see if we're mapping
-                        // an interface to another type cross-assembly that might have requested link
-                        // time protection.
-                        if (fDeclaredOnType && fNeedPartialTrustInterfaceMappingCheck)
-                        {
-                            if (pMDImpl->GetAssembly() != GetAssembly())
-                            {
-                                ConvertLinkDemandToInheritanceDemand(pMDImpl);
-                            }
-                        }
-                    }
-                }
-
-                // If any previous methods contributed to this interface's implementation, that means we
-                // need to check the type-level inheritance for the interface.
-                if (fDeclaredOnType || fImplementedOnCurrentType)
-                {
-                    VerifyClassInheritanceSecurityHelper(pCurItfMT, pMT);
-                }
-            }
-        }
-    }
 }
 
 //*******************************************************************************

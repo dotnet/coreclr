@@ -132,7 +132,7 @@ namespace System
                 _dateStart.Year == _dateEnd.Year;
 
             /// <summary>
-            /// Helper function that performs all of the validation checks for the actory methods and deserialization callback.
+            /// Helper function that performs all of the validation checks for the factory methods and deserialization callback.
             /// </summary>
             private static void ValidateAdjustmentRule(
                 DateTime dateStart,
@@ -144,22 +144,22 @@ namespace System
             {
                 if (dateStart.Kind != DateTimeKind.Unspecified && dateStart.Kind != DateTimeKind.Utc)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_DateTimeKindMustBeUnspecifiedOrUtc"), nameof(dateStart));
+                    throw new ArgumentException(SR.Argument_DateTimeKindMustBeUnspecifiedOrUtc, nameof(dateStart));
                 }
 
                 if (dateEnd.Kind != DateTimeKind.Unspecified && dateEnd.Kind != DateTimeKind.Utc)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_DateTimeKindMustBeUnspecifiedOrUtc"), nameof(dateEnd));
+                    throw new ArgumentException(SR.Argument_DateTimeKindMustBeUnspecifiedOrUtc, nameof(dateEnd));
                 }
 
                 if (daylightTransitionStart.Equals(daylightTransitionEnd) && !noDaylightTransitions)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_TransitionTimesAreIdentical"), nameof(daylightTransitionEnd));
+                    throw new ArgumentException(SR.Argument_TransitionTimesAreIdentical, nameof(daylightTransitionEnd));
                 }
 
                 if (dateStart > dateEnd)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_OutOfOrderDateTimes"), nameof(dateStart));
+                    throw new ArgumentException(SR.Argument_OutOfOrderDateTimes, nameof(dateStart));
                 }
 
                 // This cannot use UtcOffsetOutOfRange to account for the scenario where Samoa moved across the International Date Line,
@@ -168,22 +168,22 @@ namespace System
                 // to be -23 (what it takes to go from UTC+13 to UTC-10)
                 if (daylightDelta.TotalHours < -23.0 || daylightDelta.TotalHours > 14.0)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(daylightDelta), daylightDelta, Environment.GetResourceString("ArgumentOutOfRange_UtcOffset"));
+                    throw new ArgumentOutOfRangeException(nameof(daylightDelta), daylightDelta, SR.ArgumentOutOfRange_UtcOffset);
                 }
 
                 if (daylightDelta.Ticks % TimeSpan.TicksPerMinute != 0)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_TimeSpanHasSeconds"), nameof(daylightDelta));
+                    throw new ArgumentException(SR.Argument_TimeSpanHasSeconds, nameof(daylightDelta));
                 }
 
                 if (dateStart != DateTime.MinValue && dateStart.Kind == DateTimeKind.Unspecified && dateStart.TimeOfDay != TimeSpan.Zero)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_DateTimeHasTimeOfDay"), nameof(dateStart));
+                    throw new ArgumentException(SR.Argument_DateTimeHasTimeOfDay, nameof(dateStart));
                 }
 
                 if (dateEnd != DateTime.MaxValue && dateEnd.Kind == DateTimeKind.Unspecified && dateEnd.TimeOfDay != TimeSpan.Zero)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_DateTimeHasTimeOfDay"), nameof(dateEnd));
+                    throw new ArgumentException(SR.Argument_DateTimeHasTimeOfDay, nameof(dateEnd));
                 }
                 Contract.EndContractBlock();
             }
@@ -200,7 +200,7 @@ namespace System
                 }
                 catch (ArgumentException e)
                 {
-                    throw new SerializationException(Environment.GetResourceString("Serialization_InvalidData"), e);
+                    throw new SerializationException(SR.Serialization_InvalidData, e);
                 }
             }
 
@@ -212,35 +212,35 @@ namespace System
                 }
                 Contract.EndContractBlock();
 
-                info.AddValue("DateStart", _dateStart);
-                info.AddValue("DateEnd", _dateEnd);
-                info.AddValue("DaylightDelta", _daylightDelta);
-                info.AddValue("DaylightTransitionStart", _daylightTransitionStart);
-                info.AddValue("DaylightTransitionEnd", _daylightTransitionEnd);
-                info.AddValue("BaseUtcOffsetDelta", _baseUtcOffsetDelta);
-                info.AddValue("NoDaylightTransitions", _noDaylightTransitions);
+                info.AddValue("DateStart", _dateStart); // Do not rename (binary serialization)
+                info.AddValue("DateEnd", _dateEnd); // Do not rename (binary serialization)
+                info.AddValue("DaylightDelta", _daylightDelta); // Do not rename (binary serialization)
+                info.AddValue("DaylightTransitionStart", _daylightTransitionStart); // Do not rename (binary serialization)
+                info.AddValue("DaylightTransitionEnd", _daylightTransitionEnd); // Do not rename (binary serialization)
+                info.AddValue("BaseUtcOffsetDelta", _baseUtcOffsetDelta); // Do not rename (binary serialization)
+                info.AddValue("NoDaylightTransitions", _noDaylightTransitions); // Do not rename (binary serialization)
             }
 
-            AdjustmentRule(SerializationInfo info, StreamingContext context)
+            private AdjustmentRule(SerializationInfo info, StreamingContext context)
             {
                 if (info == null)
                 {
                     throw new ArgumentNullException(nameof(info));
                 }
 
-                _dateStart = (DateTime)info.GetValue("DateStart", typeof(DateTime));
-                _dateEnd = (DateTime)info.GetValue("DateEnd", typeof(DateTime));
-                _daylightDelta = (TimeSpan)info.GetValue("DaylightDelta", typeof(TimeSpan));
-                _daylightTransitionStart = (TransitionTime)info.GetValue("DaylightTransitionStart", typeof(TransitionTime));
-                _daylightTransitionEnd = (TransitionTime)info.GetValue("DaylightTransitionEnd", typeof(TransitionTime));
+                _dateStart = (DateTime)info.GetValue("DateStart", typeof(DateTime)); // Do not rename (binary serialization)
+                _dateEnd = (DateTime)info.GetValue("DateEnd", typeof(DateTime)); // Do not rename (binary serialization)
+                _daylightDelta = (TimeSpan)info.GetValue("DaylightDelta", typeof(TimeSpan)); // Do not rename (binary serialization)
+                _daylightTransitionStart = (TransitionTime)info.GetValue("DaylightTransitionStart", typeof(TransitionTime)); // Do not rename (binary serialization)
+                _daylightTransitionEnd = (TransitionTime)info.GetValue("DaylightTransitionEnd", typeof(TransitionTime)); // Do not rename (binary serialization)
 
-                object o = info.GetValueNoThrow("BaseUtcOffsetDelta", typeof(TimeSpan));
+                object o = info.GetValueNoThrow("BaseUtcOffsetDelta", typeof(TimeSpan)); // Do not rename (binary serialization)
                 if (o != null)
                 {
                     _baseUtcOffsetDelta = (TimeSpan)o;
                 }
 
-                o = info.GetValueNoThrow("NoDaylightTransitions", typeof(bool));
+                o = info.GetValueNoThrow("NoDaylightTransitions", typeof(bool)); // Do not rename (binary serialization)
                 if (o != null)
                 {
                     _noDaylightTransitions = (bool)o;

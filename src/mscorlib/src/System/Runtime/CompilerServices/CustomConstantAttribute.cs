@@ -7,9 +7,7 @@ using System.Collections.Generic;
 
 namespace System.Runtime.CompilerServices
 {
-    [Serializable]
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Parameter, Inherited=false)]
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Parameter, Inherited = false)]
     public abstract class CustomConstantAttribute : Attribute
     {
         public abstract Object Value { get; }
