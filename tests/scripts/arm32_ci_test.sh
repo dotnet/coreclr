@@ -61,10 +61,8 @@ do
         fi
         ;;
     --ryujit)
-        if [[ "$__buildConfig" != "Release" ]]; then
-            exit_with_error "--ryujit is only avalable for Release by now" true
-        fi
-        COMPLUS_OPTIONS+=" COMPlus_AltJit=*"
+        __COMPLUS_OPTIONS+=" COMPlus_AltJit=*"
+        __COMPLUS_OPTIONS+=" COMPlus_AltJitNgen=*"
         ;;
     -v|--verbose)
         __verboseFlag="verbose"
@@ -114,7 +112,7 @@ rm -f -v ${__ROOTFS_DIR}${ARM_CHROOT_HOME_DIR}/bin/CoreFxBinDir/libcoreclrtracep
 
 chroot ${__ROOTFS_DIR} /bin/bash -x <<EOF
     cd ${ARM_CHROOT_HOME_DIR}
-    env ${COMPLUS_OPTIONS} ./tests/runtest.sh --sequential\
+    env ${__COMPLUS_OPTIONS} ./tests/runtest.sh --sequential\
                        --coreClrBinDir=${ARM_CHROOT_HOME_DIR}/bin/Product/${__buildDirName} \
                        --mscorlibDir=${ARM_CHROOT_HOME_DIR}/bin/Product/${__buildDirName} \
                        --testNativeBinDir=${ARM_CHROOT_HOME_DIR}/bin/obj/${__buildDirName}/tests \
