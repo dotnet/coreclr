@@ -25,9 +25,6 @@
 // The scenario we have been asked to run under
 PerformanceDefaults::PerformanceScenario PerformanceDefaults::s_Scenario = Uninitialized;
 
-// See use in code:PerformanceDefaults:InitializeForScenario
-extern int32_t g_bLowMemoryFromHost;
-
 
 //
 // Initialize our system to provide performance defaults for a given scenario.
@@ -59,7 +56,6 @@ extern int32_t g_bLowMemoryFromHost;
             //
             // Note that in order for ASP.Net to become a memory host the CLR will need to support profiler attach
             // in that condition.
-            g_bLowMemoryFromHost = 1;
             break;
 
         case Uninitialized:

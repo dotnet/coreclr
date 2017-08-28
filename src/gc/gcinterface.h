@@ -196,9 +196,6 @@ extern uint8_t* g_GCShadowEnd;
 extern uint8_t* g_shadow_lowest_address;
 #endif
 
-// For low memory notification from host
-extern int32_t g_bLowMemoryFromHost;
-
 // !!!!!!!!!!!!!!!!!!!!!!!
 // make sure you change the def in bcl\system\gc.cs 
 // if you change this!

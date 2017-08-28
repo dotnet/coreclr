@@ -352,7 +352,7 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCHeapCount, W("GCHeapCount"), 0, "")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCNoAffinitize, W("GCNoAffinitize"), 0, "")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCUseStandalone, W("GCUseStandalone"), 0, "")
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_GCStandaloneLocation, W("GCStandaloneLocation"), "")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCLatencyLevel, W("GCLatencyLevel"), 3, "")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCLatencyLevel, W("GCLatencyLevel"), 4, "")
 
 //
 // IBC

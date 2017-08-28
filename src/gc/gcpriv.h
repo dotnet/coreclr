@@ -424,10 +424,13 @@ enum gc_type
 
 enum gc_latency_level
 {
-    latency_level_memory_footprint = 1,
-    latency_level_throughput       = 2,
-    latency_level_balanced         = 3,
-    latency_level_short_pauses     = 4
+    latency_level_first = 1,
+    latency_level_small_memory_footprint = latency_level_first,
+    latency_level_memory_footprint,
+    latency_level_throughput,
+    latency_level_balanced,
+    latency_level_short_pauses,
+    latency_level_last = latency_level_short_pauses
 };
 
 #define v_high_memory_load_th 97
@@ -3427,12 +3430,6 @@ protected:
     BOOL dt_low_card_table_efficiency_p (gc_tuning_point tp);
 
     PER_HEAP
-    BOOL dt_gen2_high_frag_p(gc_tuning_point tp);
-
-    PER_HEAP_ISOLATED
-    float dt_gen2_frag_tolerance(gc_tuning_point tp);
-
-    PER_HEAP
     int generation_skip_ratio;//in %
 
     PER_HEAP
@@ -3566,20 +3563,22 @@ protected:
     PER_HEAP
     size_t total_ephemeral_size;
 
-    // The latency level requested by user. Levels are numbered "1" through "4"
+    // The latency level requested by user. Levels are numbered "1" through "5"
     // and have the following meanings:
     // +----------+--------------------+---------------------------------------+
     // | Level    | Optimization Goals | Latency Charactaristics               |
     // +----------+--------------------+---------------------------------------+
-    // | 1        | memory footprint   | pauses can be long and more frequent  |
-    // | 2        | throughput         | pauses are unpredictable and not very |
+    // | 1        | small memory       | pauses can be very long and more      |
+    // |          | footprint          | frequent                              |
+    // | 2        | memory footprint   | pauses can be long and more frequent  |
+    // | 3        | throughput         | pauses are unpredictable and not very |
     // |          |                    | frequent, and might be long           |
-    // | 3        | balanced           | pauses are more predictable and more  |
-    // |          |                    | frequent. the longest pauses are      |
-    // |          |                    | shorter than 2.                       |
-    // | 4        | short pauses       | pauses are more predictable and more  |
+    // | 4        | balanced           | pauses are more predictable and more  |
     // |          |                    | frequent. the longest pauses are      |
     // |          |                    | shorter than 3.                       |
+    // | 5        | short pauses       | pauses are more predictable and more  |
+    // |          |                    | frequent. the longest pauses are      |
+    // |          |                    | shorter than 4.                       |
     // +----------+--------------------+---------------------------------------+
     PER_HEAP_ISOLATED
     gc_latency_level latency_level;
