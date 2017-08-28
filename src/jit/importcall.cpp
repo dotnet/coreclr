@@ -1283,16 +1283,16 @@ private:
                 else
                 {
                     // If the EE was able to resolve a constrained call, the instantiating parameter to use is the type
-                    // by which the call was constrained with. We embed pConstrainedResolvedToken as the extra argument
-                    // because pResolvedToken is an interface method and interface types make a poor generic context.
-                    if (pConstrainedResolvedToken)
+                    // by which the call was constrained with. We embed constrainedResolvedToken as the extra argument
+                    // because resolvedToken is an interface method and interface types make a poor generic context.
+                    if (constrainedResolvedToken)
                     {
-                        instParam = compiler->impTokenToHandle(pConstrainedResolvedToken, &runtimeLookup,
+                        instParam = compiler->impTokenToHandle(constrainedResolvedToken, &runtimeLookup,
                                                                TRUE /*mustRestoreHandle*/, FALSE /* importParent */);
                     }
                     else
                     {
-                        instParam = compiler->impParentClassTokenToHandle(pResolvedToken, &runtimeLookup,
+                        instParam = compiler->impParentClassTokenToHandle(resolvedToken, &runtimeLookup,
                                                                           TRUE /*mustRestoreHandle*/);
                     }
 
