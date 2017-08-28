@@ -438,7 +438,7 @@ bool JitInstance::resetConfig(MethodContext* firstContext)
         mc = firstContext;
         ICorJitHost* newHost = new JitHost(*this);
         pnjitStartup(newHost);
-        delete jitHost;
+        delete static_cast<JitHost*>(jitHost);
         jitHost = newHost;
         return true;
     }
