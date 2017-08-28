@@ -11434,8 +11434,10 @@ void Compiler::gtGetLateArgMsg(
     regNumber argReg = curArgTabEntry->regNum;
 
 #if !FEATURE_FIXED_OUT_ARGS
+#if !FEATURE_UNIX_X86_STRUCT_PASSING
     assert(lateArgIndex < call->regArgListCount);
     assert(argReg == call->regArgList[lateArgIndex]);
+#endif // !FEATURE_UNIX_X86_STRUCT_PASSING
 #else
     if (argReg == REG_STK)
     {
