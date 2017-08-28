@@ -1616,8 +1616,8 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
             CodeGen::genSetRegToIcon(tmpReg, (ssize_t)node->gtElemSize, TYP_INT);
 
             // dest = index * tmp + base
-            getEmitter()->emitIns_R_R_R_R(INS_MULADD, emitTypeSize(node), node->gtRegNum, index->gtRegNum,
-                                          tmpReg, base->gtRegNum);
+            getEmitter()->emitIns_R_R_R_R(INS_MULADD, emitTypeSize(node), node->gtRegNum, index->gtRegNum, tmpReg,
+                                          base->gtRegNum);
             break;
         }
     }
