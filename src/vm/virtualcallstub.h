@@ -1250,16 +1250,18 @@ public:
     inline BOOL IsCacheEntryEmpty(size_t idx)
         { LIMITED_METHOD_CONTRACT; return cache[idx] == empty; }
 
-    inline void SetCacheEntry(size_t idx, ResolveCacheElem *elem)
+    inline bool SetCacheEntry(size_t idx, ResolveCacheElem *elem)
     {
         LIMITED_METHOD_CONTRACT;
 #ifdef STUB_LOGGING 
           cacheData[idx].numWrites++;
 #endif
-#ifdef CHAIN_LOOKUP 
-        CONSISTENCY_CHECK(m_writeLock.OwnedByCurrentThread());
-#endif
+#ifdef CHAIN_LOOKUP
+          return FastInterlockCompareExchangePointer(&cache[idx], elem, elem->pNext) == elem->pNext;
+#else
           cache[idx] = elem;
+          return true;
+#endif
         }
 
     inline void ClearCacheEntry(size_t idx)
@@ -1314,9 +1316,6 @@ public:
     };
 
 private:
-#ifdef CHAIN_LOOKUP 
-    Crst m_writeLock;
-#endif
 
     //the following hash computation is also inlined in the resolve stub in asm (SO NO TOUCHIE)
     inline static UINT16 HashMT(UINT16 tokenHash, void* mt)
