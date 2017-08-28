@@ -294,7 +294,6 @@
     <Compile Include="$(BclSourcesRoot)\System\OutOfMemoryException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Delegate.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MulticastDelegate.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\__HResults.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BCLDebug.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Activator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AccessViolationException.cs" />
@@ -315,6 +314,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Environment.cs" />
     <Compile Include="$(BclSourcesRoot)\System\GC.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Guid.CoreCLR.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\HResults.cs" />
     <Compile Include="$(BclSourcesRoot)\System\InsufficientMemoryException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IntPtr.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Internal.cs" />

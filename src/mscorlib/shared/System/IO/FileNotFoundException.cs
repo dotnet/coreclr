@@ -55,7 +55,7 @@ namespace System.IO
             if (_message == null)
             {
                 if ((FileName == null) &&
-                    (HResult == System.__HResults.COR_E_EXCEPTION))
+                    (HResult == System.HResults.COR_E_EXCEPTION))
                     _message = SR.IO_FileNotFound;
 
                 else if (FileName != null)

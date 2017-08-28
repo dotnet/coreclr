@@ -20,14 +20,12 @@
 // Reflection will use 0x1600 -> 0x161f.  IO will use 0x1620 -> 0x163f.
 // Security will use 0x1640 -> 0x165f
 
-// There are __HResults files in the IO, Remoting, Reflection & 
-// Security/Util directories as well, so choose your HResults carefully.
 
 using System;
 
 namespace System
 {
-    internal static class __HResults
+    internal static class HResults
     {
         internal const int RO_E_CLOSED = unchecked((int)0x80000013);
         internal const int E_BOUNDS = unchecked((int)0x8000000B);
