@@ -7915,12 +7915,12 @@ void Compiler::optRemoveTree(GenTreePtr deadTree, GenTreePtr keepList)
     fgWalkTreePre(&deadTree, optRemoveTreeVisitor, (void*)keepList);
 }
 
- //------------------------------------------------------------------------------
- // optRemoveRangeCheck : Given an array index node, mark it as not needing a range check.
- //
- // Arguments:
- //    tree   -  Range check tree
- //    stmt   -  Statement the tree belongs to
+//------------------------------------------------------------------------------
+// optRemoveRangeCheck : Given an array index node, mark it as not needing a range check.
+//
+// Arguments:
+//    tree   -  Range check tree
+//    stmt   -  Statement the tree belongs to
 
 void Compiler::optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt)
 {
@@ -7946,7 +7946,7 @@ void Compiler::optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt)
 #endif
 
     GenTreePtr sideEffList = nullptr;
-    
+
     gtExtractSideEffList(bndsChkTree, &sideEffList, GTF_ASG);
 
     // Decrement the ref counts for any LclVars that are being deleted
@@ -8231,10 +8231,11 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
         compCurBB = block;
         for (GenTreePtr stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
         {
-            info.stmt = stmt;
-            const bool lclVarsOnly = false;
+            info.stmt               = stmt;
+            const bool lclVarsOnly  = false;
             const bool computeStack = false;
-            fgWalkTreePre(&stmt->gtStmt.gtStmtExpr, optCanOptimizeByLoopCloningVisitor, &info, lclVarsOnly, computeStack);
+            fgWalkTreePre(&stmt->gtStmt.gtStmtExpr, optCanOptimizeByLoopCloningVisitor, &info, lclVarsOnly,
+                          computeStack);
         }
     }
 

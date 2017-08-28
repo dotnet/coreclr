@@ -1398,7 +1398,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_GETCLASSFROMMETHODPARAM:
             case CORINFO_HELP_GETSYNCFROMCLASSHANDLE:
 
-                isPure = true;
+                isPure  = true;
                 noThrow = true;
                 break;
 

@@ -110,19 +110,19 @@ int Compiler::optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDs
     return score + ((preferOp2) ? 1 : -1);
 }
 
- //------------------------------------------------------------------------------
- // optCopyProp : Perform copy propagation on a given tree as we walk the graph and if it is a local
- //               variable, then look up all currently live definitions and check if any of those
- //               definitions share the same value number. If so, then we can make the replacement.
- //
- // Arguments:
- //    block       -  Block the tree belongs to
- //    stmt        -  Statement the tree belongs to
- //    tree        -  The tree to perform copy propagation on
- //    curSsaName  -  The map from lclNum to its recently live definitions as a stack
- //
- // Return Value:
- //    true if copy propagation was performed for the tree; false otherwise.
+//------------------------------------------------------------------------------
+// optCopyProp : Perform copy propagation on a given tree as we walk the graph and if it is a local
+//               variable, then look up all currently live definitions and check if any of those
+//               definitions share the same value number. If so, then we can make the replacement.
+//
+// Arguments:
+//    block       -  Block the tree belongs to
+//    stmt        -  Statement the tree belongs to
+//    tree        -  The tree to perform copy propagation on
+//    curSsaName  -  The map from lclNum to its recently live definitions as a stack
+//
+// Return Value:
+//    true if copy propagation was performed for the tree; false otherwise.
 
 bool Compiler::optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, LclNumToGenTreePtrStack* curSsaName)
 {
@@ -287,14 +287,14 @@ bool Compiler::optIsSsaLocal(GenTreePtr tree)
     return tree->IsLocal() && !fgExcludeFromSsa(tree->AsLclVarCommon()->GetLclNum());
 }
 
- //------------------------------------------------------------------------------
- // optBlockCopyProp : Perform copy propagation using currently live definitions on the current block's
- //                    variables. Also as new definitions are encountered update the "curSsaName" which
- //                    tracks the currently live definitions.
- //
- // Arguments:
- //    block       -  Block the tree belongs to
- //    curSsaName  -  The map from lclNum to its recently live definitions as a stack
+//------------------------------------------------------------------------------
+// optBlockCopyProp : Perform copy propagation using currently live definitions on the current block's
+//                    variables. Also as new definitions are encountered update the "curSsaName" which
+//                    tracks the currently live definitions.
+//
+// Arguments:
+//    block       -  Block the tree belongs to
+//    curSsaName  -  The map from lclNum to its recently live definitions as a stack
 
 void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
 {

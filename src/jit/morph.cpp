@@ -10165,7 +10165,7 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
         else if (effectiveVal->TypeGet() != asgType)
         {
             GenTree* addr = gtNewOperNode(GT_ADDR, TYP_BYREF, effectiveVal);
-            effectiveVal = gtNewIndir(asgType, addr);
+            effectiveVal  = gtNewIndir(asgType, addr);
         }
     }
     else
@@ -12446,7 +12446,7 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
 
         if (tree->OperMayThrow(this))
         {
-            //Mark the tree node as potentially throwing an exception 
+            // Mark the tree node as potentially throwing an exception
             tree->gtFlags |= GTF_EXCEPT;
         }
         else
@@ -12455,7 +12455,7 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
             {
                 tree->gtFlags |= GTF_IND_NONFAULTING;
             }
-            if (((op1 == nullptr) || ((op1->gtFlags & GTF_EXCEPT) == 0)) && 
+            if (((op1 == nullptr) || ((op1->gtFlags & GTF_EXCEPT) == 0)) &&
                 ((op2 == nullptr) || ((op2->gtFlags & GTF_EXCEPT) == 0)))
             {
                 tree->gtFlags &= ~GTF_EXCEPT;
@@ -13958,12 +13958,14 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
 #endif
                     while (commaNode->gtOp.gtOp2->gtOper == GT_COMMA)
                     {
-                        commaNode          = commaNode->gtOp.gtOp2;
-                        commaNode->gtType  = typ;
-                        commaNode->gtFlags = (treeFlags & ~GTF_REVERSE_OPS & ~GTF_ASG); // Bashing the GT_COMMA flags here is
-                                                                             // dangerous, clear the GTF_REVERSE_OPS at
-                                                                             // least.
-                        commaNode->gtFlags |= ((commaNode->gtOp.gtOp1->gtFlags & GTF_ASG) | (commaNode->gtOp.gtOp2->gtFlags & GTF_ASG));
+                        commaNode         = commaNode->gtOp.gtOp2;
+                        commaNode->gtType = typ;
+                        commaNode->gtFlags =
+                            (treeFlags & ~GTF_REVERSE_OPS & ~GTF_ASG); // Bashing the GT_COMMA flags here is
+                                                                       // dangerous, clear the GTF_REVERSE_OPS at
+                                                                       // least.
+                        commaNode->gtFlags |=
+                            ((commaNode->gtOp.gtOp1->gtFlags & GTF_ASG) | (commaNode->gtOp.gtOp2->gtFlags & GTF_ASG));
 #ifdef DEBUG
                         commaNode->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
 #endif
@@ -13976,9 +13978,9 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                         assert(b);
                         GetArrayInfoMap()->Remove(tree);
                     }
-                    tree         = op1;
+                    tree            = op1;
                     GenTreePtr addr = commaNode->gtOp.gtOp2;
-                    op1          = gtNewIndir(typ, addr);
+                    op1             = gtNewIndir(typ, addr);
                     // This is very conservative
                     op1->gtFlags |= treeFlags & ~GTF_ALL_EFFECT & ~GTF_IND_NONFAULTING;
                     op1->gtFlags |= (addr->gtFlags & GTF_ALL_EFFECT);
@@ -15677,15 +15679,15 @@ GenTreePtr Compiler::fgMorphTree(GenTreePtr tree, MorphAddrContext* mac)
             break;
 
         case GT_ARR_BOUNDS_CHECK:
-    #ifdef FEATURE_SIMD
+#ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
-    #endif // FEATURE_SIMD
+#endif // FEATURE_SIMD
         {
             fgSetRngChkTarget(tree);
 
             GenTreeBoundsChk* bndsChk = tree->AsBoundsChk();
-            bndsChk->gtIndex = fgMorphTree(bndsChk->gtIndex);
-            bndsChk->gtArrLen = fgMorphTree(bndsChk->gtArrLen);
+            bndsChk->gtIndex          = fgMorphTree(bndsChk->gtIndex);
+            bndsChk->gtArrLen         = fgMorphTree(bndsChk->gtArrLen);
             // If the index is a comma(throw, x), just return that.
             if (!optValnumCSE_phase && fgIsCommaThrow(bndsChk->gtIndex))
             {
@@ -15724,7 +15726,7 @@ GenTreePtr Compiler::fgMorphTree(GenTreePtr tree, MorphAddrContext* mac)
 
         case GT_ARR_OFFSET:
             tree->gtArrOffs.gtOffset = fgMorphTree(tree->gtArrOffs.gtOffset);
-            tree->gtArrOffs.gtIndex = fgMorphTree(tree->gtArrOffs.gtIndex);
+            tree->gtArrOffs.gtIndex  = fgMorphTree(tree->gtArrOffs.gtIndex);
             tree->gtArrOffs.gtArrObj = fgMorphTree(tree->gtArrOffs.gtArrObj);
 
             tree->gtFlags |= tree->gtArrOffs.gtOffset->gtFlags & GTF_ALL_EFFECT;
@@ -15737,8 +15739,8 @@ GenTreePtr Compiler::fgMorphTree(GenTreePtr tree, MorphAddrContext* mac)
             break;
 
         case GT_CMPXCHG:
-            tree->gtCmpXchg.gtOpLocation = fgMorphTree(tree->gtCmpXchg.gtOpLocation);
-            tree->gtCmpXchg.gtOpValue = fgMorphTree(tree->gtCmpXchg.gtOpValue);
+            tree->gtCmpXchg.gtOpLocation  = fgMorphTree(tree->gtCmpXchg.gtOpLocation);
+            tree->gtCmpXchg.gtOpValue     = fgMorphTree(tree->gtCmpXchg.gtOpValue);
             tree->gtCmpXchg.gtOpComparand = fgMorphTree(tree->gtCmpXchg.gtOpComparand);
 
             tree->gtFlags &= ~GTF_EXCEPT;
@@ -15754,7 +15756,7 @@ GenTreePtr Compiler::fgMorphTree(GenTreePtr tree, MorphAddrContext* mac)
             {
                 tree->gtDynBlk.Data() = fgMorphTree(tree->gtDynBlk.Data());
             }
-            tree->gtDynBlk.Addr() = fgMorphTree(tree->gtDynBlk.Addr());
+            tree->gtDynBlk.Addr()        = fgMorphTree(tree->gtDynBlk.Addr());
             tree->gtDynBlk.gtDynamicSize = fgMorphTree(tree->gtDynBlk.gtDynamicSize);
 
             if (tree->OperMayThrow(this))
@@ -17282,8 +17284,7 @@ GenTreePtr Compiler::fgInitThisClass()
                     vtTree->gtFlags |= GTF_EXCEPT; // Null-pointer exception
                     GenTreePtr methodHnd = gtNewIconEmbMethHndNode(info.compMethodHnd);
 
-                    return gtNewHelperCallNode(CORINFO_HELP_INITINSTCLASS, TYP_VOID,
-                                               gtNewArgList(vtTree, methodHnd));
+                    return gtNewHelperCallNode(CORINFO_HELP_INITINSTCLASS, TYP_VOID, gtNewArgList(vtTree, methodHnd));
                 }
 
             case CORINFO_LOOKUP_CLASSPARAM:

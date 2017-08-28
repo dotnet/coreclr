@@ -5748,15 +5748,15 @@ GenTreePtr GenTree::gtGetParent(GenTreePtr** parentChildPtrPtr) const
     return parent;
 }
 
- //------------------------------------------------------------------------------
- // OperMayThrow : Check whether the operation may throw.
- //
- //
- // Arguments:
- //    comp      -  Compiler instance
- //
- // Return Value:
- //    True if the given operator may cause an exception
+//------------------------------------------------------------------------------
+// OperMayThrow : Check whether the operation may throw.
+//
+//
+// Arguments:
+//    comp      -  Compiler instance
+//
+// Return Value:
+//    True if the given operator may cause an exception
 
 bool GenTree::OperMayThrow(Compiler* comp)
 {
@@ -5818,19 +5818,17 @@ bool GenTree::OperMayThrow(Compiler* comp)
         case GT_OBJ:
         case GT_DYN_BLK:
         case GT_STORE_BLK:
-        case GT_NULLCHECK:        
-            return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) &&
-                    comp->fgAddrCouldBeNull(this->AsIndir()->Addr()));
+        case GT_NULLCHECK:
+            return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) && comp->fgAddrCouldBeNull(this->AsIndir()->Addr()));
 
         case GT_ARR_LENGTH:
-            return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) &&
-                    comp->fgAddrCouldBeNull(gtOp.gtOp1));
+            return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) && comp->fgAddrCouldBeNull(gtOp.gtOp1));
 
         case GT_ARR_BOUNDS_CHECK:
         case GT_ARR_ELEM:
         case GT_ARR_INDEX:
         case GT_ARR_OFFSET:
-        case GT_CATCH_ARG: 
+        case GT_CATCH_ARG:
         case GT_LCLHEAP:
         case GT_CKFINITE:
 #ifdef FEATURE_SIMD
@@ -6659,7 +6657,6 @@ GenTree* Compiler::gtNewObjNode(CORINFO_CLASS_HANDLE structHnd, GenTree* addr)
                 newBlkOrObjNode->gtFlags &= ~GTF_GLOB_REF;
             }
         }
-
     }
     return newBlkOrObjNode;
 }
@@ -8020,7 +8017,8 @@ Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPre(GenTreePtr* pTree, fgWal
     }
 
     genTreeOps oper = tree->OperGet();
-    if ((tree->OperKind() & GTK_ASGOP) || (oper == GT_XADD) || (oper == GT_XCHG) || (oper == GT_LOCKADD) || (oper == GT_CMPXCHG))
+    if ((tree->OperKind() & GTK_ASGOP) || (oper == GT_XADD) || (oper == GT_XCHG) || (oper == GT_LOCKADD) ||
+        (oper == GT_CMPXCHG))
     {
         tree->gtFlags |= GTF_ASG;
     }
@@ -8045,7 +8043,7 @@ Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPre(GenTreePtr* pTree, fgWal
 
 Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPost(GenTreePtr* pTree, fgWalkData* fgWalkPost)
 {
-    GenTreePtr tree = *pTree;
+    GenTreePtr tree   = *pTree;
     GenTreePtr parent = fgWalkPost->parent;
     if (parent != nullptr)
     {

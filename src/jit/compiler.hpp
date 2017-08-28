@@ -1135,7 +1135,7 @@ inline GenTreePtr Compiler::gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd, 
 
 inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args)
 {
-    unsigned flags = this->s_helperCallProperties.NoThrow((CorInfoHelpFunc)helper) ? 0 : GTF_EXCEPT;
+    unsigned     flags  = this->s_helperCallProperties.NoThrow((CorInfoHelpFunc)helper) ? 0 : GTF_EXCEPT;
     GenTreeCall* result = gtNewCallNode(CT_HELPER, eeFindHelper(helper), type, args);
     result->gtFlags |= flags;
 
@@ -1255,8 +1255,7 @@ inline GenTreePtr Compiler::gtNewIndexRef(var_types typ, GenTreePtr arrayOp, Gen
 
 inline GenTreeArrLen* Compiler::gtNewArrLen(var_types typ, GenTreePtr arrayOp, int lenOffset)
 {
-    GenTreeArrLen* arrLen = new (this, GT_ARR_LENGTH)
-        GenTreeArrLen(typ, arrayOp, lenOffset);
+    GenTreeArrLen* arrLen = new (this, GT_ARR_LENGTH) GenTreeArrLen(typ, arrayOp, lenOffset);
 
     if (fgAddrCouldBeNull(arrayOp))
     {
@@ -1587,7 +1586,6 @@ inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     }
     SetOper(oper, vnUpdate);
     gtFlags &= mask;
-    
 
     // Do "oper"-specific initializations...
     switch (oper)
