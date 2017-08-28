@@ -3200,9 +3200,9 @@ void Compiler::fgInterBlockLocalVarLiveness()
 
                 if (stmtInfoDirty)
                 {
-                    gtUpdateSideEffects(compCurStmt);
                     gtSetStmtInfo(compCurStmt);
                     fgSetStmtSeq(compCurStmt);
+                    gtUpdateSideEffects(compCurStmt);
                 }
 
 #ifdef DEBUG
