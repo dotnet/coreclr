@@ -1009,13 +1009,13 @@ namespace System
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern int InternalMarvin32HashString(string s, int strLen);
+        private static extern int InternalMarvin32HashString(string s);
 
         // Gets a hash code for this string.  If strings A and B are such that A.Equals(B), then
         // they will return the same hash code.
         public override int GetHashCode()
         {
-            return InternalMarvin32HashString(this, this.Length);
+            return InternalMarvin32HashString(this);
         }
 
         // Gets a hash code for this string and this comparison. If strings A and B and comparition C are such

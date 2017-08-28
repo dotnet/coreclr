@@ -161,7 +161,7 @@ inline COMNlsHashProvider * GetCurrentNlsHashProvider()
     return &COMNlsHashProvider::s_NlsHashProvider;
 }
 
-FCIMPL2(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE, INT32 strLen) {
+FCIMPL1(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE) {
     FCALL_CONTRACT;
 
     int iReturnHash = 0;
