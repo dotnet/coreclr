@@ -101,7 +101,7 @@ namespace System
         internal const int COR_E_SYSTEM = unchecked((int)0x80131501);
         internal const int COR_E_TARGET = unchecked((int)0x80131603);
         internal const int COR_E_TARGETINVOCATION = unchecked((int)0x80131604);
-        internal const int COR_E_TARGETPARAMCOUNT = unchecked((int)0x8002000e);
+        internal const int COR_E_TARGETPARAMCOUNT = unchecked((int)0x8002000E);
         internal const int COR_E_THREADABORTED = unchecked((int)0x80131530);
         internal const int COR_E_THREADINTERRUPTED = unchecked((int)0x80131519);
         internal const int COR_E_THREADSTATE = unchecked((int)0x80131520);
@@ -123,10 +123,10 @@ namespace System
         internal const int NTE_FAIL = unchecked((int)0x80090020);
         internal const int CORSEC_E_CRYPTO = unchecked((int)0x80131430);
         internal const int CORSEC_E_CRYPTO_UNEX_OPER = unchecked((int)0x80131431);
-        internal const int DISP_E_OVERFLOW = unchecked((int)0x8002000a);
+        internal const int DISP_E_OVERFLOW = unchecked((int)0x8002000A);
         internal const int FUSION_E_REF_DEF_MISMATCH = unchecked((int)0x80131040);
         internal const int FUSION_E_INVALID_NAME = unchecked((int)0x80131047);
-        internal const int TYPE_E_TYPEMISMATCH = unchecked((int)0x80028ca0);
+        internal const int TYPE_E_TYPEMISMATCH = unchecked((int)0x80028CA0);
         internal const int COR_E_ENDOFSTREAM = unchecked((int)0x80070026);  // OS defined
         internal const int COR_E_FILELOAD = unchecked((int)0x80131621);
         internal const int COR_E_FILENOTFOUND = unchecked((int)0x80070002);
