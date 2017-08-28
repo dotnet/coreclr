@@ -12,13 +12,13 @@ namespace System.IO
         public IOException()
             : base(SR.Arg_IOException)
         {
-            HResult = __HResults.COR_E_IO;
+            HResult = HResults.COR_E_IO;
         }
 
         public IOException(String message)
             : base(message)
         {
-            HResult = __HResults.COR_E_IO;
+            HResult = HResults.COR_E_IO;
         }
 
         public IOException(String message, int hresult)
@@ -30,7 +30,7 @@ namespace System.IO
         public IOException(String message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_IO;
+            HResult = HResults.COR_E_IO;
         }
 
         protected IOException(SerializationInfo info, StreamingContext context) : base(info, context)

@@ -19,7 +19,7 @@ namespace System.Runtime.CompilerServices
         public RuntimeWrappedException(Object thrownObject)
             : base(SR.RuntimeWrappedException)
         {
-            HResult = __HResults.COR_E_RUNTIMEWRAPPED;
+            HResult = HResults.COR_E_RUNTIMEWRAPPED;
             _wrappedException = thrownObject;
         }
 
