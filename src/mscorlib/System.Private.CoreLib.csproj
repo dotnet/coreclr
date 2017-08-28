@@ -504,7 +504,6 @@
     <Compile Include="$(BclSourcesRoot)\System\IO\File.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileLoadException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileNotFoundException.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IO\HResults.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\IOException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\MemoryStream.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\Stream.cs" />
@@ -567,7 +566,6 @@
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Resources\__FastResourceComparer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\FileBasedResourceGroveler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\HResults.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\IResourceGroveler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ManifestBasedResourceGroveler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceManager.cs" />

@@ -127,5 +127,12 @@ namespace System
         internal const int FUSION_E_REF_DEF_MISMATCH = unchecked((int)0x80131040);
         internal const int FUSION_E_INVALID_NAME = unchecked((int)0x80131047);
         internal const int TYPE_E_TYPEMISMATCH = unchecked((int)0x80028ca0);
+        internal const int COR_E_ENDOFSTREAM = unchecked((int)0x80070026);  // OS defined
+        internal const int COR_E_FILELOAD = unchecked((int)0x80131621);
+        internal const int COR_E_FILENOTFOUND = unchecked((int)0x80070002);
+        internal const int COR_E_DIRECTORYNOTFOUND = unchecked((int)0x80070003);
+        internal const int COR_E_PATHTOOLONG = unchecked((int)0x800700CE);
+        internal const int COR_E_IO = unchecked((int)0x80131620);
+        internal const int ERROR_MRM_MAP_NOT_FOUND = unchecked((int)0x80073B1F);
     }
 }
