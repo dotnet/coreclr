@@ -2109,13 +2109,8 @@ FCIMPL3_VII(Object*, COMNumber::FormatDouble, double value, StringObject* format
     int precision = DOUBLE_PRECISION;
     switch (val) {
     case 'R':
-        //In order to give numbers that are both friendly to display and round-trippable,
-        //we parse the number using 15 digits and then determine if it round trips to the same
-        //value.  If it does, we convert that NUMBER to a string, otherwise we reparse using 17 digits
-        //and display that.
-
-        DoubleToNumber(value, DOUBLE_PRECISION, &number);
-
+        // Per IEEE double-precision floating-point format, double number in 17 digits precision should be round-trippable.
+        DoubleToNumber(value, 17, &number);
         if (number.scale == (int) SCALE_NAN) {
             gc.refRetVal = gc.numfmt->sNaN;
             goto lExit;
@@ -2126,14 +2121,6 @@ FCIMPL3_VII(Object*, COMNumber::FormatDouble, double value, StringObject* format
             goto lExit;
         }
 
-        NumberToDouble(&number, &dTest);
-
-        if (dTest == value) {
-            gc.refRetVal = NumberToString(&number, 'G', DOUBLE_PRECISION, gc.numfmt);
-            goto lExit;
-        }
-
-        DoubleToNumber(value, 17, &number);
         gc.refRetVal = NumberToString(&number, 'G', 17, gc.numfmt);
         goto lExit;
         break;
