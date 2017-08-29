@@ -899,9 +899,6 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-        // This isn't done as part of InitializeGarbageCollector() above because thread
-        // creation requires AppDomains to have been set up.
-
 #ifndef FEATURE_PAL
         // Watson initialization must precede InitializeDebugger() and InstallUnhandledExceptionFilter() 
         // because on CoreCLR when Waston is enabled, debugging service needs to be enabled and UEF will be used.
@@ -955,6 +952,8 @@ void EEStartupHelper(COINITIEE fFlags)
         // throws on error
         SetupThread();
 
+        // This isn't done as part of InitializeGarbageCollector() above because thread
+        // creation requires AppDomains to have been set up.
         FinalizerThread::FinalizerThreadCreate();
 
 #ifdef DEBUGGING_SUPPORTED
