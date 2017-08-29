@@ -25,6 +25,14 @@ public:
 
     // Get the type name for the current object.
     virtual const char* GetTypeName() = 0;
+
+    int GetObjectVersion() const { return m_objectVersion; }
+    int GetMinReaderVersion() const { return m_minReaderVersion; }
+
+protected:
+
+    int m_objectVersion = 1;
+    int m_minReaderVersion = 0;
 };
 
 #endif // FEATURE_PERFTRACING
