@@ -2056,10 +2056,7 @@ public:
                                   GenTreeArgList* args,
                                   IL_OFFSETX      ilOffset = BAD_IL_OFFSET);
 
-    GenTreeCall* gtNewHelperCallNode(unsigned        helper,
-                                     var_types       type,
-                                     unsigned        flags = 0,
-                                     GenTreeArgList* args  = nullptr);
+    GenTreeCall* gtNewHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args = nullptr);
 
     GenTreePtr gtNewLclvNode(unsigned lnum, var_types type, IL_OFFSETX ILoffs = BAD_IL_OFFSET);
 
@@ -2085,6 +2082,10 @@ public:
         var_types typ, CORINFO_FIELD_HANDLE fldHnd, GenTreePtr obj = nullptr, DWORD offset = 0, bool nullcheck = false);
 
     GenTreePtr gtNewIndexRef(var_types typ, GenTreePtr arrayOp, GenTreePtr indexOp);
+
+    GenTreeArrLen* gtNewArrLen(var_types typ, GenTreePtr arrayOp, int lenOffset);
+
+    GenTreePtr gtNewIndir(var_types typ, GenTreePtr addr);
 
     GenTreeArgList* gtNewArgList(GenTreePtr op);
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2);
@@ -2139,7 +2140,7 @@ public:
 
     GenTreePtr gtReplaceTree(GenTreePtr stmt, GenTreePtr tree, GenTreePtr replacementTree);
 
-    void gtUpdateSideEffects(GenTreePtr tree, unsigned oldGtFlags, unsigned newGtFlags);
+    void gtUpdateSideEffects(GenTreePtr stmt);
 
     // Returns "true" iff the complexity (not formally defined, but first interpretation
     // is #of nodes in subtree) of "tree" is greater than "limit".
@@ -4748,7 +4749,11 @@ private:
 
     void fgFixupStructReturn(GenTreePtr call);
     GenTreePtr fgMorphLocalVar(GenTreePtr tree, bool forceRemorph);
+
+public:
     bool fgAddrCouldBeNull(GenTreePtr addr);
+
+private:
     GenTreePtr fgMorphField(GenTreePtr tree, MorphAddrContext* mac);
     bool fgCanFastTailCall(GenTreeCall* call);
     void fgMorphTailCall(GenTreeCall* call);
@@ -4913,6 +4918,9 @@ private:
     void                fgMarkAddressExposedLocals();
     bool fgNodesMayInterfere(GenTree* store, GenTree* load);
 
+    static fgWalkPreFn  fgUpdateSideEffectsPre;
+    static fgWalkPostFn fgUpdateSideEffectsPost;
+
     // Returns true if the type of tree is of size at least "width", or if "tree" is not a
     // local variable.
     bool fgFitsInOrNotLoc(GenTreePtr tree, unsigned width);
@@ -4956,8 +4964,7 @@ protected:
     LclVarDsc* optIsTrackedLocal(GenTreePtr tree);
 
 public:
-    void optRemoveRangeCheck(
-        GenTreePtr tree, GenTreePtr stmt, bool updateCSEcounts, unsigned sideEffFlags = 0, bool forceRemove = false);
+    void optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt);
     bool optIsRangeCheckRemovable(GenTreePtr tree);
 
 protected:
@@ -5659,7 +5666,7 @@ public:
     VARSET_TP optCopyPropKillSet;
 
     // Copy propagation functions.
-    void optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, LclNumToGenTreePtrStack* curSsaName);
+    bool optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
     bool optIsSsaLocal(GenTreePtr tree);
