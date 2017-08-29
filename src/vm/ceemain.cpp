@@ -952,10 +952,6 @@ void EEStartupHelper(COINITIEE fFlags)
         // throws on error
         SetupThread();
 
-        // This isn't done as part of InitializeGarbageCollector() above because thread
-        // creation requires AppDomains to have been set up.
-        FinalizerThread::FinalizerThreadCreate();
-
 #ifdef DEBUGGING_SUPPORTED
         // Notify debugger once the first thread is created to finish initialization.
         if (g_pDebugInterface != NULL)
@@ -1008,6 +1004,10 @@ void EEStartupHelper(COINITIEE fFlags)
         // of InitJITHelpers1.
         hr = g_pGCHeap->Initialize();
         IfFailGo(hr);
+
+        // This isn't done as part of InitializeGarbageCollector() above because thread
+        // creation requires AppDomains to have been set up.
+        FinalizerThread::FinalizerThreadCreate();
 
         // Now we really have fully initialized the garbage collector
         SetGarbageCollectorFullyInitialized();
