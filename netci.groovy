@@ -16,12 +16,9 @@ def static getOSGroup(def os) {
         'RHEL7.2': 'Linux',
         'Ubuntu16.04': 'Linux',
         'Debian8.4':'Linux',
-        'Fedora23':'Linux',
         'OSX':'OSX',
         'Windows_NT':'Windows_NT',
-        'FreeBSD':'FreeBSD',
         'CentOS7.1': 'Linux',
-        'OpenSUSE13.2': 'Linux',
         'OpenSUSE42.1': 'Linux',
         'LinuxARMEmulator': 'Linux']
     def osGroup = osGroupMap.get(os, null) 
@@ -35,8 +32,8 @@ class Constants {
     // The Windows_NT_BuildOnly OS is a way to speed up the Non-NT builds temporarily by avoiding
     // test execution in the build flow runs.  It generates the exact same build
     // as Windows_NT but without the tests.
-    def static osList = ['Ubuntu', 'Debian8.4', 'OSX', 'Windows_NT', 'Windows_NT_BuildOnly', 'FreeBSD', 'CentOS7.1', 'OpenSUSE13.2', 'OpenSUSE42.1', 'RHEL7.2', 'LinuxARMEmulator', 'Ubuntu16.04', 'Fedora23']
-    def static crossList = ['Ubuntu', 'OSX', 'CentOS7.1', 'RHEL7.2', 'Debian8.4', 'OpenSUSE13.2']
+    def static osList = ['Ubuntu', 'Debian8.4', 'OSX', 'Windows_NT', 'Windows_NT_BuildOnly', 'CentOS7.1', 'OpenSUSE42.1', 'RHEL7.2', 'LinuxARMEmulator', 'Ubuntu16.04']
+    def static crossList = ['Ubuntu', 'OSX', 'CentOS7.1', 'RHEL7.2', 'Debian8.4']
     // This is a set of JIT stress modes combined with the set of variables that
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
     // the values are the environment variables
@@ -281,7 +278,7 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
 
 // **************************
 // Define the basic inner loop builds for PR and commit.  This is basically just the set
-// of coreclr builds over linux/osx/freebsd/windows and debug/release/checked.  In addition, the windows
+// of coreclr builds over linux/osx/windows and debug/release/checked.  In addition, the windows
 // builds will do a couple extra steps.
 // **************************
 
@@ -294,7 +291,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
         return
     }
     
-    def bidailyCrossList = ['RHEL7.2', 'Debian8.4', 'OpenSUSE13.2']
+    def bidailyCrossList = ['RHEL7.2', 'Debian8.4']
     // Non pull request builds.
     if (!isPR) {
         // Check scenario.
@@ -554,8 +551,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             }
 
             switch (os) {
-                // OpenSUSE, Debian & RedHat get trigger phrases for pri 0 build, and pri 1 build & test
-                case 'OpenSUSE13.2':
+                // Debian & RedHat get trigger phrases for pri 0 build, and pri 1 build & test
                 case 'Debian8.4':
                 case 'RHEL7.2':
                     if (scenario == 'default') {
@@ -567,7 +563,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Pri 1 Build & Test", "(?i).*test\\W+${os}\\W+${scenario}.*")
                     }
                     break
-                case 'Fedora23':
                 case 'Ubuntu16.04':
                 case 'OpenSUSE42.1':
                     assert !isFlowJob
@@ -1053,12 +1048,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             println("Unknown scenario: ${scenario}");
                             assert false
                             break
-                    }
-                    break
-                case 'FreeBSD':
-                    assert scenario == 'default'
-                    if (configuration == 'Checked') {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build")
                     }
                     break
                 default:
@@ -1852,7 +1841,6 @@ combinedScenarios.each { scenario ->
                                         // Run the rest of the build    
                                         // Build the mscorlib for the other OS's
                                         buildCommands += "build.cmd ${lowerConfiguration} ${arch} linuxmscorlib"
-                                        buildCommands += "build.cmd ${lowerConfiguration} ${arch} freebsdmscorlib"
                                         buildCommands += "build.cmd ${lowerConfiguration} ${arch} osxmscorlib"
                                     
                                         // Zip up the tests directory so that we don't use so much space/time copying
@@ -1915,12 +1903,9 @@ combinedScenarios.each { scenario ->
                         case 'Ubuntu16.04':
                         case 'Debian8.4':
                         case 'OSX':
-                        case 'FreeBSD':
                         case 'CentOS7.1':
                         case 'RHEL7.2':
-                        case 'OpenSUSE13.2':
                         case 'OpenSUSE42.1':
-                        case 'Fedora23':
                             switch (architecture) {
                                 case 'x64':
                                 case 'x86ryujit':
@@ -1938,16 +1923,9 @@ combinedScenarios.each { scenario ->
                                     if (!enableCorefxTesting) {
                                         // We run pal tests on all OS but generate mscorlib (and thus, nuget packages)
                                         // only on supported OS platforms.
-                                        if ((os == 'FreeBSD') || (os == 'OpenSUSE13.2'))
-                                        {
-                                            buildCommands += "./build.sh skipmscorlib verbose ${lowerConfiguration} ${arch}"
-                                        }
-                                        else
-                                        {
-                                            def bootstrapRid = Utilities.getBoostrapPublishRid(os)
-                                            def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
-                                            buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${arch}"
-                                        }
+                                        def bootstrapRid = Utilities.getBoostrapPublishRid(os)
+                                        def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
+                                        buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${arch}"
                                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${arch}.${configuration} \${WORKSPACE}/bin/paltestout"
                                     
                                         // Set time out
@@ -2114,7 +2092,7 @@ combinedScenarios.each { scenario ->
                             return
                         }
                         //Skip stress modes for these scenarios
-                        if (os == 'RHEL7.2' || os == 'Debian8.4' || os == 'OpenSUSE13.2') {
+                        if (os == 'RHEL7.2' || os == 'Debian8.4') {
                             return
                         }
                     }
@@ -2136,8 +2114,8 @@ combinedScenarios.each { scenario ->
                             return
                         }
                     }
-                    // For RedHat, Debian, and OpenSUSE, we only do Release pri1 builds.
-                    else if (os == 'RHEL7.2' || os == 'Debian8.4' || os == 'OpenSUSE13.2') {
+                    // For RedHat and Debian, we only do Release pri1 builds.
+                    else if (os == 'RHEL7.2' || os == 'Debian8.4') {
                         if (scenario != 'pri1') {
                             return
                         }
