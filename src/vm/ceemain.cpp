@@ -901,7 +901,6 @@ void EEStartupHelper(COINITIEE fFlags)
 
         // This isn't done as part of InitializeGarbageCollector() above because thread
         // creation requires AppDomains to have been set up.
-        FinalizerThread::FinalizerThreadCreate();
 
 #ifndef FEATURE_PAL
         // Watson initialization must precede InitializeDebugger() and InstallUnhandledExceptionFilter() 
@@ -955,6 +954,8 @@ void EEStartupHelper(COINITIEE fFlags)
 
         // throws on error
         SetupThread();
+
+        FinalizerThread::FinalizerThreadCreate();
 
 #ifdef DEBUGGING_SUPPORTED
         // Notify debugger once the first thread is created to finish initialization.
