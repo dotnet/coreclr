@@ -551,6 +551,9 @@ namespace System.Threading
 
         internal static bool Dispatch()
         {
+            // Put threadpool thread on default context
+            ExecutionContextSwitcher.SetDefaults();
+
             var workQueue = ThreadPoolGlobals.workQueue;
             //
             // The clock is ticking!  We have ThreadPoolGlobals.TP_QUANTUM milliseconds to get some work done, and then
@@ -1006,6 +1009,9 @@ namespace System.Threading
                 WaitCallback cb = callback;
                 callback = null;
                 cb(state);
+
+                // Restore Threadpool thread to defaults if changed by callback
+                ExecutionContextSwitcher.SetDefaults();
             }
             else
             {
@@ -1068,7 +1074,7 @@ namespace System.Threading
 #if DEBUG
             MarkExecuted(aborted: false);
 #endif
-            ExecutionContext.Run(ExecutionContext.Default, ccb, this);
+            ExecutionContext.RunDefaultContext(ccb, this);
         }
 
         void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)

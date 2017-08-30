@@ -2443,6 +2443,11 @@ namespace System.Threading.Tasks
                         // No context, just run the task directly.
                         InnerInvoke();
                     }
+                    else if (ec == ExecutionContext.Default)
+                    {
+                        // Invoke it with the default ExecutionContext
+                        ExecutionContext.RunDefaultContext(s_ecCallback, this);
+                    }
                     else
                     {
                         // Invoke it under the captured ExecutionContext

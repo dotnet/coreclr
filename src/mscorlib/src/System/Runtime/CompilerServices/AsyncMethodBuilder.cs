@@ -1056,7 +1056,7 @@ namespace System.Runtime.CompilerServices
             internal void RunWithDefaultContext()
             {
                 Debug.Assert(m_stateMachine != null, "The state machine must have been set before calling Run.");
-                ExecutionContext.Run(ExecutionContext.Default, InvokeMoveNextCallback, m_stateMachine);
+                ExecutionContext.RunDefaultContext(InvokeMoveNextCallback, m_stateMachine);
             }
 
             /// <summary>Gets a delegate to the InvokeMoveNext method.</summary>

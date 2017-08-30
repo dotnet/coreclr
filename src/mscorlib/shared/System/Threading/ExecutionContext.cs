@@ -13,6 +13,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.Serialization;
 
@@ -29,9 +30,11 @@ namespace System.Threading
 
         internal void Undo(Thread currentThread)
         {
+            // Current thread passed as parameter to avoid extern native thread lookup call
             Debug.Assert(currentThread == Thread.CurrentThread);
 
-            // The common case is that these have not changed, so avoid the cost of a write if not needed.
+            // The common case is that these have not changed, so avoid the GC memory barrier 
+            // cost of an reference write if not needed.
             if (currentThread.SynchronizationContext != m_sc)
             {
                 currentThread.SynchronizationContext = m_sc;
@@ -40,6 +43,59 @@ namespace System.Threading
             if (currentThread.ExecutionContext != m_ec)
             {
                 ExecutionContext.Restore(currentThread, m_ec);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool CurrentIsDefault(Thread currentThread, ExecutionContext defaultContext)
+        {
+            // Current thread passed as parameter to avoid extern current native thread lookup call
+            Debug.Assert(currentThread == Thread.CurrentThread);
+            // Default context passed as parameter to avoid static initializer checks in NGen'd code
+            Debug.Assert(defaultContext == ExecutionContext.Default);
+
+            return (currentThread.ExecutionContext == defaultContext && currentThread.SynchronizationContext == null);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void UndoToDefault(Thread currentThread, ExecutionContext defaultContext)
+        {
+            // Current thread passed as parameter to avoid extern current native thread lookup call
+            Debug.Assert(currentThread == Thread.CurrentThread);
+            // Default context passed as parameter to avoid static initializer checks in NGen'd code
+            Debug.Assert(defaultContext == ExecutionContext.Default);
+
+            // The common case is that these have not changed, so avoid the GC memory barrier 
+            // cost of an reference write if not needed.
+            if (currentThread.SynchronizationContext != null)
+            {
+                currentThread.SynchronizationContext = null;
+            }
+
+            if (currentThread.ExecutionContext != defaultContext)
+            {
+                // Restoring from a non-default context, need to check for AsyncLocal changes
+                ExecutionContext.RestoreDefault(currentThread, defaultContext);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void SetDefaults()
+        {
+            // Current thread take to local to minimize extern current native thread lookup call
+            var currentThread = Thread.CurrentThread;
+            var defaultContext = ExecutionContext.Default;
+
+            // The common case is that these have not changed, so avoid the GC memory barrier 
+            // cost of an reference write if not needed.
+            if (currentThread.SynchronizationContext != null)
+            {
+                currentThread.SynchronizationContext = null;
+            }
+
+            if (currentThread.ExecutionContext != defaultContext)
+            {
+                currentThread.ExecutionContext = defaultContext;
             }
         }
     }
@@ -73,6 +129,7 @@ namespace System.Threading
             throw new PlatformNotSupportedException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ExecutionContext Capture()
         {
             ExecutionContext executionContext = Thread.CurrentThread.ExecutionContext;
@@ -97,6 +154,7 @@ namespace System.Threading
 
         public static AsyncFlowControl SuppressFlow()
         {
+            // Current thread take to local to minimize extern current native thread lookup call
             Thread currentThread = Thread.CurrentThread;
             ExecutionContext executionContext = currentThread.ExecutionContext ?? Default;
             if (executionContext.m_isFlowSuppressed)
@@ -114,6 +172,7 @@ namespace System.Threading
 
         public static void RestoreFlow()
         {
+            // Current thread take to local to minimize extern current native thread lookup call
             Thread currentThread = Thread.CurrentThread;
             ExecutionContext executionContext = currentThread.ExecutionContext;
             if (executionContext == null || !executionContext.m_isFlowSuppressed)
@@ -136,11 +195,13 @@ namespace System.Threading
             if (executionContext == null)
                 throw new InvalidOperationException(SR.InvalidOperation_NullContext);
 
+            // Current thread take to local to minimize extern current native thread lookup call
             Thread currentThread = Thread.CurrentThread;
             ExecutionContextSwitcher ecsw = default(ExecutionContextSwitcher);
             try
             {
                 EstablishCopyOnWriteScope(currentThread, ref ecsw);
+                // Restore may throw, so need try+catch rather than try+finally, explanation below
                 ExecutionContext.Restore(currentThread, executionContext);
                 callback(state);
             }
@@ -156,16 +217,66 @@ namespace System.Threading
             ecsw.Undo(currentThread);
         }
 
+        internal static void RunDefaultContext(ContextCallback callback, Object state)
+        {
+            // Local copies used and passed to minimise static initializer checks in NGen'd code
+            // and extern current native thread lookup calls
+            ExecutionContext defaultContext = Default;
+            Thread currentThread = Thread.CurrentThread;
+            // Fastest path for moving from default context to default context
+            if (ExecutionContextSwitcher.CurrentIsDefault(currentThread, defaultContext))
+            {
+                try
+                {
+                    callback(state);
+                }
+                finally
+                {
+                    // Restore via Cloned finally as no exception can be thrown from context Capture
+                    // https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/finally-optimizations.md#finally-cloning
+                    ExecutionContextSwitcher.UndoToDefault(currentThread, defaultContext);
+                }
+            }
+            else
+            {
+                // Current context wasn't default; so the current context needs to be captured and restored
+                Run(defaultContext, callback, state);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void RestoreDefault(Thread currentThread, ExecutionContext defaultContext)
+        {
+            // Passed to minimise static initializer checks in NGen'd code
+            // and extern current native thread lookup calls
+            Debug.Assert(currentThread == Thread.CurrentThread);
+            Debug.Assert(defaultContext == ExecutionContext.Default);
+            Debug.Assert(currentThread.ExecutionContext != defaultContext);
+
+            ExecutionContext previous = currentThread.ExecutionContext;
+            currentThread.ExecutionContext = defaultContext;
+
+            // For the purposes of dealing with context change, null counts as the default EC
+            if (previous != null)
+            {
+                // Current was not default (or null) check for AsyncLocal changes
+                OnContextChanged(previous, defaultContext);
+            }
+        }
+
         internal static void Restore(Thread currentThread, ExecutionContext executionContext)
         {
+            // Current thread passed as parameter to avoid extern current native thread lookup call
             Debug.Assert(currentThread == Thread.CurrentThread);
 
-            ExecutionContext previous = currentThread.ExecutionContext ?? Default;
+            // Local copies used and passed to minimise static initializer checks in NGen'd code
+            ExecutionContext defaultContext = Default;
+            ExecutionContext previous = currentThread.ExecutionContext ?? defaultContext;
             currentThread.ExecutionContext = executionContext;
 
             // New EC could be null if that's what ECS.Undo saved off.
             // For the purposes of dealing with context change, treat this as the default EC
-            executionContext = executionContext ?? Default;
+            executionContext = executionContext ?? defaultContext;
 
             if (previous != executionContext)
             {
@@ -175,6 +286,7 @@ namespace System.Threading
 
         internal static void EstablishCopyOnWriteScope(Thread currentThread, ref ExecutionContextSwitcher ecsw)
         {
+            // Passed to minimise extern current native thread lookup calls
             Debug.Assert(currentThread == Thread.CurrentThread);
 
             ecsw.m_ec = currentThread.ExecutionContext;
@@ -239,7 +351,9 @@ namespace System.Threading
 
         internal static void SetLocalValue(IAsyncLocal local, object newValue, bool needChangeNotifications)
         {
-            ExecutionContext current = Thread.CurrentThread.ExecutionContext ?? ExecutionContext.Default;
+            // Take to local to minimise extern current native thread lookup calls
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContext current = currentThread.ExecutionContext ?? ExecutionContext.Default;
 
             object previousValue;
             bool hadPreviousValue = current.m_localValues.TryGetValue(local, out previousValue);
@@ -267,7 +381,7 @@ namespace System.Threading
                 }
             }
 
-            Thread.CurrentThread.ExecutionContext =
+            currentThread.ExecutionContext =
                 new ExecutionContext(newValues, newChangeNotifications, current.m_isFlowSuppressed);
 
             if (needChangeNotifications)
