@@ -694,7 +694,7 @@ parallel(
                         def testEnv = ""
 
                         // Set the label (currently we are only measuring size, therefore we are running on VM).
-                        label('20170427-elevated')
+                        Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')
                         wrappers {
                             credentialsBinding {
                                 string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
