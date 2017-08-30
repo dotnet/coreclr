@@ -25,8 +25,8 @@ EventPipeFile::EventPipeFile(
     }
     CONTRACTL_END;
 
-    m_objectVersion = 2;
-    m_minReaderVersion = 0;
+    SetObjectVersion(2);
+    SetMinReaderVersion(0);
 
     m_pSerializer = new FastSerializer(outputFilePath, *this);
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
