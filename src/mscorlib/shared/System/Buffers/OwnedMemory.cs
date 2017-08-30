@@ -11,19 +11,16 @@ namespace System.Buffers
     {
         public abstract int Length { get; }
 
-        public abstract Span<T> AsSpan(int index, int length);
-
-        public virtual Span<T> AsSpan()
-        {
-            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedMemory<T>), ExceptionResource.Memory_ThrowIfDisposed);
-            return AsSpan(0, Length);
-        }
+        public abstract Span<T> AsSpan();
 
         public Memory<T> AsMemory
         {
             get 
             {
-                if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedMemory<T>), ExceptionResource.Memory_ThrowIfDisposed);
+                if (IsDisposed) 
+                {
+                    ThrowHelper.ThrowObjectDisposedException(nameof(OwnedMemory<T>), ExceptionResource.Memory_ThrowIfDisposed);
+                }
                 return new Memory<T>(this, 0, Length);
             }
         }
@@ -34,7 +31,10 @@ namespace System.Buffers
 
         public void Dispose()
         {
-            if (IsRetained) ThrowHelper.ThrowInvalidOperationException(ExceptionResource.Memory_OutstandingReferences);
+            if (IsRetained) 
+            {
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.Memory_OutstandingReferences);
+            }
             Dispose(true);
             GC.SuppressFinalize(this);
         }

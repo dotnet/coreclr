@@ -94,7 +94,7 @@ namespace System
         /// <summary>
         /// Returns an empty <see cref="Memory{T}"/>
         /// </summary>
-        public static ReadOnlyMemory<T> Empty => Array.Empty<T>();
+        public static ReadOnlyMemory<T> Empty { get; } = Array.Empty<T>();
 
         /// <summary>
         /// The number of items in the memory.
@@ -152,7 +152,7 @@ namespace System
             get
             {
                 if (_index < 0)
-                    return ((OwnedMemory<T>)_arrayOrOwnedMemory).AsSpan(_index & RemoveOwnedFlagBitMask, _length);
+                    return ((OwnedMemory<T>)_arrayOrOwnedMemory).AsSpan().Slice(_index & RemoveOwnedFlagBitMask, _length);
                 return new ReadOnlySpan<T>((T[])_arrayOrOwnedMemory, _index, _length);
             }
         }
@@ -168,8 +168,9 @@ namespace System
                 }
                 else
                 {
-                    var handle = GCHandle.Alloc((T[])_arrayOrOwnedMemory, GCHandleType.Pinned);
-                    void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
+                    var array = (T[])_arrayOrOwnedMemory;
+                    var handle = GCHandle.Alloc(array, GCHandleType.Pinned);
+                    void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index);
                     memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
             }
@@ -182,11 +183,7 @@ namespace System
                 }
                 else
                 {
-                    var array = (T[])_arrayOrOwnedMemory;
-                    void* pointer = array.Length > 0 ? 
-                                    Unsafe.AsPointer(ref array[_index]) :
-                                    null;
-                    memoryHandle = new MemoryHandle(null, pointer);
+                    memoryHandle = new MemoryHandle(null);
                 }
             }
             return memoryHandle;

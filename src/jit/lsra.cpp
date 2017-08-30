@@ -1939,6 +1939,44 @@ void LinearScan::identifyCandidatesExceptionDataflow()
     }
 }
 
+//------------------------------------------------------------------------
+// IsContainableMemoryOp: Checks whether this is a memory op that can be contained.
+//
+// Arguments:
+//    node        - the node of interest.
+//
+// Return value:
+//    True if this will definitely be a memory reference that could be contained.
+//
+// Notes:
+//    This differs from the isMemoryOp() method on GenTree because it checks for
+//    the case of doNotEnregister local. This won't include locals that
+//    for some other reason do not become register candidates, nor those that get
+//    spilled.
+//    Also, because we usually call this before we redo dataflow, any new lclVars
+//    introduced after the last dataflow analysis will not yet be marked lvTracked,
+//    so we don't use that.
+//
+bool LinearScan::isContainableMemoryOp(GenTree* node)
+{
+#ifdef _TARGET_XARCH_
+    if (node->isMemoryOp())
+    {
+        return true;
+    }
+    if (node->IsLocal())
+    {
+        if (!enregisterLocalVars)
+        {
+            return true;
+        }
+        LclVarDsc* varDsc = &compiler->lvaTable[node->AsLclVar()->gtLclNum];
+        return varDsc->lvDoNotEnregister;
+    }
+#endif // _TARGET_XARCH_
+    return false;
+}
+
 bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
 {
     // We shouldn't be called if opt settings do not permit register variables.
@@ -3517,6 +3555,15 @@ static int ComputeOperandDstCount(GenTree* operand)
         // pointers to argument setup stores.
         return 0;
     }
+#ifdef _TARGET_ARMARCH_
+    else if (operand->OperIsPutArgStk())
+    {
+        // A PUTARG_STK argument is an operand of a call, but is neither contained, nor does it produce
+        // a result.
+        assert(!operand->isContained());
+        return 0;
+    }
+#endif // _TARGET_ARMARCH_
     else
     {
         // If a field list or non-void-typed operand is not an unused value and does not have source registers,
@@ -4483,9 +4530,6 @@ void LinearScan::buildIntervals()
 {
     BasicBlock* block;
 
-    // start numbering at 1; 0 is the entry
-    LsraLocation currentLoc = 1;
-
     JITDUMP("\nbuildIntervals ========\n");
 
     // Now build (empty) records for all of the physical registers
@@ -4530,7 +4574,7 @@ void LinearScan::buildIntervals()
 
     // second part:
     JITDUMP("\nbuildIntervals second part ========\n");
-    currentLoc = 0;
+    LsraLocation currentLoc = 0;
 
     // Next, create ParamDef RefPositions for all the tracked parameters,
     // in order of their varIndex
@@ -10702,6 +10746,43 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
         addResolution(block, insertionPoint, interval, targetReg, REG_STK);
         JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
     }
+}
+
+//------------------------------------------------------------------------
+// GetIndirSourceCount: Get the source registers for an indirection that might be contained.
+//
+// Arguments:
+//    node      - The node of interest
+//
+// Return Value:
+//    The number of source registers used by the *parent* of this node.
+//
+int LinearScan::GetIndirSourceCount(GenTreeIndir* indirTree)
+{
+    GenTree* const addr = indirTree->gtOp1;
+    if (!addr->isContained())
+    {
+        return 1;
+    }
+    if (!addr->OperIs(GT_LEA))
+    {
+        return 0;
+    }
+
+    GenTreeAddrMode* const addrMode = addr->AsAddrMode();
+
+    unsigned srcCount = 0;
+    if ((addrMode->Base() != nullptr) && !addrMode->Base()->isContained())
+    {
+        srcCount++;
+    }
+    if (addrMode->Index() != nullptr)
+    {
+        // We never have a contained index.
+        assert(!addrMode->Index()->isContained());
+        srcCount++;
+    }
+    return srcCount;
 }
 
 void TreeNodeInfo::Initialize(LinearScan* lsra, GenTree* node, LsraLocation location)

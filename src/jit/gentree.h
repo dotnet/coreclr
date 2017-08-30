@@ -1333,7 +1333,11 @@ public:
     bool OperIsMultiRegOp() const
     {
 #if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
-        if (gtOper == GT_MUL_LONG || gtOper == GT_PUTARG_REG || gtOper == GT_COPY)
+        if (gtOper == GT_MUL_LONG ||
+#ifdef ARM_SOFTFP
+            gtOper == GT_PUTARG_REG ||
+#endif
+            gtOper == GT_COPY)
         {
             return true;
         }
@@ -1778,9 +1782,6 @@ public:
 
     // Returns true if it is a GT_COPY or GT_RELOAD of a multi-reg call node
     inline bool IsCopyOrReloadOfMultiRegCall() const;
-
-    // Returns true if it is a MultiRegOp
-    inline bool IsMultiReg() const;
 
     bool OperMayThrow();
 
@@ -4242,6 +4243,68 @@ struct GenTreeIndex : public GenTreeOp
 #endif
 };
 
+// gtIndexAddr: given an array object and an index, checks that the index is within the bounds of the array if
+//              necessary and produces the address of the value at that index of the array.
+struct GenTreeIndexAddr : public GenTreeOp
+{
+    GenTree*& Arr()
+    {
+        return gtOp1;
+    }
+    GenTree*& Index()
+    {
+        return gtOp2;
+    }
+
+    CORINFO_CLASS_HANDLE gtStructElemClass; // If the element type is a struct, this is the struct type.
+
+    GenTree* gtIndRngFailBB; // Label to jump to for array-index-out-of-range
+    unsigned gtStkDepth;     // Stack depth at which the jump occurs (required for fgSetRngChkTarget)
+
+    var_types gtElemType;   // The element type of the array.
+    unsigned  gtElemSize;   // size of elements in the array
+    unsigned  gtLenOffset;  // The offset from the array's base address to its length.
+    unsigned  gtElemOffset; // The offset from the array's base address to its first element.
+
+    GenTreeIndexAddr(GenTree*             arr,
+                     GenTree*             ind,
+                     var_types            elemType,
+                     CORINFO_CLASS_HANDLE structElemClass,
+                     unsigned             elemSize,
+                     unsigned             lenOffset,
+                     unsigned             elemOffset)
+        : GenTreeOp(GT_INDEX_ADDR, TYP_BYREF, arr, ind)
+        , gtStructElemClass(structElemClass)
+        , gtIndRngFailBB(nullptr)
+        , gtStkDepth(0)
+        , gtElemType(elemType)
+        , gtElemSize(elemSize)
+        , gtLenOffset(lenOffset)
+        , gtElemOffset(elemOffset)
+    {
+#ifdef DEBUG
+        if (JitConfig.JitSkipArrayBoundCheck() == 1)
+        {
+            // Skip bounds check
+        }
+        else
+#endif
+        {
+            // Do bounds check
+            gtFlags |= GTF_INX_RNGCHK;
+        }
+
+        // REVERSE_OPS is set because we must evaluate the index before the array address.
+        gtFlags |= GTF_EXCEPT | GTF_GLOB_REF | GTF_REVERSE_OPS;
+    }
+
+#if DEBUGGABLE_GENTREE
+    GenTreeIndexAddr() : GenTreeOp()
+    {
+    }
+#endif
+};
+
 /* gtArrLen -- array length (GT_ARR_LENGTH)
    GT_ARR_LENGTH is used for "arr.length" */
 
@@ -5999,27 +6062,6 @@ inline bool GenTree::IsCopyOrReloadOfMultiRegCall() const
     }
 
     return false;
-}
-
-//-----------------------------------------------------------------------------------
-// IsMultiReg: whether this is a MultiReg node (i.e. GT_MUL_LONG or GT_PUTARG_REG)
-//
-// Arguments:
-//     None
-//
-// Return Value:
-//     Returns true if this GenTree is a MultiReg node
-inline bool GenTree::IsMultiReg() const
-{
-#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
-#ifdef ARM_SOFTFP
-    return (gtOper == GT_MUL_LONG) || (gtOper == GT_PUTARG_REG);
-#else  // !ARM_SOFTFP
-    return gtOper == GT_MUL_LONG;
-#endif // !ARM_SOFTFP
-#else  // ! _TARGET_ARM_
-    return false;
-#endif // ! _TARGET_ARM_
 }
 
 inline bool GenTree::IsCnsIntOrI() const

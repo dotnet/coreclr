@@ -98,44 +98,6 @@ bool Lowering::IsSafeToContainMem(GenTree* parentNode, GenTree* childNode)
 }
 
 //------------------------------------------------------------------------
-// IsContainableMemoryOp: Checks whether this is a memory op that can be contained.
-//
-// Arguments:
-//    node        - the node of interest.
-//
-// Return value:
-//    True if this will definitely be a memory reference that could be contained.
-//
-// Notes:
-//    This differs from the isMemoryOp() method on GenTree because it checks for
-//    the case of doNotEnregister local. This won't include locals that
-//    for some other reason do not become register candidates, nor those that get
-//    spilled.
-//    Also, because we usually call this before we redo dataflow, any new lclVars
-//    introduced after the last dataflow analysis will not yet be marked lvTracked,
-//    so we don't use that.
-//
-bool Lowering::IsContainableMemoryOp(GenTree* node)
-{
-#ifdef _TARGET_XARCH_
-    if (node->isMemoryOp())
-    {
-        return true;
-    }
-    if (node->IsLocal())
-    {
-        if (!m_lsra->enregisterLocalVars)
-        {
-            return true;
-        }
-        LclVarDsc* varDsc = &comp->lvaTable[node->AsLclVar()->gtLclNum];
-        return varDsc->lvDoNotEnregister;
-    }
-#endif // _TARGET_XARCH_
-    return false;
-}
-
-//------------------------------------------------------------------------
 
 // This is the main entry point for Lowering.
 GenTree* Lowering::LowerNode(GenTree* node)
@@ -767,6 +729,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
         {
             // Note that the switch value is unsigned so the cast should be unsigned as well.
             switchValue = comp->gtNewCastNode(TYP_I_IMPL, switchValue, TYP_U_IMPL);
+            switchValue->gtFlags |= GTF_UNSIGNED;
         }
 #endif
         GenTreePtr gtTableSwitch =
@@ -860,6 +823,8 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 #ifdef _TARGET_ARMARCH_
+    // Mark contained when we pass struct
+    // GT_FIELD_LIST is always marked conatained when it is generated
     if (varTypeIsStruct(type))
     {
         arg->SetContained();
@@ -924,6 +889,9 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
             {
                 var_types regType          = fieldListPtr->gtGetOp1()->TypeGet();
                 argSplit->m_regType[index] = regType;
+
+                // Clear the register assignments on the fieldList nodes, as these are contained.
+                fieldListPtr->gtRegNum = REG_NA;
             }
         }
     }
@@ -1284,21 +1252,15 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
             GenTreePtr argLo = arg->gtGetOp1();
             GenTreePtr argHi = arg->gtGetOp2();
 
-            GenTreeFieldList* fieldListLow = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
-            GenTreeFieldList* fieldListHigh =
-                new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldListLow);
-
-            putArg           = NewPutArg(call, fieldListLow, info, TYP_INT);
-            putArg->gtRegNum = info->regNum;
+            GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
+            // Only the first fieldList node (GTF_FIELD_LIST_HEAD) is in the instruction sequence.
+            (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
+            putArg = NewPutArg(call, fieldList, info, TYP_VOID);
 
             BlockRange().InsertBefore(arg, putArg);
             BlockRange().Remove(arg);
-            *ppArg     = fieldListLow;
-            info->node = fieldListLow;
-
-            // Clear the register assignments on the fieldList nodes, as these are contained.
-            fieldListLow->gtRegNum  = REG_NA;
-            fieldListHigh->gtRegNum = REG_NA;
+            *ppArg     = fieldList;
+            info->node = fieldList;
         }
         else
         {
@@ -4843,8 +4805,6 @@ void Lowering::DoPhase()
     }
 #endif
 
-    // The initialization code for the TreeNodeInfo map was initially part of a single full IR
-    // traversal and it has been split because the order of traversal performed by fgWalkTreePost
     // does not necessarily lower nodes in execution order and also, it could potentially
     // add new BasicBlocks on the fly as part of the Lowering pass so the traversal won't be complete.
     //
@@ -4892,7 +4852,7 @@ void Lowering::DoPhase()
 
             currentLoc += 2;
 
-            TreeNodeInfoInit(node);
+            m_lsra->TreeNodeInfoInit(node);
 
             // Only nodes that produce values should have a non-zero dstCount.
             assert((node->gtLsraInfo.dstCount == 0) || node->IsValue());
@@ -5421,43 +5381,6 @@ void Lowering::ContainCheckNode(GenTree* node)
         default:
             break;
     }
-}
-
-//------------------------------------------------------------------------
-// GetIndirSourceCount: Get the source registers for an indirection that might be contained.
-//
-// Arguments:
-//    node      - The node of interest
-//
-// Return Value:
-//    The number of source registers used by the *parent* of this node.
-//
-int Lowering::GetIndirSourceCount(GenTreeIndir* indirTree)
-{
-    GenTree* const addr = indirTree->gtOp1;
-    if (!addr->isContained())
-    {
-        return 1;
-    }
-    if (!addr->OperIs(GT_LEA))
-    {
-        return 0;
-    }
-
-    GenTreeAddrMode* const addrMode = addr->AsAddrMode();
-
-    unsigned srcCount = 0;
-    if ((addrMode->Base() != nullptr) && !addrMode->Base()->isContained())
-    {
-        srcCount++;
-    }
-    if (addrMode->Index() != nullptr)
-    {
-        // We never have a contained index.
-        assert(!addrMode->Index()->isContained());
-        srcCount++;
-    }
-    return srcCount;
 }
 
 //------------------------------------------------------------------------

@@ -18356,6 +18356,13 @@ void Compiler::fgSetTreeSeqHelper(GenTreePtr tree, bool isLIR)
             noway_assert(!"DYN_BLK nodes should be sequenced as a special case");
             break;
 
+        case GT_INDEX_ADDR:
+            // Evaluate the index first, then the array address
+            assert((tree->gtFlags & GTF_REVERSE_OPS) != 0);
+            fgSetTreeSeqHelper(tree->AsIndexAddr()->Index(), isLIR);
+            fgSetTreeSeqHelper(tree->AsIndexAddr()->Arr(), isLIR);
+            break;
+
         default:
 #ifdef DEBUG
             gtDispTree(tree);
@@ -21802,8 +21809,8 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
 
         if ((parentTree != nullptr) && (parentTree->gtOper == GT_CALL))
         {
-            GenTreeCall* call          = parentTree->AsCall();
-            bool         tryLateDevirt = call->IsVirtual() && (call->gtCallObjp == tree);
+            GenTreeCall* call  = parentTree->AsCall();
+            bool tryLateDevirt = call->IsVirtual() && (call->gtCallObjp == tree) && (call->gtCallType == CT_USER_FUNC);
 
 #ifdef DEBUG
             tryLateDevirt = tryLateDevirt && (JitConfig.JitEnableLateDevirtualization() == 1);
