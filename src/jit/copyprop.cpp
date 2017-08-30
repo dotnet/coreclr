@@ -120,9 +120,6 @@ int Compiler::optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDs
 //    stmt        -  Statement the tree belongs to
 //    tree        -  The tree to perform copy propagation on
 //    curSsaName  -  The map from lclNum to its recently live definitions as a stack
-//
-// Return Value:
-//    true if copy propagation was performed for the tree; false otherwise.
 
 void Compiler::optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, LclNumToGenTreePtrStack* curSsaName)
 {
@@ -274,7 +271,7 @@ void Compiler::optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, 
             gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif
-        return;
+        break;
     }
     return;
 }
@@ -307,8 +304,6 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
     for (GenTreePtr stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
     {
         VarSetOps::OldStyleClearD(this, optCopyPropKillSet);
-
-        bool updateFlags = false;
 
         // Walk the tree to find if any local variable can be replaced with current live definitions.
         for (GenTreePtr tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)

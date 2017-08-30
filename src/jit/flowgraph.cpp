@@ -7031,11 +7031,6 @@ GenTreeCall* Compiler::fgGetStaticsCCtorHelper(CORINFO_CLASS_HANDLE cls, CorInfo
         argList = gtNewArgList(opModuleIDArg);
     }
 
-    if (!s_helperCallProperties.NoThrow(helper))
-    {
-        callFlags |= GTF_EXCEPT;
-    }
-
     GenTreeCall* result = gtNewHelperCallNode(helper, type, argList);
     result->gtFlags |= callFlags;
 
@@ -7067,7 +7062,7 @@ GenTreeCall* Compiler::fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls)
 //    addr     -  Address to check
 //
 // Return Value:
-//    True is address could be null; false otherwise
+//    True if address could be null; false otherwise
 
 bool Compiler::fgAddrCouldBeNull(GenTreePtr addr)
 {

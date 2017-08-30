@@ -5813,10 +5813,8 @@ bool GenTree::OperMayThrow(Compiler* comp)
 
         case GT_CALL:
 
-            GenTreeCall* call;
-            call = this->AsCall();
             CorInfoHelpFunc helper;
-            helper = comp->eeGetHelperNum(call->gtCallMethHnd);
+            helper = comp->eeGetHelperNum(this->AsCall()->gtCallMethHnd);
             if ((helper == CORINFO_HELP_UNDEF) || !comp->s_helperCallProperties.NoThrow(helper))
             {
                 return true;
@@ -7990,30 +7988,58 @@ GenTreePtr Compiler::gtReplaceTree(GenTreePtr stmt, GenTreePtr tree, GenTreePtr 
 }
 
 //------------------------------------------------------------------------
-// gtUpdateSideEffects: Update the side effects for statement tree nodes.
+// gtUpdateSideEffects: Update the side effects of a tree and its ancestors
+//
+// Arguments:
+//    stmt            - The tree's statement
+//    tree            - Tree to update the side effects for
+//
+// Note: If tree's order hasn't been established, the method updates side effect
+//       flags on all statement's nodes.
+
+void Compiler::gtUpdateSideEffects(GenTree* stmt, GenTree* tree)
+{
+    if (fgStmtListThreaded)
+    {
+        gtUpdateTreeAncestorsSideEffects(tree);
+    }
+    else
+    {
+        gtUpdateStmtSideEffects(stmt);
+    }
+}
+
+//------------------------------------------------------------------------
+// gtUpdateTreeAncestorsSideEffects: Update the side effects of a tree and its ancestors
+//                                   when statement order has been established.
+//
+// Arguments:
+//    tree            - Tree to update the side effects for
+
+void Compiler::gtUpdateTreeAncestorsSideEffects(GenTree* tree)
+{
+    assert(fgStmtListThreaded);
+    while (tree != nullptr)
+    {
+        gtResetNodeSideEffects(tree);
+        unsigned nChildren = tree->NumChildren();
+        for (unsigned childNum = 0; childNum < nChildren; childNum++)
+        {
+            tree->gtFlags |= (tree->GetChild(childNum)->gtFlags & GTF_ALL_EFFECT);
+        }
+        tree = tree->gtGetParent(nullptr);
+    }
+}
+
+//------------------------------------------------------------------------
+// gtUpdateStmtSideEffects: Update the side effects for statement tree nodes.
 //
 // Arguments:
 //    stmt            - The statement to update side effects on
 
-void Compiler::gtUpdateSideEffects(GenTreePtr stmt, GenTreePtr tree)
+void Compiler::gtUpdateStmtSideEffects(GenTree* stmt)
 {
-    if (!fgStmtListThreaded || (tree == nullptr))
-    {
-        fgWalkTree(&stmt->gtStmt.gtStmtExpr, fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
-    }
-    else
-    {
-        while (tree != nullptr)
-        {
-            gtResetNodeSideEffects(tree);
-            unsigned nChildren = tree->NumChildren();
-            for (unsigned childNum = 0; childNum < nChildren; childNum++)
-            {
-                tree->gtFlags |= (tree->GetChild(childNum)->gtFlags & GTF_ALL_EFFECT);
-            }
-            tree = tree->gtGetParent(nullptr);
-        }
-    }
+    fgWalkTree(&stmt->gtStmt.gtStmtExpr, fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
 }
 
 //------------------------------------------------------------------------
@@ -8027,7 +8053,7 @@ void Compiler::gtUpdateSideEffects(GenTreePtr stmt, GenTreePtr tree)
 //    flags may remain unnecessarily (conservatively) set.
 //    The caller of this method is expected to update the flags based on the children's flags.
 
-void Compiler::gtResetNodeSideEffects(GenTreePtr tree)
+void Compiler::gtResetNodeSideEffects(GenTree* tree)
 {
     if (tree->OperMayThrow(this))
     {
@@ -8042,7 +8068,6 @@ void Compiler::gtResetNodeSideEffects(GenTreePtr tree)
         }
     }
 
-    genTreeOps oper = tree->OperGet();
     if (tree->OperRequiresAsgFlag())
     {
         tree->gtFlags |= GTF_ASG;
@@ -8064,7 +8089,7 @@ void Compiler::gtResetNodeSideEffects(GenTreePtr tree)
 //    This method currently only updates GTF_EXCEPT and GTF_ASG flags. The other side effect
 //    flags may remain unnecessarily (conservatively) set.
 
-Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPre(GenTreePtr* pTree, fgWalkData* fgWalkPre)
+Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPre(GenTree** pTree, fgWalkData* fgWalkPre)
 {
     fgWalkPre->compiler->gtResetNodeSideEffects(*pTree);
 
@@ -8082,10 +8107,10 @@ Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPre(GenTreePtr* pTree, fgWal
 //    The routine is used for updating the stale side effect flags for ancestor
 //    nodes starting from treeParent up to the top-level stmt expr.
 
-Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPost(GenTreePtr* pTree, fgWalkData* fgWalkPost)
+Compiler::fgWalkResult Compiler::fgUpdateSideEffectsPost(GenTree** pTree, fgWalkData* fgWalkPost)
 {
-    GenTreePtr tree   = *pTree;
-    GenTreePtr parent = fgWalkPost->parent;
+    GenTree* tree   = *pTree;
+    GenTree* parent = fgWalkPost->parent;
     if (parent != nullptr)
     {
         parent->gtFlags |= (tree->gtFlags & GTF_ALL_EFFECT);

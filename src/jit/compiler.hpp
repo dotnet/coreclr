@@ -1135,7 +1135,7 @@ inline GenTreePtr Compiler::gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd, 
 
 inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args)
 {
-    unsigned     flags  = this->s_helperCallProperties.NoThrow((CorInfoHelpFunc)helper) ? 0 : GTF_EXCEPT;
+    unsigned     flags  = s_helperCallProperties.NoThrow((CorInfoHelpFunc)helper) ? 0 : GTF_EXCEPT;
     GenTreeCall* result = gtNewCallNode(CT_HELPER, eeFindHelper(helper), type, args);
     result->gtFlags |= flags;
 
@@ -1253,19 +1253,10 @@ inline GenTreePtr Compiler::gtNewIndexRef(var_types typ, GenTreePtr arrayOp, Gen
 // Return Value:
 //    New GT_ARR_LENGTH node
 
-inline GenTreeArrLen* Compiler::gtNewArrLen(var_types typ, GenTreePtr arrayOp, int lenOffset)
+inline GenTreeArrLen* Compiler::gtNewArrLen(var_types typ, GenTree* arrayOp, int lenOffset)
 {
     GenTreeArrLen* arrLen = new (this, GT_ARR_LENGTH) GenTreeArrLen(typ, arrayOp, lenOffset);
-
-    if (fgAddrCouldBeNull(arrayOp))
-    {
-        arrLen->gtFlags |= GTF_EXCEPT;
-    }
-    else
-    {
-        arrLen->gtFlags |= GTF_IND_NONFAULTING;
-    }
-
+    arrLen->SetIndirExceptionFlags(this);
     return arrLen;
 }
 
@@ -1279,19 +1270,10 @@ inline GenTreeArrLen* Compiler::gtNewArrLen(var_types typ, GenTreePtr arrayOp, i
 // Return Value:
 //    New GT_IND node
 
-inline GenTreePtr Compiler::gtNewIndir(var_types typ, GenTreePtr addr)
+inline GenTree* Compiler::gtNewIndir(var_types typ, GenTree* addr)
 {
-    GenTreePtr indir = gtNewOperNode(GT_IND, typ, addr);
-
-    if (fgAddrCouldBeNull(addr))
-    {
-        indir->gtFlags |= GTF_EXCEPT;
-    }
-    else
-    {
-        indir->gtFlags |= GTF_IND_NONFAULTING;
-    }
-
+    GenTree* indir = gtNewOperNode(GT_IND, typ, addr);
+    indir->SetIndirExceptionFlags(this);
     return indir;
 }
 

@@ -2251,6 +2251,12 @@ public:
         gtFlags &= ~GTF_REUSE_REG_VAL;
     }
 
+    void SetIndirExceptionFlags(Compiler* comp)
+    {
+        assert(OperIsIndirOrArrLength());
+        gtFlags |= OperMayThrow(comp) ? GTF_EXCEPT : GTF_IND_NONFAULTING;
+    }
+
 #if MEASURE_NODE_SIZE
     static void DumpNodeSizes(FILE* fp);
 #endif

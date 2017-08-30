@@ -5420,14 +5420,7 @@ void Compiler::fgMakeOutgoingStructArgCopy(
     if (argx->gtOper == GT_OBJ)
     {
         argx->gtFlags &= ~(GTF_ALL_EFFECT) | (argx->AsBlk()->Addr()->gtFlags & GTF_ALL_EFFECT);
-        if (argx->OperMayThrow(this))
-        {
-            argx->gtFlags |= GTF_EXCEPT;
-        }
-        else
-        {
-            argx->gtFlags |= GTF_IND_NONFAULTING;
-        }
+        argx->SetIndirExceptionFlags(this);
     }
     else
     {
@@ -6669,15 +6662,7 @@ GenTreePtr Compiler::fgMorphField(GenTreePtr tree, MorphAddrContext* mac)
         tree->gtOp.gtOp1 = addr;
 
         tree->gtFlags &= (~GTF_EXCEPT | addr->gtFlags);
-        if (tree->OperMayThrow(this))
-        {
-            // This indirection can cause a GPF if the address could be null.
-            tree->gtFlags |= GTF_EXCEPT;
-        }
-        else
-        {
-            tree->gtFlags |= GTF_IND_NONFAULTING;
-        }
+        tree->SetIndirExceptionFlags(this);
 
         if (addExplicitNullCheck)
         {
@@ -9464,19 +9449,12 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
             if (!fgIsIndirOfAddrOfLocal(dest))
             {
                 dest->gtFlags |= (GTF_GLOB_REF | GTF_IND_TGTANYWHERE);
-                tree->gtFlags |= (GTF_GLOB_REF | GTF_IND_TGTANYWHERE);
+                tree->gtFlags |= GTF_GLOB_REF;
             }
 
             dest->gtFlags &= (~GTF_EXCEPT | dest->AsIndir()->Addr()->gtFlags);
-            if (dest->OperMayThrow(this))
-            {
-                dest->gtFlags |= GTF_EXCEPT;
-                tree->gtFlags |= GTF_EXCEPT;
-            }
-            else
-            {
-                dest->gtFlags |= GTF_IND_NONFAULTING;
-            }
+            dest->SetIndirExceptionFlags(this);
+            tree->gtFlags |= (dest->gtFlags & GTF_EXCEPT);
         }
 
         LclVarDsc* srcVarDsc = nullptr;
@@ -9546,14 +9524,7 @@ GenTreePtr Compiler::fgMorphOneAsgBlockOp(GenTreePtr tree)
                 }
 
                 src->gtFlags &= (~GTF_EXCEPT | src->AsIndir()->Addr()->gtFlags);
-                if (src->OperMayThrow(this))
-                {
-                    src->gtFlags |= GTF_EXCEPT;
-                }
-                else
-                {
-                    src->gtFlags |= GTF_IND_NONFAULTING;
-                }
+                src->SetIndirExceptionFlags(this);
             }
         }
         else
@@ -13978,9 +13949,9 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                         assert(b);
                         GetArrayInfoMap()->Remove(tree);
                     }
-                    tree            = op1;
-                    GenTreePtr addr = commaNode->gtOp.gtOp2;
-                    op1             = gtNewIndir(typ, addr);
+                    tree          = op1;
+                    GenTree* addr = commaNode->gtOp.gtOp2;
+                    op1           = gtNewIndir(typ, addr);
                     // This is very conservative
                     op1->gtFlags |= treeFlags & ~GTF_ALL_EFFECT & ~GTF_IND_NONFAULTING;
                     op1->gtFlags |= (addr->gtFlags & GTF_ALL_EFFECT);
@@ -15761,15 +15732,8 @@ GenTreePtr Compiler::fgMorphTree(GenTreePtr tree, MorphAddrContext* mac)
             tree->gtDynBlk.Addr()        = fgMorphTree(tree->gtDynBlk.Addr());
             tree->gtDynBlk.gtDynamicSize = fgMorphTree(tree->gtDynBlk.gtDynamicSize);
 
-            if (tree->OperMayThrow(this))
-            {
-                tree->gtFlags |= GTF_EXCEPT;
-            }
-            else
-            {
-                tree->gtFlags &= ~GTF_EXCEPT;
-                tree->gtFlags |= GTF_IND_NONFAULTING;
-            }
+            tree->gtFlags &= ~GTF_EXCEPT;
+            tree->SetIndirExceptionFlags(this);
 
             if (tree->OperGet() == GT_STORE_DYN_BLK)
             {

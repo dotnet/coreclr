@@ -3202,7 +3202,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 {
                     gtSetStmtInfo(compCurStmt);
                     fgSetStmtSeq(compCurStmt);
-                    gtUpdateSideEffects(compCurStmt, nullptr);
+                    gtUpdateStmtSideEffects(compCurStmt);
                 }
 
 #ifdef DEBUG

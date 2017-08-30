@@ -1484,6 +1484,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_FIELD_ACCESS_CHECK:
             case CORINFO_HELP_CLASS_ACCESS_CHECK:
             case CORINFO_HELP_DELEGATE_SECURITY_CHECK:
+            case CORINFO_HELP_MON_EXIT_STATIC:
 
                 break;
 
@@ -1499,7 +1500,6 @@ void HelperCallProperties::init()
             case CORINFO_HELP_MON_ENTER:
             case CORINFO_HELP_MON_EXIT:
             case CORINFO_HELP_MON_ENTER_STATIC:
-            case CORINFO_HELP_MON_EXIT_STATIC:
             case CORINFO_HELP_JIT_REVERSE_PINVOKE_ENTER:
             case CORINFO_HELP_JIT_REVERSE_PINVOKE_EXIT:
             case CORINFO_HELP_SECURITY_PROLOG:

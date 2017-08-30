@@ -7931,7 +7931,7 @@ void Compiler::optRemoveRangeCheck(GenTreePtr tree, GenTreePtr stmt)
     noway_assert(stmt->gtOper == GT_STMT);
     noway_assert(tree->gtOper == GT_COMMA);
 
-    GenTreePtr bndsChkTree = tree->gtOp.gtOp1;
+    GenTree* bndsChkTree = tree->gtOp.gtOp1;
 
     noway_assert(bndsChkTree->OperIsBoundsCheck());
 

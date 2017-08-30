@@ -2083,9 +2083,9 @@ public:
 
     GenTreePtr gtNewIndexRef(var_types typ, GenTreePtr arrayOp, GenTreePtr indexOp);
 
-    GenTreeArrLen* gtNewArrLen(var_types typ, GenTreePtr arrayOp, int lenOffset);
+    GenTreeArrLen* gtNewArrLen(var_types typ, GenTree* arrayOp, int lenOffset);
 
-    GenTreePtr gtNewIndir(var_types typ, GenTreePtr addr);
+    GenTree* gtNewIndir(var_types typ, GenTree* addr);
 
     GenTreeArgList* gtNewArgList(GenTreePtr op);
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2);
@@ -2140,9 +2140,13 @@ public:
 
     GenTreePtr gtReplaceTree(GenTreePtr stmt, GenTreePtr tree, GenTreePtr replacementTree);
 
-    void gtUpdateSideEffects(GenTreePtr stmt, GenTreePtr tree);
+    void gtUpdateSideEffects(GenTree* stmt, GenTree* tree);
 
-    void gtResetNodeSideEffects(GenTreePtr tree);
+    void gtUpdateTreeAncestorsSideEffects(GenTree* tree);
+
+    void gtUpdateStmtSideEffects(GenTree* stmt);
+
+    void gtResetNodeSideEffects(GenTree* tree);
 
     // Returns "true" iff the complexity (not formally defined, but first interpretation
     // is #of nodes in subtree) of "tree" is greater than "limit".
