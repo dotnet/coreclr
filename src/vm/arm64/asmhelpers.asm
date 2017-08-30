@@ -1446,9 +1446,10 @@ ThrowIndexOutOfRangeException
 ;                                                       unsigned idx, Object* val)
 ;   x12 = array->GetArrayElementTypeHandle()
 ;
-    NESTED_ENTRY JIT_Stelem_Ref_NotExactMatch
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-0x80!
-    SAVE_ARGUMENT_REGISTERS        sp, 0x10
+    NESTED_ENTRY JIT_Stelem_Ref_NotExactMatch    
+	PROLOG_SAVE_REG_PAIR           fp, lr, #-0x48!    
+	stp     x0, x1, [sp, #16]
+	str     x2, [sp, #32]
 
     ; allow in case val can be casted to array element type
     ; call ObjIsInstanceOfNoGC(val, array->GetArrayElementTypeHandle())
@@ -1465,9 +1466,10 @@ NeedFrame
 
     bl      ArrayStoreCheck ; ArrayStoreCheck(&val, &array)
 
-DoWrite    
-    RESTORE_ARGUMENT_REGISTERS        sp, 0x10	
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #0x80!
+DoWrite        
+	ldp     x0, x1, [sp], #16
+	ldr     x2, [sp], #32	
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #0x48!
     b JIT_Stelem_DoWrite
     NESTED_END 
 
