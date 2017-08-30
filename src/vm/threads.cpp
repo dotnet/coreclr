@@ -11805,7 +11805,7 @@ void Thread::InitializeYieldProcessorNormalized()
     }
 
     // Calculate the number of yields required to span the duration of a normalized yield
-    int yieldsPerNormalizedYield = (int)round(MinNsPerNormalizedYield / nsPerYield);
+    int yieldsPerNormalizedYield = (int)(MinNsPerNormalizedYield / nsPerYield + 0.5);
     if (yieldsPerNormalizedYield < 1)
     {
         yieldsPerNormalizedYield = 1;
@@ -11819,7 +11819,7 @@ void Thread::InitializeYieldProcessorNormalized()
     // spend excessive amounts of time (thousands of cycles) doing only YieldProcessor, as SwitchToThread/Sleep would do a
     // better job of allowing other work to run.
     int optimalMaxNormalizedYieldsPerSpinIteration =
-        (int)round(NsPerOptimialMaxSpinIterationDuration / (yieldsPerNormalizedYield * nsPerYield));
+        (int)(NsPerOptimialMaxSpinIterationDuration / (yieldsPerNormalizedYield * nsPerYield) + 0.5);
     if (optimalMaxNormalizedYieldsPerSpinIteration < 1)
     {
         optimalMaxNormalizedYieldsPerSpinIteration = 1;

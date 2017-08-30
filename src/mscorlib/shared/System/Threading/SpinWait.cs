@@ -78,7 +78,7 @@ namespace System.Threading
         /// when the resource becomes available.
         /// </summary>
         internal static readonly int SpinCountforSpinBeforeWait = PlatformHelper.IsSingleProcessor ? 1 : 35;
-        internal const int Sleep1ThresholdForSpinBeforeWait = 40; // should be greater than MaxSpinCountBeforeWait
+        internal const int Sleep1ThresholdForSpinBeforeWait = 40; // should be greater than SpinCountforSpinBeforeWait
 
         // The number of times we've spun already.
         private int _count;
@@ -127,7 +127,7 @@ namespace System.Threading
             // (_count - YieldThreshold) % 2 == 0: The purpose of this check is to interleave Thread.Yield/Sleep(0) with
             // Thread.SpinWait. Otherwise, the following issues occur:
             //   - When there are no threads to switch to, Yield and Sleep(0) become no-op and it turns the spin loop into a
-            //     busy -spin that may quickly reach the max spin count and cause the thread to enter a wait state, or may
+            //     busy-spin that may quickly reach the max spin count and cause the thread to enter a wait state, or may
             //     just busy-spin for longer than desired before a Sleep(1). Completing the spin loop too early can cause
             //     excessive context switcing if a wait follows, and entering the Sleep(1) stage too early can cause
             //     excessive delays.
