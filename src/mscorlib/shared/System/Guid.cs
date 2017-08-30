@@ -12,8 +12,8 @@ namespace System
     // Represents a Globally Unique Identifier.
     [StructLayout(LayoutKind.Sequential)]
     [Serializable]
-    [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
-    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
+    [Runtime.Versioning.NonVersionable] // This only applies to field layout
+    [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public partial struct Guid : IFormattable, IComparable, IComparable<Guid>, IEquatable<Guid>
     {
         public static readonly Guid Empty = new Guid();
@@ -48,9 +48,9 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "16"), nameof(b));
             Contract.EndContractBlock();
 
-            _a = ((int)b[3] << 24) | ((int)b[2] << 16) | ((int)b[1] << 8) | b[0];
-            _b = (short)(((int)b[5] << 8) | b[4]);
-            _c = (short)(((int)b[7] << 8) | b[6]);
+            _a = b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0];
+            _b = (short)(b[5] << 8 | b[4]);
+            _c = (short)(b[7] << 8 | b[6]);
             _d = b[8];
             _e = b[9];
             _f = b[10];
@@ -76,7 +76,6 @@ namespace System
             _j = j;
             _k = k;
         }
-
 
         // Creates a new GUID initialized to the value represented by the arguments.
         //
@@ -235,14 +234,14 @@ namespace System
         // d is a hex digit. (That is 8 hex digits, followed by 4, then 4, then 4,
         // then 12) such as: "CA761232-ED42-11CE-BACD-00AA0057B223"
         //
-        public Guid(String g)
+        public Guid(string g)
         {
             if (g == null)
             {
                 throw new ArgumentNullException(nameof(g));
             }
             Contract.EndContractBlock();
-            this = Guid.Empty;
+            this = Empty;
 
             GuidResult result = new GuidResult();
             result.Init(GuidParseThrowStyle.All);
@@ -256,8 +255,7 @@ namespace System
             }
         }
 
-
-        public static Guid Parse(String input)
+        public static Guid Parse(string input)
         {
             if (input == null)
             {
@@ -277,7 +275,7 @@ namespace System
             }
         }
 
-        public static bool TryParse(String input, out Guid result)
+        public static bool TryParse(string input, out Guid result)
         {
             GuidResult parseResult = new GuidResult();
             parseResult.Init(GuidParseThrowStyle.None);
@@ -288,12 +286,12 @@ namespace System
             }
             else
             {
-                result = Guid.Empty;
+                result = Empty;
                 return false;
             }
         }
 
-        public static Guid ParseExact(String input, String format)
+        public static Guid ParseExact(string input, string format)
         {
             if (input == null)
                 throw new ArgumentNullException(nameof(input));
@@ -346,11 +344,11 @@ namespace System
             }
         }
 
-        public static bool TryParseExact(String input, String format, out Guid result)
+        public static bool TryParseExact(string input, string format, out Guid result)
         {
             if (format == null || format.Length != 1)
             {
-                result = Guid.Empty;
+                result = Empty;
                 return false;
             }
 
@@ -380,7 +378,7 @@ namespace System
             else
             {
                 // invalid guid format specification
-                result = Guid.Empty;
+                result = Empty;
                 return false;
             }
 
@@ -393,20 +391,19 @@ namespace System
             }
             else
             {
-                result = Guid.Empty;
+                result = Empty;
                 return false;
             }
         }
 
-
-        private static bool TryParseGuid(String g, GuidStyles flags, ref GuidResult result)
+        private static bool TryParseGuid(string g, GuidStyles flags, ref GuidResult result)
         {
             if (g == null)
             {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidUnrecognized");
                 return false;
             }
-            String guidString = g.Trim();  //Remove Whitespace
+            string guidString = g.Trim();  //Remove Whitespace
 
             if (guidString.Length == 0)
             {
@@ -511,9 +508,8 @@ namespace System
             }
         }
 
-
         // Check if it's of the form {0xdddddddd,0xdddd,0xdddd,{0xdd,0xdd,0xdd,0xdd,0xdd,0xdd,0xdd,0xdd}}
-        private static bool TryParseGuidWithHexPrefix(String guidString, ref GuidResult result)
+        private static bool TryParseGuidWithHexPrefix(string guidString, ref GuidResult result)
         {
             int numStart = 0;
             int numLen = 0;
@@ -522,7 +518,7 @@ namespace System
             guidString = EatAllWhitespace(guidString);
 
             // Check for leading '{'
-            if (String.IsNullOrEmpty(guidString) || guidString[0] != '{')
+            if (string.IsNullOrEmpty(guidString) || guidString[0] != '{')
             {
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidBrace");
                 return false;
@@ -543,7 +539,6 @@ namespace System
                 result.SetFailure(ParseFailureKind.Format, "Format_GuidComma");
                 return false;
             }
-
 
             if (!StringToInt(guidString.Substring(numStart, numLen) /*first DWORD*/, -1, ParseNumbers.IsTight, out result._parsedGuid._a, ref result))
                 return false;
@@ -672,7 +667,7 @@ namespace System
         }
 
         // Check if it's of the form dddddddddddddddddddddddddddddddd
-        private static bool TryParseGuidWithNoStyle(String guidString, ref GuidResult result)
+        private static bool TryParseGuidWithNoStyle(string guidString, ref GuidResult result)
         {
             int startPos = 0;
             int temp;
@@ -694,7 +689,7 @@ namespace System
                 }
                 else
                 {
-                    char upperCaseCh = Char.ToUpperInvariant(ch);
+                    char upperCaseCh = char.ToUpperInvariant(ch);
                     if (upperCaseCh >= 'A' && upperCaseCh <= 'F')
                     {
                         continue;
@@ -746,9 +741,8 @@ namespace System
             return true;
         }
 
-
         // Check if it's of the form [{|(]dddddddd-dddd-dddd-dddd-dddddddddddd[}|)]
-        private static bool TryParseGuidWithDashes(String guidString, ref GuidResult result)
+        private static bool TryParseGuidWithDashes(string guidString, ref GuidResult result)
         {
             int startPos = 0;
             int temp;
@@ -832,14 +826,13 @@ namespace System
             return true;
         }
 
-
-        private static bool StringToShort(String str, int requiredLength, int flags, out short result, ref GuidResult parseResult)
+        private static bool StringToShort(string str, int requiredLength, int flags, out short result, ref GuidResult parseResult)
         {
             int parsePos = 0;
             return StringToShort(str, ref parsePos, requiredLength, flags, out result, ref parseResult);
         }
 
-        private static bool StringToShort(String str, ref int parsePos, int requiredLength, int flags, out short result, ref GuidResult parseResult)
+        private static bool StringToShort(string str, ref int parsePos, int requiredLength, int flags, out short result, ref GuidResult parseResult)
         {
             result = 0;
             int x;
@@ -848,13 +841,13 @@ namespace System
             return retValue;
         }
 
-        private static bool StringToInt(String str, int requiredLength, int flags, out int result, ref GuidResult parseResult)
+        private static bool StringToInt(string str, int requiredLength, int flags, out int result, ref GuidResult parseResult)
         {
             int parsePos = 0;
             return StringToInt(str, ref parsePos, requiredLength, flags, out result, ref parseResult);
         }
 
-        private static bool StringToInt(String str, ref int parsePos, int requiredLength, int flags, out int result, ref GuidResult parseResult)
+        private static bool StringToInt(string str, ref int parsePos, int requiredLength, int flags, out int result, ref GuidResult parseResult)
         {
             result = 0;
 
@@ -901,7 +894,7 @@ namespace System
             return true;
         }
 
-        private static unsafe bool StringToLong(String str, ref int parsePos, int flags, out long result, ref GuidResult parseResult)
+        private static unsafe bool StringToLong(string str, ref int parsePos, int flags, out long result, ref GuidResult parseResult)
         {
             result = 0;
 
@@ -940,8 +933,7 @@ namespace System
             return true;
         }
 
-
-        private static String EatAllWhitespace(String str)
+        private static string EatAllWhitespace(string str)
         {
             int newLength = 0;
             char[] chArr = new char[str.Length];
@@ -951,24 +943,23 @@ namespace System
             for (int i = 0; i < str.Length; i++)
             {
                 curChar = str[i];
-                if (!Char.IsWhiteSpace(curChar))
+                if (!char.IsWhiteSpace(curChar))
                 {
                     chArr[newLength++] = curChar;
                 }
             }
 
             // Return a new string based on chArr
-            return new String(chArr, 0, newLength);
+            return new string(chArr, 0, newLength);
         }
 
-        private static bool IsHexPrefix(String str, int i)
+        private static bool IsHexPrefix(string str, int i)
         {
-            if (str.Length > i + 1 && str[i] == '0' && (Char.ToLowerInvariant(str[i + 1]) == 'x'))
+            if (str.Length > i + 1 && str[i] == '0' && (char.ToLowerInvariant(str[i + 1]) == 'x'))
                 return true;
             else
                 return false;
         }
-
 
         // Returns an unsigned byte array containing the GUID.
         public byte[] ToByteArray()
@@ -995,9 +986,8 @@ namespace System
             return g;
         }
 
-
         // Returns the guid in "registry" format.
-        public override String ToString()
+        public override string ToString()
         {
             return ToString("D", null);
         }
@@ -1010,7 +1000,7 @@ namespace System
 
         // Returns true if and only if the guid represented
         //  by o is the same as this instance.
-        public override bool Equals(Object o)
+        public override bool Equals(object o)
         {
             Guid g;
             // Check that o is a Guid first
@@ -1043,7 +1033,7 @@ namespace System
             return 1;
         }
 
-        public int CompareTo(Object value)
+        public int CompareTo(object value)
         {
             if (value == null)
             {
@@ -1072,42 +1062,42 @@ namespace System
 
             if (g._d != _d)
             {
-                return GetResult((uint)_d, (uint)g._d);
+                return GetResult(_d, g._d);
             }
 
             if (g._e != _e)
             {
-                return GetResult((uint)_e, (uint)g._e);
+                return GetResult(_e, g._e);
             }
 
             if (g._f != _f)
             {
-                return GetResult((uint)_f, (uint)g._f);
+                return GetResult(_f, g._f);
             }
 
             if (g._g != _g)
             {
-                return GetResult((uint)_g, (uint)g._g);
+                return GetResult(_g, g._g);
             }
 
             if (g._h != _h)
             {
-                return GetResult((uint)_h, (uint)g._h);
+                return GetResult(_h, g._h);
             }
 
             if (g._i != _i)
             {
-                return GetResult((uint)_i, (uint)g._i);
+                return GetResult(_i, g._i);
             }
 
             if (g._j != _j)
             {
-                return GetResult((uint)_j, (uint)g._j);
+                return GetResult(_j, g._j);
             }
 
             if (g._k != _k)
             {
-                return GetResult((uint)_k, (uint)g._k);
+                return GetResult(_k, g._k);
             }
 
             return 0;
@@ -1132,42 +1122,42 @@ namespace System
 
             if (value._d != _d)
             {
-                return GetResult((uint)_d, (uint)value._d);
+                return GetResult(_d, value._d);
             }
 
             if (value._e != _e)
             {
-                return GetResult((uint)_e, (uint)value._e);
+                return GetResult(_e, value._e);
             }
 
             if (value._f != _f)
             {
-                return GetResult((uint)_f, (uint)value._f);
+                return GetResult(_f, value._f);
             }
 
             if (value._g != _g)
             {
-                return GetResult((uint)_g, (uint)value._g);
+                return GetResult(_g, value._g);
             }
 
             if (value._h != _h)
             {
-                return GetResult((uint)_h, (uint)value._h);
+                return GetResult(_h, value._h);
             }
 
             if (value._i != _i)
             {
-                return GetResult((uint)_i, (uint)value._i);
+                return GetResult(_i, value._i);
             }
 
             if (value._j != _j)
             {
-                return GetResult((uint)_j, (uint)value._j);
+                return GetResult(_j, value._j);
             }
 
             if (value._k != _k)
             {
-                return GetResult((uint)_k, (uint)value._k);
+                return GetResult(_k, value._k);
             }
 
             return 0;
@@ -1191,7 +1181,7 @@ namespace System
                 Unsafe.Add(ref a._a, 3) != Unsafe.Add(ref b._a, 3);
         }
 
-        public String ToString(String format)
+        public string ToString(string format)
         {
             return ToString(format, null);
         }
@@ -1234,7 +1224,7 @@ namespace System
 
         // IFormattable interface
         // We currently ignore provider
-        public String ToString(String format, IFormatProvider provider)
+        public string ToString(string format, IFormatProvider provider)
         {
             if (format == null || format.Length == 0)
                 format = "D";
