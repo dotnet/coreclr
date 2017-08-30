@@ -482,21 +482,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     unsigned   tempLclNum  = temp->gtLclVarCommon.gtLclNum;
     LclVarDsc* tempVarDsc  = comp->lvaTable + tempLclNum;
     var_types  tempLclType = temp->TypeGet();
-
-    BasicBlock* defaultBB   = jumpTab[jumpCnt - 1];
     BasicBlock* followingBB = originalSwitchBB->bbNext;
-
-    /* Is the number of cases right for a test and jump switch? */
-    const bool fFirstCaseFollows = (followingBB == jumpTab[0]);
-    const bool fDefaultFollows   = (followingBB == defaultBB);
-
-#if defined(_TARGET_ARM_)
-    // On ARM for small switch tables we will
-    // generate a sequence of compare and branch instructions
-    // because the code to load the base of the switch
-    // table is huge and hideous due to the relocation... :(
-    minSwitchTabJumpCnt += 2;
-#endif // _TARGET_ARM_
 
     // Check this early before we modify the original switch basic block.
     bool doExpandToIfElse = DoExpandSwitchAsIfElse(originalSwitchBB);
