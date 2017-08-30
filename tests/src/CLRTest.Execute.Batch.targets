@@ -364,7 +364,14 @@ $(BatchCLRTestArgPrep)
 $(BatchCLRTestExitCodePrep)
 
 REM The __TestEnv variable may be used to specify something to run before the test.
-IF NOT "%__TestEnv%"=="" call %__TestEnv%
+IF NOT "%__TestEnv%"=="" (
+    if exist %__TestEnv% (
+        call %__TestEnv%
+    ) else (
+        echo "Error unable to find TestEnv."
+        exit /b -1
+    )
+)
 
 REM Environment Variables
 $(BatchEnvironmentVariables)
