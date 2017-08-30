@@ -6,3 +6,13 @@ JIT/jit64/opt/cse/HugeField2/HugeField2.sh
 CoreMangLib/cti/system/string/StringFormat1/StringFormat1.sh
 CoreMangLib/cti/system/string/StringFormat2/StringFormat2.sh
 JIT/Methodical/tailcall_v4/hijacking/hijacking.sh
+JIT/Regression/JitBlue/DevDiv_278372/DevDiv_278372/DevDiv_278372.sh
+JIT/Regression/JitBlue/DevDiv_359736/DevDiv_359736_ro/DevDiv_359736_ro.sh
+JIT/Regression/JitBlue/DevDiv_359736/DevDiv_359736_do/DevDiv_359736_do.sh
+JIT/Regression/JitBlue/DevDiv_359736/DevDiv_359736_d/DevDiv_359736_d.sh
+JIT/Regression/JitBlue/DevDiv_359736/DevDiv_359736_r/DevDiv_359736_r.sh
+JIT/Regression/JitBlue/DevDiv_362706/DevDiv_362706/DevDiv_362706.sh
+JIT/Regression/JitBlue/DevDiv_367099/DevDiv_367099/DevDiv_367099.sh
+JIT/Regression/JitBlue/DevDiv_370233/DevDiv_370233/DevDiv_370233.sh
+JIT/Regression/JitBlue/DevDiv_377155/DevDiv_377155/DevDiv_377155.sh
+JIT/Regression/JitBlue/GitHub_3449/GitHub_3449/GitHub_3449.sh
