@@ -29,6 +29,24 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "sideeffects.h"
 #include "lower.h"
 
+//------------------------------------------------------------------------
+// DoExpandSwitchAsIfElse: Heuristic for determining if a switch block 
+// should be expanded into a series of if/else checks.
+//
+// Return Value:
+//    True if the target want's to expand the block as if/else.
+//
+
+#define DEFAULT_MAX_IF_ELSE_SWITCH_ARMS 6
+
+bool Lowering::DoExpandSwitchAsIfElse(BasicBlock* switchBlock)
+{
+    BBswtDesc* switchDesc = switchBlock->bbJumpSwt;
+    unsigned   jumpCnt = switchDesc->bbsCount;
+
+    return (jumpCnt <= DEFAULT_MAX_IF_ELSE_SWITCH_ARMS);
+}
+
 #endif // _TARGET_ARM64_
 
 #endif // !LEGACY_BACKEND

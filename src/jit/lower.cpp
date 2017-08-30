@@ -405,8 +405,9 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     // jumpCnt is the number of elements in the jump table array.
     // jumpTab is the actual pointer to the jump table array.
     // targetCnt is the number of unique targets in the jump table array.
-    jumpCnt   = originalSwitchBB->bbJumpSwt->bbsCount;
-    jumpTab   = originalSwitchBB->bbJumpSwt->bbsDstTab;
+    BBswtDesc*  switchDesc = originalSwitchBB->bbJumpSwt;
+    jumpCnt   = switchDesc->bbsCount;
+    jumpTab   = switchDesc->bbsDstTab;
     targetCnt = originalSwitchBB->NumSucc(comp);
 
 // GT_SWITCH must be a top-level node with no use.
@@ -489,14 +490,6 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     const bool fFirstCaseFollows = (followingBB == jumpTab[0]);
     const bool fDefaultFollows   = (followingBB == defaultBB);
 
-    unsigned minSwitchTabJumpCnt = 3; // table is better than just 2 cmp/jcc
-
-    // This means really just a single cmp/jcc (aka a simple if/else)
-    if (fFirstCaseFollows || fDefaultFollows)
-    {
-        minSwitchTabJumpCnt++;
-    }
-
 #if defined(_TARGET_ARM_)
     // On ARM for small switch tables we will
     // generate a sequence of compare and branch instructions
@@ -504,6 +497,9 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     // table is huge and hideous due to the relocation... :(
     minSwitchTabJumpCnt += 2;
 #endif // _TARGET_ARM_
+
+    // Check this early before we modify the original switch basic block.
+    bool doExpandToIfElse = DoExpandSwitchAsIfElse(originalSwitchBB);
 
     // Once we have the temporary variable, we construct the conditional branch for
     // the default case.  As stated above, this conditional is being shared between
@@ -590,10 +586,10 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
             afterDefaultCondBlock->bbJumpDest = uniqueSucc;
         }
     }
-    // If the number of possible destinations is small enough, we proceed to expand the switch
-    // into a series of conditional branches, otherwise we follow the jump table based switch
-    // transformation.
-    else if ((jumpCnt <= minSwitchTabJumpCnt) || comp->compStressCompile(Compiler::STRESS_SWITCH_CMP_BR_EXPANSION, 50))
+    // If the target heuristics indicate if/else expansion do so, otherwise we
+    // follow the jump table based switch transformation.
+    else if (doExpandToIfElse
+        || comp->compStressCompile(Compiler::STRESS_SWITCH_CMP_BR_EXPANSION, 50))
     {
         // Lower the switch into a series of compare and branch IR trees.
         //

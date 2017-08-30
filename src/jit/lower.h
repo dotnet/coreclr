@@ -294,6 +294,7 @@ private:
     void AddrModeCleanupHelper(GenTreeAddrMode* addrMode, GenTree* node);
 
     GenTree* LowerSwitch(GenTree* node);
+    bool DoExpandSwitchAsIfElse(BasicBlock* switchBlock);
     void LowerCast(GenTree* node);
 
 #if !CPU_LOAD_STORE_ARCH

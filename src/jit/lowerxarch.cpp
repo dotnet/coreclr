@@ -29,6 +29,36 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "sideeffects.h"
 #include "lower.h"
 
+//------------------------------------------------------------------------
+// DoExpandSwitchAsIfElse: Heuristic for determining if a switch block 
+// should be expanded into a series of if/else checks.
+//
+// Return Value:
+//    True if the target want's to expand the block as if/else.
+//
+#define DEFAULT_MAX_IF_ELSE_SWITCH_ARMS 5
+
+bool Lowering::DoExpandSwitchAsIfElse(BasicBlock* switchBlock)
+{
+    unsigned int maxSwitchArms = DEFAULT_MAX_IF_ELSE_SWITCH_ARMS;
+    BBswtDesc*   switchDesc = switchBlock->bbJumpSwt;
+    unsigned     jumpCnt = switchDesc->bbsCount;
+    BasicBlock** jumpTab   = switchDesc->bbsDstTab;
+    BasicBlock*  defaultBB   = jumpTab[jumpCnt - 1];
+    BasicBlock*  followingBB = switchBlock->bbNext;
+
+    /* Is the number of cases right for a test and jump switch? */
+    const bool firstCaseFollows = (followingBB == jumpTab[0]);
+    const bool defaultFollows   = (followingBB == defaultBB);
+
+    if (firstCaseFollows || defaultFollows)
+    {
+        maxSwitchArms++;
+    }
+
+    return (jumpCnt <= maxSwitchArms);
+}
+
 // xarch supports both ROL and ROR instructions so no lowering is required.
 void Lowering::LowerRotate(GenTree* tree)
 {
