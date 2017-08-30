@@ -6097,9 +6097,61 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
                     callFlags |= GTF_CALL_HOISTABLE;
                 }
 
-                op1 = gtNewHelperCallNode(CORINFO_HELP_READYTORUN_STATIC_BASE, TYP_BYREF, callFlags);
-
-                op1->gtCall.setEntryPoint(pFieldInfo->fieldLookup);
+                if (pFieldInfo->fieldLookup.handle != 0)
+                {
+                    op1 = gtNewHelperCallNode(CORINFO_HELP_READYTORUN_STATIC_BASE, TYP_BYREF, callFlags);
+                    op1->gtCall.setEntryPoint(pFieldInfo->fieldLookup);
+                    if (pFieldInfo->typeNonGCStatics.accessType == IAT_VALUE && pFieldInfo->typeNonGCStatics.addr != 0)
+                    {
+                        // having this available as well directs us to inline the "has cctor already executed?" test
+                        GenTreePtr nonGcStaticsAddr = gtNewIconHandleNode((size_t)pFieldInfo->typeNonGCStatics.addr, GTF_ICON_STATIC_HDL);
+                        unsigned slotLclNum = lvaGrabTemp(true DEBUGARG("cctor test"));
+                        GenTreePtr slot = gtNewLclvNode(slotLclNum, TYP_BYREF);
+                        GenTreePtr asg = gtNewAssignNode(slot, nonGcStaticsAddr);
+                        impAppendTree(asg, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
+                        nonGcStaticsAddr = gtNewLclvNode(slotLclNum, TYP_BYREF);
+                        GenTreePtr flagAddr = gtNewOperNode(GT_ADD, TYP_BYREF, nonGcStaticsAddr, gtNewIconNode(-8/*HACK: we should get this offset cleanly from somewhere*/, TYP_INT));
+                        GenTreePtr flag = gtNewOperNode(GT_IND, TYP_INT, flagAddr);
+                        flag->gtFlags |= GTF_DONT_CSE; // workaround - otherwise the flags from *different* types get CSE'd????
+                        GenTreePtr test = gtNewOperNode(GT_EQ, TYP_INT, flag, gtNewIconNode(1));
+                        test->gtFlags |= GTF_RELOP_QMARK;
+                        GenTreePtr staticsAddr;
+                        if (pFieldInfo->typeGCStatics.addr != 0)
+                        {
+                            staticsAddr = gtNewIconHandleNode((size_t)pFieldInfo->typeGCStatics.addr, GTF_ICON_STATIC_HDL);
+                            staticsAddr = gtNewOperNode(GT_IND, TYP_I_IMPL, staticsAddr);
+                            staticsAddr = gtNewOperNode(GT_IND, TYP_BYREF, staticsAddr);
+                        }
+                        else
+                        {
+                            staticsAddr = gtNewLclvNode(slotLclNum, TYP_BYREF);
+                        }
+                        staticsAddr->gtType = TYP_BYREF;
+                        GenTreePtr colon = new (this, GT_COLON) GenTreeColon(TYP_BYREF, staticsAddr, op1);
+                        GenTreePtr qmark = gtNewQmarkNode(TYP_BYREF, test, colon);
+                        slotLclNum = lvaGrabTemp(true DEBUGARG("cctor test"));
+                        slot = gtNewLclvNode(slotLclNum, TYP_BYREF);
+                        asg = gtNewAssignNode(slot, qmark);
+                        impAppendTree(asg, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
+                        op1 = gtNewLclvNode(slotLclNum, TYP_BYREF);
+                    }
+                }
+                else
+                {
+                    GenTreePtr staticsAddr;
+                    if (pFieldInfo->typeGCStatics.addr != 0)
+                    {
+                        staticsAddr = gtNewIconHandleNode((size_t)pFieldInfo->typeGCStatics.addr, GTF_ICON_STATIC_HDL);
+                        staticsAddr = gtNewOperNode(GT_IND, TYP_BYREF, staticsAddr);
+                        staticsAddr = gtNewOperNode(GT_IND, TYP_BYREF, staticsAddr);
+                    }
+                    else
+                    {
+                        staticsAddr = gtNewIconHandleNode((size_t)pFieldInfo->typeNonGCStatics.addr, GTF_ICON_STATIC_HDL);
+                        staticsAddr = gtNewOperNode(GT_NOP, TYP_BYREF, staticsAddr); // prevents constant folding
+                    }
+                    op1 = staticsAddr;
+                }
             }
             else
 #endif

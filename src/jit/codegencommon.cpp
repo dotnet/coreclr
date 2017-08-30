@@ -1976,7 +1976,7 @@ AGAIN:
 
     /* Special case: keep constants as 'op2' */
 
-    if (op1->IsCnsIntOrI())
+    if (op1->IsCnsIntOrI() && !op2->IsCnsIntOrI())
     {
         // Presumably op2 is assumed to not be a constant (shouldn't happen if we've done constant folding)?
         tmp = op1;

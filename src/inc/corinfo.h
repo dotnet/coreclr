@@ -1724,7 +1724,12 @@ struct CORINFO_FIELD_INFO
     CorInfoIsAccessAllowedResult accessAllowed;
     CORINFO_HELPER_DESC     accessCalloutHelper;
 
-    CORINFO_CONST_LOOKUP    fieldLookup;        // Used by Ready-to-Run
+    // Used by Ready-to-Run
+    CORINFO_CONST_LOOKUP    fieldLookup;
+
+    // Used by inline expansion of Ready-to-Run statics helpers
+    CORINFO_CONST_LOOKUP    typeGCStatics;
+    CORINFO_CONST_LOOKUP    typeNonGCStatics;
 };
 
 //----------------------------------------------------------------------------
