@@ -1,4 +1,4 @@
-.NET Core Common Language Runtime (CoreCLR)
+ .NET Core Common Language Runtime (CoreCLR)
 ===========================
 
 This repository contains complete source code the runtime of [.NET Core](http://dotnet.github.io).
