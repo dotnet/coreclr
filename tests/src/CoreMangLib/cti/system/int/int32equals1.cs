@@ -31,9 +31,9 @@ public class Int32Equals1
         {
             Int32 i1, i2;
             i1 = i2 = TestLibrary.Generator.GetInt32(-55);
-            if (!i1.Equals(i2))
+            if (i1.Equals(i2))
             {
-                TestLibrary.TestFramework.LogError("001", String.Format("equal two equal number {0} did not return true", i2));
+                TestLibrary.TestFramework.LogError("001", String.Format("equal two equal number {0} returned true", i2));
                 retVal = false;
             }
         }
