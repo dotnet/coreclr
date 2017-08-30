@@ -263,11 +263,19 @@ namespace System
         public virtual void NextBytes(byte[] buffer)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
-            Contract.EndContractBlock();
             for (int i = 0; i < buffer.Length; i++)
             {
-                buffer[i] = (byte)(InternalSample() % (Byte.MaxValue + 1));
+                buffer[i] = (byte)InternalSample();
             }
         }
+
+        public virtual void NextBytes(Span<byte> buffer)
+        {
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                buffer[i] = (byte)Next();
+            }
+        }
+
     }
 }
