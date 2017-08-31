@@ -124,6 +124,9 @@ namespace System
         internal const int E_CHANGED_STATE = unchecked((int)0x8000000C);
         internal const int E_FAIL = unchecked((int)0x80004005);
         internal const int E_HANDLE = unchecked((int)0x80070006);
+        internal const int E_ILLEGAL_DELEGATE_ASSIGNMENT = unchecked((int)0x80000018);
+        internal const int E_ILLEGAL_METHOD_CALL = unchecked((int)0x8000000E);
+        internal const int E_ILLEGAL_STATE_CHANGE = unchecked((int)0x8000000D);
         internal const int E_INVALIDARG = unchecked((int)0x80070057);
         internal const int E_NOTIMPL = unchecked((int)0x80004001);
         internal const int E_POINTER = unchecked((int)0x80004003);
