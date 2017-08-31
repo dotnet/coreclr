@@ -3651,7 +3651,10 @@
   <data name="SynchronizationLockException_MisMatchedWrite" xml:space="preserve">
     <value>The write lock is being released without being held.</value>
   </data>
-  <data name="Memory_ThrowIfDisposed" xml:space="preserve">
+  <data name="NotSupported_SignatureType" xml:space="preserve">
+    <value>This method is not supported on signature types.</value>
+  </data>
+    <data name="Memory_ThrowIfDisposed" xml:space="preserve">
     <value>Memory&lt;T&gt; has been disposed.</value>
   </data>
   <data name="Memory_OutstandingReferences" xml:space="preserve">

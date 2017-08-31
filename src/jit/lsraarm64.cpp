@@ -630,12 +630,10 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         break;
 
         case GT_NULLCHECK:
-            // Unlike ARM, ARM64 implements NULLCHECK as a load to REG_ZR, so no target register
+            // Unlike ARM, ARM64 implements NULLCHECK as a load to REG_ZR, so no internal register
             // is required, and it is not a localDefUse.
             assert(info->dstCount == 0);
             info->srcCount = 1;
-            // null check is an indirection on an addr
-            TreeNodeInfoInitIndir(tree->AsIndir());
             break;
 
         case GT_IND:
@@ -659,12 +657,6 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
 
             assert(info->dstCount == 1);
             assert((tree->gtFlags & (GTF_VAR_DEF | GTF_VAR_USEASG)) == 0);
-            info->internalIntCount = 1;
-            break;
-
-        case GT_INDEX_ADDR:
-            info->srcCount         = 2;
-            info->dstCount         = 1;
             info->internalIntCount = 1;
             break;
     } // end switch (tree->OperGet())
