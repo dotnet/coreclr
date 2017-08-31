@@ -1256,6 +1256,7 @@ inline GenTreePtr Compiler::gtNewIndexRef(var_types typ, GenTreePtr arrayOp, Gen
 inline GenTreeArrLen* Compiler::gtNewArrLen(var_types typ, GenTree* arrayOp, int lenOffset)
 {
     GenTreeArrLen* arrLen = new (this, GT_ARR_LENGTH) GenTreeArrLen(typ, arrayOp, lenOffset);
+    static_assert_no_msg(GTF_ARRLEN_NONFAULTING == GTF_IND_NONFAULTING);
     arrLen->SetIndirExceptionFlags(this);
     return arrLen;
 }
@@ -1562,7 +1563,7 @@ inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     assert(!OperIsConst(oper)); // use ChangeOperLeaf() instead
 
     unsigned mask = GTF_COMMON_MASK;
-    if (this->OperIsIndirOrArrLength() && OperIsIndir(oper))
+    if (this->OperIsIndirOrArrLength() && OperIsIndirOrArrLength(oper))
     {
         mask |= GTF_IND_NONFAULTING;
     }
@@ -1584,7 +1585,7 @@ inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
 inline void GenTree::ChangeOperUnchecked(genTreeOps oper)
 {
     unsigned mask = GTF_COMMON_MASK;
-    if (this->OperIsIndirOrArrLength() && OperIsIndir(oper))
+    if (this->OperIsIndirOrArrLength() && OperIsIndirOrArrLength(oper))
     {
         mask |= GTF_IND_NONFAULTING;
     }

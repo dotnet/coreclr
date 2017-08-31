@@ -946,7 +946,8 @@ public:
 #define GTF_IND_ARR_LEN             0x80000000 // GT_IND   -- the indirection represents an array length (of the REF
                                                //             contribution to its argument).
 #define GTF_IND_VOLATILE            0x40000000 // GT_IND   -- the load or store must use volatile sematics (this is a nop on X86)
-#define GTF_IND_NONFAULTING         0x20000000 // Operations for which OperIsIndirOrArrLength() is true  -- An indir that cannot fault.
+#define GTF_IND_NONFAULTING         0x20000000 // Operations for which OperIsIndir() is true  -- An indir that cannot fault.
+                                               // Same as GTF_ARRLEN_NONFAULTING.
 #define GTF_IND_TGTANYWHERE         0x10000000 // GT_IND   -- the target could be anywhere
 #define GTF_IND_TLS_REF             0x08000000 // GT_IND   -- the target is accessed via TLS
 #define GTF_IND_ASG_LHS             0x04000000 // GT_IND   -- this GT_IND node is (the effective val) of the LHS of an
@@ -1032,6 +1033,7 @@ public:
 
 #define GTF_ARR_BOUND_INBND         0x80000000 // GT_ARR_BOUNDS_CHECK -- have proved this check is always in-bounds
 
+#define GTF_ARRLEN_NONFAULTING      0x20000000 // GT_ARR_LENGTH  -- An array length operation that cannot fault. Same as GT_IND_NONFAULTING.
 #define GTF_ARRLEN_ARR_IDX          0x80000000 // GT_ARR_LENGTH -- Length which feeds into an array index expression
 
 #define GTF_FIELD_LIST_HEAD         0x80000000 // GT_FIELD_LIST -- Indicates that this is the first field in a list of
@@ -1542,6 +1544,11 @@ public:
         return gtOper == GT_IND || gtOper == GT_STOREIND || gtOper == GT_NULLCHECK || OperIsBlk(gtOper);
     }
 
+    static bool OperIsIndirOrArrLength(genTreeOps gtOper)
+    {
+        return OperIsIndir(gtOper) || (gtOper == GT_ARR_LENGTH);
+    }
+
     bool OperIsIndir() const
     {
         return OperIsIndir(gtOper);
@@ -1549,7 +1556,7 @@ public:
 
     bool OperIsIndirOrArrLength() const
     {
-        return OperIsIndir() || (gtOper == GT_ARR_LENGTH);
+        return OperIsIndirOrArrLength(gtOper);
     }
 
     static bool OperIsImplicitIndir(genTreeOps gtOper)
