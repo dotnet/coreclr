@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#if AMD64 || (BIT32 && !ARM)
+#if AMD64 || ARM64 || (BIT32 && !ARM)
 #define HAS_CUSTOM_BLOCKS
 #endif
 
@@ -262,7 +262,7 @@ namespace System
         {
 #if AMD64 || (BIT32 && !ARM)
             const nuint CopyThreshold = 2048;
-#else
+#elif !ARM64
             const nuint CopyThreshold = 512;
 #endif // AMD64 || (BIT32 && !ARM)
 
@@ -364,15 +364,18 @@ namespace System
             return;
 
             MCPY05:
+#if !ARM64
             // PInvoke to the native version when the copy length exceeds the threshold.
             if (len > CopyThreshold)
             {
                 goto PInvoke;
             }
-
             // Copy 64-bytes at a time until the remainder is less than 64.
             // If remainder is greater than 16 bytes, then jump to MCPY00. Otherwise, unconditionally copy the last 16 bytes and return.
             Debug.Assert(len > 64 && len <= CopyThreshold);
+#else
+            Debug.Assert(len > 64);
+#endif
             nuint n = len >> 6;
 
             MCPY06:
