@@ -77,6 +77,16 @@ namespace System.Threading
         /// A suggested number of spin iterations before doing a proper wait, such as waiting on an event that becomes signaled
         /// when the resource becomes available.
         /// </summary>
+        /// <remarks>
+        /// These numbers were arrived at by experimenting with different numbers in various cases that currently use it. It's
+        /// only a suggested value and typically works well when the proper wait is something like an event.
+        /// 
+        /// Spinning less can lead to early waiting and more context switching, spinning more can decrease latency but may use
+        /// up some CPU time unnecessarily. Depends on the situation too, for instance SemaphoreSlim uses double this number
+        /// because the waiting there is currently a lot more expensive (involves more spinning, taking a lock, etc.). It also
+        /// depends on the likelihood of the spin being successful and how long the wait would be but those are not accounted
+        /// for here.
+        /// </remarks>
         internal static readonly int SpinCountforSpinBeforeWait = PlatformHelper.IsSingleProcessor ? 1 : 35;
         internal const int Sleep1ThresholdForSpinBeforeWait = 40; // should be greater than SpinCountforSpinBeforeWait
 
@@ -188,6 +198,9 @@ namespace System.Threading
                 // the equivalent of YieldProcessor(), as that that point SwitchToThread/Sleep(0) are more likely to be able to
                 // allow other useful work to run. Long YieldProcessor() loops can help to reduce contention, but Sleep(1) is
                 // usually better for that.
+                //
+                // RuntimeThread.OptimalMaxSpinWaitsPerSpinIteration:
+                //   - See Thread::InitializeYieldProcessorNormalized(), which describes and calculates this value.
                 //
                 int n = RuntimeThread.OptimalMaxSpinWaitsPerSpinIteration;
                 if (_count <= 30 && (1 << _count) < n)
