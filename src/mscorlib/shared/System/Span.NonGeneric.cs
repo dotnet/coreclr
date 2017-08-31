@@ -111,7 +111,9 @@ namespace System
                 checked((int)((long)source.Length * Unsafe.SizeOf<TFrom>() / Unsafe.SizeOf<TTo>())));
         }
 
-        [Obsolete("This method is obsolete. Use AsReadOnlySpan instead.", false)]
+        /// <summary>
+        /// This method is obsolete. Use AsReadOnlySpan instead.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> AsSpan(this string text) => AsReadOnlySpan(text);
 
