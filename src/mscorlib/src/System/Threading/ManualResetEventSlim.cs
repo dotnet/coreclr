@@ -181,7 +181,7 @@ namespace System.Threading
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManualResetEventSlim"/>
-        /// class with a Boolean value indicating whether to set the initial state to signaled.
+        /// class with a boolean value indicating whether to set the initial state to signaled.
         /// </summary>
         /// <param name="initialState">true to set the initial state signaled; false to set the initial state
         /// to nonsignaled.</param>
