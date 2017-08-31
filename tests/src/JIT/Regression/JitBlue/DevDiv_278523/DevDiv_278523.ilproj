@@ -24,7 +24,11 @@
     <DebugType>None</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition=" '$(Platform)' == 'x64' ">
+    <Compile Include="DevDiv_278523_x64.il" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(Platform)' != 'x64' ">
+    <!-- It includes x86, arm32, arm64 and future architectures. -->
     <Compile Include="DevDiv_278523.il" />
   </ItemGroup>
   <ItemGroup>

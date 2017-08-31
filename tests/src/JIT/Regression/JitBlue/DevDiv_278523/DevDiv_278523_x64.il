@@ -35,7 +35,7 @@
 
 .class private abstract auto ansi sealed beforefieldinit C extends [mscorlib]System.Object
 {
-    .method private static int32 Test32Bit(int32 i) noinlining
+    .method private static int32 Test64Bit(int32 i) noinlining
     {
         .locals init (valuetype S V_0, valuetype T V_1)
 
@@ -44,9 +44,12 @@
         conv.u1
         stfld uint8 S::m_fld6
 
-        // This sequence of IL repros the issue.
+        // This sequence of IL repros the issue. Note that the `ldc.i8` is necessary (rather than an `ldc.i4` that is
+        // implicitly converted to a long by the `add`).
+        // This sequence is incorrect IL, because it adds native int + long, that is BADCODE according to ECMA.
+        // However, 64bits jit can compile and execute it. See CoreCLR issue #11476.
         ldloca.s V_1
-        ldc.i4.4
+        ldc.i8 4
         add
         ldloc.0
         stobj S
@@ -57,7 +60,6 @@
         conv.i4
         ret
     }
-
 
     .method private static int32 Main()
     {
@@ -71,14 +73,11 @@
         ldc.i4 8
         beq.s _64bit
 
-        call int32 C::Test32Bit(int32)
-        bne.un.s fail
-        br.s success
+        // This file is for x64 only.
+        br.s fail
 
 _64bit:
-        // This path can be reached when run on 64bits target, but not amd64.
-        // For example on arm64. There is no way to distinguish platform bitness in proj file.
-        call int32 C::Test32Bit(int32)
+        call int32 C::Test64Bit(int32)
         bne.un.s fail
 
 success:
