@@ -756,6 +756,9 @@ const int AbbrevTableSize = sizeof(AbbrevTable);
 #define DWARF_LINE_RANGE 14
 #define DWARF_OPCODE_BASE 13
 
+/* TODO: use corresponding constant when it will be added to llvm */
+#define DW_LANG_MICROSOFT_CSHARP 0x9e57
+
 DwarfLineNumHeader LineNumHeader = {
     0, 2, 0, 1, 1, DWARF_LINE_BASE, DWARF_LINE_RANGE, DWARF_OPCODE_BASE, {0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1}
 };
@@ -769,7 +772,7 @@ struct __attribute__((packed)) DebugInfoCU
     uint32_t m_cu_name;
     uint32_t m_line_num;
 } debugInfoCU = {
-    1, 0, DW_LANG_C89, 0, 0
+    1, 0, DW_LANG_MICROSOFT_CSHARP, 0, 0
 };
 
 struct __attribute__((packed)) DebugInfoTryCatchSub
