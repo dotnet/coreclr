@@ -5815,12 +5815,7 @@ bool GenTree::OperMayThrow(Compiler* comp)
 
             CorInfoHelpFunc helper;
             helper = comp->eeGetHelperNum(this->AsCall()->gtCallMethHnd);
-            if ((helper == CORINFO_HELP_UNDEF) || !comp->s_helperCallProperties.NoThrow(helper))
-            {
-                return true;
-            }
-
-            break;
+            return ((helper == CORINFO_HELP_UNDEF) || !comp->s_helperCallProperties.NoThrow(helper));
 
         case GT_IND:
         case GT_BLK:
