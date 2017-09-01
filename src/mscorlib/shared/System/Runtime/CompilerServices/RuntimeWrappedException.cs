@@ -28,9 +28,6 @@ namespace System.Runtime.CompilerServices
             base.GetObjectData(info, context);
         }
 
-        public Object WrappedException
-        {
-            get { return _wrappedException; }
-        }
+        public Object WrappedException => _wrappedException;
     }
 }
