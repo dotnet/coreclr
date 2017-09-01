@@ -459,30 +459,6 @@ namespace Microsoft.Win32
         internal const String SECUR32 = "secur32.dll";
         internal const String MSCORWKS = "coreclr.dll";
 
-        [DllImport(KERNEL32, CharSet = CharSet.Auto, BestFitMapping = true)]
-        internal static extern int FormatMessage(int dwFlags, IntPtr lpSource,
-                    int dwMessageId, int dwLanguageId, [Out]StringBuilder lpBuffer,
-                    int nSize, IntPtr va_list_arguments);
-
-        // Gets an error message for a Win32 error code.
-        internal static String GetMessage(int errorCode)
-        {
-            StringBuilder sb = StringBuilderCache.Acquire(512);
-            int result = Win32Native.FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS |
-                FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY,
-                IntPtr.Zero, errorCode, 0, sb, sb.Capacity, IntPtr.Zero);
-            if (result != 0)
-            {
-                // result is the # of characters copied to the StringBuilder.
-                return StringBuilderCache.GetStringAndRelease(sb);
-            }
-            else
-            {
-                StringBuilderCache.Release(sb);
-                return SR.Format(SR.UnknownError_Num, errorCode);
-            }
-        }
-
         [DllImport(KERNEL32, EntryPoint = "LocalAlloc")]
         internal static extern IntPtr LocalAlloc_NoSafeHandle(int uFlags, UIntPtr sizetdwBytes);
 
@@ -819,58 +795,6 @@ namespace Microsoft.Win32
         internal const int SHGFP_TYPE_CURRENT = 0;      // the current (user) folder path setting
         internal const int UOI_FLAGS = 1;
         internal const int WSF_VISIBLE = 1;
-
-        // .NET Framework 4.0 and newer - all versions of windows ||| \public\sdk\inc\shlobj.h
-        internal const int CSIDL_FLAG_CREATE = 0x8000; // force folder creation in SHGetFolderPath
-        internal const int CSIDL_FLAG_DONT_VERIFY = 0x4000; // return an unverified folder path
-        internal const int CSIDL_ADMINTOOLS = 0x0030; // <user name>\Start Menu\Programs\Administrative Tools
-        internal const int CSIDL_CDBURN_AREA = 0x003b; // USERPROFILE\Local Settings\Application Data\Microsoft\CD Burning
-        internal const int CSIDL_COMMON_ADMINTOOLS = 0x002f; // All Users\Start Menu\Programs\Administrative Tools
-        internal const int CSIDL_COMMON_DOCUMENTS = 0x002e; // All Users\Documents
-        internal const int CSIDL_COMMON_MUSIC = 0x0035; // All Users\My Music
-        internal const int CSIDL_COMMON_OEM_LINKS = 0x003a; // Links to All Users OEM specific apps
-        internal const int CSIDL_COMMON_PICTURES = 0x0036; // All Users\My Pictures
-        internal const int CSIDL_COMMON_STARTMENU = 0x0016; // All Users\Start Menu
-        internal const int CSIDL_COMMON_PROGRAMS = 0X0017; // All Users\Start Menu\Programs
-        internal const int CSIDL_COMMON_STARTUP = 0x0018; // All Users\Startup
-        internal const int CSIDL_COMMON_DESKTOPDIRECTORY = 0x0019; // All Users\Desktop
-        internal const int CSIDL_COMMON_TEMPLATES = 0x002d; // All Users\Templates
-        internal const int CSIDL_COMMON_VIDEO = 0x0037; // All Users\My Video
-        internal const int CSIDL_FONTS = 0x0014; // windows\fonts
-        internal const int CSIDL_MYVIDEO = 0x000e; // "My Videos" folder
-        internal const int CSIDL_NETHOOD = 0x0013; // %APPDATA%\Microsoft\Windows\Network Shortcuts
-        internal const int CSIDL_PRINTHOOD = 0x001b; // %APPDATA%\Microsoft\Windows\Printer Shortcuts
-        internal const int CSIDL_PROFILE = 0x0028; // %USERPROFILE% (%SystemDrive%\Users\%USERNAME%)
-        internal const int CSIDL_PROGRAM_FILES_COMMONX86 = 0x002c; // x86 Program Files\Common on RISC
-        internal const int CSIDL_PROGRAM_FILESX86 = 0x002a; // x86 C:\Program Files on RISC
-        internal const int CSIDL_RESOURCES = 0x0038; // %windir%\Resources
-        internal const int CSIDL_RESOURCES_LOCALIZED = 0x0039; // %windir%\resources\0409 (code page)
-        internal const int CSIDL_SYSTEMX86 = 0x0029; // %windir%\system32
-        internal const int CSIDL_WINDOWS = 0x0024; // GetWindowsDirectory()
-
-        // .NET Framework 3.5 and earlier - all versions of windows
-        internal const int CSIDL_APPDATA = 0x001a;
-        internal const int CSIDL_COMMON_APPDATA = 0x0023;
-        internal const int CSIDL_LOCAL_APPDATA = 0x001c;
-        internal const int CSIDL_COOKIES = 0x0021;
-        internal const int CSIDL_FAVORITES = 0x0006;
-        internal const int CSIDL_HISTORY = 0x0022;
-        internal const int CSIDL_INTERNET_CACHE = 0x0020;
-        internal const int CSIDL_PROGRAMS = 0x0002;
-        internal const int CSIDL_RECENT = 0x0008;
-        internal const int CSIDL_SENDTO = 0x0009;
-        internal const int CSIDL_STARTMENU = 0x000b;
-        internal const int CSIDL_STARTUP = 0x0007;
-        internal const int CSIDL_SYSTEM = 0x0025;
-        internal const int CSIDL_TEMPLATES = 0x0015;
-        internal const int CSIDL_DESKTOPDIRECTORY = 0x0010;
-        internal const int CSIDL_PERSONAL = 0x0005;
-        internal const int CSIDL_PROGRAM_FILES = 0x0026;
-        internal const int CSIDL_PROGRAM_FILES_COMMON = 0x002b;
-        internal const int CSIDL_DESKTOP = 0x0000;
-        internal const int CSIDL_DRIVES = 0x0011;
-        internal const int CSIDL_MYMUSIC = 0x000d;
-        internal const int CSIDL_MYPICTURES = 0x0027;
 
         internal const int NameSamCompatible = 2;
 
