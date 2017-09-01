@@ -752,6 +752,10 @@ struct join_event
     join_type type;
 };
 
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+extern "C" ptrdiff_t get_cycle_count();
+#endif
+
 class t_join
 {
     join_structure join_struct;
@@ -841,7 +845,12 @@ public:
             {
 respin:
                 int spin_count = 4096 * (gc_heap::n_heaps - 1);
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+                ptrdiff_t endTime = get_cycle_count() + spin_count * 10;
+                while (get_cycle_count() < endTime)
+#else
                 for (int j = 0; j < spin_count; j++)
+#endif
                 {
                     if (color != join_struct.lock_color.LoadWithoutBarrier())
                     {
@@ -930,7 +939,12 @@ respin:
                 {
         respin:
                     int spin_count = 2 * 4096 * (gc_heap::n_heaps - 1);
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+                    ptrdiff_t endTime = get_cycle_count() + spin_count * 10;
+                    while (get_cycle_count() < endTime)
+#else
                     for (int j = 0; j < spin_count; j++)
+#endif
                     {
                         if (join_struct.wait_done)
                         {
@@ -1095,6 +1109,7 @@ t_join bgc_t_join;
 
 #endif //MULTIPLE_HEAPS
 
+// TODO: tune the spin count
 #define spin_and_switch(count_to_spin, expr) \
 { \
     for (int j = 0; j < count_to_spin; j++) \
@@ -1658,6 +1673,10 @@ static void safe_switch_to_thread()
     gc_heap::disable_preemptive(current_thread, cooperative_mode);
 }
 
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+extern "C" ptrdiff_t get_cycle_count();
+#endif
+
 //
 // We need the following methods to have volatile arguments, so that they can accept
 // raw pointers in addition to the results of the & operator on Volatile<T>.
@@ -1681,7 +1700,12 @@ retry:
 #else //!MULTIPLE_HEAPS
                     int spin_count = 32 * g_num_processors;
 #endif //!MULTIPLE_HEAPS
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+                    ptrdiff_t endTime = get_cycle_count() + spin_count * 10;
+                    while (get_cycle_count() < endTime)
+#else
                     for (int j = 0; j < spin_count; j++)
+#endif
                     {
                         if  (VolatileLoad(lock) < 0 || IsGCInProgress())
                             break;
@@ -1842,7 +1866,12 @@ retry:
 #else //!MULTIPLE_HEAPS
                     int spin_count = 32 * g_num_processors;
 #endif //!MULTIPLE_HEAPS
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+                    ptrdiff_t endTime = get_cycle_count() + spin_count * 10;
+                    while (get_cycle_count() < endTime)
+#else
                     for (int j = 0; j < spin_count; j++)
+#endif
                     {
                         if  (spin_lock->lock < 0 || gc_heap::gc_started)
                             break;
@@ -10288,7 +10317,12 @@ retry:
             if  (g_num_processors > 1)
             {
                 int spin_count = 32 * g_num_processors;
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+                ptrdiff_t endTime = get_cycle_count() + spin_count * 10;
+                while (get_cycle_count() < endTime)
+#else
                 for (int j = 0; j < spin_count; j++)
+#endif
                 {
                     if  (gc_done_event_lock < 0)
                         break;

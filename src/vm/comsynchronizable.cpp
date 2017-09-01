@@ -1624,6 +1624,9 @@ FCIMPL1(FC_BOOL_RET, ThreadNative::IsThreadpoolThread, ThreadBaseObject* thread)
 }
 FCIMPLEND
 
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+extern "C" ptrdiff_t get_cycle_count();
+#endif
 
 FCIMPL1(void, ThreadNative::SpinWait, int iterations)
 {
@@ -1638,7 +1641,12 @@ FCIMPL1(void, ThreadNative::SpinWait, int iterations)
     //
     if (iterations <= 1000000)
     {
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+        ptrdiff_t endTime = get_cycle_count() + iterations * 10;
+        while (get_cycle_count() < endTime)
+#else
         for(int i = 0; i < iterations; i++)
+#endif
             YieldProcessor();
         return;
     }
@@ -1649,7 +1657,12 @@ FCIMPL1(void, ThreadNative::SpinWait, int iterations)
     HELPER_METHOD_FRAME_BEGIN_NOPOLL();
     GCX_PREEMP();
 
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    ptrdiff_t endTime = get_cycle_count() + iterations * 10;
+    while (get_cycle_count() < endTime)
+#else
     for(int i = 0; i < iterations; i++)
+#endif
         YieldProcessor();
 
     HELPER_METHOD_FRAME_END();
