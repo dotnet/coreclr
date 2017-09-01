@@ -18,13 +18,13 @@
  * For handles, you should use a SafeHandle subclass specific to your handle
  * type.  For files, we have the following set of interesting definitions:
  *
- *  [DllImport(KERNEL32, SetLastError=true, CharSet=CharSet.Auto, BestFitMapping=false)]
+ *  [DllImport(Interop.Libraries.Kernel32, SetLastError=true, CharSet=CharSet.Auto, BestFitMapping=false)]
  *  private static extern SafeFileHandle CreateFile(...);
  *
- *  [DllImport(KERNEL32, SetLastError=true)]
+ *  [DllImport(Interop.Libraries.Kernel32, SetLastError=true)]
  *  unsafe internal static extern int ReadFile(SafeFileHandle handle, ...);
  *
- *  [DllImport(KERNEL32, SetLastError=true)]
+ *  [DllImport(Interop.Libraries.Kernel32, SetLastError=true)]
  *  internal static extern bool CloseHandle(IntPtr handle);
  * 
  * P/Invoke will create the SafeFileHandle instance for you and assign the 
@@ -59,7 +59,7 @@
  *    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Auto)]
  *    internal struct OSVERSIONINFO {  ...  }
  *
- *    [DllImport(KERNEL32, CharSet=CharSet.Auto)]
+ *    [DllImport(Interop.Libraries.Kernel32, CharSet=CharSet.Auto)]
  *    internal static extern bool GetVersionEx(ref OSVERSIONINFO lposvi);
  *
  * OR:
@@ -67,7 +67,7 @@
  *    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Auto)]
  *    internal class OSVERSIONINFO {  ...  }
  *
- *    [DllImport(KERNEL32, CharSet=CharSet.Auto)]
+ *    [DllImport(Interop.Libraries.Kernel32, CharSet=CharSet.Auto)]
  *    internal static extern bool GetVersionEx([In, Out] OSVERSIONINFO lposvi);
  *
  * Note that classes require being marked as [In, Out] while value types must
@@ -441,17 +441,6 @@ namespace Microsoft.Win32
             internal uint Type;
         }
 
-#if !FEATURE_PAL
-        internal const String KERNEL32 = "kernel32.dll";
-        internal const String USER32 = "user32.dll";
-        internal const String OLE32 = "ole32.dll";
-        internal const String OLEAUT32 = "oleaut32.dll";
-#else //FEATURE_PAL
-        internal const String KERNEL32 = "libcoreclr";
-        internal const String USER32   = "libcoreclr";
-        internal const String OLE32    = "libcoreclr";
-        internal const String OLEAUT32 = "libcoreclr";
-#endif //FEATURE_PAL         
         internal const String ADVAPI32 = "advapi32.dll";
         internal const String SHELL32 = "shell32.dll";
         internal const String SHIM = "mscoree.dll";
@@ -459,10 +448,10 @@ namespace Microsoft.Win32
         internal const String SECUR32 = "secur32.dll";
         internal const String MSCORWKS = "coreclr.dll";
 
-        [DllImport(KERNEL32, EntryPoint = "LocalAlloc")]
+        [DllImport(Interop.Libraries.Kernel32, EntryPoint = "LocalAlloc")]
         internal static extern IntPtr LocalAlloc_NoSafeHandle(int uFlags, UIntPtr sizetdwBytes);
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern IntPtr LocalFree(IntPtr handle);
 
         internal static bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX buffer)
@@ -471,83 +460,83 @@ namespace Microsoft.Win32
             return GlobalMemoryStatusExNative(ref buffer);
         }
 
-        [DllImport(KERNEL32, SetLastError = true, EntryPoint = "GlobalMemoryStatusEx")]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, EntryPoint = "GlobalMemoryStatusEx")]
         private static extern bool GlobalMemoryStatusExNative([In, Out] ref MEMORYSTATUSEX buffer);
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         unsafe internal static extern UIntPtr VirtualQuery(void* address, ref MEMORY_BASIC_INFORMATION buffer, UIntPtr sizeOfBuffer);
 
         // VirtualAlloc should generally be avoided, but is needed in 
         // the MemoryFailPoint implementation (within a CER) to increase the 
         // size of the page file, ignoring any host memory allocators.
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         unsafe internal static extern void* VirtualAlloc(void* address, UIntPtr numBytes, int commitOrReserve, int pageProtectionMode);
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         unsafe internal static extern bool VirtualFree(void* address, UIntPtr numBytes, int pageFreeMode);
 
-        [DllImport(KERNEL32, CharSet = CharSet.Ansi, ExactSpelling = true, EntryPoint = "lstrlenA")]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Ansi, ExactSpelling = true, EntryPoint = "lstrlenA")]
         internal static extern int lstrlenA(IntPtr ptr);
 
-        [DllImport(KERNEL32, CharSet = CharSet.Unicode, ExactSpelling = true, EntryPoint = "lstrlenW")]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Unicode, ExactSpelling = true, EntryPoint = "lstrlenW")]
         internal static extern int lstrlenW(IntPtr ptr);
 
-        [DllImport(Win32Native.OLEAUT32, CharSet = CharSet.Unicode)]
+        [DllImport(Interop.Libraries.OleAut32, CharSet = CharSet.Unicode)]
         internal static extern IntPtr SysAllocStringLen(String src, int len);  // BSTR
 
-        [DllImport(Win32Native.OLEAUT32)]
+        [DllImport(Interop.Libraries.OleAut32)]
         internal static extern uint SysStringLen(IntPtr bstr);
 
-        [DllImport(Win32Native.OLEAUT32)]
+        [DllImport(Interop.Libraries.OleAut32)]
         internal static extern void SysFreeString(IntPtr bstr);
 
 #if FEATURE_COMINTEROP
-        [DllImport(Win32Native.OLEAUT32)]
+        [DllImport(Interop.Libraries.OleAut32)]
         internal static extern IntPtr SysAllocStringByteLen(byte[] str, uint len);  // BSTR
 
-        [DllImport(Win32Native.OLEAUT32)]
+        [DllImport(Interop.Libraries.OleAut32)]
         internal static extern uint SysStringByteLen(IntPtr bstr);
 
 #endif
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern bool SetEvent(SafeWaitHandle handle);
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern bool ResetEvent(SafeWaitHandle handle);
 
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern SafeWaitHandle CreateEventEx(SECURITY_ATTRIBUTES lpSecurityAttributes, string name, uint flags, uint desiredAccess);
 
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern SafeWaitHandle OpenEvent(uint desiredAccess, bool inheritHandle, string name);
 
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern SafeWaitHandle CreateMutexEx(SECURITY_ATTRIBUTES lpSecurityAttributes, string name, uint flags, uint desiredAccess);
 
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern SafeWaitHandle OpenMutex(uint desiredAccess, bool inheritHandle, string name);
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern bool ReleaseMutex(SafeWaitHandle handle);
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern bool CloseHandle(IntPtr handle);
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static unsafe extern int WriteFile(SafeFileHandle handle, byte* bytes, int numBytesToWrite, out int numBytesWritten, IntPtr mustBeZero);
 
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern SafeWaitHandle CreateSemaphoreEx(SECURITY_ATTRIBUTES lpSecurityAttributes, int initialCount, int maximumCount, string name, uint flags, uint desiredAccess);
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool ReleaseSemaphore(SafeWaitHandle handle, int releaseCount, out int previousCount);
 
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern SafeWaitHandle OpenSemaphore(uint desiredAccess, bool inheritHandle, string name);
 
-        [DllImport(KERNEL32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
         internal static extern int GetSystemDirectory([Out]StringBuilder sb, int length);
 
         internal static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);  // WinBase.h
@@ -557,7 +546,7 @@ namespace Microsoft.Win32
         internal const int STD_OUTPUT_HANDLE = -11;
         internal const int STD_ERROR_HANDLE = -12;
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern IntPtr GetStdHandle(int nStdHandle);  // param is NOT a handle, but it returns one!
 
         // From WinBase.h
@@ -681,51 +670,51 @@ namespace Microsoft.Win32
             internal String cAlternateFileName = null;
         }
 
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern SafeFindHandle FindFirstFile(String fileName, [In, Out] Win32Native.WIN32_FIND_DATA data);
 
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern bool FindNextFile(
                     SafeFindHandle hndFindFile,
                     [In, Out, MarshalAs(UnmanagedType.LPStruct)]
                     WIN32_FIND_DATA lpFindFileData);
 
-        [DllImport(KERNEL32)]
+        [DllImport(Interop.Libraries.Kernel32)]
         internal static extern bool FindClose(IntPtr handle);
 
-        [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern bool GetFileAttributesEx(String name, int fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation);
 
         internal const int LCID_SUPPORTED = 0x00000002;  // supported locale ids
 
-        [DllImport(KERNEL32)]
+        [DllImport(Interop.Libraries.Kernel32)]
         internal static extern unsafe int WideCharToMultiByte(uint cp, uint flags, char* pwzSource, int cchSource, byte* pbDestBuffer, int cbDestBuffer, IntPtr null1, IntPtr null2);
 
-        [DllImport(KERNEL32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
         internal static extern bool SetEnvironmentVariable(string lpName, string lpValue);
 
-        [DllImport(KERNEL32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
         internal static extern int GetEnvironmentVariable(string lpName, [Out]StringBuilder lpValue, int size);
 
-        [DllImport(KERNEL32, CharSet = CharSet.Unicode)]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Unicode)]
         internal static unsafe extern char* GetEnvironmentStrings();
 
-        [DllImport(KERNEL32, CharSet = CharSet.Unicode)]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Unicode)]
         internal static unsafe extern bool FreeEnvironmentStrings(char* pStrings);
 
-        [DllImport(KERNEL32, CharSet = CharSet.Auto, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto, SetLastError = true)]
         internal static extern uint GetCurrentProcessId();
 
-        [DllImport(OLE32)]
+        [DllImport(Interop.Libraries.Ole32)]
         internal extern static int CoCreateGuid(out Guid guid);
 
-        [DllImport(OLE32)]
+        [DllImport(Interop.Libraries.Ole32)]
         internal static extern IntPtr CoTaskMemAlloc(UIntPtr cb);
 
-        [DllImport(OLE32)]
+        [DllImport(Interop.Libraries.Ole32)]
         internal static extern void CoTaskMemFree(IntPtr ptr);
 
-        [DllImport(OLE32)]
+        [DllImport(Interop.Libraries.Ole32)]
         internal static extern IntPtr CoTaskMemRealloc(IntPtr pv, UIntPtr cb);
 
 #if FEATURE_WIN32_REGISTRY
@@ -786,10 +775,10 @@ namespace Microsoft.Win32
                     int Reserved, RegistryValueKind dwType, String lpData, int cbData);
 #endif // FEATURE_WIN32_REGISTRY
 
-        [DllImport(KERNEL32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.Kernel32, CharSet = CharSet.Auto, SetLastError = true, BestFitMapping = false)]
         internal static extern int ExpandEnvironmentStrings(String lpSrc, [Out]StringBuilder lpDst, int nSize);
 
-        [DllImport(KERNEL32)]
+        [DllImport(Interop.Libraries.Kernel32)]
         internal static extern IntPtr LocalReAlloc(IntPtr handle, IntPtr sizetcbBytes, int uFlags);
 
         internal const int SHGFP_TYPE_CURRENT = 0;      // the current (user) folder path setting
@@ -798,10 +787,10 @@ namespace Microsoft.Win32
 
         internal const int NameSamCompatible = 2;
 
-        [DllImport(USER32, SetLastError = true, BestFitMapping = false)]
+        [DllImport(Interop.Libraries.User32, SetLastError = true, BestFitMapping = false)]
         internal static extern IntPtr SendMessageTimeout(IntPtr hWnd, int Msg, IntPtr wParam, String lParam, uint fuFlags, uint uTimeout, IntPtr lpdwResult);
 
-        [DllImport(KERNEL32, SetLastError = true)]
+        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal extern static bool QueryUnbiasedInterruptTime(out ulong UnbiasedTime);
 
