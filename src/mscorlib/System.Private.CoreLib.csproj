@@ -593,6 +593,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Numerics\Hashing\HashHelpers.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
+    <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.ICU.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CompareInfo.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Unix.cs" />
