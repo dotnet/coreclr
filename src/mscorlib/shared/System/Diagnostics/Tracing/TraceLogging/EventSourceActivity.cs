@@ -77,8 +77,8 @@ namespace System.Diagnostics.Tracing
 
         /// <summary>
         /// Writes a Start event with the specified name and data.   If the start event is not active (because the provider 
-        /// is not on or keyword-level indicates the event is off, then the returned activity is simply the 'this' pointer 
-        /// and it is effectively like the Start d           ^^ indicates? also sentence seems incomplete?
+        /// is not on or keyword-level indicates the event is off, then the returned activity is simply the 'this' pointer
+        /// and it is effectively like start did not get called.
         /// 
         /// A new activityID GUID is generated and the returned
         /// EventSourceActivity remembers this activity and will mark every event (including the start stop and any writes)
