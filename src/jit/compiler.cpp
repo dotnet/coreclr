@@ -3657,6 +3657,15 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         assert(opts.compGCPollType == GCPOLL_NONE);
         opts.compGCPollType = GCPOLL_INLINE;
     }
+
+#ifdef PROFILING_SUPPORTED
+#ifdef UNIX_AMD64_ABI
+    if (compIsProfilerHookNeeded())
+    {
+        opts.compNeedToAlignFrame = true;
+    }
+#endif // UNIX_AMD64_ABI
+#endif
 }
 
 #ifdef DEBUG
