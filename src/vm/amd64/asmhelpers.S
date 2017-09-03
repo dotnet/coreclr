@@ -37,13 +37,10 @@
 //        UINT32      flags;
 //    } PROFILE_PLATFORM_SPECIFIC_DATA, *PPROFILE_PLATFORM_SPECIFIC_DATA;
 //
-.equ SIZEOF_PROFILE_PLATFORM_SPECIFIC_DATA, 0x8*21 + 0x4*2   // includes fudge to make FP_SPILL right
+.equ SIZEOF_PROFILE_PLATFORM_SPECIFIC_DATA, 0x8*22 + 0x8  // includes fudge to make FP_SPILL right
 .equ SIZEOF_FP_ARG_SPILL, 0x10*2
 
-.equ OFFSETOF_FP_ARG_SPILL_0, SIZEOF_PROFILE_PLATFORM_SPECIFIC_DATA
-.equ OFFSETOF_FP_ARG_SPILL_1, OFFSETOF_FP_ARG_SPILL_0 + 0x10
-
-.equ SIZEOF_STACK_FRAME, SIZEOF_PROFILE_PLATFORM_SPECIFIC_DATA + SIZEOF_FP_ARG_SPILL + 0x8
+.equ SIZEOF_STACK_FRAME, SIZEOF_PROFILE_PLATFORM_SPECIFIC_DATA + SIZEOF_FP_ARG_SPILL
 
 .equ PROFILE_ENTER, 0x1
 .equ PROFILE_LEAVE, 0x2
@@ -113,15 +110,27 @@ NESTED_ENTRY ProfileEnterNaked, _TEXT, NoHandler
   mov                     r10, 0x1 // PROFILE_ENTER
   mov                     [rsp + 0xa8], r10d   //                -- struct flags field
 
+  // get aligned stack ptr (rsp + FRAME_SIZE) & (-16)
+  lea                     rax, [rsp + 0xb8]
+  and                     rax, -16
+
   // we need to be able to restore the fp return register
-  save_xmm128_postrsp     xmm0, OFFSETOF_FP_ARG_SPILL_0
-  save_xmm128_postrsp     xmm1, OFFSETOF_FP_ARG_SPILL_1
+  // save fp return registers
+  movdqa                  [rax + 0x00], xmm0
+  movdqa                  [rax + 0x10], xmm1
+
   END_PROLOGUE
 
   // rdi already contains the clientInfo
   mov                     rdi, r14
   lea                     rsi, [rsp + 0x0]
   call                    C_FUNC(ProfileEnter)
+
+  // restore fp return registers
+  lea                     rax, [rsp + 0xb8]
+  and                     rax, -16
+  movdqa                  xmm0, [rax + 0x00]
+  movdqa                  xmm1, [rax + 0x10]
 
   // restore arg registers
   mov                     rdi, [rsp + 0x78]
@@ -130,10 +139,6 @@ NESTED_ENTRY ProfileEnterNaked, _TEXT, NoHandler
   mov                     rcx, [rsp + 0x90]
   mov                     r8, [rsp + 0x98]
   mov                     r9, [rsp + 0xa0]
-
-  // restore fp return register
-  movdqa                  xmm0, [rsp + OFFSETOF_FP_ARG_SPILL_0]
-  movdqa                  xmm1, [rsp + OFFSETOF_FP_ARG_SPILL_1]
 
   // begin epilogue
   free_stack              SIZEOF_STACK_FRAME
@@ -190,18 +195,26 @@ NESTED_ENTRY ProfileLeaveNaked, _TEXT, NoHandler
   mov                     r10, 0x2  // PROFILE_LEAVE
   mov                     [rsp + 0xa8], r10d   // flags           -- struct flags field
 
+  // get aligned stack ptr (rsp + FRAME_SIZE) & (-16)
+  lea                     rax, [rsp + 0xb8]
+  and                     rax, -16
+
   // we need to be able to restore the fp return register
-  save_xmm128_postrsp     xmm0, OFFSETOF_FP_ARG_SPILL_0
-  save_xmm128_postrsp     xmm1, OFFSETOF_FP_ARG_SPILL_1
+  // save fp return registers
+  movdqa                  [rax + 0x00], xmm0
+  movdqa                  [rax + 0x10], xmm1
+
   END_PROLOGUE
 
   // rdi already contains the clientInfo
   lea                     rsi, [rsp + 0x0]
   call                    C_FUNC(ProfileLeave)
 
-  // restore fp return register
-  movdqa                  xmm0, [rsp + OFFSETOF_FP_ARG_SPILL_0]
-  movdqa                  xmm1, [rsp + OFFSETOF_FP_ARG_SPILL_1]
+  // restore fp return registers
+  lea                     rax, [rsp + 0xb8]
+  and                     rax, -16
+  movdqa                  xmm0, [rax + 0x00]
+  movdqa                  xmm1, [rax + 0x10]
 
   // restore int return register
   mov                     rax, [rsp + 0x28]
@@ -261,18 +274,26 @@ NESTED_ENTRY ProfileTailcallNaked, _TEXT, NoHandler
   mov                     r10, 0x2  // PROFILE_LEAVE
   mov                     [rsp + 0xa8], r10d   // flags           -- struct flags field
 
+  // get aligned stack ptr (rsp + FRAME_SIZE) & (-16)
+  lea                     rax, [rsp + 0xc0]
+  and                     rax, -16
+
   // we need to be able to restore the fp return register
-  save_xmm128_postrsp     xmm0, OFFSETOF_FP_ARG_SPILL_0
-  save_xmm128_postrsp     xmm1, OFFSETOF_FP_ARG_SPILL_1
+  // save fp return registers
+  movdqa                  [rax + 0x00], xmm0
+  movdqa                  [rax + 0x10], xmm1
+
   END_PROLOGUE
 
   // rdi already contains the clientInfo
   lea                     rsi, [rsp + 0x0]
   call                    C_FUNC(ProfileTailcall)
 
-  // restore fp return register
-  movdqa                  xmm0, [rsp + OFFSETOF_FP_ARG_SPILL_0]
-  movdqa                  xmm1, [rsp + OFFSETOF_FP_ARG_SPILL_1]
+  // restore fp return registers
+  lea                     rax, [rsp + 0xc0]
+  and                     rax, -16
+  movdqa                  xmm0, [rax + 0x00]
+  movdqa                  xmm1, [rax + 0x10]
 
   // restore int return register
   mov                     rax, [rsp + 0x28]
