@@ -2104,15 +2104,24 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         if (callType == CT_HELPER)
         {
             // Direct call to a helper method.
-            CorInfoHelpFunc helperNum = compiler->eeGetHelperNum(methHnd);
-            noway_assert(helperNum != CORINFO_HELP_UNDEF);
-
-            void* pAddr = nullptr;
-            addr        = compiler->compGetHelperFtn(helperNum, (void**)&pAddr);
-
-            if (addr == nullptr)
+#ifdef FEATURE_READYTORUN_COMPILER
+            if (call->gtEntryPoint.addr != NULL)
             {
-                addr = pAddr;
+                addr = call->gtEntryPoint.addr;
+            }
+            else
+#endif // FEATURE_READYTORUN_COMPILER
+            {
+                CorInfoHelpFunc helperNum = compiler->eeGetHelperNum(methHnd);
+                noway_assert(helperNum != CORINFO_HELP_UNDEF);
+
+                void* pAddr = nullptr;
+                addr        = compiler->compGetHelperFtn(helperNum, (void**)&pAddr);
+
+                if (addr == nullptr)
+                {
+                    addr = pAddr;
+                }
             }
         }
         else
