@@ -2103,7 +2103,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         void* addr = nullptr;
         if (callType == CT_HELPER)
         {
-            // Direct call to a helper method.
+// Direct call to a helper method.
 #ifdef FEATURE_READYTORUN_COMPILER
             if (call->gtEntryPoint.addr != NULL)
             {
