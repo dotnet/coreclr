@@ -5082,6 +5082,16 @@ MethodTableBuilder::InitNewMethodDesc(
         pNewMD->SetNotInline(true);
     }
 
+    HRESULT hr = GetMDImport()->GetCustomAttributeByName(pMethod->GetMethodSignature().GetToken(),
+        g_CompilerServicesIntrinsicAttribute,
+        NULL,
+        NULL);
+
+    if (hr == S_OK)
+    {
+        pNewMD->SetIsJitIntrinsic();
+    }
+
     pNewMD->SetSlot(pMethod->GetSlotIndex());
 }
 

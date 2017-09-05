@@ -827,7 +827,7 @@ enum CorInfoFlag
     CORINFO_FLG_NOSECURITYWRAP        = 0x04000000, // The method requires no security checks
     CORINFO_FLG_DONT_INLINE           = 0x10000000, // The method should not be inlined
     CORINFO_FLG_DONT_INLINE_CALLER    = 0x20000000, // The method should not be inlined, nor should its callers. It cannot be tail called.
-//  CORINFO_FLG_UNUSED                = 0x40000000,
+    CORINFO_FLG_JIT_INTRINSIC         = 0x40000000, // Method is a jit intrinsic; verify identity by name check
 
     // These are internal flags that can only be on Classes
     CORINFO_FLG_VALUECLASS            = 0x00010000, // is the class a value class

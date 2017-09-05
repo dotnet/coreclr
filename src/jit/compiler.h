@@ -2973,6 +2973,7 @@ protected:
                             int                   memberRef,
                             bool                  readonlyCall,
                             bool                  tailCall,
+                            bool                  isJitIntrinsic,
                             CorInfoIntrinsics*    pIntrinsicID);
     GenTreePtr impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
                                        CORINFO_SIG_INFO*    sig,

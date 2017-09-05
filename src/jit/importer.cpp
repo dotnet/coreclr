@@ -3281,11 +3281,20 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
                                   int                   memberRef,
                                   bool                  readonlyCall,
                                   bool                  tailCall,
+                                  bool                  isJitIntrinsic,
                                   CorInfoIntrinsics*    pIntrinsicID)
 {
     bool              mustExpand  = false;
     CorInfoIntrinsics intrinsicID = info.compCompHnd->getIntrinsicID(method, &mustExpand);
     *pIntrinsicID                 = intrinsicID;
+
+    // Jit intrinsics are always optional to expand, and won't have an
+    // Intrinsic ID.
+    if (isJitIntrinsic)
+    {
+        assert(!mustExpand);
+        assert(intrinsicID == CORINFO_INTRINSIC_Illegal);
+    }
 
 #ifndef _TARGET_ARM_
     genTreeOps interlockedOperator;
@@ -3754,6 +3763,20 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
         default:
             /* Unknown intrinsic */
             break;
+    }
+
+    if (isJitIntrinsic)
+    {
+        assert(retNode == nullptr);
+        const char* className = info.compCompHnd->getClassName(clsHnd);
+        if (strcmp(className, "System.Enum") == 0)
+        {
+            const char* methodName = info.compCompHnd->getMethodName(method, nullptr);
+            if (strcmp(methodName, "HasFlag") == 0)
+            {
+                printf("Found Intrinsic call to Enum.HasFlag\n");
+            }
+        }
     }
 
     if (mustExpand)
@@ -6777,8 +6800,9 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         // <NICE> Factor this into getCallInfo </NICE>
         if ((mflags & CORINFO_FLG_INTRINSIC) && !pConstrainedResolvedToken)
         {
+            const bool isJitIntrinsic = (mflags & CORINFO_FLG_JIT_INTRINSIC) != 0;
             call = impIntrinsic(newobjThis, clsHnd, methHnd, sig, pResolvedToken->token, readonlyCall,
-                                (canTailCall && (tailCall != 0)), &intrinsicID);
+                               (canTailCall && (tailCall != 0)), isJitIntrinsic, &intrinsicID);
 
             if (compIsForInlining() && compInlineResult->IsFailure())
             {

@@ -961,6 +961,7 @@ namespace System
             return ToString();
         }
 
+        [Intrinsic]
         public Boolean HasFlag(Enum flag)
         {
             if (flag == null)
