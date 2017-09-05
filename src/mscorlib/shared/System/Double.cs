@@ -238,6 +238,13 @@ namespace System
                 // Ensure that 0 and -0 have the same hash code
                 return 0;
             }
+
+            if (IsNaN(d))
+            {
+                // Ensure that all NaNs have the same hash code
+                return 1;
+            }
+
             long value = *(long*)(&d);
             return unchecked((int)value) ^ ((int)(value >> 32));
         }

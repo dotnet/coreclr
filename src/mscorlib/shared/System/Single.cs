@@ -230,6 +230,13 @@ namespace System
                 // Ensure that 0 and -0 have the same hash code
                 return 0;
             }
+
+            if (IsNaN(f))
+            {
+                // Ensure that all NaNs have the same hash code
+                return 1;
+            }
+
             int v = *(int*)(&f);
             return v;
         }
