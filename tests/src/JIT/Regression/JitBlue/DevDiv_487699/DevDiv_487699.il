@@ -31,7 +31,7 @@
         IL_0022: stloc.s 0x02
         IL_0024: ldc.r8 float64(0xbdd1f70e32c59bfe)
         IL_002d: conv.i
-        IL_002e: ldc.r8 float64(0xc6cff992a2831f24)
+        IL_002e: ldc.r8 float64(0xc15125191104f4ea)
         IL_0037: conv.ovf.i
         IL_0038: div.un
         IL_0039: neg
