@@ -242,7 +242,7 @@ namespace System
             if (IsNaN(d))
             {
                 // Ensure that all NaNs have the same hash code
-                return 1;
+                d = double.NaN;
             }
 
             long value = *(long*)(&d);

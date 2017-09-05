@@ -234,7 +234,7 @@ namespace System
             if (IsNaN(f))
             {
                 // Ensure that all NaNs have the same hash code
-                return 1;
+                f = float.NaN;
             }
 
             int v = *(int*)(&f);
