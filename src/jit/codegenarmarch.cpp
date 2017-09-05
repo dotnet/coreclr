@@ -2108,6 +2108,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             if (call->gtEntryPoint.addr != NULL)
             {
                 addr = call->gtEntryPoint.addr;
+                assert(call->gtEntryPoint.accessType == IAT_VALUE);
             }
             else
 #endif // FEATURE_READYTORUN_COMPILER
