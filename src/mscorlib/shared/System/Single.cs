@@ -16,6 +16,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
+using Internal.Runtime.CompilerServices;
+
 namespace System
 {
     [Serializable]
@@ -215,14 +217,15 @@ namespace System
 
         public unsafe override int GetHashCode()
         {
-            float f = m_value;
-            if (f == 0)
+            var bits = Unsafe.As<float, int>(ref m_value);
+
+            if (((bits - 1) & 0x7FFFFFFF) >= 0x7FF00000)
             {
-                // Ensure that 0 and -0 have the same hash code
-                return 0;
+                // Ensure that all NaNs and both zeros have the same hash code
+                bits &= 0x7FF00000;
             }
-            int v = *(int*)(&f);
-            return v;
+
+            return bits;
         }
 
         public override String ToString()
