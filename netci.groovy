@@ -40,16 +40,10 @@ class Constants {
     // test execution in the build flow runs.  It generates the exact same build
     // as Windows_NT but without the tests.
     def static osList = [
-               'Ubuntu',
-               'Debian8.4',
                'OSX10.12',
                'Windows_NT',
                'Windows_NT_BuildOnly',
-               'CentOS7.1',
-               'RHEL7.2',
                'Ubuntu16.04',
-               'Ubuntu16.10',
-               'Fedora24',
                'Tizen']
 
     def static crossList = ['Ubuntu', 'OSX10.12', 'CentOS7.1', 'RHEL7.2', 'Debian8.4']
@@ -58,68 +52,13 @@ class Constants {
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
     // the values are the environment variables
     def static jitStressModeScenarios = [
-               'minopts'                        : ['COMPlus_JITMinOpts' : '1'],
-               'tieredcompilation'              : ['COMPlus_EXPERIMENTAL_TieredCompilation' : '1'],
-               'forcerelocs'                    : ['COMPlus_ForceRelocs' : '1'],
-               'jitstress1'                     : ['COMPlus_JitStress' : '1'],
-               'jitstress2'                     : ['COMPlus_JitStress' : '2'],
-               'jitstressregs1'                 : ['COMPlus_JitStressRegs' : '1'],
-               'jitstressregs2'                 : ['COMPlus_JitStressRegs' : '2'],
-               'jitstressregs3'                 : ['COMPlus_JitStressRegs' : '3'],
-               'jitstressregs4'                 : ['COMPlus_JitStressRegs' : '4'],
-               'jitstressregs8'                 : ['COMPlus_JitStressRegs' : '8'],
-               'jitstressregs0x10'              : ['COMPlus_JitStressRegs' : '0x10'],
-               'jitstressregs0x80'              : ['COMPlus_JitStressRegs' : '0x80'],
-               'jitstressregs0x1000'            : ['COMPlus_JitStressRegs' : '0x1000'],
-               'jitstress2_jitstressregs1'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '1'],
-               'jitstress2_jitstressregs2'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '2'],
-               'jitstress2_jitstressregs3'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '3'],
-               'jitstress2_jitstressregs4'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '4'],
-               'jitstress2_jitstressregs8'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '8'],
-               'jitstress2_jitstressregs0x10'   : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x10'],
-               'jitstress2_jitstressregs0x80'   : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x80'],
-               'jitstress2_jitstressregs0x1000' : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x1000'],
-               'tailcallstress'                 : ['COMPlus_TailcallStress' : '1'],
-               'jitsse2only'                    : ['COMPlus_EnableAVX' : '0', 'COMPlus_EnableSSE3_4' : '0'],
-               'corefx_baseline'                : [ : ], // corefx baseline
-               'corefx_minopts'                 : ['COMPlus_JITMinOpts' : '1'],
-               'corefx_tieredcompilation'       : ['COMPlus_EXPERIMENTAL_TieredCompilation' : '1'],
-               'corefx_jitstress1'              : ['COMPlus_JitStress' : '1'],
-               'corefx_jitstress2'              : ['COMPlus_JitStress' : '2'],
-               'corefx_jitstressregs1'          : ['COMPlus_JitStressRegs' : '1'],
-               'corefx_jitstressregs2'          : ['COMPlus_JitStressRegs' : '2'],
-               'corefx_jitstressregs3'          : ['COMPlus_JitStressRegs' : '3'],
-               'corefx_jitstressregs4'          : ['COMPlus_JitStressRegs' : '4'],
-               'corefx_jitstressregs8'          : ['COMPlus_JitStressRegs' : '8'],
-               'corefx_jitstressregs0x10'       : ['COMPlus_JitStressRegs' : '0x10'],
-               'corefx_jitstressregs0x80'       : ['COMPlus_JitStressRegs' : '0x80'],
-               'corefx_jitstressregs0x1000'     : ['COMPlus_JitStressRegs' : '0x1000'],
-               'gcstress0x3'                    : ['COMPlus_GCStress' : '0x3'],
-               'gcstress0xc'                    : ['COMPlus_GCStress' : '0xC'],
-               'zapdisable'                     : ['COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
-               'heapverify1'                    : ['COMPlus_HeapVerify' : '1'],
-               'gcstress0xc_zapdisable'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
-               'gcstress0xc_zapdisable_jitstress2'  : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_JitStress'  : '2'],
-               'gcstress0xc_zapdisable_heapverify1' : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_HeapVerify' : '1'],
-               'gcstress0xc_jitstress1'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '1'],
-               'gcstress0xc_jitstress2'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '2'],
-               'gcstress0xc_minopts_heapverify1'    : ['COMPlus_GCStress' : '0xC', 'COMPlus_JITMinOpts' : '1', 'COMPlus_HeapVerify' : '1']
+               'jitstress2'                     : ['COMPlus_JitStress' : '2']
                ]
 
     // This is a set of r2r jit stress scenarios
     def static r2rJitStressScenarios = [
-               'r2r_jitstress1',
-               'r2r_jitstress2',
-               'r2r_jitstressregs1',
-               'r2r_jitstressregs2',
-               'r2r_jitstressregs3',
-               'r2r_jitstressregs4',
-               'r2r_jitstressregs8',
-               'r2r_jitstressregs0x10',
-               'r2r_jitstressregs0x80',
-               'r2r_jitstressregs0x1000',
-               'r2r_jitminopts',
-               'r2r_jitforcerelocs']
+               'r2r_jitstress1'
+               ]
 
     // This is the basic set of scenarios
     def static basicScenarios = [
@@ -316,6 +255,52 @@ def static genStressModeScriptStep(def os, def stressModeName, def stressModeVar
     return stepScript
 }
 
+def static isNeedDocker(def architecture, def os, def isBuild) {
+    if (isBuild) {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return true
+        }
+        else if (architecture == 'arm') {
+            if (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen') {
+                return true
+            }
+        }
+    }
+    else {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return true
+        }
+    }
+    return false
+}
+
+def static getDockerImageName(def architecture, def os, def isBuild) {
+    // We must change some docker private images to official later
+    if (isBuild) {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return "hseok82/dotnet-buildtools-prereqs:ubuntu-16.04-crossx86-ef0ac75-20175511035548"
+        }
+        else if (architecture == 'arm') {
+            if (os == 'Ubuntu') {
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-0cd4667-20172211042239"
+            }
+            else if (os == 'Ubuntu16.04') {
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-ef0ac75-20175511035548"
+            }
+            else if (os == 'Tizen') {
+                return "hqueue/dotnetcore:ubuntu1404_cross_prereqs_v4-tizen_rootfs"
+            }
+        }
+    }
+    else {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return "hseok82/dotnet-buildtools-prereqs:ubuntu1604_x86_test"
+        }
+    }
+    println("Unknown architecture to use docker: ${architecture} ${os}");
+    assert false
+}
+
 // Calculates the name of the build job based on some typical parameters.
 //
 def static getJobName(def configuration, def architecture, def os, def scenario, def isBuildOnly) {
@@ -383,7 +368,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 case 'x64':
                 case 'x86':
                 case 'x86lb':
-                    if (architecture == 'x86' && os == 'Ubuntu') {
+                    if (isFlowJob && architecture == 'x86' && os == 'Ubuntu') {
                         Utilities.addPeriodicTrigger(job, '@daily')
                     }
                     else if (isFlowJob || os == 'Windows_NT' || !(os in Constants.crossList)) {
@@ -1240,6 +1225,10 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
         case 'x86': // editor brace matching: {
             assert ((os == 'Windows_NT') || ((os == 'Ubuntu') && (scenario == 'default')))
             if (os == 'Ubuntu') {
+                // Triggers on the non-flow jobs aren't necessary here
+                if (!isFlowJob) {
+                    break
+                }
                 // on-demand only for ubuntu x86
                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build",
                     "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}.*")
@@ -1728,7 +1717,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                 case 'x86':
                     if (architecture == 'x86' && os == 'Ubuntu') {
                         // build and PAL test
-                        buildCommands += "./tests/scripts/x86_ci_script.sh --buildConfig=${lowerConfiguration}"
+                        def dockerImage = getDockerImageName(architecture, os, true)
+                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code -e ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} ./build.sh x86 cross ${lowerConfiguration}"
+                        dockerImage = getDockerImageName(architecture, os, false)
+                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code ${dockerImage} ./src/pal/tests/palsuite/runpaltests.sh /opt/code/bin/obj/Linux.x86.${lowerConfiguration} /opt/code/bin/paltestout"
+                        Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/**/.nuget/**")
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                         break;
                     }
@@ -1963,6 +1956,12 @@ combinedScenarios.each { scenario ->
                                     break
                             case 'arm64':
                                 if ((scenario != 'gcstress0x3') && (scenario != 'gcstress0xc')) {
+                                    return
+                                }
+                                break
+                            case 'arm':
+                                // arm linux: default only
+                                if ((os == 'Ubuntu') || (os == 'Ubuntu16.04') || (os == 'Tizen')) {
                                     return
                                 }
                                 break
@@ -2235,11 +2234,16 @@ combinedScenarios.each { scenario ->
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
 combinedScenarios.each { scenario ->
     [true, false].each { isPR ->
-        // Architectures.  x64 only at this point
-        ['x64', 'arm64'].each { architecture ->
+        // Architectures
+        ['x64', 'arm64', 'x86'].each { architecture ->
             // Put the OS's supported for coreclr cross testing here
             Constants.crossList.each { os ->
                 if (architecture == 'arm64') {
+                    if (os != "Ubuntu") {
+                        return
+                    }
+                }
+                else if (architecture == 'x86') {
                     if (os != "Ubuntu") {
                         return
                     }
@@ -2249,6 +2253,12 @@ combinedScenarios.each { scenario ->
 
                     if (architecture == 'arm64') {
                         if (scenario != 'default' && scenario != 'pri1r2r' && scenario != 'gcstress0x3' && scenario != 'gcstress0xc') {
+                            return
+                        }
+                    }
+                    else if (architecture == 'x86') {
+                        // Linux/x86 only want default test
+                        if (scenario != 'default') {
                             return
                         }
                     }
@@ -2630,12 +2640,19 @@ combinedScenarios.each { scenario ->
                                     }
                                 }
 
-                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName(branch)
+                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName("master")
 
                                 // Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
                                 def osJobName
                                 if (os == 'Ubuntu') {
                                     osJobName = 'ubuntu14.04'
+                                }
+                                else if (architecture == 'x86') {
+                                    if (os == 'Ubuntu') {
+                                        // Linux/x86 corefx jobs does not build managed yet
+                                        // Clone linux/arm corefx managed packages and overwrite linux/x86 native
+                                        osJobName = "linux_arm_cross"
+                                    }
                                 }
                                 else {
                                     osJobName = os.toLowerCase()
@@ -2647,7 +2664,7 @@ combinedScenarios.each { scenario ->
                                     }
                                 }
 
-                                shell ("mkdir ./bin/CoreFxBinDir")
+                                shell("mkdir ./bin/CoreFxBinDir")
                                 // Unpack the corefx binaries
                                 shell("tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir")
 
@@ -2657,11 +2674,33 @@ combinedScenarios.each { scenario ->
                                     shell("cp ./bin/Product/Linux.arm64.${configuration}/corefxNative/* ./bin/CoreFxBinDir")
                                     shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
                                 }
+                                else if (architecture == 'x86') {
+                                    shell("mkdir ./bin/CoreFxNative")
+
+                                    copyArtifacts("${corefxFolder}/ubuntu16.04_x86_release") {
+                                        includePatterns('bin/build.tar.gz')
+                                        targetDirectory('bin/CoreFxNative')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+
+                                    shell("tar -xf ./bin/CoreFxNative/bin/build.tar.gz -C ./bin/CoreFxBinDir")
+                                }
 
                                 // Unzip the tests first.  Exit with 0
                                 shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
 
                                 // Execute the tests
+                                def runDocker = isNeedDocker(architecture, os, false)
+                                def dockerPrefix = ""
+                                def dockerCmd = ""
+                                if (runDocker) {
+                                    def dockerImage = getDockerImageName(architecture, os, false)
+                                    dockerPrefix = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} "
+                                    dockerCmd = dockerPrefix + "${dockerImage} "
+                                }
+
                                 // If we are running a stress mode, we'll set those variables first
                                 def testEnvOpt = ""
                                 if (Constants.jitStressModeScenarios.containsKey(scenario)) {
@@ -2675,7 +2714,7 @@ combinedScenarios.each { scenario ->
                                     shell('./init-tools.sh')
                                 }
 
-                                shell("""./tests/runtest.sh \\
+                                shell("""${dockerCmd}./tests/runtest.sh \\
                 --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
                 --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
                 --coreClrBinDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
@@ -2689,10 +2728,15 @@ combinedScenarios.each { scenario ->
                                 if (isGcReliabilityFramework(scenario)) {
                                     // runtest.sh doesn't actually execute the reliability framework - do it here.
                                     if (serverGCString != '') {
-                                        shell("export COMPlus_gcServer=1")
+                                        if (runDocker) {
+                                            dockerCmd = dockerPrefix + "-e COMPlus_gcServer=1 ${dockerImage} "
+                                        }
+                                        else {
+                                            shell("export COMPlus_gcServer=1")
+                                        }
                                     }
 
-                                    shell("./tests/scripts/run-gc-reliability-framework.sh ${architecture} ${configuration}")
+                                    shell("${dockerCmd}./tests/scripts/run-gc-reliability-framework.sh ${architecture} ${configuration}")
                                 }
                             }
                         }
