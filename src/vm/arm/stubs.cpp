@@ -3781,7 +3781,10 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
     pArgs->signature = pLookup->signature;
     pArgs->module = (CORINFO_MODULE_HANDLE)pModule;
 
-    // It's available only via the run-time helper function
+    // It's available only via the run-time helper function,
+    // since optimization cases are not yet implemented.
+    assert(pLookup->indirections == CORINFO_USEHELPER);
+
     BEGIN_DYNAMIC_HELPER_EMIT(18);
 
     EmitHelperWithArg(p, pAllocator, (TADDR)pArgs, helperAddress);
