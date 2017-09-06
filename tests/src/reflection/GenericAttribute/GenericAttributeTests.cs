@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 
 class Program
 {
-    static void Main(string[] args)
+    static int Main(string[] args)
     {
         Assembly assembly = typeof(Class).GetTypeInfo().Assembly;
         Assert(CustomAttributeExtensions.GetCustomAttribute<SingleAttribute<int>>(assembly) != null);
@@ -136,6 +136,8 @@ class Program
         Assert(CustomAttributeExtensions.GetCustomAttributes(programTypeInfo, typeof(MultiAttribute<>), false) == null);
         Assert(CustomAttributeExtensions.GetCustomAttributes(programTypeInfo, typeof(MultiAttribute<>), true) == null);
         Assert(!((ICustomAttributeProvider)programTypeInfo).GetCustomAttributes(typeof(MultiAttribute<>), true).GetEnumerator().MoveNext());
+
+        return 100;
     }
 
     static void Assert(bool condition, [CallerLineNumberAttribute]int line = 0)
