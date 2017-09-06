@@ -912,7 +912,7 @@ namespace System
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern static object InvokeMethod(object target, object[] arguments, Signature sig, bool constructor, bool doNotWrapExceptions);
+        internal extern static object InvokeMethod(object target, object[] arguments, Signature sig, bool constructor, bool wrapExceptions);
 
         #region Private Invocation Helpers
         internal static INVOCATION_FLAGS GetSecurityFlags(IRuntimeMethodInfo handle)

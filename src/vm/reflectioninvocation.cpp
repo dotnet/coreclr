@@ -1036,7 +1036,7 @@ void DECLSPEC_NORETURN ThrowInvokeMethodException(MethodDesc * pMethod, OBJECTRE
 
 FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     Object *target, PTRArray *objs, SignatureNative* pSigUNSAFE,
-    CLR_BOOL fConstructor, CLR_BOOL fDoNotWrapExceptions)
+    CLR_BOOL fConstructor, CLR_BOOL fWrapExceptions)
 {
     FCALL_CONTRACT;
 
@@ -1344,11 +1344,7 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
 
     // Call the method
     bool fExceptionThrown = false;
-    if (fDoNotWrapExceptions)
-    {
-        CallDescrWorkerWithHandler(&callDescrData);
-    }
-    else
+    if (fWrapExceptions)
     {
         // The sole purpose of having this frame is to tell the debugger that we have a catch handler here
         // which may swallow managed exceptions.  The debugger needs this in order to send a
@@ -1372,6 +1368,10 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
         } EX_END_CATCH(SwallowAllExceptions);
 
         catchFrame.Pop(pThread);
+    }
+    else
+    {
+        CallDescrWorkerWithHandler(&callDescrData);
     }
 
 
