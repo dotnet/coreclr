@@ -8294,12 +8294,21 @@ void Compiler::fgAddInternal()
             maxReturns.MarkAsReadOnly();
         }
 
-        // Record: Make note of a return block in the input program.  Update fgReturnCount
-        // appropriately, and generate a merged return block if necessary.  If a constant
-        // merged return block is used, `returnBlock` is rewritten to jump to it.  If a
-        // non-constant return block is used, `genReturnBB` is set to that block, and
-        // `genReturnLocal` is set to the lclvar that it returns; morph will need to rewrite
-        // `returnBlock` to set the local and jump to the return block in such cases.
+        //------------------------------------------------------------------------
+        // Record: Make note of a return block in the input program.
+        //
+        // Arguments:
+        //    returnBlock - Block in the input that has jump kind BBJ_RETURN
+        //
+        // Notes:
+        //    Updates fgReturnCount appropriately, and generates a merged return
+        //    block if necessary.  If a constant merged return block is used,
+        //    `returnBlock` is rewritten to jump to it.  If a non-constant return
+        //    block is used, `genReturnBB` is set to that block, and `genReturnLocal`
+        //    is set to the lclvar that it returns; morph will need to rewrite
+        //    `returnBlock` to set the local and jump to the return block in such
+        //    cases.
+        //
         void Record(BasicBlock* returnBlock)
         {
             // Add this return to our tally
@@ -8335,7 +8344,12 @@ void Compiler::fgAddInternal()
             Merge(returnBlock, searchLimit);
         }
 
+        //------------------------------------------------------------------------
         // EagerCreate: Force creation of a non-constant merged return block `genReturnBB`.
+        //
+        // Return Value:
+        //    The newly-created block which returns `genReturnLocal`.
+        //
         BasicBlock* EagerCreate()
         {
             mergingReturns = true;
@@ -8343,8 +8357,21 @@ void Compiler::fgAddInternal()
         }
 
     private:
+        //------------------------------------------------------------------------
         // CreateReturnBB: Create a basic block to serve as a merged return point, stored to
-        // `returnBlocks` at the given index, and optionally returning the given constant.
+        //    `returnBlocks` at the given index, and optionally returning the given constant.
+        //
+        // Arguments:
+        //    index - Index into `returnBlocks` to store the new block into.
+        //    returnConst - Constant that the new block should return; may be nullptr to
+        //      indicate that the new merged return is for the non-constant case, in which
+        //      case, if the method's return type is non-void, `comp->genReturnLocal` will
+        //      be initialized to a new local of the appropriate type, and the new block will
+        //      return it.
+        //
+        // Return Value:
+        //    The new merged return block.
+        //
         BasicBlock* CreateReturnBB(unsigned index, GenTreeIntConCommon* returnConst = nullptr)
         {
             BasicBlock* newReturnBB = comp->fgNewBBinRegion(BBJ_RETURN);
@@ -8459,10 +8486,28 @@ void Compiler::fgAddInternal()
             return newReturnBB;
         }
 
-        // Merge: Find or create an appropriate merged return block for the given input `returnBlock`,
-        // searching up to `searchLimit` for already-created constant return blocks if it returns a
-        // constant.  If a constant return is used, rewrite `returnBlock` to jump to it, else set
-        // `genReturnBB`/`genReturnLocal` so the rewrite can happen at Morph.
+        //------------------------------------------------------------------------
+        // Merge: Find or create an appropriate merged return block for the given input block.
+        //
+        // Arguments:
+        //    returnBlock - Return block from the input program to find a merged return for.
+        //                  May be nullptr to indicate that new block suitable for non-constant
+        //                  returns should be generated but no existing block modified.
+        //    searchLimit - Blocks in `returnBlocks` up to but not including index `searchLimit`
+        //                  will be checked to see if we already have an appropriate merged return
+        //                  block for this case.  If a new block must be created, it will be stored
+        //                  to `returnBlocks` at index `searchLimit`.
+        //
+        // Return Value:
+        //    Merged return block suitable for handling this return value.  May be newly-created
+        //    or pre-existing.
+        //
+        // Notes:
+        //    If a constant-valued merged return block is used, `returnBlock` will be rewritten to
+        //    jump to the merged return block and its `GT_RETURN` statement will be removed.  If
+        //    a non-constant-valued merged return block is used, `genReturnBB` and `genReturnLocal`
+        //    will be set so that Morph can perform that rewrite.
+        //
         BasicBlock* Merge(BasicBlock* returnBlock, unsigned searchLimit)
         {
             assert(mergingReturns);
@@ -8560,8 +8605,17 @@ void Compiler::fgAddInternal()
             return mergedReturnBlock;
         }
 
+        //------------------------------------------------------------------------
         // GetReturnConst: If the given block returns an integral constant, return the
-        // GenTreeIntConCommon that represents the constant.
+        //     GenTreeIntConCommon that represents the constant.
+        //
+        // Arguments:
+        //    returnBlock - Block whose return value is to be inspected.
+        //
+        // Return Value:
+        //    GenTreeIntCommon that is the argument of `returnBlock`'s `GT_RETURN` if
+        //    such exists; nullptr otherwise.
+        //
         static GenTreeIntConCommon* GetReturnConst(BasicBlock* returnBlock)
         {
             GenTreeStmt* lastStmt = returnBlock->lastStmt();
@@ -8585,8 +8639,19 @@ void Compiler::fgAddInternal()
             return retExpr->AsIntConCommon();
         }
 
+        //------------------------------------------------------------------------
         // FindConstReturnBlock: Scan the already-created merged return blocks, up to `searchLimit`,
-        // and return the one corresponding to the given const expression if it exists.
+        //     and return the one corresponding to the given const expression if it exists.
+        //
+        // Arguments:
+        //    constExpr - GenTreeIntCommon representing the constant return value we're
+        //        searching for.
+        //    searchLimit - Check `returnBlocks`/`returnConstants` up to but not including
+        //        this index.
+        //
+        // Return Value:
+        //    A block that returns the same constant, if one is found; otherwise nullptr.
+        //
         BasicBlock* FindConstReturnBlock(GenTreeIntConCommon* constExpr, unsigned searchLimit)
         {
             ssize_t constVal = constExpr->IconValue();
