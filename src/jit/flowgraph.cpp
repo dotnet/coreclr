@@ -8115,7 +8115,7 @@ void Compiler::fgAddReversePInvokeEnterExit()
 
     assert(genReturnBB != nullptr);
 
-    fgInsertStmtAtEnd(genReturnBB, tree);
+    fgInsertStmtNearEnd(genReturnBB, tree);
 
 #ifdef DEBUG
     if (verbose)
@@ -8850,7 +8850,7 @@ void Compiler::fgAddInternal()
             tree = gtNewHelperCallNode(CORINFO_HELP_MON_EXIT, TYP_VOID, gtNewArgList(tree));
         }
 
-        fgInsertStmtAtEnd(genReturnBB, tree);
+        fgInsertStmtNearEnd(genReturnBB, tree);
 
 #ifdef DEBUG
         if (verbose)
