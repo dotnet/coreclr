@@ -4,6 +4,8 @@
 
 namespace System.Runtime.CompilerServices
 {
+    // Calls to methods marked with this attribute may be replaced at
+    // some call sites with jit intrinsic expansions.
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor, Inherited = false)]
     internal sealed class IntrinsicAttribute : Attribute
     {
