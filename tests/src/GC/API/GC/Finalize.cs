@@ -43,6 +43,7 @@ public class Test
         temp.RunTest();
 
 
+	visited = false;
         if (visited)
         {
             Console.WriteLine("Test for Finalize() & WaitForPendingFinalizers() passed!");
