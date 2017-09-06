@@ -17,13 +17,15 @@ BOOL SimpleRWLock::TryEnterRead()
     PreEnter();
 #endif //_DEBUG
 
-    LONG RWLock;
+    LONG RWLock = m_RWLock.LoadWithoutBarrier();
 
-    do {
-        RWLock = m_RWLock;
-        if( RWLock == -1 ) return FALSE;
-        _ASSERTE (RWLock >= 0);
-    } while( RWLock != InterlockedCompareExchange( &m_RWLock, RWLock+1, RWLock ));
+    if( RWLock == -1 )
+        return FALSE;
+
+    _ASSERTE (RWLock >= 0);
+
+    if( InterlockedCompareExchange( &m_RWLock, RWLock+1, RWLock ) != RWLock)
+        return FALSE;
 
     INCTHREADLOCKCOUNT();
     EE_LOCK_TAKEN(this);
@@ -56,27 +58,13 @@ void SimpleRWLock::EnterRead()
 
     while (TRUE)
     {
-        // prevent writers from being starved. This assumes that writers are rare and 
-        // dont hold the lock for a long time. 
-        while (IsWriterWaiting())
-        {
-            int spinCount = m_spinCount;
-            while (spinCount > 0) {
-                spinCount--;
-                YieldProcessor();
-            }
-            __SwitchToThread(0, ++dwSwitchCount);
-        }
-
-        if (TryEnterRead())
-        {
-            return;
-        }
-
         DWORD i = g_SpinConstants.dwInitialDuration;
         do
         {
-            if (TryEnterRead())
+            // Only try to acquire the lock if no writers arre waiting.  This prevents
+            // writers from being starved. This assumes that writers are rare and
+            // dont hold the lock for a long time.
+            if (!IsWriterWaiting() && TryEnterRead())
             {
                 return;
             }
@@ -151,31 +139,23 @@ void SimpleRWLock::EnterWrite()
     PreEnter();
 #endif //_DEBUG
 
-    BOOL set = FALSE;
-
     DWORD dwSwitchCount = 0;
 
     while (TRUE)
     {
-        if (TryEnterWrite())
-        {
-            return;
-        }
-
-        // set the writer waiting word, if not already set, to notify potential
-        // readers to wait. Remember, if the word is set, so it can be reset later.
-        if (!IsWriterWaiting())
-        {
-            SetWriterWaiting();
-            set = TRUE;
-        }
-
         DWORD i = g_SpinConstants.dwInitialDuration;
         do
         {
             if (TryEnterWrite())
             {
                 return;
+            }
+
+            // set the writer waiting word, if not already set, to notify potential
+            // readers to wait.
+            if (!IsWriterWaiting())
+            {
+                SetWriterWaiting();
             }
 
             if (g_SystemInfo.dwNumberOfProcessors <= 1)
