@@ -3768,13 +3768,18 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
     if (isJitIntrinsic)
     {
         assert(retNode == nullptr);
-        const char* className = info.compCompHnd->getClassName(clsHnd);
-        if (strcmp(className, "System.Enum") == 0)
+        const char* className = nullptr;
+        const char* namespaceName = nullptr;
+        const char* methodName = info.compCompHnd->getMethodNameFromMetadata(method, &className, &namespaceName);
+
+        if ((namespaceName != nullptr) && strcmp(namespaceName, "System") == 0)
         {
-            const char* methodName = info.compCompHnd->getMethodName(method, nullptr);
-            if (strcmp(methodName, "HasFlag") == 0)
+            if ((className != nullptr) && strcmp(className, "Enum") == 0)
             {
-                printf("Found Intrinsic call to Enum.HasFlag\n");
+                if ((methodName != nullptr) && strcmp(methodName, "HasFlag") == 0)
+                {
+                    printf("Found Intrinsic call to Enum.HasFlag\n");
+                }
             }
         }
     }

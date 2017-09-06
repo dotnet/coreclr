@@ -827,7 +827,7 @@ enum CorInfoFlag
     CORINFO_FLG_NOSECURITYWRAP        = 0x04000000, // The method requires no security checks
     CORINFO_FLG_DONT_INLINE           = 0x10000000, // The method should not be inlined
     CORINFO_FLG_DONT_INLINE_CALLER    = 0x20000000, // The method should not be inlined, nor should its callers. It cannot be tail called.
-    CORINFO_FLG_JIT_INTRINSIC         = 0x40000000, // Method is a jit intrinsic; verify identity by name check
+    CORINFO_FLG_JIT_INTRINSIC         = 0x40000000, // Method is a potential jit intrinsic; verify identity by name check
 
     // These are internal flags that can only be on Classes
     CORINFO_FLG_VALUECLASS            = 0x00010000, // is the class a value class
@@ -2260,7 +2260,6 @@ public:
             CORINFO_CLASS_HANDLE    cls
             ) = 0;
 
-
     // Append a (possibly truncated) representation of the type cls to the preallocated buffer ppBuf of length pnBufLen
     // If fNamespace=TRUE, include the namespace/enclosing classes
     // If fFullInst=TRUE (regardless of fNamespace and fAssembly), include namespace and assembly for any type parameters
@@ -2789,6 +2788,15 @@ public:
     virtual const char* getMethodName (
             CORINFO_METHOD_HANDLE       ftn,        /* IN */
             const char                **moduleName  /* OUT */
+            ) = 0;
+
+    // Return method name as in metadata, or nullptr if there is none,
+    // and optionally return the class and namespace names as in metadata.
+    // Suitable for non-debugging use.
+    virtual const char* getMethodNameFromMetadata(
+            CORINFO_METHOD_HANDLE       ftn,            /* IN */
+            const char                **className,      /* OUT */
+            const char                **namespaceName   /* OUT */
             ) = 0;
 
     // this function is for debugging only.  It returns a value that
