@@ -8307,7 +8307,10 @@ void Compiler::fgAddInternal()
         //    block is used, `genReturnBB` is set to that block, and `genReturnLocal`
         //    is set to the lclvar that it returns; morph will need to rewrite
         //    `returnBlock` to set the local and jump to the return block in such
-        //    cases.
+        //    cases, which it will do after some key transformations like rewriting
+        //    tail calls and calls that return to hidden buffers.  In either of these
+        //    cases, `fgReturnCount` and the merged return block's profile information
+        //    will be updated to reflect or anticipate the rewrite of `returnBlock`.
         //
         void Record(BasicBlock* returnBlock)
         {
@@ -8506,7 +8509,10 @@ void Compiler::fgAddInternal()
         //    If a constant-valued merged return block is used, `returnBlock` will be rewritten to
         //    jump to the merged return block and its `GT_RETURN` statement will be removed.  If
         //    a non-constant-valued merged return block is used, `genReturnBB` and `genReturnLocal`
-        //    will be set so that Morph can perform that rewrite.
+        //    will be set so that Morph can perform that rewrite, which it will do after some key
+        //    transformations like rewriting tail calls and calls that return to hidden buffers.
+        //    In either of these cases, `fgReturnCount` and the merged return block's profile
+        //    information will be updated to reflect or anticipate the rewrite of `returnBlock`.
         //
         BasicBlock* Merge(BasicBlock* returnBlock, unsigned searchLimit)
         {
@@ -8594,11 +8600,8 @@ void Compiler::fgAddInternal()
                     mergedReturnBlock->bbFlags &= ~BBF_RUN_RARELY;
                 }
 
-                // We don't actually rewrite the return here for the non-const cases; morph
-                // will handle that after some key transformations like rewriting tail calls
-                // and calls that return to hidden buffers.
-                // We do go ahead and decrement fgReturnCount to reflect that this block will
-                // eventually be rewritten.
+                // Update fgReturnCount to reflect or anticipate that `returnBlock` will no longer
+                // be a return point.
                 comp->fgReturnCount--;
             }
 
