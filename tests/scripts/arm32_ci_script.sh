@@ -400,7 +400,11 @@ function run_tests_using_docker {
         exit_with_error "ERROR: unknown buildArch $__buildArch" false
     fi
     __dockerCmd="sudo docker run ${__dockerEnvironmentVariables} --privileged -i --rm -v $__currentWorkingDirectory:/opt/code -w /opt/code $__dockerImage"
-    __testCmd="./tests/scripts/arm32_ci_test.sh --abi=${__buildArch} --buildConfig=${__buildConfig}"
+    if [ $__isRyuJIT == 0 ]; then
+        __testCmd="./tests/scripts/arm32_ci_test.sh --abi=${__buildArch} --buildConfig=${__buildConfig}"
+    else
+        __testCmd="./tests/scripts/arm32_ci_test.sh --abi=${__buildArch} --buildConfig=${__buildConfig} --ryujit"
+    fi
 
     $__dockerCmd $__testCmd
 }
@@ -583,11 +587,29 @@ if [ $__skipTests == 1 ]; then
     exit 0
 fi
 
-__unittestResult=0
 ## Begin CoreCLR test
+__unittestResult=0
+__isRyuJIT=0
 if [ "$__ciMode" == "docker" ]; then
     run_tests_using_docker
     __unittestResult=$?
+    if [ $__unittestResult != 0  ]; then
+        (set +x; echo '[FAILED] Test failed for legacy backend.')
+    else
+        (set +x; echo '[PASSED] Test passed for legacy backend.')
+    fi
+    if [[ $__unittestResult == 0 && $__buildConfig == "Release" && $__buildArch == "arm" ]]; then
+        # Let's run RyuJIT test when default test is passed without problem.
+        # By now, only RyuJIT for ARM release is stable.
+        __isRyuJIT=1
+        run_tests_using_docker
+        __unittestResult=$?
+        if [ $__unittestResult != 0 ]; then
+            (set +x; echo '[FAILED] Test failed for RyuJIT')
+        else
+            (set +x; echo '[PASSED] Test passed for RyuJIT')
+        fi
+    fi
 else
     ## Tests are going to be performed in an emulated environment
 
