@@ -4,19 +4,15 @@
 
 
 // Metadata version: v4.0.30319
-.assembly extern System.Private.CoreLib
-{
-  .publickeytoken = (7C EC 85 D7 BE A7 79 8E )                         // |.....y.
-  .ver 4:0:0:0
-}
+.assembly extern mscorlib { }
 .assembly GenericAttributeMetadata
 {
-  .custom instance void [System.Private.CoreLib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 ) 
-  .custom instance void [System.Private.CoreLib]System.Runtime.CompilerServices.RuntimeCompatibilityAttribute::.ctor() = ( 01 00 01 00 54 02 16 57 72 61 70 4E 6F 6E 45 78   // ....T..WrapNonEx
+  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 ) 
+  .custom instance void [mscorlib]System.Runtime.CompilerServices.RuntimeCompatibilityAttribute::.ctor() = ( 01 00 01 00 54 02 16 57 72 61 70 4E 6F 6E 45 78   // ....T..WrapNonEx
                                                                                                                            63 65 70 74 69 6F 6E 54 68 72 6F 77 73 01 )       // ceptionThrows.
 
   // --- The following custom attribute is added automatically, do not uncomment -------
-  //  .custom instance void [System.Private.CoreLib]System.Diagnostics.DebuggableAttribute::.ctor(valuetype [System.Private.CoreLib]System.Diagnostics.DebuggableAttribute/DebuggingModes) = ( 01 00 07 01 00 00 00 00 ) 
+  //  .custom instance void [mscorlib]System.Diagnostics.DebuggableAttribute::.ctor(valuetype [mscorlibs]System.Diagnostics.DebuggableAttribute/DebuggingModes) = ( 01 00 07 01 00 00 00 00 ) 
 
   .custom instance void class SingleAttribute`1<int32>::.ctor() = ( 01 00 00 00 ) 
   .custom instance void class SingleAttribute`1<bool>::.ctor() = ( 01 00 00 00 ) 
@@ -35,15 +31,15 @@
 .stackreserve 0x00100000
 .subsystem 0x0003       // WINDOWS_CUI
 .corflags 0x00000001    //  ILONLY
-// Image base: 0x000001A84D0F0000
+// Image base: 0x00000212B8CB0000
 
 
 // =============== CLASS MEMBERS DECLARATION ===================
 
 .class public auto ansi beforefieldinit SingleAttribute`1<T>
-       extends [System.Private.CoreLib]System.Attribute
+       extends [mscorlib]System.Attribute
 {
-  .custom instance void [System.Private.CoreLib]System.AttributeUsageAttribute::.ctor(valuetype [System.Private.CoreLib]System.AttributeTargets) = ( 01 00 85 00 00 00 01 00 54 02 0D 41 6C 6C 6F 77   // ........T..Allow
+  .custom instance void [mscorlib]System.AttributeUsageAttribute::.ctor(valuetype [mscorlib]System.AttributeTargets) = ( 01 00 85 00 00 00 01 00 54 02 0D 41 6C 6C 6F 77   // ........T..Allow
                                                                                                                                                      4D 75 6C 74 69 70 6C 65 00 )                      // Multiple.
   .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
@@ -51,7 +47,7 @@
     // Code size       8 (0x8)
     .maxstack  8
     IL_0000:  ldarg.0
-    IL_0001:  call       instance void [System.Private.CoreLib]System.Attribute::.ctor()
+    IL_0001:  call       instance void [mscorlib]System.Attribute::.ctor()
     IL_0006:  nop
     IL_0007:  ret
   } // end of method SingleAttribute`1::.ctor
@@ -59,17 +55,17 @@
 } // end of class SingleAttribute`1
 
 .class public auto ansi beforefieldinit MultiAttribute`1<T>
-       extends [System.Private.CoreLib]System.Attribute
+       extends [mscorlib]System.Attribute
 {
-  .custom instance void [System.Private.CoreLib]System.AttributeUsageAttribute::.ctor(valuetype [System.Private.CoreLib]System.AttributeTargets) = ( 01 00 85 00 00 00 01 00 54 02 0D 41 6C 6C 6F 77   // ........T..Allow
+  .custom instance void [mscorlib]System.AttributeUsageAttribute::.ctor(valuetype [mscorlib]System.AttributeTargets) = ( 01 00 85 00 00 00 01 00 54 02 0D 41 6C 6C 6F 77   // ........T..Allow
                                                                                                                                                      4D 75 6C 74 69 70 6C 65 01 )                      // Multiple.
   .field private !T '<Value>k__BackingField'
-  .custom instance void [System.Private.CoreLib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
-  .custom instance void [System.Private.CoreLib]System.Diagnostics.DebuggerBrowsableAttribute::.ctor(valuetype [System.Private.CoreLib]System.Diagnostics.DebuggerBrowsableState) = ( 01 00 00 00 00 00 00 00 ) 
+  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
+  .custom instance void [mscorlib]System.Diagnostics.DebuggerBrowsableAttribute::.ctor(valuetype [mscorlib]System.Diagnostics.DebuggerBrowsableState) = ( 01 00 00 00 00 00 00 00 ) 
   .method public hidebysig specialname instance !T 
           get_Value() cil managed
   {
-    .custom instance void [System.Private.CoreLib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
+    .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
     // Code size       7 (0x7)
     .maxstack  8
     IL_0000:  ldarg.0
@@ -80,7 +76,7 @@
   .method public hidebysig specialname instance void 
           set_Value(!T 'value') cil managed
   {
-    .custom instance void [System.Private.CoreLib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
+    .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
     // Code size       8 (0x8)
     .maxstack  8
     IL_0000:  ldarg.0
@@ -95,7 +91,7 @@
     // Code size       9 (0x9)
     .maxstack  8
     IL_0000:  ldarg.0
-    IL_0001:  call       instance void [System.Private.CoreLib]System.Attribute::.ctor()
+    IL_0001:  call       instance void [mscorlib]System.Attribute::.ctor()
     IL_0006:  nop
     IL_0007:  nop
     IL_0008:  ret
@@ -107,7 +103,7 @@
     // Code size       17 (0x11)
     .maxstack  8
     IL_0000:  ldarg.0
-    IL_0001:  call       instance void [System.Private.CoreLib]System.Attribute::.ctor()
+    IL_0001:  call       instance void [mscorlib]System.Attribute::.ctor()
     IL_0006:  nop
     IL_0007:  nop
     IL_0008:  ldarg.0
@@ -125,7 +121,7 @@
 } // end of class MultiAttribute`1
 
 .class public auto ansi beforefieldinit Class
-       extends [System.Private.CoreLib]System.Object
+       extends [mscorlib]System.Object
 {
   .custom instance void class SingleAttribute`1<int32>::.ctor() = ( 01 00 00 00 ) 
   .custom instance void class SingleAttribute`1<bool>::.ctor() = ( 01 00 00 00 ) 
@@ -135,7 +131,7 @@
   .custom instance void class MultiAttribute`1<bool>::.ctor() = ( 01 00 00 00 ) 
   .custom instance void class MultiAttribute`1<bool>::.ctor(!0) = ( 01 00 01 00 00 ) 
   .custom instance void class MultiAttribute`1<bool>::.ctor() = ( 01 00 01 00 54 02 05 56 61 6C 75 65 01 )          // ....T..Value.
-  .custom instance void class MultiAttribute`1<valuetype [System.Private.CoreLib]System.Nullable`1<bool>>::.ctor() = ( 01 00 00 00 ) 
+  .custom instance void class MultiAttribute`1<valuetype [mscorlib]System.Nullable`1<bool>>::.ctor() = ( 01 00 00 00 ) 
   .class auto ansi nested public beforefieldinit Derive
          extends Class
   {
@@ -153,12 +149,12 @@
   } // end of class Derive
 
   .field private int32 '<Property>k__BackingField'
-  .custom instance void [System.Private.CoreLib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
-  .custom instance void [System.Private.CoreLib]System.Diagnostics.DebuggerBrowsableAttribute::.ctor(valuetype [System.Private.CoreLib]System.Diagnostics.DebuggerBrowsableState) = ( 01 00 00 00 00 00 00 00 ) 
+  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
+  .custom instance void [mscorlib]System.Diagnostics.DebuggerBrowsableAttribute::.ctor(valuetype [mscorlib]System.Diagnostics.DebuggerBrowsableState) = ( 01 00 00 00 00 00 00 00 ) 
   .method public hidebysig specialname instance int32 
           get_Property() cil managed
   {
-    .custom instance void [System.Private.CoreLib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
+    .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
     // Code size       7 (0x7)
     .maxstack  8
     IL_0000:  ldarg.0
@@ -169,7 +165,7 @@
   .method public hidebysig specialname instance void 
           set_Property(int32 'value') cil managed
   {
-    .custom instance void [System.Private.CoreLib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
+    .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = ( 01 00 00 00 ) 
     // Code size       8 (0x8)
     .maxstack  8
     IL_0000:  ldarg.0
@@ -184,7 +180,7 @@
     // Code size       8 (0x8)
     .maxstack  8
     IL_0000:  ldarg.0
-    IL_0001:  call       instance void [System.Private.CoreLib]System.Object::.ctor()
+    IL_0001:  call       instance void [mscorlib]System.Object::.ctor()
     IL_0006:  nop
     IL_0007:  ret
   } // end of method Class::.ctor
