@@ -2,7 +2,7 @@
 
 # resolve python-version to use
 if [ "$PYTHON" == "" ] ; then
-    if ! PYTHON=$(command -v python || command -v python2 || command -v python 2.7)
+    if ! PYTHON=$(command -v python || command -v python2 || command -v python2.7)
     then
        echo "Unable to locate build-dependency python2.x!" 1>&2
        exit 1
