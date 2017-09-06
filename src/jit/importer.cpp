@@ -3770,9 +3770,9 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
     if (isJitIntrinsic)
     {
         assert(retNode == nullptr);
-        const char* className = nullptr;
+        const char* className     = nullptr;
         const char* namespaceName = nullptr;
-        const char* methodName = info.compCompHnd->getMethodNameFromMetadata(method, &className, &namespaceName);
+        const char* methodName    = info.compCompHnd->getMethodNameFromMetadata(method, &className, &namespaceName);
 
         if ((namespaceName != nullptr) && strcmp(namespaceName, "System") == 0)
         {
@@ -6811,7 +6811,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         {
             const bool isJitIntrinsic = (mflags & CORINFO_FLG_JIT_INTRINSIC) != 0;
             call = impIntrinsic(newobjThis, clsHnd, methHnd, sig, pResolvedToken->token, readonlyCall,
-                               (canTailCall && (tailCall != 0)), isJitIntrinsic, &intrinsicID);
+                                (canTailCall && (tailCall != 0)), isJitIntrinsic, &intrinsicID);
 
             if (compIsForInlining() && compInlineResult->IsFailure())
             {
