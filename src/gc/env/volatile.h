@@ -474,57 +474,6 @@ public:
 
 #endif //_MSC_VER
 
-//
-// From here on out, we ban the use of the "volatile" keyword.  If you found this while trying to define
-// a volatile variable, go to the top of this file and start reading.
-//
-#ifdef volatile
-#undef volatile
-#endif
-// ***** Temporarily removing this to unblock integration with new VC++ bits
-//#define volatile (DoNotUseVolatileKeyword) volatile
-
-// The substitution for volatile above is defined in such a way that we can still explicitly access the
-// volatile keyword without error using the macros below. Use with care.
-//#define REMOVE_DONOTUSE_ERROR(x)
-//#define RAW_KEYWORD(x) REMOVE_DONOTUSE_ERROR x
-#define RAW_KEYWORD(x) x
-
-#ifdef DACCESS_COMPILE
-// No need to use volatile in DAC builds - DAC is single-threaded and the target
-// process is suspended.
-#define VOLATILE(T) T
-#else
-
-// Disable use of Volatile<T> for GC/HandleTable code except on platforms where it's absolutely necessary.
-#if defined(_MSC_VER) && !defined(_ARM_) && !defined(_ARM64_)
-#define VOLATILE(T) T RAW_KEYWORD(volatile)
-#else
 #define VOLATILE(T) Volatile<T>
-#endif
-
-#endif // DACCESS_COMPILE
-
-// VolatilePtr-specific clr::SafeAddRef and clr::SafeRelease
-namespace clr
-{
-    template < typename ItfT, typename PtrT > inline
-    #ifdef __checkReturn // Volatile.h is used in corunix headers, which don't define/nullify SAL.
-        __checkReturn
-    #endif
-    VolatilePtr<ItfT, PtrT>&
-    SafeAddRef(VolatilePtr<ItfT, PtrT>& pItf)
-    {
-        SafeAddRef(pItf.Load());
-        return pItf;
-    }
-
-    template < typename ItfT, typename PtrT > inline
-    ULONG
-    SafeRelease(VolatilePtr<ItfT, PtrT>& pItf)
-    {
-        return SafeRelease(pItf.Load());
-    }
-}
 
 #endif //_VOLATILE_H_

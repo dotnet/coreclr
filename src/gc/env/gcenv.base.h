@@ -417,7 +417,6 @@ typedef PTR_PTR_Object PTR_UNCHECKED_OBJECTREF;
 #define OBJECTREFToObject(_obj) (Object*)(_obj)
 
 #define VALIDATEOBJECTREF(_objref) (void)_objref;
-#define VOLATILE(T) Volatile<T>
 
 class Thread;
 
