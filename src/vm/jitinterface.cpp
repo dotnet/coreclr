@@ -6487,7 +6487,7 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
         }
     }
 
-    if (classResult != NULL)
+    if (className != NULL)
     {
         *className = classResult;
     }
