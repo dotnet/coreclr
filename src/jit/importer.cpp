@@ -3765,6 +3765,8 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             break;
     }
 
+#ifdef DEBUG
+    // Sample code showing how to use the new intrinsic mechansim.
     if (isJitIntrinsic)
     {
         assert(retNode == nullptr);
@@ -3778,11 +3780,13 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             {
                 if ((methodName != nullptr) && strcmp(methodName, "HasFlag") == 0)
                 {
-                    printf("Found Intrinsic call to Enum.HasFlag\n");
+                    // Todo: plug in the intrinsic expansion
+                    JITDUMP("Found Intrinsic call to Enum.HasFlag\n");
                 }
             }
         }
     }
+#endif
 
     if (mustExpand)
     {
