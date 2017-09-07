@@ -4,6 +4,7 @@
   <PropertyGroup>
     <!-- This property must be set to the same value as $(PackageOutputPath) for the nuspecs and nupkgs to be binplaced to the intended location. -->
     <OutputPath>$(PackageOutputPath)</OutputPath>
+    <BuildAllPackages>false</BuildAllPackages>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(__SkipCoreLibBuild)'==''">
@@ -16,11 +17,11 @@
 
   <ItemGroup Condition="'$(__SkipNativeBuild)'==''">
     <Project Include="Microsoft.NETCore.Jit\Microsoft.NETCore.Jit.builds" />
-    <Project Include="Microsoft.NETCore.TestHost\Microsoft.NETCore.TestHost.builds" />
-    <Project Include="Microsoft.NETCore.Native\Microsoft.NETCore.Native.builds" />
+    <Project Include="Microsoft.NETCore.TestHost\Microsoft.NETCore.TestHost.builds" Condition="'$(BuildAllPackages)' != 'false'" />
+    <Project Include="Microsoft.NETCore.Native\Microsoft.NETCore.Native.builds" Condition="'$(BuildAllPackages)' != 'false'" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup  Condition="'$(BuildAllPackages)' != 'false'">
     <Project Include="Microsoft.NETCore.ILAsm\Microsoft.NETCore.ILAsm.builds" />
     <Project Include="Microsoft.NETCore.ILDAsm\Microsoft.NETCore.ILDAsm.builds" />
   </ItemGroup>
