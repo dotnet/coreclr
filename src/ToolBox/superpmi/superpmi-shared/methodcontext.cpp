@@ -3082,7 +3082,7 @@ void MethodContext::repGetMethodVTableOffset(CORINFO_METHOD_HANDLE method,
 
     *offsetOfIndirection    = (unsigned)value.A;
     *offsetAfterIndirection = (unsigned)value.B;
-    *isRelative             = value.C;
+    *isRelative             = (value.C == 0);
     DEBUG_REP(dmpGetMethodVTableOffset((DWORDLONG)method, value));
 }
 
