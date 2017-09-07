@@ -1206,7 +1206,7 @@ public:
     virtual HRESULT STDMETHODCALLTYPE GetClrNotification(CLRDATA_ADDRESS arguments[], int count, int *pNeeded);
 
     // ISOSDacInterface5
-    virtual HRESULT STDMETHODCALLTYPE GetTieredVersions(CLRDATA_ADDRESS methodDesc, int rejitId, CLRDATA_ADDRESS *nativeCodeAddrs, int cNativeCodeAddrs, int *pcNativeCodeAddrs);
+    virtual HRESULT STDMETHODCALLTYPE GetTieredVersions(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpTieredVersionData *nativeCodeAddrs, int cNativeCodeAddrs, int *pcNativeCodeAddrs);
 
     //
     // ClrDataAccess.

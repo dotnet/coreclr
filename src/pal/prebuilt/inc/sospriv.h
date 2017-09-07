@@ -2204,7 +2204,7 @@ EXTERN_C const IID IID_ISOSDacInterface5;
         virtual HRESULT STDMETHODCALLTYPE GetTieredVersions( 
             CLRDATA_ADDRESS methodDesc,
             int rejitId,
-            CLRDATA_ADDRESS *nativeCodeAddrs,
+            struct DacpTieredVersionData *nativeCodeAddrs,
             int cNativeCodeAddrs,
             int *pcNativeCodeAddrs) = 0;
         

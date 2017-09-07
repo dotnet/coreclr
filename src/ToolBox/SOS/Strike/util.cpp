@@ -3252,11 +3252,41 @@ const char *EHTypeName(EHClauseType et)
         return "UNKNOWN";
 }
 
+void DumpTieredNativeCodeAddressInfo(struct DacpTieredVersionData * pTieredVersionData, const UINT cTieredVersionData)
+{
+    ExtOut("Code Version History:\n");
+
+    for(int i = cTieredVersionData - 1; i >= 0; --i)
+    {
+        const char *descriptor = NULL;
+        switch(pTieredVersionData[i].TieredInfo)
+        {
+        case DacpTieredVersionData::TIERED_UNKNOWN:
+        default:
+            _ASSERTE(!"Update SOS to understand the new tier");
+            descriptor = "Unknown Tier";
+            break;
+        case DacpTieredVersionData::NON_TIERED:
+            descriptor = "Non-Tiered";
+            break;
+        case DacpTieredVersionData::TIERED_0:
+            descriptor = "Tier 0";
+            break;
+        case DacpTieredVersionData::TIERED_1:
+            descriptor = "Tier 1";
+            break;
+        }
+
+        DMLOut("  CodeAddr:           %s  (%s)\n", DMLIP(pTieredVersionData[i].NativeCodeAddr), descriptor);
+        ExtOut("  NativeCodeVersion:  %p\n", SOS_PTR(pTieredVersionData[i].NativeCodeVersionNodePtr));
+    }
+}
+
 void DumpRejitData(CLRDATA_ADDRESS pMethodDesc, DacpReJitData * pReJitData)
 {
     ExtOut("    ReJITID %p: ", SOS_PTR(pReJitData->rejitID));
 
-    CLRDATA_ADDRESS codeAddrs[kcMaxTieredVersions];
+    struct DacpTieredVersionData codeAddrs[kcMaxTieredVersions];
     int cCodeAddrs;
 
     ReleaseHolder<ISOSDacInterface5> sos5;
@@ -3267,10 +3297,7 @@ void DumpRejitData(CLRDATA_ADDRESS pMethodDesc, DacpReJitData * pReJitData)
                                             kcMaxTieredVersions,
                                             &cCodeAddrs)))
     {
-        for(int i = cCodeAddrs - 1; i >= 0; --i)
-        {
-            DMLOut("CodeAddr:     %s\n", DMLIP(codeAddrs[i]));
-        }
+        DumpTieredNativeCodeAddressInfo(codeAddrs, cCodeAddrs);
     }
 
     LPCSTR szFlags;
@@ -3376,7 +3403,7 @@ void DumpMDInfoFromMethodDescData(DacpMethodDescData * pMethodDescData, DacpReJi
 
         DMLOut("Current CodeAddr:     %s\n", DMLIP(pMethodDescData->NativeCodeAddr));                
 
-        CLRDATA_ADDRESS codeAddrs[kcMaxTieredVersions];
+        struct DacpTieredVersionData codeAddrs[kcMaxTieredVersions];
         int cCodeAddrs;
 
         ReleaseHolder<ISOSDacInterface5> sos5;
@@ -3387,13 +3414,7 @@ void DumpMDInfoFromMethodDescData(DacpMethodDescData * pMethodDescData, DacpReJi
                                                                 kcMaxTieredVersions,
                                                                 &cCodeAddrs)))
         {
-            // Want to print out the previous ones, but the array contains all of the native code addresses,
-            // including the active one (which will be last). So start at one before the last one and work
-            // our way down      
-            for(int i = cCodeAddrs - 2; i >= 0; --i)
-            {
-                DMLOut("Previous CodeAddr:    %s\n", DMLIP(codeAddrs[i]));
-            }
+            DumpTieredNativeCodeAddressInfo(codeAddrs, cCodeAddrs);
         }
         
         DacpMethodDescTransparencyData transparency;

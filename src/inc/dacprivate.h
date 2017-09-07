@@ -566,6 +566,21 @@ struct MSLAYOUT DacpMethodDescTransparencyData : ZeroInit<DacpMethodDescTranspar
     }
 };
 
+struct MSLAYOUT DacpTieredVersionData
+{
+    enum TieredState 
+    {
+        NON_TIERED,
+        TIERED_0,
+        TIERED_1,
+        TIERED_UNKNOWN
+    };
+    
+    CLRDATA_ADDRESS NativeCodeAddr;
+    TieredState     TieredInfo;
+    CLRDATA_ADDRESS NativeCodeVersionNodePtr;
+};
+
 // for JITType
 enum JITTypes {TYPE_UNKNOWN=0,TYPE_JIT,TYPE_PJIT};
 

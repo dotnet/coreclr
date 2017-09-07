@@ -365,5 +365,5 @@ interface ISOSDacInterface4 : IUnknown
 ]
 interface ISOSDacInterface5 : IUnknown
 {
-    HRESULT GetTieredVersions(CLRDATA_ADDRESS methodDesc, int rejitId, CLRDATA_ADDRESS *nativeCodeAddrs, int cNativeCodeAddrs, int *pcNativeCodeAddrs);
+    HRESULT GetTieredVersions(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpTieredVersionData *nativeCodeAddrs, int cNativeCodeAddrs, int *pcNativeCodeAddrs);
 };

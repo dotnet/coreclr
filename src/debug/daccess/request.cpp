@@ -1088,7 +1088,7 @@ HRESULT ClrDataAccess::GetMethodDescData(
 HRESULT ClrDataAccess::GetTieredVersions(
     CLRDATA_ADDRESS methodDesc,
     int rejitId,
-    CLRDATA_ADDRESS *nativeCodeAddrs,
+    struct DacpTieredVersionData *nativeCodeAddrs,
     int cNativeCodeAddrs,
     int *pcNativeCodeAddrs)
 {
@@ -1154,7 +1154,30 @@ HRESULT ClrDataAccess::GetTieredVersions(
                 int count = 0;
                 for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
                 {
-                    nativeCodeAddrs[count] = (*iter).GetNativeCode();
+                    nativeCodeAddrs[count].NativeCodeAddr = (*iter).GetNativeCode();
+                    PTR_NativeCodeVersionNode pNode = (*iter).AsNode();
+                    nativeCodeAddrs[count].NativeCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(pNode));
+
+                    if (pMD->IsEligibleForTieredCompilation())
+                    {
+                        switch ((*iter).GetOptimizationTier())
+                        {
+                        default:
+                            nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_UNKNOWN;
+                            break;
+                        case NativeCodeVersion::OptimizationTier0:
+                            nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_0;
+                            break;
+                        case NativeCodeVersion::OptimizationTier1:
+                            nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_1;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::NON_TIERED;
+                    }
+
                     ++count;
 
                     if (count >= cNativeCodeAddrs)
