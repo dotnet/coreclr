@@ -6807,7 +6807,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #endif // DEBUG
 
         // <NICE> Factor this into getCallInfo </NICE>
-        const bool isIntrinsic = (mflags & CORINFO_FLG_INTRINSIC) != 0;
+        const bool isIntrinsic    = (mflags & CORINFO_FLG_INTRINSIC) != 0;
         const bool isJitIntrinsic = (mflags & CORINFO_FLG_JIT_INTRINSIC) != 0;
         if ((isIntrinsic || isJitIntrinsic) && !pConstrainedResolvedToken)
         {
