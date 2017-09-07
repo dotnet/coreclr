@@ -415,12 +415,16 @@ void EventPipeConfiguration::DeleteDeferredProviders()
         EventPipeProvider *pProvider = pElem->GetValue();
         if(pProvider->GetDeleteDeferred())
         {
+            SListElem<EventPipeProvider*> *pNextElem = m_pProviderList->GetNext(pElem);
             // The act of deleting the provider unregisters it,
             // removes it from the list, and deletes the list element
             delete(pProvider);
+            pElem = pNextElem;
         }
-
-        pElem = m_pProviderList->GetNext(pElem);
+        else
+        {
+            pElem = m_pProviderList->GetNext(pElem);
+        }
     }
 }
 
