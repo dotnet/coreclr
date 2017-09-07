@@ -1709,6 +1709,9 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     BOOL fEligibleForTieredCompilation = IsEligibleForTieredCompilation();
     if (fEligibleForTieredCompilation)
     {
+        // Deliberately cause an AV to confirm that tiered jitting tests are exercising this code path
+        int* x = 0;
+        *x = 99;
         CallCounter * pCallCounter = GetCallCounter();
         fCanBackpatchPrestub = pCallCounter->OnMethodCalled(this);
     }
