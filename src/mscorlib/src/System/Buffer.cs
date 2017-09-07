@@ -262,7 +262,16 @@ namespace System
         {
 #if AMD64 || (BIT32 && !ARM)
             const nuint CopyThreshold = 2048;
-#elif !ARM64
+#elif ARM64
+#if PLATFORM_WINDOWS
+            // TODO-ARM64-WINDOWS-OPT determine optimal value for Windows
+            const nuint CopyThreshold = 2048;
+#else // PLATFORM_WINDOWS
+            // Managed code is currently faster than glibc unoptimized memmove
+            // TODO-ARM64-UNIX-OPT revisit when glibc optimized memmove is in Linux distros
+            const nuint CopyThreshold = UInt64.MaxValue;
+#endif // PLATFORM_WINDOWS
+#else
             const nuint CopyThreshold = 512;
 #endif // AMD64 || (BIT32 && !ARM)
 
@@ -364,7 +373,6 @@ namespace System
             return;
 
             MCPY05:
-#if !ARM64
             // PInvoke to the native version when the copy length exceeds the threshold.
             if (len > CopyThreshold)
             {
@@ -373,9 +381,6 @@ namespace System
             // Copy 64-bytes at a time until the remainder is less than 64.
             // If remainder is greater than 16 bytes, then jump to MCPY00. Otherwise, unconditionally copy the last 16 bytes and return.
             Debug.Assert(len > 64 && len <= CopyThreshold);
-#else
-            Debug.Assert(len > 64);
-#endif
             nuint n = len >> 6;
 
             MCPY06:
