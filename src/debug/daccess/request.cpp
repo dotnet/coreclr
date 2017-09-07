@@ -1196,10 +1196,10 @@ HRESULT ClrDataAccess::GetTieredVersions(
         hr = E_FAIL;
     }
     EX_END_CATCH(SwallowAllExceptions)
-#endif // FEATURE_REJIT
-
+    
 cleanup:
     ;
+#endif // FEATURE_REJIT
     
     SOSDacLeave();
     return hr;
