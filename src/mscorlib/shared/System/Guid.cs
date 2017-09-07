@@ -38,48 +38,10 @@ namespace System
         ////////////////////////////////////////////////////////////////////////////////
 
         // Creates a new guid from an array of bytes.
-        public Guid(byte[] b)
-        : this(new ReadOnlySpan<byte>(b ?? throw new ArgumentNullException(nameof(b))))
+        public Guid(byte[] b):
+            this(new ReadOnlySpan<byte>(b ?? throw new ArgumentNullException(nameof(b))))
         {
-           /* if (b == null)
-                throw new ArgumentNullException(nameof(b));
-
-            if (b.Length != 16)
-                throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "16"), nameof(b));
-
-            _a = b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0];
-            _b = (short)(b[5] << 8 | b[4]);
-            _c = (short)(b[7] << 8 | b[6]);
-            _d = b[8];
-            _e = b[9];
-            _f = b[10];
-            _g = b[11];
-            _h = b[12];
-            _i = b[13];
-            _j = b[14];
-            _k = b[15];*/
         }
-
-       /* public Guid(byte[] b, bool old)
-        {
-            if (b == null)
-                throw new ArgumentNullException(nameof(b));
-
-            if (b.Length != 16)
-                throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "16"), nameof(b));
-
-            _a = b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0];
-            _b = (short)(b[5] << 8 | b[4]);
-            _c = (short)(b[7] << 8 | b[6]);
-            _d = b[8];
-            _e = b[9];
-            _f = b[10];
-            _g = b[11];
-            _h = b[12];
-            _i = b[13];
-            _j = b[14];
-            _k = b[15];
-        }*/
 
         // Creates a new guid from a read-only span.
         public Guid(ReadOnlySpan<byte> b)
@@ -284,7 +246,6 @@ namespace System
                 throw new ArgumentNullException(nameof(g));
             }
             Contract.EndContractBlock();
-            this = Empty;
 
             GuidResult result = new GuidResult();
             result.Init(GuidParseThrowStyle.All);
@@ -1005,27 +966,24 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void WriteByteHelper(Span<byte> destination)
+        private void WriteByteHelper(Span<byte> destination)
         {
-            fixed (byte* d = &destination.DangerousGetPinnableReference())
-            {
-                d[0] = (byte)(_a);
-                d[1] = (byte)(_a >> 8);
-                d[2] = (byte)(_a >> 16);
-                d[3] = (byte)(_a >> 24);
-                d[4] = (byte)(_b);
-                d[5] = (byte)(_b >> 8);
-                d[6] = (byte)(_c);
-                d[7] = (byte)(_c >> 8);
-                d[8] = _d;
-                d[9] = _e;
-                d[10] = _f;
-                d[11] = _g;
-                d[12] = _h;
-                d[13] = _i;
-                d[14] = _j;
-                d[15] = _k;
-            }
+                destination[0] = (byte)(_a);
+                destination[1] = (byte)(_a >> 8);
+                destination[2] = (byte)(_a >> 16);
+                destination[3] = (byte)(_a >> 24);
+                destination[4] = (byte)(_b);
+                destination[5] = (byte)(_b >> 8);
+                destination[6] = (byte)(_c);
+                destination[7] = (byte)(_c >> 8);
+                destination[8] = _d;
+                destination[9] = _e;
+                destination[10] = _f;
+                destination[11] = _g;
+                destination[12] = _h;
+                destination[13] = _i;
+                destination[14] = _j;
+                destination[15] = _k;            
         }
 
         // Returns an unsigned byte array containing the GUID.
