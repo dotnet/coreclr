@@ -6807,9 +6807,10 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #endif // DEBUG
 
         // <NICE> Factor this into getCallInfo </NICE>
-        if ((mflags & CORINFO_FLG_INTRINSIC) && !pConstrainedResolvedToken)
+        const bool isIntrinsic = (mflags & CORINFO_FLG_INTRINSIC) != 0;
+        const bool isJitIntrinsic = (mflags & CORINFO_FLG_JIT_INTRINSIC) != 0;
+        if ((isIntrinsic || isJitIntrinsic) && !pConstrainedResolvedToken)
         {
-            const bool isJitIntrinsic = (mflags & CORINFO_FLG_JIT_INTRINSIC) != 0;
             call = impIntrinsic(newobjThis, clsHnd, methHnd, sig, pResolvedToken->token, readonlyCall,
                                 (canTailCall && (tailCall != 0)), isJitIntrinsic, &intrinsicID);
 

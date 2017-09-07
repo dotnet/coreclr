@@ -6557,7 +6557,7 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
     if (pMD->IsFCallOrIntrinsic())
         result |= CORINFO_FLG_NOGCCHECK | CORINFO_FLG_INTRINSIC;
     if (pMD->IsJitIntrinsic())
-        result |= CORINFO_FLG_JIT_INTRINSIC | CORINFO_FLG_INTRINSIC;
+        result |= CORINFO_FLG_JIT_INTRINSIC;
     if (IsMdVirtual(attribs))
         result |= CORINFO_FLG_VIRTUAL;
     if (IsMdAbstract(attribs))
