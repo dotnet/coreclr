@@ -38,7 +38,7 @@ namespace System
         ////////////////////////////////////////////////////////////////////////////////
 
         // Creates a new guid from an array of bytes.
-        public Guid(byte[] b):
+        public Guid(byte[] b) :
             this(new ReadOnlySpan<byte>(b ?? throw new ArgumentNullException(nameof(b))))
         {
         }
@@ -968,22 +968,22 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void WriteByteHelper(Span<byte> destination)
         {
-                destination[0] = (byte)(_a);
-                destination[1] = (byte)(_a >> 8);
-                destination[2] = (byte)(_a >> 16);
-                destination[3] = (byte)(_a >> 24);
-                destination[4] = (byte)(_b);
-                destination[5] = (byte)(_b >> 8);
-                destination[6] = (byte)(_c);
-                destination[7] = (byte)(_c >> 8);
-                destination[8] = _d;
-                destination[9] = _e;
-                destination[10] = _f;
-                destination[11] = _g;
-                destination[12] = _h;
-                destination[13] = _i;
-                destination[14] = _j;
-                destination[15] = _k;            
+            destination[0] = (byte)(_a);
+            destination[1] = (byte)(_a >> 8);
+            destination[2] = (byte)(_a >> 16);
+            destination[3] = (byte)(_a >> 24);
+            destination[4] = (byte)(_b);
+            destination[5] = (byte)(_b >> 8);
+            destination[6] = (byte)(_c);
+            destination[7] = (byte)(_c >> 8);
+            destination[8] = _d;
+            destination[9] = _e;
+            destination[10] = _f;
+            destination[11] = _g;
+            destination[12] = _h;
+            destination[13] = _i;
+            destination[14] = _j;
+            destination[15] = _k;
         }
 
         // Returns an unsigned byte array containing the GUID.
@@ -1240,6 +1240,55 @@ namespace System
             return 9;
         }
 
+        // IFormattable interface
+        // We currently ignore provider
+        public string ToString(string format, IFormatProvider provider)
+        {
+            if (format == null || format.Length == 0)
+                format = "D";
+
+            // all acceptable format strings are of length 1
+            if (format.Length != 1)
+                throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
+
+            string guidString;
+
+            switch (format[0])
+            {
+                case 'D':
+                case 'd':
+                    guidString = string.FastAllocateString(36);
+                    break;
+                case 'N':
+                case 'n':
+                    guidString = string.FastAllocateString(32);
+                    break;
+                case 'B':
+                case 'b':
+                case 'P':
+                case 'p':
+                    guidString = string.FastAllocateString(38);
+                    break;
+                case 'X':
+                case 'x':
+                    guidString = string.FastAllocateString(68);
+                    break;
+                default:
+                    throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
+            }
+
+            unsafe
+            {
+                fixed (char* guidChars = guidString)
+                {
+                    int bytesWritten;
+                    bool result = TryFormat(new Span<char>((void*)guidChars, guidString.Length), out bytesWritten, format);
+                    Debug.Assert(result && bytesWritten == guidString.Length, "Formatting guid should have succeeded.");
+                }
+            }
+            return guidString;
+        }
+
         // Returns whether the guid is successfully formatted as a span. 
         public bool TryFormat(Span<char> destination, out int charsWritten, string format = null)
         {
@@ -1369,55 +1418,5 @@ namespace System
             charsWritten = guidSize;
             return true;
         }
-
-        // IFormattable interface
-        // We currently ignore provider
-        public string ToString(string format, IFormatProvider provider)
-        {
-            if (format == null || format.Length == 0)
-                format = "D";
-
-            // all acceptable format strings are of length 1
-            if (format.Length != 1)
-                throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
-
-            string guidString;
-
-            switch (format[0])
-            {
-                case 'D':
-                case 'd':
-                    guidString = string.FastAllocateString(36);
-                    break;
-                case 'N':
-                case 'n':
-                    guidString = string.FastAllocateString(32);
-                    break;
-                case 'B':
-                case 'b':
-                case 'P':
-                case 'p':
-                    guidString = string.FastAllocateString(38);
-                    break;
-                case 'X':
-                case 'x':
-                    guidString = string.FastAllocateString(68);
-                    break;
-                default:
-                    throw new FormatException(SR.Format_InvalidGuidFormatSpecification);
-            }
-
-            unsafe
-            {
-                fixed (char* guidChars = guidString)
-                {
-                    int bytesWritten;
-                    bool result = TryFormat(new Span<char>((void*)guidChars, guidString.Length), out bytesWritten, format);
-                    Debug.Assert(result && bytesWritten == guidString.Length, "Formatting guid should have succeeded.");
-                }
-            }
-            return guidString;
-        }
-
     }
 }
