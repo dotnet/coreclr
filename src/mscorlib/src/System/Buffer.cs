@@ -265,10 +265,12 @@ namespace System
 #elif ARM64
 #if PLATFORM_WINDOWS
             // TODO-ARM64-WINDOWS-OPT determine optimal value for Windows
+            // https://github.com/dotnet/coreclr/issues/13843
             const nuint CopyThreshold = 2048;
 #else // PLATFORM_WINDOWS
             // Managed code is currently faster than glibc unoptimized memmove
             // TODO-ARM64-UNIX-OPT revisit when glibc optimized memmove is in Linux distros
+            // https://github.com/dotnet/coreclr/issues/13844
             const nuint CopyThreshold = UInt64.MaxValue;
 #endif // PLATFORM_WINDOWS
 #else
