@@ -22825,14 +22825,22 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                     CORINFO_CLASS_HANDLE structType =
                         lclVarInfo[lclNum + inlineInfo->argCnt].lclVerTypeInfo.GetClassHandle();
 
-                    tree = gtNewBlkOpNode(gtNewLclvNode(tmpNum, lclTyp),              // Dest
-                                          gtNewIconNode(0),                           // Value
-                                          info.compCompHnd->getClassSize(structType), // Size
-                                          false,                                      // isVolatile
-                                          false);                                     // not copyBlock
+                    DWORD typeFlags     = info.compCompHnd->getClassAttribs(structType);
+                    bool  containsGCPtr = ((typeFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0);
 
-                    newStmt   = gtNewStmt(tree, callILOffset);
-                    afterStmt = fgInsertStmtAfter(block, afterStmt, newStmt);
+                    // Structs with GC pointer fields are fully zero-initialized in the prolog if compInitMem is true.
+                    // Therefore, we don't need to insert zero-initialization here if this block is not in a loop.
+                    if (!info.compInitMem || !containsGCPtr || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0))
+                    {
+                        tree = gtNewBlkOpNode(gtNewLclvNode(tmpNum, lclTyp),              // Dest
+                                              gtNewIconNode(0),                           // Value
+                                              info.compCompHnd->getClassSize(structType), // Size
+                                              false,                                      // isVolatile
+                                              false);                                     // not copyBlock
+
+                        newStmt   = gtNewStmt(tree, callILOffset);
+                        afterStmt = fgInsertStmtAfter(block, afterStmt, newStmt);
+                    }
                 }
 
 #ifdef DEBUG

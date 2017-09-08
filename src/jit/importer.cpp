@@ -6845,7 +6845,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         exactContextHnd                = callInfo->contextHandle;
         exactContextNeedsRuntimeLookup = callInfo->exactContextNeedsRuntimeLookup == TRUE;
 
-        // Recursive call is treaded as a loop to the begining of the method.
+        // Recursive call is treated as a loop to the begining of the method.
         if (methHnd == info.compMethodHnd)
         {
 #ifdef DEBUG
@@ -12811,12 +12811,13 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // The lookup of the code pointer will be handled by CALL in this case
                     if (clsFlags & CORINFO_FLG_VALUECLASS)
                     {
+                        DWORD typeFlags     = info.compCompHnd->getClassAttribs(resolvedToken.hClass);
+                        bool  containsGCPtr = ((typeFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0);
                         if (compIsForInlining())
                         {
                             // If value class has GC fields, inform the inliner. It may choose to
                             // bail out on the inline.
-                            DWORD typeFlags = info.compCompHnd->getClassAttribs(resolvedToken.hClass);
-                            if ((typeFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0)
+                            if (containsGCPtr)
                             {
                                 compInlineResult->Note(InlineObservation::CALLEE_HAS_GC_STRUCT);
                                 if (compInlineResult->IsFailure())
@@ -12853,15 +12854,22 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                             lvaSetStruct(lclNum, resolvedToken.hClass, true /* unsafe value cls check */);
                         }
 
-                        // Append a tree to zero-out the temp
-                        newObjThisPtr = gtNewLclvNode(lclNum, lvaTable[lclNum].TypeGet());
+                        // Structs with GC pointer fields are fully zero-initialized in the prolog if compInitMem is
+                        // true.
+                        // Therefore, we don't need to insert zero-initialization here if this block is not in a loop.
+                        if (!info.compInitMem || !containsGCPtr || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0) ||
+                            compIsForInlining())
+                        {
+                            // Append a tree to zero-out the temp
+                            newObjThisPtr = gtNewLclvNode(lclNum, lvaTable[lclNum].TypeGet());
 
-                        newObjThisPtr = gtNewBlkOpNode(newObjThisPtr,    // Dest
-                                                       gtNewIconNode(0), // Value
-                                                       size,             // Size
-                                                       false,            // isVolatile
-                                                       false);           // not copyBlock
-                        impAppendTree(newObjThisPtr, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
+                            newObjThisPtr = gtNewBlkOpNode(newObjThisPtr,    // Dest
+                                                           gtNewIconNode(0), // Value
+                                                           size,             // Size
+                                                           false,            // isVolatile
+                                                           false);           // not copyBlock
+                            impAppendTree(newObjThisPtr, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
+                        }
 
                         // Obtain the address of the temp
                         newObjThisPtr =
