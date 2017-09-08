@@ -1256,25 +1256,30 @@ namespace System
             bool curly = false;
             int guidSize;
 
-            switch (char.ToUpperInvariant(format[0]))
+            switch (format[0])
             {
                 case 'D':
+                case 'd':
                     guidSize = 36;
                     break;
                 case 'N':
+                case 'n':
                     dash = false;
                     guidSize = 32;
                     break;
                 case 'B':
+                case 'b':
                     setBraces = true;
                     curly = true;
                     guidSize = 38;
                     break;
                 case 'P':
+                case 'p':
                     setBraces = true;
                     guidSize = 38;
                     break;
                 case 'X':
+                case 'x':
                     setBraces = true;
                     curly = true;
                     dash = false;
@@ -1378,19 +1383,24 @@ namespace System
 
             string guidString;
 
-            switch (char.ToUpperInvariant(format[0]))
+            switch (format[0])
             {
                 case 'D':
+                case 'd':
                     guidString = string.FastAllocateString(36);
                     break;
                 case 'N':
+                case 'n':
                     guidString = string.FastAllocateString(32);
                     break;
                 case 'B':
+                case 'b':
                 case 'P':
+                case 'p':
                     guidString = string.FastAllocateString(38);
                     break;
                 case 'X':
+                case 'x':
                     guidString = string.FastAllocateString(68);
                     break;
                 default:
