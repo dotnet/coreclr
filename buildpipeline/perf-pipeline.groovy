@@ -68,11 +68,11 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
     }
     else if (scenario == 'jitbench') {
         String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -scenarioTest"
-        bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios || (echo [ERROR] JitBench failed. 1>>\"${failedOutputLogFilename}\")"
+        bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios || (echo [ERROR] JitBench failed. 1>>\"${failedOutputLogFilename}\" && exit /b 1)"
     }
     else if (scenario == 'illink') {
         String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -scenarioTest"
-        bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\linkbench\\linkbench -group ILLink -nowarmup || (echo [ERROR] IlLink failed. 1>>\"${failedOutputLogFilename}\")"
+        bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\linkbench\\linkbench -group ILLink -nowarmup || (echo [ERROR] IlLink failed. 1>>\"${failedOutputLogFilename}\" && exit /b 1)"
     }
     archiveArtifacts allowEmptyArchive: false, artifacts:'Perf-*.xml,Perf-*.etl,Perf-*.log,machinedata.json'
 }
@@ -100,7 +100,6 @@ def windowsThroughput(String arch, String os, String config, String runType, Str
 
     bat "py \".\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\""
     bat ".\\init-tools.cmd"
-    bat "dir bin"
     bat "tests\\runtest.cmd ${config} ${arch} GenerateLayoutOnly"
     bat "py -u tests\\scripts\\run-throughput-perf.py -arch ${arch} -os ${os} -configuration ${config} -opt_level ${optLevel} -jit_name ${jit} -clr_root \"%WORKSPACE%\" -assembly_root \"%WORKSPACE%\\${arch}ThroughputBenchmarks\\lib\" -benchview_path \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" -run_type ${runType}"
     archiveArtifacts allowEmptyArchive: false, artifacts:'throughput-*.csv,machinedata.json'
@@ -199,8 +198,8 @@ stage ('Get Metadata and download Throughput Benchmarks') {
         bat "%WORKSPACE%\\tools\\nuget.exe install Microsoft.BenchView.ThroughputBenchmarks.x86.Windows_NT -Source https://dotnet.myget.org/F/dotnet-core -Prerelease -ExcludeVersion"
         bat "set \"GIT_BRANCH_WITHOUT_ORIGIN=%GitBranchOrCommit:*/=%\"\n" +
             "py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\submission-metadata.py\" --name \"${benchViewName}\" --user \"${benchViewUser}\"\n" +
-            "py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\build.py\" git --branch %GIT_BRANCH_WITHOUT_ORIGIN% --type ${runType}"
-        bat "py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\submission-metadata.py\" --name \"${benchViewName}-baseline\" --user \"${benchViewUser}\" -o submission-metadata-baseline.json\n"
+            "py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\build.py\" git --branch %GIT_BRANCH_WITHOUT_ORIGIN% --type ${runType}\n" +
+            "py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\submission-metadata.py\" --name \"${benchViewName}-baseline\" --user \"${benchViewUser}\" -o submission-metadata-baseline.json\n"
         
         // TODO: revisit these moves. Originally, stash could not find the directories as currently named
         bat "move Microsoft.BenchView.ThroughputBenchmarks.x64.Windows_NT x64ThroughputBenchmarks"
