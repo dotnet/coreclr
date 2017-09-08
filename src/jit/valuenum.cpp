@@ -7164,6 +7164,12 @@ void Compiler::fgValueNumberIntrinsic(GenTreePtr tree)
                 vnStore->VNPWithExc(vnStore->VNPairForFunc(intrinsic->TypeGet(), VNF_ObjGetType, arg0VNP), arg0VNPx);
             break;
 
+        case CORINFO_INTRINSIC_GetTypeFromHandle:
+            intrinsic->gtVNPair =
+                vnStore->VNPWithExc(vnStore->VNPairForFunc(intrinsic->TypeGet(), VNF_GetTypeFromHandle, arg0VNP),
+                                    arg0VNPx);
+            break;
+
         default:
             unreached();
     }

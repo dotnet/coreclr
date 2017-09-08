@@ -3395,7 +3395,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                         case CORINFO_INTRINSIC_Ceiling:
                         case CORINFO_INTRINSIC_Floor:
                         case CORINFO_INTRINSIC_Object_GetType:
-                            // Giving intrinsics a large fixed exectuion cost is because we'd like to CSE
+                        case CORINFO_INTRINSIC_GetTypeFromHandle:
+                            // Giving intrinsics a large fixed execution cost is because we'd like to CSE
                             // them, even if they are implemented by calls. This is different from modeling
                             // user calls since we never CSE user calls.
                             costEx = 36;
@@ -11127,7 +11128,9 @@ void Compiler::gtDispTree(GenTreePtr   tree,
                 case CORINFO_INTRINSIC_Object_GetType:
                     printf(" objGetType");
                     break;
-
+                case CORINFO_INTRINSIC_GetTypeFromHandle:
+                    printf(" getTypeFromHandle");
+                    break;
                 default:
                     unreached();
             }
@@ -12516,6 +12519,19 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
         return nullptr;
     }
 
+    // If we're eventually going to return the type handle, remember it now.
+    GenTree* boxTypeHandle = nullptr;
+    if (options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE)
+    {
+        // Might see GenTreeAllocObj?
+        GenTree* asgSrc = asg->gtOp.gtOp2;
+        assert(asgSrc->IsCall());
+        GenTreeCall*    newobjCall = asgSrc->AsCall();
+        GenTreeArgList* newobjArgs = newobjCall->gtCallArgs->AsArgList();
+        boxTypeHandle              = newobjArgs->Current();
+        assert(boxTypeHandle != nullptr);
+    }
+
     // If we don't recognize the form of the copy, bail.
     GenTree* copy = copyStmt->gtStmt.gtStmtExpr;
     if (copy->gtOper != GT_ASG)
@@ -12610,7 +12626,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
         assert(copySrc->gtOper == GT_OBJ || copySrc->gtOper == GT_IND || copySrc->gtOper == GT_FIELD);
         copyStmt->gtStmt.gtStmtExpr = copySrc;
 
-        if (options == BR_REMOVE_AND_NARROW)
+        if (options == BR_REMOVE_AND_NARROW || options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE)
         {
             JITDUMP(" to read first byte of struct via modified [%06u]\n", dspTreeID(copySrc));
             copySrc->ChangeOper(GT_IND);
@@ -12629,7 +12645,15 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
     }
 
     // Box effects were successfully optimized.
-    return copySrc;
+
+    if (options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE)
+    {
+        return boxTypeHandle;
+    }
+    else
+    {
+        return copySrc;
+    }
 }
 
 //------------------------------------------------------------------------
