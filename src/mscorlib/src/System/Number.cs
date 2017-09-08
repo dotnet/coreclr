@@ -736,6 +736,62 @@ namespace System
             }
             return i;
         }
+        
+        internal unsafe static Int32 ParseInt32Fast(ReadOnlySpan<char> s, NumberFormatInfo info)
+        {
+            var isNegative = false;
+            var ret = 0;
+
+            fixed (char* sptr = &s.DangerousGetPinnableReference())
+            {
+                var cptr = sptr;
+                var eptr = sptr + s.Length;
+
+                handleNumber:
+                var c = (uint)(*cptr - '0');
+                if (c <= 9 && ret >= 0)
+                {
+                    ret = ret * 10 + (int)c;
+                    cptr++;
+                    goto handleNumber;
+                }
+
+                if (cptr == eptr)
+                {
+                }
+                else if (cptr == sptr)
+                {
+                    var next = MatchChars(cptr, info.NegativeSign);
+                    if (next != null)
+                    {
+                        isNegative = true;
+                        cptr = next;
+                    }
+                    else
+                    {
+                        isNegative = HandleLeadingSymbols(ref cptr, eptr, info);
+                    }
+
+                    goto handleNumber;
+                }
+                else if (cptr < eptr)
+                {
+                    HandleTrailingWhite(cptr, eptr);
+                }
+            }
+
+            if (isNegative)
+            {
+                ret = -ret;
+                if (ret > 0) throw new OverflowException(SR.Overflow_Int32);
+            }
+            else
+            {
+                if (ret < 0) throw new OverflowException(SR.Overflow_Int32);
+            }
+
+            return ret;
+        }
 
         internal unsafe static Int64 ParseInt64(ReadOnlySpan<char> value, NumberStyles options, NumberFormatInfo numfmt)
         {
@@ -1090,6 +1146,43 @@ namespace System
                 }
             }
             return true;
+        }
+        
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static unsafe bool HandleLeadingSymbols(ref char* cptr, char* eptr, NumberFormatInfo info)
+        {
+            var isNegative = false;
+            char* next;
+            while (cptr < eptr)
+            {
+                if (!IsWhite(*cptr))
+                {
+                    if ((uint)(*cptr - '0') <= 9)
+                    {
+                        return false;
+                    }
+                    else if (((next = MatchChars(cptr, info.NegativeSign)) != null && (isNegative = true)) || (next = MatchChars(cptr, info.PositiveSign)) != null)
+                    {
+                        cptr = next;
+                        return isNegative;
+                    }
+
+                    throw new FormatException(SR.Format_InvalidString);
+                }
+                cptr++;
+            }
+
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static unsafe void HandleTrailingWhite(char* cptr, char* eptr)
+        {
+            while (cptr < eptr && IsWhite(*cptr)) { cptr++; }
+            // For compatibility, we need to allow trailing zeros at the end of a number string
+            while (cptr < eptr && *cptr == '\0') { cptr++; }
+
+            if (cptr != eptr) throw new FormatException(SR.Format_InvalidString);
         }
 
         internal unsafe static Boolean TryParseDecimal(ReadOnlySpan<char> value, NumberStyles options, NumberFormatInfo numfmt, out Decimal result)

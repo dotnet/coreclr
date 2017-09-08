@@ -119,7 +119,7 @@ namespace System
         public static int Parse(String s)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseInt32(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.CurrentInfo);
+            return Number.ParseInt32Fast(s.AsReadOnlySpan(), NumberFormatInfo.CurrentInfo);
         }
 
         [Pure]
