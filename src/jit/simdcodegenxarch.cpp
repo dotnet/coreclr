@@ -672,7 +672,7 @@ void CodeGen::genSIMDScalarMove(
 {
     assert(varTypeIsFloating(baseType));
 #ifdef FEATURE_AVX_SUPPORT
-    if (compiler->getSIMDInstructionSet() == InstructionSet_AVX)
+    if (compiler->getSIMDInstructionSet() == InstructionSet_AVX2)
     {
         switch (moveType)
         {
@@ -874,7 +874,7 @@ void CodeGen::genSIMDIntrinsicInit(GenTreeSIMD* simdNode)
 #ifdef FEATURE_AVX_SUPPORT
         else
         {
-            assert(iset == InstructionSet_AVX);
+            assert(iset == InstructionSet_AVX2);
             ins = getOpForSIMDIntrinsic(SIMDIntrinsicInit, baseType);
             if (op1->IsCnsFltOrDbl())
             {
@@ -893,7 +893,7 @@ void CodeGen::genSIMDIntrinsicInit(GenTreeSIMD* simdNode)
         }
 #endif // FEATURE_AVX_SUPPORT
     }
-    else if (iset == InstructionSet_AVX && ((size == 32) || (size == 16)))
+    else if (iset == InstructionSet_AVX2 && ((size == 32) || (size == 16)))
     {
         regNumber srcReg = genConsumeReg(op1);
         if (baseType == TYP_INT || baseType == TYP_UINT || baseType == TYP_LONG || baseType == TYP_ULONG)
@@ -1145,7 +1145,7 @@ void CodeGen::genSIMDIntrinsic32BitConvert(GenTreeSIMD* simdNode)
         getEmitter()->emitIns_R_I(INS_mov, EA_8BYTE, tmpIntReg, (ssize_t)0X5300000053000000);
         inst_RV_RV(INS_mov_i2xmm, tmpReg, tmpIntReg, TYP_ULONG);
 #else
-        if (compiler->getSIMDInstructionSet() == InstructionSet_AVX)
+        if (compiler->getSIMDInstructionSet() == InstructionSet_AVX2)
         {
             getEmitter()->emitIns_R_I(INS_mov, EA_4BYTE, tmpIntReg, (ssize_t)0X53000000);
             inst_RV_RV(INS_mov_i2xmm, tmpReg, tmpIntReg, TYP_UINT);
@@ -1158,7 +1158,7 @@ void CodeGen::genSIMDIntrinsic32BitConvert(GenTreeSIMD* simdNode)
             getEmitter()->emitIns_R_R_I(INS_pinsrw, emitTypeSize(TYP_INT), tmpReg, tmpIntReg, 3);
         }
 #endif
-        if (compiler->getSIMDInstructionSet() == InstructionSet_AVX)
+        if (compiler->getSIMDInstructionSet() == InstructionSet_AVX2)
         {
             inst_RV_RV(INS_vpbroadcastd, tmpReg, tmpReg, targetType, emitActualTypeSize(targetType));
         }
@@ -1257,7 +1257,7 @@ void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
     }
     else
 #endif
-        if (iset == InstructionSet_AVX || (baseType == TYP_ULONG))
+        if (iset == InstructionSet_AVX2 || (baseType == TYP_ULONG))
     {
         tmpReg  = simdNode->ExtractTempReg(RBM_ALLFLOAT);
         tmpReg2 = simdNode->GetSingleTempReg(RBM_ALLFLOAT);
@@ -1313,7 +1313,7 @@ void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
         inst_RV_RV(INS_mov_i2xmm, tmpReg, tmpIntReg, TYP_UINT);
         getEmitter()->emitIns_R_I(INS_pslldq, EA_16BYTE, tmpReg, 4);
 #endif
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             inst_RV_RV(INS_vpbroadcastq, tmpReg, tmpReg, simdType, emitActualTypeSize(simdType));
         }
@@ -1335,7 +1335,7 @@ void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
         inst_RV_RV(INS_mov_i2xmm, tmpReg, tmpIntReg, TYP_UINT);
         getEmitter()->emitIns_R_I(INS_pslldq, EA_16BYTE, tmpReg, 4);
 #endif
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             inst_RV_RV(INS_vpbroadcastq, tmpReg, tmpReg, simdType, emitActualTypeSize(simdType));
         }
@@ -1357,7 +1357,7 @@ void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
         instruction rightShiftIns = getOpForSIMDIntrinsic(SIMDIntrinsicShiftRightInternal, TYP_SIMD16);
         instruction leftShiftIns  = getOpForSIMDIntrinsic(SIMDIntrinsicShiftLeftInternal, TYP_SIMD16);
 
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             // Extract the high 16-bits
             getEmitter()->emitIns_R_R_I(INS_vextracti128, EA_32BYTE, tmpReg, op1Reg, 0x01);
@@ -1395,7 +1395,7 @@ void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
             inst_RV_RV(INS_movaps, targetReg, tmpReg, simdType, emitActualTypeSize(simdType));
         }
 
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             getEmitter()->emitIns_R_R_I(INS_vinsertf128, EA_32BYTE, targetReg, tmpReg2, 0x01);
         }
@@ -1425,7 +1425,7 @@ void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
         inst_RV_RV(INS_mov_i2xmm, tmpReg, tmpIntReg, TYP_UINT);
         getEmitter()->emitIns_R_I(INS_pslldq, EA_16BYTE, tmpReg, 4);
 
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             inst_RV_RV(INS_vpbroadcastq, tmpReg, tmpReg, simdType, emitActualTypeSize(simdType));
         }
@@ -1443,7 +1443,7 @@ void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
         inst_RV_RV(INS_mov_i2xmm, tmpReg, tmpIntReg, TYP_UINT);
         getEmitter()->emitIns_R_I(INS_pslldq, EA_16BYTE, tmpReg, 4);
 
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             inst_RV_RV(INS_vpbroadcastq, tmpReg, tmpReg, simdType, emitActualTypeSize(simdType));
         }
@@ -1468,7 +1468,7 @@ void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
         instruction rightShiftIns = getOpForSIMDIntrinsic(SIMDIntrinsicShiftRightInternal, TYP_SIMD16);
         instruction leftShiftIns  = getOpForSIMDIntrinsic(SIMDIntrinsicShiftLeftInternal, TYP_SIMD16);
 
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             // Extract the high 16-bits
             getEmitter()->emitIns_R_R_I(INS_vextractf128, EA_32BYTE, tmpReg, op1Reg, 0x01);
@@ -1504,7 +1504,7 @@ void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
         // Merge or copy the results (only at this point are we done with op1Reg).
         assert(tmpReg != targetReg);
         inst_RV_RV(INS_por, targetReg, tmpReg, simdType, emitActualTypeSize(simdType));
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             getEmitter()->emitIns_R_R_I(INS_vinserti128, EA_32BYTE, targetReg, tmpReg2, 0x01);
         }
@@ -1526,7 +1526,7 @@ void CodeGen::genSIMDExtractUpperHalf(GenTreeSIMD* simdNode, regNumber srcReg, r
 {
     var_types simdType = simdNode->TypeGet();
     emitAttr  emitSize = emitActualTypeSize(simdType);
-    if (compiler->getSIMDInstructionSet() == InstructionSet_AVX)
+    if (compiler->getSIMDInstructionSet() == InstructionSet_AVX2)
     {
         instruction extractIns = varTypeIsFloating(simdNode->gtSIMDBaseType) ? INS_vextractf128 : INS_vextracti128;
         getEmitter()->emitIns_R_R_I(extractIns, EA_32BYTE, tgtReg, srcReg, 0x01);
@@ -1588,7 +1588,7 @@ void CodeGen::genSIMDIntrinsicWiden(GenTreeSIMD* simdNode)
         regNumber tmpReg = simdNode->GetSingleTempReg(RBM_ALLFLOAT);
         assert(tmpReg != op1Reg);
 
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             // permute op1Reg and put it into targetReg
             unsigned ival = 0xd4;
@@ -1658,7 +1658,7 @@ void CodeGen::genSIMDIntrinsicNarrow(GenTreeSIMD* simdNode)
     }
     else if (varTypeIsLong(baseType))
     {
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             // We have 8 long elements, 0-3 in op1Reg, 4-7 in op2Reg.
             // We will generate the following:
@@ -1720,7 +1720,7 @@ void CodeGen::genSIMDIntrinsicNarrow(GenTreeSIMD* simdNode)
         instruction shiftLeftIns  = getOpForSIMDIntrinsic(SIMDIntrinsicShiftLeftInternal, baseType);
         instruction shiftRightIns = getOpForSIMDIntrinsic(SIMDIntrinsicShiftRightInternal, baseType);
 
-        if (iset == InstructionSet_AVX)
+        if (iset == InstructionSet_AVX2)
         {
             regNumber tmpReg  = simdNode->ExtractTempReg(RBM_ALLFLOAT);
             regNumber tmpReg2 = simdNode->GetSingleTempReg(RBM_ALLFLOAT);
@@ -2414,7 +2414,7 @@ void CodeGen::genSIMDIntrinsicDotProduct(GenTreeSIMD* simdNode)
 #endif
 
             // tmpReg1 = op1 * op2
-            if (iset == InstructionSet_AVX)
+            if (iset == InstructionSet_AVX2)
             {
                 // On AVX take advantage 3 operand form of pmulld
                 inst_RV_RV_RV(INS_pmulld, tmpReg1, op1Reg, op2Reg, emitTypeSize(simdEvalType));
@@ -2611,7 +2611,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
 
     if (byteShiftCnt >= 16)
     {
-        assert(compiler->getSIMDInstructionSet() == InstructionSet_AVX);
+        assert(compiler->getSIMDInstructionSet() == InstructionSet_AVX2);
         byteShiftCnt -= 16;
         regNumber newSrcReg;
         if (varTypeIsFloating(baseType))
@@ -2671,7 +2671,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
             // low 3 bits of index, but it's better to use the right value.
             if (index > 8)
             {
-                assert(compiler->getSIMDInstructionSet() == InstructionSet_AVX);
+                assert(compiler->getSIMDInstructionSet() == InstructionSet_AVX2);
                 index -= 8;
             }
 

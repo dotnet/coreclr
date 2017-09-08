@@ -11049,7 +11049,7 @@ void CodeGen::genVzeroupperIfNeeded(bool check256bitOnly /* = true*/)
 
     if (emitVzeroUpper)
     {
-        assert(compiler->getSIMDInstructionSet() == InstructionSet_AVX);
+        assert(compiler->getSIMDInstructionSet() == InstructionSet_AVX2);
         instGen(INS_vzeroupper);
     }
 #endif

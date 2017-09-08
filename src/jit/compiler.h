@@ -7251,7 +7251,7 @@ private:
 #if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
         if (canUseAVX())
         {
-            return InstructionSet_AVX;
+            return InstructionSet_AVX2;
         }
 
         if (CanUseSSE3_4())

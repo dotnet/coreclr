@@ -2261,7 +2261,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
                 {
                     bool needFloatTemp;
                     if (varTypeIsSmallInt(simdTree->gtSIMDBaseType) &&
-                        (compiler->getSIMDInstructionSet() == InstructionSet_AVX))
+                        (compiler->getSIMDInstructionSet() == InstructionSet_AVX2))
                     {
                         int byteShiftCnt = (int)op2->AsIntCon()->gtIconVal * genTypeSize(simdTree->gtSIMDBaseType);
                         needFloatTemp    = (byteShiftCnt >= 16);
@@ -2335,7 +2335,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             info->isInternalRegDelayFree = true;
             info->srcCount               = 1;
             info->internalIntCount       = 1;
-            if (compiler->getSIMDInstructionSet() == InstructionSet_AVX)
+            if (compiler->getSIMDInstructionSet() == InstructionSet_AVX2)
             {
                 info->internalFloatCount = 2;
             }
@@ -2358,7 +2358,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             }
             else
 #endif
-                if ((compiler->getSIMDInstructionSet() == InstructionSet_AVX) ||
+                if ((compiler->getSIMDInstructionSet() == InstructionSet_AVX2) ||
                     (simdTree->gtSIMDBaseType == TYP_ULONG))
             {
                 info->internalFloatCount = 2;
@@ -2374,7 +2374,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             // We need an internal register different from targetReg.
             info->isInternalRegDelayFree = true;
             info->srcCount               = 2;
-            if ((compiler->getSIMDInstructionSet() == InstructionSet_AVX) && (simdTree->gtSIMDBaseType != TYP_DOUBLE))
+            if ((compiler->getSIMDInstructionSet() == InstructionSet_AVX2) && (simdTree->gtSIMDBaseType != TYP_DOUBLE))
             {
                 info->internalFloatCount = 2;
             }
@@ -2783,11 +2783,11 @@ void LinearScan::SetContainsAVXFlags(bool isFloatingPointType /* = true */, unsi
 #ifdef FEATURE_AVX_SUPPORT
     if (isFloatingPointType)
     {
-        if (compiler->getFloatingPointInstructionSet() == InstructionSet_AVX)
+        if (compiler->getFloatingPointInstructionSet() == InstructionSet_AVX2)
         {
             compiler->getEmitter()->SetContainsAVX(true);
         }
-        if (sizeOfSIMDVector == 32 && compiler->getSIMDInstructionSet() == InstructionSet_AVX)
+        if (sizeOfSIMDVector == 32 && compiler->getSIMDInstructionSet() == InstructionSet_AVX2)
         {
             compiler->getEmitter()->SetContains256bitAVX(true);
         }

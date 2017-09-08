@@ -2241,7 +2241,7 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
             {
                 MakeSrcContained(simdNode, op1);
             }
-            else if ((comp->getSIMDInstructionSet() == InstructionSet_AVX) &&
+            else if ((comp->getSIMDInstructionSet() == InstructionSet_AVX2) &&
                      ((simdNode->gtSIMDSize == 16) || (simdNode->gtSIMDSize == 32)))
             {
                 // Either op1 is a float or dbl constant or an addr
