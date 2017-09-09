@@ -22825,12 +22825,7 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                     CORINFO_CLASS_HANDLE structType =
                         lclVarInfo[lclNum + inlineInfo->argCnt].lclVerTypeInfo.GetClassHandle();
 
-                    DWORD typeFlags     = info.compCompHnd->getClassAttribs(structType);
-                    bool  containsGCPtr = ((typeFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0);
-
-                    // Structs with GC pointer fields are fully zero-initialized in the prolog if compInitMem is true.
-                    // Therefore, we don't need to insert zero-initialization here if this block is not in a loop.
-                    if (!info.compInitMem || !containsGCPtr || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0))
+                    if (fgStructTempNeedsExplicitZeroInit(structType, block))
                     {
                         tree = gtNewBlkOpNode(gtNewLclvNode(tmpNum, lclTyp),              // Dest
                                               gtNewIconNode(0),                           // Value

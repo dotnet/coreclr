@@ -12811,13 +12811,12 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // The lookup of the code pointer will be handled by CALL in this case
                     if (clsFlags & CORINFO_FLG_VALUECLASS)
                     {
-                        DWORD typeFlags     = info.compCompHnd->getClassAttribs(resolvedToken.hClass);
-                        bool  containsGCPtr = ((typeFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0);
                         if (compIsForInlining())
                         {
                             // If value class has GC fields, inform the inliner. It may choose to
                             // bail out on the inline.
-                            if (containsGCPtr)
+                            DWORD typeFlags = info.compCompHnd->getClassAttribs(resolvedToken.hClass);
+                            if ((typeFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0)
                             {
                                 compInlineResult->Note(InlineObservation::CALLEE_HAS_GC_STRUCT);
                                 if (compInlineResult->IsFailure())
@@ -12854,11 +12853,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                             lvaSetStruct(lclNum, resolvedToken.hClass, true /* unsafe value cls check */);
                         }
 
-                        // Structs with GC pointer fields are fully zero-initialized in the prolog if compInitMem is
-                        // true.
-                        // Therefore, we don't need to insert zero-initialization here if this block is not in a loop.
-                        if (!info.compInitMem || !containsGCPtr || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0) ||
-                            compIsForInlining())
+                        if (compIsForInlining() || fgStructTempNeedsExplicitZeroInit(resolvedToken.hClass, block))
                         {
                             // Append a tree to zero-out the temp
                             newObjThisPtr = gtNewLclvNode(lclNum, lvaTable[lclNum].TypeGet());
