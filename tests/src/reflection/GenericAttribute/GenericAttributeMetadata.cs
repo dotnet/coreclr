@@ -33,6 +33,12 @@ public class MultiAttribute<T> : Attribute
     }
 }
 
+public enum MyEnum
+{
+    Ctor,
+    Property
+}
+
 [SingleAttribute<int>()]
 [SingleAttribute<bool>()]
 [MultiAttribute<int>()]
@@ -42,6 +48,12 @@ public class MultiAttribute<T> : Attribute
 [MultiAttribute<bool>(true)]
 [MultiAttribute<bool>(Value = true)]
 [MultiAttribute<bool?>()]
+[MultiAttribute<string>("Ctor")]
+[MultiAttribute<string>(Value = "Property")]
+[MultiAttribute<Type>(typeof(Class))]
+[MultiAttribute<Type>(Value = typeof(Class.Derive))]
+[MultiAttribute<MyEnum>(MyEnum.Ctor)]
+[MultiAttribute<MyEnum>(Value = MyEnum.Property)]
 public class Class
 {
     public class Derive : Class

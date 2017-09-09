@@ -1717,7 +1717,7 @@ namespace System.Reflection
             if (ctorHasParameters)
             {
                 // Resolve method ctor token found in decorated decoratedModule scope
-                ctor = ModuleHandle.ResolveMethodHandleInternal(decoratedModule.GetNativeHandle(), caRecord.tkCtor);
+                ctor = decoratedModule.ResolveMethod(caRecord.tkCtor, attributeType.GenericTypeArguments, null).MethodHandle.GetMethodInfo();
             }
             else
             {

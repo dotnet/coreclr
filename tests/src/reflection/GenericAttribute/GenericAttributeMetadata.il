@@ -12,7 +12,7 @@
                                                                                                                            63 65 70 74 69 6F 6E 54 68 72 6F 77 73 01 )       // ceptionThrows.
 
   // --- The following custom attribute is added automatically, do not uncomment -------
-  //  .custom instance void [mscorlib]System.Diagnostics.DebuggableAttribute::.ctor(valuetype [mscorlibs]System.Diagnostics.DebuggableAttribute/DebuggingModes) = ( 01 00 07 01 00 00 00 00 ) 
+  //  .custom instance void [mscorlib]System.Diagnostics.DebuggableAttribute::.ctor(valuetype [mscorlib]System.Diagnostics.DebuggableAttribute/DebuggingModes) = ( 01 00 07 01 00 00 00 00 ) 
 
   .custom instance void class SingleAttribute`1<int32>::.ctor() = ( 01 00 00 00 ) 
   .custom instance void class SingleAttribute`1<bool>::.ctor() = ( 01 00 00 00 ) 
@@ -25,13 +25,13 @@
   .ver 0:0:0:0
 }
 .module GenericAttributeMetadata.dll
-// MVID: {ED29A03B-0899-4884-BA5F-5050B30B4B3E}
+// MVID: {97ADA31C-7529-4F22-9907-B16BE1E0AF0B}
 .imagebase 0x10000000
 .file alignment 0x00000200
 .stackreserve 0x00100000
 .subsystem 0x0003       // WINDOWS_CUI
 .corflags 0x00000001    //  ILONLY
-// Image base: 0x00000212B8CB0000
+// Image base: 0x0000025583AE0000
 
 
 // =============== CLASS MEMBERS DECLARATION ===================
@@ -120,6 +120,14 @@
   } // end of property MultiAttribute`1::Value
 } // end of class MultiAttribute`1
 
+.class public auto ansi sealed MyEnum
+       extends [mscorlib]System.Enum
+{
+  .field public specialname rtspecialname int32 value__
+  .field public static literal valuetype MyEnum Ctor = int32(0x00000000)
+  .field public static literal valuetype MyEnum Property = int32(0x00000001)
+} // end of class MyEnum
+
 .class public auto ansi beforefieldinit Class
        extends [mscorlib]System.Object
 {
@@ -132,6 +140,15 @@
   .custom instance void class MultiAttribute`1<bool>::.ctor(!0) = ( 01 00 01 00 00 ) 
   .custom instance void class MultiAttribute`1<bool>::.ctor() = ( 01 00 01 00 54 02 05 56 61 6C 75 65 01 )          // ....T..Value.
   .custom instance void class MultiAttribute`1<valuetype [mscorlib]System.Nullable`1<bool>>::.ctor() = ( 01 00 00 00 ) 
+  .custom instance void class MultiAttribute`1<string>::.ctor(!0) = ( 01 00 04 43 74 6F 72 00 00 )                      // ...Ctor..
+  .custom instance void class MultiAttribute`1<string>::.ctor() = ( 01 00 01 00 54 0E 05 56 61 6C 75 65 08 50 72 6F   // ....T..Value.Pro
+                                                                    70 65 72 74 79 )                                  // perty
+  .custom instance void class MultiAttribute`1<class [mscorlib]System.Type>::.ctor(!0) = ( 01 00 05 43 6C 61 73 73 00 00 )                   // ...Class..
+  .custom instance void class MultiAttribute`1<class [mscorlib]System.Type>::.ctor() = ( 01 00 01 00 54 50 05 56 61 6C 75 65 0C 43 6C 61   // ....TP.Value.Cla
+                                                                                                       73 73 2B 44 65 72 69 76 65 )                      // ss+Derive
+  .custom instance void class MultiAttribute`1<valuetype MyEnum>::.ctor(!0) = ( 01 00 00 00 00 00 00 00 ) 
+  .custom instance void class MultiAttribute`1<valuetype MyEnum>::.ctor() = ( 01 00 01 00 54 55 06 4D 79 45 6E 75 6D 05 56 61   // ....TU.MyEnum.Va
+                                                                              6C 75 65 01 00 00 00 )                            // lue....
   .class auto ansi nested public beforefieldinit Derive
          extends Class
   {
