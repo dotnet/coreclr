@@ -156,9 +156,14 @@ extern "C" {
 #define DECLSPEC_NORETURN   PAL_NORETURN
 
 #if !defined(_MSC_VER) || defined(SOURCE_FORMATTING)
-#define __assume(x) (void)0
 #define __annotation(x)
-#endif //!MSC_VER
+#endif // !MSC_VER || SOURCE_FORMATTING
+
+#if !(defined(_MSC_VER) || defined(__llvm__)) || defined(SOURCE_FORMATTING)
+#define __assume(x) (void)0
+#elif defined(__llvm__) // __llvm__ && !SOURCE_FORMATTING
+#define __assume(x) __builtin_assume(x)
+#endif // __llvm__ && !SOURCE_FORMATTING
 
 #define UNALIGNED
 
