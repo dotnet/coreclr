@@ -16,6 +16,16 @@ namespace System.Diagnostics
         // debugger is launched.
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Break() => BreakInternal();
+        
+        // The Debugger just breaks if the condition is true
+        // Look at <see cref="Debugger.Break"/> for more Information
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void BreakWhen(bool condition) 
+        {
+            if(condition)
+                BreakInternal();
+        }
+        
 
         // The VM depends on this private method.
         private static void BreakCanThrow() => BreakInternal();
