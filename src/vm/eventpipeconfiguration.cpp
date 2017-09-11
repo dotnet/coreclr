@@ -47,6 +47,9 @@ EventPipeConfiguration::~EventPipeConfiguration()
 
     if(m_pProviderList != NULL)
     {
+        // Take the lock before manipulating the provider list.
+        CrstHolder _crst(EventPipe::GetLock());
+
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
         while(pElem != NULL)
         {
