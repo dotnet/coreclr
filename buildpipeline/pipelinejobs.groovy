@@ -17,5 +17,12 @@ def perfPipeline = Pipeline.createPipelineForGithub(this, project, branch, 'buil
 def triggerName = "Perf Build and Test"
 def pipeline = perfPipeline
 
+// If we were using parameters for the pipeline job, we would define an array of parameter pairs
+// and pass that array as a parameter to the trigger functions. Ie:
+// def params = ['CGroup':'Release',
+//               'AGroup':'x64',
+//               'OGroup':'Windows_NT']
+// pipeline.triggerPipelinOnGithubPRComment(triggerName, params)
+
 pipeline.triggerPipelineOnEveryGithubPR(triggerName)
 pipeline.triggerPipelineOnGithubPush()

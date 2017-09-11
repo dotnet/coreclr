@@ -9,7 +9,7 @@
 def windowsBuild(String arch, String config, String pgo, boolean isBaseline) {
     checkout scm
 
-    String pgoStash = ((pgo == "skiprestoreoptdata") ? "nopgo" : "pgo")
+    String pgoBuildFlag = ((pgo == 'nopgo') ? 'nopgooptimize' : '')
     String baselineString = ""
 
     // For baseline builds, checkout the merge's parent
@@ -18,15 +18,16 @@ def windowsBuild(String arch, String config, String pgo, boolean isBaseline) {
         bat "git checkout HEAD^^1"
     }
 
-    bat "set __TestIntermediateDir=int&&.\\build.cmd ${config} ${arch} skipbuildpackages ${pgo}"
+    bat "set __TestIntermediateDir=int&&.\\build.cmd ${config} ${arch} skipbuildpackages ${pgoBuildFlag}"
 
     // Stash build artifacts. Stash tests in an additional stash to be used by Linux test runs
     stash name: "nt-${arch}-${pgoStash}${baselineString}-build-artifacts", includes: 'bin/**'
     stash name: "nt-${arch}-${pgoStash}${baselineString}-test-artifacts", includes: 'bin/tests/**'
 }
 
-// TODO: need to add the SAS token
 def windowsPerf(String arch, String config, String uploadString, String runType, String opt_level, String jit, String pgo, String scenario, boolean isBaseline) {
+    withCredentials([string(credentialsId: 'CoreCLR Perf BenchView Sas', variable: 'BV_UPLOAD_SAS_TOKEN')])
+    
     checkout scm
     String baselineString = ""
     if (isBaseline) {
@@ -34,7 +35,7 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
     }
     dir ('.') {
         unstash "nt-${arch}-${pgo}${baselineString}-build-artifacts"
-        unstash "benchview-artifacts"
+        unstash "benchview-tools"
         unstash "metadata"
     }
 
@@ -78,6 +79,8 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
 }
 
 def windowsThroughput(String arch, String os, String config, String runType, String optLevel, String jit, String pgo, boolean isBaseline) {
+    withCredentials([string(credentialsId: 'CoreCLR Perf BenchView Sas', variable: 'BV_UPLOAD_SAS_TOKEN')])
+
     checkout scm
     
     String baselineString = ""
@@ -87,7 +90,7 @@ def windowsThroughput(String arch, String os, String config, String runType, Str
     
     dir ('.') {
         unstash "nt-${arch}-${pgo}${baselineString}-build-artifacts"
-        unstash "benchview-artifacts"
+        unstash "benchview-tools"
         unstash "throughput-benchmarks-${arch}"
         unstash "metadata"
     }
@@ -124,6 +127,8 @@ def linuxBuild(String arch, String config, String pgo, boolean isBaseline) {
 }
 
 def linuxPerf(String arch, String os, String config, String uploadString, String runType, String optLevel, String pgo, boolean isBaseline) {
+    withCredentials([string(credentialsId: 'CoreCLR Perf BenchView Sas', variable: 'BV_UPLOAD_SAS_TOKEN')])
+
     checkout scm
 
     String baselineString = ""
@@ -134,7 +139,7 @@ def linuxPerf(String arch, String os, String config, String uploadString, String
     dir ('.') {
         unstash "linux-${arch}-${pgo}${baselineString}-build-artifacts"
         unstash "nt-${arch}-${pgo}${baselineString}-test-artifacts"
-        unstash "benchview-artifacts"
+        unstash "benchview-tools"
         unstash "metadata"
     }
 
@@ -151,6 +156,8 @@ def linuxPerf(String arch, String os, String config, String uploadString, String
 }
 
 def linuxThroughput(String arch, String os, String config, String uploadString, String runType, String optLevel, String pgo, boolean isBaseline) {
+    withCredentials([string(credentialsId: 'CoreCLR Perf BenchView Sas', variable: 'BV_UPLOAD_SAS_TOKEN')])
+
     checkout scm
 
     String baselineString = ""
@@ -160,7 +167,7 @@ def linuxThroughput(String arch, String os, String config, String uploadString, 
 
     dir ('.') {
         unstash "linux-${arch}-${pgo}${baselineString}-build-artifacts"
-        unstash "benchview-artifacts"
+        unstash "benchview-tools"
         unstash "throughput-benchmarks-${arch}"
         unstash "metadata"
     }
@@ -168,7 +175,7 @@ def linuxThroughput(String arch, String os, String config, String uploadString, 
     // We want to use the baseline metadata for baseline runs. We expect to find the submission metadata in
     // submission-metadata.py
     if (isBaseline) {
-        sh "mv submission-metadata-baseline.json submission-metadata.json"
+        sh "mv -f submission-metadata-baseline.json submission-metadata.json"
     }
 
     sh "./tests/scripts/perf-prep.sh --throughput"
@@ -182,8 +189,7 @@ def linuxThroughput(String arch, String os, String config, String uploadString, 
 String config = "Release"
 String runType = isPR() ? 'private' : 'rolling'
 
-// TODO: This needs to be updated before going live
-String uploadString = ''
+String uploadString = '-uploadToBenchview'
 
 stage ('Get Metadata and download Throughput Benchmarks') {
     simpleNode('Windows_NT', '20170427-elevated') {
@@ -205,7 +211,7 @@ stage ('Get Metadata and download Throughput Benchmarks') {
         bat "move Microsoft.BenchView.ThroughputBenchmarks.x64.Windows_NT x64ThroughputBenchmarks"
         bat "move Microsoft.BenchView.ThroughputBenchmarks.x86.Windows_NT x86ThroughputBenchmarks"
 
-        stash name: 'benchview-artifacts', includes: 'Microsoft.BenchView.JSONFormat/**/*'
+        stash name: 'benchview-tools', includes: 'Microsoft.BenchView.JSONFormat/**/*'
         stash name: 'metadata', includes: '*.json'
         stash name: 'throughput-benchmarks-x64', includes: 'x64ThroughputBenchmarks/**/*'
         stash name: 'throughput-benchmarks-x86', includes: 'x86ThroughputBenchmarks/**/*'
@@ -216,17 +222,17 @@ stage ('Get Metadata and download Throughput Benchmarks') {
 def innerLoopBuilds = [
     "windows x64 pgo build": {
         simpleNode('Windows_NT','latest') {
-            windowsBuild('x64', config, '', false)
+            windowsBuild('x64', config, 'pgo', false)
         }
      },
     "windows x86 pgo build": {
         simpleNode('Windows_NT','latest') {
-            windowsBuild('x86', config, '', false)
+            windowsBuild('x86', config, 'pgo', false)
         }
     },
     "linux x64 pgo build": {
-        simpleNode('Ubuntu16.04','latest') {
-            linuxBuild('x64', config, '', false)
+        simpleDockerNode('microsoft/dotnet-buildtools-prereqs:rhel7_prereqs_2') {
+            linuxBuild('x64', config, 'pgo', false)
         }
     }
 ]
@@ -238,17 +244,17 @@ if (!isPR()) {
     outerLoopBuilds = [
         "windows x64 nopgo build": {
             simpleNode('Windows_NT','latest') {
-                windowsBuild('x64', config, 'skiprestoreoptdata', false)
+                windowsBuild('x64', config, 'nopgo', false)
             }
         },
         "windows x86 nopgo build": {
            simpleNode('Windows_NT','latest') {
-               windowsBuild('x86', config, 'skiprestoreoptdata', false)
+               windowsBuild('x86', config, 'nopgo', false)
            }
         },
         "linux x64 nopgo build": {
-           simpleNode('Ubuntu16.04','latest') {
-               linuxBuild('x64', config, 'skiprestoreoptdata', false)
+           simpleDockerNode('microsoft/dotnet-buildtools-prereqs:rhel7_prereqs_2') {
+               linuxBuild('x64', config, 'nopgo', false)
            }
         }
     ]
@@ -260,17 +266,17 @@ if (isPR()) {
    baselineBuilds = [
        "windows x64 pgo baseline build": {
            simpleNode('Windows_NT','latest') {
-               windowsBuild('x64', config, '', true)
+               windowsBuild('x64', config, 'pgo', true)
            }
        },
        "windows x86 pgo baseline build": {
            simpleNode('Windows_NT','latest') {
-               windowsBuild('x86', config, '', true)
+               windowsBuild('x86', config, 'pgo', true)
            }
        },
        "linux x64 pgo baseline build": {
-           simpleNode('Ubuntu16.04','latest') {
-               linuxBuild('x64', config, '', true)
+           simpleDockerNode('microsoft/dotnet-buildtools-prereqs:rhel7_prereqs_2') {
+               linuxBuild('x64', config, 'pgo', true)
            }
        }
    ]
@@ -293,38 +299,38 @@ def innerLoopTests = [:]
         }
         if (isPR() || !isBaseline) {
             innerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} perf"] = {
-               simpleNode('Windows_NT','20170427-elevated') {
+               simpleNode('windows_server_2016_clr_perf') {
                    windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'perf', isBaseline)
                }
             }
 
             innerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} throughput"] = {
-               simpleNode('Windows_NT','20170427-elevated') {
+               simpleNode('windows_server_2016_clr_perf') {
                    windowsThroughput(arch, 'Windows_NT', config, runType, 'full_opt', 'ryujit', 'pgo', isBaseline)
                }
             }
 
             innerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} jitbench"] = {
-                simpleNode('Windows_NT','20170427-elevated') {
+                simpleNode('windows_server_2016_clr_perf') {
                     windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', isBaseline)
                 }
             }
 
             innerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} illink"] = {
-               simpleNode('Windows_NT','20170427-elevated') {
+               simpleNode('windows_server_2016_clr_perf') {
                    windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', isBaseline)
                }
             }
 
             if (arch == 'x64') {
                innerLoopTests["linux ${arch} ryujit full_opt pgo${baseline} perf"] = {
-                   simpleNode('Ubuntu','latest') {
+                   simpleNode('linux_clr_perf') {
                        linuxPerf('x64', 'Ubuntu14.04', config, uploadString, runType, 'full_opt', 'pgo', isBaseline)
                    }
                }
 
                innerLoopTests["linux ${arch} ryujit full_opt pgo${baseline} throughput"] = {
-                   simpleNode('Ubuntu','latest') {
+                   simpleNode('linux_clr_perf') {
                        linuxThroughput('x64', 'Ubuntu14.04', config, uploadString, runType, 'full_opt', 'pgo', isBaseline)
                    }
                }
@@ -346,13 +352,13 @@ if (!isPR()) {
                         if (!(pgo_enabled == 'nopgo' && opt_level == 'min_opt'))
                         {
                             outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} perf"] = {
-                                simpleNode('Windows_NT','20170427-elevated') {
+                                simpleNode('windows_server_2016_clr_perf') {
                                     windowsPerf(arch, config, uploadString, runType, opt_level, jit, pgo_enabled, 'perf', false)
                                 }
                             }
 
                             outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} throughput"] = {
-                                simpleNode('Windows_NT','20170427-elevated') {
+                                simpleNode('windows_server_2016_clr_perf') {
                                     windowsThroughput(arch, 'Windows_NT', config, runType, opt_level, jit, pgo_enabled, false)
                                 }
                             }
@@ -369,13 +375,13 @@ if (!isPR()) {
                 if (!(pgo_enabled == 'nopgo' && opt_level == 'min_opt'))
                 {
                     outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} perf"] = {
-                        simpleNode('Ubuntu','latest') {
+                        simpleNode('linux_clr_perf') {
                             linuxPerf(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
                         }
                     }
 
                     outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} throughput"] = {
-                        simpleNode('Ubuntu','latest') {
+                        simpleNode('linux_clr_perf') {
                             linuxThroughput(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
                         }
                     }
