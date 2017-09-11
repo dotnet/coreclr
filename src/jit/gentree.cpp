@@ -12456,7 +12456,7 @@ DONE_FOLD:
 //
 // Return Value:
 //    A tree representing the original value to box, if removal
-//    is successful (but see note). nullptr if removal fails.
+//    is successful/possible (but see note). nullptr if removal fails.
 //
 // Notes:
 //    Value typed box gets special treatment because it has associated
@@ -12666,17 +12666,9 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
         return nullptr;
     }
 
-    // If we have a shared type instance we can't safely check type
-    // equality, so bail.
-    DWORD classAttribs = info.compCompHnd->getClassAttribs(thisHnd);
-    if (classAttribs & CORINFO_FLG_SHAREDINST)
-    {
-        JITDUMP("bailing, have shared instance type for 'this' operand\n");
-        return nullptr;
-    }
-
     // A boxed thisOp should have exact type and non-null instance
-    assert(isExactThis && isNonNullThis);
+    assert(isExactThis);
+    assert(isNonNullThis);
 
     bool                 isExactFlag   = false;
     bool                 isNonNullFlag = false;
@@ -12689,11 +12681,21 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
     }
 
     // A boxed flagOp should have exact type and non-null instance
-    assert(isExactFlag && isNonNullFlag);
+    assert(isExactFlag);
+    assert(isNonNullFlag);
 
     if (flagHnd != thisHnd)
     {
         JITDUMP("bailing, operand types differ\n");
+        return nullptr;
+    }
+
+    // If we have a shared type instance we can't safely check type
+    // equality, so bail.
+    DWORD classAttribs = info.compCompHnd->getClassAttribs(thisHnd);
+    if (classAttribs & CORINFO_FLG_SHAREDINST)
+    {
+        JITDUMP("bailing, have shared instance type\n");
         return nullptr;
     }
 
