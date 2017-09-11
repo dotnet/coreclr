@@ -146,7 +146,7 @@ def linuxPerf(String arch, String os, String config, String uploadString, String
     // We want to use the baseline metadata for baseline runs. We expect to find the submission metadata in
     // submission-metadata.py
     if (isBaseline) {
-        sh "mv submission-metadata-baseline.json submission-metadata.json"
+        sh "mv -f submission-metadata-baseline.json submission-metadata.json"
     }
 
     sh "./tests/scripts/perf-prep.sh"
