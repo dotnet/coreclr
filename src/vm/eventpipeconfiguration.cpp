@@ -106,8 +106,13 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
         return false;
     }
 
-    // The provider has not been registered, so register it.
-    m_pProviderList->InsertTail(new SListElem<EventPipeProvider*>(&provider));
+    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    _ASSERTE(m_pProviderList != NULL);
+    if (m_pProviderList != NULL)
+    {
+        // The provider has not been registered, so register it.
+        m_pProviderList->InsertTail(new SListElem<EventPipeProvider*>(&provider));
+    }
 
     // Set the provider configuration and enable it if we know anything about the provider before it is registered.
     if(m_pEnabledProviderList != NULL)
@@ -138,25 +143,30 @@ bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
     // Take the lock before manipulating the provider list.
     CrstHolder _crst(EventPipe::GetLock());
 
-    // Find the provider.
-    SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
-    while(pElem != NULL)
+    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    _ASSERTE(m_pProviderList != NULL);
+    if (m_pProviderList != NULL)
     {
-        if(pElem->GetValue() == &provider)
+        // Find the provider.
+        SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
+        while(pElem != NULL)
         {
-            break;
+            if(pElem->GetValue() == &provider)
+            {
+                break;
+            }
+
+            pElem = m_pProviderList->GetNext(pElem);
         }
 
-        pElem = m_pProviderList->GetNext(pElem);
-    }
-
-    // If we found the provider, remove it.
-    if(pElem != NULL)
-    {
-        if(m_pProviderList->FindAndRemove(pElem) != NULL)
+        // If we found the provider, remove it.
+        if(pElem != NULL)
         {
-            delete(pElem);
-            return true;
+            if(m_pProviderList->FindAndRemove(pElem) != NULL)
+            {
+                delete(pElem);
+                return true;
+            }
         }
     }
 
@@ -191,16 +201,21 @@ EventPipeProvider* EventPipeConfiguration::GetProviderNoLock(const SString &prov
     }
     CONTRACTL_END;
 
-    SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
-    while(pElem != NULL)
+    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    _ASSERTE(m_pProviderList != NULL);
+    if (m_pProviderList != NULL)
     {
-        EventPipeProvider *pProvider = pElem->GetValue();
-        if(pProvider->GetProviderName().Equals(providerName))
+        SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
+        while(pElem != NULL)
         {
-            return pProvider;
-        }
+            EventPipeProvider *pProvider = pElem->GetValue();
+            if(pProvider->GetProviderName().Equals(providerName))
+            {
+                return pProvider;
+            }
 
-        pElem = m_pProviderList->GetNext(pElem);
+            pElem = m_pProviderList->GetNext(pElem);
+        }
     }
 
     return NULL;
@@ -242,24 +257,28 @@ void EventPipeConfiguration::Enable(
     m_pEnabledProviderList = new EventPipeEnabledProviderList(pProviders, static_cast<unsigned int>(numProviders));
     m_enabled = true;
 
-    SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
-    while(pElem != NULL)
+    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    _ASSERTE(m_pProviderList != NULL);
+    if (m_pProviderList != NULL)
     {
-        EventPipeProvider *pProvider = pElem->GetValue();
-
-        // Enable the provider if it has been configured.
-        EventPipeEnabledProvider *pEnabledProvider = m_pEnabledProviderList->GetEnabledProvider(pProvider);
-        if(pEnabledProvider != NULL)
+        SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
+        while(pElem != NULL)
         {
-            pProvider->SetConfiguration(
-                true /* providerEnabled */,
-                pEnabledProvider->GetKeywords(),
-                pEnabledProvider->GetLevel());
+            EventPipeProvider *pProvider = pElem->GetValue();
+
+            // Enable the provider if it has been configured.
+            EventPipeEnabledProvider *pEnabledProvider = m_pEnabledProviderList->GetEnabledProvider(pProvider);
+            if(pEnabledProvider != NULL)
+            {
+                pProvider->SetConfiguration(
+                    true /* providerEnabled */,
+                    pEnabledProvider->GetKeywords(),
+                    pEnabledProvider->GetLevel());
+            }
+
+            pElem = m_pProviderList->GetNext(pElem);
         }
-
-        pElem = m_pProviderList->GetNext(pElem);
     }
-
 }
 
 void EventPipeConfiguration::Disable()
@@ -274,13 +293,18 @@ void EventPipeConfiguration::Disable()
     }
     CONTRACTL_END;
 
-    SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
-    while(pElem != NULL)
+    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    _ASSERTE(m_pProviderList != NULL);
+    if (m_pProviderList != NULL)
     {
-        EventPipeProvider *pProvider = pElem->GetValue();
-        pProvider->SetConfiguration(false /* providerEnabled */, 0 /* keywords */, EventPipeEventLevel::Critical /* level */);
+        SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
+        while(pElem != NULL)
+        {
+            EventPipeProvider *pProvider = pElem->GetValue();
+            pProvider->SetConfiguration(false /* providerEnabled */, 0 /* keywords */, EventPipeEventLevel::Critical /* level */);
 
-        pElem = m_pProviderList->GetNext(pElem);
+            pElem = m_pProviderList->GetNext(pElem);
+        }
     }
 
     m_enabled = false;
@@ -412,21 +436,26 @@ void EventPipeConfiguration::DeleteDeferredProviders()
     }
     CONTRACTL_END;
 
-    SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
-    while(pElem != NULL)
+    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    _ASSERTE(m_pProviderList != NULL);
+    if (m_pProviderList != NULL)
     {
-        EventPipeProvider *pProvider = pElem->GetValue();
-        if(pProvider->GetDeleteDeferred())
+        SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
+        while(pElem != NULL)
         {
-            // The act of deleting the provider unregisters it and removes it from the list.
-            delete(pProvider);
-            SListElem<EventPipeProvider*> *pCurElem = pElem;
-            pElem = m_pProviderList->GetNext(pElem);
-            delete(pCurElem);
-        }
-        else
-        {
-            pElem = m_pProviderList->GetNext(pElem);
+            EventPipeProvider *pProvider = pElem->GetValue();
+            if(pProvider->GetDeleteDeferred())
+            {
+                // The act of deleting the provider unregisters it and removes it from the list.
+                delete(pProvider);
+                SListElem<EventPipeProvider*> *pCurElem = pElem;
+                pElem = m_pProviderList->GetNext(pElem);
+                delete(pCurElem);
+            }
+            else
+            {
+                pElem = m_pProviderList->GetNext(pElem);
+            }
         }
     }
 }
