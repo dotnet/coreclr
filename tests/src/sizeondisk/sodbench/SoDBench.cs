@@ -39,9 +39,9 @@ namespace SoDBench
 
         public static readonly string[] OperatingSystems = new string[] {
             "win10-x64",
-            "win10-x86",
-            "ubuntu.16.10-x64",
-            "rhel.7-x64"
+//            "win10-x86",
+//            "ubuntu.16.10-x64",
+//            "rhel.7-x64"
         };
 
         static FileInfo s_dotnetExe;
@@ -216,11 +216,34 @@ namespace SoDBench
                     };
                     dotnetPublish.Environment["DOTNET_CLI_TEST_FALLBACKFOLDER"] = s_fallbackDir.FullName;
 
-                    Process.Start(dotnetNew).WaitForExit();
-                    Process.Start(dotnetRestore).WaitForExit();
-                    Process.Start(dotnetPublish).WaitForExit();
+                    try
+                    {
+                        LaunchProcess(dotnetNew, 180000);
+                        if (deploymentSandbox.EnumerateFiles().Any(f => f.Name.EndsWith("proj")))
+                        {
+                            LaunchProcess(dotnetRestore, 180000);
+                            LaunchProcess(dotnetPublish, 180000);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"** {template} does not have a project file to restore or publish");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.Error.WriteLine(e.Message);
+                        continue;
+                    }
 
-                    var output = GetDirectorySize(publishDir);
+                    long output = 0;
+                    if (publishDir.Exists)
+                    {
+                        output = GetDirectorySize(publishDir);
+                    }
+                    else
+                    {
+                        output = GetDirectorySize(deploymentSandbox);
+                    }
                     result[template][os] = output;
                 }
             }
@@ -242,7 +265,7 @@ namespace SoDBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_sandboxDir.FullName,
                 FileName = @"powershell.exe",
-                Arguments = $".\\Dotnet-Install.ps1 -SharedRuntime -InstallDir .dotnet -Channel master -Architecture {s_targetArchitecture}"
+                Arguments = $".\\Dotnet-Install.ps1 -SharedRuntime -InstallDir .dotnet -Channel release/2.0.0 -Architecture {s_targetArchitecture}"
             };
             LaunchProcess(psi, 180000);
         }
@@ -252,7 +275,7 @@ namespace SoDBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_sandboxDir.FullName,
                 FileName = @"powershell.exe",
-                Arguments = $".\\Dotnet-Install.ps1 -InstallDir .dotnet -Channel master -Architecture {s_targetArchitecture}"
+                Arguments = $".\\Dotnet-Install.ps1 -InstallDir .dotnet -Channel release/2.0.0 -Architecture {s_targetArchitecture}"
             };
             LaunchProcess(psi, 180000);
         }
@@ -378,15 +401,12 @@ namespace SoDBench
             return result.ToString();
         }
 
+        // A memoized recursive method for finding folder size
         private static long GetDirectorySize(DirectoryInfo dir, bool useCache = true)
         {
-            long result = -1;
-            if(useCache)
-            {
-                s_getDirSizeCache.TryGetValue(dir.FullName, out result);
-            }
-            
-            if (result == -1)
+            long result = 0;
+
+            if (!useCache || !s_getDirSizeCache.TryGetValue(dir.FullName, out result))
             {
                 result = 0;
 
