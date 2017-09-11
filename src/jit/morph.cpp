@@ -4451,14 +4451,15 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     }
 #endif // FEATURE_FIXED_OUT_ARGS
 
-    /* Update the 'side effect' flags value for the call */
-
-    call->gtFlags |= (flagsSummary & GTF_ALL_EFFECT);
-
-    if (!call->OperMayThrow(this) && ((flagsSummary & GTF_EXCEPT) == 0))
+    // Clear the ASG and EXCEPT (if possible) flags on the call node
+    call->gtFlags &= ~GTF_ASG;
+    if (!call->OperMayThrow(this))
     {
         call->gtFlags &= ~GTF_EXCEPT;
     }
+
+    // Union in the side effect flags from the call's operands
+    call->gtFlags |= flagsSummary & GTF_ALL_EFFECT;
 
     // If the register arguments have already been determined
     // or we have no register arguments then we don't need to
@@ -8839,11 +8840,29 @@ NO_TAIL_CALL:
         compCurBB->bbFlags |= BBF_GC_SAFE_POINT;
     }
 
-    // Morph Type.op_Equality and Type.op_Inequality
-    // We need to do this before the arguments are morphed
+    // Morph Type.op_Equality, Type.op_Inequality, and Enum.HasFlag
+    //
+    // We need to do these before the arguments are morphed
     if ((call->gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC))
     {
         CorInfoIntrinsics methodID = info.compCompHnd->getIntrinsicID(call->gtCallMethHnd);
+
+        if (methodID == CORINFO_INTRINSIC_Illegal)
+        {
+            // Check for a new-style jit intrinsic.
+            const NamedIntrinsic ni = lookupNamedIntrinsic(call->gtCallMethHnd);
+
+            if (ni == NI_Enum_HasFlag)
+            {
+                GenTree* thisOp  = call->gtCallObjp;
+                GenTree* flagOp  = call->gtCallArgs->gtOp.gtOp1;
+                GenTree* optTree = gtOptimizeEnumHasFlag(thisOp, flagOp);
+                if (optTree != nullptr)
+                {
+                    return fgMorphTree(optTree);
+                }
+            }
+        }
 
         genTreeOps simpleOp = GT_CALL;
         if (methodID == CORINFO_INTRINSIC_TypeEQ)
