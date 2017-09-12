@@ -890,7 +890,7 @@ void CLRLifoSemaphore::Release(INT32 releaseCount)
     CONTRACTL_END;
 
     _ASSERTE(releaseCount > 0);
-    _ASSERTE(releaseCount <= m_maximumSignalCount);
+    _ASSERTE((UINT32)releaseCount <= m_maximumSignalCount);
     _ASSERTE(m_handle != INVALID_HANDLE_VALUE);
 
     INT32 countOfWaitersToWake;
