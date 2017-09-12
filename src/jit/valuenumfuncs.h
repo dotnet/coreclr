@@ -96,7 +96,6 @@ ValueNumFuncDef(Floor, 1, false, false, false)
 ValueNumFuncDef(ManagedThreadId, 0, false, false, false)
 
 ValueNumFuncDef(ObjGetType, 1, false, false, false)
-ValueNumFuncDef(GetTypeFromHandle, 1, false, true, false)
 ValueNumFuncDef(GetgenericsGcstaticBase, 1, false, true, true)
 ValueNumFuncDef(GetgenericsNongcstaticBase, 1, false, true, true)
 ValueNumFuncDef(GetsharedGcstaticBase, 2, false, true, true)

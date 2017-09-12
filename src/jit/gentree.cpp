@@ -3395,7 +3395,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                         case CORINFO_INTRINSIC_Ceiling:
                         case CORINFO_INTRINSIC_Floor:
                         case CORINFO_INTRINSIC_Object_GetType:
-                        case CORINFO_INTRINSIC_GetTypeFromHandle:
                             // Giving intrinsics a large fixed execution cost is because we'd like to CSE
                             // them, even if they are implemented by calls. This is different from modeling
                             // user calls since we never CSE user calls.
@@ -11128,9 +11127,7 @@ void Compiler::gtDispTree(GenTreePtr   tree,
                 case CORINFO_INTRINSIC_Object_GetType:
                     printf(" objGetType");
                     break;
-                case CORINFO_INTRINSIC_GetTypeFromHandle:
-                    printf(" getTypeFromHandle");
-                    break;
+
                 default:
                     unreached();
             }
@@ -12480,6 +12477,11 @@ DONE_FOLD:
 //    To remove but not alter the access to the box source, pass
 //    BR_REMOVE_BUT_NOT_NARROW.
 //
+//    To remove and return the tree for the type handle used for
+//    the boxed newobj, pass BR_REMOVE_BUT_NOT_NARROW_WANT_TYPE_HANDLE.
+//    This can be useful when the only part of the box that is "live"
+//    is its type.
+//
 //    If removal fails, is is possible that a subsequent pass may be
 //    able to optimize.  Blocking side effects may now be minimized
 //    (null or bounds checks might have been removed) or might be
@@ -12523,7 +12525,8 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
     GenTree* boxTypeHandle = nullptr;
     if (options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE)
     {
-        // Might see GenTreeAllocObj?
+        // Note we might see GenTreeAllocObj here, if impImportAndPushBox
+        // starts using it instead of a bare helper call.
         GenTree* asgSrc = asg->gtOp.gtOp2;
         assert(asgSrc->IsCall());
         GenTreeCall*    newobjCall = asgSrc->AsCall();
