@@ -39,6 +39,8 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
         unstash "metadata"
     }
 
+    String pgoTestFlag = ((pgo == 'nopgo') ? '-nopgo' : '')
+
     // We want to use the baseline metadata for baseline runs. We expect to find the submission metadata in
     // submission-metadata.py
     if (isBaseline) {
@@ -60,7 +62,7 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
 
     // We run run-xunit-perf differently for each of the different job types
     if (scenario == 'perf') {
-        String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2\""
+        String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} ${pgoTestFlag} -jitName ${jit} -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2\""
         bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\perflab\\Perflab -library"
         bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\Jit\\Performance\\CodeQuality"
 
@@ -68,11 +70,11 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
         bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\Jit\\Performance\\CodeQuality -collectionFlags default+BranchMispredictions+CacheMisses+InstructionRetired+gcapi"
     }
     else if (scenario == 'jitbench') {
-        String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -scenarioTest"
+        String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -scenarioTest"
         bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios || (echo [ERROR] JitBench failed. 1>>\"${failedOutputLogFilename}\" && exit /b 1)"
     }
     else if (scenario == 'illink') {
-        String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -scenarioTest"
+        String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -scenarioTest"
         bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\linkbench\\linkbench -group ILLink -nowarmup || (echo [ERROR] IlLink failed. 1>>\"${failedOutputLogFilename}\" && exit /b 1)"
     }
     archiveArtifacts allowEmptyArchive: false, artifacts:'Perf-*.xml,Perf-*.etl,Perf-*.log,machinedata.json'
@@ -87,6 +89,8 @@ def windowsThroughput(String arch, String os, String config, String runType, Str
     if (isBaseline) {
         baselineString = "-baseline"
     }
+
+    String pgoTestFlag = ((pgo == 'nopgo') ? '-nopgo' : '')
     
     dir ('.') {
         unstash "nt-${arch}-${pgo}${baselineString}-build-artifacts"
@@ -104,7 +108,7 @@ def windowsThroughput(String arch, String os, String config, String runType, Str
     bat "py \".\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\""
     bat ".\\init-tools.cmd"
     bat "tests\\runtest.cmd ${config} ${arch} GenerateLayoutOnly"
-    bat "py -u tests\\scripts\\run-throughput-perf.py -arch ${arch} -os ${os} -configuration ${config} -opt_level ${optLevel} -jit_name ${jit} -clr_root \"%WORKSPACE%\" -assembly_root \"%WORKSPACE%\\${arch}ThroughputBenchmarks\\lib\" -benchview_path \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" -run_type ${runType}"
+    bat "py -u tests\\scripts\\run-throughput-perf.py -arch ${arch} -os ${os} -configuration ${config} -opt_level ${optLevel} -jit_name ${jit} ${pgoTestFlag} -clr_root \"%WORKSPACE%\" -assembly_root \"%WORKSPACE%\\${arch}ThroughputBenchmarks\\lib\" -benchview_path \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" -run_type ${runType}"
     archiveArtifacts allowEmptyArchive: false, artifacts:'throughput-*.csv,machinedata.json'
 }
 
@@ -136,6 +140,8 @@ def linuxPerf(String arch, String os, String config, String uploadString, String
         baselineString = "-baseline"
     }
 
+    String pgoTestFlag = ((pgo == 'nopgo') ? '-nopgo' : '')
+
     dir ('.') {
         unstash "linux-${arch}-${pgo}${baselineString}-build-artifacts"
         unstash "nt-${arch}-${pgo}${baselineString}-test-artifacts"
@@ -151,7 +157,7 @@ def linuxPerf(String arch, String os, String config, String uploadString, String
 
     sh "./tests/scripts/perf-prep.sh"
     sh "./init-tools.sh"
-    sh "./tests/scripts/run-xunit-perf.sh --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${arch}.${config}\" --testNativeBinDir=\"\${WORKSPACE}/bin/obj/Linux.${arch}.${config}/tests\" --coreClrBinDir=\"\${WORKSPACE}/bin/Product/Linux.${arch}.${config}\" --mscorlibDir=\"\${WORKSPACE}/bin/Product/Linux.${arch}.${config}\" --coreFxBinDir=\"\${WORKSPACE}/corefx\" --runType=\"${runType}\" --benchViewOS=\"${os}\" --stabilityPrefix=\"taskset 0x00000002 nice --adjustment=-10\" --uploadToBenchview --generatebenchviewdata=\"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\""
+    sh "./tests/scripts/run-xunit-perf.sh --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${arch}.${config}\" --optLevel ${optLevel} ${pgoTestFlag} --testNativeBinDir=\"\${WORKSPACE}/bin/obj/Linux.${arch}.${config}/tests\" --coreClrBinDir=\"\${WORKSPACE}/bin/Product/Linux.${arch}.${config}\" --mscorlibDir=\"\${WORKSPACE}/bin/Product/Linux.${arch}.${config}\" --coreFxBinDir=\"\${WORKSPACE}/corefx\" --runType=\"${runType}\" --benchViewOS=\"${os}\" --stabilityPrefix=\"taskset 0x00000002 nice --adjustment=-10\" --uploadToBenchview --generatebenchviewdata=\"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\""
     archiveArtifacts allowEmptyArchive: false, artifacts:'Perf-*.xml,Perf-*.log,machinedata.json'
 }
 
@@ -164,6 +170,8 @@ def linuxThroughput(String arch, String os, String config, String uploadString, 
     if (isBaseline) {
         baselineString = "-baseline"
     }
+
+    String pgoTestFlag = ((pgo == 'nopgo') ? '-nopgo' : '')
 
     dir ('.') {
         unstash "linux-${arch}-${pgo}${baselineString}-build-artifacts"
@@ -180,7 +188,7 @@ def linuxThroughput(String arch, String os, String config, String uploadString, 
 
     sh "./tests/scripts/perf-prep.sh --throughput"
     sh "./init-tools.sh"
-    sh "python3 ./tests/scripts/run-throughput-perf.py -arch \"${arch}\" -os \"${os}\" -configuration \"${config}\" -opt_level ${optLevel} -clr_root \"\${WORKSPACE}\" -assembly_root \"\${WORKSPACE}/${arch}ThroughputBenchmarks/lib\" -run_type \"${runType}\"  -benchview_path \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\""
+    sh "python3 ./tests/scripts/run-throughput-perf.py -arch \"${arch}\" -os \"${os}\" -configuration \"${config}\" -opt_level ${optLevel} ${pgoTestFlag} -clr_root \"\${WORKSPACE}\" -assembly_root \"\${WORKSPACE}/${arch}ThroughputBenchmarks/lib\" -run_type \"${runType}\"  -benchview_path \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\""
     archiveArtifacts allowEmptyArchive: false, artifacts:'throughput-*.csv,machinedata.json'
 }
 
