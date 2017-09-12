@@ -21,10 +21,8 @@ namespace System
     /// Span represents a contiguous region of arbitrary memory. Unlike arrays, it can point to either managed
     /// or native memory, or to memory allocated on the stack. It is type- and memory-safe.
     /// </summary>
-    [IsReadOnly]
-    [IsByRefLike]
     [NonVersionable]
-    public struct Span<T>
+    public readonly ref struct Span<T>
     {
         /// <summary>A byref or a native ptr.</summary>
         private readonly ByReference<T> _pointer;
