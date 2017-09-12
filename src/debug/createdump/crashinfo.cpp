@@ -522,7 +522,7 @@ CrashInfo::GetELFInfo(uint64_t baseAddress)
     }
     Ehdr ehdr;
     if (!ReadMemory((void*)baseAddress, &ehdr, sizeof(ehdr))) {
-        TRACE("ReadMemory(%p, %lx) ehdr FAILED\n", (void*)baseAddress, sizeof(ehdr));
+        TRACE("ReadMemory(%p, %" PRIx ") ehdr FAILED\n", (void*)baseAddress, sizeof(ehdr));
         return true;
     }
     int phnum = ehdr.e_phnum;
