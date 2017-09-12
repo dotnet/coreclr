@@ -22825,7 +22825,7 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                     CORINFO_CLASS_HANDLE structType =
                         lclVarInfo[lclNum + inlineInfo->argCnt].lclVerTypeInfo.GetClassHandle();
 
-                    if (fgStructTempNeedsExplicitZeroInit(structType, block))
+                    if (fgStructTempNeedsExplicitZeroInit(lvaTable + tmpNum, block))
                     {
                         tree = gtNewBlkOpNode(gtNewLclvNode(tmpNum, lclTyp),              // Dest
                                               gtNewIconNode(0),                           // Value

@@ -12852,8 +12852,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                             // and potentially exploitable.
                             lvaSetStruct(lclNum, resolvedToken.hClass, true /* unsafe value cls check */);
                         }
-
-                        if (compIsForInlining() || fgStructTempNeedsExplicitZeroInit(resolvedToken.hClass, block))
+                        if (compIsForInlining() || fgStructTempNeedsExplicitZeroInit(lvaTable + lclNum, block))
                         {
                             // Append a tree to zero-out the temp
                             newObjThisPtr = gtNewLclvNode(lclNum, lvaTable[lclNum].TypeGet());
