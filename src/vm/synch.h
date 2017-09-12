@@ -257,7 +257,9 @@ public:
     void Release(INT32 releaseCount);
 
 private:
+    BYTE __padding1[MAX_CACHE_LINE_SIZE]; // padding to ensure that m_counts gets its own cache line
     Counts m_counts;
+    BYTE __padding2[MAX_CACHE_LINE_SIZE]; // padding to ensure that m_counts gets its own cache line
 
 #if defined(DEBUG)
     UINT32 m_maximumSignalCount;
