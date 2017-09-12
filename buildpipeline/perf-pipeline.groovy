@@ -9,7 +9,7 @@
 def windowsBuild(String arch, String config, String pgo, boolean isBaseline) {
     checkout scm
 
-    String pgoBuildFlag = ((pgo == 'nopgo') ? 'nopgooptimize' : '')
+    String pgoBuildFlag = ((pgo == 'nopgo') ? '-nopgooptimize' : '-enforcepgo')
     String baselineString = ""
 
     // For baseline builds, checkout the merge's parent
@@ -18,11 +18,11 @@ def windowsBuild(String arch, String config, String pgo, boolean isBaseline) {
         bat "git checkout HEAD^^1"
     }
 
-    bat "set __TestIntermediateDir=int&&.\\build.cmd ${config} ${arch} skipbuildpackages ${pgoBuildFlag}"
+    bat "set __TestIntermediateDir=int&&.\\build.cmd -${config} -${arch} -skipbuildpackages ${pgoBuildFlag}"
 
     // Stash build artifacts. Stash tests in an additional stash to be used by Linux test runs
-    stash name: "nt-${arch}-${pgoStash}${baselineString}-build-artifacts", includes: 'bin/**'
-    stash name: "nt-${arch}-${pgoStash}${baselineString}-test-artifacts", includes: 'bin/tests/**'
+    stash name: "nt-${arch}-${pgo}${baselineString}-build-artifacts", includes: 'bin/**'
+    stash name: "nt-${arch}-${pgo}${baselineString}-test-artifacts", includes: 'bin/tests/**'
 }
 
 def windowsPerf(String arch, String config, String uploadString, String runType, String opt_level, String jit, String pgo, String scenario, boolean isBaseline) {
@@ -113,7 +113,7 @@ def windowsThroughput(String arch, String os, String config, String runType, Str
 def linuxBuild(String arch, String config, String pgo, boolean isBaseline) {
     checkout scm
 
-    String pgoStash = ((pgo == "skiprestoreoptdata") ? "nopgo" : "pgo")
+    String pgoBuildFlag = ((pgo == 'nopgo') ? '-nopgooptimize' : '')
     String baselineString = ""
 
     // For baseline runs, checkout the merge's parent
@@ -122,8 +122,8 @@ def linuxBuild(String arch, String config, String pgo, boolean isBaseline) {
         sh "git checkout HEAD^1"
     }
 
-    sh "./build.sh verbose ${config} ${arch} ${pgo}"
-    stash name: "linux-${arch}-${pgoStash}${baselineString}-build-artifacts", includes: 'bin/**'
+    sh "./build.sh -verbose -${config} -${arch} ${pgoBuildFlag}"
+    stash name: "linux-${arch}-${pgo}${baselineString}-build-artifacts", includes: 'bin/**'
 }
 
 def linuxPerf(String arch, String os, String config, String uploadString, String runType, String optLevel, String pgo, boolean isBaseline) {
@@ -231,7 +231,7 @@ def innerLoopBuilds = [
         }
     },
     "linux x64 pgo build": {
-        simpleDockerNode('microsoft/dotnet-buildtools-prereqs:rhel7_prereqs_2') {
+        simpleDockerNode('microsoft/dotnet-buildtools-prereqs:rhel-7-dd8aa64-20170320090348') {
             linuxBuild('x64', config, 'pgo', false)
         }
     }
@@ -253,7 +253,7 @@ if (!isPR()) {
            }
         },
         "linux x64 nopgo build": {
-           simpleDockerNode('microsoft/dotnet-buildtools-prereqs:rhel7_prereqs_2') {
+           simpleDockerNode('microsoft/dotnet-buildtools-prereqs:rhel-7-dd8aa64-20170320090348') {
                linuxBuild('x64', config, 'nopgo', false)
            }
         }
@@ -275,7 +275,7 @@ if (isPR()) {
            }
        },
        "linux x64 pgo baseline build": {
-           simpleDockerNode('microsoft/dotnet-buildtools-prereqs:rhel7_prereqs_2') {
+           simpleDockerNode('microsoft/dotnet-buildtools-prereqs:rhel-7-dd8aa64-20170320090348') {
                linuxBuild('x64', config, 'pgo', true)
            }
        }
