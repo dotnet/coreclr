@@ -357,18 +357,15 @@ if (!isPR()) {
                 ['pgo', 'nopgo'].each { pgo_enabled ->
                     if (!(arch == 'x64' && jit == 'legacy_backend'))
                     {
-                        if (!(pgo_enabled == 'nopgo' && opt_level == 'min_opt'))
-                        {
-                            outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} perf"] = {
-                                simpleNode('windows_server_2016_clr_perf') {
-                                    windowsPerf(arch, config, uploadString, runType, opt_level, jit, pgo_enabled, 'perf', false)
-                                }
+                        outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} perf"] = {
+                            simpleNode('windows_server_2016_clr_perf') {
+                                windowsPerf(arch, config, uploadString, runType, opt_level, jit, pgo_enabled, 'perf', false)
                             }
+                        }
 
-                            outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} throughput"] = {
-                                simpleNode('windows_server_2016_clr_perf') {
-                                    windowsThroughput(arch, 'Windows_NT', config, runType, opt_level, jit, pgo_enabled, false)
-                                }
+                        outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} throughput"] = {
+                            simpleNode('windows_server_2016_clr_perf') {
+                                windowsThroughput(arch, 'Windows_NT', config, runType, opt_level, jit, pgo_enabled, false)
                             }
                         }
                     }
@@ -380,18 +377,15 @@ if (!isPR()) {
     ['x64'].each { arch ->
         ['min_opt', 'full_opt'].each { opt_level ->
             ['pgo', 'nopgo'].each { pgo_enabled ->
-                if (!(pgo_enabled == 'nopgo' && opt_level == 'min_opt'))
-                {
-                    outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} perf"] = {
-                        simpleNode('linux_clr_perf') {
-                            linuxPerf(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
-                        }
+                outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} perf"] = {
+                    simpleNode('linux_clr_perf') {
+                        linuxPerf(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
                     }
+                }
 
-                    outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} throughput"] = {
-                        simpleNode('linux_clr_perf') {
-                            linuxThroughput(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
-                        }
+                outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} throughput"] = {
+                    simpleNode('linux_clr_perf') {
+                        linuxThroughput(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
                     }
                 }
             }
