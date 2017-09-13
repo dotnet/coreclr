@@ -56,6 +56,7 @@ namespace SoDBench
         static DirectoryInfo s_corelibsDir;
         static bool s_keepArtifacts;
         static string s_targetArchitecture;
+        static string s_dotnetChannel;
         static Dictionary<string, long> s_getDirSizeCache = new Dictionary<string, long>();
 
         static void Main(string[] args)
@@ -65,6 +66,7 @@ namespace SoDBench
                 var options = SoDBenchOptions.Parse(args);
 
                 s_targetArchitecture = options.TargetArchitecture;
+                s_dotnetChannel = options.DotnetChannel;
                 s_keepArtifacts = options.KeepArtifacts;
 
                 if (!String.IsNullOrWhiteSpace(options.DotnetExecutable))
@@ -277,7 +279,7 @@ namespace SoDBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_sandboxDir.FullName,
                 FileName = @"powershell.exe",
-                Arguments = $".\\Dotnet-Install.ps1 -SharedRuntime -InstallDir .dotnet -Channel release/2.0.0 -Architecture {s_targetArchitecture}"
+                Arguments = $".\\Dotnet-Install.ps1 -SharedRuntime -InstallDir .dotnet -Channel {s_dotnetChannel} -Architecture {s_targetArchitecture}"
             };
             LaunchProcess(psi, 180000);
         }
@@ -287,7 +289,7 @@ namespace SoDBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_sandboxDir.FullName,
                 FileName = @"powershell.exe",
-                Arguments = $".\\Dotnet-Install.ps1 -InstallDir .dotnet -Channel release/2.0.0 -Architecture {s_targetArchitecture}"
+                Arguments = $".\\Dotnet-Install.ps1 -InstallDir .dotnet -Channel {s_dotnetChannel} -Architecture {s_targetArchitecture}"
             };
             LaunchProcess(psi, 180000);
         }
@@ -513,6 +515,9 @@ namespace SoDBench
 
             [Option("target-architecture", Required = false, Default = "x64", HelpText = "JitBench target architecture (It must match the built product that was copied into sandbox).")]
             public string TargetArchitecture { get; set; }
+
+            [Option("channel", Required = false, Default = "release/2.0.0", HelpText = "Specifies the channel to use when installing the dotnet-cli")]
+            public string DotnetChannel { get; set; }
 
             [Option('v', Required = false, HelpText = "Sets output to verbose")]
             public bool Verbose { get; set; }
