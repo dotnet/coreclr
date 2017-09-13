@@ -163,11 +163,14 @@ namespace SoDBench
             // There is a no gaurentee that this is a stable method, but is the only way currently to set the fallback folder location
             dotnet.Environment["DOTNET_CLI_TEST_FALLBACKFOLDER"] = s_fallbackDir.FullName;
 
-            Process.Start(dotnet).WaitForExit();
+            LaunchProcess(dotnet, 180000);
+
+            Console.WriteLine("\n** Measuring total size of acquired files");
+
             long fallbackDirSize = GetDirectorySize(s_fallbackDir);
             result["fallback"] = fallbackDirSize;
 
-            var dotnetCliFolderParentName = s_dotnetExe.Directory.Parent.FullName;
+            var dotnetCliFolderParentName = s_dotnetExe.Directory.Parent.FullName + Path.DirectorySeparatorChar;
 
             foreach (var dir in s_dotnetExe.Directory.EnumerateDirectories("*", SearchOption.AllDirectories))
             {
@@ -397,7 +400,7 @@ namespace SoDBench
             foreach (var item in acquisitionSizes)
             {
                 var namespaces = new string[] {toplevelname, "Acquisition Size"};
-                var data = namespaces.Concat(item.Key.Split(Path.PathSeparator)).Concat( new string[] {Convert.ToString(item.Value)} );
+                var data = namespaces.Concat(Csv.Escape(item.Key).Split(Path.DirectorySeparatorChar)).Concat( new string[] {Convert.ToString(item.Value)} );
                 var line = String.Join(",", data);
                 result.AppendLine(line);
             }
@@ -603,5 +606,26 @@ namespace SoDBench
             private string _corelibsDir;
             private string _outputFilename = "measurement.csv";
         }
+    }
+
+    // A simple class for escaping strings for CSV writing
+    // https://stackoverflow.com/a/769713
+    // Used instead of a package because only these < 20 lines of code are needed
+    public static class Csv
+    {
+        public static string Escape( string s )
+        {
+            if ( s.Contains( QUOTE ) )
+                s = s.Replace( QUOTE, ESCAPED_QUOTE );
+
+            if ( s.IndexOfAny( CHARACTERS_THAT_MUST_BE_QUOTED ) > -1 )
+                s = QUOTE + s + QUOTE;
+
+            return s;
+        }
+
+        private const string QUOTE = "\"";
+        private const string ESCAPED_QUOTE = "\"\"";
+        private static char[] CHARACTERS_THAT_MUST_BE_QUOTED = { ',', '"', '\n' };
     }
 }
