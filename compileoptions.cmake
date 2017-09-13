@@ -31,6 +31,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # Disabled warnings
   add_compile_options(-Wno-unused-private-field)
   add_compile_options(-Wno-unused-variable)
+  add_compile_options(-Wno-assume)
   # Explicit constructor calls are not supported by clang (this->ClassName::ClassName())
   add_compile_options(-Wno-microsoft)
   # This warning is caused by comparing 'this' to NULL
