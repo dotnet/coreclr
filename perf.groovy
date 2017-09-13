@@ -700,7 +700,7 @@ parallel(
             def newJob = job(Utilities.getFullJobName(project, "sizeondisk_${arch}", isPR)) {
 
                 // Set the label.
-                label('windows_server_2016_dotnet_sizeondisk')
+                label('windows_server_2016_clr_perf')
                 wrappers {
                     credentialsBinding {
                         string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
