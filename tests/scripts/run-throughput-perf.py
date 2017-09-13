@@ -463,6 +463,9 @@ def main(args):
         log(" ".join(upload_args))
         proc = subprocess.Popen(upload_args)
         proc.communicate()
+        if proc.returncode != 0:
+            os.chdir(current_dir)
+            return proc.returncode
 
     os.chdir(current_dir)
 
