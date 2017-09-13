@@ -692,6 +692,109 @@ parallel(
     }
 }
 
+// Setup size-on-disk test
+[true, false].each { isPR ->
+    ['Windows_NT'].each { os ->
+        ['x64', 'x86'].each { arch ->
+            def architecture = arch
+            def newJob = job(Utilities.getFullJobName(project, "sizeondisk_${arch}", isPR)) {
+
+                // Set the label.
+                label('windows_server_2016_dotnet_sizeondisk')
+                wrappers {
+                    credentialsBinding {
+                        string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+                    }
+                }
+
+                if (isPR) {
+                    parameters {
+                        stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
+                    }
+                }
+
+                def channel = 'release/2.0.0'
+                def configuration = 'Release'
+                def runType = isPR ? 'private' : 'rolling'
+                def benchViewName = isPR ? 'CoreCLR-Scenarios private %BenchviewCommitName%' : 'CoreCLR-Scenarios rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
+                def testBin = "%WORKSPACE%\\bin\\tests\\${os}.${architecture}.${configuration}"
+                def coreRoot = "${testBin}\\Tests\\Core_Root\\"
+                def benchViewTools = "%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools"
+
+                steps {
+                    // Install nuget and get BenchView tools
+                    batchFile("powershell wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
+                    batchFile("if exist \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\" rmdir /s /q \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\"")
+                    batchFile("\"%WORKSPACE%\\nuget.exe\" install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory \"%WORKSPACE%\" -Prerelease -ExcludeVersion")
+
+                    // Generate submission metadata for BenchView
+                    // Do this here to remove the origin but at the front of the branch name as this is a problem for BenchView
+                    // we have to do it all as one statement because cmd is called each time and we lose the set environment variable
+                    batchFile("if \"%GIT_BRANCH:~0,7%\" == \"origin/\" (set \"GIT_BRANCH_WITHOUT_ORIGIN=%GIT_BRANCH:origin/=%\") else (set \"GIT_BRANCH_WITHOUT_ORIGIN=%GIT_BRANCH%\")\n" +
+                    "set \"BENCHVIEWNAME=${benchViewName}\"\n" +
+                    "set \"BENCHVIEWNAME=%BENCHVIEWNAME:\"=%\"\n" +
+                    "py \"${benchViewTools}\\submission-metadata.py\" --name \"%BENCHVIEWNAME%\" --user \"dotnet-bot@microsoft.com\"\n" +
+                    "py \"${benchViewTools}\\build.py\" git --branch %GIT_BRANCH_WITHOUT_ORIGIN% --type ${runType}")
+
+                    // Generate machine data from BenchView
+                    batchFile("py \"${benchViewTools}\\machinedata.py\"")
+
+                    // Build CoreCLR and gnerate test layout
+                    batchFile("set __TestIntermediateDir=int&&build.cmd ${configuration} ${architecture}")
+                    batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
+
+                    // Run the size on disk benchmark
+                    batchFile("\"${coreRoot}\\CoreRun.exe\" \"${testBin}\\sizeondisk\\sodbench\\SoDBench\\SoDBench.exe\" -o \"%WORKSPACE%\\sodbench.csv\" --architecture ${arch} --channel ${channel}")
+
+                    // From sodbench.csv, create measurment.json, then submission.json
+                    batchFile("\"py ${benchViewTools}\\measurement.py\" csv \"%WORKSPACE%\\sodbench.csv\" --metric \"Size on Disk\" --unit \"bytes\" --better \"desc\"")
+                    batchFile("\"py ${benchViewTools}\\submission.py\" measurement.json --build build.json --machine-data machinedata.json --metadata submission-metadata.json --group \"Dotnet Size on Disk\" --type ${runType} --config-name ${configuration} --architecture ${arch} --machinepool PerfSnake --config Channel ${channel}")
+
+                    // If this is a PR, upload submission.json
+                    if (isPR) {
+                        batchFile("\"py ${benchViewTools}\\upload.py\" submission.json --container coreclr")
+                    }
+                }
+            }
+
+            def archiveSettings = new ArchivalSettings()
+            archiveSettings.addFiles('bin/toArchive/**')
+            archiveSettings.addFiles('machinedata.json')
+
+            Utilities.addArchival(newJob, archiveSettings)
+            Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
+
+            newJob.with {
+                logRotator {
+                    artifactDaysToKeep(30)
+                    daysToKeep(30)
+                    artifactNumToKeep(200)
+                    numToKeep(200)
+                }
+                wrappers {
+                    timeout {
+                        absolute(240)
+                    }
+                }
+            }
+
+            if (isPR) {
+                TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
+                builder.setGithubContext("${arch} Size on Disk Test")
+                builder.triggerOnlyOnComment()
+                builder.setCustomTriggerPhrase("(?i).*test\\W+${arch}\\W+sizeondisk.*")
+                builder.triggerForBranch(branch)
+                builder.emitTrigger(newJob)
+            }
+            else {
+                // Set a push trigger
+                TriggerBuilder builder = TriggerBuilder.triggerOnCommit()
+                builder.emitTrigger(newJob)
+            }
+        }
+    }
+}
+
 // Setup IlLink tests
 [true, false].each { isPR ->
     ['Windows_NT'].each { os ->
