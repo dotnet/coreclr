@@ -2612,7 +2612,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             return _this.Length == 0 ? SZGenericArrayEnumerator<T>.Empty : new SZGenericArrayEnumerator<T>(_this);
         }
 
@@ -2624,7 +2624,7 @@ namespace System
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
 
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             Array.Copy(_this, 0, array, index, _this.Length);
         }
 
@@ -2632,7 +2632,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             return _this.Length;
         }
 
@@ -2643,7 +2643,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             if ((uint)index >= (uint)_this.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
@@ -2656,7 +2656,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             if ((uint)index >= (uint)_this.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
@@ -2675,7 +2675,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             return Array.IndexOf(_this, value, 0, _this.Length) >= 0;
         }
 
@@ -2696,7 +2696,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             return Array.IndexOf(_this, value, 0, _this.Length);
         }
 
