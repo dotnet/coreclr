@@ -34,9 +34,6 @@ namespace SoDBench
             "web",
             "mvc",
             "razor",
-            "angular",
-            "react",
-            "reactredux",
             "webapi",
             "nugetconfig",
             "webconfig",
@@ -48,9 +45,9 @@ namespace SoDBench
 
         public static readonly string[] OperatingSystems = new string[] {
             "win10-x64",
-//            "win10-x86",
-//            "ubuntu.16.10-x64",
-//            "rhel.7-x64"
+            "win10-x86",
+            "ubuntu.16.10-x64",
+            "rhel.7-x64"
         };
 
         static FileInfo s_dotnetExe;
