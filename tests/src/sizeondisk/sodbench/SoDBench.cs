@@ -461,7 +461,7 @@ namespace SoDBench
                 if (path.Any(c => Path.GetInvalidPathChars().Contains(c)))
                     throw new InvalidOperationException($"'{path}' is an invalid path: contains invalid characters");
 
-                return Path.IsPathRooted(value) ? value : Path.GetFullPath(value);
+                return Path.IsPathRooted(path) ? path : Path.GetFullPath(path);
             }
 
             [Option('o', Required = false, HelpText = "Specifies the output file name for the csv document")]
