@@ -3604,8 +3604,10 @@ PCODE DynamicHelpers::CreateHelper(LoaderAllocator * pAllocator, TADDR arg, PCOD
     END_DYNAMIC_HELPER_EMIT();
 }
 
-void DynamicHelpers::EmitHelperWithArg(BYTE*& p, LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
 {
+    BEGIN_DYNAMIC_HELPER_EMIT(18);
+
     // mov r1, arg
     MovRegImm(p, 1, arg);
     p += 8;
@@ -3617,13 +3619,6 @@ void DynamicHelpers::EmitHelperWithArg(BYTE*& p, LoaderAllocator * pAllocator, T
     // bx r12
     *(WORD *)p = 0x4760;
     p += 2;
-}
-
-PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
-{
-    BEGIN_DYNAMIC_HELPER_EMIT(18);
-
-    EmitHelperWithArg(p, pAllocator, arg, target);
 
     END_DYNAMIC_HELPER_EMIT();
 }
@@ -3772,26 +3767,8 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
 {
     STANDARD_VM_CONTRACT;
 
-    PCODE helperAddress = (pLookup->helper == CORINFO_HELP_RUNTIMEHANDLE_METHOD ?
-        GetEEFuncEntryPoint(JIT_GenericHandleMethodWithSlotAndModule) :
-        GetEEFuncEntryPoint(JIT_GenericHandleClassWithSlotAndModule));
-
-    GenericHandleArgs * pArgs = (GenericHandleArgs *)(void *)pAllocator->GetDynamicHelpersHeap()->AllocAlignedMem(sizeof(GenericHandleArgs), DYNAMIC_HELPER_ALIGNMENT);
-    pArgs->dictionaryIndexAndSlot = dictionaryIndexAndSlot;
-    pArgs->signature = pLookup->signature;
-    pArgs->module = (CORINFO_MODULE_HANDLE)pModule;
-
-    // It's available only via the run-time helper function,
-    // since optimization cases are not yet implemented.
-    assert(pLookup->indirections == CORINFO_USEHELPER);
-
-    BEGIN_DYNAMIC_HELPER_EMIT(18);
-
-    EmitHelperWithArg(p, pAllocator, (TADDR)pArgs, helperAddress);
-
-    END_DYNAMIC_HELPER_EMIT();
-
-    // @TODO : Additional implementation is required for optimization cases.
+    // TODO (NYI)
+    ThrowHR(E_NOTIMPL);
 }
 #endif // FEATURE_READYTORUN
 
