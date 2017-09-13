@@ -107,7 +107,6 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
     }
 
     // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
-    _ASSERTE(m_pProviderList != NULL);
     if (m_pProviderList != NULL)
     {
         // The provider has not been registered, so register it.
@@ -144,7 +143,6 @@ bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
     CrstHolder _crst(EventPipe::GetLock());
 
     // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
-    _ASSERTE(m_pProviderList != NULL);
     if (m_pProviderList != NULL)
     {
         // Find the provider.
@@ -202,7 +200,6 @@ EventPipeProvider* EventPipeConfiguration::GetProviderNoLock(const SString &prov
     CONTRACTL_END;
 
     // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
-    _ASSERTE(m_pProviderList != NULL);
     if (m_pProviderList != NULL)
     {
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
@@ -258,7 +255,6 @@ void EventPipeConfiguration::Enable(
     m_enabled = true;
 
     // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
-    _ASSERTE(m_pProviderList != NULL);
     if (m_pProviderList != NULL)
     {
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
@@ -294,7 +290,6 @@ void EventPipeConfiguration::Disable()
     CONTRACTL_END;
 
     // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
-    _ASSERTE(m_pProviderList != NULL);
     if (m_pProviderList != NULL)
     {
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
@@ -437,7 +432,6 @@ void EventPipeConfiguration::DeleteDeferredProviders()
     CONTRACTL_END;
 
     // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
-    _ASSERTE(m_pProviderList != NULL);
     if (m_pProviderList != NULL)
     {
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
