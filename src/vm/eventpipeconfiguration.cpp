@@ -106,7 +106,7 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
         return false;
     }
 
-    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
     {
         // The provider has not been registered, so register it.
@@ -142,7 +142,7 @@ bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
     // Take the lock before manipulating the provider list.
     CrstHolder _crst(EventPipe::GetLock());
 
-    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
     {
         // Find the provider.
@@ -199,7 +199,7 @@ EventPipeProvider* EventPipeConfiguration::GetProviderNoLock(const SString &prov
     }
     CONTRACTL_END;
 
-    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
     {
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
@@ -254,7 +254,7 @@ void EventPipeConfiguration::Enable(
     m_pEnabledProviderList = new EventPipeEnabledProviderList(pProviders, static_cast<unsigned int>(numProviders));
     m_enabled = true;
 
-    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
     {
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
@@ -289,7 +289,7 @@ void EventPipeConfiguration::Disable()
     }
     CONTRACTL_END;
 
-    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
     {
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
@@ -431,24 +431,19 @@ void EventPipeConfiguration::DeleteDeferredProviders()
     }
     CONTRACTL_END;
 
-    // The provider list should not be NULL with reasonable conditions, but check to prevent failure in release builds
+    // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
     {
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
         while(pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
+            pElem = m_pProviderList->GetNext(pElem);
             if(pProvider->GetDeleteDeferred())
             {
-                // The act of deleting the provider unregisters it and removes it from the list.
+                // The act of deleting the provider unregisters it,
+                // removes it from the list, and deletes the list element
                 delete(pProvider);
-                SListElem<EventPipeProvider*> *pCurElem = pElem;
-                pElem = m_pProviderList->GetNext(pElem);
-                delete(pCurElem);
-            }
-            else
-            {
-                pElem = m_pProviderList->GetNext(pElem);
             }
         }
     }

@@ -362,6 +362,8 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         case GT_LE:
         case GT_GE:
         case GT_GT:
+        case GT_TEST_EQ:
+        case GT_TEST_NE:
             TreeNodeInfoInitCmp(tree);
             break;
 
@@ -668,6 +670,10 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             break;
     } // end switch (tree->OperGet())
 
+    if (tree->IsUnusedValue() && (info->dstCount != 0))
+    {
+        info->isLocalDefUse = true;
+    }
     // We need to be sure that we've set info->srcCount and info->dstCount appropriately
     assert((info->dstCount < 2) || tree->IsMultiRegCall());
 }

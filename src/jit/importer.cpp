@@ -3610,19 +3610,58 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
 
 #ifndef LEGACY_BACKEND
         case CORINFO_INTRINSIC_Object_GetType:
-
+        {
             op1 = impPopStack().val;
-            op1 = new (this, GT_INTRINSIC) GenTreeIntrinsic(genActualType(callType), op1, intrinsicID, method);
 
-            // Set the CALL flag to indicate that the operator is implemented by a call.
-            // Set also the EXCEPTION flag because the native implementation of
-            // CORINFO_INTRINSIC_Object_GetType intrinsic can throw NullReferenceException.
-            op1->gtFlags |= (GTF_CALL | GTF_EXCEPT);
-            retNode = op1;
+            // If we're calling GetType on a boxed value, just get the type directly.
+            if (!opts.MinOpts() && !opts.compDbgCode)
+            {
+                if (op1->IsBoxedValue())
+                {
+#ifdef DEBUG
+                    JITDUMP("Attempting to optimize box(...).getType() to direct type construction\n");
+#endif
 
-            // Might be optimizable during morph
-            isSpecial = true;
+                    // Try and clean up the box. Obtain the handle we
+                    // were going to pass to the newobj.
+                    GenTree* boxTypeHandle = gtTryRemoveBoxUpstreamEffects(op1, BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE);
+
+                    if (boxTypeHandle != nullptr)
+                    {
+                        // Note we don't need to play the TYP_STRUCT games here like
+                        // do for  LDTOKEN since the return value of this operator is Type,
+                        // not RuntimeTypeHandle.
+                        GenTreeArgList* helperArgs = gtNewArgList(boxTypeHandle);
+                        GenTree*        runtimeType =
+                            gtNewHelperCallNode(CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE, TYP_REF, helperArgs);
+                        retNode = runtimeType;
+
+#ifdef DEBUG
+                        JITDUMP("Optimized; result is\n");
+                        if (verbose)
+                        {
+                            gtDispTree(retNode);
+                        }
+#endif
+                    }
+                }
+            }
+
+            // Else expand as an intrinsic
+            if (retNode == nullptr)
+            {
+                op1 = new (this, GT_INTRINSIC) GenTreeIntrinsic(genActualType(callType), op1, intrinsicID, method);
+
+                // Set the CALL flag to indicate that the operator is implemented by a call.
+                // Set also the EXCEPTION flag because the native implementation of
+                // CORINFO_INTRINSIC_Object_GetType intrinsic can throw NullReferenceException.
+                op1->gtFlags |= (GTF_CALL | GTF_EXCEPT);
+                retNode = op1;
+                // Might be further optimizable during morph
+                isSpecial = true;
+            }
             break;
+        }
 #endif
         // Implement ByReference Ctor.  This wraps the assignment of the ref into a byref-like field
         // in a value type.  The canonical example of this is Span<T>. In effect this is just a
@@ -6950,7 +6989,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         exactContextHnd                = callInfo->contextHandle;
         exactContextNeedsRuntimeLookup = callInfo->exactContextNeedsRuntimeLookup == TRUE;
 
-        // Recursive call is treaded as a loop to the begining of the method.
+        // Recursive call is treated as a loop to the begining of the method.
         if (methHnd == info.compMethodHnd)
         {
 #ifdef DEBUG
@@ -8253,41 +8292,6 @@ GenTreePtr Compiler::impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_H
     }
 
 #else // not FEATURE_UNIX_AMD64_STRUCT_PASSING
-
-#if FEATURE_MULTIREG_RET && defined(_TARGET_ARM_)
-    // There is no fixup necessary if the return type is a HFA struct.
-    // HFA structs are returned in registers for ARM32 and ARM64
-    //
-    if (!call->IsVarargs() && IsHfa(retClsHnd))
-    {
-        if (call->CanTailCall())
-        {
-            if (info.compIsVarArgs)
-            {
-                // We cannot tail call because control needs to return to fixup the calling
-                // convention for result return.
-                call->gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
-            }
-            else
-            {
-                // If we can tail call returning HFA, then don't assign it to
-                // a variable back and forth.
-                return call;
-            }
-        }
-
-        if (call->gtFlags & GTF_CALL_INLINE_CANDIDATE)
-        {
-            return call;
-        }
-
-        unsigned retRegCount = retTypeDesc->GetReturnRegCount();
-        if (retRegCount >= 2)
-        {
-            return impAssignMultiRegTypeToVar(call, retClsHnd);
-        }
-    }
-#endif // _TARGET_ARM_
 
     // Check for TYP_STRUCT type that wraps a primitive type
     // Such structs are returned using a single register
@@ -12955,16 +12959,18 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                             // and potentially exploitable.
                             lvaSetStruct(lclNum, resolvedToken.hClass, true /* unsafe value cls check */);
                         }
+                        if (compIsForInlining() || fgStructTempNeedsExplicitZeroInit(lvaTable + lclNum, block))
+                        {
+                            // Append a tree to zero-out the temp
+                            newObjThisPtr = gtNewLclvNode(lclNum, lvaTable[lclNum].TypeGet());
 
-                        // Append a tree to zero-out the temp
-                        newObjThisPtr = gtNewLclvNode(lclNum, lvaTable[lclNum].TypeGet());
-
-                        newObjThisPtr = gtNewBlkOpNode(newObjThisPtr,    // Dest
-                                                       gtNewIconNode(0), // Value
-                                                       size,             // Size
-                                                       false,            // isVolatile
-                                                       false);           // not copyBlock
-                        impAppendTree(newObjThisPtr, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
+                            newObjThisPtr = gtNewBlkOpNode(newObjThisPtr,    // Dest
+                                                           gtNewIconNode(0), // Value
+                                                           size,             // Size
+                                                           false,            // isVolatile
+                                                           false);           // not copyBlock
+                            impAppendTree(newObjThisPtr, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
+                        }
 
                         // Obtain the address of the temp
                         newObjThisPtr =
