@@ -160,7 +160,7 @@
     <Win8ArmPackageVersion>$(Version)-$(ExternalExpectedPrerelease)</Win8ArmPackageVersion>
 
     <!-- Set the boolean below to true to generate packages with stabilized versions -->
-    <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
+    <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">true</StabilizePackageVersion>
     <StableVersion Condition="'$(MSBuildProjectExtension)' == '.pkgproj' and '$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(Version)</StableVersion>
     <Win8ArmPackageVersion Condition="'$(StabilizePackageVersion)' == 'true'">$(StableVersion)</Win8ArmPackageVersion>
 
