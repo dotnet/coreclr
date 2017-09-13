@@ -699,8 +699,6 @@ parallel(
             def architecture = arch
             def newJob = job(Utilities.getFullJobName(project, "sizeondisk_${arch}", isPR)) {
 
-                // Set the label.
-                label('20170427-elevated')
                 wrappers {
                     credentialsBinding {
                         string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
@@ -756,6 +754,8 @@ parallel(
                     }
                 }
             }
+
+            Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')
 
             def archiveSettings = new ArchivalSettings()
             archiveSettings.addFiles('bin/toArchive/**')
