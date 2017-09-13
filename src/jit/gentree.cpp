@@ -12407,6 +12407,55 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
             }
         }
 
+        // If the inputs to the type from handle operations are now
+        // either known class handles or runtime lookups, ask the VM
+        // if it knows the outcome of the equality comparison.
+        CORINFO_CLASS_HANDLE cls1Hnd            = nullptr;
+        CORINFO_CLASS_HANDLE cls2Hnd            = nullptr;
+        unsigned             runtimeLookupCount = 0;
+
+        if ((op1ClassFromHandle->OperGet() == GT_CNS_INT) && op1ClassFromHandle->IsIconHandle(GTF_ICON_CLASS_HDL))
+        {
+            cls1Hnd = (CORINFO_CLASS_HANDLE)op1ClassFromHandle->gtIntCon.gtCompileTimeHandle;
+        }
+        else if (op1ClassFromHandle->OperGet() == GT_RUNTIMELOOKUP)
+        {
+            cls1Hnd = op1ClassFromHandle->AsRuntimeLookup()->GetClassHandle();
+            runtimeLookupCount++;
+        }
+
+        if ((op2ClassFromHandle->OperGet() == GT_CNS_INT) && op2ClassFromHandle->IsIconHandle(GTF_ICON_CLASS_HDL))
+        {
+            cls2Hnd = (CORINFO_CLASS_HANDLE)op2ClassFromHandle->gtIntCon.gtCompileTimeHandle;
+        }
+        else if (op2ClassFromHandle->OperGet() == GT_RUNTIMELOOKUP)
+        {
+            cls2Hnd = op2ClassFromHandle->AsRuntimeLookup()->GetClassHandle();
+            runtimeLookupCount++;
+        }
+
+        if ((cls1Hnd != nullptr) && (cls2Hnd != nullptr))
+        {
+            TypeCompareState s = info.compCompHnd->compareTypesForEquality(cls1Hnd, cls2Hnd);
+
+            if (s != TypeCompareState::May)
+            {
+                // Type comparison result is known.
+                const bool typesAreEqual = (s == TypeCompareState::Must);
+                const bool operatorIsEQ  = (oper == GT_EQ);
+                const int  compareResult = operatorIsEQ ^ typesAreEqual ? 0 : 1;
+                JITDUMP("Runtime reports comparison is known at jit time: %u\n", compareResult);
+                GenTree* result = gtNewIconNode(compareResult);
+
+                // The runtime lookups are now dead code, so we may not
+                // need the generic context kept alive either.
+                assert(lvaGenericsContextUseCount >= runtimeLookupCount);
+                lvaGenericsContextUseCount -= runtimeLookupCount;
+                return result;
+            }
+        }
+
+        // We can't answer definitively at jit time, but can still simplfy the comparison.
         GenTree* compare = gtNewOperNode(oper, TYP_INT, op1ClassFromHandle, op2ClassFromHandle);
 
         // Drop any now-irrelvant flags

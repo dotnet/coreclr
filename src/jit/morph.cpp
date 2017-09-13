@@ -11990,8 +11990,8 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
 
             break;
 
-            case GT_RUNTIMELOOKUP:
-                return fgMorphTree(op1);
+        case GT_RUNTIMELOOKUP:
+            return fgMorphTree(op1);
 
 #ifdef _TARGET_ARM_
         case GT_INTRINSIC:

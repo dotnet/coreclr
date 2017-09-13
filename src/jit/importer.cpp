@@ -14661,20 +14661,25 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 // Look ahead for unbox.any
                 if (codeAddr + (sz + 1 + sizeof(mdToken)) <= codeEndp && codeAddr[sz] == CEE_UNBOX_ANY)
                 {
-                    DWORD classAttribs = info.compCompHnd->getClassAttribs(resolvedToken.hClass);
-                    if (!(classAttribs & CORINFO_FLG_SHAREDINST))
+                    CORINFO_RESOLVED_TOKEN unboxResolvedToken;
+
+                    impResolveToken(codeAddr + (sz + 1), &unboxResolvedToken, CORINFO_TOKENKIND_Class);
+
+                    // See if token types a equal.
+                    const TypeCompareState compare =
+                        info.compCompHnd->compareTypesForEquality(unboxResolvedToken.hClass, resolvedToken.hClass);
+
+                    // If so, box/unbox.any is a nop.
+                    if (compare == TypeCompareState::Must)
                     {
-                        CORINFO_RESOLVED_TOKEN unboxResolvedToken;
-
-                        impResolveToken(codeAddr + (sz + 1), &unboxResolvedToken, CORINFO_TOKENKIND_Class);
-
-                        if (unboxResolvedToken.hClass == resolvedToken.hClass)
-                        {
-                            JITDUMP("\n Importing BOX; UNBOX.ANY as NOP\n");
-                            // Skip the next unbox.any instruction
-                            sz += sizeof(mdToken) + 1;
-                            break;
-                        }
+                        JITDUMP("\n Importing BOX; UNBOX.ANY as NOP\n");
+                        // Skip the next unbox.any instruction
+                        sz += sizeof(mdToken) + 1;
+                        break;
+                    }
+                    else
+                    {
+                        assert(unboxResolvedToken.hClass != resolvedToken.hClass);
                     }
                 }
 
