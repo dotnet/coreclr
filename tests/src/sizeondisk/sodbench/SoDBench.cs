@@ -453,6 +453,17 @@ namespace SoDBench
         {
             public SoDBenchOptions() { }
 
+            private static string NormalizePath(string path)
+            {
+                if (String.IsNullOrWhiteSpace(path))
+                    throw new InvalidOperationException($"'{path}' is an invalid path: cannot be null or whitespace");
+
+                if (path.Any(c => Path.GetInvalidPathChars().Contains(c)))
+                    throw new InvalidOperationException($"'{path}' is an invalid path: contains invalid characters");
+
+                return Path.IsPathRooted(value) ? value : Path.GetFullPath(value);
+            }
+
             [Option('o', Required = false, HelpText = "Specifies the output file name for the csv document")]
             public string OutputFilename
             {
@@ -460,15 +471,7 @@ namespace SoDBench
 
                 set
                 {
-                    if (string.IsNullOrWhiteSpace(value))
-                        throw new InvalidOperationException("The output filename cannot be null, empty or white space.");
-
-                    if (value.Any(c => Path.GetInvalidPathChars().Contains(c)))
-                        throw new InvalidOperationException("Specified output filename name contains invalid path characters.");
-
-                    string fullPath = Path.IsPathRooted(value) ? value : Path.GetFullPath(value);
-
-                    _outputFilename = fullPath;
+                    _outputFilename = NormalizePath(value);
                 }
             }
 
@@ -479,18 +482,7 @@ namespace SoDBench
 
                 set
                 {
-                    if (string.IsNullOrWhiteSpace(value))
-                        throw new InvalidOperationException("The dotnet executable name cannot be null, empty or white space.");
-
-                    if (value.Any(c => Path.GetInvalidPathChars().Contains(c)))
-                        throw new InvalidOperationException("Specified dotnet executable name contains invalid path characters.");
-
-                    string fullPath = Path.IsPathRooted(value) ? value : Path.GetFullPath(value);
-
-                    if (!File.Exists(fullPath))
-                        throw new InvalidOperationException("Specified dotnet executable does not exist");
-
-                    _dotnetExe = fullPath;
+                    _dotnetExe = NormalizePath(value);
                 }
             }
 
@@ -501,22 +493,11 @@ namespace SoDBench
 
                 set
                 {
-                    if (string.IsNullOrWhiteSpace(value))
-                        throw new InvalidOperationException("The path to .NET core libraries cannot be null, empty or white space.");
-
-                    if (value.Any(c => Path.GetInvalidPathChars().Contains(c)))
-                        throw new InvalidOperationException("Specified path to .NET core libraries contains invalid path characters.");
-
-                    string fullPath = Path.IsPathRooted(value) ? value : Path.GetFullPath(value);
-
-                    if (!Directory.Exists(fullPath))
-                        throw new InvalidOperationException("Specified .NET core libraries directory does not exist");
-
-                    _corelibsDir = fullPath;
+                    _corelibsDir = NormalizePath(value);
                 }
             }
 
-            [Option("target-architecture", Required = false, Default = "x64", HelpText = "JitBench target architecture (It must match the built product that was copied into sandbox).")]
+            [Option("architecture", Required = false, Default = "x64", HelpText = "JitBench target architecture (It must match the built product that was copied into sandbox).")]
             public string TargetArchitecture { get; set; }
 
             [Option("channel", Required = false, Default = "release/2.0.0", HelpText = "Specifies the channel to use when installing the dotnet-cli")]
