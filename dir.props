@@ -10,6 +10,12 @@
     <OsEnvironment Condition="'$(OsEnvironment)'==''">$(OS)</OsEnvironment>
   </PropertyGroup>
 
+  <!-- Set the kind of PDB to Portable and turn on SourceLink (fetching source from GitHub) -->
+  <PropertyGroup>
+    <UseSourceLink>true</UseSourceLink>
+    <DebugType>Portable</DebugType>
+  </PropertyGroup>
+
   <!-- Version numbers for both managed & native binaries -->
   <PropertyGroup>
     <MajorVersion>4</MajorVersion>
