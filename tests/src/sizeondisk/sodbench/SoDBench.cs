@@ -17,6 +17,15 @@ namespace SoDBench
 {
     class Program
     {
+        public static readonly string NugetConfig =
+        @"<?xml version='1.0' encoding='utf-8'?>
+        <configuration>
+        <packageSources>
+            <add key='nuget.org' value='https://api.nuget.org/v3/index.json' protocolVersion='3' />
+            <add key='myget.org' value='https://dotnet.myget.org/F/dotnet-core/api/v3/index.json' protocolVersion='3' />
+        </packageSources>
+        </configuration>";
+
         public static readonly string[] NewTemplates = new string[] {
             "console",
             "classlib",
@@ -146,6 +155,7 @@ namespace SoDBench
             // Arbitrary command to trigger first time setup
             ProcessStartInfo dotnet = new ProcessStartInfo()
             {
+                WorkingDirectory = s_sandboxDir.FullName,
                 FileName = s_dotnetExe.FullName,
                 Arguments = "new"
             };
@@ -221,8 +231,13 @@ namespace SoDBench
                         LaunchProcess(dotnetNew, 180000);
                         if (deploymentSandbox.EnumerateFiles().Any(f => f.Name.EndsWith("proj")))
                         {
+                            var nugetConfFile = new FileInfo(Path.Combine(deploymentSandbox.FullName, "NuGet.Config"));
+                            File.WriteAllText(nugetConfFile.FullName, NugetConfig);
+
                             LaunchProcess(dotnetRestore, 180000);
                             LaunchProcess(dotnetPublish, 180000);
+
+                            nugetConfFile.Delete();
                         }
                         else
                         {
