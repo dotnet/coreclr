@@ -18632,12 +18632,20 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
         firstTgtOffs = pInfo->offsetOfDelegateFirstTarget;
 
 #ifdef _TARGET_ARM_
+        // Ensure that we don't trash any of these registers if we have to load
+        // the helper call target into a register to invoke it.
+        regMaskTP regsUsed = 0;
+
         if ((call->gtCallMoreFlags & GTF_CALL_M_SECURE_DELEGATE_INV))
         {
-            getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_VIRTUAL_STUB_PARAM, regThis,
+            getEmitter()->emitIns_R_R_I(INS_add, EA_BYREF, REG_VIRTUAL_STUB_PARAM, regThis,
                                         pInfo->offsetOfSecureDelegateIndirectCell);
             regTracker.rsTrackRegTrash(REG_VIRTUAL_STUB_PARAM);
+
+            // Ensure that the virtual stub param info register doesn't get reused before the call is taken
+            regSet.rsLockReg(RBM_VIRTUAL_STUB_PARAM, &regsUsed);
         }
+
 #endif // _TARGET_ARM_
 
         // Grab an available register to use for the CALL indirection
@@ -18661,6 +18669,13 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                                    INDEBUG_LDISASM_COMMA(sigInfo) NULL, // addr
                                    args, retSize, gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur,
                                    gcInfo.gcRegByrefSetCur, ilOffset, indCallReg);
+
+#ifdef _TARGET_ARM_
+        if ((call->gtCallMoreFlags & GTF_CALL_M_SECURE_DELEGATE_INV))
+        {
+            regSet.rsUnlockReg(RBM_VIRTUAL_STUB_PARAM, regsUsed);
+        }
+#endif // _TARGET_ARM_
     }
     else
 
