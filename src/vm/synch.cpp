@@ -733,7 +733,7 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs)
         else if (timeoutMs != 0)
         {
             ++newCounts.waiterCount;
-            _ASSERTE(newCounts.waiterCount != 0);
+            _ASSERTE(newCounts.waiterCount != (UINT16)0); // overflow check, this many waiters is currently not supported
         }
 
         Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
@@ -780,7 +780,7 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount)
                 // Maximum number of spinners reached, register as a waiter instead
                 --newCounts.spinnerCount;
                 ++newCounts.waiterCount;
-                _ASSERTE(newCounts.waiterCount != 0);
+                _ASSERTE(newCounts.waiterCount != (UINT16)0); // overflow check, this many waiters is currently not supported
             }
         }
 
@@ -866,7 +866,7 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount)
         else
         {
             ++newCounts.waiterCount;
-            _ASSERTE(newCounts.waiterCount != 0);
+            _ASSERTE(newCounts.waiterCount != (UINT16)0); // overflow check, this many waiters is currently not supported
         }
 
         Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
