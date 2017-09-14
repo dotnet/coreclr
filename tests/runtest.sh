@@ -15,16 +15,13 @@ function print_usage {
     echo ''
     echo 'Required arguments:'
     echo '  --testRootDir=<path>             : Root directory of the test build (e.g. coreclr/bin/tests/Windows_NT.x64.Debug).'
-    echo '  --testNativeBinDir=<path>        : Directory of the native CoreCLR test build (e.g. coreclr/bin/obj/Linux.x64.Debug/tests).'
     echo '  (Also required: Either --coreOverlayDir, or all of the switches --coreOverlayDir overrides)'
     echo ''
     echo 'Optional arguments:'
     echo '  --coreOverlayDir=<path>          : Directory containing core binaries and test dependencies. If not specified, the'
     echo '                                     default is testRootDir/Tests/coreoverlay. This switch overrides --coreClrBinDir,'
-    echo '                                     --mscorlibDir, and --coreFxBinDir.'
+    echo '                                     and --coreFxBinDir.'
     echo '  --coreClrBinDir=<path>           : Directory of the CoreCLR build (e.g. coreclr/bin/Product/Linux.x64.Debug).'
-    echo '  --mscorlibDir=<path>             : Directory containing the built mscorlib.dll. If not specified, it is expected to be'
-    echo '                                       in the directory specified by --coreClrBinDir.'
     echo '  --coreFxBinDir="<path>"          : Directory with CoreFX build outputs'
     echo '                                     (e.g. "corefx/bin/runtime/netcoreapp-Linux-Debug-x64")'
     echo '                                     If files with the same name are present in multiple directories, the first one wins.'
@@ -99,28 +96,7 @@ countSkippedTests=0
 xunitOutputPath=
 xunitTestOutputPath=
 
-# libExtension determines extension for dynamic library files
-# runtimeName determines where CoreFX Runtime files will be located
 OSName=$(uname -s)
-libExtension=
-case $OSName in
-    Darwin)
-        libExtension="dylib"
-        ;;
-
-    Linux)
-        libExtension="so"
-        ;;
-
-    NetBSD)
-        libExtension="so"
-        ;;
-
-    *)
-        echo "Unsupported OS $OSName detected, configuring as if for Linux"
-        libExtension="so"
-        ;;
-esac
 
 function xunit_output_begin {
     if [ -z "$xunitOutputPath" ]; then
@@ -362,9 +338,6 @@ function create_core_overlay {
 
     cp -f -v "$coreFxBinDir/"* "$coreOverlayDir/" 2>/dev/null
     cp -f -p -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
-    if [ -d "$mscorlibDir/bin" ]; then
-        cp -f -v "$mscorlibDir/bin/"* "$coreOverlayDir/" 2>/dev/null
-    fi
     cp -f -v "$testDependenciesDir/"xunit* "$coreOverlayDir/" 2>/dev/null
     cp -n -v "$testDependenciesDir/"* "$coreOverlayDir/" 2>/dev/null
     if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
@@ -375,7 +348,12 @@ function create_core_overlay {
         # Test dependencies come from a Windows build, and System.Private.CoreLib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"
     fi
-    copy_test_native_bin_to_test_root
+
+    # Copy native interop test libraries over to the overlay path
+    # in order for interop tests to run on linux.
+    if [ -d "$coreClrBinDir/bin" ]; then
+        cp -f -v "$coreClrBinDir/bin/"* "$coreOverlayDir/" 2>/dev/null
+    fi
 }
 
 declare -a skipCrossGenFiles
@@ -429,29 +407,6 @@ function precompile_overlay_assemblies {
     else
         echo Skipping crossgen of FX assemblies.
     fi
-}
-
-function copy_test_native_bin_to_test_root {
-    local errorSource='copy_test_native_bin_to_test_root'
-
-    if [ -z "$testNativeBinDir" ]; then
-        exit_with_error "$errorSource" "--testNativeBinDir is required."
-    fi
-    testNativeBinDir=$testNativeBinDir/src
-    if [ ! -d "$testNativeBinDir" ]; then
-        exit_with_error "$errorSource" "Directory specified by --testNativeBinDir does not exist: $testNativeBinDir"
-    fi
-
-    # Copy native test components from the native test build into the respective test directory in the test root directory
-    find "$testNativeBinDir" -type f -iname '*.$libExtension' |
-        while IFS='' read -r filePath || [ -n "$filePath" ]; do
-            local dirPath=$(dirname "$filePath")
-            local destinationDirPath=${testRootDir}${dirPath:${#testNativeBinDir}}
-            if [ ! -d "$destinationDirPath" ]; then
-                exit_with_error "$errorSource" "Cannot copy native test bin '$filePath' to '$destinationDirPath/', as the destination directory does not exist."
-            fi
-            cp -f "$filePath" "$destinationDirPath/"
-        done
 }
 
 # Variables for unsupported and failing tests
@@ -970,10 +925,8 @@ readonly EXIT_CODE_TEST_FAILURE=2  # Script completed successfully, but one or m
 
 # Argument variables
 testRootDir=
-testNativeBinDir=
 coreOverlayDir=
 coreClrBinDir=
-mscorlibDir=
 coreFxBinDir=
 coreClrObjs=
 coreClrSrc=
@@ -1039,6 +992,7 @@ do
             ;;
         --testNativeBinDir=*)
             testNativeBinDir=${i#*=}
+            echo 'Warning: --testNativeBinDir argument is not used anymore'
             ;;
         --coreOverlayDir=*)
             coreOverlayDir=${i#*=}
@@ -1048,6 +1002,7 @@ do
             ;;
         --mscorlibDir=*)
             mscorlibDir=${i#*=}
+            echo 'Warning: --testNativeBinDir argument is not used anymore'
             ;;
         --coreFxBinDir=*)
             coreFxBinDir=${i#*=}
@@ -1142,12 +1097,6 @@ fi
 if [ ! -d "$testRootDir" ]; then
     echo "Directory specified by --testRootDir does not exist: $testRootDir"
     exit $EXIT_CODE_EXCEPTION
-fi
-
-# Copy native interop test libraries over to the mscorlib path in
-# order for interop tests to run on linux.
-if [ -z "$mscorlibDir" ]; then
-    mscorlibDir=$coreClrBinDir
 fi
 
 if [ ! -z "$longgc" ]; then
