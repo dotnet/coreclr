@@ -22,7 +22,8 @@ namespace SoDBench
         <configuration>
         <packageSources>
             <add key='nuget.org' value='https://api.nuget.org/v3/index.json' protocolVersion='3' />
-            <add key='myget.org' value='https://dotnet.myget.org/F/dotnet-core/api/v3/index.json' protocolVersion='3' />
+            <add key='myget.org/dotnet-core' value='https://dotnet.myget.org/F/dotnet-core/api/v3/index.json' protocolVersion='3' />
+            <add key='myget.org/aspnet-core' value='https://dotnet.myget.org/F/aspnetcore-ci-dev/api/v3/index.json' protocolVersion='3' />
         </packageSources>
         </configuration>";
 
@@ -500,7 +501,7 @@ namespace SoDBench
             [Option("architecture", Required = false, Default = "x64", HelpText = "JitBench target architecture (It must match the built product that was copied into sandbox).")]
             public string TargetArchitecture { get; set; }
 
-            [Option("channel", Required = false, Default = "release/2.0.0", HelpText = "Specifies the channel to use when installing the dotnet-cli")]
+            [Option("channel", Required = false, Default = "master", HelpText = "Specifies the channel to use when installing the dotnet-cli")]
             public string DotnetChannel { get; set; }
 
             [Option('v', Required = false, HelpText = "Sets output to verbose")]
