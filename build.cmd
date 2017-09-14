@@ -551,6 +551,18 @@ if %__BuildNativeCoreLib% EQU 1 (
             echo %__MsgPrefix%Error: Failed to load native tools environment for !__VCExecArch!
             goto CrossgenFailure
         )
+
+        REM HACK: Workaround for [dotnet/coreclr#13970](https://github.com/dotnet/coreclr/issues/13970)
+        set __PgoRtPath=
+        for /f "tokens=*" %%f in ('where pgort*.dll') do (
+          if not defined __PgoRtPath set "__PgoRtPath=%%~f"
+        )
+        echo %__MsgPrefix%Copying "!__PgoRtPath!" into "%__BinDir%"
+        copy /y "!__PgoRtPath!" "%__BinDir%" || (
+          echo %__MsgPrefix%Error: copy failed
+          goto CrossgenFailure
+        )
+        REM End HACK
     )
 
     set NEXTCMD="%__CrossgenExe%" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%"\IL /out "%__BinDir%\System.Private.CoreLib.dll" "%__BinDir%\IL\System.Private.CoreLib.dll"
