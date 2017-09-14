@@ -12,8 +12,8 @@
 
   <!-- Set the kind of PDB to Portable and turn on SourceLink (fetching source from GitHub) -->
   <PropertyGroup>
+    <DebugType Condition="'$(DebugType)' == ''">Portable</DebugType>
     <UseSourceLink>true</UseSourceLink>
-    <DebugType>Portable</DebugType>
   </PropertyGroup>
 
   <!-- Version numbers for both managed & native binaries -->
