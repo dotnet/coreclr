@@ -711,7 +711,7 @@ parallel(
                     }
                 }
 
-                def channel = 'release/2.0.0'
+                def channel = 'master'
                 def configuration = 'Release'
                 def runType = isPR ? 'private' : 'rolling'
                 def benchViewName = isPR ? 'CoreCLR-Scenarios private %BenchviewCommitName%' : 'CoreCLR-Scenarios rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
