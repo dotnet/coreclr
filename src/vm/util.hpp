@@ -1075,10 +1075,12 @@ public:
         EXCEPTION_NOTIFICATION=5,
         GC_NOTIFICATION= 6,
         CATCH_ENTER_NOTIFICATION = 7,
+        JIT_NOTIFICATION2=8,
     };
     
     // called from the runtime
     static void DoJITNotification(MethodDesc *MethodDescPtr);
+    static void DoJITNotification2(MethodDesc *MethodDescPtr, TADDR NativeCodeLocation);
     static void DoJITPitchingNotification(MethodDesc *MethodDescPtr);
     static void DoModuleLoadNotification(Module *Module);
     static void DoModuleUnloadNotification(Module *Module);
@@ -1089,6 +1091,7 @@ public:
     // called from the DAC
     static int GetType(TADDR Args[]);
     static BOOL ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr);
+    static BOOL ParseJITNotification2(TADDR Args[], TADDR& MethodDescPtr, TADDR& NativeCodeLocation);
     static BOOL ParseJITPitchingNotification(TADDR Args[], TADDR& MethodDescPtr);
     static BOOL ParseModuleLoadNotification(TADDR Args[], TADDR& ModulePtr);
     static BOOL ParseModuleUnloadNotification(TADDR Args[], TADDR& ModulePtr);

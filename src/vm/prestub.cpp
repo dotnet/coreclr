@@ -236,6 +236,37 @@ void DACNotifyCompilationFinished(MethodDesc *methodDesc)
     }
 }
 
+void DACNotifyCompilationFinished2(MethodDesc *methodDesc, PCODE pCode)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
+    // Is the list active?
+    JITNotifications jn(g_pNotificationTable);
+    if (jn.IsActive())
+    {
+        // Get Module and mdToken
+        mdToken t = methodDesc->GetMemberDef();
+        Module *modulePtr = methodDesc->GetModule();
+
+        _ASSERTE(modulePtr);
+
+        // Are we listed?
+        USHORT jnt = jn.Requested((TADDR) modulePtr, t);
+        if (jnt & CLRDATA_METHNOTIFY_GENERATED)
+        {
+            // If so, throw an exception!
+            DACNotify::DoJITNotification2(methodDesc, (TADDR)pCode);
+        }
+    }
+}
+
 #ifdef _MSC_VER 
 #pragma optimize("", on)
 #endif
@@ -813,7 +844,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
 #endif
     {
         // The notification will only occur if someone has registered for this method.
-        DACNotifyCompilationFinished(this);
+        DACNotifyCompilationFinished2(this, pCode);
     }
 
     return pCode;

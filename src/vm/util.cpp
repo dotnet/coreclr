@@ -2864,6 +2864,21 @@ void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr)
     DACNotifyExceptionHelper(Args, 2);
 }
 
+void DACNotify::DoJITNotification2(MethodDesc *MethodDescPtr, TADDR NativeCodeLocation)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
+    TADDR Args[3] = { JIT_NOTIFICATION2, (TADDR) MethodDescPtr, NativeCodeLocation };
+    DACNotifyExceptionHelper(Args, 3);
+}
+
 void DACNotify::DoJITPitchingNotification(MethodDesc *MethodDescPtr)
 {
     CONTRACTL
@@ -2986,7 +3001,7 @@ int DACNotify::GetType(TADDR Args[])
     // Type is an enum, and will thus fit into an int.
     return static_cast<int>(Args[0]);
 }
-    
+
 BOOL DACNotify::ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr)
 {
     _ASSERTE(Args[0] == JIT_NOTIFICATION);
@@ -2996,6 +3011,20 @@ BOOL DACNotify::ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr)
     }
 
     MethodDescPtr = Args[1];
+
+    return TRUE;
+}
+
+BOOL DACNotify::ParseJITNotification2(TADDR Args[], TADDR& MethodDescPtr, TADDR& NativeCodeLocation)
+{
+    _ASSERTE(Args[0] == JIT_NOTIFICATION2);
+    if (Args[0] != JIT_NOTIFICATION2)
+    {
+        return FALSE;
+    }
+
+    MethodDescPtr = Args[1];
+    NativeCodeLocation = Args[2];
 
     return TRUE;
 }

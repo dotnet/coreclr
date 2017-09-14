@@ -4389,6 +4389,7 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
     GcEvtArgs pubGcEvtArgs;
     ULONG32 notifyType = 0;
     DWORD catcherNativeOffset = 0;
+    TADDR nativeCodeLocation = NULL;
 
     DAC_ENTER();
 
@@ -4489,6 +4490,44 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
             break;
         }
 
+        case DACNotify::JIT_NOTIFICATION2:
+        {
+            TADDR methodDescPtr;
+
+            if(DACNotify::ParseJITNotification2(exInfo, methodDescPtr, nativeCodeLocation))
+            {
+                // Try and find the right appdomain
+                MethodDesc* methodDesc = PTR_MethodDesc(methodDescPtr);
+                BaseDomain* baseDomain = methodDesc->GetDomain();
+                AppDomain* appDomain = NULL;
+
+                if (baseDomain->IsAppDomain())
+                {
+                    appDomain = PTR_AppDomain(PTR_HOST_TO_TADDR(baseDomain));
+                }
+                else
+                {
+                    // Find a likely domain, because it's the shared domain.
+                    AppDomainIterator adi(FALSE);
+                    appDomain = adi.GetDomain();
+                }
+
+                pubMethodInst =
+                    new (nothrow) ClrDataMethodInstance(this,
+                                                        appDomain,
+                                                        methodDesc);
+                if (pubMethodInst == NULL)
+                {
+                    status = E_OUTOFMEMORY;
+                }
+                else
+                {
+                    status = S_OK;
+                }
+            }
+            break;
+        }
+        
         case DACNotify::EXCEPTION_NOTIFICATION:
         {
             TADDR threadPtr;
@@ -4594,6 +4633,13 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
             notify4 = NULL;
         }
 
+        IXCLRDataExceptionNotification5* notify5;
+        if (notify->QueryInterface(__uuidof(IXCLRDataExceptionNotification5),
+                                   (void**)&notify5) != S_OK)
+        {
+            notify5 = NULL;
+        }
+
         switch(notifyType)
         {
         case DACNotify::MODULE_LOAD_NOTIFICATION:
@@ -4607,7 +4653,12 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
         case DACNotify::JIT_NOTIFICATION:
             notify->OnCodeGenerated(pubMethodInst);
             break;
-
+        case DACNotify::JIT_NOTIFICATION2:
+            if (notify5)
+            {
+                notify5->OnCodeGenerated2(pubMethodInst, TO_CDADDR(nativeCodeLocation));
+            }
+            break;
         case DACNotify::EXCEPTION_NOTIFICATION:
             if (notify2)
             {
@@ -4646,6 +4697,14 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
         if (notify3)
         {
             notify3->Release();
+        }
+        if (notify4)
+        {
+            notify4->Release();
+        }
+        if (notify5)
+        {
+            notify5->Release();
         }
     }
 
