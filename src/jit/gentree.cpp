@@ -15651,7 +15651,7 @@ bool GenTree::isContained() const
     // if it's contained it better have a user
     if (isMarkedContained)
     {
-        assert((gtNext != nullptr) || OperIsLocal());
+        assert(gtNext != nullptr);
     }
 #endif // DEBUG
     return isMarkedContained;
