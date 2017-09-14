@@ -188,6 +188,9 @@ namespace SoDBench
         
         private static Dictionary<string, Dictionary<string, long?> > GetDeploymentSize()
         {
+            var nugetConfFile = new FileInfo(Path.Combine(s_sandboxDir.FullName, "NuGet.Config"));
+            File.WriteAllText(nugetConfFile.FullName, NugetConfig);
+
             var result = new Dictionary<string, Dictionary<string, long?> >();
             foreach (string template in NewTemplates)
             {
@@ -234,13 +237,8 @@ namespace SoDBench
                         LaunchProcess(dotnetNew, 180000);
                         if (deploymentSandbox.EnumerateFiles().Any(f => f.Name.EndsWith("proj")))
                         {
-                            var nugetConfFile = new FileInfo(Path.Combine(deploymentSandbox.FullName, "NuGet.Config"));
-                            File.WriteAllText(nugetConfFile.FullName, NugetConfig);
-
                             LaunchProcess(dotnetRestore, 180000);
                             LaunchProcess(dotnetPublish, 180000);
-
-                            nugetConfFile.Delete();
                         }
                         else
                         {
