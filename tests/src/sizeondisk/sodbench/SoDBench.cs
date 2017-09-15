@@ -271,7 +271,7 @@ namespace SoDBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_sandboxDir.FullName,
                 FileName = @"powershell.exe",
-                Arguments = $"wget https://raw.githubusercontent.com/dotnet/cli/v2.0.0-preview2/scripts/obtain/dotnet-install.ps1 -o Dotnet-Install.ps1"
+                Arguments = $"wget https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.ps1 -OutFile Dotnet-Install.ps1"
             };
             LaunchProcess(psi, 180000);
         }
