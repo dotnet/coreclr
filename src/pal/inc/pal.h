@@ -164,7 +164,9 @@ extern "C" {
 #elif defined(__llvm__) // __llvm__ && !SOURCE_FORMATTING
 #if __has_builtin(__builtin_assume)
 #define __assume(x) __builtin_assume(x)
-#endif // __has_builtin(__builtin_assume)
+#else // !__has_builtin(__builtin_assume)
+#define __assume(x) (void)0
+#endif // !__has_builtin(__builtin_assume)
 #endif // __llvm__ && !SOURCE_FORMATTING
 
 #define UNALIGNED
