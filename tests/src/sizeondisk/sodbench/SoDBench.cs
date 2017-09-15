@@ -171,16 +171,14 @@ namespace SoDBench
             long fallbackDirSize = GetDirectorySize(s_fallbackDir);
             result["fallback"] = fallbackDirSize;
 
-            var dotnetCliFolderParentName = s_dotnetExe.Directory.Parent.FullName + Path.DirectorySeparatorChar;
-
             foreach (var dir in s_dotnetExe.Directory.EnumerateDirectories("*", SearchOption.AllDirectories))
             {
-                result[dir.FullName.Replace(dotnetCliFolderParentName, "")] = GetDirectorySize(dir);
+                result[GetRelativeUri(dir, s_dotnetExe.Directory)] = GetDirectorySize(dir);
             }
 
             foreach (var file in s_dotnetExe.Directory.EnumerateFiles("*", SearchOption.AllDirectories))
             {
-                result[file.FullName.Replace(dotnetCliFolderParentName, "")] = file.Length;
+                result[GetRelativeUri(file, s_dotnetExe.Directory)] = file.Length;
             }
 
             return result;
@@ -399,7 +397,7 @@ namespace SoDBench
             foreach (var item in acquisitionSizes)
             {
                 var namespaces = new string[] {toplevelname, "Acquisition Size"};
-                var data = namespaces.Concat(Csv.Escape(item.Key).Split(Path.DirectorySeparatorChar)).Concat( new string[] {Convert.ToString(item.Value)} );
+                var data = namespaces.Concat(Csv.Escape(item.Key).Split('/')).Concat( new string[] {Convert.ToString(item.Value)} );
                 var line = String.Join(",", data);
                 result.AppendLine(line);
             }
@@ -443,6 +441,13 @@ namespace SoDBench
             }
 
             return result;
+        }
+
+        private static string GetRelativeUri(FileSystemInfo dir, FileSystemInfo root)
+        {
+            var dirUri = new Uri(dir.FullName);
+            var rootUri = new Uri(root.FullName);
+            return rootUri.MakeRelativeUri(dirUri).ToString();
         }
 
         /// <summary>
