@@ -6791,34 +6791,6 @@ public:
      */
     STDMETHODIMP OnCodeGenerated(IXCLRDataMethodInstance* method)
     {
-        // Some method has been generated, make a breakpoint.
-        ULONG32 len = mdNameLen;
-        LPWSTR szModuleName = (LPWSTR)alloca(mdNameLen * sizeof(WCHAR));
-        if (method->GetName(0, mdNameLen, &len, g_mdName) == S_OK)
-        {            
-            ToRelease<IXCLRDataModule> pMod;
-            HRESULT hr = method->GetTokenAndScope(NULL, &pMod);
-            if (SUCCEEDED(hr))
-            {
-                len = mdNameLen;
-                if (pMod->GetName(mdNameLen, &len, szModuleName) == S_OK)
-                {
-                    ExtOut("JITTED %S!%S\n", szModuleName, g_mdName);
-
-                    // Add breakpoint, perhaps delete pending breakpoint
-                    DacpGetModuleAddress dgma;
-                    if (SUCCEEDED(dgma.Request(pMod)))
-                    {
-                        g_bpoints.Update(TO_TADDR(dgma.ModulePtr), FALSE);
-                    }
-                    else
-                    {
-                        ExtOut("Failed to request module address.\n");
-                    }
-                }
-            }
-        }
-
         m_dbgStatus = DEBUG_STATUS_GO_HANDLED;
         return S_OK;
     }
