@@ -2849,22 +2849,7 @@ void InitializeClrNotifications()
 #endif // FEATURE_GDBJIT
 
 // called from the runtime
-void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_INTOLERANT;
-        MODE_PREEMPTIVE;
-    }
-    CONTRACTL_END;
-
-    TADDR Args[2] = { JIT_NOTIFICATION, (TADDR) MethodDescPtr };
-    DACNotifyExceptionHelper(Args, 2);
-}
-
-void DACNotify::DoJITNotification2(MethodDesc *MethodDescPtr, TADDR NativeCodeLocation)
+void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr, TADDR NativeCodeLocation)
 {
     CONTRACTL
     {
@@ -3002,20 +2987,7 @@ int DACNotify::GetType(TADDR Args[])
     return static_cast<int>(Args[0]);
 }
 
-BOOL DACNotify::ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr)
-{
-    _ASSERTE(Args[0] == JIT_NOTIFICATION);
-    if (Args[0] != JIT_NOTIFICATION)
-    {
-        return FALSE;
-    }
-
-    MethodDescPtr = Args[1];
-
-    return TRUE;
-}
-
-BOOL DACNotify::ParseJITNotification2(TADDR Args[], TADDR& MethodDescPtr, TADDR& NativeCodeLocation)
+BOOL DACNotify::ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr, TADDR& NativeCodeLocation)
 {
     _ASSERTE(Args[0] == JIT_NOTIFICATION2);
     if (Args[0] != JIT_NOTIFICATION2)

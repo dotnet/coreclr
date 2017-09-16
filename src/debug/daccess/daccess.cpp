@@ -4452,49 +4452,11 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
             break;
         }
 
-        case DACNotify::JIT_NOTIFICATION:
-        {
-            TADDR methodDescPtr;
-
-            if (DACNotify::ParseJITNotification(exInfo, methodDescPtr))
-            {
-                // Try and find the right appdomain
-                MethodDesc* methodDesc = PTR_MethodDesc(methodDescPtr);
-                BaseDomain* baseDomain = methodDesc->GetDomain();
-                AppDomain* appDomain = NULL;
-
-                if (baseDomain->IsAppDomain())
-                {
-                    appDomain = PTR_AppDomain(PTR_HOST_TO_TADDR(baseDomain));
-                }
-                else
-                {
-                    // Find a likely domain, because it's the shared domain.
-                    AppDomainIterator adi(FALSE);
-                    appDomain = adi.GetDomain();
-                }
-
-                pubMethodInst =
-                    new (nothrow) ClrDataMethodInstance(this,
-                                                        appDomain,
-                                                        methodDesc);
-                if (pubMethodInst == NULL)
-                {
-                    status = E_OUTOFMEMORY;
-                }
-                else
-                {
-                    status = S_OK;
-                }
-            }
-            break;
-        }
-
         case DACNotify::JIT_NOTIFICATION2:
         {
             TADDR methodDescPtr;
 
-            if(DACNotify::ParseJITNotification2(exInfo, methodDescPtr, nativeCodeLocation))
+            if(DACNotify::ParseJITNotification(exInfo, methodDescPtr, nativeCodeLocation))
             {
                 // Try and find the right appdomain
                 MethodDesc* methodDesc = PTR_MethodDesc(methodDescPtr);
@@ -4650,15 +4612,15 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
             notify->OnModuleUnloaded(pubModule);
             break;
 
-        case DACNotify::JIT_NOTIFICATION:
-            notify->OnCodeGenerated(pubMethodInst);
-            break;
         case DACNotify::JIT_NOTIFICATION2:
+            notify->OnCodeGenerated(pubMethodInst);
+
             if (notify5)
             {
                 notify5->OnCodeGenerated2(pubMethodInst, TO_CDADDR(nativeCodeLocation));
             }
             break;
+
         case DACNotify::EXCEPTION_NOTIFICATION:
             if (notify2)
             {
