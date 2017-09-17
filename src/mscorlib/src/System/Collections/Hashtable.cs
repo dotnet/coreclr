@@ -1472,6 +1472,7 @@ namespace System.Collections
             return GetPrime(newSize);
         }
 
+        public static uint FindBucket(uint hashCode, uint limit) => hashCode % limit;
 
         // This is the maximum prime smaller than Array.MaxArrayLength
         public const int MaxPrimeArrayLength = 0x7FEFFFFD;
