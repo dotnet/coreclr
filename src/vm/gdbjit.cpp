@@ -674,7 +674,7 @@ const int DebugStringCount = sizeof(DebugStrings) / sizeof(DebugStrings[0]);
 /* Static data for .debug_abbrev */
 const unsigned char AbbrevTable[] = {
     1, DW_TAG_compile_unit, DW_CHILDREN_yes,
-        DW_AT_producer, DW_FORM_strp, DW_AT_language, DW_FORM_data2, DW_AT_name, DW_FORM_strp,
+        DW_AT_producer, DW_FORM_strp, DW_AT_language, DW_FORM_data2, DW_AT_name, DW_FORM_strp, DW_AT_comp_dir, DW_FORM_strp,
         DW_AT_stmt_list, DW_FORM_sec_offset, 0, 0,
 
     2, DW_TAG_base_type, DW_CHILDREN_no,
@@ -772,6 +772,7 @@ struct __attribute__((packed)) DebugInfoCU
     uint32_t m_prod_off;
     uint16_t m_lang;
     uint32_t m_cu_name;
+    uint32_t m_cu_dir;
     uint32_t m_line_num;
 } debugInfoCU = {
 #ifdef FEATURE_GDBJIT_LANGID_CS
@@ -2479,9 +2480,7 @@ void NotifyGdb::OnMethodPrepared(MethodDesc* methodDescPtr)
     SString modName = mod->GetFile()->GetPath();
     StackScratchBuffer scratch;
     const char* szModName = modName.GetUTF8(scratch);
-    const char *szModulePath, *szModuleFile;
-    SplitPathname(szModName, szModulePath, szModuleFile);
-
+    const char* szModuleFile = SplitFilename(szModName);
 
     int length = MultiByteToWideChar(CP_UTF8, 0, szModuleFile, -1, NULL, 0);
     if (length == 0)
@@ -2508,7 +2507,7 @@ void NotifyGdb::OnMethodPrepared(MethodDesc* methodDescPtr)
 
     if (isListedModule(wszModuleFile))
     {
-        bool bEmitted = EmitDebugInfo(elfBuilder, methodDescPtr, pCode, codeSize, szModuleFile);
+        bool bEmitted = EmitDebugInfo(elfBuilder, methodDescPtr, pCode, codeSize);
         bNotify = bNotify || bEmitted;
     }
 #ifdef FEATURE_GDBJIT_SYMTAB
@@ -2661,7 +2660,7 @@ bool NotifyGdb::EmitSymtab(Elf_Builder &elfBuilder, MethodDesc* methodDescPtr, P
 }
 #endif // FEATURE_GDBJIT_SYMTAB
 
-bool NotifyGdb::EmitDebugInfo(Elf_Builder &elfBuilder, MethodDesc* methodDescPtr, PCODE pCode, TADDR codeSize, const char *szModuleFile)
+bool NotifyGdb::EmitDebugInfo(Elf_Builder &elfBuilder, MethodDesc* methodDescPtr, PCODE pCode, TADDR codeSize)
 {
     unsigned int thunkIndexBase = elfBuilder.GetSectionCount();
 
@@ -2750,13 +2749,26 @@ bool NotifyGdb::EmitDebugInfo(Elf_Builder &elfBuilder, MethodDesc* methodDescPtr
         return false;
     }
 
+    const char *cuPath = "";
+
     /* Build .debug_line section */
-    if (!BuildLineTable(dbgLine, pCode, codeSize, symInfo, symInfoLen))
+    if (!BuildLineTable(dbgLine, pCode, codeSize, symInfo, symInfoLen, cuPath))
     {
         return false;
     }
 
-    DebugStrings[1] = szModuleFile;
+    // Split full path to compile unit into file name and directory path
+    const char *fileName = SplitFilename(cuPath);
+    int dirLen = fileName - cuPath;
+    NewArrayHolder<char> dirPath;
+    if (dirLen != 0)
+    {
+        dirPath = new char[dirLen];
+        memcpy(dirPath, DebugStrings[1], dirLen - 1);
+        dirPath[dirLen - 1] = '\0';
+    }
+    DebugStrings[1] = fileName;
+    DebugStrings[2] = dirPath ? (const char *)dirPath : "";
 
     /* Build .debug_str section */
     if (!BuildDebugStrings(dbgStr, pTypeMap, method))
@@ -2769,6 +2781,9 @@ bool NotifyGdb::EmitDebugInfo(Elf_Builder &elfBuilder, MethodDesc* methodDescPtr
     {
         return false;
     }
+
+    DebugStrings[1] = "";
+    DebugStrings[2] = "";
 
     for (int i = 0; i < method.GetCount(); ++i)
     {
@@ -2893,12 +2908,13 @@ void NotifyGdb::MethodPitched(MethodDesc* methodDescPtr)
 }
 
 /* Build the DWARF .debug_line section */
-bool NotifyGdb::BuildLineTable(MemBuf& buf, PCODE startAddr, TADDR codeSize, SymbolsInfo* lines, unsigned nlines)
+bool NotifyGdb::BuildLineTable(MemBuf& buf, PCODE startAddr, TADDR codeSize, SymbolsInfo* lines, unsigned nlines,
+                               const char * &cuPath)
 {
     MemBuf fileTable, lineProg;
 
     /* Build file table */
-    if (!BuildFileTable(fileTable, lines, nlines))
+    if (!BuildFileTable(fileTable, lines, nlines, cuPath))
         return false;
     /* Build line info program */
     if (!BuildLineProg(lineProg, startAddr, codeSize, lines, nlines))
@@ -2924,7 +2940,7 @@ bool NotifyGdb::BuildLineTable(MemBuf& buf, PCODE startAddr, TADDR codeSize, Sym
 }
 
 /* Buid the source files table for DWARF source line info */
-bool NotifyGdb::BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines)
+bool NotifyGdb::BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines, const char * &cuPath)
 {
     NewArrayHolder<const char*> files = nullptr;
     unsigned nfiles = 0;
@@ -2933,12 +2949,17 @@ bool NotifyGdb::BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines)
     files = new const char*[nlines];
     if (files == nullptr)
         return false;
+    cuPath = "";
     for (unsigned i = 0; i < nlines; ++i)
     {
         if (lines[i].fileName[0] == 0)
             continue;
-        const char *filePath, *fileName;
-        SplitPathname(lines[i].fileName, filePath, fileName);
+        const char* fileName = SplitFilename(lines[i].fileName);
+
+        if (*cuPath == '\0') // Use first non-empty filename as compile unit
+        {
+            cuPath = lines[i].fileName;
+        }
 
         /* if this isn't first then we already added file, so adjust index */
         lines[i].fileIndex = (nfiles) ? (nfiles - 1) : (nfiles);
@@ -3244,6 +3265,7 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap, FunctionMe
     offset += sizeof(DebugInfoCU);
     diCU->m_prod_off = 0;
     diCU->m_cu_name = strlen(DebugStrings[0]) + 1;
+    diCU->m_cu_dir = diCU->m_cu_name + strlen(DebugStrings[1]) + 1;
     {
         auto iter = pTypeMap->Begin();
         while (iter != pTypeMap->End())
@@ -3404,22 +3426,18 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize,
     return true;
 }
 
-/* Split full path name into directory & file names */
-void NotifyGdb::SplitPathname(const char* path, const char*& pathName, const char*& fileName)
+/* Split file name part from the full path */
+const char * NotifyGdb::SplitFilename(const char* path)
 {
-    char* pSlash = strrchr(path, '/');
+    // Search for the last directory delimiter (Windows or Unix)
+    const char *pSlash = nullptr;
+    for (const char *p = path; *p != '\0'; p++)
+    {
+        if (*p == '/' || *p == '\\')
+            pSlash = p;
+    }
 
-    if (pSlash != nullptr)
-    {
-        *pSlash = 0;
-        fileName = ++pSlash;
-        pathName = path;
-    }
-    else
-    {
-        fileName = path;
-        pathName = nullptr;
-    }
+    return pSlash ? pSlash + 1 : path;
 }
 
 /* ELF 32bit header */
