@@ -549,6 +549,10 @@ case $CPUName in
         __HostArch=arm64
         ;;
 
+    adm64)
+        __BuildArch=x64
+        __HostArch=x64
+        ;;
     *)
         echo "Unknown CPU $CPUName detected, configuring as if for x64"
         __BuildArch=x64
