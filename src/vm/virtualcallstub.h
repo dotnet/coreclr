@@ -733,7 +733,7 @@ public:
     // Given a stub address, find the VCSManager that owns it.
     static VirtualCallStubManager *FindStubManager(PCODE addr,
                                                    StubKind* wbStubKind = NULL,
-                                                   bool usePredictStubKind = true);
+                                                   BOOL usePredictStubKind = TRUE);
 
 #ifndef DACCESS_COMPILE
     // insert a linked list of indirection cells at the beginning of m_RecycledIndCellList

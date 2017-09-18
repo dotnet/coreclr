@@ -974,7 +974,7 @@ void VirtualCallStubManager::Reclaim()
 
 //----------------------------------------------------------------------------
 /* static */
-VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddress,  StubKind* wbStubKind, bool usePredictStubKind)
+VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddress,  StubKind* wbStubKind, BOOL usePredictStubKind)
 {
     CONTRACTL {
         NOTHROW;
