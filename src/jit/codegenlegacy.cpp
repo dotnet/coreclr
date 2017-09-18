@@ -18229,6 +18229,21 @@ regMaskTP CodeGen::genLoadIndirectCallTarget(GenTreeCall* call)
     return fptrRegs;
 }
 
+void CodeGen::genNullCheckForThisCall(GenTreeCall* call)
+{
+    const regNumber regThis = genGetThisArgReg(call);
+#if CPU_LOAD_STORE_ARCH
+    // Grab an available register to use for the indirection
+    regNumber indReg = regSet.rsGrabReg(RBM_ALLINT);
+
+    getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, indReg, regThis, 0);
+    regTracker.rsTrackRegTrash(indReg);
+#else
+    /* Generate "cmp ECX, [ECX]" to trap null pointers */
+    getEmitter()->emitIns_AR_R(INS_cmp, EA_4BYTE, regThis, regThis, 0);
+#endif
+}
+
 /*****************************************************************************
  *
  *  Generate code for a call. If the call returns a value in register(s), the
@@ -18738,6 +18753,9 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
 
                 if (!fTailCall)
                 {
+#if defined(FEATURE_CONSERVATIVE_VSD_CALL)
+                    genNullCheckForThisCall(call);
+#endif
                     // This is code to set up an indirect call to a stub address computed
                     // via dictionary lookup.  However the dispatch stub receivers aren't set up
                     // to accept such calls at the moment.
@@ -18753,8 +18771,12 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         //
                         // This combination will only be generated for shared generic code and when
                         // stub dispatch is active.
+                        CLANG_FORMAT_COMMENT_ANCHOR;
 
+#if !defined(FEATURE_CONSERVATIVE_VSD_CALL)
                         // No need to null check the this pointer - the dispatch code will deal with this.
+                        CLANG_FORMAT_COMMENT_ANCHOR;
+#endif
 
                         noway_assert(genStillAddressable(call->gtCallAddr));
 
@@ -18827,8 +18849,12 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         // Direct stub calls, though the stubAddr itself may still need to be
                         // accesed via an indirection.
                         //
+                        CLANG_FORMAT_COMMENT_ANCHOR;
 
+#if !defined(FEATURE_CONSERVATIVE_VSD_CALL)
                         // No need to null check - the dispatch code will deal with null this.
+                        CLANG_FORMAT_COMMENT_ANCHOR;
+#endif
 
                         emitter::EmitCallType callTypeStubAddr = emitter::EC_FUNC_ADDR;
                         void*                 addr             = stubAddr;
@@ -18888,11 +18914,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
 // Non-X86 tail calls materialize the null-check in fgMorphTailCall, when it
 // moves the this pointer out of it's usual place and into the argument list.
 #ifdef _TARGET_X86_
-
-                    // Generate "cmp ECX, [ECX]" to trap null pointers
-                    const regNumber regThis = genGetThisArgReg(call);
-                    getEmitter()->emitIns_AR_R(INS_cmp, EA_4BYTE, regThis, regThis, 0);
-
+                    genNullCheckForThisCall(call);
 #endif // _TARGET_X86_
 
                     if (callType == CT_INDIRECT)
@@ -19079,16 +19101,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
 
                 if (call->gtFlags & GTF_CALL_NULLCHECK)
                 {
-                    /* Generate "cmp ECX, [ECX]" to trap null pointers */
-                    const regNumber regThis = genGetThisArgReg(call);
-#if CPU_LOAD_STORE_ARCH
-                    regNumber indReg =
-                        regSet.rsGrabReg(RBM_ALLINT); // Grab an available register to use for the indirection
-                    getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, indReg, regThis, 0);
-                    regTracker.rsTrackRegTrash(indReg);
-#else
-                    getEmitter()->emitIns_AR_R(INS_cmp, EA_4BYTE, regThis, regThis, 0);
-#endif
+                    genNullCheckForThisCall(call);
                 }
 
                 if (call->gtFlags & GTF_CALL_UNMANAGED)

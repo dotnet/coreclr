@@ -359,6 +359,7 @@ void PushMkRefAnyArg(GenTreePtr mkRefAnyTree, fgArgTabEntryPtr curArgTabEntry, r
 
 regMaskTP genLoadIndirectCallTarget(GenTreeCall* call);
 
+void genNullCheckForThisCall(GenTreeCall* call);
 regMaskTP genCodeForCall(GenTreeCall* call, bool valUsed);
 
 GenTreePtr genGetAddrModeBase(GenTreePtr tree);
