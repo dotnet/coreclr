@@ -3376,9 +3376,6 @@ void CodeGen::genFloatToIntCast(GenTreePtr treeNode)
 // Assumptions:
 //    GT_CKFINITE node has reserved an internal register.
 //
-// TODO-ARM64-CQ - mark the operand as contained if known to be in
-// memory (e.g. field or an array element).
-//
 void CodeGen::genCkfinite(GenTreePtr treeNode)
 {
     assert(treeNode->OperGet() == GT_CKFINITE);
