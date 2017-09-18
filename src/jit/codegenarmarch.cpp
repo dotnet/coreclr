@@ -1615,7 +1615,8 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
     {
         case 1:
             // dest = base + index
-            getEmitter()->emitIns_R_R_R(INS_add, emitActualTypeSize(node), node->gtRegNum, base->gtRegNum, index->gtRegNum);
+            getEmitter()->emitIns_R_R_R(INS_add, emitActualTypeSize(node), node->gtRegNum, base->gtRegNum,
+                                        index->gtRegNum);
             break;
 
         case 2:
