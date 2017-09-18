@@ -63,6 +63,8 @@ SPTR_IMPL(ThreadStore, ThreadStore, s_pThreadStore);
 CONTEXT *ThreadStore::s_pOSContext = NULL;
 CLREvent *ThreadStore::s_pWaitForStackCrawlEvent;
 
+static CrstStatic s_initializeYieldProcessorNormalizedCrst;
+
 #ifndef DACCESS_COMPILE
 
 
@@ -1363,7 +1365,7 @@ void InitThreadManager()
     }
     CONTRACTL_END;
 
-    Thread::s_initializeYieldProcessorNormalizedCrst.Init(CrstLeafLock);
+    s_initializeYieldProcessorNormalizedCrst.Init(CrstLeafLock);
 
     // All patched helpers should fit into one page.
     // If you hit this assert on retail build, there is most likely problem with BBT script.
@@ -11747,25 +11749,29 @@ ULONGLONG Thread::QueryThreadProcessorUsage()
 }
 #endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
-CrstStatic Thread::s_initializeYieldProcessorNormalizedCrst;
-int Thread::s_yieldsPerNormalizedYield = 0;
-int Thread::s_optimalMaxNormalizedYieldsPerSpinIteration = 0;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// YieldProcessorNormalized
 
-void Thread::InitializeYieldProcessorNormalized()
+// Defaults are for when InitializeYieldProcessorNormalized has not yet been called or when no measurement is done, and are
+// tuned for Skylake processors
+int g_yieldsPerNormalizedYield = 1; // 9 for pre-Skylake
+int g_optimalMaxNormalizedYieldsPerSpinIteration = 7;
+
+static Volatile<bool> s_isYieldProcessorNormalizedInitialized = false;
+
+void InitializeYieldProcessorNormalized()
 {
     LIMITED_METHOD_CONTRACT;
 
     CrstHolder lock(&s_initializeYieldProcessorNormalizedCrst);
 
-    if (IsYieldProcessorNormalizedInitialized())
+    if (s_isYieldProcessorNormalizedInitialized)
     {
         return;
     }
 
     // Intel pre-Skylake processor: measured typically 14-17 cycles per yield
     // Intel post-Skylake processor: measured typically 125-150 cycles per yield
-    const int DefaultYieldsPerNormalizedYield = 1; // defaults are for when no measurement is done
-    const int DefaultOptimalMaxNormalizedYieldsPerSpinIteration = 64; // tuned for pre-Skylake processors, for post-Skylake it should be 7
     const int MeasureDurationMs = 10;
     const int MaxYieldsPerNormalizedYield = 10; // measured typically 8-9 on pre-Skylake
     const int MinNsPerNormalizedYield = 37; // measured typically 37-46 on post-Skylake
@@ -11776,8 +11782,7 @@ void Thread::InitializeYieldProcessorNormalized()
     if (!QueryPerformanceFrequency(&li) || (ULONGLONG)li.QuadPart < 1000 / MeasureDurationMs)
     {
         // High precision clock not available or clock resolution is too low, resort to defaults
-        s_yieldsPerNormalizedYield = DefaultYieldsPerNormalizedYield;
-        s_optimalMaxNormalizedYieldsPerSpinIteration = DefaultOptimalMaxNormalizedYieldsPerSpinIteration;
+        s_isYieldProcessorNormalizedInitialized = true;
         return;
     }
     ULONGLONG ticksPerSecond = li.QuadPart;
@@ -11827,6 +11832,17 @@ void Thread::InitializeYieldProcessorNormalized()
         optimalMaxNormalizedYieldsPerSpinIteration = 1;
     }
 
-    s_yieldsPerNormalizedYield = yieldsPerNormalizedYield;
-    s_optimalMaxNormalizedYieldsPerSpinIteration = optimalMaxNormalizedYieldsPerSpinIteration;
+    g_yieldsPerNormalizedYield = yieldsPerNormalizedYield;
+    g_optimalMaxNormalizedYieldsPerSpinIteration = optimalMaxNormalizedYieldsPerSpinIteration;
+    s_isYieldProcessorNormalizedInitialized = true;
+}
+
+void EnsureYieldProcessorNormalizedInitialized()
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (!s_isYieldProcessorNormalizedInitialized)
+    {
+        InitializeYieldProcessorNormalized();
+    }
 }

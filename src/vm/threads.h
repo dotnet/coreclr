@@ -5362,71 +5362,6 @@ public:
         m_HijackReturnKind = returnKind;
     }
 #endif // FEATURE_HIJACK
-
-private:
-    static CrstStatic s_initializeYieldProcessorNormalizedCrst;
-    static int s_yieldsPerNormalizedYield;
-    static int s_optimalMaxNormalizedYieldsPerSpinIteration;
-
-private:
-    static void InitializeYieldProcessorNormalized();
-
-public:
-    static bool IsYieldProcessorNormalizedInitialized()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return s_yieldsPerNormalizedYield != 0 && s_optimalMaxNormalizedYieldsPerSpinIteration != 0;
-    }
-
-public:
-    static void EnsureYieldProcessorNormalizedInitialized()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (!IsYieldProcessorNormalizedInitialized())
-        {
-            InitializeYieldProcessorNormalized();
-        }
-    }
-
-public:
-    static int GetOptimalMaxNormalizedYieldsPerSpinIteration()
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsYieldProcessorNormalizedInitialized());
-
-        return s_optimalMaxNormalizedYieldsPerSpinIteration;
-    }
-
-public:
-    static void YieldProcessorNormalized()
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsYieldProcessorNormalizedInitialized());
-
-        int n = s_yieldsPerNormalizedYield;
-        while (--n >= 0)
-        {
-            YieldProcessor();
-        }
-    }
-
-    static void YieldProcessorNormalizedWithBackOff(unsigned int spinIteration)
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsYieldProcessorNormalizedInitialized());
-
-        int n = s_optimalMaxNormalizedYieldsPerSpinIteration;
-        if (spinIteration <= 30 && (1 << spinIteration) < n)
-        {
-            n = 1 << spinIteration;
-        }
-        n *= s_yieldsPerNormalizedYield;
-        while (--n >= 0)
-        {
-            YieldProcessor();
-        }
-    }
 };
 
 // End of class Thread
@@ -7572,5 +7507,72 @@ private:
 };
 
 BOOL Debug_IsLockedViaThreadSuspension();
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// YieldProcessorNormalized
+
+extern int g_yieldsPerNormalizedYield;
+extern int g_optimalMaxNormalizedYieldsPerSpinIteration;
+
+void InitializeYieldProcessorNormalized();
+void EnsureYieldProcessorNormalizedInitialized();
+
+class YieldProcessorNormalizationInfo
+{
+private:
+    int m_yieldProcessorIterations;
+
+    YieldProcessorNormalizationInfo(int yieldsPerNormalizedYield) : m_yieldProcessorIterations(yieldsPerNormalizedYield)
+    {
+    }
+
+    YieldProcessorNormalizationInfo(
+        int yieldsPerNormalizedYield,
+        int optimalMaxNormalizedYieldsPerSpinIteration,
+        unsigned int spinIteration)
+        :
+        m_yieldProcessorIterations(
+            (
+                spinIteration <= 30 && (1 << spinIteration) < optimalMaxNormalizedYieldsPerSpinIteration
+                    ? 1 << spinIteration
+                    : optimalMaxNormalizedYieldsPerSpinIteration
+            ) * yieldsPerNormalizedYield)
+    {
+    }
+
+public:
+    int GetYieldProcessorIterations() const
+    {
+        return m_yieldProcessorIterations;
+    }
+
+    static YieldProcessorNormalizationInfo GetNormalizationInfo()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return YieldProcessorNormalizationInfo(g_yieldsPerNormalizedYield);
+    }
+
+    static YieldProcessorNormalizationInfo GetNormalizationInfoForBackOff(int spinIteration)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return
+            YieldProcessorNormalizationInfo(
+                g_yieldsPerNormalizedYield,
+                g_optimalMaxNormalizedYieldsPerSpinIteration,
+                spinIteration);
+    }
+};
+
+FORCEINLINE void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &normalizationInfo)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    int n = normalizationInfo.GetYieldProcessorIterations();
+    while (--n >= 0)
+    {
+        YieldProcessor();
+    }
+}
 
 #endif //__threads_h__
