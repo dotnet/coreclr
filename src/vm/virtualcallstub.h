@@ -317,7 +317,7 @@ public:
     /* know thine own stubs.  It is possible that when multiple
     virtualcallstub managers are built that these may need to become
     non-static, and the callers modified accordingly */
-    StubKind getStubKind(PCODE stubStartAddress, bool usePredictStubKind = true)
+    StubKind getStubKind(PCODE stubStartAddress, BOOL usePredictStubKind = TRUE)
     {
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
