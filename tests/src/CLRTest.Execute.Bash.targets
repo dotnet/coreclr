@@ -88,6 +88,8 @@ then
   echo "SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress, COMPlus_EXPERIMENTAL_TieredCompilation) IS SET"
   exit $(GCBashScriptExitCode)
 fi
+echo "SKIPPING EXECUTION BECAUSE COMPlus_EXPERIMENTAL_TieredCompilation is on by default"
+exit $(GCBashScriptExitCode)
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
       <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(HeapVerifyIncompatible)' == 'true'"><![CDATA[
 $(BashCLRTestEnvironmentCompatibilityCheck)
