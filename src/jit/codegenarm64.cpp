@@ -1463,7 +1463,7 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
         case GT_CNS_DBL:
         {
             emitter*       emit       = getEmitter();
-            emitAttr       size       = emitTypeSize(tree);
+            emitAttr       size       = emitActualTypeSize(tree);
             GenTreeDblCon* dblConst   = tree->AsDblCon();
             double         constValue = dblConst->gtDblCon.gtDconVal;
 
@@ -1509,7 +1509,7 @@ void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
     regNumber targetReg  = treeNode->gtRegNum;
     var_types targetType = treeNode->TypeGet();
     emitter*  emit       = getEmitter();
-    emitAttr  attr       = emitTypeSize(treeNode);
+    emitAttr  attr       = emitActualTypeSize(treeNode);
     unsigned  isUnsigned = (treeNode->gtFlags & GTF_UNSIGNED);
 
     GenTreePtr op1 = treeNode->gtGetOp1();
@@ -1561,7 +1561,7 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
     // The arithmetic node must be sitting in a register (since it's not contained)
     assert(targetReg != REG_NA);
 
-    regNumber r = emit->emitInsTernary(ins, emitTypeSize(treeNode), treeNode, op1, op2);
+    regNumber r = emit->emitInsTernary(ins, emitActualTypeSize(treeNode), treeNode, op1, op2);
     assert(r == targetReg);
 
     genProduceReg(treeNode);
@@ -1798,7 +1798,7 @@ void CodeGen::genReturn(GenTreePtr treeNode)
 
         if (movRequired)
         {
-            emitAttr attr = emitTypeSize(targetType);
+            emitAttr attr = emitActualTypeSize(targetType);
             getEmitter()->emitIns_R_R(INS_mov, attr, retReg, op1->gtRegNum);
         }
     }
@@ -2184,7 +2184,7 @@ void CodeGen::genCodeForNegNot(GenTree* tree)
     // The src must be a register.
     regNumber operandReg = genConsumeReg(operand);
 
-    getEmitter()->emitIns_R_R(ins, emitTypeSize(tree), targetReg, operandReg);
+    getEmitter()->emitIns_R_R(ins, emitActualTypeSize(tree), targetReg, operandReg);
 
     genProduceReg(tree);
 }
@@ -2749,7 +2749,7 @@ void CodeGen::genTableBasedSwitch(GenTree* treeNode)
     getEmitter()->emitIns_R_R_R(INS_add, EA_PTRSIZE, baseReg, baseReg, tmpReg);
 
     // br baseReg
-    getEmitter()->emitIns_R(INS_br, emitTypeSize(TYP_I_IMPL), baseReg);
+    getEmitter()->emitIns_R(INS_br, emitActualTypeSize(TYP_I_IMPL), baseReg);
 }
 
 // emits the table and an instruction to get the address of the first element
@@ -2784,7 +2784,7 @@ void CodeGen::genJumpTable(GenTree* treeNode)
     // Access to inline data is 'abstracted' by a special type of static member
     // (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
     // to constant data, not a real static field.
-    getEmitter()->emitIns_R_C(INS_adr, emitTypeSize(TYP_I_IMPL), treeNode->gtRegNum, REG_NA,
+    getEmitter()->emitIns_R_C(INS_adr, emitActualTypeSize(TYP_I_IMPL), treeNode->gtRegNum, REG_NA,
                               compiler->eeFindJitDataOffs(jmpTabBase), 0);
     genProduceReg(treeNode);
 }
@@ -2840,7 +2840,7 @@ void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
     default:
         unreached();
     }
-    getEmitter()->emitInsBinary(ins, emitTypeSize(data), &i, data);
+    getEmitter()->emitInsBinary(ins, emitActualTypeSize(data), &i, data);
 
     if (treeNode->gtRegNum != REG_NA)
     {
@@ -3279,7 +3279,7 @@ void CodeGen::genIntToFloatCast(GenTreePtr treeNode)
 
     genConsumeOperands(treeNode->AsOp());
 
-    getEmitter()->emitIns_R_R(ins, emitTypeSize(dstType), treeNode->gtRegNum, op1->gtRegNum, cvtOption);
+    getEmitter()->emitIns_R_R(ins, emitActualTypeSize(dstType), treeNode->gtRegNum, op1->gtRegNum, cvtOption);
 
     genProduceReg(treeNode);
 }
@@ -3394,8 +3394,8 @@ void CodeGen::genCkfinite(GenTreePtr treeNode)
     regNumber intReg = treeNode->GetSingleTempReg();
     regNumber fpReg  = genConsumeReg(op1);
 
-    emit->emitIns_R_R(ins_Copy(targetType), emitTypeSize(treeNode), intReg, fpReg);
-    emit->emitIns_R_R_I(INS_lsr, emitTypeSize(targetType), intReg, intReg, shiftAmount);
+    emit->emitIns_R_R(ins_Copy(targetType), emitActualTypeSize(treeNode), intReg, fpReg);
+    emit->emitIns_R_R_I(INS_lsr, emitActualTypeSize(targetType), intReg, intReg, shiftAmount);
 
     // Mask of exponent with all 1's and check if the exponent is all 1's
     emit->emitIns_R_R_I(INS_and, EA_4BYTE, intReg, intReg, expMask);
@@ -3408,7 +3408,7 @@ void CodeGen::genCkfinite(GenTreePtr treeNode)
     // if it is a finite value copy it to targetReg
     if (treeNode->gtRegNum != fpReg)
     {
-        emit->emitIns_R_R(ins_Copy(targetType), emitTypeSize(treeNode), treeNode->gtRegNum, fpReg);
+        emit->emitIns_R_R(ins_Copy(targetType), emitActualTypeSize(treeNode), treeNode->gtRegNum, fpReg);
     }
     genProduceReg(treeNode);
 }
