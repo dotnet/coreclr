@@ -734,8 +734,7 @@ parallel(
                 batchFile("set __TestIntermediateDir=int&&build.cmd ${configuration} ${architecture}")
                 batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
 
-                // Build and run the size on disk benchmark
-                batchFile("MSBuild.exe \"%WORKSPACE%\\tests\\src\\sizeondisk\\sodbench\\SoDBench.csproj\"")
+                // Run the size on disk benchmark
                 batchFile("\"${coreRoot}\\CoreRun.exe\" \"${testBin}\\sizeondisk\\sodbench\\SoDBench\\SoDBench.exe\" -o \"%WORKSPACE%\\sodbench.csv\" --architecture ${arch} --channel ${channel}")
 
                 // From sodbench.csv, create measurment.json, then submission.json
