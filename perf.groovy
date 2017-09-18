@@ -709,7 +709,7 @@ parallel(
             def runType = 'rolling'
             def benchViewName = 'CoreCLR-Scenarios rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
             def testBin = "%WORKSPACE%\\bin\\tests\\${os}.${architecture}.${configuration}"
-            def coreRoot = "${testBin}\\Tests\\Core_Root\\"
+            def coreRoot = "${testBin}\\Tests\\Core_Root"
             def benchViewTools = "%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools"
 
             steps {
@@ -734,7 +734,8 @@ parallel(
                 batchFile("set __TestIntermediateDir=int&&build.cmd ${configuration} ${architecture}")
                 batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
 
-                // Run the size on disk benchmark
+                // Build and run the size on disk benchmark
+                batchFile("MSBuild.exe \"%WORKSPACE%\\tests\\src\\sizeondisk\\sodbench\\SoDBench.csproj\"")
                 batchFile("\"${coreRoot}\\CoreRun.exe\" \"${testBin}\\sizeondisk\\sodbench\\SoDBench\\SoDBench.exe\" -o \"%WORKSPACE%\\sodbench.csv\" --architecture ${arch} --channel ${channel}")
 
                 // From sodbench.csv, create measurment.json, then submission.json
