@@ -18233,8 +18233,8 @@ void CodeGen::genNullCheckForThisCall(GenTreeCall* call)
 {
     const regNumber regThis = genGetThisArgReg(call);
 #if CPU_LOAD_STORE_ARCH
-    regNumber indReg =
-        regSet.rsGrabReg(RBM_ALLINT); // Grab an available register to use for the indirection
+    // Grab an available register to use for the indirection
+    regNumber indReg = regSet.rsGrabReg(RBM_ALLINT);
 
     getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, indReg, regThis, 0);
     regTracker.rsTrackRegTrash(indReg);
@@ -18771,9 +18771,11 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         //
                         // This combination will only be generated for shared generic code and when
                         // stub dispatch is active.
+                        CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if !defined(FEATURE_CONSERVATIVE_VSD_CALL)
                         // No need to null check the this pointer - the dispatch code will deal with this.
+                        CLANG_FORMAT_COMMENT_ANCHOR;
 #endif
 
                         noway_assert(genStillAddressable(call->gtCallAddr));
@@ -18847,9 +18849,11 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         // Direct stub calls, though the stubAddr itself may still need to be
                         // accesed via an indirection.
                         //
+                        CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if !defined(FEATURE_CONSERVATIVE_VSD_CALL)
                         // No need to null check - the dispatch code will deal with null this.
+                        CLANG_FORMAT_COMMENT_ANCHOR;
 #endif
 
                         emitter::EmitCallType callTypeStubAddr = emitter::EC_FUNC_ADDR;
