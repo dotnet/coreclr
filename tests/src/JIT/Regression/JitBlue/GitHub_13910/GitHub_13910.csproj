@@ -30,13 +30,14 @@
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
   <PropertyGroup>
+   <!-- Set JitStreess variables, Linux requires them to be properly capitalized. -->
     <CLRTestBatchPreCommands><![CDATA[
 $(CLRTestBatchPreCommands)
-set complus_JitStressModeNames=STRESS_NULL_OBJECT_CHECK, STRESS_MAKE_CSE
+set COMPlus_JitStressModeNames=STRESS_NULL_OBJECT_CHECK, STRESS_MAKE_CSE
 ]]></CLRTestBatchPreCommands>
     <BashCLRTestPreCommands><![CDATA[
 $(BashCLRTestPreCommands)
-export complus_JitStressModeNames=STRESS_NULL_OBJECT_CHECK, STRESS_MAKE_CSE
+export COMPlus_JitStressModeNames=STRESS_NULL_OBJECT_CHECK, STRESS_MAKE_CSE
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
