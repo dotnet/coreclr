@@ -842,8 +842,8 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorC
         }
     }
 #else // !_TARGET_ARM64_
-    Thread::EnsureYieldProcessorNormalizedInitialized();
     const UINT32 Sleep0Threshold = 10;
+    YieldProcessorWithBackOffNormalizationInfo normalizationInfo;
 #ifdef FEATURE_PAL
     // The PAL's wait subsystem is quite slow, spin more to compensate for the more expensive wait
     spinCount *= 2;
@@ -861,7 +861,7 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorC
         //     they may switch between one another, delaying work that can make progress.
         if (i < Sleep0Threshold || (i - Sleep0Threshold) % 2 != 0)
         {
-            Thread::YieldProcessorNormalizedWithBackOff(i);
+            YieldProcessorWithBackOffNormalized(normalizationInfo, i);
         }
         else
         {
