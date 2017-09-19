@@ -11754,7 +11754,7 @@ ULONGLONG Thread::QueryThreadProcessorUsage()
 
 // Defaults are for when InitializeYieldProcessorNormalized has not yet been called or when no measurement is done, and are
 // tuned for Skylake processors
-int g_yieldsPerNormalizedYield = 1; // 9 for pre-Skylake
+int g_yieldsPerNormalizedYield = 1; // current value is for Skylake processors, this would be 9 for pre-Skylake
 int g_optimalMaxNormalizedYieldsPerSpinIteration = 7;
 
 static Volatile<bool> s_isYieldProcessorNormalizedInitialized = false;
@@ -11795,11 +11795,14 @@ void InitializeYieldProcessorNormalized()
     ULONGLONG elapsedTicks;
     do
     {
-        for (int i = 0; i < 10; ++i)
+        // On some systems, querying the high performance counter has relatively significant overhead. Do enough yields to mask
+        // the timing overhead. Assuming one yield has a delay of MinNsPerNormalizedYield, 1000 yields would have a delay in the
+        // low microsecond range.
+        for (int i = 0; i < 1000; ++i)
         {
             YieldProcessor();
         }
-        yieldCount += 10;
+        yieldCount += 1000;
 
         QueryPerformanceCounter(&li);
         ULONGLONG nowTicks = li.QuadPart;

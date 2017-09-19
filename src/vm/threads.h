@@ -7520,55 +7520,60 @@ void EnsureYieldProcessorNormalizedInitialized();
 class YieldProcessorNormalizationInfo
 {
 private:
-    int m_yieldProcessorIterations;
-
-    YieldProcessorNormalizationInfo(int yieldsPerNormalizedYield) : m_yieldProcessorIterations(yieldsPerNormalizedYield)
-    {
-    }
-
-    YieldProcessorNormalizationInfo(
-        int yieldsPerNormalizedYield,
-        int optimalMaxNormalizedYieldsPerSpinIteration,
-        unsigned int spinIteration)
-        :
-        m_yieldProcessorIterations(
-            (
-                spinIteration <= 30 && (1 << spinIteration) < optimalMaxNormalizedYieldsPerSpinIteration
-                    ? 1 << spinIteration
-                    : optimalMaxNormalizedYieldsPerSpinIteration
-            ) * yieldsPerNormalizedYield)
-    {
-    }
+    int yieldsPerNormalizedYield;
 
 public:
-    int GetYieldProcessorIterations() const
+    YieldProcessorNormalizationInfo() : yieldsPerNormalizedYield(g_yieldsPerNormalizedYield)
     {
-        return m_yieldProcessorIterations;
     }
 
-    static YieldProcessorNormalizationInfo GetNormalizationInfo()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return YieldProcessorNormalizationInfo(g_yieldsPerNormalizedYield);
-    }
-
-    static YieldProcessorNormalizationInfo GetNormalizationInfoForBackOff(int spinIteration)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return
-            YieldProcessorNormalizationInfo(
-                g_yieldsPerNormalizedYield,
-                g_optimalMaxNormalizedYieldsPerSpinIteration,
-                spinIteration);
-    }
+    friend void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &);
 };
 
 FORCEINLINE void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &normalizationInfo)
 {
     LIMITED_METHOD_CONTRACT;
 
-    int n = normalizationInfo.GetYieldProcessorIterations();
+    int n = normalizationInfo.yieldsPerNormalizedYield;
+    while (--n >= 0)
+    {
+        YieldProcessor();
+    }
+}
+
+class YieldProcessorWithBackOffNormalizationInfo
+{
+private:
+    int yieldsPerNormalizedYield;
+    int optimalMaxNormalizedYieldsPerSpinIteration;
+    int optimalMaxYieldsPerSpinIteration;
+
+public:
+    YieldProcessorWithBackOffNormalizationInfo()
+        : yieldsPerNormalizedYield(g_yieldsPerNormalizedYield),
+        optimalMaxNormalizedYieldsPerSpinIteration(g_optimalMaxNormalizedYieldsPerSpinIteration),
+        optimalMaxYieldsPerSpinIteration(yieldsPerNormalizedYield * optimalMaxNormalizedYieldsPerSpinIteration)
+    {
+    }
+
+    friend void YieldProcessorWithBackOffNormalized(const YieldProcessorWithBackOffNormalizationInfo &, unsigned int);
+};
+
+FORCEINLINE void YieldProcessorWithBackOffNormalized(
+    const YieldProcessorWithBackOffNormalizationInfo &normalizationInfo,
+    unsigned int spinIteration)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    int n;
+    if (spinIteration <= 30 && (1 << spinIteration) < normalizationInfo.optimalMaxNormalizedYieldsPerSpinIteration)
+    {
+        n = (1 << spinIteration) * normalizationInfo.yieldsPerNormalizedYield;
+    }
+    else
+    {
+        n = normalizationInfo.optimalMaxYieldsPerSpinIteration;
+    }
     while (--n >= 0)
     {
         YieldProcessor();
