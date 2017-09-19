@@ -340,6 +340,7 @@ class Elf_Builder;
 class NotifyGdb
 {
 public:
+    class FileTableBuilder;
     static void MethodPrepared(MethodDesc* methodDescPtr);
     static void MethodPitched(MethodDesc* methodDescPtr);
     template <typename PARENT_TRAITS>

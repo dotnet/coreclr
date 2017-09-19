@@ -2922,90 +2922,191 @@ bool NotifyGdb::BuildLineTable(MemBuf& buf, PCODE startAddr, TADDR codeSize, Sym
         return false;
     }
 
-    buf.MemSize = sizeof(DwarfLineNumHeader) + 1 + fileTable.MemSize + lineProg.MemSize;
+    buf.MemSize = sizeof(DwarfLineNumHeader) + fileTable.MemSize + lineProg.MemSize;
     buf.MemPtr = new char[buf.MemSize];
 
     /* Fill the line info header */
     DwarfLineNumHeader* header = reinterpret_cast<DwarfLineNumHeader*>(buf.MemPtr.GetValue());
     memcpy(buf.MemPtr, &LineNumHeader, sizeof(DwarfLineNumHeader));
-    header->m_length = buf.MemSize - sizeof(uint32_t);
-    header->m_hdr_length = sizeof(DwarfLineNumHeader) + 1 + fileTable.MemSize - 2 * sizeof(uint32_t) - sizeof(uint16_t);
-    buf.MemPtr[sizeof(DwarfLineNumHeader)] = 0; // this is for missing directory table
+    header->m_length = buf.MemSize - sizeof(header->m_length);
+    header->m_hdr_length = sizeof(DwarfLineNumHeader)
+                           - sizeof(header->m_length)
+                           - sizeof(header->m_version)
+                           - sizeof(header->m_hdr_length)
+                           + fileTable.MemSize;
+
     /* copy file table */
-    memcpy(buf.MemPtr + sizeof(DwarfLineNumHeader) + 1, fileTable.MemPtr, fileTable.MemSize);
+    memcpy(buf.MemPtr + sizeof(DwarfLineNumHeader), fileTable.MemPtr, fileTable.MemSize);
     /* copy line program */
-    memcpy(buf.MemPtr + sizeof(DwarfLineNumHeader) + 1 + fileTable.MemSize, lineProg.MemPtr, lineProg.MemSize);
+    memcpy(buf.MemPtr + sizeof(DwarfLineNumHeader) + fileTable.MemSize, lineProg.MemPtr, lineProg.MemSize);
 
     return true;
 }
 
+// A class for building Directory Table and File Table (in .debug_line section) from a list of files
+class NotifyGdb::FileTableBuilder
+{
+    int m_capacity;
+
+    NewArrayHolder< NewArrayHolder<char> > m_dirs;
+    int m_dirs_count;
+
+    struct FileEntry
+    {
+        const char* path;
+        const char* name;
+        int dir;
+    };
+    NewArrayHolder<FileEntry> m_files;
+    int m_files_count;
+
+    int FindDir(const char *name) const
+    {
+        for (int i = 0; i < m_dirs_count; ++i)
+        {
+            if (strcmp(m_dirs[i], name) == 0)
+                return i;
+        }
+        return -1;
+    }
+
+    int FindFile(const char *path) const
+    {
+        for (int i = 0; i < m_files_count; ++i)
+        {
+            if (strcmp(m_files[i].path, path) == 0)
+                return i;
+        }
+        return -1;
+    }
+
+public:
+
+    FileTableBuilder(int capacity) :
+        m_capacity(capacity),
+        m_dirs(new NewArrayHolder<char>[capacity]),
+        m_dirs_count(0),
+        m_files(new FileEntry[capacity]),
+        m_files_count(0)
+    {
+    }
+
+    int Add(const char *path)
+    {
+        // Already exists?
+        int i = FindFile(path);
+        if (i != -1)
+            return i;
+
+        if (m_files_count >= m_capacity)
+            return -1;
+
+        // Add new file entry
+        m_files[m_files_count].path = path;
+        const char *filename = SplitFilename(path);
+        m_files[m_files_count].name = filename;
+        int dirLen = filename - path;
+        if (dirLen == 0)
+        {
+            m_files[m_files_count].dir = 0;
+            return m_files_count++;
+        }
+
+        // Construct directory path
+        NewArrayHolder<char> dirName = new char[dirLen + 1];
+        int delimiterDelta = dirLen == 1 ? 0 : 1; // Avoid empty dir entry when file is at Unix root /
+        memcpy(dirName, path, dirLen - delimiterDelta);
+        dirName[dirLen - delimiterDelta] = '\0';
+
+        // Try to find existing directory entry
+        i = FindDir(dirName);
+        if (i != -1)
+        {
+            m_files[m_files_count].dir = i + 1;
+            return m_files_count++;
+        }
+
+        // Create new directory entry
+        if (m_dirs_count >= m_capacity)
+            return -1;
+
+        m_dirs[m_dirs_count++] = dirName.GetValue();
+        dirName.SuppressRelease();
+
+        m_files[m_files_count].dir = m_dirs_count;
+        return m_files_count++;
+    }
+
+    void Build(MemBuf& buf)
+    {
+        unsigned totalSize = 0;
+
+        // Compute buffer size
+        for (unsigned i = 0; i < m_dirs_count; ++i)
+            totalSize += strlen(m_dirs[i]) + 1;
+        totalSize += 1;
+
+        char cnv_buf[16];
+        for (unsigned i = 0; i < m_files_count; ++i)
+        {
+            int len = Leb128Encode(static_cast<uint32_t>(m_files[i].dir), cnv_buf, sizeof(cnv_buf));
+            totalSize += strlen(m_files[i].name) + 1 + len + 2;
+        }
+        totalSize += 1;
+
+        // Fill the buffer
+        buf.MemSize = totalSize;
+        buf.MemPtr = new char[buf.MemSize];
+
+        char *ptr = buf.MemPtr;
+
+        for (unsigned i = 0; i < m_dirs_count; ++i)
+        {
+            strcpy(ptr, m_dirs[i]);
+            ptr += strlen(m_dirs[i]) + 1;
+        }
+        // final zero byte for directory table
+        *ptr++ = 0;
+
+        for (unsigned i = 0; i < m_files_count; ++i)
+        {
+            strcpy(ptr, m_files[i].name);
+            ptr += strlen(m_files[i].name) + 1;
+
+            // Index in directory table
+            int len = Leb128Encode(static_cast<uint32_t>(m_files[i].dir), cnv_buf, sizeof(cnv_buf));
+            memcpy(ptr, cnv_buf, len);
+            ptr += len;
+
+            // Two LEB128 entries which we don't care
+            *ptr++ = 0;
+            *ptr++ = 0;
+        }
+        // final zero byte
+        *ptr = 0;
+    }
+};
+
 /* Buid the source files table for DWARF source line info */
 bool NotifyGdb::BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines, const char * &cuPath)
 {
-    NewArrayHolder<const char*> files = nullptr;
-    unsigned nfiles = 0;
+    FileTableBuilder fileTable(nlines);
 
-    /* GetValue file names and replace them with indices in file table */
-    files = new const char*[nlines];
-    if (files == nullptr)
-        return false;
     cuPath = "";
     for (unsigned i = 0; i < nlines; ++i)
     {
-        if (lines[i].fileName[0] == 0)
+        const char* fileName = lines[i].fileName;
+
+        if (fileName[0] == 0)
             continue;
-        const char* fileName = SplitFilename(lines[i].fileName);
 
         if (*cuPath == '\0') // Use first non-empty filename as compile unit
-        {
-            cuPath = lines[i].fileName;
-        }
+            cuPath = fileName;
 
-        /* if this isn't first then we already added file, so adjust index */
-        lines[i].fileIndex = (nfiles) ? (nfiles - 1) : (nfiles);
-
-        bool found = false;
-        for (int j = 0; j < nfiles; ++j)
-        {
-            if (strcmp(fileName, files[j]) == 0)
-            {
-                found = true;
-                break;
-            }
-        }
-
-        /* add new source file */
-        if (!found)
-        {
-            files[nfiles++] = fileName;
-        }
+        lines[i].fileIndex = fileTable.Add(fileName);
     }
 
-    /* build file table */
-    unsigned totalSize = 0;
-
-    for (unsigned i = 0; i < nfiles; ++i)
-    {
-        totalSize += strlen(files[i]) + 1 + 3;
-    }
-    totalSize += 1;
-
-    buf.MemSize = totalSize;
-    buf.MemPtr = new char[buf.MemSize];
-
-    /* copy collected file names */
-    char *ptr = buf.MemPtr;
-    for (unsigned i = 0; i < nfiles; ++i)
-    {
-        strcpy(ptr, files[i]);
-        ptr += strlen(files[i]) + 1;
-        // three LEB128 entries which we don't care
-        *ptr++ = 0;
-        *ptr++ = 0;
-        *ptr++ = 0;
-    }
-    // final zero byte
-    *ptr = 0;
+    fileTable.Build(buf);
 
     return true;
 }
