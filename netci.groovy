@@ -636,15 +636,23 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'corefx_jitstressregs0x1000':
         case 'zapdisable':
             if (os != 'CentOS7.1' && !(os in bidailyCrossList)) {
-            assert (os == 'Windows_NT') || (os in Constants.crossList)
-            Utilities.addPeriodicTrigger(job, '@daily')
-        }
-        break
+                assert (os == 'Windows_NT') || (os in Constants.crossList)
+                if ((architecture == 'arm64') || (architecture == 'arm') || (architecture == 'armlb')) {
+                    if (os == 'Windows_NT') {
+                        // We don't have enough ARM64 machines to run these more frequently than weekly.
+                        Utilities.addPeriodicTrigger(job, '@weekly')
+                    }
+                }
+                else {
+                    Utilities.addPeriodicTrigger(job, '@daily')
+                }
+            }
+            break
         case 'heapverify1':
         case 'gcstress0x3':
             if (os != 'CentOS7.1' && !(os in bidailyCrossList)) {
                 assert (os == 'Windows_NT') || (os in Constants.crossList)
-                if (architecture == 'arm64') {
+                if ((architecture == 'arm64') || (architecture == 'arm') || (architecture == 'armlb')) {
                     if (os == 'Windows_NT') {
                         Utilities.addPeriodicTrigger(job, '@daily')
                     }
@@ -666,7 +674,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             // GCStress=C is currently not supported on OS X
             if (os != 'CentOS7.1' && os != 'OSX10.12' && !(os in bidailyCrossList)) {
                 assert (os == 'Windows_NT') || (os in Constants.crossList)
-                if (architecture == 'arm64') {
+                if ((architecture == 'arm64') || (architecture == 'arm') || (architecture == 'armlb')) {
                     // TODO: Enable a periodic trigger after tests are updated.
                     // Utilities.addPeriodicTrigger(job, '@daily')
                     // TODO: Add once external email sending is available again
@@ -686,7 +694,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     Utilities.addPeriodicTrigger(job, '@daily')
                 }
             }
-	    break
+            break
         
         case 'tieredcompilation':
         case 'corefx_tieredcompilation':
@@ -1117,7 +1125,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             break
                         case 'illink':
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} via ILLink", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
-    			            break
+                            break
                         default:
                             println("Unknown scenario: ${scenario}");
                             assert false
