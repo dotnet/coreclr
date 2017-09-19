@@ -738,11 +738,11 @@ parallel(
                 batchFile("\"${coreRoot}\\CoreRun.exe\" \"${testBin}\\sizeondisk\\sodbench\\SoDBench\\SoDBench.exe\" -o \"%WORKSPACE%\\sodbench.csv\" --architecture ${arch} --channel ${channel}")
 
                 // From sodbench.csv, create measurment.json, then submission.json
-                batchFile("\"py ${benchViewTools}\\measurement.py\" csv \"%WORKSPACE%\\sodbench.csv\" --metric \"Size on Disk\" --unit \"bytes\" --better \"desc\"")
-                batchFile("\"py ${benchViewTools}\\submission.py\" measurement.json --build build.json --machine-data machinedata.json --metadata submission-metadata.json --group \"Dotnet Size on Disk\" --type ${runType} --config-name ${configuration} --architecture ${arch} --machinepool PerfSnake --config Channel ${channel}")
+                batchFile("py \"${benchViewTools}\\measurement.py\" csv \"%WORKSPACE%\\sodbench.csv\" --metric \"Size on Disk\" --unit \"bytes\" --better \"desc\"")
+                batchFile("py \"${benchViewTools}\\submission.py\" measurement.json --build build.json --machine-data machinedata.json --metadata submission-metadata.json --group \"Dotnet Size on Disk\" --type ${runType} --config-name ${configuration} --architecture ${arch} --machinepool PerfSnake --config Channel ${channel}")
 
                 // If this is a PR, upload submission.json
-                batchFile("\"py ${benchViewTools}\\upload.py\" submission.json --container coreclr")
+                batchFile("py \"${benchViewTools}\\upload.py\" submission.json --container coreclr")
             }
         }
 
