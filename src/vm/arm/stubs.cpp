@@ -3616,6 +3616,10 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
         {
             if (i == 0 && pLookup->indirectFirstOffset)
             {
+                indirectionsSize += 10;
+            }
+            else if (i == 1 && pLookup->indirectSecondOffset)
+            {
                 indirectionsSize += (pLookup->offsets[i] >= 0xFFF ? 12 : 6);
             }
             else
@@ -3637,7 +3641,16 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
 
         for (WORD i = 0; i < pLookup->indirections; i++)
         {
-            if (i == 0 && pLookup->indirectFirstOffset)
+            if ( i == 0 && pLookup->indirectFirstOffset)
+            {
+                // mov r2, offset
+                MovRegImm(p, 2, pLookup->offsets[i]);
+                p += 8;
+                // add r0, r2
+                *(WORD *)p = 0x4410;
+                p += 2;
+            }
+            else if (i == 1 && pLookup->indirectSecondOffset)
             {
                 if (pLookup->offsets[i] >= 0xFFF)
                 {
