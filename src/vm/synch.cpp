@@ -751,8 +751,8 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorC
     CONTRACTL
     {
         NOTHROW;
-    GC_NOTRIGGER;
-    SO_TOLERANT;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
     }
     CONTRACTL_END;
 
