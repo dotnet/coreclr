@@ -1443,7 +1443,10 @@ public:
     {
         for (GenTreePtr node : *range)
         {
-            ConsumeNodeOperands(node);
+            if (!node->isContained()) // a contained node reads operands in the parent.
+            {
+                ConsumeNodeOperands(node);
+            }
 
             AliasSet::NodeInfo nodeInfo(compiler, node);
             if (nodeInfo.IsLclVarRead() && !unusedDefs.Contains(node))
@@ -1470,6 +1473,10 @@ private:
     {
         for (GenTreePtr operand : node->Operands())
         {
+            if (operand->isContained())
+            {
+                ConsumeNodeOperands(operand);
+            }
             AliasSet::NodeInfo operandInfo(compiler, operand);
             if (operandInfo.IsLclVarRead())
             {
