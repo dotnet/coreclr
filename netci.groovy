@@ -173,7 +173,7 @@ class Constants {
                'gcstress0x3_jitstressregs8',
                'gcstress0x3_jitstressregs0x10',
                'gcstress0x3_jitstressregs0x80',
-               'gcstress0x3_jitstressregs0x1000'
+               'gcstress0x3_jitstressregs0x1000',
                'gcstress0xc_jitstressregs1',
                'gcstress0xc_jitstressregs2',
                'gcstress0xc_jitstressregs3',
