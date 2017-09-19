@@ -746,13 +746,13 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs)
     }
 }
 
-bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount)
+bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorCount)
 {
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
+    GC_NOTRIGGER;
+    SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -801,6 +801,47 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount)
         counts = countsBeforeUpdate;
     }
 
+#ifdef _TARGET_ARM64_
+    // For now, the spinning changes are disabled on ARM64. The spin loop below replicates how UnfairSemaphore used to spin.
+    // Once more tuning is done on ARM64, it should be possible to come up with a spinning scheme that works well everywhere.
+    int spinCountPerProcessor = spinCount;
+    for (UINT32 i = 1; ; ++i)
+    {
+        // Wait
+        ClrSleepEx(0, false);
+
+        // Try to acquire the semaphore and unregister as a spinner
+        counts = m_counts.VolatileLoad();
+        while (true)
+        {
+            _ASSERTE(counts.spinnerCount != (UINT8)0);
+            if (counts.signalCount == 0)
+            {
+                break;
+            }
+
+            Counts newCounts = counts;
+            --newCounts.signalCount;
+            --newCounts.spinnerCount;
+
+            Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
+            if (countsBeforeUpdate == counts)
+            {
+                return true;
+            }
+
+            counts = countsBeforeUpdate;
+        }
+
+        // Determine whether to spin further
+        double spinnersPerProcessor = (double)counts.spinnerCount / processorCount;
+        int spinLimit = (int)(spinCountPerProcessor / spinnersPerProcessor + 0.5);
+        if (i >= spinLimit)
+        {
+            break;
+        }
+    }
+#else // !_TARGET_ARM64_
     Thread::EnsureYieldProcessorNormalizedInitialized();
     const UINT32 Sleep0Threshold = 10;
 #ifdef FEATURE_PAL
@@ -851,6 +892,7 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount)
             counts = countsBeforeUpdate;
         }
     }
+#endif // _TARGET_ARM64_
 
     // Unregister as a spinner, and acquire the semaphore or register as a waiter
     counts = m_counts.VolatileLoad();

@@ -253,7 +253,7 @@ private:
     bool WaitForSignal(DWORD timeoutMs);
 public:
     bool Wait(DWORD timeoutMs);
-    bool Wait(DWORD timeoutMs, UINT32 spinCount);
+    bool Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorCount);
     void Release(INT32 releaseCount);
 
 private:
