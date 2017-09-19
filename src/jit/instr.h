@@ -282,8 +282,7 @@ enum InstructionSet
 #ifdef _TARGET_XARCH_
     InstructionSet_SSE2,      // SSE2 Instruction set
     InstructionSet_SSE3_4,    // SSE3, SSSE3, SSE4.1 and SSE4.2 instruction set
-    InstructionSet_AVX,       // AVX2 instruction set
-                              // TODO-Cleaup - This should be named as InstructionSet_AVX2
+    InstructionSet_AVX2,       // AVX2 instruction set
 #elif defined(_TARGET_ARM_)
     InstructionSet_NEON,
 #endif
