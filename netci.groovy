@@ -1204,6 +1204,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             }
                             break
                         default:
+                            // Stress jobs will use this code path.
                             if (Constants.validArmWindowsScenarios.contains(scenario)) {
                                 Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
                                 "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}\\W+${scenario}.*", null, arm64Users)
@@ -1294,6 +1295,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             }
                             break
                         default:
+                            // Stress jobs will use this code path.
                             if (Constants.validArmWindowsScenarios.contains(scenario)) {
                                 Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString,
                                 "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*", null, arm64Users)
