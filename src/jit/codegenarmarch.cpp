@@ -449,7 +449,7 @@ void CodeGen::genIntrinsic(GenTreePtr treeNode)
     assert(varTypeIsFloating(srcNode));
     assert(srcNode->TypeGet() == treeNode->TypeGet());
 
-    // Right now only Abs/Round/Sqrt are treated as math intrinsics.
+    // Right now only Abs/Ceiling/Floor/Round/Sqrt are treated as math intrinsics.
     //
     switch (treeNode->gtIntrinsic.gtIntrinsicId)
     {
@@ -458,6 +458,17 @@ void CodeGen::genIntrinsic(GenTreePtr treeNode)
             getEmitter()->emitInsBinary(INS_ABS, emitTypeSize(treeNode), treeNode, srcNode);
             break;
 
+#ifdef _TARGET_ARM64_
+        case CORINFO_INTRINSIC_Ceiling:
+            genConsumeOperands(treeNode->AsOp());
+            getEmitter()->emitInsBinary(INS_frintp, emitActualTypeSize(treeNode), treeNode, srcNode);
+            break;
+
+        case CORINFO_INTRINSIC_Floor:
+            genConsumeOperands(treeNode->AsOp());
+            getEmitter()->emitInsBinary(INS_frintm, emitActualTypeSize(treeNode), treeNode, srcNode);
+            break;
+#endif
         case CORINFO_INTRINSIC_Round:
             NYI_ARM("genIntrinsic for round - not implemented yet");
             genConsumeOperands(treeNode->AsOp());
