@@ -1747,7 +1747,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     // Debug runs take too long to run. So build job only.
                     if (lowerConfiguration == "debug") {
-                       buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2 -priority=1"
+                       buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2"
                     }
                     else {
                        if ((scenario != 'gcstress0x3') && (scenario != 'gcstress0xc'))
