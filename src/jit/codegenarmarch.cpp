@@ -235,6 +235,10 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_GE:
         case GT_GT:
         case GT_CMP:
+#ifdef _TARGET_ARM64_
+        case GT_TEST_EQ:
+        case GT_TEST_NE:
+#endif // _TARGET_ARM64_
             genCodeForCompare(treeNode->AsOp());
             break;
 
@@ -1225,7 +1229,16 @@ void CodeGen::genRangeCheck(GenTreePtr oper)
         jmpKind = genJumpKindForOper(GT_GE, CK_UNSIGNED);
     }
 
-    getEmitter()->emitInsBinary(INS_cmp, EA_4BYTE, src1, src2);
+    var_types bndsChkType = genActualType(src2->TypeGet());
+#if DEBUG
+    // Bounds checks can only be 32 or 64 bit sized comparisons.
+    assert(bndsChkType == TYP_INT || bndsChkType == TYP_LONG);
+
+    // The type of the bounds check should always wide enough to compare against the index.
+    assert(emitTypeSize(bndsChkType) >= emitTypeSize(genActualType(src1->TypeGet())));
+#endif // DEBUG
+
+    getEmitter()->emitInsBinary(INS_cmp, emitTypeSize(bndsChkType), src1, src2);
     genJumpToThrowHlpBlk(jmpKind, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
 }
 
@@ -2101,48 +2114,27 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         assert(callType == CT_HELPER || callType == CT_USER_FUNC);
 
         void* addr = nullptr;
-        if (callType == CT_HELPER)
-        {
-// Direct call to a helper method.
 #ifdef FEATURE_READYTORUN_COMPILER
-            if (call->gtEntryPoint.addr != NULL)
-            {
-                addr = call->gtEntryPoint.addr;
-                assert(call->gtEntryPoint.accessType == IAT_VALUE);
-            }
-            else
+        if (call->gtEntryPoint.addr != NULL)
+        {
+            assert(call->gtEntryPoint.accessType == IAT_VALUE);
+            addr = call->gtEntryPoint.addr;
+        }
+        else
 #endif // FEATURE_READYTORUN_COMPILER
-            {
-                CorInfoHelpFunc helperNum = compiler->eeGetHelperNum(methHnd);
-                noway_assert(helperNum != CORINFO_HELP_UNDEF);
+            if (callType == CT_HELPER)
+        {
+            CorInfoHelpFunc helperNum = compiler->eeGetHelperNum(methHnd);
+            noway_assert(helperNum != CORINFO_HELP_UNDEF);
 
-                void* pAddr = nullptr;
-                addr        = compiler->compGetHelperFtn(helperNum, (void**)&pAddr);
-
-                if (addr == nullptr)
-                {
-                    addr = pAddr;
-                }
-            }
+            void* pAddr = nullptr;
+            addr        = compiler->compGetHelperFtn(helperNum, (void**)&pAddr);
+            assert(pAddr == nullptr);
         }
         else
         {
             // Direct call to a non-virtual user function.
-            CORINFO_ACCESS_FLAGS aflags = CORINFO_ACCESS_ANY;
-            if (call->IsSameThis())
-            {
-                aflags = (CORINFO_ACCESS_FLAGS)(aflags | CORINFO_ACCESS_THIS);
-            }
-
-            if ((call->NeedsNullCheck()) == 0)
-            {
-                aflags = (CORINFO_ACCESS_FLAGS)(aflags | CORINFO_ACCESS_NONNULL);
-            }
-
-            CORINFO_CONST_LOOKUP addrInfo;
-            compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo, aflags);
-
-            addr = addrInfo.addr;
+            addr = call->gtDirectCallAddress;
         }
 
         assert(addr != nullptr);

@@ -630,6 +630,17 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             TreeNodeInfoInitCall(tree->AsCall());
             break;
 
+        case GT_ADDR:
+        {
+            // For a GT_ADDR, the child node should not be evaluated into a register
+            GenTreePtr child = tree->gtOp.gtOp1;
+            assert(!isCandidateLocalRef(child));
+            assert(child->isContained());
+            assert(info->dstCount == 1);
+            info->srcCount = 0;
+        }
+        break;
+
         case GT_STORE_BLK:
         case GT_STORE_OBJ:
         case GT_STORE_DYN_BLK:
@@ -775,6 +786,10 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             break;
     } // end switch (tree->OperGet())
 
+    if (tree->IsUnusedValue() && (info->dstCount != 0))
+    {
+        info->isLocalDefUse = true;
+    }
     // We need to be sure that we've set info->srcCount and info->dstCount appropriately
     assert((info->dstCount < 2) || tree->IsMultiRegNode());
 }

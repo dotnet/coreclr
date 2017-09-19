@@ -1475,6 +1475,30 @@ void CodeGen::genCodeForCompare(GenTreeOp* tree)
 }
 
 //------------------------------------------------------------------------
+// genCodeForBT: Generates code for a GT_BT node.
+//
+// Arguments:
+//    tree - The node.
+//
+void CodeGen::genCodeForBT(GenTreeOp* bt)
+{
+    assert(bt->OperIs(GT_BT));
+
+    GenTree*  op1  = bt->gtGetOp1();
+    GenTree*  op2  = bt->gtGetOp2();
+    var_types type = genActualType(op1->TypeGet());
+
+    assert(op1->isUsedFromReg() && op2->isUsedFromReg());
+    assert((genTypeSize(type) >= genTypeSize(TYP_INT)) && (genTypeSize(type) <= genTypeSize(TYP_I_IMPL)));
+
+    genConsumeOperands(bt);
+    // Note that the emitter doesn't fully support INS_bt, it only supports the reg,reg
+    // form and encodes the registers in reverse order. To get the correct order we need
+    // to reverse the operands when calling emitIns_R_R.
+    getEmitter()->emitIns_R_R(INS_bt, emitTypeSize(type), op2->gtRegNum, op1->gtRegNum);
+}
+
+//------------------------------------------------------------------------
 // genCodeForJumpTrue: Generates code for jmpTrue statement.
 //
 // Arguments:
@@ -1873,6 +1897,10 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
         case GT_SETCC:
             genCodeForSetcc(treeNode->AsCC());
+            break;
+
+        case GT_BT:
+            genCodeForBT(treeNode->AsOp());
             break;
 
         case GT_RETURNTRAP:
@@ -5480,11 +5508,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 
             void* pAddr = nullptr;
             addr        = compiler->compGetHelperFtn(helperNum, (void**)&pAddr);
-
-            if (addr == nullptr)
-            {
-                addr = pAddr;
-            }
+            assert(pAddr == nullptr);
 
             // tracking of region protected by the monitor in synchronized methods
             if (compiler->info.compFlags & CORINFO_FLG_SYNCH)
@@ -5497,6 +5521,8 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             // Direct call to a non-virtual user function.
             addr = call->gtDirectCallAddress;
         }
+
+        assert(addr != nullptr);
 
         // Non-virtual direct calls to known addresses
 
@@ -6277,9 +6303,7 @@ void CodeGen::genCompareInt(GenTreePtr treeNode)
 
     genConsumeOperands(tree);
 
-    // TODO-CQ: We should be able to support swapping op1 and op2 to generate cmp reg, imm.
-    // https://github.com/dotnet/coreclr/issues/7270
-    assert(!op1->isContainedIntOrIImmed()); // We no longer support
+    assert(!op1->isContainedIntOrIImmed());
     assert(!varTypeIsFloating(op2Type));
 
     instruction ins;

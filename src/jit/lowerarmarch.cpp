@@ -126,6 +126,8 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_AND:
             case GT_OR:
             case GT_XOR:
+            case GT_TEST_EQ:
+            case GT_TEST_NE:
                 return emitter::emitIns_valid_imm_for_alu(immVal, size);
                 break;
 #elif defined(_TARGET_ARM_)
@@ -504,22 +506,7 @@ void Lowering::LowerRotate(GenTreePtr tree)
 //
 void Lowering::ContainCheckCallOperands(GenTreeCall* call)
 {
-    GenTree* ctrlExpr = call->gtControlExpr;
-    // If there is an explicit this pointer, we don't want that node to produce anything
-    // as it is redundant
-    if (call->gtCallObjp != nullptr)
-    {
-        GenTreePtr thisPtrNode = call->gtCallObjp;
-
-        if (thisPtrNode->canBeContained())
-        {
-            MakeSrcContained(call, thisPtrNode);
-            if (thisPtrNode->gtOper == GT_PUTARG_REG)
-            {
-                MakeSrcContained(call, thisPtrNode->gtOp.gtOp1);
-            }
-        }
-    }
+    // There are no contained operands for arm.
 }
 
 //------------------------------------------------------------------------
