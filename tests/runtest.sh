@@ -8,7 +8,6 @@ function print_usage {
     echo ''
     echo 'coreclr/tests/runtest.sh'
     echo '    --testRootDir="temp/Windows_NT.x64.Debug"'
-    echo '    --testNativeBinDir="coreclr/bin/obj/Linux.x64.Debug/tests"'
     echo '    --coreClrBinDir="coreclr/bin/Product/Linux.x64.Debug"'
     echo '    --mscorlibDir="windows/coreclr/bin/Product/Linux.x64.Debug"'
     echo '    --coreFxBinDir="corefx/bin/runtime/netcoreapp-Linux-Debug-x64'
@@ -20,8 +19,10 @@ function print_usage {
     echo 'Optional arguments:'
     echo '  --coreOverlayDir=<path>          : Directory containing core binaries and test dependencies. If not specified, the'
     echo '                                     default is testRootDir/Tests/coreoverlay. This switch overrides --coreClrBinDir,'
-    echo '                                     and --coreFxBinDir.'
+    echo '                                     --mscorlibDir, and --coreFxBinDir.'
     echo '  --coreClrBinDir=<path>           : Directory of the CoreCLR build (e.g. coreclr/bin/Product/Linux.x64.Debug).'
+    echo '  --mscorlibDir=<path>             : Directory containing the built mscorlib.dll. If not specified, it is expected to be'
+    echo '                                       in the directory specified by --coreClrBinDir.'
     echo '  --coreFxBinDir="<path>"          : Directory with CoreFX build outputs'
     echo '                                     (e.g. "corefx/bin/runtime/netcoreapp-Linux-Debug-x64")'
     echo '                                     If files with the same name are present in multiple directories, the first one wins.'
@@ -340,6 +341,9 @@ function create_core_overlay {
     cp -f -p -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
     cp -f -v "$testDependenciesDir/"xunit* "$coreOverlayDir/" 2>/dev/null
     cp -n -v "$testDependenciesDir/"* "$coreOverlayDir/" 2>/dev/null
+    if [ -e "$mscorlibDir" ]; then
+         cp -f -v "$mscorlibDir/System.Private.CoreLib.dll" "$coreOverlayDir/" 2>/dev/null
+    fi
     if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
         # Test dependencies come from a Windows build, and mscorlib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/mscorlib.ni.dll"
@@ -349,11 +353,9 @@ function create_core_overlay {
         rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"
     fi
 
-    # Copy native interop test libraries over to the overlay path
-    # in order for interop tests to run on linux.
-    if [ -d "$coreClrBinDir/bin" ]; then
-        cp -f -v "$coreClrBinDir/bin/"* "$coreOverlayDir/" 2>/dev/null
-    fi
+    # Copy native interop test libraries over to the coreOverlayDir path in
+    # order for interop tests to run on linux.
+    cp -f -v "$coreClrBinDir/bin/"* "$coreOverlayDir/" 2>/dev/null
 }
 
 declare -a skipCrossGenFiles
@@ -927,6 +929,7 @@ readonly EXIT_CODE_TEST_FAILURE=2  # Script completed successfully, but one or m
 testRootDir=
 coreOverlayDir=
 coreClrBinDir=
+mscorlibDir=
 coreFxBinDir=
 coreClrObjs=
 coreClrSrc=
@@ -991,7 +994,6 @@ do
             testRootDir=${i#*=}
             ;;
         --testNativeBinDir=*)
-            testNativeBinDir=${i#*=}
             echo 'Warning: --testNativeBinDir argument is not used anymore'
             ;;
         --coreOverlayDir=*)
@@ -1002,7 +1004,6 @@ do
             ;;
         --mscorlibDir=*)
             mscorlibDir=${i#*=}
-            echo 'Warning: --testNativeBinDir argument is not used anymore'
             ;;
         --coreFxBinDir=*)
             coreFxBinDir=${i#*=}
@@ -1097,6 +1098,10 @@ fi
 if [ ! -d "$testRootDir" ]; then
     echo "Directory specified by --testRootDir does not exist: $testRootDir"
     exit $EXIT_CODE_EXCEPTION
+fi
+
+if [ -z "$mscorlibDir" ]; then
+    mscorlibDir=$coreClrBinDir
 fi
 
 if [ ! -z "$longgc" ]; then
