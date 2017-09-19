@@ -6,7 +6,7 @@
 #ifndef _TARGET_H_
 #define _TARGET_H_
 
-// dummy change
+// dummy change 2
 
 #if defined(FEATURE_CORECLR) && defined(_TARGET_UNIX_)
 #define FEATURE_VARARG 0
