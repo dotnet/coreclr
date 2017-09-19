@@ -2001,23 +2001,8 @@ combinedScenarios.each { scenario ->
                         switch (architecture) {
                             case 'armlb':
                             case 'arm':
-                                if ((scenario != 'gcstress0x3') &&
-                                    (scenario != 'gcstress0xc') &&
-                                    (scenario != 'jitstress1') &&
-                                    (scenario != 'jitstress2') &&
-                                    (scenario != 'jitstressregs1') &&
-                                    (scenario != 'jitstressregs2') &&
-                                    (scenario != 'gcstress0xc_jitstress1') &&
-                                    (scenario != 'gcstress0xc_jitstress2') &&
-                                    (scenario != 'minopts') &&
-                                    (scenario != 'tieredcompilation') &&
-                                    (scenario != 'tailcallstress') &&
-                                    (scenario != 'zapdisable')) {
-                                        return
-                                    }
-                                    break
                             case 'arm64':
-                                if ((scenario != 'gcstress0x3') && (scenario != 'gcstress0xc')) {
+                                if (!Constants.validArmWindowsScenarios.contains(scenario)) {
                                     return
                                 }
                                 break
