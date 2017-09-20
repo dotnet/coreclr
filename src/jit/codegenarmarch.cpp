@@ -3280,7 +3280,6 @@ void CodeGen::genCodeForJumpTrue(GenTreePtr tree)
     }
 }
 
-
 //------------------------------------------------------------------------
 // genCodeForJcc: Produce code for a GT_JCC node.
 //
@@ -3348,7 +3347,6 @@ void CodeGen::genCodeForSetcc(GenTreeCC* setcc)
 
     genProduceReg(setcc);
 }
-
 
 //------------------------------------------------------------------------
 // genCodeForStoreBlk: Produce code for a GT_STORE_OBJ/GT_STORE_DYN_BLK/GT_STORE_BLK node.
