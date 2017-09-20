@@ -843,6 +843,8 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 
 void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 {
+    int flushXrestart = PASS;
+
     assert(args != nullptr);
     switch (args->operation)
     {
@@ -868,7 +870,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
-        ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
+        flushXrestart |= ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
 
         // We need to make sure that other threads executing checked write barriers
         // will see the g_card_table update before g_lowest/highest_address updates.
@@ -891,7 +893,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
 #if defined(_ARM64_)
         // Need to reupdate for changes to g_highest_address g_lowest_address
-        ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
+        flushXrestart |= ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
 
         if(!args->is_runtime_suspended)
         {
@@ -899,15 +901,15 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
             MemoryBarrier();
         }
 #endif
-        return;
+        break;
     case WriteBarrierOp::StompEphemeral:
         // StompEphemeral requires a new ephemeral low and a new ephemeral high
         assert(args->ephemeral_low != nullptr);
         assert(args->ephemeral_high != nullptr);
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
-        ::StompWriteBarrierEphemeral(args->is_runtime_suspended);
-        return;
+        flushXrestart |= ::StompWriteBarrierEphemeral(args->is_runtime_suspended);
+        break;
     case WriteBarrierOp::Initialize:
         // This operation should only be invoked once, upon initialization.
         assert(g_card_table == nullptr);
@@ -932,7 +934,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         
         g_lowest_address = args->lowest_address;
         VolatileStore(&g_highest_address, args->highest_address);
-        ::StompWriteBarrierResize(true, false);
+        flushXrestart |= ::StompWriteBarrierResize(true, false);
 
         // StompWriteBarrierResize does not necessarily bash g_ephemeral_low
         // usages, so we must do so here. This is particularly true on x86,
@@ -940,31 +942,39 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         // called with the parameters (true, false), as it is above.
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
-        ::StompWriteBarrierEphemeral(true);
-        return;
+        flushXrestart |= ::StompWriteBarrierEphemeral(true);
+        break;
     case WriteBarrierOp::SwitchToWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         assert(args->write_watch_table != nullptr);
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         g_sw_ww_table = args->write_watch_table;
         g_sw_ww_enabled_for_gc_heap = true;
-        ::SwitchToWriteWatchBarrier(true);
+        flushXrestart |= ::SwitchToWriteWatchBarrier(true);
 #else
         assert(!"should never be called without FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP");
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-        return;
+        break;
     case WriteBarrierOp::SwitchToNonWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         g_sw_ww_table = 0;
         g_sw_ww_enabled_for_gc_heap = false;
-        ::SwitchToNonWriteWatchBarrier(true);
+        flushXrestart |= ::SwitchToNonWriteWatchBarrier(true);
 #else
         assert(!"should never be called without FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP");
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-        return;
+        break;
     default:
         assert(!"unknown WriteBarrierOp enum");
+    }
+    if (flushXrestart & ICACHE_FLUSH) 
+    {
+        ::FlushWriteBarrierInstructionCache();
+    }
+    if (flushXrestart & EE_RESTART) 
+    {
+        ThreadSuspend::RestartEE(FALSE, TRUE);
     }
 }
 
