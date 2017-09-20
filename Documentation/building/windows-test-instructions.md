@@ -15,7 +15,7 @@ To build the tests simply navigate to the tests directory above the repo and run
 
 *Building tests that will be precompiled*
 
-    C:\git\coreclr>build-test.cmd crossgen
+    C:\git\coreclr>build-test.cmd -crossgen
 
 This will use crossgen.exe to precompile the test executables before they are executed.
 
@@ -29,7 +29,7 @@ The number '2' is just an example. The default value (if no priority is specifie
 
 To build a clean, priority 1, crossgen set of tests:
 
-    C:\git\coreclr>build-test.cmd -rebuild crossgen -priority=1
+    C:\git\coreclr>build-test.cmd -rebuild -crossgen -priority=1
 
 **buildtest /?** will list additional supported parameters.
 
