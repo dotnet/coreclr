@@ -707,7 +707,7 @@ parallel(
             def channel = 'master'
             def configuration = 'Release'
             def runType = 'rolling'
-            def benchViewName = 'CoreCLR-Scenarios rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
+            def benchViewName = 'Dotnet Size on Disk %DATE% %TIME%'
             def testBin = "%WORKSPACE%\\bin\\tests\\${os}.${architecture}.${configuration}"
             def coreRoot = "${testBin}\\Tests\\Core_Root"
             def benchViewTools = "%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools"
@@ -739,7 +739,7 @@ parallel(
 
                 // From sodbench.csv, create measurment.json, then submission.json
                 batchFile("py \"${benchViewTools}\\measurement.py\" csv \"%WORKSPACE%\\sodbench.csv\" --metric \"Size on Disk\" --unit \"bytes\" --better \"desc\"")
-                batchFile("py \"${benchViewTools}\\submission.py\" measurement.json --build build.json --machine-data machinedata.json --metadata submission-metadata.json --group \"Dotnet Size on Disk\" --type ${runType} --config-name ${configuration} --architecture ${arch} --machinepool PerfSnake --config Channel ${channel}")
+                batchFile("py \"${benchViewTools}\\submission.py\" measurement.json --build build.json --machine-data machinedata.json --metadata submission-metadata.json --group \"Dotnet Size on Disk\" --type ${runType} --config-name ${configuration} --architecture ${arch} --machinepool VM --config Channel ${channel}")
 
                 // If this is a PR, upload submission.json
                 batchFile("py \"${benchViewTools}\\upload.py\" submission.json --container coreclr")
