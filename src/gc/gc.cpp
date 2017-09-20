@@ -15886,6 +15886,13 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
     size_t allocation_no_gc_loh = 0;
     size_t allocation_no_gc_soh = 0;
     size_t size_per_heap = 0;
+    int soh_align_const = get_alignment_constant (TRUE);
+    size_t max_soh_allocated = (soh_segment_size - segment_info_size - eph_gen_starts_size);
+    int num_heaps = 1;
+#ifdef MULTIPLE_HEAPS
+    num_heaps = n_heaps;
+#endif //MULTIPLE_HEAPS
+    size_t total_allowed_soh_allocation = max_soh_allocated * num_heaps;
 
     // requested sizes of 0 make no sense.
     if (total_size == 0)
@@ -15928,14 +15935,6 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
         allocation_no_gc_loh = (size_t)total_size;
     }
 
-    int soh_align_const = get_alignment_constant (TRUE);
-    size_t max_soh_allocated = (soh_segment_size - segment_info_size - eph_gen_starts_size);
-
-    int num_heaps = 1;
-#ifdef MULTIPLE_HEAPS
-    num_heaps = n_heaps;
-#endif //MULTIPLE_HEAPS
-    size_t total_allowed_soh_allocation = max_soh_allocated * num_heaps;
 
     if (allocation_no_gc_soh > total_allowed_soh_allocation)
     {
