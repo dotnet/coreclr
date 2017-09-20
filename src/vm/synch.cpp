@@ -835,7 +835,7 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorC
 
         // Determine whether to spin further
         double spinnersPerProcessor = (double)counts.spinnerCount / processorCount;
-        int spinLimit = (int)(spinCountPerProcessor / spinnersPerProcessor + 0.5);
+        UINT32 spinLimit = (UINT32)(spinCountPerProcessor / spinnersPerProcessor + 0.5);
         if (i >= spinLimit)
         {
             break;
