@@ -171,6 +171,8 @@ namespace SoDBench
             long fallbackDirSize = GetDirectorySize(s_fallbackDir);
             result["fallback"] = fallbackDirSize;
 
+            result[s_dotnetExe.Directory.Name] = GetDirectorySize(s_dotnetExe.Directory);
+
             foreach (var dir in s_dotnetExe.Directory.EnumerateDirectories("*", SearchOption.AllDirectories))
             {
                 result[GetRelativeUri(dir, s_dotnetExe.Directory)] = GetDirectorySize(dir);
@@ -394,14 +396,19 @@ namespace SoDBench
             var toplevelname = "Size on Disk";
             var result = new StringBuilder();
 
+            long totalAcquisitionSize = 0;
+            var namespaces = new string[] {toplevelname, "Acquisition Size"};
             foreach (var item in acquisitionSizes)
             {
-                var namespaces = new string[] {toplevelname, "Acquisition Size"};
                 var data = namespaces.Concat(Csv.Escape(item.Key).Split('/')).Concat( new string[] {Convert.ToString(item.Value)} );
                 var line = String.Join(",", data);
                 result.AppendLine(line);
-            }
 
+                totalAcquisitionSize += item.Value ?? 0;
+            }
+            result.AppendLine(String.Join(",", namespaces.Concat( new string[] {Convert.ToString(totalAcquisitionSize)})));
+
+            long totalDeploymentSize = 0;
             foreach (var dict in deploymentSizes)
             {
                 foreach (var item in dict.Value)
@@ -409,8 +416,12 @@ namespace SoDBench
                     var data = new string[] {toplevelname, "Deployment Size", dict.Key, item.Key, Convert.ToString(item.Value)};
                     var line = String.Join(",", data);
                     result.AppendLine(line);
+
+                    totalDeploymentSize += item.Value ?? 0;
                 }
             }
+            result.AppendLine(String.Join(",", new string[] {toplevelname, "Deployment Size", Convert.ToString(totalDeploymentSize)}));
+            result.AppendLine(String.Join(",", new string[] {toplevelname, Convert.ToString(totalDeploymentSize + totalAcquisitionSize)}));
 
             return result.ToString();
         }
