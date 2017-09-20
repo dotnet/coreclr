@@ -1410,7 +1410,7 @@ LIR::ReadOnlyRange LIR::Range::GetRangeOfOperandTrees(GenTree* root, bool* isClo
 // CheckLclVarSemanticsHelper checks lclVar semantics.
 //
 // Specifically, ensure that an unaliasable lclVar is not redefined between the
-// point at which a use appears in linear order and the point at which that use is consumed by its user.
+// point at which a use appears in linear order and the point at which it is used by its user.
 // This ensures that it is always safe to treat a lclVar use as happening at the user (rather than at
 // the lclVar node).
 class CheckLclVarSemanticsHelper
@@ -1431,7 +1431,7 @@ public:
     CheckLclVarSemanticsHelper(Compiler*         compiler,
                                const LIR::Range* range,
                                SmallHashTable<GenTreePtr, bool, 32U>& unusedDefs)
-        : compiler(compiler), range(range), unusedDefs(unusedDefs), unconsumedLclVarReads(compiler)
+        : compiler(compiler), range(range), unusedDefs(unusedDefs), unusedLclVarReads(compiler)
     {
     }
 
@@ -1445,19 +1445,19 @@ public:
         {
             if (!node->isContained()) // a contained node reads operands in the parent.
             {
-                ConsumeNodeOperands(node);
+                UseNodeOperands(node);
             }
 
             AliasSet::NodeInfo nodeInfo(compiler, node);
             if (nodeInfo.IsLclVarRead() && !unusedDefs.Contains(node))
             {
                 int count = 0;
-                unconsumedLclVarReads.TryGetValue(nodeInfo.LclNum(), &count);
-                unconsumedLclVarReads.AddOrUpdate(nodeInfo.LclNum(), count + 1);
+                unusedLclVarReads.TryGetValue(nodeInfo.LclNum(), &count);
+                unusedLclVarReads.AddOrUpdate(nodeInfo.LclNum(), count + 1);
             }
 
             // If this node is a lclVar write, it must be to a lclVar that does not have an outstanding read.
-            assert(!nodeInfo.IsLclVarWrite() || !unconsumedLclVarReads.Contains(nodeInfo.LclNum()));
+            assert(!nodeInfo.IsLclVarWrite() || !unusedLclVarReads.Contains(nodeInfo.LclNum()));
         }
 
         return true;
@@ -1465,28 +1465,28 @@ public:
 
 private:
     //------------------------------------------------------------------------
-    // ConsumeNodeOperands: mark the node's operands as consumed.
+    // UseNodeOperands: mark the node's operands as used.
     //
     // Arguments:
-    //    node - the node to consume operands from.
-    void ConsumeNodeOperands(GenTreePtr node)
+    //    node - the node to use operands from.
+    void UseNodeOperands(GenTreePtr node)
     {
         for (GenTreePtr operand : node->Operands())
         {
             if (operand->isContained())
             {
-                ConsumeNodeOperands(operand);
+                UseNodeOperands(operand);
             }
             AliasSet::NodeInfo operandInfo(compiler, operand);
             if (operandInfo.IsLclVarRead())
             {
                 int        count;
-                const bool removed = unconsumedLclVarReads.TryRemove(operandInfo.LclNum(), &count);
+                const bool removed = unusedLclVarReads.TryRemove(operandInfo.LclNum(), &count);
                 assert(removed);
 
                 if (count > 1)
                 {
-                    unconsumedLclVarReads.AddOrUpdate(operandInfo.LclNum(), count - 1);
+                    unusedLclVarReads.AddOrUpdate(operandInfo.LclNum(), count - 1);
                 }
             }
         }
@@ -1496,7 +1496,7 @@ private:
     Compiler*         compiler;
     const LIR::Range* range;
     SmallHashTable<GenTree*, bool, 32U>& unusedDefs;
-    SmallHashTable<int, int, 32U>        unconsumedLclVarReads;
+    SmallHashTable<int, int, 32U>        unusedLclVarReads;
 };
 
 //------------------------------------------------------------------------
