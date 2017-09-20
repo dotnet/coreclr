@@ -15893,9 +15893,18 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
     num_heaps = n_heaps;
 #endif //MULTIPLE_HEAPS
     size_t total_allowed_soh_allocation = max_soh_allocated * num_heaps;
+    const size_t max_alloc_scale = static_cast<size_t>(SIZE_T_MAX / 1.05f);
 
     // requested sizes of 0 make no sense.
     if (total_size == 0)
+    {
+        status = start_no_gc_too_large;
+        goto done;
+    }
+
+    // requested sizes that would cause 1.05 * total_size to not fit in a size_t
+    // also make no sense.
+    if (total_size > max_alloc_scale)
     {
         status = start_no_gc_too_large;
         goto done;
@@ -15913,6 +15922,12 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
         // it can't allocate total_size - loh_size for the SOH. This only makes
         // any kind of sense if total_size > loh_size.
         if (total_size < loh_size)
+        {
+            status = start_no_gc_too_large;
+            goto done;
+        }
+
+        if (loh_size > max_alloc_scale)
         {
             status = start_no_gc_too_large;
             goto done;
