@@ -1013,7 +1013,15 @@ HRESULT EEConfig::sync()
 #endif
 
     dwSpinInitialDuration = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinInitialDuration);
+    if (dwSpinInitialDuration < 1)
+    {
+        dwSpinInitialDuration = 1;
+    }
     dwSpinBackoffFactor = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinBackoffFactor);
+    if (dwSpinBackoffFactor < 2)
+    {
+        dwSpinBackoffFactor = 2;
+    }
     dwSpinLimitProcCap = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinLimitProcCap);
     dwSpinLimitProcFactor = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinLimitProcFactor);
     dwSpinLimitConstant = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinLimitConstant);

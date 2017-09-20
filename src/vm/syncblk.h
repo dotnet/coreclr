@@ -184,11 +184,213 @@ class AwareLock
     friend class SyncBlock;
 
 public:
-    Volatile<LONG>  m_MonitorHeld;
+    enum EnterHelperResult {
+        EnterHelperResult_Entered,
+        EnterHelperResult_Contention,
+        EnterHelperResult_UseSlowPath
+    };
+
+    enum LeaveHelperAction {
+        LeaveHelperAction_None,
+        LeaveHelperAction_Signal,
+        LeaveHelperAction_Yield,
+        LeaveHelperAction_Contention,
+        LeaveHelperAction_Error,
+    };
+
+public:
+    class LockState
+    {
+    private:
+        // Layout constants for m_state
+        static const UINT32 IsLockedMask = 0x1; // bit 0
+        static const UINT32 SpinnerCountIncrement = 0x2;
+        static const UINT32 SpinnerCountMask = 0x7e; // bits 1-6
+        static const UINT32 IsWaiterSignaledToWakeMask = 0x80; // bit 7
+        static const UINT32 WaiterCountShift = 8;
+        static const UINT32 WaiterCountIncrement = (UINT32)1 << WaiterCountShift;
+        static const UINT32 WaiterCountMask = (UINT32)-1 >> WaiterCountShift << WaiterCountShift; // bits 8-31
+
+    private:
+        UINT32 m_state;
+
+    public:
+        LockState(UINT32 state = 0) : m_state(state)
+        {
+            LIMITED_METHOD_CONTRACT;
+        }
+
+    public:
+        UINT32 GetMonitorHeldState() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            static_assert_no_msg(IsLockedMask == 1);
+            static_assert_no_msg(WaiterCountShift >= 1);
+
+            // Return only the locked state and waiter count in the previous (m_MonitorHeld) layout for the debugger:
+            //   bit 0: 1 if locked, 0 otherwise
+            //   bits 1-31: waiter count
+            UINT32 state = m_state;
+            return (state & IsLockedMask) + (state >> (WaiterCountShift - 1));
+        }
+
+    public:
+        bool IsUnlockedWithNoWaiters() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !(m_state & (IsLockedMask + WaiterCountMask));
+        }
+
+        void SetIsLockedWithNoWaiters()
+        {
+            LIMITED_METHOD_CONTRACT;
+            _ASSERTE(!m_state);
+
+            m_state = IsLockedMask;
+        }
+
+    public:
+        bool IsLocked() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !!(m_state & IsLockedMask);
+        }
+
+    private:
+        void InvertIsLocked()
+        {
+            LIMITED_METHOD_CONTRACT;
+            m_state ^= IsLockedMask;
+        }
+
+    public:
+        bool HasAnySpinners() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !!(m_state & SpinnerCountMask);
+        }
+
+    private:
+        bool IncrementSpinnerCount()
+        {
+            WRAPPER_NO_CONTRACT;
+
+            LockState newState = m_state + SpinnerCountIncrement;
+            if (newState.HasAnySpinners()) // overflow check
+            {
+                m_state = newState;
+                return true;
+            }
+            return false;
+        }
+
+        void DecrementSpinnerCount()
+        {
+            WRAPPER_NO_CONTRACT;
+            _ASSERTE(HasAnySpinners());
+
+            m_state -= SpinnerCountIncrement;
+        }
+
+    public:
+        bool IsWaiterSignaledToWake() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !!(m_state & IsWaiterSignaledToWakeMask);
+        }
+
+    private:
+        void InvertIsWaiterSignaledToWake()
+        {
+            LIMITED_METHOD_CONTRACT;
+            m_state ^= IsWaiterSignaledToWakeMask;
+        }
+
+    public:
+        bool HasAnyWaiters() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return m_state >= WaiterCountIncrement;
+        }
+
+    private:
+        void IncrementWaiterCount()
+        {
+            LIMITED_METHOD_CONTRACT;
+            _ASSERTE(m_state + WaiterCountIncrement >= WaiterCountIncrement);
+
+            m_state += WaiterCountIncrement;
+        }
+
+        void DecrementWaiterCount()
+        {
+            WRAPPER_NO_CONTRACT;
+            _ASSERTE(HasAnyWaiters());
+
+            m_state -= WaiterCountIncrement;
+        }
+
+    private:
+        bool NeedToSignalWaiter() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return HasAnyWaiters() && !(m_state & (SpinnerCountMask + IsWaiterSignaledToWakeMask));
+        }
+
+    private:
+        operator UINT32() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return m_state;
+        }
+
+        LockState &operator =(UINT32 state)
+        {
+            LIMITED_METHOD_CONTRACT;
+
+            m_state = state;
+            return *this;
+        }
+
+    public:
+        LockState VolatileLoad() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return ::VolatileLoad(&m_state);
+        }
+
+    private:
+        LockState CompareExchange(LockState toState, LockState fromState)
+        {
+            LIMITED_METHOD_CONTRACT;
+            return (UINT32)InterlockedCompareExchange((LONG *)&m_state, (LONG)toState, (LONG)fromState);
+        }
+
+        LockState CompareExchangeAcquire(LockState toState, LockState fromState)
+        {
+            LIMITED_METHOD_CONTRACT;
+            return (UINT32)InterlockedCompareExchangeAcquire((LONG *)&m_state, (LONG)toState, (LONG)fromState);
+        }
+
+    public:
+        bool InterlockedTryLock();
+        bool InterlockedTryLock(LockState state);
+        bool InterlockedUnlock();
+        EnterHelperResult InterlockedTry_LockOrRegisterSpinner(LockState state);
+        bool InterlockedTry_LockAndUnregisterSpinner();
+        bool InterlockedUnregisterSpinner_TryLock();
+        bool InterlockedTryLock_Or_RegisterWaiter(LockState state);
+        void InterlockedUnregisterWaiter();
+        bool InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal();
+        bool InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter();
+    };
+
+public:
+    LockState m_lockState;
     ULONG           m_Recursion;
     PTR_Thread      m_HoldingThread;
     
-  private:
+private:
     LONG            m_TransientPrecious;
 
 
@@ -200,8 +402,7 @@ public:
 
     // Only SyncBlocks can create AwareLocks.  Hence this private constructor.
     AwareLock(DWORD indx)
-        : m_MonitorHeld(0),
-          m_Recursion(0),
+        : m_Recursion(0),
 #ifndef DACCESS_COMPILE          
 // PreFAST has trouble with intializing a NULL PTR_Thread.
           m_HoldingThread(NULL),
@@ -237,24 +438,14 @@ public:
 #endif // defined(ENABLE_CONTRACTS_IMPL)
 
 public:
-    enum EnterHelperResult {
-        EnterHelperResult_Entered,
-        EnterHelperResult_Contention,
-        EnterHelperResult_UseSlowPath
-    };
-
-    enum LeaveHelperAction {
-        LeaveHelperAction_None,
-        LeaveHelperAction_Signal,
-        LeaveHelperAction_Yield,
-        LeaveHelperAction_Contention,
-        LeaveHelperAction_Error,
-    };
-
-    static bool SpinWaitAndBackOffBeforeOperation(DWORD *spinCountRef);
+    static void SpinWait(DWORD spinCount);
 
     // Helper encapsulating the fast path entering monitor. Returns what kind of result was achieved.
-    bool EnterHelper(Thread* pCurThread, bool checkRecursiveCase);
+    bool TryEnterHelper(Thread* pCurThread);
+
+    EnterHelperResult TryEnterBeforeSpinLoopHelper(Thread *pCurThread);
+    bool TryEnterInsideSpinLoopHelper(Thread *pCurThread);
+    bool TryEnterAfterSpinLoopHelper(Thread *pCurThread);
 
     // Helper encapsulating the core logic for leaving monitor. Returns what kind of 
     // follow up action is necessary
@@ -274,7 +465,6 @@ public:
         m_SemEvent.SetMonitorEvent();
     }
 
-    bool    Contention(INT32 timeOut = INFINITE);
     void    AllocLockSemEvent();
     LONG    LeaveCompletely();
     BOOL    OwnedByCurrentThread();
@@ -307,13 +497,6 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_HoldingThread;
-    }
-
-    // Do we have waiters?
-    inline BOOL HasWaiters()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_MonitorHeld >> 1) > 0;
     }
 };
 
@@ -636,7 +819,7 @@ class SyncBlock
     {
         WRAPPER_NO_CONTRACT;
         return (!IsPrecious() &&
-                m_Monitor.m_MonitorHeld.RawValue() == (LONG)0 &&
+                m_Monitor.m_lockState.IsUnlockedWithNoWaiters() &&
                 m_Monitor.m_TransientPrecious == 0);
     }
 
@@ -725,7 +908,7 @@ class SyncBlock
     {
         LIMITED_METHOD_CONTRACT;
         // <NOTE>
-        // DO NOT SET m_MonitorHeld HERE!  THIS IS NOT PROTECTED BY ANY LOCK!!
+        // DO NOT SET m_lockState HERE!  THIS IS NOT PROTECTED BY ANY LOCK!!
         // </NOTE>
         m_Monitor.m_HoldingThread = PTR_Thread(holdingThread);
         m_Monitor.m_Recursion = recursionLevel;
@@ -878,7 +1061,7 @@ class SyncBlock
     void InitState()
     {
         LIMITED_METHOD_CONTRACT;
-        m_Monitor.m_MonitorHeld.RawValue() = 1;
+        m_Monitor.m_lockState.SetIsLockedWithNoWaiters();
     }
 
 #if defined(ENABLE_CONTRACTS_IMPL)

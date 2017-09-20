@@ -4427,27 +4427,6 @@ NOINLINE static void JIT_MonEnter_Helper(Object* obj, BYTE* pbLockTaken, LPVOID 
 }
 
 /*********************************************************************/
-NOINLINE static void JIT_MonContention_Helper(Object* obj, BYTE* pbLockTaken, LPVOID __me)
-{
-    FC_INNER_PROLOG_NO_ME_SETUP();
-
-    OBJECTREF objRef = ObjectToOBJECTREF(obj);
-
-    // Monitor helpers are used as both hcalls and fcalls, thus we need exact depth.
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH|Frame::FRAME_ATTR_CAPTURE_DEPTH_2, objRef);    
-
-    GCPROTECT_BEGININTERIOR(pbLockTaken);
-
-    objRef->GetSyncBlock()->QuickGetMonitor()->Contention();
-    if (pbLockTaken != 0) *pbLockTaken = 1;
-
-    GCPROTECT_END();
-    HELPER_METHOD_FRAME_END();
-
-    FC_INNER_EPILOG();
-}
-
-/*********************************************************************/
 #include <optsmallperfcritical.h>
 
 HCIMPL_MONHELPER(JIT_MonEnterWorker_Portable, Object* obj)
@@ -4482,10 +4461,6 @@ HCIMPL_MONHELPER(JIT_MonEnterWorker_Portable, Object* obj)
         {
             MONHELPER_STATE(*pbLockTaken = 1);
             return;
-        }
-        if (result == AwareLock::EnterHelperResult_Contention)
-        {
-            FC_INNER_RETURN_VOID(JIT_MonContention_Helper(obj, MONHELPER_ARG, GetEEFuncEntryPointMacro(JIT_MonEnter)));
         }
     }
 
@@ -4524,10 +4499,6 @@ HCIMPL1(void, JIT_MonEnter_Portable, Object* obj)
         if (result == AwareLock::EnterHelperResult_Entered)
         {
             return;
-        }
-        if (result == AwareLock::EnterHelperResult_Contention)
-        {
-            FC_INNER_RETURN_VOID(JIT_MonContention_Helper(obj, NULL, GetEEFuncEntryPointMacro(JIT_MonEnter)));
         }
     }
 
@@ -4568,10 +4539,6 @@ HCIMPL2(void, JIT_MonReliableEnter_Portable, Object* obj, BYTE* pbLockTaken)
         {
             *pbLockTaken = 1;
             return;
-        }
-        if (result == AwareLock::EnterHelperResult_Contention)
-        {
-            FC_INNER_RETURN_VOID(JIT_MonContention_Helper(obj, pbLockTaken, GetEEFuncEntryPointMacro(JIT_MonReliableEnter)));
         }
     }
 
@@ -4817,7 +4784,7 @@ HCIMPL_MONHELPER(JIT_MonEnterStatic_Portable, AwareLock *lock)
         goto FramedLockHelper;
     }
 
-    if (lock->EnterHelper(pCurThread, true /* checkRecursiveCase */))
+    if (lock->TryEnterHelper(pCurThread))
     {
 #if defined(_DEBUG) && defined(TRACK_SYNC)
         // The best place to grab this is from the ECall frame
