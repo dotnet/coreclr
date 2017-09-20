@@ -3616,7 +3616,7 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
         {
             if ((i == 0 && pLookup->indirectFirstOffset) || (i == 1 && pLookup->indirectSecondOffset))
             {
-                indirectionsSize += (pLookup->offsets[i] >= 0xFFF ? 10 : 4);
+                indirectionsSize += (pLookup->offsets[i] >= 0xFFF ? 10 : 2);
                 indirectionsSize += 4;
             }
             else
@@ -3640,7 +3640,7 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
         {
             if ((i == 0 && pLookup->indirectFirstOffset) || (i == 1 && pLookup->indirectSecondOffset))
             {
-                if (pLookup->offsets[i] >= 0xFFF)
+                if (pLookup->offsets[i] >= 0xFF)
                 {
                     // mov r2, offset
                     MovRegImm(p, 2, pLookup->offsets[i]);
@@ -3652,10 +3652,9 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
                 }
                 else
                 {
-                    // add r0, r0, <offset>
-                   *(WORD *)(p + 0) = 0xF100;
-                   *(WORD *)(p + 2) = pLookup->offsets[i];
-                   p += 4;
+                    // add r0, <offset>
+                   *(WORD *)p = (WORD)((WORD)0x3000 | (WORD)((0x00FF) & pLookup->offsets[i]));
+                   p += 2;
                 }
 
                 // r0 is pointer + offset[0]
