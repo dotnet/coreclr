@@ -1473,6 +1473,12 @@ private:
     {
         for (GenTreePtr operand : node->Operands())
         {
+            if (!operand->IsLIR())
+            {
+                // ARGPLACE nodes are not represented in the LIR sequence. Ignore them.
+                assert(operand->OperIs(GT_ARGPLACE));
+                continue;
+            }
             if (operand->isContained())
             {
                 UseNodeOperands(operand);
