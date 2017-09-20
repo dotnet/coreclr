@@ -27,7 +27,7 @@ The number '2' is just an example. The default value (if no priority is specifie
 
 **Example**
 
-To run a clean, priority 1, crossgen test pass:
+To build a clean, priority 1, crossgen set of tests:
 
     C:\git\coreclr>build-test.cmd -rebuild crossgen -priority=1
 
