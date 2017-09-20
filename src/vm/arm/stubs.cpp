@@ -3614,17 +3614,14 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
         int indirectionsSize = 0;
         for (WORD i = 0; i < pLookup->indirections; i++)
         {
-            if (i == 0 && pLookup->indirectFirstOffset)
+            if ((i == 0 && pLookup->indirectFirstOffset) || (i == 1 && pLookup->indirectSecondOffset))
             {
-                indirectionsSize += 14;
-            }
-            else if (i == 1 && pLookup->indirectSecondOffset)
-            {
-                indirectionsSize += 14;
+                indirectionsSize += (pLookup->offsets[i] >= 0xFFF ? 10 : 4);
+                indirectionsSize += 4;
             }
             else
             {
-                indirectionsSize += 10;
+                indirectionsSize += (pLookup->offsets[i] >= 0xFFF ? 10 : 4);
             }
         }
 
@@ -3643,13 +3640,23 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
         {
             if ((i == 0 && pLookup->indirectFirstOffset) || (i == 1 && pLookup->indirectSecondOffset))
             {
-                // mov r2, offset
-                MovRegImm(p, 2, pLookup->offsets[i]);
-                p += 8;
+                if (pLookup->offsets[i] >= 0xFFF)
+                {
+                    // mov r2, offset
+                    MovRegImm(p, 2, pLookup->offsets[i]);
+                    p += 8;
 
-                // add r0, r2
-                *(WORD *)p = 0x4410;
-                p += 2;
+                    // add r0, r2
+                    *(WORD *)p = 0x4410;
+                    p += 2;
+                }
+                else
+                {
+                    // add r0, r0, <offset>
+                   *(WORD *)(p + 0) = 0xF100;
+                   *(WORD *)(p + 2) = pLookup->offsets[i];
+                   p += 4;
+                }
 
                 // r0 is pointer + offset[0]
                 // ldr r2, [r0]
@@ -3663,13 +3670,24 @@ PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator,
             }
             else
             {
-                // mov r2, offset
-                MovRegImm(p, 2, pLookup->offsets[i]);
-                p += 8;
+                if (pLookup->offsets[i] >= 0xFFF)
+                {
+                    // mov r2, offset
+                    MovRegImm(p, 2, pLookup->offsets[i]);
+                    p += 8;
 
-                // ldr r0, [r0, r2]
-                *(WORD *)p = 0x5880;
-                p += 2;
+                    // ldr r0, [r0, r2]
+                    *(WORD *)p = 0x5880;
+                    p += 2;
+                }
+                else
+                {
+                    // ldr r0, [r0 + offset]
+                    *(WORD *)p = 0xF8D0;
+                    p += 2;
+                    *(WORD *)p = (WORD)(0xFFF & pLookup->offsets[i]);
+                    p += 2;
+                }
             }
         }
 
