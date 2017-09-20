@@ -736,7 +736,13 @@ if [ `uname` = "NetBSD" ]; then
 elif [ `uname` = "Darwin" ]; then
     NumProc=$(getconf _NPROCESSORS_ONLN)
 else
-    NumProc=$(nproc --all)
+    if [ -x "$(command -v nproc)" ]; then
+        NumProc=$(nproc --all)
+    elif [ -x "$(command -v getconf)" ]; then
+        NumProc=$(getconf _NPROCESSORS_ONLN)
+    else
+        NumProc=1
+    fi
 fi
 ((maxProcesses = $NumProc * 3 / 2)) # long tests delay process creation, use a few more processors
 
@@ -745,8 +751,7 @@ declare -a scriptFilePaths
 declare -a outputFilePaths
 declare -a processIds
 declare -a testStartTimes
-processIndexNone=$maxProcesses
-waitProcessIndex=$processIndexNone
+waitProcessIndex=
 pidNone=0
 
 function waitany {
@@ -878,7 +883,7 @@ function start_test {
         return
     fi
 
-    if ((nextProcessIndex == processIndexNone)); then
+    if ((nextProcessIndex == maxProcesses)); then
         finish_test
         nextProcessIndex=$(get_available_process_index)
     fi
