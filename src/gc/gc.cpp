@@ -15882,14 +15882,42 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
     save_data_for_no_gc();
     settings.pause_mode = pause_no_gc;
     current_no_gc_region_info.start_status = start_no_gc_success;
-    
+
     size_t allocation_no_gc_loh = 0;
     size_t allocation_no_gc_soh = 0;
     size_t size_per_heap = 0;
 
+    // requested sizes of 0 make no sense.
+    if (total_size == 0)
+    {
+        status = start_no_gc_too_large;
+        goto done;
+    }
+
+    if (loh_size_known)
+    {
+        if (loh_size == 0)
+        {
+            status = start_no_gc_too_large;
+            goto done;
+        }
+
+        // According to the documentation, TryStartNoGCRegion must fail if
+        // it can't allocate total_size - loh_size for the SOH. This only makes
+        // any kind of sense if total_size > loh_size.
+        if (total_size < loh_size)
+        {
+            status = start_no_gc_too_large;
+            goto done;
+        }
+    }
+
+    assert(total_size != 0);
     total_size = (size_t)((float)total_size * 1.05);
     if (loh_size_known)
     {
+        assert(loh_size != 0);
+        assert(total_size >= loh_size);
         loh_size = (size_t)((float)loh_size * 1.05);
         allocation_no_gc_loh = (size_t)loh_size;
         allocation_no_gc_soh = (size_t)(total_size - loh_size);
