@@ -414,7 +414,6 @@ isMSBuildOnNETCoreSupported()
             done
         elif [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
-        fi
     fi
 }
 
@@ -557,7 +556,7 @@ case $CPUName in
         __HostArch=arm64
         ;;
 
-    adm64)
+    amd64)
         __BuildArch=x64
         __HostArch=x64
         ;;
