@@ -74,6 +74,10 @@ initHostDistroRid()
             fi
         fi
     fi
+    if [ "$__HostOS" == "FreeBSD" ]; then
+        __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
+        __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
+    fi
 
     if [ "$__HostDistroRid" == "" ]; then
         echo "WARNING: Can not determine runtime id for current distro."
