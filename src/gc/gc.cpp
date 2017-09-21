@@ -15895,15 +15895,9 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
     size_t total_allowed_soh_allocation = max_soh_allocated * num_heaps;
     const size_t max_alloc_scale = static_cast<size_t>(SIZE_T_MAX / 1.05f);
 
-    // requested sizes of 0 make no sense.
-    if (total_size == 0)
-    {
-        status = start_no_gc_too_large;
-        goto done;
-    }
-
+    assert(total_size != 0);
     // requested sizes that would cause 1.05 * total_size to not fit in a size_t
-    // also make no sense.
+    // make no sense.
     if (total_size > max_alloc_scale)
     {
         status = start_no_gc_too_large;
@@ -15912,21 +15906,10 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
 
     if (loh_size_known)
     {
-        if (loh_size == 0)
-        {
-            status = start_no_gc_too_large;
-            goto done;
-        }
+        assert(loh_size != 0);
+        assert(loh_size <= total_size);
 
-        // According to the documentation, TryStartNoGCRegion must fail if
-        // it can't allocate total_size - loh_size for the SOH. This only makes
-        // any kind of sense if total_size > loh_size.
-        if (total_size < loh_size)
-        {
-            status = start_no_gc_too_large;
-            goto done;
-        }
-
+        // same for loh_size.
         if (loh_size > max_alloc_scale)
         {
             status = start_no_gc_too_large;
@@ -15939,8 +15922,8 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
     if (loh_size_known)
     {
         assert(loh_size != 0);
-        assert(total_size >= loh_size);
         loh_size = (size_t)((float)loh_size * 1.05);
+        assert(loh_size <= total_size);
         allocation_no_gc_loh = (size_t)loh_size;
         allocation_no_gc_soh = (size_t)(total_size - loh_size);
     }
