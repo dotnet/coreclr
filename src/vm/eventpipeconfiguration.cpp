@@ -116,7 +116,7 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     }
     CONTRACTL_END;
 
-    if(pProvider == NULL)
+    if (pProvider == NULL)
     {
         return;
     }

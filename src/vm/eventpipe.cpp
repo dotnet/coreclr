@@ -391,7 +391,7 @@ EventPipeProvider* EventPipe::CreateProvider(const SString &providerName, EventP
     CONTRACTL_END;
 
     EventPipeProvider *pProvider = NULL;
-    if(s_pConfig != NULL)
+    if (s_pConfig != NULL)
     {
         pProvider = s_pConfig->CreateProvider(providerName, pCallbackFunction, pCallbackData);
     }
@@ -425,7 +425,7 @@ void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
         else
         {
             // Delete the provider now.
-            if(s_pConfig != NULL)
+            if (s_pConfig != NULL)
             {
                 s_pConfig->DeleteProvider(pProvider);
             }
