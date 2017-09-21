@@ -106,18 +106,35 @@
     .method private static int32 Main()
     {
         .entrypoint
-        .maxstack  10
-                
-        ldc.i4 3
-        conv.i1
-        ldc.i8 2
-        conv.u8
-        ldc.i4 3
-
-        call unsigned int64 ILGEN_CLASS::ILGEN_METHOD(unsigned int8, unsigned int64, int32)
-        pop
-
-        ldc.i4 100
-        ret
+        .maxstack  3
+        .locals init ([0] class [mscorlib]System.OverflowException e,
+               [1] int32 V_1)
+        IL_0000:  nop
+        .try
+        {
+        IL_0001:  nop
+        IL_0002:  ldc.i4.3
+        IL_0003:  ldc.i4.2
+        IL_0004:  conv.i8
+        IL_0005:  ldc.i4.3
+        IL_0006:  call       uint64 ILGEN_CLASS::ILGEN_METHOD(uint8,
+                                                              uint64,
+                                                              int32)
+        IL_000b:  pop
+        IL_000c:  nop
+        IL_000d:  leave.s    IL_0014
+        }  // end .try
+        catch [mscorlib]System.OverflowException 
+        {
+        IL_000f:  stloc.0
+        IL_0010:  nop
+        IL_0011:  nop
+        IL_0012:  leave.s    IL_0014
+        }  // end handler
+        IL_0014:  ldc.i4.s   100
+        IL_0016:  stloc.1
+        IL_0017:  br.s       IL_0019
+        IL_0019:  ldloc.1
+        IL_001a:  ret
     }
 }
