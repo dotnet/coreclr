@@ -1,4 +1,4 @@
-﻿using CommandLine;
+using CommandLine;
 using CommandLine.Text;
 using Newtonsoft.Json;
 using Microsoft.Xunit.Performance.Api;
@@ -17,85 +17,54 @@ namespace SoDBench
 {
     // A simple tree node for tracking file and directory names and sizes
     // Does not have to accurately represent the true file system; only what we care about
-    class FileSystemNode
+    class SizeReportingNode
     {
-        public FileSystemNode(string name, long? size=null)
+        public SizeReportingNode(string name, long? size=null, bool expand=true)
         {
             Name = name;
             _size = size;
+            Expanded = expand;
         }
 
-        public void AddChild(FileSystemNode adoptee)
+        public SizeReportingNode(FileInfo file, bool expand=true)
         {
-            Children.Add(adoptee);
-            adoptee.Parent = this;
-            _size = null;
+            Name = file.Name;
+            _size = file.Length;
+            Expanded = expand;
         }
 
-        // Builds out the full tree starting from a directory
-        public FileSystemNode(DirectoryInfo dir)
+        // Builds out the tree starting from a directory
+        public SizeReportingNode(DirectoryInfo dir, int? reportingDepth=null)
         {
             Name = dir.Name;
 
             foreach (var childDir in dir.EnumerateDirectories())
             {
-                AddChild(new FileSystemNode(childDir));
+                AddChild(new SizeReportingNode(childDir));
             }
 
             foreach (var childFile in dir.EnumerateFiles())
             {
-                AddChild(new FileSystemNode(childFile));
+                AddChild(new SizeReportingNode(childFile));
+            }
+
+            if (reportingDepth != null)
+            {
+                LimitReportingDepth(reportingDepth ?? 0);
             }
         }
 
-        public FileSystemNode(FileInfo file)
-        {
-            Name = file.Name;
-            _size = file.Length;
-        }
 
         // The directory containing this node
-        public FileSystemNode Parent {
-            get
-            {
-                return _parent;
-            }
-            set
-            {
-                if (_parent == null)
-                {
-                    _parent = value;
-                    _fullName = null;
-                }
-            }
-        }
+        public SizeReportingNode Parent { get; set; }
 
         // All the directories and files this node contains
-        public List<FileSystemNode> Children {get; private set;} = new List<FileSystemNode>();
+        public List<SizeReportingNode> Children {get; private set;} = new List<SizeReportingNode>();
 
         // The file or directory name
-        public string Name {get; private set;}
+        public string Name { get; set; }
 
-        // The FullName relative up to the root of the file system tree we care about
-        public string FullName {
-            get
-            {
-                if (_fullName == null)
-                {
-                    if (Parent != null)
-                    {
-                        _fullName = Path.Combine(Parent.FullName, Name);
-                    }
-                    _fullName = Name;
-                }
-                return _fullName;
-            }
-
-            private set
-            {
-                _fullName = value;
-            }
-        }
+        public bool Expanded { get; set; } = true;
 
         // A list version of the path up to the root level we care about
         public List<string> SegmentedPath {
@@ -132,9 +101,52 @@ namespace SoDBench
             }
         }
 
-        private string _fullName = null;
+
+        // Add the adoptee node as a child and set the adoptee's parent
+        public void AddChild(SizeReportingNode adoptee)
+        {
+            Children.Add(adoptee);
+            adoptee.Parent = this;
+            _size = null;
+        }
+
+        public void LimitReportingDepth(int depth)
+        {
+            if (depth <= 0)
+            {
+                Expanded = false;
+            }
+
+            foreach (var childNode in Children)
+            {
+                childNode.LimitReportingDepth(depth-1);
+            }
+        }
+
+        // Return a CSV formatted string representation of the tree
+        public string FormatAsCsv()
+        {
+            return FormatAsCsv(new StringBuilder()).ToString();
+        }
+
+        // Add to the string build a csv formatted representation of the tree
+        public StringBuilder FormatAsCsv(StringBuilder builder)
+        {
+            string path = String.Join(",", SegmentedPath.Select(s => Csv.Escape(s)));
+            builder.AppendLine($"{path},{Size}");
+
+            if (Expanded)
+            {
+                foreach (var childNode in Children)
+                {
+                    childNode.FormatAsCsv(builder);
+                }
+            }
+
+            return builder;
+        }
+
         private long? _size = null;
-        private FileSystemNode _parent = null;
     }
 
     class Program
@@ -243,11 +255,11 @@ namespace SoDBench
                 PrintHeader("Running deployment size test");
                 var deployment = GetDeploymentSize();
 
-                var root = new FileSystemNode("Dotnet Total");
+                var root = new SizeReportingNode("Dotnet Total");
                 root.AddChild(acquisition);
                 root.AddChild(deployment);
 
-                var formattedStr = FormatAsCsv(root);
+                var formattedStr = root.FormatAsCsv();
                
                 File.WriteAllText(options.OutputFilename, formattedStr);
 
@@ -273,9 +285,9 @@ namespace SoDBench
             Console.WriteLine("**********************************************************************");
         }
 
-        private static FileSystemNode GetAcquisitionSize()
+        private static SizeReportingNode GetAcquisitionSize()
         {
-            var result = new FileSystemNode("Acquisition Size");
+            var result = new SizeReportingNode("Acquisition Size");
 
             // Arbitrary command to trigger first time setup
             ProcessStartInfo dotnet = new ProcessStartInfo()
@@ -293,22 +305,40 @@ namespace SoDBench
 
             Console.WriteLine("\n** Measuring total size of acquired files");
 
-            result.AddChild(new FileSystemNode(s_fallbackDir));
-            result.AddChild(new FileSystemNode(s_dotnetExe.Directory));
+            result.AddChild(new SizeReportingNode(s_fallbackDir, 1));
+
+            var dotnetNode = new SizeReportingNode(s_dotnetExe.Directory);
+            var reportingDepths = new Dictionary<string, int>
+            {
+                {"additionalDeps", 1},
+                {"host", 0},
+                {"sdk", 2},
+                {"shared", 2},
+                {"store", 3}
+            };
+            foreach (var childNode in dotnetNode.Children)
+            {
+                int depth = 0;
+                if (reportingDepths.TryGetValue(childNode.Name, out depth))
+                {
+                    childNode.LimitReportingDepth(depth);
+                }
+            }
+            result.AddChild(dotnetNode);
 
             return result;
         }
         
-        private static FileSystemNode GetDeploymentSize()
+        private static SizeReportingNode GetDeploymentSize()
         {
             // Write the NuGet.Config file
             var nugetConfFile = new FileInfo(Path.Combine(s_sandboxDir.FullName, "NuGet.Config"));
             File.WriteAllText(nugetConfFile.FullName, NugetConfig);
 
-            var result = new FileSystemNode("Deployment Size");
+            var result = new SizeReportingNode("Deployment Size");
             foreach (string template in NewTemplates)
             {
-                var templateNode = new FileSystemNode(template);
+                var templateNode = new SizeReportingNode(template);
                 result.AddChild(templateNode);
 
                 foreach (var os in OperatingSystems)
@@ -365,7 +395,17 @@ namespace SoDBench
                         continue;
                     }
 
-                    templateNode.AddChild(new FileSystemNode(deploymentSandbox));
+                    // If we published this project, only report published it's size
+                    if (publishDir.Exists)
+                    {
+                        var publishNode = new SizeReportingNode(publishDir, 0);
+                        publishNode.Name = deploymentSandbox.Name;
+                        templateNode.AddChild(publishNode);
+                    }
+                    else
+                    {
+                        templateNode.AddChild(new SizeReportingNode(deploymentSandbox, 0));
+                    }
                 }
             }
             return result;
@@ -494,24 +534,6 @@ namespace SoDBench
                 if (p.ExitCode != 0)
                     throw new Exception($"{processStartInfo.FileName} exited with error code {p.ExitCode}");
             }
-        }
-
-        public static string FormatAsCsv(FileSystemNode node, StringBuilder builder=null)
-        {
-            if (builder == null)
-            {
-                builder = new StringBuilder();
-            }
-
-            string path = String.Join(",", node.SegmentedPath.Select(s => Csv.Escape(s)));
-            builder.AppendLine($"{path},{node.Size}");
-
-            foreach (var childNode in node.Children)
-            {
-                FormatAsCsv(childNode, builder);
-            }
-
-            return builder.ToString();
         }
 
         /// <summary>
