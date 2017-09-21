@@ -146,6 +146,33 @@ extern "C" int coreclr_create_delegate(void*, unsigned int, const char*, const c
 #endif //FEATURE_GDBJIT
 
 //
+// Preload native assembly.
+//
+// This method allows to preload assembly to memory and apply relocations before initialization of CoreCLR.
+// Assemblies are stored in the list, which is scanned during general loading after CoreCLR initialization.
+// If path is found in the list, preloaded memory is used.
+// If CoreCLR is already initialized, it returns E_FAIL.
+//
+// Parameters:
+//  assemblyPath            - Absolute path of the assembly to preload
+//
+// Returns:
+//  HRESULT indicating status of the operation. S_OK if the assembly was successfully preloaded
+//
+extern "C"
+int coreclr_preload_assembly(
+            const char *assemblyPath
+)
+{
+    if (assemblyPath == NULL)
+    {
+        return E_FAIL;
+    }
+
+    return CorHost2::PreloadAssembly(assemblyPath);
+}
+
+//
 // Initialize the CoreCLR. Creates and starts CoreCLR host and creates an app domain
 //
 // Parameters:
@@ -286,7 +313,12 @@ int coreclr_shutdown(
 {
     ReleaseHolder<ICLRRuntimeHost4> host(reinterpret_cast<ICLRRuntimeHost4*>(hostHandle));
 
-    HRESULT hr = host->UnloadAppDomain(domainId, true); // Wait until done
+    HRESULT hr;
+
+    hr = CorHost2::UnloadPreloadedAssemblies();
+    IfFailRet(hr);
+
+    hr = host->UnloadAppDomain(domainId, true); // Wait until done
     IfFailRet(hr);
 
     hr = host->Stop();
@@ -317,7 +349,12 @@ int coreclr_shutdown_2(
 {
     ReleaseHolder<ICLRRuntimeHost4> host(reinterpret_cast<ICLRRuntimeHost4*>(hostHandle));
 
-    HRESULT hr = host->UnloadAppDomain2(domainId, true, latchedExitCode); // Wait until done
+    HRESULT hr;
+
+    hr = CorHost2::UnloadPreloadedAssemblies();
+    IfFailRet(hr);
+
+    hr = host->UnloadAppDomain2(domainId, true, latchedExitCode); // Wait until done
     IfFailRet(hr);
 
     hr = host->Stop();

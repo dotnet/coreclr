@@ -77,15 +77,59 @@ extern "C"
         Map a PE format file into memory like Windows LoadLibrary() would do.
         Doesn't apply base relocations if the function is relocated.
 
+        There are two scenarios:
+
+        - image could be preloaded and then MAPMapPEFile is called for it
+        - image is loaded with MAPMapPEFile
+
+        In the first scenario, hFile and lpPreloadedBase are supposed to be NULL, and szPath and size - non-NULL.
+        In the second scenario, hFile and lpPreloadedBase are supposed to be non-NULL, and szPath and size - NULL.
+
+        See coreclr_preload_assembly for further details.
+
     Parameters:
         IN hFile - file to map
+        IN szPath - path to mapped file
+        OUT size - mapped virtual size
+        IN lpPreloadedBase - previously loaded base
 
     Return value:
         non-NULL - the base address of the mapped image
         NULL - error, with last error set.
     --*/
 
-    void * MAPMapPEFile(HANDLE hFile);
+    void * MAPMapPEFile(HANDLE hFile, LPCSTR szPath, SIZE_T *size, LPVOID lpPreloadedBase);
+
+    /*++
+        MAPApplyBaseRelocationsPreloadedPEFile -
+
+        Apply base relocations to preloaded image
+
+    Parameters:
+        IN lpMappedImage - base address of preloaded image
+        IN virtualSize - virtual size of preloaded image
+
+    Return value:
+        true - if relocations were applied successfully
+        false - otherwise
+    --*/
+
+    bool MAPApplyBaseRelocationsPreloadedPEFile(LPVOID lpMappedImage, SIZE_T virtualSize);
+
+    /*++
+        MAPUnmapPreloadedPEFile -
+
+        Unmap a PE file
+
+    Parameters:
+        IN lpMappedImage - address of mapped file
+        IN size - virtual size
+
+    Return value:
+        returns TRUE if successful, FALSE otherwise
+    --*/
+
+    BOOL MAPUnmapPreloadedPEFile(LPVOID lpMappedImage, SIZE_T size);
 
     /*++
     Function :

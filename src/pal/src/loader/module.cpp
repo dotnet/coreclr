@@ -81,7 +81,68 @@ using namespace CorUnix;
 
 #define LIBC_NAME_WITHOUT_EXTENSION "libc"
 
+struct PreloadedImageListNode
+{
+    PreloadedImageListNode *next;
+    LPCSTR szPath;
+    LPCWSTR wszPath;
+    LPVOID lpMappedImage;
+    SIZE_T virtualSize;
+    bool isLoaded;
+};
+
+class PreloadedImageList
+{
+    PreloadedImageListNode *m_start;
+
+public:
+
+    PreloadedImageList()
+      : m_start(NULL) {}
+
+    void addNew(LPCSTR szPath, LPVOID lpImage, SIZE_T size)
+    {
+        // FIXME: is it correct to use PAL_malloc here without PAL being initialized?
+        PreloadedImageListNode *node = (PreloadedImageListNode *) PAL_malloc(sizeof(PreloadedImageListNode));
+        node->szPath = szPath;
+        node->wszPath = NULL;
+        node->lpMappedImage = lpImage;
+        node->virtualSize = size;
+        node->isLoaded = false;
+        node->next = m_start;
+        m_start = node;
+    }
+
+    bool freeAll()
+    {
+        PreloadedImageListNode *node = m_start;
+        while (node != NULL)
+        {
+            PreloadedImageListNode *nextNode = node->next;
+            if (!node->isLoaded)
+            {
+                MAPUnmapPreloadedPEFile(node->lpMappedImage, node->virtualSize);
+            }
+            if (node->wszPath != NULL)
+            {
+                delete node->wszPath;
+            }
+            PAL_free(node);
+            node = nextNode;
+        }
+
+        return true;
+    }
+
+    PreloadedImageListNode *getStart()
+    {
+        return m_start;
+    }
+};
+
 /* static variables ***********************************************************/
+
+PreloadedImageList preloadedAssemblies;
 
 /* critical section that regulates access to the module list */
 CRITICAL_SECTION module_critsec;
@@ -728,6 +789,8 @@ PAL_UnregisterModule(
 
 Parameters:
     IN hFile - file to map
+    IN wszPath  - File path
+    OUT isPreloaded - Flag whether pefile was preloaded
 
 Return value:
     non-NULL - the base address of the mapped image
@@ -735,11 +798,14 @@ Return value:
 --*/
 void *
 PALAPI
-PAL_LOADLoadPEFile(HANDLE hFile)
+PAL_LOADLoadPEFile(HANDLE hFile, LPCWSTR wszPath, BOOL *isPreloaded)
 {
     ENTRY("PAL_LOADLoadPEFile (hFile=%p)\n", hFile);
 
-    void * loadedBase = MAPMapPEFile(hFile);
+    void * preloadedBase = LOADFindPreloadedPEFile(wszPath);
+    *isPreloaded = preloadedBase != NULL;
+
+    void * loadedBase = MAPMapPEFile(hFile, NULL, 0, preloadedBase);
 
 #ifdef _DEBUG
     if (loadedBase != nullptr)
@@ -750,8 +816,11 @@ PAL_LOADLoadPEFile(HANDLE hFile)
             if (strlen(envVar) > 0)
             {
                 TRACE("Forcing failure of PE file map, and retry\n");
-                PAL_LOADUnloadPEFile(loadedBase); // unload it
-                loadedBase = MAPMapPEFile(hFile); // load it again
+                if (preloadedBase == NULL)
+                {
+                    PAL_LOADUnloadPEFile(loadedBase); // unload it
+                }
+                loadedBase = MAPMapPEFile(hFile, NULL, 0, preloadedBase); // load it again
             }
 
             free(envVar);
@@ -761,6 +830,60 @@ PAL_LOADLoadPEFile(HANDLE hFile)
 
     LOGEXIT("PAL_LOADLoadPEFile returns %p\n", loadedBase);
     return loadedBase;
+}
+
+/*++
+Function:
+  PAL_LOADPreloadPEFile
+
+Abstract
+  Preloads a PE file into memory.  Properly maps all of the sections in the PE file.  Returns a pointer to the
+  loaded base.
+
+Parameters:
+    IN szPath    - path of file to load
+
+Return value:
+    A valid base address if successful.
+    0 if failure
+--*/
+void *
+PALAPI
+PAL_LOADPreloadPEFile(LPCSTR szPath)
+{
+    size_t size;
+    void *addr = MAPMapPEFile(NULL, szPath, &size, NULL);
+
+    if (addr == NULL)
+    {
+        return NULL;
+    }
+
+    if (!MAPApplyBaseRelocationsPreloadedPEFile(addr, size))
+    {
+        MAPUnmapPreloadedPEFile(addr, size);
+        return NULL;
+    }
+
+    preloadedAssemblies.addNew(szPath, addr, size);
+
+    return addr;
+}
+
+/*++
+    PAL_LOADUnloadPreloadedPEFiles
+
+    Unload all PE files that were loaded by PAL_LOADPreloadPEFile().
+
+Return value:
+    TRUE - success
+    FALSE - failure
+--*/
+BOOL
+PALAPI
+PAL_LOADUnloadPreloadedPEFiles()
+{
+    return preloadedAssemblies.freeAll();
 }
 
 /*++
@@ -841,6 +964,53 @@ PAL_GetSymbolModuleBase(void *symbol)
 }
 
 /* Internal PAL functions *****************************************************/
+
+/*++
+    LOADFindPreloadedPEFile -
+
+    Find image in list of preloaded
+
+Parameters:
+    IN wszPath - path to mapped file
+
+Return value:
+    non-NULL - the base address of the mapped image
+    NULL - image is not in the list of preloaded.
+--*/
+
+void * LOADFindPreloadedPEFile(LPCWSTR wszPath)
+{
+    void * preloadedBase = NULL;
+    PreloadedImageListNode *node = preloadedAssemblies.getStart();
+    while (node != NULL)
+    {
+        if (node->wszPath == NULL)
+        {
+            int length = MultiByteToWideChar(CP_UTF8, 0, node->szPath, -1, NULL, 0);
+            _ASSERTE(length != 0);
+
+            LPWSTR result = new WCHAR[length];
+            _ASSERTE(result != NULL);
+
+            length = MultiByteToWideChar(CP_UTF8, 0, node->szPath, -1, result, length);
+            _ASSERTE(length != 0);
+
+            node->wszPath = result;
+        }
+
+        if (PAL_wcscmp(node->wszPath, wszPath) == 0)
+        {
+            preloadedBase = node->lpMappedImage;
+            _ASSERTE(!node->isLoaded);
+            node->isLoaded = true;
+            break;
+        }
+
+        node = node->next;
+    }
+
+    return preloadedBase;
+}
 
 /*++
 Function :

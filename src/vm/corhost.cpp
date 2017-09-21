@@ -416,6 +416,47 @@ void SetCommandLineArgs(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR* argv)
     GCPROTECT_END();
 }
 
+/*
+ * This method allows to preload assembly to memory and apply relocations before initialization of CoreCLR.
+ * Assemblies are stored in the list, which is scanned during general loading after CoreCLR initialization.
+ * If path is found in the list, preloaded memory is used.
+ * If CoreCLR is already initialized, it returns E_FAIL.
+ */
+HRESULT CorHost2::PreloadAssembly(LPCSTR szPath)
+{
+#ifndef FEATURE_PAL
+    // Preloading is not available without FEATURE_PAL, as it requires some PAL changes
+    return E_FAIL;
+#else
+    if (g_fEEStarted)
+    {
+        return HOST_E_INVALIDOPERATION;
+    }
+
+    void *preloadedImage = PAL_LOADPreloadPEFile(szPath);
+    if (preloadedImage == NULL)
+    {
+        return E_FAIL;
+    }
+
+    return S_OK;
+#endif
+}
+
+HRESULT CorHost2::UnloadPreloadedAssemblies()
+{
+#ifndef FEATURE_PAL
+    // Preloading is not available without FEATURE_PAL, as it requires some PAL changes
+    return E_FAIL;
+#else
+    if (!PAL_LOADUnloadPreloadedPEFiles())
+    {
+        return E_FAIL;
+    }
+    return S_OK;
+#endif
+}
+
 HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
                                       LPCWSTR pwzAssemblyPath,
                                       int argc,

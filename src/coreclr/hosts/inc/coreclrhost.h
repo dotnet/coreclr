@@ -15,7 +15,10 @@
 #define CORECLR_HOSTING_API(function, ...) \
     extern "C" int function(__VA_ARGS__); \
     typedef int (*function##_ptr)(__VA_ARGS__)
-    
+
+CORECLR_HOSTING_API(coreclr_preload_assembly,
+            const char* assemblyPath);
+
 CORECLR_HOSTING_API(coreclr_initialize,
             const char* exePath,
             const char* appDomainFriendlyName,

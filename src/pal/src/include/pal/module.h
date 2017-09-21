@@ -51,6 +51,20 @@ typedef struct _MODSTRUCT
     struct _MODSTRUCT *prev;
 } MODSTRUCT;
 
+/*++
+    LOADFindPreloadedPEFile -
+
+    Find image in list of preloaded
+
+Parameters:
+    IN wszPath - path to mapped file
+
+Return value:
+    non-NULL - the base address of the mapped image
+    NULL - image is not in the list of preloaded.
+--*/
+
+void * LOADFindPreloadedPEFile(LPCWSTR wszPath);
 
 /*++
 Function :
@@ -145,12 +159,14 @@ Abstract
 
 Parameters:
     IN hFile    - The file to load
+    IN wszPath  - File path
+    OUT isPreloaded - Flag whether pefile was preloaded
 
 Return value:
     A valid base address if successful.
     0 if failure
 --*/
-void * PAL_LOADLoadPEFile(HANDLE hFile);
+void * PAL_LOADLoadPEFile(HANDLE hFile, LPCWSTR wszPath, BOOL *isPreloaded);
 
 /*++
     PAL_LOADUnloadPEFile
@@ -165,6 +181,36 @@ Return value:
     FALSE - failure (incorrect ptr, etc.)
 --*/
 BOOL PAL_LOADUnloadPEFile(void * ptr);
+
+/*++
+Function:
+  PAL_LOADPreloadPEFile
+
+Abstract
+  Preloads a PE file into memory.  Properly maps all of the sections in the PE file.  Returns a pointer to the
+  loaded base.
+
+Parameters:
+    IN szPath    - path of file to load
+
+Return value:
+    A valid base address if successful.
+    0 if failure
+--*/
+void *
+PAL_LOADPreloadPEFile(LPCSTR szPath);
+
+/*++
+    PAL_LOADUnloadPreloadedPEFiles
+
+    Unload all PE files that were loaded by PAL_LOADPreloadPEFile().
+
+Return value:
+    TRUE - success
+    FALSE - failure
+--*/
+BOOL
+PAL_LOADUnloadPreloadedPEFiles();
 
 /*++
     LOADInitializeCoreCLRModule

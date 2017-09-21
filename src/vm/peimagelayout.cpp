@@ -122,7 +122,7 @@ DWORD SectionCharacteristicsToPageProtection(UINT characteristics)
 
 //To force base relocation on Vista (which uses ASLR), unmask IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
 //(0x40) for OptionalHeader.DllCharacteristics
-void PEImageLayout::ApplyBaseRelocations()
+void PEImageLayout::ApplyBaseRelocations(BOOL isRelocated)
 {
     STANDARD_VM_CONTRACT;
 
@@ -212,30 +212,33 @@ void PEImageLayout::ApplyBaseRelocations()
             }
         }
 
-        for (COUNT_T fixupIndex = 0; fixupIndex < fixupsCount; fixupIndex++)
+        if (!isRelocated)
         {
-            USHORT fixup = VAL16(fixups[fixupIndex]);
-
-            BYTE * address = pageAddress + (fixup & 0xfff);
-
-            switch (fixup>>12)
+            for (COUNT_T fixupIndex = 0; fixupIndex < fixupsCount; fixupIndex++)
             {
-            case IMAGE_REL_BASED_PTR:
-                *(TADDR *)address += delta;
-                break;
+                USHORT fixup = VAL16(fixups[fixupIndex]);
+
+                BYTE * address = pageAddress + (fixup & 0xfff);
+
+                switch (fixup>>12)
+                {
+                case IMAGE_REL_BASED_PTR:
+                    *(TADDR *)address += delta;
+                    break;
 
 #ifdef _TARGET_ARM_
-            case IMAGE_REL_BASED_THUMB_MOV32:
-                PutThumb2Mov32((UINT16 *)address, GetThumb2Mov32((UINT16 *)address) + delta);
-                break;
+                case IMAGE_REL_BASED_THUMB_MOV32:
+                    PutThumb2Mov32((UINT16 *)address, GetThumb2Mov32((UINT16 *)address) + delta);
+                    break;
 #endif
 
-            case IMAGE_REL_BASED_ABSOLUTE:
-                //no adjustment
-                break;
+                case IMAGE_REL_BASED_ABSOLUTE:
+                    //no adjustment
+                    break;
 
-            default:
-                _ASSERTE(!"Unhandled reloc type!");
+                default:
+                    _ASSERTE(!"Unhandled reloc type!");
+                }
             }
         }
 
@@ -363,7 +366,7 @@ ConvertedImageLayout::ConvertedImageLayout(PEImageLayout* source)
 
 #ifdef CROSSGEN_COMPILE
     if (HasNativeHeader())
-        ApplyBaseRelocations();
+        ApplyBaseRelocations(FALSE);
 #endif
 }
 
@@ -450,7 +453,7 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
             if (!IsNativeMachineFormat())
                 ThrowHR(COR_E_BADIMAGEFORMAT);
 
-            ApplyBaseRelocations();
+            ApplyBaseRelocations(FALSE);
         }
     }
     else
@@ -481,7 +484,8 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
 #else //!FEATURE_PAL
 
 #ifndef CROSSGEN_COMPILE
-    m_FileView = PAL_LOADLoadPEFile(hFile);
+    BOOL isPreloaded;
+    m_FileView = PAL_LOADLoadPEFile(hFile, (LPCWSTR) GetPath(), &isPreloaded);
 
     if (m_FileView == NULL)
     {
@@ -507,7 +511,7 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
         if (!IsNativeMachineFormat())
             ThrowHR(COR_E_BADIMAGEFORMAT);
 
-        ApplyBaseRelocations();
+        ApplyBaseRelocations(isPreloaded);
         SetRelocated();
     }
 
