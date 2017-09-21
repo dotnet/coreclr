@@ -3913,6 +3913,13 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                     result = NI_MathF_Round;
                 }
             }
+            else if (strcmp(clasName, "Math") == 0)
+            {
+                if ((methodName != nullptr) && strcmp(methodName, "Round") == 0)
+                {
+                    result = NI_Math_Round;
+                }
+            }
         }
     }
 
