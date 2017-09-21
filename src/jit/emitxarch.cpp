@@ -7384,64 +7384,6 @@ static BYTE* emitOutputNOP(BYTE* dst, size_t nBytes)
 {
     assert(nBytes <= 15);
 
-#ifndef _TARGET_AMD64_
-    // TODO-X86-CQ: when VIA C3 CPU's are out of circulation, switch to the
-    // more efficient real NOP: 0x0F 0x1F +modR/M
-    // Also can't use AMD recommended, multiple size prefixes (i.e. 0x66 0x66 0x90 for 3 byte NOP)
-    // because debugger and msdis don't like it, so maybe VIA doesn't either
-    // So instead just stick to repeating single byte nops
-
-    switch (nBytes)
-    {
-        case 15:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 14:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 13:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 12:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 11:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 10:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 9:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 8:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 7:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 6:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 5:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 4:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 3:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 2:
-            *dst++ = 0x90;
-            __fallthrough;
-        case 1:
-            *dst++ = 0x90;
-            break;
-        case 0:
-            break;
-    }
-#else  // _TARGET_AMD64_
     switch (nBytes)
     {
         case 2:
@@ -7518,7 +7460,6 @@ static BYTE* emitOutputNOP(BYTE* dst, size_t nBytes)
             *dst++ = 0x00;
             break;
     }
-#endif // _TARGET_AMD64_
 
     return dst;
 }
