@@ -858,6 +858,15 @@ while :; do
               exit 1
             fi
             ;;
+        -osgroup=*)
+            __BuildOS=`echo $1 | cut -d '=' -f2`
+            if [ "$__HostOS" != "$__BuildOS" ]; then
+                __SkipCoreCLR=1
+                __IncludeTests=
+                __SkipNuget=1
+            fi
+            ;;
+
         *)
             __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
             ;;
