@@ -414,6 +414,7 @@ isMSBuildOnNETCoreSupported()
             done
         elif [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
+        fi
     fi
 }
 
