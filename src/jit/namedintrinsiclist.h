@@ -10,7 +10,8 @@
 enum NamedIntrinsic
 {
     NI_Illegal      = 0,
-    NI_Enum_HasFlag = 1
+    NI_Enum_HasFlag = 1,
+    NI_MathF_Round  = 2
 };
 
 #endif // _NAMEDINTRINSICLIST_H_

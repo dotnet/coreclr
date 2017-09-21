@@ -3897,11 +3897,21 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
 
     if ((namespaceName != nullptr) && strcmp(namespaceName, "System") == 0)
     {
-        if ((className != nullptr) && strcmp(className, "Enum") == 0)
+        if (className != nullptr)
         {
-            if ((methodName != nullptr) && strcmp(methodName, "HasFlag") == 0)
+            if (strcmp(className, "Enum") == 0)
             {
-                result = NI_Enum_HasFlag;
+                if ((methodName != nullptr) && strcmp(methodName, "HasFlag") == 0)
+                {
+                    result = NI_Enum_HasFlag;
+                }
+            }
+            else if (strcmp(className, "MathF") == 0)
+            {
+                if ((methodName != nullptr) && strcmp(methodName, "Round") == 0)
+                {
+                    result = NI_MathF_Round;
+                }
             }
         }
     }
