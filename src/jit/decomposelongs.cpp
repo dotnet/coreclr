@@ -113,6 +113,8 @@ void DecomposeLongs::DecomposeRangeHelper()
     {
         node = DecomposeNode(node);
     }
+
+    assert(Range().CheckLIR(m_compiler, true));
 }
 
 //------------------------------------------------------------------------

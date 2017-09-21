@@ -1264,6 +1264,10 @@ void CodeGen::genConsumeRegs(GenTree* tree)
 #if !defined(_TARGET_64BIT_)
     if (tree->OperGet() == GT_LONG)
     {
+        // GT_LONG nodes are normally contained. The only exception is when the result
+        // of a TYP_LONG operation is not used and this can only happen if the GT_LONG
+        // has no parent.
+        assert(tree->isContained() || (tree->gtGetParent(nullptr) == nullptr));
         genConsumeRegs(tree->gtGetOp1());
         genConsumeRegs(tree->gtGetOp2());
         return;
