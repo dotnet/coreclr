@@ -422,7 +422,7 @@ namespace System
             Succeeded = 0,
             NotEnoughMemory = 1,
             AmountTooLarge = 2,
-            AlreadyInProgress = 3,
+            AlreadyInProgress = 3
         }
 
         private enum EndNoGCRegionStatus
