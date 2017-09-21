@@ -15,6 +15,128 @@ using System.Threading.Tasks;
 
 namespace SoDBench
 {
+    // A simple tree node for tracking file and directory names and sizes
+    // Does not have to accurately represent the true file system; only what we care about
+    class FileSystemNode
+    {
+        public FileSystemNode(string name, long? size=null)
+        {
+            Name = name;
+            _size = size;
+        }
+
+        public void AddChild(FileSystemNode adoptee)
+        {
+            Children.Add(adoptee);
+            adoptee.Parent = this;
+            _size = null;
+        }
+
+        // Builds out the full tree starting from a directory
+        public FileSystemNode(DirectoryInfo dir)
+        {
+            Name = dir.Name;
+
+            foreach (var childDir in dir.EnumerateDirectories())
+            {
+                AddChild(new FileSystemNode(childDir));
+            }
+
+            foreach (var childFile in dir.EnumerateFiles())
+            {
+                AddChild(new FileSystemNode(childFile));
+            }
+        }
+
+        public FileSystemNode(FileInfo file)
+        {
+            Name = file.Name;
+            _size = file.Length;
+        }
+
+        // The directory containing this node
+        public FileSystemNode Parent {
+            get
+            {
+                return _parent;
+            }
+            set
+            {
+                if (_parent == null)
+                {
+                    _parent = value;
+                    _fullName = null;
+                }
+            }
+        }
+
+        // All the directories and files this node contains
+        public List<FileSystemNode> Children {get; private set;} = new List<FileSystemNode>();
+
+        // The file or directory name
+        public string Name {get; private set;}
+
+        // The FullName relative up to the root of the file system tree we care about
+        public string FullName {
+            get
+            {
+                if (_fullName == null)
+                {
+                    if (Parent != null)
+                    {
+                        _fullName = Path.Combine(Parent.FullName, Name);
+                    }
+                    _fullName = Name;
+                }
+                return _fullName;
+            }
+
+            private set
+            {
+                _fullName = value;
+            }
+        }
+
+        // A list version of the path up to the root level we care about
+        public List<string> SegmentedPath {
+            get
+            {
+                if (Parent != null)
+                {
+                    var path = Parent.SegmentedPath;
+                    path.Add(Name);
+                    return path;
+                }
+                return new List<string> { Name };
+            }
+        }
+
+        // The size of the file or directory
+        public long Size {
+            get
+            {
+                if (_size == null)
+                {
+                    _size = 0;
+                    foreach (var node in Children)
+                    {
+                        _size += node.Size;
+                    }
+                }
+                return _size ?? 0;
+            }
+
+            private set
+            {
+                _size = value;
+            }
+        }
+
+        private string _fullName = null;
+        private long? _size = null;
+        private FileSystemNode _parent = null;
+    }
+
     class Program
     {
         public static readonly string NugetConfig =
@@ -58,7 +180,6 @@ namespace SoDBench
         static bool s_keepArtifacts;
         static string s_targetArchitecture;
         static string s_dotnetChannel;
-        static Dictionary<string, long> s_getDirSizeCache = new Dictionary<string, long>();
 
         static void Main(string[] args)
         {
@@ -110,19 +231,23 @@ namespace SoDBench
 
                 if (s_fallbackDir == null)
                 {
-                    s_fallbackDir = new DirectoryInfo(Path.Combine(s_sandboxDir.FullName, "dotnet-fallback"));
+                    s_fallbackDir = new DirectoryInfo(Path.Combine(s_sandboxDir.FullName, "fallback"));
                     s_fallbackDir.Create();
                 }
 
                 Console.WriteLine($"** Path to dotnet executable: {s_dotnetExe.FullName}");
                 
                 PrintHeader("Starting acquisition size test");
-                var acquisitionSizes = GetAcquisitionSize();
+                var acquisition = GetAcquisitionSize();
 
                 PrintHeader("Running deployment size test");
-                var deploymentSizes = GetDeploymentSize();
+                var deployment = GetDeploymentSize();
 
-                var formattedStr = FormatAsCsv(acquisitionSizes, deploymentSizes);
+                var root = new FileSystemNode("Dotnet Total");
+                root.AddChild(acquisition);
+                root.AddChild(deployment);
+
+                var formattedStr = FormatAsCsv(root);
                
                 File.WriteAllText(options.OutputFilename, formattedStr);
 
@@ -148,9 +273,9 @@ namespace SoDBench
             Console.WriteLine("**********************************************************************");
         }
 
-        private static Dictionary<string, long?> GetAcquisitionSize()
+        private static FileSystemNode GetAcquisitionSize()
         {
-            var result = new Dictionary<string, long?>();
+            var result = new FileSystemNode("Acquisition Size");
 
             // Arbitrary command to trigger first time setup
             ProcessStartInfo dotnet = new ProcessStartInfo()
@@ -168,37 +293,26 @@ namespace SoDBench
 
             Console.WriteLine("\n** Measuring total size of acquired files");
 
-            long fallbackDirSize = GetDirectorySize(s_fallbackDir);
-            result["fallback"] = fallbackDirSize;
-
-            result[s_dotnetExe.Directory.Name] = GetDirectorySize(s_dotnetExe.Directory);
-
-            foreach (var dir in s_dotnetExe.Directory.EnumerateDirectories("*", SearchOption.AllDirectories))
-            {
-                result[GetRelativeUri(dir, s_dotnetExe.Directory)] = GetDirectorySize(dir);
-            }
-
-            foreach (var file in s_dotnetExe.Directory.EnumerateFiles("*", SearchOption.AllDirectories))
-            {
-                result[GetRelativeUri(file, s_dotnetExe.Directory)] = file.Length;
-            }
+            result.AddChild(new FileSystemNode(s_fallbackDir));
+            result.AddChild(new FileSystemNode(s_dotnetExe.Directory));
 
             return result;
         }
         
-        private static Dictionary<string, Dictionary<string, long?> > GetDeploymentSize()
+        private static FileSystemNode GetDeploymentSize()
         {
+            // Write the NuGet.Config file
             var nugetConfFile = new FileInfo(Path.Combine(s_sandboxDir.FullName, "NuGet.Config"));
             File.WriteAllText(nugetConfFile.FullName, NugetConfig);
 
-            var result = new Dictionary<string, Dictionary<string, long?> >();
+            var result = new FileSystemNode("Deployment Size");
             foreach (string template in NewTemplates)
             {
-                result[template] = new Dictionary<string, long?>();
+                var templateNode = new FileSystemNode(template);
+                result.AddChild(templateNode);
+
                 foreach (var os in OperatingSystems)
                 {
-                    result[template][os] = null;
-
                     Console.WriteLine($"\n\n** Deploying {template}/{os}");
 
                     var deploymentSandbox = new DirectoryInfo(Path.Combine(s_sandboxDir.FullName, template, os));
@@ -251,16 +365,7 @@ namespace SoDBench
                         continue;
                     }
 
-                    long output = 0;
-                    if (publishDir.Exists)
-                    {
-                        output = GetDirectorySize(publishDir);
-                    }
-                    else
-                    {
-                        output = GetDirectorySize(deploymentSandbox);
-                    }
-                    result[template][os] = output;
+                    templateNode.AddChild(new FileSystemNode(deploymentSandbox));
                 }
             }
             return result;
@@ -391,74 +496,22 @@ namespace SoDBench
             }
         }
 
-        public static string FormatAsCsv(Dictionary<string, long?> acquisitionSizes, Dictionary<string, Dictionary<string, long?> > deploymentSizes)
+        public static string FormatAsCsv(FileSystemNode node, StringBuilder builder=null)
         {
-            var toplevelname = "Size on Disk";
-            var result = new StringBuilder();
-
-            long totalAcquisitionSize = 0;
-            var namespaces = new string[] {toplevelname, "Acquisition Size"};
-            foreach (var item in acquisitionSizes)
+            if (builder == null)
             {
-                var data = namespaces.Concat(Csv.Escape(item.Key).Split('/')).Concat( new string[] {Convert.ToString(item.Value)} );
-                var line = String.Join(",", data);
-                result.AppendLine(line);
-
-                totalAcquisitionSize += item.Value ?? 0;
-            }
-            result.AppendLine(String.Join(",", namespaces.Concat( new string[] {Convert.ToString(totalAcquisitionSize)})));
-
-            long totalDeploymentSize = 0;
-            foreach (var dict in deploymentSizes)
-            {
-                foreach (var item in dict.Value)
-                {
-                    var data = new string[] {toplevelname, "Deployment Size", dict.Key, item.Key, Convert.ToString(item.Value)};
-                    var line = String.Join(",", data);
-                    result.AppendLine(line);
-
-                    totalDeploymentSize += item.Value ?? 0;
-                }
-            }
-            result.AppendLine(String.Join(",", new string[] {toplevelname, "Deployment Size", Convert.ToString(totalDeploymentSize)}));
-            result.AppendLine(String.Join(",", new string[] {toplevelname, Convert.ToString(totalDeploymentSize + totalAcquisitionSize)}));
-
-            return result.ToString();
-        }
-
-        // A memoized recursive method for finding folder size
-        private static long GetDirectorySize(DirectoryInfo dir, bool useCache = true)
-        {
-            long result = 0;
-
-            if (!useCache || !s_getDirSizeCache.TryGetValue(dir.FullName, out result))
-            {
-                result = 0;
-
-                if (dir.Exists)
-                {
-                    foreach (var subdir in dir.EnumerateDirectories())
-                    {
-                        result += GetDirectorySize(subdir);
-                    }
-
-                    foreach (var file in dir.EnumerateFiles())
-                    {
-                        result += file.Length;
-                    }
-                }
-
-                s_getDirSizeCache[dir.FullName] = result;
+                builder = new StringBuilder();
             }
 
-            return result;
-        }
+            string path = String.Join(",", node.SegmentedPath.Select(s => Csv.Escape(s)));
+            builder.AppendLine($"{path},{node.Size}");
 
-        private static string GetRelativeUri(FileSystemInfo dir, FileSystemInfo root)
-        {
-            var dirUri = new Uri(dir.FullName);
-            var rootUri = new Uri(root.FullName);
-            return rootUri.MakeRelativeUri(dirUri).ToString();
+            foreach (var childNode in node.Children)
+            {
+                FormatAsCsv(childNode, builder);
+            }
+
+            return builder.ToString();
         }
 
         /// <summary>
