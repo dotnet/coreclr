@@ -370,7 +370,7 @@ namespace SoDBench
                     ProcessStartInfo dotnetPublish = new ProcessStartInfo()
                     {
                         FileName = s_dotnetExe.FullName,
-                        Arguments = $"publish --runtime {os} --output {publishDir.FullName}", // "out" is an arbitrary project name
+                        Arguments = $"publish -c Release --runtime {os} --output {publishDir.FullName}", // "out" is an arbitrary project name
                         UseShellExecute = false,
                         WorkingDirectory = deploymentSandbox.FullName
                     };
