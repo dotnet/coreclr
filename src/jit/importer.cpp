@@ -3762,7 +3762,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             case NI_MathF_Round:
             case NI_Math_Round:
             {
-                // Math.Round and MathF.Round used to be a legacy JIT intrinsic. In order
+                // Math.Round and MathF.Round used to be a traditional JIT intrinsic. In order
                 // to simplify the transition, we will just treat it as if it was still the
                 // old intrinsic, CORINFO_INTRINSIC_Round. This should end up flowing properly
                 // everywhere else.
@@ -3923,9 +3923,7 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
     const char* methodName    = info.compCompHnd->getMethodNameFromMetadata(method, &className, &namespaceName);
 
     // Currently we only have intrinsics at the method level, so we can check that
-    // namespaceName, className, and methodName are all not null upfront. If this ever
-    // changes (such as if we support all methods in a class as intrinsic), we can reorder
-    // the checks to account for that.
+    // namespaceName, className, and methodName are all not null upfront.
 
     if ((namespaceName != nullptr) && (className != nullptr) && (methodName != nullptr))
     {
