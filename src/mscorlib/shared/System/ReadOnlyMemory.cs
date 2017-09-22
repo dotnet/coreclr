@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 
 namespace System
 {
+    [DebuggerTypeProxy(typeof(ReadOnlyMemoryDebugView<>))]
     public struct ReadOnlyMemory<T>
     {
         // The highest order bit of _index is used to discern whether _arrayOrOwnedMemory is an array or an owned memory
@@ -219,7 +220,20 @@ namespace System
         /// allocates, so should generally be avoided, however it is sometimes
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
-        public T[] ToArray() => Span.ToArray();
+        public T[] ToArray()
+        {
+            if (_index < 0)
+            {
+                Span<T> span = ((OwnedMemory<T>)_arrayOrOwnedMemory).AsSpan().Slice(_index & RemoveOwnedFlagBitMask, _length);
+                return span.ToArray();
+            }
+            else
+            {
+                T[] result = new T[_length];
+                Array.Copy((T[])_arrayOrOwnedMemory, result, _length);
+                return result;
+            }
+        }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
@@ -266,5 +280,24 @@ namespace System
             return CombineHashCodes(CombineHashCodes(h1, h2), h3);
         }
 
+    }
+
+    internal sealed class ReadOnlyMemoryDebugView<T>
+    {
+        private readonly ReadOnlyMemory<T> _memory;
+
+        public ReadOnlyMemoryDebugView(ReadOnlyMemory<T> memory)
+        {
+            _memory = memory;
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public T[] Items
+        {
+            get
+            {
+                return _memory.ToArray();
+            }
+        }
     }
 }
