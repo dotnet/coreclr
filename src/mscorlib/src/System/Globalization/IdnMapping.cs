@@ -328,7 +328,7 @@ namespace System.Globalization
             {
                 // Find end of this segment
                 iNextDot = unicode.IndexOfAny(c_Dots, iAfterLastDot);
-                Contract.Assert(iNextDot <= unicode.Length, "[IdnMapping.punycode_encode]IndexOfAny is broken");
+                Debug.Assert(iNextDot <= unicode.Length, "[IdnMapping.punycode_encode]IndexOfAny is broken");
                 if (iNextDot < 0)
                     iNextDot = unicode.Length;
 
@@ -469,7 +469,7 @@ namespace System.Globalization
                             if (test < n)
                             {
                                 delta++;
-                                Contract.Assert(delta > 0, "[IdnMapping.cs]2 punycode_encode - delta overflowed int");
+                                Debug.Assert(delta > 0, "[IdnMapping.cs]2 punycode_encode - delta overflowed int");
                             }
 
                             if (test == n)

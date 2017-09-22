@@ -2329,7 +2329,7 @@ namespace System.Reflection
                 case TypeAttributes.ExplicitLayout: layoutKind = LayoutKind.Explicit; break;
                 case TypeAttributes.AutoLayout: layoutKind = LayoutKind.Auto; break;
                 case TypeAttributes.SequentialLayout: layoutKind = LayoutKind.Sequential; break;
-                default: Contract.Assume(false); break;
+                default: Debug.Fail("Unreachable code"); break;
             }
 
             CharSet charSet = CharSet.None;
@@ -2338,7 +2338,7 @@ namespace System.Reflection
                 case TypeAttributes.AnsiClass: charSet = CharSet.Ansi; break;
                 case TypeAttributes.AutoClass: charSet = CharSet.Auto; break;
                 case TypeAttributes.UnicodeClass: charSet = CharSet.Unicode; break;
-                default: Contract.Assume(false); break;
+                default: Debug.Fail("Unreachable code"); break;
             }
             type.GetRuntimeModule().MetadataImport.GetClassLayout(type.MetadataToken, out pack, out size);
 

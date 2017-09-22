@@ -254,7 +254,7 @@ namespace System.Globalization
         {
             // This is merely for serialization compatibility with Whidbey/Orcas, it can go away when we don't want that compat any more.
             culture = CultureInfo.GetCultureInfo(this.Name).LCID; // This is the lcid of the constructing culture (still have to dereference to get target sort)
-            Contract.Assert(m_name != null, "CompareInfo.OnSerializing - expected m_name to be set already");
+            Debug.Assert(m_name != null, "CompareInfo.OnSerializing - expected m_name to be set already");
         }
 
         ///////////////////////////----- Name -----/////////////////////////////////

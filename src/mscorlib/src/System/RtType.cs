@@ -1975,7 +1975,7 @@ namespace System
                     return property;
             }
 
-            Contract.Assume(false, "Unreachable code");
+            Debug.Fail("Unreachable code");
             throw new SystemException();
         }
 

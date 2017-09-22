@@ -405,7 +405,7 @@ namespace System.Runtime.CompilerServices
                     break;
 
                 default:
-                    Contract.Assume(false, "Unreachable code");
+                    Debug.Fail("Unreachable code");
                     resourceName = "AssumptionFailed";
                     break;
             }
