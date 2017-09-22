@@ -3804,24 +3804,15 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
     GenTree* op2;
 
     assert(callType != TYP_STRUCT);
-    assert((intrinsicID == CORINFO_INTRINSIC_Sin)
-        || (intrinsicID == CORINFO_INTRINSIC_Sqrt)
-        || (intrinsicID == CORINFO_INTRINSIC_Abs)
-        || (intrinsicID == CORINFO_INTRINSIC_Cos)
-        || (intrinsicID == CORINFO_INTRINSIC_Round)
-        || (intrinsicID == CORINFO_INTRINSIC_Cosh)
-        || (intrinsicID == CORINFO_INTRINSIC_Sinh)
-        || (intrinsicID == CORINFO_INTRINSIC_Tan)
-        || (intrinsicID == CORINFO_INTRINSIC_Tanh)
-        || (intrinsicID == CORINFO_INTRINSIC_Asin)
-        || (intrinsicID == CORINFO_INTRINSIC_Acos)
-        || (intrinsicID == CORINFO_INTRINSIC_Atan)
-        || (intrinsicID == CORINFO_INTRINSIC_Atan2)
-        || (intrinsicID == CORINFO_INTRINSIC_Log10)
-        || (intrinsicID == CORINFO_INTRINSIC_Pow)
-        || (intrinsicID == CORINFO_INTRINSIC_Exp)
-        || (intrinsicID == CORINFO_INTRINSIC_Ceiling)
-        || (intrinsicID == CORINFO_INTRINSIC_Floor));
+    assert((intrinsicID == CORINFO_INTRINSIC_Sin) || (intrinsicID == CORINFO_INTRINSIC_Sqrt) ||
+           (intrinsicID == CORINFO_INTRINSIC_Abs) || (intrinsicID == CORINFO_INTRINSIC_Cos) ||
+           (intrinsicID == CORINFO_INTRINSIC_Round) || (intrinsicID == CORINFO_INTRINSIC_Cosh) ||
+           (intrinsicID == CORINFO_INTRINSIC_Sinh) || (intrinsicID == CORINFO_INTRINSIC_Tan) ||
+           (intrinsicID == CORINFO_INTRINSIC_Tanh) || (intrinsicID == CORINFO_INTRINSIC_Asin) ||
+           (intrinsicID == CORINFO_INTRINSIC_Acos) || (intrinsicID == CORINFO_INTRINSIC_Atan) ||
+           (intrinsicID == CORINFO_INTRINSIC_Atan2) || (intrinsicID == CORINFO_INTRINSIC_Log10) ||
+           (intrinsicID == CORINFO_INTRINSIC_Pow) || (intrinsicID == CORINFO_INTRINSIC_Exp) ||
+           (intrinsicID == CORINFO_INTRINSIC_Ceiling) || (intrinsicID == CORINFO_INTRINSIC_Floor));
 
     op1 = nullptr;
 
@@ -3863,8 +3854,7 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
 
 #endif // FEATURE_X87_DOUBLES
 
-                op1 = new (this, GT_INTRINSIC)
-                GenTreeIntrinsic(genActualType(callType), op1, intrinsicID, method);
+                op1 = new (this, GT_INTRINSIC) GenTreeIntrinsic(genActualType(callType), op1, intrinsicID, method);
                 break;
 
             case 2:
@@ -3892,8 +3882,7 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
 
 #endif // FEATURE_X87_DOUBLES
 
-                op1 = new (this, GT_INTRINSIC)
-                GenTreeIntrinsic(genActualType(callType), op1, op2, intrinsicID, method);
+                op1 = new (this, GT_INTRINSIC) GenTreeIntrinsic(genActualType(callType), op1, op2, intrinsicID, method);
                 break;
 
             default:
