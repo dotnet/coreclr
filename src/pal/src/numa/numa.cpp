@@ -903,6 +903,20 @@ SetThreadIdealProcessorEx(
     pthread_t thread = pTargetThread->GetPThreadSelf();
 
 #if HAVE_PTHREAD_GETAFFINITY_NP
+    int cpu = -1;
+    if ((lpIdealProcessor->Group < g_groupCount) &&
+        (lpIdealProcessor->Number < MaxCpusPerGroup) &&
+        (lpIdealProcessor->Reserved == 0))
+    {
+        cpu = g_groupAndIndexToCpu[lpIdealProcessor->Group * MaxCpusPerGroup + lpIdealProcessor->Number];
+    }
+
+    if (cpu == -1)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
     if (lpPreviousIdealProcessor != NULL)
     {
         cpu_set_t prevCpuSet;
@@ -926,20 +940,7 @@ SetThreadIdealProcessorEx(
         _ASSERTE(prevCpu < g_possibleCpuCount);
         lpPreviousIdealProcessor->Group = g_cpuToAffinity[prevCpu].Group;
         lpPreviousIdealProcessor->Number = g_cpuToAffinity[prevCpu].Number;
-    }
-
-    int cpu = -1;
-    if ((lpIdealProcessor->Group < g_groupCount) &&
-        (lpIdealProcessor->Number < MaxCpusPerGroup) &&
-        (lpIdealProcessor->Reserved == 0))
-    {
-        cpu = g_groupAndIndexToCpu[lpIdealProcessor->Group * MaxCpusPerGroup + lpIdealProcessor->Number];
-    }
-
-    if (cpu == -1)
-    {
-        SetLastError(ERROR_INVALID_PARAMETER);
-        return FALSE;
+        lpPreviousIdealProcessor->Reserved = 0;
     }
 
     cpu_set_t cpuSet;
