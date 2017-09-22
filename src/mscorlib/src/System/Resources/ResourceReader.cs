@@ -420,20 +420,9 @@ namespace System.Resources
 
                     String s = null;
                     char* charPtr = (char*)_ums.PositionPointer;
-#if IA64
-                    if (((int)charPtr & 1) != 0) {
-                        char[] destArray = new char[byteLen/2];
-                        fixed(char* pDest = destArray) {
-                            Buffer.Memcpy((byte*)pDest, (byte*)charPtr, byteLen);
-                        }
-                        s = new String(destArray);
-                    }
-                    else {
-#endif //IA64
+
                     s = new String(charPtr, 0, byteLen / 2);
-#if IA64
-                    }
-#endif //IA64
+
                     _ums.Position += byteLen;
                     dataOffset = _store.ReadInt32();
                     if (dataOffset < 0 || dataOffset >= _store.BaseStream.Length - _dataSectionOffset)
