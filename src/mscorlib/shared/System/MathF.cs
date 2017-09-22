@@ -128,6 +128,11 @@ namespace System
         [Intrinsic]
         public static float Round(float x)
         {
+            // ************************************************************************************
+            // IMPORTANT: Do not change this implementation without also updating Math.Round(double),
+            //            FloatingPointUtils::round(double), and FloatingPointUtils::round(float)
+            // ************************************************************************************
+    
             // If the number has no fractional part do nothing
             // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
 
