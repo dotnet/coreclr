@@ -248,7 +248,13 @@ EventPipeProvider* EventPipe::CreateProvider(const GUID &providerID, EventPipeCa
     }
     CONTRACTL_END;
 
-    return new EventPipeProvider(providerID, pCallbackFunction, pCallbackData);
+    EventPipeProvider *pProvider = NULL;
+    if (s_pConfig != NULL)
+    {
+        pProvider = s_pConfig->CreateProvider(providerID, pCallbackFunction, pCallbackData);
+    }
+
+    return pProvider;
 }
 
 void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
@@ -276,8 +282,10 @@ void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
         else
         {
             // Delete the provider now.
-            // NOTE: This will remove it from all of the EventPipe data structures.
-            delete(pProvider);
+            if (s_pConfig != NULL)
+            {
+                s_pConfig->DeleteProvider(pProvider);
+            }
         }
     }
 }
