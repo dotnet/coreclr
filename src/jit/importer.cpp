@@ -3346,6 +3346,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
         case CORINFO_INTRINSIC_Sqrt:
         case CORINFO_INTRINSIC_Abs:
         case CORINFO_INTRINSIC_Cos:
+        case CORINFO_INTRINSIC_Round:
         case CORINFO_INTRINSIC_Cosh:
         case CORINFO_INTRINSIC_Sinh:
         case CORINFO_INTRINSIC_Tan:
