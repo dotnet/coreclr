@@ -56,7 +56,6 @@ namespace System.IO
                 throw new ArgumentNullException(nameof(searchPattern));
             if ((searchOption != SearchOption.TopDirectoryOnly) && (searchOption != SearchOption.AllDirectories))
                 throw new ArgumentOutOfRangeException(nameof(searchOption), SR.ArgumentOutOfRange_Enum);
-            Contract.Ensures(Contract.Result<IEnumerable<String>>() != null);
 
             return InternalEnumerateFiles(path, searchPattern, searchOption);
         }
@@ -66,7 +65,6 @@ namespace System.IO
             Debug.Assert(path != null);
             Debug.Assert(searchPattern != null);
             Debug.Assert(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
-            Contract.Ensures(Contract.Result<IEnumerable<String>>() != null);
 
             return EnumerateFileSystemNames(path, searchPattern, searchOption, true, false);
         }
@@ -77,7 +75,6 @@ namespace System.IO
             Debug.Assert(path != null);
             Debug.Assert(searchPattern != null);
             Debug.Assert(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
-            Contract.Ensures(Contract.Result<IEnumerable<String>>() != null);
 
             return FileSystemEnumerableFactory.CreateFileNameIterator(path, path, searchPattern,
                                                                         includeFiles, includeDirs, searchOption, true);

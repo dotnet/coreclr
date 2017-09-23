@@ -154,14 +154,12 @@ namespace System
         [Pure]
         public override String ToString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Char.ToString(m_value);
         }
 
         [Pure]
         public String ToString(IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Char.ToString(m_value);
         }
 

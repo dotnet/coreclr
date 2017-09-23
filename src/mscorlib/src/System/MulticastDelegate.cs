@@ -410,7 +410,6 @@ namespace System
         // This method returns the Invocation list of this multicast delegate.
         public override sealed Delegate[] GetInvocationList()
         {
-            Contract.Ensures(Contract.Result<Delegate[]>() != null);
 
             Delegate[] del;
             Object[] invocationList = _invocationList as Object[];

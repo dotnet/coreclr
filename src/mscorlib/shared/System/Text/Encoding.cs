@@ -224,7 +224,6 @@ namespace System.Text
         {
             if (bytes == null)
                 throw new ArgumentNullException(nameof(bytes));
-            Contract.Ensures(Contract.Result<byte[]>() != null);
 
             return Convert(srcEncoding, dstEncoding, bytes, 0, bytes.Length);
         }
@@ -248,7 +247,6 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(bytes),
                     SR.ArgumentNull_Array);
             }
-            Contract.Ensures(Contract.Result<byte[]>() != null);
 
             return dstEncoding.GetBytes(srcEncoding.GetChars(bytes, index, count));
         }

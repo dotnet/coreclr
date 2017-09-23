@@ -1446,7 +1446,6 @@ namespace System.StubHelpers
 
         static internal unsafe Exception ConvertToManaged(int hr)
         {
-            Contract.Ensures(Contract.Result<Exception>() != null || hr >= 0);
 
             if (!Environment.IsWinRTSupported)
             {

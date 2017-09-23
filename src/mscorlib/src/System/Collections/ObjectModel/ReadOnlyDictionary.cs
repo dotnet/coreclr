@@ -49,7 +49,6 @@ namespace System.Collections.ObjectModel
         {
             get
             {
-                Contract.Ensures(Contract.Result<KeyCollection>() != null);
                 if (m_keys == null)
                 {
                     m_keys = new KeyCollection(m_dictionary.Keys);
@@ -62,7 +61,6 @@ namespace System.Collections.ObjectModel
         {
             get
             {
-                Contract.Ensures(Contract.Result<ValueCollection>() != null);
                 if (m_values == null)
                 {
                     m_values = new ValueCollection(m_dictionary.Values);

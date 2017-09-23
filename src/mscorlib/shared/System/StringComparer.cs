@@ -23,7 +23,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<StringComparer>() != null);
                 return s_invariantCulture;
             }
         }
@@ -32,7 +31,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<StringComparer>() != null);
                 return s_invariantCultureIgnoreCase;
             }
         }
@@ -41,7 +39,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<StringComparer>() != null);
                 return new CultureAwareComparer(CultureInfo.CurrentCulture, false);
             }
         }
@@ -50,7 +47,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<StringComparer>() != null);
                 return new CultureAwareComparer(CultureInfo.CurrentCulture, true);
             }
         }
@@ -59,7 +55,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<StringComparer>() != null);
                 return s_ordinal;
             }
         }
@@ -68,7 +63,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<StringComparer>() != null);
                 return s_ordinalIgnoreCase;
             }
         }
@@ -101,7 +95,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(culture));
             }
-            Contract.Ensures(Contract.Result<StringComparer>() != null);
 
             return new CultureAwareComparer(culture, ignoreCase);
         }

@@ -2025,189 +2025,159 @@ namespace System
 
         public static string ToString(bool value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString();
         }
 
         public static string ToString(bool value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString();
         }
 
         public static string ToString(char value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return Char.ToString(value);
         }
 
         public static string ToString(char value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString();
         }
 
         [CLSCompliant(false)]
         public static string ToString(sbyte value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         [CLSCompliant(false)]
         public static string ToString(sbyte value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(byte value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(byte value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(short value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(short value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         [CLSCompliant(false)]
         public static string ToString(ushort value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         [CLSCompliant(false)]
         public static string ToString(ushort value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(int value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(int value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         [CLSCompliant(false)]
         public static string ToString(uint value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         [CLSCompliant(false)]
         public static string ToString(uint value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(long value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(long value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         [CLSCompliant(false)]
         public static string ToString(ulong value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         [CLSCompliant(false)]
         public static string ToString(ulong value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(float value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(float value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(double value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(double value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(decimal value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(Decimal value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(DateTime value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString();
         }
 
         public static string ToString(DateTime value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static String ToString(String value)
         {
-            Contract.Ensures(Contract.Result<string>() == value);  // We were always skipping the null check here.
             return value;
         }
 
         public static String ToString(String value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() == value);  // We were always skipping the null check here.
             return value; // avoid the null check
         }
 
@@ -2419,7 +2389,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(inArray));
             }
-            Contract.Ensures(Contract.Result<string>() != null);
             return ToBase64String(inArray, 0, inArray.Length, Base64FormattingOptions.None);
         }
 
@@ -2429,7 +2398,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(inArray));
             }
-            Contract.Ensures(Contract.Result<string>() != null);
             return ToBase64String(inArray, 0, inArray.Length, options);
         }
 
@@ -2449,7 +2417,6 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_GenericPositive);
             if (options < Base64FormattingOptions.None || options > Base64FormattingOptions.InsertLineBreaks)
                 throw new ArgumentException(string.Format(SR.Arg_EnumIllegalVal, (int)options));
-            Contract.Ensures(Contract.Result<string>() != null);
 
             int inArrayLength;
             int stringLength;
@@ -2479,8 +2446,6 @@ namespace System
 
         public static int ToBase64CharArray(byte[] inArray, int offsetIn, int length, char[] outArray, int offsetOut)
         {
-            Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.Ensures(Contract.Result<int>() <= outArray.Length);
 
             return ToBase64CharArray(inArray, offsetIn, length, outArray, offsetOut, Base64FormattingOptions.None);
         }
@@ -2503,8 +2468,6 @@ namespace System
             {
                 throw new ArgumentException(string.Format(SR.Arg_EnumIllegalVal, (int)options));
             }
-            Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.Ensures(Contract.Result<int>() <= outArray.Length);
 
 
             int retVal;

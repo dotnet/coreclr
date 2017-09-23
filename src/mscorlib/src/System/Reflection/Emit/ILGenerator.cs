@@ -32,8 +32,6 @@ namespace System.Reflection.Emit
         internal static T[] EnlargeArray<T>(T[] incoming, int requiredSize)
         {
             Debug.Assert(incoming != null);
-            Contract.Ensures(Contract.Result<T[]>() != null);
-            Contract.Ensures(Contract.Result<T[]>().Length == requiredSize);
 
             T[] temp = new T[requiredSize];
             Array.Copy(incoming, 0, temp, 0, incoming.Length);
@@ -48,8 +46,6 @@ namespace System.Reflection.Emit
         private static byte[] EnlargeArray(byte[] incoming, int requiredSize)
         {
             Debug.Assert(incoming != null);
-            Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == requiredSize);
 
             byte[] temp = new byte[requiredSize];
             Buffer.BlockCopy(incoming, 0, temp, 0, incoming.Length);

@@ -350,7 +350,6 @@ namespace System.Threading
         {
             get
             {
-                Contract.Ensures(Contract.Result<Thread>() != null);
                 return GetCurrentThreadNative();
             }
         }
@@ -435,7 +434,6 @@ namespace System.Threading
         {
             get
             {
-                Contract.Ensures(Contract.Result<CultureInfo>() != null);
                 return CultureInfo.CurrentUICulture;
             }
 
@@ -469,7 +467,6 @@ namespace System.Threading
         {
             get
             {
-                Contract.Ensures(Contract.Result<CultureInfo>() != null);
                 return CultureInfo.CurrentCulture;
             }
 
@@ -501,7 +498,6 @@ namespace System.Threading
 
         internal static AppDomain GetDomain()
         {
-            Contract.Ensures(Contract.Result<AppDomain>() != null);
 
 
             AppDomain ad;

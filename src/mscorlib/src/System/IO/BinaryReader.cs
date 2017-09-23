@@ -118,7 +118,6 @@ namespace System.IO
 
         public virtual int PeekChar()
         {
-            Contract.Ensures(Contract.Result<int>() >= -1);
 
             if (_stream == null) __Error.FileNotOpen();
 
@@ -132,7 +131,6 @@ namespace System.IO
 
         public virtual int Read()
         {
-            Contract.Ensures(Contract.Result<int>() >= -1);
 
             if (_stream == null)
             {
@@ -269,7 +267,6 @@ namespace System.IO
 
         public virtual String ReadString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
 
             if (_stream == null)
                 __Error.FileNotOpen();
@@ -345,8 +342,6 @@ namespace System.IO
             {
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             }
-            Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.Ensures(Contract.Result<int>() <= count);
 
             if (_stream == null)
                 __Error.FileNotOpen();
@@ -357,8 +352,6 @@ namespace System.IO
 
         public virtual int Read(Span<char> destination)
         {
-            Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.Ensures(Contract.Result<int>() <= destination.Length);
 
             if (_stream == null)
                 __Error.FileNotOpen();
@@ -534,8 +527,6 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.Ensures(Contract.Result<char[]>() != null);
-            Contract.Ensures(Contract.Result<char[]>().Length <= count);
             if (_stream == null)
             {
                 __Error.FileNotOpen();
@@ -569,8 +560,6 @@ namespace System.IO
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - index < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.Ensures(Contract.Result<int>() <= count);
 
             if (_stream == null) __Error.FileNotOpen();
             return _stream.Read(buffer, index, count);
@@ -578,8 +567,6 @@ namespace System.IO
 
         public virtual int Read(Span<byte> destination)
         {
-            Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.Ensures(Contract.Result<int>() <= destination.Length);
 
             if (_stream == null)
                 __Error.FileNotOpen();
@@ -590,8 +577,6 @@ namespace System.IO
         public virtual byte[] ReadBytes(int count)
         {
             if (count < 0) throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length <= Contract.OldValue(count));
             if (_stream == null) __Error.FileNotOpen();
 
             if (count == 0)

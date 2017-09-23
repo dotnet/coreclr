@@ -477,25 +477,21 @@ namespace System
         //
         public override String ToString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatDecimal(this, null, NumberFormatInfo.CurrentInfo);
         }
 
         public String ToString(String format)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatDecimal(this, format, NumberFormatInfo.CurrentInfo);
         }
 
         public String ToString(IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatDecimal(this, null, NumberFormatInfo.GetInstance(provider));
         }
 
         public String ToString(String format, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatDecimal(this, format, NumberFormatInfo.GetInstance(provider));
         }
 

@@ -27,7 +27,6 @@ namespace System.Collections.Generic
 
         public static Comparer<T> Create(Comparison<T> comparison)
         {
-            Contract.Ensures(Contract.Result<Comparer<T>>() != null);
 
             if (comparison == null)
                 throw new ArgumentNullException(nameof(comparison));

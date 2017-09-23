@@ -705,13 +705,11 @@ namespace System
         // Returns this string.
         public override String ToString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return this;
         }
 
         public String ToString(IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return this;
         }
 
@@ -719,7 +717,6 @@ namespace System
         // There's no point in cloning a string since they're immutable, so we simply return this.
         public Object Clone()
         {
-            Contract.Ensures(Contract.Result<Object>() != null);
             return this;
         }
 
@@ -729,7 +726,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(str));
             }
-            Contract.Ensures(Contract.Result<String>() != null);
 
             int length = str.Length;
 
@@ -749,8 +745,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(str));
             }
-            Contract.Ensures(Contract.Result<String>().Length == str.Length);
-            Contract.Ensures(str.Equals(Contract.Result<String>()));
 
             return Thread.GetDomain().GetOrInternString(str);
         }
@@ -762,7 +756,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(str));
             }
-            Contract.Ensures(Contract.Result<String>() == null || Contract.Result<String>().Length == str.Length);
 
             return Thread.GetDomain().IsStringInterned(str);
         }
@@ -871,21 +864,18 @@ namespace System
 
         public CharEnumerator GetEnumerator()
         {
-            Contract.Ensures(Contract.Result<CharEnumerator>() != null);
             BCLDebug.Perf(false, "Avoid using String's CharEnumerator until C# special cases foreach on String - use the indexed property on String instead.");
             return new CharEnumerator(this);
         }
 
         IEnumerator<char> IEnumerable<char>.GetEnumerator()
         {
-            Contract.Ensures(Contract.Result<IEnumerator<char>>() != null);
             BCLDebug.Perf(false, "Avoid using String's CharEnumerator until C# special cases foreach on String - use the indexed property on String instead.");
             return new CharEnumerator(this);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            Contract.Ensures(Contract.Result<IEnumerator>() != null);
             BCLDebug.Perf(false, "Avoid using String's CharEnumerator until C# special cases foreach on String - use the indexed property on String instead.");
             return new CharEnumerator(this);
         }

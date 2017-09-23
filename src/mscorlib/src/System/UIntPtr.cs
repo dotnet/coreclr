@@ -115,7 +115,6 @@ namespace System
 
         public unsafe override String ToString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
 
 #if BIT64
             return ((ulong)_value).ToString(CultureInfo.InvariantCulture);

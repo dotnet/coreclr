@@ -1108,7 +1108,6 @@ namespace Microsoft.Win32
 
         static private void ValidateKeyName(string name)
         {
-            Contract.Ensures(name != null);
             if (name == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.name);

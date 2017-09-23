@@ -69,7 +69,6 @@ namespace System.Reflection
             RuntimeMethodHandleInternal handle, RuntimeType declaringType,
             RuntimeTypeCache reflectedTypeCache, MethodAttributes methodAttributes, BindingFlags bindingFlags, object keepalive)
         {
-            Contract.Ensures(!m_handle.IsNull());
 
             Debug.Assert(!handle.IsNullHandle());
             Debug.Assert(methodAttributes == RuntimeMethodHandle.GetAttributes(handle));
@@ -542,7 +541,6 @@ namespace System.Reflection
         {
             get
             {
-                Contract.Ensures(m_returnParameter != null);
 
                 FetchReturnParameter();
                 return m_returnParameter as ParameterInfo;

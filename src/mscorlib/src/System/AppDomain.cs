@@ -321,7 +321,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<AppDomain>() != null);
                 return Thread.GetDomain();
             }
         }

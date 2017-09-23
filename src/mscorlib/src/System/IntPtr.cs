@@ -145,7 +145,6 @@ namespace System
 
         public unsafe String ToString(String format)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
 
 #if BIT64
             return ((long)_value).ToString(format, CultureInfo.InvariantCulture);

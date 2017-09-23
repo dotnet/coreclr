@@ -1351,21 +1351,18 @@ namespace System.Reflection.Emit
 
         public MethodBuilder DefineMethod(String name, MethodAttributes attributes, Type returnType, Type[] parameterTypes)
         {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
 
             return DefineMethod(name, attributes, CallingConventions.Standard, returnType, parameterTypes);
         }
 
         public MethodBuilder DefineMethod(String name, MethodAttributes attributes)
         {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
 
             return DefineMethod(name, attributes, CallingConventions.Standard, null, null);
         }
 
         public MethodBuilder DefineMethod(String name, MethodAttributes attributes, CallingConventions callingConvention)
         {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
 
             return DefineMethod(name, attributes, callingConvention, null, null);
         }
@@ -1373,7 +1370,6 @@ namespace System.Reflection.Emit
         public MethodBuilder DefineMethod(String name, MethodAttributes attributes, CallingConventions callingConvention,
             Type returnType, Type[] parameterTypes)
         {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
 
             return DefineMethod(name, attributes, callingConvention, returnType, null, null, parameterTypes, null, null);
         }
@@ -1382,7 +1378,6 @@ namespace System.Reflection.Emit
             Type returnType, Type[] returnTypeRequiredCustomModifiers, Type[] returnTypeOptionalCustomModifiers,
             Type[] parameterTypes, Type[][] parameterTypeRequiredCustomModifiers, Type[][] parameterTypeOptionalCustomModifiers)
         {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -1401,7 +1396,6 @@ namespace System.Reflection.Emit
 
             if (name.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
 
             CheckContext(returnType);
             CheckContext(returnTypeRequiredCustomModifiers, returnTypeOptionalCustomModifiers, parameterTypes);

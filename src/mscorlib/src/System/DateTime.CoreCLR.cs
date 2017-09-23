@@ -13,7 +13,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<DateTime>().Kind == DateTimeKind.Utc);
                 // following code is tuned for speed. Don't change it without running benchmark.
                 long ticks = 0;
                 ticks = GetSystemTimeAsFileTime();

@@ -855,7 +855,6 @@ namespace System.Reflection.Emit
 
         public ILGenerator GetILGenerator()
         {
-            Contract.Ensures(Contract.Result<ILGenerator>() != null);
 
             ThrowIfGeneric();
             ThrowIfShouldNotHaveBody();
@@ -867,7 +866,6 @@ namespace System.Reflection.Emit
 
         public ILGenerator GetILGenerator(int size)
         {
-            Contract.Ensures(Contract.Result<ILGenerator>() != null);
 
             ThrowIfGeneric();
             ThrowIfShouldNotHaveBody();

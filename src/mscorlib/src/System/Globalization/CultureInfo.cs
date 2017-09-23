@@ -335,7 +335,6 @@ namespace System.Globalization
         //
         public static CultureInfo CreateSpecificCulture(String name)
         {
-            Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
             CultureInfo culture;
 
@@ -479,7 +478,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<CultureInfo>() != null);
                 if (s_userDefaultCulture == null)
                 {
                     Init();
@@ -598,7 +596,6 @@ namespace System.Globalization
 
         public static CultureInfo[] GetCultures(CultureTypes types)
         {
-            Contract.Ensures(Contract.Result<CultureInfo[]>() != null);
             // internally we treat UserCustomCultures as Supplementals but v2
             // treats as Supplementals and Replacements
             if ((types & CultureTypes.UserCustomCulture) == CultureTypes.UserCustomCulture)
@@ -651,7 +648,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<string>() != null);
 
                 // special case the compatibility cultures
                 switch (this.Name)
@@ -679,7 +675,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<String>() != null);
                 Debug.Assert(_name != null, "[CultureInfo.DisplayName] Always expect _name to be set");
 
                 return _cultureData.SLOCALIZEDDISPLAYNAME;
@@ -699,7 +694,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<String>() != null);
                 return (_cultureData.SNATIVEDISPLAYNAME);
             }
         }
@@ -717,7 +711,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<String>() != null);
                 return (_cultureData.SENGDISPLAYNAME);
             }
         }
@@ -727,7 +720,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<String>() != null);
                 return (_cultureData.SISO639LANGNAME);
             }
         }
@@ -737,7 +729,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<String>() != null);
                 return _cultureData.SISO639LANGNAME2;
             }
         }
@@ -754,7 +745,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<String>() != null);
                 return _cultureData.SABBREVLANGNAME;
             }
         }
@@ -1092,7 +1082,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<Calendar[]>() != null);
 
                 //
                 // This property always returns a new copy of the calendar array.
@@ -1117,7 +1106,6 @@ namespace System.Globalization
 
         public CultureInfo GetConsoleFallbackUICulture()
         {
-            Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
             CultureInfo temp = _consoleFallbackCulture;
             if (temp == null)
@@ -1172,7 +1160,6 @@ namespace System.Globalization
             {
                 throw new ArgumentNullException(nameof(ci));
             }
-            Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
             if (ci.IsReadOnly)
             {
@@ -1395,7 +1382,6 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException(nameof(culture), SR.ArgumentOutOfRange_NeedPosNum);
             }
-            Contract.Ensures(Contract.Result<CultureInfo>() != null);
             CultureInfo retval = GetCultureInfoHelper(culture, null, null);
             if (null == retval)
             {
@@ -1438,7 +1424,6 @@ namespace System.Globalization
                 throw new ArgumentNullException(nameof(altName));
             }
             
-            Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
             CultureInfo retval = GetCultureInfoHelper(-1, name, altName);
             if (retval == null)
@@ -1452,7 +1437,6 @@ namespace System.Globalization
         // This function is deprecated, we don't like it
         public static CultureInfo GetCultureInfoByIetfLanguageTag(string name)
         {
-            Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
             // Disallow old zh-CHT/zh-CHS names
             if (name == "zh-CHT" || name == "zh-CHS")

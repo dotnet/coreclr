@@ -404,7 +404,6 @@ namespace System.Text
         /// <param name="length">The number of characters to read in this builder.</param>
         public string ToString(int startIndex, int length)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
 
             int currentLength = this.Length;
             if (startIndex < 0)
@@ -490,7 +489,6 @@ namespace System.Text
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
                 return m_ChunkOffset + m_ChunkLength;
             }
             set
@@ -605,7 +603,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(repeatCount), SR.ArgumentOutOfRange_NegativeCount);
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             if (repeatCount == 0)
             {
@@ -658,7 +655,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(charCount), SR.ArgumentOutOfRange_GenericPositive);
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             if (value == null)
             {
@@ -696,7 +692,6 @@ namespace System.Text
         /// <param name="value">The string to append.</param>
         public StringBuilder Append(String value)
         {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             if (value != null)
             {
@@ -767,7 +762,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_GenericPositive);
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             if (value == null)
             {
@@ -885,7 +879,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             int currentLength = Length;
             if ((uint)index > (uint)currentLength)
@@ -947,7 +940,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_Index);
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             if (Length == length && startIndex == 0)
             {
@@ -974,7 +966,6 @@ namespace System.Text
 
         public StringBuilder Append(char value)
         {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             if (m_ChunkLength < m_ChunkChars.Length)
             {
@@ -1157,7 +1148,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             if (value != null)
             {
@@ -1181,7 +1171,6 @@ namespace System.Text
 
         public StringBuilder Insert(int index, char value)
         {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             unsafe
             {
@@ -1196,7 +1185,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             if (value != null)
                 Insert(index, value, 0, value.Length);
@@ -1205,7 +1193,6 @@ namespace System.Text
 
         public StringBuilder Insert(int index, char[] value, int startIndex, int charCount)
         {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             int currentLength = Length;
             if ((uint)index > (uint)currentLength)
@@ -1271,7 +1258,6 @@ namespace System.Text
 
         public StringBuilder Insert(int index, ReadOnlySpan<char> value)
         {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             if ((uint)index > (uint)Length)
             {
@@ -1304,7 +1290,6 @@ namespace System.Text
                 string paramName = (format == null) ? nameof(format) : nameof(args);
                 throw new ArgumentNullException(paramName);
             }
-            Contract.Ensures(Contract.Result<String>() != null);
 
             return AppendFormatHelper(null, format, new ParamsArray(args));
         }
@@ -1324,7 +1309,6 @@ namespace System.Text
                 string paramName = (format == null) ? nameof(format) : nameof(args);
                 throw new ArgumentNullException(paramName);
             }
-            Contract.Ensures(Contract.Result<String>() != null);
 
             return AppendFormatHelper(provider, format, new ParamsArray(args));
         }
@@ -1344,7 +1328,6 @@ namespace System.Text
             {
                 throw new ArgumentNullException(nameof(format));
             }
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             int pos = 0;
             int len = format.Length;
@@ -1646,7 +1629,6 @@ namespace System.Text
         /// </remarks>
         public StringBuilder Replace(String oldValue, String newValue, int startIndex, int count)
         {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             int currentLength = Length;
             if ((uint)startIndex > (uint)currentLength)
@@ -1743,7 +1725,6 @@ namespace System.Text
         /// <param name="count">The number of characters to read in this builder.</param>
         public StringBuilder Replace(char oldChar, char newChar, int startIndex, int count)
         {
-            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
             int currentLength = Length;
             if ((uint)startIndex > (uint)currentLength)

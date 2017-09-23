@@ -149,7 +149,6 @@ namespace System.Diagnostics
         // 
         public virtual MethodBase GetMethod()
         {
-            Contract.Ensures(Contract.Result<MethodBase>() != null);
 
             return method;
         }

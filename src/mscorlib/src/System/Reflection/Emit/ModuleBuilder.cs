@@ -837,7 +837,6 @@ namespace System.Reflection.Emit
         #region Define Type
         public TypeBuilder DefineType(String name)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -847,7 +846,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -857,7 +855,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -870,7 +867,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, int typesize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -880,7 +876,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, PackingSize packingSize, int typesize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -890,7 +885,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, Type[] interfaces)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -900,14 +894,12 @@ namespace System.Reflection.Emit
 
         private TypeBuilder DefineTypeNoLock(String name, TypeAttributes attr, Type parent, Type[] interfaces, PackingSize packingSize, int typesize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
 
             return new TypeBuilder(name, attr, parent, interfaces, this, packingSize, typesize, null); ;
         }
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, PackingSize packsize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -917,7 +909,6 @@ namespace System.Reflection.Emit
 
         private TypeBuilder DefineTypeNoLock(String name, TypeAttributes attr, Type parent, PackingSize packsize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
 
             return new TypeBuilder(name, attr, parent, null, this, packsize, TypeBuilder.UnspecifiedTypeSize, null);
         }
@@ -930,7 +921,6 @@ namespace System.Reflection.Emit
         // Nested enum types can be defined manually using ModuleBuilder.DefineType.
         public EnumBuilder DefineEnum(String name, TypeAttributes visibility, Type underlyingType)
         {
-            Contract.Ensures(Contract.Result<EnumBuilder>() != null);
 
             CheckContext(underlyingType);
             lock (SyncRoot)
@@ -956,7 +946,6 @@ namespace System.Reflection.Emit
 
         private EnumBuilder DefineEnumNoLock(String name, TypeAttributes visibility, Type underlyingType)
         {
-            Contract.Ensures(Contract.Result<EnumBuilder>() != null);
 
             return new EnumBuilder(name, underlyingType, visibility, this);
         }
@@ -970,7 +959,6 @@ namespace System.Reflection.Emit
         #region Define Global Method
         public MethodBuilder DefineGlobalMethod(String name, MethodAttributes attributes, Type returnType, Type[] parameterTypes)
         {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
 
             return DefineGlobalMethod(name, attributes, CallingConventions.Standard, returnType, parameterTypes);
         }
@@ -978,7 +966,6 @@ namespace System.Reflection.Emit
         public MethodBuilder DefineGlobalMethod(String name, MethodAttributes attributes, CallingConventions callingConvention,
             Type returnType, Type[] parameterTypes)
         {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
 
             return DefineGlobalMethod(name, attributes, callingConvention, returnType, null, null, parameterTypes, null, null);
         }
@@ -1010,7 +997,6 @@ namespace System.Reflection.Emit
 
             if ((attributes & MethodAttributes.Static) == 0)
                 throw new ArgumentException(SR.Argument_GlobalFunctionHasToBeStatic);
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
 
             CheckContext(returnType);
             CheckContext(requiredReturnTypeCustomModifiers, optionalReturnTypeCustomModifiers, parameterTypes);
@@ -1052,7 +1038,6 @@ namespace System.Reflection.Emit
             // This method will define an initialized Data in .sdata. 
             // We will create a fake TypeDef to represent the data with size. This TypeDef
             // will be the signature for the Field.         
-            Contract.Ensures(Contract.Result<FieldBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -1069,7 +1054,6 @@ namespace System.Reflection.Emit
             {
                 throw new InvalidOperationException(SR.InvalidOperation_GlobalsHaveBeenCreated);
             }
-            Contract.Ensures(Contract.Result<FieldBuilder>() != null);
 
             m_moduleData.m_fHasGlobal = true;
             return m_moduleData.m_globalTypeBuilder.DefineInitializedData(name, data, attributes);
@@ -1077,7 +1061,6 @@ namespace System.Reflection.Emit
 
         public FieldBuilder DefineUninitializedData(String name, int size, FieldAttributes attributes)
         {
-            Contract.Ensures(Contract.Result<FieldBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -1095,7 +1078,6 @@ namespace System.Reflection.Emit
             {
                 throw new InvalidOperationException(SR.InvalidOperation_GlobalsHaveBeenCreated);
             }
-            Contract.Ensures(Contract.Result<FieldBuilder>() != null);
 
             m_moduleData.m_fHasGlobal = true;
             return m_moduleData.m_globalTypeBuilder.DefineUninitializedData(name, size, attributes);

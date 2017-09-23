@@ -430,7 +430,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<DateTimeFormatInfo>() != null);
                 if (s_invariantInfo == null)
                 {
                     DateTimeFormatInfo info = new DateTimeFormatInfo();
@@ -449,7 +448,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<DateTimeFormatInfo>() != null);
                 System.Globalization.CultureInfo culture = System.Globalization.CultureInfo.CurrentCulture;
                 if (!culture._isInherited)
                 {
@@ -541,7 +539,6 @@ namespace System.Globalization
         {
             get
             {
-                Contract.Ensures(Contract.Result<Calendar>() != null);
 
                 Debug.Assert(this.calendar != null, "DateTimeFormatInfo.Calendar: calendar != null");
                 return (this.calendar);
@@ -1666,7 +1663,6 @@ namespace System.Globalization
 
         public string[] GetAllDateTimePatterns(char format)
         {
-            Contract.Ensures(Contract.Result<String[]>() != null);
             String[] result = null;
 
             switch (format)

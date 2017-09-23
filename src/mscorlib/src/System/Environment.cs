@@ -288,7 +288,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<String>() != null);
 #if PLATFORM_WINDOWS
                 return "\r\n";
 #else
@@ -361,7 +360,6 @@ namespace System
             [MethodImpl(MethodImplOptions.NoInlining)] // Prevent inlining from affecting where the stacktrace starts
             get
             {
-                Contract.Ensures(Contract.Result<String>() != null);
                 return Internal.Runtime.Augments.EnvironmentAugments.StackTrace;
             }
         }

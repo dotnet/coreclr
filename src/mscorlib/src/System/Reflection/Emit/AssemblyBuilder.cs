@@ -283,7 +283,6 @@ namespace System.Reflection.Emit
             AssemblyName name,
             AssemblyBuilderAccess access)
         {
-            Contract.Ensures(Contract.Result<AssemblyBuilder>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalDefineDynamicAssembly(name, access,
@@ -296,7 +295,6 @@ namespace System.Reflection.Emit
             AssemblyBuilderAccess access,
             IEnumerable<CustomAttributeBuilder> assemblyAttributes)
         {
-            Contract.Ensures(Contract.Result<AssemblyBuilder>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalDefineDynamicAssembly(name,
@@ -344,7 +342,6 @@ namespace System.Reflection.Emit
         public ModuleBuilder DefineDynamicModule(
             String name)
         {
-            Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return DefineDynamicModuleInternal(name, false, ref stackMark);
@@ -355,7 +352,6 @@ namespace System.Reflection.Emit
             String name,
             bool emitSymbolInfo)         // specify if emit symbol info or not
         {
-            Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return DefineDynamicModuleInternal(name, emitSymbolInfo, ref stackMark);
@@ -383,7 +379,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             if (name[0] == '\0')
                 throw new ArgumentException(SR.Argument_InvalidName, nameof(name));
-            Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
 
             BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilder.DefineDynamicModule( " + name + " )");
 

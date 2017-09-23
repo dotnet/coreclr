@@ -75,7 +75,6 @@ namespace System.Reflection
             RuntimeMethodHandleInternal handle, RuntimeType declaringType, RuntimeTypeCache reflectedTypeCache,
             MethodAttributes methodAttributes, BindingFlags bindingFlags)
         {
-            Contract.Ensures(methodAttributes == RuntimeMethodHandle.GetAttributes(handle));
 
             m_bindingFlags = bindingFlags;
             m_reflectedTypeCache = reflectedTypeCache;

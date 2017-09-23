@@ -546,7 +546,6 @@ namespace System
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
-            Contract.Ensures(Contract.Result<Type>() != null);
 
             return enumType.GetEnumUnderlyingType();
         }
@@ -555,7 +554,6 @@ namespace System
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
-            Contract.Ensures(Contract.Result<Array>() != null);
 
             return enumType.GetEnumValues();
         }
@@ -578,7 +576,6 @@ namespace System
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
-            Contract.Ensures(Contract.Result<String[]>() != null);
 
             return enumType.GetEnumNames();
         }

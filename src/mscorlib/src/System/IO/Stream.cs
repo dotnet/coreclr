@@ -94,7 +94,6 @@ namespace System.IO
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
                 throw new InvalidOperationException(SR.InvalidOperation_TimeoutsNotSupported);
             }
             set
@@ -107,7 +106,6 @@ namespace System.IO
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
                 throw new InvalidOperationException(SR.InvalidOperation_TimeoutsNotSupported);
             }
             set
@@ -252,9 +250,6 @@ namespace System.IO
         public virtual void Close()
         {
             /* These are correct, but we'd have to fix PipeStream & NetworkStream very carefully.
-            Contract.Ensures(CanRead == false);
-            Contract.Ensures(CanWrite == false);
-            Contract.Ensures(CanSeek == false);
             */
 
             Dispose(true);
@@ -264,9 +259,6 @@ namespace System.IO
         public void Dispose()
         {
             /* These are correct, but we'd have to fix PipeStream & NetworkStream very carefully.
-            Contract.Ensures(CanRead == false);
-            Contract.Ensures(CanWrite == false);
-            Contract.Ensures(CanSeek == false);
             */
 
             Close();
@@ -296,13 +288,11 @@ namespace System.IO
         [Obsolete("CreateWaitHandle will be removed eventually.  Please use \"new ManualResetEvent(false)\" instead.")]
         protected virtual WaitHandle CreateWaitHandle()
         {
-            Contract.Ensures(Contract.Result<WaitHandle>() != null);
             return new ManualResetEvent(false);
         }
 
         public virtual IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
         {
-            Contract.Ensures(Contract.Result<IAsyncResult>() != null);
             return BeginReadInternal(buffer, offset, count, callback, state, serializeAsynchronously: false, apm: true);
         }
 
@@ -310,7 +300,6 @@ namespace System.IO
             byte[] buffer, int offset, int count, AsyncCallback callback, Object state,
             bool serializeAsynchronously, bool apm)
         {
-            Contract.Ensures(Contract.Result<IAsyncResult>() != null);
             if (!CanRead) __Error.ReadNotSupported();
 
             // To avoid a race with a stream's position pointer & generating race conditions 
@@ -372,7 +361,6 @@ namespace System.IO
         {
             if (asyncResult == null)
                 throw new ArgumentNullException(nameof(asyncResult));
-            Contract.Ensures(Contract.Result<int>() >= 0);
 
             var readTask = _activeReadWriteTask;
 
@@ -470,7 +458,6 @@ namespace System.IO
 
         public virtual IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
         {
-            Contract.Ensures(Contract.Result<IAsyncResult>() != null);
             return BeginWriteInternal(buffer, offset, count, callback, state, serializeAsynchronously: false, apm: true);
         }
 
@@ -478,7 +465,6 @@ namespace System.IO
             byte[] buffer, int offset, int count, AsyncCallback callback, Object state,
             bool serializeAsynchronously, bool apm)
         {
-            Contract.Ensures(Contract.Result<IAsyncResult>() != null);
             if (!CanWrite) __Error.WriteNotSupported();
 
             // To avoid a race condition with a stream's position pointer & generating conditions 
@@ -803,8 +789,6 @@ namespace System.IO
         // significantly for people who are reading one byte at a time.
         public virtual int ReadByte()
         {
-            Contract.Ensures(Contract.Result<int>() >= -1);
-            Contract.Ensures(Contract.Result<int>() < 256);
 
             byte[] oneByteArray = new byte[1];
             int r = Read(oneByteArray, 0, 1);
@@ -842,7 +826,6 @@ namespace System.IO
         {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
-            Contract.Ensures(Contract.Result<Stream>() != null);
             if (stream is SyncStream)
                 return stream;
 
@@ -856,7 +839,6 @@ namespace System.IO
 
         internal IAsyncResult BlockingBeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
         {
-            Contract.Ensures(Contract.Result<IAsyncResult>() != null);
 
             // To avoid a race with a stream's position pointer & generating conditions
             // with internal buffer indexes in our own streams that 
@@ -885,14 +867,12 @@ namespace System.IO
 
         internal static int BlockingEndRead(IAsyncResult asyncResult)
         {
-            Contract.Ensures(Contract.Result<int>() >= 0);
 
             return SynchronousAsyncResult.EndRead(asyncResult);
         }
 
         internal IAsyncResult BlockingBeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
         {
-            Contract.Ensures(Contract.Result<IAsyncResult>() != null);
 
             // To avoid a race condition with a stream's position pointer & generating conditions 
             // with internal buffer indexes in our own streams that 
@@ -1348,7 +1328,6 @@ namespace System.IO
             {
                 if (asyncResult == null)
                     throw new ArgumentNullException(nameof(asyncResult));
-                Contract.Ensures(Contract.Result<int>() >= 0);
 
                 lock (_stream)
                     return _stream.EndRead(asyncResult);

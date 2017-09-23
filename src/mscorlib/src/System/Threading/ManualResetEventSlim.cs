@@ -242,7 +242,6 @@ namespace System.Threading
         /// </summary>
         private void EnsureLockObjectCreated()
         {
-            Contract.Ensures(m_lock != null);
 
             if (m_lock != null)
                 return;

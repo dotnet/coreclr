@@ -894,8 +894,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 1);
-                Contract.Ensures(Contract.Result<int>() <= 31);
                 return GetDatePart(DatePartDay);
             }
         }
@@ -909,8 +907,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<DayOfWeek>() >= DayOfWeek.Sunday);
-                Contract.Ensures(Contract.Result<DayOfWeek>() <= DayOfWeek.Saturday);
                 return (DayOfWeek)((InternalTicks / TicksPerDay + 1) % 7);
             }
         }
@@ -922,8 +918,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 1);
-                Contract.Ensures(Contract.Result<int>() <= 366);  // leap year
                 return GetDatePart(DatePartDayOfYear);
             }
         }
@@ -943,8 +937,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
-                Contract.Ensures(Contract.Result<int>() < 24);
                 return (int)((InternalTicks / TicksPerHour) % 24);
             }
         }
@@ -978,8 +970,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
-                Contract.Ensures(Contract.Result<int>() < 1000);
                 return (int)((InternalTicks / TicksPerMillisecond) % 1000);
             }
         }
@@ -991,8 +981,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
-                Contract.Ensures(Contract.Result<int>() < 60);
                 return (int)((InternalTicks / TicksPerMinute) % 60);
             }
         }
@@ -1004,7 +992,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 1);
                 return GetDatePart(DatePartMonth);
             }
         }
@@ -1015,7 +1002,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<DateTime>().Kind == DateTimeKind.Local);
 
                 DateTime utc = UtcNow;
                 Boolean isAmbiguousLocalDst = false;
@@ -1040,8 +1026,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
-                Contract.Ensures(Contract.Result<int>() < 60);
                 return (int)((InternalTicks / TicksPerSecond) % 60);
             }
         }
@@ -1088,7 +1072,6 @@ namespace System
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 1 && Contract.Result<int>() <= 9999);
                 return GetDatePart(DatePartYear);
             }
         }
@@ -1249,49 +1232,41 @@ namespace System
 
         public String ToLongDateString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return DateTimeFormat.Format(this, "D", DateTimeFormatInfo.CurrentInfo);
         }
 
         public String ToLongTimeString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return DateTimeFormat.Format(this, "T", DateTimeFormatInfo.CurrentInfo);
         }
 
         public String ToShortDateString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return DateTimeFormat.Format(this, "d", DateTimeFormatInfo.CurrentInfo);
         }
 
         public String ToShortTimeString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return DateTimeFormat.Format(this, "t", DateTimeFormatInfo.CurrentInfo);
         }
 
         public override String ToString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return DateTimeFormat.Format(this, null, DateTimeFormatInfo.CurrentInfo);
         }
 
         public String ToString(String format)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return DateTimeFormat.Format(this, format, DateTimeFormatInfo.CurrentInfo);
         }
 
         public String ToString(IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return DateTimeFormat.Format(this, null, DateTimeFormatInfo.GetInstance(provider));
         }
 
         public String ToString(String format, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return DateTimeFormat.Format(this, format, DateTimeFormatInfo.GetInstance(provider));
         }
 
@@ -1386,7 +1361,6 @@ namespace System
         // time strings for the current instance of DateTime.
         public String[] GetDateTimeFormats()
         {
-            Contract.Ensures(Contract.Result<String[]>() != null);
             return (GetDateTimeFormats(CultureInfo.CurrentCulture));
         }
 
@@ -1395,7 +1369,6 @@ namespace System
         // time strings for the current instance of DateTime.
         public String[] GetDateTimeFormats(IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String[]>() != null);
             return (DateTimeFormat.GetAllDateTimes(this, DateTimeFormatInfo.GetInstance(provider)));
         }
 
@@ -1405,7 +1378,6 @@ namespace System
         // time strings for the current instance of DateTime.
         public String[] GetDateTimeFormats(char format)
         {
-            Contract.Ensures(Contract.Result<String[]>() != null);
             return (GetDateTimeFormats(format, CultureInfo.CurrentCulture));
         }
 
@@ -1414,7 +1386,6 @@ namespace System
         // time strings for the current instance of DateTime.
         public String[] GetDateTimeFormats(char format, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String[]>() != null);
             return (DateTimeFormat.GetAllDateTimes(this, format, DateTimeFormatInfo.GetInstance(provider)));
         }
 

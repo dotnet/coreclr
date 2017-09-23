@@ -244,25 +244,21 @@ namespace System
 
         public override String ToString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatDouble(m_value, null, NumberFormatInfo.CurrentInfo);
         }
 
         public String ToString(String format)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatDouble(m_value, format, NumberFormatInfo.CurrentInfo);
         }
 
         public String ToString(IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatDouble(m_value, null, NumberFormatInfo.GetInstance(provider));
         }
 
         public String ToString(String format, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatDouble(m_value, format, NumberFormatInfo.GetInstance(provider));
         }
 

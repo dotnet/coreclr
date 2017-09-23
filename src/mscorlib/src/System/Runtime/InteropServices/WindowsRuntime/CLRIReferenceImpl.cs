@@ -236,7 +236,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal static Object CreateIReference(Object obj)
         {
             Debug.Assert(obj != null, "Null should not be boxed.");
-            Contract.Ensures(Contract.Result<Object>() != null);
 
             Type type = obj.GetType();
 
@@ -313,7 +312,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             Debug.Assert(obj != null);
             Debug.Assert(obj.GetType().IsArray);
-            Contract.Ensures(Contract.Result<Object>() != null);
 
             Type type = obj.GetType().GetElementType();
 

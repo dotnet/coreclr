@@ -168,7 +168,6 @@ namespace System
         {
             Debug.Assert(typeName != null);
             Debug.Assert(fieldName != null);
-            Contract.Ensures(Contract.Result<FieldInfo>() != null);
 
             Type t = GetType();
             while (null != t)

@@ -39,7 +39,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<ReadOnlyCollection<T>>() != null);
 
             // T[] implements IList<T>.
             return new ReadOnlyCollection<T>(array);
@@ -49,8 +48,6 @@ namespace System
         {
             if (newSize < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.newSize, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.Ensures(Contract.ValueAtReturn(out array) != null);
-            Contract.Ensures(Contract.ValueAtReturn(out array).Length == newSize);
 
             T[] larray = array;
             if (larray == null)
@@ -74,9 +71,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length < 0)
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Length == length);
-            Contract.Ensures(Contract.Result<Array>().Rank == 1);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -92,10 +86,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length1, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (length2 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length2, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == 2);
-            Contract.Ensures(Contract.Result<Array>().GetLength(0) == length1);
-            Contract.Ensures(Contract.Result<Array>().GetLength(1) == length2);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -116,11 +106,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length2, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (length3 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length3, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == 3);
-            Contract.Ensures(Contract.Result<Array>().GetLength(0) == length1);
-            Contract.Ensures(Contract.Result<Array>().GetLength(1) == length2);
-            Contract.Ensures(Contract.Result<Array>().GetLength(2) == length3);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -140,8 +125,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);
             if (lengths.Length == 0)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == lengths.Length);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -167,8 +150,6 @@ namespace System
             }
             if (lengths.Length == 0)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == lengths.Length);
 
             int[] intLengths = new int[lengths.Length];
 
@@ -196,8 +177,6 @@ namespace System
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RanksAndBounds);
             if (lengths.Length == 0)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == lengths.Length);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -748,7 +727,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures((Contract.Result<int>() >= array.GetLowerBound(0) && Contract.Result<int>() <= array.GetUpperBound(0)) || (Contract.Result<int>() < array.GetLowerBound(0) && ~Contract.Result<int>() <= array.GetUpperBound(0) + 1));
             int lb = array.GetLowerBound(0);
             return BinarySearch(array, lb, array.Length, value, null);
         }
@@ -945,8 +923,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.converter);
             }
-            Contract.Ensures(Contract.Result<TOutput[]>() != null);
-            Contract.Ensures(Contract.Result<TOutput[]>().Length == array.Length);
 
             TOutput[] newArray = new TOutput[array.Length];
             for (int i = 0; i < array.Length; i++)
@@ -989,8 +965,6 @@ namespace System
         [Pure]
         public static T[] Empty<T>()
         {
-            Contract.Ensures(Contract.Result<T[]>() != null);
-            Contract.Ensures(Contract.Result<T[]>().Length == 0);
 
             return EmptyArray<T>.Value;
         }
@@ -1087,7 +1061,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
 
             return FindIndex(array, 0, array.Length, match);
         }
@@ -1098,7 +1071,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
 
             return FindIndex(array, startIndex, array.Length - startIndex, match);
         }
@@ -1124,7 +1096,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
 
             int endIndex = startIndex + count;
             for (int i = startIndex; i < endIndex; i++)
@@ -1261,7 +1232,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             int lb = array.GetLowerBound(0);
             return IndexOf(array, value, lb, array.Length);
         }
@@ -1276,7 +1246,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             int lb = array.GetLowerBound(0);
             return IndexOf(array, value, startIndex, array.Length - startIndex + lb);
         }
@@ -1293,7 +1262,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (array.Rank != 1)
                 ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
 
             int lb = array.GetLowerBound(0);
             if (startIndex < lb || startIndex > array.Length + lb)
@@ -1356,8 +1324,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures((Contract.Result<int>() < 0) ||
-                (Contract.Result<int>() >= 0 && Contract.Result<int>() < array.Length && EqualityComparer<T>.Default.Equals(value, array[Contract.Result<int>()])));
 
             return IndexOf(array, value, 0, array.Length);
         }
@@ -1368,7 +1334,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
 
             return IndexOf(array, value, startIndex, array.Length - startIndex);
         }
@@ -1389,7 +1354,6 @@ namespace System
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
 
             return EqualityComparer<T>.Default.IndexOf(array, value, startIndex, count);
         }
@@ -1406,7 +1370,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             int lb = array.GetLowerBound(0);
             return LastIndexOf(array, value, array.Length - 1 + lb, array.Length);
         }
@@ -1420,7 +1383,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             int lb = array.GetLowerBound(0);
             return LastIndexOf(array, value, startIndex, startIndex + 1 - lb);
         }
@@ -1435,7 +1397,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
             int lb = array.GetLowerBound(0);
             if (array.Length == 0)
             {
@@ -1501,7 +1462,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
 
             return LastIndexOf(array, value, array.Length - 1, array.Length);
         }
@@ -1512,7 +1472,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
             // if array is empty and startIndex is 0, we need to pass 0 as count
             return LastIndexOf(array, value, startIndex, (array.Length == 0) ? 0 : (startIndex + 1));
         }
@@ -1523,7 +1482,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
 
             if (array.Length == 0)
             {
