@@ -262,7 +262,7 @@ namespace System.Reflection
         {
             get
             {
-                Contract.Requires(0 <= index && index < Length);
+                Debug.Assert(0 <= index && index < Length);
                 if (largeResult != null)
                     return largeResult[index];
 

@@ -109,7 +109,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal IteratorToEnumeratorAdapter(IIterator<T> iterator)
         {
-            Contract.Requires(iterator != null);
+            Debug.Assert(iterator != null);
             m_iterator = iterator;
             m_hadCurrent = true;
             m_isInitialized = false;

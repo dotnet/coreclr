@@ -7,6 +7,7 @@
 using System;
 using System.StubHelpers;
 using System.Reflection;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Collections;
@@ -27,8 +28,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         static internal ICustomProperty CreateProperty(object target, string propertyName)
         {
-            Contract.Requires(target != null);
-            Contract.Requires(propertyName != null);
+            Debug.Assert(target != null);
+            Debug.Assert(propertyName != null);
 
             IGetProxyTarget proxy = target as IGetProxyTarget;
             if (proxy != null)
@@ -51,8 +52,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //               
         static internal unsafe ICustomProperty CreateIndexedProperty(object target, string propertyName, TypeNameNative* pIndexedParamType)
         {
-            Contract.Requires(target != null);
-            Contract.Requires(propertyName != null);
+            Debug.Assert(target != null);
+            Debug.Assert(propertyName != null);
 
             Type indexedParamType = null;
             SystemTypeMarshaler.ConvertToManaged(pIndexedParamType, ref indexedParamType);
@@ -62,8 +63,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         static internal ICustomProperty CreateIndexedProperty(object target, string propertyName, Type indexedParamType)
         {
-            Contract.Requires(target != null);
-            Contract.Requires(propertyName != null);
+            Debug.Assert(target != null);
+            Debug.Assert(propertyName != null);
 
             IGetProxyTarget proxy = target as IGetProxyTarget;
             if (proxy != null)

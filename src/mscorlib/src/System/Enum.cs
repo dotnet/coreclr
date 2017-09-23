@@ -122,7 +122,7 @@ namespace System
 
         internal static String GetEnumName(RuntimeType eT, ulong ulValue)
         {
-            Contract.Requires(eT != null);
+            Debug.Assert(eT != null);
             ulong[] ulValues = Enum.InternalGetValues(eT);
             int index = Array.BinarySearch(ulValues, ulValue);
 
@@ -137,7 +137,7 @@ namespace System
 
         private static String InternalFormat(RuntimeType eT, ulong value)
         {
-            Contract.Requires(eT != null);
+            Debug.Assert(eT != null);
 
             // These values are sorted by value. Don't change this
             TypeValuesAndNames entry = GetCachedValuesAndNames(eT, true);
@@ -162,7 +162,7 @@ namespace System
 
         private static String InternalFlagsFormat(RuntimeType eT, TypeValuesAndNames entry, ulong result)
         {
-            Contract.Requires(eT != null);
+            Debug.Assert(eT != null);
 
             String[] names = entry.Names;
             ulong[] values = entry.Values;

@@ -257,7 +257,7 @@ namespace System.Threading.Tasks
         /// </summary>
         internal void InternalQueueTask(Task task)
         {
-            Contract.Requires(task != null);
+            Debug.Assert(task != null);
 
             if (TplEtwProvider.Log.IsEnabled())
             {

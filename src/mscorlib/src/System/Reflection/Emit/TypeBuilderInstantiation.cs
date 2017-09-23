@@ -8,6 +8,7 @@ using System;
 using System.Reflection;
 using System.Collections;
 using System.Globalization;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Reflection.Emit
@@ -23,7 +24,7 @@ namespace System.Reflection.Emit
         #region Static Members
         internal static Type MakeGenericType(Type type, Type[] typeArguments)
         {
-            Contract.Requires(type != null, "this is only called from RuntimeType.MakeGenericType and TypeBuilder.MakeGenericType so 'type' cannot be null");
+            Debug.Assert(type != null, "this is only called from RuntimeType.MakeGenericType and TypeBuilder.MakeGenericType so 'type' cannot be null");
 
             if (!type.IsGenericTypeDefinition)
                 throw new InvalidOperationException();

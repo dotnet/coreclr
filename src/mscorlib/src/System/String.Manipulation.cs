@@ -16,8 +16,8 @@ namespace System
     {
         unsafe private static void FillStringChecked(String dest, int destPos, String src)
         {
-            Contract.Requires(dest != null);
-            Contract.Requires(src != null);
+            Debug.Assert(dest != null);
+            Debug.Assert(src != null);
             if (src.Length > dest.Length - destPos)
             {
                 throw new IndexOutOfRangeException();
@@ -1331,8 +1331,8 @@ namespace System
 
         private String[] SplitKeepEmptyEntries(Int32[] sepList, Int32[] lengthList, Int32 defaultLength, Int32 numReplaces, int count)
         {
-            Contract.Requires(numReplaces >= 0);
-            Contract.Requires(count >= 2);
+            Debug.Assert(numReplaces >= 0);
+            Debug.Assert(count >= 2);
             Contract.Ensures(Contract.Result<String[]>() != null);
 
             int currIndex = 0;
@@ -1370,8 +1370,8 @@ namespace System
         // This function will not keep the Empty String 
         private String[] SplitOmitEmptyEntries(Int32[] sepList, Int32[] lengthList, Int32 defaultLength, Int32 numReplaces, int count)
         {
-            Contract.Requires(numReplaces >= 0);
-            Contract.Requires(count >= 2);
+            Debug.Assert(numReplaces >= 0);
+            Debug.Assert(count >= 2);
             Contract.Ensures(Contract.Result<String[]>() != null);
 
             // Allocate array to hold items. This array may not be 

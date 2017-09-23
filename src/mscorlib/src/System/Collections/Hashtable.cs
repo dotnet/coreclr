@@ -375,8 +375,8 @@ namespace System.Collections
         // the KeyCollection class.
         private void CopyKeys(Array array, int arrayIndex)
         {
-            Contract.Requires(array != null);
-            Contract.Requires(array.Rank == 1);
+            Debug.Assert(array != null);
+            Debug.Assert(array.Rank == 1);
 
             bucket[] lbuckets = buckets;
             for (int i = lbuckets.Length; --i >= 0;)
@@ -394,8 +394,8 @@ namespace System.Collections
         // the KeyCollection class.
         private void CopyEntries(Array array, int arrayIndex)
         {
-            Contract.Requires(array != null);
-            Contract.Requires(array.Rank == 1);
+            Debug.Assert(array != null);
+            Debug.Assert(array.Rank == 1);
 
             bucket[] lbuckets = buckets;
             for (int i = lbuckets.Length; --i >= 0;)
@@ -431,8 +431,8 @@ namespace System.Collections
         // the ValueCollection class.
         private void CopyValues(Array array, int arrayIndex)
         {
-            Contract.Requires(array != null);
-            Contract.Requires(array.Rank == 1);
+            Debug.Assert(array != null);
+            Debug.Assert(array.Rank == 1);
 
             bucket[] lbuckets = buckets;
             for (int i = lbuckets.Length; --i >= 0;)

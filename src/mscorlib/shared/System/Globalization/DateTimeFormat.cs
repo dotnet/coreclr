@@ -970,7 +970,7 @@ namespace System
 
         internal static String Format(DateTime dateTime, String format, DateTimeFormatInfo dtfi, TimeSpan offset)
         {
-            Contract.Requires(dtfi != null);
+            Debug.Assert(dtfi != null);
             if (format == null || format.Length == 0)
             {
                 Boolean timeOnlySpecialCase = false;
@@ -1130,7 +1130,7 @@ namespace System
 
         internal static String[] GetAllDateTimes(DateTime dateTime, char format, DateTimeFormatInfo dtfi)
         {
-            Contract.Requires(dtfi != null);
+            Debug.Assert(dtfi != null);
             String[] allFormats = null;
             String[] results = null;
 

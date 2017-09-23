@@ -203,10 +203,10 @@ namespace System.IO {
 
         internal virtual Task<int> ReadAsyncInternal(char[] buffer, int index, int count)
         {
-            Contract.Requires(buffer != null);
-            Contract.Requires(index >= 0);
-            Contract.Requires(count >= 0);
-            Contract.Requires(buffer.Length - index >= count);
+            Debug.Assert(buffer != null);
+            Debug.Assert(index >= 0);
+            Debug.Assert(count >= 0);
+            Debug.Assert(buffer.Length - index >= count);
 
             var tuple = new Tuple<TextReader, char[], int, int>(this, buffer, index, count);
             return Task<int>.Factory.StartNew(state =>
@@ -233,10 +233,10 @@ namespace System.IO {
 
         private async Task<int> ReadBlockAsyncInternal(char[] buffer, int index, int count)
         {
-            Contract.Requires(buffer != null);
-            Contract.Requires(index >= 0);
-            Contract.Requires(count >= 0);
-            Contract.Requires(buffer.Length - index >= count);
+            Debug.Assert(buffer != null);
+            Debug.Assert(index >= 0);
+            Debug.Assert(count >= 0);
+            Debug.Assert(buffer.Length - index >= count);
 
             int i, n = 0;
             do

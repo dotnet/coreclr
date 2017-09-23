@@ -122,9 +122,9 @@ namespace System.IO
 
         private static String[] InternalReadAllLines(String path, Encoding encoding)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(encoding != null);
-            Contract.Requires(path.Length != 0);
+            Debug.Assert(path != null);
+            Debug.Assert(encoding != null);
+            Debug.Assert(path.Length != 0);
 
             String line;
             List<String> lines = new List<String>();

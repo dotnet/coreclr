@@ -32,8 +32,8 @@ namespace System.Reflection
         }
         internal RuntimeEventInfo(int tkEvent, RuntimeType declaredType, RuntimeTypeCache reflectedTypeCache, out bool isPrivate)
         {
-            Contract.Requires(declaredType != null);
-            Contract.Requires(reflectedTypeCache != null);
+            Debug.Assert(declaredType != null);
+            Debug.Assert(reflectedTypeCache != null);
             Debug.Assert(!reflectedTypeCache.IsGlobal);
 
             MetadataImport scope = declaredType.GetRuntimeModule().MetadataImport;

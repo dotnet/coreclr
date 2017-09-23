@@ -149,7 +149,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private static V Lookup<K, V>(IMap<K, V> _this, K key)
         {
-            Contract.Requires(null != key);
+            Debug.Assert(null != key);
 
             try
             {
@@ -165,7 +165,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private static bool Insert<K, V>(IMap<K, V> _this, K key, V value)
         {
-            Contract.Requires(null != key);
+            Debug.Assert(null != key);
 
             bool replaced = _this.Insert(key, value);
             return replaced;

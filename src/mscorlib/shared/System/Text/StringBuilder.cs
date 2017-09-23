@@ -2125,8 +2125,8 @@ namespace System.Text
         /// </remarks>
         private void ExpandByABlock(int minBlockCharCount)
         {
-            Contract.Requires(Capacity == Length, $"{nameof(ExpandByABlock)} should only be called when there is no space left.");
-            Contract.Requires(minBlockCharCount > 0);
+            Debug.Assert(Capacity == Length, $"{nameof(ExpandByABlock)} should only be called when there is no space left.");
+            Debug.Assert(minBlockCharCount > 0);
 
             AssertInvariants();
 

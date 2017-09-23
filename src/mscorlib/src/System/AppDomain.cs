@@ -632,7 +632,7 @@ namespace System
 
         private void SetupFusionStore(AppDomainSetup info, AppDomainSetup oldInfo)
         {
-            Contract.Requires(info != null);
+            Debug.Assert(info != null);
 
             if (info.ApplicationBase == null)
             {
@@ -694,8 +694,8 @@ namespace System
 
         private static Object Setup(Object arg)
         {
-            Contract.Requires(arg != null && arg is Object[]);
-            Contract.Requires(((Object[])arg).Length >= 8);
+            Debug.Assert(arg != null && arg is Object[]);
+            Debug.Assert(((Object[])arg).Length >= 8);
 
             Object[] args = (Object[])arg;
             String friendlyName = (String)args[0];

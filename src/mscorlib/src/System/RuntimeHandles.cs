@@ -878,7 +878,7 @@ namespace System
 
         internal static int GetSlot(IRuntimeMethodInfo method)
         {
-            Contract.Requires(method != null);
+            Debug.Assert(method != null);
 
             int slot = RuntimeMethodHandle.GetSlot(method.Value);
             GC.KeepAlive(method);

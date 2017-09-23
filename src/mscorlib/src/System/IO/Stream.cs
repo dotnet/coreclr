@@ -166,10 +166,10 @@ namespace System.IO
 
         private async Task CopyToAsyncInternal(Stream destination, Int32 bufferSize, CancellationToken cancellationToken)
         {
-            Contract.Requires(destination != null);
-            Contract.Requires(bufferSize > 0);
-            Contract.Requires(CanRead);
-            Contract.Requires(destination.CanWrite);
+            Debug.Assert(destination != null);
+            Debug.Assert(bufferSize > 0);
+            Debug.Assert(CanRead);
+            Debug.Assert(destination.CanWrite);
 
             byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
             bufferSize = 0; // reuse same field for high water mark to avoid needing another field in the state machine
@@ -562,7 +562,7 @@ namespace System.IO
 
         private void RunReadWriteTask(ReadWriteTask readWriteTask)
         {
-            Contract.Requires(readWriteTask != null);
+            Debug.Assert(readWriteTask != null);
             Debug.Assert(_activeReadWriteTask == null, "Expected no other readers or writers");
 
             // Schedule the task.  ScheduleAndStart must happen after the write to _activeReadWriteTask to avoid a race.
@@ -652,9 +652,9 @@ namespace System.IO
                 Stream stream, byte[] buffer, int offset, int count, AsyncCallback callback) :
                 base(function, state, CancellationToken.None, TaskCreationOptions.DenyChildAttach)
             {
-                Contract.Requires(function != null);
-                Contract.Requires(stream != null);
-                Contract.Requires(buffer != null);
+                Debug.Assert(function != null);
+                Debug.Assert(stream != null);
+                Debug.Assert(buffer != null);
                 Contract.EndContractBlock();
 
                 // Store the arguments

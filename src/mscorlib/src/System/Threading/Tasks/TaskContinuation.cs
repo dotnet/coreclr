@@ -32,7 +32,7 @@ namespace System.Threading.Tasks
             Task antecedent, Delegate action, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
             base(action, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
         {
-            Contract.Requires(action is Action<Task> || action is Action<Task, object>,
+            Debug.Assert(action is Action<Task> || action is Action<Task, object>,
                 "Invalid delegate type in ContinuationTaskFromTask");
             m_antecedent = antecedent;
         }
@@ -79,7 +79,7 @@ namespace System.Threading.Tasks
             Task antecedent, Delegate function, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
             base(function, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
         {
-            Contract.Requires(function is Func<Task, TResult> || function is Func<Task, object, TResult>,
+            Debug.Assert(function is Func<Task, TResult> || function is Func<Task, object, TResult>,
                 "Invalid delegate type in ContinuationResultTaskFromTask");
             m_antecedent = antecedent;
         }
@@ -126,7 +126,7 @@ namespace System.Threading.Tasks
             Task<TAntecedentResult> antecedent, Delegate action, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
             base(action, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
         {
-            Contract.Requires(action is Action<Task<TAntecedentResult>> || action is Action<Task<TAntecedentResult>, object>,
+            Debug.Assert(action is Action<Task<TAntecedentResult>> || action is Action<Task<TAntecedentResult>, object>,
                 "Invalid delegate type in ContinuationTaskFromResultTask");
             m_antecedent = antecedent;
         }
@@ -173,7 +173,7 @@ namespace System.Threading.Tasks
             Task<TAntecedentResult> antecedent, Delegate function, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
             base(function, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
         {
-            Contract.Requires(function is Func<Task<TAntecedentResult>, TResult> || function is Func<Task<TAntecedentResult>, object, TResult>,
+            Debug.Assert(function is Func<Task<TAntecedentResult>, TResult> || function is Func<Task<TAntecedentResult>, object, TResult>,
                 "Invalid delegate type in ContinuationResultTaskFromResultTask");
             m_antecedent = antecedent;
         }
@@ -234,7 +234,7 @@ namespace System.Threading.Tasks
         /// </param>
         protected static void InlineIfPossibleOrElseQueue(Task task, bool needsProtection)
         {
-            Contract.Requires(task != null);
+            Debug.Assert(task != null);
             Debug.Assert(task.m_taskScheduler != null);
 
             // Set the TASK_STATE_STARTED flag.  This only needs to be done
@@ -294,8 +294,8 @@ namespace System.Threading.Tasks
         /// <param name="scheduler">The scheduler to use for the continuation.</param>
         internal StandardTaskContinuation(Task task, TaskContinuationOptions options, TaskScheduler scheduler)
         {
-            Contract.Requires(task != null, "TaskContinuation ctor: task is null");
-            Contract.Requires(scheduler != null, "TaskContinuation ctor: scheduler is null");
+            Debug.Assert(task != null, "TaskContinuation ctor: task is null");
+            Debug.Assert(scheduler != null, "TaskContinuation ctor: scheduler is null");
             m_task = task;
             m_options = options;
             m_taskScheduler = scheduler;
@@ -539,7 +539,7 @@ namespace System.Threading.Tasks
         /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
         internal AwaitTaskContinuation(Action action, bool flowExecutionContext)
         {
-            Contract.Requires(action != null);
+            Debug.Assert(action != null);
             m_action = action;
             if (flowExecutionContext)
             {
@@ -554,8 +554,8 @@ namespace System.Threading.Tasks
         /// <returns>The created task.</returns>
         protected Task CreateTask(Action<object> action, object state, TaskScheduler scheduler)
         {
-            Contract.Requires(action != null);
-            Contract.Requires(scheduler != null);
+            Debug.Assert(action != null);
+            Debug.Assert(scheduler != null);
 
             return new Task(
                 action, state, null, default(CancellationToken),
@@ -699,7 +699,7 @@ namespace System.Threading.Tasks
         /// <param name="currentTask">A reference to Task.t_currentTask.</param>
         protected void RunCallback(ContextCallback callback, object state, ref Task currentTask)
         {
-            Contract.Requires(callback != null);
+            Debug.Assert(callback != null);
             Debug.Assert(currentTask == Task.t_currentTask);
 
             // Pretend there's no current task, so that no task is seen as a parent

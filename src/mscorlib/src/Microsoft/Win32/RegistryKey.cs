@@ -52,6 +52,7 @@ using Microsoft.Win32.SafeHandles;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Text;
@@ -1011,7 +1012,7 @@ namespace Microsoft.Win32
 
         private static void FixupPath(StringBuilder path)
         {
-            Contract.Requires(path != null);
+            Debug.Assert(path != null);
             int length = path.Length;
             bool fixup = false;
             char markerChar = (char)0xFFFF;

@@ -33,9 +33,9 @@ namespace System.IO
         {
             public SearchData(String fullPath, String userPath, SearchOption searchOption)
             {
-                Contract.Requires(fullPath != null && fullPath.Length > 0);
-                Contract.Requires(userPath != null && userPath.Length > 0);
-                Contract.Requires(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
+                Debug.Assert(fullPath != null && fullPath.Length > 0);
+                Debug.Assert(userPath != null && userPath.Length > 0);
+                Debug.Assert(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
 
                 this.fullPath = fullPath;
                 this.userPath = userPath;
@@ -64,9 +64,9 @@ namespace System.IO
 
         private static IEnumerable<String> InternalEnumerateFiles(String path, String searchPattern, SearchOption searchOption)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(searchPattern != null);
-            Contract.Requires(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
+            Debug.Assert(path != null);
+            Debug.Assert(searchPattern != null);
+            Debug.Assert(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
             Contract.Ensures(Contract.Result<IEnumerable<String>>() != null);
 
             return EnumerateFileSystemNames(path, searchPattern, searchOption, true, false);
@@ -75,9 +75,9 @@ namespace System.IO
         private static IEnumerable<String> EnumerateFileSystemNames(String path, String searchPattern, SearchOption searchOption,
                                                             bool includeFiles, bool includeDirs)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(searchPattern != null);
-            Contract.Requires(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
+            Debug.Assert(path != null);
+            Debug.Assert(searchPattern != null);
+            Debug.Assert(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
             Contract.Ensures(Contract.Result<IEnumerable<String>>() != null);
 
             return FileSystemEnumerableFactory.CreateFileNameIterator(path, path, searchPattern,

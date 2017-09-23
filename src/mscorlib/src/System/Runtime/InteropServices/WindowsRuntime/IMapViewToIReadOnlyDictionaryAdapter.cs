@@ -105,7 +105,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private static V Lookup<K, V>(IMapView<K, V> _this, K key)
         {
-            Contract.Requires(null != key);
+            Debug.Assert(null != key);
 
             try
             {

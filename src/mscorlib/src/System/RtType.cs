@@ -103,7 +103,7 @@ namespace System
             {
                 get
                 {
-                    Contract.Requires(index < Count);
+                    Debug.Assert(index < Count);
                     return (_items != null) ? _items[index] : _item;
                 }
             }
@@ -856,8 +856,8 @@ namespace System
                 private unsafe void PopulateRtFields(Filter filter,
                     IntPtr* ppFieldHandles, int count, RuntimeType declaringType, ref ListBuilder<RuntimeFieldInfo> list)
                 {
-                    Contract.Requires(declaringType != null);
-                    Contract.Requires(ReflectedType != null);
+                    Debug.Assert(declaringType != null);
+                    Debug.Assert(ReflectedType != null);
 
                     bool needsStaticFieldForGeneric = RuntimeTypeHandle.HasInstantiation(declaringType) && !RuntimeTypeHandle.ContainsGenericVariables(declaringType);
                     bool isInherited = declaringType != ReflectedType;
@@ -908,8 +908,8 @@ namespace System
 
                 private unsafe void PopulateLiteralFields(Filter filter, RuntimeType declaringType, ref ListBuilder<RuntimeFieldInfo> list)
                 {
-                    Contract.Requires(declaringType != null);
-                    Contract.Requires(ReflectedType != null);
+                    Debug.Assert(declaringType != null);
+                    Debug.Assert(ReflectedType != null);
 
                     int tkDeclaringType = RuntimeTypeHandle.GetToken(declaringType);
 
@@ -1127,7 +1127,7 @@ namespace System
 
                 private unsafe RuntimeEventInfo[] PopulateEvents(Filter filter)
                 {
-                    Contract.Requires(ReflectedType != null);
+                    Debug.Assert(ReflectedType != null);
 
                     // Do not create the dictionary if we are filtering the properties by name already
                     Dictionary<String, RuntimeEventInfo> csEventInfos = filter.CaseSensitive() ? null :
@@ -1219,7 +1219,7 @@ namespace System
 
                 private unsafe RuntimePropertyInfo[] PopulateProperties(Filter filter)
                 {
-                    Contract.Requires(ReflectedType != null);
+                    Debug.Assert(ReflectedType != null);
 
                     // m_csMemberInfos can be null at this point. It will be initialized when Insert
                     // is called in Populate after this returns.
@@ -2177,8 +2177,8 @@ namespace System
             string name, bool prefixLookup)
         {
             #region Preconditions
-            Contract.Requires(memberInfo != null);
-            Contract.Requires(name == null || (bindingFlags & BindingFlags.IgnoreCase) == 0 || (name.ToLower(CultureInfo.InvariantCulture).Equals(name)));
+            Debug.Assert(memberInfo != null);
+            Debug.Assert(name == null || (bindingFlags & BindingFlags.IgnoreCase) == 0 || (name.ToLower(CultureInfo.InvariantCulture).Equals(name)));
             #endregion
 
             #region Filter by Public & Private
@@ -2259,7 +2259,7 @@ namespace System
         private static bool FilterApplyType(
             Type type, BindingFlags bindingFlags, string name, bool prefixLookup, string ns)
         {
-            Contract.Requires((object)type != null);
+            Debug.Assert((object)type != null);
             Debug.Assert(type is RuntimeType);
 
             bool isPublic = type.IsNestedPublic || type.IsPublic;
@@ -2294,7 +2294,7 @@ namespace System
         private static bool FilterApplyMethodBase(
             MethodBase methodBase, BindingFlags methodFlags, BindingFlags bindingFlags, CallingConventions callConv, Type[] argumentTypes)
         {
-            Contract.Requires(methodBase != null);
+            Debug.Assert(methodBase != null);
 
             bindingFlags ^= BindingFlags.DeclaredOnly;
 

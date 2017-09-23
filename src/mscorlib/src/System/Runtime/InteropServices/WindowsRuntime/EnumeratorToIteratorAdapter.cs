@@ -74,7 +74,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal EnumeratorToIteratorAdapter(IEnumerator<T> enumerator)
         {
-            Contract.Requires(enumerator != null);
+            Debug.Assert(enumerator != null);
             m_enumerator = enumerator;
         }
 

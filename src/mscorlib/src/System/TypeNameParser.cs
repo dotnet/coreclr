@@ -192,7 +192,7 @@ namespace System
 
         private static Assembly ResolveAssembly(string asmName, Func<AssemblyName, Assembly> assemblyResolver, bool throwOnError, ref StackCrawlMark stackMark)
         {
-            Contract.Requires(asmName != null && asmName.Length > 0);
+            Debug.Assert(asmName != null && asmName.Length > 0);
 
             Assembly assembly = null;
 
@@ -230,7 +230,7 @@ namespace System
 
         private static Type ResolveType(Assembly assembly, string[] names, Func<Assembly, string, bool, Type> typeResolver, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark)
         {
-            Contract.Requires(names != null && names.Length > 0);
+            Debug.Assert(names != null && names.Length > 0);
 
             Type type = null;
 

@@ -482,7 +482,7 @@ namespace System.Reflection.Emit
         // ctor for generic method parameter
         internal TypeBuilder(string szName, int genParamPos, MethodBuilder declMeth)
         {
-            Contract.Requires(declMeth != null);
+            Debug.Assert(declMeth != null);
             m_declMeth = declMeth;
             m_DeclaringType = m_declMeth.GetTypeBuilder();
             m_module = declMeth.GetModuleBuilder();
@@ -492,7 +492,7 @@ namespace System.Reflection.Emit
         // ctor for generic type parameter
         private TypeBuilder(string szName, int genParamPos, TypeBuilder declType)
         {
-            Contract.Requires(declType != null);
+            Debug.Assert(declType != null);
             m_DeclaringType = declType;
             m_module = declType.GetModuleBuilder();
             InitAsGenericParam(szName, genParamPos);

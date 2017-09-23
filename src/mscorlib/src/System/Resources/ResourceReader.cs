@@ -151,9 +151,9 @@ namespace System.Resources
         // and values, coupled to this ResourceReader).
         internal ResourceReader(Stream stream, Dictionary<String, ResourceLocator> resCache)
         {
-            Contract.Requires(stream != null, "Need a stream!");
-            Contract.Requires(stream.CanRead, "Stream should be readable!");
-            Contract.Requires(resCache != null, "Need a Dictionary!");
+            Debug.Assert(stream != null, "Need a stream!");
+            Debug.Assert(stream.CanRead, "Stream should be readable!");
+            Debug.Assert(resCache != null, "Need a Dictionary!");
 
             _resCache = resCache;
             _store = new BinaryReader(stream, Encoding.UTF8);
@@ -1111,7 +1111,7 @@ namespace System.Resources
 
         private String TypeNameFromTypeCode(ResourceTypeCode typeCode)
         {
-            Contract.Requires(typeCode >= 0, "can't be negative");
+            Debug.Assert(typeCode >= 0, "can't be negative");
             if (typeCode < ResourceTypeCode.StartOfUserTypes)
             {
                 Debug.Assert(!String.Equals(typeCode.ToString(), "LastPrimitive"), "Change ResourceTypeCode metadata order so LastPrimitive isn't what Enum.ToString prefers.");

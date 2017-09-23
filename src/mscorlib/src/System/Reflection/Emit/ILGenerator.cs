@@ -31,7 +31,7 @@ namespace System.Reflection.Emit
 
         internal static T[] EnlargeArray<T>(T[] incoming, int requiredSize)
         {
-            Contract.Requires(incoming != null);
+            Debug.Assert(incoming != null);
             Contract.Ensures(Contract.Result<T[]>() != null);
             Contract.Ensures(Contract.Result<T[]>().Length == requiredSize);
 
@@ -47,7 +47,7 @@ namespace System.Reflection.Emit
 
         private static byte[] EnlargeArray(byte[] incoming, int requiredSize)
         {
-            Contract.Requires(incoming != null);
+            Debug.Assert(incoming != null);
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == requiredSize);
 
@@ -108,8 +108,8 @@ namespace System.Reflection.Emit
 
         internal ILGenerator(MethodInfo methodBuilder, int size)
         {
-            Contract.Requires(methodBuilder != null);
-            Contract.Requires(methodBuilder is MethodBuilder || methodBuilder is DynamicMethod);
+            Debug.Assert(methodBuilder != null);
+            Debug.Assert(methodBuilder is MethodBuilder || methodBuilder is DynamicMethod);
 
             if (size < defaultSize)
             {
@@ -1566,7 +1566,7 @@ namespace System.Reflection.Emit
         // not having a nesting relation. 
         internal bool IsInner(__ExceptionInfo exc)
         {
-            Contract.Requires(exc != null);
+            Debug.Assert(exc != null);
             Debug.Assert(m_currentCatch > 0, "m_currentCatch > 0");
             Debug.Assert(exc.m_currentCatch > 0, "exc.m_currentCatch > 0");
 

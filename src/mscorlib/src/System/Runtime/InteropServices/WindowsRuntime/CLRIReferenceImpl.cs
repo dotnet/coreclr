@@ -55,7 +55,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         [System.Runtime.CompilerServices.FriendAccessAllowed]
         internal static Object UnboxHelper(Object wrapper)
         {
-            Contract.Requires(wrapper != null);
+            Debug.Assert(wrapper != null);
             IReference<T> reference = (IReference<T>)wrapper;
             Debug.Assert(reference != null, "CLRIReferenceImpl::UnboxHelper - QI'ed for IReference<" + typeof(T) + ">, but that failed.");
             return reference.Value;
@@ -218,7 +218,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         [System.Runtime.CompilerServices.FriendAccessAllowed]
         internal static Object UnboxHelper(Object wrapper)
         {
-            Contract.Requires(wrapper != null);
+            Debug.Assert(wrapper != null);
             IReferenceArray<T> reference = (IReferenceArray<T>)wrapper;
             Debug.Assert(reference != null, "CLRIReferenceArrayImpl::UnboxHelper - QI'ed for IReferenceArray<" + typeof(T) + ">, but that failed.");
             T[] marshaled = reference.Value;
@@ -235,7 +235,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal static Object CreateIReference(Object obj)
         {
-            Contract.Requires(obj != null, "Null should not be boxed.");
+            Debug.Assert(obj != null, "Null should not be boxed.");
             Contract.Ensures(Contract.Result<Object>() != null);
 
             Type type = obj.GetType();
@@ -311,8 +311,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal static Object CreateIReferenceArray(Array obj)
         {
-            Contract.Requires(obj != null);
-            Contract.Requires(obj.GetType().IsArray);
+            Debug.Assert(obj != null);
+            Debug.Assert(obj.GetType().IsArray);
             Contract.Ensures(Contract.Result<Object>() != null);
 
             Type type = obj.GetType().GetElementType();

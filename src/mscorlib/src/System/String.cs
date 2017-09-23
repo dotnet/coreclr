@@ -72,7 +72,7 @@ namespace System
         //
         internal unsafe static string SmallCharToUpper(string strIn)
         {
-            Contract.Requires(strIn != null);
+            Debug.Assert(strIn != null);
             Contract.EndContractBlock();
             //
             // Get the length and pointers to each of the buffers.  Walk the length
@@ -265,8 +265,8 @@ namespace System
         unsafe static internal String CreateStringFromEncoding(
             byte* bytes, int byteLength, Encoding encoding)
         {
-            Contract.Requires(bytes != null);
-            Contract.Requires(byteLength >= 0);
+            Debug.Assert(bytes != null);
+            Debug.Assert(byteLength >= 0);
 
             // Get our string length
             int stringLength = encoding.GetCharCount(bytes, byteLength, null);

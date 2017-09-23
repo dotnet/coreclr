@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -37,7 +38,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Called from the VM to wrap a boxed KeyValuePair with a CLRIKeyValuePairImpl.
         internal static object BoxHelper(object pair)
         {
-            Contract.Requires(pair != null);
+            Debug.Assert(pair != null);
 
             KeyValuePair<K, V> unboxedPair = (KeyValuePair<K, V>)pair;
             return new CLRIKeyValuePairImpl<K, V>(ref unboxedPair);
@@ -46,7 +47,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Called from the VM to get a boxed KeyValuePair out of a CLRIKeyValuePairImpl.
         internal static object UnboxHelper(object wrapper)
         {
-            Contract.Requires(wrapper != null);
+            Debug.Assert(wrapper != null);
 
             CLRIKeyValuePairImpl<K, V> reference = (CLRIKeyValuePairImpl<K, V>)wrapper;
             return reference._pair;

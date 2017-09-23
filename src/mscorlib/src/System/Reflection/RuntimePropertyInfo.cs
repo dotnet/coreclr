@@ -32,8 +32,8 @@ namespace System.Reflection
         internal RuntimePropertyInfo(
             int tkProperty, RuntimeType declaredType, RuntimeTypeCache reflectedTypeCache, out bool isPrivate)
         {
-            Contract.Requires(declaredType != null);
-            Contract.Requires(reflectedTypeCache != null);
+            Debug.Assert(declaredType != null);
+            Debug.Assert(reflectedTypeCache != null);
             Debug.Assert(!reflectedTypeCache.IsGlobal);
 
             MetadataImport scope = declaredType.GetRuntimeModule().MetadataImport;
@@ -111,9 +111,9 @@ namespace System.Reflection
             //             End Class
             //
 
-            Contract.Requires(Name.Equals(target.Name));
-            Contract.Requires(this != target);
-            Contract.Requires(this.ReflectedType == target.ReflectedType);
+            Debug.Assert(Name.Equals(target.Name));
+            Debug.Assert(this != target);
+            Debug.Assert(this.ReflectedType == target.ReflectedType);
 
             return Signature.CompareSig(this.Signature, target.Signature);
         }

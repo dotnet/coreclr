@@ -164,7 +164,7 @@ namespace System.Reflection.Emit
 
         internal ModuleBuilder GetModuleBuilder(InternalModuleBuilder module)
         {
-            Contract.Requires(module != null);
+            Debug.Assert(module != null);
             Debug.Assert(this.InternalAssembly == module.Assembly);
 
             lock (SyncRoot)

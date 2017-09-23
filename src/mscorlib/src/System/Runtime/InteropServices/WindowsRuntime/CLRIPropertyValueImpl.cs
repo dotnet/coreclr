@@ -5,6 +5,7 @@
 //
 
 using System;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Security;
@@ -534,8 +535,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         [Pure]
         private unsafe T Unbox<T>(Type expectedBoxedType) where T : struct
         {
-            Contract.Requires(expectedBoxedType != null);
-            Contract.Requires(Marshal.SizeOf(expectedBoxedType) == Marshal.SizeOf(typeof(T)));
+            Debug.Assert(expectedBoxedType != null);
+            Debug.Assert(Marshal.SizeOf(expectedBoxedType) == Marshal.SizeOf(typeof(T)));
 
             if (_data.GetType() != expectedBoxedType)
             {
@@ -557,8 +558,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         [Pure]
         private unsafe T[] UnboxArray<T>(Type expectedArrayElementType) where T : struct
         {
-            Contract.Requires(expectedArrayElementType != null);
-            Contract.Requires(Marshal.SizeOf(expectedArrayElementType) == Marshal.SizeOf(typeof(T)));
+            Debug.Assert(expectedArrayElementType != null);
+            Debug.Assert(Marshal.SizeOf(expectedArrayElementType) == Marshal.SizeOf(typeof(T)));
 
             Array dataArray = _data as Array;
             if (dataArray == null || _data.GetType().GetElementType() != expectedArrayElementType)

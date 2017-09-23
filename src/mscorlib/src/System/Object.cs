@@ -15,6 +15,7 @@
 namespace System
 {
     using System;
+    using System.Diagnostics;
     using System.Runtime;
     using System.Runtime.InteropServices;
     using System.Runtime.CompilerServices;
@@ -121,8 +122,8 @@ namespace System
         // 
         private void FieldSetter(String typeName, String fieldName, Object val)
         {
-            Contract.Requires(typeName != null);
-            Contract.Requires(fieldName != null);
+            Debug.Assert(typeName != null);
+            Debug.Assert(fieldName != null);
 
             // Extract the field info object
             FieldInfo fldInfo = GetFieldInfo(typeName, fieldName);
@@ -151,8 +152,8 @@ namespace System
         // 
         private void FieldGetter(String typeName, String fieldName, ref Object val)
         {
-            Contract.Requires(typeName != null);
-            Contract.Requires(fieldName != null);
+            Debug.Assert(typeName != null);
+            Debug.Assert(fieldName != null);
 
             // Extract the field info object
             FieldInfo fldInfo = GetFieldInfo(typeName, fieldName);
@@ -165,8 +166,8 @@ namespace System
         // 
         private FieldInfo GetFieldInfo(String typeName, String fieldName)
         {
-            Contract.Requires(typeName != null);
-            Contract.Requires(fieldName != null);
+            Debug.Assert(typeName != null);
+            Debug.Assert(fieldName != null);
             Contract.Ensures(Contract.Result<FieldInfo>() != null);
 
             Type t = GetType();

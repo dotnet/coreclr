@@ -239,10 +239,10 @@ namespace System
             if (destinationArray == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.destinationArray);
             /*
-            Contract.Requires(sourceArray.Rank == destinationArray.Rank);
-            Contract.Requires(length >= 0);
-            Contract.Requires(length <= sourceArray.GetLowerBound(0) + sourceArray.Length);
-            Contract.Requires(length <= destinationArray.GetLowerBound(0) + destinationArray.Length);
+            Debug.Assert(sourceArray.Rank == destinationArray.Rank);
+            Debug.Assert(length >= 0);
+            Debug.Assert(length <= sourceArray.GetLowerBound(0) + sourceArray.Length);
+            Debug.Assert(length <= destinationArray.GetLowerBound(0) + destinationArray.Length);
              */
             Contract.EndContractBlock();
 
@@ -542,7 +542,7 @@ namespace System
         private static int GetMedian(int low, int hi)
         {
             // Note both may be negative, if we are dealing with arrays w/ negative lower bounds.
-            Contract.Requires(low <= hi);
+            Debug.Assert(low <= hi);
             Debug.Assert(hi - low >= 0, "Length overflow!");
             return low + ((hi - low) >> 1);
         }

@@ -20,8 +20,8 @@ namespace System
 
         private unsafe static int CompareOrdinalIgnoreCaseHelper(String strA, String strB)
         {
-            Contract.Requires(strA != null);
-            Contract.Requires(strB != null);
+            Debug.Assert(strA != null);
+            Debug.Assert(strB != null);
             Contract.EndContractBlock();
             int length = Math.Min(strA.Length, strB.Length);
 
@@ -76,9 +76,9 @@ namespace System
 
         private unsafe static bool EqualsHelper(String strA, String strB)
         {
-            Contract.Requires(strA != null);
-            Contract.Requires(strB != null);
-            Contract.Requires(strA.Length == strB.Length);
+            Debug.Assert(strA != null);
+            Debug.Assert(strB != null);
+            Debug.Assert(strA.Length == strB.Length);
 
             int length = strA.Length;
 
@@ -133,9 +133,9 @@ namespace System
 
         private unsafe static bool EqualsIgnoreCaseAsciiHelper(String strA, String strB)
         {
-            Contract.Requires(strA != null);
-            Contract.Requires(strB != null);
-            Contract.Requires(strA.Length == strB.Length);
+            Debug.Assert(strA != null);
+            Debug.Assert(strB != null);
+            Debug.Assert(strA.Length == strB.Length);
             Contract.EndContractBlock();
             int length = strA.Length;
 
@@ -172,9 +172,9 @@ namespace System
 
         private unsafe static bool StartsWithOrdinalHelper(String str, String startsWith)
         {
-            Contract.Requires(str != null);
-            Contract.Requires(startsWith != null);
-            Contract.Requires(str.Length >= startsWith.Length);
+            Debug.Assert(str != null);
+            Debug.Assert(startsWith != null);
+            Debug.Assert(str.Length >= startsWith.Length);
 
             int length = startsWith.Length;
 
@@ -224,8 +224,8 @@ namespace System
 
         private unsafe static int CompareOrdinalHelper(String strA, String strB)
         {
-            Contract.Requires(strA != null);
-            Contract.Requires(strB != null);
+            Debug.Assert(strA != null);
+            Debug.Assert(strB != null);
 
             // NOTE: This may be subject to change if eliminating the check
             // in the callers makes them small enough to be inlined by the JIT
