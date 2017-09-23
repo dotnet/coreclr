@@ -448,7 +448,6 @@ namespace System.IO
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - offset < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();  // contract validation copied from Read(...) 
 
             if (cancellationToken.IsCancellationRequested)
                 return Task.FromCanceled<Int32>(cancellationToken);
@@ -743,7 +742,6 @@ namespace System.IO
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - offset < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();  // contract validation copied from Write(..) 
 
             if (cancellationToken.IsCancellationRequested)
                 return Task.FromCanceled(cancellationToken);
