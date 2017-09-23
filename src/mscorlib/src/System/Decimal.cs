@@ -276,7 +276,6 @@ namespace System
         {
             if (bits == null)
                 throw new ArgumentNullException(nameof(bits));
-            Contract.EndContractBlock();
             if (bits.Length == 4)
             {
                 int f = bits[3];
@@ -298,7 +297,6 @@ namespace System
         {
             if (scale > 28)
                 throw new ArgumentOutOfRangeException(nameof(scale), SR.ArgumentOutOfRange_DecimalScale);
-            Contract.EndContractBlock();
             this.lo = lo;
             this.mid = mid;
             this.hi = hi;
@@ -819,7 +817,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidEnumValue, mode, nameof(MidpointRounding)), nameof(mode));
             }
-            Contract.EndContractBlock();
 
             if (mode == MidpointRounding.ToEven)
             {

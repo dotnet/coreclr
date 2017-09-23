@@ -36,7 +36,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
-            Contract.EndContractBlock();
 
             IMapView<K, V> _this = Unsafe.As<IMapView<K, V>>(this);
             return Lookup(_this, key);

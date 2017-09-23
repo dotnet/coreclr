@@ -50,7 +50,6 @@ namespace System.Runtime
                 {
                     throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_Enum);
                 }
-                Contract.EndContractBlock();
 
                 if (GC.SetGCLatencyMode((int)value) == (int)SetLatencyModeStatus.NoGCInProgress)
                     throw new InvalidOperationException("The NoGCRegion mode is in progress. End it and then set a different mode.");
@@ -72,7 +71,6 @@ namespace System.Runtime
                 {
                     throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_Enum);
                 }
-                Contract.EndContractBlock();
 
                 GC.SetLOHCompactionMode((int)value);
             }

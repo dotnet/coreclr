@@ -57,7 +57,6 @@ namespace System.Threading
                 }
 #endif
             }
-            Contract.EndContractBlock();
 
             uint eventFlags = initialState ? Win32Native.CREATE_EVENT_INITIAL_SET : 0;
             switch (mode)
@@ -106,7 +105,6 @@ namespace System.Threading
                 }
 #endif
             }
-            Contract.EndContractBlock();
             Win32Native.SECURITY_ATTRIBUTES secAttrs = null;
 
             uint eventFlags = initialState ? Win32Native.CREATE_EVENT_INITIAL_SET : 0;
@@ -192,7 +190,6 @@ namespace System.Threading
                 throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
             }
 
-            Contract.EndContractBlock();
 
             result = null;
 

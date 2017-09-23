@@ -22,7 +22,6 @@ namespace System
             {
                 throw new IndexOutOfRangeException();
             }
-            Contract.EndContractBlock();
 
             fixed (char* pDest = &dest._firstChar)
             fixed (char* pSrc = &src._firstChar)
@@ -34,7 +33,6 @@ namespace System
         public static String Concat(Object arg0)
         {
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             if (arg0 == null)
             {
@@ -46,7 +44,6 @@ namespace System
         public static String Concat(Object arg0, Object arg1)
         {
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             if (arg0 == null)
             {
@@ -63,7 +60,6 @@ namespace System
         public static String Concat(Object arg0, Object arg1, Object arg2)
         {
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             if (arg0 == null)
             {
@@ -90,7 +86,6 @@ namespace System
                 throw new ArgumentNullException(nameof(args));
             }
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             if (args.Length <= 1)
             {
@@ -155,7 +150,6 @@ namespace System
             if (values == null)
                 throw new ArgumentNullException(nameof(values));
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             using (IEnumerator<T> en = values.GetEnumerator())
             {
@@ -205,7 +199,6 @@ namespace System
             if (values == null)
                 throw new ArgumentNullException(nameof(values));
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             using (IEnumerator<string> en = values.GetEnumerator())
             {
@@ -239,7 +232,6 @@ namespace System
             Contract.Ensures(Contract.Result<String>().Length ==
                 (str0 == null ? 0 : str0.Length) +
                 (str1 == null ? 0 : str1.Length));
-            Contract.EndContractBlock();
 
             if (IsNullOrEmpty(str0))
             {
@@ -272,7 +264,6 @@ namespace System
                 (str0 == null ? 0 : str0.Length) +
                 (str1 == null ? 0 : str1.Length) +
                 (str2 == null ? 0 : str2.Length));
-            Contract.EndContractBlock();
 
             if (IsNullOrEmpty(str0))
             {
@@ -307,7 +298,6 @@ namespace System
                 (str1 == null ? 0 : str1.Length) +
                 (str2 == null ? 0 : str2.Length) +
                 (str3 == null ? 0 : str3.Length));
-            Contract.EndContractBlock();
 
             if (IsNullOrEmpty(str0))
             {
@@ -345,7 +335,6 @@ namespace System
             if (values == null)
                 throw new ArgumentNullException(nameof(values));
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             if (values.Length <= 1)
             {
@@ -437,7 +426,6 @@ namespace System
                 throw new ArgumentNullException((format == null) ? nameof(format) : nameof(args));
             }
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             return FormatHelper(null, format, new ParamsArray(args));
         }
@@ -469,7 +457,6 @@ namespace System
                 throw new ArgumentNullException((format == null) ? nameof(format) : nameof(args));
             }
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             return FormatHelper(provider, format, new ParamsArray(args));
         }
@@ -493,7 +480,6 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(startIndex));
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length == this.Length + value.Length);
-            Contract.EndContractBlock();
 
             int oldLength = Length;
             int insertLength = value.Length;
@@ -905,7 +891,6 @@ namespace System
                     SR.ArgumentOutOfRange_IndexCount);
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length == this.Length - count);
-            Contract.EndContractBlock();
 
             if (count == 0)
                 return this;
@@ -944,7 +929,6 @@ namespace System
             }
 
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             return Substring(0, startIndex);
         }
@@ -952,7 +936,6 @@ namespace System
         public string Replace(string oldValue, string newValue, bool ignoreCase, CultureInfo culture)
         {
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             return ReplaceCore(oldValue, newValue, culture, ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None);
         }
@@ -960,7 +943,6 @@ namespace System
         public string Replace(string oldValue, string newValue, StringComparison comparisonType)
         {
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             switch (comparisonType)
             {
@@ -1046,7 +1028,6 @@ namespace System
         {
             Contract.Ensures(Contract.Result<String>() != null);
             Contract.Ensures(Contract.Result<String>().Length == this.Length);
-            Contract.EndContractBlock();
 
             if (oldChar == newChar)
                 return this;
@@ -1121,7 +1102,6 @@ namespace System
                 throw new ArgumentNullException(nameof(oldValue));
             // Note that if newValue is null, we treat it like String.Empty.
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             return ReplaceInternal(oldValue, newValue);
         }
@@ -1200,7 +1180,6 @@ namespace System
             if (options < StringSplitOptions.None || options > StringSplitOptions.RemoveEmptyEntries)
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, options));
             Contract.Ensures(Contract.Result<String[]>() != null);
-            Contract.EndContractBlock();
 
             bool omitEmptyEntries = (options == StringSplitOptions.RemoveEmptyEntries);
 
@@ -1269,7 +1248,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, (int)options));
             }
-            Contract.EndContractBlock();
 
             bool omitEmptyEntries = (options == StringSplitOptions.RemoveEmptyEntries);
 
@@ -1580,7 +1558,6 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_IndexLength);
             }
-            Contract.EndContractBlock();
 
             if (length == 0)
             {
@@ -1616,7 +1593,6 @@ namespace System
         public String ToLower()
         {
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
             return this.ToLower(CultureInfo.CurrentCulture);
         }
 
@@ -1629,7 +1605,6 @@ namespace System
                 throw new ArgumentNullException(nameof(culture));
             }
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
             return culture.TextInfo.ToLower(this);
         }
 
@@ -1638,7 +1613,6 @@ namespace System
         public String ToLowerInvariant()
         {
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
             return this.ToLower(CultureInfo.InvariantCulture);
         }
 
@@ -1647,7 +1621,6 @@ namespace System
         public String ToUpper()
         {
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
             return this.ToUpper(CultureInfo.CurrentCulture);
         }
 
@@ -1661,7 +1634,6 @@ namespace System
                 throw new ArgumentNullException(nameof(culture));
             }
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
             return culture.TextInfo.ToUpper(this);
         }
 
@@ -1671,7 +1643,6 @@ namespace System
         public String ToUpperInvariant()
         {
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
             return this.ToUpper(CultureInfo.InvariantCulture);
         }
 
@@ -1682,7 +1653,6 @@ namespace System
         public string Trim()
         {
             Contract.Ensures(Contract.Result<string>() != null);
-            Contract.EndContractBlock();
 
             return TrimWhiteSpaceHelper(TrimType.Both);
         }

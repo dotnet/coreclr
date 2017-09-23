@@ -515,7 +515,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.action);
             }
-            Contract.EndContractBlock();
 
             // Keep a link to the parent if attached
             if (parent != null && (creationOptions & TaskCreationOptions.AttachedToParent) != 0)
@@ -1073,7 +1072,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
-            Contract.EndContractBlock();
 
             InternalRunSynchronously(scheduler, waitForCompletion: true);
         }
@@ -1193,7 +1191,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
-            Contract.EndContractBlock();
 
             // Create and schedule the task. This throws an InvalidOperationException if already shut down.
             // Here we add the InternalTaskOptions.QueuedByRuntime to the internalOptions, so that TaskConstructorCore can skip the cancellation token registration
@@ -2761,7 +2758,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.millisecondsTimeout);
             }
-            Contract.EndContractBlock();
 
             // Return immediately if we know that we've completed "clean" -- no exceptions, no cancellations
             // and if no notification to the debugger is required
@@ -3505,7 +3501,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
-            Contract.EndContractBlock();
 
             TaskCreationOptions creationOptions;
             InternalTaskOptions internalOptions;
@@ -3696,7 +3691,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
-            Contract.EndContractBlock();
 
             TaskCreationOptions creationOptions;
             InternalTaskOptions internalOptions;
@@ -3900,7 +3894,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
-            Contract.EndContractBlock();
 
             TaskCreationOptions creationOptions;
             InternalTaskOptions internalOptions;
@@ -4108,7 +4101,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.scheduler);
             }
-            Contract.EndContractBlock();
 
             TaskCreationOptions creationOptions;
             InternalTaskOptions internalOptions;
@@ -4613,7 +4605,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.millisecondsTimeout);
             }
-            Contract.EndContractBlock();
 
             cancellationToken.ThrowIfCancellationRequested(); // early check before we make any allocations
 
@@ -4990,7 +4981,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.millisecondsTimeout);
             }
-            Contract.EndContractBlock();
 
             cancellationToken.ThrowIfCancellationRequested(); // early check before we make any allocations
 
@@ -5068,7 +5058,6 @@ namespace System.Threading.Tasks
         public static Task<TResult> FromException<TResult>(Exception exception)
         {
             if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
-            Contract.EndContractBlock();
 
             var task = new Task<TResult>();
             bool succeeded = task.TrySetException(exception);
@@ -5083,7 +5072,6 @@ namespace System.Threading.Tasks
         {
             if (!cancellationToken.IsCancellationRequested)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.cancellationToken);
-            Contract.EndContractBlock();
             return new Task(true, TaskCreationOptions.None, cancellationToken);
         }
 
@@ -5095,7 +5083,6 @@ namespace System.Threading.Tasks
         {
             if (!cancellationToken.IsCancellationRequested)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.cancellationToken);
-            Contract.EndContractBlock();
             return new Task<TResult>(true, default(TResult), TaskCreationOptions.None, cancellationToken);
         }
 
@@ -5106,7 +5093,6 @@ namespace System.Threading.Tasks
         internal static Task<TResult> FromCancellation<TResult>(OperationCanceledException exception)
         {
             if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
-            Contract.EndContractBlock();
 
             var task = new Task<TResult>();
             bool succeeded = task.TrySetCanceled(exception.CancellationToken, exception);
@@ -5234,7 +5220,6 @@ namespace System.Threading.Tasks
         {
             // Check arguments
             if (function == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.function);
-            Contract.EndContractBlock();
 
             // Short-circuit if we are given a pre-canceled token
             if (cancellationToken.IsCancellationRequested)
@@ -5280,7 +5265,6 @@ namespace System.Threading.Tasks
         {
             // Check arguments
             if (function == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.function);
-            Contract.EndContractBlock();
 
             // Short-circuit if we are given a pre-canceled token
             if (cancellationToken.IsCancellationRequested)
@@ -5385,7 +5369,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.millisecondsDelay, ExceptionResource.Task_Delay_InvalidMillisecondsDelay);
             }
-            Contract.EndContractBlock();
 
             // some short-cuts in case quick completion is in order
             if (cancellationToken.IsCancellationRequested)
@@ -5565,7 +5548,6 @@ namespace System.Threading.Tasks
         {
             // Do some argument checking and make a defensive copy of the tasks array
             if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
-            Contract.EndContractBlock();
 
             int taskCount = tasks.Length;
             if (taskCount == 0) return InternalWhenAll(tasks); // Small optimization in the case of an empty array.
@@ -5819,7 +5801,6 @@ namespace System.Threading.Tasks
         {
             // Do some argument checking and make a defensive copy of the tasks array
             if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
-            Contract.EndContractBlock();
 
             int taskCount = tasks.Length;
             if (taskCount == 0) return InternalWhenAll<TResult>(tasks); // small optimization in the case of an empty task array
@@ -5995,7 +5976,6 @@ namespace System.Threading.Tasks
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Task_MultiTaskContinuation_EmptyTaskList, ExceptionArgument.tasks);
             }
-            Contract.EndContractBlock();
 
             // Make a defensive copy, as the user may manipulate the tasks array
             // after we return but before the WhenAny asynchronously completes.
@@ -6030,7 +6010,6 @@ namespace System.Threading.Tasks
         public static Task<Task> WhenAny(IEnumerable<Task> tasks)
         {
             if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
-            Contract.EndContractBlock();
 
             // Make a defensive copy, as the user may manipulate the tasks collection
             // after we return but before the WhenAny asynchronously completes.

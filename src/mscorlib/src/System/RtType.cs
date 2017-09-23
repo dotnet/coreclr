@@ -1761,7 +1761,6 @@ namespace System
         {
             if (typeName == null)
                 throw new ArgumentNullException(nameof(typeName));
-            Contract.EndContractBlock();
 
             return RuntimeTypeHandle.GetTypeByName(
                 typeName, throwOnError, ignoreCase, reflectionOnly, ref stackMark, false);
@@ -1991,7 +1990,6 @@ namespace System
         {
             if (genericArguments == null)
                 throw new ArgumentNullException();
-            Contract.EndContractBlock();
 
             for (int i = 0; i < genericArguments.Length; i++)
             {
@@ -2721,7 +2719,6 @@ namespace System
 
             if ((object)ifaceType == null)
                 throw new ArgumentNullException(nameof(ifaceType));
-            Contract.EndContractBlock();
 
             RuntimeType ifaceRtType = ifaceType as RuntimeType;
 
@@ -2864,7 +2861,6 @@ namespace System
             String name, BindingFlags bindingAttr, Binder binder, Type returnType, Type[] types, ParameterModifier[] modifiers)
         {
             if (name == null) throw new ArgumentNullException();
-            Contract.EndContractBlock();
 
             ListBuilder<PropertyInfo> candidates = GetPropertyCandidates(name, bindingAttr, types, false);
 
@@ -2904,7 +2900,6 @@ namespace System
         public override EventInfo GetEvent(String name, BindingFlags bindingAttr)
         {
             if (name == null) throw new ArgumentNullException();
-            Contract.EndContractBlock();
 
             bool ignoreCase;
             MemberListType listType;
@@ -2933,7 +2928,6 @@ namespace System
         public override FieldInfo GetField(String name, BindingFlags bindingAttr)
         {
             if (name == null) throw new ArgumentNullException();
-            Contract.EndContractBlock();
 
             bool ignoreCase;
             MemberListType listType;
@@ -2973,7 +2967,6 @@ namespace System
         public override Type GetInterface(String fullname, bool ignoreCase)
         {
             if (fullname == null) throw new ArgumentNullException();
-            Contract.EndContractBlock();
 
             BindingFlags bindingAttr = BindingFlags.Public | BindingFlags.NonPublic;
 
@@ -3009,7 +3002,6 @@ namespace System
         public override Type GetNestedType(String fullname, BindingFlags bindingAttr)
         {
             if (fullname == null) throw new ArgumentNullException();
-            Contract.EndContractBlock();
 
             bool ignoreCase;
             bindingAttr &= ~BindingFlags.Static;
@@ -3040,7 +3032,6 @@ namespace System
         public override MemberInfo[] GetMember(String name, MemberTypes type, BindingFlags bindingAttr)
         {
             if (name == null) throw new ArgumentNullException();
-            Contract.EndContractBlock();
 
             ListBuilder<MethodInfo> methods = new ListBuilder<MethodInfo>();
             ListBuilder<ConstructorInfo> constructors = new ListBuilder<ConstructorInfo>();
@@ -3233,7 +3224,6 @@ namespace System
             {
                 if (!IsGenericParameter)
                     throw new InvalidOperationException(SR.Arg_NotGenericParameter);
-                Contract.EndContractBlock();
 
                 IRuntimeMethodInfo declaringMethod = RuntimeTypeHandle.GetDeclaringMethod(this);
 
@@ -3256,7 +3246,6 @@ namespace System
         {
             if ((object)type == null)
                 throw new ArgumentNullException(nameof(type));
-            Contract.EndContractBlock();
             RuntimeType rtType = type as RuntimeType;
             if (rtType == null)
                 return false;
@@ -3520,7 +3509,6 @@ namespace System
             {
                 if (!IsGenericParameter)
                     throw new InvalidOperationException(SR.Arg_NotGenericParameter);
-                Contract.EndContractBlock();
 
                 GenericParameterAttributes attributes;
 
@@ -3577,7 +3565,6 @@ namespace System
         {
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-            Contract.EndContractBlock();
 
             String[] ret = Enum.InternalGetNames(this);
 
@@ -3593,7 +3580,6 @@ namespace System
         {
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-            Contract.EndContractBlock();
 
             // Get all of the values
             ulong[] values = Enum.InternalGetValues(this);
@@ -3614,7 +3600,6 @@ namespace System
         {
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-            Contract.EndContractBlock();
 
             return Enum.InternalGetUnderlyingType(this);
         }
@@ -3623,7 +3608,6 @@ namespace System
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
-            Contract.EndContractBlock();
 
             // Check if both of them are of the same type
             RuntimeType valueType = (RuntimeType)value.GetType();
@@ -3670,7 +3654,6 @@ namespace System
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
-            Contract.EndContractBlock();
 
             Type valueType = value.GetType();
 
@@ -3703,7 +3686,6 @@ namespace System
         {
             if (instantiation == null)
                 throw new ArgumentNullException(nameof(instantiation));
-            Contract.EndContractBlock();
 
             RuntimeType[] instantiationRuntimeType = new RuntimeType[instantiation.Length];
 
@@ -3778,7 +3760,6 @@ namespace System
             {
                 if (!IsGenericParameter)
                     throw new InvalidOperationException(SR.Arg_NotGenericParameter);
-                Contract.EndContractBlock();
 
                 return new RuntimeTypeHandle(this).GetGenericVariableIndex();
             }
@@ -3788,7 +3769,6 @@ namespace System
         {
             if (!IsGenericType)
                 throw new InvalidOperationException(SR.InvalidOperation_NotGenericType);
-            Contract.EndContractBlock();
 
             return RuntimeTypeHandle.GetGenericTypeDefinition(this);
         }
@@ -3812,7 +3792,6 @@ namespace System
         {
             if (!IsGenericParameter)
                 throw new InvalidOperationException(SR.Arg_NotGenericParameter);
-            Contract.EndContractBlock();
 
             Type[] constraints = new RuntimeTypeHandle(this).GetConstraints();
 
@@ -3838,7 +3817,6 @@ namespace System
         {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
-            Contract.EndContractBlock();
 
             return new RuntimeTypeHandle(this).MakeArray(rank);
         }
@@ -4007,7 +3985,6 @@ namespace System
         {
             if (IsGenericParameter)
                 throw new InvalidOperationException(SR.Arg_GenericParameter);
-            Contract.EndContractBlock();
 
             #region Preconditions
             if ((bindingFlags & InvocationMask) == 0)
@@ -4490,7 +4467,6 @@ namespace System
         {
             if ((object)attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -4504,7 +4480,6 @@ namespace System
         {
             if ((object)attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -4617,7 +4592,6 @@ namespace System
             if (ContainsGenericParameters)
                 throw new ArgumentException(
                     SR.Format(SR.Acc_CreateGenericEx, this));
-            Contract.EndContractBlock();
 
             Type elementType = this.GetRootElementType();
 

@@ -147,7 +147,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(nullableType));
             }
-            Contract.EndContractBlock();
             Type result = null;
             if (nullableType.IsGenericType && !nullableType.IsGenericTypeDefinition)
             {

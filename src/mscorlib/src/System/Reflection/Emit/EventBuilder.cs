@@ -59,7 +59,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(mdBuilder));
             }
-            Contract.EndContractBlock();
 
             m_type.ThrowIfCreated();
             TypeBuilder.DefineMethodSemantics(
@@ -97,7 +96,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
-            Contract.EndContractBlock();
             m_type.ThrowIfCreated();
 
             TypeBuilder.DefineCustomAttribute(
@@ -115,7 +113,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
-            Contract.EndContractBlock();
             m_type.ThrowIfCreated();
             customBuilder.CreateCustomAttribute(m_module, m_evToken.Token);
         }

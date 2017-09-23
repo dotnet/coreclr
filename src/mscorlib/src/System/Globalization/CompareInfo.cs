@@ -107,7 +107,6 @@ namespace System.Globalization
             {
                 throw new ArgumentException(SR.Argument_OnlyMscorlib);
             }
-            Contract.EndContractBlock();
 
             return GetCompareInfo(culture);
         }
@@ -130,7 +129,6 @@ namespace System.Globalization
             {
                 throw new ArgumentNullException(name == null ? nameof(name) : nameof(assembly));
             }
-            Contract.EndContractBlock();
 
             if (assembly != typeof(Object).Module.Assembly)
             {
@@ -176,7 +174,6 @@ namespace System.Globalization
             {
                 throw new ArgumentNullException(nameof(name));
             }
-            Contract.EndContractBlock();
 
             return CultureInfo.GetCultureInfo(name).CompareInfo;
         }
@@ -540,7 +537,6 @@ namespace System.Globalization
                 throw new ArgumentNullException((source == null ? nameof(source) : nameof(prefix)),
                     SR.ArgumentNull_String);
             }
-            Contract.EndContractBlock();
 
             if (prefix.Length == 0)
             {
@@ -595,7 +591,6 @@ namespace System.Globalization
                 throw new ArgumentNullException((source == null ? nameof(source) : nameof(suffix)),
                     SR.ArgumentNull_String);
             }
-            Contract.EndContractBlock();
 
             if (suffix.Length == 0)
             {
@@ -654,7 +649,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             return IndexOf(source, value, 0, source.Length, CompareOptions.None);
         }
@@ -664,7 +658,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             return IndexOf(source, value, 0, source.Length, CompareOptions.None);
         }
@@ -674,7 +667,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             return IndexOf(source, value, 0, source.Length, options);
         }
@@ -684,7 +676,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             return IndexOf(source, value, 0, source.Length, options);
         }
@@ -693,7 +684,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             return IndexOf(source, value, startIndex, source.Length - startIndex, CompareOptions.None);
         }
@@ -702,7 +692,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             return IndexOf(source, value, startIndex, source.Length - startIndex, CompareOptions.None);
         }
@@ -711,7 +700,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             return IndexOf(source, value, startIndex, source.Length - startIndex, options);
         }
@@ -721,7 +709,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             return IndexOf(source, value, startIndex, source.Length - startIndex, options);
         }
@@ -749,7 +736,6 @@ namespace System.Globalization
 
             if (count < 0 || startIndex > source.Length - count)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
-            Contract.EndContractBlock();
 
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
@@ -779,7 +765,6 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
-            Contract.EndContractBlock();
 
             // In Everett we used to return -1 for empty string even if startIndex is negative number so we keeping same behavior here.
             // We return 0 if both source and value are empty strings for Everett compatibility too.
@@ -891,7 +876,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             // Can't start at negative index, so make sure we check for the length == 0 case.
             return LastIndexOf(source, value, source.Length - 1, source.Length, CompareOptions.None);
@@ -902,7 +886,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             // Can't start at negative index, so make sure we check for the length == 0 case.
             return LastIndexOf(source, value, source.Length - 1,
@@ -914,7 +897,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             // Can't start at negative index, so make sure we check for the length == 0 case.
             return LastIndexOf(source, value, source.Length - 1,
@@ -925,7 +907,6 @@ namespace System.Globalization
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             // Can't start at negative index, so make sure we check for the length == 0 case.
             return LastIndexOf(source, value, source.Length - 1, source.Length, options);
@@ -971,7 +952,6 @@ namespace System.Globalization
             // Verify Arguments
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
 
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
@@ -1019,7 +999,6 @@ namespace System.Globalization
                 throw new ArgumentNullException(nameof(source));
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
-            Contract.EndContractBlock();
 
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
@@ -1176,7 +1155,6 @@ namespace System.Globalization
             {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
-            Contract.EndContractBlock();
 
             return GetHashCodeOfStringCore(source, options);
         }

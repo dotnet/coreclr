@@ -49,7 +49,6 @@ namespace System.Collections.Generic
         {
             if (capacity < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             if (capacity == 0)
                 _items = s_emptyArray;
@@ -65,7 +64,6 @@ namespace System.Collections.Generic
         {
             if (collection == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
-            Contract.EndContractBlock();
 
             ICollection<T> c = collection as ICollection<T>;
             if (c != null)
@@ -107,7 +105,6 @@ namespace System.Collections.Generic
                 {
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value, ExceptionResource.ArgumentOutOfRange_SmallCapacity);
                 }
-                Contract.EndContractBlock();
 
                 if (value != _items.Length)
                 {
@@ -183,7 +180,6 @@ namespace System.Collections.Generic
                 {
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
-                Contract.EndContractBlock();
                 return _items[index];
             }
 
@@ -193,7 +189,6 @@ namespace System.Collections.Generic
                 {
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
-                Contract.EndContractBlock();
                 _items[index] = value;
                 _version++;
             }
@@ -320,7 +315,6 @@ namespace System.Collections.Generic
             if (_size - index < count)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             Contract.Ensures(Contract.Result<int>() <= index + count);
-            Contract.EndContractBlock();
 
             return Array.BinarySearch<T>(_items, index, count, item, comparer);
         }
@@ -391,7 +385,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.converter);
             }
-            Contract.EndContractBlock();
 
             List<TOutput> list = new List<TOutput>(_size);
             for (int i = 0; i < _size; i++)
@@ -417,7 +410,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             }
-            Contract.EndContractBlock();
 
             try
             {
@@ -440,7 +432,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             }
-            Contract.EndContractBlock();
 
             // Delegate rest of error checking to Array.Copy.
             Array.Copy(_items, index, array, arrayIndex, count);
@@ -481,7 +472,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.EndContractBlock();
 
             for (int i = 0; i < _size; i++)
             {
@@ -499,7 +489,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.EndContractBlock();
 
             List<T> list = new List<T>();
             for (int i = 0; i < _size; i++)
@@ -544,7 +533,6 @@ namespace System.Collections.Generic
             }
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(Contract.Result<int>() < startIndex + count);
-            Contract.EndContractBlock();
 
             int endIndex = startIndex + count;
             for (int i = startIndex; i < endIndex; i++)
@@ -560,7 +548,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.EndContractBlock();
 
             for (int i = _size - 1; i >= 0; i--)
             {
@@ -594,7 +581,6 @@ namespace System.Collections.Generic
             }
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(Contract.Result<int>() <= startIndex);
-            Contract.EndContractBlock();
 
             if (_size == 0)
             {
@@ -636,7 +622,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.action);
             }
-            Contract.EndContractBlock();
 
             int version = _version;
 
@@ -690,7 +675,6 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             }
             Contract.Ensures(Contract.Result<List<T>>() != null);
-            Contract.EndContractBlock();
 
             List<T> list = new List<T>(count);
             Array.Copy(_items, index, list._items, 0, count);
@@ -738,7 +722,6 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(Contract.Result<int>() < Count);
-            Contract.EndContractBlock();
             return Array.IndexOf(_items, item, index, _size - index);
         }
 
@@ -760,7 +743,6 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(Contract.Result<int>() < Count);
-            Contract.EndContractBlock();
 
             return Array.IndexOf(_items, item, index, count);
         }
@@ -776,7 +758,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_ListInsert);
             }
-            Contract.EndContractBlock();
             if (_size == _items.Length) EnsureCapacity(_size + 1);
             if (index < _size)
             {
@@ -817,7 +798,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
-            Contract.EndContractBlock();
 
             ICollection<T> c = collection as ICollection<T>;
             if (c != null)
@@ -902,7 +882,6 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(((Count == 0) && (Contract.Result<int>() == -1)) || ((Count > 0) && (Contract.Result<int>() <= index)));
-            Contract.EndContractBlock();
             return LastIndexOf(item, index, index + 1);
         }
 
@@ -928,7 +907,6 @@ namespace System.Collections.Generic
             }
             Contract.Ensures(Contract.Result<int>() >= -1);
             Contract.Ensures(((Count == 0) && (Contract.Result<int>() == -1)) || ((Count > 0) && (Contract.Result<int>() <= index)));
-            Contract.EndContractBlock();
 
             if (_size == 0)
             {  // Special case for empty list
@@ -980,7 +958,6 @@ namespace System.Collections.Generic
             }
             Contract.Ensures(Contract.Result<int>() >= 0);
             Contract.Ensures(Contract.Result<int>() <= Contract.OldValue(Count));
-            Contract.EndContractBlock();
 
             int freeIndex = 0;   // the first free slot in items array
 
@@ -1020,7 +997,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
-            Contract.EndContractBlock();
             _size--;
             if (index < _size)
             {
@@ -1048,7 +1024,6 @@ namespace System.Collections.Generic
 
             if (_size - index < count)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             if (count > 0)
             {
@@ -1092,7 +1067,6 @@ namespace System.Collections.Generic
 
             if (_size - index < count)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             if (count > 1)
             {
@@ -1137,7 +1111,6 @@ namespace System.Collections.Generic
 
             if (_size - index < count)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             if (count > 1)
             {
@@ -1152,7 +1125,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
             }
-            Contract.EndContractBlock();
 
             if (_size > 1)
             {
@@ -1202,7 +1174,6 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.EndContractBlock();
 
             for (int i = 0; i < _size; i++)
             {

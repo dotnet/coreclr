@@ -373,7 +373,6 @@ namespace System.IO
             if (asyncResult == null)
                 throw new ArgumentNullException(nameof(asyncResult));
             Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.EndContractBlock();
 
             var readTask = _activeReadWriteTask;
 
@@ -585,7 +584,6 @@ namespace System.IO
         {
             if (asyncResult == null)
                 throw new ArgumentNullException(nameof(asyncResult));
-            Contract.EndContractBlock();
 
             var writeTask = _activeReadWriteTask;
             if (writeTask == null)
@@ -655,7 +653,6 @@ namespace System.IO
                 Debug.Assert(function != null);
                 Debug.Assert(stream != null);
                 Debug.Assert(buffer != null);
-                Contract.EndContractBlock();
 
                 // Store the arguments
                 _isRead = isRead;
@@ -847,7 +844,6 @@ namespace System.IO
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
             Contract.Ensures(Contract.Result<Stream>() != null);
-            Contract.EndContractBlock();
             if (stream is SyncStream)
                 return stream;
 
@@ -1007,7 +1003,6 @@ namespace System.IO
             {
                 if (asyncResult == null)
                     throw new ArgumentNullException(nameof(asyncResult));
-                Contract.EndContractBlock();
 
                 return BlockingEndRead(asyncResult);
             }
@@ -1023,7 +1018,6 @@ namespace System.IO
             {
                 if (asyncResult == null)
                     throw new ArgumentNullException(nameof(asyncResult));
-                Contract.EndContractBlock();
 
                 BlockingEndWrite(asyncResult);
             }
@@ -1192,7 +1186,6 @@ namespace System.IO
             {
                 if (stream == null)
                     throw new ArgumentNullException(nameof(stream));
-                Contract.EndContractBlock();
                 _stream = stream;
             }
 
@@ -1357,7 +1350,6 @@ namespace System.IO
                 if (asyncResult == null)
                     throw new ArgumentNullException(nameof(asyncResult));
                 Contract.Ensures(Contract.Result<int>() >= 0);
-                Contract.EndContractBlock();
 
                 lock (_stream)
                     return _stream.EndRead(asyncResult);
@@ -1415,7 +1407,6 @@ namespace System.IO
             {
                 if (asyncResult == null)
                     throw new ArgumentNullException(nameof(asyncResult));
-                Contract.EndContractBlock();
 
                 lock (_stream)
                     _stream.EndWrite(asyncResult);

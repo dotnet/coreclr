@@ -19,7 +19,6 @@ namespace System.Reflection.Emit
         {
             if (!method.IsGenericMethodDefinition)
                 throw new InvalidOperationException();
-            Contract.EndContractBlock();
 
             return new MethodBuilderInstantiation(method, inst);
         }

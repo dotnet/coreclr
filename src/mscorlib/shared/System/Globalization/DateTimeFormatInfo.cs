@@ -531,7 +531,6 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
                 ClearTokenHashTable();
                 amDesignator = value;
             }
@@ -556,7 +555,6 @@ namespace System.Globalization
                 {
                     throw new ArgumentNullException(nameof(value), SR.ArgumentNull_Obj);
                 }
-                Contract.EndContractBlock();
                 if (value == calendar)
                 {
                     return;
@@ -664,7 +662,6 @@ namespace System.Globalization
                 throw new ArgumentNullException(nameof(eraName),
                     SR.ArgumentNull_String);
             }
-            Contract.EndContractBlock();
 
             // The Era Name and Abbreviated Era Name 
             // for Taiwan Calendar on non-Taiwan SKU returns empty string (which 
@@ -820,7 +817,6 @@ namespace System.Globalization
                 {
                     throw new ArgumentNullException(nameof(value), SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
                 ClearTokenHashTable();
                 dateSeparator = value;
             }
@@ -905,7 +901,6 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
                 fullDateTimePattern = value;
             }
         }
@@ -939,7 +934,6 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
 
                 // Remember the new string
                 this.longDatePattern = value;
@@ -980,7 +974,6 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
 
                 // Remember the new string
                 this.longTimePattern = value;
@@ -1019,7 +1012,6 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
 
                 this.monthDayPattern = value;
             }
@@ -1047,7 +1039,6 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
                 ClearTokenHashTable();
 
                 pmDesignator = value;
@@ -1089,7 +1080,6 @@ namespace System.Globalization
                 if (value == null)
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
-                Contract.EndContractBlock();
 
                 // Remember the new string
                 this.shortDatePattern = value;
@@ -1132,7 +1122,6 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
 
                 // Remember the new string
                 this.shortTimePattern = value;
@@ -1289,7 +1278,6 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value), SR.ArgumentNull_String);
                 }
 
-                Contract.EndContractBlock();
                 ClearTokenHashTable();
 
                 timeSeparator = value;
@@ -1331,7 +1319,6 @@ namespace System.Globalization
                     throw new ArgumentNullException(nameof(value),
                         SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
 
                 // Remember the new string
                 this.yearMonthPattern = value;
@@ -1379,7 +1366,6 @@ namespace System.Globalization
                 {
                     throw new ArgumentException(SR.Format(SR.Argument_InvalidArrayLength, 7), nameof(value));
                 }
-                Contract.EndContractBlock();
                 CheckNullValue(value, value.Length);
                 ClearTokenHashTable();
 
@@ -1408,7 +1394,6 @@ namespace System.Globalization
                 {
                     throw new ArgumentException(SR.Format(SR.Argument_InvalidArrayLength, 7), nameof(value));
                 }
-                Contract.EndContractBlock();
                 CheckNullValue(value, value.Length);
                 this.m_superShortDayNames = value;
             }
@@ -1435,7 +1420,6 @@ namespace System.Globalization
                 {
                     throw new ArgumentException(SR.Format(SR.Argument_InvalidArrayLength, 7), nameof(value));
                 }
-                Contract.EndContractBlock();
                 CheckNullValue(value, value.Length);
                 ClearTokenHashTable();
 
@@ -1464,7 +1448,6 @@ namespace System.Globalization
                 {
                     throw new ArgumentException(SR.Format(SR.Argument_InvalidArrayLength, 13), nameof(value));
                 }
-                Contract.EndContractBlock();
                 CheckNullValue(value, value.Length - 1);
                 ClearTokenHashTable();
                 abbreviatedMonthNames = value;
@@ -1492,7 +1475,6 @@ namespace System.Globalization
                 {
                     throw new ArgumentException(SR.Format(SR.Argument_InvalidArrayLength, 13), nameof(value));
                 }
-                Contract.EndContractBlock();
                 CheckNullValue(value, value.Length - 1);
                 monthNames = value;
                 ClearTokenHashTable();
@@ -1620,7 +1602,6 @@ namespace System.Globalization
                     nameof(dayofweek), SR.Format(SR.ArgumentOutOfRange_Range,
                     DayOfWeek.Sunday, DayOfWeek.Saturday));
             }
-            Contract.EndContractBlock();
             //
             // Don't call the public property AbbreviatedDayNames here since a clone is needed in that
             // property, so it will be slower.  Instead, use GetAbbreviatedDayOfWeekNames() directly.
@@ -1637,7 +1618,6 @@ namespace System.Globalization
                     nameof(dayOfWeek), SR.Format(SR.ArgumentOutOfRange_Range,
                     DayOfWeek.Sunday, DayOfWeek.Saturday));
             }
-            Contract.EndContractBlock();
             //
             // Don't call the public property SuperShortDayNames here since a clone is needed in that
             // property, so it will be slower.  Instead, use internalGetSuperShortDayNames() directly.
@@ -1753,7 +1733,6 @@ namespace System.Globalization
                     nameof(dayofweek), SR.Format(SR.ArgumentOutOfRange_Range,
                     DayOfWeek.Sunday, DayOfWeek.Saturday));
             }
-            Contract.EndContractBlock();
 
             // Use the internal one so that we don't clone the array unnecessarily
             return (internalGetDayOfWeekNames()[(int)dayofweek]);
@@ -1769,7 +1748,6 @@ namespace System.Globalization
                     nameof(month), SR.Format(SR.ArgumentOutOfRange_Range,
                     1, 13));
             }
-            Contract.EndContractBlock();
             // Use the internal one so we don't clone the array unnecessarily
             return (internalGetAbbreviatedMonthNames()[month - 1]);
         }
@@ -1783,7 +1761,6 @@ namespace System.Globalization
                     nameof(month), SR.Format(SR.ArgumentOutOfRange_Range,
                     1, 13));
             }
-            Contract.EndContractBlock();
             // Use the internal one so we don't clone the array unnecessarily
             return (internalGetMonthNames()[month - 1]);
         }
@@ -1988,7 +1965,6 @@ namespace System.Globalization
                 throw new ArgumentNullException(nameof(dtfi),
                     SR.ArgumentNull_Obj);
             }
-            Contract.EndContractBlock();
             if (dtfi.IsReadOnly)
             {
                 return (dtfi);
@@ -2055,7 +2031,6 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Arg_ArrayZeroError, nameof(patterns));
             }
 
-            Contract.EndContractBlock();
 
             for (int i = 0; i < patterns.Length; i++)
             {
@@ -2122,7 +2097,6 @@ namespace System.Globalization
                 {
                     throw new ArgumentException(SR.Format(SR.Argument_InvalidArrayLength, 13), nameof(value));
                 }
-                Contract.EndContractBlock();
                 CheckNullValue(value, value.Length - 1);
                 ClearTokenHashTable();
                 this.m_genitiveAbbreviatedMonthNames = value;
@@ -2149,7 +2123,6 @@ namespace System.Globalization
                 {
                     throw new ArgumentException(SR.Format(SR.Argument_InvalidArrayLength, 13), nameof(value));
                 }
-                Contract.EndContractBlock();
                 CheckNullValue(value, value.Length - 1);
                 genitiveMonthNames = value;
                 ClearTokenHashTable();
@@ -2229,7 +2202,6 @@ namespace System.Globalization
             {
                 throw new ArgumentException(SR.Argument_ConflictingDateTimeStyles, parameterName);
             }
-            Contract.EndContractBlock();
             if (((style & DateTimeStyles.RoundtripKind) != 0)
                 && ((style & (DateTimeStyles.AssumeLocal | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal)) != 0))
             {

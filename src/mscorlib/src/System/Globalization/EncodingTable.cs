@@ -139,7 +139,6 @@ namespace System.Globalization
             {
                 throw new ArgumentNullException(nameof(name));
             }
-            Contract.EndContractBlock();
 
             Object codePageObj;
 

@@ -55,7 +55,6 @@ namespace System.Reflection.Emit
 
                 if (binaryAttribute == null)
                     throw new ArgumentNullException(nameof(binaryAttribute));
-                Contract.EndContractBlock();
 
                 m_con = con;
                 m_binaryAttribute = binaryAttribute;
@@ -65,7 +64,6 @@ namespace System.Reflection.Emit
             {
                 if (customBuilder == null)
                     throw new ArgumentNullException(nameof(customBuilder));
-                Contract.EndContractBlock();
 
                 m_customBuilder = customBuilder;
             }
@@ -106,7 +104,6 @@ namespace System.Reflection.Emit
 
             if (type.GetGenericTypeDefinition() != method.DeclaringType)
                 throw new ArgumentException(SR.Argument_InvalidMethodDeclaringType, nameof(type));
-            Contract.EndContractBlock();
 
             // The following converts from Type or TypeBuilder of G<T> to TypeBuilderInstantiation G<T>. These types
             // both logically represent the same thing. The runtime displays a similar convention by having 
@@ -126,7 +123,6 @@ namespace System.Reflection.Emit
 
             if (!constructor.DeclaringType.IsGenericTypeDefinition)
                 throw new ArgumentException(SR.Argument_ConstructorNeedGenericDeclaringType, nameof(constructor));
-            Contract.EndContractBlock();
 
             if (!(type is TypeBuilderInstantiation))
                 throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(type));
@@ -147,7 +143,6 @@ namespace System.Reflection.Emit
 
             if (!field.DeclaringType.IsGenericTypeDefinition)
                 throw new ArgumentException(SR.Argument_FieldNeedGenericDeclaringType, nameof(field));
-            Contract.EndContractBlock();
 
             if (!(type is TypeBuilderInstantiation))
                 throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(type));
@@ -534,7 +529,6 @@ namespace System.Reflection.Emit
 
             if (fullname.Length > 1023)
                 throw new ArgumentException(SR.Argument_TypeNameTooLong, nameof(fullname));
-            Contract.EndContractBlock();
 
             int i;
             m_module = module;
@@ -634,7 +628,6 @@ namespace System.Reflection.Emit
 
             if (size <= 0 || size >= 0x003f0000)
                 throw new ArgumentException(SR.Argument_BadSizeForData);
-            Contract.EndContractBlock();
 
             ThrowIfCreated();
 
@@ -825,7 +818,6 @@ namespace System.Reflection.Emit
             {
                 if (!IsCreated())
                     throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-                Contract.EndContractBlock();
 
                 return m_bakedRuntimeType.GUID;
             }
@@ -836,7 +828,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.InvokeMember(name, invokeAttr, binder, target, args, modifiers, culture, namedParameters);
         }
@@ -885,7 +876,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetConstructor(bindingAttr, binder, callConvention, types, modifiers);
         }
@@ -894,7 +884,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetConstructors(bindingAttr);
         }
@@ -904,7 +893,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             if (types == null)
             {
@@ -920,7 +908,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetMethods(bindingAttr);
         }
@@ -929,7 +916,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetField(name, bindingAttr);
         }
@@ -938,7 +924,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetFields(bindingAttr);
         }
@@ -947,7 +932,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetInterface(name, ignoreCase);
         }
@@ -971,7 +955,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetEvent(name, bindingAttr);
         }
@@ -980,7 +963,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetEvents();
         }
@@ -995,7 +977,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetProperties(bindingAttr);
         }
@@ -1004,7 +985,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetNestedTypes(bindingAttr);
         }
@@ -1013,7 +993,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetNestedType(name, bindingAttr);
         }
@@ -1022,7 +1001,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetMember(name, type, bindingAttr);
         }
@@ -1031,7 +1009,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetInterfaceMap(interfaceType);
         }
@@ -1040,7 +1017,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetEvents(bindingAttr);
         }
@@ -1049,7 +1025,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return m_bakedRuntimeType.GetMembers(bindingAttr);
         }
@@ -1221,7 +1196,6 @@ namespace System.Reflection.Emit
         {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
-            Contract.EndContractBlock();
 
             string szrank = "";
             if (rank == 1)
@@ -1245,7 +1219,6 @@ namespace System.Reflection.Emit
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
-            Contract.EndContractBlock();
 
             return CustomAttribute.GetCustomAttributes(m_bakedRuntimeType, typeof(object) as RuntimeType, inherit);
         }
@@ -1257,7 +1230,6 @@ namespace System.Reflection.Emit
 
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -1274,7 +1246,6 @@ namespace System.Reflection.Emit
 
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -1310,7 +1281,6 @@ namespace System.Reflection.Emit
 
             if (names.Length == 0)
                 throw new ArgumentException();
-            Contract.EndContractBlock();
 
             for (int i = 0; i < names.Length; i++)
                 if (names[i] == null)
@@ -1363,7 +1333,6 @@ namespace System.Reflection.Emit
 
             if (methodInfoDeclaration == null)
                 throw new ArgumentNullException(nameof(methodInfoDeclaration));
-            Contract.EndContractBlock();
 
             ThrowIfCreated();
 
@@ -1433,7 +1402,6 @@ namespace System.Reflection.Emit
             if (name.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             Contract.Ensures(Contract.Result<MethodBuilder>() != null);
-            Contract.EndContractBlock();
 
             CheckContext(returnType);
             CheckContext(returnTypeRequiredCustomModifiers, returnTypeOptionalCustomModifiers, parameterTypes);
@@ -1736,7 +1704,6 @@ namespace System.Reflection.Emit
         {
             if (data == null)
                 throw new ArgumentNullException(nameof(data));
-            Contract.EndContractBlock();
 
             // This method will define an initialized Data in .sdata.
             // We will create a fake TypeDef to represent the data with size. This TypeDef
@@ -1804,7 +1771,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
-            Contract.EndContractBlock();
 
             CheckContext(returnType);
             CheckContext(returnTypeRequiredCustomModifiers, returnTypeOptionalCustomModifiers, parameterTypes);
@@ -1861,7 +1827,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             if (name[0] == '\0')
                 throw new ArgumentException(SR.Argument_IllegalName, nameof(name));
-            Contract.EndContractBlock();
 
             int tkType;
             EventToken evToken;
@@ -2149,7 +2114,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(interfaceType));
             }
-            Contract.EndContractBlock();
 
             CheckContext(interfaceType);
 
@@ -2180,7 +2144,6 @@ namespace System.Reflection.Emit
 
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
-            Contract.EndContractBlock();
 
             TypeBuilder.DefineCustomAttribute(m_module, m_tdType.Token, ((ModuleBuilder)m_module).GetConstructorToken(con).Token,
                 binaryAttribute, false, false);
@@ -2190,7 +2153,6 @@ namespace System.Reflection.Emit
         {
             if (customBuilder == null)
                 throw new ArgumentNullException(nameof(customBuilder));
-            Contract.EndContractBlock();
 
             customBuilder.CreateCustomAttribute((ModuleBuilder)m_module, m_tdType.Token);
         }

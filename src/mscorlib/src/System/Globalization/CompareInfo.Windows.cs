@@ -377,7 +377,6 @@ namespace System.Globalization
             Debug.Assert(!_invariantMode);
 
             if (source == null) { throw new ArgumentNullException(nameof(source)); }
-            Contract.EndContractBlock();
 
             if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
             {

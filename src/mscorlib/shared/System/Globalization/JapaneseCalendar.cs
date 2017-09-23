@@ -300,7 +300,6 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedPosNum);
             }
-            Contract.EndContractBlock();
 
             if (year > helper.MaxYear)
             {

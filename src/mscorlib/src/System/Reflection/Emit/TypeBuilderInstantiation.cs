@@ -31,7 +31,6 @@ namespace System.Reflection.Emit
 
             if (typeArguments == null)
                 throw new ArgumentNullException(nameof(typeArguments));
-            Contract.EndContractBlock();
 
             foreach (Type t in typeArguments)
             {
@@ -95,7 +94,6 @@ namespace System.Reflection.Emit
         {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
-            Contract.EndContractBlock();
 
             string comma = "";
             for (int i = 1; i < rank; i++)

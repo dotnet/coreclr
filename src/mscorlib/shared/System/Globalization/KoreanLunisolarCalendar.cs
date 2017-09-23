@@ -1256,7 +1256,6 @@ namespace System.Globalization
                                 MIN_LUNISOLAR_YEAR,
                                 MAX_LUNISOLAR_YEAR));
             }
-            Contract.EndContractBlock();
             return s_yinfo[lunarYear - MIN_LUNISOLAR_YEAR, index];
         }
 
@@ -1278,7 +1277,6 @@ namespace System.Globalization
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range, MIN_LUNISOLAR_YEAR, MAX_LUNISOLAR_YEAR));
             }
-            Contract.EndContractBlock();
 
             return year;
         }

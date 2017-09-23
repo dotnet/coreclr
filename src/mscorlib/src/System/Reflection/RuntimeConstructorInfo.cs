@@ -161,7 +161,6 @@ namespace System.Reflection
         {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -175,7 +174,6 @@ namespace System.Reflection
         {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -293,7 +291,6 @@ namespace System.Reflection
         {
             if (declaringType == null)
                 throw new ArgumentNullException(nameof(declaringType));
-            Contract.EndContractBlock();
 
             // ctor is ReflectOnly
             if (declaringType is ReflectionOnlyType)

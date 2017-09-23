@@ -384,7 +384,6 @@ namespace System.Reflection.Emit
             if (name[0] == '\0')
                 throw new ArgumentException(SR.Argument_InvalidName, nameof(name));
             Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
-            Contract.EndContractBlock();
 
             BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilder.DefineDynamicModule( " + name + " )");
 
@@ -682,7 +681,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
-            Contract.EndContractBlock();
 
             BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilder.GetDynamicModule( " + name + " )");
             int size = m_assemblyData.m_moduleBuilderList.Count;
@@ -707,7 +705,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
-            Contract.EndContractBlock();
 
             lock (SyncRoot)
             {
@@ -742,7 +739,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
-            Contract.EndContractBlock();
 
             lock (SyncRoot)
             {

@@ -77,7 +77,6 @@ namespace System.Runtime.CompilerServices
             {
                 // Validate arguments
                 if (continuation == null) throw new ArgumentNullException(nameof(continuation));
-                Contract.EndContractBlock();
 
                 if (TplEtwProvider.Log.IsEnabled())
                 {

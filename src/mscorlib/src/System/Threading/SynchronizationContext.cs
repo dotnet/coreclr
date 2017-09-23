@@ -143,7 +143,6 @@ namespace System.Threading
             {
                 throw new ArgumentNullException(nameof(waitHandles));
             }
-            Contract.EndContractBlock();
 
             return WaitHelperNative(waitHandles, waitAll, millisecondsTimeout);
         }

@@ -178,7 +178,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(codePage));
             }
-            Contract.EndContractBlock();
 
             // Remember code page
             _codePage = codePage;
@@ -197,7 +196,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(codePage));
             }
-            Contract.EndContractBlock();
 
             // Remember code page
             _codePage = codePage;
@@ -280,7 +278,6 @@ namespace System.Text
                     nameof(codepage), SR.Format(SR.ArgumentOutOfRange_Range, 0, 65535));
             }
 
-            Contract.EndContractBlock();
 
             switch (codepage)
             {
@@ -590,7 +587,6 @@ namespace System.Text
 
                 if (value == null)
                     throw new ArgumentNullException(nameof(value));
-                Contract.EndContractBlock();
 
                 encoderFallback = value;
             }
@@ -611,7 +607,6 @@ namespace System.Text
 
                 if (value == null)
                     throw new ArgumentNullException(nameof(value));
-                Contract.EndContractBlock();
 
                 decoderFallback = value;
             }
@@ -658,7 +653,6 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(chars),
                     SR.ArgumentNull_Array);
             }
-            Contract.EndContractBlock();
 
             return GetByteCount(chars, 0, chars.Length);
         }
@@ -668,7 +662,6 @@ namespace System.Text
         {
             if (s == null)
                 throw new ArgumentNullException(nameof(s));
-            Contract.EndContractBlock();
 
             char[] chars = s.ToCharArray();
             return GetByteCount(chars, 0, chars.Length);
@@ -697,7 +690,6 @@ namespace System.Text
             if (index > s.Length - count)
                 throw new ArgumentOutOfRangeException(nameof(index),
                       SR.ArgumentOutOfRange_IndexCount);
-            Contract.EndContractBlock();
 
             unsafe
             {
@@ -724,7 +716,6 @@ namespace System.Text
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             char[] arrChar = new char[count];
             int index;
@@ -764,7 +755,6 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(chars),
                     SR.ArgumentNull_Array);
             }
-            Contract.EndContractBlock();
             return GetBytes(chars, 0, chars.Length);
         }
 
@@ -800,7 +790,6 @@ namespace System.Text
             if (s == null)
                 throw new ArgumentNullException(nameof(s),
                     SR.ArgumentNull_String);
-            Contract.EndContractBlock();
 
             int byteCount = GetByteCount(s);
             byte[] bytes = new byte[byteCount];
@@ -827,7 +816,6 @@ namespace System.Text
             if (index > s.Length - count)
                 throw new ArgumentOutOfRangeException(nameof(index),
                       SR.ArgumentOutOfRange_IndexCount);
-            Contract.EndContractBlock();
 
             unsafe
             {
@@ -853,7 +841,6 @@ namespace System.Text
         {
             if (s == null)
                 throw new ArgumentNullException(nameof(s));
-            Contract.EndContractBlock();
             return GetBytes(s.ToCharArray(), charIndex, charCount, bytes, byteIndex);
         }
 
@@ -894,7 +881,6 @@ namespace System.Text
             if (charCount < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Get the char array to convert
             char[] arrChar = new char[charCount];
@@ -946,7 +932,6 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(bytes),
                     SR.ArgumentNull_Array);
             }
-            Contract.EndContractBlock();
             return GetCharCount(bytes, 0, bytes.Length);
         }
 
@@ -970,7 +955,6 @@ namespace System.Text
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             byte[] arrbyte = new byte[count];
             int index;
@@ -1007,7 +991,6 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(bytes),
                     SR.ArgumentNull_Array);
             }
-            Contract.EndContractBlock();
             return GetChars(bytes, 0, bytes.Length);
         }
 
@@ -1065,7 +1048,6 @@ namespace System.Text
             if (byteCount < 0 || charCount < 0)
                 throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Get the byte array to convert
             byte[] arrByte = new byte[byteCount];
@@ -1123,7 +1105,6 @@ namespace System.Text
 
             if (byteCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             return String.CreateStringFromEncoding(bytes, byteCount, this);
         }
@@ -1237,7 +1218,6 @@ namespace System.Text
             if (bytes == null)
                 throw new ArgumentNullException(nameof(bytes),
                     SR.ArgumentNull_Array);
-            Contract.EndContractBlock();
 
             return GetString(bytes, 0, bytes.Length);
         }

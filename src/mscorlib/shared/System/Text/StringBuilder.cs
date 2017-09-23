@@ -134,7 +134,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
             }
-            Contract.EndContractBlock();
 
             if (value == null)
             {
@@ -183,7 +182,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(capacity), SR.Format(SR.ArgumentOutOfRange_MustBePositive, nameof(capacity)));
             }
-            Contract.EndContractBlock();
 
             if (capacity == 0)
             {
@@ -200,7 +198,6 @@ namespace System.Text
             {
                 throw new ArgumentNullException(nameof(info));
             }
-            Contract.EndContractBlock();
 
             int persistedCapacity = 0;
             string persistedString = null;
@@ -265,7 +262,6 @@ namespace System.Text
             {
                 throw new ArgumentNullException(nameof(info));
             }
-            Contract.EndContractBlock();
 
             AssertInvariants();
             info.AddValue(MaxCapacityField, m_MaxCapacity);
@@ -321,7 +317,6 @@ namespace System.Text
                 {
                     throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_SmallCapacity);
                 }
-                Contract.EndContractBlock();
 
                 if (Capacity != value)
                 {
@@ -352,7 +347,6 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(capacity), SR.ArgumentOutOfRange_NegativeCapacity);
             }
-            Contract.EndContractBlock();
 
             if (Capacity < capacity)
                 Capacity = capacity;
@@ -511,7 +505,6 @@ namespace System.Text
                 {
                     throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_SmallCapacity);
                 }
-                Contract.EndContractBlock();
 
                 int originalCapacity = Capacity;
 
@@ -613,7 +606,6 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(repeatCount), SR.ArgumentOutOfRange_NegativeCount);
             }
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
             if (repeatCount == 0)
             {
@@ -667,7 +659,6 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(charCount), SR.ArgumentOutOfRange_GenericPositive);
             }
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
             if (value == null)
             {
@@ -831,7 +822,6 @@ namespace System.Text
             {
                 throw new ArgumentException(SR.ArgumentOutOfRange_OffsetOut);
             }
-            Contract.EndContractBlock();
 
             CopyTo(sourceIndex, new Span<char>(destination).Slice(destinationIndex), count);
         }
@@ -852,7 +842,6 @@ namespace System.Text
             {
                 throw new ArgumentException(SR.Arg_LongerThanSrcString);
             }
-            Contract.EndContractBlock();
 
             AssertInvariants();
 
@@ -897,7 +886,6 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
             int currentLength = Length;
             if ((uint)index > (uint)currentLength)
@@ -960,7 +948,6 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_Index);
             }
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
             if (Length == length && startIndex == 0)
             {
@@ -1171,7 +1158,6 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
             if (value != null)
             {
@@ -1211,7 +1197,6 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
             if (value != null)
                 Insert(index, value, 0, value.Length);
@@ -1287,7 +1272,6 @@ namespace System.Text
         public StringBuilder Insert(int index, ReadOnlySpan<char> value)
         {
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
             if ((uint)index > (uint)Length)
             {
@@ -1321,7 +1305,6 @@ namespace System.Text
                 throw new ArgumentNullException(paramName);
             }
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             return AppendFormatHelper(null, format, new ParamsArray(args));
         }
@@ -1342,7 +1325,6 @@ namespace System.Text
                 throw new ArgumentNullException(paramName);
             }
             Contract.Ensures(Contract.Result<String>() != null);
-            Contract.EndContractBlock();
 
             return AppendFormatHelper(provider, format, new ParamsArray(args));
         }
@@ -1363,7 +1345,6 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(format));
             }
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
-            Contract.EndContractBlock();
 
             int pos = 0;
             int len = format.Length;

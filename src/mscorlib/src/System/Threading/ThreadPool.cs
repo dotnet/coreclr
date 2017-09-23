@@ -1183,7 +1183,6 @@ namespace System.Threading
         {
             if (millisecondsTimeOutInterval < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
-            Contract.EndContractBlock();
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, true);
         }
@@ -1199,7 +1198,6 @@ namespace System.Threading
         {
             if (millisecondsTimeOutInterval < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
-            Contract.EndContractBlock();
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, false);
         }
@@ -1215,7 +1213,6 @@ namespace System.Threading
         {
             if (millisecondsTimeOutInterval < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
-            Contract.EndContractBlock();
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, true);
         }
@@ -1231,7 +1228,6 @@ namespace System.Threading
         {
             if (millisecondsTimeOutInterval < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
-            Contract.EndContractBlock();
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, false);
         }

@@ -42,7 +42,6 @@ namespace System.Text
             {
                 if (value == null)
                     throw new ArgumentNullException(nameof(value));
-                Contract.EndContractBlock();
 
                 // Can't change fallback if buffer is wrong
                 if (_fallbackBuffer != null && _fallbackBuffer.Remaining > 0)
@@ -123,7 +122,6 @@ namespace System.Text
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             byte[] arrbyte = new byte[count];
             int index;
@@ -195,7 +193,6 @@ namespace System.Text
             if (byteCount < 0 || charCount < 0)
                 throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Get the byte array to convert
             byte[] arrByte = new byte[byteCount];
@@ -274,7 +271,6 @@ namespace System.Text
             if (chars.Length - charIndex < charCount)
                 throw new ArgumentOutOfRangeException(nameof(chars),
                       SR.ArgumentOutOfRange_IndexCountBuffer);
-            Contract.EndContractBlock();
 
             bytesUsed = byteCount;
 
@@ -319,7 +315,6 @@ namespace System.Text
             if (byteCount < 0 || charCount < 0)
                 throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Get ready to do it
             bytesUsed = byteCount;

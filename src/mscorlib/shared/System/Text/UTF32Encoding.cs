@@ -110,7 +110,6 @@ namespace System.Text
 
             if (chars.Length - index < count)
                 throw new ArgumentOutOfRangeException("chars", SR.ArgumentOutOfRange_IndexCountBuffer);
-            Contract.EndContractBlock();
 
             // If no input, return 0, avoid fixed empty array problem
             if (count == 0)
@@ -131,7 +130,6 @@ namespace System.Text
             // Validate input
             if (s==null)
                 throw new ArgumentNullException("s");
-            Contract.EndContractBlock();
 
             fixed (char* pChars = s)
                 return GetByteCount(pChars, s.Length, null);
@@ -150,7 +148,6 @@ namespace System.Text
 
             if (count < 0)
                 throw new ArgumentOutOfRangeException("count", SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Call it with empty encoder
             return GetByteCount(chars, count, null);
@@ -175,7 +172,6 @@ namespace System.Text
 
             if (byteIndex < 0 || byteIndex > bytes.Length)
                 throw new ArgumentOutOfRangeException("byteIndex", SR.ArgumentOutOfRange_Index);
-            Contract.EndContractBlock();
 
             int byteCount = bytes.Length - byteIndex;
 
@@ -216,7 +212,6 @@ namespace System.Text
 
             if (byteIndex < 0 || byteIndex > bytes.Length)
                 throw new ArgumentOutOfRangeException("byteIndex", SR.ArgumentOutOfRange_Index);
-            Contract.EndContractBlock();
 
             // If nothing to encode return 0, avoid fixed problem
             if (charCount == 0)
@@ -247,7 +242,6 @@ namespace System.Text
 
             if (charCount < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((charCount < 0 ? "charCount" : "byteCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             return GetBytes(chars, charCount, bytes, byteCount, null);
         }
@@ -271,7 +265,6 @@ namespace System.Text
 
             if (bytes.Length - index < count)
                 throw new ArgumentOutOfRangeException("bytes", SR.ArgumentOutOfRange_IndexCountBuffer);
-            Contract.EndContractBlock();
 
             // If no input just return 0, fixed doesn't like 0 length arrays.
             if (count == 0)
@@ -295,7 +288,6 @@ namespace System.Text
 
             if (count < 0)
                 throw new ArgumentOutOfRangeException("count", SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             return GetCharCount(bytes, count, null);
         }
@@ -320,7 +312,6 @@ namespace System.Text
 
             if (charIndex < 0 || charIndex > chars.Length)
                 throw new ArgumentOutOfRangeException("charIndex", SR.ArgumentOutOfRange_Index);
-            Contract.EndContractBlock();
 
             // If no input, return 0 & avoid fixed problem
             if (byteCount == 0)
@@ -351,7 +342,6 @@ namespace System.Text
 
             if (charCount < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((charCount < 0 ? "charCount" : "byteCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             return GetChars(bytes, byteCount, chars, charCount, null);
         }
@@ -375,7 +365,6 @@ namespace System.Text
 
             if (bytes.Length - index < count)
                 throw new ArgumentOutOfRangeException("bytes", SR.ArgumentOutOfRange_IndexCountBuffer);
-            Contract.EndContractBlock();
 
             // Avoid problems with empty input buffer
             if (count == 0) return String.Empty;
@@ -1114,7 +1103,6 @@ namespace System.Text
             if (charCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(charCount),
                      SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Characters would be # of characters + 1 in case left over high surrogate is ? * max fallback
             long byteCount = (long)charCount + 1;
@@ -1137,7 +1125,6 @@ namespace System.Text
             if (byteCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(byteCount),
                      SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // A supplementary character becomes 2 surrogate characters, so 4 input bytes becomes 2 chars,
             // plus we may have 1 surrogate char left over if the decoder has 3 bytes in it already for a non-bmp char.

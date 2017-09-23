@@ -102,7 +102,6 @@ namespace System.Diagnostics.Tracing
             {
                 throw new ArgumentNullException(nameof(eventSourceName));
             }
-            Contract.EndContractBlock();
         }
 
         /// <summary>
@@ -117,7 +116,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(eventName));
             }
 
-            Contract.EndContractBlock();
 
             if (!this.IsEnabled())
             {
@@ -144,7 +142,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(eventName));
             }
 
-            Contract.EndContractBlock();
 
             if (!this.IsEnabled())
             {

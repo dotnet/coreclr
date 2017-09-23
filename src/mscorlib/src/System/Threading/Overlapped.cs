@@ -348,7 +348,6 @@ namespace System.Threading
         {
             if (nativeOverlappedPtr == null)
                 throw new ArgumentNullException(nameof(nativeOverlappedPtr));
-            Contract.EndContractBlock();
 
             Overlapped overlapped = OverlappedData.GetOverlappedFromNative(nativeOverlappedPtr).m_overlapped;
 
@@ -360,7 +359,6 @@ namespace System.Threading
         {
             if (nativeOverlappedPtr == null)
                 throw new ArgumentNullException(nameof(nativeOverlappedPtr));
-            Contract.EndContractBlock();
 
             Overlapped overlapped = OverlappedData.GetOverlappedFromNative(nativeOverlappedPtr).m_overlapped;
             OverlappedData.FreeNativeOverlapped(nativeOverlappedPtr);

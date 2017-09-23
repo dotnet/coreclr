@@ -70,7 +70,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(info));
             }
-            Contract.EndContractBlock();
             info.AddValue("value", (ulong)_value);
         }
 

@@ -405,7 +405,6 @@ namespace System.Diagnostics.Tracing
         {
             if (eventSourceType == null)
                 throw new ArgumentNullException(nameof(eventSourceType));
-            Contract.EndContractBlock();
 
             EventSourceAttribute attrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute));
             string name = eventSourceType.Name;
@@ -473,7 +472,6 @@ namespace System.Diagnostics.Tracing
         {
             if (eventSourceType == null)
                 throw new ArgumentNullException(nameof(eventSourceType));
-            Contract.EndContractBlock();
 
             byte[] manifestBytes = EventSource.CreateManifestAndDescriptors(eventSourceType, assemblyPathToIncludeInManifest, null, flags);
             return (manifestBytes == null) ? null : Encoding.UTF8.GetString(manifestBytes, 0, manifestBytes.Length);
@@ -1623,7 +1621,6 @@ namespace System.Diagnostics.Tracing
         {
             if (eventSourceType == null)
                 throw new ArgumentNullException(nameof(eventSourceType));
-            Contract.EndContractBlock();
 
             EventSourceAttribute attrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute), flags);
             if (attrib != null && attrib.Name != null)
@@ -4455,7 +4452,6 @@ namespace System.Diagnostics.Tracing
             {
                 throw new ArgumentNullException(nameof(eventSource));
             }
-            Contract.EndContractBlock();
 
             eventSource.SendCommand(this, 0, 0, EventCommand.Update, true, level, matchAnyKeyword, arguments);
         }
@@ -4470,7 +4466,6 @@ namespace System.Diagnostics.Tracing
             {
                 throw new ArgumentNullException(nameof(eventSource));
             }
-            Contract.EndContractBlock();
 
             eventSource.SendCommand(this, 0, 0, EventCommand.Update, false, EventLevel.LogAlways, EventKeywords.None, null);
         }

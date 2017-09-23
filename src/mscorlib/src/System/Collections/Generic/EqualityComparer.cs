@@ -329,7 +329,6 @@ namespace System.Collections.Generic
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
             if (count > array.Length - startIndex)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
             if (count == 0) return -1;
             fixed (byte* pbytes = array)
             {

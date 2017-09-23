@@ -177,7 +177,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidEnum, mode, nameof(MidpointRounding)), nameof(mode));
             }
-            Contract.EndContractBlock();
 
             if (Abs(x) < singleRoundLimit)
             {

@@ -518,7 +518,6 @@ namespace System.Reflection
         {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             if (MdToken.IsNullToken(m_tkParamDef))
                 return Array.Empty<Object>();
@@ -535,7 +534,6 @@ namespace System.Reflection
         {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             if (MdToken.IsNullToken(m_tkParamDef))
                 return false;

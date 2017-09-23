@@ -27,7 +27,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (list == null)
                 throw new ArgumentNullException(nameof(list));
 
-            Contract.EndContractBlock();
 
             this.list = list;
         }

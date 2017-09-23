@@ -88,7 +88,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (array.Length - arrayIndex < Count<T>())
                 throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
-            Contract.EndContractBlock();
 
             IVector<T> _this = Unsafe.As<IVector<T>>(this);
             int count = Count<T>();

@@ -211,7 +211,6 @@ namespace System.Globalization
                                 MIN_LUNISOLAR_YEAR,
                                 MAX_LUNISOLAR_YEAR));
             }
-            Contract.EndContractBlock();
 
             return s_yinfo[lunarYear - MIN_LUNISOLAR_YEAR, index];
         }

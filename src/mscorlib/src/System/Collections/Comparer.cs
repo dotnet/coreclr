@@ -35,7 +35,6 @@ namespace System.Collections
             {
                 throw new ArgumentNullException(nameof(culture));
             }
-            Contract.EndContractBlock();
             m_compareInfo = culture.CompareInfo;
         }
 

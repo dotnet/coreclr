@@ -31,7 +31,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ChangeType(value, type, CultureInfo.InvariantCulture);
         }
 
@@ -41,7 +40,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ChangeType(value, typeCode, CultureInfo.InvariantCulture);
         }
 
@@ -51,7 +49,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToBoolean(value, CultureInfo.InvariantCulture);
         }
 
@@ -61,7 +58,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToChar(value, CultureInfo.InvariantCulture);
         }
 
@@ -72,7 +68,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToSByte(value, CultureInfo.InvariantCulture);
         }
 
@@ -82,7 +77,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToByte(value, CultureInfo.InvariantCulture);
         }
 
@@ -92,7 +86,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToInt16(value, CultureInfo.InvariantCulture);
         }
 
@@ -103,7 +96,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToUInt16(value, CultureInfo.InvariantCulture);
         }
 
@@ -113,7 +105,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToInt32(value, CultureInfo.InvariantCulture);
         }
 
@@ -124,7 +115,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToUInt32(value, CultureInfo.InvariantCulture);
         }
 
@@ -134,7 +124,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToInt64(value, CultureInfo.InvariantCulture);
         }
 
@@ -145,7 +134,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToUInt64(value, CultureInfo.InvariantCulture);
         }
 
@@ -155,7 +143,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToSingle(value, CultureInfo.InvariantCulture);
         }
 
@@ -165,7 +152,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToDouble(value, CultureInfo.InvariantCulture);
         }
 
@@ -175,7 +161,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToDecimal(value, CultureInfo.InvariantCulture);
         }
 
@@ -185,7 +170,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToDateTime(value, CultureInfo.InvariantCulture);
         }
 
@@ -195,7 +179,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return System.Convert.ToString(value, CultureInfo.InvariantCulture);
         }
     }

@@ -279,7 +279,6 @@ namespace System.Diagnostics
             if (skipFrames < 0)
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
@@ -295,7 +294,6 @@ namespace System.Diagnostics
             if (skipFrames < 0)
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
@@ -309,7 +307,6 @@ namespace System.Diagnostics
         {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
-            Contract.EndContractBlock();
 
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
@@ -322,7 +319,6 @@ namespace System.Diagnostics
         {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
-            Contract.EndContractBlock();
 
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
@@ -340,7 +336,6 @@ namespace System.Diagnostics
             if (skipFrames < 0)
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
@@ -359,7 +354,6 @@ namespace System.Diagnostics
             if (skipFrames < 0)
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;

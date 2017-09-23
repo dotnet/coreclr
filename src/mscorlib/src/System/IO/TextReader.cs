@@ -101,7 +101,6 @@ namespace System.IO {
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             Contract.Ensures(Contract.Result<int>() >= 0);
             Contract.Ensures(Contract.Result<int>() <= Contract.OldValue(count));
-            Contract.EndContractBlock();
     
             int n = 0;
             do {
@@ -196,7 +195,6 @@ namespace System.IO {
                 throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - index < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             return ReadAsyncInternal(buffer, index, count);
         }
@@ -226,7 +224,6 @@ namespace System.IO {
             if (buffer.Length - index < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
 
-            Contract.EndContractBlock();
 
             return ReadBlockAsyncInternal(buffer, index, count);
          }
@@ -254,7 +251,6 @@ namespace System.IO {
             if (reader==null)
                 throw new ArgumentNullException(nameof(reader));
             Contract.Ensures(Contract.Result<TextReader>() != null);
-            Contract.EndContractBlock();
 
             if (reader is SyncTextReader)
                 return reader;
@@ -365,7 +361,6 @@ namespace System.IO {
                 if (buffer.Length - index < count)
                     throw new ArgumentException(SR.Argument_InvalidOffLen);
 
-                Contract.EndContractBlock();
 
                 return Task.FromResult(ReadBlock(buffer, index, count));
             }
@@ -379,7 +374,6 @@ namespace System.IO {
                     throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
                 if (buffer.Length - index < count)
                     throw new ArgumentException(SR.Argument_InvalidOffLen);
-                Contract.EndContractBlock();
 
                 return Task.FromResult(Read(buffer, index, count));
             }

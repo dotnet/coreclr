@@ -74,7 +74,6 @@ namespace System
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
 
             _className = info.GetString("ClassName"); // Do not rename (binary serialization)
             _message = info.GetString("Message"); // Do not rename (binary serialization)
@@ -439,7 +438,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(info));
             }
-            Contract.EndContractBlock();
 
             String tempStackTraceString = _stackTraceString;
 

@@ -63,7 +63,6 @@ namespace System.Runtime.Serialization
                 throw new ArgumentNullException(nameof(converter));
             }
 
-            Contract.EndContractBlock();
 
             objectType = type;
             m_fullTypeName = type.FullName;
@@ -92,7 +91,6 @@ namespace System.Runtime.Serialization
                 {
                     throw new ArgumentNullException(nameof(value));
                 }
-                Contract.EndContractBlock();
 
                 m_fullTypeName = value;
                 isFullTypeNameSetExplicit = true;
@@ -111,7 +109,6 @@ namespace System.Runtime.Serialization
                 {
                     throw new ArgumentNullException(nameof(value));
                 }
-                Contract.EndContractBlock();
                 if (requireSameTokenInPartialTrust)
                 {
                     DemandForUnsafeAssemblyNameAssignments(m_assemName, value);
@@ -127,7 +124,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(type));
             }
-            Contract.EndContractBlock();
 
             if (requireSameTokenInPartialTrust)
             {
@@ -233,7 +229,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(type));
             }
-            Contract.EndContractBlock();
 
             AddValueInternal(name, value, type);
         }
@@ -389,7 +384,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(name));
             }
-            Contract.EndContractBlock();
             BCLDebug.Trace("SER", "[SerializationInfo.FindElement]Looking for ", name, " CurrMember is: ", m_currMember);
             int index;
             if (m_nameToIndex.TryGetValue(name, out index))
@@ -453,7 +447,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(type));
             }
-            Contract.EndContractBlock();
 
             RuntimeType rt = type as RuntimeType;
             if (rt == null)

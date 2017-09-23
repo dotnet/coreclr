@@ -37,7 +37,6 @@ namespace System.Diagnostics
         {
             if (name != null && name.Length == 0)
                 throw new ArgumentOutOfRangeException(nameof(Name), SR.Argument_StringZeroLength);
-            Contract.EndContractBlock();
 
             if ((name != null) && (parent != null))
             {

@@ -40,7 +40,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
-            Contract.EndContractBlock();
 
             TypeBuilder.DefineCustomAttribute(
                 m_methodBuilder.GetModuleBuilder(),
@@ -57,7 +56,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
-            Contract.EndContractBlock();
             customBuilder.CreateCustomAttribute((ModuleBuilder)(m_methodBuilder.GetModule()), m_pdToken.Token);
         }
 

@@ -372,7 +372,6 @@ namespace System
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
-            Contract.EndContractBlock();
 
             lock (((ICollection)LocalStore).SyncRoot)
             {
@@ -385,7 +384,6 @@ namespace System
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
-            Contract.EndContractBlock();
 
             object data;
             lock (((ICollection)LocalStore).SyncRoot)

@@ -45,7 +45,6 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(type));
             }
-            Contract.EndContractBlock();
 
             if (!(type is RuntimeType))
             {

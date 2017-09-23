@@ -220,7 +220,6 @@ namespace System.Reflection.Emit
                 throw new NotSupportedException(SR.NotSupported_DynamicMethodFlags);
             if ((attributes & MethodAttributes.MemberAccessMask) != MethodAttributes.Public)
                 throw new NotSupportedException(SR.NotSupported_DynamicMethodFlags);
-            Contract.EndContractBlock();
 
             // only standard or varargs supported
             if (callingConvention != CallingConventions.Standard && callingConvention != CallingConventions.VarArgs)
@@ -464,7 +463,6 @@ namespace System.Reflection.Emit
         {
             if ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs)
                 throw new NotSupportedException(SR.NotSupported_CallToVarArg);
-            Contract.EndContractBlock();
 
             //
             // We do not demand any permission here because the caller already has access
@@ -677,7 +675,6 @@ namespace System.Reflection.Emit
             {
                 if (attributeType == null)
                     throw new ArgumentNullException(nameof(attributeType));
-                Contract.EndContractBlock();
 
                 if (attributeType.IsAssignableFrom(typeof(MethodImplAttribute)))
                     return new Object[] { new MethodImplAttribute((MethodImplOptions)GetMethodImplementationFlags()) };
@@ -695,7 +692,6 @@ namespace System.Reflection.Emit
             {
                 if (attributeType == null)
                     throw new ArgumentNullException(nameof(attributeType));
-                Contract.EndContractBlock();
 
                 if (attributeType.IsAssignableFrom(typeof(MethodImplAttribute)))
                     return true;

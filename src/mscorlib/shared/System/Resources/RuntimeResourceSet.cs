@@ -285,7 +285,6 @@ namespace System.Resources
                 throw new ArgumentNullException(nameof(key));
             if (Reader == null || _resCache == null)
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
-            Contract.EndContractBlock();
 
             Object value = null;
             ResourceLocator resLocation;

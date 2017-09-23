@@ -39,7 +39,6 @@ namespace System
 
             if (revision < 0)
                 throw new ArgumentOutOfRangeException(nameof(revision), SR.ArgumentOutOfRange_Version);
-            Contract.EndContractBlock();
 
             _Major = major;
             _Minor = minor;
@@ -58,7 +57,6 @@ namespace System
             if (build < 0)
                 throw new ArgumentOutOfRangeException(nameof(build), SR.ArgumentOutOfRange_Version);
 
-            Contract.EndContractBlock();
 
             _Major = major;
             _Minor = minor;
@@ -72,7 +70,6 @@ namespace System
 
             if (minor < 0)
                 throw new ArgumentOutOfRangeException(nameof(minor), SR.ArgumentOutOfRange_Version);
-            Contract.EndContractBlock();
 
             _Major = major;
             _Minor = minor;
@@ -441,7 +438,6 @@ namespace System
         {
             if ((Object)v1 == null)
                 throw new ArgumentNullException(nameof(v1));
-            Contract.EndContractBlock();
             return (v1.CompareTo(v2) < 0);
         }
 
@@ -449,7 +445,6 @@ namespace System
         {
             if ((Object)v1 == null)
                 throw new ArgumentNullException(nameof(v1));
-            Contract.EndContractBlock();
             return (v1.CompareTo(v2) <= 0);
         }
 

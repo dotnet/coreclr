@@ -45,7 +45,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             if (data == null)
                 throw new ArgumentNullException(nameof(data));
-            Contract.EndContractBlock();
 
             firstItemIndex = 0;
             lastItemIndex = data.Count - 1;

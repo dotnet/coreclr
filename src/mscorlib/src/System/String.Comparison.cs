@@ -22,7 +22,6 @@ namespace System
         {
             Debug.Assert(strA != null);
             Debug.Assert(strB != null);
-            Contract.EndContractBlock();
             int length = Math.Min(strA.Length, strB.Length);
 
             fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
@@ -136,7 +135,6 @@ namespace System
             Debug.Assert(strA != null);
             Debug.Assert(strB != null);
             Debug.Assert(strA.Length == strB.Length);
-            Contract.EndContractBlock();
             int length = strA.Length;
 
             fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
@@ -376,7 +374,6 @@ namespace System
             {
                 throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
-            Contract.EndContractBlock();
 
             if (object.ReferenceEquals(strA, strB))
             {
@@ -443,7 +440,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(culture));
             }
-            Contract.EndContractBlock();
 
             return culture.CompareInfo.Compare(strA, strB, options);
         }
@@ -537,7 +533,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(culture));
             }
-            Contract.EndContractBlock();
 
             int lengthA = length;
             int lengthB = length;
@@ -562,7 +557,6 @@ namespace System
             {
                 throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
-            Contract.EndContractBlock();
 
             if (strA == null || strB == null)
             {
@@ -756,7 +750,6 @@ namespace System
             {
                 throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
-            Contract.EndContractBlock();
 
             if ((Object)this == (Object)value)
             {
@@ -799,7 +792,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
 
             if ((object)this == (object)value)
             {
@@ -863,7 +855,6 @@ namespace System
         {
             if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
                 throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            Contract.EndContractBlock();
 
             if ((Object)this == (Object)value)
             {
@@ -934,7 +925,6 @@ namespace System
         {
             if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
                 throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            Contract.EndContractBlock();
 
             if ((Object)a == (Object)b)
             {
@@ -1077,7 +1067,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
             return StartsWith(value, StringComparison.CurrentCulture);
         }
 
@@ -1093,7 +1082,6 @@ namespace System
             {
                 throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
-            Contract.EndContractBlock();
 
             if ((Object)this == (Object)value)
             {
@@ -1148,7 +1136,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            Contract.EndContractBlock();
 
             if ((object)this == (object)value)
             {

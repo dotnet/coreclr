@@ -221,7 +221,6 @@ namespace System.Globalization
         public static TextInfo ReadOnly(TextInfo textInfo)
         {
             if (textInfo == null) { throw new ArgumentNullException(nameof(textInfo)); }
-            Contract.EndContractBlock();
             if (textInfo.IsReadOnly) { return (textInfo); }
 
             TextInfo clonedTextInfo = (TextInfo)(textInfo.MemberwiseClone());
@@ -541,7 +540,6 @@ namespace System.Globalization
             {
                 throw new ArgumentNullException(nameof(str));
             }
-            Contract.EndContractBlock();
             if (str.Length == 0)
             {
                 return (str);

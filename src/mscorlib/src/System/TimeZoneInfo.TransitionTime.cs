@@ -101,7 +101,6 @@ namespace System
                 {
                     throw new ArgumentOutOfRangeException(nameof(dayOfWeek), SR.ArgumentOutOfRange_DayOfWeek);
                 }
-                Contract.EndContractBlock();
 
                 timeOfDay.GetDatePart(out int timeOfDayYear, out int timeOfDayMonth, out int timeOfDayDay);
                 if (timeOfDayYear != 1 || timeOfDayMonth != 1 || timeOfDayDay != 1 || (timeOfDay.Ticks % TimeSpan.TicksPerMillisecond != 0))
@@ -131,7 +130,6 @@ namespace System
                 {
                     throw new ArgumentNullException(nameof(info));
                 }
-                Contract.EndContractBlock();
 
                 info.AddValue("TimeOfDay", _timeOfDay); // Do not rename (binary serialization)
                 info.AddValue("Month", _month); // Do not rename (binary serialization)

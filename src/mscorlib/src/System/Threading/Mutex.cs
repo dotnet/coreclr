@@ -55,7 +55,6 @@ namespace System.Threading
                 throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
             }
 #endif // PLATFORM_WINDOWS
-            Contract.EndContractBlock();
             Win32Native.SECURITY_ATTRIBUTES secAttrs = null;
 
             CreateMutexWithGuaranteedCleanup(initiallyOwned, name, out createdNew, secAttrs);
@@ -230,7 +229,6 @@ namespace System.Threading
                 throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
             }
 #endif
-            Contract.EndContractBlock();
 
             result = null;
 

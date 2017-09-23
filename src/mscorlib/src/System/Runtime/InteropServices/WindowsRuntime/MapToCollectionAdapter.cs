@@ -145,7 +145,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (array.Length - arrayIndex < Count<K, V>())
                 throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
-            Contract.EndContractBlock();
 
             IIterable<KeyValuePair<K, V>> _this = Unsafe.As<IIterable<KeyValuePair<K, V>>>(this);
             foreach (KeyValuePair<K, V> mapping in _this)

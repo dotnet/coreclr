@@ -97,7 +97,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(name));
             }
 
-            Contract.EndContractBlock();
 
             this.typeInfos = MakeArray(paramInfos);
             this.name = name;
@@ -135,7 +134,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(defaultName));
             }
 
-            Contract.EndContractBlock();
 
             this.typeInfos = typeInfos;
             this.name = defaultName;
@@ -215,7 +213,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(paramInfos));
             }
 
-            Contract.EndContractBlock();
 
             var recursionCheck = new List<Type>(paramInfos.Length);
             var result = new TraceLoggingTypeInfo[paramInfos.Length];
@@ -234,7 +231,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(types));
             }
 
-            Contract.EndContractBlock();
 
             var recursionCheck = new List<Type>(types.Length);
             var result = new TraceLoggingTypeInfo[types.Length];
@@ -254,7 +250,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(typeInfos));
             }
 
-            Contract.EndContractBlock();
 
             return (TraceLoggingTypeInfo[])typeInfos.Clone(); ;
         }

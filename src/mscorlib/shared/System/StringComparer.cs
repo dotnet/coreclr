@@ -102,7 +102,6 @@ namespace System
                 throw new ArgumentNullException(nameof(culture));
             }
             Contract.Ensures(Contract.Result<StringComparer>() != null);
-            Contract.EndContractBlock();
 
             return new CultureAwareComparer(culture, ignoreCase);
         }
@@ -156,7 +155,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(obj));
             }
-            Contract.EndContractBlock();
 
             string s = obj as string;
             if (s != null)
@@ -279,7 +277,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
             }
-            Contract.EndContractBlock();
 
             if (_ignoreCase)
             {

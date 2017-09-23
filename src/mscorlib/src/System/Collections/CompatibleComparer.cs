@@ -46,7 +46,6 @@ namespace System.Collections
             {
                 throw new ArgumentNullException(nameof(obj));
             }
-            Contract.EndContractBlock();
 
             if (_hcp != null)
                 return _hcp.GetHashCode(obj);

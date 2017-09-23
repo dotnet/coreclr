@@ -72,7 +72,6 @@ namespace System.Resources
         {
             if (reader == null)
                 throw new ArgumentNullException(nameof(reader));
-            Contract.EndContractBlock();
             Reader = reader;
             CommonInit();
             ReadResources();
@@ -229,7 +228,6 @@ namespace System.Resources
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
-            Contract.EndContractBlock();
 
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
 

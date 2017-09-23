@@ -96,7 +96,6 @@ namespace System.Diagnostics.Contracts
         {
             if (failureKind < ContractFailureKind.Precondition || failureKind > ContractFailureKind.Assume)
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, failureKind), nameof(failureKind));
-            Contract.EndContractBlock();
 
             // displayMessage == null means: yes we handled it. Otherwise it is the localized failure message
             var displayMessage = System.Runtime.CompilerServices.ContractHelper.RaiseContractFailedEvent(failureKind, userMessage, conditionText, innerException);
@@ -296,7 +295,6 @@ namespace System.Runtime.CompilerServices
         {
             if (failureKind < ContractFailureKind.Precondition || failureKind > ContractFailureKind.Assume)
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, failureKind), nameof(failureKind));
-            Contract.EndContractBlock();
 
             string returnValue;
             String displayMessage = "contract failed.";  // Incomplete, but in case of OOM during resource lookup...

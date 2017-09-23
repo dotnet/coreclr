@@ -217,7 +217,6 @@ namespace System.Threading
             {
                 throw new ArgumentNullException(nameof(obj));
             }
-            Contract.EndContractBlock();
 
             ObjPulse(obj);
         }
@@ -233,7 +232,6 @@ namespace System.Threading
             {
                 throw new ArgumentNullException(nameof(obj));
             }
-            Contract.EndContractBlock();
 
             ObjPulseAll(obj);
         }

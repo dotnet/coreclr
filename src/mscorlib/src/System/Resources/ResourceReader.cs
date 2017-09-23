@@ -134,7 +134,6 @@ namespace System.Resources
                 throw new ArgumentNullException(nameof(stream));
             if (!stream.CanRead)
                 throw new ArgumentException(SR.Argument_StreamNotReadable);
-            Contract.EndContractBlock();
 
             _resCache = new Dictionary<String, ResourceLocator>(FastResourceComparer.Default);
             _store = new BinaryReader(stream, Encoding.UTF8);
@@ -1046,7 +1045,6 @@ namespace System.Resources
         {
             if (resourceName == null)
                 throw new ArgumentNullException(nameof(resourceName));
-            Contract.EndContractBlock();
             if (_resCache == null)
                 throw new InvalidOperationException(SR.ResourceReaderIsClosed);
 

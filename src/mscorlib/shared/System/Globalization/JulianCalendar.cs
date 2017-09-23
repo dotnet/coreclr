@@ -221,7 +221,6 @@ namespace System.Globalization
                                 -120000,
                                 120000));
             }
-            Contract.EndContractBlock();
             int y = GetDatePart(time.Ticks, DatePartYear);
             int m = GetDatePart(time.Ticks, DatePartMonth);
             int d = GetDatePart(time.Ticks, DatePartDay);
@@ -424,7 +423,6 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.EndContractBlock();
 
             if (year > MaxYear)
             {

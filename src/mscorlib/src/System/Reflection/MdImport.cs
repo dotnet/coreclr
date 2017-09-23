@@ -171,7 +171,6 @@ namespace System.Reflection
             {
                 if (index < 0 || index >= m_length)
                     throw new IndexOutOfRangeException();
-                Contract.EndContractBlock();
 
                 unsafe
                 {

@@ -1095,7 +1095,6 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.EndContractBlock();
 
             if (year < 100)
             {

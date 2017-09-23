@@ -37,7 +37,6 @@ namespace System.Collections.ObjectModel
             {
                 throw new ArgumentNullException(nameof(dictionary));
             }
-            Contract.EndContractBlock();
             m_dictionary = dictionary;
         }
 

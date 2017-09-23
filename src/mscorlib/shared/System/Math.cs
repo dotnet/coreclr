@@ -175,7 +175,7 @@ namespace System
 
             return value;
         }
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Clamp(int value, int min, int max)
         {

@@ -66,7 +66,6 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Argument_NoRegionInvariantCulture, nameof(name));
             }
 
-            Contract.EndContractBlock();
 
             //
             // For CoreCLR we only want the region names that are full culture names

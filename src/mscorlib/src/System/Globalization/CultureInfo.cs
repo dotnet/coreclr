@@ -236,7 +236,6 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException(nameof(culture), SR.ArgumentOutOfRange_NeedPosNum);
             }
-            Contract.EndContractBlock();
 
             InitializeFromCultureId(culture, useUserOverride);
         }
@@ -289,7 +288,6 @@ namespace System.Globalization
             {
                 throw new ArgumentNullException(nameof(cultureName),SR.ArgumentNull_String);
             }
-            Contract.EndContractBlock();
 
             _cultureData = CultureData.GetCultureData(cultureName, false);
             if (_cultureData == null)
@@ -1175,7 +1173,6 @@ namespace System.Globalization
                 throw new ArgumentNullException(nameof(ci));
             }
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
-            Contract.EndContractBlock();
 
             if (ci.IsReadOnly)
             {
@@ -1399,7 +1396,6 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(culture), SR.ArgumentOutOfRange_NeedPosNum);
             }
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
-            Contract.EndContractBlock();
             CultureInfo retval = GetCultureInfoHelper(culture, null, null);
             if (null == retval)
             {
@@ -1443,7 +1439,6 @@ namespace System.Globalization
             }
             
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
-            Contract.EndContractBlock();
 
             CultureInfo retval = GetCultureInfoHelper(-1, name, altName);
             if (retval == null)

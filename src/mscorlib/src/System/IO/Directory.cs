@@ -57,7 +57,6 @@ namespace System.IO
             if ((searchOption != SearchOption.TopDirectoryOnly) && (searchOption != SearchOption.AllDirectories))
                 throw new ArgumentOutOfRangeException(nameof(searchOption), SR.ArgumentOutOfRange_Enum);
             Contract.Ensures(Contract.Result<IEnumerable<String>>() != null);
-            Contract.EndContractBlock();
 
             return InternalEnumerateFiles(path, searchPattern, searchOption);
         }

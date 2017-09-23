@@ -121,7 +121,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Arg_ArrayLengthsDiffer, "namedProperties, propertyValues");
             if (namedFields.Length != fieldValues.Length)
                 throw new ArgumentException(SR.Arg_ArrayLengthsDiffer, "namedFields, fieldValues");
-            Contract.EndContractBlock();
 
             if ((con.Attributes & MethodAttributes.Static) == MethodAttributes.Static ||
                 (con.Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Private)

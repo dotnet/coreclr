@@ -29,7 +29,6 @@ namespace System
                 throw new ArgumentNullException(nameof(target));
             if (flds == null)
                 throw new ArgumentNullException(nameof(flds));
-            Contract.EndContractBlock();
             if (flds.Length == 0)
                 throw new ArgumentException(SR.Arg_ArrayZeroError);
 

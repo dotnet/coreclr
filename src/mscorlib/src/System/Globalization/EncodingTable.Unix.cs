@@ -33,7 +33,6 @@ namespace System.Globalization
             {
                 throw new ArgumentNullException(nameof(name));
             }
-            Contract.EndContractBlock();
 
             ushort codePage;
             if (s_encodingDataTable.TryGetValue(name, out codePage))

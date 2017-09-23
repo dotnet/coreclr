@@ -148,7 +148,6 @@ namespace System.IO
                 throw new ArgumentException(SR.Argument_StreamNotReadable);
             if (bufferSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize), SR.ArgumentOutOfRange_NeedPosNum);
-            Contract.EndContractBlock();
 
             Init(stream, encoding, detectEncodingFromByteOrderMarks, bufferSize, leaveOpen);
         }
@@ -180,7 +179,6 @@ namespace System.IO
                 throw new ArgumentException(SR.Argument_EmptyPath);
             if (bufferSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(bufferSize), SR.ArgumentOutOfRange_NeedPosNum);
-            Contract.EndContractBlock();
 
             Stream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, DefaultFileStreamBufferSize, FileOptions.SequentialScan);
             Init(stream, encoding, detectEncodingFromByteOrderMarks, bufferSize, false);
@@ -339,7 +337,6 @@ namespace System.IO
                 throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - index < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             if (stream == null)
                 __Error.ReaderClosed();
@@ -397,7 +394,6 @@ namespace System.IO
                 throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - index < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             if (stream == null)
                 __Error.ReaderClosed();
@@ -873,7 +869,6 @@ namespace System.IO
                 throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - index < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             // If we have been inherited into a subclass, the following implementation could be incorrect
             // since it does not call through to Read() which a subclass might have overriden.  
@@ -1059,7 +1054,6 @@ namespace System.IO
                 throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - index < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             // If we have been inherited into a subclass, the following implementation could be incorrect
             // since it does not call through to Read() which a subclass might have overriden.  

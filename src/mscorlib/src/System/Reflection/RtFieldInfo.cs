@@ -286,7 +286,6 @@ namespace System.Reflection
         {
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);
-            Contract.EndContractBlock();
 
             unsafe
             {
@@ -309,7 +308,6 @@ namespace System.Reflection
         {
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);
-            Contract.EndContractBlock();
 
             unsafe
             {

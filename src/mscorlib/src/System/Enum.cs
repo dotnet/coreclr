@@ -411,7 +411,6 @@ namespace System
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
-            Contract.EndContractBlock();
 
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
@@ -548,7 +547,6 @@ namespace System
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
             Contract.Ensures(Contract.Result<Type>() != null);
-            Contract.EndContractBlock();
 
             return enumType.GetEnumUnderlyingType();
         }
@@ -558,7 +556,6 @@ namespace System
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
             Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.EndContractBlock();
 
             return enumType.GetEnumValues();
         }
@@ -573,7 +570,6 @@ namespace System
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
-            Contract.EndContractBlock();
 
             return enumType.GetEnumName(value);
         }
@@ -583,7 +579,6 @@ namespace System
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
             Contract.Ensures(Contract.Result<String[]>() != null);
-            Contract.EndContractBlock();
 
             return enumType.GetEnumNames();
         }
@@ -598,7 +593,6 @@ namespace System
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
-            Contract.EndContractBlock();
 
             // Delegate rest of error checking to the other functions
             TypeCode typeCode = Convert.GetTypeCode(value);
@@ -646,7 +640,6 @@ namespace System
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
-            Contract.EndContractBlock();
 
             return enumType.IsEnumDefined(value);
         }
@@ -664,7 +657,6 @@ namespace System
 
             if (format == null)
                 throw new ArgumentNullException(nameof(format));
-            Contract.EndContractBlock();
 
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
@@ -915,7 +907,6 @@ namespace System
 
             if (this == null)
                 throw new NullReferenceException();
-            Contract.EndContractBlock();
 
             int ret = InternalCompareTo(this, target);
 
@@ -978,7 +969,6 @@ namespace System
         {
             if (flag == null)
                 throw new ArgumentNullException(nameof(flag));
-            Contract.EndContractBlock();
 
             if (!this.GetType().IsEquivalentTo(flag.GetType()))
             {
@@ -1104,7 +1094,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
@@ -1117,7 +1106,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
@@ -1130,7 +1118,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
@@ -1143,7 +1130,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
@@ -1157,7 +1143,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
@@ -1171,7 +1156,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
@@ -1184,7 +1168,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
@@ -1198,7 +1181,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
@@ -1211,7 +1193,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
@@ -1224,7 +1205,6 @@ namespace System
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-            Contract.EndContractBlock();
             RuntimeType rtType = enumType as RuntimeType;
             if (rtType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));

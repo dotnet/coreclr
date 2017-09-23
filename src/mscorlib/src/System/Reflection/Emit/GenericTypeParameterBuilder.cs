@@ -82,7 +82,6 @@ namespace System.Reflection.Emit
         {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
-            Contract.EndContractBlock();
 
             string szrank = "";
             if (rank == 1)

@@ -207,7 +207,6 @@ namespace System
         {
             if (Ticks == TimeSpan.MinValue.Ticks)
                 throw new OverflowException(SR.Overflow_Duration);
-            Contract.EndContractBlock();
             return new TimeSpan(_ticks >= 0 ? _ticks : -_ticks);
         }
 
@@ -244,7 +243,6 @@ namespace System
         {
             if (Double.IsNaN(value))
                 throw new ArgumentException(SR.Arg_CannotBeNaN);
-            Contract.EndContractBlock();
             double tmp = value * scale;
             double millis = tmp + (value >= 0 ? 0.5 : -0.5);
             if ((millis > Int64.MaxValue / TicksPerMillisecond) || (millis < Int64.MinValue / TicksPerMillisecond))
@@ -266,7 +264,6 @@ namespace System
         {
             if (Ticks == TimeSpan.MinValue.Ticks)
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
-            Contract.EndContractBlock();
             return new TimeSpan(-_ticks);
         }
 

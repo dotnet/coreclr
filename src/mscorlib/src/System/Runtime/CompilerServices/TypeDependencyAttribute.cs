@@ -17,7 +17,6 @@ namespace System.Runtime.CompilerServices
         public TypeDependencyAttribute(string typeName)
         {
             if (typeName == null) throw new ArgumentNullException(nameof(typeName));
-            Contract.EndContractBlock();
             this.typeName = typeName;
         }
     }

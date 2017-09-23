@@ -269,7 +269,6 @@ namespace System.Reflection.Emit
 
             if (con == null)
                 throw new ArgumentNullException(nameof(con));
-            Contract.EndContractBlock();
 
             int tr;
             int mr = 0;
@@ -1012,7 +1011,6 @@ namespace System.Reflection.Emit
             if ((attributes & MethodAttributes.Static) == 0)
                 throw new ArgumentException(SR.Argument_GlobalFunctionHasToBeStatic);
             Contract.Ensures(Contract.Result<MethodBuilder>() != null);
-            Contract.EndContractBlock();
 
             CheckContext(returnType);
             CheckContext(requiredReturnTypeCustomModifiers, optionalReturnTypeCustomModifiers, parameterTypes);
@@ -1072,7 +1070,6 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(SR.InvalidOperation_GlobalsHaveBeenCreated);
             }
             Contract.Ensures(Contract.Result<FieldBuilder>() != null);
-            Contract.EndContractBlock();
 
             m_moduleData.m_fHasGlobal = true;
             return m_moduleData.m_globalTypeBuilder.DefineInitializedData(name, data, attributes);
@@ -1099,7 +1096,6 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(SR.InvalidOperation_GlobalsHaveBeenCreated);
             }
             Contract.Ensures(Contract.Result<FieldBuilder>() != null);
-            Contract.EndContractBlock();
 
             m_moduleData.m_fHasGlobal = true;
             return m_moduleData.m_globalTypeBuilder.DefineUninitializedData(name, size, attributes);
@@ -1134,7 +1130,6 @@ namespace System.Reflection.Emit
         {
             if (type == null)
                 throw new ArgumentNullException(nameof(type));
-            Contract.EndContractBlock();
 
             CheckContext(type);
 
@@ -1251,7 +1246,6 @@ namespace System.Reflection.Emit
             // return the MethodDef token. 
             if (method == null)
                 throw new ArgumentNullException(nameof(method));
-            Contract.EndContractBlock();
 
             int tr;
             int mr = 0;
@@ -1443,7 +1437,6 @@ namespace System.Reflection.Emit
 
             if (arrayClass.IsArray == false)
                 throw new ArgumentException(SR.Argument_HasToBeArrayClass);
-            Contract.EndContractBlock();
 
             CheckContext(returnType, arrayClass);
             CheckContext(parameterTypes);
@@ -1500,7 +1493,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(field));
             }
-            Contract.EndContractBlock();
 
             int tr;
             int mr = 0;
@@ -1589,7 +1581,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(str));
             }
-            Contract.EndContractBlock();
 
             // Returns a token representing a String constant.  If the string 
             // value has already been defined, the existing token will be returned.
@@ -1605,7 +1596,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(sigHelper));
             }
-            Contract.EndContractBlock();
 
             int sigLength;
             byte[] sigBytes;
@@ -1618,7 +1608,6 @@ namespace System.Reflection.Emit
         {
             if (sigBytes == null)
                 throw new ArgumentNullException(nameof(sigBytes));
-            Contract.EndContractBlock();
 
             byte[] localSigBytes = new byte[sigBytes.Length];
             Buffer.BlockCopy(sigBytes, 0, localSigBytes, 0, sigBytes.Length);
@@ -1636,7 +1625,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
-            Contract.EndContractBlock();
 
             TypeBuilder.DefineCustomAttribute(
                 this,
@@ -1652,7 +1640,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
-            Contract.EndContractBlock();
 
             customBuilder.CreateCustomAttribute(this, 1);   // This is hard coding the module token to 1
         }
@@ -1696,7 +1683,6 @@ namespace System.Reflection.Emit
             // url cannot be null but can be an empty string 
             if (url == null)
                 throw new ArgumentNullException(nameof(url));
-            Contract.EndContractBlock();
 
             lock (SyncRoot)
             {

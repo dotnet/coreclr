@@ -39,7 +39,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(dataType));
             }
 
-            Contract.EndContractBlock();
 
             this.name = dataType.Name;
             this.dataType = dataType;
@@ -64,7 +63,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(name));
             }
 
-            Contract.EndContractBlock();
 
             Statics.CheckName(name);
 

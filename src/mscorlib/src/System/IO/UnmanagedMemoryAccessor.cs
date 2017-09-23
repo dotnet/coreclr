@@ -79,7 +79,6 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(access));
             }
-            Contract.EndContractBlock();
 
             if (_isOpen)
             {
@@ -504,7 +503,6 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.EndContractBlock();
 
             if (!_isOpen)
             {
@@ -555,7 +553,6 @@ namespace System.IO
             {
                 throw new ArgumentException(SR.Argument_OffsetAndLengthOutOfBounds);
             }
-            Contract.EndContractBlock();
             if (!CanRead)
             {
                 if (!_isOpen)
@@ -905,7 +902,6 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.EndContractBlock();
 
             if (!_isOpen)
             {
@@ -961,7 +957,6 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_PositionLessThanCapacityRequired);
             }
-            Contract.EndContractBlock();
 
             if (!_isOpen)
             {
@@ -1041,7 +1036,6 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.EndContractBlock();
             if (position > _capacity - sizeOfType)
             {
                 if (position >= _capacity)
@@ -1069,7 +1063,6 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.EndContractBlock();
             if (position > _capacity - sizeOfType)
             {
                 if (position >= _capacity)

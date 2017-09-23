@@ -156,7 +156,6 @@ namespace System.Runtime
         {
             if (sizeInMegabytes <= 0)
                 throw new ArgumentOutOfRangeException(nameof(sizeInMegabytes), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
 #if !FEATURE_PAL // Remove this when CheckForAvailableMemory is able to provide legitimate estimates
             ulong size = ((ulong)sizeInMegabytes) << 20;

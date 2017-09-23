@@ -226,7 +226,6 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
             }
-            Contract.EndContractBlock();
 
             return IndexOf(value, startIndex, count, StringComparison.CurrentCulture);
         }
@@ -255,7 +254,6 @@ namespace System
 
             if (count < 0 || startIndex > this.Length - count)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
-            Contract.EndContractBlock();
 
             switch (comparisonType)
             {
@@ -397,7 +395,6 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
             }
-            Contract.EndContractBlock();
 
             return LastIndexOf(value, startIndex, count, StringComparison.CurrentCulture);
         }
@@ -419,7 +416,6 @@ namespace System
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
-            Contract.EndContractBlock();
 
             // Special case for 0 length input strings
             if (this.Length == 0 && (startIndex == -1 || startIndex == 0))

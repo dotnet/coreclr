@@ -61,7 +61,6 @@ namespace System.IO
             }
             if (!input.CanRead)
                 throw new ArgumentException(SR.Argument_StreamNotReadable);
-            Contract.EndContractBlock();
             _stream = input;
             _decoder = encoding.GetDecoder();
             _maxCharsSize = encoding.GetMaxCharCount(MaxCharBytesSize);
@@ -348,7 +347,6 @@ namespace System.IO
             }
             Contract.Ensures(Contract.Result<int>() >= 0);
             Contract.Ensures(Contract.Result<int>() <= count);
-            Contract.EndContractBlock();
 
             if (_stream == null)
                 __Error.FileNotOpen();
@@ -361,7 +359,6 @@ namespace System.IO
         {
             Contract.Ensures(Contract.Result<int>() >= 0);
             Contract.Ensures(Contract.Result<int>() <= destination.Length);
-            Contract.EndContractBlock();
 
             if (_stream == null)
                 __Error.FileNotOpen();
@@ -539,7 +536,6 @@ namespace System.IO
             }
             Contract.Ensures(Contract.Result<char[]>() != null);
             Contract.Ensures(Contract.Result<char[]>().Length <= count);
-            Contract.EndContractBlock();
             if (_stream == null)
             {
                 __Error.FileNotOpen();
@@ -575,7 +571,6 @@ namespace System.IO
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             Contract.Ensures(Contract.Result<int>() >= 0);
             Contract.Ensures(Contract.Result<int>() <= count);
-            Contract.EndContractBlock();
 
             if (_stream == null) __Error.FileNotOpen();
             return _stream.Read(buffer, index, count);
@@ -585,7 +580,6 @@ namespace System.IO
         {
             Contract.Ensures(Contract.Result<int>() >= 0);
             Contract.Ensures(Contract.Result<int>() <= destination.Length);
-            Contract.EndContractBlock();
 
             if (_stream == null)
                 __Error.FileNotOpen();
@@ -598,7 +592,6 @@ namespace System.IO
             if (count < 0) throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length <= Contract.OldValue(count));
-            Contract.EndContractBlock();
             if (_stream == null) __Error.FileNotOpen();
 
             if (count == 0)

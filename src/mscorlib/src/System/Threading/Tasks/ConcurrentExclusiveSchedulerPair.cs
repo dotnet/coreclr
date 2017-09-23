@@ -105,7 +105,6 @@ namespace System.Threading.Tasks
             if (taskScheduler == null) throw new ArgumentNullException(nameof(taskScheduler));
             if (maxConcurrencyLevel == 0 || maxConcurrencyLevel < -1) throw new ArgumentOutOfRangeException(nameof(maxConcurrencyLevel));
             if (maxItemsPerTask == 0 || maxItemsPerTask < -1) throw new ArgumentOutOfRangeException(nameof(maxItemsPerTask));
-            Contract.EndContractBlock();
 
             // Store configuration
             m_underlyingTaskScheduler = taskScheduler;

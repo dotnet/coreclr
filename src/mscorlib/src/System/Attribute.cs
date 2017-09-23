@@ -461,7 +461,6 @@ namespace System
 
             if (!type.IsSubclassOf(typeof(Attribute)) && type != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
-            Contract.EndContractBlock();
 
             switch (element.MemberType)
             {
@@ -485,7 +484,6 @@ namespace System
         {
             if (element == null)
                 throw new ArgumentNullException(nameof(element));
-            Contract.EndContractBlock();
 
             switch (element.MemberType)
             {
@@ -516,7 +514,6 @@ namespace System
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
-            Contract.EndContractBlock();
 
             switch (element.MemberType)
             {
@@ -576,7 +573,6 @@ namespace System
             if (element.Member == null)
                 throw new ArgumentException(SR.Argument_InvalidParameterInfo, nameof(element));
 
-            Contract.EndContractBlock();
 
             MemberInfo member = element.Member;
             if (member.MemberType == MemberTypes.Method && inherit)
@@ -593,7 +589,6 @@ namespace System
             if (element.Member == null)
                 throw new ArgumentException(SR.Argument_InvalidParameterInfo, nameof(element));
 
-            Contract.EndContractBlock();
 
             MemberInfo member = element.Member;
             if (member.MemberType == MemberTypes.Method && inherit)
@@ -618,7 +613,6 @@ namespace System
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
-            Contract.EndContractBlock();
 
             MemberInfo member = element.Member;
 
@@ -679,7 +673,6 @@ namespace System
         {
             if (element == null)
                 throw new ArgumentNullException(nameof(element));
-            Contract.EndContractBlock();
 
             return (Attribute[])element.GetCustomAttributes(typeof(Attribute), inherit);
         }
@@ -694,7 +687,6 @@ namespace System
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
-            Contract.EndContractBlock();
 
             return (Attribute[])element.GetCustomAttributes(attributeType, inherit);
         }
@@ -715,7 +707,6 @@ namespace System
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
-            Contract.EndContractBlock();
 
             return element.IsDefined(attributeType, false);
         }
@@ -758,7 +749,6 @@ namespace System
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
-            Contract.EndContractBlock();
 
             return (Attribute[])element.GetCustomAttributes(attributeType, inherit);
         }
@@ -772,7 +762,6 @@ namespace System
         {
             if (element == null)
                 throw new ArgumentNullException(nameof(element));
-            Contract.EndContractBlock();
 
             return (Attribute[])element.GetCustomAttributes(typeof(Attribute), inherit);
         }
@@ -793,7 +782,6 @@ namespace System
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
-            Contract.EndContractBlock();
 
             return element.IsDefined(attributeType, false);
         }

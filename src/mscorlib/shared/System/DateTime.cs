@@ -147,7 +147,6 @@ namespace System
         {
             if (ticks < MinTicks || ticks > MaxTicks)
                 throw new ArgumentOutOfRangeException(nameof(ticks), SR.ArgumentOutOfRange_DateTimeBadTicks);
-            Contract.EndContractBlock();
             _dateData = (UInt64)ticks;
         }
 
@@ -166,7 +165,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Argument_InvalidDateTimeKind, nameof(kind));
             }
-            Contract.EndContractBlock();
             _dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
         }
 
@@ -177,7 +175,6 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(ticks), SR.ArgumentOutOfRange_DateTimeBadTicks);
             }
             Debug.Assert(kind == DateTimeKind.Local, "Internal Constructor is for local times only");
-            Contract.EndContractBlock();
             _dateData = ((UInt64)ticks | (isAmbiguousDst ? KindLocalAmbiguousDst : KindLocal));
         }
 
@@ -212,7 +209,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Argument_InvalidDateTimeKind, nameof(kind));
             }
-            Contract.EndContractBlock();
             Int64 ticks = DateToTicks(year, month, day) + TimeToTicks(hour, minute, second);
             _dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
         }
@@ -224,7 +220,6 @@ namespace System
         {
             if (calendar == null)
                 throw new ArgumentNullException(nameof(calendar));
-            Contract.EndContractBlock();
             _dateData = (UInt64)calendar.ToDateTime(year, month, day, hour, minute, second, 0).Ticks;
         }
 
@@ -237,7 +232,6 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecond), SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
             }
-            Contract.EndContractBlock();
             Int64 ticks = DateToTicks(year, month, day) + TimeToTicks(hour, minute, second);
             ticks += millisecond * TicksPerMillisecond;
             if (ticks < MinTicks || ticks > MaxTicks)
@@ -255,7 +249,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Argument_InvalidDateTimeKind, nameof(kind));
             }
-            Contract.EndContractBlock();
             Int64 ticks = DateToTicks(year, month, day) + TimeToTicks(hour, minute, second);
             ticks += millisecond * TicksPerMillisecond;
             if (ticks < MinTicks || ticks > MaxTicks)
@@ -274,7 +267,6 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecond), SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
             }
-            Contract.EndContractBlock();
             Int64 ticks = calendar.ToDateTime(year, month, day, hour, minute, second, 0).Ticks;
             ticks += millisecond * TicksPerMillisecond;
             if (ticks < MinTicks || ticks > MaxTicks)
@@ -294,7 +286,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Argument_InvalidDateTimeKind, nameof(kind));
             }
-            Contract.EndContractBlock();
             Int64 ticks = calendar.ToDateTime(year, month, day, hour, minute, second, 0).Ticks;
             ticks += millisecond * TicksPerMillisecond;
             if (ticks < MinTicks || ticks > MaxTicks)
@@ -306,7 +297,6 @@ namespace System
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
 
             Boolean foundTicks = false;
             Boolean foundDateData = false;
@@ -452,7 +442,6 @@ namespace System
         public DateTime AddMonths(int months)
         {
             if (months < -120000 || months > 120000) throw new ArgumentOutOfRangeException(nameof(months), SR.ArgumentOutOfRange_DateTimeBadMonths);
-            Contract.EndContractBlock();
             GetDatePart(out int y, out int m, out int d);
             int i = m - 1 + months;
             if (i >= 0)
@@ -515,7 +504,6 @@ namespace System
                 // parameter name out of the two for the exception.
                 throw new ArgumentOutOfRangeException("years", SR.ArgumentOutOfRange_DateTimeBadYears);
             }
-            Contract.EndContractBlock();
             return AddMonths(value * 12);
         }
 
@@ -589,7 +577,6 @@ namespace System
         public static int DaysInMonth(int year, int month)
         {
             if (month < 1 || month > 12) throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
-            Contract.EndContractBlock();
             // IsLeapYear checks the year argument
             int[] days = IsLeapYear(year) ? s_daysToMonth366 : s_daysToMonth365;
             return days[month] - days[month - 1];
@@ -725,7 +712,6 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(fileTime), SR.ArgumentOutOfRange_FileTimeInvalid);
             }
-            Contract.EndContractBlock();
 
             // This is the ticks in Universal time for this fileTime.
             long universalTicks = fileTime + FileTimeOffset;
@@ -745,7 +731,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(info));
             }
-            Contract.EndContractBlock();
 
             // Serialize both the old and the new format
             info.AddValue(TicksField, InternalTicks);
@@ -1117,7 +1102,6 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_Year);
             }
-            Contract.EndContractBlock();
             return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
         }
 

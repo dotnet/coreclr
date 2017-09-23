@@ -218,7 +218,6 @@ namespace System.IO
         {
             if (path1 == null || path2 == null)
                 throw new ArgumentNullException((path1 == null) ? nameof(path1) : nameof(path2));
-            Contract.EndContractBlock();
 
             PathInternal.CheckInvalidPathChars(path1);
             PathInternal.CheckInvalidPathChars(path2);
@@ -230,7 +229,6 @@ namespace System.IO
         {
             if (path1 == null || path2 == null || path3 == null)
                 throw new ArgumentNullException((path1 == null) ? nameof(path1) : (path2 == null) ? nameof(path2) : nameof(path3));
-            Contract.EndContractBlock();
 
             PathInternal.CheckInvalidPathChars(path1);
             PathInternal.CheckInvalidPathChars(path2);
@@ -243,7 +241,6 @@ namespace System.IO
         {
             if (path1 == null || path2 == null || path3 == null || path4 == null)
                 throw new ArgumentNullException((path1 == null) ? nameof(path1) : (path2 == null) ? nameof(path2) : (path3 == null) ? nameof(path3) : nameof(path4));
-            Contract.EndContractBlock();
 
             PathInternal.CheckInvalidPathChars(path1);
             PathInternal.CheckInvalidPathChars(path2);
@@ -259,7 +256,6 @@ namespace System.IO
             {
                 throw new ArgumentNullException(nameof(paths));
             }
-            Contract.EndContractBlock();
 
             int finalSize = 0;
             int firstComponent = 0;

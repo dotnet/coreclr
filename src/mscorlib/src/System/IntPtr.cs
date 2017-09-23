@@ -82,7 +82,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(info));
             }
-            Contract.EndContractBlock();
 #if BIT64
             info.AddValue("value", (long)(_value));
 #else // !BIT64 (32)

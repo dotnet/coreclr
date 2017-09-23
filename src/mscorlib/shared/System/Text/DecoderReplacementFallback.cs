@@ -21,7 +21,6 @@ namespace System.Text
         {
             if (replacement == null)
                 throw new ArgumentNullException(nameof(replacement));
-            Contract.EndContractBlock();
 
             // Make sure it doesn't have bad surrogate pairs
             bool bFoundHigh = false;

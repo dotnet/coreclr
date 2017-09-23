@@ -61,7 +61,6 @@ namespace System.Runtime.InteropServices
             // Make sure the type parameter is within the valid range for the enum.
             if ((uint)type > (uint)MaxHandleType)
                 ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum();
-            Contract.EndContractBlock();
 
             IntPtr handle = InternalAlloc(value, type);
 
@@ -160,7 +159,6 @@ namespace System.Runtime.InteropServices
         public static GCHandle FromIntPtr(IntPtr value)
         {
             ValidateHandle(value);
-            Contract.EndContractBlock();
 
 #if MDA_SUPPORTED
             IntPtr handle = value;

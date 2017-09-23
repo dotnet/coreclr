@@ -111,7 +111,6 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(access));
             }
-            Contract.EndContractBlock();
 
             if (_isOpen)
             {
@@ -178,7 +177,6 @@ namespace System.IO
                 throw new ArgumentOutOfRangeException((length < 0) ? nameof(length) : nameof(capacity), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (length > capacity)
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_LengthGreaterThanCapacity);
-            Contract.EndContractBlock();
             // Check for wraparound.
             if (((byte*)((long)pointer + capacity)) < pointer)
                 throw new ArgumentOutOfRangeException(nameof(capacity), SR.ArgumentOutOfRange_UnmanagedMemStreamWrapAround);
@@ -298,14 +296,12 @@ namespace System.IO
             get
             {
                 if (!CanSeek) throw Error.GetStreamIsClosed();
-                Contract.EndContractBlock();
                 return Interlocked.Read(ref _position);
             }
             set
             {
                 if (value < 0) throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_NeedNonNegNum);
                 if (!CanSeek) throw Error.GetStreamIsClosed();
-                Contract.EndContractBlock();
 
                 Interlocked.Exchange(ref _position, value);
             }
@@ -600,7 +596,6 @@ namespace System.IO
         {
             if (value < 0)
                 throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
             if (_buffer != null)
                 throw new NotSupportedException(SR.NotSupported_UmsSafeBuffer);
             if (!_isOpen) throw Error.GetStreamIsClosed();

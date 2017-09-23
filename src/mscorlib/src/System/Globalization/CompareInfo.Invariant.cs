@@ -199,7 +199,6 @@ namespace System.Globalization
         private unsafe SortKey InvariantCreateSortKey(string source, CompareOptions options)
         {
             if (source == null) { throw new ArgumentNullException(nameof(source)); }
-            Contract.EndContractBlock();
 
             if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
             {

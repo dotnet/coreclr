@@ -75,7 +75,6 @@ namespace System
                 throw new ArgumentNullException(nameof(typeName));
             if (typeName.Length > 0 && typeName[0] == '\0')
                 throw new ArgumentException(SR.Format_StringZeroLength);
-            Contract.EndContractBlock();
 
             Type ret = null;
 

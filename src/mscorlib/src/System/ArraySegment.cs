@@ -41,7 +41,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
 
             _array = array;
             _offset = 0;
@@ -55,7 +54,6 @@ namespace System
             // Failure should be rare and location determination and message is delegated to failure functions
             if (array == null || (uint)offset > (uint)array.Length || (uint)count > (uint)(array.Length - offset))
                 ThrowHelper.ThrowArraySegmentCtorValidationFailedExceptions(array, offset, count);
-            Contract.EndContractBlock();
 
             _array = array;
             _offset = offset;
@@ -205,7 +203,6 @@ namespace System
                 ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                Contract.EndContractBlock();
 
                 return _array[_offset + index];
             }
@@ -215,7 +212,6 @@ namespace System
                 ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                Contract.EndContractBlock();
 
                 _array[_offset + index] = value;
             }
@@ -252,7 +248,6 @@ namespace System
                 ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                Contract.EndContractBlock();
 
                 return _array[_offset + index];
             }

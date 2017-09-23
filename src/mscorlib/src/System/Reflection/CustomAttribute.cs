@@ -35,7 +35,6 @@ namespace System.Reflection
         {
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
-            Contract.EndContractBlock();
 
             return target.GetCustomAttributesData();
         }
@@ -44,7 +43,6 @@ namespace System.Reflection
         {
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
-            Contract.EndContractBlock();
 
             return target.GetCustomAttributesData();
         }
@@ -53,7 +51,6 @@ namespace System.Reflection
         {
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
-            Contract.EndContractBlock();
 
             return target.GetCustomAttributesData();
         }
@@ -1004,7 +1001,6 @@ namespace System.Reflection
         {
             if (customAttributeModule == null)
                 throw new ArgumentNullException(nameof(customAttributeModule));
-            Contract.EndContractBlock();
 
             Debug.Assert(customAttributeCtorParameters != null);
             Debug.Assert(customAttributeNamedParameters != null);
@@ -1055,7 +1051,6 @@ namespace System.Reflection
         {
             if (argumentName == null)
                 throw new ArgumentNullException(nameof(argumentName));
-            Contract.EndContractBlock();
 
             m_argumentName = argumentName;
             m_fieldOrProperty = fieldOrProperty;
@@ -1457,7 +1452,6 @@ namespace System.Reflection
         {
             if (decoratedModule.Assembly.ReflectionOnly)
                 throw new InvalidOperationException(SR.Arg_ReflectionOnlyCA);
-            Contract.EndContractBlock();
 
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
 
@@ -1513,7 +1507,6 @@ namespace System.Reflection
         {
             if (decoratedModule.Assembly.ReflectionOnly)
                 throw new InvalidOperationException(SR.Arg_ReflectionOnlyCA);
-            Contract.EndContractBlock();
 
             MetadataImport scope = decoratedModule.MetadataImport;
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);

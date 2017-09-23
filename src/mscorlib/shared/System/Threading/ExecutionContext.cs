@@ -103,7 +103,6 @@ namespace System.Threading
             {
                 throw new InvalidOperationException(SR.InvalidOperation_CannotSupressFlowMultipleTimes);
             }
-            Contract.EndContractBlock();
 
             executionContext = executionContext.ShallowClone(isFlowSuppressed: true);
             var asyncFlowControl = new AsyncFlowControl();
@@ -120,7 +119,6 @@ namespace System.Threading
             {
                 throw new InvalidOperationException(SR.InvalidOperation_CannotRestoreUnsupressedFlow);
             }
-            Contract.EndContractBlock();
 
             currentThread.ExecutionContext = executionContext.ShallowClone(isFlowSuppressed: false);
         }
@@ -322,7 +320,6 @@ namespace System.Threading
             {
                 throw new InvalidOperationException(SR.InvalidOperation_AsyncFlowCtrlCtxMismatch);
             }
-            Contract.EndContractBlock();
 
             _thread = null;
             ExecutionContext.RestoreFlow();

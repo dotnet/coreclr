@@ -47,7 +47,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             if (name[0] == '\0')
                 throw new ArgumentException(SR.Argument_IllegalName, nameof(name));
-            Contract.EndContractBlock();
 
             m_name = name;
             m_moduleBuilder = mod;

@@ -28,7 +28,6 @@ namespace System.Runtime.Versioning
         {
             if (frameworkName == null)
                 throw new ArgumentNullException(nameof(frameworkName));
-            Contract.EndContractBlock();
             _frameworkName = frameworkName;
         }
 

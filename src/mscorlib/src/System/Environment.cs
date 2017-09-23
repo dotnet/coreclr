@@ -135,7 +135,6 @@ namespace System
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
-            Contract.EndContractBlock();
 
             if (name.Length == 0)
             {

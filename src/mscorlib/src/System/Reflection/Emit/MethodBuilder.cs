@@ -91,7 +91,6 @@ namespace System.Reflection.Emit
 
             if (mod == null)
                 throw new ArgumentNullException(nameof(mod));
-            Contract.EndContractBlock();
 
             if (parameterTypes != null)
             {
@@ -195,7 +194,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(il));
             }
-            Contract.EndContractBlock();
 
             __ExceptionInfo[] excp;
             int counter = 0;
@@ -679,7 +677,6 @@ namespace System.Reflection.Emit
 
             if (names.Length == 0)
                 throw new ArgumentException(SR.Arg_EmptyArray, nameof(names));
-            Contract.EndContractBlock();
 
             if (m_inst != null)
                 throw new InvalidOperationException(SR.InvalidOperation_GenericParametersAlreadySet);
@@ -825,7 +822,6 @@ namespace System.Reflection.Emit
         {
             if (position < 0)
                 throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_ParamSequence);
-            Contract.EndContractBlock();
 
             ThrowIfGeneric();
             m_containingType.ThrowIfCreated();
@@ -922,7 +918,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
-            Contract.EndContractBlock();
 
             ThrowIfGeneric();
 
@@ -939,7 +934,6 @@ namespace System.Reflection.Emit
         {
             if (customBuilder == null)
                 throw new ArgumentNullException(nameof(customBuilder));
-            Contract.EndContractBlock();
 
             ThrowIfGeneric();
 

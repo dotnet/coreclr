@@ -87,7 +87,6 @@ namespace System.Diagnostics
 
             if (level < 0)
                 throw new ArgumentOutOfRangeException(nameof(level), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Is logging for this level for this switch enabled?
             if (logswitch.CheckLevel(level) == true)

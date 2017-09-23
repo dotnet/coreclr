@@ -166,7 +166,6 @@ namespace System.Threading
             {
                 throw new ArgumentNullException(nameof(start));
             }
-            Contract.EndContractBlock();
             SetStartHelper((Delegate)start, 0);  //0 will setup Thread with default stackSize
         }
 
@@ -178,7 +177,6 @@ namespace System.Threading
             }
             if (0 > maxStackSize)
                 throw new ArgumentOutOfRangeException(nameof(maxStackSize), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
             SetStartHelper((Delegate)start, maxStackSize);
         }
         public Thread(ParameterizedThreadStart start)
@@ -187,7 +185,6 @@ namespace System.Threading
             {
                 throw new ArgumentNullException(nameof(start));
             }
-            Contract.EndContractBlock();
             SetStartHelper((Delegate)start, 0);
         }
 
@@ -199,7 +196,6 @@ namespace System.Threading
             }
             if (0 > maxStackSize)
                 throw new ArgumentOutOfRangeException(nameof(maxStackSize), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
             SetStartHelper((Delegate)start, maxStackSize);
         }
 
@@ -479,7 +475,6 @@ namespace System.Threading
 
             set
             {
-                Contract.EndContractBlock();
 
                 // If you add more pre-conditions to this method, check to see if you also need to 
                 // add them to CultureInfo.DefaultThreadCurrentCulture.set.

@@ -476,7 +476,6 @@ namespace System
         {
             if (name == null || name.Length == 0)
                 throw new ArgumentException(null, nameof(name));
-            Contract.EndContractBlock();
 
             RuntimeType type = null;
             GetTypeByNameUsingCARules(name, scope.GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));

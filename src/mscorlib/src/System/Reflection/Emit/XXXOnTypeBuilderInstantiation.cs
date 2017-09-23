@@ -73,7 +73,6 @@ namespace System.Reflection.Emit
         {
             if (!IsGenericMethodDefinition)
                 throw new InvalidOperationException(SR.Arg_NotGenericMethodDefinition);
-            Contract.EndContractBlock();
 
             return MethodBuilderInstantiation.MakeGenericMethod(this, typeArgs);
         }
