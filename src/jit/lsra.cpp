@@ -3109,6 +3109,11 @@ bool LinearScan::killGCRefs(GenTree* tree)
         {
             return true;
         }
+
+        if (tree->AsCall()->gtCallMethHnd == compiler->eeFindHelper(CORINFO_HELP_JIT_PINVOKE_BEGIN))
+        {
+            return true;
+        }
     }
     return false;
 }
