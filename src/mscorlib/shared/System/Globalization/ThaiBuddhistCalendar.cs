@@ -121,7 +121,6 @@ namespace System.Globalization
         }
 
 
-        [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
         public override int GetWeekOfYear(DateTime time, CalendarWeekRule rule, DayOfWeek firstDayOfWeek)
         {
             return (helper.GetWeekOfYear(time, rule, firstDayOfWeek));

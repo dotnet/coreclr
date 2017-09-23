@@ -379,13 +379,11 @@ namespace System.Reflection.Emit
         // debugger related calls. 
         //
         //
-        [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
         public override void UsingNamespace(String ns)
         {
             throw new NotSupportedException(SR.InvalidOperation_NotAllowedInDynamicMethod);
         }
 
-        [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
         public override void MarkSequencePoint(ISymbolDocumentWriter document,
                                                int startLine,
                                                int startColumn,

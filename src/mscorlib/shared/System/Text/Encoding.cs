@@ -1342,7 +1342,6 @@ namespace System.Text
                 return _encoding.GetByteCount(chars, index, count);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public unsafe override int GetByteCount(char* chars, int count, bool flush)
             {
                 return _encoding.GetByteCount(chars, count);
@@ -1374,7 +1373,6 @@ namespace System.Text
                 return _encoding.GetBytes(chars, charIndex, charCount, bytes, byteIndex);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public unsafe override int GetBytes(char* chars, int charCount,
                                                  byte* bytes, int byteCount, bool flush)
             {
@@ -1413,7 +1411,6 @@ namespace System.Text
                 return _encoding.GetCharCount(bytes, index, count);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public unsafe override int GetCharCount(byte* bytes, int count, bool flush)
             {
                 // By default just call the encoding version, no flush by default
@@ -1449,7 +1446,6 @@ namespace System.Text
                 return _encoding.GetChars(bytes, byteIndex, byteCount, chars, charIndex);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public unsafe override int GetChars(byte* bytes, int byteCount,
                                                   char* chars, int charCount, bool flush)
             {

@@ -81,7 +81,6 @@ namespace System.IO
             {
                 return (int)_unmanagedStream.Capacity;
             }
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             set
             {
                 throw new IOException(SR.IO_FixedCapacity);

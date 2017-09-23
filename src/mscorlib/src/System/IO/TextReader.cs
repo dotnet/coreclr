@@ -252,7 +252,6 @@ namespace System.IO {
         {
             public NullTextReader(){}
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int Read(char[] buffer, int index, int count) 
             {
                 return 0;
@@ -300,7 +299,6 @@ namespace System.IO {
                 return _in.Read();
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             [MethodImplAttribute(MethodImplOptions.Synchronized)]
             public override int Read([In, Out] char[] buffer, int index, int count) 
             {
