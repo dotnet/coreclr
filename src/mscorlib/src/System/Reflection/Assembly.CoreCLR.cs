@@ -7,7 +7,6 @@ using System.IO;
 using System.Configuration.Assemblies;
 using StackCrawlMark = System.Threading.StackCrawlMark;
 using System.Runtime.Serialization;
-using System.Diagnostics.Contracts;
 using System.Runtime.Loader;
 
 namespace System.Reflection

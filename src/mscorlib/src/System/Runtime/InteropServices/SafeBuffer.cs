@@ -73,7 +73,6 @@ using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Runtime.InteropServices
 {

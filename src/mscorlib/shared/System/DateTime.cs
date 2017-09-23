@@ -4,7 +4,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Threading;
 using System.Globalization;
 using System.Runtime;
@@ -946,7 +945,6 @@ namespace System
             return (InternalKind == KindLocalAmbiguousDst);
         }
 
-        [Pure]
         public DateTimeKind Kind
         {
             get

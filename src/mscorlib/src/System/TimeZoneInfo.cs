@@ -5,7 +5,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -1921,7 +1920,6 @@ namespace System
         /// <summary>
         /// Helper function that validates the TimeSpan is within +/- 14.0 hours
         /// </summary>
-        [Pure]
         internal static bool UtcOffsetOutOfRange(TimeSpan offset) =>
             offset.TotalHours < -14.0 || offset.TotalHours > 14.0;
 

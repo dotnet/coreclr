@@ -11,7 +11,6 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System
 {
@@ -158,7 +157,6 @@ namespace System
         // the object does not implement IConvertible), the result is TypeCode.Object.
         // Otherwise, the result is the type code of the object, as determined by
         // the object's implementation of IConvertible.
-        [Pure]
         public static TypeCode GetTypeCode(object value)
         {
             if (value == null) return TypeCode.Empty;
@@ -172,7 +170,6 @@ namespace System
 
         // Returns true if the given object is a database null. This operation
         // corresponds to "value.GetTypeCode() == TypeCode.DBNull".
-        [Pure]
         public static bool IsDBNull(object value)
         {
             if (value == System.DBNull.Value) return true;

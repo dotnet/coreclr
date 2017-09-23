@@ -21,7 +21,6 @@ namespace System
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
     using CultureInfo = System.Globalization.CultureInfo;
     using FieldInfo = System.Reflection.FieldInfo;
     using BindingFlags = System.Reflection.BindingFlags;
@@ -98,7 +97,6 @@ namespace System
 
         // Returns a Type object which represent this object instance.
         // 
-        [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern Type GetType();
 

@@ -15,7 +15,6 @@ namespace System.Reflection.Emit
     using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Runtime.InteropServices;
 
     public sealed class DynamicMethod : MethodInfo
@@ -430,7 +429,6 @@ namespace System.Reflection.Emit
 
         public override MethodInfo GetBaseDefinition() { return this; }
 
-        [Pure]
         public override ParameterInfo[] GetParameters() { return m_dynMethod.GetParameters(); }
 
         public override MethodImplAttributes GetMethodImplementationFlags() { return m_dynMethod.GetMethodImplementationFlags(); }
@@ -646,7 +644,6 @@ namespace System.Reflection.Emit
                 return this;
             }
 
-            [Pure]
             public override ParameterInfo[] GetParameters()
             {
                 ParameterInfo[] privateParameters = LoadParameters();

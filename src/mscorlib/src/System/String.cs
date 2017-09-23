@@ -28,7 +28,6 @@ namespace System
     using System.Runtime.Versioning;
     using Microsoft.Win32;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Security;
 
     //
@@ -176,13 +175,11 @@ namespace System
             return Array.Empty<char>();
         }
 
-        [Pure]
         public static bool IsNullOrEmpty(String value)
         {
             return (value == null || value.Length == 0);
         }
 
-        [Pure]
         public static bool IsNullOrWhiteSpace(String value)
         {
             if (value == null) return true;
@@ -749,7 +746,6 @@ namespace System
             return Thread.GetDomain().GetOrInternString(str);
         }
 
-        [Pure]
         public static String IsInterned(String str)
         {
             if (str == null)

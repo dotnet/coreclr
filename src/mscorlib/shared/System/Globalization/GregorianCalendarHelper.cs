@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Diagnostics.Contracts;
 using System.Threading;
 
 namespace System.Globalization
@@ -424,7 +423,6 @@ namespace System.Globalization
         // Returns the number of days in the month given by the year and
         // month arguments.
         //
-        [Pure]
         public int GetDaysInMonth(int year, int month, int era)
         {
             //

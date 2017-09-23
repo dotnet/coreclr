@@ -7,7 +7,6 @@ namespace System.Runtime.InteropServices
     using System;
     using System.Runtime.CompilerServices;
     using System.Threading;
-    using System.Diagnostics.Contracts;
 #if BIT64
     using nint = System.Int64;
 #else

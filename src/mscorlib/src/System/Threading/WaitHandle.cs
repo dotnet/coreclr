@@ -21,7 +21,6 @@ namespace System.Threading
     using Microsoft.Win32.SafeHandles;
     using System.Runtime.Versioning;
     using System.Runtime.ConstrainedExecution;
-    using System.Diagnostics.Contracts;
     using System.Diagnostics.CodeAnalysis;
     using Win32Native = Microsoft.Win32.Win32Native;
 

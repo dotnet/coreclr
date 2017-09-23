@@ -7,7 +7,6 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
 
 namespace System.IO
@@ -301,7 +300,6 @@ namespace System.IO
             }
         }
 
-        [Pure]
         public override int Peek() {
             if (stream == null)
                 __Error.ReaderClosed();

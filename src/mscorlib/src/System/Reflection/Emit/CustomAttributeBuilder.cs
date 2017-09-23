@@ -21,7 +21,6 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Globalization;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection.Emit
 {

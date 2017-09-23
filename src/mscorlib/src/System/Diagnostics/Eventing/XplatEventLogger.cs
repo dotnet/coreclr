@@ -7,8 +7,6 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-using Contract = System.Diagnostics.Contracts.Contract;
-
 #if FEATURE_EVENTSOURCE_XPLAT
 
 namespace System.Diagnostics.Tracing

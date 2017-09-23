@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -198,7 +197,6 @@ namespace System.IO
         /// </summary>
         public override bool CanRead
         {
-            [Pure]
             get { return _isOpen && (_access & FileAccess.Read) != 0; }
         }
 
@@ -207,7 +205,6 @@ namespace System.IO
         /// </summary>
         public override bool CanSeek
         {
-            [Pure]
             get { return _isOpen; }
         }
 
@@ -216,7 +213,6 @@ namespace System.IO
         /// </summary>
         public override bool CanWrite
         {
-            [Pure]
             get { return _isOpen && (_access & FileAccess.Write) != 0; }
         }
 

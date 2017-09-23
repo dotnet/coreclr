@@ -8,7 +8,6 @@ using System;
 using System.StubHelpers;
 using System.Reflection;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Collections;
 using System.Collections.Generic;
@@ -244,7 +243,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         // IBindableVector implementation (forwards to IBindableVector / IVector<T>)
         //        
-        [Pure]
         object IBindableVector.GetAt(uint index)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
@@ -260,7 +258,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [Pure]
         uint IBindableVector.Size
         {
             get
@@ -279,7 +276,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [Pure]
         IBindableVectorView IBindableVector.GetView()
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
@@ -304,13 +300,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 _vectorView = vectorView;
             }
 
-            [Pure]
             object IBindableVectorView.GetAt(uint index)
             {
                 return _vectorView.GetAt(index);
             }
 
-            [Pure]
             uint IBindableVectorView.Size
             {
                 get
@@ -319,7 +313,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
             }
 
-            [Pure]
             bool IBindableVectorView.IndexOf(object value, out uint index)
             {
                 return _vectorView.IndexOf(ConvertTo<T>(value), out index);
@@ -331,7 +324,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [Pure]
         bool IBindableVector.IndexOf(object value, out uint index)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
@@ -457,7 +449,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         // IBindableVectorView implementation (forwarding to IBindableVectorView or IVectorView<T>)
         //
-        [Pure]
         object IBindableVectorView.GetAt(uint index)
         {
             IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
@@ -467,7 +458,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return GetVectorViewOfT().GetAt(index);
         }
 
-        [Pure]
         uint IBindableVectorView.Size
         {
             get
@@ -480,7 +470,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [Pure]
         bool IBindableVectorView.IndexOf(object value, out uint index)
         {
             IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();

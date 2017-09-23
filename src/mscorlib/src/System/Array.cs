@@ -19,7 +19,6 @@ using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using System.Security;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System
 {
@@ -491,7 +490,6 @@ namespace System
 
         public extern int Length
         {
-            [Pure]
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
@@ -514,16 +512,13 @@ namespace System
 
         public extern long LongLength
         {
-            [Pure]
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
-        [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern int GetLength(int dimension);
 
-        [Pure]
         public long GetLongLength(int dimension)
         {
             //This method should throw an IndexOufOfRangeException for compat if dimension < 0 or >= Rank
@@ -532,16 +527,13 @@ namespace System
 
         public extern int Rank
         {
-            [Pure]
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
 
-        [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern int GetUpperBound(int dimension);
 
-        [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern int GetLowerBound(int dimension);
 
@@ -722,7 +714,6 @@ namespace System
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
         // 
-        [Pure]
         public static int BinarySearch(Array array, Object value)
         {
             if (array == null)
@@ -744,7 +735,6 @@ namespace System
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
         // 
-        [Pure]
         public static int BinarySearch(Array array, int index, int length, Object value)
         {
             return BinarySearch(array, index, length, value, null);
@@ -764,7 +754,6 @@ namespace System
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
         // 
-        [Pure]
         public static int BinarySearch(Array array, Object value, IComparer comparer)
         {
             if (array == null)
@@ -788,7 +777,6 @@ namespace System
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
         // 
-        [Pure]
         public static int BinarySearch(Array array, int index, int length, Object value, IComparer comparer)
         {
             if (array == null)
@@ -874,7 +862,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool TrySZBinarySearch(Array sourceArray, int sourceIndex, int count, Object value, out int retVal);
 
-        [Pure]
         public static int BinarySearch<T>(T[] array, T value)
         {
             if (array == null)
@@ -882,7 +869,6 @@ namespace System
             return BinarySearch<T>(array, 0, array.Length, value, null);
         }
 
-        [Pure]
         public static int BinarySearch<T>(T[] array, T value, System.Collections.Generic.IComparer<T> comparer)
         {
             if (array == null)
@@ -890,13 +876,11 @@ namespace System
             return BinarySearch<T>(array, 0, array.Length, value, comparer);
         }
 
-        [Pure]
         public static int BinarySearch<T>(T[] array, int index, int length, T value)
         {
             return BinarySearch<T>(array, index, length, value, null);
         }
 
-        [Pure]
         public static int BinarySearch<T>(T[] array, int index, int length, T value, System.Collections.Generic.IComparer<T> comparer)
         {
             if (array == null)
@@ -939,7 +923,6 @@ namespace System
         // Array.Copy internally.  If you aren't using ICollection explicitly,
         // call Array.Copy to avoid an extra indirection.
         // 
-        [Pure]
         public void CopyTo(Array array, int index)
         {
             if (array != null && array.Rank != 1)
@@ -948,7 +931,6 @@ namespace System
             Array.Copy(this, GetLowerBound(0), array, index, Length);
         }
 
-        [Pure]
         public void CopyTo(Array array, long index)
         {
             if (index > Int32.MaxValue || index < Int32.MinValue)
@@ -962,7 +944,6 @@ namespace System
             internal static readonly T[] Value = new T[0];
         }
 
-        [Pure]
         public static T[] Empty<T>()
         {
 
@@ -1317,7 +1298,6 @@ namespace System
             return lb - 1;
         }
 
-        [Pure]
         public static int IndexOf<T>(T[] array, T value)
         {
             if (array == null)

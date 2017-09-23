@@ -28,7 +28,6 @@ using System.Runtime.InteropServices;
 using DebuggerStepThroughAttribute = System.Diagnostics.DebuggerStepThroughAttribute;
 using MdToken = System.Reflection.MetadataToken;
 using System.Runtime.Versioning;
-using System.Diagnostics.Contracts;
 
 namespace System
 {
@@ -3241,7 +3240,6 @@ namespace System
             return RuntimeTypeHandle.IsInstanceOfType(this, o);
         }
 
-        [Pure]
         public override bool IsSubclassOf(Type type)
         {
             if ((object)type == null)
@@ -4432,7 +4430,6 @@ namespace System
         #endregion
 
         #region Object Overrides
-        [Pure]
         public override bool Equals(object obj)
         {
             // ComObjects are identified by the instance of the Type object and not the TypeHandle.

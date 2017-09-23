@@ -4,7 +4,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -784,13 +783,11 @@ namespace System
 
         //
         //
-        [Pure]
         public String PadLeft(int totalWidth)
         {
             return PadLeft(totalWidth, ' ');
         }
 
-        [Pure]
         public String PadLeft(int totalWidth, char paddingChar)
         {
             if (totalWidth < 0)
@@ -815,13 +812,11 @@ namespace System
             return result;
         }
 
-        [Pure]
         public String PadRight(int totalWidth)
         {
             return PadRight(totalWidth, ' ');
         }
 
-        [Pure]
         public String PadRight(int totalWidth, char paddingChar)
         {
             if (totalWidth < 0)
@@ -1536,14 +1531,12 @@ namespace System
         }
 
         // Creates a copy of this string in lower case.
-        [Pure]
         public String ToLower()
         {
             return this.ToLower(CultureInfo.CurrentCulture);
         }
 
         // Creates a copy of this string in lower case.  The culture is set by culture.
-        [Pure]
         public String ToLower(CultureInfo culture)
         {
             if (culture == null)
@@ -1554,14 +1547,12 @@ namespace System
         }
 
         // Creates a copy of this string in lower case based on invariant culture.
-        [Pure]
         public String ToLowerInvariant()
         {
             return this.ToLower(CultureInfo.InvariantCulture);
         }
 
         // Creates a copy of this string in upper case.
-        [Pure]
         public String ToUpper()
         {
             return this.ToUpper(CultureInfo.CurrentCulture);
@@ -1569,7 +1560,6 @@ namespace System
 
 
         // Creates a copy of this string in upper case.  The culture is set by culture.
-        [Pure]
         public String ToUpper(CultureInfo culture)
         {
             if (culture == null)
@@ -1581,7 +1571,6 @@ namespace System
 
 
         //Creates a copy of this string in upper case based on invariant culture.
-        [Pure]
         public String ToUpperInvariant()
         {
             return this.ToUpper(CultureInfo.InvariantCulture);
@@ -1590,7 +1579,6 @@ namespace System
         // Trims the whitespace from both ends of the string.  Whitespace is defined by
         // Char.IsWhiteSpace.
         //
-        [Pure]
         public string Trim()
         {
 
@@ -1601,7 +1589,6 @@ namespace System
         public unsafe string Trim(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Both);
 
         // Removes a set of characters from the beginning and end of this string.
-        [Pure]
         public unsafe string Trim(params char[] trimChars)
         {
             if (trimChars == null || trimChars.Length == 0)

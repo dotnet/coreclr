@@ -23,7 +23,6 @@
 
 using System.IO;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Threading.Tasks
 {

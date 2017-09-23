@@ -7,7 +7,6 @@ using System.Text;
 using System;
 using System.IO;
 using System.Reflection;
-using System.Diagnostics.Contracts;
 
 namespace System.Diagnostics
 {

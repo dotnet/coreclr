@@ -20,7 +20,6 @@ namespace System
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Security;
-    using System.Diagnostics.Contracts;
 
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
@@ -31,7 +30,6 @@ namespace System
         public static readonly IntPtr Zero;
 
         // fast way to compare IntPtr to (IntPtr)0 while IntPtr.Zero doesn't work due to slow statics access
-        [Pure]
         internal unsafe bool IsNull()
         {
             return (_value == null);
@@ -247,7 +245,6 @@ namespace System
 
         public static int Size
         {
-            [Pure]
             [System.Runtime.Versioning.NonVersionable]
             get
             {

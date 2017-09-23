@@ -13,7 +13,6 @@ namespace System
     using CultureInfo = System.Globalization.CultureInfo;
     using FieldInfo = System.Reflection.FieldInfo;
     using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
 
     [CLSCompliant(false)]
     [System.Runtime.Versioning.NonVersionable] // This only applies to field layout

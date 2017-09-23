@@ -14,7 +14,6 @@ namespace System.Threading
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.Versioning;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Diagnostics.Tracing;
     using Microsoft.Win32.SafeHandles;
 

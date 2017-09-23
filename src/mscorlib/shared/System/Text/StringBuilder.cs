@@ -12,7 +12,6 @@ using System.Security;
 using System.Threading;
 using System.Globalization;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 
 namespace System.Text

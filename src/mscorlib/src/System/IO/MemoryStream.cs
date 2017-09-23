@@ -20,7 +20,6 @@ using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,7 +38,6 @@ namespace System.IO
         private byte[] _buffer;    // Either allocated internally or externally.
         private int _origin;       // For user-provided arrays, start at this origin
         private int _position;     // read/write head.
-        [ContractPublicPropertyName("Length")]
         private int _length;       // Number of bytes within the memory stream
         private int _capacity;     // length of usable portion of buffer for stream
         // Note that _capacity == _buffer.Length for non-user-provided byte[]'s
@@ -122,19 +120,16 @@ namespace System.IO
 
         public override bool CanRead
         {
-            [Pure]
             get { return _isOpen; }
         }
 
         public override bool CanSeek
         {
-            [Pure]
             get { return _isOpen; }
         }
 
         public override bool CanWrite
         {
-            [Pure]
             get { return _writable; }
         }
 

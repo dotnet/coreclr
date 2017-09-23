@@ -18,7 +18,6 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Contracts;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -65,7 +64,6 @@ namespace System.IO {
         // 
         // This default method simply returns -1.
         //
-        [Pure]
         public virtual int Peek() 
         {
 

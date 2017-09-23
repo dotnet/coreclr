@@ -24,7 +24,6 @@ namespace System.Reflection
     using System.Runtime.Serialization;
     using System.Runtime.InteropServices;
     using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
     using System.Text;
 
     public sealed class AssemblyName : ICloneable, ISerializable, IDeserializationCallback

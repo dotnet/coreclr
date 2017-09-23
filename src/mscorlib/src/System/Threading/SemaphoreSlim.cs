@@ -17,7 +17,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security;
 using System.Runtime.InteropServices;
-using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
 
 // The class will be part of the current System.Threading namespace

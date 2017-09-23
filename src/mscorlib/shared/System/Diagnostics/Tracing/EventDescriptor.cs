@@ -10,7 +10,6 @@ using Environment = Microsoft.Diagnostics.Tracing.Internal.Environment;
 #endif
 
 #if !ES_BUILD_AGAINST_DOTNET_V35
-using Contract = System.Diagnostics.Contracts.Contract;
 #else
 using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
 #endif

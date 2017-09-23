@@ -22,7 +22,6 @@ namespace System.Threading
     using System.Reflection;
     using System.Security;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Diagnostics.CodeAnalysis;
 
 

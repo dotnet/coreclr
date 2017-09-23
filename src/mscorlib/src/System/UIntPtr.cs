@@ -17,7 +17,6 @@ namespace System
     using System.Globalization;
     using System.Runtime.Serialization;
     using System.Security;
-    using System.Diagnostics.Contracts;
 
     [Serializable]
     [CLSCompliant(false)]

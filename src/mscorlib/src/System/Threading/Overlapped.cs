@@ -31,7 +31,6 @@ using System.Runtime.Versioning;
 using System.Security;
 using System.Runtime.ConstrainedExecution;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Collections.Concurrent;
 
 namespace System.Threading

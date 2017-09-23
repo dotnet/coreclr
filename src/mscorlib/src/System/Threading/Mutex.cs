@@ -24,7 +24,6 @@ namespace System.Threading
     using System.Runtime.Versioning;
     using System.Security;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     public sealed class Mutex : WaitHandle
     {

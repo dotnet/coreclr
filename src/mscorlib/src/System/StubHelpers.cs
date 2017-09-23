@@ -17,7 +17,6 @@ namespace System.StubHelpers
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     internal static class AnsiCharMarshaler
     {

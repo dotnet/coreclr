@@ -16,7 +16,6 @@ using System.Globalization;
 using System.Security;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection
 {

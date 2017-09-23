@@ -4,7 +4,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
@@ -241,7 +240,6 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        [Pure]
         public override ParameterInfo[] GetParameters()
         {
             ParameterInfo[] parameters = GetParametersNoCopy();

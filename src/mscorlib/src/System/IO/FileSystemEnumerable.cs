@@ -20,7 +20,6 @@ using System.Runtime.InteropServices;
 using System.Globalization;
 using System.Runtime.Versioning;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Threading;
 
 namespace System.IO

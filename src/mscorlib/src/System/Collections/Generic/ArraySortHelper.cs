@@ -17,7 +17,6 @@ using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.Versioning;
 
 namespace System.Collections.Generic

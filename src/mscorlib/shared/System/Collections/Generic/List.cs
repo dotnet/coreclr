@@ -4,7 +4,6 @@
 
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 
 namespace System.Collections.Generic
@@ -24,7 +23,6 @@ namespace System.Collections.Generic
         private const int DefaultCapacity = 4;
 
         private T[] _items; // Do not rename (binary serialization)
-        [ContractPublicPropertyName("Count")]
         private int _size; // Do not rename (binary serialization)
         private int _version; // Do not rename (binary serialization)
         [NonSerialized]

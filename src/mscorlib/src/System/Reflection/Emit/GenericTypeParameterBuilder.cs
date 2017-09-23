@@ -9,7 +9,6 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection.Emit
 {
@@ -199,7 +198,6 @@ namespace System.Reflection.Emit
 
         public override bool IsAssignableFrom(Type c) { throw new NotSupportedException(); }
 
-        [Pure]
         public override bool IsSubclassOf(Type c) { throw new NotSupportedException(); }
         #endregion
 

@@ -29,7 +29,6 @@ namespace System.Runtime.InteropServices
     using Win32Native = Microsoft.Win32.Win32Native;
     using Microsoft.Win32.SafeHandles;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Runtime.InteropServices.ComTypes;
     using System.StubHelpers;
 
@@ -240,7 +239,6 @@ namespace System.Runtime.InteropServices
             return SizeOf((object)structure);
         }
 
-        [Pure]
         public static int SizeOf(Type t)
         {
             if (t == null)

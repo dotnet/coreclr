@@ -4,7 +4,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Security;
 using System.Text;
@@ -353,7 +352,6 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        [System.Diagnostics.Contracts.Pure]
         public override ParameterInfo[] GetParameters()
         {
             FetchNonReturnParameters();

@@ -17,7 +17,6 @@ namespace System.Reflection.Emit
     using System.Threading;
     using System.Runtime.Versioning;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
 
     public enum PackingSize
@@ -262,7 +261,6 @@ namespace System.Reflection.Emit
         #endregion
         #region Internal\Private Static Members
 
-        [Pure]
         internal static bool IsTypeEqual(Type t1, Type t2)
         {
             // Maybe we are lucky that they are equal in the first place
@@ -687,7 +685,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [Pure]
         public bool IsCreated()
         {
             return m_hasBeenCreated;
@@ -1135,7 +1132,6 @@ namespace System.Reflection.Emit
             get { return false; }
         }
 
-        [Pure]
         public override bool IsSubclassOf(Type c)
         {
             Type p = this;

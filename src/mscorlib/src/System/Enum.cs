@@ -10,7 +10,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 // The code below includes partial support for float/double and
 // pointer sized enums.
@@ -632,7 +631,6 @@ namespace System
             }
         }
 
-        [Pure]
         public static bool IsDefined(Type enumType, Object value)
         {
             if (enumType == null)

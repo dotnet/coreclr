@@ -31,7 +31,6 @@ namespace System.Resources
     using System.Collections.Generic;
     using System.Runtime.Versioning;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
 #if FEATURE_APPX
     //

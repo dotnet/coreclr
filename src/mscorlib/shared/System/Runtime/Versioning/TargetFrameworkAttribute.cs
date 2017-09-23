@@ -13,7 +13,6 @@
 ===========================================================*/
 
 using System;
-using System.Diagnostics.Contracts;
 
 namespace System.Runtime.Versioning
 {

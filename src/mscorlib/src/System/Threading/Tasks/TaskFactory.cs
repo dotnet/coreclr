@@ -18,7 +18,6 @@ using System.Security;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Threading.Tasks
 {
@@ -202,7 +201,6 @@ namespace System.Threading.Tasks
             m_defaultContinuationOptions = continuationOptions;
         }
 
-        [ContractArgumentValidatorAttribute]
         internal static void CheckCreationOptions(TaskCreationOptions creationOptions)
         {
             // Check for validity of options
@@ -3022,7 +3020,6 @@ namespace System.Threading.Tasks
         }
 
         // Throw an exception if "options" argument specifies illegal options
-        [ContractArgumentValidatorAttribute]
         internal static void CheckMultiTaskContinuationOptions(TaskContinuationOptions continuationOptions)
         {
             // Construct a mask to check for illegal options

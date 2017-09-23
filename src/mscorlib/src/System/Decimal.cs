@@ -11,7 +11,6 @@ using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using System.Runtime.Serialization;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System
 {

@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -202,7 +201,6 @@ namespace System.Globalization
             }
         }
 
-        [Pure]
         private void VerifyWritable()
         {
             if (isReadOnly)

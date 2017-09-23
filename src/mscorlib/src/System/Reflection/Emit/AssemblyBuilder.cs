@@ -27,7 +27,6 @@ namespace System.Reflection.Emit
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Diagnostics.SymbolStore;
     using CultureInfo = System.Globalization.CultureInfo;
     using System.IO;

@@ -30,7 +30,6 @@ namespace System
     using System.Threading;
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
 
     public enum EnvironmentVariableTarget
     {

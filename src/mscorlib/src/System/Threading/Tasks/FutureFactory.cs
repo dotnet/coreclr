@@ -15,7 +15,6 @@ using System.Security;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.Versioning;
 
 namespace System.Threading.Tasks

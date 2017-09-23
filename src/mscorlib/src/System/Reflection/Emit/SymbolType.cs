@@ -9,7 +9,6 @@ namespace System.Reflection.Emit
     using System.Runtime.InteropServices;
     using System;
     using System.Reflection;
-    using System.Diagnostics.Contracts;
     using CultureInfo = System.Globalization.CultureInfo;
 
     internal enum TypeKind

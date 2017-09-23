@@ -7,7 +7,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -23,13 +22,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IKeyValuePair<K, V> implementation
-        [Pure]
         public K Key
         {
             get { return _pair.Key; }
         }
 
-        [Pure]
         public V Value
         {
             get { return _pair.Value; }

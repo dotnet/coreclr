@@ -21,7 +21,6 @@ namespace System.Reflection.Emit
     using System.Runtime.Versioning;
     using System.Runtime.CompilerServices;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     internal sealed class InternalModuleBuilder : RuntimeModule
     {
@@ -823,7 +822,6 @@ namespace System.Reflection.Emit
 
         public override Assembly Assembly
         {
-            [Pure]
             get
             {
                 return m_assemblyBuilder;
@@ -1683,7 +1681,6 @@ namespace System.Reflection.Emit
             return m_iSymWriter.DefineDocument(url, language, languageVendor, documentType);
         }
 
-        [Pure]
         public bool IsTransient()
         {
             return InternalModule.IsTransientInternal();

@@ -34,7 +34,6 @@ namespace System.Threading
     using System.Runtime.InteropServices;
     using System.Runtime.Versioning;
     using System.Security.AccessControl;
-    using System.Diagnostics.Contracts;
 
     [ComVisibleAttribute(true)]
     public class EventWaitHandle : WaitHandle

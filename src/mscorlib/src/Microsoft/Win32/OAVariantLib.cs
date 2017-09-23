@@ -17,7 +17,6 @@ namespace Microsoft.Win32
 {
     using System;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Reflection;
     using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;

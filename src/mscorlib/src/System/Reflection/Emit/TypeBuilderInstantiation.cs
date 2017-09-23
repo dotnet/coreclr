@@ -9,7 +9,6 @@ using System.Reflection;
 using System.Collections;
 using System.Globalization;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection.Emit
 {
@@ -224,7 +223,6 @@ namespace System.Reflection.Emit
         public override Type MakeGenericType(params Type[] inst) { throw new InvalidOperationException(SR.Arg_NotGenericTypeDefinition); }
         public override bool IsAssignableFrom(Type c) { throw new NotSupportedException(); }
 
-        [Pure]
         public override bool IsSubclassOf(Type c)
         {
             throw new NotSupportedException();

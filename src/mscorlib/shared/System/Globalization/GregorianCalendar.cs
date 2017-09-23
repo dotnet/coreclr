@@ -4,7 +4,6 @@
 
 using System;
 using System.Globalization;
-using System.Diagnostics.Contracts;
 using System.Threading;
 
 namespace System.Globalization

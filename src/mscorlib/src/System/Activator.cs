@@ -23,7 +23,6 @@ namespace System
     using System.Runtime.CompilerServices;
     using AssemblyHashAlgorithm = System.Configuration.Assemblies.AssemblyHashAlgorithm;
     using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
 
     // Only statics, does not need to be marked with the serializable attribute
     public sealed class Activator

@@ -5,7 +5,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 
 namespace System

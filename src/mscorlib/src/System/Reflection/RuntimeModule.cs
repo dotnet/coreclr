@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Security;
 using System.Globalization;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection
 {
@@ -568,7 +567,6 @@ namespace System.Reflection
 
         public override Assembly Assembly
         {
-            [Pure]
             get
             {
                 return GetRuntimeAssembly();

@@ -28,7 +28,6 @@ namespace System.Threading
     using System.Security;
     using System.Runtime.Versioning;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     internal delegate Object InternalCrossContextDelegate(Object[] args);
 

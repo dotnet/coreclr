@@ -10,7 +10,6 @@ namespace System.Diagnostics
     using System.Runtime.CompilerServices;
     using Encoding = System.Text.Encoding;
     using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
     using System.Diagnostics.CodeAnalysis;
 
     using Console = Internal.Console;

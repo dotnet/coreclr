@@ -20,7 +20,6 @@ using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.IO
 {
@@ -31,7 +30,6 @@ namespace System.IO
     {
         private SafeBuffer _buffer;
         private Int64 _offset;
-        [ContractPublicPropertyName("Capacity")]
         private Int64 _capacity;
         private FileAccess _access;
         private bool _isOpen;

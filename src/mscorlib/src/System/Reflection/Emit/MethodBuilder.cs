@@ -16,7 +16,6 @@ namespace System.Reflection.Emit
     using System.Collections.Generic;
     using System.Runtime.InteropServices;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     public sealed class MethodBuilder : MethodInfo
     {
@@ -610,7 +609,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [Pure]
         public override ParameterInfo[] GetParameters()
         {
             if (!m_bIsBaked || m_containingType == null || m_containingType.BakedRuntimeType == null)

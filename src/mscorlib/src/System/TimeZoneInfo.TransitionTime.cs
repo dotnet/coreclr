@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 
 namespace System
@@ -31,7 +30,6 @@ namespace System
 
             public bool IsFixedDateRule => _isFixedDateRule;
 
-            [Pure]
             public override bool Equals(object obj) =>
                 obj is TransitionTime && Equals((TransitionTime)obj);
 
@@ -39,7 +37,6 @@ namespace System
 
             public static bool operator !=(TransitionTime t1, TransitionTime t2) => !t1.Equals(t2);
 
-            [Pure]
             public bool Equals(TransitionTime other) =>
                 _isFixedDateRule == other._isFixedDateRule &&
                 _timeOfDay == other._timeOfDay &&

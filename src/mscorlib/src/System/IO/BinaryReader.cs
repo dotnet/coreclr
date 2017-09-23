@@ -19,7 +19,6 @@ using System.Runtime;
 using System.Text;
 using System.Globalization;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Security;
 
 namespace System.IO

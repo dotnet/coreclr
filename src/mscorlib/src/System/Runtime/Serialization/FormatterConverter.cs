@@ -15,7 +15,6 @@
 
 using System;
 using System.Globalization;
-using System.Diagnostics.Contracts;
 
 namespace System.Runtime.Serialization
 {

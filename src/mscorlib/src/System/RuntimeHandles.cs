@@ -20,7 +20,6 @@ namespace System
     using System.Globalization;
     using System.Security;
     using Microsoft.Win32.SafeHandles;
-    using System.Diagnostics.Contracts;
     using StackCrawlMark = System.Threading.StackCrawlMark;
 
     public unsafe struct RuntimeTypeHandle : ISerializable
@@ -805,7 +804,6 @@ namespace System
             return handle.Value == Value;
         }
 
-        [Pure]
         internal bool IsNullHandle()
         {
             return m_value == null;
@@ -837,7 +835,6 @@ namespace System
             return _GetCurrentMethod(ref stackMark);
         }
 
-        [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern MethodAttributes GetAttributes(RuntimeMethodHandleInternal method);
 

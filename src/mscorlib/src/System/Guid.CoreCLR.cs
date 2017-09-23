@@ -4,7 +4,6 @@
 
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
-using System.Diagnostics.Contracts;
 
 namespace System
 {

@@ -28,7 +28,6 @@ namespace System.Resources
     using System.Text;
     using System.Threading;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using Microsoft.Win32;
 
     //

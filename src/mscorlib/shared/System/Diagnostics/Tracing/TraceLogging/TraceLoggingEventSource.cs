@@ -29,7 +29,6 @@ using System.Security;
 using System.Collections.ObjectModel;
 
 #if !ES_BUILD_AGAINST_DOTNET_V35
-using Contract = System.Diagnostics.Contracts.Contract;
 using System.Collections.Generic;
 using System.Text;
 #else

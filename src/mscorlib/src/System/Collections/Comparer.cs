@@ -14,7 +14,6 @@
 ===========================================================*/
 
 using System.Globalization;
-using System.Diagnostics.Contracts;
 
 namespace System.Collections
 {

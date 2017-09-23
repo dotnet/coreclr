@@ -16,7 +16,6 @@
 using System.Runtime.InteropServices;
 using System;
 using System.Reflection;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection.Emit
 {

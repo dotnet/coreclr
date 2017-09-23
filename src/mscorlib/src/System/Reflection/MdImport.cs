@@ -16,7 +16,6 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Configuration.Assemblies;
 using System.Runtime.Versioning;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection
 {

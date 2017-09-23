@@ -19,7 +19,6 @@ namespace System.Threading.Tasks
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Runtime.ExceptionServices;
     using System.Security;
 
