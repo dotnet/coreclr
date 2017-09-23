@@ -538,9 +538,8 @@ namespace System.IO
 
         private void RunReadWriteTaskWhenReady(Task asyncWaiter, ReadWriteTask readWriteTask)
         {
-            Debug.Assert(readWriteTask != null);  // Should be Contract.Requires, but CCRewrite is doing a poor job with
-                                                  // preconditions in async methods that await.  
-            Debug.Assert(asyncWaiter != null);    // Ditto
+            Debug.Assert(readWriteTask != null);
+            Debug.Assert(asyncWaiter != null);
 
             // If the wait has already completed, run the task.
             if (asyncWaiter.IsCompleted)
