@@ -50,6 +50,8 @@ namespace System.Diagnostics.Tracing.Internal
     }
 }
 
+#if ES_BUILD_AGAINST_DOTNET_V35
+
 namespace Microsoft.Internal
 {
     using System.Text;
