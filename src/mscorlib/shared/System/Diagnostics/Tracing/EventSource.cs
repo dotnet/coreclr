@@ -197,11 +197,6 @@ using System.Threading.Tasks;
 
 using Microsoft.Reflection;
 
-#if !ES_BUILD_AGAINST_DOTNET_V35
-#else
-using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
-#endif
-
 #if CORECLR || ES_BUILD_PN
 using Internal.Runtime.Augments;
 #endif
