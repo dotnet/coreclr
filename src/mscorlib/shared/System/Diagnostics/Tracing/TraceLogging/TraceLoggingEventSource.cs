@@ -32,7 +32,6 @@ using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Text;
 #else
-using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
 using System.Collections.Generic;
 using System.Text;
 #endif

@@ -100,7 +100,6 @@ namespace System
 
         // Gets the character at a specified position.
         //
-        // Spec#: Apply the precondition here using a contract assembly.  Potential perf issue.
         [System.Runtime.CompilerServices.IndexerName("Chars")]
         public extern char this[int index]
         {
@@ -199,7 +198,6 @@ namespace System
         ///        for(int i = 0; i < str.Length; i++) str[i]
         /// The actually code generated for this will be one instruction and will be inlined.
         //
-        // Spec#: Add postcondition in a contract assembly.  Potential perf problem.
         public extern int Length
         {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
