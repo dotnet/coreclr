@@ -12,7 +12,9 @@ enum NamedIntrinsic
     NI_Illegal      = 0,
     NI_Enum_HasFlag = 1,
     NI_MathF_Round  = 2,
-    NI_Math_Round   = 3
+    NI_Math_Round   = 3,
+    NI_MathF_Abs    = 4,
+    NI_Math_Abs     = 5
 };
 
 #endif // _NAMEDINTRINSICLIST_H_

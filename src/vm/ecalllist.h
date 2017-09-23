@@ -641,8 +641,6 @@ FCFuncStart(gDelegateFuncs)
 FCFuncEnd()
 
 FCFuncStart(gMathFuncs)
-    FCIntrinsicSig("Abs", &gsig_SM_Dbl_RetDbl, COMDouble::Abs, CORINFO_INTRINSIC_Abs)
-    FCIntrinsicSig("Abs", &gsig_SM_Flt_RetFlt, COMSingle::Abs, CORINFO_INTRINSIC_Abs)
     FCIntrinsic("Acos", COMDouble::Acos, CORINFO_INTRINSIC_Acos)
     FCIntrinsic("Asin", COMDouble::Asin, CORINFO_INTRINSIC_Asin)
     FCIntrinsic("Atan", COMDouble::Atan, CORINFO_INTRINSIC_Atan)
