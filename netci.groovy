@@ -442,7 +442,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'x64_arm64_altjit':
             return
         default:
-            break;
+            break
     }
 
     // Check scenario.
@@ -2288,6 +2288,19 @@ combinedScenarios.each { scenario ->
                                 assert false
                                 break
                         }
+                    }
+
+                    // For altjit, don't do any scenarios that don't change compilation. That is, scenarios that only change
+                    // runtime behavior, not compile-time behavior, are not interesting.
+                    switch (architecture) {
+                        case 'x86_arm_altjit':
+                        case 'x64_arm64_altjit':
+                            if (isGCStressRelatedTesting(scenario)) {
+                                return
+                            }
+                            break
+                        default:
+                            break
                     }
 
                     // Calculate names
