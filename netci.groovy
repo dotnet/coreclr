@@ -362,7 +362,7 @@ def static genStressModeScriptStep(def os, def stressModeName, def stressModeVar
 
 // Append an existing script to a stress mode script already created by genStressModeScriptStep().
 // Returns string of commands to do this.
-def static appendStressModeScriptStep(def appendScript, def stepScriptLocation) {
+def static appendStressModeScriptStep(def os, def appendScript, def stepScriptLocation) {
     assert (os == 'Windows_NT')
     def stepScript = ''
     stepScript += "echo Appending ${appendScript} to ${stepScriptLocation}\r\n"
@@ -1685,13 +1685,13 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             envScriptPath = "%WORKSPACE%\\SetStressModes.bat"
                             buildCommands += genStressModeScriptStep(os, scenario, Constants.jitStressModeScenarios[scenario], envScriptPath)
                             if (architecture == 'x86lb') {
-                                buildCommands += appendStressModeScriptStep("%WORKSPACE%\\tests\\legacyjit_x86_testenv.cmd", envScriptPath)
+                                buildCommands += appendStressModeScriptStep(os, "%WORKSPACE%\\tests\\legacyjit_x86_testenv.cmd", envScriptPath)
                             }
                             else if (architecture == 'x86_arm_altjit') {
-                                buildCommands += appendStressModeScriptStep("%WORKSPACE%\\tests\\x86_arm_altjit.cmd", envScriptPath)
+                                buildCommands += appendStressModeScriptStep(os, "%WORKSPACE%\\tests\\x86_arm_altjit.cmd", envScriptPath)
                             }
                             else if (architecture == 'x64_arm64_altjit') {
-                                buildCommands += appendStressModeScriptStep("%WORKSPACE%\\tests\\x64_arm64_altjit.cmd", envScriptPath)
+                                buildCommands += appendStressModeScriptStep(os, "%WORKSPACE%\\tests\\x64_arm64_altjit.cmd", envScriptPath)
                             }
                         }
                         else if (architecture == 'x86lb') {
