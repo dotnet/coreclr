@@ -15901,6 +15901,7 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
 
     int soh_align_const = get_alignment_constant (TRUE);
     size_t max_soh_allocated = soh_segment_size - segment_info_size - eph_gen_starts_size;
+    size_t size_per_heap = 0;
     const double scale_factor = 1.05;
 
     int num_heaps = 1;
@@ -15949,7 +15950,6 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
     if (disallow_full_blocking)
         current_no_gc_region_info.minimal_gc_p = TRUE;
 
-    size_t size_per_heap = 0;
     if (allocation_no_gc_soh != 0)
     {
         assert(allocation_no_gc_soh <= SIZE_T_MAX);
