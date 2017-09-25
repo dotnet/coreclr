@@ -692,7 +692,7 @@ namespace System
         private static Object Setup(Object arg)
         {
             Debug.Assert(arg != null && arg is Object[]);
-            Debug.Assert(((Object[])arg).Length >= 8);
+            Debug.Assert(((Object[])arg).Length >= 4);
 
             Object[] args = (Object[])arg;
             String friendlyName = (String)args[0];
