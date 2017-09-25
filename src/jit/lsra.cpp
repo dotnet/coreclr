@@ -3112,6 +3112,7 @@ bool LinearScan::killGCRefs(GenTree* tree)
 
         if (tree->AsCall()->gtCallMethHnd == compiler->eeFindHelper(CORINFO_HELP_JIT_PINVOKE_BEGIN))
         {
+            assert(compiler->IsTargetAbi(CORINFO_CORERT_ABI));
             return true;
         }
     }
