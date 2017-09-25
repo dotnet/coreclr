@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 
 namespace System
 {
+    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     [DebuggerTypeProxy(typeof(MemoryDebugView<>))]
     public struct Memory<T>
     {
@@ -106,6 +107,9 @@ namespace System
                 return new ReadOnlyMemory<T>((OwnedMemory<T>)memory._arrayOrOwnedMemory, memory._index & RemoveOwnedFlagBitMask, memory._length);
             return new ReadOnlyMemory<T>((T[])memory._arrayOrOwnedMemory, memory._index, memory._length);
         }
+
+        //Debugger Display = {T[length]}
+        private string DebuggerDisplay => string.Format("{{{0}[{1}]}}", typeof(T).Name, _length);
 
         /// <summary>
         /// Returns an empty <see cref="Memory{T}"/>
@@ -234,20 +238,7 @@ namespace System
         /// allocates, so should generally be avoided, however it is sometimes
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
-        public T[] ToArray()
-        {
-            if (_index < 0)
-            {
-                Span<T> span = ((OwnedMemory<T>)_arrayOrOwnedMemory).AsSpan().Slice(_index & RemoveOwnedFlagBitMask, _length);
-                return span.ToArray();
-            }
-            else
-            {
-                T[] result = new T[_length];
-                Array.Copy((T[])_arrayOrOwnedMemory, result, _length);
-                return result;
-            }
-        }
+        public T[] ToArray() => Span.ToArray();
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
@@ -294,24 +285,5 @@ namespace System
             return CombineHashCodes(CombineHashCodes(h1, h2), h3);
         }
 
-    }
-
-    internal sealed class MemoryDebugView<T>
-    {
-        private readonly ReadOnlyMemory<T> _memory;
-
-        public MemoryDebugView(Memory<T> memory)
-        {
-            _memory = memory;
-        }
-
-        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        public T[] Items
-        {
-            get
-            {
-                return _memory.ToArray();
-            }
-        }
     }
 }

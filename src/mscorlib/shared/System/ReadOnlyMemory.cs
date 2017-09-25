@@ -12,7 +12,8 @@ using System.Runtime.InteropServices;
 
 namespace System
 {
-    [DebuggerTypeProxy(typeof(ReadOnlyMemoryDebugView<>))]
+    [DebuggerDisplay("{DebuggerDisplay,nq}")]
+    [DebuggerTypeProxy(typeof(MemoryDebugView<>))]
     public struct ReadOnlyMemory<T>
     {
         // The highest order bit of _index is used to discern whether _arrayOrOwnedMemory is an array or an owned memory
@@ -81,6 +82,9 @@ namespace System
             _index = index | (1 << 31); // Before using _index, check if _index < 0, then 'and' it with RemoveOwnedFlagBitMask
             _length = length;
         }
+
+        //Debugger Display = {T[length]}
+        private string DebuggerDisplay => string.Format("{{{0}[{1}]}}", typeof(T).Name, _length);
 
         /// <summary>
         /// Defines an implicit conversion of an array to a <see cref="Memory{T}"/>
@@ -220,20 +224,7 @@ namespace System
         /// allocates, so should generally be avoided, however it is sometimes
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
-        public T[] ToArray()
-        {
-            if (_index < 0)
-            {
-                Span<T> span = ((OwnedMemory<T>)_arrayOrOwnedMemory).AsSpan().Slice(_index & RemoveOwnedFlagBitMask, _length);
-                return span.ToArray();
-            }
-            else
-            {
-                T[] result = new T[_length];
-                Array.Copy((T[])_arrayOrOwnedMemory, result, _length);
-                return result;
-            }
-        }
+        public T[] ToArray() => Span.ToArray();
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
@@ -280,24 +271,5 @@ namespace System
             return CombineHashCodes(CombineHashCodes(h1, h2), h3);
         }
 
-    }
-
-    internal sealed class ReadOnlyMemoryDebugView<T>
-    {
-        private readonly ReadOnlyMemory<T> _memory;
-
-        public ReadOnlyMemoryDebugView(ReadOnlyMemory<T> memory)
-        {
-            _memory = memory;
-        }
-
-        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        public T[] Items
-        {
-            get
-            {
-                return _memory.ToArray();
-            }
-        }
     }
 }
