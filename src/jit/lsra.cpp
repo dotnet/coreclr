@@ -3093,14 +3093,14 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
 //------------------------------------------------------------------------
 // killGCRefs:
 // Given some tree node return does it need all GC refs to be spilled from
-// callee safe registers.
+// callee save registers.
 //
 // Arguments:
 //    tree       - the tree for which we ask about gc refs.
 //
 // Return Value:
-//    true       - tree kills GC refs on callee safe registers
-//    false      - tree doesn't affect GC refs on callee safe registers
+//    true       - tree kills GC refs on callee save registers
+//    false      - tree doesn't affect GC refs on callee save registers
 bool LinearScan::killGCRefs(GenTree* tree)
 {
     if (tree->IsCall())
