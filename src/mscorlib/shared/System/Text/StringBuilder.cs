@@ -2086,7 +2086,7 @@ namespace System.Text
         /// </remarks>
         private void ExpandByABlock(int minBlockCharCount)
         {
-            Debug.Assert(Capacity == Length, $"{nameof(ExpandByABlock)} should only be called when there is no space left.");
+            Debug.Assert(Capacity == Length, nameof(ExpandByABlock) + " should only be called when there is no space left.");
             Debug.Assert(minBlockCharCount > 0);
 
             AssertInvariants();
