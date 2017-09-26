@@ -48,14 +48,17 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
 {
     pfnGetSystemTimeAsFileTime func = NULL;
 
-#ifndef FEATURE_PAL
-    HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
-    if (hKernel32 != NULL)
-    {
-        func = (pfnGetSystemTimeAsFileTime)GetProcAddress(hKernel32, "GetSystemTimePreciseAsFileTime");
-    }
-    if (func == NULL)
-#endif
+// TODO: Uncomment once https://github.com/dotnet/coreclr/issues/14187 is addressed.
+//       On some systems, GetSystemTimePreciseAsFileTime is showing significant drift.
+//
+//#ifndef FEATURE_PAL
+//    HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
+//    if (hKernel32 != NULL)
+//    {
+//        func = (pfnGetSystemTimeAsFileTime)GetProcAddress(hKernel32, "GetSystemTimePreciseAsFileTime");
+//    }
+//    if (func == NULL)
+//#endif
     {
         func = &::GetSystemTimeAsFileTime;
     }
