@@ -87,7 +87,7 @@
       },
       "inputs": {
         "filename": "build.cmd",
-        "arguments": "$(Architecture) $(PB_BuildType) skiptests skipbuildpackages $(PB_EnforcePGO) -OfficialBuildId=$(OfficialBuildId) -skiprestore -Priority=$(Priority) -- /p:SignType=$(PB_SignType)",
+        "arguments": "$(Architecture) $(PB_BuildType) skiptests skipbuildpackages -OfficialBuildId=$(OfficialBuildId) -skiprestore -Priority=$(Priority) -- /p:SignType=$(PB_SignType)",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
