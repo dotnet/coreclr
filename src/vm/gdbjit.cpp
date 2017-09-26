@@ -2929,6 +2929,9 @@ bool NotifyGdb::BuildLineTable(MemBuf& buf, PCODE startAddr, TADDR codeSize, Sym
     DwarfLineNumHeader* header = reinterpret_cast<DwarfLineNumHeader*>(buf.MemPtr.GetValue());
     memcpy(buf.MemPtr, &LineNumHeader, sizeof(DwarfLineNumHeader));
     header->m_length = buf.MemSize - sizeof(header->m_length);
+
+    // Set m_hdr_field to the number of bytes following the m_hdr_field field to the beginning of the first byte of
+    // the line number program itself.
     header->m_hdr_length = sizeof(DwarfLineNumHeader)
                            - sizeof(header->m_length)
                            - sizeof(header->m_version)
@@ -3030,8 +3033,7 @@ public:
         if (m_dirs_count >= m_capacity)
             return -1;
 
-        m_dirs[m_dirs_count++] = dirName.GetValue();
-        dirName.SuppressRelease();
+        m_dirs[m_dirs_count++] = dirName.Extract();
 
         m_files[m_files_count].dir = m_dirs_count;
         return m_files_count++;
@@ -3097,7 +3099,7 @@ bool NotifyGdb::BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines,
     {
         const char* fileName = lines[i].fileName;
 
-        if (fileName[0] == 0)
+        if (fileName[0] == '\0')
             continue;
 
         if (*cuPath == '\0') // Use first non-empty filename as compile unit
