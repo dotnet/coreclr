@@ -31,6 +31,7 @@ namespace System
 
         private static float singleRoundLimit = 1e8f;
 
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Abs(float x)
         {

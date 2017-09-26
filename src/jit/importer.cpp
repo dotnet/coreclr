@@ -3772,6 +3772,18 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
                 break;
             }
 
+            case NI_MathF_Abs:
+            case NI_Math_Abs:
+            {
+                // Math.Abs and MathF.Abs used to be a traditional JIT intrinsic. In order
+                // to simplify the transition, we will just treat it as if it was still the
+                // old intrinsic, CORINFO_INTRINSIC_Abs. This should end up flowing properly
+                // everywhere else.
+
+                retNode = impMathIntrinsic(method, sig, callType, CORINFO_INTRINSIC_Abs, tailCall);
+                break;
+            }
+
             default:
                 break;
         }
@@ -3934,13 +3946,27 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
             {
                 result = NI_Enum_HasFlag;
             }
-            else if ((strcmp(className, "MathF") == 0) && (strcmp(methodName, "Round") == 0))
+            else if (strcmp(className, "MathF") == 0)
             {
-                result = NI_MathF_Round;
+                if (strcmp(methodName, "Abs") == 0)
+                {
+                    result = NI_MathF_Abs;
+                }
+                else if (strcmp(methodName, "Round") == 0)
+                {
+                    result = NI_MathF_Round;
+                }
             }
-            else if ((strcmp(className, "Math") == 0) && (strcmp(methodName, "Round") == 0))
+            else if (strcmp(className, "Math") == 0)
             {
-                result = NI_Math_Round;
+                if (strcmp(methodName, "Abs") == 0)
+                {
+                    result = NI_Math_Abs;
+                }
+                else if (strcmp(methodName, "Round") == 0)
+                {
+                    result = NI_Math_Round;
+                }
             }
         }
     }

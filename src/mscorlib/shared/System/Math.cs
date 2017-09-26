@@ -63,6 +63,22 @@ namespace System
             return decimal.Abs(value);
         }
 
+        [Intrinsic]
+        public static double Abs(double value)
+        {
+            var bits = BitConverter.DoubleToInt64Bits(value);
+            bits &= 0x7FFFFFFFFFFFFFFF;
+            return BitConverter.Int64BitsToDouble(bits);
+        }
+
+        [Intrinsic]
+        public static float Abs(float value)
+        {
+            var bits = BitConverter.SingleToInt32Bits(value);
+            bits &= 0x7FFFFFFF;
+            return BitConverter.Int32BitsToSingle(bits);
+        }
+
         public static long BigMul(int a, int b)
         {
             return ((long)a) * b;
