@@ -244,8 +244,8 @@ namespace System.IO
         // should put their cleanup starting in V2.
         public virtual void Close()
         {
-            /* These are correct, but we'd have to fix PipeStream & NetworkStream very carefully.
-            */
+            // Ideally we would assert CanRead == CanWrite == CanSeek = false, 
+            // but we'd have to fix PipeStream & NetworkStream very carefully.
 
             Dispose(true);
             GC.SuppressFinalize(this);
@@ -253,8 +253,8 @@ namespace System.IO
 
         public void Dispose()
         {
-            /* These are correct, but we'd have to fix PipeStream & NetworkStream very carefully.
-            */
+            // Ideally we would assert CanRead == CanWrite == CanSeek = false, 
+            // but we'd have to fix PipeStream & NetworkStream very carefully.
 
             Close();
         }
