@@ -1718,9 +1718,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     if (architecture == 'x86' && os == 'Ubuntu') {
                         // build and PAL test
                         def dockerImage = getDockerImageName(architecture, os, true)
-                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code -e ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} ./build.sh x86 cross ${lowerConfiguration}"
+                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code -e ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} ./build.sh ${architecture} cross ${lowerConfiguration}"
                         dockerImage = getDockerImageName(architecture, os, false)
-                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code ${dockerImage} ./src/pal/tests/palsuite/runpaltests.sh /opt/code/bin/obj/Linux.x86.${lowerConfiguration} /opt/code/bin/paltestout"
+                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code ${dockerImage} ./src/pal/tests/palsuite/runpaltests.sh /opt/code/bin/obj/${osGroup}.${architecture}.${configuration} /opt/code/bin/paltestout"
                         Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/**/.nuget/**")
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                         break;
