@@ -13,12 +13,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using System.Security;
-using System.Diagnostics;
 
 namespace System
 {
@@ -211,12 +211,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.sourceArray);
             if (destinationArray == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.destinationArray);
-            /*
-            Debug.Assert(sourceArray.Rank == destinationArray.Rank);
-            Debug.Assert(length >= 0);
-            Debug.Assert(length <= sourceArray.GetLowerBound(0) + sourceArray.Length);
-            Debug.Assert(length <= destinationArray.GetLowerBound(0) + destinationArray.Length);
-             */
 
             Copy(sourceArray, sourceArray.GetLowerBound(0), destinationArray, destinationArray.GetLowerBound(0), length, false);
         }
