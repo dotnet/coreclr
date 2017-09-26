@@ -525,48 +525,19 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
             else if ((_strnicmp(&argv[i][1], "jitoption", argLen) == 0))
             {
                 i++;
-
-                wchar_t *key, *value;
-                if ((i >= argc) || !ParseJitOption(argv[i], &key, &value))
+                if (!AddJitOption(i, argc, argv, &o->jitOptions))
                 {
-                    DumpHelp(argv[0]);
                     return false;
                 }
-
-                if (o->jitOptions == nullptr)
-                {
-                    o->jitOptions = new LightWeightMap<DWORD, DWORD>();
-                }
-
-                DWORD keyIndex = (DWORD)o->jitOptions->AddBuffer((unsigned char*)key, sizeof(wchar_t) * ((unsigned int)wcslen(key) + 1));
-                DWORD valueIndex = (DWORD)o->jitOptions->AddBuffer((unsigned char*)value, sizeof(wchar_t) * ((unsigned int)wcslen(value) + 1));
-                o->jitOptions->Add(keyIndex, valueIndex);
-
-                delete[] key;
-                delete[] value;
             }
             else if ((_strnicmp(&argv[i][1], "jit2option", argLen) == 0))
             {
-                i++;
-
-                wchar_t *key, *value;
-                if ((i >= argc) || !ParseJitOption(argv[i], &key, &value))
+                i++;                
+                if (!AddJitOption(i, argc, argv, &o->jit2Options))
                 {
-                    DumpHelp(argv[0]);
                     return false;
                 }
 
-                if (o->jit2Options == nullptr)
-                {
-                    o->jit2Options = new LightWeightMap<DWORD, DWORD>();
-                }
-
-                DWORD keyIndex = (DWORD)o->jit2Options->AddBuffer((unsigned char*)key, sizeof(wchar_t) * ((unsigned int)wcslen(key) + 1));
-                DWORD valueIndex = (DWORD)o->jit2Options->AddBuffer((unsigned char*)value, sizeof(wchar_t) * ((unsigned int)wcslen(value) + 1));
-                o->jit2Options->Add(keyIndex, valueIndex);
-
-                delete[] key;
-                delete[] value;
             }
             else
             {
@@ -635,5 +606,42 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
         DumpHelp(argv[0]);
         return false;
     }
+    return true;
+}
+
+//-------------------------------------------------------------
+// AddJitOption: Parse the value that was passed with -jitOption flag.
+//
+// Arguments:
+//    currArgument - current argument number. Points to the token next to -jitOption. After the function
+//                   points to the last parsed token
+//    argc         - number of all arguments
+//    argv         - arguments as array of char*
+//    pJitOptions  - a jit options map, to store the new option in.
+//
+// Returns:
+//    False if an error occurred, true if the option was parsed and added.
+bool CommandLine::AddJitOption(int& currArgument, int argc, char* argv[], LightWeightMap<DWORD, DWORD>** pJitOptions)
+{
+    wchar_t *key, *value;
+    if ((currArgument >= argc) || !ParseJitOption(argv[currArgument], &key, &value))
+    {
+        DumpHelp(argv[0]);
+        return false;
+    }
+
+    if (*pJitOptions == nullptr)
+    {
+        *pJitOptions = new LightWeightMap<DWORD, DWORD>();
+    }
+
+    LightWeightMap<DWORD, DWORD>* jitOptions = *pJitOptions;
+
+    DWORD keyIndex = (DWORD)jitOptions->AddBuffer((unsigned char*)key, sizeof(wchar_t) * ((unsigned int)wcslen(key) + 1));
+    DWORD valueIndex = (DWORD)jitOptions->AddBuffer((unsigned char*)value, sizeof(wchar_t) * ((unsigned int)wcslen(value) + 1));
+    jitOptions->Add(keyIndex, valueIndex);
+
+    delete[] key;
+    delete[] value;
     return true;
 }
