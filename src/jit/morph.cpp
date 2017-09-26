@@ -14284,11 +14284,10 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                 {
                     /* Both tree and op1 are GT_COMMA nodes */
                     /* Change the tree's op1 to the throw node: op1->gtOp.gtOp1 */
-                    op1 = tree->gtOp.gtOp1 = throwNode;
+                    tree->gtOp.gtOp1 = throwNode;
 
-                    /* Reset the assignment flag */
-                    if (((op1 == nullptr) || ((op1->gtFlags & GTF_ASG) == 0)) &&
-                        ((op2 == nullptr) || ((op2->gtFlags & GTF_ASG) == 0)))
+                    // Possibly reset the assignment flag
+                    if (((throwNode->gtFlags & GTF_ASG) == 0) && ((op2 == nullptr) || ((op2->gtFlags & GTF_ASG) == 0)))
                     {
                         tree->gtFlags &= ~GTF_ASG;
                     }
