@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 
 namespace System
 {
+    [IsReadOnly]
     public struct Memory<T>
     {
         // The highest order bit of _index is used to discern whether _arrayOrOwnedMemory is an array or an owned memory
