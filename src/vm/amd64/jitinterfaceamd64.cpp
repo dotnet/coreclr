@@ -281,11 +281,11 @@ PBYTE WriteBarrierManager::CalculatePatchLocation(LPVOID base, LPVOID label, int
 int WriteBarrierManager::ChangeWriteBarrierTo(WriteBarrierType newWriteBarrier, bool isRuntimeSuspended)
 {
     GCX_MAYBE_COOP_NO_THREAD_BROKEN((!isRuntimeSuspended && GetThread() != NULL));
-    int flushXrestart = PASS;
+    int flushXrestart = SWB_PASS;
     if (!isRuntimeSuspended && m_currentWriteBarrier != WRITE_BARRIER_UNINITIALIZED)
     {
         ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_GC_PREP);
-        flushXrestart |= EE_RESTART;
+        flushXrestart |= SWB_EE_RESTART;
     }
 
     _ASSERTE(m_currentWriteBarrier != newWriteBarrier);
@@ -526,7 +526,7 @@ int WriteBarrierManager::UpdateEphemeralBounds(bool isRuntimeSuspended)
         return ChangeWriteBarrierTo(newType, isRuntimeSuspended);
     }
 
-    int flushXrestart = PASS;
+    int flushXrestart = SWB_PASS;
 
 #ifdef _DEBUG
     // Using debug-only write barrier?
@@ -545,7 +545,7 @@ int WriteBarrierManager::UpdateEphemeralBounds(bool isRuntimeSuspended)
             if (*(UINT64*)m_pUpperBoundImmediate != (size_t)g_ephemeral_high)
             {
                 *(UINT64*)m_pUpperBoundImmediate = (size_t)g_ephemeral_high;
-                flushXrestart |= ICACHE_FLUSH;
+                flushXrestart |= SWB_ICACHE_FLUSH;
             }
         }
         //
@@ -560,7 +560,7 @@ int WriteBarrierManager::UpdateEphemeralBounds(bool isRuntimeSuspended)
             if (*(UINT64*)m_pLowerBoundImmediate != (size_t)g_ephemeral_low)
             {
                 *(UINT64*)m_pLowerBoundImmediate = (size_t)g_ephemeral_low;
-                flushXrestart |= ICACHE_FLUSH;
+                flushXrestart |= SWB_ICACHE_FLUSH;
             }
             break;
         }
@@ -593,7 +593,7 @@ int WriteBarrierManager::UpdateWriteWatchAndCardTableLocations(bool isRuntimeSus
         return ChangeWriteBarrierTo(newType, isRuntimeSuspended);
     }
     
-    int flushXrestart = PASS;
+    int flushXrestart = SWB_PASS;
 
 #ifdef _DEBUG
     // Using debug-only write barrier?
@@ -612,7 +612,7 @@ int WriteBarrierManager::UpdateWriteWatchAndCardTableLocations(bool isRuntimeSus
             if (*(UINT64*)m_pWriteWatchTableImmediate != (size_t)g_sw_ww_table)
             {
                 *(UINT64*)m_pWriteWatchTableImmediate = (size_t)g_sw_ww_table;
-                flushXrestart |= ICACHE_FLUSH;
+                flushXrestart |= SWB_ICACHE_FLUSH;
             }
             break;
 
@@ -624,14 +624,14 @@ int WriteBarrierManager::UpdateWriteWatchAndCardTableLocations(bool isRuntimeSus
     if (*(UINT64*)m_pCardTableImmediate != (size_t)g_card_table)
     {
         *(UINT64*)m_pCardTableImmediate = (size_t)g_card_table;
-        flushXrestart |= ICACHE_FLUSH;
+        flushXrestart |= SWB_ICACHE_FLUSH;
     }
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
     if (*(UINT64*)m_pCardBundleTableImmediate != (size_t)g_card_bundle_table)
     {
         *(UINT64*)m_pCardBundleTableImmediate = (size_t)g_card_bundle_table;
-        flushXrestart |= ICACHE_FLUSH;
+        flushXrestart |= SWB_ICACHE_FLUSH;
     }
 #endif
 
@@ -646,7 +646,7 @@ int WriteBarrierManager::SwitchToWriteWatchBarrier(bool isRuntimeSuspended)
     {
         case WRITE_BARRIER_UNINITIALIZED:
             // Using the debug-only write barrier
-            return PASS;
+            return SWB_PASS;
 
         case WRITE_BARRIER_PREGROW64:
             newWriteBarrierType = WRITE_BARRIER_WRITE_WATCH_PREGROW64;
@@ -676,7 +676,7 @@ int WriteBarrierManager::SwitchToNonWriteWatchBarrier(bool isRuntimeSuspended)
     {
         case WRITE_BARRIER_UNINITIALIZED:
             // Using the debug-only write barrier
-            return PASS;
+            return SWB_PASS;
 
         case WRITE_BARRIER_WRITE_WATCH_PREGROW64:
             newWriteBarrierType = WRITE_BARRIER_PREGROW64;

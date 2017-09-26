@@ -1357,26 +1357,26 @@ void FlushWriteBarrierInstructionCache()
 int StompWriteBarrierEphemeral(bool isRuntimeSuspended)
 {
     JIT_UpdateWriteBarrierState(GCHeapUtilities::IsServerHeap());
-    return PASS;
+    return SWB_PASS;
 }
 
 int StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
 {
     JIT_UpdateWriteBarrierState(GCHeapUtilities::IsServerHeap());
-    return PASS;
+    return SWB_PASS;
 }
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 int SwitchToWriteWatchBarrier(bool isRuntimeSuspended)
 {
     JIT_UpdateWriteBarrierState(GCHeapUtilities::IsServerHeap());
-    return PASS;
+    return SWB_PASS;
 }
 
 int SwitchToNonWriteWatchBarrier(bool isRuntimeSuspended)
 {
     JIT_UpdateWriteBarrierState(GCHeapUtilities::IsServerHeap());
-    return PASS;
+    return SWB_PASS;
 }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 #endif // CROSSGEN_COMPILE

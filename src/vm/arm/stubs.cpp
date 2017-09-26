@@ -456,12 +456,12 @@ int StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
     // suspend/resuming the EE under GC stress will trigger a GC and if we're holding the
     // GC lock due to allocating a LOH segment it will cause a deadlock so disable it here.
     GCStressPolicy::InhibitHolder iholder;
-    int flushXrestart = ICACHE_FLUSH;
+    int flushXrestart = SWB_ICACHE_FLUSH;
 
     if (!isRuntimeSuspended)
     {
         ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
-        flushXrestart |= EE_RESTART;
+        flushXrestart |= SWB_EE_RESTART;
     }
 
     UpdateGCWriteBarriers(bReqUpperBoundsCheck);
@@ -474,7 +474,7 @@ int StompWriteBarrierEphemeral(bool isRuntimeSuspended)
     UNREFERENCED_PARAMETER(isRuntimeSuspended);
     _ASSERTE(isRuntimeSuspended);
     UpdateGCWriteBarriers();
-    return ICACHE_FLUSH;
+    return SWB_ICACHE_FLUSH;
 }
 
 void FlushWriteBarrierInstructionCache()

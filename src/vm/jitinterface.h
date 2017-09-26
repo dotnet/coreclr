@@ -25,9 +25,9 @@
 
 enum StompWriteBarrierXXXCompletion
 {
-    PASS = 0x0,
-    ICACHE_FLUSH = 0x1,
-    EE_RESTART = 0x2
+    SWB_PASS = 0x0,
+    SWB_ICACHE_FLUSH = 0x1,
+    SWB_EE_RESTART = 0x2
 };
 
 class Stub;

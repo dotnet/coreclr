@@ -1682,7 +1682,7 @@ int StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    int flushXrestart = PASS;
+    int flushXrestart = SWB_PASS;
 
 #ifdef WRITE_BARRIER_CHECK 
         // Don't do the fancy optimization if we are checking write barrier
@@ -1703,7 +1703,7 @@ int StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
         //avoid trivial self modifying code
         if (*pfunc != (size_t) g_ephemeral_low)
         {
-            flushXrestart |= ICACHE_FLUSH;
+            flushXrestart |= SWB_ICACHE_FLUSH;
             *pfunc = (size_t) g_ephemeral_low;
         }
         if (!WriteBarrierIsPreGrow())
@@ -1716,7 +1716,7 @@ int StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
             //avoid trivial self modifying code
             if (*pfunc != (size_t) g_ephemeral_high)
             {
-                flushXrestart |= ICACHE_FLUSH;
+                flushXrestart |= SWB_ICACHE_FLUSH;
                 *pfunc = (size_t) g_ephemeral_high;
             }
         }
@@ -1738,7 +1738,7 @@ int StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
         if (GetThread()) {GC_TRIGGERS;} else {GC_NOTRIGGER;}
     } CONTRACTL_END;
 
-    int flushXrestart = PASS;
+    int flushXrestart = SWB_PASS;
 
 #ifdef WRITE_BARRIER_CHECK 
         // Don't do the fancy optimization if we are checking write barrier
@@ -1763,9 +1763,9 @@ int StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
             if (bReqUpperBoundsCheck)
             {
                 GCX_MAYBE_COOP_NO_THREAD_BROKEN((GetThread()!=NULL));
-                if( !isRuntimeSuspended && !(flushXrestart & EE_RESTART) ) {
+                if( !isRuntimeSuspended && !(flushXrestart & SWB_EE_RESTART) ) {
                     ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_GC_PREP);
-                    flushXrestart |= EE_RESTART;
+                    flushXrestart |= SWB_EE_RESTART;
                 }
 
                 pfunc = (size_t *) JIT_WriteBarrierReg_PostGrow;
@@ -1853,7 +1853,7 @@ int StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
 
     if (bStompWriteBarrierEphemeral)
     {
-        _ASSERTE(isRuntimeSuspended || (flushXrestart & EE_RESTART));
+        _ASSERTE(isRuntimeSuspended || (flushXrestart & SWB_EE_RESTART));
         flushXrestart |= StompWriteBarrierEphemeral(true);
     }
     return flushXrestart;

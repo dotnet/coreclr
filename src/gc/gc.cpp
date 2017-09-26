@@ -10602,18 +10602,18 @@ gc_heap::init_gc_heap (int  h_number)
     make_background_mark_stack (b_arr);
 #endif //BACKGROUND_GC
 
-    ephemeral_low = generation_allocation_start(generation_of(max_generation - 1));
-    ephemeral_high = heap_segment_reserved(ephemeral_heap_segment);
-
-#ifndef MULTIPLE_HEAPS
-    // we have just calculated actual boundaries of ephemeral segment
-    // now it's time to call GCToEEInterface::StompWriteBarrier
-    // which we do only here and only once for wks gc
-    // for MULTIPLE_HEAPS mode we have already stomped write barrier during GCHeap::Initialize()
-    // we are so worried about number of calls to GCToEEInterface::StompWriteBarrier
-    // because it likely flushes instruction cache in each invocation
-    stomp_write_barrier_initialize(ephemeral_low, ephemeral_high);
+    if (heap_number == 0)
+    {
+#ifdef MULTIPLE_HEAPS
+        ephemeral_low = reinterpret_cast<uint8_t*>(1);
+        ephemeral_high = reinterpret_cast<uint8_t*>(~0);
+#else
+        ephemeral_low = generation_allocation_start(generation_of(max_generation - 1));
+        ephemeral_high = heap_segment_reserved(ephemeral_heap_segment);
 #endif //!MULTIPLE_HEAPS
+
+        stomp_write_barrier_initialize(ephemeral_low, ephemeral_high);
+    }
 
 #ifdef MARK_ARRAY
     // why would we clear the mark array for this page? it should be cleared..
@@ -33561,18 +33561,6 @@ HRESULT GCHeap::Initialize ()
     {
         return E_FAIL;
     }
-
-#ifdef MULTIPLE_HEAPS
-    // this is the only place during gc initialization phase
-    // in MULTIPLE_HEAPS mode
-    // where we ask GCToEEInterface to bash sound values into write barriers
-    // -- or more precise - the only call to GCToEEInterface::StompWriteBarrier --
-    // for single heap mode (wks gc) we are delaying call to GCToEEInterface::StompWriteBarrier
-    // until actual boundaries of ephemeral segment will be calculated in gc_heap::init_gc_heap
-    // we are so worried about number of calls to GCToEEInterface::StompWriteBarrier
-    // because it likely flushes instruction cache in each invocation
-    stomp_write_barrier_initialize(reinterpret_cast<uint8_t*>(1), reinterpret_cast<uint8_t*>(~0));
-#endif //MULTIPLE_HEAPS
 
 #ifndef FEATURE_REDHAWK // Redhawk forces relocation a different way
 #if defined (STRESS_HEAP) && !defined (MULTIPLE_HEAPS)

@@ -843,7 +843,7 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 
 void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 {
-    int flushXrestart = PASS;
+    int flushXrestart = SWB_PASS;
 
     assert(args != nullptr);
     switch (args->operation)
@@ -886,22 +886,35 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         // "cross-modifying code": We need all _executing_ threads to invalidate
         // their instruction cache, which FlushProcessWriteBuffers achieves by sending
         // an IPI (inter-process interrupt).
-        FlushProcessWriteBuffers();
+
+        if (flushXrestart & SWB_ICACHE_FLUSH)
+        {
+            // flushing icache on current processor (thread)
+            ::FlushWriteBarrierInstructionCache();
+            // asking other processors (threads) to invalidate their icache
+            FlushProcessWriteBuffers();
+        }
 
         g_lowest_address = args->lowest_address;
         VolatileStore(&g_highest_address, args->highest_address);
 
 #if defined(_ARM64_)
         // Need to reupdate for changes to g_highest_address g_lowest_address
-        flushXrestart |= ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
+        bool is_runtime_suspended = (flushXrestart & SWB_EE_RESTART) || args->is_runtime_suspended;
+        flushXrestart |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
 
-        if(!args->is_runtime_suspended)
+        is_runtime_suspended = (flushXrestart & SWB_EE_RESTART) || args->is_runtime_suspended;
+        if(!is_runtime_suspended)
         {
             // If runtime is not suspended, force updated state to be visible to all threads
             MemoryBarrier();
         }
 #endif
-        break;
+        if (flushXrestart & SWB_EE_RESTART)
+        {
+            ThreadSuspend::RestartEE(FALSE, TRUE);
+        }
+        return; // unlike other branches we have already done cleanup so bailing out here
     case WriteBarrierOp::StompEphemeral:
         // StompEphemeral requires a new ephemeral low and a new ephemeral high
         assert(args->ephemeral_low != nullptr);
@@ -929,11 +942,9 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(g_card_bundle_table == nullptr);
         g_card_bundle_table = args->card_bundle_table;
 #endif
-
-        FlushProcessWriteBuffers();
         
         g_lowest_address = args->lowest_address;
-        VolatileStore(&g_highest_address, args->highest_address);
+        g_highest_address = args->highest_address;
         flushXrestart |= ::StompWriteBarrierResize(true, false);
 
         // StompWriteBarrierResize does not necessarily bash g_ephemeral_low
@@ -968,11 +979,11 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
     default:
         assert(!"unknown WriteBarrierOp enum");
     }
-    if (flushXrestart & ICACHE_FLUSH) 
+    if (flushXrestart & SWB_ICACHE_FLUSH) 
     {
         ::FlushWriteBarrierInstructionCache();
     }
-    if (flushXrestart & EE_RESTART) 
+    if (flushXrestart & SWB_EE_RESTART) 
     {
         ThreadSuspend::RestartEE(FALSE, TRUE);
     }
