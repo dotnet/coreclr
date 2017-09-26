@@ -384,8 +384,10 @@ char* ConstructChildProcessArgs(const CommandLine::Options& o)
     ADDARG_STRING(o.targetArchitecture, "-target");
     ADDARG_STRING(o.compileList, "-compile");
 
-    addJitOptionArgument(o.jitOptions, bytesWritten, spmiArgs, "jitoption");
+    addJitOptionArgument(o.forceJitOptions, bytesWritten, spmiArgs, "forcejitoption");
+    addJitOptionArgument(o.forceJit2Options, bytesWritten, spmiArgs, "forcejit2option");
 
+    addJitOptionArgument(o.jitOptions, bytesWritten, spmiArgs, "jitoption");
     addJitOptionArgument(o.jit2Options, bytesWritten, spmiArgs, "jit2option");
 
     ADDSTRING(o.nameOfJit);

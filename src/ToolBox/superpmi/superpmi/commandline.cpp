@@ -119,11 +119,17 @@ void CommandLine::DumpHelp(const char* program)
     printf("     Ignored: neither MSVCDIS nor CoreDisTools is available.\n");
 #endif // USE_COREDISTOOLS
     printf("\n");
+    printf(" -forcejitoption key=value\n");
+    printf("     Set the JIT option named \"key\" to \"value\" for JIT 1. Overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
+    printf("\n");
+    printf(" -forcejit2option key=value\n");
+    printf("     Set the JIT option named \"key\" to \"value\" for JIT 2. Overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
+    printf("\n");
     printf(" -jitoption key=value\n");
-    printf("     Set the JIT option named \"key\" to \"value\" for JIT 1. NOTE: do not use a \"COMPlus_\" prefix!\n");
+    printf("     Set the JIT option named \"key\" to \"value\" for JIT 1 if the option was not set. NOTE: do not use a \"COMPlus_\" prefix!\n");
     printf("\n");
     printf(" -jit2option key=value\n");
-    printf("     Set the JIT option named \"key\" to \"value\" for JIT 2. NOTE: do not use a \"COMPlus_\" prefix!\n");
+    printf("     Set the JIT option named \"key\" to \"value\" for JIT 2 if the option was not set. NOTE: do not use a \"COMPlus_\" prefix!\n");
     printf("\n");
     printf("Inputs are case sensitive.\n");
     printf("\n");
@@ -519,6 +525,22 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
                 {
                     LogError("Cannot use method context hash in parallel mode.");
                     DumpHelp(argv[0]);
+                    return false;
+                }
+            }
+            else if ((_strnicmp(&argv[i][1], "forcejitoption", argLen) == 0))
+            {
+                i++;
+                if (!AddJitOption(i, argc, argv, &o->forceJitOptions))
+                {
+                    return false;
+                }
+            }
+            else if ((_strnicmp(&argv[i][1], "forcejit2option", argLen) == 0))
+            {
+                i++;
+                if (!AddJitOption(i, argc, argv, &o->forceJit2Options))
+                {
                     return false;
                 }
             }
