@@ -282,7 +282,6 @@ namespace System.Reflection.Emit
             AssemblyName name,
             AssemblyBuilderAccess access)
         {
-
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalDefineDynamicAssembly(name, access,
                                                  ref stackMark, null);
@@ -294,7 +293,6 @@ namespace System.Reflection.Emit
             AssemblyBuilderAccess access,
             IEnumerable<CustomAttributeBuilder> assemblyAttributes)
         {
-
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalDefineDynamicAssembly(name,
                                                  access,
@@ -341,7 +339,6 @@ namespace System.Reflection.Emit
         public ModuleBuilder DefineDynamicModule(
             String name)
         {
-
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return DefineDynamicModuleInternal(name, false, ref stackMark);
         }
@@ -351,7 +348,6 @@ namespace System.Reflection.Emit
             String name,
             bool emitSymbolInfo)         // specify if emit symbol info or not
         {
-
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return DefineDynamicModuleInternal(name, emitSymbolInfo, ref stackMark);
         }

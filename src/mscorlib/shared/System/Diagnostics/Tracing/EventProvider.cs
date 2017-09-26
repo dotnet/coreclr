@@ -628,7 +628,6 @@ namespace System.Diagnostics.Tracing
             if ((level <= m_level) ||
                 (m_level == 0))
             {
-
                 //
                 // Check if Keyword is enabled
                 //

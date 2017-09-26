@@ -26,7 +26,6 @@ namespace System.Collections.Generic
 
         public static Comparer<T> Create(Comparison<T> comparison)
         {
-
             if (comparison == null)
                 throw new ArgumentNullException(nameof(comparison));
 

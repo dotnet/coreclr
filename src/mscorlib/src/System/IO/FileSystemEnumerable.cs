@@ -546,7 +546,6 @@ namespace System.IO
 
     internal abstract class SearchResultHandler<TSource>
     {
-
         internal abstract bool IsResultIncluded(SearchResult result);
 
         internal abstract TSource CreateObject(SearchResult result);

@@ -117,7 +117,6 @@ namespace System.IO
 
         public virtual int PeekChar()
         {
-
             if (_stream == null) __Error.FileNotOpen();
 
             if (!_stream.CanSeek)
@@ -130,7 +129,6 @@ namespace System.IO
 
         public virtual int Read()
         {
-
             if (_stream == null)
             {
                 __Error.FileNotOpen();
@@ -266,7 +264,6 @@ namespace System.IO
 
         public virtual String ReadString()
         {
-
             if (_stream == null)
                 __Error.FileNotOpen();
 
@@ -351,7 +348,6 @@ namespace System.IO
 
         public virtual int Read(Span<char> destination)
         {
-
             if (_stream == null)
                 __Error.FileNotOpen();
 
@@ -566,7 +562,6 @@ namespace System.IO
 
         public virtual int Read(Span<byte> destination)
         {
-
             if (_stream == null)
                 __Error.FileNotOpen();
 

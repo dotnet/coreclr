@@ -11,7 +11,6 @@ using System.Runtime.Versioning;
 
 namespace System.Diagnostics.Tracing
 {
-
     internal  class XplatEventLogger : EventListener
     {
         private static Lazy<string> eventSourceNameFilter = new Lazy<string>(() => CompatibilitySwitch.GetValueInternal("EventSourceFilter"));
@@ -24,7 +23,6 @@ namespace System.Diagnostics.Tracing
         public static EventListener InitializePersistentListener()
         {
             try{
-
                 if (!initializedPersistentListener && XplatEventLogger.IsEventSourceLoggingEnabled())
                 {
                     initializedPersistentListener = true;

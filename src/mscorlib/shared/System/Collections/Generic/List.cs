@@ -271,7 +271,6 @@ namespace System.Collections.Generic
         //
         public void AddRange(IEnumerable<T> collection)
         {
-
             InsertRange(_size, collection);
         }
 
@@ -1101,7 +1100,6 @@ namespace System.Collections.Generic
         // This requires copying the List, which is an O(n) operation.
         public T[] ToArray()
         {
-
             if (_size == 0)
             {
                 return s_emptyArray;

@@ -784,7 +784,6 @@ namespace System.IO
         // significantly for people who are reading one byte at a time.
         public virtual int ReadByte()
         {
-
             byte[] oneByteArray = new byte[1];
             int r = Read(oneByteArray, 0, 1);
             if (r == 0)
@@ -834,7 +833,6 @@ namespace System.IO
 
         internal IAsyncResult BlockingBeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
         {
-
             // To avoid a race with a stream's position pointer & generating conditions
             // with internal buffer indexes in our own streams that 
             // don't natively support async IO operations when there are multiple 
@@ -862,13 +860,11 @@ namespace System.IO
 
         internal static int BlockingEndRead(IAsyncResult asyncResult)
         {
-
             return SynchronousAsyncResult.EndRead(asyncResult);
         }
 
         internal IAsyncResult BlockingBeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
         {
-
             // To avoid a race condition with a stream's position pointer & generating conditions 
             // with internal buffer indexes in our own streams that 
             // don't natively support async IO operations when there are multiple 

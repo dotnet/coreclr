@@ -31,7 +31,6 @@ namespace System
 
         public static String Concat(Object arg0)
         {
-
             if (arg0 == null)
             {
                 return String.Empty;
@@ -41,7 +40,6 @@ namespace System
 
         public static String Concat(Object arg0, Object arg1)
         {
-
             if (arg0 == null)
             {
                 arg0 = String.Empty;
@@ -56,7 +54,6 @@ namespace System
 
         public static String Concat(Object arg0, Object arg1, Object arg2)
         {
-
             if (arg0 == null)
             {
                 arg0 = String.Empty;
@@ -221,7 +218,6 @@ namespace System
 
         public static String Concat(String str0, String str1)
         {
-
             if (IsNullOrEmpty(str0))
             {
                 if (IsNullOrEmpty(str1))
@@ -248,7 +244,6 @@ namespace System
 
         public static String Concat(String str0, String str1, String str2)
         {
-
             if (IsNullOrEmpty(str0))
             {
                 return Concat(str1, str2);
@@ -276,7 +271,6 @@ namespace System
 
         public static String Concat(String str0, String str1, String str2, String str3)
         {
-
             if (IsNullOrEmpty(str0))
             {
                 return Concat(str1, str2, str3);
@@ -895,13 +889,11 @@ namespace System
 
         public string Replace(string oldValue, string newValue, bool ignoreCase, CultureInfo culture)
         {
-
             return ReplaceCore(oldValue, newValue, culture, ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None);
         }
 
         public string Replace(string oldValue, string newValue, StringComparison comparisonType)
         {
-
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
@@ -984,7 +976,6 @@ namespace System
         //
         public String Replace(char oldChar, char newChar)
         {
-
             if (oldChar == newChar)
                 return this;
 
@@ -1581,7 +1572,6 @@ namespace System
         //
         public string Trim()
         {
-
             return TrimWhiteSpaceHelper(TrimType.Both);
         }
 

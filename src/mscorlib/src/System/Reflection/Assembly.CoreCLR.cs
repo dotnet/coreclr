@@ -113,7 +113,6 @@ namespace System.Reflection
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Assembly Load(String assemblyString)
         {
-
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeAssembly.InternalLoad(assemblyString, ref stackMark);
         }
@@ -154,7 +153,6 @@ namespace System.Reflection
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Assembly Load(AssemblyName assemblyRef)
         {
-            
             AssemblyName modifiedAssemblyRef = null;
             if (assemblyRef != null && assemblyRef.CodeBase != null)
             {
@@ -175,7 +173,6 @@ namespace System.Reflection
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         internal static Assembly Load(AssemblyName assemblyRef, IntPtr ptrLoadContextBinder)
         {
-
             AssemblyName modifiedAssemblyRef = null;
             if (assemblyRef != null && assemblyRef.CodeBase != null)
             {
@@ -199,7 +196,6 @@ namespace System.Reflection
         public static Assembly Load(byte[] rawAssembly,
                                     byte[] rawSymbolStore)
         {
-
             AppDomain.CheckLoadByteArraySupported();
 
             if (rawAssembly == null)
@@ -214,7 +210,6 @@ namespace System.Reflection
 
         public static Assembly LoadFile(String path)
         {
-
             AppDomain.CheckLoadFileSupported();
 
             Assembly result = null;

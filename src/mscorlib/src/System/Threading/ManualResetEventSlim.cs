@@ -241,7 +241,6 @@ namespace System.Threading
         /// </summary>
         private void EnsureLockObjectCreated()
         {
-
             if (m_lock != null)
                 return;
 

@@ -1445,7 +1445,6 @@ namespace System.StubHelpers
 
         static internal unsafe Exception ConvertToManaged(int hr)
         {
-
             if (!Environment.IsWinRTSupported)
             {
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);

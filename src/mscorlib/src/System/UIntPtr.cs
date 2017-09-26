@@ -114,7 +114,6 @@ namespace System
 
         public unsafe override String ToString()
         {
-
 #if BIT64
             return ((ulong)_value).ToString(CultureInfo.InvariantCulture);
 #else // 32

@@ -148,7 +148,6 @@ namespace System.Diagnostics
         // 
         public virtual MethodBase GetMethod()
         {
-
             return method;
         }
 

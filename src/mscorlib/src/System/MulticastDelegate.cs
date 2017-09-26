@@ -409,7 +409,6 @@ namespace System
         // This method returns the Invocation list of this multicast delegate.
         public override sealed Delegate[] GetInvocationList()
         {
-
             Delegate[] del;
             Object[] invocationList = _invocationList as Object[];
             if (invocationList == null)

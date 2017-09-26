@@ -68,7 +68,6 @@ namespace System.Reflection
             RuntimeMethodHandleInternal handle, RuntimeType declaringType,
             RuntimeTypeCache reflectedTypeCache, MethodAttributes methodAttributes, BindingFlags bindingFlags, object keepalive)
         {
-
             Debug.Assert(!handle.IsNullHandle());
             Debug.Assert(methodAttributes == RuntimeMethodHandle.GetAttributes(handle));
 
@@ -539,7 +538,6 @@ namespace System.Reflection
         {
             get
             {
-
                 FetchReturnParameter();
                 return m_returnParameter as ParameterInfo;
             }

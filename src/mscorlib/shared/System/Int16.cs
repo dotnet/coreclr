@@ -99,7 +99,6 @@ namespace System
 
         private String ToString(String format, NumberFormatInfo info)
         {
-
             if (m_value < 0 && format != null && format.Length > 0 && (format[0] == 'X' || format[0] == 'x'))
             {
                 uint temp = (uint)(m_value & 0x0000FFFF);

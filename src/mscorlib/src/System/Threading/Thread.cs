@@ -471,7 +471,6 @@ namespace System.Threading
 
             set
             {
-
                 // If you add more pre-conditions to this method, check to see if you also need to 
                 // add them to CultureInfo.DefaultThreadCurrentCulture.set.
 
@@ -497,7 +496,6 @@ namespace System.Threading
 
         internal static AppDomain GetDomain()
         {
-
 
             AppDomain ad;
             ad = GetFastDomainInternal();

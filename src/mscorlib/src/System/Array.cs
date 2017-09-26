@@ -940,7 +940,6 @@ namespace System
 
         public static T[] Empty<T>()
         {
-
             return EmptyArray<T>.Value;
         }
 

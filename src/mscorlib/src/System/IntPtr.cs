@@ -143,7 +143,6 @@ namespace System
 
         public unsafe String ToString(String format)
         {
-
 #if BIT64
             return ((long)_value).ToString(format, CultureInfo.InvariantCulture);
 #else // !BIT64 (32)

@@ -37,7 +37,6 @@ namespace System.Diagnostics.Tracing
     /// </summary>
     internal class ActivityTracker
     {
-
         /// <summary>
         /// Called on work item begins.  The activity name = providerName + activityName without 'Start' suffix.
         /// It updates CurrentActivityId to track.   

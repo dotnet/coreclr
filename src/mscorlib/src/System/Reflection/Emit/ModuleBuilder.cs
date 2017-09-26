@@ -835,7 +835,6 @@ namespace System.Reflection.Emit
         #region Define Type
         public TypeBuilder DefineType(String name)
         {
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, TypeAttributes.NotPublic, null, null, PackingSize.Unspecified, TypeBuilder.UnspecifiedTypeSize);
@@ -844,7 +843,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr)
         {
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, null, null, PackingSize.Unspecified, TypeBuilder.UnspecifiedTypeSize);
@@ -853,7 +851,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent)
         {
-
             lock (SyncRoot)
             {
                 // Why do we only call CheckContext here? Why don't we call it in the other overloads?
@@ -865,7 +862,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, int typesize)
         {
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, parent, null, PackingSize.Unspecified, typesize);
@@ -874,7 +870,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, PackingSize packingSize, int typesize)
         {
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, parent, null, packingSize, typesize);
@@ -883,7 +878,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, Type[] interfaces)
         {
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, parent, interfaces, PackingSize.Unspecified, TypeBuilder.UnspecifiedTypeSize);
@@ -892,13 +886,11 @@ namespace System.Reflection.Emit
 
         private TypeBuilder DefineTypeNoLock(String name, TypeAttributes attr, Type parent, Type[] interfaces, PackingSize packingSize, int typesize)
         {
-
             return new TypeBuilder(name, attr, parent, interfaces, this, packingSize, typesize, null); ;
         }
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, PackingSize packsize)
         {
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, parent, packsize);
@@ -907,7 +899,6 @@ namespace System.Reflection.Emit
 
         private TypeBuilder DefineTypeNoLock(String name, TypeAttributes attr, Type parent, PackingSize packsize)
         {
-
             return new TypeBuilder(name, attr, parent, null, this, packsize, TypeBuilder.UnspecifiedTypeSize, null);
         }
 
@@ -919,7 +910,6 @@ namespace System.Reflection.Emit
         // Nested enum types can be defined manually using ModuleBuilder.DefineType.
         public EnumBuilder DefineEnum(String name, TypeAttributes visibility, Type underlyingType)
         {
-
             CheckContext(underlyingType);
             lock (SyncRoot)
             {
@@ -944,7 +934,6 @@ namespace System.Reflection.Emit
 
         private EnumBuilder DefineEnumNoLock(String name, TypeAttributes visibility, Type underlyingType)
         {
-
             return new EnumBuilder(name, underlyingType, visibility, this);
         }
 
@@ -957,14 +946,12 @@ namespace System.Reflection.Emit
         #region Define Global Method
         public MethodBuilder DefineGlobalMethod(String name, MethodAttributes attributes, Type returnType, Type[] parameterTypes)
         {
-
             return DefineGlobalMethod(name, attributes, CallingConventions.Standard, returnType, parameterTypes);
         }
 
         public MethodBuilder DefineGlobalMethod(String name, MethodAttributes attributes, CallingConventions callingConvention,
             Type returnType, Type[] parameterTypes)
         {
-
             return DefineGlobalMethod(name, attributes, callingConvention, returnType, null, null, parameterTypes, null, null);
         }
 
@@ -1059,7 +1046,6 @@ namespace System.Reflection.Emit
 
         public FieldBuilder DefineUninitializedData(String name, int size, FieldAttributes attributes)
         {
-
             lock (SyncRoot)
             {
                 return DefineUninitializedDataNoLock(name, size, attributes);

@@ -74,7 +74,6 @@ namespace System.Reflection
             RuntimeMethodHandleInternal handle, RuntimeType declaringType, RuntimeTypeCache reflectedTypeCache,
             MethodAttributes methodAttributes, BindingFlags bindingFlags)
         {
-
             m_bindingFlags = bindingFlags;
             m_reflectedTypeCache = reflectedTypeCache;
             m_declaringType = declaringType;

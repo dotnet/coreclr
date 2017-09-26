@@ -403,7 +403,6 @@ namespace System.Text
         /// <param name="length">The number of characters to read in this builder.</param>
         public string ToString(int startIndex, int length)
         {
-
             int currentLength = this.Length;
             if (startIndex < 0)
             {
@@ -691,7 +690,6 @@ namespace System.Text
         /// <param name="value">The string to append.</param>
         public StringBuilder Append(String value)
         {
-
             if (value != null)
             {
                 // We could have just called AppendHelper here; this is a hand-specialization of that code.
@@ -965,7 +963,6 @@ namespace System.Text
 
         public StringBuilder Append(char value)
         {
-
             if (m_ChunkLength < m_ChunkChars.Length)
             {
                 m_ChunkChars[m_ChunkLength++] = value;
@@ -1170,7 +1167,6 @@ namespace System.Text
 
         public StringBuilder Insert(int index, char value)
         {
-
             unsafe
             {
                 Insert(index, &value, 1);
@@ -1192,7 +1188,6 @@ namespace System.Text
 
         public StringBuilder Insert(int index, char[] value, int startIndex, int charCount)
         {
-
             int currentLength = Length;
             if ((uint)index > (uint)currentLength)
             {
@@ -1257,7 +1252,6 @@ namespace System.Text
 
         public StringBuilder Insert(int index, ReadOnlySpan<char> value)
         {
-
             if ((uint)index > (uint)Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
@@ -1628,7 +1622,6 @@ namespace System.Text
         /// </remarks>
         public StringBuilder Replace(String oldValue, String newValue, int startIndex, int count)
         {
-
             int currentLength = Length;
             if ((uint)startIndex > (uint)currentLength)
             {
@@ -1724,7 +1717,6 @@ namespace System.Text
         /// <param name="count">The number of characters to read in this builder.</param>
         public StringBuilder Replace(char oldChar, char newChar, int startIndex, int count)
         {
-
             int currentLength = Length;
             if ((uint)startIndex > (uint)currentLength)
             {

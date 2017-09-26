@@ -853,7 +853,6 @@ namespace System.Reflection.Emit
 
         public ILGenerator GetILGenerator()
         {
-
             ThrowIfGeneric();
             ThrowIfShouldNotHaveBody();
 
@@ -864,7 +863,6 @@ namespace System.Reflection.Emit
 
         public ILGenerator GetILGenerator(int size)
         {
-
             ThrowIfGeneric();
             ThrowIfShouldNotHaveBody();
 

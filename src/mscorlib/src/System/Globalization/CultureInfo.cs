@@ -334,7 +334,6 @@ namespace System.Globalization
         //
         public static CultureInfo CreateSpecificCulture(String name)
         {
-
             CultureInfo culture;
 
             try
@@ -647,7 +646,6 @@ namespace System.Globalization
         {
             get
             {
-
                 // special case the compatibility cultures
                 switch (this.Name)
                 {
@@ -1081,7 +1079,6 @@ namespace System.Globalization
         {
             get
             {
-
                 //
                 // This property always returns a new copy of the calendar array.
                 //
@@ -1105,7 +1102,6 @@ namespace System.Globalization
 
         public CultureInfo GetConsoleFallbackUICulture()
         {
-
             CultureInfo temp = _consoleFallbackCulture;
             if (temp == null)
             {
@@ -1436,7 +1432,6 @@ namespace System.Globalization
         // This function is deprecated, we don't like it
         public static CultureInfo GetCultureInfoByIetfLanguageTag(string name)
         {
-
             // Disallow old zh-CHT/zh-CHS names
             if (name == "zh-CHT" || name == "zh-CHS")
             {

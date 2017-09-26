@@ -538,7 +538,6 @@ namespace System.Globalization
         {
             get
             {
-
                 Debug.Assert(this.calendar != null, "DateTimeFormatInfo.Calendar: calendar != null");
                 return (this.calendar);
             }

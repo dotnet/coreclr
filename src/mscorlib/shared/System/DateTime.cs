@@ -17,7 +17,6 @@ using Calendar = System.Globalization.Calendar;
 
 namespace System
 {
-
     // This value type represents a date and time.  Every DateTime 
     // object has a private field (Ticks) of type Int64 that stores the 
     // date and time as the number of 100 nanosecond intervals since 
@@ -1000,7 +999,6 @@ namespace System
         {
             get
             {
-
                 DateTime utc = UtcNow;
                 Boolean isAmbiguousLocalDst = false;
                 Int64 offset = TimeZoneInfo.GetDateTimeNowUtcOffsetFromUtc(utc, out isAmbiguousLocalDst).Ticks;

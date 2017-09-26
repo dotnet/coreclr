@@ -948,7 +948,6 @@ namespace System.Text
 
                     if (!fallbackResult)
                     {
-
                         // Couldn't fallback, throw or wait til next time
                         // We either read enough bytes for bytes-=4 to work, or we're
                         // going to throw in ThrowCharsOverflow because chars == charStart

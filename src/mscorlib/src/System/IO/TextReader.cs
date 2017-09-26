@@ -31,7 +31,6 @@ namespace System.IO {
     // This class is intended for character input, not bytes.  
     // There are methods on the Stream class for reading bytes. 
     internal abstract class TextReader : MarshalByRefObject, IDisposable {
-
         public static readonly TextReader Null = new NullTextReader();
     
         protected TextReader() {}
@@ -67,7 +66,6 @@ namespace System.IO {
         //
         public virtual int Peek() 
         {
-
             return -1;
         }
     
@@ -110,7 +108,6 @@ namespace System.IO {
         // TextReader, and returns them as one string.
         public virtual String ReadToEnd()
         {
-
             char[] chars = new char[4096];
             int len;
             StringBuilder sb = new StringBuilder(4096);
@@ -126,7 +123,6 @@ namespace System.IO {
         // 
         public virtual int ReadBlock([In, Out] char[] buffer, int index, int count) 
         {
-
             int i, n = 0;
             do {
                 n += (i = Read(buffer, index + n, count - n));
