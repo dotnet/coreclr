@@ -257,7 +257,7 @@ def static genStressModeScriptStep(def os, def stressModeName, def stressModeVar
 
 def static isNeedDocker(def architecture, def os, def isBuild) {
     if (isBuild) {
-        if (architecture == 'x86' && os == 'Ubuntu16.04') {
+        if (architecture == 'x86' && os == 'Ubuntu') {
             return true
         }
         else if (architecture == 'arm') {
@@ -267,7 +267,7 @@ def static isNeedDocker(def architecture, def os, def isBuild) {
         }
     }
     else {
-        if (architecture == 'x86' && os == 'Ubuntu16.04') {
+        if (architecture == 'x86' && os == 'Ubuntu') {
             return true
         }
     }
@@ -277,7 +277,7 @@ def static isNeedDocker(def architecture, def os, def isBuild) {
 def static getDockerImageName(def architecture, def os, def isBuild) {
     // We must change some docker private images to official later
     if (isBuild) {
-        if (architecture == 'x86' && os == 'Ubuntu16.04') {
+        if (architecture == 'x86' && os == 'Ubuntu') {
             return "hseok82/dotnet-buildtools-prereqs:ubuntu-16.04-crossx86-ef0ac75-20175511035548"
         }
         else if (architecture == 'arm') {
@@ -293,7 +293,7 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
         }
     }
     else {
-        if (architecture == 'x86' && os == 'Ubuntu16.04') {
+        if (architecture == 'x86' && os == 'Ubuntu') {
             return "hseok82/dotnet-buildtools-prereqs:ubuntu1604_x86_test"
         }
     }
@@ -368,7 +368,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 case 'x64':
                 case 'x86':
                 case 'x86lb':
-                    if (isFlowJob && architecture == 'x86' && os == 'Ubuntu16.04') {
+                    if (isFlowJob && architecture == 'x86' && os == 'Ubuntu') {
                         Utilities.addPeriodicTrigger(job, '@daily')
                     }
                     else if (isFlowJob || os == 'Windows_NT' || !(os in Constants.crossList)) {
@@ -1223,7 +1223,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             break
         // editor brace matching: }
         case 'x86': // editor brace matching: {
-            assert ((os == 'Windows_NT') || ((os == 'Ubuntu16.04') && (scenario == 'default')))
+            assert ((os == 'Windows_NT') || ((os == 'Ubuntu') && (scenario == 'default')))
             if (os == 'Ubuntu') {
                 // Triggers on the non-flow jobs aren't necessary here
                 if (!isFlowJob) {
@@ -1715,7 +1715,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
             switch (architecture) {
                 case 'x64':
                 case 'x86':
-                    if (architecture == 'x86' && os == 'Ubuntu16.04') {
+                    if (architecture == 'x86' && os == 'Ubuntu') {
                         // build and PAL test
                         def dockerImage = getDockerImageName(architecture, os, true)
                         buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code -e ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} ./build.sh x86 cross ${lowerConfiguration}"
@@ -1904,6 +1904,9 @@ combinedScenarios.each { scenario ->
                         case 'x86':
                             if ((os != 'Ubuntu16.04') && (os != 'Windows_NT')) {
                                 return
+                            }
+                            if (os == 'Ubuntu16.04') {
+                                os = 'Ubuntu'
                             }
                             break
                         case 'x86lb':
@@ -2244,7 +2247,7 @@ combinedScenarios.each { scenario ->
                     }
                 }
                 else if (architecture == 'x86') {
-                    if (os != "Ubuntu16.04") {
+                    if (os != "Ubuntu") {
                         return
                     }
                 }
