@@ -15910,6 +15910,7 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
 #endif // MULTIPLE_HEAPS
 
     uint64_t total_allowed_soh_allocation = max_soh_allocated * num_heaps;
+    // [LOCALGC TODO]
     // In theory, the upper limit here is the physical memory of the machine, not
     // SIZE_T_MAX. This is not true today because total_physical_mem can be
     // larger than SIZE_T_MAX if running in wow64 on a machine with more than
@@ -15940,19 +15941,11 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
         allocation_no_gc_loh = min (allocation_no_gc_loh, total_allowed_loh_alloc_scaled);
     }
 
-
-    if (allocation_no_gc_soh > total_allowed_soh_allocation)
-    {
-        status = start_no_gc_too_large;
-        goto done;
-    }
-
     if (disallow_full_blocking)
         current_no_gc_region_info.minimal_gc_p = TRUE;
 
     if (allocation_no_gc_soh != 0)
     {
-        assert(allocation_no_gc_soh <= SIZE_T_MAX);
         current_no_gc_region_info.soh_allocation_size = static_cast<size_t>(allocation_no_gc_soh);
         size_per_heap = current_no_gc_region_info.soh_allocation_size;
 #ifdef MULTIPLE_HEAPS
@@ -15969,7 +15962,6 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
 
     if (allocation_no_gc_loh != 0)
     {
-        assert(allocation_no_gc_soh <= SIZE_T_MAX);
         current_no_gc_region_info.loh_allocation_size = static_cast<size_t>(allocation_no_gc_loh);
         size_per_heap = current_no_gc_region_info.loh_allocation_size;
 #ifdef MULTIPLE_HEAPS
