@@ -10602,17 +10602,17 @@ gc_heap::init_gc_heap (int  h_number)
     make_background_mark_stack (b_arr);
 #endif //BACKGROUND_GC
 
+    ephemeral_low = generation_allocation_start(generation_of(max_generation - 1));
+    ephemeral_high = heap_segment_reserved(ephemeral_heap_segment);
     if (heap_number == 0)
     {
+        stomp_write_barrier_initialize(
 #ifdef MULTIPLE_HEAPS
-        ephemeral_low = reinterpret_cast<uint8_t*>(1);
-        ephemeral_high = reinterpret_cast<uint8_t*>(~0);
+            reinterpret_cast<uint8_t*>(1), reinterpret_cast<uint8_t*>(~0)
 #else
-        ephemeral_low = generation_allocation_start(generation_of(max_generation - 1));
-        ephemeral_high = heap_segment_reserved(ephemeral_heap_segment);
+            ephemeral_low, ephemeral_high
 #endif //!MULTIPLE_HEAPS
-
-        stomp_write_barrier_initialize(ephemeral_low, ephemeral_high);
+        );
     }
 
 #ifdef MARK_ARRAY

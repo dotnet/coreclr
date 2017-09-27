@@ -912,6 +912,8 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 #endif
         if (flushXrestart & SWB_EE_RESTART)
         {
+            assert(!args->is_runtime_suspended &&
+                "if runtime was suspended in patching routines then it was in running state at begining");
             ThreadSuspend::RestartEE(FALSE, TRUE);
         }
         return; // unlike other branches we have already done cleanup so bailing out here
@@ -985,6 +987,8 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
     }
     if (flushXrestart & SWB_EE_RESTART) 
     {
+        assert(!args->is_runtime_suspended && 
+            "if runtime was suspended in patching routines then it was in running state at begining");
         ThreadSuspend::RestartEE(FALSE, TRUE);
     }
 }
