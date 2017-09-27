@@ -3719,6 +3719,33 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
 
         case CORINFO_INTRINSIC_TypeEQ:
         case CORINFO_INTRINSIC_TypeNEQ:
+        {
+            JITDUMP("Importing Type.op_*Equality intrinsic\n");
+            op1              = impStackTop(1).val;
+            op2              = impStackTop(0).val;
+            GenTree* optTree = gtFoldTypeEqualityCall(intrinsicID, op1, op2);
+            if (optTree != nullptr)
+            {
+                // Success, clean up the evaluation stack.
+                impPopStack();
+                impPopStack();
+
+                // See if we can optimize even further, to a handle compare.
+                optTree = gtFoldTypeCompare(optTree);
+
+                // See if we can now fold a handle compare to a constant.
+                optTree = gtFoldExpr(optTree);
+
+                retNode = optTree;
+            }
+            else
+            {
+                // Retry optimizing these later
+                isSpecial = true;
+            }
+            break;
+        }
+
         case CORINFO_INTRINSIC_GetCurrentManagedThread:
         case CORINFO_INTRINSIC_GetManagedThreadId:
         {
