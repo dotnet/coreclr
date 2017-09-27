@@ -79,7 +79,7 @@ public:
 
     static bool Parse(int argc, char* argv[], /* OUT */ Options* o);
 
-    static bool AddJitOption(int& currArgument, int argc, char* argv[], LightWeightMap<DWORD, DWORD>** pJitOptions);
+    static bool AddJitOption(int& currArgument, int argc, char* argv[], LightWeightMap<DWORD, DWORD>** pJitOptions, LightWeightMap<DWORD, DWORD>** pForceJitOptions);
 
 private:
     static void DumpHelp(const char* program);

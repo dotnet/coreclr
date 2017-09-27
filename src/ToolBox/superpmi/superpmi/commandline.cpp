@@ -119,17 +119,13 @@ void CommandLine::DumpHelp(const char* program)
     printf("     Ignored: neither MSVCDIS nor CoreDisTools is available.\n");
 #endif // USE_COREDISTOOLS
     printf("\n");
-    printf(" -forcejitoption key=value\n");
-    printf("     Set the JIT option named \"key\" to \"value\" for JIT 1. Overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
+    printf(" -jitoption [force] key=value\n");
+    printf("     Set the JIT option named \"key\" to \"value\" for JIT 1 if the option was not set.");
+    printf("     WIth optional force flag overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
     printf("\n");
-    printf(" -forcejit2option key=value\n");
-    printf("     Set the JIT option named \"key\" to \"value\" for JIT 2. Overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
-    printf("\n");
-    printf(" -jitoption key=value\n");
-    printf("     Set the JIT option named \"key\" to \"value\" for JIT 1 if the option was not set. NOTE: do not use a \"COMPlus_\" prefix!\n");
-    printf("\n");
-    printf(" -jit2option key=value\n");
-    printf("     Set the JIT option named \"key\" to \"value\" for JIT 2 if the option was not set. NOTE: do not use a \"COMPlus_\" prefix!\n");
+    printf(" -jit2option [force] key=value\n");
+    printf("     Set the JIT option named \"key\" to \"value\" for JIT 2 if the option was not set.");
+    printf("     WIth optional force flag overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
     printf("\n");
     printf("Inputs are case sensitive.\n");
     printf("\n");
@@ -524,34 +520,18 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
                     return false;
                 }
             }
-            else if ((_strnicmp(&argv[i][1], "forcejitoption", argLen) == 0))
+            else if (_strnicmp(&argv[i][1], "jitoption", argLen) == 0)
             {
                 i++;
-                if (!AddJitOption(i, argc, argv, &o->forceJitOptions))
+                if (!AddJitOption(i, argc, argv, &o->jitOptions, &o->forceJitOptions))
                 {
                     return false;
                 }
             }
-            else if ((_strnicmp(&argv[i][1], "forcejit2option", argLen) == 0))
-            {
-                i++;
-                if (!AddJitOption(i, argc, argv, &o->forceJit2Options))
-                {
-                    return false;
-                }
-            }
-            else if ((_strnicmp(&argv[i][1], "jitoption", argLen) == 0))
-            {
-                i++;
-                if (!AddJitOption(i, argc, argv, &o->jitOptions))
-                {
-                    return false;
-                }
-            }
-            else if ((_strnicmp(&argv[i][1], "jit2option", argLen) == 0))
+            else if (_strnicmp(&argv[i][1], "jit2option", argLen) == 0)
             {
                 i++;                
-                if (!AddJitOption(i, argc, argv, &o->jit2Options))
+                if (!AddJitOption(i, argc, argv, &o->jit2Options, &o->forceJit2Options))
                 {
                     return false;
                 }
@@ -631,33 +611,55 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
 // AddJitOption: Parse the value that was passed with -jitOption flag.
 //
 // Arguments:
-//    currArgument - current argument number. Points to the token next to -jitOption. After the function
-//                   points to the last parsed token
-//    argc         - number of all arguments
-//    argv         - arguments as array of char*
-//    pJitOptions  - a jit options map, to store the new option in.
+//    currArgument     - current argument number. Points to the token next to -jitOption. After the function
+//                       points to the last parsed token
+//    argc             - number of all arguments
+//    argv             - arguments as array of char*
+//    pJitOptions      - a jit options map, that sets the option, if it was not already set.
+//    pForceJitOptions - a jit options map, that forces the option even if it was already set.
 //
 // Returns:
 //    False if an error occurred, true if the option was parsed and added.
-bool CommandLine::AddJitOption(int& currArgument, int argc, char* argv[], LightWeightMap<DWORD, DWORD>** pJitOptions)
+bool CommandLine::AddJitOption(int& currArgument, int argc, char* argv[], LightWeightMap<DWORD, DWORD>** pJitOptions, LightWeightMap<DWORD, DWORD>** pForceJitOptions)
 {
-    wchar_t *key, *value;
+    if (currArgument >= argc)
+    {
+        DumpHelp(argv[0]);
+        return false;
+    }
+
+    LightWeightMap<DWORD, DWORD>* targetjitOptions = nullptr;
+
+
+    if (_strnicmp(argv[currArgument], "force", strlen(argv[currArgument])) == 0)
+    {
+        if (*pForceJitOptions == nullptr)
+        {
+            *pForceJitOptions = new LightWeightMap<DWORD, DWORD>();
+        }
+        targetjitOptions = *pForceJitOptions;
+        currArgument++;
+    }
+    else
+    {
+        if (*pJitOptions == nullptr)
+        {
+            *pJitOptions = new LightWeightMap<DWORD, DWORD>();
+        }
+        targetjitOptions = *pJitOptions;
+    }
+
+    wchar_t* key;
+    wchar_t* value;
     if ((currArgument >= argc) || !ParseJitOption(argv[currArgument], &key, &value))
     {
         DumpHelp(argv[0]);
         return false;
     }
 
-    if (*pJitOptions == nullptr)
-    {
-        *pJitOptions = new LightWeightMap<DWORD, DWORD>();
-    }
-
-    LightWeightMap<DWORD, DWORD>* jitOptions = *pJitOptions;
-
-    DWORD keyIndex = (DWORD)jitOptions->AddBuffer((unsigned char*)key, sizeof(wchar_t) * ((unsigned int)wcslen(key) + 1));
-    DWORD valueIndex = (DWORD)jitOptions->AddBuffer((unsigned char*)value, sizeof(wchar_t) * ((unsigned int)wcslen(value) + 1));
-    jitOptions->Add(keyIndex, valueIndex);
+    DWORD keyIndex = (DWORD)targetjitOptions->AddBuffer((unsigned char*)key, sizeof(wchar_t) * ((unsigned int)wcslen(key) + 1));
+    DWORD valueIndex = (DWORD)targetjitOptions->AddBuffer((unsigned char*)value, sizeof(wchar_t) * ((unsigned int)wcslen(value) + 1));
+    targetjitOptions->Add(keyIndex, valueIndex);
 
     delete[] key;
     delete[] value;

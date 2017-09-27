@@ -332,7 +332,7 @@ void MergeWorkerMCLs(char* mclFilename, char** arrWorkerMCLPath, int workerCount
 //    jitOptions   -   map with options
 //    bytesWritten -   size of the argument string in bytes
 //    spmiArgs     -   pointer to the argument string
-//    optionName   -   the jitOption name.
+//    optionName   -   the jitOption name, can include [force] flag.
 //
 void addJitOptionArgument(LightWeightMap<DWORD, DWORD>* jitOptions, int &bytesWritten, char * spmiArgs, const char* optionName)
 {
@@ -384,8 +384,8 @@ char* ConstructChildProcessArgs(const CommandLine::Options& o)
     ADDARG_STRING(o.targetArchitecture, "-target");
     ADDARG_STRING(o.compileList, "-compile");
 
-    addJitOptionArgument(o.forceJitOptions, bytesWritten, spmiArgs, "forcejitoption");
-    addJitOptionArgument(o.forceJit2Options, bytesWritten, spmiArgs, "forcejit2option");
+    addJitOptionArgument(o.forceJitOptions, bytesWritten, spmiArgs, "jitoption force");
+    addJitOptionArgument(o.forceJit2Options, bytesWritten, spmiArgs, "jit2option force");
 
     addJitOptionArgument(o.jitOptions, bytesWritten, spmiArgs, "jitoption");
     addJitOptionArgument(o.jit2Options, bytesWritten, spmiArgs, "jit2option");
