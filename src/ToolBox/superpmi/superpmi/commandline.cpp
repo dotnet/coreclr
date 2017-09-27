@@ -169,10 +169,6 @@ static bool ParseJitOption(const char* optionString, wchar_t** key, wchar_t **va
     tempKey[i] = '\0';
 
     const char* tempVal = &optionString[i + 1];
-    if (tempVal[0] == '\0')
-    {
-        return false;
-    }
 
     const unsigned keyLen = i;
     wchar_t* keyBuf = new wchar_t[keyLen + 1];
