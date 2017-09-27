@@ -2,7 +2,7 @@
 
 # resolve python-version to use
 if [ "$PYTHON" == "" ] ; then
-    if ! PYTHON=$(command -v python || command -v python2 || command -v python2.7)
+    if ! PYTHON=$(command -v python2.7 || command -v python2 || command -v python)
     then
        echo "Unable to locate build-dependency python2.x!" 1>&2
        exit 1
@@ -870,11 +870,6 @@ while :; do
             ;;
         -osgroup=*)
             __BuildOS=`echo $1 | cut -d '=' -f2`
-            if [ "$__HostOS" != "$__BuildOS" ]; then
-                __SkipCoreCLR=1
-                __IncludeTests=
-                __SkipNuget=1
-            fi
             ;;
 
         *)
