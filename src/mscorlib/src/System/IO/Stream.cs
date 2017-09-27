@@ -111,7 +111,7 @@ namespace System.IO
 
         public Task CopyToAsync(Stream destination)
         {
-            var bufferSize = GetBufferSize(Length, Position, CanSeek);
+            int bufferSize = GetBufferSize();
 
             return CopyToAsync(destination, bufferSize);
         }
@@ -123,7 +123,7 @@ namespace System.IO
 
         public Task CopyToAsync(Stream destination, CancellationToken cancellationToken)
         {
-            var bufferSize = GetBufferSize(Length, Position, CanSeek);
+            int bufferSize = GetBufferSize();
 
             return CopyToAsync(destination, bufferSize, cancellationToken);
         }
@@ -166,7 +166,7 @@ namespace System.IO
         // the current position.
         public void CopyTo(Stream destination)
         {
-            var bufferSize = GetBufferSize(Length, Position, CanSeek);
+            int bufferSize = GetBufferSize();
 
             CopyTo(destination, bufferSize);
         }
@@ -193,12 +193,14 @@ namespace System.IO
             }
         }
 
-        private static int GetBufferSize(long length, long position, bool canSeek)
+        private int GetBufferSize()
         {
             int bufferSize = _DefaultCopyBufferSize;
 
-            if (canSeek)
+            if (CanSeek)
             {
+                long length = Length;
+                long position = Position;
                 if (length <= position) // Handles negative overflows
                 {
                     // No bytes left in stream
