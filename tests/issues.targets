@@ -251,6 +251,12 @@
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\CLR-x86-JIT\V1.2-Beta1\b103058\b103058\b103058.cmd">
             <Issue>7008</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\BenchmarksGame\reverse-complement\reverse-complement-6\reverse-complement-6.cmd">
+            <Issue>14191</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\BenchmarksGame\fasta\fasta-1\fasta-1.cmd">
+            <Issue>14191</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- Tests that need to be triaged for vararg usage as that is not supported -->
@@ -422,6 +428,33 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\CLR-x86-JIT\V2.0-Beta2\b409748\b409748\b409748.cmd">
             <Issue>needs triage</Issue>
+        </ExcludeList>
+    </ItemGroup>
+
+
+    <!-- The following are tests that fail when building tests against packages -->
+
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildTestsAgainstPackages)' == 'true'">
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\superpmi\superpmicollect\superpmicollect.cmd">
+            <Issue>needs triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\BenchmarksGame\k-nucleotide\k-nucleotide-1\k-nucleotide-1.cmd">
+            <Issue>9314</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\BenchmarksGame\k-nucleotide\k-nucleotide-9\k-nucleotide-9.cmd">
+            <Issue>9314</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\BenchmarksGame\regex-redux\regex-redux-1\regex-redux-1.cmd">
+            <Issue>9314</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\BenchmarksGame\regex-redux\regex-redux-5\regex-redux-5.cmd">
+            <Issue>9314</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\BenchmarksGame\reverse-complement\reverse-complement-1\reverse-complement-1.cmd">
+            <Issue>9314</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Performance\CodeQuality\BenchmarksGame\reverse-complement\reverse-complement-6\reverse-complement-6.cmd">
+            <Issue>9314</Issue>
         </ExcludeList>
     </ItemGroup>
 </Project>
