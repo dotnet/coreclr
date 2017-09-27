@@ -406,8 +406,8 @@ void LinearScan::TreeNodeInfoInitCall(GenTreeCall* call)
             ctrlExpr->gtLsraInfo.setSrcCandidates(this, genRegMask(REG_IP0));
 #else  // !_TARGET_ARM64_
             // Fast tail call - make sure that call target is always computed in r12
-            // so that epilog sequence can generate "mov  pc, r12" to achieve fast tail call.
-            ctrlExpr->gtLsraInfo.setSrcCandidates(this, genRegMask(REG_R12));
+            // so that epilog sequence can generate "br r12" to achieve fast tail call.
+            ctrlExpr->gtLsraInfo.setSrcCandidates(this, RBM_R12);
 #endif // !_TARGET_ARM64_
         }
     }
