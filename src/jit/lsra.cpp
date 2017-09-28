@@ -134,17 +134,11 @@ void lsraAssignRegToTree(GenTreePtr tree, regNumber reg, unsigned regIdx)
         tree->gtRegNum = reg;
     }
 #if defined(_TARGET_ARM_)
-    else if (tree->OperGet() == GT_MUL_LONG || tree->OperGet() == GT_PUTARG_REG)
+    else if (tree->OperGet() == GT_MUL_LONG || tree->OperGet() == GT_PUTARG_REG || tree->OperGet() == GT_BITCAST)
     {
         assert(regIdx == 1);
         GenTreeMultiRegOp* mul = tree->AsMultiRegOp();
         mul->gtOtherReg        = reg;
-    }
-    else if (tree->OperGet() == GT_COPY)
-    {
-        assert(regIdx == 1);
-        GenTreeCopyOrReload* copy = tree->AsCopyOrReload();
-        copy->gtOtherRegs[0]      = (regNumberSmall)reg;
     }
     else if (tree->OperGet() == GT_PUTARG_SPLIT)
     {
@@ -3079,7 +3073,7 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
             }
         }
 
-        if (tree->IsCall() && (tree->gtFlags & GTF_CALL_UNMANAGED) != 0)
+        if (killGCRefs(tree))
         {
             RefPosition* pos = newRefPosition((Interval*)nullptr, currentLoc, RefTypeKillGCRefs, tree,
                                               (allRegs(TYP_REF) & ~RBM_ARG_REGS));
@@ -3087,6 +3081,35 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
         return true;
     }
 
+    return false;
+}
+
+//------------------------------------------------------------------------
+// killGCRefs:
+// Given some tree node return does it need all GC refs to be spilled from
+// callee save registers.
+//
+// Arguments:
+//    tree       - the tree for which we ask about gc refs.
+//
+// Return Value:
+//    true       - tree kills GC refs on callee save registers
+//    false      - tree doesn't affect GC refs on callee save registers
+bool LinearScan::killGCRefs(GenTree* tree)
+{
+    if (tree->IsCall())
+    {
+        if ((tree->gtFlags & GTF_CALL_UNMANAGED) != 0)
+        {
+            return true;
+        }
+
+        if (tree->AsCall()->gtCallMethHnd == compiler->eeFindHelper(CORINFO_HELP_JIT_PINVOKE_BEGIN))
+        {
+            assert(compiler->opts.ShouldUsePInvokeHelpers());
+            return true;
+        }
+    }
     return false;
 }
 
@@ -3560,7 +3583,7 @@ static int ComputeOperandDstCount(GenTree* operand)
         // If an operand has no destination registers but does have source registers, it must be a store
         // or a compare.
         assert(operand->OperIsStore() || operand->OperIsBlkOp() || operand->OperIsPutArgStk() ||
-               operand->OperIsCompare() || operand->OperIs(GT_CMP) || operand->IsSIMDEqualityOrInequality());
+               operand->OperIsCompare() || operand->OperIs(GT_CMP, GT_JCMP) || operand->IsSIMDEqualityOrInequality());
         return 0;
     }
     else if (!operand->OperIsFieldListHead() && (operand->OperIsStore() || operand->TypeGet() == TYP_VOID))
@@ -4051,7 +4074,8 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
 
             regMaskTP candidates = getUseCandidates(useNode);
 #ifdef _TARGET_ARM_
-            if (useNode->OperIsPutArgSplit() || (compiler->opts.compUseSoftFP && useNode->OperIsPutArgReg()))
+            if (useNode->OperIsPutArgSplit() ||
+                (compiler->opts.compUseSoftFP && (useNode->OperIsPutArgReg() || useNode->OperGet() == GT_BITCAST)))
             {
                 // get i-th candidate, set bits in useCandidates must be in sequential order.
                 candidates = genFindLowestReg(candidates & ~currCandidates);
@@ -4129,9 +4153,6 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
     // push defs
     LocationInfoList locationInfoList;
     LsraLocation     defLocation = currentLoc + 1;
-#ifdef ARM_SOFTFP
-    regMaskTP remainingUseCandidates = useCandidates;
-#endif
     for (int i = 0; i < produce; i++)
     {
         regMaskTP currCandidates = candidates;
@@ -4155,10 +4176,10 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
         }
 #ifdef ARM_SOFTFP
         // If oper is GT_PUTARG_REG, set bits in useCandidates must be in sequential order.
-        else if (tree->OperIsMultiRegOp() || tree->OperGet() == GT_COPY)
+        else if (tree->OperIsMultiRegOp() || tree->OperGet() == GT_BITCAST)
         {
-            useCandidates = genFindLowestReg(remainingUseCandidates);
-            remainingUseCandidates &= ~useCandidates;
+            currCandidates = genFindLowestReg(candidates);
+            candidates &= ~currCandidates;
         }
 #endif // ARM_SOFTFP
 #endif // _TARGET_ARM_
@@ -5927,9 +5948,24 @@ bool LinearScan::checkActiveInterval(Interval* interval, LsraLocation refLocatio
             else
             {
                 RefPosition* nextAssignedRef = recentAssignedRef->nextRefPosition;
+#ifdef _TARGET_ARM_
+                // This function is invoked only from allocateBusyReg() through checkActiveIntervals().
+                //
+                // For ARM32, when we try to allocate a double register which consists of two float registers,
+                // tryAllocateFreeReg() may fail to allocate a double register even if one of two float
+                // reigsters is assigned to a inactive constant interval.
+                // https://github.com/dotnet/coreclr/pull/14080
+                //
+                // Therefore an inactive constant interval may be encountered here.
+                assert(nextAssignedRef != nullptr || interval->isConstant);
+                if (nextAssignedRef != nullptr)
+                    assert(nextAssignedRef->nodeLocation == refLocation ||
+                           (nextAssignedRef->nodeLocation + 1 == refLocation && nextAssignedRef->delayRegFree));
+#else  // !_TARGET_ARM_
                 assert(nextAssignedRef != nullptr);
                 assert(nextAssignedRef->nodeLocation == refLocation ||
                        (nextAssignedRef->nodeLocation + 1 == refLocation && nextAssignedRef->delayRegFree));
+#endif // !_TARGET_ARM_
             }
         }
         return false;
@@ -10071,6 +10107,28 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
         switchRegs |= genRegMask(op2->gtRegNum);
     }
 
+#ifdef _TARGET_ARM64_
+    // Next, if this blocks ends with a JCMP, we have to make sure not to copy
+    // into the register that it uses or modify the local variable it must consume
+    LclVarDsc* jcmpLocalVarDsc = nullptr;
+    if (block->bbJumpKind == BBJ_COND)
+    {
+        GenTree* lastNode = LIR::AsRange(block).LastNode();
+
+        if (lastNode->OperIs(GT_JCMP))
+        {
+            GenTree* op1 = lastNode->gtGetOp1();
+            switchRegs |= genRegMask(op1->gtRegNum);
+
+            if (op1->IsLocal())
+            {
+                GenTreeLclVarCommon* lcl = op1->AsLclVarCommon();
+                jcmpLocalVarDsc          = &compiler->lvaTable[lcl->gtLclNum];
+            }
+        }
+    }
+#endif
+
     VarToRegMap sameVarToRegMap = sharedCriticalVarToRegMap;
     regMaskTP   sameWriteRegs   = RBM_NONE;
     regMaskTP   diffReadRegs    = RBM_NONE;
@@ -10143,6 +10201,13 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
             {
                 sameToReg = REG_NA;
             }
+
+#ifdef _TARGET_ARM64_
+            if (jcmpLocalVarDsc && (jcmpLocalVarDsc->lvVarIndex == outResolutionSetVarIndex))
+            {
+                sameToReg = REG_NA;
+            }
+#endif
 
             // If the var is live only at those blocks connected by a split edge and not live-in at some of the
             // target blocks, we will resolve it the same way as if it were in diffResolutionSet and resolution

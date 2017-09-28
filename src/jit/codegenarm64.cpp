@@ -1292,7 +1292,7 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
 
         if ((block->bbNext == nullptr) || !BasicBlock::sameEHRegion(block, block->bbNext))
         {
-            instGen(INS_BREAKPOINT); // This should never get executed
+            instGen(INS_bkpt); // This should never get executed
         }
     }
     else
@@ -1463,7 +1463,7 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
         case GT_CNS_DBL:
         {
             emitter*       emit       = getEmitter();
-            emitAttr       size       = emitTypeSize(tree);
+            emitAttr       size       = emitActualTypeSize(tree);
             GenTreeDblCon* dblConst   = tree->AsDblCon();
             double         constValue = dblConst->gtDblCon.gtDconVal;
 
@@ -1509,7 +1509,7 @@ void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
     regNumber targetReg  = treeNode->gtRegNum;
     var_types targetType = treeNode->TypeGet();
     emitter*  emit       = getEmitter();
-    emitAttr  attr       = emitTypeSize(treeNode);
+    emitAttr  attr       = emitActualTypeSize(treeNode);
     unsigned  isUnsigned = (treeNode->gtFlags & GTF_UNSIGNED);
 
     GenTreePtr op1 = treeNode->gtGetOp1();
@@ -1558,10 +1558,28 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
     GenTreePtr  op2 = treeNode->gtGetOp2();
     instruction ins = genGetInsForOper(treeNode->OperGet(), targetType);
 
+    if ((treeNode->gtFlags & GTF_SET_FLAGS) != 0)
+    {
+        switch (oper)
+        {
+            case GT_ADD:
+                ins = INS_adds;
+                break;
+            case GT_SUB:
+                ins = INS_subs;
+                break;
+            case GT_AND:
+                ins = INS_ands;
+                break;
+            default:
+                noway_assert(!"Unexpected BinaryOp with GTF_SET_FLAGS set");
+        }
+    }
+
     // The arithmetic node must be sitting in a register (since it's not contained)
     assert(targetReg != REG_NA);
 
-    regNumber r = emit->emitInsTernary(ins, emitTypeSize(treeNode), treeNode, op1, op2);
+    regNumber r = emit->emitInsTernary(ins, emitActualTypeSize(treeNode), treeNode, op1, op2);
     assert(r == targetReg);
 
     genProduceReg(treeNode);
@@ -1798,7 +1816,7 @@ void CodeGen::genReturn(GenTreePtr treeNode)
 
         if (movRequired)
         {
-            emitAttr attr = emitTypeSize(targetType);
+            emitAttr attr = emitActualTypeSize(targetType);
             getEmitter()->emitIns_R_R(INS_mov, attr, retReg, op1->gtRegNum);
         }
     }
@@ -1849,7 +1867,7 @@ void CodeGen::genLclHeap(GenTreePtr tree)
         BasicBlock*  esp_check = genCreateTempLabel();
         emitJumpKind jmpEqual  = genJumpKindForOper(GT_EQ, CK_SIGNED);
         inst_JMP(jmpEqual, esp_check);
-        getEmitter()->emitIns(INS_BREAKPOINT);
+        getEmitter()->emitIns(INS_bkpt);
         genDefineTempLabel(esp_check);
     }
 #endif
@@ -1888,7 +1906,7 @@ void CodeGen::genLclHeap(GenTreePtr tree)
         // If 0 bail out by returning null in targetReg
         genConsumeRegAndCopy(size, targetReg);
         endLabel = genCreateTempLabel();
-        getEmitter()->emitIns_R_R(INS_TEST, easz, targetReg, targetReg);
+        getEmitter()->emitIns_R_R(INS_tst, easz, targetReg, targetReg);
         emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
         inst_JMP(jmpEqual, endLabel);
 
@@ -1912,7 +1930,7 @@ void CodeGen::genLclHeap(GenTreePtr tree)
         // Align to STACK_ALIGN
         // regCnt will be the total number of bytes to localloc
         inst_RV_IV(INS_add, regCnt, (STACK_ALIGN - 1), emitActualTypeSize(type));
-        inst_RV_IV(INS_AND, regCnt, ~(STACK_ALIGN - 1), emitActualTypeSize(type));
+        inst_RV_IV(INS_and, regCnt, ~(STACK_ALIGN - 1), emitActualTypeSize(type));
     }
 
     stackAdjustment = 0;
@@ -2184,7 +2202,7 @@ void CodeGen::genCodeForNegNot(GenTree* tree)
     // The src must be a register.
     regNumber operandReg = genConsumeReg(operand);
 
-    getEmitter()->emitIns_R_R(ins, emitTypeSize(tree), targetReg, operandReg);
+    getEmitter()->emitIns_R_R(ins, emitActualTypeSize(tree), targetReg, operandReg);
 
     genProduceReg(tree);
 }
@@ -2603,7 +2621,7 @@ void CodeGen::genTableBasedSwitch(GenTree* treeNode)
     getEmitter()->emitIns_R_R_R(INS_add, EA_PTRSIZE, baseReg, baseReg, tmpReg);
 
     // br baseReg
-    getEmitter()->emitIns_R(INS_br, emitTypeSize(TYP_I_IMPL), baseReg);
+    getEmitter()->emitIns_R(INS_br, emitActualTypeSize(TYP_I_IMPL), baseReg);
 }
 
 // emits the table and an instruction to get the address of the first element
@@ -2638,7 +2656,7 @@ void CodeGen::genJumpTable(GenTree* treeNode)
     // Access to inline data is 'abstracted' by a special type of static member
     // (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
     // to constant data, not a real static field.
-    getEmitter()->emitIns_R_C(INS_adr, emitTypeSize(TYP_I_IMPL), treeNode->gtRegNum, REG_NA,
+    getEmitter()->emitIns_R_C(INS_adr, emitActualTypeSize(TYP_I_IMPL), treeNode->gtRegNum, REG_NA,
                               compiler->eeFindJitDataOffs(jmpTabBase), 0);
     genProduceReg(treeNode);
 }
@@ -2694,7 +2712,7 @@ void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
     default:
         unreached();
     }
-    getEmitter()->emitInsBinary(ins, emitTypeSize(data), &i, data);
+    getEmitter()->emitInsBinary(ins, emitActualTypeSize(data), &i, data);
 
     if (treeNode->gtRegNum != REG_NA)
     {
@@ -3130,7 +3148,7 @@ void CodeGen::genIntToFloatCast(GenTreePtr treeNode)
 
     genConsumeOperands(treeNode->AsOp());
 
-    getEmitter()->emitIns_R_R(ins, emitTypeSize(dstType), treeNode->gtRegNum, op1->gtRegNum, cvtOption);
+    getEmitter()->emitIns_R_R(ins, emitActualTypeSize(dstType), treeNode->gtRegNum, op1->gtRegNum, cvtOption);
 
     genProduceReg(treeNode);
 }
@@ -3227,9 +3245,6 @@ void CodeGen::genFloatToIntCast(GenTreePtr treeNode)
 // Assumptions:
 //    GT_CKFINITE node has reserved an internal register.
 //
-// TODO-ARM64-CQ - mark the operand as contained if known to be in
-// memory (e.g. field or an array element).
-//
 void CodeGen::genCkfinite(GenTreePtr treeNode)
 {
     assert(treeNode->OperGet() == GT_CKFINITE);
@@ -3245,8 +3260,8 @@ void CodeGen::genCkfinite(GenTreePtr treeNode)
     regNumber intReg = treeNode->GetSingleTempReg();
     regNumber fpReg  = genConsumeReg(op1);
 
-    emit->emitIns_R_R(ins_Copy(targetType), emitTypeSize(treeNode), intReg, fpReg);
-    emit->emitIns_R_R_I(INS_lsr, emitTypeSize(targetType), intReg, intReg, shiftAmount);
+    emit->emitIns_R_R(ins_Copy(targetType), emitActualTypeSize(treeNode), intReg, fpReg);
+    emit->emitIns_R_R_I(INS_lsr, emitActualTypeSize(targetType), intReg, intReg, shiftAmount);
 
     // Mask of exponent with all 1's and check if the exponent is all 1's
     emit->emitIns_R_R_I(INS_and, EA_4BYTE, intReg, intReg, expMask);
@@ -3259,13 +3274,13 @@ void CodeGen::genCkfinite(GenTreePtr treeNode)
     // if it is a finite value copy it to targetReg
     if (treeNode->gtRegNum != fpReg)
     {
-        emit->emitIns_R_R(ins_Copy(targetType), emitTypeSize(treeNode), treeNode->gtRegNum, fpReg);
+        emit->emitIns_R_R(ins_Copy(targetType), emitActualTypeSize(treeNode), treeNode->gtRegNum, fpReg);
     }
     genProduceReg(treeNode);
 }
 
 //------------------------------------------------------------------------
-// genCodeForCompare: Produce code for a GT_EQ/GT_NE/GT_LT/GT_LE/GT_GE/GT_GT node.
+// genCodeForCompare: Produce code for a GT_EQ/GT_NE/GT_LT/GT_LE/GT_GE/GT_GT/GT_TEST_EQ/GT_TEST_NE node.
 //
 // Arguments:
 //    tree - the node
@@ -3275,10 +3290,6 @@ void CodeGen::genCodeForCompare(GenTreeOp* tree)
     regNumber targetReg = tree->gtRegNum;
     emitter*  emit      = getEmitter();
 
-    // TODO-ARM64-CQ: Check if we can use the currently set flags.
-    // TODO-ARM64-CQ: Check for the case where we can simply transfer the carry bit to a register
-    //         (signed < or >= where targetReg != REG_NA)
-
     GenTreePtr op1     = tree->gtOp1;
     GenTreePtr op2     = tree->gtOp2;
     var_types  op1Type = genActualType(op1->TypeGet());
@@ -3286,6 +3297,40 @@ void CodeGen::genCodeForCompare(GenTreeOp* tree)
 
     assert(!op1->isUsedFromMemory());
     assert(!op2->isUsedFromMemory());
+
+    // Case of op1 == 0 or op1 != 0:
+    // Optimize generation of 'test' instruction if op1 sets flags.
+    //
+    // This behavior is designed to match the unexpected behavior
+    // of XARCH genCompareInt();
+    //
+    // TODO-Cleanup Review GTF_USE_FLAGS usage
+    // https://github.com/dotnet/coreclr/issues/14093
+    if ((tree->gtFlags & GTF_USE_FLAGS) != 0)
+    {
+        // op1 must set flags
+        assert(op1->gtSetFlags());
+
+        // Must be compare against zero.
+        assert(!tree->OperIs(GT_TEST_EQ, GT_TEST_NE));
+        assert(op2->IsIntegralConst(0));
+        assert(op2->isContained());
+
+        // Just consume the operands
+        genConsumeOperands(tree);
+
+        // No need to generate compare instruction since
+        // op1 sets flags
+
+        // Are we evaluating this into a register?
+        if (targetReg != REG_NA)
+        {
+            genSetRegToCond(targetReg, tree);
+            genProduceReg(tree);
+        }
+
+        return;
+    }
 
     genConsumeOperands(tree);
 
@@ -3301,6 +3346,7 @@ void CodeGen::genCodeForCompare(GenTreeOp* tree)
 
         if (op2->IsIntegralConst(0))
         {
+            assert(op2->isContained());
             emit->emitIns_R_F(INS_fcmp, cmpSize, op1->gtRegNum, 0.0);
         }
         else
@@ -3333,6 +3379,80 @@ void CodeGen::genCodeForCompare(GenTreeOp* tree)
     {
         genSetRegToCond(targetReg, tree);
         genProduceReg(tree);
+    }
+}
+
+//------------------------------------------------------------------------
+// genCodeForJumpCompare: Generates code for jmpCompare statement.
+//
+// A GT_JCMP node is created when a comparison and conditional branch
+// can be executed in a single instruction.
+//
+// Arm64 has a few instructions with this behavior.
+//   - cbz/cbnz -- Compare and branch register zero/not zero
+//   - tbz/tbnz -- Test and branch register bit zero/not zero
+//
+// The cbz/cbnz supports the normal +/- 1MB branch range for conditional branches
+// The tbz/tbnz supports a  smaller +/- 32KB branch range
+//
+// A GT_JCMP cbz/cbnz node is created when there is a GT_EQ or GT_NE
+// integer/unsigned comparison against #0 which is used by a GT_JTRUE
+// condition jump node.
+//
+// A GT_JCMP tbz/tbnz node is created when there is a GT_TEST_EQ or GT_TEST_NE
+// integer/unsigned comparison against against a mask with a single bit set
+// which is used by a GT_JTRUE condition jump node.
+//
+// This node is repsonsible for consuming the register, and emitting the
+// appropriate fused compare/test and branch instruction
+//
+// Two flags guide code generation
+//    GTF_JCMP_TST -- Set if this is a tbz/tbnz rather than cbz/cbnz
+//    GTF_JCMP_EQ  -- Set if this is cbz/tbz rather than cbnz/tbnz
+//
+// Arguments:
+//    tree - The GT_JCMP tree node.
+//
+// Return Value:
+//    None
+//
+void CodeGen::genCodeForJumpCompare(GenTreeOp* tree)
+{
+    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
+
+    GenTree* op1 = tree->gtGetOp1();
+    GenTree* op2 = tree->gtGetOp2();
+
+    assert(tree->OperIs(GT_JCMP));
+    assert(!varTypeIsFloating(tree));
+    assert(!op1->isUsedFromMemory());
+    assert(!op2->isUsedFromMemory());
+    assert(op2->IsCnsIntOrI());
+    assert(op2->isContained());
+
+    genConsumeOperands(tree);
+
+    regNumber reg  = op1->gtRegNum;
+    emitAttr  attr = emitActualTypeSize(op1->TypeGet());
+
+    if (tree->gtFlags & GTF_JCMP_TST)
+    {
+        ssize_t compareImm = op2->gtIntCon.IconValue();
+
+        assert(isPow2(compareImm));
+
+        instruction ins = (tree->gtFlags & GTF_JCMP_EQ) ? INS_tbz : INS_tbnz;
+        int         imm = genLog2((size_t)compareImm);
+
+        getEmitter()->emitIns_J_R_I(ins, attr, compiler->compCurBB->bbJumpDest, reg, imm);
+    }
+    else
+    {
+        assert(op2->IsIntegralConst(0));
+
+        instruction ins = (tree->gtFlags & GTF_JCMP_EQ) ? INS_cbz : INS_cbnz;
+
+        getEmitter()->emitIns_J_R(ins, attr, compiler->compCurBB->bbJumpDest, reg);
     }
 }
 

@@ -64,7 +64,11 @@ GTNODE(CMPXCHG          , GenTreeCmpXchg     ,0,GTK_SPECIAL)
 GTNODE(MEMORYBARRIER    , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)
 
 GTNODE(CAST             , GenTreeCast        ,0,GTK_UNOP|GTK_EXOP)      // conversion to another type
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+GTNODE(BITCAST          , GenTreeMultiRegOp  ,0,GTK_UNOP)               // reinterpretation of bits as another type
+#else
 GTNODE(BITCAST          , GenTreeUnOp        ,0,GTK_UNOP)               // reinterpretation of bits as another type
+#endif
 GTNODE(CKFINITE         , GenTreeOp          ,0,GTK_UNOP|GTK_NOCONTAIN) // Check for NaN
 GTNODE(LCLHEAP          , GenTreeOp          ,0,GTK_UNOP|GTK_NOCONTAIN) // alloca()
 GTNODE(JMP              , GenTreeVal         ,0,GTK_LEAF|GTK_NOVALUE)   // Jump to another function
@@ -221,6 +225,7 @@ GTNODE(SIMD             , GenTreeSIMD        ,0,GTK_BINOP|GTK_EXOP)     // SIMD 
 
 GTNODE(CMP              , GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)  // Sets the condition flags according to the compare result. 
                                                                         // N.B. Not a relop, it does not produce a value and it cannot be reversed.
+GTNODE(JCMP             , GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)  // Makes a comparison and jump if the condition specified.  Does not set flags
 GTNODE(JCC              , GenTreeCC          ,0,GTK_LEAF|GTK_NOVALUE)   // Checks the condition flags and branch if the condition specified
                                                                         // by GenTreeCC::gtCondition is true.
 GTNODE(SETCC            , GenTreeCC          ,0,GTK_LEAF)               // Checks the condition flags and produces 1 if the condition specified 

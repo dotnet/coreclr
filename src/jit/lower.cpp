@@ -188,6 +188,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_TEST_EQ:
         case GT_TEST_NE:
         case GT_CMP:
+        case GT_JCMP:
             LowerCompare(node);
             break;
 
@@ -777,7 +778,7 @@ void Lowering::ReplaceArgWithPutArgOrCopy(GenTree** argSlot, GenTree* putArgOrCo
 {
     assert(argSlot != nullptr);
     assert(*argSlot != nullptr);
-    assert(putArgOrCopy->OperIsPutArg() || putArgOrCopy->OperIs(GT_COPY));
+    assert(putArgOrCopy->OperIsPutArg() || putArgOrCopy->OperIs(GT_BITCAST));
 
     GenTree* arg = *argSlot;
 
@@ -1310,12 +1311,15 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
         {
             var_types intType = (type == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
 
-            GenTreePtr intArg = new (comp, GT_COPY) GenTreeCopyOrReload(GT_COPY, intType, arg);
-
-            if (comp->opts.compUseSoftFP)
+            GenTreePtr intArg = comp->gtNewBitCastNode(intType, arg);
+            intArg->gtRegNum  = info->regNum;
+#ifdef ARM_SOFTFP
+            if (intType == TYP_LONG)
             {
-                intArg->gtFlags |= GTF_VAR_DEATH;
+                assert(info->numRegs == 2);
+                intArg->AsMultiRegOp()->gtOtherReg = REG_NEXT(info->regNum);
             }
+#endif // ARM_SOFTFP
 
             info->node = intArg;
             ReplaceArgWithPutArgOrCopy(ppArg, intArg);
@@ -3818,7 +3822,12 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
             // on x64 we must materialize the target using specific registers.
             addr->gtRegNum = comp->virtualStubParamInfo->GetReg();
 
+// On ARM we must use a proper address in R12(thunk register) without dereferencing.
+// So for the jump we use the default register.
+// TODO: specifying register probably unnecessary for other platforms, too.
+#if !defined(_TARGET_UNIX_) && !defined(_TARGET_ARM_)
             indir->gtRegNum = REG_JUMP_THUNK_PARAM;
+#endif
             indir->gtFlags |= GTF_IND_REQ_ADDR_IN_REG;
 #endif
             result = indir;
@@ -5346,6 +5355,7 @@ void Lowering::ContainCheckNode(GenTree* node)
         case GT_TEST_EQ:
         case GT_TEST_NE:
         case GT_CMP:
+        case GT_JCMP:
             ContainCheckCompare(node->AsOp());
             break;
 

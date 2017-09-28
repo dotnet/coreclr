@@ -154,6 +154,42 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             genCodeForCast(treeNode->AsOp());
             break;
 
+        case GT_BITCAST:
+        {
+            GenTree* op1 = treeNode->gtOp.gtOp1;
+            if (varTypeIsFloating(treeNode) != varTypeIsFloating(op1))
+            {
+#ifdef _TARGET_ARM64_
+                inst_RV_RV(INS_fmov, targetReg, genConsumeReg(op1), targetType);
+#else  // !_TARGET_ARM64_
+                if (varTypeIsFloating(treeNode))
+                {
+                    NYI_ARM("genRegCopy from 'int' to 'float'");
+                }
+                else
+                {
+                    assert(varTypeIsFloating(op1));
+
+                    if (op1->TypeGet() == TYP_FLOAT)
+                    {
+                        inst_RV_RV(INS_vmov_f2i, targetReg, genConsumeReg(op1), targetType);
+                    }
+                    else
+                    {
+                        regNumber otherReg = (regNumber)treeNode->AsMultiRegOp()->gtOtherReg;
+                        assert(otherReg != REG_NA);
+                        inst_RV_RV_RV(INS_vmov_d2i, targetReg, otherReg, genConsumeReg(op1), EA_8BYTE);
+                    }
+                }
+#endif // !_TARGET_ARM64_
+            }
+            else
+            {
+                inst_RV_RV(ins_Copy(targetType), targetReg, genConsumeReg(op1), targetType);
+            }
+        }
+        break;
+
         case GT_LCL_FLD_ADDR:
         case GT_LCL_VAR_ADDR:
             genCodeForLclAddr(treeNode);
@@ -246,7 +282,11 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             genCodeForJumpTrue(treeNode);
             break;
 
-#ifdef _TARGET_ARM_
+#ifdef _TARGET_ARM64_
+        case GT_JCMP:
+            genCodeForJumpCompare(treeNode->AsOp());
+            break;
+#endif // _TARGET_ARM64_
 
         case GT_JCC:
             genCodeForJcc(treeNode->AsCC());
@@ -255,8 +295,6 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_SETCC:
             genCodeForSetcc(treeNode->AsCC());
             break;
-
-#endif // _TARGET_ARM_
 
         case GT_RETURNTRAP:
             genCodeForReturnTrap(treeNode->AsOp());
@@ -449,24 +487,35 @@ void CodeGen::genIntrinsic(GenTreePtr treeNode)
     assert(varTypeIsFloating(srcNode));
     assert(srcNode->TypeGet() == treeNode->TypeGet());
 
-    // Right now only Abs/Round/Sqrt are treated as math intrinsics.
+    // Right now only Abs/Ceiling/Floor/Round/Sqrt are treated as math intrinsics.
     //
     switch (treeNode->gtIntrinsic.gtIntrinsicId)
     {
         case CORINFO_INTRINSIC_Abs:
             genConsumeOperands(treeNode->AsOp());
-            getEmitter()->emitInsBinary(INS_ABS, emitTypeSize(treeNode), treeNode, srcNode);
+            getEmitter()->emitInsBinary(INS_ABS, emitActualTypeSize(treeNode), treeNode, srcNode);
             break;
 
+#ifdef _TARGET_ARM64_
+        case CORINFO_INTRINSIC_Ceiling:
+            genConsumeOperands(treeNode->AsOp());
+            getEmitter()->emitInsBinary(INS_frintp, emitActualTypeSize(treeNode), treeNode, srcNode);
+            break;
+
+        case CORINFO_INTRINSIC_Floor:
+            genConsumeOperands(treeNode->AsOp());
+            getEmitter()->emitInsBinary(INS_frintm, emitActualTypeSize(treeNode), treeNode, srcNode);
+            break;
+#endif
         case CORINFO_INTRINSIC_Round:
             NYI_ARM("genIntrinsic for round - not implemented yet");
             genConsumeOperands(treeNode->AsOp());
-            getEmitter()->emitInsBinary(INS_ROUND, emitTypeSize(treeNode), treeNode, srcNode);
+            getEmitter()->emitInsBinary(INS_ROUND, emitActualTypeSize(treeNode), treeNode, srcNode);
             break;
 
         case CORINFO_INTRINSIC_Sqrt:
             genConsumeOperands(treeNode->AsOp());
-            getEmitter()->emitInsBinary(INS_SQRT, emitTypeSize(treeNode), treeNode, srcNode);
+            getEmitter()->emitInsBinary(INS_SQRT, emitActualTypeSize(treeNode), treeNode, srcNode);
             break;
 
         default:
@@ -1097,7 +1146,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
                 if (targetReg == addrReg && idx != treeNode->gtNumRegs - 1)
                 {
                     assert(targetReg != baseReg);
-                    emit->emitIns_R_R(INS_mov, emitTypeSize(type), baseReg, addrReg);
+                    emit->emitIns_R_R(INS_mov, emitActualTypeSize(type), baseReg, addrReg);
                     addrReg = baseReg;
                 }
 
@@ -1234,10 +1283,10 @@ void CodeGen::genRangeCheck(GenTreePtr oper)
     assert(bndsChkType == TYP_INT || bndsChkType == TYP_LONG);
 
     // The type of the bounds check should always wide enough to compare against the index.
-    assert(emitTypeSize(bndsChkType) >= emitTypeSize(genActualType(src1->TypeGet())));
+    assert(emitTypeSize(bndsChkType) >= emitActualTypeSize(src1->TypeGet()));
 #endif // DEBUG
 
-    getEmitter()->emitInsBinary(INS_cmp, emitTypeSize(bndsChkType), src1, src2);
+    getEmitter()->emitInsBinary(INS_cmp, emitActualTypeSize(bndsChkType), src1, src2);
     genJumpToThrowHlpBlk(jmpKind, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
 }
 
@@ -1475,7 +1524,7 @@ void CodeGen::genCodeForShift(GenTreePtr tree)
     var_types   targetType = tree->TypeGet();
     genTreeOps  oper       = tree->OperGet();
     instruction ins        = genGetInsForOper(oper, targetType);
-    emitAttr    size       = emitTypeSize(tree);
+    emitAttr    size       = emitActualTypeSize(tree);
 
     assert(tree->gtRegNum != REG_NA);
 
@@ -1605,7 +1654,7 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
 #endif
 
         // Generate the range check.
-        getEmitter()->emitInsBinary(INS_cmp, emitTypeSize(TYP_I_IMPL), index, &arrLen);
+        getEmitter()->emitInsBinary(INS_cmp, emitActualTypeSize(TYP_I_IMPL), index, &arrLen);
         genJumpToThrowHlpBlk(genJumpKindForOper(GT_GE, CK_UNSIGNED), SCK_RNGCHK_FAIL, node->gtIndRngFailBB);
     }
 
@@ -1614,7 +1663,8 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
     {
         case 1:
             // dest = base + index
-            getEmitter()->emitIns_R_R_R(INS_add, emitTypeSize(node), node->gtRegNum, base->gtRegNum, index->gtRegNum);
+            getEmitter()->emitIns_R_R_R(INS_add, emitActualTypeSize(node), node->gtRegNum, base->gtRegNum,
+                                        index->gtRegNum);
             break;
 
         case 2:
@@ -1626,7 +1676,7 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
             BitScanForward(&lsl, node->gtElemSize);
 
             // dest = base + index * scale
-            genScaledAdd(emitTypeSize(node), node->gtRegNum, base->gtRegNum, index->gtRegNum, lsl);
+            genScaledAdd(emitActualTypeSize(node), node->gtRegNum, base->gtRegNum, index->gtRegNum, lsl);
             break;
         }
 
@@ -1636,14 +1686,14 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
             CodeGen::genSetRegToIcon(tmpReg, (ssize_t)node->gtElemSize, TYP_INT);
 
             // dest = index * tmp + base
-            getEmitter()->emitIns_R_R_R_R(INS_MULADD, emitTypeSize(node), node->gtRegNum, index->gtRegNum, tmpReg,
+            getEmitter()->emitIns_R_R_R_R(INS_MULADD, emitActualTypeSize(node), node->gtRegNum, index->gtRegNum, tmpReg,
                                           base->gtRegNum);
             break;
         }
     }
 
     // dest = dest + elemOffs
-    getEmitter()->emitIns_R_R_I(INS_add, emitTypeSize(node), node->gtRegNum, node->gtRegNum, node->gtElemOffset);
+    getEmitter()->emitIns_R_R_I(INS_add, emitActualTypeSize(node), node->gtRegNum, node->gtRegNum, node->gtElemOffset);
 
     gcInfo.gcMarkRegSetNpt(base->gtGetRegMask());
 
@@ -1825,7 +1875,7 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode)
     // Grab the integer temp register to emit the loads and stores.
     regNumber tmpReg = cpBlkNode->ExtractTempReg(RBM_ALLINT);
 
-#ifdef _TARGAET_ARM64_
+#ifdef _TARGET_ARM64_
     if (size >= 2 * REGSIZE_BYTES)
     {
         regNumber tmp2Reg = cpBlkNode->ExtractTempReg(RBM_ALLINT);
@@ -3051,12 +3101,12 @@ void CodeGen::genFloatToFloatCast(GenTreePtr treeNode)
         insOpts cvtOption = (srcType == TYP_FLOAT) ? INS_OPTS_S_TO_D  // convert Single to Double
                                                    : INS_OPTS_D_TO_S; // convert Double to Single
 
-        getEmitter()->emitIns_R_R(INS_fcvt, emitTypeSize(treeNode), treeNode->gtRegNum, op1->gtRegNum, cvtOption);
+        getEmitter()->emitIns_R_R(INS_fcvt, emitActualTypeSize(treeNode), treeNode->gtRegNum, op1->gtRegNum, cvtOption);
     }
     else if (treeNode->gtRegNum != op1->gtRegNum)
     {
         // If double to double cast or float to float cast. Emit a move instruction.
-        getEmitter()->emitIns_R_R(INS_mov, emitTypeSize(treeNode), treeNode->gtRegNum, op1->gtRegNum);
+        getEmitter()->emitIns_R_R(INS_mov, emitActualTypeSize(treeNode), treeNode->gtRegNum, op1->gtRegNum);
     }
 
 #endif // _TARGET_*
@@ -3284,8 +3334,6 @@ void CodeGen::genCodeForJumpTrue(GenTreePtr tree)
     }
 }
 
-#if defined(_TARGET_ARM_)
-
 //------------------------------------------------------------------------
 // genCodeForJcc: Produce code for a GT_JCC node.
 //
@@ -3325,6 +3373,9 @@ void CodeGen::genCodeForSetcc(GenTreeCC* setcc)
     // Make sure nobody is setting GTF_RELOP_NAN_UN on this node as it is ignored.
     assert((setcc->gtFlags & GTF_RELOP_NAN_UN) == 0);
 
+#ifdef _TARGET_ARM64_
+    inst_SET(jumpKind, dstReg);
+#else
     // Emit code like that:
     //   ...
     //   bgt True
@@ -3346,11 +3397,10 @@ void CodeGen::genCodeForSetcc(GenTreeCC* setcc)
     genDefineTempLabel(labelTrue);
     getEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(setcc->TypeGet()), dstReg, 1);
     genDefineTempLabel(labelNext);
+#endif
 
     genProduceReg(setcc);
 }
-
-#endif // defined(_TARGET_ARM_)
 
 //------------------------------------------------------------------------
 // genCodeForStoreBlk: Produce code for a GT_STORE_OBJ/GT_STORE_DYN_BLK/GT_STORE_BLK node.
