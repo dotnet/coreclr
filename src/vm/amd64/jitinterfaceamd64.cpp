@@ -281,11 +281,11 @@ PBYTE WriteBarrierManager::CalculatePatchLocation(LPVOID base, LPVOID label, int
 int WriteBarrierManager::ChangeWriteBarrierTo(WriteBarrierType newWriteBarrier, bool isRuntimeSuspended)
 {
     GCX_MAYBE_COOP_NO_THREAD_BROKEN((!isRuntimeSuspended && GetThread() != NULL));
-    int flushXrestart = SWB_PASS;
+    int stompWBCompleteActions = SWB_PASS;
     if (!isRuntimeSuspended && m_currentWriteBarrier != WRITE_BARRIER_UNINITIALIZED)
     {
         ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_GC_PREP);
-        flushXrestart |= SWB_EE_RESTART;
+        stompWBCompleteActions |= SWB_EE_RESTART;
     }
 
     _ASSERTE(m_currentWriteBarrier != newWriteBarrier);
@@ -409,10 +409,10 @@ int WriteBarrierManager::ChangeWriteBarrierTo(WriteBarrierType newWriteBarrier, 
             UNREACHABLE_MSG("unexpected write barrier type!");
     }
 
-    flushXrestart |= UpdateEphemeralBounds(true);
-    flushXrestart |= UpdateWriteWatchAndCardTableLocations(true, false);
+    stompWBCompleteActions |= UpdateEphemeralBounds(true);
+    stompWBCompleteActions |= UpdateWriteWatchAndCardTableLocations(true, false);
 
-    return flushXrestart;
+    return stompWBCompleteActions;
 }
 
 #undef CALC_PATCH_LOCATION
@@ -526,12 +526,12 @@ int WriteBarrierManager::UpdateEphemeralBounds(bool isRuntimeSuspended)
         return ChangeWriteBarrierTo(newType, isRuntimeSuspended);
     }
 
-    int flushXrestart = SWB_PASS;
+    int stompWBCompleteActions = SWB_PASS;
 
 #ifdef _DEBUG
     // Using debug-only write barrier?
     if (m_currentWriteBarrier == WRITE_BARRIER_UNINITIALIZED)
-        return flushXrestart;
+        return stompWBCompleteActions;
 #endif
 
     switch (m_currentWriteBarrier)
@@ -545,7 +545,7 @@ int WriteBarrierManager::UpdateEphemeralBounds(bool isRuntimeSuspended)
             if (*(UINT64*)m_pUpperBoundImmediate != (size_t)g_ephemeral_high)
             {
                 *(UINT64*)m_pUpperBoundImmediate = (size_t)g_ephemeral_high;
-                flushXrestart |= SWB_ICACHE_FLUSH;
+                stompWBCompleteActions |= SWB_ICACHE_FLUSH;
             }
         }
         //
@@ -560,7 +560,7 @@ int WriteBarrierManager::UpdateEphemeralBounds(bool isRuntimeSuspended)
             if (*(UINT64*)m_pLowerBoundImmediate != (size_t)g_ephemeral_low)
             {
                 *(UINT64*)m_pLowerBoundImmediate = (size_t)g_ephemeral_low;
-                flushXrestart |= SWB_ICACHE_FLUSH;
+                stompWBCompleteActions |= SWB_ICACHE_FLUSH;
             }
             break;
         }
@@ -579,7 +579,7 @@ int WriteBarrierManager::UpdateEphemeralBounds(bool isRuntimeSuspended)
             UNREACHABLE_MSG("unexpected m_currentWriteBarrier in UpdateEphemeralBounds");
     }
 
-    return flushXrestart;
+    return stompWBCompleteActions;
 }
 
 int WriteBarrierManager::UpdateWriteWatchAndCardTableLocations(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
@@ -593,12 +593,12 @@ int WriteBarrierManager::UpdateWriteWatchAndCardTableLocations(bool isRuntimeSus
         return ChangeWriteBarrierTo(newType, isRuntimeSuspended);
     }
     
-    int flushXrestart = SWB_PASS;
+    int stompWBCompleteActions = SWB_PASS;
 
 #ifdef _DEBUG
     // Using debug-only write barrier?
     if (m_currentWriteBarrier == WRITE_BARRIER_UNINITIALIZED)
-        return flushXrestart;
+        return stompWBCompleteActions;
 #endif
     
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -612,7 +612,7 @@ int WriteBarrierManager::UpdateWriteWatchAndCardTableLocations(bool isRuntimeSus
             if (*(UINT64*)m_pWriteWatchTableImmediate != (size_t)g_sw_ww_table)
             {
                 *(UINT64*)m_pWriteWatchTableImmediate = (size_t)g_sw_ww_table;
-                flushXrestart |= SWB_ICACHE_FLUSH;
+                stompWBCompleteActions |= SWB_ICACHE_FLUSH;
             }
             break;
 
@@ -624,18 +624,18 @@ int WriteBarrierManager::UpdateWriteWatchAndCardTableLocations(bool isRuntimeSus
     if (*(UINT64*)m_pCardTableImmediate != (size_t)g_card_table)
     {
         *(UINT64*)m_pCardTableImmediate = (size_t)g_card_table;
-        flushXrestart |= SWB_ICACHE_FLUSH;
+        stompWBCompleteActions |= SWB_ICACHE_FLUSH;
     }
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
     if (*(UINT64*)m_pCardBundleTableImmediate != (size_t)g_card_bundle_table)
     {
         *(UINT64*)m_pCardBundleTableImmediate = (size_t)g_card_bundle_table;
-        flushXrestart |= SWB_ICACHE_FLUSH;
+        stompWBCompleteActions |= SWB_ICACHE_FLUSH;
     }
 #endif
 
-    return flushXrestart;
+    return stompWBCompleteActions;
 }
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP

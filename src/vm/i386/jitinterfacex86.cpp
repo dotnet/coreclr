@@ -1682,12 +1682,12 @@ int StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    int flushXrestart = SWB_PASS;
+    int stompWBCompleteActions = SWB_PASS;
 
 #ifdef WRITE_BARRIER_CHECK 
         // Don't do the fancy optimization if we are checking write barrier
     if (((BYTE *)JIT_WriteBarrierEAX)[0] == 0xE9)  // we are using slow write barrier
-        return flushXrestart;
+        return stompWBCompleteActions;
 #endif // WRITE_BARRIER_CHECK
 
     // Update the lower bound.
@@ -1703,7 +1703,7 @@ int StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
         //avoid trivial self modifying code
         if (*pfunc != (size_t) g_ephemeral_low)
         {
-            flushXrestart |= SWB_ICACHE_FLUSH;
+            stompWBCompleteActions |= SWB_ICACHE_FLUSH;
             *pfunc = (size_t) g_ephemeral_low;
         }
         if (!WriteBarrierIsPreGrow())
@@ -1716,13 +1716,13 @@ int StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
             //avoid trivial self modifying code
             if (*pfunc != (size_t) g_ephemeral_high)
             {
-                flushXrestart |= SWB_ICACHE_FLUSH;
+                stompWBCompleteActions |= SWB_ICACHE_FLUSH;
                 *pfunc = (size_t) g_ephemeral_high;
             }
         }
     }
 
-    return flushXrestart;
+    return stompWBCompleteActions;
 }
 
 /*********************************************************************/
@@ -1738,12 +1738,12 @@ int StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
         if (GetThread()) {GC_TRIGGERS;} else {GC_NOTRIGGER;}
     } CONTRACTL_END;
 
-    int flushXrestart = SWB_PASS;
+    int stompWBCompleteActions = SWB_PASS;
 
 #ifdef WRITE_BARRIER_CHECK 
         // Don't do the fancy optimization if we are checking write barrier
     if (((BYTE *)JIT_WriteBarrierEAX)[0] == 0xE9)  // we are using slow write barrier
-        return flushXrestart;
+        return stompWBCompleteActions;
 #endif // WRITE_BARRIER_CHECK
 
     bool bWriteBarrierIsPreGrow = WriteBarrierIsPreGrow();
@@ -1763,9 +1763,9 @@ int StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
             if (bReqUpperBoundsCheck)
             {
                 GCX_MAYBE_COOP_NO_THREAD_BROKEN((GetThread()!=NULL));
-                if( !isRuntimeSuspended && !(flushXrestart & SWB_EE_RESTART) ) {
+                if( !isRuntimeSuspended && !(stompWBCompleteActions & SWB_EE_RESTART) ) {
                     ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_GC_PREP);
-                    flushXrestart |= SWB_EE_RESTART;
+                    stompWBCompleteActions |= SWB_EE_RESTART;
                 }
 
                 pfunc = (size_t *) JIT_WriteBarrierReg_PostGrow;
@@ -1853,10 +1853,10 @@ int StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
 
     if (bStompWriteBarrierEphemeral)
     {
-        _ASSERTE(isRuntimeSuspended || (flushXrestart & SWB_EE_RESTART));
-        flushXrestart |= StompWriteBarrierEphemeral(true);
+        _ASSERTE(isRuntimeSuspended || (stompWBCompleteActions & SWB_EE_RESTART));
+        stompWBCompleteActions |= StompWriteBarrierEphemeral(true);
     }
-    return flushXrestart;
+    return stompWBCompleteActions;
 }
 
 void FlushWriteBarrierInstructionCache()
