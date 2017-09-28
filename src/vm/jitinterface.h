@@ -23,7 +23,7 @@
 #endif // !FEATURE_PAL
 
 
-enum StompWriteBarrierXXXCompletion
+enum StompWriteBarrierCompletionAction
 {
     SWB_PASS = 0x0,
     SWB_ICACHE_FLUSH = 0x1,
