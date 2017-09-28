@@ -33,14 +33,14 @@ namespace System
         /// reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlyMemory(T[] array)
+        public ReadOnlyMemory(T[] buffer)
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            if (buffer == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.buffer);
 
-            _arrayOrOwnedMemory = array;
+            _arrayOrOwnedMemory = buffer;
             _index = 0;
-            _length = array.Length;
+            _length = buffer.Length;
         }
 
         /// <summary>
@@ -57,18 +57,26 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlyMemory(T[] array, int start, int length)
+        public ReadOnlyMemory(T[] buffer, int offset, int count)
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+            if (buffer == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.buffer);
+            if (default(T) == null && buffer.GetType() != typeof(T[]))
+                ThrowHelper.ThrowArrayTypeMismatchException();
+            if ((uint)offset > (uint)buffer.Length)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.offset);
+            }
+            if ((uint)count > (uint)(buffer.Length - offset))
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count);
+            }
 
-            _arrayOrOwnedMemory = array;
-            _index = start;
-            _length = length;
+            _arrayOrOwnedMemory = buffer;
+            _index = offset;
+            _length = count;
         }
-        
+
         // Constructor for internal use only.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ReadOnlyMemory(OwnedMemory<T> owner, int index, int length)
@@ -90,7 +98,7 @@ namespace System
         /// Defines an implicit conversion of an array to a <see cref="Memory{T}"/>
         /// </summary>
         public static implicit operator ReadOnlyMemory<T>(T[] array) => new ReadOnlyMemory<T>(array);
-        
+
         /// <summary>
         /// Defines an implicit conversion of a <see cref="ArraySegment{T}"/> to a <see cref="Memory{T}"/>
         /// </summary>
@@ -255,12 +263,12 @@ namespace System
                 _length == other._length;
         }
 
-        [EditorBrowsable( EditorBrowsableState.Never)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
             return CombineHashCodes(_arrayOrOwnedMemory.GetHashCode(), (_index & RemoveOwnedFlagBitMask).GetHashCode(), _length.GetHashCode());
         }
-        
+
         private static int CombineHashCodes(int left, int right)
         {
             return ((left << 5) + left) ^ right;

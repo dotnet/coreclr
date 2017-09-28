@@ -33,16 +33,16 @@ namespace System
         /// reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Memory(T[] array)
+        public Memory(T[] buffer)
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (default(T) == null && array.GetType() != typeof(T[]))
+            if (buffer == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.buffer);
+            if (default(T) == null && buffer.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
-            _arrayOrOwnedMemory = array;
+            _arrayOrOwnedMemory = buffer;
             _index = 0;
-            _length = array.Length;
+            _length = buffer.Length;
         }
 
         /// <summary>
@@ -59,18 +59,24 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Memory(T[] array, int start, int length)
+        public Memory(T[] buffer, int offset, int count)
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (default(T) == null && array.GetType() != typeof(T[]))
+            if (buffer == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.buffer);
+            if (default(T) == null && buffer.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
-            if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+            if ((uint)offset > (uint)buffer.Length)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.offset);
+            }
+            if ((uint)count > (uint)(buffer.Length - offset))
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count);
+            }
 
-            _arrayOrOwnedMemory = array;
-            _index = start;
-            _length = length;
+            _arrayOrOwnedMemory = buffer;
+            _index = offset;
+            _length = count;
         }
         
         // Constructor for internal use only.
