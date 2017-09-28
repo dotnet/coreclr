@@ -121,11 +121,11 @@ void CommandLine::DumpHelp(const char* program)
     printf("\n");
     printf(" -jitoption [force] key=value\n");
     printf("     Set the JIT option named \"key\" to \"value\" for JIT 1 if the option was not set.");
-    printf("     WIth optional force flag overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
+    printf("     With optional force flag overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
     printf("\n");
     printf(" -jit2option [force] key=value\n");
     printf("     Set the JIT option named \"key\" to \"value\" for JIT 2 if the option was not set.");
-    printf("     WIth optional force flag overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
+    printf("     With optional force flag overwrites the existing value if it was already set. NOTE: do not use a \"COMPlus_\" prefix!\n");
     printf("\n");
     printf("Inputs are case sensitive.\n");
     printf("\n");
