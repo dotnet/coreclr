@@ -203,7 +203,10 @@ namespace System.IO
                 long position = Position;
                 if (length <= position) // Handles negative overflows
                 {
-                    // No bytes left in stream
+                    // There are no bytes left in the stream to copy.
+                    // However, because CopyTo{Async} is virtual, we need to
+                    // ensure that any override is still invoked to provide its
+                    // own validation, so we use the smallest legal buffer size here.
                     bufferSize = 1;
                 }
                 else
