@@ -843,7 +843,7 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 
 void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 {
-    int flushXrestart = SWB_PASS;
+    int stompWBCompleteActions = SWB_PASS;
 
     assert(args != nullptr);
     switch (args->operation)
@@ -870,7 +870,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
-        flushXrestart |= ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
+        stompWBCompleteActions |= ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
 
         // We need to make sure that other threads executing checked write barriers
         // will see the g_card_table update before g_lowest/highest_address updates.
@@ -887,7 +887,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         // their instruction cache, which FlushProcessWriteBuffers achieves by sending
         // an IPI (inter-process interrupt).
 
-        if (flushXrestart & SWB_ICACHE_FLUSH)
+        if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
         {
             // flushing icache on current processor (thread)
             ::FlushWriteBarrierInstructionCache();
@@ -900,17 +900,17 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
 #if defined(_ARM64_)
         // Need to reupdate for changes to g_highest_address g_lowest_address
-        bool is_runtime_suspended = (flushXrestart & SWB_EE_RESTART) || args->is_runtime_suspended;
-        flushXrestart |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
+        bool is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
+        stompWBCompleteActions |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
 
-        is_runtime_suspended = (flushXrestart & SWB_EE_RESTART) || args->is_runtime_suspended;
+        is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
         if(!is_runtime_suspended)
         {
             // If runtime is not suspended, force updated state to be visible to all threads
             MemoryBarrier();
         }
 #endif
-        if (flushXrestart & SWB_EE_RESTART)
+        if (stompWBCompleteActions & SWB_EE_RESTART)
         {
             assert(!args->is_runtime_suspended &&
                 "if runtime was suspended in patching routines then it was in running state at begining");
@@ -923,7 +923,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->ephemeral_high != nullptr);
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
-        flushXrestart |= ::StompWriteBarrierEphemeral(args->is_runtime_suspended);
+        stompWBCompleteActions |= ::StompWriteBarrierEphemeral(args->is_runtime_suspended);
         break;
     case WriteBarrierOp::Initialize:
         // This operation should only be invoked once, upon initialization.
@@ -947,7 +947,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         
         g_lowest_address = args->lowest_address;
         g_highest_address = args->highest_address;
-        flushXrestart |= ::StompWriteBarrierResize(true, false);
+        stompWBCompleteActions |= ::StompWriteBarrierResize(true, false);
 
         // StompWriteBarrierResize does not necessarily bash g_ephemeral_low
         // usages, so we must do so here. This is particularly true on x86,
@@ -955,7 +955,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         // called with the parameters (true, false), as it is above.
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
-        flushXrestart |= ::StompWriteBarrierEphemeral(true);
+        stompWBCompleteActions |= ::StompWriteBarrierEphemeral(true);
         break;
     case WriteBarrierOp::SwitchToWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -963,7 +963,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         g_sw_ww_table = args->write_watch_table;
         g_sw_ww_enabled_for_gc_heap = true;
-        flushXrestart |= ::SwitchToWriteWatchBarrier(true);
+        stompWBCompleteActions |= ::SwitchToWriteWatchBarrier(true);
 #else
         assert(!"should never be called without FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP");
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -973,7 +973,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         g_sw_ww_table = 0;
         g_sw_ww_enabled_for_gc_heap = false;
-        flushXrestart |= ::SwitchToNonWriteWatchBarrier(true);
+        stompWBCompleteActions |= ::SwitchToNonWriteWatchBarrier(true);
 #else
         assert(!"should never be called without FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP");
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -981,11 +981,11 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
     default:
         assert(!"unknown WriteBarrierOp enum");
     }
-    if (flushXrestart & SWB_ICACHE_FLUSH) 
+    if (stompWBCompleteActions & SWB_ICACHE_FLUSH) 
     {
         ::FlushWriteBarrierInstructionCache();
     }
-    if (flushXrestart & SWB_EE_RESTART) 
+    if (stompWBCompleteActions & SWB_EE_RESTART) 
     {
         assert(!args->is_runtime_suspended && 
             "if runtime was suspended in patching routines then it was in running state at begining");
