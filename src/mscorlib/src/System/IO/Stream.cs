@@ -111,7 +111,7 @@ namespace System.IO
 
         public Task CopyToAsync(Stream destination)
         {
-            int bufferSize = GetBufferSize();
+            int bufferSize = GetCopyBufferSize();
 
             return CopyToAsync(destination, bufferSize);
         }
@@ -123,7 +123,7 @@ namespace System.IO
 
         public Task CopyToAsync(Stream destination, CancellationToken cancellationToken)
         {
-            int bufferSize = GetBufferSize();
+            int bufferSize = GetCopyBufferSize();
 
             return CopyToAsync(destination, bufferSize, cancellationToken);
         }
@@ -166,7 +166,7 @@ namespace System.IO
         // the current position.
         public void CopyTo(Stream destination)
         {
-            int bufferSize = GetBufferSize();
+            int bufferSize = GetCopyBufferSize();
 
             CopyTo(destination, bufferSize);
         }
@@ -193,7 +193,7 @@ namespace System.IO
             }
         }
 
-        private int GetBufferSize()
+        private int GetCopyBufferSize()
         {
             int bufferSize = _DefaultCopyBufferSize;
 
