@@ -9941,6 +9941,12 @@ GenTreePtr Compiler::fgMorphBlkToInd(GenTreeBlk* tree, var_types type)
 {
     tree->SetOper(GT_IND);
     tree->gtType = type;
+
+    if (tree->OperMayThrow(this))
+    {
+        tree->gtFlags |= GTF_EXCEPT;
+    }
+    
     return tree;
 }
 
@@ -10771,6 +10777,9 @@ GenTreePtr Compiler::fgMorphCopyBlock(GenTreePtr tree)
             // Eliminate the "OBJ or BLK" node on the rhs.
             rhs             = fgMorphBlockOperand(rhs, asgType, blockWidth, false /*!isDest*/);
             asg->gtOp.gtOp2 = rhs;
+
+            // Propogate flags up
+            asg->gtFlags |= (rhs->gtFlags & GTF_ALL_EFFECT);
 
 #ifdef LEGACY_BACKEND
             if (!rhs->OperIsIndir())
