@@ -6074,6 +6074,10 @@ GenTreePtr Compiler::gtNewIconEmbHndNode(
         node = gtNewIconHandleNode((size_t)pValue, flags, /*fieldSeq*/ FieldSeqStore::NotAField(), handle1, handle2);
         node->gtIntCon.gtCompileTimeHandle = (size_t)compileTimeHandle;
         node                               = gtNewOperNode(GT_IND, TYP_I_IMPL, node);
+
+        // This indirection won't cause an exception.  It should also
+        // be invariant, but marking it as such leads to bad diffs.
+        node->gtFlags |= GTF_IND_NONFAULTING;
     }
 
     return node;
@@ -12311,7 +12315,7 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         return tree;
     }
 
-    // We must have a hande on one side or the other here to optimize,
+    // We must have a handle on one side or the other here to optimize,
     // otherwise we can't be sure that optimizing is sound.
     const bool op1IsFromHandle = op1Kind == TPK_Handle;
     const bool op2IsFromHandle = op2Kind == TPK_Handle;
@@ -12333,17 +12337,25 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         // If we see indirs, tunnel through to see if there are compile time handles.
         if ((op1ClassFromHandle->gtOper == GT_IND) && (op2ClassFromHandle->gtOper == GT_IND))
         {
-            // Indirs should be non-faulting.... verify
+            // Handle indirs should be marked as non-faulting.
+            assert((op1ClassFromHandle->gtFlags & GTF_IND_NONFAULTING) != 0);
+            assert((op2ClassFromHandle->gtFlags & GTF_IND_NONFAULTING) != 0);
+
             GenTree* op1HandleLiteral = op1ClassFromHandle->gtOp.gtOp1;
             GenTree* op2HandleLiteral = op2ClassFromHandle->gtOp.gtOp1;
 
-            // If, after tunneling,  we don't have a constant handle on both sides, bail.
-            if ((op1HandleLiteral->gtOper == GT_CNS_INT) && (op1HandleLiteral->gtType == TYP_I_IMPL)
-                && (op2HandleLiteral->gtOper == GT_CNS_INT) && (op2HandleLiteral->gtType == TYP_I_IMPL))
+            // If, after tunneling, we have constant handles on both
+            // sides, update the operands that will feed the compare.
+            if ((op1HandleLiteral->gtOper == GT_CNS_INT) && (op1HandleLiteral->gtType == TYP_I_IMPL) &&
+                (op2HandleLiteral->gtOper == GT_CNS_INT) && (op2HandleLiteral->gtType == TYP_I_IMPL))
             {
                 JITDUMP("...tunneling through indirs...\n");
                 op1ClassFromHandle = op1HandleLiteral;
                 op2ClassFromHandle = op2HandleLiteral;
+
+                // These handle constants should be class handles.
+                assert(op1ClassFromHandle->IsIconHandle(GTF_ICON_CLASS_HDL));
+                assert(op2ClassFromHandle->IsIconHandle(GTF_ICON_CLASS_HDL));
             }
         }
 
@@ -12383,6 +12395,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
     // In the ngen case, we have to go thru an indirection to get the right handle.
     if (opHandleLiteral->gtOper == GT_IND)
     {
+        // Handle indirs should be marked as nonfaulting.
+        assert((opHandleLiteral->gtFlags & GTF_IND_NONFAULTING) != 0);
         opHandleLiteral = opHandleLiteral->gtOp.gtOp1;
     }
 
@@ -12392,8 +12406,12 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         return tree;
     }
 
-    // Fetch the handle, and ask the VM if this kind of type can be
-    // equality tested by a simple method table comparison.
+    // We should have a class handle.
+    assert(opHandleLiteral->IsIconHandle(GTF_ICON_CLASS_HDL));
+
+    // Fetch the compile time handle, and use it to ask the VM if
+    // this kind of type can be equality tested by a simple method
+    // table comparison.
     CORINFO_CLASS_HANDLE clsHnd = CORINFO_CLASS_HANDLE(opHandleLiteral->gtIntCon.gtCompileTimeHandle);
 
     if (!info.compCompHnd->canInlineTypeCheckWithObjectVTable(clsHnd))
