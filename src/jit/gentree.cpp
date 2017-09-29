@@ -12157,7 +12157,11 @@ GenTree* Compiler::gtFoldExprCall(GenTreeCall* call)
         GenTree* thisOp = call->gtCallObjp;
         GenTree* flagOp = call->gtCallArgs->gtOp.gtOp1;
         GenTree* result = gtOptimizeEnumHasFlag(thisOp, flagOp);
-        return result;
+
+        if (result != nullptr)
+        {
+            return result;
+        }
     }
 
     return call;
@@ -12337,25 +12341,27 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         // If we see indirs, tunnel through to see if there are compile time handles.
         if ((op1ClassFromHandle->gtOper == GT_IND) && (op2ClassFromHandle->gtOper == GT_IND))
         {
-            // Handle indirs should be marked as non-faulting.
-            assert((op1ClassFromHandle->gtFlags & GTF_IND_NONFAULTING) != 0);
-            assert((op2ClassFromHandle->gtFlags & GTF_IND_NONFAULTING) != 0);
-
-            GenTree* op1HandleLiteral = op1ClassFromHandle->gtOp.gtOp1;
-            GenTree* op2HandleLiteral = op2ClassFromHandle->gtOp.gtOp1;
-
-            // If, after tunneling, we have constant handles on both
-            // sides, update the operands that will feed the compare.
-            if ((op1HandleLiteral->gtOper == GT_CNS_INT) && (op1HandleLiteral->gtType == TYP_I_IMPL) &&
-                (op2HandleLiteral->gtOper == GT_CNS_INT) && (op2HandleLiteral->gtType == TYP_I_IMPL))
+            // The handle indirs we can optimize will be marked as non-faulting.
+            // Certain others (eg from refanytype) may not be.
+            if (((op1ClassFromHandle->gtFlags & GTF_IND_NONFAULTING) != 0) &&
+                ((op2ClassFromHandle->gtFlags & GTF_IND_NONFAULTING) != 0))
             {
-                JITDUMP("...tunneling through indirs...\n");
-                op1ClassFromHandle = op1HandleLiteral;
-                op2ClassFromHandle = op2HandleLiteral;
+                GenTree* op1HandleLiteral = op1ClassFromHandle->gtOp.gtOp1;
+                GenTree* op2HandleLiteral = op2ClassFromHandle->gtOp.gtOp1;
 
-                // These handle constants should be class handles.
-                assert(op1ClassFromHandle->IsIconHandle(GTF_ICON_CLASS_HDL));
-                assert(op2ClassFromHandle->IsIconHandle(GTF_ICON_CLASS_HDL));
+                // If, after tunneling, we have constant handles on both
+                // sides, update the operands that will feed the compare.
+                if ((op1HandleLiteral->gtOper == GT_CNS_INT) && (op1HandleLiteral->gtType == TYP_I_IMPL) &&
+                    (op2HandleLiteral->gtOper == GT_CNS_INT) && (op2HandleLiteral->gtType == TYP_I_IMPL))
+                {
+                    JITDUMP("...tunneling through indirs...\n");
+                    op1ClassFromHandle = op1HandleLiteral;
+                    op2ClassFromHandle = op2HandleLiteral;
+
+                    // These handle constants should be class handles.
+                    assert(op1ClassFromHandle->IsIconHandle(GTF_ICON_CLASS_HDL));
+                    assert(op2ClassFromHandle->IsIconHandle(GTF_ICON_CLASS_HDL));
+                }
             }
         }
 
