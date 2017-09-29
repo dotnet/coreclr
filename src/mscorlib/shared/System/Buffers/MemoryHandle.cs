@@ -21,7 +21,7 @@ namespace System.Buffers
             _handle = handle;
         }
 
-        public void AddOffset(int offset)
+        internal void AddOffset(int offset)
         {
             if (_pointer == null)
             {
