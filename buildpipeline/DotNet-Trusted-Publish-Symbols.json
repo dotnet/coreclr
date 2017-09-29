@@ -41,7 +41,7 @@
       }
     },
     {
-      "enabled": true,
+      "enabled": false,
       "continueOnError": false,
       "alwaysRun": false,
       "displayName": "Extract symbol packages; if release branch, archive",
