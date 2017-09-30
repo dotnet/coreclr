@@ -33,7 +33,7 @@ namespace System.Collections.Generic
     internal static class IntrospectiveSortUtilities
     {
         // This is the threshold where Introspective sort switches to Insertion sort.
-        // Imperically, 16 seems to speed up most cases without slowing down others, at least for integers.
+        // Empirically, 16 seems to speed up most cases without slowing down others, at least for integers.
         // Large value types may benefit from a smaller number.
         internal const int IntrosortSizeThreshold = 16;
 
@@ -703,6 +703,7 @@ namespace System.Collections.Generic
         public void Sort(TKey[] keys, TValue[] values, int index, int length, IComparer<TKey> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");  // Precondition on interface method
+            Debug.Assert(values != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             // Add a try block here to detect IComparers (or their
@@ -729,7 +730,7 @@ namespace System.Collections.Generic
         private static void SwapIfGreaterWithItems(TKey[] keys, TValue[] values, IComparer<TKey> comparer, int a, int b)
         {
             Contract.Requires(keys != null);
-            Contract.Requires(values == null || values.Length >= keys.Length);
+            Contract.Requires(values != null && values.Length >= keys.Length);
             Contract.Requires(comparer != null);
             Contract.Requires(0 <= a && a < keys.Length);
             Contract.Requires(0 <= b && b < keys.Length);
@@ -741,12 +742,10 @@ namespace System.Collections.Generic
                     TKey key = keys[a];
                     keys[a] = keys[b];
                     keys[b] = key;
-                    if (values != null)
-                    {
-                        TValue value = values[a];
-                        values[a] = values[b];
-                        values[b] = value;
-                    }
+
+                    TValue value = values[a];
+                    values[a] = values[b];
+                    values[b] = value;                    
                 }
             }
         }
@@ -758,12 +757,10 @@ namespace System.Collections.Generic
                 TKey k = keys[i];
                 keys[i] = keys[j];
                 keys[j] = k;
-                if (values != null)
-                {
-                    TValue v = values[i];
-                    values[i] = values[j];
-                    values[j] = v;
-                }
+
+                TValue v = values[i];
+                values[i] = values[j];
+                values[j] = v;                
             }
         }
 
@@ -894,12 +891,13 @@ namespace System.Collections.Generic
         private static void DownHeap(TKey[] keys, TValue[] values, int i, int n, int lo, IComparer<TKey> comparer)
         {
             Contract.Requires(keys != null);
+            Contract.Requires(values != null);
             Contract.Requires(comparer != null);
             Contract.Requires(lo >= 0);
             Contract.Requires(lo < keys.Length);
 
             TKey d = keys[lo + i - 1];
-            TValue dValue = (values != null) ? values[lo + i - 1] : default(TValue);
+            TValue dValue = values[lo + i - 1];
             int child;
             while (i <= n / 2)
             {
@@ -911,13 +909,11 @@ namespace System.Collections.Generic
                 if (!(comparer.Compare(d, keys[lo + child - 1]) < 0))
                     break;
                 keys[lo + i - 1] = keys[lo + child - 1];
-                if (values != null)
-                    values[lo + i - 1] = values[lo + child - 1];
+                values[lo + i - 1] = values[lo + child - 1];
                 i = child;
             }
             keys[lo + i - 1] = d;
-            if (values != null)
-                values[lo + i - 1] = dValue;
+            values[lo + i - 1] = dValue;
         }
 
         private static void InsertionSort(TKey[] keys, TValue[] values, int lo, int hi, IComparer<TKey> comparer)
@@ -936,17 +932,15 @@ namespace System.Collections.Generic
             {
                 j = i;
                 t = keys[i + 1];
-                tValue = (values != null) ? values[i + 1] : default(TValue);
+                tValue = values[i + 1];
                 while (j >= lo && comparer.Compare(t, keys[j]) < 0)
                 {
                     keys[j + 1] = keys[j];
-                    if (values != null)
-                        values[j + 1] = values[j];
+                    values[j + 1] = values[j];
                     j--;
                 }
                 keys[j + 1] = t;
-                if (values != null)
-                    values[j + 1] = tValue;
+                values[j + 1] = tValue;
             }
         }
     }
@@ -992,12 +986,10 @@ namespace System.Collections.Generic
                     TKey key = keys[a];
                     keys[a] = keys[b];
                     keys[b] = key;
-                    if (values != null)
-                    {
-                        TValue value = values[a];
-                        values[a] = values[b];
-                        values[b] = value;
-                    }
+
+                    TValue value = values[a];
+                    values[a] = values[b];
+                    values[b] = value;                    
                 }
             }
         }
@@ -1009,12 +1001,10 @@ namespace System.Collections.Generic
                 TKey k = keys[i];
                 keys[i] = keys[j];
                 keys[j] = k;
-                if (values != null)
-                {
-                    TValue v = values[i];
-                    values[i] = values[j];
-                    values[j] = v;
-                }
+
+                TValue v = values[i];
+                values[i] = values[j];
+                values[j] = v;
             }
         }
 
@@ -1153,7 +1143,7 @@ namespace System.Collections.Generic
             Contract.Requires(lo < keys.Length);
 
             TKey d = keys[lo + i - 1];
-            TValue dValue = (values != null) ? values[lo + i - 1] : default(TValue);
+            TValue dValue = values[lo + i - 1];
             int child;
             while (i <= n / 2)
             {
@@ -1165,13 +1155,11 @@ namespace System.Collections.Generic
                 if (keys[lo + child - 1] == null || keys[lo + child - 1].CompareTo(d) < 0)
                     break;
                 keys[lo + i - 1] = keys[lo + child - 1];
-                if (values != null)
-                    values[lo + i - 1] = values[lo + child - 1];
+                values[lo + i - 1] = values[lo + child - 1];
                 i = child;
             }
             keys[lo + i - 1] = d;
-            if (values != null)
-                values[lo + i - 1] = dValue;
+            values[lo + i - 1] = dValue;
         }
 
         private static void InsertionSort(TKey[] keys, TValue[] values, int lo, int hi)
@@ -1189,17 +1177,15 @@ namespace System.Collections.Generic
             {
                 j = i;
                 t = keys[i + 1];
-                tValue = (values != null) ? values[i + 1] : default(TValue);
+                tValue = values[i + 1];
                 while (j >= lo && (t == null || t.CompareTo(keys[j]) < 0))
                 {
                     keys[j + 1] = keys[j];
-                    if (values != null)
-                        values[j + 1] = values[j];
+                    values[j + 1] = values[j];
                     j--;
                 }
                 keys[j + 1] = t;
-                if (values != null)
-                    values[j + 1] = tValue;
+                values[j + 1] = tValue;
             }
         }
     }
