@@ -17,7 +17,6 @@ using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.Versioning;
 
 namespace System.Collections.Generic
@@ -271,7 +270,6 @@ namespace System.Collections.Generic
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
             Debug.Assert(hi < keys.Length);
-            Contract.Ensures(Contract.Result<int>() >= lo && Contract.Result<int>() <= hi);
 
             // Compute median-of-three.  But also partition them, since we've done the comparison.
             int middle = lo + ((hi - lo) / 2);
@@ -557,7 +555,6 @@ namespace System.Collections.Generic
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
             Debug.Assert(hi < keys.Length);
-            Contract.Ensures(Contract.Result<int>() >= lo && Contract.Result<int>() <= hi);
 
             // Compute median-of-three.  But also partition them, since we've done the comparison.
             int middle = lo + ((hi - lo) / 2);
@@ -837,7 +834,6 @@ namespace System.Collections.Generic
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
             Debug.Assert(hi < keys.Length);
-            Contract.Ensures(Contract.Result<int>() >= lo && Contract.Result<int>() <= hi);
 
             // Compute median-of-three.  But also partition them, since we've done the comparison.
             int middle = lo + ((hi - lo) / 2);
@@ -1078,7 +1074,6 @@ namespace System.Collections.Generic
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
             Debug.Assert(hi < keys.Length);
-            Contract.Ensures(Contract.Result<int>() >= lo && Contract.Result<int>() <= hi);
 
             // Compute median-of-three.  But also partition them, since we've done the comparison.
             int middle = lo + ((hi - lo) / 2);
