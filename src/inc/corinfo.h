@@ -213,11 +213,12 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* 7f70c266-eada-427b-be8a-be1260e34b1b */
-    0x7f70c266,
-    0xeada,
-    0x427b,
-    {0xbe, 0x8a, 0xbe, 0x12, 0x60, 0xe3, 0x4b, 0x1b}
+// {CFEC7B89-D5FF-4A67-823A-EF99FE0286F4}
+SELECTANY const GUID JITEEVersionIdentifier = { 
+    0xcfec7b89, 
+    0xd5ff, 
+    0x4a67, 
+    { 0x82, 0x3a, 0xef, 0x99, 0xfe, 0x2, 0x86, 0xf4 } 
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2083,6 +2084,12 @@ public:
             CORINFO_METHOD_HANDLE       virtualMethod,          /* IN */
             CORINFO_CLASS_HANDLE        implementingClass,      /* IN */
             CORINFO_CONTEXT_HANDLE      ownerType = NULL        /* IN */
+            ) = 0;
+
+    // Given T, return the type of the default EqualityComparer<T>.
+    // Returns null if the type can't be determined exactly.
+    virtual CORINFO_CLASS_HANDLE getDefaultEqualityComparerClass(
+            CORINFO_CLASS_HANDLE elemType
             ) = 0;
 
     // Given resolved token that corresponds to an intrinsic classified as

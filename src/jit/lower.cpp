@@ -188,6 +188,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_TEST_EQ:
         case GT_TEST_NE:
         case GT_CMP:
+        case GT_JCMP:
             LowerCompare(node);
             break;
 
@@ -3821,7 +3822,16 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
             // on x64 we must materialize the target using specific registers.
             addr->gtRegNum = comp->virtualStubParamInfo->GetReg();
 
+// On ARM we must use a proper address in R12(thunk register) without dereferencing.
+// So for the jump we use the default register.
+// TODO: specifying register probably unnecessary for other platforms, too.
+#if !defined(_TARGET_UNIX_) && !defined(_TARGET_ARM_)
             indir->gtRegNum = REG_JUMP_THUNK_PARAM;
+#elif defined(_TARGET_ARM_)
+            // TODO-ARM-Cleanup: This is a temporarey hotfix to fix a regression observed in Linux/ARM.
+            if (!comp->IsTargetAbi(CORINFO_CORERT_ABI))
+                indir->gtRegNum = REG_JUMP_THUNK_PARAM;
+#endif
             indir->gtFlags |= GTF_IND_REQ_ADDR_IN_REG;
 #endif
             result = indir;
@@ -5349,6 +5359,7 @@ void Lowering::ContainCheckNode(GenTree* node)
         case GT_TEST_EQ:
         case GT_TEST_NE:
         case GT_CMP:
+        case GT_JCMP:
             ContainCheckCompare(node->AsOp());
             break;
 

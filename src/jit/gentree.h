@@ -991,6 +991,9 @@ public:
 #define GTF_RELOP_ZTT               0x08000000 // GT_<relop> -- Loop test cloned for converting while-loops into do-while
                                                //               with explicit "loop test" in the header block.
 
+#define GTF_JCMP_EQ                 0x80000000 // GTF_JCMP_EQ  -- Branch on equal rather than not equal
+#define GTF_JCMP_TST                0x40000000 // GTF_JCMP_TST -- Use bit test instruction rather than compare against zero instruction
+
 #define GTF_RET_MERGED              0x80000000 // GT_RETURN -- This is a return generated during epilog merging.
 
 #define GTF_QMARK_CAST_INSTOF       0x80000000 // GT_QMARK -- Is this a top (not nested) level qmark created for
@@ -1632,7 +1635,7 @@ public:
 
     bool OperIsConditionalJump() const
     {
-        return (gtOper == GT_JTRUE) || (gtOper == GT_JCC);
+        return (gtOper == GT_JTRUE) || (gtOper == GT_JCMP) || (gtOper == GT_JCC);
     }
 
     static bool OperIsBoundsCheck(genTreeOps op)
@@ -3654,6 +3657,8 @@ struct GenTreeCall final : public GenTree
                                                     // to restore real function address and load hidden argument
                                                     // as the first argument for calli. It is CoreRT replacement for instantiating
                                                     // stubs, because executable code cannot be generated at runtime.
+#define GTF_CALL_M_HELPER_SPECIAL_DCE    0x00020000 // GT_CALL -- this helper call can be removed if it is part of a comma and
+                                                    // the comma result is unused.
 
     // clang-format on
 
@@ -4997,7 +5002,7 @@ protected:
 
 struct GenTreeRetExpr : public GenTree
 {
-    GenTreePtr gtInlineCandidate;
+    GenTree* gtInlineCandidate;
 
     CORINFO_CLASS_HANDLE gtRetClsHnd;
 

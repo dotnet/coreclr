@@ -2327,7 +2327,7 @@ void stomp_write_barrier_ephemeral(uint8_t* ephemeral_low, uint8_t* ephemeral_hi
     GCToEEInterface::StompWriteBarrier(&args);
 }
 
-void stomp_write_barrier_initialize()
+void stomp_write_barrier_initialize(uint8_t* ephemeral_low, uint8_t* ephemeral_high)
 {
     WriteBarrierParameters args = {};
     args.operation = WriteBarrierOp::Initialize;
@@ -2341,8 +2341,8 @@ void stomp_write_barrier_initialize()
     
     args.lowest_address = g_gc_lowest_address;
     args.highest_address = g_gc_highest_address;
-    args.ephemeral_low = reinterpret_cast<uint8_t*>(1);
-    args.ephemeral_high = reinterpret_cast<uint8_t*>(~0);
+    args.ephemeral_low = ephemeral_low;
+    args.ephemeral_high = ephemeral_high;
     GCToEEInterface::StompWriteBarrier(&args);
 }
 
@@ -10602,7 +10602,18 @@ gc_heap::init_gc_heap (int  h_number)
     make_background_mark_stack (b_arr);
 #endif //BACKGROUND_GC
 
-    adjust_ephemeral_limits();
+    ephemeral_low = generation_allocation_start(generation_of(max_generation - 1));
+    ephemeral_high = heap_segment_reserved(ephemeral_heap_segment);
+    if (heap_number == 0)
+    {
+        stomp_write_barrier_initialize(
+#ifdef MULTIPLE_HEAPS
+            reinterpret_cast<uint8_t*>(1), reinterpret_cast<uint8_t*>(~0)
+#else
+            ephemeral_low, ephemeral_high
+#endif //!MULTIPLE_HEAPS
+        );
+    }
 
 #ifdef MARK_ARRAY
     // why would we clear the mark array for this page? it should be cleared..
@@ -13351,7 +13362,6 @@ try_again:
                     org_hp->alloc_context_count--;
                     max_hp->alloc_context_count++;
                     acontext->set_alloc_heap(GCHeap::GetHeap(max_hp->heap_number));
-#if !defined(FEATURE_PAL)
                     if (CPUGroupInfo::CanEnableGCCPUGroups())
                     {   //only set ideal processor when max_hp and org_hp are in the same cpu
                         //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
@@ -13385,7 +13395,6 @@ try_again:
                                         org_hp->heap_number));
                         }
                     }
-#endif // !FEATURE_PAL
                     dprintf (3, ("Switching context %p (home heap %d) ", 
                                  acontext,
                         acontext->get_home_heap()->pGenGCHeap->heap_number));
@@ -15882,37 +15891,63 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
     save_data_for_no_gc();
     settings.pause_mode = pause_no_gc;
     current_no_gc_region_info.start_status = start_no_gc_success;
-    
-    size_t allocation_no_gc_loh = 0;
-    size_t allocation_no_gc_soh = 0;
-    size_t size_per_heap = 0;
 
-    total_size = (size_t)((float)total_size * 1.05);
+    uint64_t allocation_no_gc_loh = 0;
+    uint64_t allocation_no_gc_soh = 0;
+    assert(total_size != 0);
     if (loh_size_known)
     {
-        loh_size = (size_t)((float)loh_size * 1.05);
-        allocation_no_gc_loh = (size_t)loh_size;
-        allocation_no_gc_soh = (size_t)(total_size - loh_size);
+        assert(loh_size != 0);
+        assert(loh_size <= total_size);
+        allocation_no_gc_loh = loh_size;
+        allocation_no_gc_soh = total_size - loh_size;
     }
     else
     {
-        allocation_no_gc_soh = (size_t)total_size;
-        allocation_no_gc_loh = (size_t)total_size;
+        allocation_no_gc_soh = total_size;
+        allocation_no_gc_loh = total_size;
     }
 
     int soh_align_const = get_alignment_constant (TRUE);
-    size_t max_soh_allocated = (soh_segment_size - segment_info_size - eph_gen_starts_size);
+    size_t max_soh_allocated = soh_segment_size - segment_info_size - eph_gen_starts_size;
+    size_t size_per_heap = 0;
+    const double scale_factor = 1.05;
 
     int num_heaps = 1;
 #ifdef MULTIPLE_HEAPS
     num_heaps = n_heaps;
-#endif //MULTIPLE_HEAPS
-    size_t total_allowed_soh_allocation = max_soh_allocated * num_heaps;
+#endif // MULTIPLE_HEAPS
 
-    if (allocation_no_gc_soh > total_allowed_soh_allocation)
+    uint64_t total_allowed_soh_allocation = max_soh_allocated * num_heaps;
+    // [LOCALGC TODO]
+    // In theory, the upper limit here is the physical memory of the machine, not
+    // SIZE_T_MAX. This is not true today because total_physical_mem can be
+    // larger than SIZE_T_MAX if running in wow64 on a machine with more than
+    // 4GB of RAM. Once Local GC code divergence is resolved and code is flowing
+    // more freely between branches, it would be good to clean this up to use
+    // total_physical_mem instead of SIZE_T_MAX.
+    assert(total_allowed_soh_allocation <= SIZE_T_MAX);
+    uint64_t total_allowed_loh_allocation = SIZE_T_MAX;
+    uint64_t total_allowed_soh_alloc_scaled = allocation_no_gc_soh > 0 ? static_cast<uint64_t>(total_allowed_soh_allocation / scale_factor) : 0;
+    uint64_t total_allowed_loh_alloc_scaled = allocation_no_gc_loh > 0 ? static_cast<uint64_t>(total_allowed_loh_allocation / scale_factor) : 0;
+
+    if (allocation_no_gc_soh > total_allowed_soh_alloc_scaled ||
+        allocation_no_gc_loh > total_allowed_loh_alloc_scaled)
     {
         status = start_no_gc_too_large;
         goto done;
+    }
+
+    if (allocation_no_gc_soh > 0)
+    {
+        allocation_no_gc_soh = static_cast<uint64_t>(allocation_no_gc_soh * scale_factor);
+        allocation_no_gc_soh = min (allocation_no_gc_soh, total_allowed_soh_alloc_scaled);
+    }
+
+    if (allocation_no_gc_loh > 0)
+    {
+        allocation_no_gc_loh = static_cast<uint64_t>(allocation_no_gc_loh * scale_factor);
+        allocation_no_gc_loh = min (allocation_no_gc_loh, total_allowed_loh_alloc_scaled);
     }
 
     if (disallow_full_blocking)
@@ -15920,7 +15955,7 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
 
     if (allocation_no_gc_soh != 0)
     {
-        current_no_gc_region_info.soh_allocation_size = allocation_no_gc_soh;
+        current_no_gc_region_info.soh_allocation_size = static_cast<size_t>(allocation_no_gc_soh);
         size_per_heap = current_no_gc_region_info.soh_allocation_size;
 #ifdef MULTIPLE_HEAPS
         size_per_heap /= n_heaps;
@@ -15936,7 +15971,7 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
 
     if (allocation_no_gc_loh != 0)
     {
-        current_no_gc_region_info.loh_allocation_size = allocation_no_gc_loh;
+        current_no_gc_region_info.loh_allocation_size = static_cast<size_t>(allocation_no_gc_loh);
         size_per_heap = current_no_gc_region_info.loh_allocation_size;
 #ifdef MULTIPLE_HEAPS
         size_per_heap /= n_heaps;
@@ -33550,8 +33585,6 @@ HRESULT GCHeap::Initialize ()
     {
         return E_FAIL;
     }
-
-    stomp_write_barrier_initialize();
 
 #ifndef FEATURE_REDHAWK // Redhawk forces relocation a different way
 #if defined (STRESS_HEAP) && !defined (MULTIPLE_HEAPS)

@@ -13,6 +13,7 @@
 
 //This class contains only static members and doesn't require serialization.
 
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime;
 using System.Runtime.CompilerServices;
@@ -192,7 +193,7 @@ namespace System
             {
                 return max;
             }
-
+            
             return value;
         }
 
@@ -623,7 +624,7 @@ namespace System
 
             double flrTempVal = Floor(a + 0.5);
 
-            if ((a == (Floor(a) + 0.5)) && (fmod(flrTempVal, 2.0) != 0))
+            if ((a == (Floor(a) + 0.5)) && (FMod(flrTempVal, 2.0) != 0))
             {
                 flrTempVal -= 1.0;
             }
@@ -654,7 +655,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidEnumValue, mode, nameof(MidpointRounding)), nameof(mode));
             }
-            Contract.EndContractBlock();
 
             if (Abs(value) < doubleRoundLimit)
             {
@@ -664,7 +664,7 @@ namespace System
 
                 if (mode == MidpointRounding.AwayFromZero)
                 {
-                    var fraction = modf(value, &value);
+                    var fraction = ModF(value, &value);
 
                     if (Abs(fraction) >= 0.5)
                     {
@@ -755,58 +755,54 @@ namespace System
 
         public static unsafe double Truncate(double d)
         {
-            modf(d, &d);
+            ModF(d, &d);
             return d;
         }
 
         private static short AbsHelper(short value)
         {
-            Contract.Requires(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
+            Debug.Assert(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
 
             if (value == short.MinValue)
             {
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
             }
-            Contract.EndContractBlock();
 
             return ((short)(-value));
         }
 
         private static int AbsHelper(int value)
         {
-            Contract.Requires(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
+            Debug.Assert(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
 
             if (value == int.MinValue)
             {
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
             }
-            Contract.EndContractBlock();
 
             return -value;
         }
 
         private static long AbsHelper(long value)
         {
-            Contract.Requires(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
+            Debug.Assert(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
 
             if (value == long.MinValue)
             {
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
             }
-            Contract.EndContractBlock();
 
             return -value;
         }
 
         private static sbyte AbsHelper(sbyte value)
         {
-            Contract.Requires(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
+            Debug.Assert(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
 
             if (value == sbyte.MinValue)
             {
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
             }
-            Contract.EndContractBlock();
 
             return ((sbyte)(-value));
         }

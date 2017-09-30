@@ -1308,6 +1308,16 @@ AGAIN:
                         return false;
                     }
                     break;
+#ifdef FEATURE_SIMD
+                case GT_SIMD:
+                    if ((op1->AsSIMD()->gtSIMDIntrinsicID != op2->AsSIMD()->gtSIMDIntrinsicID) ||
+                        (op1->AsSIMD()->gtSIMDBaseType != op2->AsSIMD()->gtSIMDBaseType) ||
+                        (op1->AsSIMD()->gtSIMDSize != op2->AsSIMD()->gtSIMDSize))
+                    {
+                        return false;
+                    }
+                    break;
+#endif // FEATURE_SIMD
 
                 // For the ones below no extra argument matters for comparison.
                 case GT_QMARK:
@@ -1895,7 +1905,6 @@ AGAIN:
                     hash =
                         genTreeHashAdd(hash, static_cast<unsigned>(reinterpret_cast<uintptr_t>(tree->gtObj.gtClass)));
                     break;
-
                 // For the ones below no extra argument matters for comparison.
                 case GT_BOX:
                     break;
@@ -2541,6 +2550,15 @@ GenTreePtr Compiler::gtReverseCond(GenTree* tree)
     {
         GenTreeCC* cc   = tree->AsCC();
         cc->gtCondition = GenTree::ReverseRelop(cc->gtCondition);
+    }
+    else if (tree->OperIs(GT_JCMP))
+    {
+        // Flip the GTF_JCMP_EQ
+        //
+        // This causes switching
+        //     cbz <=> cbnz
+        //     tbz <=> tbnz
+        tree->gtFlags ^= GTF_JCMP_EQ;
     }
     else
     {
@@ -6415,6 +6433,7 @@ GenTreeLclFld* Compiler::gtNewLclFldNode(unsigned lnum, var_types type, unsigned
 }
 
 GenTreePtr Compiler::gtNewInlineCandidateReturnExpr(GenTreePtr inlineCandidate, var_types type)
+
 {
     assert(GenTree::s_gtNodeSizes[GT_RET_EXPR] == TREE_NODE_SZ_LARGE);
 
@@ -7140,6 +7159,10 @@ GenTreePtr Compiler::gtClone(GenTree* tree, bool complexOK)
                     GenTreeIntCon(tree->gtType, tree->gtIntCon.gtIconVal, tree->gtIntCon.gtFieldSeq);
                 copy->gtIntCon.gtCompileTimeHandle = tree->gtIntCon.gtCompileTimeHandle;
             }
+            break;
+
+        case GT_CNS_LNG:
+            copy = gtNewLconNode(tree->gtLngCon.gtLconVal);
             break;
 
         case GT_LCL_VAR:
@@ -9874,6 +9897,11 @@ void Compiler::gtDispNode(GenTreePtr tree, IndentStack* indentStack, __in __in_z
                 }
                 goto DASH;
 
+            case GT_JCMP:
+                printf((tree->gtFlags & GTF_JCMP_TST) ? "T" : "C");
+                printf((tree->gtFlags & GTF_JCMP_EQ) ? "EQ" : "NE");
+                goto DASH;
+
             default:
             DASH:
                 printf("-");
@@ -10786,6 +10814,9 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
         case GT_SETCC:
             printf(" cond=%s", GenTree::OpName(tree->AsCC()->gtCondition));
             break;
+        case GT_JCMP:
+            printf(" cond=%s%s", (tree->gtFlags & GTF_JCMP_TST) ? "TEST_" : "",
+                   (tree->gtFlags & GTF_JCMP_EQ) ? "EQ" : "NE");
 
         default:
             assert(!"don't know how to display tree leaf node");
@@ -12807,6 +12838,7 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
     if (thisVal->IsIntegralConst())
     {
         thisValOpt = gtClone(thisVal);
+        assert(thisValOpt != nullptr);
     }
     else
     {
@@ -12819,8 +12851,10 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
 
     if (flagVal->IsIntegralConst())
     {
-        flagValOpt     = gtClone(flagVal);
+        flagValOpt = gtClone(flagVal);
+        assert(flagValOpt != nullptr);
         flagValOptCopy = gtClone(flagVal);
+        assert(flagValOptCopy != nullptr);
     }
     else
     {

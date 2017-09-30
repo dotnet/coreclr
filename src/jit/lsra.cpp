@@ -3073,7 +3073,7 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
             }
         }
 
-        if (tree->IsCall() && (tree->gtFlags & GTF_CALL_UNMANAGED) != 0)
+        if (killGCRefs(tree))
         {
             RefPosition* pos = newRefPosition((Interval*)nullptr, currentLoc, RefTypeKillGCRefs, tree,
                                               (allRegs(TYP_REF) & ~RBM_ARG_REGS));
@@ -3081,6 +3081,35 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
         return true;
     }
 
+    return false;
+}
+
+//------------------------------------------------------------------------
+// killGCRefs:
+// Given some tree node return does it need all GC refs to be spilled from
+// callee save registers.
+//
+// Arguments:
+//    tree       - the tree for which we ask about gc refs.
+//
+// Return Value:
+//    true       - tree kills GC refs on callee save registers
+//    false      - tree doesn't affect GC refs on callee save registers
+bool LinearScan::killGCRefs(GenTree* tree)
+{
+    if (tree->IsCall())
+    {
+        if ((tree->gtFlags & GTF_CALL_UNMANAGED) != 0)
+        {
+            return true;
+        }
+
+        if (tree->AsCall()->gtCallMethHnd == compiler->eeFindHelper(CORINFO_HELP_JIT_PINVOKE_BEGIN))
+        {
+            assert(compiler->opts.ShouldUsePInvokeHelpers());
+            return true;
+        }
+    }
     return false;
 }
 
@@ -3554,7 +3583,7 @@ static int ComputeOperandDstCount(GenTree* operand)
         // If an operand has no destination registers but does have source registers, it must be a store
         // or a compare.
         assert(operand->OperIsStore() || operand->OperIsBlkOp() || operand->OperIsPutArgStk() ||
-               operand->OperIsCompare() || operand->OperIs(GT_CMP) || operand->IsSIMDEqualityOrInequality());
+               operand->OperIsCompare() || operand->OperIs(GT_CMP, GT_JCMP) || operand->IsSIMDEqualityOrInequality());
         return 0;
     }
     else if (!operand->OperIsFieldListHead() && (operand->OperIsStore() || operand->TypeGet() == TYP_VOID))
@@ -4033,7 +4062,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
             // for Use position of v02 also needs to take into account
             // of kill set of its consuming node.
             unsigned minRegCountForUsePos = minRegCount;
-            if (delayRegFree)
+            if (delayRegFree && (lsraStressMask != 0))
             {
                 regMaskTP killMask = getKillSetForNode(tree);
                 if (killMask != RBM_NONE)
@@ -10078,6 +10107,28 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
         switchRegs |= genRegMask(op2->gtRegNum);
     }
 
+#ifdef _TARGET_ARM64_
+    // Next, if this blocks ends with a JCMP, we have to make sure not to copy
+    // into the register that it uses or modify the local variable it must consume
+    LclVarDsc* jcmpLocalVarDsc = nullptr;
+    if (block->bbJumpKind == BBJ_COND)
+    {
+        GenTree* lastNode = LIR::AsRange(block).LastNode();
+
+        if (lastNode->OperIs(GT_JCMP))
+        {
+            GenTree* op1 = lastNode->gtGetOp1();
+            switchRegs |= genRegMask(op1->gtRegNum);
+
+            if (op1->IsLocal())
+            {
+                GenTreeLclVarCommon* lcl = op1->AsLclVarCommon();
+                jcmpLocalVarDsc          = &compiler->lvaTable[lcl->gtLclNum];
+            }
+        }
+    }
+#endif
+
     VarToRegMap sameVarToRegMap = sharedCriticalVarToRegMap;
     regMaskTP   sameWriteRegs   = RBM_NONE;
     regMaskTP   diffReadRegs    = RBM_NONE;
@@ -10150,6 +10201,13 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
             {
                 sameToReg = REG_NA;
             }
+
+#ifdef _TARGET_ARM64_
+            if (jcmpLocalVarDsc && (jcmpLocalVarDsc->lvVarIndex == outResolutionSetVarIndex))
+            {
+                sameToReg = REG_NA;
+            }
+#endif
 
             // If the var is live only at those blocks connected by a split edge and not live-in at some of the
             // target blocks, we will resolve it the same way as if it were in diffResolutionSet and resolution
