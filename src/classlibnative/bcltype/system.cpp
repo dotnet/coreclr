@@ -60,7 +60,9 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
             //     https://github.com/dotnet/coreclr/issues/14187
             // If it's inaccurate, though, we expect it to be wildly inaccurate, so as a
             // workaround/heuristic, we get both the "normal" and "precise" times, and as
-            // long as they're close, we use the precise one.
+            // long as they're close, we use the precise one. This workaround can be removed
+            // when we better understand what's causing the drift and the issue is no longer
+            // a problem or can be better worked around on all targeted OSes.
 
             FILETIME systemTimeResult;
             ::GetSystemTimeAsFileTime(&systemTimeResult);
