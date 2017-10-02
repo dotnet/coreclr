@@ -373,7 +373,7 @@ PAL_GetRestrictedPhysicalMemoryLimit()
         if (pageSize != -1)
         {
             physical_memory_limit = std::min(physical_memory_limit, 
-                                            (size_t)pages * pageSize);
+                                            (size_t)(pages * pageSize));
         }
     }
 
