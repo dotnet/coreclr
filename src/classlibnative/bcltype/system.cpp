@@ -53,6 +53,31 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
     if (hKernel32 != NULL)
     {
         func = (pfnGetSystemTimeAsFileTime)GetProcAddress(hKernel32, "GetSystemTimePreciseAsFileTime");
+        if (func != NULL)
+        {
+            // GetSystemTimePreciseAsFileTime exists and we'd like to use it.  However, on
+            // misconfigured systems, it's possible for the "precise" time to be inaccurate:
+            //     https://github.com/dotnet/coreclr/issues/14187
+            // If it's inaccurate, though, we expect it to be wildly inaccurate, so as a
+            // workaround/heuristic, we get both the "normal" and "precise" times, and as
+            // long as they're close, we use the precise one.
+
+            FILETIME systemTimeResult;
+            ::GetSystemTimeAsFileTime(&systemTimeResult);
+
+            FILETIME preciseSystemTimeResult;
+            func(&preciseSystemTimeResult);
+
+            LONG64 systemTimeLong100ns = (LONG64)((((ULONG64)systemTimeResult.dwHighDateTime) << 32) | (ULONG64)systemTimeResult.dwLowDateTime);
+            LONG64 preciseSystemTimeLong100ns = (LONG64)((((ULONG64)preciseSystemTimeResult.dwHighDateTime) << 32) | (ULONG64)preciseSystemTimeResult.dwLowDateTime);
+
+            const INT32 THRESHOLD_100NS = 1000000; // 100ms
+            if (abs(preciseSystemTimeLong100ns - systemTimeLong100ns) > THRESHOLD_100NS)
+            {
+                // Too much difference.  Don't use GetSystemTimePreciseAsFileTime.
+                func = NULL;
+            }
+        }
     }
     if (func == NULL)
 #endif
