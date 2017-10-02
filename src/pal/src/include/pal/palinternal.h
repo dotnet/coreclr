@@ -534,6 +534,9 @@ function_name() to call the system's implementation
 
 #undef ctime
 
+#undef min
+#undef max
+
 #undef SCHAR_MIN
 #undef SCHAR_MAX
 #undef UCHAR_MAX
