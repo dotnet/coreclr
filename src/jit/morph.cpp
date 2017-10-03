@@ -11964,16 +11964,16 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
             }
             break;
 
-            case GT_EQ:
-            case GT_NE:
-            {
-                GenTree* optimizedTree = gtFoldTypeCompare(tree);
+        case GT_EQ:
+        case GT_NE:
+        {
+            GenTree* optimizedTree = gtFoldTypeCompare(tree);
 
-                if (optimizedTree != tree)
-                {
-                    return fgMorphTree(optimizedTree);
-                }
+            if (optimizedTree != tree)
+            {
+                return fgMorphTree(optimizedTree);
             }
+        }
 
             __fallthrough;
 

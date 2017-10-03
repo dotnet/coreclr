@@ -5010,7 +5010,7 @@ private:
         TPK_Other   = 4  // RuntimeType via other means
     };
 
-    TypeProducerKind gtCanOptimizeTypeEquality(GenTreePtr tree);
+    TypeProducerKind gtGetTypeProducerKind(GenTree* tree);
     bool gtIsTypeHandleToRuntimeTypeHelper(GenTreeCall* call);
     bool gtIsActiveCSE_Candidate(GenTreePtr tree);
 

@@ -12189,7 +12189,7 @@ GenTree* Compiler::gtFoldTypeEqualityCall(CorInfoIntrinsics methodID, GenTree* o
     // The method must be be a type equality intrinsic
     assert(methodID == CORINFO_INTRINSIC_TypeEQ || methodID == CORINFO_INTRINSIC_TypeNEQ);
 
-    if ((gtCanOptimizeTypeEquality(op1) == TPK_Unknown) && (gtCanOptimizeTypeEquality(op2) == TPK_Unknown))
+    if ((gtGetTypeProducerKind(op1) == TPK_Unknown) && (gtGetTypeProducerKind(op2) == TPK_Unknown))
     {
         return nullptr;
     }
@@ -12306,14 +12306,14 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
 
     // Screen for the right kinds of operands
     GenTree* const         op1     = tree->gtOp.gtOp1;
-    const TypeProducerKind op1Kind = gtCanOptimizeTypeEquality(op1);
+    const TypeProducerKind op1Kind = gtGetTypeProducerKind(op1);
     if (op1Kind == TPK_Unknown)
     {
         return tree;
     }
 
     GenTree* const         op2     = tree->gtOp.gtOp2;
-    const TypeProducerKind op2Kind = gtCanOptimizeTypeEquality(op2);
+    const TypeProducerKind op2Kind = gtGetTypeProducerKind(op2);
     if (op2Kind == TPK_Unknown)
     {
         return tree;
@@ -12321,8 +12321,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
 
     // We must have a handle on one side or the other here to optimize,
     // otherwise we can't be sure that optimizing is sound.
-    const bool op1IsFromHandle = op1Kind == TPK_Handle;
-    const bool op2IsFromHandle = op2Kind == TPK_Handle;
+    const bool op1IsFromHandle = (op1Kind == TPK_Handle);
+    const bool op2IsFromHandle = (op2Kind == TPK_Handle);
 
     if (!(op1IsFromHandle || op2IsFromHandle))
     {
@@ -12432,13 +12432,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
     // opHandleArgument is the method table we're looking for.
     GenTree* const knownMT = opHandleArgument;
 
-#ifdef LEGACY_BACKEND
-    // Fetch object method table from the object itself
-    GenTree* const objMT = gtNewOperNode(GT_IND, TYP_I_IMPL, opOther->gtCall.gtCallObjp);
-#else
     // Fetch object method table from the object itself
     GenTree* const objMT = gtNewOperNode(GT_IND, TYP_I_IMPL, opOther->gtUnOp.gtOp1);
-#endif
 
     // Update various flags
     objMT->gtFlags |= GTF_EXCEPT;
@@ -15416,8 +15411,8 @@ void Compiler::gtCheckQuirkAddrExposedLclVar(GenTreePtr tree, GenTreeStack* pare
 }
 
 //------------------------------------------------------------------------
-// gtCanOptimizeTypeEquality: check if tree is a suitable input for type
-//    equality optimization
+// gtGetTypeProducerKind: determine if a tree produces a runtime type, and
+//    if so, how.
 //
 // Arguments:
 //    tree - tree to examine
@@ -15443,7 +15438,7 @@ void Compiler::gtCheckQuirkAddrExposedLclVar(GenTreePtr tree, GenTreeStack* pare
 //
 //    into a method call.
 
-Compiler::TypeProducerKind Compiler::gtCanOptimizeTypeEquality(GenTree* tree)
+Compiler::TypeProducerKind Compiler::gtGetTypeProducerKind(GenTree* tree)
 {
     if (tree->gtOper == GT_CALL)
     {
