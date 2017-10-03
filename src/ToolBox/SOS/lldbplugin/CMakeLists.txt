@@ -63,7 +63,8 @@ if (CLR_CMAKE_PLATFORM_DARWIN)
         else()
             set(MESSAGE_MODE WARNING)
         endif()
-        message(${MESSAGE_MODE} "Cannot find lldb-3.5, lldb-3.6, lldb-3.8, lldb-3.9 or lldb-4.0. Try installing lldb-3.6-dev (or the appropriate package for your platform). You may need to set LLVM_HOME if the build still can't find it.")
+        message(${MESSAGE_MODE} "Cannot find lldb-3.5, lldb-3.6, lldb-3.8, lldb-3.9 or lldb-4.0. Try installing liblldb-3.9-dev (or the appropriate package for your platform). You may need to set LLVM_HOME if the build still can't find it.")
+
         return()
     endif()
 
@@ -91,7 +92,7 @@ if(LLDB_H STREQUAL LLDB_H-NOTFOUND)
     else()
         set(MESSAGE_MODE WARNING)
     endif()
-    message(${MESSAGE_MODE} "Cannot find LLDB.h Try installing lldb-3.6-dev (or the appropriate package for your platform). You may need to set LLVM_HOME if the build still can't find it.")
+    message(${MESSAGE_MODE} "Cannot find LLDB.h Try installing lldb-3.9-dev (or the appropriate package for your platform). You may need to set LLVM_HOME if the build still can't find it.")
     return()
 endif()
 

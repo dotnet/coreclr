@@ -4062,7 +4062,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
             // for Use position of v02 also needs to take into account
             // of kill set of its consuming node.
             unsigned minRegCountForUsePos = minRegCount;
-            if (delayRegFree)
+            if (delayRegFree && (lsraStressMask != 0))
             {
                 regMaskTP killMask = getKillSetForNode(tree);
                 if (killMask != RBM_NONE)
@@ -4168,20 +4168,17 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
         }
 
 #ifdef _TARGET_ARM_
-        if (tree->OperIsPutArgSplit())
+        if (tree->OperIsPutArgSplit()
+#ifdef ARM_SOFTFP
+            // If oper is GT_PUTARG_REG, set bits in useCandidates must be in sequential order.
+            || tree->OperIsMultiRegOp() || tree->OperGet() == GT_BITCAST
+#endif // ARM_SOFTFP
+            )
         {
             // get i-th candidate
             currCandidates = genFindLowestReg(candidates);
             candidates &= ~currCandidates;
         }
-#ifdef ARM_SOFTFP
-        // If oper is GT_PUTARG_REG, set bits in useCandidates must be in sequential order.
-        else if (tree->OperIsMultiRegOp() || tree->OperGet() == GT_BITCAST)
-        {
-            currCandidates = genFindLowestReg(candidates);
-            candidates &= ~currCandidates;
-        }
-#endif // ARM_SOFTFP
 #endif // _TARGET_ARM_
 
         if (interval == nullptr)
@@ -4842,7 +4839,7 @@ void LinearScan::buildIntervals()
             TreeNodeInfoInit(node);
 
             // If the node produces an unused value, mark it as a local def-use
-            if (node->IsValue() && node->IsUnusedValue())
+            if (node->IsValue() && node->IsUnusedValue() && !node->gtLsraInfo.isNoRegCompare)
             {
                 node->gtLsraInfo.isLocalDefUse = true;
                 node->gtLsraInfo.dstCount      = 0;
