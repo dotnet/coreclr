@@ -870,6 +870,11 @@ if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
             __PortableBuild=0
         fi
 
+    elif [[ "$__HostOS" == "Linux" && \
+        "$(lsb_release --id --short)" == "Ubuntu" && \
+        "$(lsb_release --release --short)" == "16.04" ]]; then
+        __ClangMajorVersion=3
+        __ClangMinorVersion=9
     else
         __ClangMajorVersion=3
         __ClangMinorVersion=5
