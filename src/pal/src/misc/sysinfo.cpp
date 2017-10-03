@@ -81,6 +81,7 @@ Revision History:
 
 #include "pal/dbgmsg.h"
 
+#include <algorithm>
 
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
 
@@ -391,16 +392,16 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
     size_t cacheSize = 0;
 
 #ifdef _SC_LEVEL1_DCACHE_SIZE
-    cacheSize = max(cacheSize, sysconf(_SC_LEVEL1_DCACHE_SIZE));
+    cacheSize = std::max(cacheSize, (size_t)sysconf(_SC_LEVEL1_DCACHE_SIZE));
 #endif
 #ifdef _SC_LEVEL2_CACHE_SIZE
-    cacheSize = max(cacheSize, sysconf(_SC_LEVEL2_CACHE_SIZE));
+    cacheSize = std::max(cacheSize, (size_t)sysconf(_SC_LEVEL2_CACHE_SIZE));
 #endif
 #ifdef _SC_LEVEL3_CACHE_SIZE
-    cacheSize = max(cacheSize, sysconf(_SC_LEVEL3_CACHE_SIZE));
+    cacheSize = std::max(cacheSize, (size_t)sysconf(_SC_LEVEL3_CACHE_SIZE));
 #endif
 #ifdef _SC_LEVEL4_CACHE_SIZE
-    cacheSize = max(cacheSize, sysconf(_SC_LEVEL4_CACHE_SIZE));
+    cacheSize = std::max(cacheSize, (size_t)sysconf(_SC_LEVEL4_CACHE_SIZE));
 #endif
 
     return cacheSize;

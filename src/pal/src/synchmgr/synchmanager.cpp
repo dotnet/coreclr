@@ -39,6 +39,10 @@ SET_DEFAULT_DEBUG_CHANNEL(SYNC); // some headers have code with asserts, so do t
 #include "pal/fakepoll.h"
 #endif // HAVE_POLL
 
+#include <algorithm>
+
+const int CorUnix::CThreadSynchronizationInfo::PendingSignalingsArraySize;
+
 // We use the synchronization manager's worker thread to handle
 // process termination requests. It does so by calling the
 // registered handler function.
@@ -4147,7 +4151,7 @@ namespace CorUnix
             ERROR("Failed creating thread synchronization mutex [error=%d (%s)]\n", iRet, strerror(iRet));
             if (EAGAIN == iRet && MaxUnavailableResourceRetries >= ++iEagains)
             {
-                poll(NULL, 0, min(100,10*iEagains));
+                poll(NULL, 0, std::min(100,10*iEagains));
                 goto Mutex_retry;
             }
             else if (ENOMEM == iRet)
@@ -4173,7 +4177,7 @@ namespace CorUnix
                   "[error=%d (%s)]\n", iRet, strerror(iRet));
             if (EAGAIN == iRet && MaxUnavailableResourceRetries >= ++iEagains)
             {
-                poll(NULL, 0, min(100,10*iEagains));
+                poll(NULL, 0, std::min(100,10*iEagains));
                 goto Cond_retry;
             }
             else if (ENOMEM == iRet)
@@ -4362,7 +4366,7 @@ namespace CorUnix
 
         if (0 < m_lPendingSignalingCount)
         {
-            LONG lArrayPendingSignalingCount = min(PendingSignalingsArraySize, m_lPendingSignalingCount);
+            LONG lArrayPendingSignalingCount = std::min(PendingSignalingsArraySize, m_lPendingSignalingCount);
             LONG lIdx = 0;
             PAL_ERROR palTempErr;
 
