@@ -3522,6 +3522,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             // Call the regular function.
             break;
 
+#ifndef LEGACY_BACKEND
         case CORINFO_INTRINSIC_Object_GetType:
         {
             op1 = impPopStack().val;
@@ -3573,7 +3574,7 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
             }
             break;
         }
-
+#endif
         // Implement ByReference Ctor.  This wraps the assignment of the ref into a byref-like field
         // in a value type.  The canonical example of this is Span<T>. In effect this is just a
         // substitution.  The parameter byref will be assigned into the newly allocated object.
