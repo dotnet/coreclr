@@ -872,7 +872,7 @@ while :; do
             ;;
         osgroup|-osgroup)
             if [ -n "$2" ]; then
-              __BuildOS=`echo $2 | cut -d '=' -f2`
+              __BuildOS="$2"
               shift
             else
               echo "ERROR: 'osgroup' requires a non-empty option argument"
