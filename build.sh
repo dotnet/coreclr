@@ -111,6 +111,8 @@ initTargetDistroRid()
             export __DistroRid="linux-$__BuildArch"
         elif [ "$__BuildOS" == "OSX" ]; then
             export __DistroRid="osx-$__BuildArch"
+        elif [ "$__BuildOS" == "FreeBSD" ]; then
+            export __DistroRid="freebsd-$__BuildArch"
         fi
     fi
 }
@@ -868,8 +870,14 @@ while :; do
               exit 1
             fi
             ;;
-        -osgroup=*)
-            __BuildOS=`echo $1 | cut -d '=' -f2`
+        osgroup|-osgroup)
+            if [ -n "$2" ]; then
+              __BuildOS=`echo $2 | cut -d '=' -f2`
+              shift
+            else
+              echo "ERROR: 'osgroup' requires a non-empty option argument"
+              exit 1
+            fi
             ;;
 
         *)
