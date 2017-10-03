@@ -1690,7 +1690,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                         def envScriptPath = ''
                         if (Constants.jitStressModeScenarios.containsKey(scenario)) {
-                            def buildCommandStr = ''
+                            def buildCommandsStr = ''
                             envScriptPath = "%WORKSPACE%\\SetStressModes.bat"
                             buildCommandsStr += genStressModeScriptStep(os, scenario, Constants.jitStressModeScenarios[scenario], envScriptPath)
                             if (architecture == 'x86lb') {
