@@ -589,6 +589,10 @@ COM_METHOD ProfToEEInterfaceImpl::QueryInterface(REFIID id, void ** pInterface)
     {
         *pInterface = static_cast<ICorProfilerInfo8 *>(this);
     }
+    else if (id == IID_ICorProfilerInfo9)
+    {
+        *pInterface = static_cast<ICorProfilerInfo9 *>(this);
+    }
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown *>(static_cast<ICorProfilerInfo *>(this));
@@ -2595,21 +2599,16 @@ HRESULT ProfToEEInterfaceImpl::GetCodeInfo3(FunctionID functionId,
             CodeVersionManager* pCodeVersionManager = pMethodDesc->GetCodeVersionManager();
             ILCodeVersion ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMethodDesc, reJitId);
 
-            // Now that tiered compilation can create more than one jitted code version for the same rejit id
-            // we are arbitrarily choosing the first one to return. To return all of them we'd presumably need
-            // a new profiler API.
             NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMethodDesc);
             for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
             {
                 PCODE pCodeStart = iter->GetNativeCode();
-                hr = GetCodeInfoFromCodeStart(
-                    pCodeStart,
-                    cCodeInfos,
-                    pcCodeInfos,
-                    codeInfos);
+                hr = GetCodeInfoFromCodeStart(pCodeStart,
+                                              cCodeInfos,
+                                              pcCodeInfos,
+                                              codeInfos);
                 break;
             }
-            
         }
     }
     EX_CATCH_HRESULT(hr);
@@ -5042,7 +5041,7 @@ HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping2(FunctionID functionId,
                                                     ULONG32 cMap,
                                                     ULONG32 * pcMap,    // [out]
                                                     COR_DEBUG_IL_TO_NATIVE_MAP map[]) // [out]
-    {
+{
     CONTRACTL
     {
         // MethodDesc::FindOrCreateTypicalSharedInstantiation throws
@@ -5070,7 +5069,7 @@ HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping2(FunctionID functionId,
         LL_INFO1000, 
         "**PROF: GetILToNativeMapping2 0x%p 0x%p.\n",
         functionId, reJitId));
-    
+
     if (functionId == NULL)
     {
         return E_INVALIDARG;
@@ -5082,36 +5081,46 @@ HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping2(FunctionID functionId,
         return E_INVALIDARG;
     }
 
-    if (reJitId != 0)
+    HRESULT hr = S_OK;
+
+    EX_TRY
     {
-        return E_NOTIMPL;
+        // Cast to proper type
+        MethodDesc * pMD = FunctionIdToMethodDesc(functionId);
+
+        if (pMD->HasClassOrMethodInstantiation() && pMD->IsTypicalMethodDefinition())
+        {
+            // In this case, we used to replace pMD with its canonical instantiation
+            // (FindOrCreateTypicalSharedInstantiation).  However, a profiler should never be able
+            // to get to this point anyway, since any MethodDesc a profiler gets from us
+            // cannot be typical (i.e., cannot be a generic with types still left uninstantiated).
+            // We assert here just in case a test proves me wrong, but generally we will
+            // disallow this code path.
+            _ASSERTE(!"Profiler passed a typical method desc (a generic with types still left uninstantiated) to GetILToNativeMapping2");
+            hr = E_INVALIDARG;
+        }
+        else
+        {
+            CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+            ILCodeVersion ilCodeVersion = NULL;
+            {
+                CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
+
+                pCodeVersionManager->GetILCodeVersion(pMD, reJitId);
+            }
+        
+            NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
+            for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+            {
+                PCODE pCodeStart = iter->GetNativeCode();
+                hr = GetILToNativeMapping3(pCodeStart, cMap, pcMap, map);
+                break;
+            }
+        }
     }
+    EX_CATCH_HRESULT(hr);
 
-#ifdef DEBUGGING_SUPPORTED
-    // Cast to proper type
-    MethodDesc * pMD = FunctionIdToMethodDesc(functionId);
-
-    if (pMD->HasClassOrMethodInstantiation() && pMD->IsTypicalMethodDefinition())
-    {
-        // In this case, we used to replace pMD with its canonical instantiation
-        // (FindOrCreateTypicalSharedInstantiation).  However, a profiler should never be able
-        // to get to this point anyway, since any MethodDesc a profiler gets from us
-        // cannot be typical (i.e., cannot be a generic with types still left uninstantiated).
-        // We assert here just in case a test proves me wrong, but generally we will
-        // disallow this code path.
-        _ASSERTE(!"Profiler passed a typical method desc (a generic with types still left uninstantiated) to GetILToNativeMapping2");
-        return E_INVALIDARG;
-    }
-
-    if (g_pDebugInterface == NULL)
-    {
-        return CORPROF_E_DEBUGGING_DISABLED;
-    }
-
-    return (g_pDebugInterface->GetILToNativeMapping(pMD, cMap, pcMap, map));
-#else
-    return E_NOTIMPL;
-#endif
+    return hr;
 }
 
 
@@ -6580,6 +6589,190 @@ HRESULT ProfToEEInterfaceImpl::GetDynamicFunctionInfo(FunctionID functionId,
     EX_CATCH_HRESULT(hr);
 
     return (hr);
+}
+
+/*
+ * GetNativeCodeStartAddresses
+ * 
+ * TODO: Description
+ * 
+ * Parameters:
+ *
+ * Returns:
+ *   S_OK if successful
+ *
+ */
+HRESULT ProfToEEInterfaceImpl::GetNativeCodeStartAddresses(FunctionID functionID, 
+                                                           ReJITID reJitId, 
+                                                           ULONG32 cCodeStartAddresses, 
+                                                           ULONG32 *pcCodeStartAddresses, 
+                                                           UINT_PTR codeStartAddresses[])
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+        CAN_TAKE_LOCK;
+
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+
+    if (functionID == NULL || pcCodeStartAddresses == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    PROFILER_TO_CLR_ENTRYPOINT_ASYNC_EX(kP2EEAllowableAfterAttach,
+    (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: GetNativeCodeStartAddresses 0x%p 0x%p.\n",
+        functionID, reJitId));
+    
+    HRESULT hr = S_OK;
+    *pcCodeStartAddresses = 0;
+   
+    EX_TRY
+    {
+        MethodDesc * methodDesc = FunctionIdToMethodDesc(functionID);
+        PTR_MethodDesc pMD = PTR_MethodDesc(methodDesc);
+
+        CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+
+        ILCodeVersion ilCodeVersion = NULL;
+        {
+            CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
+
+            ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMD, reJitId);
+        }
+        
+        NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
+        for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+        {
+            if (*pcCodeStartAddresses >= cCodeStartAddresses)
+            {
+                hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+                break;
+            }
+
+            codeStartAddresses[*pcCodeStartAddresses] = (*iter).GetNativeCode();
+
+            (*pcCodeStartAddresses)++;
+        }
+    }
+    EX_CATCH_HRESULT(hr);
+    
+    return hr;
+}
+
+/*
+ * GetILToNativeMapping3
+ * 
+ * TODO: Description
+ * 
+ * Parameters:
+ *
+ * Returns:
+ *   S_OK if successful
+ *
+ */
+HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping3(UINT_PTR pNativeCodeStartAddress, 
+                                                     ULONG32 cMap, 
+                                                     ULONG32 *pcMap, 
+                                                     COR_DEBUG_IL_TO_NATIVE_MAP map[])
+{
+    CONTRACTL
+    {
+        THROWS;
+        DISABLED(GC_NOTRIGGER);
+        MODE_ANY;
+        CAN_TAKE_LOCK;
+
+        SO_NOT_MAINLINE;
+
+        PRECONDITION(CheckPointer(pcMap, NULL_OK));
+        PRECONDITION(CheckPointer(map, NULL_OK));
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(kP2EEAllowableAfterAttach,
+        (LF_CORPROF, 
+        LL_INFO1000, 
+        "**PROF: GetILToNativeMapping3 0x%p.\n",
+        pNativeCodeStartAddress));
+
+    if (pNativeCodeStartAddress == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    if ((cMap > 0) && 
+        ((pcMap == NULL) || (map == NULL)))
+    {
+        return E_INVALIDARG;
+    }
+
+#ifdef DEBUGGING_SUPPORTED
+    if (g_pDebugInterface == NULL)
+    {
+        return CORPROF_E_DEBUGGING_DISABLED;
+    }
+
+    return (g_pDebugInterface->GetILToNativeMapping(pNativeCodeStartAddress, cMap, pcMap, map));
+#else
+    return E_NOTIMPL;
+#endif
+}
+
+/*
+ * GetCodeInfo4
+ * 
+ * TODO: Description
+ * 
+ * Parameters:
+ *
+ * Returns:
+ *   S_OK if successful
+ *
+ */
+HRESULT ProfToEEInterfaceImpl::GetCodeInfo4(UINT_PTR pNativeCodeStartAddress, 
+                                            ULONG32 cCodeInfos, 
+                                            ULONG32* pcCodeInfos, 
+                                            COR_PRF_CODE_INFO codeInfos[])
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+        CAN_TAKE_LOCK;
+        
+        SO_NOT_MAINLINE;
+
+        PRECONDITION(CheckPointer(pcCodeInfos, NULL_OK));
+        PRECONDITION(CheckPointer(codeInfos, NULL_OK));
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach | kP2EETriggers,
+        (LF_CORPROF, 
+        LL_INFO1000, 
+        "**PROF: GetCodeInfo4 0x%p.\n", 
+        pNativeCodeStartAddress));  
+
+    if ((cCodeInfos != 0) && (codeInfos == NULL))
+    {
+        return E_INVALIDARG;
+    }
+
+    return GetCodeInfoFromCodeStart(pNativeCodeStartAddress,
+                                    cCodeInfos,
+                                    pcCodeInfos,
+                                    codeInfos);
 }
 
 /*
