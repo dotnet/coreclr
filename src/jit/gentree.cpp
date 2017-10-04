@@ -10939,6 +10939,7 @@ void Compiler::gtDispTree(GenTreePtr   tree,
             case IINone:
                 indentStack->Push(IINone);
                 lowerArc = IINone;
+                break;
             default:
                 unreached();
                 break;
