@@ -231,7 +231,7 @@ public:
             //   bit 0: 1 if locked, 0 otherwise
             //   bits 1-31: waiter count
             UINT32 state = m_state;
-            return (state & IsLockedMask) + (state >> (WaiterCountShift - 1));
+            return (state & IsLockedMask) + (state >> WaiterCountShift << 1);
         }
 
     public:
