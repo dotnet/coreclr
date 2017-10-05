@@ -279,12 +279,10 @@ PAL_IsDebuggerPresent(VOID);
 
 #undef NULL
 
-#ifndef NULL
 #if defined(__cplusplus)
 #define NULL    0
 #else
 #define NULL    ((void *)0)
-#endif
 #endif
 
 #if defined(PAL_STDCPP_COMPAT) && !defined(__cplusplus)
