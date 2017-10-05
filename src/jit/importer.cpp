@@ -7019,7 +7019,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             call = impIntrinsic(newobjThis, clsHnd, methHnd, sig, pResolvedToken->token, readonlyCall,
                                 (canTailCall && (tailCall != 0)), isJitIntrinsic, &intrinsicID, &isSpecialIntrinsic);
 
-            if (compIsForInlining() && compInlineResult->IsFailure())
+            if (compDonotInline())
             {
                 return TYP_UNDEF;
             }
