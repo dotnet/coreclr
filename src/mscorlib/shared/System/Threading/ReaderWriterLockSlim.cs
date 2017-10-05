@@ -994,6 +994,18 @@ namespace System.Threading
             // thread, when it releases its lock, will wake appropriate waiters. Along with resetting the wait event, clear the
             // waiter signaled bit for this type of waiter if applicable, to indicate that a waiter of this type is no longer
             // signaled.
+            //
+            // If the waiter signaled bit is not updated upon event reset, the following scenario would lead to deadlock:
+            //   - Thread T0 signals the write waiter event or the upgradeable read waiter event to wake a waiter
+            //   - There are no threads waiting on the event, but T1 is in WaitOnEvent() after exiting the spin lock and before
+            //     actually waiting on the event (that is, it's recorded that there is one waiter for the event). It remains in
+            //     this region for a while, in the repro case it typically gets context-switched out.
+            //   - T2 acquires the RW lock in some fashion that blocks T0 or T3 from acquiring the RW lock
+            //   - T0 or T3 fails to acquire the RW lock enough times for it to enter WaitOnEvent for the same event as T1
+            //   - T0 or T3 resets the event
+            //   - T2 releases the RW lock and does not wake a waiter because the reset at the previous step lost a signal but
+            //     _waiterStates was not updated to reflect that
+            //   - T1 and other threads begin waiting on the event, but there's no longer any thread that would wake them
             if (waiterSignaledState != WaiterStates.None && (_waiterStates & waiterSignaledState) != WaiterStates.None)
             {
                 _waiterStates &= ~waiterSignaledState;
