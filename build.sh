@@ -230,14 +230,7 @@ generate_event_logging_sources()
         fi
 
         case $__BuildOS in
-            Linux)
-                echo "Laying out dynamically generated EventPipe Implementation"
-                $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventPipe" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst"
-                if  [[ $? != 0 ]]; then
-                    exit
-                fi
-                ;;
-            FreeBSD)
+            Linux|FreeBSD)
                 echo "Laying out dynamically generated EventPipe Implementation"
                 $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventPipe" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst"
                 if  [[ $? != 0 ]]; then
@@ -250,14 +243,7 @@ generate_event_logging_sources()
 
         #determine the logging system
         case $__BuildOS in
-            Linux)
-                echo "Laying out dynamically generated Event Logging Implementation of Lttng"
-                $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genXplatLttng.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventProvider"
-                if  [[ $? != 0 ]]; then
-                    exit
-                fi
-                ;;
-            FreeBSD)
+            Linux|FreeBSD)
                 echo "Laying out dynamically generated Event Logging Implementation of Lttng"
                 $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genXplatLttng.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventProvider"
                 if  [[ $? != 0 ]]; then
