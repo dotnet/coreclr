@@ -6778,6 +6778,10 @@ bool Compiler::impIsImplicitTailCallCandidate(
 //
 // Returns:
 //    Type of the call's return value.
+//    If it is compilation for the inlining and it failed, then result can be TYP_UNDEF.
+//    However, you can not assert that if compInline->IsFailure(), then return value is TYP_UNDEF,
+//    because we do not check NoteFatal results always, it is covered with CoreCLR_13272 issue.
+//
 //
 // Notes:
 //    opcode can be CEE_CALL, CEE_CALLI, CEE_CALLVIRT, or CEE_NEWOBJ.
