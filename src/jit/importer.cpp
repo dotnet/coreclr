@@ -6778,9 +6778,8 @@ bool Compiler::impIsImplicitTailCallCandidate(
 //
 // Returns:
 //    Type of the call's return value.
-//    If it is compilation for the inlining and it failed, then result can be TYP_UNDEF.
-//    However, you can not assert that if compInline->IsFailure(), then return value is TYP_UNDEF,
-//    because we do not check NoteFatal results always, it is covered with CoreCLR_13272 issue.
+//    If we're importing an inlinee and have realized the inline must fail, the call return type should be TYP_UNDEF.
+//    However we can't assert for this here yet because there are cases we miss. See issue #13272.
 //
 //
 // Notes:
