@@ -13261,6 +13261,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                                         newObjThisPtr, prefixFlags, &callInfo, opcodeOffs);
                 if (compDonotInline())
                 {
+                    // We do not check fails after lvaGrabTemp. It is covered with CoreCLR_13272 issue.
+                    assert((callTyp == TYP_UNDEF) ||
+                           (compInlineResult->GetObservation() == InlineObservation::CALLSITE_TOO_MANY_LOCALS));
                     return;
                 }
 
