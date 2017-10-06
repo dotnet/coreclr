@@ -7212,6 +7212,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 
                 GenTreePtr thisPtr = impPopStack().val;
                 thisPtr            = impTransformThis(thisPtr, pConstrainedResolvedToken, callInfo->thisTransform);
+                assert(thisPtr != nullptr);
 
                 // Clone the (possibly transformed) "this" pointer
                 GenTreePtr thisPtrCopy;
@@ -7219,6 +7220,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                                        nullptr DEBUGARG("LDVIRTFTN this pointer"));
 
                 GenTreePtr fptr = impImportLdvirtftn(thisPtr, pResolvedToken, callInfo);
+                assert(fptr != nullptr);
 
                 thisPtr = nullptr; // can't reuse it
 
