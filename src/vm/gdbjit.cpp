@@ -2764,7 +2764,7 @@ bool NotifyGdb::EmitDebugInfo(Elf_Builder &elfBuilder, MethodDesc* methodDescPtr
     if (dirLen != 0)
     {
         dirPath = new char[dirLen];
-        memcpy(dirPath, DebugStrings[1], dirLen - 1);
+        memcpy(dirPath, cuPath, dirLen - 1);
         dirPath[dirLen - 1] = '\0';
     }
     DebugStrings[1] = fileName;
