@@ -2157,7 +2157,7 @@ BOOL ObjHeader::GetThreadOwningMonitorLock(DWORD *pThreadId, DWORD *pAcquisition
             SyncBlock* psb = g_pSyncTable[(int)index].m_SyncBlock;
 
             _ASSERTE(psb->GetMonitor() != NULL);
-            Thread* pThread = psb->GetMonitor()->m_HoldingThread;
+            Thread* pThread = psb->GetMonitor()->GetHoldingThread();
             if(pThread == NULL)
             {
                 *pThreadId = 0;
@@ -2167,7 +2167,7 @@ BOOL ObjHeader::GetThreadOwningMonitorLock(DWORD *pThreadId, DWORD *pAcquisition
             else
             {
                 *pThreadId = pThread->GetThreadId();
-                *pAcquisitionCount = psb->GetMonitor()->m_Recursion;
+                *pAcquisitionCount = psb->GetMonitor()->GetRecursionLevel();
                 return TRUE;
             }
         }
@@ -2774,8 +2774,7 @@ SyncBlock *ObjHeader::GetSyncBlock()
                                 // The lock is orphaned.
                                 pThread = (Thread*) -1;
                             }
-                            syncBlock->InitState();
-                            syncBlock->SetAwareLock(pThread, recursionLevel + 1);
+                            syncBlock->InitState(recursionLevel + 1, pThread);
                         }
                     }
                     else if ((bits & BIT_SBLK_IS_HASHCODE) != 0)

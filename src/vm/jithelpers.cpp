@@ -4416,7 +4416,7 @@ NOINLINE static void JIT_MonEnter_Helper(Object* obj, BYTE* pbLockTaken, LPVOID 
         GET_THREAD()->PulseGCMode();
     }
     objRef->EnterObjMonitor();
-    _ASSERTE ((objRef->GetSyncBlock()->GetMonitor()->m_Recursion == 1 && pThread->m_dwLockCount == lockCount + 1) ||
+    _ASSERTE ((objRef->GetSyncBlock()->GetMonitor()->GetRecursionLevel() == 1 && pThread->m_dwLockCount == lockCount + 1) ||
               pThread->m_dwLockCount == lockCount);
     if (pbLockTaken != 0) *pbLockTaken = 1;
 

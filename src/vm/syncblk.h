@@ -198,7 +198,7 @@ public:
         LeaveHelperAction_Error,
     };
 
-public:
+private:
     class LockState
     {
     private:
@@ -221,6 +221,12 @@ public:
         }
 
     public:
+        UINT32 GetState() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return m_state;
+        }
+
         UINT32 GetMonitorHeldState() const
         {
             LIMITED_METHOD_CONTRACT;
@@ -241,7 +247,7 @@ public:
             return !(m_state & (IsLockedMask + WaiterCountMask));
         }
 
-        void SetIsLockedWithNoWaiters()
+        void InitializeToLockedWithNoWaiters()
         {
             LIMITED_METHOD_CONTRACT;
             _ASSERTE(!m_state);
@@ -333,7 +339,7 @@ public:
     private:
         bool NeedToSignalWaiter() const
         {
-            LIMITED_METHOD_CONTRACT;
+            WRAPPER_NO_CONTRACT;
             return HasAnyWaiters() && !(m_state & (SpinnerCountMask + IsWaiterSignaledToWakeMask));
         }
 
@@ -355,7 +361,7 @@ public:
     public:
         LockState VolatileLoad() const
         {
-            LIMITED_METHOD_CONTRACT;
+            WRAPPER_NO_CONTRACT;
             return ::VolatileLoad(&m_state);
         }
 
@@ -385,12 +391,11 @@ public:
         bool InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter();
     };
 
-public:
+private:
     LockState m_lockState;
     ULONG           m_Recursion;
     PTR_Thread      m_HoldingThread;
-    
-private:
+
     LONG            m_TransientPrecious;
 
 
@@ -436,6 +441,47 @@ private:
         return (void *) this;
     }
 #endif // defined(ENABLE_CONTRACTS_IMPL)
+
+public:
+    UINT32 GetLockState() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_lockState.GetState();
+    }
+
+    bool IsUnlockedWithNoWaiters() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_lockState.IsUnlockedWithNoWaiters();
+    }
+
+    UINT32 GetMonitorHeldStateVolatile() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_lockState.VolatileLoad().GetMonitorHeldState();
+    }
+
+    ULONG GetRecursionLevel() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_Recursion;
+    }
+
+    PTR_Thread GetHoldingThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_HoldingThread;
+    }
+
+private: // friend access is required for this unsafe function
+    void InitializeToLockedWithNoWaiters(ULONG recursionLevel, PTR_Thread holdingThread)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        m_lockState.InitializeToLockedWithNoWaiters();
+        m_Recursion = recursionLevel;
+        m_HoldingThread = holdingThread;
+    }
 
 public:
     static void SpinWait(DWORD spinCount);
@@ -819,7 +865,7 @@ class SyncBlock
     {
         WRAPPER_NO_CONTRACT;
         return (!IsPrecious() &&
-                m_Monitor.m_lockState.IsUnlockedWithNoWaiters() &&
+                m_Monitor.IsUnlockedWithNoWaiters() &&
                 m_Monitor.m_TransientPrecious == 0);
     }
 
@@ -902,16 +948,6 @@ class SyncBlock
         WRAPPER_NO_CONTRACT;
         SetPrecious();
         m_dwAppDomainIndex = dwAppDomainIndex;
-    }
-
-    void SetAwareLock(Thread *holdingThread, DWORD recursionLevel)
-    {
-        LIMITED_METHOD_CONTRACT;
-        // <NOTE>
-        // DO NOT SET m_lockState HERE!  THIS IS NOT PROTECTED BY ANY LOCK!!
-        // </NOTE>
-        m_Monitor.m_HoldingThread = PTR_Thread(holdingThread);
-        m_Monitor.m_Recursion = recursionLevel;
     }
 
     DWORD GetHashCode()
@@ -1058,10 +1094,10 @@ class SyncBlock
     // This should ONLY be called when initializing a SyncBlock (i.e. ONLY from
     // ObjHeader::GetSyncBlock()), otherwise we'll have a race condition.
     // </NOTE>
-    void InitState()
+    void InitState(ULONG recursionLevel, PTR_Thread holdingThread)
     {
-        LIMITED_METHOD_CONTRACT;
-        m_Monitor.m_lockState.SetIsLockedWithNoWaiters();
+        WRAPPER_NO_CONTRACT;
+        m_Monitor.InitializeToLockedWithNoWaiters(recursionLevel, holdingThread);
     }
 
 #if defined(ENABLE_CONTRACTS_IMPL)

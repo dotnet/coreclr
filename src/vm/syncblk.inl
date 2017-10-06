@@ -148,7 +148,8 @@ FORCEINLINE bool AwareLock::LockState::InterlockedUnregisterSpinner_TryLock()
         return false;
     }
 
-    LockState state = stateBeforeUpdate - SpinnerCountIncrement;
+    LockState state = stateBeforeUpdate;
+    state.DecrementSpinnerCount();
     _ASSERTE(!state.IsLocked());
     do
     {
@@ -218,8 +219,8 @@ FORCEINLINE bool AwareLock::LockState::InterlockedTry_LockAndUnregisterWaiterAnd
 
         LockState newState = state;
         newState.InvertIsLocked();
-        newState.DecrementWaiterCount();
         newState.InvertIsWaiterSignaledToWake();
+        newState.DecrementWaiterCount();
 
         LockState stateBeforeUpdate = CompareExchange(newState, state);
         if (stateBeforeUpdate == state)
@@ -247,7 +248,8 @@ FORCEINLINE bool AwareLock::LockState::InterlockedObserveWakeSignal_Try_LockAndU
         return false;
     }
 
-    LockState state = stateBeforeUpdate - IsWaiterSignaledToWakeMask;
+    LockState state = stateBeforeUpdate;
+    state.InvertIsWaiterSignaledToWake();
     _ASSERTE(!state.IsLocked());
     do
     {
