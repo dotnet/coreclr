@@ -3960,7 +3960,8 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
 #ifdef LEGACY_BACKEND
 #ifndef _TARGET_ARM_
-        // For more details see regalloc.cpp@4958, Compiler::rpPredictTreeRegUse
+        // Since trashable registers have to be preserved on PollGC helper we don't set this flag for ARM
+        // For more details about processing this flag see Compiler::rpPredictTreeRegUse (regalloc.cpp)
         call->gtFlags |= GTF_CALL_REG_SAVE;
 #endif // !_TARGET_ARM_
 #endif // LEGACY_BACKEND
