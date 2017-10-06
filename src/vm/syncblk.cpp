@@ -3069,6 +3069,28 @@ BOOL AwareLock::EnterEpilog(Thread* pCurThread, INT32 timeOut)
     return EnterEpilogHelper(pCurThread, timeOut);
 }
 
+#ifdef _DEBUG
+#define _LOGCONTENTION
+#endif // _DEBUG
+
+#ifdef  _LOGCONTENTION
+inline void LogContention()
+{
+    WRAPPER_NO_CONTRACT;
+#ifdef LOGGING
+    if (LoggingOn(LF_SYNC, LL_INFO100))
+    {
+        LogSpewAlways("Contention: Stack Trace Begin\n");
+        void LogStackTrace();
+        LogStackTrace();
+        LogSpewAlways("Contention: Stack Trace End\n");
+    }
+#endif
+}
+#else
+#define LogContention()
+#endif
+
 BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 {
     STATIC_CONTRACT_THROWS;
@@ -3079,6 +3101,13 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     // mode temporarily before calling here, then they are responsible for protecting
     // the object associated with this lock.
     _ASSERTE(pCurThread->PreemptiveGCDisabled());
+
+    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cContention++);
+
+    // Fire a contention start event for a managed contention
+    FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
+
+    LogContention();
 
     OBJECTREF obj = GetOwningObject();
 
@@ -3223,6 +3252,9 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     GCPROTECT_END();
     DecrementTransientPrecious();
 
+    // Fire a contention end event for a managed contention
+    FireEtwContentionStop(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
+
     if (ret == WAIT_TIMEOUT)
     {
         return false;
@@ -3272,7 +3304,6 @@ BOOL AwareLock::Leave()
         return FALSE;
     }
 }
-
 
 LONG AwareLock::LeaveCompletely()
 {

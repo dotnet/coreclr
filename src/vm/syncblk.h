@@ -277,7 +277,7 @@ private:
         }
 
     private:
-        bool IncrementSpinnerCount()
+        bool TryIncrementSpinnerCount()
         {
             WRAPPER_NO_CONTRACT;
 

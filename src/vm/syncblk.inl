@@ -90,7 +90,7 @@ FORCEINLINE AwareLock::EnterHelperResult AwareLock::LockState::InterlockedTry_Lo
         {
             newState.InvertIsLocked();
         }
-        else if (!newState.IncrementSpinnerCount())
+        else if (!newState.TryIncrementSpinnerCount())
         {
             return EnterHelperResult_UseSlowPath;
         }
