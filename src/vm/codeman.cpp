@@ -1439,6 +1439,14 @@ void EEJitManager::SetCpuInfo()
     }
 #endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
+#if defined(_TARGET_ARM64_)
+    static ConfigDWORD fFeatureSIMD;
+    if (fFeatureSIMD.val(CLRConfig::EXTERNAL_FeatureSIMD) != 0)
+    {
+        CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FEATURE_SIMD);
+    }
+#endif
+
     m_CPUCompileFlags = CPUCompileFlags;
 }
 
