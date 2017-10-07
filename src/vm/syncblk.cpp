@@ -3097,6 +3097,12 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_GC_TRIGGERS;
 
+    // IMPORTANT!!!
+    // The caller has already registered a waiter. This function needs to unregister the waiter on all paths (exception paths
+    // included). On runtimes where thread-abort is supported, a thread-abort also needs to unregister the waiter. There may be
+    // a possibility for preemptive GC toggles below to handle a thread-abort, that should be taken into consideration when
+    // porting this code back to .NET Framework.
+
     // Require all callers to be in cooperative mode.  If they have switched to preemptive
     // mode temporarily before calling here, then they are responsible for protecting
     // the object associated with this lock.
