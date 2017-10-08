@@ -3792,7 +3792,9 @@ public:
     // lowering that is distributed between fgMorph and the lowering phase of LSRA.
     void fgSimpleLowering();
 
+#ifdef LEGACY_BACKEND
     bool fgShouldCreateAssignOp(GenTreePtr tree, bool* bReverse);
+#endif
 
     GenTreePtr fgInitThisClass();
 
