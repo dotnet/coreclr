@@ -4432,39 +4432,13 @@ NOINLINE static void JIT_MonEnter_Helper(Object* obj, BYTE* pbLockTaken, LPVOID 
 HCIMPL_MONHELPER(JIT_MonEnterWorker_Portable, Object* obj)
 {
     FCALL_CONTRACT;
-    
-    AwareLock::EnterHelperResult result;
-    Thread * pCurThread;
 
-    if (obj == NULL)
-    {
-        goto FramedLockHelper;
-    }
-
-    pCurThread = GetThread();
-
-    if (pCurThread->CatchAtSafePointOpportunistic()) 
-    {
-        goto FramedLockHelper;
-    }
-
-    result = obj->EnterObjMonitorHelper(pCurThread);
-    if (result == AwareLock::EnterHelperResult_Entered)
+    if (obj != nullptr && obj->TryEnterObjMonitorSpinHelper())
     {
         MONHELPER_STATE(*pbLockTaken = 1);
         return;
     }
-    if (result == AwareLock::EnterHelperResult_Contention)
-    {
-        result = obj->EnterObjMonitorHelperSpin(pCurThread);
-        if (result == AwareLock::EnterHelperResult_Entered)
-        {
-            MONHELPER_STATE(*pbLockTaken = 1);
-            return;
-        }
-    }
 
-FramedLockHelper:
     FC_INNER_RETURN_VOID(JIT_MonEnter_Helper(obj, MONHELPER_ARG, GetEEFuncEntryPointMacro(JIT_MonEnter)));
 }
 HCIMPLEND
@@ -4473,36 +4447,11 @@ HCIMPL1(void, JIT_MonEnter_Portable, Object* obj)
 {
     FCALL_CONTRACT;
 
-    Thread * pCurThread;
-    AwareLock::EnterHelperResult result;
-    
-    if (obj == NULL)
-    {
-        goto FramedLockHelper;
-    }
-
-    pCurThread = GetThread();
-
-    if (pCurThread->CatchAtSafePointOpportunistic()) 
-    {
-        goto FramedLockHelper;
-    }
-
-    result = obj->EnterObjMonitorHelper(pCurThread);
-    if (result == AwareLock::EnterHelperResult_Entered)
+    if (obj != nullptr && obj->TryEnterObjMonitorSpinHelper())
     {
         return;
     }
-    if (result == AwareLock::EnterHelperResult_Contention)
-    {
-        result = obj->EnterObjMonitorHelperSpin(pCurThread);
-        if (result == AwareLock::EnterHelperResult_Entered)
-        {
-            return;
-        }
-    }
 
-FramedLockHelper:
     FC_INNER_RETURN_VOID(JIT_MonEnter_Helper(obj, NULL, GetEEFuncEntryPointMacro(JIT_MonEnter)));
 }
 HCIMPLEND
@@ -4511,38 +4460,12 @@ HCIMPL2(void, JIT_MonReliableEnter_Portable, Object* obj, BYTE* pbLockTaken)
 {
     FCALL_CONTRACT;
 
-    Thread * pCurThread;
-    AwareLock::EnterHelperResult result;
-    
-    if (obj == NULL)
-    {
-        goto FramedLockHelper;
-    }
-
-    pCurThread = GetThread();
-
-    if (pCurThread->CatchAtSafePointOpportunistic()) 
-    {
-        goto FramedLockHelper;
-    }
-
-    result = obj->EnterObjMonitorHelper(pCurThread);
-    if (result == AwareLock::EnterHelperResult_Entered)
+    if (obj != nullptr && obj->TryEnterObjMonitorSpinHelper())
     {
         *pbLockTaken = 1;
         return;
     }
-    if (result == AwareLock::EnterHelperResult_Contention)
-    {
-        result = obj->EnterObjMonitorHelperSpin(pCurThread);
-        if (result == AwareLock::EnterHelperResult_Entered)
-        {
-            *pbLockTaken = 1;
-            return;
-        }
-    }
 
-FramedLockHelper:
     FC_INNER_RETURN_VOID(JIT_MonEnter_Helper(obj, pbLockTaken, GetEEFuncEntryPointMacro(JIT_MonReliableEnter)));
 }
 HCIMPLEND

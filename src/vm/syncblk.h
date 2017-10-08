@@ -17,6 +17,7 @@
 #include "slist.h"
 #include "crst.h"
 #include "vars.hpp"
+#include "yieldprocessornormalized.h"
 
 // #SyncBlockOverview
 // 
@@ -165,6 +166,7 @@ inline void InitializeSpinConstants()
     g_SpinConstants.dwMaximumDuration = min(g_pConfig->SpinLimitProcCap(), g_SystemInfo.dwNumberOfProcessors) * g_pConfig->SpinLimitProcFactor() + g_pConfig->SpinLimitConstant();
     g_SpinConstants.dwBackoffFactor   = g_pConfig->SpinBackoffFactor();
     g_SpinConstants.dwRepetitions     = g_pConfig->SpinRetryCount();
+    g_SpinConstants.dwMonitorSpinCount = g_SpinConstants.dwMaximumDuration == 0 ? 0 : g_pConfig->MonitorSpinCount();
 #endif
 }
 
@@ -205,11 +207,11 @@ private:
         // Layout constants for m_state
         static const UINT32 IsLockedMask = 0x1; // bit 0
         static const UINT32 SpinnerCountIncrement = 0x2;
-        static const UINT32 SpinnerCountMask = 0x7e; // bits 1-6
-        static const UINT32 IsWaiterSignaledToWakeMask = 0x80; // bit 7
-        static const UINT32 WaiterCountShift = 8;
+        static const UINT32 SpinnerCountMask = 0xe; // bits 1-3
+        static const UINT32 IsWaiterSignaledToWakeMask = 0x10; // bit 4
+        static const UINT8 WaiterCountShift = 5;
         static const UINT32 WaiterCountIncrement = (UINT32)1 << WaiterCountShift;
-        static const UINT32 WaiterCountMask = (UINT32)-1 >> WaiterCountShift << WaiterCountShift; // bits 8-31
+        static const UINT32 WaiterCountMask = (UINT32)-1 >> WaiterCountShift << WaiterCountShift; // bits 5-31
 
     private:
         UINT32 m_state;
@@ -484,7 +486,7 @@ private: // friend access is required for this unsafe function
     }
 
 public:
-    static void SpinWait(DWORD spinCount);
+    static void SpinWait(const YieldProcessorNormalizationInfo &normalizationInfo, DWORD spinIteration);
 
     // Helper encapsulating the fast path entering monitor. Returns what kind of result was achieved.
     bool TryEnterHelper(Thread* pCurThread);

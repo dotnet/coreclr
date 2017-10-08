@@ -1917,11 +1917,11 @@ AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelperSpin(Thread* pCurTh
         return AwareLock::EnterHelperResult_Contention;
     }
 
-    DWORD maxSpinCount = g_SpinConstants.dwMaximumDuration;
-    DWORD backoffFactor = g_SpinConstants.dwBackoffFactor;
-    for (DWORD spinCount = g_SpinConstants.dwInitialDuration; spinCount <= maxSpinCount; spinCount *= backoffFactor)
+    YieldProcessorNormalizationInfo normalizationInfo;
+    const DWORD spinCount = g_SpinConstants.dwMonitorSpinCount;
+    for (DWORD spinIteration = 0; spinIteration < spinCount; ++spinIteration)
     {
-        AwareLock::SpinWait(spinCount);
+        AwareLock::SpinWait(normalizationInfo, spinIteration);
 
         LONG oldValue = m_SyncBlockValue.LoadWithoutBarrier();
 
@@ -1945,15 +1945,15 @@ AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelperSpin(Thread* pCurTh
                 return result;
             }
 
-            spinCount *= backoffFactor;
-            if (spinCount <= maxSpinCount)
+            ++spinIteration;
+            if (spinIteration < spinCount)
             {
                 while (true)
                 {
-                    AwareLock::SpinWait(spinCount);
+                    AwareLock::SpinWait(normalizationInfo, spinIteration);
 
-                    spinCount *= backoffFactor;
-                    if (spinCount > maxSpinCount)
+                    ++spinIteration;
+                    if (spinIteration >= spinCount)
                     {
                         // The last lock attempt for this spin will be done after the loop
                         break;
@@ -3188,38 +3188,22 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
             //   spin duration before it gets deprioritized behind all other waiters.
             if (g_SystemInfo.dwNumberOfProcessors > 1)
             {
-                DWORD maxSpinCount = g_SpinConstants.dwMaximumDuration;
-                DWORD spinCount = g_SpinConstants.dwInitialDuration;
-                if (spinCount <= maxSpinCount)
+                bool acquiredLock = false;
+                YieldProcessorNormalizationInfo normalizationInfo;
+                const DWORD spinCount = g_SpinConstants.dwMonitorSpinCount;
+                for (DWORD spinIteration = 0; spinIteration < spinCount; ++spinIteration)
                 {
                     if (m_lockState.InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal())
                     {
+                        acquiredLock = true;
                         break;
                     }
 
-                    bool acquiredLock = false;
-                    DWORD backoffFactor = g_SpinConstants.dwBackoffFactor;
-                    while (true)
-                    {
-                        SpinWait(spinCount);
-
-                        spinCount *= backoffFactor;
-                        if (spinCount > maxSpinCount)
-                        {
-                            // The last lock attempt for this spin will be done after the loop
-                            break;
-                        }
-
-                        if (m_lockState.InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal())
-                        {
-                            acquiredLock = true;
-                            break;
-                        }
-                    }
-                    if (acquiredLock)
-                    {
-                        break;
-                    }
+                    SpinWait(normalizationInfo, spinIteration);
+                }
+                if (acquiredLock)
+                {
+                    break;
                 }
             }
 

@@ -269,18 +269,14 @@ FORCEINLINE bool AwareLock::LockState::InterlockedObserveWakeSignal_Try_LockAndU
     return false;
 }
 
-FORCEINLINE void AwareLock::SpinWait(DWORD spinCount)
+FORCEINLINE void AwareLock::SpinWait(const YieldProcessorNormalizationInfo &normalizationInfo, DWORD spinIteration)
 {
-    LIMITED_METHOD_CONTRACT;
+    WRAPPER_NO_CONTRACT;
 
     _ASSERTE(g_SystemInfo.dwNumberOfProcessors != 1);
-    _ASSERTE(spinCount != 0);
-    _ASSERTE(spinCount <= g_SpinConstants.dwMaximumDuration);
+    _ASSERTE(spinIteration < g_SpinConstants.dwMonitorSpinCount);
 
-    do
-    {
-        YieldProcessor();
-    } while (--spinCount != 0);
+    YieldProcessorWithBackOffNormalized(normalizationInfo, spinIteration);
 }
 
 FORCEINLINE bool AwareLock::TryEnterHelper(Thread* pCurThread)
