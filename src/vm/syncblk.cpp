@@ -3177,11 +3177,6 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
                 break;
             }
 
-            if (m_lockState.InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal())
-            {
-                break;
-            }
-
             // Spin a bit while trying to acquire the lock. This has a few benefits:
             // - Spinning helps to reduce waiter starvation. Since other non-waiter threads can take the lock while there are
             //   waiters (see LockState::InterlockedTryLock()), once a waiter wakes it will be able to better compete
@@ -3197,6 +3192,11 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
                 DWORD spinCount = g_SpinConstants.dwInitialDuration;
                 if (spinCount <= maxSpinCount)
                 {
+                    if (m_lockState.InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal())
+                    {
+                        break;
+                    }
+
                     bool acquiredLock = false;
                     DWORD backoffFactor = g_SpinConstants.dwBackoffFactor;
                     while (true)
@@ -3221,11 +3221,11 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
                         break;
                     }
                 }
+            }
 
-                if (m_lockState.InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter())
-                {
-                    break;
-                }
+            if (m_lockState.InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter())
+            {
+                break;
             }
 
             // When calculating duration we consider a couple of special cases.
