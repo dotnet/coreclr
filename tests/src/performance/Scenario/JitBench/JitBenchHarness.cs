@@ -46,7 +46,7 @@ namespace JitBench
 
         static Program()
         {
-            s_ScenarioConfiguration = new ScenarioConfiguration(TimeSpan.FromMilliseconds(20000)) {
+            s_ScenarioConfiguration = new ScenarioConfiguration(TimeSpan.FromMilliseconds(60000)) {
                 Iterations = 11
             };
 
