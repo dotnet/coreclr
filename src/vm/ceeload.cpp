@@ -528,7 +528,7 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
     m_dwTransientFlags &= ~((DWORD)CLASSES_FREED);  // Set flag indicating LookupMaps are now in a consistent and destructable state
 
 #ifdef FEATURE_READYTORUN
-    if (!HasNativeImage() && !IsResource())
+    if (!HasNativeImage() && !IsResource() && ReadyToRunInfo::IsReadyToRunEnabled())
         m_pReadyToRunInfo = ReadyToRunInfo::Initialize(this, pamTracker);
 #endif
 
