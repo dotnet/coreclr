@@ -343,7 +343,10 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             break;
 
         case GT_CMPXCHG:
-            NYI("GT_CMPXCHG");
+            NYI_ARM("GT_CMPXCHG");
+#ifdef _TARGET_ARM64_
+            genCodeForCmpXchg(treeNode->AsCmpXchg());
+#endif
             break;
 
         case GT_RELOAD:
@@ -611,7 +614,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
         {
             genConsumeReg(source);
             emit->emitIns_S_R(storeIns, storeAttr, source->gtRegNum, varNumOut, argOffsetOut);
-            if (compiler->opts.compUseSoftFP && targetType == TYP_LONG)
+#ifdef _TARGET_ARM_
+            if (targetType == TYP_LONG)
             {
                 // This case currently only occurs for double types that are passed as TYP_LONG;
                 // actual long types would have been decomposed by now.
@@ -621,6 +625,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 argOffsetOut += EA_4BYTE;
                 emit->emitIns_S_R(storeIns, storeAttr, otherReg, varNumOut, argOffsetOut);
             }
+#endif // _TARGET_ARM_
         }
         argOffsetOut += EA_SIZE_IN_BYTES(storeAttr);
         assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
@@ -2208,16 +2213,6 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             {
                 inst_RV_RV(ins_Move_Extend(argNode->TypeGet(), true), argReg, argNode->gtRegNum);
             }
-        }
-
-        // In the case of a varargs call,
-        // the ABI dictates that if we have floating point args,
-        // we must pass the enregistered arguments in both the
-        // integer and floating point registers so, let's do that.
-        if (call->IsVarargs() && varTypeIsFloating(argNode))
-        {
-            NYI_ARM("CodeGen - IsVarargs");
-            NYI_ARM64("CodeGen - IsVarargs");
         }
     }
 
