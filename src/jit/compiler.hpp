@@ -1641,7 +1641,7 @@ inline bool GenTree::gtOverflow() const
 #if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
     assert(gtOper == GT_MUL || gtOper == GT_CAST || gtOper == GT_ADD || gtOper == GT_SUB || gtOper == GT_ADD_LO ||
            gtOper == GT_SUB_LO || gtOper == GT_ADD_HI || gtOper == GT_SUB_HI);
-#elif LEGACY_BACKEND
+#elif defined(LEGACY_BACKEND)
     assert(gtOper == GT_MUL || gtOper == GT_CAST || gtOper == GT_ADD || gtOper == GT_SUB || gtOper == GT_ASG_ADD ||
            gtOper == GT_ASG_SUB);
 #else

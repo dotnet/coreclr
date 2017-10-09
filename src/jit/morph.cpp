@@ -16363,7 +16363,11 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(co
  *  for reentrant calls.
  */
 
+#ifdef LEGACY_BACKEND
 void Compiler::fgMorphStmts(BasicBlock* block, bool* mult, bool* lnot, bool* loadw)
+#else
+void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
+#endif
 {
     fgRemoveRestOfBlock = false;
 
@@ -16371,7 +16375,10 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* mult, bool* lnot, bool* loa
 
     compCurBB = block;
 
-    *mult = *lnot = *loadw = false;
+    *lnot = *loadw = false;
+#ifdef LEGACY_BACKEND
+    *mult = false;
+#endif
 
     fgCurrentlyInUseArgTemps = hashBv::Create(this);
 
@@ -16540,7 +16547,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* mult, bool* lnot, bool* loa
             continue;
         }
 
-#if defined(OPT_MULT_ADDSUB) && defined(LEGACY_BACKEND)
+#ifdef LEGACY_BACKEND
         /* Note whether we have two or more +=/-= operators in a row */
 
         if (tree->gtOper == GT_ASG_ADD || tree->gtOper == GT_ASG_SUB)
@@ -16550,16 +16557,14 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* mult, bool* lnot, bool* loa
                 *mult = true;
             }
         }
-#endif
 
-#ifdef LEGACY_BACKEND
         /* Note "x = a[i] & icon" followed by "x |= a[i] << 8" */
 
         if (tree->gtOper == GT_ASG_OR && prev && prev->gtOper == GT_ASG)
         {
             *loadw = true;
         }
-#endif
+#endif // LEGACY_BACKEND
     }
 
     if (fgRemoveRestOfBlock)
@@ -16665,7 +16670,7 @@ void Compiler::fgMorphBlocks()
 
     do
     {
-#if OPT_MULT_ADDSUB
+#ifdef LEGACY_BACKEND
         bool mult = false;
 #endif
 
@@ -16698,9 +16703,10 @@ void Compiler::fgMorphBlocks()
 
         GenTreePtr tree;
 
+#ifndef LEGACY_BACKEND
+        fgMorphStmts(block, &lnot, &loadw);
+#else
         fgMorphStmts(block, &mult, &lnot, &loadw);
-
-#if defined(OPT_MULT_ADDSUB) && defined(LEGACY_BACKEND)
 
         if (mult && (opts.compFlags & CLFLG_TREETRANS) && !opts.compDbgCode && !opts.MinOpts())
         {
@@ -16860,7 +16866,7 @@ void Compiler::fgMorphBlocks()
             }
         }
 
-#endif // defined(OPT_MULT_ADDSUB) && defined(LEGACY_BACKEND)
+#endif // LEGACY_BACKEND
 
         /* Are we using a single return block? */
 
