@@ -12,7 +12,7 @@
 
   <!-- Set the kind of PDB to Portable and turn on SourceLink (fetching source from GitHub) -->
   <PropertyGroup>
-    <DebugType Condition="'$(DebugType)' == ''">Portable</DebugType>
+    <!-- <DebugType Condition="'$(DebugType)' == ''">Portable</DebugType> -->
     <UseSourceLink>true</UseSourceLink>
   </PropertyGroup>
 
