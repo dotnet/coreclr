@@ -1545,6 +1545,22 @@ public:
         return OperIsAssignment(gtOper);
     }
 
+    static bool OperMayOverflow(genTreeOps gtOper)
+    {
+        return ((gtOper == GT_ADD) || (gtOper == GT_SUB) || (gtOper == GT_MUL) || (gtOper == GT_CAST)
+#ifdef LEGACY_BACKEND
+                || (gtOper == GT_ASG_ADD) || (gtOper == GT_ASG_SUB)
+#elif !defined(_TARGET_64BIT_)
+                || (gtOper == GT_ADD_HI) || (gtOper == GT_SUB_HI)
+#endif
+                    );
+    }
+
+    bool OperMayOverflow() const
+    {
+        return OperMayOverflow(gtOper);
+    }
+
     static bool OperIsIndir(genTreeOps gtOper)
     {
         return gtOper == GT_IND || gtOper == GT_STOREIND || gtOper == GT_NULLCHECK || OperIsBlk(gtOper);
