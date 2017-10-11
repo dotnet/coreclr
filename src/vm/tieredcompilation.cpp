@@ -201,6 +201,10 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
         }
     }
 
+    LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%x (%s::%s), code version id=0x%x queued\n",
+        pMethodDesc, pMethodDesc->m_pszDebugClassName, pMethodDesc->m_pszDebugMethodName,
+        t1NativeCodeVersion.GetVersionId()));
+
     EX_TRY
     {
         if (!ThreadpoolMgr::QueueUserWorkItem(StaticOptimizeMethodsCallback, this, QUEUE_ONLY, TRUE))
@@ -367,11 +371,15 @@ BOOL TieredCompilationManager::CompileCodeVersion(NativeCodeVersion nativeCodeVe
     EX_TRY
     {
         pCode = pMethod->PrepareCode(nativeCodeVersion);
+        LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::CompileCodeVersion Method=0x%x (%s::%s), code version id=0x%x, code ptr=0x%x\n",
+            pMethod, pMethod->m_pszDebugClassName, pMethod->m_pszDebugMethodName,
+            nativeCodeVersion.GetVersionId(),
+            pCode));
     }
     EX_CATCH
     {
         // Failing to jit should be rare but acceptable. We will leave whatever code already exists in place.
-        STRESS_LOG2(LF_TIEREDCOMPILATION, LL_INFO10, "TieredCompilationManager::CompileMethod: Method %pM failed to jit, hr=0x%x\n", 
+        STRESS_LOG2(LF_TIEREDCOMPILATION, LL_INFO10, "TieredCompilationManager::CompileCodeVersion: Method %pM failed to jit, hr=0x%x\n", 
             pMethod, GET_EXCEPTION()->GetHR());
     }
     EX_END_CATCH(RethrowTerminalExceptions)
@@ -400,6 +408,10 @@ void TieredCompilationManager::ActivateCodeVersion(NativeCodeVersion nativeCodeV
         CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
         ilParent = nativeCodeVersion.GetILCodeVersion();
         hr = ilParent.SetActiveNativeCodeVersion(nativeCodeVersion, FALSE);
+        LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::ActivateCodeVersion Method=0x%x (%s::%s), code version id=0x%x. SetActiveNativeCodeVersion ret=0x%x\n",
+            pMethod, pMethod->m_pszDebugClassName, pMethod->m_pszDebugMethodName,
+            nativeCodeVersion.GetVersionId(),
+            hr));
     }
     if (hr == CORPROF_E_RUNTIME_SUSPEND_REQUIRED)
     {
@@ -413,6 +425,10 @@ void TieredCompilationManager::ActivateCodeVersion(NativeCodeVersion nativeCodeV
         {
             CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
             hr = ilParent.SetActiveNativeCodeVersion(nativeCodeVersion, TRUE);
+            LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::ActivateCodeVersion Method=0x%x (%s::%s), code version id=0x%x. [Suspended] SetActiveNativeCodeVersion ret=0x%x\n",
+                pMethod, pMethod->m_pszDebugClassName, pMethod->m_pszDebugMethodName,
+                nativeCodeVersion.GetVersionId(),
+                hr));
         }
         ThreadSuspend::RestartEE(FALSE, TRUE);
     }
