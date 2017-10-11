@@ -201,7 +201,7 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
         }
     }
 
-    LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%x (%s::%s), code version id=0x%x queued\n",
+    LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%pM (%s::%s), code version id=0x%x queued\n",
         pMethodDesc, pMethodDesc->m_pszDebugClassName, pMethodDesc->m_pszDebugMethodName,
         t1NativeCodeVersion.GetVersionId()));
 
@@ -371,7 +371,7 @@ BOOL TieredCompilationManager::CompileCodeVersion(NativeCodeVersion nativeCodeVe
     EX_TRY
     {
         pCode = pMethod->PrepareCode(nativeCodeVersion);
-        LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::CompileCodeVersion Method=0x%x (%s::%s), code version id=0x%x, code ptr=0x%x\n",
+        LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::CompileCodeVersion Method=0x%pM (%s::%s), code version id=0x%x, code ptr=0x%p\n",
             pMethod, pMethod->m_pszDebugClassName, pMethod->m_pszDebugMethodName,
             nativeCodeVersion.GetVersionId(),
             pCode));
@@ -408,7 +408,7 @@ void TieredCompilationManager::ActivateCodeVersion(NativeCodeVersion nativeCodeV
         CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
         ilParent = nativeCodeVersion.GetILCodeVersion();
         hr = ilParent.SetActiveNativeCodeVersion(nativeCodeVersion, FALSE);
-        LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::ActivateCodeVersion Method=0x%x (%s::%s), code version id=0x%x. SetActiveNativeCodeVersion ret=0x%x\n",
+        LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::ActivateCodeVersion Method=0x%pM (%s::%s), code version id=0x%x. SetActiveNativeCodeVersion ret=0x%x\n",
             pMethod, pMethod->m_pszDebugClassName, pMethod->m_pszDebugMethodName,
             nativeCodeVersion.GetVersionId(),
             hr));
@@ -425,7 +425,7 @@ void TieredCompilationManager::ActivateCodeVersion(NativeCodeVersion nativeCodeV
         {
             CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
             hr = ilParent.SetActiveNativeCodeVersion(nativeCodeVersion, TRUE);
-            LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::ActivateCodeVersion Method=0x%x (%s::%s), code version id=0x%x. [Suspended] SetActiveNativeCodeVersion ret=0x%x\n",
+            LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::ActivateCodeVersion Method=0x%pM (%s::%s), code version id=0x%x. [Suspended] SetActiveNativeCodeVersion ret=0x%x\n",
                 pMethod, pMethod->m_pszDebugClassName, pMethod->m_pszDebugMethodName,
                 nativeCodeVersion.GetVersionId(),
                 hr));
