@@ -126,7 +126,7 @@ function xunit_output_begin {
     if [ -z "$xunitOutputPath" ]; then
         xunitOutputPath=$testRootDir/coreclrtests.xml
     fi
-    if ! [ -e $(basename "$xunitOutputPath") ]; then
+    if ! [ -e $(dirname "$xunitOutputPath") ]; then
         xunitOutputPath=$testRootDir/coreclrtests.xml
     fi
     xunitTestOutputPath=${xunitOutputPath}.test
