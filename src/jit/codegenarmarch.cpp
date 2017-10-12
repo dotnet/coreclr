@@ -2266,14 +2266,19 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 
         genConsumeReg(target);
 
-        NYI_ARM("fast tail call");
-
 #ifdef _TARGET_ARM64_
         // Use IP0 as the call target register.
         if (target->gtRegNum != REG_IP0)
         {
             inst_RV_RV(INS_mov, REG_IP0, target->gtRegNum);
         }
+#elif defined(_TARGET_ARM_)
+        // Use R12 as the call target register.
+        if (target->gtRegNum != REG_R12)
+        {
+            inst_RV_RV(INS_mov, REG_R12, target->gtRegNum);
+        }
+
 #endif // _TARGET_ARM64_
 
         return;

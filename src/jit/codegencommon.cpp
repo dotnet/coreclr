@@ -9488,72 +9488,96 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         /* figure out what jump we have */
 
         GenTree* jmpNode = block->lastNode();
+#if !FEATURE_FASTTAILCALL
         noway_assert(jmpNode->gtOper == GT_JMP);
+#else
+        // arm
+        // If jmpNode is GT_JMP then gtNext must be null.
+        // If jmpNode is a fast tail call, gtNext need not be null since it could have embedded stmts.
+        noway_assert((jmpNode->gtOper != GT_JMP) || (jmpNode->gtNext == nullptr));
 
-        CORINFO_METHOD_HANDLE methHnd = (CORINFO_METHOD_HANDLE)jmpNode->gtVal.gtVal1;
+        // Could either be a "jmp method" or "fast tail call" implemented as epilog+jmp
+        noway_assert((jmpNode->gtOper == GT_JMP) ||
+                     ((jmpNode->gtOper == GT_CALL) && jmpNode->AsCall()->IsFastTailCall()));
 
-        CORINFO_CONST_LOOKUP  addrInfo;
-        void*                 addr;
-        regNumber             indCallReg;
-        emitter::EmitCallType callType;
-
-        compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
-        switch (addrInfo.accessType)
+        // The next block is associated with this "if" stmt
+        if (jmpNode->gtOper == GT_JMP)
+#endif
         {
-            case IAT_VALUE:
-                if (arm_Valid_Imm_For_BL((ssize_t)addrInfo.addr))
-                {
-                    // Simple direct call
-                    callType   = emitter::EC_FUNC_TOKEN;
-                    addr       = addrInfo.addr;
-                    indCallReg = REG_NA;
+            CORINFO_METHOD_HANDLE methHnd = (CORINFO_METHOD_HANDLE)jmpNode->gtVal.gtVal1;
+
+            CORINFO_CONST_LOOKUP  addrInfo;
+            void*                 addr;
+            regNumber             indCallReg;
+            emitter::EmitCallType callType;
+
+            compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
+            switch (addrInfo.accessType)
+            {
+                case IAT_VALUE:
+                    if (arm_Valid_Imm_For_BL((ssize_t)addrInfo.addr))
+                    {
+                        // Simple direct call
+                        callType   = emitter::EC_FUNC_TOKEN;
+                        addr       = addrInfo.addr;
+                        indCallReg = REG_NA;
+                        break;
+                    }
+
+                    // otherwise the target address doesn't fit in an immediate
+                    // so we have to burn a register...
+                    __fallthrough;
+
+                case IAT_PVALUE:
+                    // Load the address into a register, load indirect and call  through a register
+                    // We have to use R12 since we assume the argument registers are in use
+                    callType   = emitter::EC_INDIR_R;
+                    indCallReg = REG_R12;
+                    addr       = NULL;
+                    instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addrInfo.addr);
+                    if (addrInfo.accessType == IAT_PVALUE)
+                    {
+                        getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
+                        regTracker.rsTrackRegTrash(indCallReg);
+                    }
                     break;
-                }
 
-                // otherwise the target address doesn't fit in an immediate
-                // so we have to burn a register...
-                __fallthrough;
+                case IAT_PPVALUE:
+                default:
+                    NO_WAY("Unsupported JMP indirection");
+            }
 
-            case IAT_PVALUE:
-                // Load the address into a register, load indirect and call  through a register
-                // We have to use R12 since we assume the argument registers are in use
-                callType   = emitter::EC_INDIR_R;
-                indCallReg = REG_R12;
-                addr       = NULL;
-                instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addrInfo.addr);
-                if (addrInfo.accessType == IAT_PVALUE)
-                {
-                    getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
-                    regTracker.rsTrackRegTrash(indCallReg);
-                }
-                break;
+            /* Simply emit a jump to the methodHnd. This is similar to a call so we can use
+             * the same descriptor with some minor adjustments.
+             */
 
-            case IAT_PPVALUE:
-            default:
-                NO_WAY("Unsupported JMP indirection");
+            // clang-format off
+            getEmitter()->emitIns_Call(callType,
+                                       methHnd,
+                                       INDEBUG_LDISASM_COMMA(nullptr)
+                                       addr,
+                                       0,          // argSize
+                                       EA_UNKNOWN, // retSize
+                                       gcInfo.gcVarPtrSetCur,
+                                       gcInfo.gcRegGCrefSetCur,
+                                       gcInfo.gcRegByrefSetCur,
+                                       BAD_IL_OFFSET, // IL offset
+                                       indCallReg,    // ireg
+                                       REG_NA,        // xreg
+                                       0,             // xmul
+                                       0,             // disp
+                                       true);         // isJump
+            // clang-format on
         }
-
-        /* Simply emit a jump to the methodHnd. This is similar to a call so we can use
-         * the same descriptor with some minor adjustments.
-         */
-
-        // clang-format off
-        getEmitter()->emitIns_Call(callType,
-                                   methHnd,
-                                   INDEBUG_LDISASM_COMMA(nullptr)
-                                   addr,
-                                   0,          // argSize
-                                   EA_UNKNOWN, // retSize
-                                   gcInfo.gcVarPtrSetCur,
-                                   gcInfo.gcRegGCrefSetCur,
-                                   gcInfo.gcRegByrefSetCur,
-                                   BAD_IL_OFFSET, // IL offset
-                                   indCallReg,    // ireg
-                                   REG_NA,        // xreg
-                                   0,             // xmul
-                                   0,             // disp
-                                   true);         // isJump
-        // clang-format on
+#if FEATURE_FASTTAILCALL
+        else
+        {
+            // Fast tail call.
+            // Call target = REG_R12.
+            // Do we need a special encoding for stack walker like rex.w prefix for x64?
+            getEmitter()->emitIns_R_R(INS_mov, emitTypeSize(TYP_I_IMPL), REG_PC, REG_R12);
+        }
+#endif // FEATURE_FASTTAILCALL
     }
     else
     {
