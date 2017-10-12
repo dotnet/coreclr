@@ -11378,7 +11378,7 @@ instruction CodeGen::genMapShiftInsToShiftByConstantIns(instruction ins, int shi
 
 #endif // _TARGET_XARCH_
 
-#if !defined(LEGACY_BACKEND) && (defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_))
+#if !defined(LEGACY_BACKEND) && (defined(_TARGET_XARCH_) || defined(_TARGET_ARMARCH_))
 
 //------------------------------------------------------------------------------------------------ //
 // getFirstArgWithStackSlot - returns the first argument with stack slot on the caller's frame.
@@ -11390,13 +11390,13 @@ instruction CodeGen::genMapShiftInsToShiftByConstantIns(instruction ins, int shi
 //    On x64 Windows the caller always creates slots (homing space) in its frame for the
 //    first 4 arguments of a callee (register passed args). So, the the variable number
 //    (lclNum) for the first argument with a stack slot is always 0.
-//    For System V systems or arm64, there is no such calling convention requirement, and the code needs to find
+//    For System V systems or armarch, there is no such calling convention requirement, and the code needs to find
 //    the first stack passed argument from the caller. This is done by iterating over
 //    all the lvParam variables and finding the first with lvArgReg equals to REG_STK.
 //
 unsigned CodeGen::getFirstArgWithStackSlot()
 {
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM64_)
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARMARCH_)
     unsigned baseVarNum = 0;
 #if defined(FEATURE_UNIX_AMR64_STRUCT_PASSING)
     baseVarNum = compiler->lvaFirstStackIncomingArgNum;
@@ -11432,16 +11432,16 @@ unsigned CodeGen::getFirstArgWithStackSlot()
     }
 
     return baseVarNum;
-#elif defined(_TARGET_AMD64_)
+#elif defined(_TARGET_AMDARCH_)
     return 0;
 #else
     // Not implemented for x86.
     NYI_X86("getFirstArgWithStackSlot not yet implemented for x86.");
     return BAD_VAR_NUM;
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING || _TARGET_ARM64_
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING || _TARGET_ARMARCH_
 }
 
-#endif // !LEGACY_BACKEND && (_TARGET_XARCH_ || _TARGET_ARM64_)
+#endif // !LEGACY_BACKEND && (_TARGET_XARCH_ || _TARGET_ARMARCH_)
 
 //------------------------------------------------------------------------
 // genSinglePush: Report a change in stack level caused by a single word-sized push instruction
