@@ -6,20 +6,21 @@
 
 // Defaults are for when InitializeYieldProcessorNormalized has not yet been called or when no measurement is done, and are
 // tuned for Skylake processors
-int g_yieldsPerNormalizedYield = 1; // current value is for Skylake processors, this would be 9 for pre-Skylake
-int g_optimalMaxNormalizedYieldsPerSpinIteration = 7;
+unsigned int g_yieldsPerNormalizedYield = 1; // current value is for Skylake processors, this would be 9 for pre-Skylake
+unsigned int g_optimalMaxNormalizedYieldsPerSpinIteration = 7;
 
 static Volatile<bool> s_isYieldProcessorNormalizedInitialized = false;
 static CrstStatic s_initializeYieldProcessorNormalizedCrst;
 
 void InitializeYieldProcessorNormalizedCrst()
 {
+    WRAPPER_NO_CONTRACT;
     s_initializeYieldProcessorNormalizedCrst.Init(CrstLeafLock);
 }
 
-void InitializeYieldProcessorNormalized()
+static void InitializeYieldProcessorNormalized()
 {
-    LIMITED_METHOD_CONTRACT;
+    WRAPPER_NO_CONTRACT;
 
     CrstHolder lock(&s_initializeYieldProcessorNormalizedCrst);
 
@@ -31,10 +32,12 @@ void InitializeYieldProcessorNormalized()
     // Intel pre-Skylake processor: measured typically 14-17 cycles per yield
     // Intel post-Skylake processor: measured typically 125-150 cycles per yield
     const int MeasureDurationMs = 10;
-    const int MaxYieldsPerNormalizedYield = 10; // measured typically 8-9 on pre-Skylake
-    const int MinNsPerNormalizedYield = 37; // measured typically 37-46 on post-Skylake
-    const int NsPerOptimialMaxSpinIterationDuration = 272; // approx. 900 cycles, measured 281 on pre-Skylake, 263 on post-Skylake
+    const int NsPerOptimalMaxSpinIterationDuration = 272; // approx. 900 cycles, measured 281 on pre-Skylake, 263 on post-Skylake
     const int NsPerSecond = 1000 * 1000 * 1000;
+
+    // If this constant is changed, the shift value in YieldProcessorWithBackOffNormalized() should be changed as well
+    const int MaxOptimalMaxNormalizedYieldsPerSpinIteration = 10;
+    static_assert_no_msg((1 << 4) >= MaxOptimalMaxNormalizedYieldsPerSpinIteration);
 
     LARGE_INTEGER li;
     if (!QueryPerformanceFrequency(&li) || (ULONGLONG)li.QuadPart < 1000 / MeasureDurationMs)
@@ -72,25 +75,27 @@ void InitializeYieldProcessorNormalized()
         nsPerYield = 1;
     }
 
-    // Calculate the number of yields required to span the duration of a normalized yield
+    // Calculate the number of yields required to span the duration of a normalized yield. Since nsPerYield is at least 1, this
+    // value is naturally limited to MinNsPerNormalizedYield.
     int yieldsPerNormalizedYield = (int)(MinNsPerNormalizedYield / nsPerYield + 0.5);
     if (yieldsPerNormalizedYield < 1)
     {
         yieldsPerNormalizedYield = 1;
     }
-    else if (yieldsPerNormalizedYield > MaxYieldsPerNormalizedYield)
-    {
-        yieldsPerNormalizedYield = MaxYieldsPerNormalizedYield;
-    }
+    _ASSERTE(yieldsPerNormalizedYield <= MinNsPerNormalizedYield);
 
     // Calculate the maximum number of yields that would be optimal for a late spin iteration. Typically, we would not want to
     // spend excessive amounts of time (thousands of cycles) doing only YieldProcessor, as SwitchToThread/Sleep would do a
     // better job of allowing other work to run.
     int optimalMaxNormalizedYieldsPerSpinIteration =
-        (int)(NsPerOptimialMaxSpinIterationDuration / (yieldsPerNormalizedYield * nsPerYield) + 0.5);
+        (int)(NsPerOptimalMaxSpinIterationDuration / (yieldsPerNormalizedYield * nsPerYield) + 0.5);
     if (optimalMaxNormalizedYieldsPerSpinIteration < 1)
     {
         optimalMaxNormalizedYieldsPerSpinIteration = 1;
+    }
+    else if (optimalMaxNormalizedYieldsPerSpinIteration > MaxOptimalMaxNormalizedYieldsPerSpinIteration)
+    {
+        optimalMaxNormalizedYieldsPerSpinIteration = MaxOptimalMaxNormalizedYieldsPerSpinIteration;
     }
 
     g_yieldsPerNormalizedYield = yieldsPerNormalizedYield;

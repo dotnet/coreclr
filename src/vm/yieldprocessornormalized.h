@@ -4,72 +4,91 @@
 
 #pragma once
 
-extern int g_yieldsPerNormalizedYield;
-extern int g_optimalMaxNormalizedYieldsPerSpinIteration;
+const unsigned int MinNsPerNormalizedYield = 37; // measured typically 37-46 on post-Skylake
+
+extern unsigned int g_yieldsPerNormalizedYield;
+extern unsigned int g_optimalMaxNormalizedYieldsPerSpinIteration;
 
 void InitializeYieldProcessorNormalizedCrst();
-void InitializeYieldProcessorNormalized();
 void EnsureYieldProcessorNormalizedInitialized();
 
 class YieldProcessorNormalizationInfo
 {
 private:
-    int yieldsPerNormalizedYield;
+    unsigned int yieldsPerNormalizedYield;
+    unsigned int optimalMaxNormalizedYieldsPerSpinIteration;
+    unsigned int optimalMaxYieldsPerSpinIteration;
 
 public:
-    YieldProcessorNormalizationInfo() : yieldsPerNormalizedYield(g_yieldsPerNormalizedYield)
-    {
-    }
-
-    friend void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &);
-};
-
-FORCEINLINE void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &normalizationInfo)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    int n = normalizationInfo.yieldsPerNormalizedYield;
-    while (--n >= 0)
-    {
-        YieldProcessor();
-    }
-}
-
-class YieldProcessorWithBackOffNormalizationInfo
-{
-private:
-    int yieldsPerNormalizedYield;
-    int optimalMaxNormalizedYieldsPerSpinIteration;
-    int optimalMaxYieldsPerSpinIteration;
-
-public:
-    YieldProcessorWithBackOffNormalizationInfo()
+    YieldProcessorNormalizationInfo()
         : yieldsPerNormalizedYield(g_yieldsPerNormalizedYield),
         optimalMaxNormalizedYieldsPerSpinIteration(g_optimalMaxNormalizedYieldsPerSpinIteration),
         optimalMaxYieldsPerSpinIteration(yieldsPerNormalizedYield * optimalMaxNormalizedYieldsPerSpinIteration)
     {
     }
 
-    friend void YieldProcessorWithBackOffNormalized(const YieldProcessorWithBackOffNormalizationInfo &, unsigned int);
+    friend void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &);
+    friend void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &, unsigned int);
+    friend void YieldProcessorWithBackOffNormalized(const YieldProcessorNormalizationInfo &, unsigned int);
 };
 
-FORCEINLINE void YieldProcessorWithBackOffNormalized(
-    const YieldProcessorWithBackOffNormalizationInfo &normalizationInfo,
-    unsigned int spinIteration)
+FORCEINLINE void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &normalizationInfo)
 {
     LIMITED_METHOD_CONTRACT;
 
-    int n;
-    if (spinIteration <= 30 && (1 << spinIteration) < normalizationInfo.optimalMaxNormalizedYieldsPerSpinIteration)
+    unsigned int n = normalizationInfo.yieldsPerNormalizedYield;
+    _ASSERTE(n != 0);
+    do
     {
-        n = (1 << spinIteration) * normalizationInfo.yieldsPerNormalizedYield;
+        YieldProcessor();
+    } while (--n != 0);
+}
+
+FORCEINLINE void YieldProcessorNormalized(const YieldProcessorNormalizationInfo &normalizationInfo, unsigned int count)
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(count != 0);
+
+    if (sizeof(SIZE_T) <= sizeof(unsigned int))
+    {
+        // On platforms with a small SIZE_T, prevent overflow on the multiply below. normalizationInfo.yieldsPerNormalizedYield
+        // is limited to MinNsPerNormalizedYield by InitializeYieldProcessorNormalized().
+        const unsigned int MaxCount = (unsigned int)SIZE_T_MAX / MinNsPerNormalizedYield;
+        if (count > MaxCount)
+        {
+            count = MaxCount;
+        }
+    }
+
+    SIZE_T n = (SIZE_T)count * normalizationInfo.yieldsPerNormalizedYield;
+    _ASSERTE(n != 0);
+    do
+    {
+        YieldProcessor();
+    } while (--n != 0);
+}
+
+FORCEINLINE void YieldProcessorWithBackOffNormalized(
+    const YieldProcessorNormalizationInfo &normalizationInfo,
+    unsigned int spinIteration)
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(((unsigned int)1 << 4) >= normalizationInfo.optimalMaxNormalizedYieldsPerSpinIteration);
+
+    // The max for the shift value is based on MaxOptimalMaxNormalizedYieldsPerSpinIteration in
+    // InitializeYieldProcessorNormalized()
+    unsigned int n;
+    if (spinIteration < 4 && ((unsigned int)1 << spinIteration) < normalizationInfo.optimalMaxNormalizedYieldsPerSpinIteration)
+    {
+        n = ((unsigned int)1 << spinIteration) * normalizationInfo.yieldsPerNormalizedYield;
     }
     else
     {
         n = normalizationInfo.optimalMaxYieldsPerSpinIteration;
     }
-    while (--n >= 0)
+    _ASSERTE(n != 0);
+    do
     {
         YieldProcessor();
-    }
+    } while (--n != 0);
 }
