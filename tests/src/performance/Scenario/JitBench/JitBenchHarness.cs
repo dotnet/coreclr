@@ -195,13 +195,13 @@ namespace JitBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_jitBenchDevDirectory,
                 FileName = "powershell.exe",
-                Arguments = $"-Command \".\\AspNet-GenerateStore.ps1 -InstallDir .store -Architecture {s_targetArchitecture} -Runtime win7-{s_targetArchitecture}; gi env:JITBENCH_*, env:DOTNET_SHARED_STORE | %{{ \\\"$($_.Name)=$($_.Value)\\\" }} 1>>{EnvironementFileName}\""
+                Arguments = $"-Command \".\\AspNet-GenerateStore.ps1 -InstallDir .store -Architecture {s_targetArchitecture} -Runtime win7-{s_targetArchitecture}; gi env:JITBENCH_*, env:DOTNET_SHARED_STORE | %{{ \\\"$($_.Name)=$($_.Value)\\\" }} 1>>{EnvironmentFileName}\""
             };
 
             LaunchProcess(psi, 1800000, environment);
 
             // Return the generated environment variables.
-            return GetEnvironment(environment, Path.Combine(s_jitBenchDevDirectory, EnvironementFileName));
+            return GetEnvironment(environment, Path.Combine(s_jitBenchDevDirectory, EnvironmentFileName));
         }
 
         private static IDictionary<string, string> GetEnvironment(IDictionary<string, string> environment, string fileName)
@@ -260,7 +260,7 @@ namespace JitBench
             PrintHeader("Using existing SETUP");
 
             var environment = GetInitialEnvironment();
-            environment = GetEnvironment(environment, Path.Combine(s_jitBenchDevDirectory, EnvironementFileName));
+            environment = GetEnvironment(environment, Path.Combine(s_jitBenchDevDirectory, EnvironmentFileName));
             ValidateEnvironment(environment);
 
             var psi = new ProcessStartInfo()
@@ -324,7 +324,7 @@ namespace JitBench
         private const string JitBenchRepoUrl = "https://github.com/aspnet/JitBench";
         private const string JitBenchCommitSha1Id = "b7e7b786c60daa255aacaea85006afe4d4ec8306";
         private const string JitBenchTargetFramework = "netcoreapp2.1";
-        private const string EnvironementFileName = "JitBenchEnvironment.txt";
+        private const string EnvironmentFileName = "JitBenchEnvironment.txt";
 
         private static void PostIteration()
         {
