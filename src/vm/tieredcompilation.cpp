@@ -156,14 +156,20 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
             if (cur->GetOptimizationTier() == NativeCodeVersion::OptimizationTier1)
             {
                 // we've already promoted
+                LOG((LF_TIEREDCOMPILATION, LL_INFO100000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%pM (%s::%s) ignoring already promoted method\n",
+                    pMethodDesc, pMethodDesc->m_pszDebugClassName, pMethodDesc->m_pszDebugMethodName));
                 return;
             }
         }
 
-        if (FAILED(ilVersion.AddNativeCodeVersion(pMethodDesc, &t1NativeCodeVersion)))
+        HRESULT hr = S_OK;
+        if (FAILED(hr = ilVersion.AddNativeCodeVersion(pMethodDesc, &t1NativeCodeVersion)))
         {
             // optimization didn't work for some reason (presumably OOM)
             // just give up and continue on
+            STRESS_LOG2(LF_TIEREDCOMPILATION, LL_WARNING, "TieredCompilationManager::AsyncPromoteMethodToTier1: "
+                "AddNativeCodeVersion failed hr=0x%x, method=%pM\n",
+                hr, pMethodDesc);
             return;
         }
         t1NativeCodeVersion.SetOptimizationTier(NativeCodeVersion::OptimizationTier1);
@@ -189,6 +195,10 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
             m_methodsToOptimize.InsertTail(pMethodListItem);
         }
 
+        LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%pM (%s::%s), code version id=0x%x queued\n",
+            pMethodDesc, pMethodDesc->m_pszDebugClassName, pMethodDesc->m_pszDebugMethodName,
+            t1NativeCodeVersion.GetVersionId()));
+
         if (0 == m_countOptimizationThreadsRunning && !m_isAppDomainShuttingDown)
         {
             // Our current policy throttles at 1 thread, but in the future we
@@ -200,10 +210,6 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
             return;
         }
     }
-
-    LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%pM (%s::%s), code version id=0x%x queued\n",
-        pMethodDesc, pMethodDesc->m_pszDebugClassName, pMethodDesc->m_pszDebugMethodName,
-        t1NativeCodeVersion.GetVersionId()));
 
     EX_TRY
     {
