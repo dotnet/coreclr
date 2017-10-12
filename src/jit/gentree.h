@@ -1804,7 +1804,7 @@ public:
 
     bool IsNodeProperlySized() const;
 
-    void CopyFrom(const GenTree* src, Compiler* comp);
+    void ReplaceWith(GenTree* src, Compiler* comp);
 
     static genTreeOps ReverseRelop(genTreeOps relop);
 
