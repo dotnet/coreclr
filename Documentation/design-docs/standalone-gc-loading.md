@@ -2,11 +2,6 @@
 
 Author: Sean Gillespie (@swgillespie) - 2017
 
-A standalone GC (or "local GC", as it is often called) initiaive has
-been in motion for the last few months and is nearing its end stages,
-where prototypes have been successfully completed and productization
-has begun.
-
 This document aims to provide a specification for how a standalone GC is
 to be loaded and what is to happen in the case of version mismatches.
 
@@ -46,11 +41,7 @@ to the codebase:
   the EE. This makes the GC codebase significantly easier to share between different execution
   engine implementations; as long as the GC implements its side of the interface and the EE
   implements its side of the interface, we can expect that changes within the GC itself
-  will be trivially portable to other runtime implementations.
-
-  This is a significant engineering pain point today. A great deal of time is spent manually porting
-  changes between the different branches of the GC codebase. When changes are not ported, the GC
-  codebases diverge, which makes future ports harder and less likely to get ported.
+  will be more portable to other runtime implementations.
 
 Worth noting is that the JIT (both RyuJIT and the legacy JIT(s) before it) can be built standalone
 and have realized these same benefits. The existence of an interface and an implementation loadable
@@ -72,9 +63,7 @@ standalone JIT can be loaded.
 Fundamentally, the algorithm for loading a standalone GC consists of these steps:
 
 0. Identify whether or not we should be using a standalone GC at all.
-1. Identify *where* we should be looking for GC shared libraries.
-2. Identify *what* we are looking for - the specific name of a dynamic shared library that
-   will be loaded.
+1. Identify *where* the standalone GC will be loaded from.
 3. Load the dynamic shared library and ask it to identify itself (name and version).
 4. Check that the version numbers are compatible.
 5. If so, initialize the GC and continue on with EE startup. If not, reject the dynamic shared library
@@ -95,26 +84,17 @@ Each one of these steps will be explained in detail below.
 
 The question of whether or not the EE should attempt to locate and load a standalone GC
 is answered by the EE's configuration system (`EEConfig`). EEConfig has the ability to
-query configuration information from a variety of sources, such a registry keys or
-environment variables. Using this subsystem, users can specify a specific environment
-variable to indicate that they are interested in loading a standalone GC.
+query configuration information from environment variables. Using this subsystem, users
+can specify a specific environment variable to indicate that they are interested in
+loading a standalone GC.
 
-There are three configuration keys that control the behavior of loading a standalone GC:
+There is one environment variable that governs the behavior of the standalone GC loader:
+`COMPlus_GCName`. It should be set to be a path to a dynamic shared library containing
+the GC that the EE intends to load. Its presence informs the EE that, first, a standalone GC
+is to be loaded and, second, precisely where the EE should load it from.
 
-1. `UseStandaloneGC`, (environment variable `COMPLUS_UseStandaloneGC`). If set and equal to "1", the EE
-   will understand that it is to load a standalone GC from somewhere and begin to search for the GC to
-   load.
-2. `StandaloneGCLocation`, (environment variable `COMPlus_StandaloneGCLocation`). If set, it will influence
-   the path that the EE will use to probe for a standalone GC dynamic shared library.
-3. `StandaloneGCName`, (environment variable `COMPlus_StandaloneGCName`). If set, it will influence the name
-   of the dynamic shared library that the EE will look for.
-
-It is not an error to emit either `StandaloneGCLocation` or `StandaloneGCName`. If not specified, and
-`UseStandaloneGC` is set, `StandaloneGCLocation` will default to the same directory as CoreCLR and `StandaloneGCName`
-will default to `gc` (`gc.dll` on windows, `libgc.so/dylib` on Linux/OSX).
-
-The EE will call `LoadLibrary` using `StandaloneGCLocation` as the directory path and `StandaloneGCName` as the file name.
-If this succeeds, the EE will transition to the next state in the loader state machine.
+The EE will call `LoadLibrary` using the path given by `COMPlus_GCName`.
+If this succeeds, the EE will move to the next step in the loading process.
 
 ### Verifying the version of a candidate GC
 
@@ -154,7 +134,7 @@ standalone GCs has a major version number and minor version number that is obtai
 
 The build version and name are not considered and are provided only for display/debug purposes.
 
-If this succeeds, the EE will transition to the next state in the loader state machine.
+If this succeeds, the EE will transition to the next step in the loading sequence.
 
 ### Initializing the GC
 
@@ -179,7 +159,7 @@ an error HRESULT, the initialization has failed.
 
 The existence of a standalone GC is a debuggee process has implications for how the DAC is loaded and
 initializes itself. The DAC has access to implementation details of the GC that are not normally exposed as part
-of the `GC/EE` interfaces, and as such it is versioned differently.
+of the `GC/EE` interfaces, and as such it is versioned separately.
 
 When the DAC is being initialized and it loads the `GcDacVars` structure from the debuggee process's memory, it
 must check the major and minor versions of the DAC, which are itself DAC variables exposed by a standalone GC.
@@ -193,25 +173,6 @@ in the same manner that the EE does:
 
 If a DAC rejects a loaded GC, it will return `E_FAIL` from DAC APIs that would otherwise need to interact with the
 GC.
-
-### Loader State Machine
-
-The loading of a standalone GC by the EE is governed by a state machine with these states:
-
-* `LOCAL_GC_STATUS_STARTING` - The EE has initiated a standalone GC load, but has not done anything yet.
-* `LOCAL_GC_STATUS_DONE_LOAD` - The EE has looked for a file with `StandaloneGCName` in the directory `StandaloneGCLocation`
-  and called `LoadLibrary` on it successfully.
-* `LOCAL_GC_STATUS_GET_VERSIONINFO` - The EE has successfully located the version information function from the standalone
-  GC.
-* `LOCAL_GC_STATUS_CALL_VERSIONINFO` - The EE has successfully called the version information function and received a 
-  response.
-* `LOCAL_GC_STATUS_VERSION_CHECK` - The EE has performed the version check and it succeeded.
-* `LOCAL_GC_STATUS_GET_INITIALIZER` - The EE has successfully located the GC initialization function.
-* `LOCAL_GC_STATUS_DONE` - The EE has successfully called the GC initialization function and the standalone GC is
-  fully initialized.
-
-If loading a standalone GC fails, the combination of which state the loader was in at the point of failure and
-the HRESULT that indicates *how* that state failed is enough to log a diagnostic indicative of what occured.
 
 ## Outstanding Questions
 
