@@ -9766,9 +9766,9 @@ var_types Compiler::impGetByRefResultType(genTreeOps oper, bool fUnsigned, GenTr
 // impOptimizeCastClassOrIsInst: attempt to resolve a cast when jitting
 //
 // Arguments:
-//   op1 -- value to cast
-//   pResolvedToken -- resolved token for type to cast to
-//   isCastClass -- true if this is a castclass, false if isinst
+//   op1 - value to cast
+//   pResolvedToken - resolved token for type to cast to
+//   isCastClass - true if this is a castclass, false if isinst
 //
 // Return Value:
 //   tree representing optimized cast, or null if no optimization possible
@@ -10296,7 +10296,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
         var_types       lclTyp, ovflType = TYP_UNKNOWN;
         GenTreePtr      op1           = DUMMY_INIT(NULL);
         GenTreePtr      op2           = DUMMY_INIT(NULL);
-        GenTree*        optTree       = nullptr;
         GenTreeArgList* args          = nullptr; // What good do these "DUMMY_INIT"s do?
         GenTreePtr      newObjThisPtr = DUMMY_INIT(NULL);
         bool            uns           = DUMMY_INIT(false);
@@ -14327,7 +14326,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 break;
 
             case CEE_ISINST:
-
+            {
                 /* Get the type token */
                 assertImp(sz == sizeof(unsigned));
 
@@ -14356,7 +14355,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 op1 = impPopStack().val;
 
-                optTree = impOptimizeCastClassOrIsInst(op1, &resolvedToken, false);
+                GenTree* optTree = impOptimizeCastClassOrIsInst(op1, &resolvedToken, false);
 
                 if (optTree != nullptr)
                 {
@@ -14404,8 +14403,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                     impPushOnStack(op1, tiRetVal);
                 }
-
                 break;
+            }
 
             case CEE_REFANYVAL:
 
@@ -14900,8 +14899,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
             // At this point we expect typeRef to contain the token, op1 to contain the value being cast,
             // and op2 to contain code that creates the type handle corresponding to typeRef
             CASTCLASS:
-
-                optTree = impOptimizeCastClassOrIsInst(op1, &resolvedToken, true);
+            {
+                GenTree* optTree = impOptimizeCastClassOrIsInst(op1, &resolvedToken, true);
 
                 if (optTree != nullptr)
                 {
@@ -14950,7 +14949,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     /* Push the result back on the stack */
                     impPushOnStack(op1, tiRetVal);
                 }
-                break;
+            }
+            break;
 
             case CEE_THROW:
 
