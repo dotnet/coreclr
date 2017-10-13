@@ -6212,53 +6212,50 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // used (namely, using RAX has a smaller encoding).
         //
         // For x86
-        //      mov eax, frameSize
-        //      sub rsp, eax
+        //      lea eax, [esp - frameSize]
         // loop:
-        //      test [esp + eax], eax       3
-        //      sub eax, 0x1000             5
-        //      cmp EAX, 0                  3
+        //      lea esp, [esp - pageSize]   7
+        //      test [esp], esp             3
+        //      cmp eax, esp                2
         //      jge loop                    2
-        //      add esp, frameSize
+        //      lea rsp, [rbp + frameSize]
         //
         // For AMD64 using RAX
-        //      mov rax, frameSize
-        //      sub rsp, rax
+        //      lea rax, [rsp - frameSize]
         // loop:
-        //      test [rsp + rax], rax       4
-        //      sub rax, 0x1000             6
-        //      cmp rax, 0                  4
+        //      lea rsp, [rsp - pageSize]   8
+        //      test [rsp], rsp             4
+        //      cmp rax, rsp                3
         //      jge loop                    2
-        //      add rsp, frameSize
+        //      lea rsp, [rax + frameSize]
         //
         // For AMD64 using RBP
-        //      mov rbp, frameSize
-        //      sub rsp, rbp
+        //      lea rbp, [rsp - frameSize]
         // loop:
-        //      test [rsp + rbp], rbp       4
-        //      sub rbp, 0x1000             7
-        //      cmp rbp, 0                  4
+        //      lea rsp, [rsp - pageSize]   8
+        //      test [rsp], rsp             4
+        //      cmp rbp, rsp                3
         //      jge loop                    2
-        //      add rsp, frameSize
+        //      lea rsp, [rbp + frameSize]
 
-        inst_RV_IV(INS_mov, initReg, (ssize_t)frameSize, EA_PTRSIZE); // init initReg with frameSize
-        inst_RV_RV(INS_sub, REG_SPBASE, initReg);                     // allocate stack to make Linux kernel understand that it's probe code
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, initReg, REG_SPBASE, -frameSize); // get frame border
 
-        getEmitter()->emitIns_R_ARR(INS_TEST, EA_PTRSIZE, initReg, REG_SPBASE, initReg, 0);
-        inst_RV_IV(INS_sub, initReg, pageSize, EA_PTRSIZE);
-        inst_RV_IV(INS_cmp, initReg, 0, EA_PTRSIZE);
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -pageSize);
+        getEmitter()->emitIns_R_AR(INS_TEST, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, 0);
+        inst_RV_RV(INS_cmp, initReg, REG_SPBASE);
 
         int bytesForBackwardJump;
 #ifdef _TARGET_AMD64_
         assert((initReg == REG_EAX) || (initReg == REG_EBP)); // We use RBP as initReg for EH funclets.
-        bytesForBackwardJump = ((initReg == REG_EAX) ? -14 : -15);
+        bytesForBackwardJump = -15;
 #else  // !_TARGET_AMD64_
         assert(initReg == REG_EAX);
-        bytesForBackwardJump = -11;
+        bytesForBackwardJump = -12;
 #endif // !_TARGET_AMD64_
 
         inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
-        inst_RV_IV(INS_add, REG_SPBASE, (ssize_t)frameSize, EA_PTRSIZE); // deallocate stack
+
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, initReg, frameSize); // restore stack pointer
 #endif // !CPU_LOAD_STORE_ARCH
 
         *pInitRegZeroed = false; // The initReg does not contain zero
