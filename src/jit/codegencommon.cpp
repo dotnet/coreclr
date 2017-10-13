@@ -6215,7 +6215,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         //      lea eax, [esp - frameSize]
         // loop:
         //      lea esp, [esp - pageSize]   7
-        //      test [esp], esp             3
+        //      test [esp], eax             3
         //      cmp eax, esp                2
         //      jge loop                    2
         //      lea rsp, [rbp + frameSize]
@@ -6224,7 +6224,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         //      lea rax, [rsp - frameSize]
         // loop:
         //      lea rsp, [rsp - pageSize]   8
-        //      test [rsp], rsp             4
+        //      test [rsp], rax             4
         //      cmp rax, rsp                3
         //      jge loop                    2
         //      lea rsp, [rax + frameSize]
@@ -6233,15 +6233,15 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         //      lea rbp, [rsp - frameSize]
         // loop:
         //      lea rsp, [rsp - pageSize]   8
-        //      test [rsp], rsp             4
+        //      test [rsp], rbp             4
         //      cmp rbp, rsp                3
         //      jge loop                    2
         //      lea rsp, [rbp + frameSize]
 
-        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, initReg, REG_SPBASE, -frameSize); // get frame border
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, initReg, REG_SPBASE, -((ssize_t)frameSize)); // get frame border
 
-        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -pageSize);
-        getEmitter()->emitIns_R_AR(INS_TEST, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, 0);
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -((ssize_t)pageSize));
+        getEmitter()->emitIns_R_AR(INS_TEST, EA_PTRSIZE, initReg, REG_SPBASE, 0);
         inst_RV_RV(INS_cmp, initReg, REG_SPBASE);
 
         int bytesForBackwardJump;
