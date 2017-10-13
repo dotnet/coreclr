@@ -7393,7 +7393,7 @@ GenTreePtr Compiler::gtCloneExpr(
                 goto DONE;
 
             case GT_RET_EXPR:
-                copy = gtNewInlineCandidateReturnExpr(tree->gtRetExpr.gtInlineCandidate, tree->gtType);
+                NO_WAY("Cloning of GT_RET_EXPR node not supported");
                 goto DONE;
 
             case GT_MEMORYBARRIER:
