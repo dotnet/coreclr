@@ -413,8 +413,9 @@ if %__BuildNative% EQU 1 (
     set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
+    set ClCompile.ProcessorNumber=6
 
-    @call %__ProjectDir%\run.cmd build -Project=%__IntermediatesDir%\install.vcxproj -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! -configuration=%__BuildType% %nativePlatfromArgs% %__RunArgs% %__UnprocessedBuildArgs%
+    @call %__ProjectDir%\run.cmd build -Project=%__IntermediatesDir%\install.vcxproj -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! -configuration=%__BuildType% %nativePlatfromArgs% %__RunArgs% %__UnprocessedBuildArgs% -ExtraParameters="/p:ForceImportBeforeCppTargets=%__ProjectDir%/clr.nativebuild.props /m:2"
 
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: native component build failed. Refer to the build log files for details:
