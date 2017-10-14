@@ -1580,14 +1580,15 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
 
     // CreateInitAndAddJitInfo takes a lock and checks the list again, which
     // makes this  thread-safe.
-    return CreateInitAndAddJitInfo(fd, addr);
+    BOOL unused;
+    return CreateInitAndAddJitInfo(fd, addr, &unused);
 }
 
 // Create a DJI around a method-desc. The EE already has all the information we need for a DJI,
 // the DJI just serves as a cache of the information for the debugger.
 // Caller makes no guarantees about whether the DJI is already in the table. (Caller should avoid this if
 // it knows it's in the table, but b/c we can't expect caller to synchronize w/ the other threads).
-DebuggerJitInfo *DebuggerMethodInfo::CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr)
+DebuggerJitInfo *DebuggerMethodInfo::CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr, BOOL* jitInfoWasCreated)
 {
     CONTRACTL
     {
@@ -1603,6 +1604,7 @@ DebuggerJitInfo *DebuggerMethodInfo::CreateInitAndAddJitInfo(MethodDesc* fd, TAD
     // May or may-not be jitted, that's why we passed in the start addr & size explicitly.
     _ASSERTE(startAddr != NULL);
 
+    *jitInfoWasCreated = FALSE;
 
     // No support for light-weight codegen methods.
     if (fd->IsDynamicMethod())
@@ -1641,6 +1643,10 @@ DebuggerJitInfo *DebuggerMethodInfo::CreateInitAndAddJitInfo(MethodDesc* fd, TAD
                 _ASSERTE(pResult->m_sizeOfCode == dji->m_sizeOfCode);
                 DeleteInteropSafe(dji);
                 return pResult;
+            }
+            else
+            {
+                *jitInfoWasCreated = TRUE;
             }
         }
 
@@ -2000,16 +2006,65 @@ void DebuggerMethodInfo::CreateDJIsForNativeBlobs(AppDomain * pAppDomain, Module
         if (pLoaderModule->GetLoaderAllocator()->IsUnloaded())
             continue;
 
-        // We just ask for the DJI to ensure that it's lazily created.
-        // This should only fail in an oom scenario.
-        DebuggerJitInfo * djiTest = g_pDebugger->GetLatestJitInfoFromMethodDesc(pDesc);
-        if (djiTest == NULL)
+        CreateDJIsForMethodDesc(pDesc);
+    }
+}
+
+
+//---------------------------------------------------------------------------------------
+//
+// Bring the DJI cache up to date for jitted code instances of a particular MethodDesc.
+//
+//
+void DebuggerMethodInfo::CreateDJIsForMethodDesc(MethodDesc * pMethodDesc)
+{
+    CONTRACTL
+    {
+        SO_NOT_MAINLINE;
+        THROWS;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+
+    // The debugger doesn't track Lightweight-codegen methods b/c they have no metadata.
+    if (pMethodDesc->IsDynamicMethod())
+    {
+        return;
+    }
+
+#ifdef FEATURE_CODE_VERSIONING
+    CodeVersionManager* pCodeVersionManager = pMethodDesc->GetCodeVersionManager();
+    // grab the code version lock to iterate available versions of the code
+    {
+        CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+        NativeCodeVersionCollection nativeCodeVersions = pCodeVersionManager->GetNativeCodeVersions(pMethodDesc);
+
+        for (NativeCodeVersionIterator itr = nativeCodeVersions.Begin(), end = nativeCodeVersions.End(); itr != end; itr++)
         {
-            // We're oom. Give up.
-            ThrowOutOfMemory();
-            return;
+            // Some versions may not be compiled yet - skip those for now
+            // if they compile later the JitCompiled callback will add a DJI to our cache at that time
+            PCODE codeAddr = itr->GetNativeCode();
+            if (codeAddr)
+            {
+                // The DJI may already be populated in the cache, if so CreateInitAndAdd is
+                // a no-op and that is fine.
+                BOOL unusedDjiWasCreated;
+                CreateInitAndAddJitInfo(pMethodDesc, codeAddr, &unusedDjiWasCreated);
+            }
         }
     }
+#else
+    // We just ask for the DJI to ensure that it's lazily created.
+    // This should only fail in an oom scenario.
+    DebuggerJitInfo * djiTest = g_pDebugger->GetLatestJitInfoFromMethodDesc(pDesc);
+    if (djiTest == NULL)
+    {
+        // We're oom. Give up.
+        ThrowOutOfMemory();
+        return;
+    }
+#endif
 }
 
 /*
