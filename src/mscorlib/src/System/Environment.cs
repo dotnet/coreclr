@@ -14,6 +14,7 @@
 
 namespace System
 {
+    using System.Buffers;
     using System.IO;
     using System.Security;
     using System.Resources;
@@ -536,23 +537,33 @@ namespace System
 
         private static string GetEnvironmentVariableCore(string variable)
         {
-            StringBuilder sb = StringBuilderCache.Acquire(128); // A somewhat reasonable default size
-            int requiredSize = Win32Native.GetEnvironmentVariable(variable, sb, sb.Capacity);
+            Span<char> buffer = stackalloc char[128]; // A somewhat reasonable default size
+            return GetEnvironmentVariableCoreHelper(variable, buffer);
+        }
 
-            if (requiredSize == 0 && Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND)
+        private static string GetEnvironmentVariableCoreHelper(string variable, Span<char> buffer)
+        {
+            int requiredSize = Win32Native.GetEnvironmentVariable(variable, buffer);
+
+            if (requiredSize > buffer.Length)
             {
-                StringBuilderCache.Release(sb);
-                return null;
+                char[] chars = ArrayPool<char>.Shared.Rent(requiredSize);
+                try
+                {
+                    return GetEnvironmentVariableCoreHelper(variable, chars);
+                }
+                finally
+                {
+                    ArrayPool<char>.Shared.Return(chars, clearArray: true);
+                }
             }
 
-            while (requiredSize > sb.Capacity)
+            if (requiredSize == 0)
             {
-                sb.Capacity = requiredSize;
-                sb.Length = 0;
-                requiredSize = Win32Native.GetEnvironmentVariable(variable, sb, sb.Capacity);
+                return Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND ? null : string.Empty;
             }
 
-            return StringBuilderCache.GetStringAndRelease(sb);
+            return new string(buffer.Slice(0, requiredSize));
         }
 
         private static string GetEnvironmentVariableCore(string variable, EnvironmentVariableTarget target)
