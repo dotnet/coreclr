@@ -3059,6 +3059,7 @@ protected:
     GenTreePtr impTreeList; // Trees for the BB being imported
     GenTreePtr impTreeLast; // The last tree for the current BB
 
+public:
     enum
     {
         CHECK_SPILL_ALL  = -1,
@@ -5797,11 +5798,7 @@ public:
         optMethodFlags &= ~OMF_HAS_FATPOINTER;
     }
 
-    void addFatPointerCandidate(GenTreeCall* call)
-    {
-        setMethodHasFatPointer();
-        call->SetFatPointerCandidate();
-    }
+    void addFatPointerCandidate(GenTreeCall* call);
 
     unsigned optMethodFlags;
 
