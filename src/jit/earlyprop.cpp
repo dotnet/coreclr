@@ -231,7 +231,8 @@ void Compiler::optEarlyProp()
 //
 // Return Value:
 //    Return a new tree if the original tree was successfully rewritten.
-
+//    The cointaining tree links are updated.
+//
 GenTreePtr Compiler::optEarlyPropRewriteTree(GenTreePtr tree)
 {
     GenTreePtr  objectRefPtr = nullptr;
@@ -286,6 +287,7 @@ GenTreePtr Compiler::optEarlyPropRewriteTree(GenTreePtr tree)
     {
         assert((propKind == optPropKind::OPK_ARRAYLEN) || (propKind == optPropKind::OPK_OBJ_GETTYPE));
         assert(actualVal->IsCnsIntOrI());
+        assert(actualVal->GetNodeSize() == TREE_NODE_SZ_SMALL);
 
         ssize_t actualConstVal = actualVal->AsIntCon()->IconValue();
 
@@ -358,8 +360,9 @@ GenTreePtr Compiler::optEarlyPropRewriteTree(GenTreePtr tree)
         }
 
         DecLclVarRefCountsVisitor::WalkTree(this, tree);
-        gtReplaceTree(compCurStmt, tree, actualValClone);
-        IncLclVarRefCountsVisitor::WalkTree(this, actualValClone);
+        // acutalValClone has small tree node size, it is safe to use CopyFrom here.
+        tree->CopyFrom(actualValClone, this);
+        IncLclVarRefCountsVisitor::WalkTree(this, tree);
 
 #ifdef DEBUG
         if (verbose)
@@ -369,7 +372,7 @@ GenTreePtr Compiler::optEarlyPropRewriteTree(GenTreePtr tree)
             printf("\n");
         }
 #endif
-        return actualValClone;
+        return tree;
     }
 
     return nullptr;
