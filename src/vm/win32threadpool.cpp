@@ -104,6 +104,7 @@ DWORD ThreadpoolMgr::NextCompletedWorkRequestsTime;
 LARGE_INTEGER ThreadpoolMgr::CurrentSampleStartTime;
 
 unsigned int ThreadpoolMgr::WorkerThreadSpinLimit;
+bool ThreadpoolMgr::IsHillClimbingDisabled;
 int ThreadpoolMgr::ThreadAdjustmentInterval;
 
 #define INVALID_HANDLE ((HANDLE) -1)
@@ -355,6 +356,7 @@ BOOL ThreadpoolMgr::Initialize()
     EX_TRY
     {
         WorkerThreadSpinLimit = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ThreadPool_UnfairSemaphoreSpinLimit);
+        IsHillClimbingDisabled = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_HillClimbing_Disable) != 0;
         ThreadAdjustmentInterval = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_HillClimbing_SampleIntervalLow);
         
         pADTPCount->InitResources();
@@ -425,6 +427,11 @@ BOOL ThreadpoolMgr::Initialize()
     DWORD forceMax;
     forceMax = GetForceMaxWorkerThreadsValue();
     MaxLimitTotalWorkerThreads = forceMax > 0 ? (LONG)forceMax : (LONG)GetDefaultMaxLimitWorkerThreads(MinLimitTotalWorkerThreads);
+
+    if (MinLimitTotalWorkerThreads == MaxLimitTotalWorkerThreads)
+    {
+        IsHillClimbingDisabled = true;
+    }
 
     ThreadCounter::Counts counts;
     counts.NumActive = 0;
