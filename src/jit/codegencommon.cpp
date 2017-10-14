@@ -6249,10 +6249,10 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         int bytesForBackwardJump;
 #ifdef _TARGET_AMD64_
         assert((initReg == REG_EAX) || (initReg == REG_EBP)); // We use RBP as initReg for EH funclets.
-        bytesForBackwardJump = -15;
+        bytesForBackwardJump = -17;
 #else  // !_TARGET_AMD64_
         assert(initReg == REG_EAX);
-        bytesForBackwardJump = -12;
+        bytesForBackwardJump = -14;
 #endif // !_TARGET_AMD64_
 
         inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
