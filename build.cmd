@@ -414,7 +414,6 @@ if %__BuildNative% EQU 1 (
     set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-    set ClCompile.ProcessorNumber=6
 
     if not defined NumberOfEnabledCore (
     REM Determine number of physical processor cores available on machine
