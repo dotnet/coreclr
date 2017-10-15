@@ -310,10 +310,10 @@ REM processor(s) and later is used to set optimal level of CL paralellism during
 if not defined NumberOfEnabledCore (
 REM Determine number of physical processor cores available on machine
 for /f "tokens=*" %%I in (
-    'wmic cpu get NumberOfEnabledCore /value ^| find "=" 2^>NULL'
+    'wmic cpu get NumberOfEnabledCore /value ^| find "=" 2^>NUL'
     ) do set %%I
 )
-echo Number of available CPU cores %NumberOfEnabledCore%
+echo %__MsgPrefix%Number of available CPU cores %NumberOfEnabledCore%
 
 REM =========================================================================================
 REM ===
