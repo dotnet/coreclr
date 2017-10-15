@@ -305,6 +305,16 @@ echo %__MsgPrefix%Checking prerequisites
 :: Eval the output from probe-win1.ps1
 for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\probe-win.ps1"""') do %%a
 
+REM NumberOfEnabledCore is an WMI property providing number of enabled cores on machine
+REM processor(s) and later is used to set optimal level of CL paralellism during native build step
+if not defined NumberOfEnabledCore (
+REM Determine number of physical processor cores available on machine
+for /f "tokens=*" %%I in (
+    'wmic cpu get NumberOfEnabledCore /value ^| find "=" 2^>NULL'
+    ) do set %%I
+)
+echo Number of available CPU cores %NumberOfEnabledCore%
+
 REM =========================================================================================
 REM ===
 REM === Start the build steps
@@ -415,14 +425,6 @@ if %__BuildNative% EQU 1 (
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
 
-    if not defined NumberOfEnabledCore (
-    REM Determine number of physical processor cores available on machine
-      for /f "tokens=*" %%I in (
-        'wmic cpu get NumberOfEnabledCore /value ^| find "=" 2^>NULL'
-      ) do set %%I
-    )
-    echo Number of available CPU cores %NumberOfEnabledCore%
-
     @call %__ProjectDir%\run.cmd build -Project=%__IntermediatesDir%\install.vcxproj -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! -configuration=%__BuildType% %nativePlatfromArgs% %__RunArgs% -ExtraParameters="/p:ForceImportBeforeCppTargets=%__ProjectDir%/clr.nativebuild.props /m:2" %__UnprocessedBuildArgs%
 
     if not !errorlevel! == 0 (
@@ -492,14 +494,6 @@ if /i "%__DoCrossArchBuild%"=="1" (
     set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-
-    if not defined NumberOfEnabledCore (
-    REM Determine number of physical processor cores available on machine
-      for /f "tokens=*" %%I in (
-        'wmic cpu get NumberOfEnabledCore /value ^| find "=" 2^>NULL'
-      ) do set %%I
-    )
-    echo Number of available CPU cores %NumberOfEnabledCore%
     
     @call %__ProjectDir%\run.cmd build -Project=%__CrossCompIntermediatesDir%\install.vcxproj -configuration=%__BuildType% -platform=%__CrossArch% -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! %__RunArgs% -ExtraParameters="/p:ForceImportBeforeCppTargets=%__ProjectDir%/clr.nativebuild.props /m:2" %__UnprocessedBuildArgs%
 
