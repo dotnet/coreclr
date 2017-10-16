@@ -3066,7 +3066,6 @@ public:
         CHECK_SPILL_NONE = -2
     };
 
-public:
     void impBeginTreeList();
     void impEndTreeList(BasicBlock* block, GenTreePtr firstStmt, GenTreePtr lastStmt);
     void impEndTreeList(BasicBlock* block);
