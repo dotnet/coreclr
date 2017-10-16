@@ -287,7 +287,9 @@ GenTreePtr Compiler::optEarlyPropRewriteTree(GenTreePtr tree)
     {
         assert((propKind == optPropKind::OPK_ARRAYLEN) || (propKind == optPropKind::OPK_OBJ_GETTYPE));
         assert(actualVal->IsCnsIntOrI());
+#if SMALL_TREE_NODES
         assert(actualVal->GetNodeSize() == TREE_NODE_SZ_SMALL);
+#endif
 
         ssize_t actualConstVal = actualVal->AsIntCon()->IconValue();
 
