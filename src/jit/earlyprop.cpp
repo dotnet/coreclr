@@ -231,7 +231,7 @@ void Compiler::optEarlyProp()
 //
 // Return Value:
 //    Return a new tree if the original tree was successfully rewritten.
-//    The cointaining tree links are updated.
+//    The containing tree links are updated.
 //
 GenTreePtr Compiler::optEarlyPropRewriteTree(GenTreePtr tree)
 {
