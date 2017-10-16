@@ -6216,7 +6216,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // loop:
         //      lea esp, [esp - pageSize]   7
         //      test [esp], eax             3
-        //      cmp eax, esp                2
+        //      cmp esp, eax                2
         //      jge loop                    2
         //      lea rsp, [rbp + frameSize]
         //
@@ -6225,7 +6225,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // loop:
         //      lea rsp, [rsp - pageSize]   8
         //      test [rsp], rax             4
-        //      cmp rax, rsp                3
+        //      cmp rsp, rax                3
         //      jge loop                    2
         //      lea rsp, [rax + frameSize]
         //
@@ -6234,7 +6234,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // loop:
         //      lea rsp, [rsp - pageSize]   8
         //      test [rsp], rbp             4
-        //      cmp rbp, rsp                3
+        //      cmp rsp, rbp                3
         //      jge loop                    2
         //      lea rsp, [rbp + frameSize]
 
@@ -6244,7 +6244,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, -sPageSize);
         getEmitter()->emitIns_R_AR(INS_TEST, EA_PTRSIZE, initReg, REG_SPBASE, 0);
-        inst_RV_RV(INS_cmp, initReg, REG_SPBASE);
+        inst_RV_RV(INS_cmp, REG_SPBASE, initReg);
 
         int bytesForBackwardJump;
 #ifdef _TARGET_AMD64_
