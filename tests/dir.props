@@ -65,22 +65,21 @@
   <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
   <Import Project="$(ProjectDir)..\dependencies.props" />
 
-  <!-- Use Roslyn Compilers to build -->
-  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false'" />
-  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'=='true' and Exists('$(RoslynPropsFile)')" />
-
+  <!-- Add test-specific package restore sources. -->
   <PropertyGroup>
+    <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
+      https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json;
+      $(RestoreSources)
+    </RestoreSources>
     <RestoreSources Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'">
       $(PackagesDir)AzureTransfer\;
       $(RestoreSources)
     </RestoreSources>
-    <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
-      https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json;
-      https://dotnet.myget.org/F/dotnet-core/api/v3/index.json;
-      https://api.nuget.org/v3/index.json;
-      $(RestoreSources)
-    </RestoreSources>
   </PropertyGroup>
+
+  <!-- Use Roslyn Compilers to build -->
+  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false'" />
+  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'=='true' and Exists('$(RoslynPropsFile)')" />
 
   <PropertyGroup Condition="'$(BuildAllProjects)'=='true'">
     <!-- When we do a traversal build we get all packages up front, don't restore them again -->
