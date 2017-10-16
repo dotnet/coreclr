@@ -19395,6 +19395,11 @@ public:
         {
             comp->fgWalkTreePre(&args, SpillRetExprVisitor, this);
         }
+        GenTreePtr thisArg = call->gtCallObjp;
+        if (thisArg != nullptr)
+        {
+            comp->fgWalkTreePre(&thisArg, SpillRetExprVisitor, this);
+        }
     }
 
 private:
