@@ -559,7 +559,7 @@ namespace System
                 }
                 finally
                 {
-                    ArrayPool<char>.Shared.Return(chars, clearArray: true);
+                    ArrayPool<char>.Shared.Return(chars);
                 }
             }
 
