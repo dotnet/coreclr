@@ -69,15 +69,20 @@
   <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false'" />
   <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'=='true' and Exists('$(RoslynPropsFile)')" />
 
+  <PropertyGroup>
+    <RestoreSources Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'">
+      $(PackagesDir)AzureTransfer\;
+      $(RestoreSources)
+    </RestoreSources>
+    <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
+      https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json;
+      https://dotnet.myget.org/F/dotnet-core/api/v3/index.json;
+      https://api.nuget.org/v3/index.json;
+      $(OverridePackageSource);
+      $(RestoreSources)
+    </RestoreSources>
+  </PropertyGroup>
 
-   <ItemGroup> 
-     <!-- Need to escape double forward slash (%2F) or MSBuild will normalize to one slash on Unix. -->
-     <DotnetSourceList Include="$(PackagesDir)AzureTransfer\" Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'" />
-     <DotnetSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json" />
-     <DotnetSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-core/api/v3/index.json" /> 
-     <DotnetSourceList Include="https:%2F%2Fapi.nuget.org/v3/index.json" /> 
-   </ItemGroup> 
-  
   <PropertyGroup Condition="'$(BuildAllProjects)'=='true'">
     <!-- When we do a traversal build we get all packages up front, don't restore them again -->
     <RestorePackages>false</RestorePackages>
