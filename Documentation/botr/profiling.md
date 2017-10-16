@@ -150,9 +150,9 @@ Assembly, Module, Class, Function, and GCHandleIDs have app-domain affinity, mea
 
 All IDs except ObjectID should be treated as opaque values. Most IDs are fairly self-explanatory. A few are worth explaining in more detail:
 
-**ClassIDs** represent classes. In the case of generic classes, they represent fully-instantiated types. List<int>, List<char>, List<object>, and List<string> each have their own ClassID. List<T> is an uninstantiated type, and has no ClassID. Dictionary<string,V> is a partially-instantiated type, and has no ClassID.
+**ClassIDs** represent classes. In the case of generic classes, they represent fully-instantiated types. List\<int>, List\<char>, List\<object>, and List\<string> each have their own ClassID. List\<T> is an uninstantiated type, and has no ClassID. Dictionary\<string,V> is a partially-instantiated type, and has no ClassID.
 
-**FunctionIDs** represent native code for a function. In the case of generic functions (or functions on generic classes), there may be multiple native code instantiations for a given function, and thus multiple FunctionIDs. Native code instantiations may be shared between different types — for example List<string> and List<object> share all code—so a FunctionID may "belong" to more than one ClassID.
+**FunctionIDs** represent native code for a function. In the case of generic functions (or functions on generic classes), there may be multiple native code instantiations for a given function, and thus multiple FunctionIDs. Native code instantiations may be shared between different types — for example List\<string> and List\<object> share all code—so a FunctionID may "belong" to more than one ClassID.
 
 **ObjectIDs** represent garbage-collected objects. An ObjectID is the current address of the object at the time the ObjectID is received by the profiler, and may change with each garbage collection. Thus, an ObjectID value is only valid between the time it is received and when the next garbage collection begins.  The CLR also supplies notifications that allow a profiler to update its internal maps that track objects, so that a profiler may maintain a valid ObjectID across garbage collections.
 
