@@ -545,6 +545,11 @@ namespace System
         {
             int requiredSize = Win32Native.GetEnvironmentVariable(variable, buffer);
 
+            if (requiredSize == 0 && Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND)
+            {
+                return null;
+            }
+
             if (requiredSize > buffer.Length)
             {
                 char[] chars = ArrayPool<char>.Shared.Rent(requiredSize);
@@ -556,11 +561,6 @@ namespace System
                 {
                     ArrayPool<char>.Shared.Return(chars, clearArray: true);
                 }
-            }
-
-            if (requiredSize == 0)
-            {
-                return Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND ? null : string.Empty;
             }
 
             return new string(buffer.Slice(0, requiredSize));
