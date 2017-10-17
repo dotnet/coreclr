@@ -704,6 +704,7 @@ private:
                            unsigned*    recentAssignedRefWeight,
                            unsigned     farthestRefPosWeight);
     void unassignDoublePhysReg(RegRecord* doubleRegRecord);
+    void updateDoubleAssignedInterval(RegRecord* reg, Interval* interval);
 #endif
     void updateAssignedInterval(RegRecord* reg, Interval* interval, RegisterType regType);
     void updatePreviousInterval(RegRecord* reg, Interval* interval, RegisterType regType);

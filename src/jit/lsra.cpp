@@ -5823,6 +5823,10 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
             assert((bestScore & VALUE_AVAILABLE) == 0);
         }
         assignPhysReg(availablePhysRegInterval, currentInterval);
+#ifdef _TARGET_ARM_
+        if (currentInterval->registerType == TYP_DOUBLE && !genIsValidDoubleReg(availablePhysRegInterval->regNum))
+            availablePhysRegInterval = findAnotherHalfRegRec(availablePhysRegInterval);
+#endif
         foundReg                        = availablePhysRegInterval->regNum;
         regMaskTP foundRegMask          = genRegMask(foundReg);
         refPosition->registerAssignment = foundRegMask;
@@ -8565,6 +8569,20 @@ void LinearScan::updatePreviousInterval(RegRecord* reg, Interval* interval, Regi
 #endif
 }
 
+#ifdef _TARGET_ARM_
+void LinearScan::updateDoubleAssignedInterval(RegRecord* reg, Interval* interval)
+{
+    if ((reg->assignedInterval != nullptr) &&
+        (reg->assignedInterval->registerType == TYP_DOUBLE) &&
+        (interval->registerType == TYP_FLOAT))
+    {
+        RegRecord* anotherPhysRegRecord = findAnotherHalfRegRec(reg);
+        updateAssignedInterval(anotherPhysRegRecord, nullptr, interval->registerType);
+    }
+    updateAssignedInterval(reg, interval, interval->registerType);
+}
+#endif
+
 // LinearScan::resolveLocalRef
 // Description:
 //      Update the graph for a local reference.
@@ -8823,14 +8841,18 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
         interval->assignedReg = nullptr;
         interval->physReg     = REG_NA;
 
-        updateAssignedInterval(physRegRecord, nullptr, interval->registerType);
+        if (physRegRecord->assignedInterval != nullptr)
+            updateAssignedInterval(physRegRecord, nullptr, physRegRecord->assignedInterval->registerType);
     }
     else
     {
         interval->isActive    = true;
         interval->assignedReg = physRegRecord;
-
+#ifdef _TARGET_ARM_
+        updateDoubleAssignedInterval(physRegRecord, interval);
+#else
         updateAssignedInterval(physRegRecord, interval, interval->registerType);
+#endif
     }
 }
 
@@ -12744,7 +12766,9 @@ void LinearScan::verifyFinalAllocation()
                 if ((regsToFree & regMask) != RBM_NONE)
                 {
                     RegRecord* physRegRecord        = getRegisterRecord(reg);
-                    physRegRecord->assignedInterval = nullptr;
+                    Interval* assignedInterval = physRegRecord->assignedInterval;
+                    if (physRegRecord->assignedInterval != nullptr)
+                        updateAssignedInterval(physRegRecord, nullptr, assignedInterval->registerType);
                 }
             }
             regsToFree = delayRegsToFree;
@@ -12826,6 +12850,13 @@ void LinearScan::verifyFinalAllocation()
                             interval->physReg                 = regNum;
                             interval->assignedReg             = &(physRegs[regNum]);
                             interval->isActive                = true;
+#ifdef _TARGET_ARM_
+                            if (physRegs[regNum].registerType == TYP_DOUBLE)
+                            {
+                                updateDoubleAssignedInterval(&physRegs[regNum], interval);
+                            }
+                            else
+#endif
                             physRegs[regNum].assignedInterval = interval;
                         }
                     }
@@ -12897,7 +12928,11 @@ void LinearScan::verifyFinalAllocation()
                     assert(regNum != REG_NA);
                     interval->physReg           = regNum;
                     interval->assignedReg       = regRecord;
-                    regRecord->assignedInterval = interval;
+#ifdef _TARGET_ARM_
+                    updateDoubleAssignedInterval(regRecord, interval);
+#else
+                    updateAssignedInterval(regRecord, interval, interval->registerType);
+#endif
                     dumpLsraAllocationEvent(LSRA_EVENT_RELOAD, nullptr, regRecord->regNum, currentBlock);
                 }
                 if (regNum == REG_NA)
@@ -12927,10 +12962,14 @@ void LinearScan::verifyFinalAllocation()
                 else if (currentRefPosition->moveReg)
                 {
                     assert(interval->assignedReg != nullptr);
-                    interval->assignedReg->assignedInterval = nullptr;
+                    updateAssignedInterval(interval->assignedReg, nullptr, interval->registerType);
                     interval->physReg                       = regNum;
                     interval->assignedReg                   = regRecord;
-                    regRecord->assignedInterval             = interval;
+#ifdef _TARGET_ARM_
+                    updateDoubleAssignedInterval(regRecord, interval);
+#else
+                    updateAssignedInterval(regRecord, interval, interval->registerType);
+#endif
                     if (VERBOSE)
                     {
                         printf("Move  %-4s ", getRegName(regRecord->regNum));
@@ -12966,13 +13005,22 @@ void LinearScan::verifyFinalAllocation()
                     }
                     else if (currentRefPosition->copyReg)
                     {
-                        regRecord->assignedInterval = interval;
+#ifdef _TARGET_ARM_
+                        updateDoubleAssignedInterval(regRecord, interval);
+#else
+                        updateAssignedInterval(regRecord, interval, interval->registerType);
+#endif
                     }
+
                     else
                     {
                         interval->physReg           = regNum;
                         interval->assignedReg       = regRecord;
-                        regRecord->assignedInterval = interval;
+#ifdef _TARGET_ARM_
+                        updateDoubleAssignedInterval(regRecord, interval);
+#else
+                        updateAssignedInterval(regRecord, interval, interval->registerType);
+#endif
                     }
                 }
                 break;
@@ -13013,7 +13061,8 @@ void LinearScan::verifyFinalAllocation()
                 if (currentRefPosition->copyReg)
                 {
                     assert(interval->physReg != regNum);
-                    regRecord->assignedInterval = nullptr;
+                    if (regRecord->assignedInterval != nullptr)
+                        updateAssignedInterval(regRecord, nullptr, regRecord->assignedInterval->registerType);
                     assert(interval->assignedReg != nullptr);
                     regRecord = interval->assignedReg;
                 }
@@ -13025,7 +13074,8 @@ void LinearScan::verifyFinalAllocation()
                     // regRegcord could be null if the RefPosition does not require a register.
                     if (regRecord != nullptr)
                     {
-                        regRecord->assignedInterval = nullptr;
+                        if (regRecord->assignedInterval != nullptr)
+                            updateAssignedInterval(regRecord, nullptr, regRecord->assignedInterval->registerType);
                     }
                     else
                     {
@@ -13078,7 +13128,12 @@ void LinearScan::verifyFinalAllocation()
                 interval->physReg                 = regNum;
                 interval->assignedReg             = &(physRegs[regNum]);
                 interval->isActive                = true;
-                physRegs[regNum].assignedInterval = interval;
+#ifdef _TARGET_ARM_
+                updateDoubleAssignedInterval(&physRegs[regNum], interval);
+#else
+                updateAssignedInterval(&physRegs[regNum], interval, interval->registerType);
+#endif
+
             }
 
             // Verify the moves in this block
@@ -13152,8 +13207,15 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
         rightInterval->physReg                 = leftRegNum;
         leftInterval->assignedReg              = &physRegs[rightRegNum];
         rightInterval->assignedReg             = &physRegs[leftRegNum];
-        physRegs[rightRegNum].assignedInterval = leftInterval;
-        physRegs[leftRegNum].assignedInterval  = rightInterval;
+
+#ifdef _TARGET_ARM
+        updateDoubleAssignedInterval(&physRegs[rightRegNum], leftInterval);
+        updateDoubleAssignedInterval(&physRegs[leftRegNum], rightInterval);
+
+#else
+        updateAssignedInterval(&physRegs[rightRegNum], leftInterval, leftInterval->registerType);
+        updateAssignedInterval(&physRegs[leftRegNum], rightInterval, rightInterval->registerType);
+#endif
         if (VERBOSE)
         {
             printf(shortRefPositionFormat, currentLocation, 0);
@@ -13196,13 +13258,17 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
     assert(interval->physReg == srcRegNum || (srcRegNum == REG_STK && interval->physReg == REG_NA));
     if (srcRegNum != REG_STK)
     {
-        physRegs[srcRegNum].assignedInterval = nullptr;
+        updateAssignedInterval(&physRegs[srcRegNum], nullptr, physRegs[srcRegNum].assignedInterval->registerType);
     }
     if (dstRegNum != REG_STK)
     {
         interval->physReg                    = dstRegNum;
         interval->assignedReg                = &(physRegs[dstRegNum]);
-        physRegs[dstRegNum].assignedInterval = interval;
+#ifdef _TARGET_ARM_
+        updateDoubleAssignedInterval(&physRegs[dstRegNum], interval);
+#else
+        updateAssignedInterval(&physRegs[dstRegNum], interval, interval->registerType);
+#endif
         interval->isActive                   = true;
     }
     else
