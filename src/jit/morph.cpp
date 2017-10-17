@@ -15482,10 +15482,10 @@ GenTreePtr Compiler::fgMorphTree(GenTreePtr tree, MorphAddrContext* mac)
             copy = new (this, GT_CALL) GenTreeCall(TYP_INT);
         }
 
-        copy->CopyFrom(tree, this);
+        copy->ReplaceWith(tree, this);
 
 #if defined(LATE_DISASM)
-        // GT_CNS_INT is considered small, so CopyFrom() won't copy all fields
+        // GT_CNS_INT is considered small, so ReplaceWith() won't copy all fields
         if ((tree->gtOper == GT_CNS_INT) && tree->IsIconHandle())
         {
             copy->gtIntCon.gtIconHdl.gtIconHdl1 = tree->gtIntCon.gtIconHdl.gtIconHdl1;
@@ -17847,6 +17847,8 @@ void Compiler::fgMorph()
 #ifdef DEBUG
     /* Inliner could add basic blocks. Check that the flowgraph data is up-to-date */
     fgDebugCheckBBlist(false, false);
+    /* Inliner could clone some trees. */
+    fgDebugCheckNodesUniqueness();
 #endif // DEBUG
 
     fgRemoveEmptyTry();
@@ -18755,7 +18757,7 @@ GenTreePtr Compiler::fgMorphImplicitByRefArgs(GenTreePtr tree, bool isAddr)
         if (fieldHnd == nullptr)
         {
             // change &X into just plain X
-            tree->CopyFrom(lclVarTree, this);
+            tree->ReplaceWith(lclVarTree, this);
             tree->gtType = TYP_BYREF;
         }
         else

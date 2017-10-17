@@ -933,7 +933,7 @@ DEFINE_CLASS(TP_WAIT_CALLBACK,         Threading,              _ThreadPoolWaitCa
 DEFINE_METHOD(TP_WAIT_CALLBACK,        PERFORM_WAIT_CALLBACK,               PerformWaitCallback,                   SM_RetBool)
 
 DEFINE_CLASS(TIMER_QUEUE,           Threading,                TimerQueue)
-DEFINE_METHOD(TIMER_QUEUE,          APPDOMAIN_TIMER_CALLBACK, AppDomainTimerCallback,   SM_RetVoid)
+DEFINE_METHOD(TIMER_QUEUE,          APPDOMAIN_TIMER_CALLBACK, AppDomainTimerCallback,   SM_Int_RetVoid)
 
 DEFINE_CLASS(TIMESPAN,              System,                 TimeSpan)
 
@@ -1420,9 +1420,9 @@ DEFINE_CLASS(LOADERALLOCATORSCOUT,      Reflection,             LoaderAllocatorS
 DEFINE_CLASS(CONTRACTEXCEPTION,     CodeContracts,  ContractException)
 
 DEFINE_CLASS_U(CodeContracts,       ContractException,          ContractExceptionObject)
-DEFINE_FIELD_U(_Kind,               ContractExceptionObject,    _Kind)
-DEFINE_FIELD_U(_UserMessage,        ContractExceptionObject,    _UserMessage)
-DEFINE_FIELD_U(_Condition,          ContractExceptionObject,    _Condition)
+DEFINE_FIELD_U(_kind,               ContractExceptionObject,    _Kind)
+DEFINE_FIELD_U(_userMessage,        ContractExceptionObject,    _UserMessage)
+DEFINE_FIELD_U(_condition,          ContractExceptionObject,    _Condition)
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_CLASS(ASYNC_TRACING_EVENT_ARGS,       WindowsFoundationDiag,         TracingStatusChangedEventArgs)
