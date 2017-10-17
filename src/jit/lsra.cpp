@@ -8570,6 +8570,21 @@ void LinearScan::updatePreviousInterval(RegRecord* reg, Interval* interval, Regi
 }
 
 #ifdef _TARGET_ARM_
+//-----------------------------------------------------------------------------
+// updateDoubleAssignedInterval: Update TYP_DOUBLE assigned interval of register.
+//
+// Arguments:
+//    reg      -    register to be updated
+//    interval -    interval to be assigned
+//
+// Return Value:
+//    None
+//
+// Note:
+//    For ARM32, When the interval is updated with new interval,
+//    If the old interval register type is TYP_DOUBLE, and the new interval
+//    register type is TYP_FLOAT, another register should be unassigned.
+//
 void LinearScan::updateDoubleAssignedInterval(RegRecord* reg, Interval* interval)
 {
     if ((reg->assignedInterval != nullptr) && (reg->assignedInterval->registerType == TYP_DOUBLE) &&
