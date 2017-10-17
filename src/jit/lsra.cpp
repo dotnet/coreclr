@@ -8572,8 +8572,7 @@ void LinearScan::updatePreviousInterval(RegRecord* reg, Interval* interval, Regi
 #ifdef _TARGET_ARM_
 void LinearScan::updateDoubleAssignedInterval(RegRecord* reg, Interval* interval)
 {
-    if ((reg->assignedInterval != nullptr) &&
-        (reg->assignedInterval->registerType == TYP_DOUBLE) &&
+    if ((reg->assignedInterval != nullptr) && (reg->assignedInterval->registerType == TYP_DOUBLE) &&
         (interval->registerType == TYP_FLOAT))
     {
         RegRecord* anotherPhysRegRecord = findAnotherHalfRegRec(reg);
@@ -8842,7 +8841,9 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTreePtr treeNode, RefPosi
         interval->physReg     = REG_NA;
 
         if (physRegRecord->assignedInterval != nullptr)
+        {
             updateAssignedInterval(physRegRecord, nullptr, physRegRecord->assignedInterval->registerType);
+        }
     }
     else
     {
@@ -12765,10 +12766,12 @@ void LinearScan::verifyFinalAllocation()
                 regMaskTP regMask = genRegMask(reg);
                 if ((regsToFree & regMask) != RBM_NONE)
                 {
-                    RegRecord* physRegRecord        = getRegisterRecord(reg);
-                    Interval* assignedInterval = physRegRecord->assignedInterval;
+                    RegRecord* physRegRecord    = getRegisterRecord(reg);
+                    Interval*  assignedInterval = physRegRecord->assignedInterval;
                     if (physRegRecord->assignedInterval != nullptr)
+                    {
                         updateAssignedInterval(physRegRecord, nullptr, assignedInterval->registerType);
+                    }
                 }
             }
             regsToFree = delayRegsToFree;
@@ -12845,11 +12848,11 @@ void LinearScan::verifyFinalAllocation()
                                 assert(!compiler->lvaTable[compiler->lvaTrackedToVarNum[varIndex]].lvLRACandidate);
                                 continue;
                             }
-                            regNumber regNum                  = getVarReg(inVarToRegMap, varIndex);
-                            interval                          = getIntervalForLocalVar(varIndex);
-                            interval->physReg                 = regNum;
-                            interval->assignedReg             = &(physRegs[regNum]);
-                            interval->isActive                = true;
+                            regNumber regNum      = getVarReg(inVarToRegMap, varIndex);
+                            interval              = getIntervalForLocalVar(varIndex);
+                            interval->physReg     = regNum;
+                            interval->assignedReg = &(physRegs[regNum]);
+                            interval->isActive    = true;
 #ifdef _TARGET_ARM_
                             if (physRegs[regNum].registerType == TYP_DOUBLE)
                             {
@@ -12857,7 +12860,7 @@ void LinearScan::verifyFinalAllocation()
                             }
                             else
 #endif
-                            physRegs[regNum].assignedInterval = interval;
+                                physRegs[regNum].assignedInterval = interval;
                         }
                     }
 
@@ -12926,8 +12929,8 @@ void LinearScan::verifyFinalAllocation()
                 {
                     interval->isActive = true;
                     assert(regNum != REG_NA);
-                    interval->physReg           = regNum;
-                    interval->assignedReg       = regRecord;
+                    interval->physReg     = regNum;
+                    interval->assignedReg = regRecord;
 #ifdef _TARGET_ARM_
                     updateDoubleAssignedInterval(regRecord, interval);
 #else
@@ -12963,8 +12966,8 @@ void LinearScan::verifyFinalAllocation()
                 {
                     assert(interval->assignedReg != nullptr);
                     updateAssignedInterval(interval->assignedReg, nullptr, interval->registerType);
-                    interval->physReg                       = regNum;
-                    interval->assignedReg                   = regRecord;
+                    interval->physReg     = regNum;
+                    interval->assignedReg = regRecord;
 #ifdef _TARGET_ARM_
                     updateDoubleAssignedInterval(regRecord, interval);
 #else
@@ -13014,8 +13017,8 @@ void LinearScan::verifyFinalAllocation()
 
                     else
                     {
-                        interval->physReg           = regNum;
-                        interval->assignedReg       = regRecord;
+                        interval->physReg     = regNum;
+                        interval->assignedReg = regRecord;
 #ifdef _TARGET_ARM_
                         updateDoubleAssignedInterval(regRecord, interval);
 #else
@@ -13062,7 +13065,9 @@ void LinearScan::verifyFinalAllocation()
                 {
                     assert(interval->physReg != regNum);
                     if (regRecord->assignedInterval != nullptr)
+                    {
                         updateAssignedInterval(regRecord, nullptr, regRecord->assignedInterval->registerType);
+                    }
                     assert(interval->assignedReg != nullptr);
                     regRecord = interval->assignedReg;
                 }
@@ -13075,7 +13080,9 @@ void LinearScan::verifyFinalAllocation()
                     if (regRecord != nullptr)
                     {
                         if (regRecord->assignedInterval != nullptr)
+                        {
                             updateAssignedInterval(regRecord, nullptr, regRecord->assignedInterval->registerType);
+                        }
                     }
                     else
                     {
@@ -13123,17 +13130,16 @@ void LinearScan::verifyFinalAllocation()
                     assert(!compiler->lvaTable[compiler->lvaTrackedToVarNum[varIndex]].lvLRACandidate);
                     continue;
                 }
-                regNumber regNum                  = getVarReg(inVarToRegMap, varIndex);
-                Interval* interval                = getIntervalForLocalVar(varIndex);
-                interval->physReg                 = regNum;
-                interval->assignedReg             = &(physRegs[regNum]);
-                interval->isActive                = true;
+                regNumber regNum      = getVarReg(inVarToRegMap, varIndex);
+                Interval* interval    = getIntervalForLocalVar(varIndex);
+                interval->physReg     = regNum;
+                interval->assignedReg = &(physRegs[regNum]);
+                interval->isActive    = true;
 #ifdef _TARGET_ARM_
                 updateDoubleAssignedInterval(&physRegs[regNum], interval);
 #else
                 updateAssignedInterval(&physRegs[regNum], interval, interval->registerType);
 #endif
-
             }
 
             // Verify the moves in this block
@@ -13203,10 +13209,10 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
         Interval*            leftInterval  = getIntervalForLocalVar(leftVarDsc->lvVarIndex);
         Interval*            rightInterval = getIntervalForLocalVar(rightVarDsc->lvVarIndex);
         assert(leftInterval->physReg == leftRegNum && rightInterval->physReg == rightRegNum);
-        leftInterval->physReg                  = rightRegNum;
-        rightInterval->physReg                 = leftRegNum;
-        leftInterval->assignedReg              = &physRegs[rightRegNum];
-        rightInterval->assignedReg             = &physRegs[leftRegNum];
+        leftInterval->physReg      = rightRegNum;
+        rightInterval->physReg     = leftRegNum;
+        leftInterval->assignedReg  = &physRegs[rightRegNum];
+        rightInterval->assignedReg = &physRegs[leftRegNum];
 
 #ifdef _TARGET_ARM
         updateDoubleAssignedInterval(&physRegs[rightRegNum], leftInterval);
@@ -13262,14 +13268,14 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
     }
     if (dstRegNum != REG_STK)
     {
-        interval->physReg                    = dstRegNum;
-        interval->assignedReg                = &(physRegs[dstRegNum]);
+        interval->physReg     = dstRegNum;
+        interval->assignedReg = &(physRegs[dstRegNum]);
 #ifdef _TARGET_ARM_
         updateDoubleAssignedInterval(&physRegs[dstRegNum], interval);
 #else
         updateAssignedInterval(&physRegs[dstRegNum], interval, interval->registerType);
 #endif
-        interval->isActive                   = true;
+        interval->isActive = true;
     }
     else
     {
