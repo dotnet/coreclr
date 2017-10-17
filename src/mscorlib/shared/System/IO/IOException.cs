@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 using System;
 using System.Runtime.Serialization;
 
@@ -10,28 +9,33 @@ namespace System.IO
 {
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public class PathTooLongException : IOException
+    public class IOException : SystemException
     {
-        public PathTooLongException()
-            : base(SR.IO_PathTooLong)
+        public IOException()
+            : base(SR.Arg_IOException)
         {
-            HResult = __HResults.COR_E_PATHTOOLONG;
+            HResult = HResults.COR_E_IO;
         }
 
-        public PathTooLongException(string message)
+        public IOException(String message)
             : base(message)
         {
-            HResult = __HResults.COR_E_PATHTOOLONG;
+            HResult = HResults.COR_E_IO;
         }
 
-        public PathTooLongException(string message, Exception innerException)
+        public IOException(String message, int hresult)
+            : base(message)
+        {
+            HResult = hresult;
+        }
+
+        public IOException(String message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_PATHTOOLONG;
+            HResult = HResults.COR_E_IO;
         }
 
-        protected PathTooLongException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
+        protected IOException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }
