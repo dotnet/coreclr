@@ -878,8 +878,8 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     regNumber tmpReg = cpObjNode->ExtractTempReg();
     assert(genIsValidIntReg(tmpReg));
 
-    emitter* emit  = getEmitter();
-    BYTE* gcPtrs = cpObjNode->gtGcPtrs;
+    emitter* emit   = getEmitter();
+    BYTE*    gcPtrs = cpObjNode->gtGcPtrs;
 
     unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
 
