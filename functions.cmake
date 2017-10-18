@@ -216,6 +216,11 @@ function(_add_executable)
       disable_pax_mprotect(${ARGV})
     else()
       add_executable(${ARGV})
+      list(GET ARGV 0 CLR_CMAKE_CURRENT_TARGET)
+      set_target_properties(
+        ${CLR_CMAKE_CURRENT_TARGET} 
+        PROPERTIES
+        VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES})
     endif(NOT WIN32)
     list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)  
     if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)  
@@ -228,6 +233,11 @@ function(_add_library)
       add_library(${ARGV} ${VERSION_FILE_PATH})
     else()
       add_library(${ARGV})
+      list(GET ARGV 0 CLR_CMAKE_CURRENT_TARGET)
+      set_target_properties(
+        ${CLR_CMAKE_CURRENT_TARGET} 
+        PROPERTIES
+        VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES})
     endif(NOT WIN32)
     list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)  
     if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)  

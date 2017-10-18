@@ -322,6 +322,10 @@ if (WIN32)
     endforeach (Definition)
   endforeach (Config)
 
+  # CLR_CMAKE_CPU_CORES property is used to set optimal level of CL parallelism for native build
+  cmake_host_system_information(RESULT CLR_CMAKE_CPU_CORES QUERY NUMBER_OF_PHYSICAL_CORES)
+  message(STATUS "Number of processor cores: ${CLR_CMAKE_CPU_CORES}")
+
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /GUARD:CF")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /GUARD:CF")
 
