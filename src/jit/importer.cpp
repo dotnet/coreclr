@@ -3289,7 +3289,7 @@ GenTreePtr Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
 //    clsHnd - handle for the intrinsic method's class
 //    method - handle for the intrinsic method
 //    sig    - signature of the intrinsic method
-//    methodFlags - CORINFO_XXX flagas of the intrinsic method
+//    methodFlags - CORINFO_FLG_XXX flags of the intrinsic method
 //    memberRef - the token for the intrinsic method
 //    readonlyCall - true if call has a readonly prefix
 //    tailCall - true if call is in tail position
@@ -7107,14 +7107,13 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #endif // DEBUG
 
         // <NICE> Factor this into getCallInfo </NICE>
-        bool       isSpecialIntrinsic = false;
-        if ((mflags & (CORINFO_FLG_INTRINSIC|CORINFO_FLG_JIT_INTRINSIC)) != 0)
+        bool isSpecialIntrinsic = false;
+        if ((mflags & (CORINFO_FLG_INTRINSIC | CORINFO_FLG_JIT_INTRINSIC)) != 0)
         {
             const bool isTail = canTailCall && (tailCall != 0);
 
-            call = impIntrinsic(newobjThis, clsHnd, methHnd, sig, mflags, pResolvedToken->token,
-                                readonlyCall, isTail, pConstrainedResolvedToken, callInfo->thisTransform,
-                                &intrinsicID, &isSpecialIntrinsic);
+            call = impIntrinsic(newobjThis, clsHnd, methHnd, sig, mflags, pResolvedToken->token, readonlyCall, isTail,
+                                pConstrainedResolvedToken, callInfo->thisTransform, &intrinsicID, &isSpecialIntrinsic);
 
             if (compDonotInline())
             {
