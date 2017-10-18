@@ -1,5 +1,11 @@
-# Require at least version 2.8.12 of CMake
-cmake_minimum_required(VERSION 2.8.12)
+# Verify minimum required version
+if (WIN32)
+  # On Windows require at least version 3.5.1 of CMake
+  cmake_minimum_required(VERSION 3.5.1)
+else(WIN32)
+  # On Unixes require at least version 2.8.12 of CMake
+  cmake_minimum_required(VERSION 2.8.12)
+endif(WIN32)
 
 if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
     cmake_policy(SET CMP0042 NEW)

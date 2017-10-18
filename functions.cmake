@@ -245,6 +245,19 @@ function(_add_library)
     endif()  
 endfunction()
 
+function(_add_custom_target)
+    if(NOT WIN32)
+      add_custom_target(${ARGV})
+    else()
+      add_custom_target(${ARGV})
+      list(GET ARGV 0 CLR_CMAKE_CURRENT_TARGET)
+      set_target_properties(
+        ${CLR_CMAKE_CURRENT_TARGET} 
+        PROPERTIES
+        VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES})      
+    endif(NOT WIN32)
+endfunction()
+
 function(_install)
     if(NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
       install(${ARGV})
