@@ -428,11 +428,6 @@ BOOL ThreadpoolMgr::Initialize()
     forceMax = GetForceMaxWorkerThreadsValue();
     MaxLimitTotalWorkerThreads = forceMax > 0 ? (LONG)forceMax : (LONG)GetDefaultMaxLimitWorkerThreads(MinLimitTotalWorkerThreads);
 
-    if (MinLimitTotalWorkerThreads == MaxLimitTotalWorkerThreads)
-    {
-        IsHillClimbingDisabled = true;
-    }
-
     ThreadCounter::Counts counts;
     counts.NumActive = 0;
     counts.NumWorking = 0;
