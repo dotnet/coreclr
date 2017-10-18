@@ -130,6 +130,13 @@ namespace System.Runtime.ExceptionServices
             throw m_Exception;
         }
 
+        internal Exception GetThrowableException()
+        {
+            // Restore the exception dispatch details before allowing this exception to be thrown.
+            m_Exception.RestoreExceptionDispatchInfo(this);
+            return m_Exception;
+        }
+
         // Throws the source exception, maintaining the original bucketing details and augmenting
         // rather than replacing the original stack trace.
         public static void Throw(Exception source) => Capture(source).Throw();
