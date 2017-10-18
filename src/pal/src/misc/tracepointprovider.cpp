@@ -38,7 +38,7 @@ Initialization logic for LTTng tracepoint providers.
 --*/
 #if defined(__linux__)
 
-static const char tpLibName[] = "libcoreclrtraceptprovider.so";
+static const char tpLibName[] = "libcoreclrxplatprovider.so";
 
 
 /*++
