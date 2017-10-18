@@ -591,7 +591,7 @@ def generateSanityTest(sClrEtwAllMan,testDir):
     if(FEATURE_EVENT_TRACE)
         add_definitions(-DFEATURE_EVENT_TRACE=1)
             list(APPEND EVENT_PROVIDER_DEPENDENCIES
-                 coreclrtraceptprovider
+                 coreclrxplatprovider
                  eventprovider
                  )
             list(APPEND EVENT_PROVIDER_LINKER_OTPTIONS

@@ -526,7 +526,7 @@ def generateLttngFiles(etwmanifest,eventprovider_directory):
         tracepointprovider_Cmake.write(stdprolog_cmake + "\n")
         tracepointprovider_Cmake.write("""cmake_minimum_required(VERSION 2.8.12.2)
 
-        project(coreclrtraceptprovider)
+        project(coreclrxplatprovider)
 
         set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -535,7 +535,7 @@ def generateLttngFiles(etwmanifest,eventprovider_directory):
         include_directories(../lttng/)
         add_compile_options(-fPIC)
 
-        add_library(coreclrtraceptprovider
+        add_library(coreclrxplatprovider
             SHARED
         """)
 
@@ -551,12 +551,12 @@ def generateLttngFiles(etwmanifest,eventprovider_directory):
 
         tracepointprovider_Cmake.write("""    )
 
-        target_link_libraries(coreclrtraceptprovider
+        target_link_libraries(coreclrxplatprovider
                               -llttng-ust
         )
 
-        # Install the static coreclrtraceptprovider library
-        install_clr(coreclrtraceptprovider)
+        # Install the static coreclrxplatprovider library
+        install_clr(coreclrxplatprovider)
        """)
 
     with open(eventprovider_directory + lttng_directory + "/eventprovhelpers.cpp", 'w') as helper:
