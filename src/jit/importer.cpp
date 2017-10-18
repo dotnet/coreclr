@@ -3347,17 +3347,9 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     CorInfoIntrinsics intrinsicID = info.compCompHnd->getIntrinsicID(method, &mustExpand);
     *pIntrinsicID                 = intrinsicID;
 
-    // Jit intrinsics won't have an IntrinsicID, and won't be identifed
-    // by the VM as must-expand.
     if (isJitIntrinsic)
     {
-        assert(!mustExpand);
-        assert(intrinsicID == CORINFO_INTRINSIC_Illegal);
-
-        // They however may still be must-expand. The convention we
-        // have adopted is that if we are compiling the intrinsic and
-        // it calls itself recursively, the recursive call is
-        // must-expand.
+        // The recursive calls to Jit intrinsics are must-expand by convention.
         mustExpand = gtIsRecursiveCall(method);
     }
 
@@ -3847,11 +3839,12 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
         default:
             /* Unknown intrinsic */
+            intrinsicID = CORINFO_INTRINSIC_Illegal;
             break;
     }
 
     // Look for new-style jit intrinsics by name
-    if (isJitIntrinsic)
+    if ((intrinsicID == CORINFO_INTRINSIC_Illegal) && isJitIntrinsic)
     {
         assert(retNode == nullptr);
         const NamedIntrinsic ni = lookupNamedIntrinsic(method);
