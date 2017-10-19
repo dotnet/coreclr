@@ -150,38 +150,6 @@ def generateDummyFiles(etwmanifest,eventprovider_directory):
         install(TARGETS eventprovider DESTINATION lib)
         """)
 
-    # Dummy Provider Cmake
-    with open(eventprovider_directory + dummyprovider_directory + "/CMakeLists.txt", 'w') as dummyprovider_Cmake:
-        dummyprovider_Cmake.write(stdprolog_cmake + "\n")
-        dummyprovider_Cmake.write("""
-        cmake_minimum_required(VERSION 2.8.12.2)
-
-        project(coreclrxplatprovider)
-
-        set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-        add_definitions(-DPAL_STDCPP_COMPAT=1)
-        include_directories(${COREPAL_SOURCE_DIR}/inc/rt)
-        include_directories(../dummy/)
-        add_compile_options(-fPIC)
-
-        add_library(coreclrxplatprovider
-            SHARED
-        """)
-
-        for providerNode in tree.getElementsByTagName('provider'):
-            providerName = trimProvName(providerNode.getAttribute('name'))
-            providerName_File = escapeProvFilename(providerName)
-
-            dummyprovider_Cmake.write('        "../'+ dummyevntprovPre + providerName_File +".cpp" + '"\n')
-
-        dummyprovider_Cmake.write("""
-        )
-
-        # Install the static coreclrxplatprovider library
-        install_clr(coreclrxplatprovider)
-        """)
-
     # Dummy Specific Instrumentation
     for providerNode in tree.getElementsByTagName('provider'):
         providerName = trimProvName(providerNode.getAttribute('name'))
