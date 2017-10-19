@@ -702,6 +702,7 @@ private:
     RegRecord* findAnotherHalfRegRec(RegRecord* regRec);
     bool canSpillDoubleReg(RegRecord* physRegRecord, LsraLocation refLocation, unsigned* recentAssignedRefWeight);
     void unassignDoublePhysReg(RegRecord* doubleRegRecord);
+    void updateDoubleAssignedInterval(RegRecord* reg, Interval* interval);
 #endif
     void updateAssignedInterval(RegRecord* reg, Interval* interval, RegisterType regType);
     void updatePreviousInterval(RegRecord* reg, Interval* interval, RegisterType regType);
