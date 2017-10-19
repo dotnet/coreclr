@@ -238,10 +238,12 @@ add_library(coreclrpal
   ${PLATFORM_SOURCES}
 )
 
-add_library(tracepointprovider
-  STATIC
-  misc/tracepointprovider.cpp
-)
+if(CLR_CMAKE_PLATFORM_LINUX AND FEATURE_EVENT_TRACE)
+    add_library(tracepointprovider
+      STATIC
+      misc/tracepointprovider.cpp
+    )
+endif(CLR_CMAKE_PLATFORM_LINUX AND FEATURE_EVENT_TRACE)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   find_library(COREFOUNDATION CoreFoundation)
