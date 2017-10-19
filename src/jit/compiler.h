@@ -6848,7 +6848,7 @@ public:
 
     inline bool generateCFIUnwindCodes()
     {
-#if defined(UNIX_AMD64_ABI) || defined(_TARGET_UNIX_)
+#if defined(_TARGET_UNIX_)
         return IsTargetAbi(CORINFO_CORERT_ABI);
 #else
         return false;
@@ -7318,7 +7318,7 @@ private:
 
 #endif // _TARGET_ARM_
 
-#if defined(UNIX_AMD64_ABI) || defined(_TARGET_UNIX_)
+#if defined(_TARGET_UNIX_)
     int mapRegNumToDwarfReg(regNumber reg);
     void createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR opcode, USHORT dwarfReg, INT offset = 0);
     void unwindPushCFI(regNumber reg);
@@ -7335,7 +7335,7 @@ private:
                      const CFI_CODE* const pCfiCode);
 #endif
 
-#endif
+#endif // _TARGET_UNIX_
 
 #if !defined(__GNUC__)
 #pragma endregion // Note: region is NOT under !defined(__GNUC__)

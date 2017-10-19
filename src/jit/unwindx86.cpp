@@ -20,7 +20,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #error "This should be included only for x86"
 #endif // _TARGET_X86_
 
-#if defined(UNIX_AMD64_ABI) || defined(_TARGET_UNIX_)
+#if defined(_TARGET_UNIX_)
 int Compiler::mapRegNumToDwarfReg(regNumber reg)
 {
     int dwarfReg = DWARF_REG_ILLEGAL;
@@ -29,7 +29,7 @@ int Compiler::mapRegNumToDwarfReg(regNumber reg)
 
     return dwarfReg;
 }
-#endif
+#endif // _TARGET_UNIX_
 
 void Compiler::unwindBegProlog()
 {

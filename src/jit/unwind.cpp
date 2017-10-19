@@ -118,7 +118,7 @@ void Compiler::unwindGetFuncLocations(FuncInfoDsc*             func,
 
 #endif // FEATURE_EH_FUNCLETS
 
-#if defined(UNIX_AMD64_ABI) || defined(_TARGET_UNIX_)
+#if defined(_TARGET_UNIX_)
 
 void Compiler::createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR cfiOpcode, USHORT dwarfReg, INT offset)
 {
@@ -378,7 +378,7 @@ void Compiler::DumpCfiInfo(bool                  isHotCode,
 }
 #endif // DEBUG
 
-#endif // defined(UNIX_AMD64_ABI) || defined(_TARGET_UNIX)
+#endif // _TARGET_UNIX_
 
 //------------------------------------------------------------------------
 // Compiler::unwindGetCurrentOffset: Calculate the current byte offset of the
