@@ -895,6 +895,8 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
                 attr = EA_GCREF;
             else if (gcPtrs[i] == GCT_BYREF)
                 attr = EA_BYREF;
+            else
+                attr = EA_PTRSIZE;
             emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
                                 INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
             emit->emitIns_R_R_I(INS_str, attr, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
