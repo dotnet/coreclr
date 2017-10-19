@@ -590,13 +590,17 @@ def generateSanityTest(sClrEtwAllMan,testDir):
     set(EVENT_PROVIDER_LINKER_OTPTIONS "")
     if(FEATURE_EVENT_TRACE)
         add_definitions(-DFEATURE_EVENT_TRACE=1)
+        list(APPEND EVENT_PROVIDER_DEPENDENCIES
+             eventprovider
+             )
+        if(CLR_CMAKE_PLATFORM_LINUX)
             list(APPEND EVENT_PROVIDER_DEPENDENCIES
-                 coreclrxplatprovider
-                 eventprovider
+                 coreclrtraceptprovider
                  )
-            list(APPEND EVENT_PROVIDER_LINKER_OTPTIONS
-                 ${EVENT_PROVIDER_DEPENDENCIES}
-                 )
+        endif(CLR_CMAKE_PLATFORM_LINUX)
+        list(APPEND EVENT_PROVIDER_LINKER_OTPTIONS
+             ${EVENT_PROVIDER_DEPENDENCIES}
+             )
 
     endif(FEATURE_EVENT_TRACE)
 

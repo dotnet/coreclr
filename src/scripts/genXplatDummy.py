@@ -106,7 +106,6 @@ def generateDummyFiles(etwmanifest,eventprovider_directory):
     tree                    = DOM.parse(etwmanifest)
 
     #keep these relative
-    dummyprovider_directory =  "dummyprovider"
     dummy_directory              =  "dummy"
 
     dummyevntprovPre             = dummy_directory + "/eventprov"
@@ -116,9 +115,6 @@ def generateDummyFiles(etwmanifest,eventprovider_directory):
 
     if not os.path.exists(eventprovider_directory + dummy_directory):
         os.makedirs(eventprovider_directory + dummy_directory)
-
-    if not os.path.exists(eventprovider_directory + dummyprovider_directory):
-        os.makedirs(eventprovider_directory + dummyprovider_directory)
 
     # Top level Cmake
     with open(eventprovider_directory + "CMakeLists.txt", 'w') as topCmake:
@@ -144,7 +140,6 @@ def generateDummyFiles(etwmanifest,eventprovider_directory):
             topCmake.write('        "%s%s.cpp"\n' % (dummyevntprovPre, providerName_File))
 
         topCmake.write(""")
-        add_subdirectory(dummyprovider)
 
         # Install the static eventprovider library
         install(TARGETS eventprovider DESTINATION lib)
