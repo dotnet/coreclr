@@ -191,7 +191,7 @@ namespace System.Diagnostics.Contracts
     [SuppressMessage("Microsoft.Design", "CA1064:ExceptionsShouldBePublic")]
     internal
 #else
-    public // On CoreRT this must be public.
+    public // On CoreRT this must be public to support binary serialization with type forwarding.
 #endif
     sealed class ContractException : Exception
     {
