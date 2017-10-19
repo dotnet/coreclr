@@ -55,7 +55,7 @@ endif(CLR_CMAKE_PLATFORM_DARWIN)
 add_library_clr(mscordbi SHARED ${MSCORDBI_SOURCES})
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-    add_custom_target(mscordbi_exports DEPENDS ${EXPORTS_FILE})
+    _add_custom_target(mscordbi_exports DEPENDS ${EXPORTS_FILE})
     add_dependencies(mscordbi mscordbi_exports)
 
     set_property(TARGET mscordbi APPEND_STRING PROPERTY LINK_FLAGS ${EXPORTS_LINKER_OPTION})

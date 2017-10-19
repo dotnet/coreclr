@@ -24,7 +24,7 @@ if(WIN32)
     preprocess_def_file(${CMAKE_CURRENT_SOURCE_DIR}/${DEF_SOURCES} ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def)
 
     #create target to add file dependency on mscordac.def
-    add_custom_target(mscordaccore_def DEPENDS ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def)
+    _add_custom_target(mscordaccore_def DEPENDS ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def)
 
     # No library groups for Win32
     set(START_LIBRARY_GROUP)
@@ -65,7 +65,7 @@ _add_library(mscordacobj OBJECT mscordac.cpp)
 add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES} $<TARGET_OBJECTS:mscordacobj>)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-    add_custom_target(mscordaccore_exports DEPENDS ${EXPORTS_FILE})
+    _add_custom_target(mscordaccore_exports DEPENDS ${EXPORTS_FILE})
     add_dependencies(mscordaccore mscordaccore_exports)
 
     set_property(TARGET mscordaccore APPEND_STRING PROPERTY LINK_FLAGS ${EXPORTS_LINKER_OPTION})

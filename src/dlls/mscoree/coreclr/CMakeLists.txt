@@ -59,7 +59,7 @@ add_library_clr(coreclr
     ${CLR_SOURCES}
 )
 
-add_custom_target(coreclr_exports DEPENDS ${EXPORTS_FILE})
+_add_custom_target(coreclr_exports DEPENDS ${EXPORTS_FILE})
 add_dependencies(coreclr coreclr_exports)
 
 set_property(TARGET coreclr APPEND_STRING PROPERTY LINK_FLAGS ${EXPORTS_LINKER_OPTION})
@@ -175,7 +175,7 @@ if(WIN32)
     )
 
     if(NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
-        add_custom_target(inject_debug_resources ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/inject_debug_resources.timestamp)
+        _add_custom_target(inject_debug_resources ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/inject_debug_resources.timestamp)
     endif()
 
 endif(WIN32)

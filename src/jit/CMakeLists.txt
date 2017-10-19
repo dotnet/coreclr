@@ -211,7 +211,7 @@ else()
   set(SHARED_LIB_SOURCES ${SOURCES})
 endif()
 
-add_custom_target(jit_exports DEPENDS ${JIT_EXPORTS_FILE})
+_add_custom_target(jit_exports DEPENDS ${JIT_EXPORTS_FILE})
 
 set(RYUJIT_LINK_LIBRARIES
    utilcodestaticnohost
