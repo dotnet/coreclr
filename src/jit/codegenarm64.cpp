@@ -1454,7 +1454,17 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
             }
             else
             {
-                genSetRegToIcon(targetReg, cnsVal, targetType);
+                if (varTypeIsSIMD(targetType))
+                {
+                    // A constant value of zero will easily replicate into SIMD type
+                    // Other constants require baseType size which is missing
+                    assert(cnsVal == 0);
+                    getEmitter()->emitIns_R_I(INS_movi, EA_16BYTE, targetReg, 0x00, INS_OPTS_16B);
+                }
+                else
+                {
+                    genSetRegToIcon(targetReg, cnsVal, targetType);
+                }
             }
         }
         break;
