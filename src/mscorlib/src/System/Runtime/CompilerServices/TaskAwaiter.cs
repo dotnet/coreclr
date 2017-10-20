@@ -44,6 +44,7 @@ using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics.Tracing;
+using System.Runtime.ExceptionServices;
 
 // NOTE: For performance reasons, initialization is not verified.  If a developer
 //       incorrectly initializes a task awaiter, which should only be done by the compiler,
@@ -113,6 +114,7 @@ namespace System.Runtime.CompilerServices
         /// prior to completing the await.
         /// </summary>
         /// <param name="task">The awaited task.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void ValidateEnd(Task task)
         {
             // Fast checks that can be inlined.
@@ -120,16 +122,21 @@ namespace System.Runtime.CompilerServices
             {
                 // If either the end await bit is set or we're not completed successfully,
                 // fall back to the slower path.
-                HandleNonSuccessAndDebuggerNotification(task);
+                var exception = HandleNonSuccessAndDebuggerNotification(task);
+                if (exception != null)
+                {
+                    throw exception;
+                }
             }
         }
 
         /// <summary>
         /// Ensures the task is completed, triggers any necessary debugger breakpoints for completing 
-        /// the await on the task, and throws an exception if the task did not complete successfully.
+        /// the await on the task, and returns an exception if the task did not complete successfully.
         /// </summary>
         /// <param name="task">The awaited task.</param>
-        private static void HandleNonSuccessAndDebuggerNotification(Task task)
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static Exception HandleNonSuccessAndDebuggerNotification(Task task)
         {
             // NOTE: The JIT refuses to inline ValidateEnd when it contains the contents
             // of HandleNonSuccessAndDebuggerNotification, hence the separation.
@@ -148,11 +155,11 @@ namespace System.Runtime.CompilerServices
             task.NotifyDebuggerOfWaitCompletionIfNecessary();
 
             // And throw an exception if the task is faulted or canceled.
-            if (!task.IsCompletedSuccessfully) ThrowForNonSuccess(task);
+            return task.IsCompletedSuccessfully ? null : GetNonSuccessException(task);
         }
 
-        /// <summary>Throws an exception to handle a task that completed in a state other than RanToCompletion.</summary>
-        private static void ThrowForNonSuccess(Task task)
+        /// <summary>Returns an exception to handle a task that completed in a state other than RanToCompletion.</summary>
+        private static Exception GetNonSuccessException(Task task)
         {
             Debug.Assert(task.IsCompleted, "Task must have been completed by now.");
             Debug.Assert(task.Status != TaskStatus.RanToCompletion, "Task should not be completed successfully.");
@@ -168,10 +175,9 @@ namespace System.Runtime.CompilerServices
                     var oceEdi = task.GetCancellationExceptionDispatchInfo();
                     if (oceEdi != null)
                     {
-                        oceEdi.Throw();
-                        Debug.Assert(false, "Throw() should have thrown");
+                        return oceEdi.GetThrowableException();
                     }
-                    throw new TaskCanceledException(task);
+                    return new TaskCanceledException(task);
 
                 // If the task faulted, throw its first exception,
                 // even if it contained more than one.
@@ -179,16 +185,17 @@ namespace System.Runtime.CompilerServices
                     var edis = task.GetExceptionDispatchInfos();
                     if (edis.Count > 0)
                     {
-                        edis[0].Throw();
-                        Debug.Assert(false, "Throw() should have thrown");
-                        break; // Necessary to compile: non-reachable, but compiler can't determine that
+                        return edis[0].GetThrowableException();
                     }
                     else
                     {
                         Debug.Assert(false, "There should be exceptions if we're Faulted.");
-                        throw task.Exception;
+                        return task.Exception;
                     }
             }
+
+            Debug.Assert(false, "There should be exceptions if we're Faulted.");
+            return new TaskCanceledException();
         }
 
         /// <summary>Schedules the continuation onto the <see cref="System.Threading.Tasks.Task"/> associated with this <see cref="TaskAwaiter"/>.</summary>
