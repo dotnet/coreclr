@@ -660,7 +660,7 @@ namespace System.Diagnostics
         private static bool ShowInStackTrace(MethodBase mb)
         {
             Debug.Assert(mb != null);
-            return !(mb.IsDefined(typeof(StackTraceHiddenAttribute)) || (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute)) ?? false));
+            return !(mb.IsDefined(typeof(DebuggerNonUserCodeAttribute)) || (mb.DeclaringType?.IsDefined(typeof(DebuggerNonUserCodeAttribute)) ?? false));
         }
 
         // This helper is called from within the EE to construct a string representation
