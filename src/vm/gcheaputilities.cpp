@@ -130,6 +130,7 @@ HRESULT GCHeapUtilities::InitializeAndLoad()
             g_gc_version_info.MinorVersion, GC_INTERFACE_MINOR_VERSION));
     }
 
+    LOG((LF_GC, LL_INFO100, "Loaded GC identifying itself with name `%s`\n", g_gc_version_info.Name));
     g_gc_load_status = GC_LOAD_STATUS_DONE_VERSION_CHECK;
     GC_InitializeFunction initFunc = (GC_InitializeFunction)GetProcAddress(hMod, "GC_Initialize");
     if (!initFunc)
@@ -149,8 +150,10 @@ HRESULT GCHeapUtilities::InitializeAndLoad()
         g_pGCHandleManager = manager;
         g_gcDacGlobals = &g_gc_dac_vars;
         g_gc_load_status = GC_LOAD_STATUS_DONE_LOAD;
+        LOG((LF_GC, LL_INFO100, "GC load successful\n"));
     }
 
+    LOG((LF_GC, LL_INFO100, "GC initialization failed with HR = 0x%X\n", initResult));
     return initResult;
 }
 
