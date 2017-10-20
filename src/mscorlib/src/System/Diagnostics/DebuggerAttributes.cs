@@ -255,13 +255,6 @@ namespace System.Diagnostics
             set { targetName = value; }
         }
     }
-
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor | AttributeTargets.Struct, Inherited = false)]
-    internal sealed class StackTraceHiddenAttribute : Attribute
-    {
-        public StackTraceHiddenAttribute() { }
-    }
-
 }
 
 
