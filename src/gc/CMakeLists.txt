@@ -14,6 +14,7 @@ set( GC_SOURCES
   gchandletable.cpp
   gceesvr.cpp
   gceewks.cpp
+  gcload.cpp
   handletablecache.cpp)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
@@ -40,9 +41,9 @@ endif(WIN32)
 
 convert_to_absolute_path(GC_SOURCES ${GC_SOURCES})
 
-add_library_clr(gc SHARED ${GC_SOURCES})
-target_link_libraries(gc ${GC_LINK_LIBRARIES})
-install_clr(gc)
+add_library_clr(clrgc SHARED ${GC_SOURCES})
+target_link_libraries(clrgc ${GC_LINK_LIBRARIES})
+install_clr(clrgc)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
   add_compile_options(-fPIC)

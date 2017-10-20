@@ -14,6 +14,7 @@ set(SOURCES
     ../gchandletable.cpp
     ../gcscan.cpp
     ../gcwks.cpp
+    ../gcload.cpp
     ../handletable.cpp
     ../handletablecache.cpp
     ../handletablecore.cpp

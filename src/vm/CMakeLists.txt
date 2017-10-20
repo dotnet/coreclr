@@ -270,6 +270,7 @@ set(GC_SOURCES_WKS
     ../gc/gchandletable.cpp
     ../gc/gceesvr.cpp
     ../gc/gceewks.cpp
+    ../gc/gcload.cpp
     ../gc/softwarewritewatch.cpp
     ../gc/handletablecache.cpp)
 

@@ -880,16 +880,4 @@ typedef HRESULT (*GC_InitializeFunction)(
     /* Out */ GcDacVars*
 );
 
-// Delete this stuff
-typedef bool (*InitializeGarbageCollectorFunction)(
-        /* In  */ IGCToCLR*,
-        /* Out */ IGCHeap**,
-        /* Out */ IGCHandleManager**,
-        /* Out */ GcDacVars*
-);
-    
-// The name of the function that initializes the garbage collector,
-// to be used as an argument to GetProcAddress.
-#define INITIALIZE_GC_FUNCTION_NAME "InitializeGarbageCollector"
-
 #endif // _GC_INTERFACE_H_
