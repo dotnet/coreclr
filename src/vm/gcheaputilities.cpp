@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "gcheaputilities.h"
+#include "gcenv.ee.h"
 #include "appdomain.hpp"
 
 
@@ -36,3 +37,121 @@ bool g_sw_ww_enabled_for_gc_heap = false;
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
 gc_alloc_context g_global_alloc_context = {};
+
+enum GC_LOAD_STATUS {
+    GC_LOAD_STATUS_START,
+    GC_LOAD_STATUS_DONE_LOAD,
+    GC_LOAD_STATUS_GET_VERSIONINFO,
+    GC_LOAD_STATUS_CALL_VERSIONINFO,
+    GC_LOAD_STATUS_DONE_VERSION_CHECK,
+    GC_LOAD_STATUS_GET_INITIALIZE,
+    GC_LOAD_STATUS_LOAD_COMPLETE
+};
+
+GC_LOAD_STATUS g_gc_load_status = GC_LOAD_STATUS_START;
+VersionInfo g_gc_version_info;
+
+#ifndef DACCESS_COMPILE
+
+HRESULT GCHeapUtilities::InitializeAndLoad()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // we should only call this once on startup. Attempting to load a GFC
+    // twice is an error.
+    assert(g_pGCHeap == nullptr);
+
+    // we should not have attempted to load a GC already. Attempting a
+    // load after the first load already failed is an error.
+    assert(g_gc_load_status == GC_LOAD_STATUS_START);
+
+    TCHAR* standaloneGcLocation = nullptr;
+    CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCName, &standaloneGcLocation);
+
+    HMODULE hMod;
+    IGCToCLR* gcToClr;
+    if (!standaloneGcLocation)
+    {
+        LOG((LF_GC, LL_INFO100, "Standalone GC location not provided, using provided GC\n"));
+        hMod = GetModuleInst();
+        assert(hMod != nullptr);
+
+        // a non-standalone GC links directly against the EE and invokes methods on GCToEEInterface
+        // directly
+        gcToClr = nullptr;
+    }
+    else
+    {
+#ifndef FEATURE_STANDALONE_GC
+        LOG((LF_GC, LL_FATALERROR, "EE not built with the ability to load standalone GCs"));
+        return E_FAIL;
+#else
+        LOG((LF_GC, LL_INFO100, "Loading standalone GC from path %S\n", standaloneGcLocation));
+        hMod = CLRLoadLibrary(standaloneGcLocation);
+        if (!hMod)
+        {
+            HRESULT err = GetLastError();
+            LOG((LF_GC, LL_FATALERROR, "Load of %S failed\n", standaloneGcLocation));
+            return err;
+        }
+
+        // a standalone GC dispatches virtually on GCToEEInterface.
+        gcToClr = new (nothrow) standalone::GCToEEInterface();
+        if (!gcToClr)
+        {
+            return E_OUTOFMEMORY;
+        }
+#endif // FEATURE_STANDALONE_GC
+    }
+
+    g_gc_load_status = GC_LOAD_STATUS_DONE_LOAD;
+    GC_VersionInfoFunction versionInfo = (GC_VersionInfoFunction)GetProcAddress(hMod, "GC_VersionInfo");
+    if (!versionInfo)
+    {
+        HRESULT err = GetLastError();
+        LOG((LF_GC, LL_FATALERROR, "Load of `GC_VersionInfo` from standalone GC failed\n"));
+        return err;
+    }
+
+    g_gc_load_status = GC_LOAD_STATUS_GET_VERSIONINFO;
+    versionInfo(&g_gc_version_info);
+    g_gc_load_status = GC_LOAD_STATUS_CALL_VERSIONINFO;
+
+    if (g_gc_version_info.MajorVersion != GC_INTERFACE_MAJOR_VERSION)
+    {
+        LOG((LF_GC, LL_FATALERROR, "Loaded GC has incompatible major version number (expected %d, got %d)\n",
+            GC_INTERFACE_MAJOR_VERSION, g_gc_version_info.MajorVersion));
+        return E_FAIL;
+    }
+
+    if (g_gc_version_info.MinorVersion < GC_INTERFACE_MINOR_VERSION)
+    {
+        LOG((LF_GC, LL_INFO100, "Loaded GC has lower minor version number (%d) than EE was compiled against (%d)\n",
+            g_gc_version_info.MinorVersion, GC_INTERFACE_MINOR_VERSION));
+    }
+
+    g_gc_load_status = GC_LOAD_STATUS_DONE_VERSION_CHECK;
+    GC_InitializeFunction initFunc = (GC_InitializeFunction)GetProcAddress(hMod, "GC_Initialize");
+    if (!initFunc)
+    {
+        HRESULT err = GetLastError();
+        LOG((LF_GC, LL_FATALERROR, "Load of `GC_Initialize` from standalone GC failed\n"));
+        return err;
+    }
+
+    g_gc_load_status = GC_LOAD_STATUS_GET_INITIALIZE;
+    IGCHeap* heap;
+    IGCHandleManager* manager;
+    HRESULT initResult = initFunc(gcToClr, &heap, &manager, &g_gc_dac_vars);
+    if (initResult == S_OK)
+    {
+        g_pGCHeap = heap;
+        g_pGCHandleManager = manager;
+        g_gcDacGlobals = &g_gc_dac_vars;
+        g_gc_load_status = GC_LOAD_STATUS_DONE_LOAD;
+    }
+
+    return initResult;
+}
+
+#endif // DACCESS_COMPILE
