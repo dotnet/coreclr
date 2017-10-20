@@ -537,7 +537,7 @@ namespace System.Diagnostics
             {
                 StackFrame sf = GetFrame(iFrameIndex);
                 MethodBase mb = sf.GetMethod();
-                if (mb != null && !(mb.IsDefined(typeof(StackTraceHiddenAttribute)) || mb.DeclaringType.IsDefined(typeof(StackTraceHiddenAttribute))))
+                if (mb != null && ShowInStackTrace(mb))
                 {
                     // We want a newline at the end of every line except for the last
                     if (fFirstFrame)
@@ -655,6 +655,12 @@ namespace System.Diagnostics
                 sb.Append(Environment.NewLine);
 
             return sb.ToString();
+        }
+
+        private static bool ShowInStackTrace(MethodBase mb)
+        {
+            Debug.Assert(mb != null);
+            return !(mb.IsDefined(typeof(StackTraceHiddenAttribute)) || (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute)) ?? false));
         }
 
         // This helper is called from within the EE to construct a string representation
