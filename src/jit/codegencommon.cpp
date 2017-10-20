@@ -9387,14 +9387,14 @@ void CodeGen::genFnProlog()
  *  Please consult the "debugger team notification" comment in genFnProlog().
  */
 
-#if defined(_TARGET_ARM_)
+#if defined(_TARGET_ARMARCH_)
 
 void CodeGen::genFnEpilog(BasicBlock* block)
 {
 #ifdef DEBUG
     if (verbose)
         printf("*************** In genFnEpilog()\n");
-#endif
+#endif // DEBUG
 
     ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
 
@@ -9418,10 +9418,11 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         getEmitter()->emitDispRegSet(gcInfo.gcRegByrefSetCur);
         printf("\n");
     }
-#endif
+#endif // DEBUG
 
     bool jmpEpilog = ((block->bbFlags & BBF_HAS_JMP) != 0);
 
+#ifdef _TARGET_ARM_
     // We delay starting the unwind codes until we have an instruction which we know
     // needs an unwind code. In particular, for large stack frames in methods without
     // localloc, the sequence might look something like this:
@@ -9477,21 +9478,28 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         compiler->unwindAllocStack(preSpillRegArgSize);
     }
 
+#else  // _TARGET_ARM64_
+    compiler->unwindBegEpilog();
+
+    genPopCalleeSavedRegistersAndFreeLclFrame(jmpEpilog);
+#endif // _TARGET_ARM64_
+
     if (jmpEpilog)
     {
         noway_assert(block->bbJumpKind == BBJ_RETURN);
-        noway_assert(block->bbTreeList);
+        noway_assert(block->bbTreeList != nullptr);
 
+#ifdef _TARGET_ARM_
         // We better not have used a pop PC to return otherwise this will be unreachable code
         noway_assert(!genUsedPopToReturn);
+#endif // _TARGET_ARM_
 
         /* figure out what jump we have */
-
         GenTree* jmpNode = block->lastNode();
 #if !FEATURE_FASTTAILCALL
         noway_assert(jmpNode->gtOper == GT_JMP);
-#else
-        // arm
+#else  // FEATURE_FASTTAILCALL
+        // armarch
         // If jmpNode is GT_JMP then gtNext must be null.
         // If jmpNode is a fast tail call, gtNext need not be null since it could have embedded stmts.
         noway_assert((jmpNode->gtOper != GT_JMP) || (jmpNode->gtNext == nullptr));
@@ -9502,16 +9510,19 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
         // The next block is associated with this "if" stmt
         if (jmpNode->gtOper == GT_JMP)
-#endif
+#endif // FEATURE_FASTTAILCALL
         {
+            // Simply emit a jump to the methodHnd. This is similar to a call so we can use
+            // the same descriptor with some minor adjustments.
             CORINFO_METHOD_HANDLE methHnd = (CORINFO_METHOD_HANDLE)jmpNode->gtVal.gtVal1;
 
-            CORINFO_CONST_LOOKUP  addrInfo;
+            CORINFO_CONST_LOOKUP addrInfo;
+            compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
+
+#ifdef _TARGET_ARM_
+            emitter::EmitCallType callType;
             void*                 addr;
             regNumber             indCallReg;
-            emitter::EmitCallType callType;
-
-            compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
             switch (addrInfo.accessType)
             {
                 case IAT_VALUE:
@@ -9568,99 +9579,9 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                                        0,             // disp
                                        true);         // isJump
             // clang-format on
-        }
-#if FEATURE_FASTTAILCALL
-        else
-        {
-            // Fast tail call.
-            // Call target = REG_R12.
-            // Do we need a special encoding for stack walker like rex.w prefix for x64?
-            getEmitter()->emitIns_R_R(INS_mov, emitTypeSize(TYP_I_IMPL), REG_PC, REG_R12);
-        }
-#endif // FEATURE_FASTTAILCALL
-    }
-    else
-    {
-        if (!genUsedPopToReturn)
-        {
-            // If we did not use a pop to return, then we did a "pop {..., lr}" instead of "pop {..., pc}",
-            // so we need a "bx lr" instruction to return from the function.
-            inst_RV(INS_bx, REG_LR, TYP_I_IMPL);
-            compiler->unwindBranch16();
-        }
-    }
+            CLANG_FORMAT_COMMENT_ANCHOR;
 
-    compiler->unwindEndEpilog();
-}
-
-#elif defined(_TARGET_ARM64_)
-
-void CodeGen::genFnEpilog(BasicBlock* block)
-{
-#ifdef DEBUG
-    if (verbose)
-        printf("*************** In genFnEpilog()\n");
-#endif
-
-    ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
-
-    VarSetOps::Assign(compiler, gcInfo.gcVarPtrSetCur, getEmitter()->emitInitGCrefVars);
-    gcInfo.gcRegGCrefSetCur = getEmitter()->emitInitGCrefRegs;
-    gcInfo.gcRegByrefSetCur = getEmitter()->emitInitByrefRegs;
-
-#ifdef DEBUG
-    if (compiler->opts.dspCode)
-        printf("\n__epilog:\n");
-
-    if (verbose)
-    {
-        printf("gcVarPtrSetCur=%s ", VarSetOps::ToString(compiler, gcInfo.gcVarPtrSetCur));
-        dumpConvertedVarSet(compiler, gcInfo.gcVarPtrSetCur);
-        printf(", gcRegGCrefSetCur=");
-        printRegMaskInt(gcInfo.gcRegGCrefSetCur);
-        getEmitter()->emitDispRegSet(gcInfo.gcRegGCrefSetCur);
-        printf(", gcRegByrefSetCur=");
-        printRegMaskInt(gcInfo.gcRegByrefSetCur);
-        getEmitter()->emitDispRegSet(gcInfo.gcRegByrefSetCur);
-        printf("\n");
-    }
-#endif
-
-    bool jmpEpilog = ((block->bbFlags & BBF_HAS_JMP) != 0);
-
-    compiler->unwindBegEpilog();
-
-    genPopCalleeSavedRegistersAndFreeLclFrame(jmpEpilog);
-
-    if (jmpEpilog)
-    {
-        noway_assert(block->bbJumpKind == BBJ_RETURN);
-        noway_assert(block->bbTreeList != nullptr);
-
-        // figure out what jump we have
-        GenTree* jmpNode = block->lastNode();
-#if !FEATURE_FASTTAILCALL
-        noway_assert(jmpNode->gtOper == GT_JMP);
-#else
-        // arm64
-        // If jmpNode is GT_JMP then gtNext must be null.
-        // If jmpNode is a fast tail call, gtNext need not be null since it could have embedded stmts.
-        noway_assert((jmpNode->gtOper != GT_JMP) || (jmpNode->gtNext == nullptr));
-
-        // Could either be a "jmp method" or "fast tail call" implemented as epilog+jmp
-        noway_assert((jmpNode->gtOper == GT_JMP) ||
-                     ((jmpNode->gtOper == GT_CALL) && jmpNode->AsCall()->IsFastTailCall()));
-
-        // The next block is associated with this "if" stmt
-        if (jmpNode->gtOper == GT_JMP)
-#endif
-        {
-            // Simply emit a jump to the methodHnd. This is similar to a call so we can use
-            // the same descriptor with some minor adjustments.
-            CORINFO_METHOD_HANDLE methHnd = (CORINFO_METHOD_HANDLE)jmpNode->gtVal.gtVal1;
-
-            CORINFO_CONST_LOOKUP addrInfo;
-            compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
+#else // _TARGET_ARM64_
             if (addrInfo.accessType != IAT_VALUE)
             {
                 NYI_ARM64("Unsupported JMP indirection");
@@ -9685,22 +9606,35 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                                        BAD_IL_OFFSET, REG_NA, REG_NA, 0, 0, /* iloffset, ireg, xreg, xmul, disp */
                                        true);                               /* isJump */
             // clang-format on
+            CLANG_FORMAT_COMMENT_ANCHOR;
+
+#endif // _TARGET_ARM64_
         }
 #if FEATURE_FASTTAILCALL
         else
         {
             // Fast tail call.
-            // Call target = REG_IP0.
+            // Call target = REG_FASTTAILCALL_TARGET
             // https://github.com/dotnet/coreclr/issues/4827
             // Do we need a special encoding for stack walker like rex.w prefix for x64?
-            getEmitter()->emitIns_R(INS_br, emitTypeSize(TYP_I_IMPL), REG_IP0);
+            getEmitter()->emitIns_R(INS_br, emitTypeSize(TYP_I_IMPL), REG_FASTTAILCALL_TARGET);
         }
 #endif // FEATURE_FASTTAILCALL
     }
     else
     {
+#ifdef _TARGET_ARM_
+        if (!genUsedPopToReturn)
+        {
+            // If we did not use a pop to return, then we did a "pop {..., lr}" instead of "pop {..., pc}",
+            // so we need a "bx lr" instruction to return from the function.
+            inst_RV(INS_bx, REG_LR, TYP_I_IMPL);
+            compiler->unwindBranch16();
+        }
+#else  // _TARGET_ARM64_
         inst_RV(INS_ret, REG_LR, TYP_I_IMPL);
         compiler->unwindReturn(REG_LR);
+#endif // _TARGET_ARM64_
     }
 
     compiler->unwindEndEpilog();
