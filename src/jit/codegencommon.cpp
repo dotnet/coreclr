@@ -11312,7 +11312,7 @@ instruction CodeGen::genMapShiftInsToShiftByConstantIns(instruction ins, int shi
 
 #endif // _TARGET_XARCH_
 
-#if !defined(LEGACY_BACKEND) && (defined(_TARGET_XARCH_) || defined(_TARGET_ARMARCH_))
+#if !defined(LEGACY_BACKEND)
 
 //------------------------------------------------------------------------------------------------ //
 // getFirstArgWithStackSlot - returns the first argument with stack slot on the caller's frame.
@@ -11366,16 +11366,16 @@ unsigned CodeGen::getFirstArgWithStackSlot()
     }
 
     return baseVarNum;
-#elif defined(_TARGET_AMDARCH_)
+#elif defined(_TARGET_AMD64_)
     return 0;
-#else
+#else  // _TARGET_X86
     // Not implemented for x86.
     NYI_X86("getFirstArgWithStackSlot not yet implemented for x86.");
     return BAD_VAR_NUM;
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING || _TARGET_ARMARCH_
+#endif // _TARGET_X86_
 }
 
-#endif // !LEGACY_BACKEND && (_TARGET_XARCH_ || _TARGET_ARMARCH_)
+#endif // !LEGACY_BACKEND
 
 //------------------------------------------------------------------------
 // genSinglePush: Report a change in stack level caused by a single word-sized push instruction
