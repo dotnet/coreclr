@@ -421,7 +421,11 @@ public:
     unsigned lvHfaSlots() const
     {
         assert(lvIsHfa());
+#ifdef FEATURE_SIMD
+        assert((lvType == TYP_STRUCT) || lvSIMDType);
+#else
         assert(lvType == TYP_STRUCT);
+#endif
 #ifdef _TARGET_ARM_
         return lvExactSize / sizeof(float);
 #else  //  _TARGET_ARM64_

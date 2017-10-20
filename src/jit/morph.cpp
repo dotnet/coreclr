@@ -3575,6 +3575,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     structBaseType = getArgTypeForStruct(objClass, &howToPassStruct, originalSize);
 
 #ifdef _TARGET_ARM64_
+                    isHfaArg = IsHfa(objClass);
+
                     if ((howToPassStruct == SPK_PrimitiveType) && // Passed in a single register
                         !isPow2(originalSize))                    // size is 3,5,6 or 7 bytes
                     {
@@ -3620,7 +3622,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #else                                                                         // !_TARGET_ARM_
                     if ((originalSize > TARGET_POINTER_SIZE) || // it is struct that is larger than a pointer
                         !isPow2(originalSize) ||                // it is not a power of two (1, 2, 4 or 8)
-                        (isHfaArg && (hfaSlots != 1)))          // it is a one element HFA struct
+                        (isHfaArg && (howToPassStruct != SPK_PrimitiveType))) // it is a one element HFA struct
 #endif                                                                        // !_TARGET_ARM_
 #endif                                                                        // FEATURE_UNIX_AMD64_STRUCT_PASSING
                     {
@@ -3695,7 +3697,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 #elif defined(_TARGET_ARM64_)
-                        if ((size > 2) && !isHfaArg)
+                        if (varTypeIsSIMD(argx) || ((size > 2) && !isHfaArg))
                         {
                             size            = 1; // This must be copied to a temp and passed by address
                             passStructByRef = true;
