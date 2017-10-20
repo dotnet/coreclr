@@ -598,7 +598,7 @@ public:
         ULONG32* pcCodeInfos, 
         COR_PRF_CODE_INFO codeInfos[]);
 
-    // end ICorProfiler9
+    // end ICorProfilerInfo9
 
 protected:
 
