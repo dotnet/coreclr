@@ -378,9 +378,8 @@ namespace System.Diagnostics
 
         internal static int CalculateFramesToSkip(StackFrameHelper StackF, int iNumFrames)
         {
-            const string DiagnosticsPackageName = nameof(System.Diagnostics);
-
             int iRetVal = 0;
+            String PackageName = "System.Diagnostics";
 
             // Check if this method is part of the System.Diagnostics
             // package. If so, increment counter keeping track of 
@@ -396,7 +395,7 @@ namespace System.Diagnostics
                     String ns = t.Namespace;
                     if (ns == null)
                         break;
-                    if (String.Compare(ns, DiagnosticsPackageName, StringComparison.Ordinal) != 0)
+                    if (String.Compare(ns, PackageName, StringComparison.Ordinal) != 0)
                         break;
                 }
                 iRetVal++;
