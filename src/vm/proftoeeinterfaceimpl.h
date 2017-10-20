@@ -577,7 +577,7 @@ public:
 
     // end ICorProfilerInfo8
 
-    // beging ICorProfiler9
+    // beging ICorProfilerInfo9
 
     COM_METHOD GetNativeCodeStartAddresses(
         FunctionID functionID, 

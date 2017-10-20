@@ -2596,19 +2596,28 @@ HRESULT ProfToEEInterfaceImpl::GetCodeInfo3(FunctionID functionId,
         hr = ValidateParametersForGetCodeInfo(pMethodDesc, cCodeInfos, codeInfos);
         if (SUCCEEDED(hr))
         {
+            PCODE pCodeStart = NULL;
             CodeVersionManager* pCodeVersionManager = pMethodDesc->GetCodeVersionManager();
-            ILCodeVersion ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMethodDesc, reJitId);
-
-            NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMethodDesc);
-            for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
             {
-                PCODE pCodeStart = iter->GetNativeCode();
-                hr = GetCodeInfoFromCodeStart(pCodeStart,
-                                              cCodeInfos,
-                                              pcCodeInfos,
-                                              codeInfos);
-                break;
+                CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
+                
+                ILCodeVersion ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMethodDesc, reJitId);
+
+                NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMethodDesc);
+                for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+                {
+                    // Now that tiered compilation can create more than one jitted code version for the same rejit id
+                    // we are arbitrarily choosing the first one to return.  To address a specific version of native code
+                    // use GetCodeInfo4.
+                    pCodeStart = iter->GetNativeCode();
+                    break;
+                }
             }
+            
+            hr = GetCodeInfoFromCodeStart(pCodeStart,
+                                          cCodeInfos,
+                                          pcCodeInfos,
+                                          codeInfos);
         }
     }
     EX_CATCH_HRESULT(hr);
@@ -5101,21 +5110,26 @@ HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping2(FunctionID functionId,
         }
         else
         {
+            PCODE pCodeStart = NULL;
             CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
             ILCodeVersion ilCodeVersion = NULL;
             {
                 CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
 
                 pCodeVersionManager->GetILCodeVersion(pMD, reJitId);
-            }
         
-            NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
-            for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
-            {
-                PCODE pCodeStart = iter->GetNativeCode();
-                hr = GetILToNativeMapping3(pCodeStart, cMap, pcMap, map);
-                break;
+                NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
+                for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+                {
+                    // Now that tiered compilation can create more than one jitted code version for the same rejit id
+                    // we are arbitrarily choosing the first one to return.  To address a specific version of native code
+                    // use GetILToNativeMapping3.
+                    pCodeStart = iter->GetNativeCode();
+                    break;
+                }
             }
+
+            hr = GetILToNativeMapping3(pCodeStart, cMap, pcMap, map);
         }
     }
     EX_CATCH_HRESULT(hr);
@@ -6594,10 +6608,17 @@ HRESULT ProfToEEInterfaceImpl::GetDynamicFunctionInfo(FunctionID functionId,
 /*
  * GetNativeCodeStartAddresses
  * 
- * TODO: Description
+ * Gets all of the native code addresses associated with a particular function. iered compilation 
+ * potentially creates different native code versions for a method, and this function allows profilers
+ * to view all native versions of a method.
  * 
  * Parameters:
- *
+ *      functionID           - The function that is being requested.
+ *      reJitId              - The ReJIT id.
+ *      cCodeStartAddresses  - A parameter for indicating the size of buffer for the codeStartAddresses parameter.
+ *      pcCodeStartAddresses - An optional parameter for returning the true size of the codeStartAddresses parameter.
+ *      codeStartAddresses   - The array to be filled up with native code addresses.
+ * 
  * Returns:
  *   S_OK if successful
  *
@@ -6617,6 +6638,9 @@ HRESULT ProfToEEInterfaceImpl::GetNativeCodeStartAddresses(FunctionID functionID
         CAN_TAKE_LOCK;
 
         SO_NOT_MAINLINE;
+
+        PRECONDITION(CheckPointer(pcCodeStartAddresses, NULL_OK));
+        PRECONDITION(CheckPointer(codeStartAddresses, NULL_OK));
     }
     CONTRACTL_END;
 
@@ -6636,30 +6660,44 @@ HRESULT ProfToEEInterfaceImpl::GetNativeCodeStartAddresses(FunctionID functionID
    
     EX_TRY
     {
-        MethodDesc * methodDesc = FunctionIdToMethodDesc(functionID);
-        PTR_MethodDesc pMD = PTR_MethodDesc(methodDesc);
-
-        CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
-
-        ILCodeVersion ilCodeVersion = NULL;
+        if (pcCodeStartAddresses != NULL)
         {
-            CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
-
-            ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMD, reJitId);
+            *pcCodeStartAddresses = 0;
         }
-        
-        NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
-        for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+
+        if ((codeStartAddresses != NULL) && cCodeStartAddresses > 0)
         {
-            if (*pcCodeStartAddresses >= cCodeStartAddresses)
+            MethodDesc * methodDesc = FunctionIdToMethodDesc(functionID);
+            PTR_MethodDesc pMD = PTR_MethodDesc(methodDesc);
+            ULONG32 trueLen = 0;
+
+            CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+
+            ILCodeVersion ilCodeVersion = NULL;
             {
-                hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-                break;
+                CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
+
+                ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMD, reJitId);
+            
+                NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
+                for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+                {
+                    if (trueLen >= cCodeStartAddresses)
+                    {
+                        hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+                        break;
+                    }
+
+                    codeStartAddresses[trueLen] = (*iter).GetNativeCode();
+
+                    ++trueLen;
+                }
+
+                if (pcCodeStartAddresses != NULL)
+                {
+                    *pcCodeStartAddresses = trueLen;
+                }
             }
-
-            codeStartAddresses[*pcCodeStartAddresses] = (*iter).GetNativeCode();
-
-            (*pcCodeStartAddresses)++;
         }
     }
     EX_CATCH_HRESULT(hr);
@@ -6670,9 +6708,14 @@ HRESULT ProfToEEInterfaceImpl::GetNativeCodeStartAddresses(FunctionID functionID
 /*
  * GetILToNativeMapping3
  * 
- * TODO: Description
+ * This overload behaves the same as GetILToNativeMapping2, except it allows the profiler
+ * to address specific native code versions instead of defaulting to the first one.
  * 
  * Parameters:
+ *      pNativeCodeStartAddress - start address of the native code version, returned by GetNativeCodeStartAddresses
+ *      cMap                    - size of the map array
+ *      pcMap                   - how many items are returned in the map array
+ *      map                     - an array to store the il to native mappings in
  *
  * Returns:
  *   S_OK if successful
@@ -6729,9 +6772,15 @@ HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping3(UINT_PTR pNativeCodeStartAd
 /*
  * GetCodeInfo4
  * 
- * TODO: Description
+ * Gets the location and size of a jitted function. Tiered compilation potentially creates different native code 
+ * versions for a method, and this overload allows profilers to specify which native version it would like the 
+ * code info for.
  * 
  * Parameters:
+ *      pNativeCodeStartAddress - start address of the native code version, returned by GetNativeCodeStartAddresses
+ *      cCodeInfos              - size of the codeInfos array
+ *      pcCodeInfos             - how many items are returned in the codeInfos array
+ *      codeInfos               - an array to store the code infos in
  *
  * Returns:
  *   S_OK if successful
