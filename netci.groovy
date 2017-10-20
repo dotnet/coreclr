@@ -1913,7 +1913,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
                     
                     def disablePgo = ''		
-                    if (os == 'CentOS' && lowerConfiguration == 'release') {		
+                    if (os == 'CentOS7.1' && lowerConfiguration == 'release') {		
                         disablePgo = 'nopgooptimize'		
                     }
  
