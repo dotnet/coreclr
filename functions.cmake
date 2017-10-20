@@ -216,16 +216,12 @@ function(_add_executable)
       disable_pax_mprotect(${ARGV})
     else()
       add_executable(${ARGV})
-      set_target_properties(
-        ${ARGV0} 
-        PROPERTIES
-        VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES}
-      )
     endif(NOT WIN32)
     list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)  
     if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)  
      set_target_properties(${ARGV0} PROPERTIES EXCLUDE_FROM_ALL 1)  
     endif()
+    set_property(GLOBAL APPEND_STRING PROPERTY CLR_CMAKE_CORECLR_TARGETS "${ARGV0};")
 endfunction()  
 
 function(_add_library)
@@ -233,29 +229,17 @@ function(_add_library)
       add_library(${ARGV} ${VERSION_FILE_PATH})
     else()
       add_library(${ARGV})
-      set_target_properties(
-        ${ARGV0} 
-        PROPERTIES
-        VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES}
-      )
     endif(NOT WIN32)
     list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)  
     if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)  
      set_target_properties(${ARGV0} PROPERTIES EXCLUDE_FROM_ALL 1)  
-    endif()  
+    endif()
+    set_property(GLOBAL APPEND_STRING PROPERTY CLR_CMAKE_CORECLR_TARGETS "${ARGV0};")  
 endfunction()
 
 function(_add_custom_target)
-    if(NOT WIN32)
-      add_custom_target(${ARGV})
-    else()
-      add_custom_target(${ARGV})
-      set_target_properties(
-        ${ARGV0} 
-        PROPERTIES
-        VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES}
-      )      
-    endif(NOT WIN32)
+    add_custom_target(${ARGV})
+    set_property(GLOBAL APPEND_STRING PROPERTY CLR_CMAKE_CORECLR_TARGETS "${ARGV0};")
 endfunction()
 
 function(_install)
@@ -289,4 +273,3 @@ function(add_executable_clr)
     _add_executable(${ARGV})
     add_dependencies(${ARGV0} GeneratedEventingFiles)
 endfunction()
-

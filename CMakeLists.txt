@@ -46,6 +46,9 @@ if (PYTHON STREQUAL "PYTHON-NOTFOUND")
     message(FATAL_ERROR "PYTHON not found: Please install Python 2.7.9 or later from https://www.python.org/downloads/")
 endif()
 
+# Track CMake CoreCLR targets in global property
+set_property(GLOBAL PROPERTY CLR_CMAKE_CORECLR_TARGETS "")
+
 # Ensure other tools are present
 if (WIN32)
     if(CLR_CMAKE_HOST_ARCH STREQUAL arm)
@@ -627,6 +630,22 @@ set(BuildToolsDir "${CLR_DIR}/packages/Microsoft.DotNet.BuildTools.CoreCLR/${Bui
 # Add Product Directory
 #------------------------------
 add_subdirectory(src)
+
+#------------------------------
+# Add <CL_MPCount>x</CLMPCount>
+# property to VS projects
+#------------------------------
+get_property(CORECLR_TARGETS GLOBAL PROPERTY CLR_CMAKE_CORECLR_TARGETS)
+foreach(coreclrTarget ${CORECLR_TARGETS})
+  if (WIN32)
+    set_target_properties(
+      ${coreclrTarget} 
+      PROPERTIES
+      VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES}
+    )
+  endif(WIN32)
+  message(STATUS "Created target:\t${coreclrTarget}")
+endforeach(coreclrTarget)
 
 #------------------------------
 # Add Test Directory
