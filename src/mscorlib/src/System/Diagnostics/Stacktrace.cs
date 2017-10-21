@@ -249,7 +249,9 @@ namespace System.Diagnostics
         None                                 = 0,
         ExcludeStackTraceHiddenAttribute     = 1 << 0,
         ExcludeDispatchBoundaries            = 1 << 1,
-        ExcludeInnerExceptionBoundaries      = 1 << 2
+        ExcludeInnerExceptionBoundaries      = 1 << 2,
+        ResolveAsyncMethods                  = 1 << 3,
+        ResolveIteratorMethods               = 1 << 4,
     }
 
     // Class which represents a description of a stack trace
@@ -576,6 +578,19 @@ namespace System.Diagnostics
 
                     Type t = mb.DeclaringType;
                     // if there is a type (non global method) print it
+
+                    if (t != null)
+                    {
+                        if (FormattingOptions.HasFlag(StackTraceFormattingOptions.ResolveAsyncMethods) && typeof(IAsyncStateMachine).IsAssignableFrom(t))
+                        {
+                            t = ResolveAsyncMethod(t, ref mb);
+                        }
+                        else if (FormattingOptions.HasFlag(StackTraceFormattingOptions.ResolveIteratorMethods) && typeof(IEnumerable).IsAssignableFrom(t))
+                        {
+                            t = ResolveIteratorMethod(t, ref mb);
+                        }
+                    }
+
                     if (t != null)
                     {
                         // Append t.FullName, replacing '+' with '.'
@@ -682,6 +697,70 @@ namespace System.Diagnostics
             {
                 sb.AppendLine();
             }
+        }
+
+        private static Type ResolveIteratorMethod(Type t, ref MethodBase mb)
+        {
+            Type dt = t.DeclaringType;
+            if (dt != null)
+            {
+                string fullName = t.FullName;
+                var start = fullName.LastIndexOf('<');
+                var end = fullName.LastIndexOf('>');
+                var length = end - start;
+                if (start >= 0 && end >= 0 && length > 1)
+                {
+                    var methodName = fullName.Substring(start + 1, length - 1);
+                    var methods = dt.GetMember(methodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (methods != null)
+                    {
+                        foreach (var method in methods)
+                        {
+                            var asma = method.GetCustomAttribute(typeof(IteratorStateMachineAttribute)) as IteratorStateMachineAttribute;
+                            if (asma?.StateMachineType == t)
+                            {
+                                mb = method as MethodBase ?? mb;
+                                t = mb.DeclaringType;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return t;
+        }
+
+        private static Type ResolveAsyncMethod(Type t, ref MethodBase mb)
+        {
+            Type dt = t.DeclaringType;
+            if (dt != null)
+            {
+                string fullName = t.FullName;
+                var start = fullName.LastIndexOf('<');
+                var end = fullName.LastIndexOf('>');
+                var length = end - start;
+                if (start >= 0 && end >= 0 && length > 1)
+                {
+                    var methodName = fullName.Substring(start + 1, length - 1);
+                    var methods = dt.GetMember(methodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (methods != null)
+                    {
+                        foreach (var method in methods)
+                        {
+                            var asma = method.GetCustomAttribute(typeof(AsyncStateMachineAttribute)) as AsyncStateMachineAttribute;
+                            if (asma?.StateMachineType == t)
+                            {
+                                mb = method as MethodBase ?? mb;
+                                t = mb.DeclaringType;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return t;
         }
 
         private static bool ShowInStackTrace(MethodBase mb)
