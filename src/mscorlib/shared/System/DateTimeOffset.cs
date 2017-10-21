@@ -47,6 +47,7 @@ namespace System
         // Static Fields
         public static readonly DateTimeOffset MinValue = new DateTimeOffset(DateTime.MinTicks, TimeSpan.Zero);
         public static readonly DateTimeOffset MaxValue = new DateTimeOffset(DateTime.MaxTicks, TimeSpan.Zero);
+        public static readonly DateTimeOffset UnixEpoch = new DateTimeOffset(DateTime.UnixEpoch, TimeSpan.Zero);
 
         // Instance Fields
         private DateTime _dateTime;
