@@ -2006,7 +2006,8 @@ HRESULT EEToProfInterfaceImpl::EnsureProfilerDetachable()
 {
     LIMITED_METHOD_CONTRACT;
 
-    if ((g_profControlBlock.dwEventMask & COR_PRF_MONITOR_IMMUTABLE) != 0)
+    if (((g_profControlBlock.dwEventMask & COR_PRF_MONITOR_IMMUTABLE) != 0) ||
+        ((g_profControlBlock.dwEventMaskHigh & COR_PRF_HIGH_MONITOR_IMMUTABLE) != 0))
     {
         LOG((
             LF_CORPROF, 
@@ -2242,6 +2243,7 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     // 
     // See code:#P2CLRRestrictionsOverview for more information
     DWORD dwImmutableEventFlags = COR_PRF_MONITOR_IMMUTABLE;
+    DWORD dwImmutableEventFlagsHigh = COR_PRF_HIGH_MONITOR_IMMUTABLE;
     DWORD dwAllowableAfterAttachEventFlags = COR_PRF_ALLOWABLE_AFTER_ATTACH;
     DWORD dwTestOnlyAllowedEventMask = 0;
     dwTestOnlyAllowedEventMask = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TestOnlyAllowedEventMask);
@@ -2268,12 +2270,14 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     if (g_profControlBlock.curProfStatus.Get() != kProfStatusInitializingForStartupLoad)
     {
 #ifdef _DEBUG
-        if ((dwEventMask & dwImmutableEventFlags) !=
-            (g_profControlBlock.dwEventMask & dwImmutableEventFlags))
+        if (((dwEventMask & dwImmutableEventFlags) !=
+                (g_profControlBlock.dwEventMask & dwImmutableEventFlags)) ||
 #else //!_DEBUG
-        if ((dwEventMask & COR_PRF_MONITOR_IMMUTABLE) !=
-            (g_profControlBlock.dwEventMask & COR_PRF_MONITOR_IMMUTABLE))
+        if (((dwEventMask & COR_PRF_MONITOR_IMMUTABLE) !=
+                (g_profControlBlock.dwEventMask & COR_PRF_MONITOR_IMMUTABLE)) ||
 #endif //_DEBUG
+            ((dwEventMaskHigh & dwImmutableEventFlagsHigh) !=
+                (g_profControlBlock.dwEventMaskHigh & dwImmutableEventFlagsHigh)))
         {
             // FUTURE: Should we have a dedicated HRESULT for setting immutable flag?
             return E_FAIL;

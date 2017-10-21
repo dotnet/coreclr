@@ -632,7 +632,7 @@ typedef enum
     // MONITOR_IMMUTABLE represents all flags that may only be set during initialization.
     // Trying to change any of these flags elsewhere will result in a
     // failed HRESULT.
-    COR_PRF_HIGH_MONITOR_IMMUTABLE                  = 0,
+    COR_PRF_HIGH_MONITOR_IMMUTABLE                  = COR_PRF_HIGH_DISABLE_TIERED_COMPILATION,
 
 } COR_PRF_HIGH_MONITOR;
 
