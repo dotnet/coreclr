@@ -244,18 +244,19 @@ namespace System.Diagnostics
     }
 
     [Flags]
-    internal enum StackTraceFilter
+    internal enum StackTraceFormattingOptions
     {
-        None                      = 0,
-        StackTraceHiddenAttribute = 1 << 0,
-        FrameBoundaryMarkers      = 1 << 1
+        None                                 = 0,
+        ExcludeStackTraceHiddenAttribute     = 1 << 0,
+        ExcludeDispatchBoundaries            = 1 << 1,
+        ExcludeInnerExceptionBoundaries      = 1 << 2
     }
 
     // Class which represents a description of a stack trace
     // There is no good reason for the methods of this class to be virtual.  
     public class StackTrace
     {
-        internal static StackTraceFilter Filter { get; set; } = StackTraceFilter.StackTraceHiddenAttribute;
+        internal static StackTraceFormattingOptions FormattingOptions { get; set; } = StackTraceFormattingOptions.ExcludeStackTraceHiddenAttribute;
 
         private StackFrame[] frames;
         private int m_iNumOfFrames;
@@ -653,7 +654,7 @@ namespace System.Diagnostics
                         }
                     }
 
-                    if (!Filter.HasFlag(StackTraceFilter.FrameBoundaryMarkers) && sf.GetIsLastFrameFromForeignExceptionStackTrace())
+                    if (!FormattingOptions.HasFlag(StackTraceFormattingOptions.ExcludeDispatchBoundaries) && sf.GetIsLastFrameFromForeignExceptionStackTrace())
                     {
                         sb.Append(Environment.NewLine);
                         sb.Append(SR.Exception_EndStackTraceFromPreviousThrow);
@@ -671,7 +672,7 @@ namespace System.Diagnostics
         {
             Debug.Assert(mb != null);
             
-            return !(Filter.HasFlag(StackTraceFilter.StackTraceHiddenAttribute) && 
+            return !(FormattingOptions.HasFlag(StackTraceFormattingOptions.ExcludeStackTraceHiddenAttribute) && 
                      (mb.IsDefined(typeof(StackTraceHiddenAttribute)) || (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute)) ?? false)));
         }
 
