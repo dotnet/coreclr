@@ -42,7 +42,7 @@ using System.Diagnostics;
 
 namespace System
 {
-    [DebuggerNonUserCode]
+    [StackTraceHidden]
     internal static class ThrowHelper
     {
         internal static void ThrowArrayTypeMismatchException()
