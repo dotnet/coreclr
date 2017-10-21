@@ -258,7 +258,10 @@ namespace System.Diagnostics
     // There is no good reason for the methods of this class to be virtual.  
     public class StackTrace
     {
-        internal static StackTraceFormattingOptions FormattingOptions { get; set; } = StackTraceFormattingOptions.ExcludeStackTraceHiddenAttribute;
+        internal static StackTraceFormattingOptions FormattingOptions { get; set; }
+            = StackTraceFormattingOptions.ExcludeStackTraceHiddenAttribute 
+              | StackTraceFormattingOptions.ResolveAsyncMethods
+              | StackTraceFormattingOptions.ResolveIteratorMethods;
 
         private StackFrame[] frames;
         private int m_iNumOfFrames;
