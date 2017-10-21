@@ -585,7 +585,7 @@ namespace System.Diagnostics
                         {
                             t = ResolveAsyncMethod(t, ref mb);
                         }
-                        else if (FormattingOptions.HasFlag(StackTraceFormattingOptions.ResolveIteratorMethods) && typeof(IEnumerable).IsAssignableFrom(t))
+                        else if (FormattingOptions.HasFlag(StackTraceFormattingOptions.ResolveIteratorMethods) && typeof(IEnumerator).IsAssignableFrom(t))
                         {
                             t = ResolveIteratorMethod(t, ref mb);
                         }
