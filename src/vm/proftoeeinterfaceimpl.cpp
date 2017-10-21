@@ -6644,7 +6644,7 @@ HRESULT ProfToEEInterfaceImpl::GetNativeCodeStartAddresses(FunctionID functionID
     }
     CONTRACTL_END;
 
-    if (functionID == NULL || pcCodeStartAddresses == NULL)
+    if (functionID == NULL)
     {
         return E_INVALIDARG;
     }
@@ -6656,7 +6656,6 @@ HRESULT ProfToEEInterfaceImpl::GetNativeCodeStartAddresses(FunctionID functionID
         functionID, reJitId));
     
     HRESULT hr = S_OK;
-    *pcCodeStartAddresses = 0;
    
     EX_TRY
     {
@@ -6665,37 +6664,44 @@ HRESULT ProfToEEInterfaceImpl::GetNativeCodeStartAddresses(FunctionID functionID
             *pcCodeStartAddresses = 0;
         }
 
-        if ((codeStartAddresses != NULL) && cCodeStartAddresses > 0)
+        MethodDesc * methodDesc = FunctionIdToMethodDesc(functionID);
+        PTR_MethodDesc pMD = PTR_MethodDesc(methodDesc);
+        ULONG32 trueLen = 0;
+        StackSArray<UINT_PTR> addresses;
+
+        CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+
+        ILCodeVersion ilCodeVersion = NULL;
         {
-            MethodDesc * methodDesc = FunctionIdToMethodDesc(functionID);
-            PTR_MethodDesc pMD = PTR_MethodDesc(methodDesc);
-            ULONG32 trueLen = 0;
+            CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
 
-            CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
-
-            ILCodeVersion ilCodeVersion = NULL;
-            {
-                CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
-
-                ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMD, reJitId);
+            ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMD, reJitId);
             
-                NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
-                for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+            NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
+            for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+            {
+                addresses.Append((*iter).GetNativeCode());
+
+                ++trueLen;
+            }
+        }
+
+        if (pcCodeStartAddresses != NULL)
+        {
+            *pcCodeStartAddresses = trueLen;
+        }
+
+        if (codeStartAddresses != NULL)
+        {
+            if (cCodeStartAddresses < trueLen)
+            {
+                hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+            }
+            else
+            {
+                for(ULONG32 i = 0; i < cCodeStartAddresses; ++i)
                 {
-                    if (trueLen >= cCodeStartAddresses)
-                    {
-                        hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-                        break;
-                    }
-
-                    codeStartAddresses[trueLen] = (*iter).GetNativeCode();
-
-                    ++trueLen;
-                }
-
-                if (pcCodeStartAddresses != NULL)
-                {
-                    *pcCodeStartAddresses = trueLen;
+                    codeStartAddresses[i] = addresses[i];
                 }
             }
         }
