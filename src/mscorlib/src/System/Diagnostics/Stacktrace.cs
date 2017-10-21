@@ -243,11 +243,20 @@ namespace System.Diagnostics
         }
     }
 
+    [Flags]
+    internal enum StackTraceFilter
+    {
+        None                      = 0,
+        StackTraceHiddenAttribute = 1 << 0,
+        FrameBoundaryMarkers      = 1 << 1
+    }
 
     // Class which represents a description of a stack trace
     // There is no good reason for the methods of this class to be virtual.  
     public class StackTrace
     {
+        internal static StackTraceFilter Filter { get; set; } = StackTraceFilter.StackTraceHiddenAttribute;
+
         private StackFrame[] frames;
         private int m_iNumOfFrames;
         public const int METHODS_TO_SKIP = 0;
@@ -644,7 +653,7 @@ namespace System.Diagnostics
                         }
                     }
 
-                    if (sf.GetIsLastFrameFromForeignExceptionStackTrace())
+                    if (!Filter.HasFlag(StackTraceFilter.FrameBoundaryMarkers) && sf.GetIsLastFrameFromForeignExceptionStackTrace())
                     {
                         sb.Append(Environment.NewLine);
                         sb.Append(SR.Exception_EndStackTraceFromPreviousThrow);
@@ -661,7 +670,9 @@ namespace System.Diagnostics
         private static bool ShowInStackTrace(MethodBase mb)
         {
             Debug.Assert(mb != null);
-            return !(mb.IsDefined(typeof(StackTraceHiddenAttribute)) || (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute)) ?? false));
+            
+            return !(Filter.HasFlag(StackTraceFilter.StackTraceHiddenAttribute) && 
+                     (mb.IsDefined(typeof(StackTraceHiddenAttribute)) || (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute)) ?? false)));
         }
 
         // This helper is called from within the EE to construct a string representation
