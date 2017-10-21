@@ -531,6 +531,15 @@ namespace System.Diagnostics
         // the format for backwards compatibility.
         internal String ToString(TraceFormat traceFormat)
         {
+            StringBuilder sb = new StringBuilder(255);
+
+            Append(sb, traceFormat, startNewLine: false);
+
+            return sb.ToString();
+        }
+
+        internal void Append(StringBuilder sb, TraceFormat traceFormat, bool startNewLine)
+        {
             bool displayFilenames = true;   // we'll try, but demand may fail
             String word_At = "at";
             String inFileLineNum = "in {0}:line {1}";
@@ -542,7 +551,6 @@ namespace System.Diagnostics
             }
 
             bool fFirstFrame = true;
-            StringBuilder sb = new StringBuilder(255);
             for (int iFrameIndex = 0; iFrameIndex < m_iNumOfFrames; iFrameIndex++)
             {
                 StackFrame sf = GetFrame(iFrameIndex);
@@ -552,9 +560,17 @@ namespace System.Diagnostics
                 {
                     // We want a newline at the end of every line except for the last
                     if (fFirstFrame)
+                    {
+                        if (startNewLine)
+                        {
+                            sb.AppendLine();
+                        }
                         fFirstFrame = false;
+                    }
                     else
-                        sb.Append(Environment.NewLine);
+                    {
+                        sb.AppendLine();
+                    }
 
                     sb.AppendFormat(CultureInfo.InvariantCulture, "   {0} ", word_At);
 
@@ -656,16 +672,16 @@ namespace System.Diagnostics
 
                     if (!FormattingOptions.HasFlag(StackTraceFormattingOptions.ExcludeDispatchBoundaries) && sf.GetIsLastFrameFromForeignExceptionStackTrace())
                     {
-                        sb.Append(Environment.NewLine);
+                        sb.AppendLine();
                         sb.Append(SR.Exception_EndStackTraceFromPreviousThrow);
                     }
                 }
             }
 
             if (traceFormat == TraceFormat.TrailingNewLine)
-                sb.Append(Environment.NewLine);
-
-            return sb.ToString();
+            {
+                sb.AppendLine();
+            }
         }
 
         private static bool ShowInStackTrace(MethodBase mb)

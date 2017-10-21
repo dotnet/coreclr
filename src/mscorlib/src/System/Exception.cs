@@ -296,43 +296,57 @@ namespace System
             return _exceptionMethod;
         }
 
+        private static string ConvertEmptyToNull(string s) => string.IsNullOrEmpty(s) ? null : s;
+
         // Returns the stack trace as a string.  If no stack trace is
         // available, null is returned.
         public virtual String StackTrace
         {
             get
             {
+                StringBuilder sb = new StringBuilder(250);
                 // By default attempt to include file and line number info
-                return GetStackTrace(true);
+                AppendStackTrace(sb, needFileInfo: true, startNewLine: false);
+                return ConvertEmptyToNull(sb.ToString());
             }
         }
 
-        // Computes and returns the stack trace as a string
+        // Computes and appends the stack trace to provided StringBuilder
         // Attempts to get source file and line number information if needFileInfo
         // is true.  Note that this requires FileIOPermission(PathDiscovery), and so
         // will usually fail in CoreCLR.  To avoid the demand and resulting
         // SecurityException we can explicitly not even try to get fileinfo.
-        private string GetStackTrace(bool needFileInfo)
+        private void AppendStackTrace(StringBuilder sb, bool needFileInfo, bool startNewLine)
         {
             string stackTraceString = _stackTraceString;
             string remoteStackTraceString = _remoteStackTraceString;
 
+            if (remoteStackTraceString != null)
+            {
+                if (startNewLine)
+                {
+                    sb.AppendLine();
+                }
+                sb.Append(remoteStackTraceString);
+            }
+
             // if no stack trace, try to get one
             if (stackTraceString != null)
             {
-                return remoteStackTraceString + stackTraceString;
+                sb.Append(stackTraceString);
+                return;
             }
             if (_stackTrace == null)
             {
-                return remoteStackTraceString;
+                return;
             }
 
             // Obtain the stack trace string. Note that since Environment.GetStackTrace
             // will add the path to the source file if the PDB is present and a demand
             // for FileIOPermission(PathDiscovery) succeeds, we need to make sure we 
             // don't store the stack trace string in the _stackTraceString member variable.
-            String tempStackTraceString = Environment.GetStackTrace(this, needFileInfo);
-            return remoteStackTraceString + tempStackTraceString;
+
+            Environment.AppendStackTrace(sb, this, needFileInfo, startNewLine: remoteStackTraceString == null);
         }
 
         [FriendAccessAllowed]
@@ -396,33 +410,34 @@ namespace System
             return ToString(true, true);
         }
 
-        private String ToString(bool needFileLineInfo, bool needMessage)
+        private string ToString(bool needFileLineInfo, bool needMessage)
         {
-            String message = (needMessage ? Message : null);
-            String s;
+            string message = (needMessage ? Message : null);
 
-            if (message == null || message.Length <= 0)
+            StringBuilder sb = new StringBuilder(250);
+
+            sb.Append(GetClassName());
+            if (!string.IsNullOrEmpty(message))
             {
-                s = GetClassName();
-            }
-            else
-            {
-                s = GetClassName() + ": " + message;
+                sb.Append(": ");
+                sb.Append(message);
             }
 
             if (_innerException != null)
             {
-                s = s + " ---> " + _innerException.ToString(needFileLineInfo, needMessage) + Environment.NewLine +
-                "   " + SR.Exception_EndOfInnerExceptionStack;
+                sb.Append(" ---> ");
+                sb.Append(_innerException.ToString(needFileLineInfo, needMessage));
+                if (!Diagnostics.StackTrace.FormattingOptions.HasFlag(StackTraceFormattingOptions.ExcludeInnerExceptionBoundaries))
+                {
+                    sb.Append(Environment.NewLine);
+                    sb.Append("   ");
+                    sb.Append(SR.Exception_EndOfInnerExceptionStack);
+                }
             }
 
-            string stackTrace = GetStackTrace(needFileLineInfo);
-            if (stackTrace != null)
-            {
-                s += Environment.NewLine + stackTrace;
-            }
+            AppendStackTrace(sb, needFileLineInfo, startNewLine: true);
 
-            return s;
+            return sb.ToString();
         }
 
         protected event EventHandler<SafeSerializationEventArgs> SerializeObjectState
@@ -501,7 +516,7 @@ namespace System
                 // Call our internal GetStackTrace in AppX so we can parse the result should
                 // we need to strip file/line info from it to make it PII-free. Calling the
                 // public and overridable StackTrace getter here was probably not intended.
-                tmpStackTraceString = GetStackTrace(true);
+                tmpStackTraceString = StackTrace;
 
                 // Make sure that the _source field is initialized if Source is not overriden.
                 // We want it to contain the original faulting point.
