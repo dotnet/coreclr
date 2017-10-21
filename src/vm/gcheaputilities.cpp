@@ -51,6 +51,14 @@ enum GC_LOAD_STATUS {
 GC_LOAD_STATUS g_gc_load_status = GC_LOAD_STATUS_START;
 VersionInfo g_gc_version_info;
 
+extern "C" void GC_VersionInfo(/* Out */ VersionInfo* info);
+extern "C" HRESULT GC_Initialize(
+    /* In  */ IGCToCLR* clrToGC,
+    /* Out */ IGCHeap** gcHeap,
+    /* Out */ IGCHandleManager** gcHandleManager,
+    /* Out */ GcDacVars* gcDacVars
+);
+
 #ifndef DACCESS_COMPILE
 
 HRESULT GCHeapUtilities::InitializeAndLoad()

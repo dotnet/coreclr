@@ -11,10 +11,6 @@ GetMetaDataInternalInterface
 GetMetaDataInternalInterfaceFromPublic
 GetMetaDataPublicInterfaceFromInternal
 
-; GC
-GC_Initialize
-GC_VersionInfo
-
 ; PAL module registration
 PAL_RegisterModule
 PAL_UnregisterModule
