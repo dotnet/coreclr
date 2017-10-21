@@ -351,6 +351,15 @@ namespace System
 
         internal static String GetStackTrace(Exception e, bool needFileInfo)
         {
+            StringBuilder sb = new StringBuilder(255);
+
+            AppendStackTrace(sb, e, needFileInfo, startNewLine: false);
+
+            return sb.ToString();
+        }
+
+        internal static void AppendStackTrace(StringBuilder sb, Exception e, bool needFileInfo, bool startNewLine)
+        {
             // Note: Setting needFileInfo to true will start up COM and set our
             // apartment state.  Try to not call this when passing "true" 
             // before the EE's ExecuteMainMethod has had a chance to set up the
@@ -362,7 +371,7 @@ namespace System
                 st = new StackTrace(e, needFileInfo);
 
             // Do no include a trailing newline for backwards compatibility
-            return st.ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
+            st.Append(sb, System.Diagnostics.StackTrace.TraceFormat.Normal, startNewLine);
         }
 
         public static extern bool HasShutdownStarted

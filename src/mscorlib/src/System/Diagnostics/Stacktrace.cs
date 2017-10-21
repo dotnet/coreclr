@@ -243,11 +243,27 @@ namespace System.Diagnostics
         }
     }
 
+    [Flags]
+    internal enum StackTraceFormattingOptions
+    {
+        None                                 = 0,
+        ExcludeStackTraceHiddenAttribute     = 1 << 0,
+        ExcludeDispatchBoundaries            = 1 << 1,
+        ExcludeInnerExceptionBoundaries      = 1 << 2,
+        ResolveAsyncMethods                  = 1 << 3,
+        ResolveIteratorMethods               = 1 << 4,
+    }
 
     // Class which represents a description of a stack trace
     // There is no good reason for the methods of this class to be virtual.  
     public class StackTrace
     {
+        internal static StackTraceFormattingOptions FormattingOptions { get; set; }
+            = StackTraceFormattingOptions.ExcludeStackTraceHiddenAttribute
+              | StackTraceFormattingOptions.ExcludeDispatchBoundaries
+              | StackTraceFormattingOptions.ResolveAsyncMethods
+              | StackTraceFormattingOptions.ResolveIteratorMethods;
+
         private StackFrame[] frames;
         private int m_iNumOfFrames;
         public const int METHODS_TO_SKIP = 0;
@@ -521,6 +537,15 @@ namespace System.Diagnostics
         // the format for backwards compatibility.
         internal String ToString(TraceFormat traceFormat)
         {
+            StringBuilder sb = new StringBuilder(255);
+
+            Append(sb, traceFormat, startNewLine: false);
+
+            return sb.ToString();
+        }
+
+        internal void Append(StringBuilder sb, TraceFormat traceFormat, bool startNewLine)
+        {
             bool displayFilenames = true;   // we'll try, but demand may fail
             String word_At = "at";
             String inFileLineNum = "in {0}:line {1}";
@@ -532,23 +557,44 @@ namespace System.Diagnostics
             }
 
             bool fFirstFrame = true;
-            StringBuilder sb = new StringBuilder(255);
             for (int iFrameIndex = 0; iFrameIndex < m_iNumOfFrames; iFrameIndex++)
             {
                 StackFrame sf = GetFrame(iFrameIndex);
                 MethodBase mb = sf.GetMethod();
-                if (mb != null)
+                if (mb != null && (ShowInStackTrace(mb) || 
+                                   (iFrameIndex == m_iNumOfFrames - 1))) // Don't filter last frame
                 {
                     // We want a newline at the end of every line except for the last
                     if (fFirstFrame)
+                    {
+                        if (startNewLine)
+                        {
+                            sb.AppendLine();
+                        }
                         fFirstFrame = false;
+                    }
                     else
-                        sb.Append(Environment.NewLine);
+                    {
+                        sb.AppendLine();
+                    }
 
                     sb.AppendFormat(CultureInfo.InvariantCulture, "   {0} ", word_At);
 
                     Type t = mb.DeclaringType;
                     // if there is a type (non global method) print it
+
+                    if (t != null)
+                    {
+                        if (FormattingOptions.HasFlag(StackTraceFormattingOptions.ResolveAsyncMethods) && typeof(IAsyncStateMachine).IsAssignableFrom(t))
+                        {
+                            t = ResolveAsyncMethod(t, ref mb);
+                        }
+                        else if (FormattingOptions.HasFlag(StackTraceFormattingOptions.ResolveIteratorMethods) && typeof(IEnumerator).IsAssignableFrom(t))
+                        {
+                            t = ResolveIteratorMethod(t, ref mb);
+                        }
+                    }
+
                     if (t != null)
                     {
                         // Append t.FullName, replacing '+' with '.'
@@ -643,18 +689,90 @@ namespace System.Diagnostics
                         }
                     }
 
-                    if (sf.GetIsLastFrameFromForeignExceptionStackTrace())
+                    if (!FormattingOptions.HasFlag(StackTraceFormattingOptions.ExcludeDispatchBoundaries) && sf.GetIsLastFrameFromForeignExceptionStackTrace())
                     {
-                        sb.Append(Environment.NewLine);
+                        sb.AppendLine();
                         sb.Append(SR.Exception_EndStackTraceFromPreviousThrow);
                     }
                 }
             }
 
             if (traceFormat == TraceFormat.TrailingNewLine)
-                sb.Append(Environment.NewLine);
+            {
+                sb.AppendLine();
+            }
+        }
 
-            return sb.ToString();
+        private static Type ResolveIteratorMethod(Type t, ref MethodBase mb)
+        {
+            Type dt = t.DeclaringType;
+            if (dt != null)
+            {
+                string fullName = t.FullName;
+                var start = fullName.LastIndexOf('<');
+                var end = fullName.LastIndexOf('>');
+                var length = end - start;
+                if (start >= 0 && end >= 0 && length > 1)
+                {
+                    var methodName = fullName.Substring(start + 1, length - 1);
+                    var methods = dt.GetMember(methodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (methods != null)
+                    {
+                        foreach (var method in methods)
+                        {
+                            var asma = method.GetCustomAttribute(typeof(IteratorStateMachineAttribute)) as IteratorStateMachineAttribute;
+                            if (asma?.StateMachineType == t)
+                            {
+                                mb = method as MethodBase ?? mb;
+                                t = mb.DeclaringType;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return t;
+        }
+
+        private static Type ResolveAsyncMethod(Type t, ref MethodBase mb)
+        {
+            Type dt = t.DeclaringType;
+            if (dt != null)
+            {
+                string fullName = t.FullName;
+                var start = fullName.LastIndexOf('<');
+                var end = fullName.LastIndexOf('>');
+                var length = end - start;
+                if (start >= 0 && end >= 0 && length > 1)
+                {
+                    var methodName = fullName.Substring(start + 1, length - 1);
+                    var methods = dt.GetMember(methodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (methods != null)
+                    {
+                        foreach (var method in methods)
+                        {
+                            var asma = method.GetCustomAttribute(typeof(AsyncStateMachineAttribute)) as AsyncStateMachineAttribute;
+                            if (asma?.StateMachineType == t)
+                            {
+                                mb = method as MethodBase ?? mb;
+                                t = mb.DeclaringType;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return t;
+        }
+
+        private static bool ShowInStackTrace(MethodBase mb)
+        {
+            Debug.Assert(mb != null);
+            
+            return !(FormattingOptions.HasFlag(StackTraceFormattingOptions.ExcludeStackTraceHiddenAttribute) && 
+                     (mb.IsDefined(typeof(StackTraceHiddenAttribute)) || (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute)) ?? false)));
         }
 
         // This helper is called from within the EE to construct a string representation
