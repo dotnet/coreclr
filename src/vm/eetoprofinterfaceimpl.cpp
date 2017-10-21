@@ -2288,10 +2288,11 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     // allowable after an attach
     if (m_fLoadedViaAttach &&
 #ifdef _DEBUG
-        ((dwEventMask & (~dwAllowableAfterAttachEventFlags)) != 0))
+        (((dwEventMask & (~dwAllowableAfterAttachEventFlags)) != 0) ||
 #else //!_DEBUG
-        ((dwEventMask & (~COR_PRF_ALLOWABLE_AFTER_ATTACH)) != 0))
+        (((dwEventMask & (~COR_PRF_ALLOWABLE_AFTER_ATTACH)) != 0) ||
 #endif //_DEBUG
+        (dwEventMaskHigh & (~COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH))))
     {
         return CORPROF_E_UNSUPPORTED_FOR_ATTACHING_PROFILER;
     }
