@@ -259,7 +259,8 @@ namespace System.Diagnostics
     public class StackTrace
     {
         internal static StackTraceFormattingOptions FormattingOptions { get; set; }
-            = StackTraceFormattingOptions.ExcludeStackTraceHiddenAttribute 
+            = StackTraceFormattingOptions.ExcludeStackTraceHiddenAttribute
+              | StackTraceFormattingOptions.ExcludeDispatchBoundaries
               | StackTraceFormattingOptions.ResolveAsyncMethods
               | StackTraceFormattingOptions.ResolveIteratorMethods;
 
