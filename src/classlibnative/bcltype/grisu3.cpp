@@ -8,6 +8,7 @@
 //
 
 #include "grisu3.h"
+#include <check.h>
 #include <math.h>
 
 // 1/lg(10)
@@ -164,19 +165,25 @@ bool Grisu3::DigitGen(const DiyFp& mp, int count, wchar_t* buffer, int* len, int
     UINT32 p1 = static_cast<UINT32>(mp.f() >> -one.e());
     UINT64 p2 = mp.f() & (one.f() - 1);
 
+    // Note: The code in the paper simply assignes div to TEN9 and kappa to 10 directly.
+    // That means we need to check if any leading zero of the generated
+    // digits during the while loop, which hurts the performance.
+    //
+    // Now if we can estimate what the div and kappa, we do not need to check the leading zeros.
+    // The idea is to find the biggest power of 10 that is less than or equal to the given number.
+    // Then we don't need to worry about the leading zeros and we can get 10% performance gain.
     int length = 0;
-    int kappa = 10;
-    int div = TEN9;
+    int kappa;
+    UINT32 div;
+    BiggestPowerTenLessThanOrEqualTo(p1, DiyFp::SIGNIFICAND_LENGTH - (-one.e()), &div, &kappa);
+    ++kappa;
 
     // Produce integral.
     while (kappa > 0)
     {
         int d = p1 / div;
-        if (d != 0 || length != 0)
-        {
-            buffer[length++] = L'0' + d;
-            --count;
-        }
+        buffer[length++] = L'0' + d;
+        --count;
 
         p1 %= div;
         --kappa;
@@ -212,11 +219,8 @@ bool Grisu3::DigitGen(const DiyFp& mp, int count, wchar_t* buffer, int* len, int
         p2 *= 10;
 
         int d = static_cast<int>(p2 >> -one.e());
-        if (d != 0 || length != 0)
-        {
-            buffer[length++] = L'0' + d;
-            --count;
-        }
+        buffer[length++] = L'0' + d;
+        --count;
 
         p2 &= one.f() - 1;
         --kappa;
@@ -252,4 +256,115 @@ void Grisu3::CachedPower(int k, DiyFp* cmk, int* decimalExponent)
     cmk->SetSignificand(cachedPower.significand);
     cmk->SetExponent(cachedPower.binaryExponent);
     *decimalExponent = cachedPower.decimalExponent;
+}
+
+// Returns the biggest power of ten that is less than or equal to the given number.
+void Grisu3::BiggestPowerTenLessThanOrEqualTo(UINT32 number,
+                            int bits,
+                            UINT32 *power,
+                            int *exponent)
+{
+    switch (bits)
+    {
+    case 32:
+    case 31:
+    case 30:
+        if (TEN9 <= number)
+        {
+            *power = TEN9;
+            *exponent = 9;
+            break;
+        }
+    case 29:
+    case 28:
+    case 27:
+        if (TEN8 <= number)
+        {
+            *power = TEN8;
+            *exponent = 8;
+            break;
+        }
+    case 26:
+    case 25:
+    case 24:
+        if (TEN7 <= number)
+        {
+            *power = TEN7;
+            *exponent = 7;
+            break;
+        }
+    case 23:
+    case 22:
+    case 21:
+    case 20:
+        if (TEN6 <= number)
+        {
+            *power = TEN6;
+            *exponent = 6;
+            break;
+        }
+    case 19:
+    case 18:
+    case 17:
+        if (TEN5 <= number)
+        {
+            *power = TEN5;
+            *exponent = 5;
+            break;
+        }
+    case 16:
+    case 15:
+    case 14:
+        if (TEN4 <= number)
+        {
+            *power = TEN4;
+            *exponent = 4;
+            break;
+        }
+    case 13:
+    case 12:
+    case 11:
+    case 10:
+        if (1000 <= number)
+        {
+            *power = 1000;
+            *exponent = 3;
+            break;
+        }
+    case 9:
+    case 8:
+    case 7:
+        if (100 <= number)
+        {
+            *power = 100;
+            *exponent = 2;
+            break;
+        }
+    case 6:
+    case 5:
+    case 4:
+        if (10 <= number)
+        {
+            *power = 10;
+            *exponent = 1;
+            break;
+        }
+    case 3:
+    case 2:
+    case 1:
+        if (1 <= number)
+        {
+            *power = 1;
+            *exponent = 0;
+            break;
+        }
+    case 0:
+        *power = 0;
+        *exponent = -1;
+        break;
+    default:
+        *power = 0;
+        *exponent = 0;
+        UNREACHABLE();
+    }
 }
