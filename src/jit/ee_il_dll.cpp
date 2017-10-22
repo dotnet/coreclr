@@ -397,13 +397,12 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
             return 32;
         }
     }
-#else  // !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
+#endif // !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
     if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
     {
         JITDUMP("getMaxIntrinsicSIMDVectorLength: returning 16\n");
     }
     return 16;
-#endif // !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
 #else  // !FEATURE_SIMD
     if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
     {
