@@ -22,7 +22,7 @@ namespace System.Runtime.CompilerServices
         public bool IsCompleted => _value.IsCompleted;
 
         /// <summary>Gets the result of the ValueTask.</summary>
-        [DebuggerNonUserCode(StackTraceFormattingOptions.StackTraceHidden)]
+        [DebuggerNonUserCode(stackTraceOptions: StackTraceFormattingOptions.StackTraceHidden)]
         public TResult GetResult() =>
             _value._task == null ? 
                 _value._result : 
