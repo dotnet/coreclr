@@ -6102,7 +6102,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
         case INS_str:
         case INS_ldr:
             assert(isValidGeneralDatasize(size) || isValidVectorDatasize(size));
-            scale = genLog2(size);
+            scale = genLog2(EA_SIZE_IN_BYTES(size));
             break;
 
         case INS_lea:
