@@ -13,6 +13,7 @@
 
 
 using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace System.Diagnostics
@@ -29,10 +30,27 @@ namespace System.Diagnostics
         public DebuggerHiddenAttribute() { }
     }
 
+    [Flags]
+    internal enum StackTraceFormattingOptions
+    {
+        None                   = 0,
+        StackTraceHidden       = 1 << 0
+    }
+
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor | AttributeTargets.Struct, Inherited = false)]
     public sealed class DebuggerNonUserCodeAttribute : Attribute
     {
         public DebuggerNonUserCodeAttribute() { }
+
+        /// <summary>Initializes the <see cref="DebuggerNonUserCodeAttribute"/>.</summary>
+        /// <param name="stackTraceOptions">The <see cref="StackTraceFormattingOptions"/> hint.</param>
+        internal DebuggerNonUserCodeAttribute(StackTraceFormattingOptions stackTraceOptions)
+        {
+            StackTraceOptions = stackTraceOptions;
+        }
+
+        /// <summary>Gets the <see cref="StackTraceFormattingOptions"/>.</summary>
+        internal StackTraceFormattingOptions StackTraceOptions { get; }
     }
 
     // Attribute class used by the compiler to mark modules.  

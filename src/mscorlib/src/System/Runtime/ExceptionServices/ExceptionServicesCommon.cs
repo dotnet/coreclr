@@ -16,6 +16,7 @@
 =============================================================================*/
 
 using System;
+using System.Diagnostics;
 
 namespace System.Runtime.ExceptionServices
 {
@@ -26,6 +27,7 @@ namespace System.Runtime.ExceptionServices
     //
     // This is particularly useful for frameworks like PFX, APM, etc that wish to
     // propagate exceptions (i.e. errors to be precise) across threads.
+    [DebuggerNonUserCode(StackTraceFormattingOptions.StackTraceHidden)]
     public sealed class ExceptionDispatchInfo
     {
         // Private members that will hold the relevant details.
