@@ -784,7 +784,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
 {
     TreeNodeInfo* info = &(simdTree->gtLsraInfo);
 
-    // Only SIMDIntrinsicInit can be contained. Other than that,
+    // Only SIMDIntrinsicInit can be contained
     if (simdTree->isContained())
     {
         assert(simdTree->gtSIMDIntrinsicID == SIMDIntrinsicInit);
