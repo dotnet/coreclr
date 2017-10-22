@@ -12,6 +12,9 @@
 
 #include <clrtypes.h>
 
+// An exteneded floating-point data structure.
+// It defines a 64-bit significand and a 32-bit exponent, 
+// which is EXTENDED compare to IEEE double precision floating-point number. 
 class DiyFp
 {
 public:
@@ -65,8 +68,10 @@ public:
     static void Multiply(const DiyFp& left, const DiyFp& right, DiyFp& result);
 
     static void GenerateNormalizedDiyFp(double value, DiyFp& result);
+
 public:
     static const int SIGNIFICAND_LENGTH = 64;
+
 private:
     UINT64 m_f;
     int m_e;

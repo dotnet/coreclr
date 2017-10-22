@@ -1,3 +1,12 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+//
+// File: grisu3.cpp
+//
+
+//
+
 #include "grisu3.h"
 #include <math.h>
 
@@ -15,6 +24,22 @@ bool Grisu3::Run(double value, int count, int* dec, int* sign, wchar_t* digits)
     // Note: Instead of generating shortest digits, we generate the digits according to the input count.
     // Therefore, we do not need m+ and m- which are used to determine the exact range of values.
     // ======================================================================================================================================== 
+    //
+    // Overview:
+    //
+    // The idea of Grisu3 is to leverage additional bits and cached power of ten to produce the digits.
+    // We need to create a handmade floating point data structure DiyFp to extend the bits of double.
+    // We also need to cache the powers of ten for digits generation. By choosing the correct index of powers
+    // we need to start with, we can eliminate the expensive big num divide operation.
+    //
+    // Grisu3 is imprecision for some numbers. Fortunately, the algorithm itself can determine that and give us
+    // a success/fail flag. We may fall back to other algorithms (For instance, Dragon4) if it fails.
+    //
+    // w: the normalized DiyFp from the input value.
+    // mk: The index of the cached powers.
+    // cmk: The cached power.
+    // D: Product: w * cmk.
+    // kappa: A factor used for generating digits. See step 5 of the Grisu3 procedure in the paper.
 
     // Handle sign bit.
     if (value < 0)
@@ -27,16 +52,27 @@ bool Grisu3::Run(double value, int count, int* dec, int* sign, wchar_t* digits)
         *sign = 0;
     }
 
+    // Step 1: Determine the normalized DiyFp w.
+
     DiyFp w;
     DiyFp::GenerateNormalizedDiyFp(value, w);
+
+    // Step 2: Find the cached power of ten.
+
+    // Compute the proper index mk.
     int mk = KComp(w.e() + DiyFp::SIGNIFICAND_LENGTH);
 
+    // Retrieve the cached power of ten.
     DiyFp cmk;
     int decimalExponent;
     CachedPower(mk, &cmk, &decimalExponent);
 
+    // Step 3: Scale the w with the cached power of ten.
+
     DiyFp D;
     DiyFp::Multiply(w, cmk, D);
+
+    // Step 4: Generate digits.
 
     int kappa;
     int length;
@@ -57,34 +93,46 @@ bool Grisu3::RoundWeed(wchar_t* buffer,
     UINT64 ulp,
     int* kappa)
 {
-    assert(rest < tenKappa);
+    _ASSERTE(rest < tenKappa);
 
-    if (ulp >= tenKappa || tenKappa - ulp <= ulp)
+    // 1. tenKappa <= ulp: we don't have an idea which way to round.
+    // 2. Even if tenKappa > ulp, but if tenKappa <= 2 * ulp we cannot find the way to round.
+    // Note: to prevent overflow, we need to use tenKappa - ulp <= ulp.
+    if (tenKappa <= ulp || tenKappa - ulp <=  ulp)
     {
         return false;
     }
 
+    // tenKappa >= 2 * (rest + ulp). We should round down.
+    // Note: to prevent overflow, we need to check if tenKappa > 2 * rest as a prerequisite.
     if ((tenKappa - rest > rest) && (tenKappa - 2 * rest >= 2 * ulp))
     {
         return true;
     }
 
-    if ((rest > ulp) && (tenKappa - (rest - ulp) <= (rest - ulp)))
+    // tenKappa <= 2 * (rest - ulp). We should round up.
+    // Note: to prevent overflow, we need to check if rest > ulp as a prerequisite.
+    if ((rest > ulp) && (tenKappa <= (rest - ulp) || (tenKappa - (rest - ulp) <= (rest - ulp))))
     {
+        // Find all 9s from end to start.
         buffer[len - 1]++;
         for (int i = len - 1; i > 0; --i)
         {
             if (buffer[i] != L'0' + 10)
             {
+                // We end up a number less than 9.
                 break;
             }
 
+            // Current number becomes 0 and add the promotion to the next number.
             buffer[i] = L'0';
             buffer[i - 1]++;
         }
 
         if (buffer[0] == L'0' + 10)
         {
+            // First number is '0' + 10 means all numbers are 9.
+            // We simply make the first number to 1 and increase the kappa.
             buffer[0] = L'1';
             (*kappa) += 1;
         }
@@ -97,7 +145,19 @@ bool Grisu3::RoundWeed(wchar_t* buffer,
 
 bool Grisu3::DigitGen(const DiyFp& mp, int count, wchar_t* buffer, int* len, int* K)
 {
-    assert(mp.e() >= ALPHA && mp.e() <= GAMA);
+    // Split the input mp to two parts. Part 1 is integral. Part 2 can be used to calculate
+    // fractional.
+    //
+    // mp: the input DiyFp scaled by cached power.
+    // K: final kappa.
+    // p1: part 1.
+    // p2: part 2.
+
+    _ASSERTE(count > 0);
+    _ASSERTE(buffer != NULL);
+    _ASSERTE(len != NULL);
+    _ASSERTE(K != NULL);
+    _ASSERTE(mp.e() >= ALPHA && mp.e() <= GAMA);
 
     UINT64 ulp = 1;
     DiyFp one = DiyFp(static_cast<UINT64>(1) << -mp.e(), mp.e());
@@ -108,6 +168,7 @@ bool Grisu3::DigitGen(const DiyFp& mp, int count, wchar_t* buffer, int* len, int
     int kappa = 10;
     int div = TEN9;
 
+    // Produce integral.
     while (kappa > 0)
     {
         int d = p1 / div;
@@ -128,6 +189,7 @@ bool Grisu3::DigitGen(const DiyFp& mp, int count, wchar_t* buffer, int* len, int
         div /= 10;
     }
 
+    // End up here if we already exhausted the digit count.
     if (count == 0)
     {
         UINT64 rest = (static_cast<UINT64>(p1) << -one.e()) + p2;
@@ -143,6 +205,8 @@ bool Grisu3::DigitGen(const DiyFp& mp, int count, wchar_t* buffer, int* len, int
             K);
     }
 
+    // We have to generate digits from part2 if we have requested digit count left
+    // and part2 is greater than ulp.
     while (count > 0 && p2 > ulp)
     {
         p2 *= 10;
@@ -160,6 +224,7 @@ bool Grisu3::DigitGen(const DiyFp& mp, int count, wchar_t* buffer, int* len, int
         ulp *= 10;
     }
 
+    // If we haven't exhausted the requested digit counts, the Grisu3 algorithm fails.
     if (count != 0)
     {
         return false;
@@ -178,7 +243,8 @@ int Grisu3::KComp(int e)
 
 void Grisu3::CachedPower(int k, DiyFp* cmk, int* decimalExponent)
 {
-    assert(cmk != NULL);
+    _ASSERTE(cmk != NULL);
+    _ASSERTE(decimalExponent != NULL);
 
     int index = (POWER_OFFSET + k - 1) / POWER_DECIMAL_EXPONENT_DISTANCE + 1;
     PowerOfTen cachedPower = m_cachedPowers[index];
