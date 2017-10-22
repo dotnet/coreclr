@@ -243,11 +243,22 @@ namespace System.Diagnostics
         }
     }
 
+    [Flags]
+    internal enum StackTraceFormatting
+    {
+        None = 0,
+        ExcludeStackTraceHidden   = 1 << 0,
+        ExcludeDispatchBoundaries = 1 << 1
+    }
 
     // Class which represents a description of a stack trace
     // There is no good reason for the methods of this class to be virtual.  
     public class StackTrace
     {
+        internal static StackTraceFormatting FormattingOptions { get; set; }
+            = StackTraceFormatting.ExcludeStackTraceHidden |
+              StackTraceFormatting.ExcludeDispatchBoundaries;
+
         private StackFrame[] frames;
         private int m_iNumOfFrames;
         public const int METHODS_TO_SKIP = 0;
@@ -537,18 +548,24 @@ namespace System.Diagnostics
             {
                 StackFrame sf = GetFrame(iFrameIndex);
                 MethodBase mb = sf.GetMethod();
-                if (mb != null)
+                if (mb != null && (ShowInStackTrace(mb) || 
+                                   (iFrameIndex == m_iNumOfFrames - 1))) // Don't filter last frame
                 {
                     // We want a newline at the end of every line except for the last
                     if (fFirstFrame)
+                    {
                         fFirstFrame = false;
+                    }
                     else
-                        sb.Append(Environment.NewLine);
+                    {
+                        sb.AppendLine();
+                    }
 
                     sb.AppendFormat(CultureInfo.InvariantCulture, "   {0} ", word_At);
 
                     Type t = mb.DeclaringType;
                     // if there is a type (non global method) print it
+
                     if (t != null)
                     {
                         // Append t.FullName, replacing '+' with '.'
@@ -643,18 +660,47 @@ namespace System.Diagnostics
                         }
                     }
 
-                    if (sf.GetIsLastFrameFromForeignExceptionStackTrace())
+                    if (!FormattingOptions.HasFlag(StackTraceFormatting.ExcludeDispatchBoundaries) && sf.GetIsLastFrameFromForeignExceptionStackTrace())
                     {
-                        sb.Append(Environment.NewLine);
+                        sb.AppendLine();
                         sb.Append(SR.Exception_EndStackTraceFromPreviousThrow);
                     }
                 }
             }
 
             if (traceFormat == TraceFormat.TrailingNewLine)
-                sb.Append(Environment.NewLine);
+            {
+                sb.AppendLine();
+            }
 
             return sb.ToString();
+        }
+
+        private static bool ShowInStackTrace(MethodBase mb)
+        {
+            Debug.Assert(mb != null);
+
+            if (!FormattingOptions.HasFlag(StackTraceFormatting.ExcludeStackTraceHidden))
+            {
+                return true;
+            }
+            else
+            {
+                var att = mb.GetCustomAttribute<DebuggerNonUserCodeAttribute>();
+                if (att?.StackTraceOptions.HasFlag(StackTraceFormattingOptions.StackTraceHidden) ?? false)
+                {
+                    return false;
+                }
+
+                att = mb.DeclaringType?.GetCustomAttribute<DebuggerNonUserCodeAttribute>();
+                if (att?.StackTraceOptions.HasFlag(StackTraceFormattingOptions.StackTraceHidden) ?? false)
+                {
+                    return false;
+                }
+
+            }
+
+            return true;
         }
 
         // This helper is called from within the EE to construct a string representation
