@@ -48,9 +48,15 @@ enum GC_LOAD_STATUS {
     GC_LOAD_STATUS_LOAD_COMPLETE
 };
 
+// Load status of the GC. If GC loading fails, the value of this
+// global indicates where the failure occured.
 GC_LOAD_STATUS g_gc_load_status = GC_LOAD_STATUS_START;
+
+// The version of the GC that we have loaded.
 VersionInfo g_gc_version_info;
 
+// GC entrypoints for the the linked-in GC. These symbols are invoked
+// directly if we are not using a standalone GC.
 extern "C" void GC_VersionInfo(/* Out */ VersionInfo* info);
 extern "C" HRESULT GC_Initialize(
     /* In  */ IGCToCLR* clrToGC,
@@ -64,8 +70,16 @@ extern "C" HRESULT GC_Initialize(
 namespace
 {
 
+// Loads and initializes a standalone GC, given the path to the GC
+// that we should load. Returns S_OK on success and the failed HRESULT
+// on failure.
+//
+// See Documentation/design-docs/standalone-gc-loading.md for details
+// on the loading protocol in use here.
 HRESULT LoadAndInitializeGC(TCHAR* standaloneGcLocation)
 {
+    LIMITED_METHOD_CONTRACT;
+
 #ifndef FEATURE_STANDALONE_GC
     LOG((LF_GC, LL_FATALERROR, "EE not built with the ability to load standalone GCs"));
     return E_FAIL;
@@ -79,7 +93,8 @@ HRESULT LoadAndInitializeGC(TCHAR* standaloneGcLocation)
         return err;
     }
 
-    // a standalone GC dispatches virtually on GCToEEInterface.
+    // a standalone GC dispatches virtually on GCToEEInterface, so we must instantiate
+    // a class for the GC to use.
     IGCToCLR* gcToClr = new (nothrow) standalone::GCToEEInterface();
     if (!gcToClr)
     {
@@ -143,9 +158,17 @@ HRESULT LoadAndInitializeGC(TCHAR* standaloneGcLocation)
 #endif // FEATURE_STANDALONE_GC
 }
 
-
+// Initializes a non-standalone GC. The protocol for initializing a non-standalone GC
+// is similar to loading a standalone one, except that the GC_VersionInfo and
+// GC_Initialize symbols are linked to directory and thus don't need to be loaded.
+//
+// The major and minor versions are still checked in debug builds - it must be the case
+// that the GC and EE agree on a shared version number because they are built from
+// the same sources.
 HRESULT InitializeDefaultGC()
 {
+    LIMITED_METHOD_CONTRACT;
+
     LOG((LF_GC, LL_INFO100, "Standalone GC location not provided, using provided GC\n"));
 
     g_gc_load_status = GC_LOAD_STATUS_DONE_LOAD;
@@ -181,6 +204,9 @@ HRESULT InitializeDefaultGC()
 
 } // anonymous namespace
 
+// Loads (if necessary) and initializes the GC. If using a standalone GC,
+// it loads the library containing it and dynamically loads the GC entry point.
+// If using a non-standalone GC, it invokes the GC entry point directly.
 HRESULT GCHeapUtilities::LoadAndInitialize()
 {
     LIMITED_METHOD_CONTRACT;
@@ -195,9 +221,6 @@ HRESULT GCHeapUtilities::LoadAndInitialize()
 
     TCHAR* standaloneGcLocation = nullptr;
     CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCName, &standaloneGcLocation);
-
-    HMODULE hMod;
-    IGCToCLR* gcToClr;
     if (!standaloneGcLocation)
     {
         return InitializeDefaultGC();

@@ -21,6 +21,8 @@
 
 #define GC_EXPORT extern "C" DLLEXPORT
 
+// These symbols are defined in gc.cpp and populate the GcDacVars
+// structure with the addresses of DAC variables within the GC.
 namespace WKS 
 {
     extern void PopulateDacVars(GcDacVars* dacVars);
@@ -31,6 +33,7 @@ namespace SVR
     extern void PopulateDacVars(GcDacVars* dacVars);
 }
 
+// This symbol populates GcDacVars with handle table dacvars.
 extern void PopulateHandleTableDacVars(GcDacVars* dacVars);
 
 GC_EXPORT
