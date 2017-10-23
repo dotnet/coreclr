@@ -2468,7 +2468,7 @@ void InitializeGarbageCollector()
     g_pFreeObjectMethodTable->SetBaseSize(ObjSizeOf (ArrayBase));
     g_pFreeObjectMethodTable->SetComponentSize(1);
 
-    hr = GCHeapUtilities::InitializeAndLoad();
+    hr = GCHeapUtilities::LoadAndInitialize();
     if (hr != S_OK)
     {
         ThrowHR(hr);

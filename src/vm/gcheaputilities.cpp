@@ -61,55 +61,30 @@ extern "C" HRESULT GC_Initialize(
 
 #ifndef DACCESS_COMPILE
 
-HRESULT GCHeapUtilities::InitializeAndLoad()
+namespace
 {
-    LIMITED_METHOD_CONTRACT;
 
-    // we should only call this once on startup. Attempting to load a GFC
-    // twice is an error.
-    assert(g_pGCHeap == nullptr);
-
-    // we should not have attempted to load a GC already. Attempting a
-    // load after the first load already failed is an error.
-    assert(g_gc_load_status == GC_LOAD_STATUS_START);
-
-    TCHAR* standaloneGcLocation = nullptr;
-    CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCName, &standaloneGcLocation);
-
-    HMODULE hMod;
-    IGCToCLR* gcToClr;
-    if (!standaloneGcLocation)
-    {
-        LOG((LF_GC, LL_INFO100, "Standalone GC location not provided, using provided GC\n"));
-        hMod = GetModuleInst();
-        assert(hMod != nullptr);
-
-        // a non-standalone GC links directly against the EE and invokes methods on GCToEEInterface
-        // directly
-        gcToClr = nullptr;
-    }
-    else
-    {
+HRESULT LoadAndInitializeGC(TCHAR* standaloneGcLocation)
+{
 #ifndef FEATURE_STANDALONE_GC
-        LOG((LF_GC, LL_FATALERROR, "EE not built with the ability to load standalone GCs"));
-        return E_FAIL;
+    UNUSED(standaloneGcLocation);
+    LOG((LF_GC, LL_FATALERROR, "EE not built with the ability to load standalone GCs"));
+    return E_FAIL;
 #else
-        LOG((LF_GC, LL_INFO100, "Loading standalone GC from path %S\n", standaloneGcLocation));
-        hMod = CLRLoadLibrary(standaloneGcLocation);
-        if (!hMod)
-        {
-            HRESULT err = GetLastError();
-            LOG((LF_GC, LL_FATALERROR, "Load of %S failed\n", standaloneGcLocation));
-            return err;
-        }
+    LOG((LF_GC, LL_INFO100, "Loading standalone GC from path %S\n", standaloneGcLocation));
+    HMODULE hMod = CLRLoadLibrary(standaloneGcLocation);
+    if (!hMod)
+    {
+        HRESULT err = GetLastError();
+        LOG((LF_GC, LL_FATALERROR, "Load of %S failed\n", standaloneGcLocation));
+        return err;
+    }
 
-        // a standalone GC dispatches virtually on GCToEEInterface.
-        gcToClr = new (nothrow) standalone::GCToEEInterface();
-        if (!gcToClr)
-        {
-            return E_OUTOFMEMORY;
-        }
-#endif // FEATURE_STANDALONE_GC
+    // a standalone GC dispatches virtually on GCToEEInterface.
+    IGCToCLR* gcToClr = new (nothrow) standalone::GCToEEInterface();
+    if (!gcToClr)
+    {
+        return E_OUTOFMEMORY;
     }
 
     g_gc_load_status = GC_LOAD_STATUS_DONE_LOAD;
@@ -157,12 +132,74 @@ HRESULT GCHeapUtilities::InitializeAndLoad()
         g_pGCHeap = heap;
         g_pGCHandleManager = manager;
         g_gcDacGlobals = &g_gc_dac_vars;
-        g_gc_load_status = GC_LOAD_STATUS_DONE_LOAD;
+        g_gc_load_status = GC_LOAD_STATUS_LOAD_COMPLETE;
         LOG((LF_GC, LL_INFO100, "GC load successful\n"));
     }
 
     LOG((LF_GC, LL_INFO100, "GC initialization failed with HR = 0x%X\n", initResult));
     return initResult;
+#endif // FEATURE_STANDALONE_GC
+}
+
+
+HRESULT InitializeDefaultGC()
+{
+    LOG((LF_GC, LL_INFO100, "Standalone GC location not provided, using provided GC\n"));
+
+    g_gc_load_status = GC_LOAD_STATUS_DONE_LOAD;
+    VersionInfo info;
+    GC_VersionInfo(&g_gc_version_info);
+    g_gc_load_status = GC_LOAD_STATUS_CALL_VERSIONINFO;
+
+    // the default GC builds with the rest of the EE. By definition, it must have been
+    // built with the same interface version.
+    assert(g_gc_version_info.MajorVersion == GC_INTERFACE_MAJOR_VERSION);
+    assert(g_gc_version_info.MinorVersion == GC_INTERFACE_MINOR_VERSION);
+    g_gc_load_status = GC_LOAD_STATUS_DONE_VERSION_CHECK;
+
+    IGCHeap* heap;
+    IGCHandleManager* manager;
+    HRESULT initResult = GC_Initialize(nullptr, &heap, &manager, &g_gc_dac_vars);
+    if (initResult == S_OK)
+    {
+        g_pGCHeap = heap;
+        g_pGCHandleManager = manager;
+        g_gcDacGlobals = &g_gc_dac_vars;
+        g_gc_load_status = GC_LOAD_STATUS_LOAD_COMPLETE;
+        LOG((LF_GC, LL_INFO100, "GC load successful\n"));
+    }
+
+    LOG((LF_GC, LL_INFO100, "GC initialization failed with HR = 0x%X\n", initResult));
+    return initResult;
+}
+
+} // anonymous namespace
+
+HRESULT GCHeapUtilities::LoadAndInitialize()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // we should only call this once on startup. Attempting to load a GC
+    // twice is an error.
+    assert(g_pGCHeap == nullptr);
+
+    // we should not have attempted to load a GC already. Attempting a
+    // load after the first load already failed is an error.
+    assert(g_gc_load_status == GC_LOAD_STATUS_START);
+
+    TCHAR* standaloneGcLocation = nullptr;
+    CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCName, &standaloneGcLocation);
+
+    HMODULE hMod;
+    IGCToCLR* gcToClr;
+    if (!standaloneGcLocation)
+    {
+        return InitializeDefaultGC();
+    }
+    else
+    {
+        return LoadAndInitializeGC(standaloneGcLocation);
+    }
 }
 
 #endif // DACCESS_COMPILE

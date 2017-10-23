@@ -198,7 +198,7 @@ public:
 
 #ifndef DACCESS_COMPILE
     // Loads (if using a standalone GC) and initializes the GC.
-    static HRESULT InitializeAndLoad();
+    static HRESULT LoadAndInitialize();
 #endif // DACCESS_COMPILE
 
 private:
