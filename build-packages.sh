@@ -16,13 +16,21 @@ initHostDistroRid()
     if [ "$__HostOS" == "Linux" ]; then
         if [ -e /etc/os-release ]; then
             source /etc/os-release
-            __HostDistroRid="$ID.$VERSION_ID-$__Arch"
+            if [[ $ID == "alpine" ]]; then
+                # remove the last version digit
+                VERSION_ID=${VERSION_ID%.*}
+            fi
+            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
         elif [ -e /etc/redhat-release ]; then
             local redhatRelease=$(</etc/redhat-release)
             if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
-               __HostDistroRid="rhel.6-$__Arch"
+               __HostDistroRid="rhel.6-$__HostArch"
             fi
         fi
+    fi
+    if [ "$__HostOS" == "FreeBSD" ]; then
+        __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
+        __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
     fi
 
     if [ "$__HostDistroRid" == "" ]; then
@@ -87,7 +95,7 @@ while :; do
         ;;
         -BuildArch=*)
         unprocessedBuildArgs="$unprocessedBuildArgs $1"
-        __Arch=$(echo $1| cut -d'=' -f 2)
+        __HostArch=$(echo $1| cut -d'=' -f 2)
         ;;
 
         -portablebuild=false)
@@ -103,9 +111,9 @@ done
 # Portable builds target the base RID
 if [ $__IsPortableBuild == 1 ]; then
     if [ "$__BuildOS" == "Linux" ]; then
-        export __DistroRid="linux-$__Arch"
+        export __DistroRid="linux-$__HostArch"
     elif [ "$__BuildOS" == "OSX" ]; then
-        export __DistroRid="osx-$__Arch"
+        export __DistroRid="osx-$__HostArch"
     fi
 else
     # init the host distro name
