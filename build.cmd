@@ -94,7 +94,6 @@ set __BuildTypeDebug=0
 set __BuildTypeChecked=0
 set __BuildTypeRelease=0
 set __BuildStandaloneGC="-DFEATURE_STANDALONE_GC=0"
-set __BuildStandaloneGCOnly="-DFEATURE_STANDALONE_GC_ONLY=0"
 
 set __PgoInstrument=0
 set __PgoOptimize=1
@@ -179,7 +178,6 @@ if /i "%1" == "-ibcinstrument"       (set __IbcTuning=/Tuning&set processedArgs=
 if /i "%1" == "-toolset_dir"         (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "-buildstandalonegc"   (
     set __BuildStandaloneGC="-DFEATURE_STANDALONE_GC=1"
-    set __BuildStandaloneGCOnly="-DFEATURE_STANDALONE_GC_ONLY=1"
     set processedArgs=!processedArgs! %1
     shift&goto Arg_Loop
 )
@@ -207,7 +205,6 @@ if /i "%1" == "ibcinstrument"       (set __IbcTuning=/Tuning&set processedArgs=!
 if /i "%1" == "toolset_dir"         (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "buildstandalonegc"   (
     set __BuildStandaloneGC="-DFEATURE_STANDALONE_GC=1"
-    set __BuildStandaloneGCOnly="-DFEATURE_STANDALONE_GC_ONLY=1"
     set processedArgs=!processedArgs! %1
     shift&goto Arg_Loop
 )

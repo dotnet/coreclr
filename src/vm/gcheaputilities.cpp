@@ -67,7 +67,6 @@ namespace
 HRESULT LoadAndInitializeGC(TCHAR* standaloneGcLocation)
 {
 #ifndef FEATURE_STANDALONE_GC
-    UNUSED(standaloneGcLocation);
     LOG((LF_GC, LL_FATALERROR, "EE not built with the ability to load standalone GCs"));
     return E_FAIL;
 #else
@@ -135,8 +134,11 @@ HRESULT LoadAndInitializeGC(TCHAR* standaloneGcLocation)
         g_gc_load_status = GC_LOAD_STATUS_LOAD_COMPLETE;
         LOG((LF_GC, LL_INFO100, "GC load successful\n"));
     }
+    else
+    {
+        LOG((LF_GC, LL_FATALERROR, "GC initialization failed with HR = 0x%X\n", initResult));
+    }
 
-    LOG((LF_GC, LL_INFO100, "GC initialization failed with HR = 0x%X\n", initResult));
     return initResult;
 #endif // FEATURE_STANDALONE_GC
 }
@@ -168,8 +170,12 @@ HRESULT InitializeDefaultGC()
         g_gc_load_status = GC_LOAD_STATUS_LOAD_COMPLETE;
         LOG((LF_GC, LL_INFO100, "GC load successful\n"));
     }
+    else
+    {
+        LOG((LF_GC, LL_FATALERROR, "GC initialization failed with HR = 0x%X\n", initResult));
+    }
 
-    LOG((LF_GC, LL_INFO100, "GC initialization failed with HR = 0x%X\n", initResult));
+
     return initResult;
 }
 
