@@ -6699,7 +6699,7 @@ HRESULT ProfToEEInterfaceImpl::GetNativeCodeStartAddresses(FunctionID functionID
             }
             else
             {
-                for(ULONG32 i = 0; i < cCodeStartAddresses; ++i)
+                for(ULONG32 i = 0; i < trueLen; ++i)
                 {
                     codeStartAddresses[i] = addresses[i];
                 }
