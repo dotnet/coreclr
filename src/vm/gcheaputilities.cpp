@@ -76,7 +76,7 @@ namespace
 //
 // See Documentation/design-docs/standalone-gc-loading.md for details
 // on the loading protocol in use here.
-HRESULT LoadAndInitializeGC(TCHAR* standaloneGcLocation)
+HRESULT LoadAndInitializeGC(LPWSTR standaloneGcLocation)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -219,7 +219,7 @@ HRESULT GCHeapUtilities::LoadAndInitialize()
     // load after the first load already failed is an error.
     assert(g_gc_load_status == GC_LOAD_STATUS_START);
 
-    TCHAR* standaloneGcLocation = nullptr;
+    LPWSTR standaloneGcLocation = nullptr;
     CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCName, &standaloneGcLocation);
     if (!standaloneGcLocation)
     {
