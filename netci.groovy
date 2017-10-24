@@ -1496,7 +1496,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "tests\\scripts\\build_illink.cmd clone ${arch}"
                     }
 
-                    buildOpts += " -priority=${priority}"
+                    buildOpts += enableCorefxTesting ? "" : " -priority=${priority}"
 
                     // If it is a release build for windows, ensure PGO is used, else fail the build
                     if ((lowerConfiguration == 'release') &&
@@ -1524,7 +1524,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             scenario == 'illink' ||
                             Constants.r2rJitStressScenarios.indexOf(scenario) != -1) {
                         buildOpts += enableCorefxTesting ? ' -skiptests' : ''
-                        println("BuildOpts: ${buildOpts}")
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
                     }
 
