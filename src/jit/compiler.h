@@ -9564,7 +9564,7 @@ public:
     void fgMorphMultiregStructArgs(GenTreeCall* call);
     GenTreePtr fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr fgEntryPtr);
 
-    bool killGCRefs(GenTree* tree);
+    bool killGCRefs(GenTreePtr tree);
 
 }; // end of class Compiler
 

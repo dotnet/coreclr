@@ -11403,16 +11403,17 @@ HelperCallProperties Compiler::s_helperCallProperties;
 // Return Value:
 //    true       - tree kills GC refs on callee save registers
 //    false      - tree doesn't affect GC refs on callee save registers
-bool Compiler::killGCRefs(GenTree* tree)
+bool Compiler::killGCRefs(GenTreePtr tree)
 {
     if (tree->IsCall())
     {
-        if ((tree->gtFlags & GTF_CALL_UNMANAGED) != 0)
+        GenTreeCall* call = tree->AsCall();
+        if (call->IsUnmanaged())
         {
             return true;
         }
 
-        if (tree->AsCall()->gtCallMethHnd == eeFindHelper(CORINFO_HELP_JIT_PINVOKE_BEGIN))
+        if (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_JIT_PINVOKE_BEGIN))
         {
             assert(opts.ShouldUsePInvokeHelpers());
             return true;
