@@ -175,10 +175,23 @@ inline BOOL genMaxOneBit(unsigned value)
  *  Given a value that has exactly one bit set, return the position of that
  *  bit, in other words return the logarithm in base 2 of the given value.
  */
-
 inline unsigned genLog2(unsigned value)
 {
     return BitPosition(value);
+}
+
+// Given an unsigned 64-bit value, returns the lower 32-bits in unsigned format
+//
+inline unsigned ulo32(unsigned __int64 value)
+{
+    return static_cast<unsigned>(value);
+}
+
+// Given an unsigned 64-bit value, returns the upper 32-bits in unsigned format
+//
+inline unsigned uhi32(unsigned __int64 value)
+{
+    return static_cast<unsigned>(value >> 32);
 }
 
 /*****************************************************************************
@@ -189,8 +202,8 @@ inline unsigned genLog2(unsigned value)
 
 inline unsigned genLog2(unsigned __int64 value)
 {
-    unsigned lo32 = (unsigned)value;
-    unsigned hi32 = (unsigned)(value >> 32);
+    unsigned lo32 = ulo32(value);
+    unsigned hi32 = uhi32(value);
 
     if (lo32 != 0)
     {
@@ -1038,8 +1051,7 @@ inline GenTreePtr Compiler::gtNewLargeOperNode(genTreeOps oper, var_types type, 
  *  that may need to be fixed up).
  */
 
-inline GenTreePtr Compiler::gtNewIconHandleNode(
-    size_t value, unsigned flags, FieldSeqNode* fields, unsigned handle1, void* handle2)
+inline GenTreePtr Compiler::gtNewIconHandleNode(size_t value, unsigned flags, FieldSeqNode* fields)
 {
     GenTreePtr node;
     assert((flags & (GTF_ICON_HDL_MASK | GTF_ICON_FIELD_OFF)) != 0);
@@ -1052,9 +1064,6 @@ inline GenTreePtr Compiler::gtNewIconHandleNode(
 
 #if defined(LATE_DISASM)
     node = new (this, LargeOpOpcode()) GenTreeIntCon(TYP_I_IMPL, value, fields DEBUGARG(/*largeNode*/ true));
-
-    node->gtIntCon.gtIconHdl.gtIconHdl1 = handle1;
-    node->gtIntCon.gtIconHdl.gtIconHdl2 = handle2;
 #else
     node             = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, value, fields);
 #endif
@@ -1069,7 +1078,7 @@ inline GenTreePtr Compiler::gtNewIconHandleNode(
  *  These are versions for each specific type of HANDLE
  */
 
-inline GenTreePtr Compiler::gtNewIconEmbScpHndNode(CORINFO_MODULE_HANDLE scpHnd, unsigned hnd1, void* hnd2)
+inline GenTreePtr Compiler::gtNewIconEmbScpHndNode(CORINFO_MODULE_HANDLE scpHnd)
 {
     void *embedScpHnd, *pEmbedScpHnd;
 
@@ -1077,12 +1086,12 @@ inline GenTreePtr Compiler::gtNewIconEmbScpHndNode(CORINFO_MODULE_HANDLE scpHnd,
 
     assert((!embedScpHnd) != (!pEmbedScpHnd));
 
-    return gtNewIconEmbHndNode(embedScpHnd, pEmbedScpHnd, GTF_ICON_SCOPE_HDL, hnd1, hnd2, scpHnd);
+    return gtNewIconEmbHndNode(embedScpHnd, pEmbedScpHnd, GTF_ICON_SCOPE_HDL, scpHnd);
 }
 
 //-----------------------------------------------------------------------------
 
-inline GenTreePtr Compiler::gtNewIconEmbClsHndNode(CORINFO_CLASS_HANDLE clsHnd, unsigned hnd1, void* hnd2)
+inline GenTreePtr Compiler::gtNewIconEmbClsHndNode(CORINFO_CLASS_HANDLE clsHnd)
 {
     void *embedClsHnd, *pEmbedClsHnd;
 
@@ -1090,12 +1099,12 @@ inline GenTreePtr Compiler::gtNewIconEmbClsHndNode(CORINFO_CLASS_HANDLE clsHnd, 
 
     assert((!embedClsHnd) != (!pEmbedClsHnd));
 
-    return gtNewIconEmbHndNode(embedClsHnd, pEmbedClsHnd, GTF_ICON_CLASS_HDL, hnd1, hnd2, clsHnd);
+    return gtNewIconEmbHndNode(embedClsHnd, pEmbedClsHnd, GTF_ICON_CLASS_HDL, clsHnd);
 }
 
 //-----------------------------------------------------------------------------
 
-inline GenTreePtr Compiler::gtNewIconEmbMethHndNode(CORINFO_METHOD_HANDLE methHnd, unsigned hnd1, void* hnd2)
+inline GenTreePtr Compiler::gtNewIconEmbMethHndNode(CORINFO_METHOD_HANDLE methHnd)
 {
     void *embedMethHnd, *pEmbedMethHnd;
 
@@ -1103,12 +1112,12 @@ inline GenTreePtr Compiler::gtNewIconEmbMethHndNode(CORINFO_METHOD_HANDLE methHn
 
     assert((!embedMethHnd) != (!pEmbedMethHnd));
 
-    return gtNewIconEmbHndNode(embedMethHnd, pEmbedMethHnd, GTF_ICON_METHOD_HDL, hnd1, hnd2, methHnd);
+    return gtNewIconEmbHndNode(embedMethHnd, pEmbedMethHnd, GTF_ICON_METHOD_HDL, methHnd);
 }
 
 //-----------------------------------------------------------------------------
 
-inline GenTreePtr Compiler::gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd, unsigned hnd1, void* hnd2)
+inline GenTreePtr Compiler::gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd)
 {
     void *embedFldHnd, *pEmbedFldHnd;
 
@@ -1116,7 +1125,7 @@ inline GenTreePtr Compiler::gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd, 
 
     assert((!embedFldHnd) != (!pEmbedFldHnd));
 
-    return gtNewIconEmbHndNode(embedFldHnd, pEmbedFldHnd, GTF_ICON_FIELD_HDL, hnd1, hnd2, fldHnd);
+    return gtNewIconEmbHndNode(embedFldHnd, pEmbedFldHnd, GTF_ICON_FIELD_HDL, fldHnd);
 }
 
 /*****************************************************************************/
@@ -1611,16 +1620,9 @@ inline bool GenTree::IsVarAddr() const
 
 inline bool GenTree::gtOverflow() const
 {
-#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
-    assert(gtOper == GT_MUL || gtOper == GT_CAST || gtOper == GT_ADD || gtOper == GT_SUB || gtOper == GT_ASG_ADD ||
-           gtOper == GT_ASG_SUB || gtOper == GT_ADD_LO || gtOper == GT_SUB_LO || gtOper == GT_ADD_HI ||
-           gtOper == GT_SUB_HI);
-#else
-    assert(gtOper == GT_MUL || gtOper == GT_CAST || gtOper == GT_ADD || gtOper == GT_SUB || gtOper == GT_ASG_ADD ||
-           gtOper == GT_ASG_SUB);
-#endif
+    assert(OperMayOverflow());
 
-    if (gtFlags & GTF_OVERFLOW)
+    if ((gtFlags & GTF_OVERFLOW) != 0)
     {
         assert(varTypeIsIntegral(TypeGet()));
 
@@ -1634,15 +1636,7 @@ inline bool GenTree::gtOverflow() const
 
 inline bool GenTree::gtOverflowEx() const
 {
-    if (gtOper == GT_MUL || gtOper == GT_CAST || gtOper == GT_ADD || gtOper == GT_SUB ||
-#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
-        gtOper == GT_ADD_HI || gtOper == GT_SUB_HI ||
-#endif
-        gtOper == GT_ASG_ADD || gtOper == GT_ASG_SUB)
-    {
-        return gtOverflow();
-    }
-    return false;
+    return OperMayOverflow() && gtOverflow();
 }
 
 /*
@@ -3767,7 +3761,7 @@ inline void Compiler::LoopDsc::VERIFY_lpIterTree()
 
     assert(lpIterTree);
 
-    assert(lpIterTree->OperKind() & GTK_ASGOP); // +=, -=, etc or = +, = -, etc
+    assert(lpIterTree->OperIsAssignment());
 
     if (lpIterTree->OperGet() == GT_ASG)
     {

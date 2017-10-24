@@ -137,8 +137,12 @@ unsigned ReinterpretHexAsDecimal(unsigned);
 
 /*****************************************************************************/
 
-#ifdef FEATURE_SIMD
+#if defined(FEATURE_SIMD)
+#if defined(_TARGET_XARCH_)
 const unsigned TEMP_MAX_SIZE = YMM_REGSIZE_BYTES;
+#elif defined(_TARGET_ARM64_)
+const unsigned TEMP_MAX_SIZE = FP_REGSIZE_BYTES;
+#endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
 #else  // !FEATURE_SIMD
 const unsigned TEMP_MAX_SIZE = sizeof(double);
 #endif // !FEATURE_SIMD
@@ -1166,9 +1170,14 @@ struct FuncInfoDsc
     BYTE     unwindCodes[offsetof(UNWIND_INFO, UnwindCode) + (0xFF * sizeof(UNWIND_CODE))];
     unsigned unwindCodeSlot;
 
-#ifdef UNIX_AMD64_ABI
-    jitstd::vector<CFI_CODE>* cfiCodes;
-#endif // UNIX_AMD64_ABI
+#elif defined(_TARGET_X86_)
+
+#if defined(_TARGET_UNIX_)
+    emitLocation* startLoc;
+    emitLocation* endLoc;
+    emitLocation* coldStartLoc; // locations for the cold section, if there is one.
+    emitLocation* coldEndLoc;
+#endif // _TARGET_UNIX_
 
 #elif defined(_TARGET_ARMARCH_)
 
@@ -1180,7 +1189,18 @@ struct FuncInfoDsc
                          //   Note 2: we currently don't support hot/cold splitting in functions
                          //   with EH, so uwiCold will be NULL for all funclets.
 
+#if defined(_TARGET_UNIX_)
+    emitLocation* startLoc;
+    emitLocation* endLoc;
+    emitLocation* coldStartLoc; // locations for the cold section, if there is one.
+    emitLocation* coldEndLoc;
+#endif // _TARGET_UNIX_
+
 #endif // _TARGET_ARMARCH_
+
+#if defined(_TARGET_UNIX_)
+    jitstd::vector<CFI_CODE>* cfiCodes;
+#endif // _TARGET_UNIX_
 
     // Eventually we may want to move rsModifiedRegsMask, lvaOutgoingArgSize, and anything else
     // that isn't shared between the main function body and funclets.
@@ -1988,22 +2008,16 @@ public:
     GenTree* gtNewPhysRegNode(regNumber reg, var_types type);
 
     GenTreePtr gtNewJmpTableNode();
-    GenTreePtr gtNewIconHandleNode(
-        size_t value, unsigned flags, FieldSeqNode* fields = nullptr, unsigned handle1 = 0, void* handle2 = nullptr);
+    GenTreePtr gtNewIconHandleNode(size_t value, unsigned flags, FieldSeqNode* fields = nullptr);
 
     unsigned gtTokenToIconFlags(unsigned token);
 
-    GenTreePtr gtNewIconEmbHndNode(void*    value,
-                                   void*    pValue,
-                                   unsigned flags,
-                                   unsigned handle1           = 0,
-                                   void*    handle2           = nullptr,
-                                   void*    compileTimeHandle = nullptr);
+    GenTreePtr gtNewIconEmbHndNode(void* value, void* pValue, unsigned flags, void* compileTimeHandle = nullptr);
 
-    GenTreePtr gtNewIconEmbScpHndNode(CORINFO_MODULE_HANDLE scpHnd, unsigned hnd1 = 0, void* hnd2 = nullptr);
-    GenTreePtr gtNewIconEmbClsHndNode(CORINFO_CLASS_HANDLE clsHnd, unsigned hnd1 = 0, void* hnd2 = nullptr);
-    GenTreePtr gtNewIconEmbMethHndNode(CORINFO_METHOD_HANDLE methHnd, unsigned hnd1 = 0, void* hnd2 = nullptr);
-    GenTreePtr gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd, unsigned hnd1 = 0, void* hnd2 = nullptr);
+    GenTreePtr gtNewIconEmbScpHndNode(CORINFO_MODULE_HANDLE scpHnd);
+    GenTreePtr gtNewIconEmbClsHndNode(CORINFO_CLASS_HANDLE clsHnd);
+    GenTreePtr gtNewIconEmbMethHndNode(CORINFO_METHOD_HANDLE methHnd);
+    GenTreePtr gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd);
 
     GenTreePtr gtNewStringLiteralNode(InfoAccessType iat, void* pValue);
 
@@ -3005,12 +3019,12 @@ protected:
                           CORINFO_CLASS_HANDLE    clsHnd,
                           CORINFO_METHOD_HANDLE   method,
                           CORINFO_SIG_INFO*       sig,
+                          unsigned                methodFlags,
                           int                     memberRef,
                           bool                    readonlyCall,
                           bool                    tailCall,
                           CORINFO_RESOLVED_TOKEN* pContstrainedResolvedToken,
                           CORINFO_THIS_TRANSFORM  constraintCallThisTransform,
-                          bool                    isJitIntrinsic,
                           CorInfoIntrinsics*      pIntrinsicID,
                           bool*                   isSpecialIntrinsic = nullptr);
     GenTree* impMathIntrinsic(CORINFO_METHOD_HANDLE method,
@@ -3757,7 +3771,11 @@ public:
 
     bool fgFoldConditional(BasicBlock* block);
 
+#ifdef LEGACY_BACKEND
     void fgMorphStmts(BasicBlock* block, bool* mult, bool* lnot, bool* loadw);
+#else
+    void fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw);
+#endif
     void fgMorphBlocks();
 
     bool fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(const char* msg));
@@ -3796,7 +3814,9 @@ public:
     // lowering that is distributed between fgMorph and the lowering phase of LSRA.
     void fgSimpleLowering();
 
+#ifdef LEGACY_BACKEND
     bool fgShouldCreateAssignOp(GenTreePtr tree, bool* bReverse);
+#endif
 
     GenTreePtr fgInitThisClass();
 
@@ -6826,7 +6846,7 @@ public:
 
     inline bool generateCFIUnwindCodes()
     {
-#ifdef UNIX_AMD64_ABI
+#if defined(_TARGET_UNIX_)
         return IsTargetAbi(CORINFO_CORERT_ABI);
 #else
         return false;
@@ -7275,9 +7295,9 @@ private:
 
 #endif // _TARGET_AMD64_ || (_TARGET_X86_ && FEATURE_EH_FUNCLETS)
 
-#if defined(_TARGET_AMD64_)
-
     UNATIVE_OFFSET unwindGetCurrentOffset(FuncInfoDsc* func);
+
+#if defined(_TARGET_AMD64_)
 
     void unwindBegPrologWindows();
     void unwindPushWindows(regNumber reg);
@@ -7286,13 +7306,7 @@ private:
     void unwindSaveRegWindows(regNumber reg, unsigned offset);
 
 #ifdef UNIX_AMD64_ABI
-    void unwindBegPrologCFI();
-    void unwindPushCFI(regNumber reg);
-    void unwindAllocStackCFI(unsigned size);
-    void unwindSetFrameRegCFI(regNumber reg, unsigned offset);
     void unwindSaveRegCFI(regNumber reg, unsigned offset);
-    int mapRegNumToDwarfReg(regNumber reg);
-    void createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR opcode, USHORT dwarfReg, INT offset = 0);
 #endif // UNIX_AMD64_ABI
 #elif defined(_TARGET_ARM_)
 
@@ -7301,6 +7315,25 @@ private:
     void unwindSplit(FuncInfoDsc* func);
 
 #endif // _TARGET_ARM_
+
+#if defined(_TARGET_UNIX_)
+    int mapRegNumToDwarfReg(regNumber reg);
+    void createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR opcode, USHORT dwarfReg, INT offset = 0);
+    void unwindPushCFI(regNumber reg);
+    void unwindBegPrologCFI();
+    void unwindPushMaskCFI(regMaskTP regMask, bool isFloat);
+    void unwindAllocStackCFI(unsigned size);
+    void unwindSetFrameRegCFI(regNumber reg, unsigned offset);
+    void unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdCode);
+#ifdef DEBUG
+    void DumpCfiInfo(bool                  isHotCode,
+                     UNATIVE_OFFSET        startOffset,
+                     UNATIVE_OFFSET        endOffset,
+                     DWORD                 cfiCodeBytes,
+                     const CFI_CODE* const pCfiCode);
+#endif
+
+#endif // _TARGET_UNIX_
 
 #if !defined(__GNUC__)
 #pragma endregion // Note: region is NOT under !defined(__GNUC__)
@@ -7640,6 +7673,8 @@ private:
             assert(canUseSSE2());
             return TYP_SIMD16;
         }
+#elif defined(_TARGET_ARM64_)
+        return TYP_SIMD16;
 #else
         assert(!"getSIMDVectorType() unimplemented on target arch");
         unreached();
@@ -7676,6 +7711,8 @@ private:
             assert(canUseSSE2());
             return XMM_REGSIZE_BYTES;
         }
+#elif defined(_TARGET_ARM64_)
+        return FP_REGSIZE_BYTES;
 #else
         assert(!"getSIMDVectorRegisterByteLength() unimplemented on target arch");
         unreached();
@@ -7832,7 +7869,7 @@ private:
     bool compSupports(InstructionSet isa)
     {
 #ifdef _TARGET_XARCH_
-        return (opts.compSupportsISA & (1 << isa)) != 0;
+        return (opts.compSupportsISA & (1ULL << isa)) != 0;
 #else
         return false;
 #endif
@@ -7952,7 +7989,7 @@ public:
         uint64_t compSupportsISA;
         void setSupportedISA(InstructionSet isa)
         {
-            compSupportsISA |= 1 << isa;
+            compSupportsISA |= 1ULL << isa;
         }
 #endif
 
@@ -9526,6 +9563,8 @@ public:
 
     void fgMorphMultiregStructArgs(GenTreeCall* call);
     GenTreePtr fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr fgEntryPtr);
+
+    bool killGCRefs(GenTreePtr tree);
 
 }; // end of class Compiler
 

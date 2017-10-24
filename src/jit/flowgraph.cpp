@@ -8491,7 +8491,10 @@ private:
         assert(mergingReturns);
 
         BasicBlock* mergedReturnBlock = nullptr;
-        if ((returnBlock != nullptr) && (maxReturns > 1))
+
+        // Do not look for mergable constant returns in debug codegen as
+        // we may lose track of sequence points.
+        if ((returnBlock != nullptr) && (maxReturns > 1) && !comp->opts.compDbgCode)
         {
             // Check to see if this is a constant return so that we can search
             // for and/or create a constant return block for it.
@@ -21079,10 +21082,10 @@ void Compiler::fgDebugCheckFlags(GenTreePtr tree)
 {
     noway_assert(tree->gtOper != GT_STMT);
 
-    genTreeOps oper      = tree->OperGet();
-    unsigned   kind      = tree->OperKind();
-    unsigned   treeFlags = tree->gtFlags & GTF_ALL_EFFECT;
-    unsigned   chkFlags  = 0;
+    const genTreeOps oper      = tree->OperGet();
+    const unsigned   kind      = tree->OperKind();
+    unsigned         treeFlags = tree->gtFlags & GTF_ALL_EFFECT;
+    unsigned         chkFlags  = 0;
 
     if (tree->OperMayThrow(this))
     {
@@ -21224,7 +21227,7 @@ void Compiler::fgDebugCheckFlags(GenTreePtr tree)
 
             /* For a GT_ASG(GT_IND(x), y) we are interested in the side effects of x */
             GenTreePtr op1p;
-            if ((kind & GTK_ASGOP) && (op1->gtOper == GT_IND))
+            if (GenTree::OperIsAssignment(oper) && (op1->gtOper == GT_IND))
             {
                 op1p = op1->gtOp.gtOp1;
             }
@@ -23553,8 +23556,10 @@ Compiler::fgWalkResult Compiler::fgChkThrowCB(GenTreePtr* pTree, fgWalkData* dat
         case GT_MUL:
         case GT_ADD:
         case GT_SUB:
+#ifdef LEGACY_BACKEND
         case GT_ASG_ADD:
         case GT_ASG_SUB:
+#endif
         case GT_CAST:
             if (tree->gtOverflow())
             {

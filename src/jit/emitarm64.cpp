@@ -1452,6 +1452,8 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
     const static insFormat formatEncode4E[4] = {IF_DR_3A, IF_DR_3B, IF_DI_2C, IF_DV_3C};
     const static insFormat formatEncode4F[4] = {IF_DR_3A, IF_DR_3B, IF_DV_3C, IF_DV_1B};
     const static insFormat formatEncode4G[4] = {IF_DR_2E, IF_DR_2F, IF_DV_2M, IF_DV_2L};
+    const static insFormat formatEncode4H[4] = {IF_DV_3E, IF_DV_3A, IF_DV_2L, IF_DV_2M};
+    const static insFormat formatEncode4I[4] = {IF_DV_3D, IF_DV_3B, IF_DV_2G, IF_DV_2A};
     const static insFormat formatEncode3A[3] = {IF_DR_3A, IF_DR_3B, IF_DI_2C};
     const static insFormat formatEncode3B[3] = {IF_DR_2A, IF_DR_2B, IF_DI_1C};
     const static insFormat formatEncode3C[3] = {IF_DR_3A, IF_DR_3B, IF_DV_3C};
@@ -1475,6 +1477,8 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
     const static insFormat formatEncode2L[2] = {IF_DV_2G, IF_DV_2M};
     const static insFormat formatEncode2M[2] = {IF_DV_3A, IF_DV_3AI};
     const static insFormat formatEncode2N[2] = {IF_DV_2N, IF_DV_2O};
+    const static insFormat formatEncode2O[2] = {IF_DV_3E, IF_DV_3A};
+    const static insFormat formatEncode2P[2] = {IF_DV_2G, IF_DV_3B};
 
     code_t    code           = BAD_CODE;
     insFormat insFmt         = emitInsFormat(ins);
@@ -1608,6 +1612,28 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
             for (index = 0; index < 4; index++)
             {
                 if (fmt == formatEncode4G[index])
+                {
+                    encoding_found = true;
+                    break;
+                }
+            }
+            break;
+
+        case IF_EN4H:
+            for (index = 0; index < 4; index++)
+            {
+                if (fmt == formatEncode4H[index])
+                {
+                    encoding_found = true;
+                    break;
+                }
+            }
+            break;
+
+        case IF_EN4I:
+            for (index = 0; index < 4; index++)
+            {
+                if (fmt == formatEncode4I[index])
                 {
                     encoding_found = true;
                     break;
@@ -1861,6 +1887,28 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
             for (index = 0; index < 2; index++)
             {
                 if (fmt == formatEncode2N[index])
+                {
+                    encoding_found = true;
+                    break;
+                }
+            }
+            break;
+
+        case IF_EN2O:
+            for (index = 0; index < 2; index++)
+            {
+                if (fmt == formatEncode2O[index])
+                {
+                    encoding_found = true;
+                    break;
+                }
+            }
+            break;
+
+        case IF_EN2P:
+            for (index = 0; index < 2; index++)
+            {
+                if (fmt == formatEncode2P[index])
                 {
                     encoding_found = true;
                     break;
@@ -3759,6 +3807,16 @@ void emitter::emitIns_R_R(
             }
             break;
 
+        case INS_dup:
+            // Vector operation
+            assert(insOptsAnyArrangement(opt));
+            assert(isVectorRegister(reg1));
+            assert(isGeneralRegisterOrZR(reg2));
+            assert(isValidVectorDatasize(size));
+            assert(isValidArrangement(size, opt));
+            fmt = IF_DV_2C;
+            break;
+
         case INS_abs:
         case INS_not:
             assert(isVectorRegister(reg1));
@@ -3903,6 +3961,13 @@ void emitter::emitIns_R_R(
             fmt = IF_DR_2G;
             break;
 
+        case INS_addv:
+        case INS_saddlv:
+        case INS_smaxv:
+        case INS_sminv:
+        case INS_uaddlv:
+        case INS_umaxv:
+        case INS_uminv:
         case INS_rev64:
             assert(isVectorRegister(reg1));
             assert(isVectorRegister(reg2));
@@ -3910,6 +3975,18 @@ void emitter::emitIns_R_R(
             assert(isValidArrangement(size, opt));
             elemsize = optGetElemsize(opt);
             assert(elemsize != EA_8BYTE); // No encoding for type D
+            fmt = IF_DV_2M;
+            break;
+
+        case INS_xtn:
+        case INS_xtn2:
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            assert(isValidVectorDatasize(size));
+            assert(isValidArrangement(size, opt));
+            elemsize = optGetElemsize(opt);
+            assert(size != EA_16BYTE);    // Narrowing must start with wide format
+            assert(elemsize != EA_1BYTE); // Narrowing must start with more than one byte src
             fmt = IF_DV_2M;
             break;
 
@@ -4053,6 +4130,28 @@ void emitter::emitIns_R_R(
             }
             break;
 
+        case INS_fcvtl:
+        case INS_fcvtl2:
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            assert(isValidVectorDatasize(size));
+            assert(isValidArrangement(size, opt));
+            elemsize = optGetElemsize(opt);
+            assert(elemsize == EA_4BYTE); // Widening from Float to Double, opt should correspond to src layout
+            fmt = IF_DV_2G;
+            break;
+
+        case INS_fcvtn:
+        case INS_fcvtn2:
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            assert(isValidVectorDatasize(size));
+            assert(isValidArrangement(size, opt));
+            elemsize = optGetElemsize(opt);
+            assert(elemsize == EA_8BYTE); // Narrowing from Double to Float, opt should correspond to src layout
+            fmt = IF_DV_2G;
+            break;
+
         case INS_scvtf:
         case INS_ucvtf:
             if (insOptsAnyArrangement(opt))
@@ -4118,6 +4217,15 @@ void emitter::emitIns_R_R(
                 assert(isVectorRegister(reg2));
                 fmt = IF_DV_2G;
             }
+            break;
+
+        case INS_faddp:
+            // Scalar operation
+            assert(insOptsNone(opt));
+            assert(isValidVectorElemsizeFloat(size));
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            fmt = IF_DV_2G;
             break;
 
         case INS_fcvt:
@@ -4968,10 +5076,67 @@ void emitter::emitIns_R_R_R(
             emitIns_R_R_R_I(ins, attr, reg1, reg2, reg3, 0, INS_OPTS_NONE);
             return;
 
+        case INS_cmeq:
+        case INS_cmge:
+        case INS_cmgt:
+        case INS_cmhi:
+        case INS_cmhs:
+        case INS_ctst:
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            assert(isVectorRegister(reg3));
+
+            if (isValidVectorDatasize(size))
+            {
+                // Vector operation
+                assert(insOptsAnyArrangement(opt));
+                assert(isValidArrangement(size, opt));
+                elemsize = optGetElemsize(opt);
+                fmt      = IF_DV_3A;
+            }
+            else
+            {
+                NYI("Untested");
+                // Scalar operation
+                assert(size == EA_8BYTE); // Only Double supported
+                fmt = IF_DV_3E;
+            }
+            break;
+
+        case INS_fcmeq:
+        case INS_fcmge:
+        case INS_fcmgt:
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            assert(isVectorRegister(reg3));
+
+            if (isValidVectorDatasize(size))
+            {
+                // Vector operation
+                assert(insOptsAnyArrangement(opt));
+                assert(isValidArrangement(size, opt));
+                elemsize = optGetElemsize(opt);
+                assert((elemsize == EA_8BYTE) || (elemsize == EA_4BYTE)); // Only Double/Float supported
+                assert(opt != INS_OPTS_1D);                               // Reserved encoding
+                fmt = IF_DV_3B;
+            }
+            else
+            {
+                NYI("Untested");
+                // Scalar operation
+                assert((size == EA_8BYTE) || (size == EA_4BYTE)); // Only Double/Float supported
+                fmt = IF_DV_3D;
+            }
+            break;
+
         case INS_saba:
         case INS_sabd:
+        case INS_smax:
+        case INS_smin:
         case INS_uaba:
         case INS_uabd:
+        case INS_umax:
+        case INS_umin:
             assert(isVectorRegister(reg1));
             assert(isVectorRegister(reg2));
             assert(isVectorRegister(reg3));
@@ -5084,6 +5249,7 @@ void emitter::emitIns_R_R_R(
             fmt = IF_DV_3D;
             break;
 
+        case INS_faddp:
         case INS_fmla:
         case INS_fmls:
             assert(isVectorRegister(reg1));
@@ -6065,8 +6231,8 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
 
         case INS_str:
         case INS_ldr:
-            assert(isValidGeneralDatasize(size));
-            scale = (size == EA_8BYTE) ? 3 : 2;
+            assert(isValidGeneralDatasize(size) || isValidVectorDatasize(size));
+            scale = genLog2(EA_SIZE_IN_BYTES(size));
             break;
 
         case INS_lea:
@@ -6087,7 +6253,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
 
     base = emitComp->lvaFrameAddress(varx, &FPbased);
     disp = base + offs;
-    assert((scale >= 0) && (scale <= 3));
+    assert((scale >= 0) && (scale <= 4));
 
     regNumber reg2 = FPbased ? REG_FPBASE : REG_SPBASE;
     reg2           = encodingSPtoZR(reg2);
