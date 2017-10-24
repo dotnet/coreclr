@@ -39,6 +39,7 @@ bool g_sw_ww_enabled_for_gc_heap = false;
 gc_alloc_context g_global_alloc_context = {};
 
 enum GC_LOAD_STATUS {
+    GC_LOAD_STATUS_BEFORE_START,
     GC_LOAD_STATUS_START,
     GC_LOAD_STATUS_DONE_LOAD,
     GC_LOAD_STATUS_GET_VERSIONINFO,
@@ -50,7 +51,7 @@ enum GC_LOAD_STATUS {
 
 // Load status of the GC. If GC loading fails, the value of this
 // global indicates where the failure occured.
-GC_LOAD_STATUS g_gc_load_status = GC_LOAD_STATUS_START;
+GC_LOAD_STATUS g_gc_load_status = GC_LOAD_STATUS_BEFORE_START;
 
 // The version of the GC that we have loaded.
 VersionInfo g_gc_version_info;
@@ -217,7 +218,8 @@ HRESULT GCHeapUtilities::LoadAndInitialize()
 
     // we should not have attempted to load a GC already. Attempting a
     // load after the first load already failed is an error.
-    assert(g_gc_load_status == GC_LOAD_STATUS_START);
+    assert(g_gc_load_status == GC_LOAD_STATUS_BEFORE_START);
+    g_gc_load_status = GC_LOAD_STATUS_START;
 
     LPWSTR standaloneGcLocation = nullptr;
     CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCName, &standaloneGcLocation);
