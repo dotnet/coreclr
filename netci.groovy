@@ -1580,7 +1580,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             scenario == 'ilrt' ||
                             scenario == 'illink' ||
                             Constants.r2rJitStressScenarios.indexOf(scenario) != -1) {
-                        buildOpts += enableCorefxTesting ? ' skiptests' : ''
+                        buildOpts += enableCorefxTesting ? ' -skiptests' : ''
+                        println("BuildOpts: ${buildOpts}")
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
                     }
 
@@ -1592,6 +1593,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     else if (scenarioNeedsPri1Build(scenario)) {
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts} -priority=1"
+                        assert false
                     }
                     else if (isLongGc(scenario)) {
                         buildCommands += "build.cmd ${lowerConfiguration} ${arch} ${buildOpts} skiptests"
