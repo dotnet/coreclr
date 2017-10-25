@@ -1316,7 +1316,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 #endif // !defined(_TARGET_64BIT_)
     {
 
-#ifdef _TARGET_ARMARCH_
+#ifdef _TARGET_ARM_
         if (isReg)
         {
             // For vararg call or on armel, reg args should be all integer.
@@ -1330,7 +1330,6 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
                 intArg           = comp->gtNewBitCastNode(intType, arg);
                 intArg->gtRegNum = info->regNum;
 
-#ifdef _TARGET_ARM_
                 if (intType == TYP_LONG)
                 {
                     assert(info->numRegs == 2);
@@ -1340,7 +1339,6 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
                            (info->regNum == REG_R2 && regNext == REG_R3));
                     intArg->AsMultiRegOp()->gtOtherReg = regNext;
                 }
-#endif // _TARGET_ARM_
 
                 info->node = intArg;
                 ReplaceArgWithPutArgOrCopy(ppArg, intArg);
@@ -1350,7 +1348,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
                 type = intType;
             }
         }
-#endif // _TARGET_ARMARCH_
+#endif // _TARGET_ARM_
 
         putArg = NewPutArg(call, arg, info, type);
 
