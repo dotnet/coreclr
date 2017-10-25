@@ -120,12 +120,4 @@
   <Import Project="$(DotNetPackageVersionPropsPath)"
           Condition="'$(DotNetPackageVersionPropsPath)' != ''" />
 
-  <!--
-    Map PackageVersion properties that don't match the Repo API naming conventions. This must be
-    defined after the DotNetPackageVersionPropsPath Import so overrides apply correctly.
-  -->
-  <PropertyGroup>
-    <!-- A single property used to get all CoreCLR packages in various places. -->
-    <CoreClrPackageVersion>$(MicrosoftNETCoreRuntimeCoreCLRPackageVersion)</CoreClrPackageVersion>    
-  </PropertyGroup>
 </Project>
