@@ -243,15 +243,6 @@ public:
     // Thread and process
     //
 
-    // Create a new thread
-    // Parameters:
-    //  function - the function to be executed by the thread
-    //  param    - parameters of the thread
-    //  affinity - processor affinity of the thread
-    // Return:
-    //  true if it has succeeded, false if it has failed
-    static bool CreateThread(GCThreadFunction function, void* param, GCThreadAffinity* affinity);
-
     // Causes the calling thread to sleep for the specified number of milliseconds
     // Parameters:
     //  sleepMSec   - time to sleep before switching to another thread

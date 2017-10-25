@@ -409,67 +409,6 @@ DWORD WINAPI BackgroundThreadStub(void* arg)
     return result;
 }
 
-Thread* GCToEEInterface::CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END;
-
-    BackgroundThreadStubArgs threadStubArgs;
-
-    threadStubArgs.arg = arg;
-    threadStubArgs.thread = NULL;
-    threadStubArgs.threadStart = threadStart;
-    threadStubArgs.hasStarted = false;
-
-    if (!threadStubArgs.threadStartedEvent.CreateAutoEventNoThrow(FALSE))
-    {
-        return NULL;
-    }
-
-    EX_TRY
-    {
-        threadStubArgs.thread = SetupUnstartedThread(FALSE);
-    }
-    EX_CATCH
-    {
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-
-    if (threadStubArgs.thread == NULL)
-    {
-        threadStubArgs.threadStartedEvent.CloseEvent();
-        return NULL;
-    }
-
-    if (threadStubArgs.thread->CreateNewThread(0, (LPTHREAD_START_ROUTINE)BackgroundThreadStub, &threadStubArgs, W("Background GC")))
-    {
-        threadStubArgs.thread->SetBackground (TRUE, FALSE);
-        threadStubArgs.thread->StartThread();
-
-        // Wait for the thread to be in its main loop
-        uint32_t res = threadStubArgs.threadStartedEvent.Wait(INFINITE, FALSE);
-        threadStubArgs.threadStartedEvent.CloseEvent();
-        _ASSERTE(res == WAIT_OBJECT_0);
-
-        if (!threadStubArgs.hasStarted)
-        {
-            // The thread has failed to start and the Thread object was destroyed in the Thread::HasStarted
-            // failure code path.
-            return NULL;
-        }
-
-        return threadStubArgs.thread;
-    }
-
-    // Destroy the Thread object
-    threadStubArgs.thread->DecExternalCount(FALSE);
-    return NULL;
-}
-
 //
 // Diagnostics code
 //
@@ -1178,4 +1117,112 @@ bool GCToEEInterface::IsGCThread()
 bool GCToEEInterface::IsGCSpecialThread()
 {
     return !!::IsGCSpecialThread();
+}
+
+struct ThreadStubArguments
+{
+    void* Argument;
+    void (*ThreadStart)(void*);
+    Thread* Thread;
+    bool HasStarted;
+    CLREvent ThreadStartedEvent;
+};
+
+Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    ThreadStubArguments threadStubArguments;
+    threadStubArguments.Argument = arg;
+    threadStubArguments.Thread = nullptr;
+    threadStubArguments.ThreadStart = threadStart;
+    threadStubArguments.HasStarted = false;
+
+    if (!threadStubArguments.ThreadStartedEvent.CreateAutoEventNoThrow(FALSE))
+    {
+        return nullptr;
+    }
+
+    EX_TRY
+    {
+        threadStubArguments.Thread = SetupUnstartedThread(FALSE);
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions)
+
+    if (!threadStubArguments.Thread)
+    {
+        threadStubArguments.ThreadStartedEvent.CloseEvent();
+        return nullptr;
+    }
+
+    auto threadStub = [](void* threadParam) -> DWORD {
+        ThreadStubArguments* args = static_cast<ThreadStubArguments*>(threadParam);
+        assert(args != nullptr);
+        assert(args->Thread != nullptr);
+
+        ClrFlsSetThreadType(ThreadType_GC);
+        STRESS_LOG_RESERVE_MEM(GC_STRESSLOG_MULTIPLY);
+
+        Thread* thread = args->Thread;
+        args->HasStarted = !!thread->HasStarted(FALSE);
+
+        auto threadStart = args->ThreadStart;
+        void* argument = args->Argument;
+        bool hasStarted = args->HasStarted;
+        args->ThreadStartedEvent.Set();
+
+        // at this point it is not safe to use the `args` local - the thread
+        // that spawned this thread has unblocked and `args` has likely gone
+        // out of scope.
+
+        if (hasStarted)
+        {
+            // We commit the thread's entire stack to ensure we're robust in low memory conditions.
+            BOOL fSuccess = Thread::CommitThreadStack(nullptr);
+            if (!fSuccess)
+            {
+#ifdef BACKGROUND_GC
+                // For background GC we revert to doing a blocking GC.
+                DestroyThread(thread);
+                return 0;
+#else
+                STRESS_LOG0(LF_GC, LL_ALWAYS, "Thread::CommitThreadStack failed.");
+                _ASSERTE(!"Thread::CommitThreadStack failed.");
+                EEPOLICY_HANDLE_FATAL_ERROR(COR_E_STACKOVERFLOW);
+#endif //BACKGROUND_GC
+            }
+
+            threadStart(argument);
+            DestroyThread(thread);
+        }
+
+        return 0;
+    };
+
+    if (threadStubArguments.Thread->CreateNewThread(0, threadStub, &threadStubArguments))
+    {
+        threadStubArguments.Thread->SetBackground(TRUE, FALSE);
+        threadStubArguments.Thread->StartThread();
+
+        // Wait for the thread to be in its main loop
+        uint32_t res = threadStubArguments.ThreadStartedEvent.Wait(INFINITE, FALSE);
+        threadStubArguments.ThreadStartedEvent.CloseEvent();
+        assert(res == WAIT_OBJECT_0);
+
+        if (!threadStubArguments.HasStarted)
+        {
+            // The thread has failed to start and the Thread object was destroyed in the Thread::HasStarted
+            // failure code path.
+            return nullptr;
+        }
+
+        return threadStubArguments.Thread;
+    }
+
+    // Destroy the Thread object
+    threadStubArguments.Thread->DecExternalCount(FALSE);
+    return nullptr;
 }

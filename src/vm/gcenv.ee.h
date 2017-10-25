@@ -36,7 +36,6 @@ public:
     gc_alloc_context * GetAllocContext(Thread * pThread);
     bool CatchAtSafePoint(Thread * pThread);
     void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
-    Thread* CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg);
 
     // Diagnostics methods.
     void DiagGCStart(int gen, bool isInduced);
@@ -60,6 +59,7 @@ public:
     void FreeStringConfigValue(const char* value);
     bool IsGCThread();
     bool IsGCSpecialThread();
+	Thread* CreateThread(void (*threadStart)(void*), void* arg);
 };
 
 } // namespace standalone

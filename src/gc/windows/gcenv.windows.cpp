@@ -545,68 +545,6 @@ static DWORD GCThreadStub(void* param)
     return 0;
 }
 
-
-// Create a new thread for GC use
-// Parameters:
-//  function - the function to be executed by the thread
-//  param    - parameters of the thread
-//  affinity - processor affinity of the thread
-// Return:
-//  true if it has succeeded, false if it has failed
-bool GCToOSInterface::CreateThread(GCThreadFunction function, void* param, GCThreadAffinity* affinity)
-{
-    uint32_t thread_id;
-
-    std::unique_ptr<GCThreadStubParam> stubParam(new (std::nothrow) GCThreadStubParam());
-    if (!stubParam)
-    {
-        return false;
-    }
-
-    stubParam->GCThreadFunction = function;
-    stubParam->GCThreadParam = param;
-
-    HANDLE gc_thread = ::CreateThread(
-        nullptr, 
-        512 * 1024 /* Thread::StackSize_Medium */, 
-        (LPTHREAD_START_ROUTINE)GCThreadStub, 
-        stubParam.get(), 
-        CREATE_SUSPENDED | STACK_SIZE_PARAM_IS_A_RESERVATION, 
-        (DWORD*)&thread_id);
-
-    if (!gc_thread)
-    {
-        return false;
-    }
-
-    stubParam.release();
-    bool result = !!::SetThreadPriority(gc_thread, /* THREAD_PRIORITY_ABOVE_NORMAL );*/ THREAD_PRIORITY_HIGHEST );
-    assert(result && "failed to set thread priority");  
-
-    if (affinity->Group != GCThreadAffinity::None)
-    {
-        assert(affinity->Processor != GCThreadAffinity::None);
-        GROUP_AFFINITY ga;
-        ga.Group = (WORD)affinity->Group;
-        ga.Reserved[0] = 0; // reserve must be filled with zero
-        ga.Reserved[1] = 0; // otherwise call may fail
-        ga.Reserved[2] = 0;
-        ga.Mask = (size_t)1 << affinity->Processor;
-
-        bool result = !!::SetThreadGroupAffinity(gc_thread, &ga, nullptr);
-        assert(result && "failed to set thread affinity");
-    }
-    else if (affinity->Processor != GCThreadAffinity::None)
-    {
-        ::SetThreadAffinityMask(gc_thread, (DWORD_PTR)1 << affinity->Processor);
-    }
-
-    ResumeThread(gc_thread);
-    CloseHandle(gc_thread);
-
-    return true;
-}
-
 // Gets the total number of processors on the machine, not taking
 // into account current process affinity.
 // Return:

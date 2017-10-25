@@ -98,9 +98,9 @@ public:
     virtual
     void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param) = 0;
 
-    // Creates and returns a new background thread.
+    // Creates and returns a new thread.
     virtual
-    Thread* CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg) = 0;
+    Thread* CreateThread(void (*threadStart)(void*), void* arg) = 0;
 
     // When a GC starts, gives the diagnostics code a chance to run.
     virtual

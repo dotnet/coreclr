@@ -132,12 +132,6 @@ inline void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, vo
     g_theGCToCLR->GcEnumAllocContexts(fn, param);
 }
 
-inline Thread* GCToEEInterface::CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CreateBackgroundThread(threadStart, arg);
-}
-
 inline void GCToEEInterface::DiagGCStart(int gen, bool isInduced)
 {
     assert(g_theGCToCLR != nullptr);
@@ -257,5 +251,12 @@ inline bool GCToEEInterface::IsGCSpecialThread()
     assert(g_theGCToCLR != nullptr);
     return g_theGCToCLR->IsGCSpecialThread();
 }
+
+inline Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->CreateThread(threadStart, arg);
+}
+
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

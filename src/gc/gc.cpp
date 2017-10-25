@@ -5367,7 +5367,8 @@ bool gc_heap::create_gc_thread ()
             set_thread_affinity_mask_for_heap(heap_number, &affinity);
     }
 
-    return GCToOSInterface::CreateThread(gc_thread_stub, this, &affinity);
+    //return GCToEEInterface::CreateThread(gc_thread_stub, this, &affinity);
+    return GCToEEInterface::CreateThread(gc_thread_stub, this) != nullptr;
 }
 
 #ifdef _MSC_VER
@@ -24917,26 +24918,6 @@ void gc_heap::compact_phase (int condemned_gen_number,
 #endif //_MSC_VER
 void gc_heap::gc_thread_stub (void* arg)
 {
-    ClrFlsSetThreadType (ThreadType_GC);
-    STRESS_LOG_RESERVE_MEM (GC_STRESSLOG_MULTIPLY);
-
-#ifndef FEATURE_REDHAWK
-    // We commit the thread's entire stack to ensure we're robust in low memory conditions.
-    BOOL fSuccess = Thread::CommitThreadStack(NULL);
-
-    if (!fSuccess)
-    {
-#ifdef BACKGROUND_GC
-        // For background GC we revert to doing a blocking GC.
-        return;
-#else
-        STRESS_LOG0(LF_GC, LL_ALWAYS, "Thread::CommitThreadStack failed.");
-        _ASSERTE(!"Thread::CommitThreadStack failed.");
-        GCToEEInterface::HandleFatalError(COR_E_STACKOVERFLOW);
-#endif //BACKGROUND_GC
-    }
-#endif // FEATURE_REDHAWK
-
     gc_heap* heap = (gc_heap*)arg;
     _alloca (256*heap->heap_number);
     heap->gc_thread_function();
@@ -24953,10 +24934,10 @@ void gc_heap::gc_thread_stub (void* arg)
 #pragma warning(push)
 #pragma warning(disable:4702) // C4702: unreachable code: gc_thread_function may not return
 #endif //_MSC_VER
-uint32_t __stdcall gc_heap::bgc_thread_stub (void* arg)
+void gc_heap::bgc_thread_stub (void* arg)
 {
     gc_heap* heap = (gc_heap*)arg;
-    return heap->bgc_thread_function();
+    heap->bgc_thread_function();
 }
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -26730,7 +26711,7 @@ BOOL gc_heap::create_bgc_thread(gc_heap* gh)
 
     //dprintf (2, ("Creating BGC thread"));
 
-    gh->bgc_thread = GCToEEInterface::CreateBackgroundThread(gh->bgc_thread_stub, gh);
+    gh->bgc_thread = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh);
     gh->bgc_thread_running = (gh->bgc_thread != NULL);    
 
     return gh->bgc_thread_running;
@@ -26908,7 +26889,7 @@ void gc_heap::kill_gc_thread()
     recursive_gc_sync::shutdown();
 }
 
-uint32_t gc_heap::bgc_thread_function()
+void gc_heap::bgc_thread_function()
 {
     assert (background_gc_done_event.IsValid());
     assert (bgc_start_event.IsValid());
@@ -27066,7 +27047,7 @@ uint32_t gc_heap::bgc_thread_function()
     FireEtwGCTerminateConcurrentThread_V1(GetClrInstanceId());
 
     dprintf (3, ("bgc_thread thread exiting"));
-    return 0;
+    return;
 }
 
 #endif //BACKGROUND_GC
