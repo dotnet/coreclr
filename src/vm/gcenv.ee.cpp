@@ -1172,10 +1172,10 @@ void GCToEEInterface::FreeStringConfigValue(const char* value)
 
 bool GCToEEInterface::IsGCThread()
 {
-    return ::IsGCThread();
+    return !!::IsGCThread();
 }
 
 bool GCToEEInterface::IsGCSpecialThread()
 {
-    return ::IsGCSpecialThread();
+    return !!::IsGCSpecialThread();
 }
