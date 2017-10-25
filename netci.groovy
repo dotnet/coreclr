@@ -8,14 +8,6 @@ def project = GithubProject
 def branch = GithubBranchName
 def projectFolder = Utilities.getFolderName(project) + '/' + Utilities.getFolderName(branch)
 
-// Create a folder for JIT stress jobs and associated folder views
-folder('jitstress')
-Utilities.addStandardFolderView(this, 'jitstress', project)
-
-// Create a folder for testing via illink
-folder('illink')
-Utilities.addStandardFolderView(this, 'illink', project)
-
 def static getOSGroup(def os) {
     def osGroupMap = ['Ubuntu':'Linux',
         'RHEL7.2': 'Linux',
@@ -423,15 +415,52 @@ def static setTestJobTimeOut(newJob, isPR, architecture, scenario) {
     // Non-test jobs use the default timeout value.
 }
 
-def static getJobFolder(def scenario) {
+// Determine the relative job folder to store the results of the job.
+// PR tests are put in a "pr" folder. JIT stress jobs, and IL Linker
+// jobs, are put in a further sub-folder.
+def static getJobFolder(def isPR, def scenario) {
+    def folderName = ''
     if (isJitStressScenario(scenario) || isR2RStressScenario(scenario)) {
-        return 'jitstress'
+        if (isPR) {
+            folderName = 'pr/jitstress'
+        } else {
+            folderName = 'jitstress'
+        }
     }
-    if (scenario == 'illink') {
-        return 'illink'
+    else if (scenario == 'illink') {
+        if (isPR) {
+            folderName = 'pr/illink'
+        } else {
+            folderName = 'illink'
+        }
     }
-    return ''
+    else {
+        if (isPR) {
+            folderName = 'pr'
+        } else {
+            folderName = ''
+        }
+    }
+    return folderName
 }
+
+// Create all the folders we'll need.
+
+folder('jitstress')
+Utilities.addStandardFolderView(this, 'jitstress', project)
+
+folder('illink')
+Utilities.addStandardFolderView(this, 'illink', project)
+
+folder('pr')
+Utilities.addStandardFolderView(this, 'pr', project)
+
+folder('pr/jitstress')
+Utilities.addStandardFolderView(this, 'pr/jitstress', project)
+
+folder('pr/illink')
+Utilities.addStandardFolderView(this, 'pr/illink', project)
+
 
 def static getStressModeDisplayName(def scenario) {
     def displayStr = ''
@@ -2066,7 +2095,7 @@ Constants.allScenarios.each { scenario ->
                     // Calculate names
                     def lowerConfiguration = configuration.toLowerCase()
                     def jobName = getJobName(configuration, architecture, os, scenario, isBuildOnly)
-                    def folderName = getJobFolder(scenario)
+                    def folderName = getJobFolder(isPR, scenario)
 
                     // Create the new job
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR, folderName)) {}
@@ -2101,19 +2130,21 @@ Constants.allScenarios.each { scenario ->
                                 if ( architecture == 'arm' && ( os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen')) {
                                     // Cross build for ubuntu-arm, ubuntu16.04-arm and tizen-armel
                                     // Define the Windows Tests and Corefx build job names
-                                    def WindowTestsName = projectFolder + '/' +
-                                                          Utilities.getFullJobName(project,
-                                                                                   getJobName(lowerConfiguration,
-                                                                                              'x64' ,
-                                                                                              'windows_nt',
-                                                                                              'default',
-                                                                                              true),
-                                                                                   false)
+                                    def WindowsTestsFolderName = getJobFolder(false, 'default')
+                                    def WindowsTestsName = projectFolder + '/' +
+                                                           Utilities.getFullJobName(project,
+                                                                                    getJobName(lowerConfiguration,
+                                                                                               'x64' ,
+                                                                                               'windows_nt',
+                                                                                               'default',
+                                                                                               true),
+                                                                                    false,
+                                                                                    WindowsTestsFolderName)
                                     def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' +
                                                        Utilities.getFolderName(branch)
 
                                     // Copy the Windows test binaries and the Corefx build binaries
-                                    copyArtifacts(WindowTestsName) {
+                                    copyArtifacts(WindowsTestsName) {
                                         includePatterns('bin/tests/tests.zip')
                                         buildSelector {
                                             latestSuccessful(true)
@@ -2293,8 +2324,10 @@ Constants.allScenarios.each { scenario ->
                     def osGroup = getOSGroup(os)
                     def jobName = getJobName(configuration, architecture, os, scenario, false) + "_tst"
 
+                    def inputScenario = 'default'
+                    def folderName = getJobFolder(isPR, inputScenario)
                     def inputCoreCLRBuildName = projectFolder + '/' +
-                        Utilities.getFullJobName(project, getJobName(configuration, architecture, os, 'default', false), isPR)
+                        Utilities.getFullJobName(project, getJobName(configuration, architecture, os, inputScenario, false), isPR, folderName)
 
                     // If this is a stress scenario, there isn't any difference in the build job, so we didn't create a build only
                     // job for Windows_NT specific to that stress mode. Just copy from the default scenario.
@@ -2313,11 +2346,10 @@ Constants.allScenarios.each { scenario ->
 
                     if (isJitStressScenario(scenario)) {
                         inputWindowTestsBuildName = projectFolder + '/' +
-                        Utilities.getFullJobName(project, getJobName(configuration, inputWindowsTestBuildArch, 'windows_nt', testBuildScenario, false), isPR)
+                        Utilities.getFullJobName(project, getJobName(configuration, inputWindowsTestBuildArch, 'windows_nt', testBuildScenario, false), isPR, inputWindowsTestsFolderName)
                     } else {
                         inputWindowTestsBuildName = projectFolder + '/' +
-                        Utilities.getFullJobName(project, getJobName(configuration, inputWindowsTestBuildArch, 'windows_nt', testBuildScenario, true), isPR)
-
+                        Utilities.getFullJobName(project, getJobName(configuration, inputWindowsTestBuildArch, 'windows_nt', testBuildScenario, true), isPR, inputWindowsTestsFolderName)
                     }
 
                      
@@ -2417,7 +2449,7 @@ Constants.allScenarios.each { scenario ->
 
                     def windowsArmJob = (os == "Windows_NT" && architecture in validWindowsNTCrossArches)
 
-                    def folder = getJobFolder(scenario)
+                    def folder = getJobFolder(isPR, scenario)
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR, folder)) {
                         // Add parameters for the inputs
 
@@ -2439,7 +2471,7 @@ Constants.allScenarios.each { scenario ->
                             // Coreclr build containing the tests and mscorlib
                             // pri1 jobs still need to copy windows_nt built tests
                             if (windowsArmJob != true) {
-                                copyArtifacts(inputWindowTestsBuildName) {
+                                copyArtifacts(inputWindowsTestsBuildName) {
                                     excludePatterns('**/testResults.xml', '**/*.ni.dll')
                                     buildSelector {
                                         buildNumber('${CORECLR_WINDOWS_BUILD}')
@@ -2729,7 +2761,7 @@ Constants.allScenarios.each { scenario ->
                     def fullTestJobName = projectFolder + '/' + newJob.name
                     // Add a reference to the input jobs for report purposes
                     JobReport.Report.addReference(inputCoreCLRBuildName)
-                    JobReport.Report.addReference(inputWindowTestsBuildName)
+                    JobReport.Report.addReference(inputWindowsTestsBuildName)
                     JobReport.Report.addReference(fullTestJobName)
                     def newFlowJob = null
 
@@ -2758,7 +2790,7 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number], '${fullTestJobName
 // Build the input jobs in parallel
 parallel (
 { coreclrBuildJob = build(params, '${inputCoreCLRBuildName}') },
-{ windowsBuildJob = build(params, '${inputWindowTestsBuildName}') }
+{ windowsBuildJob = build(params, '${inputWindowsTestsBuildName}') }
 )
 
 // And then build the test build
