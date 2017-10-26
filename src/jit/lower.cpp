@@ -1271,6 +1271,8 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 #if !defined(_TARGET_64BIT_)
     if (varTypeIsLong(type))
     {
+        unreached();
+
         if (isReg)
         {
             noway_assert(arg->OperGet() == GT_LONG);
@@ -2191,6 +2193,7 @@ GenTree* Lowering::LowerCompare(GenTree* cmp)
 #ifndef _TARGET_64BIT_
     if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
     {
+        unreached();
         GenTree* src1 = cmp->gtGetOp1();
         GenTree* src2 = cmp->gtGetOp2();
         assert(src1->OperIs(GT_LONG));
@@ -4298,6 +4301,7 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
 #if !defined(_TARGET_64BIT_)
     if (dividend->OperIs(GT_LONG))
     {
+        unreached();
         return false;
     }
 #endif
@@ -5631,6 +5635,7 @@ void Lowering::ContainCheckDivOrMod(GenTreeOp* node)
 #ifdef _TARGET_X86_
     if (dividend->OperGet() == GT_LONG)
     {
+        unreached();
         divisorCanBeRegOptional = false;
         MakeSrcContained(node, dividend);
     }
@@ -5715,6 +5720,7 @@ void Lowering::ContainCheckRet(GenTreeOp* ret)
     {
         GenTree* op1 = ret->gtGetOp1();
         noway_assert(op1->OperGet() == GT_LONG);
+        unreached();
         MakeSrcContained(ret, op1);
     }
 #endif // !defined(_TARGET_64BIT_)
