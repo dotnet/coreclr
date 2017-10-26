@@ -1265,14 +1265,14 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 #endif // defined(_TARGET_X86_)
 #endif // defined(FEATURE_SIMD)
 
-    GenTreePtr putArg;
-
     // If we hit this we are probably double-lowering.
     assert(!arg->OperIsPutArg());
 
 #if !defined(_TARGET_64BIT_)
     if (varTypeIsLong(type))
     {
+        unreached();
+
         if (isReg)
         {
             noway_assert(arg->OperGet() == GT_LONG);
@@ -1284,7 +1284,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
             GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
             // Only the first fieldList node (GTF_FIELD_LIST_HEAD) is in the instruction sequence.
             (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
-            putArg = NewPutArg(call, fieldList, info, type);
+            GenTreePtr putArg = NewPutArg(call, fieldList, info, type);
 
             BlockRange().InsertBefore(arg, putArg);
             BlockRange().Remove(arg);
@@ -1303,8 +1303,8 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
             GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
             // Only the first fieldList node (GTF_FIELD_LIST_HEAD) is in the instruction sequence.
             (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
-            putArg           = NewPutArg(call, fieldList, info, type);
-            putArg->gtRegNum = info->regNum;
+            GenTreePtr putArg = NewPutArg(call, fieldList, info, type);
+            putArg->gtRegNum  = info->regNum;
 
             // We can't call ReplaceArgWithPutArgOrCopy here because it presumes that we are keeping the original arg.
             BlockRange().InsertBefore(arg, fieldList, putArg);
@@ -1352,7 +1352,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
         }
 #endif // _TARGET_ARMARCH_
 
-        putArg = NewPutArg(call, arg, info, type);
+        GenTreePtr putArg = NewPutArg(call, arg, info, type);
 
         // In the case of register passable struct (in one or two registers)
         // the NewPutArg returns a new node (GT_PUTARG_REG or a GT_FIELD_LIST with two GT_PUTARG_REGs.)
@@ -2193,6 +2193,7 @@ GenTree* Lowering::LowerCompare(GenTree* cmp)
 #ifndef _TARGET_64BIT_
     if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
     {
+        unreached();
         GenTree* src1 = cmp->gtGetOp1();
         GenTree* src2 = cmp->gtGetOp2();
         assert(src1->OperIs(GT_LONG));
@@ -4300,6 +4301,7 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
 #if !defined(_TARGET_64BIT_)
     if (dividend->OperIs(GT_LONG))
     {
+        unreached();
         return false;
     }
 #endif
@@ -5633,6 +5635,7 @@ void Lowering::ContainCheckDivOrMod(GenTreeOp* node)
 #ifdef _TARGET_X86_
     if (dividend->OperGet() == GT_LONG)
     {
+        unreached();
         divisorCanBeRegOptional = false;
         MakeSrcContained(node, dividend);
     }
@@ -5717,6 +5720,7 @@ void Lowering::ContainCheckRet(GenTreeOp* ret)
     {
         GenTree* op1 = ret->gtGetOp1();
         noway_assert(op1->OperGet() == GT_LONG);
+        unreached();
         MakeSrcContained(ret, op1);
     }
 #endif // !defined(_TARGET_64BIT_)
