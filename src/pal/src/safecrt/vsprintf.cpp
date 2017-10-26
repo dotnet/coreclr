@@ -72,7 +72,7 @@ static int _vscprintf_helper ( OUTPUTFN outfn, const char *format, va_list ap);
 *
 *******************************************************************************/
 
-int __cdecl _vsnprintf_helper (
+PUB int __cdecl _vsnprintf_helper (
         OUTPUTFN outfn,
         char *string,
         size_t count,
@@ -119,7 +119,7 @@ int __cdecl _vsnprintf_helper (
         return -1;
 }
 
-int __cdecl vsprintf_s (
+PUB int __cdecl vsprintf_s (
         char *string,
         size_t sizeInBytes,
         const char *format,
@@ -150,7 +150,7 @@ int __cdecl vsprintf_s (
     return retvalue;
 }
 
-int __cdecl _vsnprintf_s (
+PUB int __cdecl _vsnprintf_s (
         char *string,
         size_t sizeInBytes,
         size_t count,
@@ -237,7 +237,7 @@ int __cdecl _vsnprintf_s (
 
 #ifndef _COUNT_
 
-int __cdecl _vscprintf_helper (
+PUB int __cdecl _vscprintf_helper (
         OUTPUTFN outfn,
         const char *format,
         va_list ap
@@ -257,7 +257,7 @@ int __cdecl _vscprintf_helper (
         return(retval);
 }
 
-int __cdecl _vscprintf (
+PUB int __cdecl _vscprintf (
         const char *format,
         va_list ap
         )

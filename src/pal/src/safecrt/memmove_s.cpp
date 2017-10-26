@@ -46,7 +46,7 @@
 *
 *******************************************************************************/
 
-errno_t __cdecl memmove_s(
+PUB errno_t __cdecl memmove_s(
     void * dst,
     size_t sizeInBytes,
     const void * src,

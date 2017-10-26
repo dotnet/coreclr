@@ -98,6 +98,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 int
 __cdecl
 PAL_printf(
@@ -125,6 +126,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 int
 __cdecl
 PAL_fprintf(PAL_FILE *stream,const char *format,...)
@@ -150,6 +152,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 int
 __cdecl
 PAL_wprintf(
@@ -179,6 +182,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 int
 __cdecl
 PAL_vprintf(
@@ -204,6 +208,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 int
 __cdecl
 PAL_fwprintf(
@@ -1292,6 +1297,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 int
 __cdecl
 PAL_swscanf(

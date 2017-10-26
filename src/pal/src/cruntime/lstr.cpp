@@ -44,6 +44,7 @@ refers to bytes for ANSI versions of the function or characters for
 Unicode versions.
 
 --*/
+PUB
 int
 PALAPI
 lstrlenA( IN LPCSTR lpString)
@@ -84,6 +85,7 @@ refers to bytes for ANSI versions of the function or characters for
 Unicode versions.
 
 --*/
+PUB
 int
 PALAPI
 lstrlenW(

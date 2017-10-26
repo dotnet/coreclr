@@ -126,6 +126,7 @@ Parameters:
 Return value:
     None
 --*/
+PUB
 VOID
 PALAPI 
 PAL_SetHardwareExceptionHandler(
@@ -148,6 +149,7 @@ Parameters:
 Return value:
     None
 --*/
+PUB
 VOID
 PALAPI 
 PAL_SetGetGcMarkerExceptionCode(
@@ -171,6 +173,7 @@ Parameters:
     CONTEXT* context - context from which the exception will be thrown
     PAL_SEHException* ex - the exception to throw.
 --*/
+PUB
 VOID
 PALAPI 
 PAL_ThrowExceptionFromContext(CONTEXT* context, PAL_SEHException* ex)
@@ -330,13 +333,13 @@ PAL_ERROR SEHDisable(CPalThread *pthrCurrent)
 
 --*/
 
-CatchHardwareExceptionHolder::CatchHardwareExceptionHolder()
+PUB CatchHardwareExceptionHolder::CatchHardwareExceptionHolder()
 {
     CPalThread *pThread = InternalGetCurrentThread();
     ++pThread->m_hardwareExceptionHolderCount;
 }
 
-CatchHardwareExceptionHolder::~CatchHardwareExceptionHolder()
+PUB CatchHardwareExceptionHolder::~CatchHardwareExceptionHolder()
 {
     CPalThread *pThread = InternalGetCurrentThread();
     --pThread->m_hardwareExceptionHolderCount;

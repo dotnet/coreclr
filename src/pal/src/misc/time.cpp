@@ -82,6 +82,7 @@ Return Values
 This function does not return a value.
 
 --*/
+PUB
 VOID
 PALAPI
 GetSystemTime(
@@ -174,6 +175,7 @@ In the ROTOR implementation the return value is the elapsed time since
 the start of the epoch.
 
 --*/
+PUB
 DWORD
 PALAPI
 GetTickCount(
@@ -191,6 +193,7 @@ GetTickCount(
     return retval;
 }
 
+PUB
 BOOL
 PALAPI
 QueryPerformanceCounter(
@@ -255,6 +258,7 @@ QueryPerformanceCounter(
     return retval;
 }
 
+PUB
 BOOL
 PALAPI
 QueryPerformanceFrequency(
@@ -294,6 +298,7 @@ pointed to by CycleTime. ThreadHandle must refer to the current thread. Returns 
 failure.
 --*/
 
+PUB
 BOOL
 PALAPI
 QueryThreadCycleTime(
@@ -332,6 +337,7 @@ to return monotonically increasing counts and avoid being affected by changes
 to the system clock (either due to drift or due to explicit changes to system
 time).
 --*/
+PUB
 PALAPI
 ULONGLONG
 GetTickCount64()
@@ -401,6 +407,7 @@ Function:
 Sleeps for the time specified in timeInNs.
 Returns 0 on successful completion of the operation.
 --*/
+PUB
 PALAPI
 INT
 PAL_nanosleep(

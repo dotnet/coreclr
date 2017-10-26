@@ -54,6 +54,7 @@ The _mbsinc function returns a pointer to the first byte of the
 multibyte character that immediately follows string.
 
 --*/
+PUB
 unsigned char *
 __cdecl
 _mbsinc(
@@ -107,6 +108,7 @@ characters. _mbsninc recognizes multibyte-character sequences
 according to the multibyte code page currently in use.
 
 --*/
+PUB
 unsigned char *
 __cdecl
 _mbsninc(
@@ -164,6 +166,7 @@ current  Pointer to first byte of any multibyte character in the source
          string; current must follow start in the source string
 
 --*/
+PUB
 unsigned char * 
 __cdecl
 _mbsdec(

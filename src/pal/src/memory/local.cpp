@@ -56,6 +56,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HLOCAL
 PALAPI
 LocalAlloc(
@@ -84,6 +85,7 @@ LocalReAlloc
 
 See MSDN doc.
 --*/
+PUB
 HLOCAL
 PALAPI
 LocalReAlloc(
@@ -117,6 +119,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HLOCAL
 PALAPI
 LocalFree(

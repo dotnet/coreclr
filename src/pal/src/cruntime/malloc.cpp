@@ -31,6 +31,7 @@ SET_DEFAULT_DEBUG_CHANNEL(CRT);
 
 using namespace CorUnix;
 
+PUB
 void *
 __cdecl
 PAL_realloc(
@@ -71,6 +72,7 @@ CorUnix::InternalRealloc(
     return pvMem;
 }
 
+PUB
 void
 __cdecl
 PAL_free(
@@ -80,6 +82,7 @@ PAL_free(
     free(pvMem);
 }
 
+PUB
 void * 
 __cdecl
 PAL_malloc(
@@ -106,6 +109,7 @@ CorUnix::InternalMalloc(
     return pvMem;
 }
 
+PUB
 char *
 __cdecl
 PAL__strdup(

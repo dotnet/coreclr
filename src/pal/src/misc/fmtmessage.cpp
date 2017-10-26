@@ -280,6 +280,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 FormatMessageW(

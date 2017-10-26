@@ -60,7 +60,7 @@ Parameter
 x  Double-precision floating-point value
 
 --*/
-int __cdecl _finite(double x)
+PUB int __cdecl _finite(double x)
 {
     int ret;
     PERF_ENTRY(_finite);
@@ -79,7 +79,7 @@ Function:
 
 See MSDN doc
 --*/
-int __cdecl _isnan(double x)
+PUB int __cdecl _isnan(double x)
 {
     int ret;
     PERF_ENTRY(_isnan);
@@ -98,7 +98,7 @@ Function:
 
 See MSDN doc
 --*/
-double __cdecl _copysign(double x, double y)
+PUB double __cdecl _copysign(double x, double y)
 {
     double ret;
     PERF_ENTRY(_copysign);
@@ -432,7 +432,7 @@ Parameter
 x  Single-precision floating-point value
 
 --*/
-int __cdecl _finitef(float x)
+PUB int __cdecl _finitef(float x)
 {
     int ret;
     PERF_ENTRY(_finitef);
@@ -451,7 +451,7 @@ Function:
 
 See MSDN doc
 --*/
-int __cdecl _isnanf(float x)
+PUB int __cdecl _isnanf(float x)
 {
     int ret;
     PERF_ENTRY(_isnanf);
@@ -470,7 +470,7 @@ Function:
 
 See MSDN doc
 --*/
-float __cdecl _copysignf(float x, float y)
+PUB float __cdecl _copysignf(float x, float y)
 {
     float ret;
     PERF_ENTRY(_copysignf);

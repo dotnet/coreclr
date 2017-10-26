@@ -47,6 +47,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetFullPathNameA(
@@ -166,6 +167,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetFullPathNameW(
@@ -281,6 +283,7 @@ Note:
   this function simply copies the given path into the new buffer.
 
 --*/
+PUB
 DWORD
 PALAPI
 GetLongPathNameW(
@@ -353,6 +356,7 @@ Note:
   this function simply copies the given path into the new buffer.
 
 --*/
+PUB
 DWORD
 PALAPI
 GetShortPathNameW(
@@ -432,6 +436,7 @@ Notes:
     This is the same approach employed by mktemp.
 
 --*/
+PUB
 DWORD
 PALAPI
 GetTempPathA(
@@ -527,6 +532,7 @@ Function:
 See MSDN.
 See also the comment for GetTempPathA.
 --*/
+PUB
 DWORD
 PALAPI
 GetTempPathW(
@@ -1067,6 +1073,7 @@ PAL-specific notes :
 -lpExtension must be NULL
 -lpFilePart (if non-NULL) doesn't need to be used (but we do)
 --*/
+PUB
 DWORD
 PALAPI
 SearchPathA(
@@ -1323,6 +1330,7 @@ PAL-specific notes :
 -lpExtension must be NULL
 -lpFilePart (if non-NULL) doesn't need to be used (but we do)
 --*/
+PUB
 DWORD
 PALAPI
 SearchPathW(
@@ -1589,6 +1597,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 LPWSTR
 PALAPI
 PathFindFileNameW(

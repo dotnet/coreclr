@@ -109,6 +109,7 @@ caches are coherent in hardware. For non-X86 architectures, this call
 usually maps to a kernel API to flush the D-caches on all processors.
 
 --*/
+PUB
 BOOL
 PALAPI
 FlushInstructionCache(
@@ -143,6 +144,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 VOID
 PALAPI
 OutputDebugStringA(
@@ -173,6 +175,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 VOID
 PALAPI
 OutputDebugStringW(
@@ -391,6 +394,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 VOID
 PALAPI
 DebugBreak(
@@ -428,6 +432,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetThreadContext(
@@ -490,6 +495,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 SetThreadContext(
@@ -558,6 +564,7 @@ Parameter
 Return
   true if memory is valid, false if not.
 --*/
+PUB
 BOOL
 PALAPI
 PAL_ProbeMemory(

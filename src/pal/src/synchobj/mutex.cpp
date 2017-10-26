@@ -106,6 +106,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateMutexA(
@@ -159,6 +160,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateMutexW(
@@ -232,6 +234,7 @@ Parameters:
 See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateMutexExW(
@@ -415,6 +418,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 BOOL
 PALAPI
 ReleaseMutex( IN HANDLE hMutex )
@@ -549,6 +553,7 @@ Note:
 See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 OpenMutexA (
@@ -598,6 +603,7 @@ Note:
 See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 OpenMutexW(

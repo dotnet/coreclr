@@ -67,7 +67,6 @@ LocalFree
 lstrlenA
 lstrlenW
 MapViewOfFile
-MetaDataGetDispenser
 MoveFileExW
 MultiByteToWideChar
 OpenEventW

@@ -40,6 +40,7 @@ Function:
 See MSDN doc.
 
 --*/
+PUB
 char *   
 __cdecl 
 _fullpath(

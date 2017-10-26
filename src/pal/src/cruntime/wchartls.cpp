@@ -45,6 +45,7 @@ strToken        String containing token(s)
 strDelimit      Set of delimiter characters
 
 --*/
+PUB
 WCHAR *
 __cdecl
 PAL_wcstok(WCHAR *strToken, const WCHAR *strDelimit)

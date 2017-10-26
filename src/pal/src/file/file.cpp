@@ -882,6 +882,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 CreateFileA(
@@ -945,6 +946,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 CreateFileW(
@@ -1038,6 +1040,7 @@ Notes:
 This is because we know that CreateFile, ReadFile, and WriteFile will do so,
 and will have a much better idea of the specific error.
 --*/
+PUB
 BOOL
 PALAPI
 CopyFileW(
@@ -1127,6 +1130,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 DeleteFileA(
@@ -1194,6 +1198,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 DeleteFileW(
@@ -1254,6 +1259,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 MoveFileExA(
@@ -1416,6 +1422,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 MoveFileExW(
@@ -1522,6 +1529,7 @@ FILE_ATTRIBUTE_ARCHIVE
 FILE_ATTRIBUTE_HIDDEN
 
 --*/
+PUB
 DWORD
 PALAPI
 GetFileAttributesA(
@@ -1605,6 +1613,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetFileAttributesW(
@@ -1665,6 +1674,7 @@ Function:
 
 See MSDN doc, and notes for GetFileAttributesW.
 --*/
+PUB
 BOOL
 PALAPI
 GetFileAttributesExW(
@@ -1786,6 +1796,7 @@ Notes:
   Used for setting read-only attribute on file only.
 
 --*/
+PUB
 BOOL
 PALAPI
 SetFileAttributesW(
@@ -2025,6 +2036,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 WriteFile(
@@ -2249,6 +2261,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 ReadFile(
@@ -2295,6 +2308,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 GetStdHandle(
@@ -2475,6 +2489,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 SetEndOfFile(
@@ -2715,6 +2730,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 SetFilePointer(
@@ -2773,6 +2789,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 SetFilePointerEx(
@@ -2914,6 +2931,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetFileSize(
@@ -2953,6 +2971,7 @@ GetFileSizeEx
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI GetFileSizeEx(
 IN   HANDLE hFile,
@@ -3102,6 +3121,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 FlushFileBuffers(
@@ -3148,6 +3168,7 @@ const int MAX_SEEDSIZE      = 8; /* length of "unique portion of
 static USHORT uUniqueSeed   = 0;
 static BOOL IsInitialized   = FALSE;
 
+PUB
 UINT
 PALAPI
 GetTempFileNameA(
@@ -3341,6 +3362,7 @@ Function:
 
 uUnique is always 0.
 --*/
+PUB
 UINT
 PALAPI
 GetTempFileNameW(
@@ -3564,6 +3586,7 @@ Notes:
 This is because we know that CreateFile, ReadFile, and WriteFile will do so,
 and will have a much better idea of the specific error.
 --*/
+PUB
 BOOL
 PALAPI
 CopyFileA(
@@ -3736,6 +3759,7 @@ Notes:
   Used for setting read-only attribute on file only.
 
 --*/
+PUB
 BOOL
 PALAPI
 SetFileAttributesA(
@@ -4350,6 +4374,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetFileInformationByHandle(

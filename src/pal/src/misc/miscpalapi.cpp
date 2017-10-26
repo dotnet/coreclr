@@ -64,6 +64,7 @@ Function :
     proper LastError code.
 
 --*/
+PUB
 BOOL 
 PAL_GetPALDirectoryW(PathWCharString& lpDirectoryName) 
 {
@@ -235,6 +236,7 @@ PAL_GetPALDirectoryA(
     return bRet;
 }
 
+PUB
 BOOL
 PALAPI
 PAL_Random(
@@ -350,6 +352,7 @@ PAL_Random(
     return bRet;
 }
 
+PUB
 HRESULT
 PALAPI
 CoCreateGuid(OUT GUID * pguid)

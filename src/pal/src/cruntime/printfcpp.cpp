@@ -988,7 +988,7 @@ Parameters:
     - stdarg parameter list
 *******************************************************************************/
 
-int __cdecl PAL_vfprintf(PAL_FILE *stream, const char *format, va_list ap)
+PUB int __cdecl PAL_vfprintf(PAL_FILE *stream, const char *format, va_list ap)
 {
     return CoreVfprintf(InternalGetCurrentThread(), stream, format, ap);
 }
@@ -1006,7 +1006,7 @@ Parameters:
     - stdarg parameter list
 *******************************************************************************/
 
-int __cdecl PAL_vfwprintf(PAL_FILE *stream, const wchar_16 *format, va_list ap)
+PUB int __cdecl PAL_vfwprintf(PAL_FILE *stream, const wchar_16 *format, va_list ap)
 {
     return CoreVfwprintf(InternalGetCurrentThread(), stream, format, ap);
 }

@@ -45,6 +45,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 int
 __cdecl
 _open_osfhandle( INT_PTR osfhandle, int flags )
@@ -143,6 +144,7 @@ Function:
 
 See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_fflush( PAL_FILE *stream )
@@ -174,6 +176,7 @@ nSize = size, in bytes, of the array referenced by szBuf.
 Return value:
     A pointer to the pathname if successful, otherwise NULL is returned 
 --*/
+PUB
 char * 
 __cdecl 
 PAL__getcwd(
@@ -197,6 +200,7 @@ szNameTemplate = template to follow when naming the created file
 Return value:
     Open file descriptor on success, -1 if file could not be created
 --*/
+PUB
 int 
 __cdecl 
 PAL_mkstemp(char *szNameTemplate)
@@ -245,6 +249,7 @@ mode = file permission settings that are used only when a file is created
 Return value:
     File descriptor on success, -1 on failure
 --*/
+PUB
 int
 __cdecl
 PAL__open(
@@ -324,6 +329,7 @@ szNewName = pointer to the new pathname of the file
 Return value:
     Returns 0 on success and -1 on failure
 --*/
+PUB
 int
 __cdecl
 PAL_rename(
@@ -350,6 +356,7 @@ Return value:
     Returns a pointer to the string storing the characters on success
     and NULL on failure.
 --*/
+PUB
 char * 
 __cdecl 
 PAL_fgets(
@@ -468,6 +475,7 @@ pf = stream to write characters to
 Return value:
     Returns the number of objects written.
 --*/
+PUB
 size_t 
 __cdecl 
 PAL_fwrite(

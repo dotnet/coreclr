@@ -146,6 +146,7 @@ Return:
   -1 if it failed
 
 --*/
+PUB
 int
 PALAPI
 PAL_Initialize(
@@ -167,6 +168,7 @@ Return:
   -1 if it failed
 
 --*/
+PUB
 int
 PALAPI
 PAL_InitializeDLL()
@@ -692,6 +694,7 @@ Return:
   An error code, if it failed
 
 --*/
+PUB
 PAL_ERROR
 PALAPI
 PAL_InitializeCoreCLR(const char *szExePath)
@@ -739,6 +742,7 @@ PAL_IsDebuggerPresent
 Abstract:
 This function should be used to determine if a debugger is attached to the process.
 --*/
+PUB
 PALIMPORT
 BOOL
 PALAPI
@@ -852,6 +856,7 @@ Function:
 Abstract:
   This function shuts down the PAL WITHOUT exiting the current process.
 --*/
+PUB
 void
 PALAPI
 PAL_Shutdown(
@@ -868,6 +873,7 @@ Abstract:
   This function is the called when a thread has finished using the PAL
   library. It shuts down PAL and exits the current process.
 --*/
+PUB
 void
 PALAPI
 PAL_Terminate(
@@ -885,6 +891,7 @@ This function is the called when a thread has finished using the PAL
 library. It shuts down PAL and exits the current process with
 the specified exit code.
 --*/
+PUB
 void
 PALAPI
 PAL_TerminateEx(
@@ -914,6 +921,7 @@ Function:
 Abstract:
   This function is the called when cordbg attaches to the process.
 --*/
+PUB
 void
 PALAPI
 PAL_InitializeDebug(

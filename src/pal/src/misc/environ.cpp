@@ -74,6 +74,7 @@ value is the buffer size, in TCHARs, required to hold the value string
 and its terminating null character.
 
 --*/
+PUB
 DWORD
 PALAPI
 GetEnvironmentVariableA(
@@ -158,6 +159,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetEnvironmentVariableW(
@@ -286,6 +288,7 @@ This function has no effect on the system environment variables or the
 environment variables of other processes.
 
 --*/
+PUB
 BOOL
 PALAPI
 SetEnvironmentVariableW(
@@ -391,6 +394,7 @@ the block is no longer needed, it should be freed by calling
 FreeEnvironmentStrings.
 
 --*/
+PUB
 LPWSTR
 PALAPI
 GetEnvironmentStringsW(
@@ -449,6 +453,7 @@ Function:
 See GetEnvironmentStringsW.
 
 --*/
+PUB
 LPSTR
 PALAPI
 GetEnvironmentStringsA(
@@ -526,6 +531,7 @@ of environment strings. When the block is no longer needed, it should
 be freed by calling FreeEnvironmentStrings.
 
 --*/
+PUB
 BOOL
 PALAPI
 FreeEnvironmentStringsW(
@@ -551,6 +557,7 @@ Function:
 See FreeEnvironmentStringsW.
 
 --*/
+PUB
 BOOL
 PALAPI
 FreeEnvironmentStringsA(
@@ -602,6 +609,7 @@ This function has no effect on the system environment variables or the
 environment variables of other processes.
 
 --*/
+PUB
 BOOL
 PALAPI
 SetEnvironmentVariableA(
@@ -1050,6 +1058,7 @@ See MSDN for more details.
 Note:   The BSD implementation can cause
         memory leaks. See man pages for more details.
 --*/
+PUB
 int
 __cdecl 
 _putenv( const char * envstring )
@@ -1079,7 +1088,7 @@ Function : PAL_getenv
     
 See MSDN for more details.
 --*/
-char * __cdecl PAL_getenv(const char *varname)
+PUB char * __cdecl PAL_getenv(const char *varname)
 {
     char *retval;
 

@@ -282,6 +282,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetNumaHighestNodeNumber(
@@ -306,6 +307,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetNumaProcessorNodeEx(
@@ -348,6 +350,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetLogicalProcessorInformationEx(
@@ -466,6 +469,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetThreadGroupAffinity(
@@ -506,6 +510,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 SetThreadGroupAffinity(
@@ -595,6 +600,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD_PTR
 PALAPI
 SetThreadAffinityMask(
@@ -692,6 +698,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 VOID
 PALAPI
 GetCurrentProcessorNumberEx(
@@ -716,6 +723,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetProcessAffinityMask(
@@ -810,6 +818,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 LPVOID
 PALAPI
 VirtualAllocExNuma(
@@ -876,6 +885,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 SetThreadIdealProcessorEx(

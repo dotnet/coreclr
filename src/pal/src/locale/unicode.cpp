@@ -235,6 +235,7 @@ If lpsz points to the terminating null character, the return value is equal to l
 
 See MSDN doc.
 --*/
+PUB
 LPSTR
 PALAPI
 CharNextA(
@@ -258,6 +259,7 @@ CharNextExA
 
 See MSDN doc.
 --*/
+PUB
 LPSTR
 PALAPI
 CharNextExA(
@@ -289,6 +291,7 @@ GetConsoleOutputCP
 
 See MSDN doc.
 --*/
+PUB
 UINT
 PALAPI
 GetConsoleOutputCP(
@@ -316,6 +319,7 @@ CP_UTF7 and CP_UTF8, however, *are* considered valid code pages, even though
 MSDN fails to mention them in the IsValidCodePage entry.
 Note : CP_UTF7 support isn't required for Rotor
 --*/
+PUB
 BOOL
 PALAPI
 IsValidCodePage(
@@ -360,6 +364,7 @@ GetStringTypeEx
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetStringTypeExW(
@@ -469,6 +474,7 @@ GetCPInfo
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetCPInfo(
@@ -523,6 +529,7 @@ GetACP
 
 See MSDN doc.
 --*/
+PUB
 UINT
 PALAPI
 GetACP(VOID)
@@ -543,6 +550,7 @@ IsDBCSLeadByteEx
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 IsDBCSLeadByteEx(
@@ -590,6 +598,7 @@ IsDBCSLeadByte
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 IsDBCSLeadByte(
@@ -607,6 +616,7 @@ MultiByteToWideChar
 See MSDN doc.
 
 --*/
+PUB
 int
 PALAPI
 MultiByteToWideChar(
@@ -734,6 +744,7 @@ WideCharToMultiByte
 See MSDN doc.
 
 --*/
+PUB
 int
 PALAPI
 WideCharToMultiByte(
@@ -911,6 +922,7 @@ PAL_BindResources - bind the resource domain to the path where the coreclr resid
 
 Returns TRUE if it succeeded, FALSE if it failed due to OOM
 --*/
+PUB
 BOOL
 PALAPI
 PAL_BindResources(IN LPCSTR lpDomain)
@@ -946,6 +958,7 @@ will be returned if an appropriately localized version is not found.
 
 Returns number of characters retrieved, 0 if it failed.
 --*/
+PUB
 int
 PALAPI
 PAL_GetResourceString(

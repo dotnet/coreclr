@@ -88,6 +88,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateEventA(
@@ -151,6 +152,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateEventW(
@@ -207,6 +209,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateEventExW(
@@ -350,6 +353,7 @@ Function:
 See MSDN doc.
 --*/
 
+PUB
 BOOL
 PALAPI
 SetEvent(
@@ -383,6 +387,7 @@ Function:
 See MSDN doc.
 --*/
 
+PUB
 BOOL
 PALAPI
 ResetEvent(
@@ -501,6 +506,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 OpenEventW(

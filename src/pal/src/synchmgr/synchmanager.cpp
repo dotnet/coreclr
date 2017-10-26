@@ -49,7 +49,7 @@ const int CorUnix::CThreadSynchronizationInfo::PendingSignalingsArraySize;
 PTERMINATION_REQUEST_HANDLER g_terminationRequestHandler = NULL;
 
 // Set the handler for process termination requests.
-VOID PALAPI PAL_SetTerminationRequestHandler(
+PUB VOID PALAPI PAL_SetTerminationRequestHandler(
     IN PTERMINATION_REQUEST_HANDLER terminationHandler)
 {
     g_terminationRequestHandler = terminationHandler;
@@ -1652,7 +1652,7 @@ namespace CorUnix
     }
 
     // Entry point routine for the thread that initiates process termination.
-    DWORD PALAPI TerminationRequestHandlingRoutine(LPVOID pArg)
+    PUB DWORD PALAPI TerminationRequestHandlingRoutine(LPVOID pArg)
     {
         // Call the termination request handler if one is registered.
         if (g_terminationRequestHandler != NULL)
@@ -1669,7 +1669,7 @@ namespace CorUnix
 
     Synchronization Manager's Worker Thread
     --*/
-    DWORD PALAPI CPalSynchronizationManager::WorkerThread(LPVOID pArg)
+    PUB DWORD PALAPI CPalSynchronizationManager::WorkerThread(LPVOID pArg)
     {
         PAL_ERROR palErr;
         bool fShuttingDown = false;

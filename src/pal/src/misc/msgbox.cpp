@@ -87,6 +87,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 int
 PALAPI
 MessageBoxW(
@@ -215,6 +216,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 int
 PALAPI
 MessageBoxA(

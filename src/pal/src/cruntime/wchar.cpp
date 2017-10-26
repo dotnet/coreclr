@@ -80,6 +80,7 @@ Function:
 
 See MSDN doc
 --*/
+PUB
 int
 __cdecl
 _wtoi(
@@ -129,6 +130,7 @@ Function:
 
 See MSDN doc
 --*/
+PUB
 int
 __cdecl
 PAL_iswspace(wchar_16 c)
@@ -180,6 +182,7 @@ either string before count characters are compared, the shorter string
 is lesser.
 
 --*/
+PUB
 int
 __cdecl
 _wcsnicmp(
@@ -232,6 +235,7 @@ Parameters
 string1, string2        Null-terminated strings to compare
 
 --*/
+PUB
 int
 __cdecl
 _wcsicmp(
@@ -273,6 +277,7 @@ string   Null-terminated string to convert to lowercase
 Remarks
 
 --*/
+PUB
 wchar_16 * 
 __cdecl
 _wcslwr(
@@ -338,6 +343,7 @@ Notes :
 returned from this function. If "long" is used instead of LONG, then a 64 bit 
 value could be returned on 64 bit platforms like HP-UX, thus breaking 
 Windows behavior. */
+PUB
 LONG
 __cdecl
 PAL_wcstol(
@@ -465,6 +471,7 @@ Notes :
 returned from this function. If "unsigned long" is used instead of ULONG,
 then a 64 bit value could be returned on 64 bit platforms like HP-UX, thus
 breaking Windows behavior .*/
+PUB
 ULONG
 __cdecl
 PAL_wcstoul(
@@ -555,6 +562,7 @@ PAL_wcstoulExit:
     return (ULONG)res;
 }
 
+PUB
 ULONGLONG
 __cdecl
 PAL__wcstoui64(
@@ -625,6 +633,7 @@ Function:
 See MSDN
 
 --*/
+PUB
 wchar_16
 __cdecl
 PAL_towlower( wchar_16 c )
@@ -684,6 +693,7 @@ Function:
 See MSDN
 
 --*/
+PUB
 wchar_16
 __cdecl
 PAL_towupper( wchar_16 c )
@@ -742,6 +752,7 @@ Function:
 See MSDN
 
 --*/
+PUB
 int
 __cdecl
 PAL_iswupper( wchar_16 c )
@@ -788,6 +799,7 @@ Function:
 See MSDN
 
 --*/
+PUB
 int
 __cdecl
 PAL_iswlower( wchar_16 c )
@@ -834,6 +846,7 @@ Function:
 See MSDN
 
 --*/
+PUB
 int
 __cdecl
 PAL_iswalpha( wchar_16 c )
@@ -861,6 +874,7 @@ Function:
 See MSDN or the man page for mcscat.
 
 --*/
+PUB
 wchar_16 * 
 __cdecl
 PAL_wcscat(
@@ -888,6 +902,7 @@ Function:
 See MSDN or the man page for mcscpy.
 
 --*/
+PUB
 wchar_16 * 
 __cdecl
 PAL_wcscpy(
@@ -938,6 +953,7 @@ Function:
 See MSDN or the man page for wcslen.
 
 --*/
+PUB
 size_t 
 __cdecl
 PAL_wcslen(
@@ -971,6 +987,7 @@ Function:
 
 See MSDN or the man page for wcsncmp.
 --*/
+PUB
 int 
 __cdecl
 PAL_wcsncmp(
@@ -1012,6 +1029,7 @@ Function:
 
 See MSDN or the man page for wcscmp.
 --*/
+PUB
 int
 __cdecl
 PAL_wcscmp(
@@ -1039,6 +1057,7 @@ Function:
 See MSDN or man page for wcschr.
 
 --*/
+PUB
 wchar_16 _WConst_return * 
 __cdecl
 PAL_wcschr(
@@ -1076,6 +1095,7 @@ Function:
 See MSDN or man page for wcsrchr.
 
 --*/
+PUB
 wchar_16 _WConst_return * 
 __cdecl
 PAL_wcsrchr(
@@ -1108,6 +1128,7 @@ Function:
 
 See MSDN or man page for wcspbrk.
 --*/
+PUB
 size_t
 __cdecl
 PAL_wcsspn (const wchar_16 *string, const wchar_16 *stringCharSet)
@@ -1123,6 +1144,7 @@ Function:
 
 See MSDN or man page for wcspbrk.
 --*/
+PUB
 const wchar_16 * 
 __cdecl
 PAL_wcspbrk(
@@ -1158,6 +1180,7 @@ Function:
 
 See MSDN or man page for wcsstr.
 --*/
+PUB
 const wchar_16 *
 __cdecl
 PAL_wcsstr(
@@ -1228,6 +1251,7 @@ Function :
     
 see msdn doc.
 --*/
+PUB
 wchar_16 * 
 __cdecl
 PAL_wcsncpy( wchar_16 * strDest, const wchar_16 *strSource, size_t count )
@@ -1253,6 +1277,7 @@ Function :
     
 see msdn doc.
 --*/
+PUB
 wchar_16 * 
 __cdecl
 PAL_wcsncat( wchar_16 * strDest, const wchar_16 *strSource, size_t count )
@@ -1334,6 +1359,7 @@ Function :
 
 see msdn doc.
 --*/
+PUB
 double
 __cdecl
 PAL_wcstod( const wchar_16 * nptr, wchar_16 **endptr )
@@ -1431,6 +1457,7 @@ Function:
     
 See MSDN for more details.
 --*/
+PUB
 int
 __cdecl
 PAL_iswdigit( wchar_16 c )
@@ -1487,6 +1514,7 @@ granularity. Results in windows show that only ASCII and "Fullwidth" (>0xFF10)
 numbers and letters are considered as "hex"; other "numbers" 
 (nGeneralCategory==8) aren't.
 --*/
+PUB
 int
 __cdecl
 PAL_iswxdigit( wchar_16 c )
@@ -1528,6 +1556,7 @@ Function:
      
 See MSDN for more details.
 --*/
+PUB
 int
 __cdecl
 PAL_iswprint( wchar_16 c ) 
@@ -1563,6 +1592,7 @@ string          String
 strCharSet      Set of delimiter characters
 
 --*/
+PUB
 size_t
 __cdecl
 PAL_wcscspn(const wchar_16 *string, const wchar_16 *strCharSet)
@@ -1596,6 +1626,7 @@ Function:
 
 Returns TRUE if c is a Win32 "blank" character.
 --*/
+PUB
 int 
 __cdecl 
 PAL_iswblank(wchar_16 c)
@@ -1637,6 +1668,7 @@ Function:
 
 Returns TRUE if c is a control character.
 --*/
+PUB
 int 
 __cdecl 
 PAL_iswcntrl(wchar_16 c)
@@ -1658,6 +1690,7 @@ Function:
 
 Returns TRUE if c is a punctuation character.
 --*/
+PUB
 int 
 __cdecl 
 PAL_iswpunct(wchar_16 c)

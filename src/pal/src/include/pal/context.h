@@ -518,6 +518,7 @@ Parameters :
     LPCONTEXT lpContext : new context
 
 --*/
+PUB
 void
 PALAPI
 CONTEXT_CaptureContext(

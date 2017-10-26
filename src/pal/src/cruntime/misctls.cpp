@@ -48,7 +48,7 @@ Function:
 
 See MSDN for more details.
 --*/
-
+PUB
 struct PAL_tm *
 __cdecl
 PAL_localtime(const PAL_time_t *clock)
@@ -95,6 +95,7 @@ Function:
 
 See MSDN for more details.
 --*/
+PUB
 char *
 __cdecl
 PAL_ctime( const PAL_time_t *clock )

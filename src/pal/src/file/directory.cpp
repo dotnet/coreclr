@@ -44,6 +44,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 CreateDirectoryW(
@@ -180,6 +181,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 RemoveDirectoryA(
@@ -226,6 +228,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 RemoveDirectoryW(
@@ -348,6 +351,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetCurrentDirectoryA(
@@ -378,6 +382,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetCurrentDirectoryW(
@@ -442,6 +447,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 SetCurrentDirectoryW(
@@ -513,6 +519,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 CreateDirectoryA(
@@ -642,6 +649,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 SetCurrentDirectoryA(

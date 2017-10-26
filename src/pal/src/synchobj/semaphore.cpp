@@ -66,6 +66,7 @@ Parameters:
 See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateSemaphoreExA(
@@ -101,6 +102,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateSemaphoreA(
@@ -164,6 +166,7 @@ Parameters:
 See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateSemaphoreExW(
@@ -196,6 +199,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 CreateSemaphoreW(
@@ -392,6 +396,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 BOOL
 PALAPI
 ReleaseSemaphore(
@@ -558,6 +563,7 @@ Parameters:
   See MSDN doc.
 --*/
 
+PUB
 HANDLE
 PALAPI
 OpenSemaphoreW(

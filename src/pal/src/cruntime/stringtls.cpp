@@ -55,6 +55,7 @@ storage)  According to the strtok MSDN documentation, "Calling these functions
 simultaneously from multiple threads does not have undesirable effects", so
 we need to use strtok_r.
 --*/
+PUB
 char *
 __cdecl
 PAL_strtok(char *strToken, const char *strDelimit)

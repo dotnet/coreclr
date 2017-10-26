@@ -43,6 +43,7 @@ Abstract:
 
   NOTE: This function must not modify LastError.
 --*/
+PUB
 PAL_ERROR
 PALAPI
 PAL_Enter(PAL_Boundary boundary)
@@ -168,6 +169,7 @@ Abstract:
 
   NOTE: This function must not modify LastError.
 --*/
+PUB
 VOID
 PALAPI
 PAL_Reenter(PAL_Boundary boundary)
@@ -195,6 +197,7 @@ Abstract:
   This function can be called to determine if the thread has entered the
   PAL through PAL_Enter or related calls.
 --*/
+PUB
 BOOL
 PALAPI
 PAL_HasEntered()
@@ -225,6 +228,7 @@ Abstract:
 
   NOTE: This function must not modify LastError.
 --*/
+PUB
 BOOL
 PALAPI
 PAL_ReenterForEH()
@@ -286,6 +290,7 @@ Abstract:
 
   NOTE: This function must not modify LastError.
 --*/
+PUB
 VOID
 PALAPI
 PAL_Leave(PAL_Boundary boundary)
