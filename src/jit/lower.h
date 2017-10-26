@@ -282,12 +282,6 @@ private:
     GenTree* LowerConstIntDivOrMod(GenTree* node);
     GenTree* LowerSignedDivOrMod(GenTree* node);
     void LowerBlockStore(GenTreeBlk* blkNode);
-#ifdef _TARGET_ARM64_
-    void LowerPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntryPtr info);
-#endif // _TARGET_ARM64_
-#ifdef _TARGET_ARM_
-    void LowerPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntryPtr info);
-#endif // _TARGET_ARM64_
     void LowerPutArgStk(GenTreePutArgStk* tree);
 
     GenTree* TryCreateAddrMode(LIR::Use&& use, bool isIndir);
