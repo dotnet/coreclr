@@ -11,8 +11,6 @@
 #include <intrin.h>
 #endif // _MSC_VER
 
-#define FEATURE_REDHAWK 1
-
 #define REDHAWK_PALIMPORT extern "C"
 #define REDHAWK_PALAPI __stdcall
 
