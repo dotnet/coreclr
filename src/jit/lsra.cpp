@@ -1170,7 +1170,11 @@ LinearScan::LinearScan(Compiler* theCompiler)
 #endif // DEBUG
 
     enregisterLocalVars = ((compiler->opts.compFlags & CLFLG_REGVAR) != 0) && compiler->lvaTrackedCount > 0;
-    availableIntRegs    = (RBM_ALLINT & ~compiler->codeGen->regSet.rsMaskResvd);
+#ifdef _TARGET_ARM64_
+    availableIntRegs = (RBM_ALLINT & ~(RBM_PR | RBM_FP | RBM_LR) & ~compiler->codeGen->regSet.rsMaskResvd);
+#else
+    availableIntRegs = (RBM_ALLINT & ~compiler->codeGen->regSet.rsMaskResvd);
+#endif
 
 #if ETW_EBP_FRAMED
     availableIntRegs &= ~RBM_FPBASE;
@@ -3079,7 +3083,7 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
             }
         }
 
-        if (killGCRefs(tree))
+        if (compiler->killGCRefs(tree))
         {
             RefPosition* pos = newRefPosition((Interval*)nullptr, currentLoc, RefTypeKillGCRefs, tree,
                                               (allRegs(TYP_REF) & ~RBM_ARG_REGS));
@@ -3087,35 +3091,6 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
         return true;
     }
 
-    return false;
-}
-
-//------------------------------------------------------------------------
-// killGCRefs:
-// Given some tree node return does it need all GC refs to be spilled from
-// callee save registers.
-//
-// Arguments:
-//    tree       - the tree for which we ask about gc refs.
-//
-// Return Value:
-//    true       - tree kills GC refs on callee save registers
-//    false      - tree doesn't affect GC refs on callee save registers
-bool LinearScan::killGCRefs(GenTree* tree)
-{
-    if (tree->IsCall())
-    {
-        if ((tree->gtFlags & GTF_CALL_UNMANAGED) != 0)
-        {
-            return true;
-        }
-
-        if (tree->AsCall()->gtCallMethHnd == compiler->eeFindHelper(CORINFO_HELP_JIT_PINVOKE_BEGIN))
-        {
-            assert(compiler->opts.ShouldUsePInvokeHelpers());
-            return true;
-        }
-    }
     return false;
 }
 
@@ -6342,8 +6317,8 @@ regNumber LinearScan::allocateBusyReg(Interval* current, RefPosition* refPositio
         // Now, if we have a recentAssignedRef, check that it is going to be OK to spill it.
         Interval*    assignedInterval        = physRegRecord->assignedInterval;
         unsigned     recentAssignedRefWeight = BB_ZERO_WEIGHT;
-        RefPosition* recentAssignedRef;
-        RefPosition* recentAssignedRef2 = nullptr;
+        RefPosition* recentAssignedRef       = nullptr;
+        RefPosition* recentAssignedRef2      = nullptr;
 #ifdef _TARGET_ARM_
         if (current->registerType == TYP_DOUBLE)
         {
@@ -6357,7 +6332,7 @@ regNumber LinearScan::allocateBusyReg(Interval* current, RefPosition* refPositio
             }
         }
         else
-#else
+#endif
         {
             recentAssignedRef = assignedInterval->recentRefPosition;
             if (!canSpillReg(physRegRecord, refLocation, &recentAssignedRefWeight))
@@ -6365,8 +6340,7 @@ regNumber LinearScan::allocateBusyReg(Interval* current, RefPosition* refPositio
                 continue;
             }
         }
-#endif
-            if (recentAssignedRefWeight > farthestRefPosWeight)
+        if (recentAssignedRefWeight > farthestRefPosWeight)
         {
             continue;
         }
@@ -6949,8 +6923,10 @@ void LinearScan::unassignPhysReg(RegRecord* regRec, RefPosition* spillRefPositio
 {
     Interval* assignedInterval = regRec->assignedInterval;
     assert(assignedInterval != nullptr);
-
     regNumber thisRegNum = regRec->regNum;
+
+    // Is assignedInterval actually still assigned to this register?
+    bool intervalIsAssigned = (assignedInterval->physReg == thisRegNum);
 
 #ifdef _TARGET_ARM_
     RegRecord* anotherRegRec = nullptr;
@@ -6964,6 +6940,10 @@ void LinearScan::unassignPhysReg(RegRecord* regRec, RefPosition* spillRefPositio
 
         // Both two RegRecords should have been assigned to the same interval.
         assert(assignedInterval == anotherRegRec->assignedInterval);
+        if (!intervalIsAssigned && (assignedInterval->physReg == anotherRegRec->regNum))
+        {
+            intervalIsAssigned = true;
+        }
     }
 #endif // _TARGET_ARM_
 
@@ -6993,7 +6973,7 @@ void LinearScan::unassignPhysReg(RegRecord* regRec, RefPosition* spillRefPositio
         nextRefPosition = spillRefPosition->nextRefPosition;
     }
 
-    if (assignedInterval->physReg != REG_NA && assignedInterval->physReg != thisRegNum)
+    if (!intervalIsAssigned && assignedInterval->physReg != REG_NA)
     {
         // This must have been a temporary copy reg, but we can't assert that because there
         // may have been intervening RefPositions that were not copyRegs.
@@ -10029,7 +10009,21 @@ regNumber LinearScan::getTempRegForResolution(BasicBlock* fromBlock, BasicBlock*
     VarToRegMap fromVarToRegMap = getOutVarToRegMap(fromBlock->bbNum);
     VarToRegMap toVarToRegMap   = getInVarToRegMap(toBlock->bbNum);
 
+#ifdef _TARGET_ARM_
+    regMaskTP freeRegs;
+    if (type == TYP_DOUBLE)
+    {
+        // We have to consider all float registers for TYP_DOUBLE
+        freeRegs = allRegs(TYP_FLOAT);
+    }
+    else
+    {
+        freeRegs = allRegs(type);
+    }
+#else  // !_TARGET_ARM_
     regMaskTP freeRegs = allRegs(type);
+#endif // !_TARGET_ARM_
+
 #ifdef DEBUG
     if (getStressLimitRegs() == LSRA_LIMIT_SMALL_SET)
     {
@@ -10048,13 +10042,22 @@ regNumber LinearScan::getTempRegForResolution(BasicBlock* fromBlock, BasicBlock*
         assert(fromReg != REG_NA && toReg != REG_NA);
         if (fromReg != REG_STK)
         {
-            freeRegs &= ~genRegMask(fromReg);
+            freeRegs &= ~genRegMask(fromReg, getIntervalForLocalVar(varIndex)->registerType);
         }
         if (toReg != REG_STK)
         {
-            freeRegs &= ~genRegMask(toReg);
+            freeRegs &= ~genRegMask(toReg, getIntervalForLocalVar(varIndex)->registerType);
         }
     }
+
+#ifdef _TARGET_ARM_
+    if (type == TYP_DOUBLE)
+    {
+        // Exclude any doubles for which the odd half isn't in freeRegs.
+        freeRegs = freeRegs & ((freeRegs << 1) & RBM_ALLDOUBLE);
+    }
+#endif
+
     if (freeRegs == RBM_NONE)
     {
         return REG_NA;
@@ -10674,7 +10677,7 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
             tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
         }
 #else
-        tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
+        tempRegFlt     = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
 #endif
     }
 
@@ -11479,8 +11482,6 @@ void TreeNodeInfo::dump(LinearScan* lsra)
 
 void LinearScan::lsraDumpIntervals(const char* msg)
 {
-    Interval* interval;
-
     printf("\nLinear scan intervals %s:\n", msg);
     for (auto& interval : intervals)
     {

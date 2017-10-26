@@ -8491,7 +8491,10 @@ private:
         assert(mergingReturns);
 
         BasicBlock* mergedReturnBlock = nullptr;
-        if ((returnBlock != nullptr) && (maxReturns > 1))
+
+        // Do not look for mergable constant returns in debug codegen as
+        // we may lose track of sequence points.
+        if ((returnBlock != nullptr) && (maxReturns > 1) && !comp->opts.compDbgCode)
         {
             // Check to see if this is a constant return so that we can search
             // for and/or create a constant return block for it.
@@ -21536,7 +21539,6 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, GenTree* node)
 
         if (tree->OperIsUnary() && tree->gtOp.gtOp1)
         {
-            GenTreePtr lclVarTree;
             expectedPrevTree = tree->gtOp.gtOp1;
         }
         else if (tree->OperIsBinary() && tree->gtOp.gtOp1)
