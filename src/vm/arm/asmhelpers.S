@@ -662,11 +662,11 @@ NESTED_ENTRY ProfileEnterNaked, _TEXT, NoHandler
     PROLOG_PUSH "{r4, r5, r7, r11, lr}"
     PROLOG_STACK_SAVE_OFFSET r7, #8
 
-    // fields of PLATFORM_SPECIFIC_DATA, in reverse order
+    // fields of PROFILE_PLATFORM_SPECIFIC_DATA, in reverse order
 
     // UINT32      r0;         // Keep r0 & r1 contiguous to make returning 64-bit results easier
     // UINT32      r1;
-    // void       *R11;
+    // void       *r11;
     // void       *Pc;
     // union                   // Float arg registers as 32-bit (s0-s15) and 64-bit (d0-d7)
     // {
@@ -705,11 +705,11 @@ NESTED_ENTRY ProfileLeaveNaked, _TEXT, NoHandler
     PROLOG_PUSH "{r1, r2, r4, r5, r7, r11, lr}"
     PROLOG_STACK_SAVE_OFFSET r7, #16
 
-    // fields of PLATFORM_SPECIFIC_DATA, in reverse order
+    // fields of PROFILE_PLATFORM_SPECIFIC_DATA, in reverse order
 
     // UINT32      r0;         // Keep r0 & r1 contiguous to make returning 64-bit results easier
     // UINT32      r1;
-    // void       *R11;
+    // void       *r11;
     // void       *Pc;
     // union                   // Float arg registers as 32-bit (s0-s15) and 64-bit (d0-d7)
     // {
@@ -734,7 +734,7 @@ NESTED_ENTRY ProfileLeaveNaked, _TEXT, NoHandler
     push        { lr }
     push        { r11 }
     push        { r1 }
-    push        { r2 }
+    push        { r0 }
     mov         r1, sp
     bl          C_FUNC(ProfileLeave)
     EPILOG_STACK_RESTORE_OFFSET r7, #16
@@ -748,11 +748,11 @@ NESTED_ENTRY ProfileTailcallNaked, _TEXT, NoHandler
     PROLOG_PUSH "{r1, r2, r4, r5, r7, r11, lr}"
     PROLOG_STACK_SAVE_OFFSET r7, #16
 
-    // fields of PLATFORM_SPECIFIC_DATA, in reverse order
+    // fields of PROFILE_PLATFORM_SPECIFIC_DATA, in reverse order
 
     // UINT32      r0;         // Keep r0 & r1 contiguous to make returning 64-bit results easier
     // UINT32      r1;
-    // void       *R11;
+    // void       *r11;
     // void       *Pc;
     // union                   // Float arg registers as 32-bit (s0-s15) and 64-bit (d0-d7)
     // {
@@ -777,7 +777,7 @@ NESTED_ENTRY ProfileTailcallNaked, _TEXT, NoHandler
     push        { lr }
     push        { r11 }
     push        { r1 }
-    push        { r2 }
+    push        { r0 }
     mov         r1, sp
     bl          C_FUNC(ProfileTailcall)
     EPILOG_STACK_RESTORE_OFFSET r7, #16
