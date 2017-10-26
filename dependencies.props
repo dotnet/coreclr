@@ -13,27 +13,33 @@
   
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>9d805bd9c4ca70637c0f212750447755e802cffc</CoreFxCurrentRef>
-    <CoreClrCurrentRef>9d805bd9c4ca70637c0f212750447755e802cffc</CoreClrCurrentRef>
-    <BuildToolsCurrentRef>9d805bd9c4ca70637c0f212750447755e802cffc</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>20937e8603d9d6ecd6952d7db3bee390137b338e</PgoDataCurrentRef>
+    <CoreFxCurrentRef>36a82eaf3ebf7ce0357648cd8bd77a511ad3b814</CoreFxCurrentRef>
+    <CoreClrCurrentRef>87ef6cf85b25230f1c3764bc9fbd106ad6b8f7ae</CoreClrCurrentRef>
+    <BuildToolsCurrentRef>87ef6cf85b25230f1c3764bc9fbd106ad6b8f7ae</BuildToolsCurrentRef>
+    <PgoDataCurrentRef>36a82eaf3ebf7ce0357648cd8bd77a511ad3b814</PgoDataCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
-    <CoreFxPackageVersion>4.5.0-preview1-25824-01</CoreFxPackageVersion>
-    <PlatformPackageVersion>2.1.0-preview1-25824-01</PlatformPackageVersion>
-    <PgoDataPackageVersion>99.99.99-master-20171012-0049</PgoDataPackageVersion>
+    <CoreFxPackageVersion>4.5.0-preview1-25825-08</CoreFxPackageVersion>
+    <PlatformPackageVersion>2.1.0-preview1-25825-08</PlatformPackageVersion>
+    <PgoDataPackageVersion>99.99.99-master-20171025-1102</PgoDataPackageVersion>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
   <PropertyGroup>
-    <CoreClrPackageVersion>2.1.0-preview1-25822-02</CoreClrPackageVersion>
+    <CoreClrPackageVersion>2.1.0-preview1-25824-51</CoreClrPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XUnitConsoleNetCoreVersion>1.0.2-prerelease-00177</XUnitConsoleNetCoreVersion>
     <XUnitPerformanceApiVersion>1.0.0-beta-build0007</XUnitPerformanceApiVersion>
     <MicrosoftDiagnosticsTracingLibraryVersion>1.0.3-alpha-experimental</MicrosoftDiagnosticsTracingLibraryVersion>
     <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
+  </PropertyGroup>
+
+  <!-- Package versions used as toolsets -->
+  <PropertyGroup>
+    <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
+    <FeedTasksPackageVersion>1.0.0-prerelease-02124-02</FeedTasksPackageVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->
@@ -85,6 +91,11 @@
       <Path>$(MSBuildThisFileDirectory)BuildToolsVersion.txt</Path>
       <PackageId>Microsoft.DotNet.BuildTools</PackageId>
     </UpdateStep>
+    <XmlUpdateStep Include="BuildTools">
+       <Path>$(MSBuildThisFileFullPath)</Path>
+       <ElementName>FeedTasksPackageVersion</ElementName>
+       <PackageId>$(FeedTasksPackage)</PackageId>
+    </XmlUpdateStep>
     <XmlUpdateStep Include="PgoData">
       <Path>$(MSBuildThisFileFullPath)</Path>
       <ElementName>PgoDataPackageVersion</ElementName>
