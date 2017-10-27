@@ -298,6 +298,15 @@ public:
     //  The number of processors
     static uint32_t GetCurrentProcessCpuCount();
 
+    // Sets the calling thread's affinity to only run on the processor specified
+    // in the GCThreadAffinity structure.
+    // Parameters:
+    //  affinity - The requested affinity for the calling thread. At most one processor
+    //             can be provided.
+    // Return:
+    //  true if setting the affinity was successful, false otherwise.
+    static bool SetThreadAffinity(GCThreadAffinity* affinity);
+
     // Get affinity mask of the current process
     // Parameters:
     //  processMask - affinity mask for the specified process

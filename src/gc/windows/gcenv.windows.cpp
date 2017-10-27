@@ -387,6 +387,11 @@ size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
     return 0;
 }
 
+bool GCToOSInterface::SetThreadAffinity(GCThreadAffinity* affinity)
+{
+    return false;
+}
+
 // Get affinity mask of the current process
 // Parameters:
 //  processMask - affinity mask for the specified process

@@ -402,6 +402,11 @@ size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
     return 0;
 }
 
+bool GCToOSInterface::SetThreadAffinity(GCThreadAffinity* affinity)
+{
+    return false;
+}
+
 /*++
 Function:
   GetFullAffinityMask

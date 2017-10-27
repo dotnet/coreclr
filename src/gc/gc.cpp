@@ -24919,6 +24919,21 @@ void gc_heap::compact_phase (int condemned_gen_number,
 void gc_heap::gc_thread_stub (void* arg)
 {
     gc_heap* heap = (gc_heap*)arg;
+    if (!gc_thread_no_affinitize_p)
+    {
+        GCThreadAffinity affinity;
+        affinity.Group = GCThreadAffinity::None;
+        affinity.Processor = GCThreadAffinity::None;
+
+        // We are about to set affinity for GC threads. It is a good place to set up NUMA and
+        // CPU groups because the process mask, processor number, and group number are all
+        // readily available.
+        if (CPUGroupInfo::CanEnableGCCPUGroups())
+            set_thread_group_affinity_for_heap(heap->heap_number, &affinity);
+        else
+            set_thread_affinity_mask_for_heap(heap->heap_number, &affinity);
+    }
+
     _alloca (256*heap->heap_number);
     heap->gc_thread_function();
 }
