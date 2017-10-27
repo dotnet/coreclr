@@ -2870,6 +2870,9 @@ size_t     gc_heap::interesting_mechanism_bits_per_heap[max_gc_mechanism_bits_co
 
 #endif // MULTIPLE_HEAPS
 
+// the default latency level is a balance between pauses and throughput.
+gc_latency_level gc_heap::latency_level = latency_level_balanced;
+
 /* end of per heap static initialization */
 
 /* end of static initialization */
@@ -10113,7 +10116,7 @@ gc_heap::init_semi_shared()
     should_expand_in_full_gc = FALSE;
 
 #ifdef FEATURE_LOH_COMPACTION
-    loh_compaction_always_p = GCConfig::GetLOHCompactionMode() != 0;
+    loh_compaction_always_p = GCConfig::GetLOHCompactionMode() != 0 || gc_heap::latency_level == latency_level_small_memory_footprint;
     loh_compaction_mode = loh_compaction_default;
 #endif //FEATURE_LOH_COMPACTION
 
@@ -30308,7 +30311,7 @@ BOOL gc_heap::decide_on_compacting (int condemned_gen_number,
 #endif // GC_STATS
 #endif //STRESS_HEAP
 
-    if (GCConfig::GetForceCompact())
+    if (GCConfig::GetForceCompact() || gc_heap::latency_level == latency_level_small_memory_footprint)
         should_compact = TRUE;
 
     if ((condemned_gen_number == max_generation) && last_gc_before_oom)
@@ -33506,6 +33509,13 @@ HRESULT GCHeap::Initialize ()
 {
     HRESULT hr = S_OK;
 
+    // Get our latency level. Defaults to latency_level_balanced if not specified or if the config latency level is invalid.
+    int latency_level_from_config = static_cast<int>(GCConfig::GetLatencyLevel());
+    if (latency_level_from_config >= latency_level_first && latency_level_from_config <= latency_level_last)
+    {
+        gc_heap::latency_level = static_cast<gc_latency_level>(latency_level_from_config);
+    }
+
     g_gc_pFreeObjectMethodTable = GCToEEInterface::GetFreeObjectMethodTable();
     g_num_processors = GCToOSInterface::GetTotalProcessorCount();
     assert(g_num_processors != 0);
@@ -35027,9 +35037,9 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
 
     gc_heap::g_low_memory_status = (reason == reason_lowmemory) || 
                                    (reason == reason_lowmemory_blocking) ||
-                                   g_bLowMemoryFromHost;
+                                   gc_heap::latency_level == latency_level_small_memory_footprint;
 
-    if (g_bLowMemoryFromHost)
+    if (gc_heap::latency_level == latency_level_small_memory_footprint)
         reason = reason_lowmemory_host;
 
     gc_trigger_reason = reason;
