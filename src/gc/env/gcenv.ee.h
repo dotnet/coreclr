@@ -79,7 +79,7 @@ public:
     static void FreeStringConfigValue(const char* key);
     static bool IsGCThread();
     static bool IsGCSpecialThread();
-    static Thread* CreateThread(void (*threadStart)(void*), void* arg);
+    static Thread* CreateThread(void (*threadStart)(void*), void* arg, bool is_special, const wchar_t* name);
 };
 
 #endif // __GCENV_EE_H__

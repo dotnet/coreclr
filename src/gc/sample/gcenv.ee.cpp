@@ -325,7 +325,7 @@ MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     return g_pFreeObjectMethodTable;
 }
 
-Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg)
+Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_special, const wchar_t* name)
 {
     return nullptr;
 }

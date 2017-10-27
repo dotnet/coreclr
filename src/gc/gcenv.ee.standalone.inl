@@ -252,10 +252,10 @@ inline bool GCToEEInterface::IsGCSpecialThread()
     return g_theGCToCLR->IsGCSpecialThread();
 }
 
-inline Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg)
+inline Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_special, const wchar_t* name)
 {
     assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CreateThread(threadStart, arg);
+    return g_theGCToCLR->CreateThread(threadStart, arg, is_special, name);
 }
 
 

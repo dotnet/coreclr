@@ -100,7 +100,7 @@ public:
 
     // Creates and returns a new thread.
     virtual
-    Thread* CreateThread(void (*threadStart)(void*), void* arg) = 0;
+    Thread* CreateThread(void (*threadStart)(void*), void* arg, bool is_special, const wchar_t* name) = 0;
 
     // When a GC starts, gives the diagnostics code a chance to run.
     virtual

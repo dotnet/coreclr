@@ -59,7 +59,7 @@ public:
     void FreeStringConfigValue(const char* value);
     bool IsGCThread();
     bool IsGCSpecialThread();
-	Thread* CreateThread(void (*threadStart)(void*), void* arg);
+	Thread* CreateThread(void (*threadStart)(void*), void* arg, bool is_special, const wchar_t* name);
 };
 
 } // namespace standalone

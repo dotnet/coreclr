@@ -1125,10 +1125,11 @@ struct ThreadStubArguments
     void (*ThreadStart)(void*);
     Thread* Thread;
     bool HasStarted;
+    bool IsSpecial;
     CLREvent ThreadStartedEvent;
 };
 
-Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg)
+Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_special, const wchar_t* name)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1137,6 +1138,7 @@ Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg)
     threadStubArguments.Thread = nullptr;
     threadStubArguments.ThreadStart = threadStart;
     threadStubArguments.HasStarted = false;
+    threadStubArguments.IsSpecial = is_special;
 
     if (!threadStubArguments.ThreadStartedEvent.CreateAutoEventNoThrow(FALSE))
     {
@@ -1164,6 +1166,11 @@ Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg)
         assert(args->Thread != nullptr);
 
         ClrFlsSetThreadType(ThreadType_GC);
+        if (args->IsSpecial)
+        {
+            args->Thread->SetGCSpecial(true);
+        }
+
         STRESS_LOG_RESERVE_MEM(GC_STRESSLOG_MULTIPLY);
 
         Thread* thread = args->Thread;
@@ -1202,7 +1209,7 @@ Thread* GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg)
         return 0;
     };
 
-    if (threadStubArguments.Thread->CreateNewThread(0, threadStub, &threadStubArguments))
+    if (threadStubArguments.Thread->CreateNewThread(0, threadStub, &threadStubArguments, name))
     {
         threadStubArguments.Thread->SetBackground(TRUE, FALSE);
         threadStubArguments.Thread->StartThread();

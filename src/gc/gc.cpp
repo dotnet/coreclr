@@ -5351,24 +5351,7 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
 bool gc_heap::create_gc_thread ()
 {
     dprintf (3, ("Creating gc thread\n"));
-
-    GCThreadAffinity affinity;
-    affinity.Group = GCThreadAffinity::None;
-    affinity.Processor = GCThreadAffinity::None;
-
-    if (!gc_thread_no_affinitize_p)
-    {
-        // We are about to set affinity for GC threads. It is a good place to set up NUMA and
-        // CPU groups because the process mask, processor number, and group number are all
-        // readily available.
-        if (CPUGroupInfo::CanEnableGCCPUGroups()) 
-            set_thread_group_affinity_for_heap(heap_number, &affinity);
-        else
-            set_thread_affinity_mask_for_heap(heap_number, &affinity);
-    }
-
-    //return GCToEEInterface::CreateThread(gc_thread_stub, this, &affinity);
-    return GCToEEInterface::CreateThread(gc_thread_stub, this) != nullptr;
+    return GCToEEInterface::CreateThread(gc_thread_stub, this, false, L"Server GC") != nullptr;
 }
 
 #ifdef _MSC_VER
@@ -26731,7 +26714,7 @@ BOOL gc_heap::create_bgc_thread(gc_heap* gh)
 
     //dprintf (2, ("Creating BGC thread"));
 
-    gh->bgc_thread = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh);
+    gh->bgc_thread = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh, true, L"Background GC");
     gh->bgc_thread_running = (gh->bgc_thread != NULL);    
 
     return gh->bgc_thread_running;
