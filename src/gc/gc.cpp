@@ -24932,6 +24932,11 @@ void gc_heap::gc_thread_stub (void* arg)
             set_thread_group_affinity_for_heap(heap->heap_number, &affinity);
         else
             set_thread_affinity_mask_for_heap(heap->heap_number, &affinity);
+
+        if (!GCToOSInterface::SetThreadAffinity(&affinity))
+        {
+            dprintf(1, ("Failed to set thread affinity for server GC thread"));
+        }
     }
 
     _alloca (256*heap->heap_number);
