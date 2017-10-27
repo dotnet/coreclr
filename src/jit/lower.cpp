@@ -1387,21 +1387,17 @@ void Lowering::LowerArgsForCall(GenTreeCall* call)
 }
 
 // helper that create a node representing a relocatable physical address computation
-// (optionally specifying the register to place it in)
-GenTree* Lowering::AddrGen(ssize_t addr, regNumber reg)
+GenTree* Lowering::AddrGen(ssize_t addr)
 {
     // this should end up in codegen as : instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, reg, addr)
     GenTree* result = comp->gtNewIconHandleNode(addr, GTF_ICON_FTN_ADDR);
-
-    result->gtRegNum = reg;
-
     return result;
 }
 
 // variant that takes a void*
-GenTree* Lowering::AddrGen(void* addr, regNumber reg)
+GenTree* Lowering::AddrGen(void* addr)
 {
-    return AddrGen((ssize_t)addr, reg);
+    return AddrGen((ssize_t)addr);
 }
 
 // do lowering steps for a call

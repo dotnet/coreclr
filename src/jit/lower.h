@@ -166,8 +166,8 @@ private:
         PopFrame
     };
     GenTree* CreateFrameLinkUpdate(FrameLinkAction);
-    GenTree* AddrGen(ssize_t addr, regNumber reg = REG_NA);
-    GenTree* AddrGen(void* addr, regNumber reg = REG_NA);
+    GenTree* AddrGen(ssize_t addr);
+    GenTree* AddrGen(void* addr);
 
     GenTree* Ind(GenTree* tree)
     {
