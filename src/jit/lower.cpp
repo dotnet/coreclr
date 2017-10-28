@@ -1219,8 +1219,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 
     fgArgTabEntryPtr info = comp->gtArgEntryByNode(call, arg);
     assert(info->node == arg);
-    bool      isReg = (info->regNum != REG_STK);
-    var_types type  = arg->TypeGet();
+    var_types type = arg->TypeGet();
 
     if (varTypeIsSmall(type))
     {
@@ -1271,6 +1270,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 #if !defined(_TARGET_64BIT_)
     if (varTypeIsLong(type))
     {
+        bool isReg = (info->regNum != REG_STK);
         if (isReg)
         {
             noway_assert(arg->OperGet() == GT_LONG);
@@ -1315,37 +1315,42 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
     {
 
 #ifdef _TARGET_ARMARCH_
-        if (isReg)
+        if (call->IsVarargs() || comp->opts.compUseSoftFP)
         {
+
             // For vararg call or on armel, reg args should be all integer.
             // Insert a copy to move float value to integer register.
-            if ((call->IsVarargs() || comp->opts.compUseSoftFP) && varTypeIsFloating(type))
+            if (varTypeIsFloating(type))
             {
-                var_types intType = (type == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
-
-                GenTreePtr intArg;
-
-                intArg           = comp->gtNewBitCastNode(intType, arg);
-                intArg->gtRegNum = info->regNum;
-
 #ifdef _TARGET_ARM_
-                if (intType == TYP_LONG)
+                if (type == TYP_DOUBLE)
                 {
-                    assert(info->numRegs == 2);
-                    regNumber regNext = REG_NEXT(info->regNum);
-                    // double type arg regs can only be either r0:r1 or r2:r3.
-                    assert((info->regNum == REG_R0 && regNext == REG_R1) ||
-                           (info->regNum == REG_R2 && regNext == REG_R3));
-                    intArg->AsMultiRegOp()->gtOtherReg = regNext;
+                    unsigned  numRegs = info->numRegs;
+                    regNumber regCurr = info->regNum;
+                    assert(numRegs % 2 == 0);
+                    for (unsigned i = 0; i < numRegs;)
+                    {
+                        regNumber regNext = REG_NEXT(regCurr);
+                        // double type arg regs can only be either r0:r1 or r2:r3.
+                        assert((regCurr == REG_R0 && regNext == REG_R1) || (regCurr == REG_R2 && regNext == REG_R3));
+
+                        i += 2;
+                        regCurr = REG_NEXT(regNext);
+                    }
                 }
 #endif // _TARGET_ARM_
 
-                info->node = intArg;
-                ReplaceArgWithPutArgOrCopy(ppArg, intArg);
+                GenTreePtr intArg = LowerFloatArg(arg, info);
+                if (arg != intArg)
+                {
+                    info->node = intArg;
+                    ReplaceArgWithPutArgOrCopy(ppArg, intArg);
 
-                // Update arg/type with new ones.
-                arg  = intArg;
-                type = intType;
+                    // update local variable.
+                    arg = intArg;
+                }
+                // Arg type could be changed in place.
+                type = arg->TypeGet();
             }
         }
 #endif // _TARGET_ARMARCH_
@@ -1361,6 +1366,62 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
         }
     }
 }
+
+#ifdef _TARGET_ARMARCH_
+GenTreePtr Lowering::LowerFloatArg(GenTreePtr arg, fgArgTabEntryPtr info, unsigned argNum)
+{
+    var_types type    = arg->TypeGet();
+    var_types intType = (type == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
+
+    if (arg->OperIsFieldList())
+    {
+        assert(arg->isContained());
+        assert(argNum == 0);
+
+        unsigned fieldNum = 0;
+        for (GenTreeFieldList *list = arg->AsFieldList(); list != nullptr; list = list->Rest(), fieldNum++)
+        {
+            GenTreePtr node    = list->Current();
+            GenTreePtr intNode = LowerFloatArg(node, info, fieldNum);
+            if (intNode != nullptr)
+            {
+                ReplaceArgWithPutArgOrCopy(list->pCurrent(), intNode);
+                list->ChangeType(intNode->TypeGet());
+            }
+        }
+        // List fields were replaced in place.
+        return arg;
+    }
+    else
+    {
+        bool isReg = (argNum < info->numRegs);
+        if (isReg)
+        {
+            GenTreePtr intArg   = comp->gtNewBitCastNode(intType, arg);
+            regNumber  firstReg = info->regNum;
+            regNumber  currReg  = firstReg;
+            for (unsigned i = 0; i < argNum; ++i)
+            {
+                currReg = REG_NEXT(currReg);
+            }
+            intArg->gtRegNum = currReg;
+#ifdef _TARGET_ARM_
+            if (type == TYP_DOUBLE)
+            {
+                regNumber nextReg                  = REG_NEXT(info->regNum);
+                intArg->AsMultiRegOp()->gtOtherReg = nextReg;
+            }
+#endif
+            return intArg;
+        }
+        else
+        {
+            // Do not change stack nodes.
+            return nullptr;
+        }
+    }
+}
+#endif
 
 // do lowering steps for each arg of a call
 void Lowering::LowerArgsForCall(GenTreeCall* call)
