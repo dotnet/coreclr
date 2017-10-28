@@ -166,6 +166,7 @@ Function :
 See rotor_pal.doc for more details.
 
 --*/
+PUB
 PALIMPORT
 BOOL 
 PALAPI

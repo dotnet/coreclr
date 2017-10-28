@@ -64,7 +64,7 @@ static int _vswprintf_helper( WOUTPUTFN outfn, wchar_t *string, size_t count, co
 *
 *******************************************************************************/
 
-int __cdecl _vswprintf_helper (
+PUB int __cdecl _vswprintf_helper (
         WOUTPUTFN woutfn,
         wchar_t *string,
         size_t count,
@@ -112,7 +112,7 @@ int __cdecl _vswprintf_helper (
         return -1;
 }
 
-int __cdecl vswprintf_s (
+PUB int __cdecl vswprintf_s (
         wchar_t *string,
         size_t sizeInWords,
         const wchar_t *format,
@@ -143,7 +143,7 @@ int __cdecl vswprintf_s (
     return retvalue;
 }
 
-int __cdecl _vsnwprintf_s (
+PUB int __cdecl _vsnwprintf_s (
         wchar_t *string,
         size_t sizeInWords,
         size_t count,

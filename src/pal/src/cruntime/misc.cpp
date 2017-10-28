@@ -219,7 +219,7 @@ PAL_time(PAL_time_t *tloc)
     return result;
 }
 
-
+PUB
 PALIMPORT 
 void __cdecl 
 PAL_qsort(void *base, size_t nmemb, size_t size, 

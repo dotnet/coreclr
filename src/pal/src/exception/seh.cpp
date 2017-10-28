@@ -364,13 +364,13 @@ __declspec(thread)
 #endif // !__llvm__
 static NativeExceptionHolderBase *t_nativeExceptionHolderHead = nullptr;
 
-NativeExceptionHolderBase::NativeExceptionHolderBase()
+PUB NativeExceptionHolderBase::NativeExceptionHolderBase()
 {
     m_head = nullptr;
     m_next = nullptr;
 }
 
-NativeExceptionHolderBase::~NativeExceptionHolderBase()
+PUB NativeExceptionHolderBase::~NativeExceptionHolderBase()
 {
     // Only destroy if Push was called
     if (m_head != nullptr)
@@ -381,6 +381,7 @@ NativeExceptionHolderBase::~NativeExceptionHolderBase()
     }
 }
 
+PUB
 void 
 NativeExceptionHolderBase::Push()
 {
@@ -390,6 +391,7 @@ NativeExceptionHolderBase::Push()
     *head = this;
 }
 
+PUB
 NativeExceptionHolderBase *
 NativeExceptionHolderBase::FindNextHolder(NativeExceptionHolderBase *currentHolder, void *stackLowAddress, void *stackHighAddress)
 {
