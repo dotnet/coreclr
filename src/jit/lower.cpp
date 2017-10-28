@@ -768,20 +768,20 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
 // NOTE: this method deliberately does not update the call arg table. It must only
 // be used by NewPutArg and LowerArg; these functions are responsible for updating
 // the call arg table as necessary.
-void Lowering::ReplaceArgWithPutArgOrCopy(GenTree** argSlot, GenTree* putArgOrCopy)
+void Lowering::ReplaceArgWithPutArgOrBitcast(GenTree** argSlot, GenTree* putArgOrBitcast)
 {
     assert(argSlot != nullptr);
     assert(*argSlot != nullptr);
-    assert(putArgOrCopy->OperIsPutArg() || putArgOrCopy->OperIs(GT_BITCAST));
+    assert(putArgOrBitcast->OperIsPutArg() || putArgOrBitcast->OperIs(GT_BITCAST));
 
     GenTree* arg = *argSlot;
 
     // Replace the argument with the putarg/copy
-    *argSlot                 = putArgOrCopy;
-    putArgOrCopy->gtOp.gtOp1 = arg;
+    *argSlot                    = putArgOrBitcast;
+    putArgOrBitcast->gtOp.gtOp1 = arg;
 
     // Insert the putarg/copy into the block
-    BlockRange().InsertAfter(arg, putArgOrCopy);
+    BlockRange().InsertAfter(arg, putArgOrBitcast);
 }
 
 //------------------------------------------------------------------------
@@ -1009,7 +1009,7 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                             fieldListPtr->gtOp.gtOp1, (ctr == 0) ? info->regNum : info->otherRegNum);
 
                         // Splice in the new GT_PUTARG_REG node in the GT_FIELD_LIST
-                        ReplaceArgWithPutArgOrCopy(&fieldListPtr->gtOp.gtOp1, newOper);
+                        ReplaceArgWithPutArgOrBitcast(&fieldListPtr->gtOp.gtOp1, newOper);
 
                         // Initialize all the gtRegNum's since the list won't be traversed in an LIR traversal.
                         fieldListPtr->gtRegNum = REG_NA;
@@ -1046,7 +1046,7 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                     GenTreePtr newOper = comp->gtNewPutArgReg(curTyp, curOp, argReg);
 
                     // Splice in the new GT_PUTARG_REG node in the GT_FIELD_LIST
-                    ReplaceArgWithPutArgOrCopy(&fieldListPtr->gtOp.gtOp1, newOper);
+                    ReplaceArgWithPutArgOrBitcast(&fieldListPtr->gtOp.gtOp1, newOper);
 
                     // Update argReg for the next putarg_reg (if any)
                     argReg = genRegArgNext(argReg);
@@ -1304,7 +1304,8 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
             GenTreePtr putArg = NewPutArg(call, fieldList, info, type);
             putArg->gtRegNum  = info->regNum;
 
-            // We can't call ReplaceArgWithPutArgOrCopy here because it presumes that we are keeping the original arg.
+            // We can't call ReplaceArgWithPutArgOrBitcast here because it presumes that we are keeping the original
+            // arg.
             BlockRange().InsertBefore(arg, fieldList, putArg);
             BlockRange().Remove(arg);
             *ppArg = putArg;
@@ -1344,7 +1345,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
                 if (arg != intArg)
                 {
                     info->node = intArg;
-                    ReplaceArgWithPutArgOrCopy(ppArg, intArg);
+                    ReplaceArgWithPutArgOrBitcast(ppArg, intArg);
 
                     // update local variable.
                     arg = intArg;
@@ -1362,7 +1363,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
         // If an extra node is returned, splice it in the right place in the tree.
         if (arg != putArg)
         {
-            ReplaceArgWithPutArgOrCopy(ppArg, putArg);
+            ReplaceArgWithPutArgOrBitcast(ppArg, putArg);
         }
     }
 }
@@ -1385,7 +1386,7 @@ GenTreePtr Lowering::LowerFloatArg(GenTreePtr arg, fgArgTabEntryPtr info, unsign
             GenTreePtr intNode = LowerFloatArg(node, info, fieldNum);
             if (intNode != nullptr)
             {
-                ReplaceArgWithPutArgOrCopy(list->pCurrent(), intNode);
+                ReplaceArgWithPutArgOrBitcast(list->pCurrent(), intNode);
                 list->ChangeType(intNode->TypeGet());
             }
         }
