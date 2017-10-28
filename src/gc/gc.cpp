@@ -1740,7 +1740,7 @@ static BOOL try_enter_spin_lock(GCSpinLock *pSpinLock)
 inline
 static void leave_spin_lock(GCSpinLock *pSpinLock)
 {
-    BOOL gc_thread_p = IsGCSpecialThread();
+    bool gc_thread_p = GCToEEInterface::IsGCSpecialThread();
 //    _ASSERTE((pSpinLock->holding_thread == GCToEEInterface::GetThread()) || gc_thread_p || pSpinLock->released_by_gc_p);
     pSpinLock->released_by_gc_p = gc_thread_p;
     pSpinLock->holding_thread = (Thread*) -1;
@@ -5401,15 +5401,19 @@ void gc_heap::gc_thread_function ()
                 proceed_with_gc_p = FALSE;
             }
             else
+            {
                 settings.init_mechanisms();
+                gc_start_event.Set();
+            }
             dprintf (3, ("%d gc thread waiting...", heap_number));
-            gc_start_event.Set();
         }
         else
         {
             gc_start_event.Wait(INFINITE, FALSE);
             dprintf (3, ("%d gc thread waiting... Done", heap_number));
         }
+
+        assert ((heap_number == 0) || proceed_with_gc_p);
 
         if (proceed_with_gc_p)
             garbage_collect (GCHeap::GcCondemnedGeneration);
@@ -5447,7 +5451,18 @@ void gc_heap::gc_thread_function ()
 
             gc_heap::internal_gc_done = true;
 
-            set_gc_done();
+            if (proceed_with_gc_p)
+                set_gc_done();
+            else
+            {
+                // If we didn't actually do a GC, it means we didn't wait up the other threads,
+                // we still need to set the gc_done_event for those threads.
+                for (int i = 0; i < gc_heap::n_heaps; i++)
+                {
+                    gc_heap* hp = gc_heap::g_heaps[i];
+                    hp->set_gc_done();
+                }
+            }
         }
         else
         {
@@ -7450,7 +7465,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
 
             // Either this thread was the thread that did the suspension which means we are suspended; or this is called
             // from a GC thread which means we are in a blocking GC and also suspended.
-            BOOL is_runtime_suspended = IsGCThread();
+            bool is_runtime_suspended = GCToEEInterface::IsGCThread();
             if (!is_runtime_suspended)
             {
                 // Note on points where the runtime is suspended anywhere in this function. Upon an attempt to suspend the
@@ -7513,7 +7528,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             // to be changed, so we are doing this after all global state has
             // been updated. See the comment above suspend_EE() above for more
             // info.
-            stomp_write_barrier_resize(!!IsGCThread(), la != saved_g_lowest_address);
+            stomp_write_barrier_resize(GCToEEInterface::IsGCThread(), la != saved_g_lowest_address);
         }
 
 
@@ -15519,8 +15534,8 @@ void gc_heap::gc1()
 #endif //BACKGROUND_GC
     {
 #ifndef FEATURE_REDHAWK
-        // IsGCThread() always returns false on CoreRT, but this assert is useful in CoreCLR.
-        assert(!!IsGCThread());
+        // GCToEEInterface::IsGCThread() always returns false on CoreRT, but this assert is useful in CoreCLR.
+        assert(GCToEEInterface::IsGCThread());
 #endif // FEATURE_REDHAWK
         adjust_ephemeral_limits();
     }
@@ -34013,7 +34028,7 @@ bool GCHeap::StressHeap(gc_alloc_context * context)
 
 #ifdef BACKGROUND_GC
         // don't trigger a GC from the GC threads but still trigger GCs from user threads.
-        if (IsGCSpecialThread())
+        if (GCToEEInterface::IsGCSpecialThread())
         {
             return FALSE;
         }

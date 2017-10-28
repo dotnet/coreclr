@@ -1956,9 +1956,9 @@ GenTreePtr Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedTok
                                              gtNewArgList(ctxTree), &pLookup->lookupKind);
         }
 #endif
-
-        GenTreeArgList* helperArgs = gtNewArgList(ctxTree, gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr,
-                                                                               GTF_ICON_TOKEN_HDL, compileTimeHandle));
+        GenTree* argNode =
+            gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr, GTF_ICON_TOKEN_HDL, compileTimeHandle);
+        GenTreeArgList* helperArgs = gtNewArgList(ctxTree, argNode);
 
         return gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, helperArgs);
     }
@@ -2059,9 +2059,10 @@ GenTreePtr Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedTok
                                          nullptr DEBUGARG("impRuntimeLookup typehandle"));
 
     // Call to helper
-    GenTreeArgList* helperArgs = gtNewArgList(ctxTree, gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr,
-                                                                           GTF_ICON_TOKEN_HDL, compileTimeHandle));
-    GenTreePtr helperCall = gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, helperArgs);
+    GenTree* argNode = gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr, GTF_ICON_TOKEN_HDL, compileTimeHandle);
+
+    GenTreeArgList* helperArgs = gtNewArgList(ctxTree, argNode);
+    GenTreePtr      helperCall = gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, helperArgs);
 
     // Check for null and possibly call helper
     GenTreePtr relop = gtNewOperNode(GT_NE, TYP_INT, handle, gtNewIconNode(0, TYP_I_IMPL));
@@ -3266,10 +3267,9 @@ GenTreePtr Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
         dataOffset = eeGetArrayDataOffset(elementType);
     }
 
-    GenTreePtr dst     = gtNewOperNode(GT_ADD, TYP_BYREF, arrayLocalNode, gtNewIconNode(dataOffset, TYP_I_IMPL));
-    GenTreePtr blk     = gtNewBlockVal(dst, blkSize);
-    GenTreePtr srcAddr = gtNewIconHandleNode((size_t)initData, GTF_ICON_STATIC_HDL);
-    GenTreePtr src     = gtNewOperNode(GT_IND, TYP_STRUCT, srcAddr);
+    GenTreePtr dst = gtNewOperNode(GT_ADD, TYP_BYREF, arrayLocalNode, gtNewIconNode(dataOffset, TYP_I_IMPL));
+    GenTreePtr blk = gtNewBlockVal(dst, blkSize);
+    GenTreePtr src = gtNewIndOfIconHandleNode(TYP_STRUCT, (size_t)initData, GTF_ICON_STATIC_HDL, false);
 
     return gtNewBlkOpNode(blk,     // dst
                           src,     // src
@@ -7686,7 +7686,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 
         varCookie = info.compCompHnd->getVarArgsHandle(sig, &pVarCookie);
         assert((!varCookie) != (!pVarCookie));
-        GenTreePtr cookie = gtNewIconEmbHndNode(varCookie, pVarCookie, GTF_ICON_VARG_HDL);
+        GenTreePtr cookie = gtNewIconEmbHndNode(varCookie, pVarCookie, GTF_ICON_VARG_HDL, sig);
 
         assert(extraArg == nullptr);
         extraArg = gtNewArgList(cookie);
@@ -19443,11 +19443,17 @@ CORINFO_CLASS_HANDLE Compiler::impGetSpecialIntrinsicExactReturnType(CORINFO_MET
             assert(sig.sigInst.classInstCount == 1);
             CORINFO_CLASS_HANDLE typeHnd = sig.sigInst.classInst[0];
             assert(typeHnd != nullptr);
+
+            // Lookup can incorrect when we have __Canon as it won't appear
+            // to implement any interface types.
+            //
+            // And if we do not have a final type, devirt & inlining is
+            // unlikely to result in much simplification.
+            //
+            // We can use CORINFO_FLG_FINAL to screen out both of these cases.
             const DWORD typeAttribs = info.compCompHnd->getClassAttribs(typeHnd);
             const bool  isFinalType = ((typeAttribs & CORINFO_FLG_FINAL) != 0);
 
-            // If we do not have a final type, devirt & inlining is
-            // unlikely to result in much simplification.
             if (isFinalType)
             {
                 result = info.compCompHnd->getDefaultEqualityComparerClass(typeHnd);
