@@ -1324,6 +1324,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
             if (varTypeIsFloating(type))
             {
 #ifdef _TARGET_ARM_
+#ifdef DEBUG
                 if (type == TYP_DOUBLE)
                 {
                     unsigned  numRegs = info->numRegs;
@@ -1339,19 +1340,22 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
                         regCurr = REG_NEXT(regNext);
                     }
                 }
+#endif // DEBUG
 #endif // _TARGET_ARM_
 
                 GenTreePtr intArg = LowerFloatArg(arg, info);
-                if (arg != intArg)
+                if (intArg != nullptr)
                 {
-                    info->node = intArg;
-                    ReplaceArgWithPutArgOrBitcast(ppArg, intArg);
+                    if (intArg != arg)
+                    {
+                        ReplaceArgWithPutArgOrBitcast(ppArg, intArg);
+                        arg        = intArg;
+                        info->node = intArg;
+                    }
 
-                    // update local variable.
-                    arg = intArg;
+                    // update local variables.
+                    type = arg->TypeGet();
                 }
-                // Arg type could be changed in place.
-                type = arg->TypeGet();
             }
         }
 #endif // _TARGET_ARMARCH_
@@ -1369,6 +1373,20 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 }
 
 #ifdef _TARGET_ARMARCH_
+//------------------------------------------------------------------------
+// LowerFloatArg: Lower the float call argument on the arm platform.
+//
+// Arguments:
+//    arg    - The arg node
+//    info   - call argument info
+//    argNum - argument number
+//
+//
+// Return Value:
+//    Return nullptr, if no transformation was done;
+//    return arg if there was in place transformation;
+//    return a new tree if the root was changed.
+//
 GenTreePtr Lowering::LowerFloatArg(GenTreePtr arg, fgArgTabEntryPtr info, unsigned argNum)
 {
     var_types type    = arg->TypeGet();
