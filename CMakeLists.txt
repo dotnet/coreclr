@@ -628,17 +628,25 @@ set(BuildToolsDir "${CLR_DIR}/packages/Microsoft.DotNet.BuildTools.CoreCLR/${Bui
 add_subdirectory(src)
 
 #------------------------------
-# Add <CL_MPCount>x</CLMPCount>
-# property to VS projects
+# Add project properties to 
+# control CL prallelism
 #------------------------------
 get_property(CORECLR_TARGETS GLOBAL PROPERTY CLR_CMAKE_CORECLR_TARGETS)
 foreach(coreclrTarget ${CORECLR_TARGETS})
   if (WIN32)
-    set_target_properties(
-      ${coreclrTarget} 
-      PROPERTIES
-      VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES}
-    )
+    if ($ENV{VisualStudioVersion} VERSION_LESS "15.0")
+      set_target_properties(
+        ${coreclrTarget} 
+        PROPERTIES
+        VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES}
+      )
+    else()
+      set_target_properties(
+        ${coreclrTarget} 
+        PROPERTIES
+        VS_GLOBAL_DirectoryBuildPropsPath "${CLR_DIR}/Directory.Build.props"
+      )
+    endif($ENV{VisualStudioVersion} VERSION_LESS "15.0")
   endif(WIN32)
   message(STATUS "Created target:\t${coreclrTarget}")
 endforeach(coreclrTarget)
