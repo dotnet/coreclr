@@ -6,7 +6,7 @@
 
 // Defaults are for when InitializeYieldProcessorNormalized has not yet been called or when no measurement is done, and are
 // tuned for Skylake processors
-unsigned int g_yieldsPerNormalizedYield = 1; // current value is for Skylake processors, this would be 9 for pre-Skylake
+unsigned int g_yieldsPerNormalizedYield = 1; // current value is for Skylake processors, this is expected to be ~9 for pre-Skylake
 unsigned int g_optimalMaxNormalizedYieldsPerSpinIteration = 7;
 
 static Volatile<bool> s_isYieldProcessorNormalizedInitialized = false;
@@ -32,12 +32,7 @@ static void InitializeYieldProcessorNormalized()
     // Intel pre-Skylake processor: measured typically 14-17 cycles per yield
     // Intel post-Skylake processor: measured typically 125-150 cycles per yield
     const int MeasureDurationMs = 10;
-    const int NsPerOptimalMaxSpinIterationDuration = 272; // approx. 900 cycles, measured 281 on pre-Skylake, 263 on post-Skylake
     const int NsPerSecond = 1000 * 1000 * 1000;
-
-    // If this constant is changed, the shift value in YieldProcessorWithBackOffNormalized() should be changed as well
-    const int MaxOptimalMaxNormalizedYieldsPerSpinIteration = 10;
-    static_assert_no_msg((1 << 4) >= MaxOptimalMaxNormalizedYieldsPerSpinIteration);
 
     LARGE_INTEGER li;
     if (!QueryPerformanceFrequency(&li) || (ULONGLONG)li.QuadPart < 1000 / MeasureDurationMs)
@@ -92,10 +87,6 @@ static void InitializeYieldProcessorNormalized()
     if (optimalMaxNormalizedYieldsPerSpinIteration < 1)
     {
         optimalMaxNormalizedYieldsPerSpinIteration = 1;
-    }
-    else if (optimalMaxNormalizedYieldsPerSpinIteration > MaxOptimalMaxNormalizedYieldsPerSpinIteration)
-    {
-        optimalMaxNormalizedYieldsPerSpinIteration = MaxOptimalMaxNormalizedYieldsPerSpinIteration;
     }
 
     g_yieldsPerNormalizedYield = yieldsPerNormalizedYield;

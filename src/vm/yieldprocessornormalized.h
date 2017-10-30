@@ -5,6 +5,7 @@
 #pragma once
 
 const unsigned int MinNsPerNormalizedYield = 37; // measured typically 37-46 on post-Skylake
+const unsigned int NsPerOptimalMaxSpinIterationDuration = 272; // approx. 900 cycles, measured 281 on pre-Skylake, 263 on post-Skylake
 
 extern unsigned int g_yieldsPerNormalizedYield;
 extern unsigned int g_optimalMaxNormalizedYieldsPerSpinIteration;
@@ -73,12 +74,20 @@ FORCEINLINE void YieldProcessorWithBackOffNormalized(
     unsigned int spinIteration)
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(((unsigned int)1 << 4) >= normalizationInfo.optimalMaxNormalizedYieldsPerSpinIteration);
 
-    // The max for the shift value is based on MaxOptimalMaxNormalizedYieldsPerSpinIteration in
+    // normalizationInfo.optimalMaxNormalizedYieldsPerSpinIteration cannot exceed the value below based on calculations done in
     // InitializeYieldProcessorNormalized()
+    const unsigned int MaxOptimalMaxNormalizedYieldsPerSpinIteration =
+        NsPerOptimalMaxSpinIterationDuration * 3 / (MinNsPerNormalizedYield * 2) + 1;
+    _ASSERTE(normalizationInfo.optimalMaxNormalizedYieldsPerSpinIteration <= MaxOptimalMaxNormalizedYieldsPerSpinIteration);
+
+    // This shift value should be adjusted based on the asserted condition below
+    const UINT8 MaxShift = 3;
+    static_assert_no_msg(((unsigned int)1 << (MaxShift + 1)) >= MaxOptimalMaxNormalizedYieldsPerSpinIteration);
+
     unsigned int n;
-    if (spinIteration < 4 && ((unsigned int)1 << spinIteration) < normalizationInfo.optimalMaxNormalizedYieldsPerSpinIteration)
+    if (spinIteration <= MaxShift &&
+        ((unsigned int)1 << spinIteration) < normalizationInfo.optimalMaxNormalizedYieldsPerSpinIteration)
     {
         n = ((unsigned int)1 << spinIteration) * normalizationInfo.yieldsPerNormalizedYield;
     }
