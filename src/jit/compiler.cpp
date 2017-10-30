@@ -6179,11 +6179,15 @@ _Next:
         compCompileFinish();
 
         // Did we just compile for a target architecture that the VM isn't expecting? If so, the VM
-        // can't used the generated code (and we better be an AltJit!).
-
+        // can't used the generated code (and we better be an AltJit!). Except the case when we
+        // compile for CoreRT (ahead of time cross-compilation).
         if (!info.compMatchedVM)
         {
-            return CORJIT_SKIPPED;
+            if (!IsTargetAbi(CORINFO_CORERT_ABI))
+            {
+                return CORJIT_SKIPPED;
+            }
+            return CORJIT_OK;
         }
 
 #ifdef ALT_JIT
