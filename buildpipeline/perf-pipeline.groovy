@@ -226,132 +226,156 @@ stage ('Get Metadata and download Throughput Benchmarks') {
     }
 }
 
-// TODO: use non-pgo builds for throughput?
-def innerLoopBuilds = [
-    "windows x64 pgo build": {
-        simpleNode('Windows_NT','latest') {
-            windowsBuild('x64', config, 'pgo', false)
-        }
-     },
-    "windows x86 pgo build": {
-        simpleNode('Windows_NT','latest') {
-            windowsBuild('x86', config, 'pgo', false)
-        }
-    },
-    "linux x64 pgo build": {
-        simpleNode('RHEL7.2', 'latest-or-auto') {
-            linuxBuild('x64', config, 'pgo', false)
-        }
-    }
-]
-
-// Only run non-pgo builds on offical builds
-def outerLoopBuilds = [:]
-
-if (!isPR()) {
-    outerLoopBuilds = [
-        "windows x64 nopgo build": {
+if (params.OGroup == "windows_nt") {
+}
+else if (params.OGroup == "linux") {
+}
+else {
+    // TODO: use non-pgo builds for throughput?
+    def innerLoopBuilds = [
+        "windows x64 pgo build": {
             simpleNode('Windows_NT','latest') {
-                windowsBuild('x64', config, 'nopgo', false)
+                windowsBuild('x64', config, 'pgo', false)
+            }
+         },
+        "windows x86 pgo build": {
+            simpleNode('Windows_NT','latest') {
+                windowsBuild('x86', config, 'pgo', false)
             }
         },
-        "windows x86 nopgo build": {
-           simpleNode('Windows_NT','latest') {
-               windowsBuild('x86', config, 'nopgo', false)
-           }
-        },
-        "linux x64 nopgo build": {
-           simpleNode('RHEL7.2', 'latest-or-auto') {
-               linuxBuild('x64', config, 'nopgo', false)
-           }
+        "linux x64 pgo build": {
+            simpleNode('RHEL7.2', 'latest-or-auto') {
+                linuxBuild('x64', config, 'pgo', false)
+            }
         }
     ]
-}
 
-def baselineBuilds = [:]
+    // Only run non-pgo builds on offical builds
+    def outerLoopBuilds = [:]
 
-if (isPR()) {
-   baselineBuilds = [
-       "windows x64 pgo baseline build": {
-           simpleNode('Windows_NT','latest') {
-               windowsBuild('x64', config, 'pgo', true)
-           }
-       },
-       "windows x86 pgo baseline build": {
-           simpleNode('Windows_NT','latest') {
-               windowsBuild('x86', config, 'pgo', true)
-           }
-       },
-       "linux x64 pgo baseline build": {
-           simpleNode('RHEL7.2', 'latest-or-auto') {
-               linuxBuild('x64', config, 'pgo', true)
-           }
-       }
-   ]
-}
-
-stage ('Build Product') {
-    parallel innerLoopBuilds + outerLoopBuilds + baselineBuilds
-}
-
-// Pipeline builds don't allow outside scripts (ie ArrayList.Add) if running from a script from SCM, so manually list these for now.
-// Run the main test mix on all runs (PR + official)
-
-def innerLoopTests = [:]
-
-['x64', 'x86'].each { arch ->
-    [true,false].each { isBaseline ->
-        String baseline = ""
-        if (isBaseline) {
-            baseline = " baseline"
-        }
-        if (isPR() || !isBaseline) {
-            innerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} perf"] = {
-               simpleNode('windows_server_2016_clr_perf', 180) {
-                   windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'perf', isBaseline)
+    if (!isPR()) {
+        outerLoopBuilds = [
+            "windows x64 nopgo build": {
+                simpleNode('Windows_NT','latest') {
+                    windowsBuild('x64', config, 'nopgo', false)
+                }
+            },
+            "windows x86 nopgo build": {
+               simpleNode('Windows_NT','latest') {
+                   windowsBuild('x86', config, 'nopgo', false)
+               }
+            },
+            "linux x64 nopgo build": {
+               simpleNode('RHEL7.2', 'latest-or-auto') {
+                   linuxBuild('x64', config, 'nopgo', false)
                }
             }
+        ]
+    }
 
-            if (arch == 'x64') {
-               innerLoopTests["linux ${arch} ryujit full_opt pgo${baseline} perf"] = {
-                   simpleNode('linux_clr_perf', 180) {
-                       linuxPerf('x64', 'Ubuntu14.04', config, uploadString, runType, 'full_opt', 'pgo', isBaseline)
-                   }
+    def baselineBuilds = [:]
+
+    if (isPR()) {
+       baselineBuilds = [
+           "windows x64 pgo baseline build": {
+               simpleNode('Windows_NT','latest') {
+                   windowsBuild('x64', config, 'pgo', true)
                }
-            }
-        }
+           },
+           "windows x86 pgo baseline build": {
+               simpleNode('Windows_NT','latest') {
+                   windowsBuild('x86', config, 'pgo', true)
+               }
+           },
+           "linux x64 pgo baseline build": {
+               simpleNode('RHEL7.2', 'latest-or-auto') {
+                   linuxBuild('x64', config, 'pgo', true)
+               }
+           }
+       ]
     }
-}
 
-// Run the full test mix only on commits, not PRs
-def outerLoopTests = [:]
-
-if (!isPR()) {
-    outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} jitbench"] = {
-        simpleNode('windows_server_2016_clr_perf', 180) {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false)
-        }
+    stage ('Build Product') {
+        parallel innerLoopBuilds + outerLoopBuilds + baselineBuilds
     }
 
-    outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} illink"] = {
-        simpleNode('windows_server_2015_clr_perf', 180) {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false)
-        }
-    }
+    // Pipeline builds don't allow outside scripts (ie ArrayList.Add) if running from a script from SCM, so manually list these for now.
+    // Run the main test mix on all runs (PR + official)
+
+    def innerLoopTests = [:]
 
     ['x64', 'x86'].each { arch ->
-        ['min_opt', 'full_opt'].each { opt_level ->
-            ['ryujit'].each { jit ->
+        [true,false].each { isBaseline ->
+            String baseline = ""
+            if (isBaseline) {
+                baseline = " baseline"
+            }
+            if (isPR() || !isBaseline) {
+                innerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} perf"] = {
+                   simpleNode('windows_server_2016_clr_perf', 180) {
+                       windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'perf', isBaseline)
+                   }
+                }
+
+                if (arch == 'x64') {
+                   innerLoopTests["linux ${arch} ryujit full_opt pgo${baseline} perf"] = {
+                       simpleNode('linux_clr_perf', 180) {
+                           linuxPerf('x64', 'Ubuntu14.04', config, uploadString, runType, 'full_opt', 'pgo', isBaseline)
+                       }
+                   }
+                }
+            }
+        }
+    }
+
+    // Run the full test mix only on commits, not PRs
+    def outerLoopTests = [:]
+
+    if (!isPR()) {
+        outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} jitbench"] = {
+            simpleNode('windows_server_2016_clr_perf', 180) {
+                windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false)
+            }
+        }
+
+        outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} illink"] = {
+            simpleNode('windows_server_2015_clr_perf', 180) {
+                windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false)
+            }
+        }
+
+        ['x64', 'x86'].each { arch ->
+            ['min_opt', 'full_opt'].each { opt_level ->
+                ['ryujit'].each { jit ->
+                    ['pgo', 'nopgo'].each { pgo_enabled ->
+                        outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} perf"] = {
+                            simpleNode('windows_server_2016_clr_perf', 180) {
+                                windowsPerf(arch, config, uploadString, runType, opt_level, jit, pgo_enabled, 'perf', false)
+                            }
+                        }
+
+                        outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} throughput"] = {
+                            simpleNode('windows_server_2016_clr_perf', 180) {
+                                windowsThroughput(arch, 'Windows_NT', config, runType, opt_level, jit, pgo_enabled, false)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        ['x64'].each { arch ->
+            ['min_opt', 'full_opt'].each { opt_level ->
                 ['pgo', 'nopgo'].each { pgo_enabled ->
-                    outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} perf"] = {
-                        simpleNode('windows_server_2016_clr_perf', 180) {
-                            windowsPerf(arch, config, uploadString, runType, opt_level, jit, pgo_enabled, 'perf', false)
+                    outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} perf"] = {
+                        simpleNode('linux_clr_perf', 180) {
+                            linuxPerf(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
                         }
                     }
 
-                    outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} throughput"] = {
-                        simpleNode('windows_server_2016_clr_perf', 180) {
-                            windowsThroughput(arch, 'Windows_NT', config, runType, opt_level, jit, pgo_enabled, false)
+                    outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} throughput"] = {
+                        simpleNode('linux_clr_perf', 180) {
+                            linuxThroughput(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
                         }
                     }
                 }
@@ -359,25 +383,7 @@ if (!isPR()) {
         }
     }
 
-    ['x64'].each { arch ->
-        ['min_opt', 'full_opt'].each { opt_level ->
-            ['pgo', 'nopgo'].each { pgo_enabled ->
-                outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} perf"] = {
-                    simpleNode('linux_clr_perf', 180) {
-                        linuxPerf(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
-                    }
-                }
-
-                outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} throughput"] = {
-                    simpleNode('linux_clr_perf', 180) {
-                        linuxThroughput(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
-                    }
-                }
-            }
-        }
+    stage ('Run testing') {
+        parallel innerLoopTests + outerLoopTests
     }
-}
-
-stage ('Run testing') {
-    parallel innerLoopTests + outerLoopTests
 }
