@@ -378,10 +378,10 @@ rem ****************************************************************************
 rem   Generates BenchView's submission data and upload it
 rem ****************************************************************************
 setlocal
-  REM if not exist measurement.json (
-  REM   call :print_error measurement.json does not exist. There is no data to be uploaded.
-  REM   exit /b 1
-  REM )
+  if not exist measurement.json (
+    call :print_error measurement.json does not exist. There is no data to be uploaded.
+    exit /b 1
+  )
 
   set LV_SUBMISSION_ARGS=
   set LV_SUBMISSION_ARGS=%LV_SUBMISSION_ARGS% --build "%CORECLR_REPO%\build.json"
