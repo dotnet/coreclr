@@ -2283,7 +2283,8 @@ public:
         BR_REMOVE_AND_NARROW, // remove effects, minimize remaining work, return possibly narrowed source tree
         BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE, // remove effects and minimize remaining work, return type handle tree
         BR_REMOVE_BUT_NOT_NARROW,              // remove effects, return original source tree
-        BR_DONT_REMOVE                         // just check if removal is possible
+        BR_DONT_REMOVE,                        // just check if removal is possible
+        BR_MAKE_LOCAL_COPY                     // revise box to copy to temp local and return local's address
     };
 
     GenTree* gtTryRemoveBoxUpstreamEffects(GenTree* tree, BoxRemovalOptions options = BR_REMOVE_AND_NARROW);
@@ -7377,7 +7378,7 @@ private:
             return SIMD_AVX2_Supported;
         }
 
-        if (CanUseSSE3_4())
+        if (CanUseSSE4())
         {
             return SIMD_SSE4_Supported;
         }
@@ -7864,10 +7865,10 @@ private:
     }
 
     // Whether SSE3, SSE3, SSE4.1 and SSE4.2 is available
-    bool CanUseSSE3_4() const
+    bool CanUseSSE4() const
     {
 #ifdef _TARGET_XARCH_
-        return opts.compCanUseSSE3_4;
+        return opts.compCanUseSSE4;
 #else
         return false;
 #endif
@@ -7996,10 +7997,10 @@ public:
         bool compUseFCOMI;
         bool compUseCMOV;
 #ifdef _TARGET_XARCH_
-        bool compCanUseSSE2;   // Allow CodeGen to use "movq XMM" instructions
-        bool compCanUseSSE3_4; // Allow CodeGen to use SSE3, SSSE3, SSE4.1 and SSE4.2 instructions
-        bool compCanUseAVX;    // Allow CodeGen to use AVX 256-bit vectors for SIMD operations
-#endif                         // _TARGET_XARCH_
+        bool compCanUseSSE2; // Allow CodeGen to use "movq XMM" instructions
+        bool compCanUseSSE4; // Allow CodeGen to use SSE3, SSSE3, SSE4.1 and SSE4.2 instructions
+        bool compCanUseAVX;  // Allow CodeGen to use AVX 256-bit vectors for SIMD operations
+#endif                       // _TARGET_XARCH_
 
 #ifdef _TARGET_XARCH_
         uint64_t compSupportsISA;
