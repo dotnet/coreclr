@@ -121,7 +121,6 @@ else()
     list(APPEND CORECLR_LIBRARIES
         ${START_WHOLE_ARCHIVE} # force all PAL objects to be included so all exports are available  
         coreclrpal
-        tracepointprovider
         ${END_WHOLE_ARCHIVE} 
         mscorrc_debug
         palrt
@@ -131,14 +130,14 @@ endif(WIN32)
 if(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_EVENT_TRACE)
     list(APPEND CORECLR_LIBRARIES
         eventprovider
-  )
-endif(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_EVENT_TRACE)
-
-if(CLR_CMAKE_PLATFORM_LINUX)
-    list(APPEND CORECLR_LIBRARIES
         eventpipe
-  )
-endif(CLR_CMAKE_PLATFORM_LINUX)
+    )
+    if(CLR_CMAKE_PLATFORM_LINUX)
+        list(APPEND CORECLR_LIBRARIES
+            tracepointprovider
+      )
+    endif(CLR_CMAKE_PLATFORM_LINUX)
+endif(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_EVENT_TRACE)
 
 target_link_libraries(coreclr ${CORECLR_LIBRARIES}) 
 
