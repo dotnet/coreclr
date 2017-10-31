@@ -6168,16 +6168,19 @@ bool LinearScan::isSpillCandidate(Interval*     current,
 
     if (refPosition->isFixedRefOfRegMask(candidateBit))
     {
-        // Either there is a fixed reference due to this node, or one associated with a
-        // fixed use fed by a def at this node.
-        // In either case, we must use this register as it's the only candidate
+        // Either:
+        // - there is a fixed reference due to this node, OR
+        // - or there is a fixed use fed by a def at this node, OR
+        // - or we have restricted the set of registers for stress.
+        // In any case, we must use this register as it's the only candidate
         // TODO-CQ: At the time we allocate a register to a fixed-reg def, if it's not going
         // to remain live until the use, we should set the candidates to allRegs(regType)
         // to avoid a spill - codegen can then insert the copy.
         // If this is marked as allocateIfProfitable, the caller will compare the weights
         // of this RefPosition and the RefPosition to which it is currently assigned.
         assert(refPosition->isFixedRegRef ||
-               (refPosition->nextRefPosition != nullptr && refPosition->nextRefPosition->isFixedRegRef));
+               (refPosition->nextRefPosition != nullptr && refPosition->nextRefPosition->isFixedRegRef) ||
+               candidatesAreStressLimited());
         return true;
     }
 
@@ -6194,7 +6197,8 @@ bool LinearScan::isSpillCandidate(Interval*     current,
 #endif
     {
         RefPosition* nextPhysRegPosition = physRegRecord->getNextRefPosition();
-        assert(nextPhysRegPosition->nodeLocation == refLocation && candidateBit != refPosition->registerAssignment);
+        assert((nextPhysRegPosition->nodeLocation == refLocation && candidateBit != refPosition->registerAssignment)
+                   ARM64_ONLY(|| (physRegRecord->regNum == REG_IP0) || (physRegRecord->regNum == REG_IP1)));
         return false;
     }
 
@@ -6441,42 +6445,50 @@ regNumber LinearScan::allocateBusyReg(Interval* current, RefPosition* refPositio
     {
         // Must have found a spill candidate.
         assert(farthestRefPhysRegRecord != nullptr);
-        if ((farthestLocation == refLocation) && !refPosition->isFixedRegRef)
+
+        if (farthestLocation == refLocation)
         {
-#ifdef _TARGET_ARM_
-            Interval* assignedInterval =
-                (farthestRefPhysRegRecord == nullptr) ? nullptr : farthestRefPhysRegRecord->assignedInterval;
-            Interval* assignedInterval2 =
-                (farthestRefPhysRegRecord2 == nullptr) ? nullptr : farthestRefPhysRegRecord2->assignedInterval;
-            RefPosition* nextRefPosition =
-                (assignedInterval == nullptr) ? nullptr : assignedInterval->getNextRefPosition();
-            RefPosition* nextRefPosition2 =
-                (assignedInterval2 == nullptr) ? nullptr : assignedInterval2->getNextRefPosition();
-            if (nextRefPosition != nullptr)
+            // This must be a RefPosition that is constrained to use a single register, either directly,
+            // or at the use, or by stress.
+            bool isConstrained = (refPosition->isFixedRegRef || (refPosition->nextRefPosition != nullptr &&
+                                                                 refPosition->nextRefPosition->isFixedRegRef) ||
+                                  candidatesAreStressLimited());
+            if (!isConstrained)
             {
-                if (nextRefPosition2 != nullptr)
+#ifdef _TARGET_ARM_
+                Interval* assignedInterval =
+                    (farthestRefPhysRegRecord == nullptr) ? nullptr : farthestRefPhysRegRecord->assignedInterval;
+                Interval* assignedInterval2 =
+                    (farthestRefPhysRegRecord2 == nullptr) ? nullptr : farthestRefPhysRegRecord2->assignedInterval;
+                RefPosition* nextRefPosition =
+                    (assignedInterval == nullptr) ? nullptr : assignedInterval->getNextRefPosition();
+                RefPosition* nextRefPosition2 =
+                    (assignedInterval2 == nullptr) ? nullptr : assignedInterval2->getNextRefPosition();
+                if (nextRefPosition != nullptr)
                 {
-                    assert(!nextRefPosition->RequiresRegister() || !nextRefPosition2->RequiresRegister());
+                    if (nextRefPosition2 != nullptr)
+                    {
+                        assert(!nextRefPosition->RequiresRegister() || !nextRefPosition2->RequiresRegister());
+                    }
+                    else
+                    {
+                        assert(!nextRefPosition->RequiresRegister());
+                    }
                 }
                 else
                 {
-                    assert(!nextRefPosition->RequiresRegister());
+                    assert(nextRefPosition2 != nullptr && !nextRefPosition2->RequiresRegister());
                 }
-            }
-            else
-            {
-                assert(nextRefPosition2 != nullptr && !nextRefPosition2->RequiresRegister());
-            }
 #else  // !_TARGET_ARM_
-            Interval*    assignedInterval = farthestRefPhysRegRecord->assignedInterval;
-            RefPosition* nextRefPosition  = assignedInterval->getNextRefPosition();
-            assert(!nextRefPosition->RequiresRegister());
+                Interval*    assignedInterval = farthestRefPhysRegRecord->assignedInterval;
+                RefPosition* nextRefPosition  = assignedInterval->getNextRefPosition();
+                assert(!nextRefPosition->RequiresRegister());
 #endif // !_TARGET_ARM_
+            }
         }
         else
         {
-            assert(farthestLocation > refLocation || refPosition->isFixedRegRef ||
-                   (refPosition->nextRefPosition != nullptr && refPosition->nextRefPosition->isFixedRegRef));
+            assert(farthestLocation > refLocation);
         }
     }
 #endif // DEBUG
@@ -10069,6 +10081,73 @@ regNumber LinearScan::getTempRegForResolution(BasicBlock* fromBlock, BasicBlock*
     }
 }
 
+#ifdef _TARGET_ARM_
+//------------------------------------------------------------------------
+// addResolutionForDouble: Add resolution move(s) for TYP_DOUBLE interval
+//                         and update location.
+//
+// Arguments:
+//    block           - the BasicBlock into which the move will be inserted.
+//    insertionPoint  - the instruction before which to insert the move
+//    sourceIntervals - maintains sourceIntervals[reg] which each 'reg' is associated with
+//    location        - maintains location[reg] which is the location of the var that was originally in 'reg'.
+//    toReg           - the register to which the var is moving
+//    fromReg         - the register from which the var is moving
+//    resolveType     - the type of resolution to be performed
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    It inserts at least one move and updates incoming parameter 'location'.
+//
+void LinearScan::addResolutionForDouble(BasicBlock*     block,
+                                        GenTreePtr      insertionPoint,
+                                        Interval**      sourceIntervals,
+                                        regNumberSmall* location,
+                                        regNumber       toReg,
+                                        regNumber       fromReg,
+                                        ResolveType     resolveType)
+{
+    regNumber secondHalfTargetReg = REG_NEXT(fromReg);
+    Interval* intervalToBeMoved1  = sourceIntervals[fromReg];
+    Interval* intervalToBeMoved2  = sourceIntervals[secondHalfTargetReg];
+
+    assert(!(intervalToBeMoved1 == nullptr && intervalToBeMoved2 == nullptr));
+
+    if (intervalToBeMoved1 != nullptr)
+    {
+        if (intervalToBeMoved1->registerType == TYP_DOUBLE)
+        {
+            // TYP_DOUBLE interval occupies a double register, i.e. two float registers.
+            assert(intervalToBeMoved2 == nullptr);
+            assert(genIsValidDoubleReg(toReg));
+        }
+        else
+        {
+            // TYP_FLOAT interval occupies 1st half of double register, i.e. 1st float register
+            assert(genIsValidFloatReg(toReg));
+        }
+        addResolution(block, insertionPoint, intervalToBeMoved1, toReg, fromReg);
+        JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
+        location[fromReg] = (regNumberSmall)toReg;
+    }
+
+    if (intervalToBeMoved2 != nullptr)
+    {
+        // TYP_FLOAT interval occupies 2nd half of double register.
+        assert(intervalToBeMoved2->registerType == TYP_FLOAT);
+        regNumber secondHalfTempReg = REG_NEXT(toReg);
+
+        addResolution(block, insertionPoint, intervalToBeMoved2, secondHalfTempReg, secondHalfTargetReg);
+        JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
+        location[secondHalfTargetReg] = (regNumberSmall)secondHalfTempReg;
+    }
+
+    return;
+}
+#endif // _TARGET_ARM_
+
 //------------------------------------------------------------------------
 // addResolution: Add a resolution move of the given interval
 //
@@ -10665,20 +10744,21 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
         (resolveType == ResolveSharedCritical) ? REG_NA : getTempRegForResolution(fromBlock, toBlock, TYP_INT);
 #endif // !_TARGET_XARCH_
     regNumber tempRegFlt = REG_NA;
+    regNumber tempRegDbl = REG_NA; // Used only for ARM
     if ((compiler->compFloatingPointUsed) && (resolveType != ResolveSharedCritical))
     {
-
 #ifdef _TARGET_ARM_
-        // Let's try to reserve a double register for TYP_FLOAT and TYP_DOUBLE
-        tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_DOUBLE);
-        if (tempRegFlt == REG_NA)
+        // Try to reserve a double register for TYP_DOUBLE and use it for TYP_FLOAT too if available.
+        tempRegDbl = getTempRegForResolution(fromBlock, toBlock, TYP_DOUBLE);
+        if (tempRegDbl != REG_NA)
         {
-            // If fails, try to reserve a float register for TYP_FLOAT
+            tempRegFlt = tempRegDbl;
+        }
+        else
+#endif // _TARGET_ARM_
+        {
             tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
         }
-#else
-        tempRegFlt     = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
-#endif
     }
 
     regMaskTP targetRegsToDo      = RBM_NONE;
@@ -10786,7 +10866,24 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
         regNumber targetReg = genRegNumFromMask(targetRegMask);
         if (location[targetReg] == REG_NA)
         {
-            targetRegsReady |= targetRegMask;
+#ifdef _TARGET_ARM_
+            regNumber sourceReg = (regNumber)source[targetReg];
+            Interval* interval  = sourceIntervals[sourceReg];
+            if (interval->registerType == TYP_DOUBLE)
+            {
+                // For ARM32, make sure that both of the float halves of the double register are available.
+                assert(genIsValidDoubleReg(targetReg));
+                regNumber anotherHalfRegNum = REG_NEXT(targetReg);
+                if (location[anotherHalfRegNum] == REG_NA)
+                {
+                    targetRegsReady |= targetRegMask;
+                }
+            }
+            else
+#endif // _TARGET_ARM_
+            {
+                targetRegsReady |= targetRegMask;
+            }
         }
     }
 
@@ -10840,8 +10937,7 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
                     if (sourceIntervals[fromReg]->registerType == TYP_DOUBLE)
                     {
                         // ARM32 requires a double temp register for TYP_DOUBLE.
-                        // We tried to reserve a double temp register first, but sometimes we can't.
-                        tempReg = genIsValidDoubleReg(tempRegFlt) ? tempRegFlt : REG_NA;
+                        tempReg = tempRegDbl;
                     }
                     else
 #endif // _TARGET_ARM_
@@ -10932,10 +11028,24 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
                 else
                 {
                     compiler->codeGen->regSet.rsSetRegsModified(genRegMask(tempReg) DEBUGARG(dumpTerse));
-                    assert(sourceIntervals[targetReg] != nullptr);
-                    addResolution(block, insertionPoint, sourceIntervals[targetReg], tempReg, targetReg);
-                    JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
-                    location[targetReg] = (regNumberSmall)tempReg;
+#ifdef _TARGET_ARM_
+                    if (sourceIntervals[fromReg]->registerType == TYP_DOUBLE)
+                    {
+                        assert(genIsValidDoubleReg(targetReg));
+                        assert(genIsValidDoubleReg(tempReg));
+
+                        addResolutionForDouble(block, insertionPoint, sourceIntervals, location, tempReg, targetReg,
+                                               resolveType);
+                    }
+                    else
+#endif // _TARGET_ARM_
+                    {
+                        assert(sourceIntervals[targetReg] != nullptr);
+
+                        addResolution(block, insertionPoint, sourceIntervals[targetReg], tempReg, targetReg);
+                        JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
+                        location[targetReg] = (regNumberSmall)tempReg;
+                    }
                     targetRegsReady |= targetRegMask;
                 }
             }

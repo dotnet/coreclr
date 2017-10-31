@@ -445,6 +445,15 @@ public:
         InsertAtBottom
     };
 
+#ifdef _TARGET_ARM_
+    void addResolutionForDouble(BasicBlock*     block,
+                                GenTreePtr      insertionPoint,
+                                Interval**      sourceIntervals,
+                                regNumberSmall* location,
+                                regNumber       toReg,
+                                regNumber       fromReg,
+                                ResolveType     resolveType);
+#endif
     void addResolution(
         BasicBlock* block, GenTreePtr insertionPoint, Interval* interval, regNumber outReg, regNumber inReg);
 
@@ -630,6 +639,11 @@ private:
         return getLsraRegOptionalControl() == LSRA_REG_OPTIONAL_NO_ALLOC;
     }
 
+    bool candidatesAreStressLimited()
+    {
+        return ((lsraStressMask & (LSRA_LIMIT_MASK | LSRA_SELECT_MASK)) != 0);
+    }
+
     // Dump support
     void lsraDumpIntervals(const char* msg);
     void dumpRefPositions(const char* msg);
@@ -663,6 +677,10 @@ private:
         return true;
     }
     bool getLsraExtendLifeTimes()
+    {
+        return false;
+    }
+    bool candidatesAreStressLimited()
     {
         return false;
     }
@@ -1255,6 +1273,10 @@ private:
 #ifdef FEATURE_SIMD
     void TreeNodeInfoInitSIMD(GenTreeSIMD* tree);
 #endif // FEATURE_SIMD
+
+#if FEATURE_HW_INTRINSICS
+    void TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree);
+#endif // FEATURE_HW_INTRINSICS
 
     void TreeNodeInfoInitPutArgStk(GenTreePutArgStk* argNode);
 #ifdef _TARGET_ARM_

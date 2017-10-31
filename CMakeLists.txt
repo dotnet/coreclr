@@ -599,10 +599,6 @@ if(FEATURE_STANDALONE_GC)
   add_subdirectory(src/gc)
 endif(FEATURE_STANDALONE_GC)
 
-if(FEATURE_STANDALONE_GC_ONLY)
-  add_definitions(-DFEATURE_STANDALONE_GC_ONLY)
-endif(FEATURE_STANDALONE_GC_ONLY)
-
 if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc")
   include_directories("src/pal/inc/rt")
@@ -611,7 +607,7 @@ endif (CLR_CMAKE_PLATFORM_UNIX)
 
 # Microsoft.Dotnet.BuildTools.Coreclr version
 set(BuildToolsVersion "1.0.4-prerelease")
-set(BuildToolsDir "${CLR_DIR}/packages/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
+set(BuildToolsDir "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
 
 #------------------------------
 # Add Product Directory

@@ -1869,6 +1869,12 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             break;
 #endif // FEATURE_SIMD
 
+#if FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            genHWIntrinsic(treeNode->AsHWIntrinsic());
+            break;
+#endif // FEATURE_HW_INTRINSICS
+
         case GT_CKFINITE:
             genCkfinite(treeNode);
             break;
@@ -5360,7 +5366,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     // when there's preceding 256-bit AVX to legacy SSE transition penalty.
     if (call->IsPInvoke() && (call->gtCallType == CT_USER_FUNC) && getEmitter()->Contains256bitAVX())
     {
-        assert(compiler->getSIMDInstructionSet() == InstructionSet_AVX);
+        assert(compiler->getSIMDSupportLevel() == SIMD_AVX2_Supported);
         instGen(INS_vzeroupper);
     }
 

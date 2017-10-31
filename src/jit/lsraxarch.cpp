@@ -370,6 +370,12 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             break;
 #endif // FEATURE_SIMD
 
+#if FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            TreeNodeInfoInitHWIntrinsic(tree->AsHWIntrinsic());
+            break;
+#endif // FEATURE_HW_INTRINSICS
+
         case GT_CAST:
             TreeNodeInfoInitCast(tree);
             break;
@@ -2107,7 +2113,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             // Must be a Vector<int> or Vector<short> Vector<sbyte>
             assert(simdTree->gtSIMDBaseType == TYP_INT || simdTree->gtSIMDBaseType == TYP_SHORT ||
                    simdTree->gtSIMDBaseType == TYP_BYTE);
-            assert(compiler->getSIMDInstructionSet() >= InstructionSet_SSE3_4);
+            assert(compiler->getSIMDSupportLevel() >= SIMD_SSE4_Supported);
             info->srcCount = 1;
             break;
 
@@ -2130,7 +2136,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
 
             // SSE2 32-bit integer multiplication requires two temp regs
             if (simdTree->gtSIMDIntrinsicID == SIMDIntrinsicMul && simdTree->gtSIMDBaseType == TYP_INT &&
-                compiler->getSIMDInstructionSet() == InstructionSet_SSE2)
+                compiler->getSIMDSupportLevel() == SIMD_SSE2_Supported)
             {
                 info->internalFloatCount = 2;
                 info->setInternalCandidates(this, allSIMDRegs());
@@ -2197,7 +2203,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             // and the need for scratch registers.
             if (varTypeIsFloating(simdTree->gtSIMDBaseType))
             {
-                if ((compiler->getSIMDInstructionSet() == InstructionSet_SSE2) ||
+                if ((compiler->getSIMDSupportLevel() == SIMD_SSE2_Supported) ||
                     (simdTree->gtOp.gtOp1->TypeGet() == TYP_SIMD32))
                 {
                     info->internalFloatCount     = 1;
@@ -2208,8 +2214,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             }
             else
             {
-                assert(simdTree->gtSIMDBaseType == TYP_INT &&
-                       compiler->getSIMDInstructionSet() >= InstructionSet_SSE3_4);
+                assert(simdTree->gtSIMDBaseType == TYP_INT && compiler->getSIMDSupportLevel() >= SIMD_SSE4_Supported);
 
                 // No need to set isInternalRegDelayFree since targetReg is a
                 // an int type reg and guaranteed to be different from xmm/ymm
@@ -2267,7 +2272,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
                 {
                     bool needFloatTemp;
                     if (varTypeIsSmallInt(simdTree->gtSIMDBaseType) &&
-                        (compiler->getSIMDInstructionSet() == InstructionSet_AVX))
+                        (compiler->getSIMDSupportLevel() == SIMD_AVX2_Supported))
                     {
                         int byteShiftCnt = (int)op2->AsIntCon()->gtIconVal * genTypeSize(simdTree->gtSIMDBaseType);
                         needFloatTemp    = (byteShiftCnt >= 16);
@@ -2294,7 +2299,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             info->srcCount = 2;
 
             // We need an internal integer register for SSE2 codegen
-            if (compiler->getSIMDInstructionSet() == InstructionSet_SSE2)
+            if (compiler->getSIMDSupportLevel() == SIMD_SSE2_Supported)
             {
                 info->internalIntCount = 1;
                 info->setInternalCandidates(this, allRegs(TYP_INT));
@@ -2341,7 +2346,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             info->isInternalRegDelayFree = true;
             info->srcCount               = 1;
             info->internalIntCount       = 1;
-            if (compiler->getSIMDInstructionSet() == InstructionSet_AVX)
+            if (compiler->getSIMDSupportLevel() == SIMD_AVX2_Supported)
             {
                 info->internalFloatCount = 2;
             }
@@ -2364,8 +2369,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             }
             else
 #endif
-                if ((compiler->getSIMDInstructionSet() == InstructionSet_AVX) ||
-                    (simdTree->gtSIMDBaseType == TYP_ULONG))
+                if ((compiler->getSIMDSupportLevel() == SIMD_AVX2_Supported) || (simdTree->gtSIMDBaseType == TYP_ULONG))
             {
                 info->internalFloatCount = 2;
             }
@@ -2380,7 +2384,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             // We need an internal register different from targetReg.
             info->isInternalRegDelayFree = true;
             info->srcCount               = 2;
-            if ((compiler->getSIMDInstructionSet() == InstructionSet_AVX) && (simdTree->gtSIMDBaseType != TYP_DOUBLE))
+            if ((compiler->getSIMDSupportLevel() == SIMD_AVX2_Supported) && (simdTree->gtSIMDBaseType != TYP_DOUBLE))
             {
                 info->internalFloatCount = 2;
             }
@@ -2414,6 +2418,27 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
     }
 }
 #endif // FEATURE_SIMD
+
+#if FEATURE_HW_INTRINSICS
+//------------------------------------------------------------------------
+// TreeNodeInfoInitHWIntrinsic: Set the NodeInfo for a GT_HWIntrinsic tree.
+//
+// Arguments:
+//    tree       - The GT_HWIntrinsic node of interest
+//
+// Return Value:
+//    None.
+
+void LinearScan::TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
+{
+    TreeNodeInfo* info = &(intrinsicTree->gtLsraInfo);
+    if (intrinsicTree->gtGetOp2IfPresent() != nullptr)
+    {
+        info->srcCount += GetOperandSourceCount(intrinsicTree->gtOp.gtOp2);
+    }
+    info->srcCount += GetOperandSourceCount(intrinsicTree->gtOp.gtOp1);
+}
+#endif
 
 //------------------------------------------------------------------------
 // TreeNodeInfoInitCast: Set the NodeInfo for a GT_CAST.
@@ -2766,11 +2791,11 @@ void LinearScan::SetContainsAVXFlags(bool isFloatingPointType /* = true */, unsi
 {
     if (isFloatingPointType)
     {
-        if (compiler->getFloatingPointInstructionSet() == InstructionSet_AVX)
+        if (compiler->getFloatingPointCodegenLevel() == SIMD_AVX2_Supported)
         {
             compiler->getEmitter()->SetContainsAVX(true);
         }
-        if (sizeOfSIMDVector == 32 && compiler->getSIMDInstructionSet() == InstructionSet_AVX)
+        if (sizeOfSIMDVector == 32 && compiler->getSIMDSupportLevel() == SIMD_AVX2_Supported)
         {
             compiler->getEmitter()->SetContains256bitAVX(true);
         }
