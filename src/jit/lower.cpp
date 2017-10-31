@@ -1387,7 +1387,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 //    return arg if there was in place transformation;
 //    return a new tree if the root was changed.
 //
-GenTreePtr Lowering::LowerFloatArg(GenTreePtr arg, fgArgTabEntryPtr info, unsigned argNum)
+GenTree* Lowering::LowerFloatArg(GenTree* arg, fgArgTabEntry* info, unsigned argNum)
 {
     var_types type    = arg->TypeGet();
     var_types intType = (type == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
@@ -1400,8 +1400,8 @@ GenTreePtr Lowering::LowerFloatArg(GenTreePtr arg, fgArgTabEntryPtr info, unsign
         unsigned fieldNum = 0;
         for (GenTreeFieldList *list = arg->AsFieldList(); list != nullptr; list = list->Rest(), fieldNum++)
         {
-            GenTreePtr node    = list->Current();
-            GenTreePtr intNode = LowerFloatArg(node, info, fieldNum);
+            GenTree* node    = list->Current();
+            GenTree* intNode = LowerFloatArg(node, info, fieldNum);
             if (intNode != nullptr)
             {
                 ReplaceArgWithPutArgOrBitcast(list->pCurrent(), intNode);
@@ -1416,9 +1416,9 @@ GenTreePtr Lowering::LowerFloatArg(GenTreePtr arg, fgArgTabEntryPtr info, unsign
         bool isReg = (argNum < info->numRegs);
         if (isReg)
         {
-            GenTreePtr intArg   = comp->gtNewBitCastNode(intType, arg);
-            regNumber  firstReg = info->regNum;
-            regNumber  currReg  = firstReg;
+            GenTree*  intArg   = comp->gtNewBitCastNode(intType, arg);
+            regNumber firstReg = info->regNum;
+            regNumber currReg  = firstReg;
             for (unsigned i = 0; i < argNum; ++i)
             {
                 currReg = REG_NEXT(currReg);

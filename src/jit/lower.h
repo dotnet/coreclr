@@ -155,7 +155,7 @@ private:
     GenTree* NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryPtr info, var_types type);
     void LowerArg(GenTreeCall* call, GenTreePtr* ppTree);
 #ifdef _TARGET_ARMARCH_
-    GenTreePtr LowerFloatArg(GenTreePtr arg, fgArgTabEntryPtr info, unsigned argNum = 0);
+    GenTree* LowerFloatArg(GenTree* arg, fgArgTabEntry* info, unsigned argNum = 0);
 #endif
 
     void InsertPInvokeCallProlog(GenTreeCall* call);
