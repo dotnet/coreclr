@@ -47,6 +47,27 @@ OSName=$(uname -s)
   esac
 fi
 
+# Executes a command and retries if it fails.
+execute_with_retry() {
+    local count=0
+    local retries=${retries:-5}
+    local waitFactor=${waitFactor:-6} 
+    until "$@"; do
+        local exit=$?
+        count=$(( $count + 1 ))
+        if [ $count -lt $retries ]; then
+            local wait=$(( waitFactor ** (( count - 1 )) ))
+            echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
+            sleep $wait
+        else    
+            say_err "Retry $count/$retries exited $exit, no more retries left."
+            return $exit
+        fi
+    done
+
+    return 0
+}
+
 if [ ! -e $__INIT_TOOLS_DONE_MARKER ]; then
     __PATCH_CLI_NUGET_FRAMEWORKS=0
 
@@ -66,16 +87,21 @@ if [ ! -e $__INIT_TOOLS_DONE_MARKER ]; then
         else
             echo "Installing dotnet cli..."
             __DOTNET_LOCATION="https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${__DOTNET_TOOLS_VERSION}/${__DOTNET_PKG}.${__DOTNET_TOOLS_VERSION}.tar.gz"
-            # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
-            echo "Installing '${__DOTNET_LOCATION}' to '$__DOTNET_PATH/dotnet.tar'" >> $__init_tools_log
-            which curl > /dev/null 2> /dev/null
-            if [ $? -ne 0 ]; then
-                wget -q -O $__DOTNET_PATH/dotnet.tar ${__DOTNET_LOCATION}
-            else
-                curl --retry 10 -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar ${__DOTNET_LOCATION}
-            fi
-            cd $__DOTNET_PATH
-            tar -xf $__DOTNET_PATH/dotnet.tar
+
+            install_dotnet_cli() {
+                echo "Installing '${__DOTNET_LOCATION}' to '$__DOTNET_PATH/dotnet.tar'" >> "$__init_tools_log"
+                rm -rf -- "$__DOTNET_PATH/*"
+                # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
+                which curl > /dev/null 2> /dev/null
+                if [ $? -ne 0 ]; then
+                    wget -q -O $__DOTNET_PATH/dotnet.tar ${__DOTNET_LOCATION}
+                else
+                    curl --retry 10 -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar ${__DOTNET_LOCATION}
+                fi
+                cd $__DOTNET_PATH
+                tar -xf $__DOTNET_PATH/dotnet.tar
+            }
+            execute_with_retry install_dotnet_cli >> "$__init_tools_log" 2>&1
 
             cd $__scriptpath
 
