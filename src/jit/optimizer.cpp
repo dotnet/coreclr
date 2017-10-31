@@ -2832,6 +2832,7 @@ bool Compiler::optCanonicalizeLoop(unsigned char loopInd)
     // multiple times while canonicalizing multiple loop nests, we'll attempt to redirect a predecessor multiple times.
     // This is ok, because after the first redirection, the topPredBlock branch target will no longer match the source
     // edge of the blockMap, so nothing will happen.
+    bool firstPred = true;
     for (flowList* topPred = t->bbPreds; topPred != nullptr; topPred = topPred->flNext)
     {
         BasicBlock* topPredBlock = topPred->flBlock;
@@ -2851,6 +2852,23 @@ bool Compiler::optCanonicalizeLoop(unsigned char loopInd)
         JITDUMP("in optCanonicalizeLoop: redirect top predecessor BB%02u to BB%02u\n", topPredBlock->bbNum,
                 newT->bbNum);
         optRedirectBlock(topPredBlock, blockMap);
+
+        // When we have profile data then the 'newT' block will inherit topPredBlock profile weight
+        if (topPredBlock->hasProfileWeight())
+        {
+            // This corrects an issue when the topPredBlock has a profile based weight
+            //
+            JITDUMP(", hasProfileWeight() returns true");
+            assert(firstPred == true); // We currently don't expect to have multiple preds with profile weights
+            if (firstPred)
+            {
+                JITDUMP("in optCanonicalizeLoop: block BB%02u will inheritWeight from BB%02u\n", newT->bbNum,
+                        topPredBlock->bbNum);
+
+                newT->inheritWeight(topPredBlock);
+            }
+            firstPred = false;
+        }
     }
 
     assert(newT->bbNext == f);
