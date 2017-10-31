@@ -5819,6 +5819,12 @@ void Lowering::ContainCheckRet(GenTreeOp* ret)
             {
                 MakeSrcContained(ret, op1);
             }
+#if defined(_TARGET_ARM64_) && defined(FEATURE_SIMD)
+            if (varTypeIsSIMD(op1))
+            {
+                MakeSrcContained(ret, op1);
+            }
+#endif // defined(_TARGET_ARM64_) && defined(FEATURE_SIMD)
         }
     }
 #endif // FEATURE_MULTIREG_RET
