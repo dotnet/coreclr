@@ -150,7 +150,7 @@
       },
       "inputs": {
         "filename": "publish-packages.cmd",
-        "arguments": "-AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildArch=$(Architecture) -BuildType=$(PB_BuildType) -Container=$(PB_ContainerName) -PublishPackages -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/pkg /p:PublishFlatContainer=$(PublishFlat) /p:OverwriteOnPublish=true",
+        "arguments": "-BuildArch=$(Architecture) -BuildType=$(PB_BuildType) -PublishPackages -- /p:ExpectedFeedUrl=https://$(CloudDropAccountName).blob.core.windows.net/$(PB_ContainerName)/$(PB_BlobNamePrefix)$(PB_BuildType)/pkg/index.json /p:AccountKey=$(CloudDropAccessToken) /p:PublishFlatContainer=$(PublishFlat) /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -168,7 +168,7 @@
       },
       "inputs": {
         "filename": "publish-packages.cmd",
-        "arguments": "-AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildArch=$(Architecture) -BuildType=$(PB_BuildType) -Container=$(PB_ContainerName) -PublishSymbols -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/symbolpkg /p:OverwriteOnPublish=true",
+        "arguments": "-BuildArch=$(Architecture) -BuildType=$(PB_BuildType) -PublishSymbols -- /p:ExpectedFeedUrl=https://$(CloudDropAccountName).blob.core.windows.net/$(PB_ContainerName)/$(PB_BlobNamePrefix)$(PB_BuildType)/symbolpkg/index.json /p:AccountKey=$(CloudDropAccessToken) /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
