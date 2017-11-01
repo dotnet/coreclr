@@ -7,6 +7,23 @@ def branch = GithubBranchName
 def projectName = Utilities.getFolderName(project)
 def projectFolder = projectName + '/' + Utilities.getFolderName(branch)
 
+
+def static addRebootPostStep(def job) {
+    job.with {
+        publishers {
+            flexiblePublish {
+                conditionalAction {
+                    condition {
+                        status('ABORTED', 'SUCCESS')
+                    }
+                    steps {
+                        shell('echo hello!')
+                    }
+                }
+            }
+        }
+    }
+}
 def static getOSGroup(def os) {
     def osGroupMap = ['Ubuntu14.04':'Linux',
         'RHEL7.2': 'Linux',
@@ -129,7 +146,8 @@ def static getOSGroup(def os) {
 
                         Utilities.addArchival(newJob, archiveSettings)
                         Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
-
+                        addRebootPostStep(newJob)
+                        
                         newJob.with {
                             logRotator {
                                 artifactDaysToKeep(30)
