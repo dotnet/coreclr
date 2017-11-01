@@ -29,6 +29,10 @@ namespace JitBench
                 ProcessStartInfo startInfo = options.UseExistingSetup ? UseExistingSetup() : CreateNewSetup();
 
                 string scenarioName = "MusicStore";
+                if (!startInfo.Environment.ContainsKey("DOTNET_MULTILEVEL_LOOKUP"))
+                    throw new InvalidOperationException("DOTNET_MULTILEVEL_LOOKUP was not defined.");
+                if (startInfo.Environment["DOTNET_MULTILEVEL_LOOKUP"] != "0")
+                    throw new InvalidOperationException("DOTNET_MULTILEVEL_LOOKUP was not set to 0.");
 
                 if (options.EnableTiering)
                 {
@@ -76,8 +80,10 @@ namespace JitBench
                         "Unknown",
                     };
 
+                    if (!File.Exists(startInfo.FileName))
+                        throw new FileNotFoundException(startInfo.FileName);
                     if (!Directory.Exists(startInfo.WorkingDirectory))
-                        throw new InvalidOperationException("Specified working directory does not exist.");
+                        throw new DirectoryNotFoundException(startInfo.WorkingDirectory);
 
                     h.RunScenario(scenarioConfiguration, teardownDelegate: () => {
                         return program.PostRun("MusicStore", processesOfInterest, modulesOfInterest);
@@ -251,6 +257,17 @@ namespace JitBench
             return environment;
         }
 
+        private static void DotNetInfo(string workingDirectory, string dotnetFileName, IDictionary<string, string> environment)
+        {
+            var psi = new ProcessStartInfo {
+                WorkingDirectory = workingDirectory,
+                FileName = dotnetFileName,
+                Arguments = "--info"
+            };
+
+            LaunchProcess(psi, 60000, environment);
+        }
+
         private static void RestoreMusicStore(string workingDirectory, string dotnetFileName, IDictionary<string, string> environment)
         {
             var psi = new ProcessStartInfo {
@@ -264,10 +281,14 @@ namespace JitBench
 
         private static void PublishMusicStore(string workingDirectory, string dotnetFileName, IDictionary<string, string> environment)
         {
+            var manifest = environment["JITBENCH_ASPNET_MANIFEST"];
+            if (!File.Exists(manifest))
+                throw new FileNotFoundException(manifest);
+
             var psi = new ProcessStartInfo {
                 WorkingDirectory = workingDirectory,
-                FileName = "cmd.exe",
-                Arguments = $"/C \"{dotnetFileName} publish -c Release -f {JitBenchTargetFramework} --manifest %JITBENCH_ASPNET_MANIFEST% /p:MvcRazorCompileOnPublish=false\""
+                FileName = dotnetFileName,
+                Arguments = $"publish -c Release -f {JitBenchTargetFramework} --manifest \"{manifest}\" /p:MvcRazorCompileOnPublish=false\" -o {MusicStorePublishDirectory}"
             };
 
             LaunchProcess(psi, 300000, environment);
@@ -278,13 +299,20 @@ namespace JitBench
         {
             // TODO: This is currently hardcoded, but we could probably pull it from the powershell cmdlet call.
             var dotnetPath = Path.Combine(s_jitBenchDevDirectory, ".dotnet");
-            if (!File.Exists(Path.Combine(dotnetPath, "dotnet.exe")))
-                throw new InvalidOperationException("dotnet.exe is not in the expected folder.");
+            var dotnetexe = Path.Combine(dotnetPath, "dotnet.exe");
+            if (!File.Exists(dotnetexe))
+                throw new FileNotFoundException(dotnetexe);
 
-            var environment = new Dictionary<string, string> { { "PATH", $"{dotnetPath};{Environment.GetEnvironmentVariable("PATH")}" } };
+            var environment = new Dictionary<string, string> {
+                { "DOTNET_MULTILEVEL_LOOKUP", "0" },
+                { "PATH", $"{dotnetPath};{Environment.GetEnvironmentVariable("PATH")}" }
+            };
 
             return environment;
         }
+
+        private static string MusicStorePublishDirectory =>
+            Path.Combine(s_musicStoreDirectory, "bin", s_targetArchitecture, "Release", JitBenchTargetFramework, "publish");
 
         private static ProcessStartInfo CreateJitBenchStartInfo(IDictionary<string, string> environment)
         {
@@ -293,7 +321,7 @@ namespace JitBench
                 FileName = s_dotnetProcessFileName,
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
-                WorkingDirectory = Path.Combine(s_musicStoreDirectory, "bin", s_targetArchitecture, "Release", JitBenchTargetFramework, "publish")
+                WorkingDirectory = MusicStorePublishDirectory,
             };
 
             foreach (KeyValuePair<string, string> pair in environment)
@@ -330,6 +358,7 @@ namespace JitBench
 
             ModifySharedFramework();
 
+            DotNetInfo(s_musicStoreDirectory, s_dotnetProcessFileName, environment);
             RestoreMusicStore(s_musicStoreDirectory, s_dotnetProcessFileName, environment);
             PublishMusicStore(s_musicStoreDirectory, s_dotnetProcessFileName, environment);
 
@@ -339,17 +368,20 @@ namespace JitBench
         private static void ValidateEnvironment(IDictionary<string, string> environment)
         {
             var expectedVariables = new string[] {
+                "DOTNET_MULTILEVEL_LOOKUP",
                 "PATH",
                 "JITBENCH_ASPNET_MANIFEST",
                 "JITBENCH_FRAMEWORK_VERSION",
                 "JITBENCH_ASPNET_VERSION",
-                "DOTNET_SHARED_STORE"
+                "DOTNET_SHARED_STORE",
             };
             if (expectedVariables.Except(environment.Keys, StringComparer.OrdinalIgnoreCase).Any())
                 throw new Exception("Missing expected environment variables.");
 
+            Console.WriteLine("**********************************************************************");
             foreach (var env in expectedVariables)
                 Console.WriteLine($"  {env}={environment[env]}");
+            Console.WriteLine("**********************************************************************");
         }
 
         private const string JitBenchRepoUrl = "https://github.com/aspnet/JitBench";
