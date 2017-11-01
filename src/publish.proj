@@ -11,17 +11,7 @@
     <PublishFlatContainer Condition="'$(PublishFlatContainer)' == ''">true</PublishFlatContainer>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <ContainerName>$(ContainerName.Replace(".","-"))</ContainerName>
-    <AccountName>$(CloudDropAccountName)</AccountName>
-    <AccountKey>$(CloudDropAccessToken)</AccountKey>
-  </PropertyGroup>
-
-  <Target Name="PublishPackages" Condition="'$(__PublishPackages)' == 'true' and ('$(OfficialPublish)' != 'true' or '$(__BuildType)' == 'Release')">
-    <PropertyGroup>
-      <RelativePath Condition="'$(RelativePath)' == ''">$(__BuildType)/pkg</RelativePath>
-      <ExpectedFeedUrl>https://$(AccountName).blob.core.windows.net/$(ContainerName)/$(RelativePath)/index.json</ExpectedFeedUrl>
-    </PropertyGroup>
+  <Target Name="PublishPackages" Condition="'$(__PublishPackages)' == 'true'">
     <ItemGroup>
       <ItemsToPush Remove="*.nupkg" />
       <ItemsToPush Include="$(PackagesPattern)" Exclude="$(SymbolsPackagesPattern)"/>
@@ -34,11 +24,7 @@
                     IndexDirectory="$(__IntermediatesDir)"/>
   </Target>
 
-  <Target Name="PublishSymbolPackages" Condition="'$(__PublishSymbols)' == 'true' and ('$(OfficialPublish)' != 'true' or '$(__BuildType)' == 'Release')">
-    <PropertyGroup>
-      <RelativePath Condition="'$(RelativePath)' == ''">$(__BuildType)/symbolpkg</RelativePath>
-      <ExpectedFeedUrl>https://$(AccountName).blob.core.windows.net/$(ContainerName)/$(RelativePath)/index.json</ExpectedFeedUrl>
-    </PropertyGroup>
+  <Target Name="PublishSymbolPackages" Condition="'$(__PublishSymbols)' == 'true'">
     <ItemGroup>
       <ItemsToPush Remove="*.nupkg" />
       <ItemsToPush Include="$(SymbolsPackagesPattern)"/>
@@ -50,11 +36,7 @@
                     Overwrite="$(OverwriteOnPublish)" />
   </Target>
 
-  <Target Name="PublishTestNativeBinaries" Condition="'$(PublishTestNativeBins)' == 'true' and '$(OfficialPublish)' != 'true'">
-    <PropertyGroup>
-      <RelativePath Condition="'$(RelativePath)' == ''">$(__BuildType)/TestNativeBins</RelativePath>
-      <ExpectedFeedUrl>https://$(AccountName).blob.core.windows.net/$(ContainerName)/$(RelativePath)/index.json</ExpectedFeedUrl>
-    </PropertyGroup>
+  <Target Name="PublishTestNativeBinaries" Condition="'$(PublishTestNativeBins)' == 'true'">
     <ItemGroup>
       <ItemsToPush Remove="*.nupkg" />
       <ItemsToPush Include="$(TestNativeBinariesPattern)"/>

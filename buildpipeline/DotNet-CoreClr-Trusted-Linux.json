@@ -157,14 +157,14 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildType=$(PB_BuildType) -BuildArch=$(Platform) -Container=$(PB_ContainerName) -distroRid=$(Rid) -PublishPackages -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/pkg /p:PublishFlatContainer=$(PublishFlat) /p:OverwriteOnPublish=true",
+        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -BuildType=$(PB_BuildType) -BuildArch=$(Platform) -distroRid=$(Rid) -PublishPackages -- /p:ExpectedFeedUrl=https://$(CloudDropAccountName).blob.core.windows.net/$(PB_ContainerName)/$(PB_BlobNamePrefix)$(PB_BuildType)/pkg/index.json /p:AccountKey=$(CloudDropAccessToken) /p:PublishFlatContainer=$(PublishFlat) /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
     },
     {
-      "enabled": true,
       "continueOnError": false,
+      "enabled": true,
       "alwaysRun": false,
       "displayName": "Publish symbol packages",
       "timeoutInMinutes": 0,
@@ -175,7 +175,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildType=$(PB_BuildType) -BuildArch=$(Platform) -Container=$(PB_ContainerName) -distroRid=$(Rid) -PublishSymbols -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/symbolpkg /p:OverwriteOnPublish=true",
+        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -BuildType=$(PB_BuildType) -BuildArch=$(Platform) -distroRid=$(Rid) -PublishSymbols -- /p:ExpectedFeedUrl=https://$(CloudDropAccountName).blob.core.windows.net/$(PB_ContainerName)/$(PB_BlobNamePrefix)$(PB_BuildType)/symbolpkg/index.json /p:AccountKey=$(CloudDropAccessToken) /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -193,7 +193,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildType=$(PB_BuildType) -BuildArch=$(Platform) -Container=$(PB_ContainerName) -distroRid=$(Rid) -PublishTestNativeBins -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/TestNativeBins/$(Rid)-$(Architecture) /p:OverwriteOnPublish=true",
+        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -BuildType=$(PB_BuildType) -BuildArch=$(Platform) -distroRid=$(Rid) -PublishTestNativeBins -- /p:ExpectedFeedUrl=https://$(CloudDropAccountName).blob.core.windows.net/$(PB_ContainerName)/$(PB_BlobNamePrefix)$(PB_BuildType)/TestNativeBins/$(Rid)-$(Architecture)/index.json /p:AccountKey=$(CloudDropAccessToken) /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/TestNativeBins/$(Rid)-$(Architecture) /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }

@@ -179,6 +179,7 @@
       "alwaysRun": false,
       "displayName": "packages -> dotnet.myget.org",
       "timeoutInMinutes": 0,
+	  "condition": "and(succeeded(), eq(variables['ConfigurationGroup'], 'Release'), eq(variables['PB_PublishType'], 'myget'))",
       "task": {
         "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
         "versionSpec": "1.*",
@@ -199,6 +200,7 @@
       "alwaysRun": false,
       "displayName": "symbol packages -> dotnet.myget.org",
       "timeoutInMinutes": 0,
+	  "condition": "and(succeeded(), eq(variables['ConfigurationGroup'], 'Release'), eq(variables['PB_PublishType'], 'myget'))",
       "task": {
         "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
         "versionSpec": "1.*",
@@ -219,7 +221,7 @@
       "alwaysRun": false,
       "displayName": "Packages -> Azure",
       "timeoutInMinutes": 0,
-      "condition": "and(succeeded(), eq(variables['ConfigurationGroup'], 'Release'))",
+      "condition": "and(succeeded(), eq(variables['ConfigurationGroup'], 'Release'), eq(variables['PB_PublishType'], 'blob'))",
       "task": {
         "id": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
         "versionSpec": "1.*",
@@ -227,7 +229,7 @@
       },
       "inputs": {
         "filename": "msbuild",
-        "arguments": "src\\publish.proj /t:PublishPackages /p:CloudDropAccessToken=$(AzureBlobFeedAccessToken) /p:CloudDropAccountName=$(AzureBlobFeedAccountName) /p:ContainerName=$(AzureBlobFeedContainerName) /p:__PublishPackages=true /p:OverwriteOnPublish=true /p:PackagesPattern=../packages/AzureTransfer/Release/pkg/*/*/*.nupkg /p:RelativePath=packages /p:__BuildType=$(ConfigurationGroup) /p:OfficialPublish=true /p:PublishFlatContainer=false /fileloggerparameters:Verbosity=diag;LogFile=publishpkg.log",
+        "arguments": "src\\publish.proj /t:PublishPackages /p:ExpectedFeedUrl=$(PB_PublishBlobFeedUrl) /p:AccountKey=$(PB_PublishBlobFeedKey) /p:__PublishPackages=true /p:OverwriteOnPublish=true /p:PackagesPattern=../packages/AzureTransfer/Release/pkg/*/*/*.nupkg /p:__BuildType=$(ConfigurationGroup) /p:PublishFlatContainer=false /flp:Verbosity=diag;LogFile=publishpkg.log",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
@@ -238,7 +240,7 @@
       "alwaysRun": false,
       "displayName": "Symbol Packages -> Azure",
       "timeoutInMinutes": 0,
-      "condition": "and(succeeded(), eq(variables['ConfigurationGroup'], 'Release'))",
+      "condition": "and(succeeded(), eq(variables['ConfigurationGroup'], 'Release'), eq(variables['PB_PublishType'], 'blob'))",
       "task": {
         "id": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
         "versionSpec": "1.*",
@@ -246,7 +248,7 @@
       },
       "inputs": {
         "filename": "msbuild",
-        "arguments": "src\\publish.proj /t:PublishSymbolPackages /p:CloudDropAccessToken=$(AzureBlobFeedAccessToken) /p:CloudDropAccountName=$(AzureBlobFeedAccountName) /p:ContainerName=$(AzureBlobFeedContainerName) /p:__PublishSymbols=true /p:OverwriteOnPublish=true /p:SymbolsPackagesPattern=../packages/AzureTransfer/Release/symbolpkg/*/*/*.nupkg /p:RelativePath=symbols /p:__BuildType=$(ConfigurationGroup) /p:OfficialPublish=true /p:PublishFlatContainer=true /fileloggerparameters:Verbosity=diag;LogFile=publishpkg.log",
+        "arguments": "src\\publish.proj /t:PublishSymbolPackages /p:ExpectedFeedUrl=$(PB_PublishBlobSymbolFeedUrl) /p:AccountKey=$(PB_PublishBlobFeedKey) /p:__PublishSymbols=true /p:OverwriteOnPublish=true /p:SymbolsPackagesPattern=../packages/AzureTransfer/Release/symbolpkg/*/*/*.nupkg /p:RelativePath=symbols /p:__BuildType=$(ConfigurationGroup) /p:PublishFlatContainer=true /flp:Verbosity=diag;LogFile=publishpkg.log",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
@@ -277,6 +279,7 @@
       "alwaysRun": false,
       "displayName": "packages -> VSTS",
       "timeoutInMinutes": 0,
+	  "condition": "and(succeeded(), eq(variables['ConfigurationGroup'], 'Release'))",
       "task": {
         "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
         "versionSpec": "1.*",
@@ -297,6 +300,7 @@
       "alwaysRun": false,
       "displayName": "Update versions repository",
       "timeoutInMinutes": 0,
+	  "condition": "and(succeeded(), eq(variables['ConfigurationGroup'], 'Release'))",
       "task": {
         "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
         "versionSpec": "1.*",
@@ -474,17 +478,17 @@
       "allowOverride": true,
       "isSecret": true
     },
-    "AzureBlobFeedAccountName": {
-      "value": "dotnetfeed",
+    "PB_PublishBlobFeedUrl": {
+      "value": null,
       "allowOverride": true
     },
-    "AzureBlobFeedAccessToken": {
+    "PB_PublishBlobFeedKey": {
       "value": null,
       "allowOverride": true,
       "isSecret": true
     },
-    "AzureBlobFeedContainerName": {
-      "value": "dotnet-core",
+    "PB_PublishBlobSymbolFeedUrl": {
+      "value": null,
       "allowOverride": true
     },
     "OfficialBuildId": {
