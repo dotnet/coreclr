@@ -288,7 +288,7 @@ namespace JitBench
             var psi = new ProcessStartInfo {
                 WorkingDirectory = workingDirectory,
                 FileName = dotnetFileName,
-                Arguments = $"publish -c Release -f {JitBenchTargetFramework} --manifest \"{manifest}\" /p:MvcRazorCompileOnPublish=false\" -o {MusicStorePublishDirectory}"
+                Arguments = $"publish -c Release -f {JitBenchTargetFramework} --manifest \"{manifest}\" /p:MvcRazorCompileOnPublish=false -o \"{MusicStorePublishDirectory}\""
             };
 
             LaunchProcess(psi, 300000, environment);
