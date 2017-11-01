@@ -71,8 +71,9 @@ def main(argv):
 
     # build.cmd removes the Tools directory, so we need to put our version of jitutils
     # outside of the Tools directory
+    # must use short path here to avoid trouble on windows
 
-    dotnetcliPath = os.path.join(coreclr, 'dotnetcli-jitutils')
+    dotnetcliPath = os.path.join(coreclr, 'dj')
 
     # Try to make the dotnetcli-jitutils directory if it doesn't exist
 
