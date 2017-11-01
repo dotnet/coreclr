@@ -23,6 +23,6 @@ namespace System
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        public unsafe T[] Items => _array;
+        public T[] Items => _array;
     }
 }
