@@ -1377,68 +1377,77 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 // LowerFloatArg: Lower the float call argument on the arm platform.
 //
 // Arguments:
-//    arg    - The arg node
-//    info   - call argument info
-//    argNum - argument number
-//
+//    arg  - The arg node
+//    info - call argument info
 //
 // Return Value:
 //    Return nullptr, if no transformation was done;
 //    return arg if there was in place transformation;
 //    return a new tree if the root was changed.
 //
-GenTree* Lowering::LowerFloatArg(GenTree* arg, fgArgTabEntry* info, unsigned argNum)
+GenTree* Lowering::LowerFloatArg(GenTree* arg, fgArgTabEntry* info)
 {
-    var_types type    = arg->TypeGet();
-    var_types intType = (type == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
-
-    if (arg->OperIsFieldList())
+    if (info->regNum != REG_STK)
     {
-        assert(arg->isContained());
-        assert(argNum == 0);
+        if (arg->OperIsFieldList())
+        {
+            GenTreeFieldList* currListNode  = arg->AsFieldList();
+            regNumber         currRegNumber = info->regNum;
 
-        unsigned fieldNum = 0;
-        for (GenTreeFieldList *list = arg->AsFieldList(); list != nullptr; list = list->Rest(), fieldNum++)
-        {
-            GenTree* node    = list->Current();
-            GenTree* intNode = LowerFloatArg(node, info, fieldNum);
-            if (intNode != nullptr)
+            // Transform fields that are passed as registers in place.
+            for (unsigned i = 0; i < info->numRegs; ++i)
             {
-                ReplaceArgWithPutArgOrBitcast(list->pCurrent(), intNode);
-                list->ChangeType(intNode->TypeGet());
+                assert(currListNode != nullptr);
+                GenTree* node    = currListNode->Current();
+                GenTree* intNode = LowerFloatArgReg(node, currRegNumber);
+                assert(intNode != nullptr);
+
+                ReplaceArgWithPutArgOrBitcast(currListNode->pCurrent(), intNode);
+                currListNode->ChangeType(intNode->TypeGet());
+
+                currListNode  = currListNode->Rest();
+                currRegNumber = REG_NEXT(currRegNumber);
             }
-        }
-        // List fields were replaced in place.
-        return arg;
-    }
-    else
-    {
-        bool isReg = (argNum < info->numRegs);
-        if (isReg)
-        {
-            GenTree*  intArg   = comp->gtNewBitCastNode(intType, arg);
-            regNumber firstReg = info->regNum;
-            regNumber currReg  = firstReg;
-            for (unsigned i = 0; i < argNum; ++i)
-            {
-                currReg = REG_NEXT(currReg);
-            }
-            intArg->gtRegNum = currReg;
-#ifdef _TARGET_ARM_
-            if (type == TYP_DOUBLE)
-            {
-                regNumber nextReg                  = REG_NEXT(info->regNum);
-                intArg->AsMultiRegOp()->gtOtherReg = nextReg;
-            }
-#endif
-            return intArg;
+            // List fields were replaced in place.
+            return arg;
         }
         else
         {
-            // Do not change stack nodes.
-            return nullptr;
+            return LowerFloatArgReg(arg, info->regNum);
         }
     }
+    else
+    {
+        // Do not change stack nodes.
+        return nullptr;
+    }
+}
+
+//------------------------------------------------------------------------
+// LowerFloatArgReg: Lower the float call argument node that is passed via register.
+//
+// Arguments:
+//    arg    - The arg node
+//    regNum - register number
+//
+// Return Value:
+//    Return new bitcast node, that moves float to int register.
+//
+GenTree* Lowering::LowerFloatArgReg(GenTree* arg, regNumber regNum)
+{
+    var_types floatType = arg->TypeGet();
+    assert(varTypeIsFloating(floatType));
+    var_types intType = (floatType == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
+    GenTree*  intArg  = comp->gtNewBitCastNode(intType, arg);
+    intArg->gtRegNum  = regNum;
+#ifdef _TARGET_ARM_
+    if (floatType == TYP_DOUBLE)
+    {
+        regNumber nextReg                  = REG_NEXT(regNum);
+        intArg->AsMultiRegOp()->gtOtherReg = nextReg;
+    }
+#endif
+    return intArg;
 }
 #endif
 
