@@ -387,6 +387,13 @@ size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
     return 0;
 }
 
+// Sets the calling thread's affinity to only run on the processor specified
+// in the GCThreadAffinity structure.
+// Parameters:
+//  affinity - The requested affinity for the calling thread. At most one processor
+//             can be provided.
+// Return:
+//  true if setting the affinity was successful, false otherwise.
 bool GCToOSInterface::SetThreadAffinity(GCThreadAffinity* affinity)
 {
     assert(affinity != nullptr);
@@ -409,6 +416,17 @@ bool GCToOSInterface::SetThreadAffinity(GCThreadAffinity* affinity)
 
     // Given affinity must specify at least one processor to use.
     return false;
+}
+
+// Boosts the calling thread's thread priority to a level higher than the default
+// for new threads.
+// Parameters:
+//  None.
+// Return:
+//  true if the priority boost was successful, false otherwise.
+bool GCToOSInterface::BoostThreadPriority()
+{
+    return !!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 }
 
 // Get affinity mask of the current process

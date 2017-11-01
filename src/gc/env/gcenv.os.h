@@ -307,6 +307,14 @@ public:
     //  true if setting the affinity was successful, false otherwise.
     static bool SetThreadAffinity(GCThreadAffinity* affinity);
 
+    // Boosts the calling thread's thread priority to a level higher than the default
+    // for new threads.
+    // Parameters:
+    //  None.
+    // Return:
+    //  true if the priority boost was successful, false otherwise.
+    static bool BoostThreadPriority();
+
     // Get affinity mask of the current process
     // Parameters:
     //  processMask - affinity mask for the specified process
