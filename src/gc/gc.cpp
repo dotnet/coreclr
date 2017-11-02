@@ -5351,7 +5351,7 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
 bool gc_heap::create_gc_thread ()
 {
     dprintf (3, ("Creating gc thread\n"));
-    return GCToEEInterface::CreateThread(gc_thread_stub, this, false, false, L"Server GC");
+    return GCToEEInterface::CreateThread(gc_thread_stub, this, false, L"Server GC");
 }
 
 #ifdef _MSC_VER
@@ -26718,7 +26718,7 @@ BOOL gc_heap::create_bgc_thread(gc_heap* gh)
 
     //dprintf (2, ("Creating BGC thread"));
 
-    gh->bgc_thread_running = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh, true, true, L"Background GC");
+    gh->bgc_thread_running = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh, true, L"Background GC");
     return gh->bgc_thread_running;
 }
 

@@ -1291,7 +1291,7 @@ namespace
     }
 } // anonymous namespace
 
-bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_special, bool is_suspendable, const wchar_t* name)
+bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_special, const wchar_t* name)
 {
     LIMITED_METHOD_CONTRACT;
     if (is_special)
