@@ -39,7 +39,7 @@ pipeline.triggerPipelineOnGithubPush()
                                       'OptGroup': opt_level,
                                       'PgoGroup': pgo_enabled]
                         triggerName = "${scenario} ${os_group} ${arch} ${opt_level} ${pgo_enabled}"
-                        pipeline.triggerPipelineOnGitHubPRComment(triggerName, params)
+                        pipeline.triggerPipelineOnGithubPRComment(triggerName, params)
                     }
                 }
             }
