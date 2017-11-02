@@ -78,8 +78,8 @@ public:
     static bool GetStringConfigValue(const char* key, const char** value);
     static void FreeStringConfigValue(const char* key);
     static bool IsGCThread();
-    static bool IsGCSpecialThread();
-    static bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name);
+    static bool CurrentThreadWasCreatedByGC();
+    static bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const wchar_t* name);
 };
 
 #endif // __GCENV_EE_H__

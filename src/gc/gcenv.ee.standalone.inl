@@ -246,10 +246,10 @@ inline bool GCToEEInterface::IsGCThread()
     return g_theGCToCLR->IsGCThread();
 }
 
-inline bool GCToEEInterface::IsGCSpecialThread()
+inline bool GCToEEInterface::CurrentThreadWasCreatedByGC()
 {
     assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->IsGCSpecialThread();
+    return g_theGCToCLR->CurrentThreadWasCreatedByGC();
 }
 
 inline bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name)

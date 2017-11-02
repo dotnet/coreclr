@@ -1114,7 +1114,7 @@ bool GCToEEInterface::IsGCThread()
     return !!::IsGCThread();
 }
 
-bool GCToEEInterface::IsGCSpecialThread()
+bool GCToEEInterface::CurrentThreadWasCreatedByGC()
 {
     return !!::IsGCSpecialThread();
 }

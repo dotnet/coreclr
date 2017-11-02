@@ -58,8 +58,8 @@ public:
     bool GetStringConfigValue(const char* key, const char** value);
     void FreeStringConfigValue(const char* value);
     bool IsGCThread();
-    bool IsGCSpecialThread();
-    bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name);
+    bool CurrentThreadWasCreatedByGC();
+    bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const wchar_t* name);
 };
 
 } // namespace standalone
