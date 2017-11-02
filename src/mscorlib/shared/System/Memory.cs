@@ -90,6 +90,15 @@ namespace System
             _length = length;
         }
 
+        // Constructor for internal use only
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal Memory(int start, int length, T[] array)
+        {
+            _arrayOrOwnedMemory = array;
+            _index = start;
+            _length = length;
+        }
+
         /// <summary>
         /// Defines an implicit conversion of an array to a <see cref="Memory{T}"/>
         /// </summary>
