@@ -6074,6 +6074,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
             prejitResult.DetermineProfitability(methodInfo);
         }
 
+        m_inlineStrategy->NotePrejitDecision(prejitResult);
+
         // Handle the results of the inline analysis.
         if (prejitResult.IsFailure())
         {
