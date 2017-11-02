@@ -109,7 +109,7 @@ public:
 
     #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-        CORJIT_FLAG_USE_SSE3_4              = 13,
+        CORJIT_FLAG_UNUSED6                 = 13,
         CORJIT_FLAG_USE_AVX                 = 14,
         CORJIT_FLAG_USE_AVX2                = 15,
         CORJIT_FLAG_USE_AVX_512             = 16,
@@ -175,7 +175,6 @@ public:
         CORJIT_FLAG_USE_PCLMULQDQ           = 52,
         CORJIT_FLAG_USE_POPCNT              = 53
         
-
 #else // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
 
         CORJIT_FLAG_UNUSED12                = 43,
