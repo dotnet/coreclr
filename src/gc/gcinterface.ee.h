@@ -79,6 +79,9 @@ public:
 
     // Gets the Thread instance for the current thread, or null if no thread
     // instance is associated with this thread.
+    //
+    // If the GC created the current thread, GetThread returns null for threads
+    // that were not created as suspendable (see `IGCHeap::CreateThread`).
     virtual
     Thread* GetThread() = 0;
 
@@ -99,8 +102,20 @@ public:
     void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param) = 0;
 
     // Creates and returns a new thread.
+    // Parameters:
+    //  threadStart - The function that will serve as the thread stub for the
+    //                new thread. It will be invoked immediately upon the
+    //                new thread upon creation.
+    //  arg - The argument that will be passed verbatim to threadStart.
+    //  is_suspendable - Whether or not the thread that is created should be suspendable
+    //                   from a runtime perspective. Threads that are suspendable have
+    //                   a VM Thread object associated with them that can be accessed
+    //                   using `IGCHeap::GetThread`.
+    //  name - The name of this thread, optionally used for diagnostic purposes.
+    // Returns:
+    //  true if the thread was started successfully, false if not.
     virtual
-    bool CreateThread(void (*threadStart)(void*), void* arg, bool is_special, const wchar_t* name) = 0;
+    bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const wchar_t* name) = 0;
 
     // When a GC starts, gives the diagnostics code a chance to run.
     virtual
