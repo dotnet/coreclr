@@ -1139,10 +1139,12 @@ struct ThreadStubArguments
 
 namespace
 {
+    const size_t MaxThreadNameSize = 255;
+
     bool CreateSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const wchar_t* name)
+        const char* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1198,7 +1200,17 @@ namespace
             return 0;
         };
 
-        if (!args.Thread->CreateNewThread(0, threadStub, &args, name))
+        WCHAR threadName[MaxThreadNameSize];
+        LPWSTR wideName = nullptr;
+        if (MultiByteToWideChar(CP_ACP, 0, name, -1 /* null terminated */, threadName, MaxThreadNameSize))
+        {
+            // use the name given to us if the utf16 conversion was successful.
+            // if not, we're not obligated to give a name to a thread - we'll leave it
+            // as null.
+            wideName = threadName;
+        }
+
+        if (!args.Thread->CreateNewThread(0, threadStub, &args, wideName))
         {
             args.Thread->DecExternalCount(FALSE);
             return false;
@@ -1225,7 +1237,7 @@ namespace
     bool CreateUnsuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const wchar_t* name)
+        const char* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1291,7 +1303,7 @@ namespace
     }
 } // anonymous namespace
 
-bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const wchar_t* name)
+bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name)
 {
     LIMITED_METHOD_CONTRACT;
     if (is_suspendable)

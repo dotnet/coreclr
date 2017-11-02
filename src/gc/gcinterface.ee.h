@@ -115,7 +115,7 @@ public:
     // Returns:
     //  true if the thread was started successfully, false if not.
     virtual
-    bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const wchar_t* name) = 0;
+    bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name) = 0;
 
     // When a GC starts, gives the diagnostics code a chance to run.
     virtual
