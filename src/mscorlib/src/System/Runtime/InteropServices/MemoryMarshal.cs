@@ -17,7 +17,7 @@ namespace src.System.Runtime.InteropServices
         /// <param name="start">The index at which to begin the span.</param>
         /// <param name="length">The number of items in the span.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Span<T> DangerousCreateSpan<T>(T[] array, int start, int length) => new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), length);
+        public static Span<T> CreateSpan<T>(T[] array, int start, int length) => new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), length);
 
         /// <summary>
         /// Creates a memory instance over the range. However this does no bounds checking therefore is dangerous
@@ -26,6 +26,6 @@ namespace src.System.Runtime.InteropServices
         /// <param name="start">The index at which to begin the span.</param>
         /// <param name="length">The number of items in the span.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Memory<T> DangerousCreateMemory<T>(T[] array, int start, int length) => new Memory<T>(start, length, array);
+        public static Memory<T> CreateMemory<T>(T[] array, int start, int length) => new Memory<T>(start, length, array);
     }
 }
