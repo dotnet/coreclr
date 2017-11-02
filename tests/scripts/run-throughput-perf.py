@@ -169,7 +169,7 @@ def validate_args(args):
     valid_build_types = ['Release']
     valid_run_types = ['rolling', 'private']
     valid_os = ['Windows_NT', 'Ubuntu14.04']
-    valid_opt_levels = ['full_opt', 'min_opt']
+    valid_opt_levels = ['full_opt', 'min_opt', 'tiered']
     valid_jit_names = {'x64': ['ryujit'], 'x86': ['ryujit', 'legacy_backend']}
 
     arch = next((a for a in valid_archs if a.lower() == arch.lower()), arch)
@@ -298,6 +298,8 @@ def runIterations(dll_name, dll_path, iterations, crossgen_path, jit_path, assem
 
     if opt_level == 'min_opt':
         my_env['COMPlus_JITMinOpts'] = '1'
+    elif opt_level == 'tiered':
+        my_env['COMPlus_EXPERIMENTAL_TieredCompilation'] = '1'
 
     if jit_name == 'legacy_backend':
         my_env['COMPlus_AltJit'] = '*'
