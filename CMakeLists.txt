@@ -1,11 +1,5 @@
 # Verify minimum required version
-if (WIN32)
-  # On Windows require at least version 3.5.1 of CMake
-  cmake_minimum_required(VERSION 3.5.1)
-else(WIN32)
-  # On Unixes require at least version 2.8.12 of CMake
-  cmake_minimum_required(VERSION 2.8.12)
-endif(WIN32)
+cmake_minimum_required(VERSION 2.8.12)
 
 if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
     cmake_policy(SET CMP0042 NEW)
@@ -331,10 +325,6 @@ if (WIN32)
     endforeach (Definition)
   endforeach (Config)
 
-  # CLR_CMAKE_CPU_CORES property is used to set optimal level of CL parallelism for native build
-  cmake_host_system_information(RESULT CLR_CMAKE_CPU_CORES QUERY NUMBER_OF_PHYSICAL_CORES)
-  message(STATUS "Number of processor cores: ${CLR_CMAKE_CPU_CORES}")
-
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /GUARD:CF")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /GUARD:CF")
 
@@ -626,30 +616,6 @@ set(BuildToolsDir "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.BuildTools.CoreCLR
 # Add Product Directory
 #------------------------------
 add_subdirectory(src)
-
-#------------------------------
-# Add project properties to 
-# control CL prallelism
-#------------------------------
-get_property(CORECLR_TARGETS GLOBAL PROPERTY CLR_CMAKE_CORECLR_TARGETS)
-foreach(coreclrTarget ${CORECLR_TARGETS})
-  if (WIN32)
-    if ($ENV{VisualStudioVersion} VERSION_LESS "15.0")
-      set_target_properties(
-        ${coreclrTarget} 
-        PROPERTIES
-        VS_GLOBAL_CL_MPCount ${CLR_CMAKE_CPU_CORES}
-      )
-    else()
-      set_target_properties(
-        ${coreclrTarget} 
-        PROPERTIES
-        VS_GLOBAL_DirectoryBuildPropsPath "${CLR_DIR}/Directory.Build.props"
-      )
-    endif($ENV{VisualStudioVersion} VERSION_LESS "15.0")
-  endif(WIN32)
-  message(STATUS "Created target:\t${coreclrTarget}")
-endforeach(coreclrTarget)
 
 #------------------------------
 # Add Test Directory
