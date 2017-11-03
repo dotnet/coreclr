@@ -57,7 +57,7 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     PROPERTIES GENERATED TRUE
   )
 
-  _add_custom_target(
+  add_custom_target(
     dactablerva_header
     DEPENDS ${GENERATED_INCLUDE_DIR}/dactablerva.h
   )

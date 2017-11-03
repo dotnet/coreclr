@@ -33,7 +33,7 @@ endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 set(DLL1SOURCES dlltest1.cpp)
 add_library(paltest_pal_sxs_test1_dll1 SHARED ${DLL1SOURCES})
-_add_custom_target(dlltest1_exports DEPENDS ${EXPORTS_FILE1})
+add_custom_target(dlltest1_exports DEPENDS ${EXPORTS_FILE1})
 set_property(TARGET paltest_pal_sxs_test1_dll1 APPEND_STRING PROPERTY LINK_FLAGS ${EXPORTS_LINKER_OPTION1})
 set_property(TARGET paltest_pal_sxs_test1_dll1 APPEND_STRING PROPERTY LINK_DEPENDS ${EXPORTS_FILE1})
 
@@ -65,7 +65,7 @@ endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 set(DLL2SOURCES dlltest2.cpp)
 add_library(paltest_pal_sxs_test1_dll2 SHARED ${DLL2SOURCES})
-_add_custom_target(dlltest2_exports DEPENDS ${EXPORTS_FILE2})
+add_custom_target(dlltest2_exports DEPENDS ${EXPORTS_FILE2})
 set_property(TARGET paltest_pal_sxs_test1_dll2 APPEND_STRING PROPERTY LINK_FLAGS ${EXPORTS_LINKER_OPTION2})
 set_property(TARGET paltest_pal_sxs_test1_dll2 APPEND_STRING PROPERTY LINK_DEPENDS ${EXPORTS_FILE2})
 

@@ -40,9 +40,6 @@ if (PYTHON STREQUAL "PYTHON-NOTFOUND")
     message(FATAL_ERROR "PYTHON not found: Please install Python 2.7.9 or later from https://www.python.org/downloads/")
 endif()
 
-# Track CMake CoreCLR targets in global property
-set_property(GLOBAL PROPERTY CLR_CMAKE_CORECLR_TARGETS "")
-
 # Ensure other tools are present
 if (WIN32)
     if(CLR_CMAKE_HOST_ARCH STREQUAL arm)

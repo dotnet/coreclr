@@ -70,7 +70,7 @@ list (APPEND GeneratedEventFiles
       ${ScriptGeneratedEventFiles}
 )
 
-_add_custom_target(
+add_custom_target(
   GeneratedEventingFiles
   DEPENDS ${GeneratedEventFiles}
 )

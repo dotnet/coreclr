@@ -113,7 +113,7 @@ if (WIN32)
 
     set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc PROPERTIES GENERATED TRUE)
 
-    _add_custom_target(
+    add_custom_target(
         asmconstants_inc
         DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc
     )

@@ -2,7 +2,7 @@
 STRING(REGEX REPLACE "\\\\" "/" VSINSTALLDIR $ENV{VSINSTALLDIR} )
 
 # Generate managed type lib from dia2.idl
-_add_custom_target(dialib ALL
+add_custom_target(dialib ALL
     # generate tlb file from idl
     COMMAND midl.exe /I"${VSINSTALLDIR}DIA SDK/include" /tlb ${CMAKE_CURRENT_BINARY_DIR}/dia2.tlb  /Zp8  "${VSINSTALLDIR}DIA SDK/idl/dia2.idl"
     # run tlbimp to generate managed type library

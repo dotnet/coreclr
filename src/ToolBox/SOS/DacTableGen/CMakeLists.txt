@@ -6,7 +6,7 @@ set(DACTABLEGEN_SOURCES
 )
 
 # Cmake does not support csharp sources so add custom command
-_add_custom_target(dactablegen ALL 
+add_custom_target(dactablegen ALL 
     COMMAND csc.exe /t:exe /platform:anycpu /r:System.dll /r:$<TARGET_FILE:dialib_dll> /out:${CMAKE_CURRENT_BINARY_DIR}/dactablegen.exe ${DACTABLEGEN_SOURCES}
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:dialib_dll> $<TARGET_FILE_DIR:dactablegen_exe>
     DEPENDS ${DACTABLEGEN_SOURCES}  dialib

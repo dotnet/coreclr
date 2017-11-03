@@ -196,7 +196,7 @@ endif(CLR_CMAKE_PLATFORM_DARWIN)
 add_library_clr(sos SHARED ${SOS_SOURCES})
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-    _add_custom_target(sos_exports DEPENDS ${EXPORTS_FILE})
+    add_custom_target(sos_exports DEPENDS ${EXPORTS_FILE})
     add_dependencies(sos sos_exports)
 
     set_property(TARGET sos APPEND_STRING PROPERTY LINK_FLAGS ${EXPORTS_LINKER_OPTION})
