@@ -1201,8 +1201,24 @@ namespace
         };
 
         InlineSString<MaxThreadNameSize> wideName;
-        wideName.SetUTF8(name);
-        if (!args.Thread->CreateNewThread(0, threadStub, &args, wideName.GetUnicode()))
+        const WCHAR* namePtr;
+        EX_TRY
+        {
+            if (name != nullptr)
+            {
+                wideName.SetUTF8(name);
+                namePtr = wideName.GetUnicode();
+            }
+        }
+        EX_CATCH
+        {
+            // we're not obligated to provide a name - if it's not valid,
+            // just report nullptr as the name.
+            namePtr = nullptr;
+        }
+        EX_END_CATCH(SwallowAllExceptions)
+
+        if (!args.Thread->CreateNewThread(0, threadStub, &args, namePtr))
         {
             args.Thread->DecExternalCount(FALSE);
             args.ThreadStartedEvent.CloseEvent();
