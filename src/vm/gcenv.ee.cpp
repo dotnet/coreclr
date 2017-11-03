@@ -1200,19 +1200,12 @@ namespace
             return 0;
         };
 
-        WCHAR threadName[MaxThreadNameSize];
-        LPWSTR wideName = nullptr;
-        if (MultiByteToWideChar(CP_ACP, 0, name, -1 /* null terminated */, threadName, MaxThreadNameSize))
-        {
-            // use the name given to us if the utf16 conversion was successful.
-            // if not, we're not obligated to give a name to a thread - we'll leave it
-            // as null.
-            wideName = threadName;
-        }
-
-        if (!args.Thread->CreateNewThread(0, threadStub, &args, wideName))
+        InlineSString<MaxThreadNameSize> wideName;
+        wideName.SetUTF8(name);
+        if (!args.Thread->CreateNewThread(0, threadStub, &args, wideName.GetUnicode()))
         {
             args.Thread->DecExternalCount(FALSE);
+            args.ThreadStartedEvent.CloseEvent();
             return false;
         }
 
@@ -1257,20 +1250,6 @@ namespace
 
             ClrFlsSetThreadType(ThreadType_GC);
             STRESS_LOG_RESERVE_MEM(GC_STRESSLOG_MULTIPLY);
-
-            // We commit the thread's entire stack to ensure we're robust in low memory conditions.
-            BOOL fSuccess = Thread::CommitThreadStack(NULL);
-            if (!fSuccess)
-            {
-#ifdef BACKGROUND_GC
-                // For background GC we revert to doing a blocking GC.
-                return;
-#else
-                STRESS_LOG0(LF_GC, LL_ALWAYS, "Thread::CommitThreadStack failed.");
-                _ASSERTE(!"Thread::CommitThreadStack failed.");
-                EEPOLICY_HANDLE_FATAL_ERROR(COR_E_STACKOVERFLOW);
-#endif //BACKGROUND_GC
-            }
 
             args->HasStarted = true;
             auto threadStart = args->ThreadStart;

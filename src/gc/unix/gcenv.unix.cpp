@@ -679,27 +679,6 @@ uint32_t GCToOSInterface::GetLowPrecisionTimeStamp()
     return retval;
 }
 
-// Parameters of the GC thread stub
-struct GCThreadStubParam
-{
-    GCThreadFunction GCThreadFunction;
-    void* GCThreadParam;
-};
-
-// GC thread stub to convert GC thread function to an OS specific thread function
-static void* GCThreadStub(void* param)
-{
-    GCThreadStubParam *stubParam = (GCThreadStubParam*)param;
-    GCThreadFunction function = stubParam->GCThreadFunction;
-    void* threadParam = stubParam->GCThreadParam;
-
-    delete stubParam;
-
-    function(threadParam);
-
-    return NULL;
-}
-
 // Gets the total number of processors on the machine, not taking
 // into account current process affinity.
 // Return:
