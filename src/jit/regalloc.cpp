@@ -4494,7 +4494,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
             /* initialize so we can just or in various bits */
             tree->gtUsedRegs = RBM_NONE;
 
-#if GTF_CALL_REG_SAVE
+#ifdef GTF_CALL_REG_SAVE
             /*
              *  Unless the GTF_CALL_REG_SAVE flag is set,
              *  we can't preserve the RBM_CALLEE_TRASH registers.
@@ -4511,7 +4511,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 lockedRegs &= ~trashMask;
             }
             else
-#endif
+#endif // GTF_CALL_REG_SAVE
             {
                 keepMask = lockedRegs & RBM_CALLEE_TRASH;
                 lockedRegs &= ~RBM_CALLEE_TRASH;
@@ -4979,9 +4979,9 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
             /* the return registers (if any) are killed */
             tree->gtUsedRegs |= regMask;
 
-#if GTF_CALL_REG_SAVE
+#ifdef GTF_CALL_REG_SAVE
             if (!(tree->gtFlags & GTF_CALL_REG_SAVE))
-#endif
+#endif // GTF_CALL_REG_SAVE
             {
                 /* the RBM_CALLEE_TRASH set are killed (i.e. EAX,ECX,EDX) */
                 tree->gtUsedRegs |= RBM_CALLEE_TRASH;

@@ -4723,14 +4723,14 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 #endif
 #endif
 
-#ifdef LEGACY_BACKEND
+#ifdef GTF_CALL_REG_SAVE
             // Normally function calls don't preserve caller save registers
             //   and thus are much more expensive.
             // However a few function calls do preserve these registers
             //   such as the GC WriteBarrier helper calls.
 
             if (!(tree->gtFlags & GTF_CALL_REG_SAVE))
-#endif // LEGACY_BACKEND
+#endif // GTF_CALL_REG_SAVE
             {
                 level += 5;
                 costEx += 3 * IND_COST_EX;

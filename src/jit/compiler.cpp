@@ -9761,12 +9761,12 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 {
                     chars += printf("[CALL_HOISTABLE]");
                 }
-#ifdef LEGACY_BACKEND
+#ifdef GTF_CALL_REG_SAVE
                 if (tree->gtFlags & GTF_CALL_REG_SAVE)
                 {
                     chars += printf("[CALL_REG_SAVE]");
                 }
-#endif // LEGACY_BACKEND
+#endif // GTF_CALL_REG_SAVE
 
                 // More flags associated with calls.
 
