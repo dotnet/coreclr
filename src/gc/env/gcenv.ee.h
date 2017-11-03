@@ -78,7 +78,7 @@ public:
     static bool GetStringConfigValue(const char* key, const char** value);
     static void FreeStringConfigValue(const char* key);
     static bool IsGCThread();
-    static bool CurrentThreadWasCreatedByGC();
+    static bool WasCurrentThreadCreatedByGC();
     static bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name);
 };
 

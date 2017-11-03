@@ -218,7 +218,7 @@ public:
     // Returns true if the current thread is either a background GC thread
     // or a server GC thread.
     virtual
-    bool CurrentThreadWasCreatedByGC() = 0;
+    bool WasCurrentThreadCreatedByGC() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

@@ -1740,7 +1740,7 @@ static BOOL try_enter_spin_lock(GCSpinLock *pSpinLock)
 inline
 static void leave_spin_lock(GCSpinLock *pSpinLock)
 {
-    bool gc_thread_p = GCToEEInterface::CurrentThreadWasCreatedByGC();
+    bool gc_thread_p = GCToEEInterface::WasCurrentThreadCreatedByGC();
 //    _ASSERTE((pSpinLock->holding_thread == GCToEEInterface::GetThread()) || gc_thread_p || pSpinLock->released_by_gc_p);
     pSpinLock->released_by_gc_p = gc_thread_p;
     pSpinLock->holding_thread = (Thread*) -1;
@@ -34013,7 +34013,7 @@ bool GCHeap::StressHeap(gc_alloc_context * context)
 
 #ifdef BACKGROUND_GC
         // don't trigger a GC from the GC threads but still trigger GCs from user threads.
-        if (GCToEEInterface::CurrentThreadWasCreatedByGC())
+        if (GCToEEInterface::WasCurrentThreadCreatedByGC())
         {
             return FALSE;
         }

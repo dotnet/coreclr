@@ -315,7 +315,7 @@ bool GCToEEInterface::IsGCThread()
     return false;
 }
 
-bool GCToEEInterface::CurrentThreadWasCreatedByGC()
+bool GCToEEInterface::WasCurrentThreadCreatedByGC()
 {
     return false;
 }
