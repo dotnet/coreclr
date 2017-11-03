@@ -12,6 +12,7 @@ class TestHelper
 	private int m_iRequestedEntries;
 	public ManualResetEvent m_Event;
 	public bool m_bError;
+    private Random m_rng = new Random(0);
 
 	public bool Error
 	{		
@@ -42,12 +43,12 @@ class TestHelper
 	public void DoWork()
 	{
 		int snapshot = m_iSharedData;
-		Thread.Sleep(5);
+        Delayer.Delay(Delayer.RandomShortDelay(m_rng));
 #if (DEBUG)
 		Console.WriteLine("Entering Monitor: " + m_iSharedData);
 #endif
 		m_iSharedData++;
-		Thread.Sleep(1);
+        Delayer.Delay(Delayer.RandomShortDelay(m_rng));
 		if(m_iSharedData != snapshot + 1)
 		{
 			Error = true;
@@ -86,4 +87,26 @@ class TestHelper
 			Monitor.Exit(monitor);
 		}
 	}
+
+    private static class Delayer
+    {
+        private static uint[] s_delayValues = new uint[32];
+
+        public static uint RandomShortDelay(Random rng) => (uint)rng.Next(4, 10);
+        public static uint RandomMediumDelay(Random rng) => (uint)rng.Next(10, 15);
+        public static uint RandomLongDelay(Random rng) => (uint)rng.Next(15, 20);
+
+        public static void Delay(uint n)
+        {
+            Thread.Sleep(0);
+            s_delayValues[16] += Fib(n);
+        }
+
+        private static uint Fib(uint n)
+        {
+            if (n <= 1)
+                return n;
+            return Fib(n - 2) + Fib(n - 1);
+        }
+    }
 }
