@@ -28,13 +28,13 @@ public:
     void SyncBlockCacheWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2);
     void SyncBlockCacheDemote(int max_gen);
     void SyncBlockCachePromotionsGranted(int max_gen);
-    bool IsPreemptiveGCDisabled(Thread * pThread);
-    void EnablePreemptiveGC(Thread * pThread);
-    void DisablePreemptiveGC(Thread * pThread);
+    bool IsPreemptiveGCDisabled();
+    void EnablePreemptiveGC();
+    void DisablePreemptiveGC();
     Thread* GetThread();
     bool TrapReturningThreads();
-    gc_alloc_context * GetAllocContext(Thread * pThread);
-    bool CatchAtSafePoint(Thread * pThread);
+    gc_alloc_context * GetAllocContext();
+    bool CatchAtSafePoint();
     void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
     Thread* CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg);
 
