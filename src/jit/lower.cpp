@@ -4014,7 +4014,10 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
 
         // fgMorphArgs will have created trees to pass the address in VirtualStubParam.reg.
         // All we have to do here is add an indirection to generate the actual call target.
-        if (call->gtCallAddr->gtOper != GT_IND) { // check if it hasn't been inderected during the morph phase
+
+        // check if it hasn't been inderected during the morph phase
+        if (call->gtCallAddr->gtOper != GT_IND)
+        {
             GenTree* ind = Ind(call->gtCallAddr);
             ind->gtFlags |= GTF_IND_REQ_ADDR_IN_REG;
 
