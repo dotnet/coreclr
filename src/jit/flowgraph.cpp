@@ -4333,6 +4333,18 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
         compInlineResult->NoteBool(InlineObservation::CALLEE_IS_FORCE_INLINE, isForceInline);
         compInlineResult->NoteInt(InlineObservation::CALLEE_IL_CODE_SIZE, codeSize);
 
+        // Determine if call site is within a try.
+        if (isInlining && impInlineInfo->iciBlock->hasTryIndex())
+        {
+            compInlineResult->Note(InlineObservation::CALLSITE_IN_TRY_REGION);
+        }
+
+        // Determine if the call site is in a loop.
+        if (isInlining && ((impInlineInfo->iciBlock->bbFlags & BBF_BACKWARD_JUMP) != 0))
+        {
+            compInlineResult->Note(InlineObservation::CALLSITE_IN_LOOP);
+        }
+
 #ifdef DEBUG
 
         // If inlining, this method should still be a candidate.
@@ -4807,8 +4819,6 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                 // the list of other opcodes (for all platforms).
 
                 __fallthrough;
-
-            case CEE_LOCALLOC:
             case CEE_MKREFANY:
             case CEE_RETHROW:
                 if (makeInlineObservations)
@@ -4821,6 +4831,19 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                     if (isInlining)
                     {
                         assert(compInlineResult->IsFailure());
+                        return;
+                    }
+                }
+                break;
+
+            case CEE_LOCALLOC:
+
+                // We now allow localloc callees to become candidates in some cases.
+                if (makeInlineObservations)
+                {
+                    compInlineResult->Note(InlineObservation::CALLEE_HAS_LOCALLOC);
+                    if (isInlining && compInlineResult->IsFailure())
+                    {
                         return;
                     }
                 }
@@ -4900,25 +4923,16 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
     {
         compInlineResult->Note(InlineObservation::CALLEE_END_OPCODE_SCAN);
 
-        if (!compInlineResult->UsesLegacyPolicy())
+        // If there are no return blocks we know it does not return, however if there
+        // return blocks we don't know it returns as it may be counting unreachable code.
+        // However we will still make the CALLEE_DOES_NOT_RETURN observation.
+
+        compInlineResult->NoteBool(InlineObservation::CALLEE_DOES_NOT_RETURN, retBlocks == 0);
+
+        if (retBlocks == 0 && isInlining)
         {
-            // If there are no return blocks we know it does not return, however if there
-            // return blocks we don't know it returns as it may be counting unreachable code.
-            // However we will still make the CALLEE_DOES_NOT_RETURN observation.
-
-            compInlineResult->NoteBool(InlineObservation::CALLEE_DOES_NOT_RETURN, retBlocks == 0);
-
-            if (retBlocks == 0 && isInlining)
-            {
-                // Mark the call node as "no return" as it can impact caller's code quality.
-                impInlineInfo->iciCall->gtCallMoreFlags |= GTF_CALL_M_DOES_NOT_RETURN;
-            }
-        }
-
-        // Determine if call site is within a try.
-        if (isInlining && impInlineInfo->iciBlock->hasTryIndex())
-        {
-            compInlineResult->Note(InlineObservation::CALLSITE_IN_TRY_REGION);
+            // Mark the call node as "no return" as it can impact caller's code quality.
+            impInlineInfo->iciCall->gtCallMoreFlags |= GTF_CALL_M_DOES_NOT_RETURN;
         }
 
         // If the inline is viable and discretionary, do the
@@ -5039,14 +5053,6 @@ void Compiler::fgObserveInlineConstants(OPCODE opcode, const FgStack& stack, boo
 
     // The stack only has to be 1 deep for BRTRUE/FALSE
     bool lookForBranchCases = stack.IsStackAtLeastOneDeep();
-
-    if (compInlineResult->UsesLegacyPolicy())
-    {
-        // LegacyPolicy misses cases where the stack is really one
-        // deep but the model says it's two deep. We need to do
-        // likewise to preseve old behavior.
-        lookForBranchCases &= !stack.IsStackTwoDeep();
-    }
 
     if (lookForBranchCases)
     {
@@ -5896,14 +5902,8 @@ void Compiler::fgFindBasicBlocks()
 #ifdef DEBUG
         // If fgFindJumpTargets marked the call as "no return" there
         // really should be no BBJ_RETURN blocks in the method.
-        //
-        // Note LegacyPolicy does not mark calls as no return, so if
-        // it's active, skip the check.
-        if (!compInlineResult->UsesLegacyPolicy())
-        {
-            bool markedNoReturn = (impInlineInfo->iciCall->gtCallMoreFlags & GTF_CALL_M_DOES_NOT_RETURN) != 0;
-            assert((markedNoReturn && (retBlocks == 0)) || (!markedNoReturn && (retBlocks >= 1)));
-        }
+        bool markedNoReturn = (impInlineInfo->iciCall->gtCallMoreFlags & GTF_CALL_M_DOES_NOT_RETURN) != 0;
+        assert((markedNoReturn && (retBlocks == 0)) || (!markedNoReturn && (retBlocks >= 1)));
 #endif // DEBUG
 
         if (compInlineResult->IsFailure())
@@ -7109,6 +7109,7 @@ GenTreeCall* Compiler::fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls)
 
 bool Compiler::fgAddrCouldBeNull(GenTreePtr addr)
 {
+    addr = addr->gtEffectiveVal();
     if ((addr->gtOper == GT_CNS_INT) && addr->IsIconHandle())
     {
         return false;
@@ -22958,6 +22959,7 @@ _Done:
     compLongUsed |= InlineeCompiler->compLongUsed;
     compFloatingPointUsed |= InlineeCompiler->compFloatingPointUsed;
     compLocallocUsed |= InlineeCompiler->compLocallocUsed;
+    compLocallocOptimized |= InlineeCompiler->compLocallocOptimized;
     compQmarkUsed |= InlineeCompiler->compQmarkUsed;
     compUnsafeCastUsed |= InlineeCompiler->compUnsafeCastUsed;
     compNeedsGSSecurityCookie |= InlineeCompiler->compNeedsGSSecurityCookie;

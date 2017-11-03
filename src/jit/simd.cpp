@@ -1364,8 +1364,14 @@ GenTreePtr Compiler::impSIMDSelect(
     GenTree* andExpr = gtNewSIMDNode(simdType, op2, tmp, SIMDIntrinsicBitwiseAnd, baseType, size);
     GenTree* dupOp1  = gtCloneExpr(tmp);
     assert(dupOp1 != nullptr);
+#ifdef _TARGET_ARM64_
+    // ARM64 implements SIMDIntrinsicBitwiseAndNot as Left & ~Right
+    GenTree* andNotExpr = gtNewSIMDNode(simdType, op3, dupOp1, SIMDIntrinsicBitwiseAndNot, baseType, size);
+#else
+    // XARCH implements SIMDIntrinsicBitwiseAndNot as ~Left & Right
     GenTree* andNotExpr = gtNewSIMDNode(simdType, dupOp1, op3, SIMDIntrinsicBitwiseAndNot, baseType, size);
-    GenTree* simdTree   = gtNewSIMDNode(simdType, andExpr, andNotExpr, SIMDIntrinsicBitwiseOr, baseType, size);
+#endif
+    GenTree* simdTree = gtNewSIMDNode(simdType, andExpr, andNotExpr, SIMDIntrinsicBitwiseOr, baseType, size);
 
     // If asg not null, create a GT_COMMA tree.
     if (asg != nullptr)
@@ -2533,7 +2539,7 @@ GenTreePtr Compiler::impSIMDIntrinsic(OPCODE                opcode,
             op2              = impSIMDPopStack(TYP_INT);
             op1              = impSIMDPopStack(simdType, instMethod);
             int vectorLength = getSIMDVectorLength(size, baseType);
-            if (!op2->IsCnsIntOrI() || op2->AsIntCon()->gtIconVal >= vectorLength)
+            if (!op2->IsCnsIntOrI() || op2->AsIntCon()->gtIconVal >= vectorLength || op2->AsIntCon()->gtIconVal < 0)
             {
                 // We need to bounds-check the length of the vector.
                 // For that purpose, we need to clone the index expression.
