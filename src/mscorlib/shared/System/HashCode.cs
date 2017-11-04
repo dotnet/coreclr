@@ -71,7 +71,6 @@ namespace System
             return result;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Combine<T1>(T1 value1)
         {
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
@@ -85,7 +84,6 @@ namespace System
             return (int)hash;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Combine<T1, T2>(T1 value1, T2 value2)
         {
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
@@ -101,7 +99,6 @@ namespace System
             return (int)hash;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Combine<T1, T2, T3>(T1 value1, T2 value2, T3 value3)
         {
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
@@ -119,7 +116,6 @@ namespace System
             return (int)hash;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Combine<T1, T2, T3, T4>(T1 value1, T2 value2, T3 value3, T4 value4)
         {
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
@@ -141,7 +137,6 @@ namespace System
             return (int)hash;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Combine<T1, T2, T3, T4, T5>(T1 value1, T2 value2, T3 value3, T4 value4, T5 value5)
         {
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
@@ -166,7 +161,6 @@ namespace System
             return (int)hash;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Combine<T1, T2, T3, T4, T5, T6>(T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6)
         {
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
@@ -193,7 +187,6 @@ namespace System
             return (int)hash;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Combine<T1, T2, T3, T4, T5, T6, T7>(T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7)
         {
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
@@ -222,7 +215,6 @@ namespace System
             return (int)hash;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Combine<T1, T2, T3, T4, T5, T6, T7, T8>(T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7, T8 value8)
         {
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
@@ -304,13 +296,11 @@ namespace System
             return hash;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add<T>(T value)
         {
             Add(value?.GetHashCode() ?? 0);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add<T>(T value, IEqualityComparer<T> comparer)
         {
             if (comparer is null)
@@ -321,7 +311,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Add(int value)
         {
-            // Note that x & 0x3 is like mod 3, but faster.
+            // Note that x & 0x3 is like mod 4, but faster.
 
             var val = (uint)value;
             uint position = _length & 0x3;
@@ -375,7 +365,6 @@ namespace System
             _length = checked(_length + 1);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int ToHashCode()
         {
             uint position = _length & 0x3;
