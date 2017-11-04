@@ -239,7 +239,9 @@ namespace System
                 return 0;
             }
 
-            if (IsNaN(d))
+#pragma warning disable 1718
+            if (d != d)
+#pragma warning restore
             {
                 // Ensure that all NaNs have the same hash code
                 d = double.NaN;
