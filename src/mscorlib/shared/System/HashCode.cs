@@ -73,6 +73,13 @@ namespace System
 
         public static int Combine<T1>(T1 value1)
         {
+            // Provide a way of diffusing bits from something with a 
+            // limited input hash space. For example, many enums only 
+            // have a few possible hashes, only using the bottom few bits 
+            // of the code. Some collections are built on the assumption that 
+            // hashes are spread over a larger space, so diffusing the bits
+            // may help the collection work more efficiently.
+
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
 
             uint hash = MixEmptyState();
@@ -254,7 +261,7 @@ namespace System
         {
             v1 = s_seed + Prime1 + Prime2;
             v2 = s_seed + Prime2;
-            v3 = s_seed + 0;
+            v3 = s_seed;
             v4 = s_seed - Prime1;
         }
 
@@ -304,18 +311,18 @@ namespace System
         public void Add<T>(T value, IEqualityComparer<T> comparer)
         {
             if (comparer is null)
-                comparer = EqualityComparer<T>.Default;
-            Add(comparer.GetHashCode(value));
+            {
+                Add(value);
+            }
+            else
+            {
+                Add(comparer.GetHashCode(value));
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Add(int value)
         {
-            // Note that x & 0x3 is like mod 4, but faster.
-
-            var val = (uint)value;
-            uint position = _length & 0x3;
-
             // xxHash works as follows:
             // 0. Initialize immediately. We can't do this in a struct (no default
             //    ctor).
@@ -340,6 +347,9 @@ namespace System
             // on exactly 3.
 
             // To see what's really going on here, have a look at the Combine methods.
+            
+            var val = (uint)value;
+            uint position = _length % 4;
 
             // Switch can't be inlined.
 
@@ -367,7 +377,7 @@ namespace System
 
         public int ToHashCode()
         {
-            uint position = _length & 0x3;
+            uint position = _length % 4;
 
             // If the length is less than 3, _v1 -> _v4 don't contain
             // anything yet. xxHash32 treats this differently.
@@ -416,7 +426,6 @@ namespace System
 
         [Obsolete("Use ToHashCode to retrieve the computed hash code.", error: true)]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        [MethodImpl(MethodImplOptions.NoInlining)]
         public override int GetHashCode() => throw new NotSupportedException();
 #       pragma warning restore 0809
 
