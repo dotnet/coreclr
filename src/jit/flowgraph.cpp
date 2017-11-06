@@ -3959,10 +3959,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         //  2) Add a GC_CALL node to Poll.
         GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
 #ifdef LEGACY_BACKEND
-#ifndef _TARGET_ARM_
-        // For more details see regalloc.cpp@4958, Compiler::rpPredictTreeRegUse
         call->gtFlags |= GTF_CALL_REG_SAVE;
-#endif // !_TARGET_ARM_
 #endif // LEGACY_BACKEND
         fgInsertStmtAtEnd(poll, call);
 
