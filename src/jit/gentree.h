@@ -932,11 +932,7 @@ public:
 #define GTF_CALL_POP_ARGS           0x04000000 // GT_CALL -- caller pop arguments?
 #define GTF_CALL_HOISTABLE          0x02000000 // GT_CALL -- call is hoistable
 #ifdef LEGACY_BACKEND
-#ifndef _TARGET_ARM_
-// Since trashable registers have to be preserved on PollGC helper we don't set this flag for ARM
-// For more details about processing this flag see Compiler::rpPredictTreeRegUse (regalloc.cpp)
 #define GTF_CALL_REG_SAVE           0x01000000 // GT_CALL -- This call preserves all integer regs
-#endif _TARGET_ARM_
 #endif // LEGACY_BACKEND
                                                // For additional flags for GT_CALL node see GTF_CALL_M_*
 

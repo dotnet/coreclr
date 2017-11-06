@@ -3877,9 +3877,9 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
     {
         createdPollBlocks = false;
         GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
-#ifdef GTF_CALL_REG_SAVE
+#ifdef LEGACY_BACKEND
         call->gtFlags |= GTF_CALL_REG_SAVE;
-#endif // GTF_CALL_REG_SAVE
+#endif // LEGACY_BACKEND
 
         // for BBJ_ALWAYS I don't need to insert it before the condition.  Just append it.
         if (block->bbJumpKind == BBJ_ALWAYS)
@@ -3958,9 +3958,13 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
 
         //  2) Add a GC_CALL node to Poll.
         GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
-#ifdef GTF_CALL_REG_SAVE
+#ifdef LEGACY_BACKEND
+#ifndef _TARGET_ARM_
+        // Since trashable registers have to be preserved on PollGC helper we don't set this flag for ARM
+        // For more details about processing this flag see Compiler::rpPredictTreeRegUse (regalloc.cpp)
         call->gtFlags |= GTF_CALL_REG_SAVE;
-#endif // GTF_CALL_REG_SAVE
+#endif // !_TARGET_ARM_
+#endif // LEGACY_BACKEND
         fgInsertStmtAtEnd(poll, call);
 
         //  3) Remove the last statement from Top and add it to Bottom.
