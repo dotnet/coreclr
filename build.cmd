@@ -28,7 +28,7 @@ set __ThisScriptDir="%~dp0"
 if defined VisualStudioVersion (
     if not defined __VSVersion echo %__MsgPrefix%Detected Visual Studio %VisualStudioVersion% developer command ^prompt environment
     goto :Run
-) 
+)
 
 echo %__MsgPrefix%Searching ^for Visual Studio 2017 or 2015 installation
 set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -362,6 +362,28 @@ for /f "tokens=*" %%s in ('%DotNetCli% msbuild "%OptDataProjectFilePath%" /t:Dum
 )
 for /f "tokens=*" %%s in ('%DotNetCli% msbuild "%OptDataProjectFilePath%" /t:DumpIbcDataPackageVersion /nologo') do @(
     set __IbcOptDataVersion=%%s
+)
+
+REM =========================================================================================
+REM ===
+REM === Generate source files for eventing
+REM ===
+REM =========================================================================================
+
+set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
+set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
+
+if %__BuildNative% EQU 1 if NOT defined __ConfigureOnly (
+
+    echo Laying out dynamically generated files consumed by the build system
+    echo Laying out dynamically generated Event test files and etmdummy stub functions
+    py -2 -B  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --testdir %__IntermediatesEventingDir%\eventprovider\tests --nonextern || exit /b 1
+
+    echo Laying out dynamically generated EventPipe Implementation
+    py -2 -B  %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
+
+    echo Laying out ETW event logging interface
+    py -2 -B  %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventprovider --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
 )
 
 REM =========================================================================================

@@ -11,6 +11,14 @@
 
 #ifdef FEATURE_PERFTRACING
 
+#ifndef PLATFORM_UNIX
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
+#endif //PLATFORM_UNIX
+
+// To avoid counting zeros in conversions
+#define MILLION * 1000000
+
 Volatile<BOOL> SampleProfiler::s_profilingEnabled = false;
 Thread* SampleProfiler::s_pSamplingThread = NULL;
 const WCHAR* SampleProfiler::s_providerName = W("Microsoft-DotNETCore-SampleProfiler");
@@ -19,7 +27,8 @@ EventPipeEvent* SampleProfiler::s_pThreadTimeEvent = NULL;
 BYTE* SampleProfiler::s_pPayloadExternal = NULL;
 BYTE* SampleProfiler::s_pPayloadManaged = NULL;
 CLREventStatic SampleProfiler::s_threadShutdownEvent;
-long SampleProfiler::s_samplingRateInNs = 1000000; // 1ms
+long SampleProfiler::s_samplingRateInNs = 1 MILLION; // 1ms
+bool SampleProfiler::s_timePeriodIsSet = FALSE;
 
 void SampleProfiler::Enable()
 {
@@ -66,6 +75,8 @@ void SampleProfiler::Enable()
     {
         _ASSERT(!"Unable to create sample profiler thread.");
     }
+
+    BeginTimePeriod();
 }
 
 void SampleProfiler::Disable()
@@ -95,12 +106,26 @@ void SampleProfiler::Disable()
 
     // Wait for the sampling thread to clean itself up.
     s_threadShutdownEvent.Wait(0, FALSE /* bAlertable */);
+
+    //HACK
 }
 
 void SampleProfiler::SetSamplingRate(long nanoseconds)
 {
     LIMITED_METHOD_CONTRACT;
+
+    // If the time period setting was modified by us,
+    // make sure to change it back before changing our period
+    // and losing track of what we set it to
+    if(s_timePeriodIsSet){
+        EndTimePeriod();
+    }
+
     s_samplingRateInNs = nanoseconds;
+
+    if(!s_timePeriodIsSet){
+        BeginTimePeriod();
+    }
 }
 
 DWORD WINAPI SampleProfiler::ThreadProc(void *args)
@@ -126,7 +151,7 @@ DWORD WINAPI SampleProfiler::ThreadProc(void *args)
             if(ThreadSuspend::SysIsSuspendInProgress() || (ThreadSuspend::GetSuspensionThread() != 0))
             {
                 // Skip the current sample.
-                PAL_nanosleep(s_samplingRateInNs);
+                PlatformSleep(s_samplingRateInNs);
                 continue;
             }
 
@@ -140,7 +165,7 @@ DWORD WINAPI SampleProfiler::ThreadProc(void *args)
             ThreadSuspend::RestartEE(FALSE /* bFinishedGC */, TRUE /* SuspendSucceeded */);
 
             // Wait until it's time to sample again.
-            PAL_nanosleep(s_samplingRateInNs);
+            PlatformSleep(s_samplingRateInNs);
         }
     }
 
@@ -193,6 +218,32 @@ void SampleProfiler::WalkManagedThreads()
         // Reset the GC mode.
         pTargetThread->ClearGCModeOnSuspension();
     }
+}
+
+void SampleProfiler::PlatformSleep(long nanoseconds){
+#ifdef FEATURE_PAL
+    PAL_nanosleep(nanoseconds);
+#else //FEATURE_PAL
+    ClrSleepEx(s_samplingRateInNs / 1 MILLION, FALSE);
+#endif //FEATURE_PAL
+}
+
+void SampleProfiler::BeginTimePeriod(){
+#ifndef PLATFORM_UNIX
+    // Attempt to set the systems minimum timer period to the sampling rate
+    // If the sampling rate is lower than the current system setting (16ms by default),
+    // this will cause the OS to wake more often for scheduling descsion, allowing us to take samples
+    // Note that is effects a system-wide setting and when set low will increase the amount of time
+    // the OS is on-CPU, decreasing overall system performance and increasing power consumption
+    if(timeBeginPeriod(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR) s_timePeriodIsSet = TRUE;
+#endif //PLATFORM_UNIX
+}
+
+void SampleProfiler::EndTimePeriod(){
+#ifndef PLATFORM_UNIX
+    // End the modifications we had to the timer period in Enable
+    if(timeEndPeriod(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR) s_timePeriodIsSet = FALSE;
+#endif //PLATFORM_UNIX
 }
 
 #endif // FEATURE_PERFTRACING

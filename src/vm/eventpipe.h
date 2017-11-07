@@ -6,8 +6,10 @@
 #define __EVENTPIPE_H__
 
 #ifdef FEATURE_PERFTRACING
+#include "common.h"
 
 class CrstStatic;
+class CrawlFrame;
 class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeFile;
@@ -58,7 +60,7 @@ public:
 
     // If a buffer was allocated internally, delete it
     ~EventPipeEventPayload();
-    
+
     // Copy the data (whether flat or array of objects) into a flat buffer at pDst
     // Assumes that pDst points to an appropriatly sized buffer
     void CopyData(BYTE *pDst);
@@ -259,7 +261,7 @@ class EventPipe
 
         // Write out a sample profile event.
         static void WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData = NULL, unsigned int length = 0);
-        
+
         // Get the managed call stack for the current thread.
         static bool WalkManagedStackForCurrentThread(StackContents &stackContents);
 

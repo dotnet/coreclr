@@ -1,4 +1,5 @@
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${GENERATED_INCLUDE_DIR}/etw)
 
 if(WIN32)
     # remove /ltcg from resource-only libraries
@@ -9,7 +10,7 @@ if(WIN32)
 
     # remove /guard:cf from resource-only libraries
     string(REPLACE "/guard:cf" "" CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
-    
+
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NOENTRY")
 endif(WIN32)
 

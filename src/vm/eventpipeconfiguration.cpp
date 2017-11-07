@@ -271,7 +271,7 @@ size_t EventPipeConfiguration::GetCircularBufferSize() const
 void EventPipeConfiguration::SetCircularBufferSize(size_t circularBufferSize)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     if(!m_enabled)
     {
         m_circularBufferSizeInBytes = circularBufferSize;
@@ -525,7 +525,7 @@ EventPipeEnabledProviderList::EventPipeEnabledProviderList(
     }
 
     m_pProviders = new EventPipeEnabledProvider[m_numProviders];
-    for(int i=0; i<m_numProviders; i++)
+    for(unsigned int i=0; i<m_numProviders; i++)
     {
         m_pProviders[i].Set(
             pConfigs[i].GetProviderName(),
@@ -582,7 +582,7 @@ EventPipeEnabledProvider* EventPipeEnabledProviderList::GetEnabledProvider(
     LPCWSTR providerName = providerNameStr.GetUnicode();
 
     EventPipeEnabledProvider *pEnabledProvider = NULL;
-    for(int i=0; i<m_numProviders; i++)
+    for(unsigned int i=0; i<m_numProviders; i++)
     {
         EventPipeEnabledProvider *pCandidate = &m_pProviders[i];
         if(pCandidate != NULL)
@@ -640,7 +640,7 @@ void EventPipeEnabledProvider::Set(LPCWSTR providerName, UINT64 keywords, EventP
 
     if(providerName != NULL)
     {
-        unsigned int bufSize = wcslen(providerName) + 1;
+        size_t bufSize = wcslen(providerName) + 1;
         m_pProviderName = new WCHAR[bufSize];
         wcscpy_s(m_pProviderName, bufSize, providerName);
     }

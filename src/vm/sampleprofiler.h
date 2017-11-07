@@ -43,6 +43,22 @@ class SampleProfiler
         // Profiling thread proc.  Invoked on a new thread when profiling is enabled.
         static DWORD WINAPI ThreadProc(void *args);
 
+        // Calls either PAL_nanosleep or ClrSleepEx depending on platform
+        // Note: Although we specify the time in ns, that is no indication
+        // of the actually accuracy with whihc we will return from sleep
+        // In reality Unix will have a minimum granularity of ~10ms
+        // and Windows has a default granularity of ~16ms, but can be
+        // adjusted to as low as ~1ms
+        // Even this however is not gaurenteed. If the system is under load
+        // the sampling thread may be delayed up to hundreds of ms due to
+        // scheduling priority. There is no way to prevent this from user threads
+        // Additionally we may get lucky and there will be an open CPU to run
+        // and under light load the timings will achieve great accuracy!
+        static void PlatformSleep(long nanoseconds);
+
+        static void BeginTimePeriod();
+        static void EndTimePeriod();
+
         // True when profiling is enabled.
         static Volatile<BOOL> s_profilingEnabled;
 
@@ -66,6 +82,9 @@ class SampleProfiler
 
         // The sampling rate.
         static long s_samplingRateInNs;
+
+        // Whether or not timeBeginPeriod has been used to set the scheduler period
+        static bool s_timePeriodIsSet;
 };
 
 #endif // FEATURE_PERFTRACING

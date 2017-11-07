@@ -2,9 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#include "common.h"
 #include "clrtypes.h"
 #include "safemath.h"
-#include "common.h"
 #include "eventpipe.h"
 #include "eventpipebuffermanager.h"
 #include "eventpipeconfiguration.h"
@@ -537,7 +537,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
             {
                 s_pSyncFile->WriteEvent(instance);
             }
- 
+
             // Write to the EventPipeJsonFile if it exists.
             if(s_pJsonFile != NULL)
             {
