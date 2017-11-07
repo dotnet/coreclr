@@ -3809,6 +3809,11 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
     allowStructs = varTypeIsStruct(varDsc);
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
+#if defined(FEATURE_SIMD) && defined(_TARGET_ARM64_)
+    allowStructs = (varTypeIsSIMD(varDsc) && varTypeIsStruct(tree->gtType)) ||
+                   (varTypeIsStruct(varDsc) && varTypeIsSIMD(tree->gtType));
+#endif
+
     /* Variables must be used as the same type throughout the method */
     noway_assert(tiVerificationNeeded || varDsc->lvType == TYP_UNDEF || tree->gtType == TYP_UNKNOWN || allowStructs ||
                  genActualType(varDsc->TypeGet()) == genActualType(tree->gtType) ||

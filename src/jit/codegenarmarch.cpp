@@ -3626,9 +3626,9 @@ void CodeGen::genStructReturn(GenTreePtr treeNode)
         LclVarDsc*           varDsc  = &(compiler->lvaTable[lclVar->gtLclNum]);
         var_types            lclType = genActualType(varDsc->TypeGet());
 
-        // Currently only multireg TYP_STRUCT types such as HFA's(ARM32, ARM64) and 16-byte structs(ARM64) are supported
-        // In the future we could have FEATURE_SIMD types like TYP_SIMD16
-        assert(lclType == TYP_STRUCT);
+        // Currently only multireg TYP_STRUCT types such as HFA's(ARM32, ARM64), 16-byte structs(ARM64),
+        // and FEATURE_SIMD types like TYP_SIMD16 are supported
+        assert(varTypeIsSIMD(lclType) || varTypeIsStruct(lclType));
         assert(varDsc->lvIsMultiRegRet);
 
         ReturnTypeDesc retTypeDesc;
