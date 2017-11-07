@@ -316,11 +316,11 @@ rem ****************************************************************************
 rem ****************************************************************************
 rem   Sets the script's output log file.
 rem ****************************************************************************
-  if NOT EXIST "%CORECLR_REPO%\bin\Logs" (
-    call :print_error Cannot find the Logs folder '%CORECLR_REPO%\bin\Logs'.
+  if NOT EXIST "%LV_SANDBOX_OUTPUT_DIR%" (
+    call :print_error Cannot find the Logs folder "%LV_SANDBOX_OUTPUT_DIR%".
     exit /b 1
   )
-  set RUNLOG=%CORECLR_REPO%\bin\Logs\perfrun.log
+  set "RUNLOG=%LV_SANDBOX_OUTPUT_DIR%\perfrun.log"
   exit /b 0
 
 :setup_sandbox
