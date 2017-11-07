@@ -1285,9 +1285,6 @@ namespace
             return false;
         }
 
-        // the thread starts suspended - kick it off.
-        ResumeThread(args.Thread);
-
         // Wait for the thread to be in its main loop
         uint32_t res = args.ThreadStartedEvent.Wait(INFINITE, FALSE);
         args.ThreadStartedEvent.CloseEvent();
