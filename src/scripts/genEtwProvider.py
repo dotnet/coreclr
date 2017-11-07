@@ -18,6 +18,7 @@ from utilities import open_for_update
 
 macroheader_filename = "etwmacros.h"
 mcheader_filename = "ClrEtwAll.h"
+clrxplat_filename = "clrxplatevents.h"
 etw_dirname = "etw"
 replacements = [
     (r"EventEnabled", "EventXplatEnabled"),
@@ -66,30 +67,41 @@ def genProviderInterface(manifest, intermediate):
     with open_for_update(path.join(provider_dirname, mcheader_filename)) as mcheader_file:
         mcheader_file.write(header_text)
 
-def genCmake(manifest, intermediate):
+def genCmake(intermediate):
     # Top level Cmake
-    tree = DOM.parse(manifest)
 
     with open_for_update(os.path.join(intermediate, "CMakeLists.txt")) as cmake_file:
         cmake_file.write(stdprolog_cmake)
         cmake_file.write("""
-cmake_minimum_required(VERSION 2.8.12.2)
-
 project(eventprovider)
+
+cmake_minimum_required(VERSION 2.8.12.2)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories({0})
 
-add_library(eventprovider
+add_library_clr(eventprovider
     STATIC
-    {1}
-    {2}
+    "{0}/{1}"
+    "{0}/{2}"
 )
 
-# Install the static eventprovider library
-install(TARGETS eventprovider DESTINATION lib)
+#set_target_properties(eventprovider PROPERTIES LINKER_LANGUAGE Hxx)
+""".format(etw_dirname, macroheader_filename, "ClrEtwAll.cpp"))
+
+def genXplatHeader(intermediate):
+    with open_for_update(path.join(intermediate, clrxplat_filename)) as header_file:
+        header_file.write("""
+#ifndef _CLR_XPLAT_EVENTS_H_
+#define _CLR_XPLAT_EVENTS_H_
+
+#include "{0}/{1}"
+#include "{0}/{2}"
+
+#endif //_CLR_XPLAT_EVENTS_H_
 """.format(etw_dirname, macroheader_filename, mcheader_filename))
+
 
 class EventExclusions:
     def __init__(self):
@@ -269,7 +281,7 @@ def genFiles(manifest, intermediate, exclusion_filename):
 
     genProviderInterface(manifest, intermediate)
     genEtwMacroHeader(manifest, exclusion_filename, intermediate)
-    genCmake(manifest, intermediate)
+    genXplatHeader(intermediate)
 
 
 def main(argv):

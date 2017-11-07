@@ -383,7 +383,7 @@ if %__BuildNative% EQU 1 if NOT defined __ConfigureOnly (
     py -2 -B  %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
 
     echo Laying out ETW event logging interface
-    py -2 -B  %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventprovider --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
+    py -2 -B  %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
 )
 
 REM =========================================================================================

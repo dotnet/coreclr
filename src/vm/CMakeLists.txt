@@ -522,9 +522,5 @@ add_subdirectory(dac)
 add_subdirectory(wks)
 
 if(FEATURE_PERFTRACING)
-    add_subdirectory($ENV{__IntermediatesDir}/eventing/eventpipe ${CMAKE_CURRENT_BINARY_DIR}/eventpipe)
-    if(CLR_CMAKE_PLATFORM_UNIX)
-        add_subdirectory($ENV{__IntermediatesDir}/eventing/eventprovider/tests ${CMAKE_CURRENT_BINARY_DIR}/eventprovider )
-    endif(CLR_CMAKE_PLATFORM_UNIX)
+    add_subdirectory(${GENERATED_EVENTING_DIR}/eventpipe ${CMAKE_CURRENT_BINARY_DIR}/eventpipe)
 endif(FEATURE_PERFTRACING)
-

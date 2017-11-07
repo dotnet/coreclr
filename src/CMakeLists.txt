@@ -10,6 +10,11 @@ include_directories("classlibnative/cryptography")
 include_directories("classlibnative/inc")
 include_directories("${GENERATED_INCLUDE_DIR}")
 
+if(NOT CLR_CMAKE_PLATFORM_UNIX)
+  include_directories("${GENERATED_INCLUDE_DIR}/etw")
+endif(NOT CLR_CMAKE_PLATFORM_UNIX)
+
+
 if(CLR_CMAKE_PLATFORM_UNIX)
   if(CLR_CMAKE_PLATFORM_LINUX)
     if(CLR_CMAKE_PLATFORM_UNIX_AMD64 OR CLR_CMAKE_PLATFORM_UNIX_ARM)

@@ -127,11 +127,18 @@ else()
     )
 endif(WIN32)
 
-if(FEATURE_EVENT_TRACE)
+if(FEATURE_PERFTRACING)
     list(APPEND CORECLR_LIBRARIES
-        eventprovider
         eventpipe
     )
+endif(FEATURE_PERFTRACING)
+
+if(FEATURE_EVENT_TRACE)
+    if(CLR_CMAKE_PLATFORM_UNIX)
+        list(APPEND CORECLR_LIBRARIES
+            eventprovider # On Windows this library contains only macros
+        )
+    endif(CLR_CMAKE_PLATFORM_UNIX)
     if(CLR_CMAKE_PLATFORM_LINUX)
         list(APPEND CORECLR_LIBRARIES
             tracepointprovider

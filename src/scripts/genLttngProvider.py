@@ -357,8 +357,8 @@ def generateMethodBody(template, providerName, eventName):
         header = """
     char stackBuffer[%s];
     char *buffer = stackBuffer;
-    int offset = 0;
-    int size = %s;
+    size_t offset = 0;
+    size_t size = %s;
     bool fixedBuffer = true;
 
     bool success = true;
@@ -572,72 +572,74 @@ def generateLttngFiles(etwmanifest,eventprovider_directory):
 
 #define wcslen PAL_wcslen
 
-bool ResizeBuffer(char *&buffer, int& size, int currLen, int newSize, bool &fixedBuffer)
+bool ResizeBuffer(char *&buffer, size_t& size, size_t currLen, size_t newSize, bool &fixedBuffer)
 {
-	newSize *= 1.5;
-	_ASSERTE(newSize > size); // check for overflow
+    newSize = (size_t)(newSize * 1.5);
+    _ASSERTE(newSize > size); // check for overflow
 
     if (newSize < 32)
         newSize = 32;
 
-	char *newBuffer = new char[newSize];
+    char *newBuffer = new char[newSize];
 
-	memcpy(newBuffer, buffer, currLen);
+    memcpy(newBuffer, buffer, currLen);
 
-	if (!fixedBuffer)
-		delete[] buffer;
+    if (!fixedBuffer)
+        delete[] buffer;
 
-	buffer = newBuffer;
-	size = newSize;
-	fixedBuffer = false;
+    buffer = newBuffer;
+    size = newSize;
+    fixedBuffer = false;
 
-	return true;
+    return true;
 }
 
-bool WriteToBuffer(const BYTE *src, int len, char *&buffer, int& offset, int& size, bool &fixedBuffer)
+bool WriteToBuffer(const BYTE *src, size_t len, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer)
 {
-    if (!src) return true;
-	if (offset + len > size)
-	{
-		if (!ResizeBuffer(buffer, size, offset, size + len, fixedBuffer))
-			return false;
-	}
+    if(!src) return true;
+    if (offset + len > size)
+    {
+        if (!ResizeBuffer(buffer, size, offset, size + len, fixedBuffer))
+            return false;
+    }
 
-	memcpy(buffer + offset, src, len);
-	offset += len;
-	return true;
+    memcpy(buffer + offset, src, len);
+    offset += len;
+    return true;
 }
 
-bool WriteToBuffer(PCWSTR str, char *&buffer, int& offset, int& size, bool &fixedBuffer)
+bool WriteToBuffer(PCWSTR str, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer)
 {
-    if (!str) return true;
-	int byteCount = (wcslen(str) + 1) * sizeof(*str);
+    if(!str) return true;
+    size_t byteCount = (wcslen(str) + 1) * sizeof(*str);
 
-	if (offset + byteCount > size)
-	{
-		if (!ResizeBuffer(buffer, size, offset, size + byteCount, fixedBuffer))
-			return false;
-	}
+    if (offset + byteCount > size)
+    {
+        if (!ResizeBuffer(buffer, size, offset, size + byteCount, fixedBuffer))
+            return false;
+    }
 
-	memcpy(buffer + offset, str, byteCount);
-	offset += byteCount;
-	return true;
+    memcpy(buffer + offset, str, byteCount);
+    offset += byteCount;
+    return true;
 }
 
-bool WriteToBuffer(const char *str, char *&buffer, int& offset, int& size, bool &fixedBuffer)
+bool WriteToBuffer(const char *str, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer)
 {
-    if (!str) return true;
-	int len = strlen(str) + 1;
-	if (offset + len > size)
-	{
-		if (!ResizeBuffer(buffer, size, offset, size + len, fixedBuffer))
-			return false;
-	}
+    if(!str) return true;
+    size_t len = strlen(str) + 1;
+    if (offset + len > size)
+    {
+        if (!ResizeBuffer(buffer, size, offset, size + len, fixedBuffer))
+            return false;
+    }
 
-	memcpy(buffer + offset, str, len);
-	offset += len;
-	return true;
-}""")
+    memcpy(buffer + offset, str, len);
+    offset += len;
+    return true;
+}
+
+""")
 
 # Generate Lttng specific instrumentation
     for providerNode in tree.getElementsByTagName('provider'):
@@ -708,13 +710,13 @@ bool WriteToBuffer(const char *str, char *&buffer, int& offset, int& size, bool 
 
 #define wcslen PAL_wcslen
 
-bool ResizeBuffer(char *&buffer, int& size, int currLen, int newSize, bool &fixedBuffer);
-bool WriteToBuffer(PCWSTR str, char *&buffer, int& offset, int& size, bool &fixedBuffer);
-bool WriteToBuffer(const char *str, char *&buffer, int& offset, int& size, bool &fixedBuffer);
-bool WriteToBuffer(const BYTE *src, int len, char *&buffer, int& offset, int& size, bool &fixedBuffer);
+bool ResizeBuffer(char *&buffer, size_t& size, size_t currLen, size_t newSize, bool &fixedBuffer);
+bool WriteToBuffer(PCWSTR str, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer);
+bool WriteToBuffer(const char *str, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer);
+bool WriteToBuffer(const BYTE *src, size_t len, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer);
 
 template <typename T>
-bool WriteToBuffer(const T &value, char *&buffer, int& offset, int& size, bool &fixedBuffer)
+bool WriteToBuffer(const T &value, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer)
 {
     if (sizeof(T) + offset > size)
     {

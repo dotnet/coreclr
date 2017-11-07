@@ -414,7 +414,7 @@ def generateClrXplatEvents(eventNodes, allTemplates, extern):
 
     return ''.join(clrallEvents)
 
-def generateClrEventPipeWriteEvents(eventNodes, allTemplates):
+def generateClrEventPipeWriteEvents(eventNodes, allTemplates, extern):
     clrallEvents = []
     for eventNode in eventNodes:
         eventName    = eventNode.getAttribute('symbol')
@@ -425,11 +425,13 @@ def generateClrEventPipeWriteEvents(eventNodes, allTemplates):
         writeevent   = []
         fnptypeline  = []
 
-        eventenabled.append("extern \"C\" bool EventPipeEventEnabled")
+        if extern:eventenabled.append('extern "C" ')
+        eventenabled.append("BOOL EventPipeEventEnabled")
         eventenabled.append(eventName)
         eventenabled.append("();\n")
 
-        writeevent.append("extern \"C\" ULONG EventPipeWriteEvent")
+        if extern: writeevent.append('extern "C" ')
+        writeevent.append("ULONG EventPipeWriteEvent")
         writeevent.append(eventName)
         writeevent.append("(\n")
 
@@ -778,7 +780,7 @@ def generatePlatformIndependentFiles(sClrEtwAllMan, incDir, etmDummyFile, extern
                 Clrxplatevents.write(generateClrXplatEvents(eventNodes, allTemplates, extern) + "\n")
 
                 #eventpipe: create clreventpipewriteevents.h
-                Clreventpipewriteevents.write(generateClrEventPipeWriteEvents(eventNodes, allTemplates) + "\n")
+                Clreventpipewriteevents.write(generateClrEventPipeWriteEvents(eventNodes, allTemplates, extern) + "\n")
 
 import argparse
 import sys

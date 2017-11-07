@@ -121,9 +121,9 @@ def generateDummyFiles(etwmanifest, out_dirname, extern):
     # Cmake
     with open_for_update(os.path.join(out_dirname, "CMakeLists.txt")) as cmake:
         cmake.write(stdprolog_cmake + "\n")
-        cmake.write("""cmake_minimum_required(VERSION 2.8.12.2)
-
-project(eventprovider)
+        cmake.write("\ncmake_minimum_required(VERSION 2.8.12.2)\n")
+        if extern: cmake.write("\nproject(eventprovider)\n")
+        cmake.write("""
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -133,9 +133,11 @@ if(FEATURE_PAL)
 endif(FEATURE_PAL)
 include_directories(dummy)
 
-add_library(eventprovider
-    STATIC
 """)
+        if extern: cmake_file.write("add_library")
+        else: cmake_file.write("add_library_clr")
+        cmake_file.write("""(eventpipe
+    STATIC\n""")
 
         for providerNode in tree.getElementsByTagName('provider'):
             providerName = trimProvName(providerNode.getAttribute('name'))
@@ -143,7 +145,8 @@ add_library(eventprovider
 
             cmake.write('        "%s%s.cpp"\n' % (dummyevntprovPre, providerName_File))
 
-        cmake.write(""")
+        cmake.write(")")
+        if extern: cmake.write("""
 
 # Install the static eventprovider library
 install(TARGETS eventprovider DESTINATION lib)
