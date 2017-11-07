@@ -97,7 +97,6 @@ setlocal
   set CORE_ROOT=%LV_SANDBOX_DIR%
   set LV_RUNID=Perf-%ETW_COLLECTION%
 
-  set "LV_BENCHMARK_OUTPUT_DIR="
   if defined IS_SCENARIO_TEST (
     set "LV_BENCHMARK_OUTPUT_DIR=%LV_SANDBOX_OUTPUT_DIR%\Scenarios"
   ) else (
