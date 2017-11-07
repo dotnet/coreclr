@@ -9811,7 +9811,12 @@ void CodeGen::genFnEpilog(BasicBlock* block)
             // Call target = REG_FASTTAILCALL_TARGET
             // https://github.com/dotnet/coreclr/issues/4827
             // Do we need a special encoding for stack walker like rex.w prefix for x64?
+            CLANG_FORMAT_COMMENT_ANCHOR;
+#ifdef _TARGET_ARM_
+            getEmitter()->emitIns_R(INS_bx, emitTypeSize(TYP_I_IMPL), REG_FASTTAILCALL_TARGET);
+#else
             getEmitter()->emitIns_R(INS_br, emitTypeSize(TYP_I_IMPL), REG_FASTTAILCALL_TARGET);
+#endif
         }
 #endif // FEATURE_FASTTAILCALL
     }

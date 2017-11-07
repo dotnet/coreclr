@@ -7426,6 +7426,19 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         ++nCalleeArgs;
         assert(args->OperIsList());
         GenTree* argx = args->gtOp.gtOp1;
+#ifdef _TARGET_ARM_
+        unsigned argAlign = 1;
+        codeGen->InferOpSizeAlign(argx, &argAlign);
+
+        argAlign = roundUp(argAlign, TARGET_POINTER_SIZE) / TARGET_POINTER_SIZE;
+
+        // We don't care float register because we will not use fast tailcall
+        // for callee method using float register
+        if (calleeArgRegCount % argAlign != 0)
+        {
+            calleeArgRegCount++;
+        }
+#endif
 
         if (varTypeIsStruct(argx))
         {
@@ -7448,8 +7461,9 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
             }
             if (objClass != nullptr)
             {
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARMARCH_)
 
+#ifndef _TARGET_ARM_
                 // hasMultiByteStackArgs will determine if the struct can be passed
                 // in registers. If it cannot we will break the loop and not
                 // fastTailCall. This is an implementation limitation
@@ -7458,6 +7472,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
                 unsigned typeSize     = 0;
                 hasMultiByteStackArgs = hasMultiByteStackArgs ||
                                         !VarTypeIsMultiByteAndCanEnreg(argx->TypeGet(), objClass, &typeSize, false);
+#endif // !_TARGET_ARM_
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
                 SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
@@ -7524,6 +7539,38 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
                     calleeArgRegCount += size;
                 }
 
+#elif defined(_TARGET_ARM_) // ARM
+                var_types hfaType  = GetHfaType(argx);
+                bool      isHfaArg = varTypeIsFloating(hfaType);
+                size_t    size     = 1;
+
+                if (isHfaArg)
+                {
+                    reportFastTailCallDecision("Callee uses float register arguments.", 0, 0);
+                    return false;
+                }
+                else
+                {
+                    size = (unsigned)(roundUp(info.compCompHnd->getClassSize(objClass), TARGET_POINTER_SIZE)) /
+                           TARGET_POINTER_SIZE;
+                    // We cannot handle split struct yet
+                    // TODO: Fix to calculate exact count
+                    if ((calleeArgRegCount < MAX_REG_ARG) && (size + calleeArgRegCount > MAX_REG_ARG))
+                    {
+                        reportFastTailCallDecision("Callee uses split struct argument.", 0, 0);
+                        return false;
+                    }
+
+                    if (size > 1)
+                    {
+                        hasTwoSlotSizedStruct = true;
+                        if (calleeArgRegCount >= MAX_REG_ARG)
+                        {
+                            hasMultiByteStackArgs = true;
+                        }
+                    }
+                    calleeArgRegCount += size;
+                }
 #elif defined(WINDOWS_AMD64_ABI)
 
                 ++calleeArgRegCount;
@@ -7533,7 +7580,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 #else
                 assert(!"Target platform ABI rules regarding passing struct type args in registers");
                 unreached();
-#endif //_TARGET_AMD64_ || _TARGET_ARM64_
+#endif //_TARGET_AMD64_ || _TARGET_ARMARCH_
             }
             else
             {
@@ -7542,7 +7589,17 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         }
         else
         {
+#ifdef _TARGET_ARM_
+            if (varTypeIsFloating(argx))
+            {
+                return false;
+            }
+            unsigned size = genTypeStSz(argx->gtType);
+
+            varTypeIsFloating(argx) ? calleeFloatArgRegCount += size : calleeArgRegCount += size;
+#else  // !_TARGET_ARM_
             varTypeIsFloating(argx) ? ++calleeFloatArgRegCount : ++calleeArgRegCount;
+#endif // !_TARGET_ARM_
         }
 
         // We can break early on multiByte cases.
@@ -7594,14 +7651,14 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         return false;
     }
 
-#elif (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI)) || defined(_TARGET_ARM64_)
+#elif (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI)) || defined(_TARGET_ARMARCH_)
 
     // For *nix Amd64 and Arm64 check to see if all arguments for the callee
     // and caller are passing in registers. If not, ensure that the outgoing argument stack size
     // requirement for the callee is less than or equal to the caller's entire stack frame usage.
     //
     // Also, in the case that we have to pass arguments on the stack make sure
-    // that we are not dealing with structs that are >8 bytes.
+    // that we are not dealing with structs that are >8 bytes. (except ARM32)
 
     bool   hasStackArgs    = false;
     size_t maxFloatRegArgs = MAX_FLOAT_REG_ARG;

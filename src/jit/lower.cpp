@@ -1026,7 +1026,6 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
     if (info->isSplit)
     {
         assert(arg->OperGet() == GT_OBJ || arg->OperGet() == GT_FIELD_LIST);
-        // TODO: Need to check correctness for FastTailCall
         if (call->IsFastTailCall())
         {
             NYI_ARM("lower: struct argument by fast tail call");

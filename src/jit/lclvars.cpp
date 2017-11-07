@@ -948,6 +948,12 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #endif // _TARGET_XXX_
 
 #if FEATURE_FASTTAILCALL
+#ifdef _TARGET_ARM_
+            if ((varDscInfo->stackArgSize / TARGET_POINTER_SIZE) % cAlign != 0)
+            {
+                varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
+            }
+#endif
             varDscInfo->stackArgSize += (unsigned)roundUp(argSize, TARGET_POINTER_SIZE);
 #endif // FEATURE_FASTTAILCALL
         }
@@ -3571,7 +3577,7 @@ var_types LclVarDsc::lvaArgType()
         }
     }
 #endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
-#elif defined(_TARGET_ARM64_)
+#elif defined(_TARGET_ARMARCH_)
     if (type == TYP_STRUCT)
     {
         NYI("lvaArgType");
