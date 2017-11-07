@@ -6708,7 +6708,7 @@ bool Compiler::impTailCallRetTypeCompatible(var_types            callerRetType,
         return true;
     }
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARMARCH_)
     // Jit64 compat:
     if (callerRetType == TYP_VOID)
     {
@@ -6738,7 +6738,7 @@ bool Compiler::impTailCallRetTypeCompatible(var_types            callerRetType,
     {
         return (varTypeIsIntegral(calleeRetType) || isCalleeRetTypMBEnreg) && (callerRetTypeSize == calleeRetTypeSize);
     }
-#endif // _TARGET_AMD64_ || _TARGET_ARM64_
+#endif // _TARGET_AMD64_ || _TARGET_ARMARCH_
 
     return false;
 }
