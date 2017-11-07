@@ -933,8 +933,9 @@ public:
 #define GTF_CALL_HOISTABLE          0x02000000 // GT_CALL -- call is hoistable
 #ifdef LEGACY_BACKEND
 #ifdef _TARGET_ARM_
-// Since trashable registers have to be preserved on PollGC helper we don't set this flag for ARM
-// For more details about processing this flag see Compiler::rpPredictTreeRegUse (regalloc.cpp)
+// The GTF_CALL_REG_SAVE flag indicates that the call preserves all integer registers. This is used for
+// the PollGC helper. However, since the PollGC helper on ARM follows the standard calling convention,
+// for that target we don't use this flag.
 #define GTF_CALL_REG_SAVE           0x00000000
 #else
 #define GTF_CALL_REG_SAVE           0x01000000 // GT_CALL -- This call preserves all integer regs
