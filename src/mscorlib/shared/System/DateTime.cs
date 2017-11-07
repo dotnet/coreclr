@@ -113,7 +113,7 @@ namespace System
 
         public static readonly DateTime MinValue = new DateTime(MinTicks, DateTimeKind.Unspecified);
         public static readonly DateTime MaxValue = new DateTime(MaxTicks, DateTimeKind.Unspecified);
-        public static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public static readonly DateTime UnixEpoch = new DateTime(TicksTo1970, DateTimeKind.Utc);
 
         private const UInt64 TicksMask = 0x3FFFFFFFFFFFFFFF;
         private const UInt64 FlagsMask = 0xC000000000000000;
