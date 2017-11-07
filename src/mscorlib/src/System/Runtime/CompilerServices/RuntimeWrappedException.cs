@@ -24,16 +24,16 @@ namespace System.Runtime.CompilerServices
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed class RuntimeWrappedException : Exception
     {
-        private Object _wrappedException; // EE expects this name
+        private object _wrappedException; // EE expects this name
 
-        private RuntimeWrappedException(Object thrownObject)
+        public RuntimeWrappedException(object thrownObject)
             : base(SR.RuntimeWrappedException)
         {
             HResult = System.__HResults.COR_E_RUNTIMEWRAPPED;
             _wrappedException = thrownObject;
         }
 
-        internal RuntimeWrappedException(SerializationInfo info, StreamingContext context)
+        private RuntimeWrappedException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
             _wrappedException = info.GetValue("WrappedException", typeof(object));
@@ -41,11 +41,6 @@ namespace System.Runtime.CompilerServices
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null)
-            {
-                throw new ArgumentNullException(nameof(info));
-            }
-            Contract.EndContractBlock();
             base.GetObjectData(info, context);
             info.AddValue("WrappedException", _wrappedException, typeof(object));
         }
