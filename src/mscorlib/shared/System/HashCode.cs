@@ -73,7 +73,7 @@ namespace System
 
         public static int Combine<T1>(T1 value1)
         {
-            // Provide a way of diffusing bits from something with a  limited
+            // Provide a way of diffusing bits from something with a limited
             // input hash space. For example, many enums only have a few
             // possible hashes, only using the bottom few bits of the code. Some
             // collections are built on the assumption that hashes are spread
@@ -345,6 +345,9 @@ namespace System
             // methods.
             
             var val = (uint)value;
+            
+            // Storing the value of _length locally shaves of quite a few bytes
+            // in the resulting machine code.
             uint previousLength = _length++;
             uint position = previousLength % 4;
 
@@ -370,17 +373,15 @@ namespace System
 
         public int ToHashCode()
         {
+            // Storing the value of _length locally shaves of quite a few bytes
+            // in the resulting machine code.
             uint length = _length;
             uint position = length % 4;
 
             // If the length is less than 4, _v1 to _v4 don't contain anything
             // yet. xxHash32 treats this differently.
 
-            uint hash;
-            if (length < 4)
-                hash = MixEmptyState();
-            else
-                hash = MixState(_v1, _v2, _v3, _v4);
+            uint hash = length < 4 ? MixEmptyState() : MixState(_v1, _v2, _v3, _v4);
 
             // Multiply by 4 because we've been counting in bytes, not ints.
 
@@ -395,14 +396,17 @@ namespace System
             // position == 1 means that _queue1 is populated; _queue2 would have
             // been populated on the next call to Add.
 
-            if (position == 0) goto mixFinal;
-            hash = QueueRound(hash, _queue1);
-            if (position == 1) goto mixFinal;
-            hash = QueueRound(hash, _queue2);
-            if (position == 2) goto mixFinal;
-            hash = QueueRound(hash, _queue3);
-            
-            mixFinal:
+            if (position > 0)
+            {
+                hash = QueueRound(hash, _queue1);
+                if (position > 1)
+                {
+                    hash = QueueRound(hash, _queue2);
+                    if (position > 2)
+                        hash = QueueRound(hash, _queue3);
+                }
+            }
+
             hash = MixFinal(hash);
             return (int)hash;
         }
@@ -421,11 +425,11 @@ namespace System
         //   implementation has to change in the future we don't want to worry
         //   about people who might have incorrectly used this type.
 
-        [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes.", error: true)]
+        [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.", error: true)]
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode() => throw new NotSupportedException(SR.HashCode_EqualityNotSupported);
 
-        [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes.", error: true)]
+        [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.", error: true)]
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj) => throw new NotSupportedException(SR.HashCode_EqualityNotSupported);
 #pragma warning restore 0809

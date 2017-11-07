@@ -3692,6 +3692,6 @@
     <value>Release all references before disposing this instance.</value>
   </data>
   <data name="HashCode_EqualityNotSupported" xml:space="preserve">
-    <value>HashCode is a mutable struct and should not be compared with other HashCodes.</value>
+    <value>HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.</value>
   </data>
 </root>
