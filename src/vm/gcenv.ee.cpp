@@ -1243,7 +1243,7 @@ namespace
         return true;
     }
 
-    bool CreateUnsuspendableThread(
+    bool CreateNonSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
         const char* name)
@@ -1304,6 +1304,6 @@ bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool i
     }
     else
     {
-        return CreateUnsuspendableThread(threadStart, arg, name);
+        return CreateNonSuspendableThread(threadStart, arg, name);
     }
 }
