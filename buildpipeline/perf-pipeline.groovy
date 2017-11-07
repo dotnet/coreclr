@@ -71,7 +71,10 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
             String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH\" -scenarioTest"
             runXUnitPerfCommonArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios"
             bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -collectionFlags stopwatch"
-            bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -collectionFlags BranchMispredictions+CacheMisses+InstructionRetired"
+
+            if (opt_level != 'min_opt') {
+                bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -collectionFlags BranchMispredictions+CacheMisses+InstructionRetired"
+            }
         }
         else if (scenario == 'illink') {
             String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -scenarioTest"
@@ -305,24 +308,26 @@ stage ('Build Product') {
 def innerLoopTests = [:]
 
 ['x64', 'x86'].each { arch ->
-    [true,false].each { isBaseline ->
-        String baseline = ""
-        if (isBaseline) {
-            baseline = " baseline"
-        }
-        if (isPR() || !isBaseline) {
-            innerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} perf"] = {
-               simpleNode('windows_server_2016_clr_perf', 180) {
-                   windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'perf', isBaseline)
-               }
+    ['full_opt'].each { opt_level ->
+        [true,false].each { isBaseline ->
+            String baseline = ""
+            if (isBaseline) {
+                baseline = " baseline"
             }
+            if (isPR() || !isBaseline) {
+                innerLoopTests["windows ${arch} ryujit ${opt_level} pgo${baseline} perf"] = {
+                    simpleNode('windows_server_2016_clr_perf', 180) {
+                        windowsPerf(arch, config, uploadString, runType, opt_level, 'ryujit', 'pgo', 'perf', isBaseline)
+                    }
+                }
 
-            if (arch == 'x64') {
-               innerLoopTests["linux ${arch} ryujit full_opt pgo${baseline} perf"] = {
-                   simpleNode('linux_clr_perf', 180) {
-                       linuxPerf('x64', 'Ubuntu14.04', config, uploadString, runType, 'full_opt', 'pgo', isBaseline)
-                   }
-               }
+                if (arch == 'x64') {
+                    innerLoopTests["linux ${arch} ryujit ${opt_level} pgo${baseline} perf"] = {
+                        simpleNode('linux_clr_perf', 180) {
+                            linuxPerf('x64', 'Ubuntu14.04', config, uploadString, runType, opt_level, 'pgo', isBaseline)
+                        }
+                    }
+                }
             }
         }
     }
@@ -339,7 +344,7 @@ if (!isPR()) {
     }
 
     outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} illink"] = {
-        simpleNode('windows_server_2015_clr_perf', 180) { // This label does not exist in Jenkins!
+        simpleNode('Windows_NT', '20170427-elevated') {
             windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false)
         }
     }
