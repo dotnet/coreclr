@@ -67,18 +67,18 @@ namespace System
         private static unsafe uint GenerateGlobalSeed()
         {
             uint result;
-            Interop.GetRandomBytes((byte*)&result, sizeof(int));
+            Interop.GetRandomBytes((byte*)&result, sizeof(uint));
             return result;
         }
 
         public static int Combine<T1>(T1 value1)
         {
-            // Provide a way of diffusing bits from something with a 
-            // limited input hash space. For example, many enums only 
-            // have a few possible hashes, only using the bottom few bits 
-            // of the code. Some collections are built on the assumption that 
-            // hashes are spread over a larger space, so diffusing the bits
-            // may help the collection work more efficiently.
+            // Provide a way of diffusing bits from something with a  limited
+            // input hash space. For example, many enums only have a few
+            // possible hashes, only using the bottom few bits of the code. Some
+            // collections are built on the assumption that hashes are spread
+            // over a larger space, so diffusing the bits may help the
+            // collection work more efficiently.
 
             var hc1 = (uint)(value1?.GetHashCode() ?? 0);
 
@@ -323,33 +323,30 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Add(int value)
         {
-            // xxHash works as follows:
-            // 0. Initialize immediately. We can't do this in a struct (no default
-            //    ctor).
+            // The original xxHash works as follows:
+            // 0. Initialize immediately. We can't do this in a struct (no
+            //    default ctor).
             // 1. Accumulate blocks of length 16 (4 uints) into 4 accumulators.
-            // 2. Accumulate remaining blocks of length 4 (1 uint) into the hash.
+            // 2. Accumulate remaining blocks of length 4 (1 uint) into the
+            //    hash.
             // 3. Accumulate remaining blocks of length 1 into the hash.
 
-            // There is no need for *3 as this type only accepts ints. _queue1,
-            // _queue2 and _queue3 are basically a buffer so that when ToHashCode is
-            // called we can execute *2 correctly. That's what first three case
-            // statements do.
+            // There is no need for #3 as this type only accepts ints. _queue1,
+            // _queue2 and _queue3 are basically a buffer so that when
+            // ToHashCode is called we can execute #2 correctly.
 
-            // We need to initialize the xxHash32 state (_v1 -> _v4) lazily (see *0)
-            // and the last place that can be done if you look at the original code
-            // is just before the first block of 16 bytes is mixed in. The xxHash32
-            // state is never used for streams containing fewer than 16 bytes.
+            // We need to initialize the xxHash32 state (_v1 to _v4) lazily (see
+            // #0) nd the last place that can be done if you look at the
+            // original code is just before the first block of 16 bytes is mixed
+            // in. The xxHash32 state is never used for streams containing fewer
+            // than 16 bytes.
 
-            // A bloom filter is used to determine whether the default case statement
-            // has even been executed. To do that we check if the length is smaller
-            // than 4 (_length ^ position will be non-zero if this is the case). The
-            // case statement is for values larger than 2, so the check only succeeds
-            // on exactly 3.
-
-            // To see what's really going on here, have a look at the Combine methods.
+            // To see what's really going on here, have a look at the Combine
+            // methods.
             
             var val = (uint)value;
-            uint position = _length % 4;
+            uint previousLength = _length++;
+            uint position = previousLength % 4;
 
             // Switch can't be inlined.
 
@@ -359,10 +356,9 @@ namespace System
                 _queue2 = val;
             else if (position == 2)
                 _queue3 = val;
-            else // == 3
+            else // position == 3
             {
-                // length smaller than 4?
-                if ((_length ^ position) == 0)
+                if (previousLength == 3)
                     Initialize(out _v1, out _v2, out _v3, out _v4);
 
                 _v1 = Round(_v1, _queue1);
@@ -370,64 +366,68 @@ namespace System
                 _v3 = Round(_v3, _queue3);
                 _v4 = Round(_v4, val);
             }
-
-            // Throw for more than uint.MaxValue fields.
-            _length = checked(_length + 1);
         }
 
         public int ToHashCode()
         {
-            uint position = _length % 4;
+            uint length = _length;
+            uint position = length % 4;
 
-            // If the length is less than 3, _v1 -> _v4 don't contain
-            // anything yet. xxHash32 treats this differently.
+            // If the length is less than 4, _v1 to _v4 don't contain anything
+            // yet. xxHash32 treats this differently.
 
-            uint hash = (_length ^ position) == 0
-                ? MixEmptyState()
-                : MixState(_v1, _v2, _v3, _v4);
+            uint hash;
+            if (length < 4)
+                hash = MixEmptyState();
+            else
+                hash = MixState(_v1, _v2, _v3, _v4);
 
-            // Multiply by 4 because we've been counting in ints, not
-            // bytes.
+            // Multiply by 4 because we've been counting in bytes, not ints.
 
-            hash += _length * 4;
+            hash += length * 4;
 
             // Mix what remains in the queue
-            // Switch can't be inlined right now, so use as few
-            // branches as possible instead.
 
-            if (position > 0)
-            {
-                hash = QueueRound(hash, _queue1);
-                if (position > 1)
-                {
-                    hash = QueueRound(hash, _queue2);
-                    if (position > 2)
-                        hash = QueueRound(hash, _queue3);
-                }
-            }
+            // Switch can't be inlined right now, so emulate case statement
+            // fallthrough using goto.
 
+            // position refers to the *next* queue position in this method, so
+            // position == 1 means that _queue1 is populated; _queue2 would have
+            // been populated on the next call to Add.
+
+            if (position == 0) goto mixFinal;
+            hash = QueueRound(hash, _queue1);
+            if (position == 1) goto mixFinal;
+            hash = QueueRound(hash, _queue2);
+            if (position == 2) goto mixFinal;
+            hash = QueueRound(hash, _queue3);
+            
+            mixFinal:
             hash = MixFinal(hash);
             return (int)hash;
         }
 
-#       pragma warning disable 0809
+#pragma warning disable 0809
         // Obsolete member 'memberA' overrides non-obsolete member 'memberB'. 
-        // Disallowing GetHashCode is by design
+        // Disallowing GetHashCode and Equals is by design
 
         // * We decided to not override GetHashCode() to produce the hash code 
-        //   as this would be weird, both naming-wise as well as from a behavioral 
-        //   standpoint (GetHashCode() should return the object's hash code, not 
-        //   the one being computed).
+        //   as this would be weird, both naming-wise as well as from a
+        //   behavioral standpoint (GetHashCode() should return the object's
+        //   hash code, not the one being computed).
 
-        // * Even though ToHashCode() can be called safely multiple times on this
-        //   implementation, it is not part of the contract. If the implementation
-        //   has to change in the future we don't want to worry about people who
-        //   might have incorrectly used this type.
+        // * Even though ToHashCode() can be called safely multiple times on
+        //   this implementation, it is not part of the contract. If the
+        //   implementation has to change in the future we don't want to worry
+        //   about people who might have incorrectly used this type.
 
-        [Obsolete("Use ToHashCode to retrieve the computed hash code.", error: true)]
+        [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes.", error: true)]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() => throw new NotSupportedException();
-#       pragma warning restore 0809
+        public override int GetHashCode() => throw new NotSupportedException(SR.HashCode_EqualityNotSupported);
 
+        [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes.", error: true)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public override bool Equals(object obj) => throw new NotSupportedException(SR.HashCode_EqualityNotSupported);
+#pragma warning restore 0809
     }
 }
