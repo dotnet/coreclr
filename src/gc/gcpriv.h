@@ -2753,9 +2753,9 @@ public:
     // Returns TRUE if the current thread used to be in cooperative mode 
     // before calling this function.
     PER_HEAP_ISOLATED
-    BOOL enable_preemptive ();
+    bool enable_preemptive ();
     PER_HEAP_ISOLATED
-    void disable_preemptive (BOOL restore_cooperative);
+    void disable_preemptive (bool restore_cooperative);
 
     /* ------------------- per heap members --------------------------*/
 

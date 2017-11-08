@@ -1370,7 +1370,7 @@ void recursive_gc_sync::begin_foreground()
 {
     dprintf (2, ("begin_foreground"));
 
-    BOOL cooperative_mode = FALSE;
+    bool cooperative_mode = false;
     if (gc_background_running)
     {
         gc_heap::fire_alloc_wait_event_begin (awr_fgc_wait_for_bgc);
@@ -1644,7 +1644,7 @@ void WaitLongerNoInstru (int i)
 inline
 static void safe_switch_to_thread()
 {
-    BOOL cooperative_mode = gc_heap::enable_preemptive();
+    bool cooperative_mode = gc_heap::enable_preemptive();
 
     GCToOSInterface::YieldThread(0);
 
@@ -1883,7 +1883,7 @@ static void leave_spin_lock (GCSpinLock * spin_lock)
 
 #endif //_DEBUG
 
-BOOL gc_heap::enable_preemptive ()
+bool gc_heap::enable_preemptive ()
 {
     bool cooperative_mode = GCToEEInterface::IsPreemptiveGCDisabled();
     if (cooperative_mode)
@@ -1894,7 +1894,7 @@ BOOL gc_heap::enable_preemptive ()
     return cooperative_mode;
 }
 
-void gc_heap::disable_preemptive (BOOL restore_cooperative)
+void gc_heap::disable_preemptive (bool restore_cooperative)
 {
     if (restore_cooperative)
     {
@@ -10223,7 +10223,7 @@ gc_heap* gc_heap::make_gc_heap (
 uint32_t
 gc_heap::wait_for_gc_done(int32_t timeOut)
 {
-    BOOL cooperative_mode = enable_preemptive ();
+    bool cooperative_mode = enable_preemptive ();
 
     uint32_t dwWaitResult = NOERROR;
 
@@ -12329,7 +12329,7 @@ BOOL gc_heap::allocate_small (int gen_number,
             add_saved_spinlock_info (me_release, mt_alloc_small);
             dprintf (SPINLOCK_LOG, ("[%d]spin Lmsl", heap_number));
             leave_spin_lock (&more_space_lock);
-            BOOL cooperative_mode = enable_preemptive ();
+            bool cooperative_mode = enable_preemptive ();
             GCToOSInterface::Sleep (bgc_alloc_spin);
             disable_preemptive (cooperative_mode);
             enter_spin_lock (&more_space_lock);
@@ -12857,7 +12857,7 @@ BOOL gc_heap::allocate_large (int gen_number,
                     add_saved_spinlock_info (me_release, mt_alloc_large);
                     dprintf (SPINLOCK_LOG, ("[%d]spin Lmsl loh", heap_number));
                     leave_spin_lock (&more_space_lock);
-                    BOOL cooperative_mode = enable_preemptive ();
+                    bool cooperative_mode = enable_preemptive ();
                     GCToOSInterface::YieldThread (bgc_alloc_spin_loh);
                     disable_preemptive (cooperative_mode);
                     enter_spin_lock (&more_space_lock);
@@ -15608,8 +15608,7 @@ void gc_heap::gc1()
         )
     {
 #ifdef BACKGROUND_GC
-        Thread* current_thread = GCToEEInterface::GetThread();
-        BOOL cooperative_mode = TRUE;
+        bool cooperative_mode = TRUE;
 
         if (settings.concurrent)
         {
@@ -34977,7 +34976,7 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
 #else
     gc_heap* hpt = 0;
 #endif //MULTIPLE_HEAPS
-    BOOL cooperative_mode = TRUE;
+    bool cooperative_mode = true;
     dynamic_data* dd = hpt->dynamic_data_of (gen);
     size_t localCount = dd_collection_count (dd);
 
