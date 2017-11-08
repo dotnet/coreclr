@@ -37,12 +37,15 @@
     <!-- create the container if it doesn't exist -->
     <CreateAzureContainer AccountKey="$(AccountKey)"
                           AccountName="$(AccountName)"
-                          ContainerName="$(ContainerName)" />
+                          ContainerName="$(ContainerName)"
+                          IsPublic="true" />
 
     <PushToBlobFeed Condition="'$(PublishFlatContainer)' == 'false'"
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
                     ItemsToPush="@(ItemsToPush)"
+                    RetryAttempts="10"
+                    RetryDelayInSeconds="120"
                     Overwrite="$(OverwriteOnPublish)" />
 
     <!-- now upload the items -->
@@ -69,12 +72,15 @@
    <!-- create the container if it doesn't exist -->
     <CreateAzureContainer AccountKey="$(AccountKey)"
                           AccountName="$(AccountName)"
-                          ContainerName="$(ContainerName)" />
+                          ContainerName="$(ContainerName)"
+                          IsPublic="true" />
 
     <PushToBlobFeed Condition="'$(PublishFlatContainer)' == 'false'"
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
                     ItemsToPush="@(ItemsToPush)"
+                    RetryAttempts="10"
+                    RetryDelayInSeconds="120"
                     Overwrite="$(OverwriteOnPublish)" />
 
     <!-- now upload the items -->
@@ -102,12 +108,15 @@
     <!-- create the container if it doesn't exist -->
     <CreateAzureContainer AccountKey="$(AccountKey)"
                           AccountName="$(AccountName)"
-                          ContainerName="$(ContainerName)" />
+                          ContainerName="$(ContainerName)"
+                          IsPublic="true" />
 
     <PushToBlobFeed Condition="'$(PublishFlatContainer)' == 'false'"
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
                     ItemsToPush="@(ItemsToPush)"
+                    RetryAttempts="10"
+                    RetryDelayInSeconds="120"
                     Overwrite="$(OverwriteOnPublish)" />
 
     <!-- now upload the items -->
