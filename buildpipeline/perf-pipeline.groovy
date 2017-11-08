@@ -245,11 +245,6 @@ def innerLoopBuilds = [
         simpleNode('Windows_NT','latest') {
             windowsBuild('x86', config, 'pgo', false)
         }
-    },
-    "linux x64 pgo build": {
-        simpleNode('RHEL7.2', 'latest-or-auto') {
-            linuxBuild('x64', config, 'pgo', false)
-        }
     }
 ]
 
@@ -267,6 +262,11 @@ if (!isPR()) {
            simpleNode('Windows_NT','latest') {
                windowsBuild('x86', config, 'nopgo', false)
            }
+        },
+        "linux x64 pgo build": {
+            simpleNode('RHEL7.2', 'latest-or-auto') {
+                linuxBuild('x64', config, 'pgo', false)
+            }
         },
         "linux x64 nopgo build": {
            simpleNode('RHEL7.2', 'latest-or-auto') {
@@ -288,11 +288,6 @@ if (isPR()) {
        "windows x86 pgo baseline build": {
            simpleNode('Windows_NT','latest') {
                windowsBuild('x86', config, 'pgo', true)
-           }
-       },
-       "linux x64 pgo baseline build": {
-           simpleNode('RHEL7.2', 'latest-or-auto') {
-               linuxBuild('x64', config, 'pgo', true)
            }
        }
    ]
@@ -318,14 +313,6 @@ def innerLoopTests = [:]
                 innerLoopTests["windows ${arch} ryujit ${opt_level} pgo${baseline} perf"] = {
                     simpleNode('windows_server_2016_clr_perf', 180) {
                         windowsPerf(arch, config, uploadString, runType, opt_level, 'ryujit', 'pgo', 'perf', isBaseline)
-                    }
-                }
-
-                if (arch == 'x64') {
-                    innerLoopTests["linux ${arch} ryujit ${opt_level} pgo${baseline} perf"] = {
-                        simpleNode('linux_clr_perf', 180) {
-                            linuxPerf('x64', 'Ubuntu14.04', config, uploadString, runType, opt_level, 'pgo', isBaseline)
-                        }
                     }
                 }
             }
