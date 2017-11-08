@@ -276,7 +276,7 @@ if (!isPR()) {
     ]
 }
 
-def baselineBuilds = [:]
+/*def baselineBuilds = [:]
 
 if (isPR()) {
    baselineBuilds = [
@@ -291,10 +291,10 @@ if (isPR()) {
            }
        }
    ]
-}
+}*/
 
 stage ('Build Product') {
-    parallel innerLoopBuilds + outerLoopBuilds + baselineBuilds
+    parallel innerLoopBuilds + outerLoopBuilds //+ baselineBuilds
 }
 
 // Pipeline builds don't allow outside scripts (ie ArrayList.Add) if running from a script from SCM, so manually list these for now.
@@ -304,7 +304,7 @@ def innerLoopTests = [:]
 
 ['x64', 'x86'].each { arch ->
     ['full_opt'].each { opt_level ->
-        [true,false].each { isBaseline ->
+        [false].each { isBaseline ->
             String baseline = ""
             if (isBaseline) {
                 baseline = " baseline"
