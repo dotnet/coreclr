@@ -7563,9 +7563,16 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
                     if (size > 1)
                     {
+                        // hasTwoSlotSizedStruct will determine if the struct value can be passed  multiple slot.
+                        // We set hasTwoSlotSizedStruct if size > 1 because all struct are passed by value on ARM32.
                         hasTwoSlotSizedStruct = true;
                         if (calleeArgRegCount >= MAX_REG_ARG)
                         {
+                            // hasMultiByteStackArgs will determine if the struct can be passed
+                            // in registers. If it cannot we will break the loop and not
+                            // fastTailCall. This is an implementation limitation
+                            // where the callee only is checked for non enregisterable structs.
+                            // It is tracked with https://github.com/dotnet/coreclr/issues/12644.
                             hasMultiByteStackArgs = true;
                         }
                     }
@@ -7658,7 +7665,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // requirement for the callee is less than or equal to the caller's entire stack frame usage.
     //
     // Also, in the case that we have to pass arguments on the stack make sure
-    // that we are not dealing with structs that are >8 bytes. (except ARM32)
+    // that we are not dealing with structs that are >8 bytes.
 
     bool   hasStackArgs    = false;
     size_t maxFloatRegArgs = MAX_FLOAT_REG_ARG;
