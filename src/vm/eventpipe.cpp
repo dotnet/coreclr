@@ -33,11 +33,8 @@ EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
 #ifdef FEATURE_PAL
 // This function is auto-generated from /src/scripts/genEventPipe.py
 extern "C" void InitProvidersAndEvents();
-#endif
-
-#ifdef FEATURE_PAL
-// This function is auto-generated from /src/scripts/genEventPipe.py
-extern "C" void InitProvidersAndEvents();
+#else
+void InitProvidersAndEvents();
 #endif
 
 EventPipeEventPayload::EventPipeEventPayload(BYTE *pData, unsigned int length)
@@ -193,11 +190,9 @@ void EventPipe::Initialize()
 
     s_pBufferManager = new EventPipeBufferManager();
 
-#ifdef FEATURE_PAL
     // This calls into auto-generated code to initialize the runtime providers
     // and events so that the EventPipe configuration lock isn't taken at runtime
     InitProvidersAndEvents();
-#endif
 }
 
 void EventPipe::EnableOnStartup()
