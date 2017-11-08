@@ -376,6 +376,10 @@ namespace System
             // Storing the value of _length locally shaves of quite a few bytes
             // in the resulting machine code.
             uint length = _length;
+            
+            // position refers to the *next* queue position in this method, so
+            // position == 1 means that _queue1 is populated; _queue2 would have
+            // been populated on the next call to Add.
             uint position = length % 4;
 
             // If the length is less than 4, _v1 to _v4 don't contain anything
@@ -383,19 +387,16 @@ namespace System
 
             uint hash = length < 4 ? MixEmptyState() : MixState(_v1, _v2, _v3, _v4);
 
-            // Multiply by 4 because we've been counting in bytes, not ints.
+            // _length is incremented once per Add(Int32) and is therefore 4
+            // times too small (xxHash length is in bytes, not ints).
 
             hash += length * 4;
 
             // Mix what remains in the queue
 
-            // Switch can't be inlined right now, so emulate case statement
-            // fallthrough using goto.
-
-            // position refers to the *next* queue position in this method, so
-            // position == 1 means that _queue1 is populated; _queue2 would have
-            // been populated on the next call to Add.
-
+            // Switch can't be inlined right now, so use as few branches as
+            // possible by manually excluding impossible scenarios (position > 1
+            // is always false if position is not > 0).
             if (position > 0)
             {
                 hash = QueueRound(hash, _queue1);
@@ -427,9 +428,9 @@ namespace System
 
         [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.", error: true)]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() => throw new NotSupportedException(SR.HashCode_EqualityNotSupported);
+        public override int GetHashCode() => throw new NotSupportedException(SR.HashCode_HashCodeNotSupported);
 
-        [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.", error: true)]
+        [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes.", error: true)]
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj) => throw new NotSupportedException(SR.HashCode_EqualityNotSupported);
 #pragma warning restore 0809
