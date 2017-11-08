@@ -111,6 +111,17 @@ struct WriteBarrierParameters
     uint8_t* write_watch_table;
 };
 
+// Opaque type for tracking object pointers
+#ifndef DACCESS_COMPILE
+struct OBJECTHANDLE__
+{
+    void* unused;
+};
+typedef struct OBJECTHANDLE__* OBJECTHANDLE;
+#else
+typedef uintptr_t OBJECTHANDLE;
+#endif
+
  /*
   * Scanning callback.
   */
@@ -393,16 +404,7 @@ typedef void (* fq_scan_fn)(Object** ppObject, ScanContext *pSC, uint32_t dwFlag
 typedef void (* handle_scan_fn)(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, bool isDependent);
 typedef bool (* async_pin_enum_fn)(Object* object, void* context);
 
-// Opaque type for tracking object pointers
-#ifndef DACCESS_COMPILE
-struct OBJECTHANDLE__
-{
-    void* unused;
-};
-typedef struct OBJECTHANDLE__* OBJECTHANDLE;
-#else
-typedef uintptr_t OBJECTHANDLE;
-#endif
+
 
 class IGCHandleStore {
 public:

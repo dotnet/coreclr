@@ -258,5 +258,28 @@ inline bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg,
     return g_theGCToCLR->CreateThread(threadStart, arg, is_suspendable, name);
 }
 
+inline void GCToEEInterface::WalkOverlappedObjectForPromotion(Object* object, ScanContext* sc, promote_func* callback)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->WalkOverlappedObjectForPromotion(object, sc, callback);
+}
+
+inline void GCToEEInterface::WalkOverlappedObject(Object* object, void* context, void(*callback)(Object*, Object*, void*))
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->WalkOverlappedObject(object, context, callback);
+}
+
+inline void GCToEEInterface::OverlappedClearIfComplete(Object* object)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->OverlappedClearIfComplete(object);
+}
+
+inline void GCToEEInterface::OverlappedSetPinnedHandle(Object* object, OBJECTHANDLE handle) 
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->OverlappedSetPinnedHandle(object, handle);
+}
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

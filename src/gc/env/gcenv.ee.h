@@ -80,6 +80,10 @@ public:
     static bool IsGCThread();
     static bool WasCurrentThreadCreatedByGC();
     static bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name);
+    static void WalkOverlappedObjectForPromotion(Object* object, ScanContext* sc, promote_func* callback);
+    static void WalkOverlappedObject(Object* object, void* context, void(*callback)(Object*, Object*, void*));
+    static void OverlappedClearIfComplete(Object* object);
+    static void OverlappedSetPinnedHandle(Object* object, OBJECTHANDLE handle);
 };
 
 #endif // __GCENV_EE_H__

@@ -20,10 +20,6 @@
 #include "objecthandle.h"
 #include "handletablepriv.h"
 
-#ifndef FEATURE_REDHAWK
-#include "nativeoverlapped.h"
-#endif
-
 /****************************************************************************
  *
  * FORWARD DECLARATIONS
@@ -626,34 +622,31 @@ void HndLogSetEvent(OBJECTHANDLE handle, _UNCHECKED_OBJECTREF value)
         FireEtwSetGCHandle((void*) handle, value, hndType, generation, (int64_t) pAppDomain, GetClrInstanceId());
         FireEtwPrvSetGCHandle((void*) handle, value, hndType, generation, (int64_t) pAppDomain, GetClrInstanceId());
 
-#ifndef FEATURE_REDHAWK
         // Also fire the things pinned by Async pinned handles
         if (hndType == HNDTYPE_ASYNCPINNED)
         {
-            if (value->GetMethodTable() == g_pOverlappedDataClass)
+            // the closure passed to "WalkOverlappedObject" is not permitted to implicitly
+            // capture any variables in this scope, since WalkForOverlappedObject takes a bare
+            // function pointer and context pointer as arguments. We can still /explicitly/
+            // close over values in this scope by doing what the compiler would do and introduce
+            // a structure that contains all of the things we closed over, while passing a pointer
+            // to this structure as our closure's context pointer.
+            struct ClosureCapture
             {
-                OverlappedDataObject* overlapped = (OverlappedDataObject*) value;
-                if (overlapped->m_isArray)
-                {
-                    ArrayBase* pUserObject = (ArrayBase*)OBJECTREFToObject(overlapped->m_userObject);
-                    Object **ppObj = (Object**)pUserObject->GetDataPtr(TRUE);
-                    size_t num = pUserObject->GetNumComponents();
-                    for (size_t i = 0; i < num; i ++)
-                    {
-                        value = ppObj[i];
-                        uint32_t generation = value != 0 ? g_theGCHeap->WhichGeneration(value) : 0;
-                        FireEtwSetGCHandle(overlapped, value, HNDTYPE_PINNED, generation, (int64_t) pAppDomain, GetClrInstanceId());
-                    }
-                }
-                else
-                {
-                    value = OBJECTREF_TO_UNCHECKED_OBJECTREF(overlapped->m_userObject);
-                    uint32_t generation = value != 0 ? g_theGCHeap->WhichGeneration(value) : 0;
-                    FireEtwSetGCHandle(overlapped, value, HNDTYPE_PINNED, generation, (int64_t) pAppDomain, GetClrInstanceId());
-                }
-            }
+                AppDomain* pAppDomain;
+                Object* overlapped;
+            };
+
+            ClosureCapture captured;
+            captured.pAppDomain = pAppDomain;
+            captured.overlapped = value;
+            GCToEEInterface::WalkOverlappedObject(value, &captured, [](Object*, Object* to, void* ctx)
+            {
+                ClosureCapture* captured = reinterpret_cast<ClosureCapture*>(ctx);
+                uint32_t generation = to != nullptr ? g_theGCHeap->WhichGeneration(to) : 0;
+                FireEtwSetGCHandle(captured->overlapped, to, HNDTYPE_PINNED, generation, (int64_t) captured->pAppDomain, GetClrInstanceId());
+            });
         }
-#endif // FEATURE_REDHAWK
     }
 #else
     UNREFERENCED_PARAMETER(handle);

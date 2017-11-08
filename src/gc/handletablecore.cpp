@@ -16,11 +16,6 @@
 #include "gcenv.h"
 #include "gcenv.inl"
 #include "gc.h"
-
-#ifndef FEATURE_REDHAWK
-#include "nativeoverlapped.h"
-#endif // FEATURE_REDHAWK
-
 #include "handletablepriv.h"
 
 /****************************************************************************
@@ -761,14 +756,7 @@ void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment)
             _UNCHECKED_OBJECTREF value = *pValue;
             if (!HndIsNullOrDestroyedHandle(value))
             {
-                _ASSERTE (value->GetMethodTable() == g_pOverlappedDataClass);
-                OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)(value)));
-                if (overlapped->HasCompleted())
-                {
-                    // IO has finished.  We don't need to pin the user buffer any longer.
-                    overlapped->m_userObject = NULL;
-                }
-                BashMTForPinnedObject(ObjectToOBJECTREF(value));
+                GCToEEInterface::OverlappedClearIfComplete((Object*)value);
             }
             else
             {
@@ -876,14 +864,7 @@ void SegmentCompactAsyncPinHandles(TableSegment *pSegment, TableSegment **ppWork
             _UNCHECKED_OBJECTREF value = *pValue;
             if (!HndIsNullOrDestroyedHandle(value))
             {
-                _ASSERTE (value->GetMethodTable() == g_pOverlappedDataClass);
-                OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)value));
-                if (overlapped->HasCompleted())
-                {
-                    // IO has finished.  We don't need to pin the user buffer any longer.
-                    overlapped->m_userObject = NULL;
-                }
-                BashMTForPinnedObject(ObjectToOBJECTREF(value));
+                GCToEEInterface::OverlappedClearIfComplete((Object*)value);
                 fNeedNewSegment = !SegmentCopyAsyncPinHandle(*ppWorkerSegment,pValue);
             }
             if (fNeedNewSegment)
@@ -995,22 +976,15 @@ bool SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTarge
             _UNCHECKED_OBJECTREF value = *pValue;
             if (!HndIsNullOrDestroyedHandle(value))
             {
-                _ASSERTE (value->GetMethodTable() == g_pOverlappedDataClass);
-                OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)value));
-                if (overlapped->HasCompleted())
-                {
-                    // IO has finished.  We don't need to pin the user buffer any longer.
-                    overlapped->m_userObject = NULL;
-                }
-                BashMTForPinnedObject(ObjectToOBJECTREF(value));
-
-                overlapped->m_pinSelf = HndCreateHandle((HHANDLETABLE)pTargetTable, HNDTYPE_ASYNCPINNED, ObjectToOBJECTREF(value));
-                if (!overlapped->m_pinSelf)
+                GCToEEInterface::OverlappedClearIfComplete((Object*)value);
+                OBJECTHANDLE selfHandle = HndCreateHandle((HHANDLETABLE)pTargetTable, HNDTYPE_ASYNCPINNED, ObjectToOBJECTREF(value));
+                if (!selfHandle)
                 {
                     // failed to allocate a new handle - callers have to handle this.
                     return false;
                 }
 
+                GCToEEInterface::OverlappedSetPinnedHandle((Object*)value, selfHandle);
                 *pValue = NULL;
             }
             pValue ++;

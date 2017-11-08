@@ -25,9 +25,6 @@
 #ifdef FEATURE_COMINTEROP
 #include "comcallablewrapper.h"
 #endif // FEATURE_COMINTEROP
-#ifndef FEATURE_REDHAWK
-#include "nativeoverlapped.h"
-#endif // FEATURE_REDHAWK
 #endif // BUILD_AS_STANDALONE
 
 HandleTableMap g_HandleTableMap;
@@ -278,39 +275,11 @@ void CALLBACK PinObject(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, ui
     promote_func* callback = (promote_func*) lp2;
     callback(pRef, (ScanContext *)lp1, GC_CALL_PINNED);
 
-#ifndef FEATURE_REDHAWK
     Object * pPinnedObj = *pRef;
-
-    if (!HndIsNullOrDestroyedHandle(pPinnedObj) && pPinnedObj->GetGCSafeMethodTable() == g_pOverlappedDataClass)
+    if (!HndIsNullOrDestroyedHandle(pPinnedObj))
     {
-        // reporting the pinned user objects
-        OverlappedDataObject *pOverlapped = (OverlappedDataObject *)pPinnedObj;
-        if (pOverlapped->m_userObject != NULL)
-        {
-            //callback(OBJECTREF_TO_UNCHECKED_OBJECTREF(pOverlapped->m_userObject), (ScanContext *)lp1, GC_CALL_PINNED);
-            if (pOverlapped->m_isArray)
-            {
-                pOverlapped->m_userObjectInternal = static_cast<void*>(OBJECTREFToObject(pOverlapped->m_userObject));
-                ArrayBase* pUserObject = (ArrayBase*)OBJECTREFToObject(pOverlapped->m_userObject);
-                Object **ppObj = (Object**)pUserObject->GetDataPtr(TRUE);
-                size_t num = pUserObject->GetNumComponents();
-                for (size_t i = 0; i < num; i ++)
-                {
-                    callback(ppObj + i, (ScanContext *)lp1, GC_CALL_PINNED);
-                }
-            }
-            else
-            {
-                callback(&OBJECTREF_TO_UNCHECKED_OBJECTREF(pOverlapped->m_userObject), (ScanContext *)lp1, GC_CALL_PINNED);
-            }
-        }
-
-        if (pOverlapped->GetAppDomainId() !=  DefaultADID && pOverlapped->GetAppDomainIndex().m_dwIndex == DefaultADID)
-        {
-            OverlappedDataObject::MarkCleanupNeededFromGC();
-        }
+        GCToEEInterface::WalkOverlappedObjectForPromotion(pPinnedObj, (ScanContext *)lp1, callback);
     }
-#endif // !FEATURE_REDHAWK
 }
 
 
