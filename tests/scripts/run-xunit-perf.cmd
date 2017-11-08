@@ -36,8 +36,8 @@ setlocal ENABLEDELAYEDEXPANSION
   call :set_collection_config   || exit /b 1
   call :verify_benchview_tools  || exit /b 1
   call :verify_core_overlay     || exit /b 1
-  call :set_perf_run_log        || exit /b 1
   call :setup_sandbox           || exit /b 1
+  call :set_perf_run_log        || exit /b 1
   call :build_perfharness       || exit /b 1
 
   call :run_cmd xcopy /sy "%CORECLR_REPO%\bin\tests\Windows_NT.%TEST_ARCH%.%TEST_CONFIG%\Tests\Core_Root"\* . >> %RUNLOG% || exit /b 1
@@ -315,8 +315,9 @@ rem ****************************************************************************
 rem ****************************************************************************
 rem   Sets the script's output log file.
 rem ****************************************************************************
+  if NOT EXIST "%LV_SANDBOX_OUTPUT_DIR%" mkdir "%LV_SANDBOX_OUTPUT_DIR%"
   if NOT EXIST "%LV_SANDBOX_OUTPUT_DIR%" (
-    call :print_error Cannot find the Logs folder "%LV_SANDBOX_OUTPUT_DIR%".
+    call :print_error Cannot create the Logs folder "%LV_SANDBOX_OUTPUT_DIR%".
     exit /b 1
   )
   set "RUNLOG=%LV_SANDBOX_OUTPUT_DIR%\perfrun.log"
