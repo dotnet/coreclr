@@ -26,3 +26,23 @@ def pipeline = perfPipeline
 
 pipeline.triggerPipelineOnEveryGithubPR(triggerName)
 pipeline.triggerPipelineOnGithubPush()
+
+['perf', 'throughput', 'jit_bench', 'illink'].each { scenario ->
+    ['x64', 'x86'].each { arch ->
+        ['min_opt', 'full_opt', 'tiered'].each { opt_level ->
+            ['pgo', 'nopgo'].each { pgo_enabled ->
+                ['windows_nt', 'linux'].each { os_group ->
+                    if (!(os_group == 'linux' && ((arch == 'x86') || (opt_level == 'tiered') || (scenario == 'jit_bench') || (scenario == 'illink')))) {
+                        def params = ['Scenario': scenario,
+                                      'AGroup': arch,
+                                      'OGroup': os_group,
+                                      'OptGroup': opt_level,
+                                      'PgoGroup': pgo_enabled]
+                        triggerName = "${scenario} ${os_group} ${arch} ${opt_level} ${pgo_enabled}"
+                        pipeline.triggerPipelineOnGithubPRComment(triggerName, params)
+                    }
+                }
+            }
+        }
+    }
+}
