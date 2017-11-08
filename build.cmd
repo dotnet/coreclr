@@ -381,7 +381,7 @@ if NOT DEFINED PYTHON (
 set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
 set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
 
-if %__BuildNative% EQU 1 if NOT defined __ConfigureOnly (
+if %__BuildNative% EQU 1 (
 
     echo Laying out dynamically generated files consumed by the build system
     echo Laying out dynamically generated Event test files and etmdummy stub functions
