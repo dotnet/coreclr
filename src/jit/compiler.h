@@ -2533,7 +2533,8 @@ public:
                          // we will redirect all "ldarg(a) 0" and "starg 0" to this temp.
 
     unsigned lvaInlineeReturnSpillTemp; // The temp to spill the non-VOID return expression
-                                        // in case there are multiple BBJ_RETURN blocks in the inlinee.
+                                        // in case there are multiple BBJ_RETURN blocks in the inlinee
+                                        // or if the inlinee has GC ref locals.
 
 #if FEATURE_FIXED_OUT_ARGS
     unsigned            lvaOutgoingArgSpaceVar;  // dummy TYP_LCLBLK var for fixed outgoing argument space
@@ -5067,6 +5068,8 @@ private:
     bool fgIsUnsignedDivOptimizable(GenTreePtr divisor);
     bool fgIsSignedModOptimizable(GenTreePtr divisor);
     bool fgIsUnsignedModOptimizable(GenTreePtr divisor);
+
+    bool fgNeedReturnSpillTemp();
 
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
