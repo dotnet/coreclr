@@ -33,7 +33,7 @@
       },
       "inputs": {
         "filename": "sync.cmd",
-        "arguments": "-ab -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -Container=$(PB_ContainerName) -BlobNamePrefix=$(PB_BlobNamePrefix)",
+        "arguments": "-ab -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -Container=$(PB_ContainerName) -BlobNamePrefix=$(PB_BuildType)",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
@@ -146,10 +146,6 @@
       "value": "$(Build.BuildNumber)",
       "allowOverride": true
     },
-    "Label": {
-      "value": "$(Build.BuildNumber)",
-      "allowOverride": true
-    },
     "Pipeline.SourcesDirectory": {
       "value": "$(Build.BinariesDirectory)\\pipelineRepository"
     },
@@ -206,7 +202,7 @@
       "value": "dotnetcore"
     },
     "SymbolPublishDestinationDir": {
-      "value": "$(PB_DotNetCoreShareDir)\\$(PB_VstsRepositoryName)\\$(Label)\\"
+      "value": "$(PB_DotNetCoreShareDir)\\$(PB_VstsRepositoryName)\\$(PB_ContainerName)\\"
     }
   },
   "retentionRules": [

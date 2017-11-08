@@ -91,7 +91,7 @@
       },
       "inputs": {
         "filename": "sync.cmd",
-        "arguments": "-ab -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -Container=$(PB_ContainerName) -BlobNamePrefix=$(PB_BlobNamePrefix)",
+        "arguments": "-ab -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -Container=$(PB_ContainerName) -BlobNamePrefix=$(PB_BuildType)/",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
@@ -229,7 +229,7 @@
       },
       "inputs": {
         "filename": "msbuild",
-        "arguments": "src\\publish.proj /t:PublishPackages /p:CloudDropAccessToken=$(AzureBlobFeedAccessToken) /p:CloudDropAccountName=$(AzureBlobFeedAccountName) /p:ContainerName=$(AzureBlobFeedContainerName) /p:__PublishPackages=true /p:OverwriteOnPublish=true /p:PackagesPattern=../packages/AzureTransfer/Release/pkg/*/*/*.nupkg /p:RelativePath=packages /p:__BuildType=$(ConfigurationGroup) /p:OfficialPublish=true /p:PublishFlatContainer=false /fileloggerparameters:Verbosity=diag;LogFile=publishpkg.log",
+        "arguments": "src\\publish.proj /t:PublishPackages /p:ExpectedFeedUrl=https://$(AzureBlobFeedAccountName).blob.core.windows.net/$(AzureBlobFeedContainerName)/index.json /p:CloudDropAccessToken=$(AzureBlobFeedAccessToken) /p:__PublishPackages=true /p:OverwriteOnPublish=true /p:PackagesPattern=$(Pipeline.SourcesDirectory)/packages/AzureTransfer/Release/pkg/**/*.nupkg /p:__BuildType=$(ConfigurationGroup) /p:OfficialPublish=true /fileloggerparameters:Verbosity=diag;LogFile=publishpkg.log",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
@@ -248,7 +248,7 @@
       },
       "inputs": {
         "filename": "msbuild",
-        "arguments": "src\\publish.proj /t:PublishSymbolPackages /p:CloudDropAccessToken=$(AzureBlobFeedAccessToken) /p:CloudDropAccountName=$(AzureBlobFeedAccountName) /p:ContainerName=$(AzureBlobFeedContainerName) /p:__PublishSymbols=true /p:OverwriteOnPublish=true /p:SymbolsPackagesPattern=../packages/AzureTransfer/Release/symbolpkg/*/*/*.nupkg /p:RelativePath=symbols /p:__BuildType=$(ConfigurationGroup) /p:OfficialPublish=true /p:PublishFlatContainer=true /fileloggerparameters:Verbosity=diag;LogFile=publishpkg.log",
+        "arguments": "src\\publish.proj /t:PublishSymbolPackages /p:ExpectedFeedUrl=https://$(AzureBlobFeedAccountName).blob.core.windows.net/$(AzureBlobFeedContainerName)/index.json /p:CloudDropAccessToken=$(AzureBlobFeedAccessToken) /p:__PublishSymbols=true /p:OverwriteOnPublish=true /p:SymbolsPackagesPattern=$(Pipeline.SourcesDirectory)/packages/AzureTransfer/Release/symbolpkg/**/*.nupkg /p:__BuildType=$(ConfigurationGroup) /p:OfficialPublish=true /fileloggerparameters:Verbosity=diag;LogFile=publishpkg.log",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
@@ -258,6 +258,7 @@
       "continueOnError": false,
       "alwaysRun": false,
       "displayName": "Create VSTS auth NuGet.Config",
+      "condition": "and(succeeded(), contains(variables.PB_PublishType, 'myget'), eq(variables['ConfigurationGroup'], 'Release'))",
       "timeoutInMinutes": 0,
       "task": {
         "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
@@ -278,6 +279,7 @@
       "continueOnError": false,
       "alwaysRun": false,
       "displayName": "packages -> VSTS",
+      "condition": "and(succeeded(), contains(variables.PB_PublishType, 'myget'), eq(variables['ConfigurationGroup'], 'Release'))",
       "timeoutInMinutes": 0,
       "task": {
         "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
@@ -494,10 +496,6 @@
       "value": "$(Build.BuildNumber)",
       "allowOverride": true
     },
-    "Label": {
-      "value": "$(Build.BuildNumber)",
-      "allowOverride": true
-    },
     "MyGetFeedUrl": {
       "value": "https://dotnet.myget.org/F/dotnet-core-test/api/v2/package",
       "allowOverride": true
@@ -597,11 +595,11 @@
       "allowOverride": true
     },
     "AzureContainerPackageGlob": {
-      "value": "pkg\\*\\*\\*.nupkg",
+      "value": "pkg\\**\\*.nupkg",
       "allowOverride": true
     },
     "AzureContainerSymbolPackageGlob": {
-      "value": "symbolpkg\\*\\*\\*.nupkg",
+      "value": "symbolpkg\\**\\*.nupkg",
       "allowOverride": true
     },
     "SymbolPackageLocation": {
