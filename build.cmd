@@ -370,6 +370,14 @@ REM === Generate source files for eventing
 REM ===
 REM =========================================================================================
 
+REM Find python and set it to the variable PYTHON
+echo import sys; print sys.executable | (python2.7 || python2 || python) > %TEMP%\pythonlocation.txt 2> NUL
+set /p PYTHON=<%TEMP%\pythonlocation.txt
+if NOT DEFINED PYTHON (
+    echo %__MsgPrefix%Error: Could not find a python 2.7 installation
+    exit /b 1
+)
+
 set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
 set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
 
@@ -377,13 +385,13 @@ if %__BuildNative% EQU 1 if NOT defined __ConfigureOnly (
 
     echo Laying out dynamically generated files consumed by the build system
     echo Laying out dynamically generated Event test files and etmdummy stub functions
-    py -2 -B  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --testdir %__IntermediatesEventingDir%\eventprovider\tests --nonextern || exit /b 1
+    %PYTHON% -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --testdir %__IntermediatesEventingDir%\eventprovider\tests --nonextern || exit /b 1
 
     echo Laying out dynamically generated EventPipe Implementation
-    py -2 -B  %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
+    %PYTHON% -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
 
     echo Laying out ETW event logging interface
-    py -2 -B  %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
+    %PYTHON% -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
 )
 
 REM =========================================================================================
