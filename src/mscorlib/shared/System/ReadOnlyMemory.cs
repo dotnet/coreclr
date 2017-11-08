@@ -102,7 +102,7 @@ namespace System
         /// <summary>
         /// Returns an empty <see cref="Memory{T}"/>
         /// </summary>
-        public static ReadOnlyMemory<T> Empty { get; } = Array.Empty<T>();
+        public static ReadOnlyMemory<T> Empty => default;
 
         /// <summary>
         /// The number of items in the memory.
