@@ -1923,8 +1923,6 @@ BEGIN
         BFA_VIRTUAL_PINVOKE_METHOD              "Virtual PInvoke implemented method."
         BFA_VIRTUAL_STATIC_METHOD               "Virtual Static Method."
         BFA_VIRTUAL_INSTANCE_CTOR               "Virtual Instance Constructor."
-        BFA_VIRTUAL_NONAB_INT_METHOD            "Virtual Non-Abstract Interface Method."
-        BFA_NONVIRT_INST_INT_METHOD             "Nonvirtual Instance Interface Method."
         BFA_SYNC_METHOD_IN_VT                   "Synchronized Method in Value Type."
         BFA_NONSTATIC_GLOBAL_METHOD             "Non-Static Global Method."
         BFA_GLOBAL_INST_CTOR                    "Global Instance Constructor."
