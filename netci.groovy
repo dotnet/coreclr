@@ -1778,6 +1778,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                 case 'arm':
                     assert Constants.validArmWindowsScenarios.containsKey(scenario)
 
+                    def machineAffinityOptions = ['use_arm64_build_machine' : true]
+                    setMachineAffinity(newJob, os, architecture, machineAffinityOptions)
+
                     // Set time out
                     setTestJobTimeOut(newJob, scenario)
 
@@ -2907,7 +2910,16 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
                         }
                     }
 
-                    setMachineAffinity(newFlowJob, os, architecture, affinityOptions)
+                    // For the flow jobs set the machine affinity as x64
+                    // if an armarch
+                    def flowArch = architecture
+
+                    if (flowArch in validWindowsNTCrossArches) {
+                        flowArch = 'x64'
+                        affinityOptions = null
+                    }
+
+                    setMachineAffinity(newFlowJob, os, flowArch, affinityOptions)
                     Utilities.standardJobSetup(newFlowJob, project, isPR, "*/${branch}")
                     addTriggers(newFlowJob, branch, isPR, architecture, os, configuration, scenario, true, false)
                 } // configuration
