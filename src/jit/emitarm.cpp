@@ -7635,17 +7635,17 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
 
                 // If the LEA produces a GCREF or BYREF, we need to be careful to mark any temp register
                 // computed with the base register as a BYREF.
-                GenTreeAddrMode* lea = addr->AsAddrMode();
-                emitAttr leaAttr = emitTypeSize(lea);
-                emitAttr leaBasePartialAddrAttr = EA_IS_GCREF_OR_BYREF(leaAttr) ? EA_BYREF : EA_PTRSIZE;
+                GenTreeAddrMode* lea                    = addr->AsAddrMode();
+                emitAttr         leaAttr                = emitTypeSize(lea);
+                emitAttr         leaBasePartialAddrAttr = EA_IS_GCREF_OR_BYREF(leaAttr) ? EA_BYREF : EA_PTRSIZE;
 
                 if (emitIns_valid_imm_for_add(offset, INS_FLAGS_DONT_CARE))
                 {
                     if (lsl > 0)
                     {
                         // Generate code to set tmpReg = base + index*scale
-                        emitIns_R_R_R_I(INS_add, leaBasePartialAddrAttr, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
-                                        INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
+                        emitIns_R_R_R_I(INS_add, leaBasePartialAddrAttr, tmpReg, memBase->gtRegNum, index->gtRegNum,
+                                        lsl, INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
                     }
                     else // no scale
                     {
