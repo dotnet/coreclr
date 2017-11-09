@@ -13366,11 +13366,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         // implicit tail call sites in the inline body. These call sites
                         // often end up in non BBJ_RETURN blocks, so only flag them when
                         // we're able to handle shared returns.
-                        // If the inlinee have to spill returns as a temp, then
-                        // the compiler adds spill between call and return,
-                        // the actual return instruction is shared across several spills
-                        // and is located in another block. Do not do tail call opt.
-                        if (impInlineInfo->iciCall->IsImplicitTailCall() && !fgNeedReturnSpillTemp())
+                        if (impInlineInfo->iciCall->IsImplicitTailCall())
                         {
                             JITDUMP(" (Inline Implicit Tail call: prefixFlags |= PREFIX_TAILCALL_IMPLICIT)");
                             prefixFlags |= PREFIX_TAILCALL_IMPLICIT;

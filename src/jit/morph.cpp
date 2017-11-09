@@ -8717,30 +8717,64 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
         }
 #endif // !FEATURE_CORECLR && _TARGET_AMD64_
 
-        // Delete GT_RETURN  if any
+        // Delete the rest stmts in the block.
         if (nextMorphStmt != nullptr)
         {
-            GenTreePtr retExpr = nextMorphStmt->gtStmtExpr;
-            noway_assert(retExpr->gtOper == GT_RETURN);
+            if (stmtExpr->gtOper != GT_ASG)
+            {
+                // The next stmt must be GT_RETURN(TYP_VOID).
+                noway_assert(info.compRetType == TYP_VOID || info.compRetType == TYP_STRUCT);
+                GenTreeStmt* retStmt = nextMorphStmt;
+                GenTreePtr   retExpr = retStmt->gtStmtExpr;
+                noway_assert(retExpr->gtOper == GT_RETURN);
 
-            // If var=call, then the next stmt must be a GT_RETURN(TYP_VOID) or GT_RETURN(var).
-            // This can occur if impSpillStackEnsure() has introduced an assignment to a temp.
-            if (stmtExpr->gtOper == GT_ASG && info.compRetType != TYP_VOID)
+                nextMorphStmt = retStmt->gtNextStmt;
+                fgRemoveStmt(compCurBB, retStmt);
+            }
+            else
             {
                 noway_assert(stmtExpr->gtGetOp1()->OperIsLocal());
+                unsigned callResultLclNumber = stmtExpr->gtGetOp1()->AsLclVarCommon()->gtLclNum;
 
-                GenTreePtr treeWithLcl = retExpr->gtGetOp1();
-                while (treeWithLcl->gtOper == GT_CAST)
+#if defined(FEATURE_CORECLR)
+
+                // We can have a move from the call result to an lvaInlineeReturnSpillTemp.
+                // However, we can't check that this assignment was created there.
+                if (nextMorphStmt->gtStmtExpr->gtOper == GT_ASG)
                 {
-                    noway_assert(!treeWithLcl->gtOverflow());
-                    treeWithLcl = treeWithLcl->gtGetOp1();
+                    GenTreeStmt* moveStmt = nextMorphStmt;
+                    GenTree*     moveExpr = nextMorphStmt->gtStmtExpr;
+                    noway_assert(moveExpr->gtGetOp1()->OperIsLocal() && moveExpr->gtGetOp2()->OperIsLocal());
+
+                    unsigned srcLclNum = moveExpr->gtGetOp2()->AsLclVarCommon()->gtLclNum;
+                    noway_assert(srcLclNum == callResultLclNumber);
+                    unsigned dstLclNum  = moveExpr->gtGetOp1()->AsLclVarCommon()->gtLclNum;
+                    callResultLclNumber = dstLclNum;
+
+                    nextMorphStmt = moveStmt->gtNextStmt;
+                    fgRemoveStmt(compCurBB, moveStmt);
                 }
+                if (nextMorphStmt != nullptr)
+#endif
+                {
+                    GenTreeStmt* retStmt = nextMorphStmt;
+                    GenTreePtr   retExpr = nextMorphStmt->gtStmtExpr;
+                    noway_assert(retExpr->gtOper == GT_RETURN);
 
-                noway_assert(stmtExpr->gtGetOp1()->AsLclVarCommon()->gtLclNum ==
-                             treeWithLcl->AsLclVarCommon()->gtLclNum);
+                    GenTreePtr treeWithLcl = retExpr->gtGetOp1();
+                    while (treeWithLcl->gtOper == GT_CAST)
+                    {
+                        noway_assert(!treeWithLcl->gtOverflow());
+                        treeWithLcl = treeWithLcl->gtGetOp1();
+                    }
+
+                    noway_assert(callResultLclNumber == treeWithLcl->AsLclVarCommon()->gtLclNum);
+
+                    nextMorphStmt = retStmt->gtNextStmt;
+                    fgRemoveStmt(compCurBB, retStmt);
+                }
             }
-
-            fgRemoveStmt(compCurBB, nextMorphStmt);
+            noway_assert(nextMorphStmt == nullptr);
         }
 
         fgMorphStmt->gtStmtExpr = call;
