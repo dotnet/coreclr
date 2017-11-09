@@ -60,7 +60,7 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
         String profileArg = "stopwatch"
 
         if (isProfileOn) {
-            profileArg = "BranchMispredictions+CacheMisses+InstructionRetired)
+            profileArg = "BranchMispredictions+CacheMisses+InstructionRetired"
         }
 
         String runXUnitCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\""
