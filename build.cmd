@@ -58,7 +58,7 @@ if NOT '%ERRORLEVEL%' == '0' (
     echo.  1. Launching the "Developer Command Prompt for VS2017" with Administrative privileges
     echo.  2. Running  regsvr32.exe "%%VSINSTALLDIR%%\Common7\IDE\msdia120.dll"  
     echo.
-    echo.This will only need to be done once for the lifetime of hte machine.
+    echo.This will only need to be done once for the lifetime of the machine.
     echo.For more details see: https://github.com/dotnet/coreclr/issues/11305
     exit /b 1
 )
