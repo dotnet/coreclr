@@ -57,20 +57,14 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
 
         // We run run-xunit-perf differently for each of the different job types
 
-        String profileArg = "stopwatch"
-
-        if (isProfileOn) {
-            profileArg = "BranchMispredictions+CacheMisses+InstructionRetired"
-        }
+        String profileArg = isProfileOn ? "BranchMispredictions+CacheMisses+InstructionRetired" : "stopwatch"
 
         String runXUnitCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\""
         if (scenario == 'perf') {
             String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2\""
             String runXUnitPerflabArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\perflab\\Perflab -library"
 
-            if (isProfileOn) {
-                profileArg = "default+${profileArg}+gcapi"
-            }
+            profileArg = isProfileOn ? "default+${profileArg}+gcapi" : profileArg
             bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerflabArgs} -collectionFlags ${profileArg}"
 
             String runXUnitCodeQualityArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\Jit\\Performance\\CodeQuality"
@@ -357,7 +351,7 @@ if (!isPR()) {
 
                         outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} throughput"] = {
                             simpleNode('windows_server_2016_clr_perf', 180) {
-                                windowsThroughput(arch, 'Windows_NT', config, runType, opt_level, jit, pgo_enabled, false, is ProfileOn)
+                                windowsThroughput(arch, 'Windows_NT', config, runType, opt_level, jit, pgo_enabled, false, isProfileOn)
                             }
                         }
                     }
