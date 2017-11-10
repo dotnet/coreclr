@@ -1293,7 +1293,7 @@ HRESULT ICLRProfilingGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
         SO_NOT_MAINLINE;
-        PRECONDITION(rclsid == CLSID_CLRProfiling);
+        //PRECONDITION(rclsid == CLSID_CLRProfiling);
     }
     CONTRACTL_END;
 

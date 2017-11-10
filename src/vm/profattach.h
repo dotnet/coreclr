@@ -18,6 +18,7 @@
 #define __PROF_ATTACH_H__
 
 #include "internalunknownimpl.h"
+#include "corprof.h"
 
 //---------------------------------------------------------------------------------------
 // Structure representing the runtime's version.  Used to negotiate versions between the

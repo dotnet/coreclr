@@ -15144,6 +15144,96 @@ EXTERN_C const IID IID_ICorProfilerInfo9;
 
 #endif  /* __ICorProfilerInfo9_INTERFACE_DEFINED__ */
 
+#ifndef __ICLRProfiling_INTERFACE_DEFINED__
+#define __ICLRProfiling_INTERFACE_DEFINED__
+
+/* interface ICLRProfiling */
+/* [object][local][helpstring][version][uuid] */
+
+
+EXTERN_C const IID IID_ICLRProfiling;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+
+MIDL_INTERFACE("B349ABE3-B56F-4689-BFCD-76BF39D888EA")
+ICLRProfiling : public IUnknown
+{
+public:
+    virtual HRESULT STDMETHODCALLTYPE AttachProfiler(
+        /* [in] */ DWORD dwProfileeProcessID,
+        /* [in] */ DWORD dwMillisecondsMax,
+        /* [in] */ const CLSID *pClsidProfiler,
+        /* [in] */ LPCWSTR wszProfilerPath,
+        /* [size_is][in] */ void *pvClientData,
+        /* [in] */ UINT cbClientData) = 0;
+
+};
+
+
+#else 	/* C style interface */
+
+typedef struct ICLRProfilingVtbl
+{
+    BEGIN_INTERFACE
+
+        HRESULT(STDMETHODCALLTYPE *QueryInterface)(
+            ICLRProfiling * This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */
+            _COM_Outptr_  void **ppvObject);
+
+    ULONG(STDMETHODCALLTYPE *AddRef)(
+        ICLRProfiling * This);
+
+    ULONG(STDMETHODCALLTYPE *Release)(
+        ICLRProfiling * This);
+
+    HRESULT(STDMETHODCALLTYPE *AttachProfiler)(
+        ICLRProfiling * This,
+        /* [in] */ DWORD dwProfileeProcessID,
+        /* [in] */ DWORD dwMillisecondsMax,
+        /* [in] */ const CLSID *pClsidProfiler,
+        /* [in] */ LPCWSTR wszProfilerPath,
+        /* [size_is][in] */ void *pvClientData,
+        /* [in] */ UINT cbClientData);
+
+    END_INTERFACE
+} ICLRProfilingVtbl;
+
+interface ICLRProfiling
+{
+    CONST_VTBL struct ICLRProfilingVtbl *lpVtbl;
+};
+
+
+
+#ifdef COBJMACROS
+
+
+#define ICLRProfiling_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ICLRProfiling_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ICLRProfiling_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ICLRProfiling_AttachProfiler(This,dwProfileeProcessID,dwMillisecondsMax,pClsidProfiler,wszProfilerPath,pvClientData,cbClientData)	\
+    ( (This)->lpVtbl -> AttachProfiler(This,dwProfileeProcessID,dwMillisecondsMax,pClsidProfiler,wszProfilerPath,pvClientData,cbClientData) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ICLRProfiling_INTERFACE_DEFINED__ */
+
+
 
 #ifndef __ICorProfilerMethodEnum_INTERFACE_DEFINED__
 #define __ICorProfilerMethodEnum_INTERFACE_DEFINED__
@@ -15478,5 +15568,3 @@ EXTERN_C const IID IID_ICorProfilerAssemblyReferenceProvider;
 #endif
 
 #endif
-
-
