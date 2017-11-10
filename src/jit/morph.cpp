@@ -8608,11 +8608,11 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
         genTreeOps stmtOper = stmtExpr->gtOper;
         if (stmtOper == GT_CALL)
         {
-            noway_assert(stmtExpr == call);
+            assert(stmtExpr == call);
         }
         else
         {
-            noway_assert(stmtOper == GT_RETURN || stmtOper == GT_ASG || stmtOper == GT_COMMA);
+            assert(stmtOper == GT_RETURN || stmtOper == GT_ASG || stmtOper == GT_COMMA);
             GenTreePtr treeWithCall;
             if (stmtOper == GT_RETURN)
             {
@@ -8621,7 +8621,7 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
             else if (stmtOper == GT_COMMA)
             {
                 // Second operation must be nop.
-                noway_assert(stmtExpr->gtGetOp2()->IsNothingNode());
+                assert(stmtExpr->gtGetOp2()->IsNothingNode());
                 treeWithCall = stmtExpr->gtGetOp1();
             }
             else
@@ -8632,11 +8632,11 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
             // Peel off casts
             while (treeWithCall->gtOper == GT_CAST)
             {
-                noway_assert(!treeWithCall->gtOverflow());
+                assert(!treeWithCall->gtOverflow());
                 treeWithCall = treeWithCall->gtGetOp1();
             }
 
-            noway_assert(treeWithCall == call);
+            assert(treeWithCall == call);
         }
 #endif
 
