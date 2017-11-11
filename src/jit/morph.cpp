@@ -19628,7 +19628,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
             noway_assert(callExpr->gtGetOp1()->OperIsLocal());
             unsigned callResultLclNumber = callExpr->gtGetOp1()->AsLclVarCommon()->gtLclNum;
 
-#if defined(FEATURE_CORECLR)
+#if FEATURE_TAILCALL_OPT_SHARED_RETURN
 
             // We can have a move from the call result to an lvaInlineeReturnSpillTemp.
             // However, we can't check that this assignment was created there.
