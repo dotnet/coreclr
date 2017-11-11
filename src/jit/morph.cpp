@@ -19625,8 +19625,8 @@ bool Compiler::fgCheckStmtAfterTailCall()
         GenTree* callExpr = callStmt->gtStmtExpr;
         if (callExpr->gtOper != GT_ASG)
         {
-            // The next stmt must be GT_RETURN(TYP_VOID).
-            noway_assert(info.compRetType == TYP_VOID || info.compRetType == TYP_STRUCT);
+            // The next stmt can be GT_RETURN(TYP_VOID) or GT_RETURN(lclVar),
+            // where lclVar was return buffer in the call for structs or simd.
             GenTreeStmt* retStmt = nextMorphStmt;
             GenTreePtr   retExpr = retStmt->gtStmtExpr;
             noway_assert(retExpr->gtOper == GT_RETURN);
