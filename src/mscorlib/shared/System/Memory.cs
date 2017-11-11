@@ -20,7 +20,7 @@ namespace System
 
         // The highest order bit of _index is used to discern whether _object is an array/string or an owned memory
         // if (_index >> 31) == 1, object _object is an OwnedMemory<T>
-        // else, object _object is a T[] or a string.  It can only be a string if the Memory<T> was created by
+        // else, object _object is a T[] or a string. It can only be a string if the Memory<T> was created by
         // using unsafe / marshaling code to reinterpret a ReadOnlyMemory<char> wrapped around a string as
         // a Memory<T>.
         private readonly object _object;
@@ -187,14 +187,18 @@ namespace System
                 {
                     // This is dangerous, returning a writable span for a string that should be immutable.
                     // However, we need to handle the case where a ReadOnlyMemory<char> was created from a string
-                    // and then cast to a Memory<T>.  Such a cast can only be done with unsafe or marshaling code,
+                    // and then cast to a Memory<T>. Such a cast can only be done with unsafe or marshaling code,
                     // in which case that's the dangerous operation performed by the dev, and we're just following
                     // suit here to make it work as best as possible.
                     return new Span<T>(ref Unsafe.As<char, T>(ref s.GetRawStringData()), s.Length).Slice(_index, _length);
                 }
-                else
+                else if (_object != null)
                 {
                     return new Span<T>((T[])_object, _index, _length);
+                }
+                else
+                {
+                    return default;
                 }
             }
         }
@@ -220,7 +224,7 @@ namespace System
                     void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref s.GetRawStringData()), _index);
                     memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
-                else
+                else if (_object != null)
                 {
                     var array = (T[])_object;
                     var handle = GCHandle.Alloc(array, GCHandleType.Pinned);
@@ -253,7 +257,7 @@ namespace System
                     return true;
                 }
             }
-            else if (_arrayOrOwnedMemory != null)
+            else if (_object != null)
             {
                 T[] arr = _object as T[];
                 if (typeof(T) != typeof(char) || arr != null)
@@ -306,7 +310,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return CombineHashCodes(_object.GetHashCode(), _index.GetHashCode(), _length.GetHashCode());
+            return CombineHashCodes(_object == null ? 0 : _object.GetHashCode(), _index.GetHashCode(), _length.GetHashCode());
         }
 
         private static int CombineHashCodes(int left, int right)

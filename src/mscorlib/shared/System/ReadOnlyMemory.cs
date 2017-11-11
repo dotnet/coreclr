@@ -75,7 +75,7 @@ namespace System
             _length = length;
         }
 
-        /// <summary>Creates a new memory over the existing object, start, and length.  No validation is performed.</summary>
+        /// <summary>Creates a new memory over the existing object, start, and length. No validation is performed.</summary>
         /// <param name="obj">The target object.</param>
         /// <param name="start">The index at which to begin the memory.</param>
         /// <param name="length">The number of items in the memory.</param>
@@ -169,9 +169,13 @@ namespace System
                 {
                     return new ReadOnlySpan<T>(ref Unsafe.As<char, T>(ref s.GetRawStringData()), s.Length).Slice(_index, _length);
                 }
-                else
+                else if (_object != null)
                 {
                     return new ReadOnlySpan<T>((T[])_object, _index, _length);
+                }
+                else
+                {
+                    return default;
                 }
             }
         }
@@ -197,7 +201,7 @@ namespace System
                     void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref s.GetRawStringData()), _index);
                     memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
-                else
+                else if (_object != null)
                 {
                     var array = (T[])_object;
                     var handle = GCHandle.Alloc(array, GCHandleType.Pinned);
@@ -231,7 +235,7 @@ namespace System
                     return true;
                 }
             }
-            else if (_arrayOrOwnedMemory != null)
+            else if (_object != null)
             {
                 T[] arr = _object as T[];
                 if (typeof(T) != typeof(char) || arr != null)
@@ -286,7 +290,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return CombineHashCodes(_object.GetHashCode(), _index.GetHashCode(), _length.GetHashCode());
+            return CombineHashCodes(_object == null ? 0 : _object.GetHashCode(), _index.GetHashCode(), _length.GetHashCode());
         }
         
         private static int CombineHashCodes(int left, int right)
