@@ -67,7 +67,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) ./clean.sh",
+        "arguments": "run --rm $(DockerCommonRunArgs) ./clean.sh -all",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -398,7 +398,7 @@
       "value": "coreclr-$(Build.BuildId)"
     },
     "DockerCommonRunArgs": {
-      "value": "--name $(DockerContainerName) -v \"$(DockerVolumeName):$(GitHubDirectory)\" -w=\"$(GitHubDirectory)\" $(DockerImageName)"
+      "value": "--name $(DockerContainerName) --ulimit core=-1 -v \"$(DockerVolumeName):$(GitHubDirectory)\" -w=\"$(GitHubDirectory)\" $(DockerImageName)"
     },
     "DockerCopyDest": {
       "value": "$(Build.BinariesDirectory)/docker_repo"

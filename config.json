@@ -36,6 +36,24 @@
       "values": [],
       "defaultValue": ""
     },
+    "CleanAllProjects": {
+      "description": "MsBuild target that deletes the binary output directory.",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
+    "CleanPackages": {
+      "description": "MsBuild target that deletes the repo-local nuget package directory.",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
+    "CleanPackagesCache": {
+      "description": "MsBuild target that deletes the user-local nuget package cache.",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },    
     "ContainerName": {
       "description": "Container name for Azure upload.",
       "valueType": "property",
@@ -179,6 +197,12 @@
       "valueType": "passThrough",
       "values": [],
       "defaultValue": "/t:GenerateVersionSourceFile /p:GenerateVersionSourceFile=true"
+    },
+    "MSBuildNodeCount": {
+      "description": "Sets the value of the number of processors available for MSBuild.",
+      "valueType": "passThrough",
+      "values": [],
+      "defaultValue": "/maxcpucount"
     },
     "NativeVersionSourceFile": {
       "description": "Provides location for version.cpp",
@@ -508,7 +532,36 @@
           "MsBuildEventLogging": "default",
           "RestoreDefaultOptimizationDataPackage": "false",
           "PortableBuild": "true",
-          "UsePartialNGENOptimization": "false"
+          "UsePartialNGENOptimization": "false",
+          "MSBuildNodeCount": "default"
+        }
+      }
+    },
+    "clean": {
+      "alias": {
+        "b": {
+          "description": "Deletes the binary output directory.",
+          "settings": {
+            "CleanAllProjects": "default"
+          }
+        },
+        "p": {
+          "description": "Deletes the repo-local nuget package directory.",
+          "settings": {
+            "CleanPackages": "default"
+            }
+        },
+        "c": {
+          "description": "Deletes the user-local nuget package cache.",
+          "settings": {
+            "CleanPackagesCache": "default"
+          }
+        }
+      },
+      "defaultValues": {
+        "toolName": "msbuild",
+        "settings": {
+          "MsBuildLog":"/flp:v=normal;LogFile=clean.log"
         }
       }
     },
@@ -667,7 +720,7 @@
         "settings": {
           "__BuildOS": "default",
           "Project": "./src/publish.proj",
-          "MsBuildFileLogging": "/flp:v=detailed;LogFile=publish-packages.log"
+          "MsBuildFileLogging": "/flp:v=detailed;LogFile=publish-packages.log /clp:v=detailed"
         }
       }
     },
@@ -708,11 +761,11 @@
     "msbuild": {
       "osSpecific": {
         "windows": {
-          "defaultParameters": "/nologo /verbosity:minimal /clp:Summary /maxcpucount /nodeReuse:false",
+          "defaultParameters": "/nologo /verbosity:minimal /clp:Summary /nodeReuse:false",
           "path": "Tools/msbuild.cmd"
         },
         "unix": {
-          "defaultParameters": "/nologo /verbosity:minimal /clp:Summary /maxcpucount",
+          "defaultParameters": "/nologo /verbosity:minimal /clp:Summary",
           "path": "Tools/msbuild.sh"
         }
       },

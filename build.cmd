@@ -30,7 +30,7 @@ if defined VisualStudioVersion (
     goto :Run
 ) 
 
-echo %__MsgPrefix%"Searching for Visual Studio 2017 or 2015 installation"
+echo %__MsgPrefix%Searching ^for Visual Studio 2017 or 2015 installation
 set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if exist %_VSWHERE% (
 for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -prerelease -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
@@ -45,6 +45,23 @@ if not exist "%_VSCOMNTOOLS%" (
 call "%_VSCOMNTOOLS%\VsDevCmd.bat"
 
 :Run
+
+REM Make the work-around to a bug in the microsoft.dotnet.buildtools.coreclr package until it is fixed.  
+reg query HKEY_CLASSES_ROOT\WOW6432Node\CLSID\{3BFCEA48-620F-4B6B-81F7-B9AF75454C7D}\InprocServer32 > NUL: 2>&1
+if NOT '%ERRORLEVEL%' == '0' (
+    echo.
+    echo.**********************************************************************************
+    echo.Error: We have detected that the msdia120.dll is not registered.   
+    echo.This is necessary for the build to complete without a Class_Not_Registered error.
+    echo.
+    echo.You can fix this by 
+    echo.  1. Launching the "Developer Command Prompt for VS2017" with Administrative privileges
+    echo.  2. Running  regsvr32.exe "%%VSINSTALLDIR%%\Common7\IDE\msdia120.dll"  
+    echo.
+    echo.This will only need to be done once for the lifetime of the machine.
+    echo.For more details see: https://github.com/dotnet/coreclr/issues/11305
+    exit /b 1
+)
 
 if defined VS150COMNTOOLS (
   set "__VSToolsRoot=%VS150COMNTOOLS%"
@@ -123,6 +140,12 @@ set __BuildPackages=1
 set __BuildNativeCoreLib=1
 set __RestoreOptData=1
 
+@REM CMD has a nasty habit of eating "=" on the argument list, so passing:
+@REM    -priority=1
+@REM appears to CMD parsing as "-priority 1". Handle -priority specially to avoid problems,
+@REM and allow the "-priority=1" syntax.
+set __Priority=
+
 :Arg_Loop
 if "%1" == "" goto ArgsDone
 
@@ -153,6 +176,8 @@ if /i "%1" == "arm64"               (set __BuildArchArm64=1&set processedArgs=!p
 if /i "%1" == "debug"               (set __BuildTypeDebug=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "checked"             (set __BuildTypeChecked=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "release"             (set __BuildTypeRelease=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+
+if /i "%1" == "-priority"           (set __Priority=%2&shift&set processedArgs=!processedArgs! %1=%2&shift&goto Arg_Loop)
 
 REM All arguments after this point will be passed through directly to build.cmd on nested invocations
 REM using the "all" argument, and must be added to the __PassThroughArgs variable.
@@ -217,6 +242,16 @@ if [!processedArgs!]==[] (
 )
 
 :ArgsDone
+
+@REM Special handling for -priority=N argument.
+if defined __Priority (
+    if defined __PassThroughArgs (
+        set __PassThroughArgs=%__PassThroughArgs% -priority=%__Priority%
+    ) else (
+        set __PassThroughArgs=-priority=%__Priority%
+    )
+    set __UnprocessedBuildArgs=!__UnprocessedBuildArgs! -priority=%__Priority%
+)
 
 if %__PgoOptimize%==0 set __RestoreOptData=0
 
@@ -297,8 +332,8 @@ echo %__MsgPrefix%Checking prerequisites
 :: Eval the output from probe-win1.ps1
 for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\probe-win.ps1"""') do %%a
 
-REM NumberOfEnabledCore is an WMI property providing number of enabled cores on machine
-REM processor(s) and later is used to set optimal level of CL parallelism during native build step
+REM NumberOfCores is an WMI property providing number of physical cores on machine
+REM processor(s). It is used to set optimal level of CL parallelism during native build step
 if not defined NumberOfCores (
 REM Determine number of physical processor cores available on machine
 for /f "tokens=*" %%I in (
@@ -421,7 +456,7 @@ if %__BuildNative% EQU 1 (
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
 
-    @call %__ProjectDir%\run.cmd build -Project=%__IntermediatesDir%\install.vcxproj -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! -configuration=%__BuildType% %__NativePlatformArgs% %__RunArgs% -ExtraParameters="/p:ForceImportBeforeCppTargets=%__ProjectDir%/clr.nativebuild.props /m:2" %__UnprocessedBuildArgs%
+    @call %__ProjectDir%\run.cmd build -Project=%__IntermediatesDir%\install.vcxproj -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! -configuration=%__BuildType% %__NativePlatformArgs% %__RunArgs% -MSBuildNodeCount="/m:2" %__UnprocessedBuildArgs%
 
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: native component build failed. Refer to the build log files for details:
@@ -491,7 +526,7 @@ if /i "%__DoCrossArchBuild%"=="1" (
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
 
-    @call %__ProjectDir%\run.cmd build -Project=%__CrossCompIntermediatesDir%\install.vcxproj -configuration=%__BuildType% -platform=%__CrossArch% -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! %__RunArgs% -ExtraParameters="/p:ForceImportBeforeCppTargets=%__ProjectDir%/clr.nativebuild.props /m:2" %__UnprocessedBuildArgs%
+    @call %__ProjectDir%\run.cmd build -Project=%__CrossCompIntermediatesDir%\install.vcxproj -configuration=%__BuildType% -platform=%__CrossArch% -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! %__RunArgs% -MSBuildNodeCount="/m:2" %__UnprocessedBuildArgs%
 
         if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: cross-arch components build failed. Refer to the build log files for details:

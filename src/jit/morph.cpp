@@ -4788,7 +4788,7 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
 
         GenTreePtr arg = argx;
 
-        if (arg->TypeGet() == TYP_STRUCT)
+        if (varTypeIsStruct(arg->TypeGet()))
         {
             foundStructArg = true;
 
@@ -4843,7 +4843,7 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
 //
 GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr fgEntryPtr)
 {
-    assert(arg->TypeGet() == TYP_STRUCT);
+    assert(varTypeIsStruct(arg->TypeGet()));
 
 #ifndef _TARGET_ARMARCH_
     NYI("fgMorphMultiregStructArg requires implementation for this target");
@@ -4990,7 +4990,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
         }
     }
     // We should still have a TYP_STRUCT
-    assert(argValue->TypeGet() == TYP_STRUCT);
+    assert(varTypeIsStruct(argValue->TypeGet()));
 
     GenTreeFieldList* newArg = nullptr;
 
@@ -10269,14 +10269,14 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
 //    The destination must be known (by the caller) to be on the stack.
 //
 // Notes:
-//    If we have a CopyObj with a dest on the stack, and its size is small enouch
+//    If we have a CopyObj with a dest on the stack, and its size is small enough
 //    to be completely unrolled (i.e. between [16..64] bytes), we will convert it into a
 //    GC Unsafe CopyBlk that is non-interruptible.
 //    This is not supported for the JIT32_GCENCODER, in which case this method is a no-op.
 //
 void Compiler::fgMorphUnsafeBlk(GenTreeObj* dest)
 {
-#if defined(CPBLK_UNROLL_LIMIT) && !defined(JIT32_GCENCODER)
+#if defined(CPBLK_UNROLL_LIMIT) && !defined(JIT32_GCENCODER) && !defined(LEGACY_BACKEND)
     assert(dest->gtGcPtrCount != 0);
     unsigned blockWidth = dest->AsBlk()->gtBlkSize;
 #ifdef DEBUG
@@ -10737,7 +10737,7 @@ GenTreePtr Compiler::fgMorphCopyBlock(GenTreePtr tree)
 
             // If we have a CopyObj with a dest on the stack
             // we will convert it into an GC Unsafe CopyBlk that is non-interruptible
-            // when its size is small enouch to be completely unrolled (i.e. between [16..64] bytes).
+            // when its size is small enough to be completely unrolled (i.e. between [16..64] bytes).
             // (This is not supported for the JIT32_GCENCODER, for which fgMorphUnsafeBlk is a no-op.)
             //
             if (destOnStack && (dest->OperGet() == GT_OBJ))
@@ -11252,6 +11252,8 @@ GenTree* Compiler::fgMorphRecognizeBoxNullable(GenTree* compare)
     {
         compare->gtOp.gtOp2 = newOp;
     }
+
+    opCns->gtType = TYP_INT;
 
     return compare;
 }
@@ -16882,7 +16884,7 @@ void Compiler::fgMorphBlocks()
                 GenTreePtr last = (block->bbTreeList != nullptr) ? block->bbTreeList->gtPrev : nullptr;
                 GenTreePtr ret  = (last != nullptr) ? last->gtStmt.gtStmtExpr : nullptr;
 
-                if ((ret != nullptr) && ((ret->gtFlags & GTF_RET_MERGED) != 0))
+                if ((ret != nullptr) && (ret->OperGet() == GT_RETURN) && ((ret->gtFlags & GTF_RET_MERGED) != 0))
                 {
                     // This return was generated during epilog merging, so leave it alone
                 }
