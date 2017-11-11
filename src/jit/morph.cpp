@@ -19550,6 +19550,13 @@ GenTreeStmt* skipNopStmts(GenTreeStmt* stmt)
 
 #endif // !FEATURE_CORECLR && _TARGET_AMD64_
 
+//------------------------------------------------------------------------
+// fgCheckStmtAfterTailCall: check that statements after the tail call stmt
+// candidate are in one of expected forms, that are desctibed below.
+//
+// Return Value:
+//    'true' if stmts are in the expected form, else 'false'.
+//
 bool Compiler::fgCheckStmtAfterTailCall()
 {
 
@@ -19609,7 +19616,10 @@ bool Compiler::fgCheckStmtAfterTailCall()
     }
 #endif // !FEATURE_CORECLR && _TARGET_AMD64_
 
-    // Check that the rest stmts in the block are expected.
+    // Check that the rest stmts in the block are in one of the following pattern:
+    //  1) ret(void)
+    //  2) ret(cast*(callResultLclVar))
+    //  3) lclVar = callResultLclVar, the actual ret(lclVar) in another block
     if (nextMorphStmt != nullptr)
     {
         GenTree* callExpr = callStmt->gtStmtExpr;
