@@ -511,7 +511,7 @@ void SsaBuilder::DisplayDominators(BlkToBlkSetMap* domTree)
 // See "A simple, fast dominance algorithm", by Cooper, Harvey, and Kennedy.
 // First we compute the dominance frontier for each block, then we convert these to iterated
 // dominance frontiers by a closure operation.
-BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOrder, int count)
+BlkToBlkVectorMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOrder, int count)
 {
     BlkToBlkVectorMap mapDF(&m_allocator);
 
@@ -600,38 +600,41 @@ BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOr
 #endif
 
     // Now do the closure operation to make the dominance frontier into an IDF.
-    // There's probably a better way to do this...
-    BlkToBlkSetMap* idf = new (&m_allocator) BlkToBlkSetMap(&m_allocator);
-    for (BlkToBlkVectorMap::KeyIterator kiFrontBlks = mapDF.Begin(); !kiFrontBlks.Equal(mapDF.End()); kiFrontBlks++)
+    BlkToBlkVectorMap* mapIDF = new (&m_allocator) BlkToBlkVectorMap(&m_allocator);
+    mapIDF->Reallocate(mapDF.GetCount());
+
+    for (BlkToBlkVectorMap::KeyIterator ki = mapDF.Begin(); !ki.Equal(mapDF.End()); ki++)
     {
-        // Create IDF(b)
-        BlkSet* blkIdf = new (&m_allocator) BlkSet(&m_allocator);
-        idf->Set(kiFrontBlks.Get(), blkIdf);
+        // Compute IDF(b) - start by adding DF(b) to IDF(b).
+        BasicBlock* b    = ki.Get();
+        BlkVector&  bDF  = ki.GetValue();
+        BlkVector&  bIDF = *mapIDF->Emplace(b, &m_allocator);
+        bIDF.reserve(bDF.size());
+        BitVecOps::ClearD(&m_visitedTraits, m_visited);
 
-        // Keep track of what got newly added to the IDF, so we can go after their DFs.
-        BlkSet* delta = new (&m_allocator) BlkSet(&m_allocator);
-        delta->Set(kiFrontBlks.Get(), true);
-
-        // Now transitively add DF+(delta) to IDF(b), each step gathering new "delta."
-        while (delta->GetCount() > 0)
+        for (BasicBlock* f : bDF)
         {
-            // Extract a block x to be worked on.
-            BlkSet::KeyIterator ki     = delta->Begin();
-            BasicBlock*         curBlk = ki.Get();
-            // TODO-Cleanup: Remove(ki) doesn't work correctly in SimplerHash.
-            delta->Remove(curBlk);
+            BitVecOps::AddElemD(&m_visitedTraits, m_visited, f->bbNum);
+            bIDF.push_back(f);
+        }
 
-            // Get DF(x).
-            BlkVector* blkDf = mapDF.LookupPointer(curBlk);
-            if (blkDf != nullptr)
+        // Now for each block f from IDF(b) add DF(f) to IDF(b). This may result in new
+        // blocks being added to IDF(b) and the process repeats until no more new blocks
+        // are added. Note that since we keep adding to bIDF we can't use iterators as
+        // they may get invalidated. This happens to be a convenient way to avoid having
+        // to track newly added blocks in a separate set.
+        for (size_t newIndex = 0; newIndex < bIDF.size(); newIndex++)
+        {
+            BasicBlock* f   = bIDF[newIndex];
+            BlkVector*  fDF = mapDF.LookupPointer(f);
+
+            if (fDF != nullptr)
             {
-                // Add DF(x) to IDF(b) and update "delta" i.e., new additions to IDF(b).
-                for (BasicBlock* f : *blkDf)
+                for (BasicBlock* ff : *fDF)
                 {
-                    if (!blkIdf->Lookup(f))
+                    if (BitVecOps::TryAddElemD(&m_visitedTraits, m_visited, ff->bbNum))
                     {
-                        delta->Set(f, true);
-                        blkIdf->Set(f, true);
+                        bIDF.push_back(ff);
                     }
                 }
             }
@@ -644,20 +647,20 @@ BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOr
         printf("\nComputed IDF:\n");
         for (int i = 0; i < count; ++i)
         {
-            BasicBlock* block = postOrder[i];
-            printf("Block BB%02u := {", block->bbNum);
+            BasicBlock* b = postOrder[i];
+            printf("Block BB%02u := {", b->bbNum);
 
-            bool    first = true;
-            BlkSet* blkIdf;
-            if (idf->Lookup(block, &blkIdf))
+            bool       first = true;
+            BlkVector* bIDF  = mapIDF->LookupPointer(b);
+            if (bIDF != nullptr)
             {
-                for (BlkSet::KeyIterator ki = blkIdf->Begin(); !ki.Equal(blkIdf->End()); ki++)
+                for (BasicBlock* f : *bIDF)
                 {
                     if (!first)
                     {
                         printf(",");
                     }
-                    printf("BB%02u", ki.Get()->bbNum);
+                    printf("BB%02u", f->bbNum);
                     first = false;
                 }
             }
@@ -666,7 +669,7 @@ BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOr
     }
 #endif
 
-    return idf;
+    return mapIDF;
 }
 
 /**
@@ -720,7 +723,7 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
     EndPhase(PHASE_BUILD_SSA_LIVENESS);
 
     // Compute dominance frontier.
-    BlkToBlkSetMap* frontier = ComputeIteratedDominanceFrontier(postOrder, count);
+    BlkToBlkVectorMap* mapIDF = ComputeIteratedDominanceFrontier(postOrder, count);
     EndPhase(PHASE_BUILD_SSA_IDF);
 
     JITDUMP("Inserting phi functions:\n");
@@ -731,8 +734,8 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
         DBG_SSA_JITDUMP("Considering dominance frontier of block BB%02u:\n", block->bbNum);
 
         // If the block's dominance frontier is empty, go on to the next block.
-        BlkSet* blkIdf;
-        if (!frontier->Lookup(block, &blkIdf))
+        BlkVector* blkIdf = mapIDF->LookupPointer(block);
+        if (blkIdf == nullptr)
         {
             continue;
         }
@@ -752,9 +755,8 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
             }
 
             // For each block "bbInDomFront" that is in the dominance frontier of "block"...
-            for (BlkSet::KeyIterator iterBlk = blkIdf->Begin(); !iterBlk.Equal(blkIdf->End()); ++iterBlk)
+            for (BasicBlock* bbInDomFront : *blkIdf)
             {
-                BasicBlock* bbInDomFront = iterBlk.Get();
                 DBG_SSA_JITDUMP("     Considering BB%02u in dom frontier of BB%02u:\n", bbInDomFront->bbNum,
                                 block->bbNum);
 
@@ -794,9 +796,8 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
         if (block->bbMemoryDef != 0)
         {
             // For each block "bbInDomFront" that is in the dominance frontier of "block".
-            for (BlkSet::KeyIterator iterBlk = blkIdf->Begin(); !iterBlk.Equal(blkIdf->End()); ++iterBlk)
+            for (BasicBlock* bbInDomFront : *blkIdf)
             {
-                BasicBlock* bbInDomFront = iterBlk.Get();
                 DBG_SSA_JITDUMP("     Considering BB%02u in dom frontier of BB%02u for Memory phis:\n",
                                 bbInDomFront->bbNum, block->bbNum);
 
