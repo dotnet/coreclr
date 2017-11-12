@@ -513,7 +513,7 @@ void SsaBuilder::DisplayDominators(BlkToBlkSetMap* domTree)
 // dominance frontiers by a closure operation.
 BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOrder, int count)
 {
-    BlkToBlkSetMap* frontier = new (&m_allocator) BlkToBlkSetMap(&m_allocator);
+    BlkToBlkVectorMap mapDF(&m_allocator);
 
     DBG_SSA_JITDUMP("Computing IDF: First computing DF.\n");
 
@@ -534,8 +534,8 @@ BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOr
 
         flowList* blockPreds = m_pCompiler->BlockPredsWithEH(block);
 
-        // If block has more 0/1 predecessor, skip.
-        if (blockPreds == nullptr || blockPreds->flNext == nullptr)
+        // If block has 0/1 predecessor, skip.
+        if ((blockPreds == nullptr) || (blockPreds->flNext == nullptr))
         {
             DBG_SSA_JITDUMP("   Has %d preds; skipping.\n", blockPreds == nullptr ? 0 : 1);
             continue;
@@ -544,7 +544,7 @@ BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOr
         // Otherwise, there are > 1 preds.  Each is a candidate B2 in the definition --
         // *unless* it dominates "block"/B3.
 
-        for (flowList* pred = blockPreds; pred; pred = pred->flNext)
+        for (flowList* pred = blockPreds; pred != nullptr; pred = pred->flNext)
         {
             DBG_SSA_JITDUMP("   Considering predecessor BB%02u.\n", pred->flBlock->bbNum);
 
@@ -560,13 +560,13 @@ BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOr
                  b1             = b1->bbIDom)
             {
                 DBG_SSA_JITDUMP("      Adding BB%02u to dom frontier of pred dom BB%02u.\n", block->bbNum, b1->bbNum);
-                BlkSet* pBlkSet;
-                if (!frontier->Lookup(b1, &pBlkSet))
+
+                BlkVector& b1DF = *mapDF.Emplace(b1, &m_allocator);
+                // It's possible to encounter the same DF multiple times, ensure that we don't add duplicates.
+                if (b1DF.empty() || (b1DF.back() != block))
                 {
-                    pBlkSet = new (&m_allocator) BlkSet(&m_allocator);
-                    frontier->Set(b1, pBlkSet);
+                    b1DF.push_back(block);
                 }
-                pBlkSet->Set(block, true);
             }
         }
     }
@@ -577,20 +577,20 @@ BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOr
         printf("\nComputed DF:\n");
         for (int i = 0; i < count; ++i)
         {
-            BasicBlock* block = postOrder[i];
-            printf("Block BB%02u := {", block->bbNum);
+            BasicBlock* b = postOrder[i];
+            printf("Block BB%02u := {", b->bbNum);
 
-            bool    first = true;
-            BlkSet* blkDf;
-            if (frontier->Lookup(block, &blkDf))
+            bool       first = true;
+            BlkVector* bDF   = mapDF.LookupPointer(b);
+            if (bDF != nullptr)
             {
-                for (BlkSet::KeyIterator blkDfIter = blkDf->Begin(); !blkDfIter.Equal(blkDf->End()); blkDfIter++)
+                for (BasicBlock* f : *bDF)
                 {
                     if (!first)
                     {
                         printf(",");
                     }
-                    printf("BB%02u", blkDfIter.Get()->bbNum);
+                    printf("BB%02u", f->bbNum);
                     first = false;
                 }
             }
@@ -602,8 +602,7 @@ BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOr
     // Now do the closure operation to make the dominance frontier into an IDF.
     // There's probably a better way to do this...
     BlkToBlkSetMap* idf = new (&m_allocator) BlkToBlkSetMap(&m_allocator);
-    for (BlkToBlkSetMap::KeyIterator kiFrontBlks = frontier->Begin(); !kiFrontBlks.Equal(frontier->End());
-         kiFrontBlks++)
+    for (BlkToBlkVectorMap::KeyIterator kiFrontBlks = mapDF.Begin(); !kiFrontBlks.Equal(mapDF.End()); kiFrontBlks++)
     {
         // Create IDF(b)
         BlkSet* blkIdf = new (&m_allocator) BlkSet(&m_allocator);
@@ -623,16 +622,16 @@ BlkToBlkSetMap* SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock** postOr
             delta->Remove(curBlk);
 
             // Get DF(x).
-            BlkSet* blkDf;
-            if (frontier->Lookup(curBlk, &blkDf))
+            BlkVector* blkDf = mapDF.LookupPointer(curBlk);
+            if (blkDf != nullptr)
             {
                 // Add DF(x) to IDF(b) and update "delta" i.e., new additions to IDF(b).
-                for (BlkSet::KeyIterator ki = blkDf->Begin(); !ki.Equal(blkDf->End()); ki++)
+                for (BasicBlock* f : *blkDf)
                 {
-                    if (!blkIdf->Lookup(ki.Get()))
+                    if (!blkIdf->Lookup(f))
                     {
-                        delta->Set(ki.Get(), true);
-                        blkIdf->Set(ki.Get(), true);
+                        delta->Set(f, true);
+                        blkIdf->Set(f, true);
                     }
                 }
             }
