@@ -226,12 +226,11 @@ int SsaBuilder::TopologicalSort(BasicBlock** postOrder, int count)
             ++iter;
 
             // push the children
-            if (!BitVecOps::IsMember(&m_visitedTraits, m_visited, succ->bbNum))
+            if (BitVecOps::TryAddElemD(&m_visitedTraits, m_visited, succ->bbNum))
             {
                 blocks.Push(succ);
                 iterators.Push(succ->GetAllSuccs(comp).begin());
                 ends.Push(succ->GetAllSuccs(comp).end());
-                BitVecOps::AddElemD(&m_visitedTraits, m_visited, succ->bbNum);
             }
         }
         else
