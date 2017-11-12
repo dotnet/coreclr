@@ -176,6 +176,10 @@ private:
     Compiler*     m_pCompiler;
     CompAllocator m_allocator;
 
+    // Bit vector used by TopologicalSort and ComputeImmediateDom to track already visited blocks.
+    BitVecTraits m_visitedTraits;
+    BitVec       m_visited;
+
 #ifdef SSA_FEATURE_DOMARR
     // To answer queries of type a DOM b.
     // Do not move these outside of this class, use accessors/interface methods.

@@ -145,6 +145,7 @@ void Compiler::fgResetForSsa()
 SsaBuilder::SsaBuilder(Compiler* pCompiler)
     : m_pCompiler(pCompiler)
     , m_allocator(pCompiler, CMK_SSA)
+    , m_visitedTraits(0, pCompiler) // at this point we do not know the size, SetupBBRoot can add a block
 #ifdef SSA_FEATURE_DOMARR
     , m_pDomPreOrder(nullptr)
     , m_pDomPostOrder(nullptr)
@@ -170,8 +171,8 @@ int SsaBuilder::TopologicalSort(BasicBlock** postOrder, int count)
 {
     Compiler* comp = m_pCompiler;
 
-    BitVecTraits traits(comp->fgBBNumMax + 1, comp);
-    BitVec       visited(BitVecOps::MakeEmpty(&traits));
+    // TopologicalSort is called first so m_visited should already be empty
+    assert(BitVecOps::IsEmpty(&m_visitedTraits, m_visited));
 
     // Display basic blocks.
     DBEXEC(VERBOSE, comp->fgDispBasicBlocks());
@@ -180,7 +181,7 @@ int SsaBuilder::TopologicalSort(BasicBlock** postOrder, int count)
     // Compute order.
     int         postIndex = 0;
     BasicBlock* block     = comp->fgFirstBB;
-    BitVecOps::AddElemD(&traits, visited, block->bbNum);
+    BitVecOps::AddElemD(&m_visitedTraits, m_visited, block->bbNum);
 
     ArrayStack<BasicBlock*>      blocks(comp);
     ArrayStack<AllSuccessorIter> iterators(comp);
@@ -225,12 +226,12 @@ int SsaBuilder::TopologicalSort(BasicBlock** postOrder, int count)
             ++iter;
 
             // push the children
-            if (!BitVecOps::IsMember(&traits, visited, succ->bbNum))
+            if (!BitVecOps::IsMember(&m_visitedTraits, m_visited, succ->bbNum))
             {
                 blocks.Push(succ);
                 iterators.Push(succ->GetAllSuccs(comp).begin());
                 ends.Push(succ->GetAllSuccs(comp).end());
-                BitVecOps::AddElemD(&traits, visited, succ->bbNum);
+                BitVecOps::AddElemD(&m_visitedTraits, m_visited, succ->bbNum);
             }
         }
         else
@@ -273,11 +274,10 @@ void SsaBuilder::ComputeImmediateDom(BasicBlock** postOrder, int count)
         blk->bbIDom = nullptr;
     }
 
-    // Add entry point to processed as its IDom is NULL.
-    BitVecTraits traits(m_pCompiler->fgBBNumMax + 1, m_pCompiler);
-    BitVec       processed(BitVecOps::MakeEmpty(&traits));
+    // Add entry point to visited as its IDom is NULL.
+    BitVecOps::ClearD(&m_visitedTraits, m_visited);
+    BitVecOps::AddElemD(&m_visitedTraits, m_visited, m_pCompiler->fgFirstBB->bbNum);
 
-    BitVecOps::AddElemD(&traits, processed, m_pCompiler->fgFirstBB->bbNum);
     assert(postOrder[count - 1] == m_pCompiler->fgFirstBB);
 
     bool changed = true;
@@ -296,7 +296,7 @@ void SsaBuilder::ComputeImmediateDom(BasicBlock** postOrder, int count)
             BasicBlock* predBlock = nullptr;
             for (flowList* pred = m_pCompiler->BlockPredsWithEH(block); pred; pred = pred->flNext)
             {
-                if (BitVecOps::IsMember(&traits, processed, pred->flBlock->bbNum))
+                if (BitVecOps::IsMember(&m_visitedTraits, m_visited, pred->flBlock->bbNum))
                 {
                     predBlock = pred->flBlock;
                     break;
@@ -339,8 +339,8 @@ void SsaBuilder::ComputeImmediateDom(BasicBlock** postOrder, int count)
                 block->bbIDom = bbIDom;
             }
 
-            // Mark the current block as processed.
-            BitVecOps::AddElemD(&traits, processed, block->bbNum);
+            // Mark the current block as visited.
+            BitVecOps::AddElemD(&m_visitedTraits, m_visited, block->bbNum);
 
             DBG_SSA_JITDUMP("Marking block BB%02u as processed.\n", block->bbNum);
         }
@@ -1857,6 +1857,9 @@ void SsaBuilder::Build()
     {
         postOrder = (BasicBlock**)alloca(blockCount * sizeof(BasicBlock*));
     }
+
+    m_visitedTraits = BitVecTraits(blockCount, m_pCompiler);
+    m_visited       = BitVecOps::MakeEmpty(&m_visitedTraits);
 
     // Topologically sort the graph.
     int count = TopologicalSort(postOrder, blockCount);
