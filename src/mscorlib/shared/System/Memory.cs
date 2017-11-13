@@ -258,11 +258,8 @@ namespace System
             }
             else if (_object is T[] arr)
             {
-                if (typeof(T) != typeof(char))
-                {
-                    arraySegment = new ArraySegment<T>(arr, _index, _length);
-                    return true;
-                }
+                arraySegment = new ArraySegment<T>(arr, _index, _length);
+                return true;
             }
 
             arraySegment = default(ArraySegment<T>);
