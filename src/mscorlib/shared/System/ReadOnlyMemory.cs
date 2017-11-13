@@ -201,9 +201,8 @@ namespace System
                     void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref s.GetRawStringData()), _index);
                     memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
-                else if (_object != null)
+                else if (_object is T[] array)
                 {
-                    var array = (T[])_object;
                     var handle = GCHandle.Alloc(array, GCHandleType.Pinned);
                     void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index);
                     memoryHandle = new MemoryHandle(null, pointer, handle);
@@ -235,10 +234,9 @@ namespace System
                     return true;
                 }
             }
-            else if (_object != null)
+            else if (_object is T[] arr)
             {
-                T[] arr = _object as T[];
-                if (typeof(T) != typeof(char) || arr != null)
+                if (typeof(T) != typeof(char))
                 {
                     arraySegment = new ArraySegment<T>(arr, _index, _length);
                     return true;
@@ -290,7 +288,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return CombineHashCodes(_object == null ? 0 : _object.GetHashCode(), _index.GetHashCode(), _length.GetHashCode());
+            return _object != null ? CombineHashCodes(_object.GetHashCode(), _index.GetHashCode(), _length.GetHashCode()) : 0;
         }
         
         private static int CombineHashCodes(int left, int right)
