@@ -1308,7 +1308,7 @@ bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool i
     }
 }
 
-void GCToEEInterface::WalkOverlappedObjectForPromotion(Object* object, ScanContext* sc, promote_func* callback)
+void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1356,7 +1356,7 @@ void GCToEEInterface::WalkOverlappedObjectForPromotion(Object* object, ScanConte
     }
 }
 
-void GCToEEInterface::WalkOverlappedObject(Object* object, void* context, void (*callback)(Object*, Object*, void*))
+void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*callback)(Object*, Object*, void*))
 {
     LIMITED_METHOD_CONTRACT;
 

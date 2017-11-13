@@ -818,7 +818,7 @@ void BlockResetAgeMapForBlocksWorker(uint32_t *pdwGen, uint32_t dwClumpMask, Sca
                     if (minAge > thisAge)
                         minAge = thisAge;
 
-                    GCToEEInterface::WalkOverlappedObject(*pValue, &minAge,
+                    GCToEEInterface::WalkAsyncPinned(*pValue, &minAge,
                         [](Object*, Object* to, void* ctx)
                         {
                             int* minAge = reinterpret_cast<int*>(ctx);
@@ -969,7 +969,7 @@ void BlockVerifyAgeMapForBlocksWorker(uint32_t *pdwGen, uint32_t dwClumpMask, Sc
                 if (!HndIsNullOrDestroyedHandle(*pValue))
                 {
                     VerifyObjectAndAge((*pValue), (*pValue), minAge);
-                    GCToEEInterface::WalkOverlappedObject(*pValue, &minAge,
+                    GCToEEInterface::WalkAsyncPinned(*pValue, &minAge,
                         [](Object* from, Object* object, void* age)
                         {
                             uint8_t* minAge = reinterpret_cast<uint8_t*>(age);

@@ -640,7 +640,7 @@ void HndLogSetEvent(OBJECTHANDLE handle, _UNCHECKED_OBJECTREF value)
             ClosureCapture captured;
             captured.pAppDomain = pAppDomain;
             captured.overlapped = value;
-            GCToEEInterface::WalkOverlappedObject(value, &captured, [](Object*, Object* to, void* ctx)
+            GCToEEInterface::WalkAsyncPinned(value, &captured, [](Object*, Object* to, void* ctx)
             {
                 ClosureCapture* captured = reinterpret_cast<ClosureCapture*>(ctx);
                 uint32_t generation = to != nullptr ? g_theGCHeap->WhichGeneration(to) : 0;
@@ -702,14 +702,12 @@ void HndWriteBarrier(OBJECTHANDLE handle, OBJECTREF objref)
         int generation = g_theGCHeap->WhichGeneration(value);
         uint32_t uType = HandleFetchType(handle);
 
-#ifndef FEATURE_REDHAWK
         //OverlappedData need special treatment: because all user data pointed by it needs to be reported by this handle,
         //its age is consider to be min age of the user data, to be simple, we just make it 0
-        if (uType == HNDTYPE_ASYNCPINNED && objref->GetGCSafeMethodTable () == g_pOverlappedDataClass)
+        if (uType == HNDTYPE_ASYNCPINNED)
         {
             generation = 0;
         }
-#endif // !FEATURE_REDHAWK
         
         if (uType == HNDTYPE_DEPENDENT)
         {
@@ -1158,7 +1156,6 @@ uint32_t HndCountAllHandles(BOOL fUseLocks)
 
 BOOL  Ref_HandleAsyncPinHandles(async_pin_enum_fn asyncPinCallback, void* context)
 {
-#ifndef FEATURE_REDHAWK
     CONTRACTL
     {
         NOTHROW;
@@ -1179,14 +1176,10 @@ BOOL  Ref_HandleAsyncPinHandles(async_pin_enum_fn asyncPinCallback, void* contex
     }
 
     return result;
-#else
-    return true;
-#endif // !FEATURE_REDHAWK
 }
 
 void  Ref_RelocateAsyncPinHandles(HandleTableBucket *pSource, HandleTableBucket *pTarget)
 {
-#ifndef FEATURE_REDHAWK
     CONTRACTL
     {
         NOTHROW;
@@ -1199,7 +1192,6 @@ void  Ref_RelocateAsyncPinHandles(HandleTableBucket *pSource, HandleTableBucket 
     {
         TableRelocateAsyncPinHandles(Table(pSource->pTable[n]), Table(pTarget->pTable[n]));
     }
-#endif // !FEATURE_REDHAWK
 }
 
 /*--------------------------------------------------------------------------*/

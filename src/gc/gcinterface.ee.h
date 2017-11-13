@@ -231,7 +231,7 @@ public:
     //
     // This function is a no-op if "object" is not an OverlappedData object.
     virtual
-    void WalkOverlappedObjectForPromotion(Object* object, ScanContext* sc, promote_func* callback) = 0;
+    void WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback) = 0;
 
     // Given an object, if this object is an instance of `System.Threading.OverlappedData` and the
     // runtime treats instances of this class specially, traverses the objects that are directly
@@ -250,7 +250,7 @@ public:
     //
     // This function is a no-op if "object" is not an OverlappedData object.
     virtual
-    void WalkOverlappedObject(Object* object, void* context, void(*callback)(Object*, Object*, void*)) = 0;
+    void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*)) = 0;
 
     // Given an object, if this object is an instance of `System.Threading.OverlappedData` and the
     // runtime treats instances of this class specially, the runtime is given a chance to eagerly remove the

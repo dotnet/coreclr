@@ -330,11 +330,11 @@ bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool i
     return false;
 }
 
-void GCToEEInterface::WalkOverlappedObjectForPromotion(Object* object, ScanContext* sc, promote_func* callback)
+void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback)
 {
 }
 
-void GCToEEInterface::WalkOverlappedObject(Object* object, void* context, void (*callback)(Object*, Object*, void*))
+void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*callback)(Object*, Object*, void*))
 {
 }
 

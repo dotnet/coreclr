@@ -661,7 +661,6 @@ __inline void SegmentUnMarkFreeMask(TableSegment *pSegment, _UNCHECKED_OBJECTREF
     pSegment->rgFreeMask[uMask] &= ~(1<<uBit);
 }
 
-#ifndef FEATURE_REDHAWK
 // Prepare a segment to be moved to default domain.
 // Remove all non-async pin handles.
 void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment)
@@ -1008,8 +1007,6 @@ BOOL TableHandleAsyncPinHandles(HandleTable *pTable, const AsyncPinCallbackConte
     }
     CONTRACTL_END;
 
-    _ASSERTE (pTable->uADIndex.m_dwIndex == DefaultADID);
-
     BOOL result = FALSE;
     TableSegment *pSegment = pTable->pSegmentList;
 
@@ -1167,7 +1164,6 @@ SLOW_PATH:
         break;
     }
 }
-#endif // !FEATURE_REDHAWK
 
 /*
  * Check if a handle is part of a HandleTable

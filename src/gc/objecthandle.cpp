@@ -278,7 +278,7 @@ void CALLBACK PinObject(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, ui
     Object * pPinnedObj = *pRef;
     if (!HndIsNullOrDestroyedHandle(pPinnedObj))
     {
-        GCToEEInterface::WalkOverlappedObjectForPromotion(pPinnedObj, (ScanContext *)lp1, callback);
+        GCToEEInterface::WalkAsyncPinnedForPromotion(pPinnedObj, (ScanContext *)lp1, callback);
     }
 }
 
@@ -393,14 +393,12 @@ void CALLBACK UpdatePointer(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo
  */
 void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
 {
-#ifndef FEATURE_REDHAWK
     CONTRACTL
     {
         NOTHROW;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-#endif // FEATURE_REDHAWK
     UNREFERENCED_PARAMETER(pExtraInfo);
     handle_scan_fn fn = (handle_scan_fn)lp2;
 
