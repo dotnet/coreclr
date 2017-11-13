@@ -303,7 +303,7 @@ namespace System
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() =>
+        public override int GetHashCode()
         {
             return _object != null ? CombineHashCodes(_object.GetHashCode(), _index.GetHashCode(), _length.GetHashCode()) : 0;
         }
