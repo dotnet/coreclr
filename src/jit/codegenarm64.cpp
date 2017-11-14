@@ -1709,7 +1709,17 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
         regNumber dataReg = REG_NA;
         if (data->isContainedIntOrIImmed())
         {
+            // This is only possible for a zero-init.
             assert(data->IsIntegralConst(0));
+
+            if (varTypeIsSIMD(targetType))
+            {
+                assert(targetReg != REG_NA);
+                getEmitter()->emitIns_R_I(INS_movi, EA_16BYTE, targetReg, 0x00, INS_OPTS_16B);
+                genProduceReg(tree);
+                return;
+            }
+
             dataReg = REG_ZR;
         }
         else
@@ -4051,13 +4061,12 @@ void CodeGen::genSIMDIntrinsicInit(GenTreeSIMD* simdNode)
     var_types targetType = simdNode->TypeGet();
 
     genConsumeOperands(simdNode);
-    regNumber op1Reg = op1->gtRegNum;
+    regNumber op1Reg = op1->IsIntegralConst(0) ? REG_ZR : op1->gtRegNum;
 
-    // TODO-ARM64-CQ Add support contain int const zero
     // TODO-ARM64-CQ Add LD1R to allow SIMDIntrinsicInit from contained memory
     // TODO-ARM64-CQ Add MOVI to allow SIMDIntrinsicInit from contained immediate small constants
 
-    assert(!op1->isContained());
+    assert(op1->isContained() == op1->IsIntegralConst(0));
     assert(!op1->isUsedFromMemory());
 
     assert(genIsValidFloatReg(targetReg));
@@ -4695,7 +4704,8 @@ void CodeGen::genSIMDIntrinsicUpperSave(GenTreeSIMD* simdNode)
     assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicUpperSave);
 
     GenTree* op1 = simdNode->gtGetOp1();
-    assert(op1->IsLocal() && op1->TypeGet() == TYP_SIMD16);
+    assert(op1->IsLocal());
+    assert(emitTypeSize(op1->TypeGet()) == 16);
     regNumber targetReg = simdNode->gtRegNum;
     regNumber op1Reg    = genConsumeReg(op1);
     assert(op1Reg != REG_NA);
@@ -4731,7 +4741,8 @@ void CodeGen::genSIMDIntrinsicUpperRestore(GenTreeSIMD* simdNode)
     assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicUpperRestore);
 
     GenTree* op1 = simdNode->gtGetOp1();
-    assert(op1->IsLocal() && op1->TypeGet() == TYP_SIMD16);
+    assert(op1->IsLocal());
+    assert(emitTypeSize(op1->TypeGet()) == 16);
     regNumber srcReg    = simdNode->gtRegNum;
     regNumber lclVarReg = genConsumeReg(op1);
     unsigned  varNum    = op1->AsLclVarCommon()->gtLclNum;
