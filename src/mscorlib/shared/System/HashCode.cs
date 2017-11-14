@@ -312,7 +312,7 @@ namespace System
         {
             if (comparer is null)
             {
-                Add(value);
+                Add(value?.GetHashCode() ?? 0);
             }
             else
             {
@@ -320,7 +320,6 @@ namespace System
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Add(int value)
         {
             // The original xxHash works as follows:
