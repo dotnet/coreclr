@@ -14,13 +14,13 @@
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Memory">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+      <Version>$(SystemMemoryPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+      <Version>$(SystemRuntimeCompilerServicesUnsafePackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Security.Permissions">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+      <Version>$(SystemSecurityPermissionsPackageVersion)</Version>
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
