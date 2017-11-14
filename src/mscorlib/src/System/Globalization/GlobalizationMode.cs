@@ -6,9 +6,6 @@ namespace System.Globalization
 {
     internal sealed partial class GlobalizationMode
     {
-        private const string c_InvariantModeConfigSwitch = "System.Globalization.Invariant";
-        // Linux doesn't support environment variable names including dots
-        private const string c_InvariantModeEnvironmentVariable = "DOTNET_System_Globalization_Invariant";
         internal static bool Invariant { get; } = GetGlobalizationInvariantMode();
 
         // GetInvariantSwitchValue calls CLRConfig first to detect if the switch is defined in the config file.
@@ -17,13 +14,14 @@ namespace System.Globalization
         internal static bool GetInvariantSwitchValue()
         {
             bool exist;
-            bool ret = CLRConfig.GetBoolValue(c_InvariantModeConfigSwitch, out exist);
+            bool ret = CLRConfig.GetBoolValue("System.Globalization.Invariant", out exist);
             if (!exist)
             {
-                string switchValue = Environment.GetEnvironmentVariable(c_InvariantModeEnvironmentVariable);
+                // Linux doesn't support environment variable names include dots
+                string switchValue = Environment.GetEnvironmentVariable("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT");
                 if (switchValue != null)
                 {
-                    ret = switchValue.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    ret = switchValue.Equals("true", StringComparison.OrdinalIgnoreCase) || switchValue.Equals("1");
                 }
             }
 
