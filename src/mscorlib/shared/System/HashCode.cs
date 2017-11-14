@@ -312,7 +312,7 @@ namespace System
         {
             if (comparer is null)
             {
-                // Prevent unessecary generic method instantiation by manually
+                // Prevent unnecessary generic method instantiation by manually
                 // inlining.
                 Add(value?.GetHashCode() ?? 0);
             }
