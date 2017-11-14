@@ -2617,7 +2617,6 @@ combinedScenarios.each { scenario ->
                     }
 
                     if (scenario == 'standalone_gc') {
-                        def osGroup = getOSGroup(os)
                         if (osGroup == 'OSX') {
                             standaloneGcStr = '--gcname=libclrgc.dylib'
                         }
