@@ -1584,7 +1584,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             Constants.r2rJitStressScenarios.containsKey(scenario)) {
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
                     }
-                    else if (isLongGc(scenario)) {
+                    else if (isLongGc(scenario) || scenario == 'standalone_gc') {
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
                     }
                     else if (scenario == 'formatting') {
