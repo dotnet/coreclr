@@ -285,7 +285,7 @@ public:
                                          COR_DEBUG_IL_TO_NATIVE_MAP map[]) = 0;
 
     virtual HRESULT GetILToNativeMappingIntoArrays(
-        MethodDesc * pMD, 
+        UINT_PTR pCode, 
         USHORT cMapMax, 
         USHORT * pcMap,
         UINT ** prguiILOffset, 

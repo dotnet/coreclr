@@ -3133,7 +3133,7 @@ HRESULT Debugger::GetILToNativeMapping(UINT_PTR pNativeCodeStartAddress, ULONG32
 //
 
 HRESULT Debugger::GetILToNativeMappingIntoArrays(
-    MethodDesc * pMD, 
+    UINT_PTR pCode, 
     USHORT cMapMax, 
     USHORT * pcMap,
     UINT ** prguiILOffset, 
@@ -3157,7 +3157,7 @@ HRESULT Debugger::GetILToNativeMappingIntoArrays(
 
     // Get the JIT info by functionId.
 
-    DebuggerJitInfo * pDJI = GetLatestJitInfoFromMethodDesc(pMD);
+    DebuggerJitInfo * pDJI = GetJitInfoFromAddr(pCode);
 
     // Dunno what went wrong
     if (pDJI == NULL)
