@@ -240,7 +240,7 @@ def static getOSGroup(def os) {
     ['Ubuntu14.04'].each { os ->
         def newJob = job(Utilities.getFullJobName(project, "perf_${os}", isPR)) {
 
-            label('linux_clr_perf')
+            label('ubuntu_1604_clr_perf')
             wrappers {
                 credentialsBinding {
                     string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
@@ -329,7 +329,7 @@ def static getOSGroup(def os) {
     ['Ubuntu14.04'].each { os ->
         def newJob = job(Utilities.getFullJobName(project, "perf_throughput_${os}", isPR)) {
 
-            label('linux_clr_perf')
+            label('ubuntu_1604_clr_perf')
                 wrappers {
                     credentialsBinding {
                         string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
