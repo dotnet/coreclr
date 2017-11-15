@@ -6697,6 +6697,7 @@ VOID ETW::MethodLog::SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWOR
     NewArrayHolder<UINT> rguiNativeOffset;
 
     HRESULT hr = g_pDebugInterface->GetILToNativeMappingIntoArrays(
+        pMethodDesc,
         pCode,
         kMapEntriesMax,
         &cMap,
