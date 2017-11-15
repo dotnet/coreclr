@@ -137,7 +137,7 @@ class Constants {
                'gc_reliability_framework',
                'illink'] + r2rStressScenarios.keySet()
 
-    def static allScenarios = Constants.basicScenarios + Constants.jitStressModeScenarios.keySet()
+    def static allScenarios = basicScenarios + jitStressModeScenarios.keySet()
 
     // A set of scenarios that are valid for arm/arm64/armlb tests run on hardware. This is a map from valid scenario name
     // to Tests.lst file categories to exclude.
@@ -1791,7 +1791,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
 // Additional scenario which can alter behavior
 
-allScenarios.each { scenario ->
+Constants.allScenarios.each { scenario ->
     [true, false].each { isPR ->
         Constants.architectureList.each { architecture ->
             Constants.configurationList.each { configuration ->
@@ -2123,7 +2123,7 @@ allScenarios.each { scenario ->
 
 
 // Create jobs requiring flow jobs. This includes x64 non-Windows, arm64 Ubuntu, and arm/arm64/armlb Windows.
-allScenarios.each { scenario ->
+Constants.allScenarios.each { scenario ->
     [true, false].each { isPR ->
         ['arm', 'armlb', 'x64', 'arm64'].each { architecture ->
             Constants.crossList.each { os ->
