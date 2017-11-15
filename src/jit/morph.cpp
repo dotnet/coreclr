@@ -4984,8 +4984,9 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             }
         }
     }
-    // We should still have a TYP_STRUCT
-    assert(varTypeIsStruct(argValue->TypeGet()));
+    // We should still have a TYP_STRUCT or
+    // if struct is produced from `localloc` IL code we might have TYP_BLK
+    assert(varTypeIsStruct(argValue->TypeGet()) || (argValue->TypeGet() == TYP_BLK));
 
     GenTreeFieldList* newArg = nullptr;
 
@@ -5035,6 +5036,15 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
 #elif defined(_TARGET_ARM_)
             noway_assert(elemCount <= 4);
 #endif
+
+            if (varDsc->lvGcLayout == nullptr)
+            {
+                // I am not sure whether we should initialize lvGcLayout or not
+                varDsc->lvGcLayout = (BYTE*)compGetMem((varDsc->lvSize() / sizeof(void*)) * sizeof(BYTE), CMK_LvaTable);
+                unsigned  numGCVars;
+                var_types simdBaseType = TYP_UNKNOWN;
+                varDsc->lvType = impNormStructType(objClass, varDsc->lvGcLayout, &numGCVars, &simdBaseType);
+            }
 
             for (unsigned inx = 0; inx < elemCount; inx++)
             {

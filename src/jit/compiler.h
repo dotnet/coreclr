@@ -9566,6 +9566,7 @@ inline LclVarDsc::LclVarDsc(Compiler* comp)
     _lvOtherArgReg(REG_STK)
     ,
 #endif // FEATURE_MULTIREG_ARGS
+    lvGcLayout(nullptr),
 #if ASSERTION_PROP
     lvRefBlks(BlockSetOps::UninitVal())
     ,
