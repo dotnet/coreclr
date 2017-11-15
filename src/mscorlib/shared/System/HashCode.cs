@@ -310,16 +310,7 @@ namespace System
 
         public void Add<T>(T value, IEqualityComparer<T> comparer)
         {
-            if (comparer is null)
-            {
-                // Prevent unnecessary generic method instantiation by manually
-                // inlining.
-                Add(value?.GetHashCode() ?? 0);
-            }
-            else
-            {
-                Add(comparer.GetHashCode(value));
-            }
+            Add(comparer != null ? comparer.GetHashCode(value) : (value?.GetHashCode() ?? 0));
         }
 
         private void Add(int value)
