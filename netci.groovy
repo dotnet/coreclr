@@ -1172,8 +1172,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             break
         // editor brace matching: }
         case 'arm64': // editor brace matching: {
-            assert isArmWindowsScenario(scenario)
-
             // Set up a private trigger
             def contextString = "${os} ${architecture} Cross ${configuration}"
             def triggerString = "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}"
@@ -1220,6 +1218,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
                     break
                 case 'Windows_NT':
+                    assert isArmWindowsScenario(scenario)
                     switch (scenario) {
                         case 'default':
                             if (configuration == 'Debug' || configuration == 'Checked') {
@@ -1932,29 +1931,6 @@ Constants.allScenarios.each { scenario ->
                                     return
                                 }
                                 if (configuration != 'Checked') {
-                                    return
-                                }
-                                break
-                            case 'r2r':
-                            case 'r2r_jitstress1':
-                            case 'r2r_jitstress2':
-                            case 'r2r_jitstressregs1':
-                            case 'r2r_jitstressregs2':
-                            case 'r2r_jitstressregs3':
-                            case 'r2r_jitstressregs4':
-                            case 'r2r_jitstressregs8':
-                            case 'r2r_jitstressregs0x10':
-                            case 'r2r_jitstressregs0x80':
-                            case 'r2r_jitstressregs0x1000':
-                            case 'r2r_jitminopts':
-                            case 'r2r_jitforcerelocs':
-                            case 'r2r_gcstress15':
-                                // The above builds are not necessary except for Windows_NT.  Non-Windows NT uses
-                                // the default scenario build
-                                if (os != 'Windows_NT') {
-                                    return
-                                }
-                                if (architecture != 'x64' && architecture != 'x86') {
                                     return
                                 }
                                 break
