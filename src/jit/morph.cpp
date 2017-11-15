@@ -8120,9 +8120,9 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
             if (!varDsc->lvIsParam)
             {
                 var_types lclType            = varDsc->TypeGet();
-                bool      isILTemp           = (varNum < info.compLocalsCount);
+                bool      isUserLocal        = (varNum < info.compLocalsCount);
                 bool      structWithGCFields = ((lclType == TYP_STRUCT) && (varDsc->lvStructGcCount > 0));
-                if (isILTemp || structWithGCFields)
+                if (isUserLocal || structWithGCFields)
                 {
                     GenTreePtr lcl  = gtNewLclvNode(varNum, lclType);
                     GenTreePtr init = nullptr;
