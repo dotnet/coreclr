@@ -25,9 +25,7 @@ def static getOSGroup(def os) {
         'Fedora24':'Linux',
         'OSX10.12':'OSX',
         'Windows_NT':'Windows_NT',
-        'FreeBSD':'FreeBSD',
         'CentOS7.1': 'Linux',
-        'OpenSUSE42.1': 'Linux',
         'Tizen': 'Linux']
     def osGroup = osGroupMap.get(os, null)
     assert osGroup != null : "Could not find os group for ${os}"
@@ -47,9 +45,7 @@ class Constants {
                'OSX10.12',
                'Windows_NT',
                'Windows_NT_BuildOnly',
-               'FreeBSD',
                'CentOS7.1',
-               'OpenSUSE42.1',
                'RHEL7.2',
                'Ubuntu16.04',
                'Ubuntu16.10',
@@ -640,7 +636,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
 
 // **************************
 // Define the basic inner loop builds for PR and commit.  This is basically just the set
-// of coreclr builds over linux/osx 10.12/freebsd/windows and debug/release/checked.  In addition, the windows
+// of coreclr builds over linux/osx 10.12/windows and debug/release/checked.  In addition, the windows
 // builds will do a couple extra steps.
 // **************************
 
@@ -701,7 +697,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     break
                 case 'Fedora24':
                 case 'Ubuntu16.10':
-                case 'OpenSUSE42.1':
                     assert !isFlowJob
                     assert scenario == 'default'
                     Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build", "(?i).*test\\W+${os}\\W+.*")
@@ -1032,12 +1027,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             println("Unknown scenario: ${scenario}");
                             assert false
                             break
-                    }
-                    break
-                case 'FreeBSD':
-                    assert scenario == 'default'
-                    if (configuration == 'Checked') {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build")
                     }
                     break
                 default:
@@ -1482,7 +1471,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // Run the rest of the build
                         // Build the mscorlib for the other OS's
                         buildCommands += "build.cmd ${lowerConfiguration} ${arch} linuxmscorlib"
-                        buildCommands += "build.cmd ${lowerConfiguration} ${arch} freebsdmscorlib"
                         buildCommands += "build.cmd ${lowerConfiguration} ${arch} osxmscorlib"
 
                         // Zip up the tests directory so that we don't use so much space/time copying
@@ -1566,10 +1554,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
         case 'Ubuntu16.10':
         case 'Debian8.4':
         case 'OSX10.12':
-        case 'FreeBSD':
         case 'CentOS7.1':
         case 'RHEL7.2':
-        case 'OpenSUSE42.1':
         case 'Tizen':
         case 'Fedora24': // editor brace matching: {
             switch (architecture) {
@@ -1601,16 +1587,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     if (!enableCorefxTesting) {
                         // We run pal tests on all OS but generate mscorlib (and thus, nuget packages)
                         // only on supported OS platforms.
-                        if (os == 'FreeBSD')
-                        {
-                            buildCommands += "./build.sh skipmscorlib verbose ${lowerConfiguration} ${architecture} ${standaloneGc}"
-                        }
-                        else
-                        {
-                            def bootstrapRid = Utilities.getBoostrapPublishRid(os)
-                            def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
-                            buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture} ${standaloneGc}"
-                        }
+                        
+                        def bootstrapRid = Utilities.getBoostrapPublishRid(os)
+                        def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
+                        buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture} ${standaloneGc}"
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Set time out

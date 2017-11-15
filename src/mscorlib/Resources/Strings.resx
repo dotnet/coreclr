@@ -868,9 +868,6 @@
   <data name="Argument_CannotSetParentToInterface" xml:space="preserve">
     <value>Cannot set parent to an interface.</value>
   </data>
-  <data name="Argument_CantCallSecObjFunc" xml:space="preserve">
-    <value>Cannot evaluate a security function.</value>
-  </data>
   <data name="Argument_CodepageNotSupported" xml:space="preserve">
     <value>{0} is not a supported code page.</value>
   </data>
@@ -1220,7 +1217,7 @@
     <value>Cannot use type '{0}'. Only value types without pointers or references are supported.</value>
   </data>
   <data name="Argument_InvalidUnity" xml:space="preserve">
-    <value>Invalid Unity type.</value>
+    <value>Type '{0}' is not deserializable.</value>
   </data>
   <data name="Argument_InvalidValue" xml:space="preserve">
     <value>Value was invalid.</value>

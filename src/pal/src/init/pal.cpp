@@ -1007,6 +1007,14 @@ static BOOL INIT_IncreaseDescriptorLimit(void)
     // Set our soft limit for file descriptors to be the same
     // as the max limit.
     rlp.rlim_cur = rlp.rlim_max;
+#ifdef __APPLE__
+    // Based on compatibility note in setrlimit(2) manpage for OSX,
+    // trim the limit to OPEN_MAX.
+    if (rlp.rlim_cur > OPEN_MAX)
+    {
+        rlp.rlim_cur = OPEN_MAX;
+    }
+#endif
     result = setrlimit(RLIMIT_NOFILE, &rlp);
     if (result != 0)
     {

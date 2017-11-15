@@ -23,7 +23,7 @@
 
   <!-- Profile-based optimization data package versions -->
   <PropertyGroup>
-    <PgoDataPackageVersion>2.0.0-release-20170612-1411</PgoDataPackageVersion>
+    <PgoDataPackageVersion>2.0.0-release-20170711-0120</PgoDataPackageVersion>
     <!--<IbcDataPackageVersion></IbcDataPackageVersion>-->
   </PropertyGroup>
 
@@ -96,6 +96,11 @@
     <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
   </PropertyGroup>
 
+  <!-- Explicitly set BuildVersionFile before importing common. This is used by BuildVersion.targets. -->
+  <PropertyGroup Condition="'$(OfficialBuildId)' != ''">
+    <BuildVersionFile>$(BaseIntermediateOutputPath)BuildVersion-$(OfficialBuildId).props</BuildVersionFile>
+  </PropertyGroup>
+
   <!-- Import Build tools common props file where repo-independent properties are found -->
   <Import Condition="Exists('$(ToolsDir)Build.Common.props')" Project="$(ToolsDir)Build.Common.props" />
 
@@ -138,7 +143,6 @@
          pulling in different packaging dependencies.
      -->
     <PackagingTaskDir Condition="'$(TargetsWindows)' == 'true'">$(ToolsDir)net46/</PackagingTaskDir>
-    <BuildNumberMajor Condition="'$(BuildNumberMajor)' == ''">00001</BuildNumberMajor>
     <!-- defined in buildtools packaging.targets, but we need this before targets are imported -->
     <PackagePlatform Condition="'$(PackagePlatform)' == ''">$(Platform)</PackagePlatform>
     <PackagePlatform Condition="'$(PackagePlatform)' == 'amd64'">x64</PackagePlatform>
@@ -173,10 +177,6 @@
     </File>
     <PackageIndex Include="$(PackageIndexFile)" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <BuildVersionFile>$(BaseIntermediateOutputPath)BuildVersion-$(OfficialBuildId).props</BuildVersionFile>
-  </PropertyGroup>
 
   <!-- Use Roslyn Compilers to build -->
   <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false'" />
