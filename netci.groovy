@@ -2130,6 +2130,8 @@ Constants.allScenarios.each { scenario ->
 
                 Constants.configurationList.each { configuration ->
 
+                    // First, filter based on OS.
+
                     if (os == 'Windows_NT') {
                         if (!isArmWindowsScenario(scenario)) {
                             return
@@ -2148,7 +2150,7 @@ Constants.allScenarios.each { scenario ->
                         if (configuration != 'Checked' && configuration != 'Release') {
                             return
                         }
-                        if (scenario != 'default' && !isR2RScenario(scenario)) {
+                        if (scenario != 'default' && !isR2RScenario(scenario) && !isJitStressScenario(scenario)) {
                             return
                         }
                     }
@@ -2162,6 +2164,8 @@ Constants.allScenarios.each { scenario ->
                             return
                         }
                     }
+
+                    // Next, filter based on scenario.
 
                     if (isJitStressScenario(scenario)) {
                         if (configuration != 'Checked') {
@@ -2221,6 +2225,8 @@ Constants.allScenarios.each { scenario ->
                                 break
                         }
                     }
+
+                    // Done filtering. Now, create the jobs.
 
                     def lowerConfiguration = configuration.toLowerCase()
                     def osGroup = getOSGroup(os)
