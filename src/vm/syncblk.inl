@@ -31,11 +31,9 @@ FORCEINLINE bool AwareLock::LockState::InterlockedTryLock(LockState state)
     // despite there being a waiter for the lock in order to have the worker continue working efficiently during its time slice
     // as long as the lock is not contended.
     //
-    // This scheme has the possibility to starve waiters, but that would only happen if the lock is taken very frequently or if
-    // it is heavily contended. Neither of these issues is common, and they typically indicate issues with lock usage in the
-    // app, which the app may have to fix. For example, lock is held for too long, lock does not remain released for long
-    // enough, lock is acquired and released too frequently, too many threads, etc.
-    if (!state.IsLocked())
+    // This scheme has the possibility to starve waiters. Waiter starvation is mitigated by other means, see
+    // InterlockedTrySetShouldNotPreemptWaitersIfNecessary().
+    if (state.ShouldNonWaiterAttemptToAcquireLock())
     {
         LockState newState = state;
         newState.InvertIsLocked();
@@ -79,6 +77,76 @@ FORCEINLINE bool AwareLock::LockState::InterlockedUnlock()
     }
 }
 
+FORCEINLINE bool AwareLock::LockState::InterlockedTrySetShouldNotPreemptWaitersIfNecessary(AwareLock *awareLock)
+{
+    WRAPPER_NO_CONTRACT;
+    return InterlockedTrySetShouldNotPreemptWaitersIfNecessary(awareLock, *this);
+}
+
+FORCEINLINE bool AwareLock::LockState::InterlockedTrySetShouldNotPreemptWaitersIfNecessary(
+    AwareLock *awareLock,
+    LockState state)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(awareLock != nullptr);
+    _ASSERTE(&awareLock->m_lockState == this);
+
+    // Normally, threads are allowed to preempt waiters to acquire the lock in order to avoid creating lock convoys, see
+    // InterlockedTryLock(). There are cases where waiters can be easily starved as a result. For example, a thread that
+    // holds a lock for a significant amount of time (much longer than the time it takes to do a context switch), then
+    // releases and reacquires the lock in quick succession, and repeats. Though a waiter would be woken upon lock release,
+    // usually it will not have enough time to context-switch-in and take the lock, and can be starved for an unreasonably long
+    // duration.
+    //
+    // In order to prevent such starvation and force a bit of fair forward progress, it is sometimes necessary to change the
+    // normal policy and disallow threads from preempting waiters. ShouldNotPreemptWaiters() indicates the current state of the
+    // policy and this function determines whether the policy should be changed to disallow non-waiters from preempting waiters.
+    //   - When the first waiter begins waiting, it records the current time as a "waiter starvation start time". That is a
+    //     point in time after which no forward progress has occurred for waiters. When a waiter acquires the lock, the time is
+    //     updated to the current time.
+    //   - This function checks whether the starvation duration has crossed a threshold and if so, sets
+    //     ShouldNotPreemptWaiters()
+    //
+    // When unreasonable starvation is occurring, the lock will be released occasionally and if caused by spinners, spinners
+    // will be starting to spin.
+    //   - Before starting to spin this function is called. If ShouldNotPreemptWaiters() is set, the spinner will skip spinning
+    //     and wait instead. Spinners that are already registered at the time ShouldNotPreemptWaiters() is set will stop
+    //     spinning as necessary. Eventually, all spinners will drain and no new ones will be registered.
+    //   - Upon releasing a lock, if there are no spinners, a waiter will be signaled to wake. On that path, this function
+    //     is called.
+    //   - Eventually, after spinners have drained, only a waiter will be able to acquire the lock. When a waiter acquires
+    //     the lock, or when the last waiter unregisters itself, ShouldNotPreemptWaiters() is cleared to restore the normal
+    //     policy.
+
+    while (true)
+    {
+        if (!state.HasAnyWaiters())
+        {
+            _ASSERTE(!state.ShouldNotPreemptWaiters());
+            return false;
+        }
+        if (state.ShouldNotPreemptWaiters())
+        {
+            return true;
+        }
+        if (!awareLock->ShouldStopPreemptingWaiters())
+        {
+            return false;
+        }
+
+        LockState newState = state;
+        newState.InvertShouldNotPreemptWaiters();
+
+        LockState stateBeforeUpdate = CompareExchange(newState, state);
+        if (stateBeforeUpdate == state)
+        {
+            return true;
+        }
+
+        state = stateBeforeUpdate;
+    }
+}
+
 FORCEINLINE AwareLock::EnterHelperResult AwareLock::LockState::InterlockedTry_LockOrRegisterSpinner(LockState state)
 {
     WRAPPER_NO_CONTRACT;
@@ -86,11 +154,11 @@ FORCEINLINE AwareLock::EnterHelperResult AwareLock::LockState::InterlockedTry_Lo
     while (true)
     {
         LockState newState = state;
-        if (!state.IsLocked())
+        if (state.ShouldNonWaiterAttemptToAcquireLock())
         {
             newState.InvertIsLocked();
         }
-        else if (!newState.TryIncrementSpinnerCount())
+        else if (state.ShouldNotPreemptWaiters() || !newState.TryIncrementSpinnerCount())
         {
             return EnterHelperResult_UseSlowPath;
         }
@@ -98,14 +166,14 @@ FORCEINLINE AwareLock::EnterHelperResult AwareLock::LockState::InterlockedTry_Lo
         LockState stateBeforeUpdate = CompareExchange(newState, state);
         if (stateBeforeUpdate == state)
         {
-            return !state.IsLocked() ? EnterHelperResult_Entered : EnterHelperResult_Contention;
+            return state.ShouldNonWaiterAttemptToAcquireLock() ? EnterHelperResult_Entered : EnterHelperResult_Contention;
         }
 
         state = stateBeforeUpdate;
     }
 }
 
-FORCEINLINE bool AwareLock::LockState::InterlockedTry_LockAndUnregisterSpinner()
+FORCEINLINE AwareLock::EnterHelperResult AwareLock::LockState::InterlockedTry_LockAndUnregisterSpinner()
 {
     WRAPPER_NO_CONTRACT;
 
@@ -114,9 +182,9 @@ FORCEINLINE bool AwareLock::LockState::InterlockedTry_LockAndUnregisterSpinner()
     while (true)
     {
         _ASSERTE(state.HasAnySpinners());
-        if (state.IsLocked())
+        if (!state.ShouldNonWaiterAttemptToAcquireLock())
         {
-            return false;
+            return state.ShouldNotPreemptWaiters() ? EnterHelperResult_UseSlowPath : EnterHelperResult_Contention;
         }
 
         LockState newState = state;
@@ -126,7 +194,7 @@ FORCEINLINE bool AwareLock::LockState::InterlockedTry_LockAndUnregisterSpinner()
         LockState stateBeforeUpdate = CompareExchange(newState, state);
         if (stateBeforeUpdate == state)
         {
-            return true;
+            return EnterHelperResult_Entered;
         }
 
         state = stateBeforeUpdate;
@@ -167,26 +235,49 @@ FORCEINLINE bool AwareLock::LockState::InterlockedUnregisterSpinner_TryLock()
     return false;
 }
 
-FORCEINLINE bool AwareLock::LockState::InterlockedTryLock_Or_RegisterWaiter(LockState state)
+FORCEINLINE bool AwareLock::LockState::InterlockedTryLock_Or_RegisterWaiter(AwareLock *awareLock, LockState state)
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(awareLock != nullptr);
+    _ASSERTE(&awareLock->m_lockState == this);
 
+    bool waiterStarvationStartTimeWasReset = false;
     while (true)
     {
         LockState newState = state;
-        if (!state.IsLocked())
+        if (state.ShouldNonWaiterAttemptToAcquireLock())
         {
             newState.InvertIsLocked();
         }
         else
         {
             newState.IncrementWaiterCount();
+
+            if (!state.HasAnyWaiters() && !waiterStarvationStartTimeWasReset)
+            {
+                // This would be the first waiter. Once the waiter is registered, another thread may check the waiter starvation
+                // start time and the previously recorded value may be stale, causing ShouldNotPreemptWaiters() to be set
+                // unnecessarily. Reset the start time before registering the waiter.
+                waiterStarvationStartTimeWasReset = true;
+                awareLock->ResetWaiterStarvationStartTime();
+            }
         }
 
         LockState stateBeforeUpdate = CompareExchange(newState, state);
         if (stateBeforeUpdate == state)
         {
-            return !state.IsLocked();
+            if (state.ShouldNonWaiterAttemptToAcquireLock())
+            {
+                return true;
+            }
+
+            if (!state.HasAnyWaiters())
+            {
+                // This was the first waiter, record the waiter starvation start time
+                _ASSERTE(waiterStarvationStartTimeWasReset);
+                awareLock->RecordWaiterStarvationStartTime();
+            }
+            return false;
         }
 
         state = stateBeforeUpdate;
@@ -197,16 +288,37 @@ FORCEINLINE void AwareLock::LockState::InterlockedUnregisterWaiter()
 {
     WRAPPER_NO_CONTRACT;
 
-    LockState stateBeforeUpdate = InterlockedExchangeAdd((LONG *)&m_state, -(LONG)WaiterCountIncrement);
-    _ASSERTE(stateBeforeUpdate.HasAnyWaiters());
+    LockState state = *this;
+    while (true)
+    {
+        _ASSERTE(state.HasAnyWaiters());
+
+        LockState newState = state;
+        newState.DecrementWaiterCount();
+        if (newState.ShouldNotPreemptWaiters() && !newState.HasAnyWaiters())
+        {
+            newState.InvertShouldNotPreemptWaiters();
+        }
+
+        LockState stateBeforeUpdate = CompareExchange(newState, state);
+        if (stateBeforeUpdate == state)
+        {
+            return;
+        }
+
+        state = stateBeforeUpdate;
+    }
 }
 
-FORCEINLINE bool AwareLock::LockState::InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal()
+FORCEINLINE bool AwareLock::LockState::InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal(AwareLock *awareLock)
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(awareLock != nullptr);
+    _ASSERTE(&awareLock->m_lockState == this);
 
     // This function is called from the waiter's spin loop and should observe the wake signal only if the lock is taken, to
     // prevent a lock releaser from waking another waiter while one is already spinning to acquire the lock
+    bool waiterStarvationStartTimeWasRecorded = false;
     LockState state = *this;
     while (true)
     {
@@ -221,10 +333,32 @@ FORCEINLINE bool AwareLock::LockState::InterlockedTry_LockAndUnregisterWaiterAnd
         newState.InvertIsLocked();
         newState.InvertIsWaiterSignaledToWake();
         newState.DecrementWaiterCount();
+        if (newState.ShouldNotPreemptWaiters())
+        {
+            newState.InvertShouldNotPreemptWaiters();
+
+            if (newState.HasAnyWaiters() && !waiterStarvationStartTimeWasRecorded)
+            {
+                // Update the waiter starvation start time. The time must be recorded before ShouldNotPreemptWaiters() is
+                // cleared, as once that is cleared, another thread may check the waiter starvation start time and the
+                // previously recorded value may be stale, causing ShouldNotPreemptWaiters() to be set again unnecessarily.
+                waiterStarvationStartTimeWasRecorded = true;
+                awareLock->RecordWaiterStarvationStartTime();
+            }
+        }
 
         LockState stateBeforeUpdate = CompareExchange(newState, state);
         if (stateBeforeUpdate == state)
         {
+            if (newState.HasAnyWaiters())
+            {
+                _ASSERTE(!state.ShouldNotPreemptWaiters() || waiterStarvationStartTimeWasRecorded);
+                if (!waiterStarvationStartTimeWasRecorded)
+                {
+                    // Since the lock was acquired successfully by a waiter, update the waiter starvation start time
+                    awareLock->RecordWaiterStarvationStartTime();
+                }
+            }
             return true;
         }
 
@@ -232,9 +366,11 @@ FORCEINLINE bool AwareLock::LockState::InterlockedTry_LockAndUnregisterWaiterAnd
     }
 }
 
-FORCEINLINE bool AwareLock::LockState::InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter()
+FORCEINLINE bool AwareLock::LockState::InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter(AwareLock *awareLock)
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(awareLock != nullptr);
+    _ASSERTE(&awareLock->m_lockState == this);
 
     // This function is called at the end of the waiter's spin loop. It must observe the wake signal always, and if the lock is
     // available, it must acquire the lock and unregister the waiter. If the lock is available, a waiter must acquire the lock
@@ -248,6 +384,7 @@ FORCEINLINE bool AwareLock::LockState::InterlockedObserveWakeSignal_Try_LockAndU
         return false;
     }
 
+    bool waiterStarvationStartTimeWasRecorded = false;
     LockState state = stateBeforeUpdate;
     state.InvertIsWaiterSignaledToWake();
     _ASSERTE(!state.IsLocked());
@@ -257,16 +394,68 @@ FORCEINLINE bool AwareLock::LockState::InterlockedObserveWakeSignal_Try_LockAndU
         LockState newState = state;
         newState.InvertIsLocked();
         newState.DecrementWaiterCount();
+        if (newState.ShouldNotPreemptWaiters())
+        {
+            newState.InvertShouldNotPreemptWaiters();
+
+            if (newState.HasAnyWaiters() && !waiterStarvationStartTimeWasRecorded)
+            {
+                // Update the waiter starvation start time. The time must be recorded before ShouldNotPreemptWaiters() is
+                // cleared, as once that is cleared, another thread may check the waiter starvation start time and the
+                // previously recorded value may be stale, causing ShouldNotPreemptWaiters() to be set again unnecessarily.
+                waiterStarvationStartTimeWasRecorded = true;
+                awareLock->RecordWaiterStarvationStartTime();
+            }
+        }
 
         LockState stateBeforeUpdate = CompareExchange(newState, state);
         if (stateBeforeUpdate == state)
         {
+            if (newState.HasAnyWaiters())
+            {
+                _ASSERTE(!state.ShouldNotPreemptWaiters() || waiterStarvationStartTimeWasRecorded);
+                if (!waiterStarvationStartTimeWasRecorded)
+                {
+                    // Since the lock was acquired successfully by a waiter, update the waiter starvation start time
+                    awareLock->RecordWaiterStarvationStartTime();
+                }
+            }
             return true;
         }
 
         state = stateBeforeUpdate;
     } while (!state.IsLocked());
     return false;
+}
+
+FORCEINLINE void AwareLock::ResetWaiterStarvationStartTime()
+{
+    LIMITED_METHOD_CONTRACT;
+    m_waiterStarvationStartTimeMs = 0;
+}
+
+FORCEINLINE void AwareLock::RecordWaiterStarvationStartTime()
+{
+    WRAPPER_NO_CONTRACT;
+
+    DWORD currentTimeMs = GetTickCount();
+    if (currentTimeMs == 0)
+    {
+        // Don't record zero, that value is reserved for identifying that a time is not recorded
+        --currentTimeMs;
+    }
+    m_waiterStarvationStartTimeMs = currentTimeMs;
+}
+
+FORCEINLINE bool AwareLock::ShouldStopPreemptingWaiters() const
+{
+    WRAPPER_NO_CONTRACT;
+
+    // If the recorded time is zero, a time has not been recorded yet
+    DWORD waiterStarvationStartTimeMs = m_waiterStarvationStartTimeMs;
+    return
+        waiterStarvationStartTimeMs != 0 &&
+        GetTickCount() - waiterStarvationStartTimeMs >= WaiterStarvationDurationMsBeforeStoppingPreemptingWaiters;
 }
 
 FORCEINLINE void AwareLock::SpinWait(const YieldProcessorNormalizationInfo &normalizationInfo, DWORD spinIteration)
@@ -319,12 +508,20 @@ FORCEINLINE AwareLock::EnterHelperResult AwareLock::TryEnterBeforeSpinLoopHelper
     // be in the future, so the spin loop can avoid checking the recursive case.
     if (!state.IsLocked() || GetOwningThread() != pCurThread)
     {
+        if (m_lockState.InterlockedTrySetShouldNotPreemptWaitersIfNecessary(this, state))
+        {
+            // This thread currently should not preempt waiters, just wait
+            return EnterHelperResult_UseSlowPath;
+        }
+
         // Not a recursive enter, try to acquire the lock or register the spinner
         EnterHelperResult result = m_lockState.InterlockedTry_LockOrRegisterSpinner(state);
         if (result != EnterHelperResult_Entered)
         {
-            // EnterHelperResult_Contention: Lock was not acquired and the spinner was registered
-            // EnterHelperResult_UseSlowPath: Reached the maximum number of spinners, just wait
+            // EnterHelperResult_Contention:
+            //   Lock was not acquired and the spinner was registered
+            // EnterHelperResult_UseSlowPath:
+            //   This thread currently should not preempt waiters, or we reached the maximum number of spinners, just wait
             return result;
         }
 
@@ -340,7 +537,7 @@ FORCEINLINE AwareLock::EnterHelperResult AwareLock::TryEnterBeforeSpinLoopHelper
     return EnterHelperResult_Entered;
 }
 
-FORCEINLINE bool AwareLock::TryEnterInsideSpinLoopHelper(Thread *pCurThread)
+FORCEINLINE AwareLock::EnterHelperResult AwareLock::TryEnterInsideSpinLoopHelper(Thread *pCurThread)
 {
     CONTRACTL{
         SO_TOLERANT;
@@ -351,17 +548,21 @@ FORCEINLINE bool AwareLock::TryEnterInsideSpinLoopHelper(Thread *pCurThread)
 
     // Try to acquire the lock and unregister the spinner. The recursive case is not checked here because
     // TryEnterBeforeSpinLoopHelper() would have taken care of that case before the spin loop.
-    if (!m_lockState.InterlockedTry_LockAndUnregisterSpinner())
+    EnterHelperResult result = m_lockState.InterlockedTry_LockAndUnregisterSpinner();
+    if (result != EnterHelperResult_Entered)
     {
-        // Lock was not acquired and the spinner was not unregistered
-        return false;
+        // EnterHelperResult_Contention:
+        //   Lock was not acquired and the spinner was not unregistered
+        // EnterHelperResult_UseSlowPath:
+        //   This thread currently should not preempt waiters, stop spinning and just wait
+        return result;
     }
 
     // Lock was acquired and spinner was unregistered
     m_HoldingThread = pCurThread;
     m_Recursion = 1;
     pCurThread->IncLockCount();
-    return true;
+    return EnterHelperResult_Entered;
 }
 
 FORCEINLINE bool AwareLock::TryEnterAfterSpinLoopHelper(Thread *pCurThread)

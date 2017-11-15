@@ -1959,9 +1959,14 @@ AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelperSpin(Thread* pCurTh
                         break;
                     }
 
-                    if (awareLock->TryEnterInsideSpinLoopHelper(pCurThread))
+                    result = awareLock->TryEnterInsideSpinLoopHelper(pCurThread);
+                    if (result == AwareLock::EnterHelperResult_Entered)
                     {
                         return AwareLock::EnterHelperResult_Entered;
+                    }
+                    if (result == AwareLock::EnterHelperResult_UseSlowPath)
+                    {
+                        break;
                     }
                 }
             }
@@ -2943,7 +2948,7 @@ void AwareLock::Enter()
     LockState state = m_lockState;
     if (!state.IsLocked() || m_HoldingThread != pCurThread)
     {
-        if (m_lockState.InterlockedTryLock_Or_RegisterWaiter(state))
+        if (m_lockState.InterlockedTryLock_Or_RegisterWaiter(this, state))
         {
             // We get here if we successfully acquired the mutex.
             m_HoldingThread = pCurThread;
@@ -3007,7 +3012,7 @@ BOOL AwareLock::TryEnter(INT32 timeOut)
     {
         if (timeOut == 0
                 ? m_lockState.InterlockedTryLock(state)
-                : m_lockState.InterlockedTryLock_Or_RegisterWaiter(state))
+                : m_lockState.InterlockedTryLock_Or_RegisterWaiter(this, state))
         {
             // We get here if we successfully acquired the mutex.
             m_HoldingThread = pCurThread;
@@ -3193,7 +3198,7 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
                 const DWORD spinCount = g_SpinConstants.dwMonitorSpinCount;
                 for (DWORD spinIteration = 0; spinIteration < spinCount; ++spinIteration)
                 {
-                    if (m_lockState.InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal())
+                    if (m_lockState.InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal(this))
                     {
                         acquiredLock = true;
                         break;
@@ -3207,7 +3212,7 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
                 }
             }
 
-            if (m_lockState.InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter())
+            if (m_lockState.InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter(this))
             {
                 break;
             }

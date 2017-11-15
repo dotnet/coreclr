@@ -205,13 +205,14 @@ private:
     {
     private:
         // Layout constants for m_state
-        static const UINT32 IsLockedMask = 0x1; // bit 0
-        static const UINT32 SpinnerCountIncrement = 0x2;
-        static const UINT32 SpinnerCountMask = 0xe; // bits 1-3
-        static const UINT32 IsWaiterSignaledToWakeMask = 0x10; // bit 4
-        static const UINT8 WaiterCountShift = 5;
+        static const UINT32 IsLockedMask = (UINT32)1 << 0; // bit 0
+        static const UINT32 ShouldNotPreemptWaitersMask = (UINT32)1 << 1; // bit 1
+        static const UINT32 SpinnerCountIncrement = (UINT32)1 << 2;
+        static const UINT32 SpinnerCountMask = (UINT32)0x7 << 2; // bits 2-4
+        static const UINT32 IsWaiterSignaledToWakeMask = (UINT32)1 << 5; // bit 5
+        static const UINT8 WaiterCountShift = 6;
         static const UINT32 WaiterCountIncrement = (UINT32)1 << WaiterCountShift;
-        static const UINT32 WaiterCountMask = (UINT32)-1 >> WaiterCountShift << WaiterCountShift; // bits 5-31
+        static const UINT32 WaiterCountMask = (UINT32)-1 >> WaiterCountShift << WaiterCountShift; // bits 6-31
 
     private:
         UINT32 m_state;
@@ -269,6 +270,30 @@ private:
         {
             LIMITED_METHOD_CONTRACT;
             m_state ^= IsLockedMask;
+        }
+
+    public:
+        bool ShouldNotPreemptWaiters() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !!(m_state & ShouldNotPreemptWaitersMask);
+        }
+
+    private:
+        void InvertShouldNotPreemptWaiters()
+        {
+            WRAPPER_NO_CONTRACT;
+
+            m_state ^= ShouldNotPreemptWaitersMask;
+            _ASSERTE(!ShouldNotPreemptWaiters() || HasAnyWaiters());
+        }
+
+        bool ShouldNonWaiterAttemptToAcquireLock() const
+        {
+            WRAPPER_NO_CONTRACT;
+            _ASSERTE(!ShouldNotPreemptWaiters() || HasAnyWaiters());
+
+            return !(m_state & (IsLockedMask + ShouldNotPreemptWaitersMask));
         }
 
     public:
@@ -384,14 +409,18 @@ private:
         bool InterlockedTryLock();
         bool InterlockedTryLock(LockState state);
         bool InterlockedUnlock();
+        bool InterlockedTrySetShouldNotPreemptWaitersIfNecessary(AwareLock *awareLock);
+        bool InterlockedTrySetShouldNotPreemptWaitersIfNecessary(AwareLock *awareLock, LockState state);
         EnterHelperResult InterlockedTry_LockOrRegisterSpinner(LockState state);
-        bool InterlockedTry_LockAndUnregisterSpinner();
+        EnterHelperResult InterlockedTry_LockAndUnregisterSpinner();
         bool InterlockedUnregisterSpinner_TryLock();
-        bool InterlockedTryLock_Or_RegisterWaiter(LockState state);
+        bool InterlockedTryLock_Or_RegisterWaiter(AwareLock *awareLock, LockState state);
         void InterlockedUnregisterWaiter();
-        bool InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal();
-        bool InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter();
+        bool InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal(AwareLock *awareLock);
+        bool InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter(AwareLock *awareLock);
     };
+
+    friend class LockState;
 
 private:
     LockState m_lockState;
@@ -406,6 +435,10 @@ private:
     DWORD           m_dwSyncIndex;
 
     CLREvent        m_SemEvent;
+
+    DWORD m_waiterStarvationStartTimeMs;
+
+    static const DWORD WaiterStarvationDurationMsBeforeStoppingPreemptingWaiters = 1000;
 
     // Only SyncBlocks can create AwareLocks.  Hence this private constructor.
     AwareLock(DWORD indx)
@@ -475,6 +508,11 @@ public:
         return m_HoldingThread;
     }
 
+private:
+    void ResetWaiterStarvationStartTime();
+    void RecordWaiterStarvationStartTime();
+    bool ShouldStopPreemptingWaiters() const;
+
 private: // friend access is required for this unsafe function
     void InitializeToLockedWithNoWaiters(ULONG recursionLevel, PTR_Thread holdingThread)
     {
@@ -492,7 +530,7 @@ public:
     bool TryEnterHelper(Thread* pCurThread);
 
     EnterHelperResult TryEnterBeforeSpinLoopHelper(Thread *pCurThread);
-    bool TryEnterInsideSpinLoopHelper(Thread *pCurThread);
+    EnterHelperResult TryEnterInsideSpinLoopHelper(Thread *pCurThread);
     bool TryEnterAfterSpinLoopHelper(Thread *pCurThread);
 
     // Helper encapsulating the core logic for leaving monitor. Returns what kind of 
@@ -511,6 +549,8 @@ public:
         
         // CLREvent::SetMonitorEvent works even if the event has not been intialized yet
         m_SemEvent.SetMonitorEvent();
+
+        m_lockState.InterlockedTrySetShouldNotPreemptWaitersIfNecessary(this);
     }
 
     void    AllocLockSemEvent();
