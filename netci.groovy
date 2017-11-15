@@ -150,7 +150,7 @@ class Constants {
     def static validArmWindowsScenarios = [
                'default':                                [],
                // 'ilrt'
-               'r2r':                                    ["R2R_FAIL"],
+               // 'r2r':                                    ["R2R_FAIL"],
                // 'longgc'
                // 'formatting'
                // 'gcsimulator'
@@ -1420,8 +1420,17 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                         if (isR2RScenario(scenario)) {
 
-                            // If this is a crossgen build, pass 'crossgen' to runtest.cmd
-                            testOpts += ' crossgen runcrossgentests'
+                            // If this is a ReadyToRun scenario, pass 'crossgen' or 'crossgenaltjit'
+                            // to cause framework assemblies to be crossgen'ed. Pass 'runcrossgentests'
+                            // to cause the tests to be crossgen'ed.
+
+                            if ((architecture == 'x86_arm_altjit') || (architecture == 'x64_arm64_altjit')) {
+                                testOpts += ' crossgenaltjit protononjit.dll'
+                            } else {
+                                testOpts += ' crossgen'
+                            }
+
+                            testOpts += ' runcrossgentests'
 
                             if (scenario == 'r2r_jitstress1') {
                                 testOpts += ' jitstress 1'
