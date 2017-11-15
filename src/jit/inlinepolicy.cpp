@@ -85,7 +85,13 @@ InlinePolicy* InlinePolicy::GetPolicy(Compiler* compiler, bool isPrejitRoot)
         return new (compiler, CMK_Inlining) ModelPolicy(compiler, isPrejitRoot);
     }
 
-    // Use the default policy by default
+    // If optimizing for speed, use the FullPolicy.
+    if (compiler->opts.compCodeOpt == Compiler::FAST_CODE)
+    {
+        return new (compiler, CMK_Inlining) FullPolicy(compiler, isPrejitRoot);
+    }
+
+    // Otherwise use the DefaultPolicy.
     return new (compiler, CMK_Inlining) DefaultPolicy(compiler, isPrejitRoot);
 }
 
@@ -2132,8 +2138,6 @@ void ModelPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
     }
 }
 
-#if defined(DEBUG) || defined(INLINE_DATA)
-
 //------------------------------------------------------------------------/
 // FullPolicy: construct a new FullPolicy
 //
@@ -2187,6 +2191,8 @@ void FullPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
 
     return;
 }
+
+#if defined(DEBUG) || defined(INLINE_DATA)
 
 //------------------------------------------------------------------------/
 // SizePolicy: construct a new SizePolicy

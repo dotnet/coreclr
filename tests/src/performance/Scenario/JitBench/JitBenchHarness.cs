@@ -39,7 +39,6 @@ namespace JitBench
                     startInfo.Environment.Add("COMPlus_EXPERIMENTAL_TieredCompilation", "1");
                     scenarioName += " Tiering";
                 }
-
                 if (options.Minopts)
                 {
                     startInfo.Environment.Add("COMPlus_JITMinOpts", "1");
@@ -57,6 +56,8 @@ namespace JitBench
                     startInfo.Environment.Add("COMPlus_ZapDisable", "1");
                     scenarioName += " NoNgen";
                 }
+
+                PrintHeader($"Running scenario '{scenarioName}'");
 
                 var program = new JitBenchHarness();
                 try
