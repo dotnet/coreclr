@@ -5043,7 +5043,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                 varDsc->lvGcLayout = (BYTE*)compGetMem((varDsc->lvSize() / sizeof(void*)) * sizeof(BYTE), CMK_LvaTable);
                 unsigned  numGCVars;
                 var_types simdBaseType = TYP_UNKNOWN;
-                varDsc->lvType = impNormStructType(objClass, varDsc->lvGcLayout, &numGCVars, &simdBaseType);
+                varDsc->lvType         = impNormStructType(objClass, varDsc->lvGcLayout, &numGCVars, &simdBaseType);
             }
 
             for (unsigned inx = 0; inx < elemCount; inx++)
