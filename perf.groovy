@@ -414,7 +414,6 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
         }
     }
 
-
     throughputOSList.each { os ->
         throughputOptLevelList.each { opt_level ->
             def newJob = job(getFullThroughputJobName(project, "${os}_${opt_level}", isPR)) {
