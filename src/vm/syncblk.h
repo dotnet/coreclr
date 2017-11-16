@@ -448,7 +448,8 @@ private:
           m_HoldingThread(NULL),
 #endif // DACCESS_COMPILE          
           m_TransientPrecious(0),
-          m_dwSyncIndex(indx)
+          m_dwSyncIndex(indx),
+          m_waiterStarvationStartTimeMs(0)
     {
         LIMITED_METHOD_CONTRACT;
     }
