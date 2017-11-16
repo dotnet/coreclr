@@ -13,7 +13,6 @@
 
 #ifndef PLATFORM_UNIX
 #include <mmsystem.h>
-#pragma comment(lib, "winmm.lib")
 #endif //PLATFORM_UNIX
 
 // To avoid counting zeros in conversions
