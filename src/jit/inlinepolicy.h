@@ -349,7 +349,6 @@ public:
         return "FullPolicy";
     }
 #endif // defined(DEBUG) || defined(INLINE_DATA)
-
 };
 
 #if defined(DEBUG) || defined(INLINE_DATA)
