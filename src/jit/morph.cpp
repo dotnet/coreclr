@@ -5037,7 +5037,8 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             noway_assert(elemCount <= 4);
 #endif
 
-            if (varDsc->lvGcLayout != nullptr) {
+            if (varDsc->lvGcLayout != nullptr)
+            {
 
                 for (unsigned inx = 0; inx < elemCount; inx++)
                 {
@@ -5066,7 +5067,8 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                 // ByRef like span structs.  The added check for "CONTAINS_STACK_PTR" is the particular bit.
                 // When this is set the struct will contain a ByRef that could be a GC pointer or a native
                 // pointer.
-                assert(((structFlags & CORINFO_FLG_CONTAINS_STACK_PTR) == 0) && (((structFlags & CORINFO_FLG_CONTAINS_GC_PTR) == 0)));
+                assert(((structFlags & CORINFO_FLG_CONTAINS_STACK_PTR) == 0) &&
+                       (((structFlags & CORINFO_FLG_CONTAINS_GC_PTR) == 0)));
 #endif // DEBUG
             }
         }
