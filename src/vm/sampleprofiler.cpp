@@ -75,6 +75,8 @@ void SampleProfiler::Enable()
         _ASSERT(!"Unable to create sample profiler thread.");
     }
 
+    s_threadShutdownEvent.CreateManualEvent(FALSE);
+
     BeginTimePeriod();
 }
 
