@@ -5037,32 +5037,37 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             noway_assert(elemCount <= 4);
 #endif
 
-            if (varDsc->lvGcLayout == nullptr)
-            {
-                // I am not sure whether we should initialize lvGcLayout or not
-                varDsc->lvGcLayout = (BYTE*)compGetMem((varDsc->lvSize() / sizeof(void*)) * sizeof(BYTE), CMK_LvaTable);
-                unsigned  numGCVars;
-                var_types simdBaseType = TYP_UNKNOWN;
-                varDsc->lvType         = impNormStructType(objClass, varDsc->lvGcLayout, &numGCVars, &simdBaseType);
+            if (varDsc->lvGcLayout != nullptr) {
+
+                for (unsigned inx = 0; inx < elemCount; inx++)
+                {
+                    CorInfoGCType currentGcLayoutType = (CorInfoGCType)varDsc->lvGcLayout[inx];
+
+                    // We setup the type[inx] value above using the GC info from 'objClass'
+                    // This GT_LCL_VAR must have the same GC layout info
+                    //
+                    if (currentGcLayoutType != TYPE_GC_NONE)
+                    {
+                        noway_assert(type[inx] == getJitGCType((BYTE)currentGcLayoutType));
+                    }
+                    else
+                    {
+                        // We may have use a small type when we setup the type[inx] values above
+                        // We can safely widen this to TYP_I_IMPL
+                        type[inx] = TYP_I_IMPL;
+                    }
+                }
             }
-
-            for (unsigned inx = 0; inx < elemCount; inx++)
+            else
             {
-                CorInfoGCType currentGcLayoutType = (CorInfoGCType)varDsc->lvGcLayout[inx];
-
-                // We setup the type[inx] value above using the GC info from 'objClass'
-                // This GT_LCL_VAR must have the same GC layout info
-                //
-                if (currentGcLayoutType != TYPE_GC_NONE)
-                {
-                    noway_assert(type[inx] == getJitGCType((BYTE)currentGcLayoutType));
-                }
-                else
-                {
-                    // We may have use a small type when we setup the type[inx] values above
-                    // We can safely widen this to TYP_I_IMPL
-                    type[inx] = TYP_I_IMPL;
-                }
+#ifdef DEBUG
+                const DWORD structFlags = info.compCompHnd->getClassAttribs(objClass);
+                // On coreclr the check for GC includes a "may" to account for the special
+                // ByRef like span structs.  The added check for "CONTAINS_STACK_PTR" is the particular bit.
+                // When this is set the struct will contain a ByRef that could be a GC pointer or a native
+                // pointer.
+                assert(((structFlags & CORINFO_FLG_CONTAINS_STACK_PTR) == 0) && (((structFlags & CORINFO_FLG_CONTAINS_GC_PTR) == 0)));
+#endif // DEBUG
             }
         }
 
