@@ -608,7 +608,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             assert (configuration == 'Release' || configuration == 'Checked')
             // TODO: Add once external email sending is available again
             // addEmailPublisher(job, 'dotnetgctests@microsoft.com')
-            Utilities.addPeriodicTrigger(job, '@weekly')
+            Utilities.addPeriodicTrigger(job, '@daily')
             break
         case 'gc_reliability_framework':
             assert (os == 'Ubuntu' || os == 'Windows_NT' || os == 'OSX10.12')
@@ -1584,11 +1584,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             Constants.r2rJitStressScenarios.containsKey(scenario)) {
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
                     }
-                    else if (isLongGc(scenario)) {
+                    else if (isLongGc(scenario) || scenario == 'standalone_gc') {
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
-                    }
-                    else if (scenario == 'standalone_gc') {
-                        buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts} buildstandalonegc"
                     }
                     else if (scenario == 'formatting') {
                         buildCommands += "python -u tests\\scripts\\format.py -c %WORKSPACE% -o Windows_NT -a ${arch}"
@@ -1614,6 +1611,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def illinkArguments = ''
                         def testEnvStr = ''
                         def runtestArguments = ''
+                        def standaloneGcStr = ''
 
                         if (scenario == 'r2r' ||
                             scenario == 'r2r_gcstress15' ||
@@ -1672,6 +1670,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         else if (isLongGc(scenario)) {
                             gcTestArguments = "${scenario} sequential"
                         }
+                        else if (scenario == 'standalone_gc') {
+                            standaloneGcStr = "gcname clrgc.dll"
+                        }
                         else if (scenario == 'illink')
                         {
                             illinkArguments = "link %WORKSPACE%\\linker\\linker\\bin\\netcore_Release\\netcoreapp2.0\\win10-${arch}\\publish\\illink.exe"
@@ -1710,7 +1711,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             testEnvStr = "TestEnv ${envScriptPath}"
                         }
 
-                        runtestArguments = "${lowerConfiguration} ${arch} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${runilasmroundtripStr} ${gcTestArguments} ${illinkArguments} collectdumps ${testEnvStr}"
+                        runtestArguments = "${lowerConfiguration} ${arch} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${runilasmroundtripStr} ${gcTestArguments} ${illinkArguments} collectdumps ${testEnvStr} ${standaloneGcStr}"
 
                         // If we are running a stress mode, we should write out the set of key
                         // value env pairs to a file at this point and then we'll pass that to runtest.cmd
@@ -1793,8 +1794,15 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     def buildArchitecture = 'arm'
 
+                    // For 'arm' (the RyuJIT/arm32 architecture), tell build.cmd to use RyuJIT/arm32 for crossgen compilation.
+                    // RyuJIT/arm32 is currently not the default JIT; it is an aljit. So, this is a special case.
+                    def armCrossgenOpt = ''
+                    if (architecture == 'arm') {
+                        armCrossgenOpt = '-altjitcrossgen'
+                    }
+
                     // This is now a build only job. Do not run tests. Use the flow job.
-                    buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${buildArchitecture} -priority=${priority}"
+                    buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${buildArchitecture} -priority=${priority} ${armCrossgenOpt}"
                     
                     // Zip up the tests directory so that we don't use so much space/time copying
                     // 10s of thousands of files around.
@@ -1865,17 +1873,12 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "./tests/scripts/build_illink.sh --clone --arch=${architecture}"
                     }
 
-                    def standaloneGc = ''
-                    if (scenario == 'standalone_gc') {
-                        standaloneGc = 'buildstandalonegc'
-                    }
-
                     if (!enableCorefxTesting) {
                         // We run pal tests on all OS but generate mscorlib (and thus, nuget packages)
                         // only on supported OS platforms.
                         def bootstrapRid = Utilities.getBoostrapPublishRid(os)
                         def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
-                        buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture} ${standaloneGc}"
+                        buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture}" 
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Set time out
@@ -1912,13 +1915,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
                     break
                 case 'arm64':
-                    def standaloneGc = ''
-                    if (scenario == 'standalone_gc') {
-                        standaloneGc = 'buildstandalonegc'
-                    }
-
                     if (!enableCorefxTesting) {
-                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs ./build.sh verbose ${lowerConfiguration} ${architecture} cross clang3.8 ${standaloneGc}"
+                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs ./build.sh verbose ${lowerConfiguration} ${architecture} cross clang3.8"
                         
                         // HACK -- Arm64 does not have corefx jobs yet.
                         buildCommands += "git clone https://github.com/dotnet/corefx fx"
@@ -2362,7 +2360,7 @@ combinedScenarios.each { scenario ->
 
                 Constants.configurationList.each { configuration ->
 
-                    if (architecture == 'arm64') {
+                    if (architecture == 'arm64' && os != "Windows_NT") {
                         if (scenario != 'default' && scenario != 'r2r' && scenario != 'gcstress0x3' && scenario != 'gcstress0xc') {
                             return
                         }
@@ -2547,6 +2545,7 @@ combinedScenarios.each { scenario ->
                     def gcstressStr = ''
                     def illinkStr = ''
                     def layoutOnlyStr =''
+                    def standaloneGcStr = ''
 
                     if (scenario == 'r2r' || Constants.r2rJitStressScenarios.containsKey(scenario) ) {
                             crossgenStr = '--crossgen'
@@ -2622,6 +2621,19 @@ combinedScenarios.each { scenario ->
 
                     if (isGcReliabilityFramework(scenario)) {
                         layoutOnlyStr = '--build-overlay-only'
+                    }
+
+                    if (scenario == 'standalone_gc') {
+                        if (osGroup == 'OSX') {
+                            standaloneGcStr = '--gcname=libclrgc.dylib'
+                        }
+                        else if (osGroup == 'Linux') {
+                            standaloneGcStr = '--gcname=libclrgc.so'
+                        }
+                        else {
+                            println("Unexpected OS group: ${osGroup} for os ${os}")
+                            assert false
+                        }
                     }
 
                     def windowsArmJob = (os == "Windows_NT" && architecture in validWindowsNTCrossArches)
@@ -2725,7 +2737,7 @@ combinedScenarios.each { scenario ->
                 --limitedDumpGeneration \\
             ${testEnvOpt} ${serverGCString} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} \\
             ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${runjitdisasmStr} ${runilasmroundtripStr} \\
-            ${illinkStr} ${sequentialString} ${playlistString} ${layoutOnlyStr}""")
+            ${illinkStr} ${sequentialString} ${playlistString} ${layoutOnlyStr} ${standaloneGcStr}""")
 
                                 if (isGcReliabilityFramework(scenario)) {
                                     // runtest.sh doesn't actually execute the reliability framework - do it here.
@@ -2864,7 +2876,7 @@ combinedScenarios.each { scenario ->
                         Utilities.addXUnitDotNETResults(newJob, '**/coreclrtests.xml')
                     }
                     else {
-                        Utilities.addArchival(newJob, "bin/tests/${osGroup}.${architecture}.${configuration}/Smarty.Run.0/*.smrt", '', true, false)
+                        Utilities.addArchival(newJob, "bin/tests/${osGroup}.${architecture}.${configuration}/Smarty.run.0/*.smrt", '', true, false)
                     }
 
                     // Create a build flow to join together the build and tests required to run this
