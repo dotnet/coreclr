@@ -1,8 +1,13 @@
 @if not defined _echo @echo off
 setlocal EnableDelayedExpansion EnableExtensions
 
-echo Starting Build at %TIME%
+:: Define a prefix for most output progress messages that come from this script. That makes
+:: it easier to see where these are coming from. Note that there is a trailing space here.
+set "__MsgPrefix=BUILD: "
+
+echo %__MsgPrefix%Starting Build at %TIME%
 set __ThisScriptFull="%~f0"
+set __ThisScriptDir="%~dp0"
 
 :: Default to highest Visual Studio version available
 ::
@@ -20,19 +25,24 @@ set __ThisScriptFull="%~f0"
 :: toolset if it is installed. Finally, we will fail the script if no supported VS instance
 :: can be found.
 
-if defined VisualStudioVersion goto :Run
+if defined VisualStudioVersion (
+    if not defined __VSVersion echo %__MsgPrefix%Detected Visual Studio %VisualStudioVersion% developer command ^prompt environment
+    goto :Run
+) 
 
+echo %__MsgPrefix%Searching ^for Visual Studio 2017 or 2015 installation
 set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if exist %_VSWHERE% (
-  for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
+  for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -prerelease -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
 )
 if not exist "%_VSCOMNTOOLS%" set _VSCOMNTOOLS=%VS140COMNTOOLS%
 if not exist "%_VSCOMNTOOLS%" (
-  echo Error: Visual Studio 2015 or 2017 required.
-  echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
-  exit /b 1
+    echo %__MsgPrefix%Error: Visual Studio 2015 or 2017 required.
+    echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
+    exit /b 1
 )
 
+set VSCMD_START_DIR=%__ThisScriptDir%
 call "%_VSCOMNTOOLS%\VsDevCmd.bat"
 
 :Run
@@ -66,10 +76,6 @@ if defined VS150COMNTOOLS (
 set __BuildArch=x64
 set __BuildType=Debug
 set __BuildOS=Windows_NT
-
-:: Define a prefix for most output progress messages that come from this script. That makes
-:: it easier to see where these are coming from. Note that there is a trailing space here.
-set "__MsgPrefix=BUILD: "
 
 :: Set the various build properties here so that CMake and MSBuild can pick them up
 set "__ProjectDir=%~dp0"
@@ -244,9 +250,6 @@ REM === Start the build steps
 REM ===
 REM =========================================================================================
 
-echo %__MsgPrefix%Using environment: "%__VSToolsRoot%\VsDevCmd.bat"
-call                                 "%__VSToolsRoot%\VsDevCmd.bat"
-
 @call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\build.proj -generateHeaderWindows -NativeVersionHeaderFile="%__RootBinDir%\obj\_version.h" %__RunArgs% %__UnprocessedBuildArgs%
 
 REM =========================================================================================
@@ -285,6 +288,9 @@ REM ===
 REM =========================================================================================
 
 if %__BuildNative% EQU 1 (
+    REM Scope environment changes start {
+    setlocal
+
     echo %__MsgPrefix%Commencing build of native components for %__BuildOS%.%__BuildArch%.%__BuildType%
 
 	set nativePlatfromArgs=-platform=%__BuildArch%
@@ -348,8 +354,12 @@ if %__BuildNative% EQU 1 (
         echo     "%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
         exit /b 1
     )
+
+:SkipNativeBuild    
+    REM } Scope environment changes end
+    endlocal
 )
-:SkipNativeBuild
+
 
 REM =========================================================================================
 REM ===
@@ -366,6 +376,8 @@ if /i "%__BuildArch%"=="arm" (
     )
 
 if /i "%__DoCrossArchBuild%"=="1" (
+    REM Scope environment changes start {
+    setlocal
 
     echo %__MsgPrefix%Commencing build of cross architecture native components for %__BuildOS%.%__BuildArch%.%__BuildType%
 
@@ -406,9 +418,11 @@ if /i "%__DoCrossArchBuild%"=="1" (
         echo     "%__LogsDir%\Cross_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
         exit /b 1
     )
-)
 
-:SkipCrossCompBuild
+:SkipCrossCompBuild    
+    REM } Scope environment changes end
+    endlocal
+)
 
 REM =========================================================================================
 REM ===
