@@ -3,6 +3,7 @@ setlocal EnableDelayedExpansion EnableExtensions
 
 echo Starting Build at %TIME%
 set __ThisScriptFull="%~f0"
+set VSCMD_START_DIR=%~dp0
 
 :: Default to highest Visual Studio version available
 ::
