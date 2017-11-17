@@ -103,7 +103,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) ./sync.sh",
+        "arguments": "run --rm $(DockerCommonRunArgs) ./sync.sh -p -- /p:DotNetRestoreSources=$(PB_RestoreSource)",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -421,6 +421,10 @@
     },
     "VsoRepositoryName": {
       "value": "DotNet-CoreCLR-Trusted"
+    },
+    "PB_RestoreSource": {
+      "value": "",
+      "allowOverride": true
     }
   },
   "demands": [

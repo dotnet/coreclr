@@ -69,7 +69,7 @@
       },
       "inputs": {
         "filename": "sync.cmd",
-        "arguments": "-p",
+        "arguments": "-p -- /p:DotNetRestoreSources=$(PB_RestoreSource)",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -316,6 +316,10 @@
       "isSecret": true
     },
     "PB_EnforcePGO": {
+      "value": "",
+      "allowOverride": true
+    },
+    "PB_RestoreSource": {
       "value": "",
       "allowOverride": true
     }
