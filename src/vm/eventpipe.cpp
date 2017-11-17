@@ -94,7 +94,7 @@ EventPipeEventPayload::~EventPipeEventPayload()
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -111,7 +111,7 @@ void EventPipeEventPayload::Flatten()
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -165,7 +165,7 @@ BYTE* EventPipeEventPayload::GetFlatData()
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -222,13 +222,20 @@ void EventPipe::Shutdown()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-    Disable();
+    // EventPipe::Disable is additionally can throw exceptions
+    // Shutdown is used within the CLR Shutdown routine and cannot
+    EX_TRY
+    {
+        Disable();
+    }
+    EX_CATCH { }
+    EX_END_CATCH(SwallowAllExceptions);
 
     if(s_pConfig != NULL)
     {
@@ -496,6 +503,10 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         {
             // Write synchronously to the file.
             // We're under lock and blocking the disabling thread.
+            // This copy occurs here (rather than at file write) because
+            // A) The FastSerializer API would need to change if we waited
+            // B) It is unclear there is a benifit to multiple file write calls
+            //    as opposed a a buffer copy here
             EventPipeEventInstance instance(
                 event,
                 pThread->GetOSThreadId(),
@@ -506,12 +517,22 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
 
             if(s_pFile != NULL)
             {
-                s_pFile->WriteEvent(instance);
+                // EventPipeFile::WriteEvent needs to allocate a metadata event
+                // and can therefore throw. In this context we will silently
+                // fail rather than disrupt the caller
+                EX_TRY
+                {
+                    s_pFile->WriteEvent(instance);
+                }
+                EX_CATCH { }
+                EX_END_CATCH(SwallowAllExceptions);
             }
         }
     }
 
-#ifdef _DEBUG
+// This section requires a call to GCX_PREEMP which violates the GC_NOTRIGGER contract
+// It should only be enabled when debugging this specific component and contracts are off
+#ifdef DEBUG_JSON_EVENT_FILE
     {
         GCX_PREEMP();
 
@@ -540,7 +561,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
             }
         }
     }
-#endif // _DEBUG
+#endif // DEBUG_JSON_EVENT_FILE
 }
 
 void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData, unsigned int length)
@@ -636,7 +657,7 @@ StackWalkAction EventPipe::StackWalkCallback(CrawlFrame *pCf, StackContents *pDa
     {
         NOTHROW;
         GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
         PRECONDITION(pCf != NULL);
         PRECONDITION(pData != NULL);
     }

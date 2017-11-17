@@ -36,7 +36,7 @@ EventPipeProvider::~EventPipeProvider()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
     }
@@ -45,8 +45,11 @@ EventPipeProvider::~EventPipeProvider()
     // Free all of the events.
     if(m_pEventList != NULL)
     {
-        // Take the lock before manipulating the list.
-        CrstHolder _crst(EventPipe::GetLock());
+        // Here we manipulate the list without taking a lock
+        // This is because the lock is HOST_BREAKABLE and may throw
+        // but we are not allowed to throw here
+        // This is OK because if this destructor is being called no 
+        // other thread should be acessing this this provider anymore anyway
 
         SListElem<EventPipeEvent*> *pElem = m_pEventList->GetHead();
         while(pElem != NULL)

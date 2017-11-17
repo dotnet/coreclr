@@ -20,6 +20,7 @@ EventPipeConfiguration::EventPipeConfiguration()
     m_rundownEnabled = false;
     m_circularBufferSizeInBytes = 1024 * 1024 * 1000; // Default to 1000MB.
     m_pEnabledProviderList = NULL;
+    m_pConfigProvider = NULL;
     m_pProviderList = new SList<SListElem<EventPipeProvider*>>();
 }
 
@@ -27,7 +28,7 @@ EventPipeConfiguration::~EventPipeConfiguration()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
     }
@@ -47,8 +48,11 @@ EventPipeConfiguration::~EventPipeConfiguration()
 
     if(m_pProviderList != NULL)
     {
-        // Take the lock before manipulating the provider list.
-        CrstHolder _crst(EventPipe::GetLock());
+        // Here we manipulate the list without taking a lock
+        // This is because the lock is HOST_BREAKABLE and may throw
+        // but we are not allowed to throw here
+        // This is OK because if this destructor is being called no 
+        // other thread should be acessing this this configuration anymore anyway
 
         SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
         while(pElem != NULL)
@@ -538,7 +542,7 @@ EventPipeEnabledProviderList::~EventPipeEnabledProviderList()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
     }
@@ -609,7 +613,7 @@ EventPipeEnabledProvider::~EventPipeEnabledProvider()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
     }
