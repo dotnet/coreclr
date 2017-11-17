@@ -127,6 +127,7 @@ class Constants {
     // This is the basic set of scenarios
     def static basicScenarios = [
                'default',
+               'pri1',
                'ilrt',
                'r2r',
                'longgc',
@@ -149,6 +150,7 @@ class Constants {
     //
     def static validArmWindowsScenarios = [
                'default':                                [],
+               'pri1':                                   [],
                // 'ilrt'
                // 'r2r':                                    ["R2R_FAIL"],
                // 'longgc'
@@ -535,6 +537,10 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
             if (os.toLowerCase() == "windows_nt") {
                 // These are cross builds
                 baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
+
+                if (configuration == 'pri1') {
+                    baseName += "_outerloop"
+                }
             }
             else {
                 // Defaults to a small page size set of machines.
@@ -543,6 +549,10 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
             break
         case 'arm':
             baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
+
+            if (configuration == 'pri1') {
+                baseName += "_outerloop"
+            }
             break
         case 'armlb':
             // These are cross builds
@@ -552,6 +562,10 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
             }
             else {
                 baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
+
+                if (configuration == 'pri1') {
+                    baseName += "_outerloop"
+                }
             }
             break
         case 'x86':
@@ -812,6 +826,9 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     Utilities.addPeriodicTrigger(job, '@daily')
                 }
             }
+            break
+
+        case 'pri1':
             break
         
         case 'tieredcompilation':
@@ -1581,9 +1598,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         armCrossgenOpt = '-altjitcrossgen'
                     }
 
-                    // Hack: build pri1 tests for arm/armlb/arm64 build job, until we have separate pri0 and pri1 builds for the flow job to use.
-                    priority = '1'
-
                     // This is now a build only job. Do not run tests. Use the flow job.
                     buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${buildArchitecture} -priority=${priority} ${armCrossgenOpt}"
                     
@@ -1608,9 +1622,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // Keep the longer timeout for gcstress.
                         Utilities.setJobTimeout(newJob, 240)
                     }
-
-                    // Hack: build pri1 tests for arm/armlb/arm64 build job, until we have separate pri0 and pri1 builds for the flow job to use.
-                    priority = '1'
 
                     // This is now a build only job. Do not run tests. Use the flow job.
                     buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2 -priority=${priority}"
@@ -1789,6 +1800,13 @@ Constants.allScenarios.each { scenario ->
                         os = 'Windows_NT'
                     }
 
+                    def validWindowsNTCrossArches = ["arm", "armlb", "arm64"]
+                    def isWindowsArmJob = (os == "Windows_NT" && architecture in validWindowsNTCrossArches)
+
+                    if (scenario == 'pri1' && isWindowsArmJob == false) {
+                        return
+                    }
+
                     // Tizen is only supported for arm legacy_backend architecture
                     if (os == 'Tizen' && architecture != 'armlb') {
                         return
@@ -1962,6 +1980,7 @@ Constants.allScenarios.each { scenario ->
                                 }
                                 break
                             case 'default':
+                            case 'pri1':
                                 // Nothing skipped
                                 break
                             default:
@@ -2189,6 +2208,8 @@ Constants.allScenarios.each { scenario ->
                             case 'default':
                                 // Nothing skipped
                                 break
+                            case 'pri1':
+                                return
                             default:
                                 println("Unknown scenario: ${scenario}")
                                 assert false
@@ -2202,8 +2223,14 @@ Constants.allScenarios.each { scenario ->
                     def osGroup = getOSGroup(os)
                     def jobName = getJobName(configuration, architecture, os, scenario, false) + "_tst"
 
+                    def coreclrBuildLookupConfiguration = 'default'
+
+                    if ((scenario != 'default') && (architecture in validWindowsNTCrossArches)) {
+                        coreclrBuildLookupConfiguration = 'pri1'
+                    }
+
                     def inputCoreCLRBuildName = projectFolder + '/' +
-                        Utilities.getFullJobName(project, getJobName(configuration, architecture, os, 'default', false), isPR)
+                        Utilities.getFullJobName(project, getJobName(configuration, architecture, os, coreclrBuildLookupConfiguration, false), isPR)
 
                     // If this is a stress scenario, there isn't any difference in the build job, so we didn't create a build only
                     // job for Windows_NT specific to that stress mode. Just copy from the default scenario.
