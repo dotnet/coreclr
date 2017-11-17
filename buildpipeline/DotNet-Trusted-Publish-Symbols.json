@@ -1,7 +1,7 @@
 {
   "build": [
     {
-      "enabled": true,
+      "enabled": false,
       "continueOnError": false,
       "alwaysRun": false,
       "displayName": "Set up pipeline-specific git repository",
@@ -21,7 +21,7 @@
       }
     },
     {
-      "enabled": true,
+      "enabled": false,
       "continueOnError": false,
       "alwaysRun": false,
       "displayName": "sync -ab",
@@ -61,7 +61,7 @@
       }
     },
     {
-      "enabled": true,
+      "enabled": false,
       "continueOnError": false,
       "alwaysRun": false,
       "displayName": "Publish Symbols to Artifact Services",
