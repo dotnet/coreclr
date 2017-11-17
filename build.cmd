@@ -19,6 +19,24 @@ set __ThisScriptFull="%~f0"
 :: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
 :: toolset if it is installed. Finally, we will fail the script if no supported VS instance
 :: can be found.
+
+if defined VisualStudioVersion goto :Run
+
+set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if exist %_VSWHERE% (
+  for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
+)
+if not exist "%_VSCOMNTOOLS%" set _VSCOMNTOOLS=%VS140COMNTOOLS%
+if not exist "%_VSCOMNTOOLS%" (
+  echo Error: Visual Studio 2015 or 2017 required.
+  echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
+  exit /b 1
+)
+
+call "%_VSCOMNTOOLS%\VsDevCmd.bat"
+
+:Run
+
 if defined VS150COMNTOOLS (
   set "__VSToolsRoot=%VS150COMNTOOLS%"
   set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
@@ -59,7 +77,8 @@ set "__ProjectDir=%~dp0"
 if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__ProjectFilesDir=%__ProjectDir%"
 set "__SourceDir=%__ProjectDir%\src"
-set "__PackagesDir=%__ProjectDir%\packages"
+set "__PackagesDir=%DotNetRestorePackagesPath%"
+if [%__PackagesDir%]==[] set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__PgoOptDataVersion="
@@ -207,8 +226,8 @@ if not exist "%__IntermediatesDir%" md "%__IntermediatesDir%"
 if not exist "%__LogsDir%"          md "%__LogsDir%"
 
 REM It is convinient to have your Nuget search path include the location where the build
-REM will plass packages.  However nuget used during the build will fail if that directory 
-REM does not exist.   Avoid this in at least one case by agressively creating the directory. 
+REM will plass packages.  However nuget used during the build will fail if that directory
+REM does not exist.   Avoid this in at least one case by agressively creating the directory.
 if not exist "%__BinDir%\.nuget\pkg"           md "%__BinDir%\.nuget\pkg"
 
 echo %__MsgPrefix%Commencing CoreCLR Repo build
@@ -228,7 +247,7 @@ REM ============================================================================
 echo %__MsgPrefix%Using environment: "%__VSToolsRoot%\VsDevCmd.bat"
 call                                 "%__VSToolsRoot%\VsDevCmd.bat"
 
-@call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\build.proj -generateHeaderWindows -NativeVersionHeaderFile="%__RootBinDir%\obj\_version.h" %__RunArgs% %__UnprocessedBuildArgs% 
+@call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\build.proj -generateHeaderWindows -NativeVersionHeaderFile="%__RootBinDir%\obj\_version.h" %__RunArgs% %__UnprocessedBuildArgs%
 
 REM =========================================================================================
 REM ===
@@ -265,7 +284,7 @@ REM === Build the CLR VM
 REM ===
 REM =========================================================================================
 
-if %__BuildNative% EQU 1 ( 
+if %__BuildNative% EQU 1 (
     echo %__MsgPrefix%Commencing build of native components for %__BuildOS%.%__BuildArch%.%__BuildType%
 
 	set nativePlatfromArgs=-platform=%__BuildArch%
@@ -275,7 +294,7 @@ if %__BuildNative% EQU 1 (
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
 
-    if /i "%__BuildArch%" == "arm64" ( 
+    if /i "%__BuildArch%" == "arm64" (
         rem arm64 builds currently use private toolset which has not been released yet
         REM TODO, remove once the toolset is open.
         call :PrivateToolSet
@@ -287,7 +306,7 @@ if %__BuildNative% EQU 1 (
     if /i "%__BuildArch%" == "x86" ( set __VCBuildArch=x86 )
     if /i "%__BuildArch%" == "arm" (
         set __VCBuildArch=x86_arm
-        
+
         REM Make CMake pick the highest installed version in the 10.0.* range
         set ___SDKVersion="-DCMAKE_SYSTEM_VERSION=10.0"
     )
@@ -328,7 +347,7 @@ if %__BuildNative% EQU 1 (
         echo     "%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
         echo     "%__LogsDir%\CoreCLR_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
         exit /b 1
-    )   
+    )
 )
 :SkipNativeBuild
 
@@ -386,7 +405,7 @@ if /i "%__DoCrossArchBuild%"=="1" (
         echo     "%__LogsDir%\Cross_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
         echo     "%__LogsDir%\Cross_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
         exit /b 1
-    )    
+    )
 )
 
 :SkipCrossCompBuild
@@ -397,8 +416,8 @@ REM === CoreLib and NuGet package build section.
 REM ===
 REM =========================================================================================
 
-if %__BuildCoreLib% EQU 1 (  
-	
+if %__BuildCoreLib% EQU 1 (
+
 	echo %__MsgPrefix%Commencing build of System.Private.CoreLib for %__BuildOS%.%__BuildArch%.%__BuildType%
     rem Explicitly set Platform causes conflicts in CoreLib project files. Clear it to allow building from VS x64 Native Tools Command Prompt
     set Platform=
@@ -486,7 +505,7 @@ if %__BuildTests% EQU 1 (
 
     rem arm64 builds currently use private toolset which has not been released yet
     REM TODO, remove once the toolset is open.
-    if /i "%__BuildArch%" == "arm64" call :PrivateToolSet 
+    if /i "%__BuildArch%" == "arm64" call :PrivateToolSet
 
     echo "%__ProjectDir%\build-test.cmd %__BuildArch% %__BuildType% %__UnprocessedBuildArgs%"
     @call %__ProjectDir%\build-test.cmd %__BuildArch% %__BuildType% %__UnprocessedBuildArgs%
