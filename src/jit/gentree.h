@@ -428,8 +428,8 @@ struct GenTree
     __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
 #endif
 
-#define GTSTRUCT_2_SPECIAL(fn, en, en2)             GTSTRUCT_2(fn, en, en2)
-#define GTSTRUCT_3_SPECIAL(fn, en, en2, en3)        GTSTRUCT_3(fn, en, en2, en3)
+#define GTSTRUCT_2_SPECIAL(fn, en, en2) GTSTRUCT_2(fn, en, en2)
+#define GTSTRUCT_3_SPECIAL(fn, en, en2, en3) GTSTRUCT_3(fn, en, en2, en3)
 
 #include "gtstructs.h"
 

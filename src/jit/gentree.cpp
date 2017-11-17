@@ -6063,7 +6063,7 @@ GenTree::VtablePtr GenTree::GetVtableForOper(genTreeOps oper)
 #define GTSTRUCT_3_SPECIAL(nm, tag, tag2, tag3)         /*handle explicitly*/
 #include "gtstructs.h"
 
-// clang-format on
+        // clang-format on
 
         // Handle the special cases.
         // The following opers are in GTSTRUCT_N but no other place (namely, no subtypes).
