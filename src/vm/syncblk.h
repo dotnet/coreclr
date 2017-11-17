@@ -438,7 +438,7 @@ private:
 
     DWORD m_waiterStarvationStartTimeMs;
 
-    static const DWORD WaiterStarvationDurationMsBeforeStoppingPreemptingWaiters = 1000;
+    static const DWORD WaiterStarvationDurationMsBeforeStoppingPreemptingWaiters = 100;
 
     // Only SyncBlocks can create AwareLocks.  Hence this private constructor.
     AwareLock(DWORD indx)
