@@ -421,7 +421,14 @@ public:
 
     virtual OBJECTHANDLE CreateDependentHandle(Object* primary, Object* secondary) = 0;
 
-    virtual void RelocateAsyncPinnedHandles(IGCHandleStore* pTarget) = 0;
+    // Relocates async pinned handles from a condemned handle store to the default domain's handle store.
+    //
+    // The two callbacks are called when:
+    //   1. clearIfComplete is called whenever the handle table observes an async pin that is still live.
+    //      The callback gives a chance for the EE to unpin the referents if the overlapped operation is complete.
+    //   2. setHandle is called whenever the GC has relocated the async pin to a new handle table. The passed-in
+    //      handle is the newly-allocated handle in the default domain that should be assigned to the overlapped object.
+    virtual void RelocateAsyncPinnedHandles(IGCHandleStore* pTarget, void (*clearIfComplete)(Object*), void (*setHandle)(Object*, OBJECTHANDLE)) = 0;
 
     virtual bool EnumerateAsyncPinnedHandles(async_pin_enum_fn callback, void* context) = 0;
 

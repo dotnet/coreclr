@@ -337,11 +337,3 @@ void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* s
 void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*callback)(Object*, Object*, void*))
 {
 }
-
-void GCToEEInterface::OverlappedClearIfComplete(Object* object)
-{
-}
-
-void GCToEEInterface::OverlappedSetPinnedHandle(Object* object, OBJECTHANDLE handle)
-{
-}

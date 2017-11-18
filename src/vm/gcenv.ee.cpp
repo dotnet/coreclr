@@ -1385,39 +1385,3 @@ void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*call
         }
     }
 }
-
-void GCToEEInterface::OverlappedClearIfComplete(Object* object)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    assert(object != nullptr);
-    if (object->GetGCSafeMethodTable() != g_pOverlappedDataClass)
-    {
-        return;
-    }
-
-    OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)object));
-    if (overlapped->HasCompleted())
-    {
-        // IO has finished.  We don't need to pin the user buffer any longer.
-        overlapped->m_userObject = NULL;
-    }
-
-    BashMTForPinnedObject(ObjectToOBJECTREF(object));
-}
-
-void GCToEEInterface::OverlappedSetPinnedHandle(Object* object, OBJECTHANDLE handle) 
-{
-    LIMITED_METHOD_CONTRACT;
-
-    assert(object != nullptr);
-    assert(handle);
-
-    if (object->GetGCSafeMethodTable() != g_pOverlappedDataClass)
-    {
-        return;
-    }
-
-    OverlappedDataObject* overlapped = (OverlappedDataObject*)object;
-    overlapped->m_pinSelf = handle;
-}

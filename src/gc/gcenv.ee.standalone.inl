@@ -270,16 +270,4 @@ inline void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void
     return g_theGCToCLR->WalkAsyncPinned(object, context, callback);
 }
 
-inline void GCToEEInterface::OverlappedClearIfComplete(Object* object)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->OverlappedClearIfComplete(object);
-}
-
-inline void GCToEEInterface::OverlappedSetPinnedHandle(Object* object, OBJECTHANDLE handle) 
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->OverlappedSetPinnedHandle(object, handle);
-}
-
 #endif // __GCTOENV_EE_STANDALONE_INL__

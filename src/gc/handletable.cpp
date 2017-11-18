@@ -1178,7 +1178,10 @@ BOOL  Ref_HandleAsyncPinHandles(async_pin_enum_fn asyncPinCallback, void* contex
     return result;
 }
 
-void  Ref_RelocateAsyncPinHandles(HandleTableBucket *pSource, HandleTableBucket *pTarget)
+void  Ref_RelocateAsyncPinHandles(HandleTableBucket *pSource,
+    HandleTableBucket *pTarget,
+    void (*clearIfComplete)(Object* object),
+    void (*setHandle)(Object* object, OBJECTHANDLE handle))
 {
     CONTRACTL
     {
@@ -1190,7 +1193,7 @@ void  Ref_RelocateAsyncPinHandles(HandleTableBucket *pSource, HandleTableBucket 
     int limit = getNumberOfSlots();
     for (int n = 0; n < limit; n ++ )
     {
-        TableRelocateAsyncPinHandles(Table(pSource->pTable[n]), Table(pTarget->pTable[n]));
+        TableRelocateAsyncPinHandles(Table(pSource->pTable[n]), Table(pTarget->pTable[n]), clearIfComplete, setHandle);
     }
 }
 

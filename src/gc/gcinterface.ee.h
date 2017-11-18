@@ -251,19 +251,6 @@ public:
     // This function is a no-op if "object" is not an OverlappedData object.
     virtual
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*)) = 0;
-
-    // Given an object, if this object is an instance of `System.Threading.OverlappedData` and the
-    // runtime treats instances of this class specially, the runtime is given a chance to eagerly remove the
-    // pin to the target object if the overlapped I/O operation has already completed.
-    //
-    // This function is a no-op if "object" is not an OverlappedData object.
-    virtual
-    void OverlappedClearIfComplete(Object* object) = 0;
-
-    // If the given object is an instance of `System.Threading.OverlappedData`, sets the self-pinning
-    // handle of the overlapped data object to the given handle.
-    virtual
-    void OverlappedSetPinnedHandle(Object* object, OBJECTHANDLE handle) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
