@@ -72,8 +72,12 @@ namespace System
             {
                 NumberBuffer number = default;
                 Int32ToNumber(value, ref number);
-                Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
-                var sb = new ValueStringBuilder(stackBuffer);
+                ValueStringBuilder sb;
+                unsafe
+                {
+                    char* stackPtr = stackalloc char[CharStackBufferSize];
+                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+                }
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info, false);
@@ -108,8 +112,12 @@ namespace System
             {
                 NumberBuffer number = default;
                 Int32ToNumber(value, ref number);
-                Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
-                var sb = new ValueStringBuilder(stackBuffer);
+                ValueStringBuilder sb;
+                unsafe
+                {
+                    char* stackPtr = stackalloc char[CharStackBufferSize];
+                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+                }
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info, false);
@@ -142,8 +150,12 @@ namespace System
             {
                 NumberBuffer number = default;
                 UInt32ToNumber(value, ref number);
-                Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
-                var sb = new ValueStringBuilder(stackBuffer);
+                ValueStringBuilder sb;
+                unsafe
+                {
+                    char* stackPtr = stackalloc char[CharStackBufferSize];
+                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+                }
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info, false);
@@ -176,8 +188,12 @@ namespace System
             {
                 NumberBuffer number = default;
                 UInt32ToNumber(value, ref number);
-                Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
-                var sb = new ValueStringBuilder(stackBuffer);
+                ValueStringBuilder sb;
+                unsafe
+                {
+                    char* stackPtr = stackalloc char[CharStackBufferSize];
+                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+                }
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info, false);
@@ -213,8 +229,12 @@ namespace System
             {
                 NumberBuffer number = default;
                 Int64ToNumber(value, ref number);
-                Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
-                var sb = new ValueStringBuilder(stackBuffer);
+                ValueStringBuilder sb;
+                unsafe
+                {
+                    char* stackPtr = stackalloc char[CharStackBufferSize];
+                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+                }
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info, false);
@@ -250,8 +270,12 @@ namespace System
             {
                 NumberBuffer number = default;
                 Int64ToNumber(value, ref number);
-                Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
-                var sb = new ValueStringBuilder(stackBuffer);
+                ValueStringBuilder sb;
+                unsafe
+                {
+                    char* stackPtr = stackalloc char[CharStackBufferSize];
+                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+                }
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info, false);
@@ -285,8 +309,12 @@ namespace System
             {
                 NumberBuffer number = default;
                 UInt64ToNumber(value, ref number);
-                Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
-                var sb = new ValueStringBuilder(stackBuffer);
+                ValueStringBuilder sb;
+                unsafe
+                {
+                    char* stackPtr = stackalloc char[CharStackBufferSize];
+                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+                }
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info, false);
@@ -320,8 +348,12 @@ namespace System
             {
                 NumberBuffer number = default;
                 UInt64ToNumber(value, ref number);
-                Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
-                var sb = new ValueStringBuilder(stackBuffer);
+                ValueStringBuilder sb;
+                unsafe
+                {
+                    char* stackPtr = stackalloc char[CharStackBufferSize];
+                    sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+                }
                 if (fmt != 0)
                 {
                     NumberToString(ref sb, ref number, fmt, digits, info, false);
