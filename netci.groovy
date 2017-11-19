@@ -1688,12 +1688,13 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def bootstrapRid = Utilities.getBoostrapPublishRid(os)
                         def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
                         buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture}" 
+                        buildCommands += "${bootstrapRidEnv}./build-test.sh ${lowerConfiguration} ${architecture} generatelayoutonly" 
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Set time out
                         setTestJobTimeOut(newJob, scenario)
                         // Basic archiving of the build
-                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
+                        Utilities.addArchival(newJob, "bin/Product/**,bin/tests/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
                         // And pal tests
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
@@ -2392,26 +2393,6 @@ Constants.allScenarios.each { scenario ->
                             // In addition, test steps are entirely different
                             // because we do not have a unified runner
                             if (windowsArmJob != true) {
-                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName(branch)
-
-                                // Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
-                                def osJobName
-                                if (os == 'Ubuntu') {
-                                    osJobName = 'ubuntu14.04'
-                                }
-                                else {
-                                    osJobName = os.toLowerCase()
-                                }
-                                copyArtifacts("${corefxFolder}/${osJobName}_release") {
-                                    includePatterns('bin/build.tar.gz')
-                                    buildSelector {
-                                        latestSuccessful(true)
-                                    }
-                                }
-
-                                shell ("mkdir ./bin/CoreFxBinDir")
-                                // Unpack the corefx binaries
-                                shell("tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir")
 
                                 // HACK -- Arm64 does not have corefx jobs yet.
                                 // Clone corefx and build the native packages overwriting the x64 packages.
@@ -2440,9 +2421,7 @@ Constants.allScenarios.each { scenario ->
                                 shell("""./tests/runtest.sh \\
                 --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
                 --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
-                --coreClrBinDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
-                --mscorlibDir=\"\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}\" \\
-                --coreFxBinDir=\"\${WORKSPACE}/bin/CoreFxBinDir\" \\
+                --coreOverlayDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root\" \\
                 --limitedDumpGeneration ${testEnvOpt} ${serverGCString} ${testOpts}""")
 
                                 if (isGcReliabilityFramework(scenario)) {

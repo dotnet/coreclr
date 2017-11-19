@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+
 initHostDistroRid()
 {
     __HostDistroRid=""
@@ -18,6 +19,18 @@ initHostDistroRid()
             fi
         fi
     fi
+
+    if [ "$__HostOS" == "OSX" ]; then
+        __PortableBuild=1
+    fi
+
+    # Portable builds target the base RID
+    if [ "$__PortableBuild" == 1 ]; then
+        if [ "$__BuildOS" == "OSX" ]; then
+            export __HostDistroRid="osx-$__BuildArch"
+        fi
+    fi
+
     if [ "$__HostOS" == "FreeBSD" ]; then
         __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
         __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
@@ -52,8 +65,10 @@ initTargetDistroRid()
     if [ "$__PortableBuild" == 1 ]; then
         if [ "$__BuildOS" == "Linux" ]; then
             export __DistroRid="linux-$__BuildArch"
+            export __RuntimeId="linux-$__BuildArch"
         elif [ "$__BuildOS" == "OSX" ]; then
             export __DistroRid="osx-$__BuildArch"
+            export __RuntimeId="osx-$__BuildArch"
         fi
     fi
 
@@ -108,10 +123,10 @@ build_Tests()
         __TestIntermediateDir="tests/obj/${__BuildOS}.${__BuildArch}.${__BuildType}"
     fi
 
-	echo "__BuildOS: ${__BuildOS}"
-	echo "__BuildArch: ${__BuildArch}"
-	echo "__BuildType: ${__BuildType}"
-	echo "__TestIntermediateDir: ${__TestIntermediateDir}"
+    echo "__BuildOS: ${__BuildOS}"
+    echo "__BuildArch: ${__BuildArch}"
+    echo "__BuildType: ${__BuildType}"
+    echo "__TestIntermediateDir: ${__TestIntermediateDir}"
 
     if [ ! -f "$__TestBinDir" ]; then
         echo "Creating TestBinDir: ${__TestBinDir}"
@@ -138,6 +153,33 @@ build_Tests()
         __up=-updateinvalidpackageversion
     fi
 
+    echo "${__MsgPrefix}Creating test overlay..."
+
+    if [ -z "$XuintTestBinBase" ]; then
+      XuintTestBinBase=$__TestWorkingDir
+    fi
+
+    export CORE_ROOT=$XuintTestBinBase/Tests/Core_Root
+
+    if [ ! -f "${CORE_ROOT}" ]; then
+      mkdir -p $CORE_ROOT
+    else
+      rm -rf $CORE_ROOT/*
+    fi
+
+    cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
+
+    build_Tests_internal "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "-testOverlay" "Creating test overlay"
+
+    if [ $__ZipTests -ne 0 ]; then
+        echo "${__MsgPrefix}ZIP tests packages..."
+        build_Tests_internal "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" " " "Prep test binaries for Helix publishing"
+    fi
+
+    if [ -n "$__GenarateLayoutOnly" ]; then
+        exit 0
+    fi
+
     # Work hardcoded path around
     if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets" ]; then
         ln -s "${__BuildToolsDir}/Microsoft.CSharp.Core.targets" "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets"
@@ -152,7 +194,7 @@ build_Tests()
 
     if [ ! -f $__ManagedTestBuiltMarker ]; then
 
-	    build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
+        build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
 
         if [ $? -ne 0 ]; then
             echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
@@ -187,40 +229,17 @@ build_Tests()
             echo "XUnit Wrappers had been built before."
         fi
     fi
-
-    echo "${__MsgPrefix}Creating test overlay..."
-
-    if [ -z "$XuintTestBinBase" ]; then
-      XuintTestBinBase=$__TestWorkingDir
-    fi
-
-    export CORE_ROOT=$XuintTestBinBase/Tests/Core_Root
-
-    if [ ! -f "${CORE_ROOT}" ]; then
-      mkdir -p $CORE_ROOT
-    else
-      rm -rf $CORE_ROOT/*
-    fi
-
-    cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
-
-    build_Tests_internal "Tests_Overlay_Managed" "$__ProjectDir/tests/runtest.proj" "-testOverlay" "Creating test overlay"
-
-    if [ $__ZipTests -ne 0 ]; then
-        echo "${__MsgPrefix}ZIP tests packages..."
-        build_Tests_internal "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" " " "Prep test binaries for Helix publishing"
-    fi
 }
 
 build_Tests_internal()
 {
-	subDirectoryName=$1
-	projectName=$2
-	extraBuildParameters=$3
-	stepName="$4"
+    subDirectoryName=$1
+    projectName=$2
+    extraBuildParameters=$3
+    stepName="$4"
 
-	# Set up directories and file names
-	__BuildLogRootName=$subDirectoryName
+    # Set up directories and file names
+    __BuildLogRootName=$subDirectoryName
     __BuildLog="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.log"
     __BuildWrn="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.wrn"
     __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
@@ -264,6 +283,7 @@ usage()
     echo "portableLinux - build for Portable Linux Distribution"
     echo "verbose - optional argument to enable verbose build output."
     echo "rebuild - if tests have already been built - rebuild them"
+    echo "generatelayoutonly - only pull down dependencies and build coreroot"
     echo "runtests - run tests after building them"
     echo "ziptests - zips CoreCLR tests & Core_Root for a Helix run"
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
@@ -385,8 +405,8 @@ __NativeTestIntermediatesDir=
 __RunTests=0
 __RebuildTests=0
 __BuildTestWrappers=0
+__GenarateLayoutOnly=
 CORE_ROOT=
-
 
 while :; do
     if [ $# -le 0 ]; then
@@ -494,6 +514,10 @@ while :; do
             __ZipTests=1
             ;;
 
+        generatelayoutonly)
+            __GenarateLayoutOnly=1
+            ;;
+
         bindir)
             if [ -n "$2" ]; then
                 __RootBinDir="$2"
@@ -527,7 +551,7 @@ __RunArgs="-BuildArch=$__BuildArch -BuildType=$__BuildType -BuildOS=$__BuildOS"
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
     export VERBOSE=1
-	__RunArgs="$__RunArgs -verbose"
+    __RunArgs="$__RunArgs -verbose"
 fi
 
 # Set default clang version
@@ -588,8 +612,9 @@ export __CMakeBinDir="$__BinDir"
 
 if [ ! -d "$__BinDir" ] || [ ! -d "$__BinDir/bin" ]; then
 
-    echo "Has not been found built CoreCLR instance"
-    echo "Please build it before tests using './build.sh $__BuildArch $__BuildType'"
+    echo "Cannot find build directory for the Coreclr Product."
+    echo "Please make sure CoreCLR is built before building tests."
+    echo "Example use: './build.sh $__BuildArch $__BuildType'"
     exit 1
 fi
 
