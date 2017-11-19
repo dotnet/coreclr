@@ -2379,6 +2379,8 @@ Constants.allScenarios.each { scenario ->
                             }
 
                             // Coreclr build we are trying to test
+                            //
+                            //  ** NOTE ** This will, correctly, overwrite over the CORE_ROOT from the windows test archive
 
                             copyArtifacts(inputCoreCLRBuildName) {
                                 excludePatterns('**/testResults.xml', '**/*.ni.dll')
@@ -2417,6 +2419,8 @@ Constants.allScenarios.each { scenario ->
                                 if (isGCStressRelatedTesting(scenario)) {
                                     shell('./init-tools.sh')
                                 }
+
+                                testOpts += "--copyNativeTestBin"
 
                                 shell("""./tests/runtest.sh \\
                 --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${architecture}.${configuration}\" \\

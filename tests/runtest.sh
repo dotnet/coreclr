@@ -44,6 +44,7 @@ function print_usage {
     echo '  -h|--help                        : Show usage information.'
     echo '  --useServerGC                    : Enable server GC for this test run'
     echo '  --test-env                       : Script to set environment variables for tests'
+    echo '  --copyNativeTestBin              : Explicitly copy native test components into the test dir'
     echo '  --crossgen                       : Precompiles the framework managed assemblies'
     echo '  --runcrossgentests               : Runs the ready to run tests' 
     echo '  --jitstress=<n>                  : Runs the tests with COMPlus_JitStress=n'
@@ -338,6 +339,11 @@ function create_core_overlay {
 
     if [ -n "$coreOverlayDir" ]; then
         export CORE_ROOT="$coreOverlayDir"
+
+        if [ -n "$copyNativeTestBin" ]; then
+            copy_test_native_bin_to_test_root
+        fi
+
         return
     fi
 
@@ -1061,6 +1067,9 @@ do
             ;;
         --jitminopts)
             export COMPlus_JITMinOpts=1
+            ;;
+        --copyNativeTestBin)
+            export copyNativeTestBin=1
             ;;
         --jitforcerelocs)
             export COMPlus_ForceRelocs=1
