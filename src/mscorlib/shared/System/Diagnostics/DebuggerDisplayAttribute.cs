@@ -20,14 +20,7 @@ namespace System.Diagnostics
 
         public DebuggerDisplayAttribute(string value)
         {
-            if (value == null)
-            {
-                Value = "";
-            }
-            else
-            {
-                Value = value;
-            }
+            Value = value ?? "";
             Name = "";
             Type = "";
         }
