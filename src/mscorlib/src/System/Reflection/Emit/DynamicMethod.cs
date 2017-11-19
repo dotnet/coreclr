@@ -297,7 +297,7 @@ namespace System.Reflection.Emit
 
             // check and store the return value
             m_returnType = (returnType == null) ? (RuntimeType)typeof(void) : returnType.UnderlyingSystemType as RuntimeType;
-            if ((m_returnType == null) || !(m_returnType is RuntimeType))
+            if (m_returnType == null)
                 throw new NotSupportedException(SR.Arg_InvalidTypeInRetType);
 
             if (transparentMethod)
