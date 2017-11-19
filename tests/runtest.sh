@@ -44,6 +44,7 @@ function print_usage {
     echo '  -h|--help                        : Show usage information.'
     echo '  --useServerGC                    : Enable server GC for this test run'
     echo '  --test-env                       : Script to set environment variables for tests'
+    echo '  --copyNativeTestBin              : Explicitly copy native test components into the test dir'
     echo '  --crossgen                       : Precompiles the framework managed assemblies'
     echo '  --runcrossgentests               : Runs the ready to run tests' 
     echo '  --jitstress=<n>                  : Runs the tests with COMPlus_JitStress=n'
@@ -338,6 +339,11 @@ function create_core_overlay {
 
     if [ -n "$coreOverlayDir" ]; then
         export CORE_ROOT="$coreOverlayDir"
+
+        if [ -n "$copyNativeTestBin" ]; then
+            copy_test_native_bin_to_test_root $coreOverlayDir
+        fi
+
         return
     fi
 
@@ -380,7 +386,7 @@ function create_core_overlay {
         # Test dependencies come from a Windows build, and System.Private.CoreLib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"
     fi
-    copy_test_native_bin_to_test_root
+    copy_test_native_bin_to_test_root $coreOverlayDir
 }
 
 declare -a skipCrossGenFiles
@@ -438,6 +444,7 @@ function precompile_overlay_assemblies {
 
 function copy_test_native_bin_to_test_root {
     local errorSource='copy_test_native_bin_to_test_root'
+    local coreRootDir=$1
 
     if [ -z "$testNativeBinDir" ]; then
         exit_with_error "$errorSource" "--testNativeBinDir is required."
@@ -448,14 +455,10 @@ function copy_test_native_bin_to_test_root {
     fi
 
     # Copy native test components from the native test build into the respective test directory in the test root directory
-    find "$testNativeBinDir" -type f -iname '*.$libExtension' |
+    find "$testNativeBinDir" -type f -iname "*.$libExtension" |
         while IFS='' read -r filePath || [ -n "$filePath" ]; do
             local dirPath=$(dirname "$filePath")
-            local destinationDirPath=${testRootDir}${dirPath:${#testNativeBinDir}}
-            if [ ! -d "$destinationDirPath" ]; then
-                exit_with_error "$errorSource" "Cannot copy native test bin '$filePath' to '$destinationDirPath/', as the destination directory does not exist."
-            fi
-            cp -f "$filePath" "$destinationDirPath/"
+            cp -f "$filePath" "$coreRootDir"
         done
 }
 
@@ -1061,6 +1064,9 @@ do
             ;;
         --jitminopts)
             export COMPlus_JITMinOpts=1
+            ;;
+        --copyNativeTestBin)
+            export copyNativeTestBin=1
             ;;
         --jitforcerelocs)
             export COMPlus_ForceRelocs=1
