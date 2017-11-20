@@ -1201,7 +1201,7 @@ namespace
         };
 
         InlineSString<MaxThreadNameSize> wideName;
-        const WCHAR* namePtr;
+        const WCHAR* namePtr = nullptr;
         EX_TRY
         {
             if (name != nullptr)
@@ -1214,7 +1214,6 @@ namespace
         {
             // we're not obligated to provide a name - if it's not valid,
             // just report nullptr as the name.
-            namePtr = nullptr;
         }
         EX_END_CATCH(SwallowAllExceptions)
 
