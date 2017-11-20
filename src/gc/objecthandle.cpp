@@ -274,8 +274,19 @@ void CALLBACK PinObject(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, ui
     _ASSERTE(lp2);
     promote_func* callback = (promote_func*) lp2;
     callback(pRef, (ScanContext *)lp1, GC_CALL_PINNED);
+}
 
-    Object * pPinnedObj = *pRef;
+void CALLBACK AsyncPinObject(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInfo, uintptr_t lp1, uintptr_t lp2)
+{
+    UNREFERENCED_PARAMETER(pExtraInfo);
+
+    LOG((LF_GC, LL_WARNING, LOG_HANDLE_OBJECT_CLASS("WARNING: ", pObjRef, "causes (async) pinning of ", *pObjRef)));
+
+    Object **pRef = (Object **)pObjRef;
+    _ASSERTE(lp2);
+    promote_func* callback = (promote_func*)lp2;
+    callback(pRef, (ScanContext *)lp2, GC_CALL_PINNED);
+    Object* pPinnedObj = *pRef;
     if (!HndIsNullOrDestroyedHandle(pPinnedObj))
     {
         GCToEEInterface::WalkAsyncPinnedForPromotion(pPinnedObj, (ScanContext *)lp1, callback);
@@ -1062,7 +1073,12 @@ void Ref_TracePinningRoots(uint32_t condemned, uint32_t maxgen, ScanContext* sc,
                         sc->pCurrentDomain = SystemDomain::GetAppDomainAtIndex(HndGetHandleTableADIndex(hTable));
                     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                    HndScanHandlesForGC(hTable, PinObject, uintptr_t(sc), uintptr_t(fn), types, _countof(types), condemned, maxgen, flags);
+
+                    // Pinned handles and async pinned handles are scanned in separate passes, since async pinned
+                    // handles may require a callback into the EE in order to fully trace an async pinned
+                    // object's object graph.
+                    HndScanHandlesForGC(hTable, PinObject, uintptr_t(sc), uintptr_t(fn), &types[0], 1, condemned, maxgen, flags);
+                    HndScanHandlesForGC(hTable, AsyncPinObject, uintptr_t(sc), uintptr_t(fn), &types[1], 1, condemned, maxgen, flags);
                 }
             }
         walk = walk->pNext;
