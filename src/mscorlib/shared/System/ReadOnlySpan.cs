@@ -175,7 +175,7 @@ namespace System
             }
         }
 #else
-        public T this[int index]
+        public ref readonly T this[int index]
         {
             [Intrinsic]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -364,7 +364,20 @@ namespace System
             public ref readonly T Current
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => ref _span[_index];
+                get
+                {
+                    // TODO https://github.com/dotnet/coreclr/pull/14727:
+                    // Change this to simply be:
+                    //     get => ref readonly _span[_index];
+                    // once ReadOnlySpan<T>'s indexer returns ref readonly.
+
+                    if ((uint)_index >= (uint)_span.Length)
+                    {
+                        ThrowHelper.ThrowIndexOutOfRangeException();
+                    }
+
+                    return ref Unsafe.Add(ref _span.DangerousGetPinnableReference(), _index);
+                }
             }
         }
     }

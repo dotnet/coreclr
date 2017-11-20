@@ -3794,7 +3794,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
             // Prepare result
             var_types resultType = JITtype2varType(sig->retType);
             assert(resultType == result->TypeGet());
-            retNode              = gtNewOperNode(GT_COMMA, resultType, boundsCheck, result);
+            retNode = gtNewOperNode(GT_COMMA, resultType, boundsCheck, result);
 
             break;
         }
