@@ -755,7 +755,7 @@ void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment, void (*clearIfComp
             _UNCHECKED_OBJECTREF value = *pValue;
             if (!HndIsNullOrDestroyedHandle(value))
             {
-                ((Object*)value);
+                clearIfComplete((Object*)value);
             }
             else
             {
