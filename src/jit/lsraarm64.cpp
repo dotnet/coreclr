@@ -796,8 +796,11 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
         GenTree* op1;
         GenTree* op2;
 
-        case SIMDIntrinsicCast:
         case SIMDIntrinsicInit:
+            info->srcCount = simdTree->gtGetOp1()->isContained() ? 0 : 1;
+            break;
+
+        case SIMDIntrinsicCast:
         case SIMDIntrinsicSqrt:
         case SIMDIntrinsicAbs:
         case SIMDIntrinsicConvertToSingle:
@@ -839,10 +842,6 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
         case SIMDIntrinsicBitwiseXor:
         case SIMDIntrinsicMin:
         case SIMDIntrinsicMax:
-        case SIMDIntrinsicSetX:
-        case SIMDIntrinsicSetY:
-        case SIMDIntrinsicSetZ:
-        case SIMDIntrinsicSetW:
         case SIMDIntrinsicEqual:
         case SIMDIntrinsicLessThan:
         case SIMDIntrinsicGreaterThan:
@@ -851,6 +850,10 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
             info->srcCount = 2;
             break;
 
+        case SIMDIntrinsicSetX:
+        case SIMDIntrinsicSetY:
+        case SIMDIntrinsicSetZ:
+        case SIMDIntrinsicSetW:
         case SIMDIntrinsicNarrow:
             info->srcCount = 2;
 

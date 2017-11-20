@@ -100,6 +100,15 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\CodeAnalysis\SuppressMessageAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\ConditionalAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Debug.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\DebuggableAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\DebuggerBrowsableAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\DebuggerDisplayAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\DebuggerHiddenAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\DebuggerNonUserCodeAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\DebuggerStepThroughAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\DebuggerStepperBoundaryAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\DebuggerTypeProxyAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\DebuggerVisualizerAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\StackTraceHiddenAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\DivideByZeroException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\DllNotFoundException.cs" />
@@ -159,6 +168,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\UmAlQuraCalendar.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\UnicodeCategory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Guid.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\HashCode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\HResults.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IAsyncResult.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\ICloneable.cs" />
@@ -189,6 +199,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\FileShare.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\FileStream.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\IOException.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\IO\MemoryStream.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\Path.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\PathInternal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\PathTooLongException.cs" />
@@ -218,6 +229,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\NotImplementedException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\NonSerializedAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\NotSupportedException.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Number.Formatting.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Number.NumberBuffer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Number.Parsing.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\NullReferenceException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\ObjectDisposedException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\ObsoleteAttribute.cs" />
@@ -398,6 +412,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\InAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\LayoutKind.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\MarshalAsAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\MemoryMarshal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\OptionalAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\OutAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\PreserveSigAttribute.cs" />
@@ -441,6 +456,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\SerializableAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Single.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Span.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\SpanDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Span.NonGeneric.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\String.Searching.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\StringSpanHelpers.cs" />
@@ -473,6 +489,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\UTF32Encoding.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\UTF7Encoding.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\UTF8Encoding.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\ValueStringBuilder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\TimeSpan.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\ThreadAttributes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\AbandonedMutexException.cs" />
@@ -494,6 +511,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\SynchronizationLockException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\TaskCanceledException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\TaskExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\TaskToApm.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\TaskSchedulerException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\ValueTask.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\ThreadAbortException.cs" />

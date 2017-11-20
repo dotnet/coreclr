@@ -24,6 +24,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "ssaconfig.h" // For "SsaConfig::RESERVED_SSA_NUM"
 #include "reglist.h"
 #include "valuenumtype.h"
+#include "jitstd.h"
 #include "jithashtable.h"
 #include "nodeinfo.h"
 #include "simd.h"
@@ -1812,6 +1813,9 @@ public:
     void ReplaceOperand(GenTree** useEdge, GenTree* replacement);
 
     inline GenTreePtr gtEffectiveVal(bool commaOnly = false);
+
+    // Tunnel through any GT_RET_EXPRs
+    inline GenTree* gtRetExprVal();
 
     // Return the child of this node if it is a GT_RELOAD or GT_COPY; otherwise simply return the node itself
     inline GenTree* gtSkipReloadOrCopy();
@@ -6126,6 +6130,33 @@ inline GenTreePtr GenTree::gtEffectiveVal(bool commaOnly)
         else
         {
             return effectiveVal;
+        }
+    }
+}
+
+//-------------------------------------------------------------------------
+// gtRetExprVal - walk back through GT_RET_EXPRs
+//
+// Returns:
+//    tree representing return value from a successful inline,
+//    or original call for failed or yet to be determined inline.
+//
+// Notes:
+//    Multi-level inlines can form chains of GT_RET_EXPRs.
+//    This method walks back to the root of the chain.
+
+inline GenTree* GenTree::gtRetExprVal()
+{
+    GenTree* retExprVal = this;
+    for (;;)
+    {
+        if (retExprVal->gtOper == GT_RET_EXPR)
+        {
+            retExprVal = retExprVal->gtRetExpr.gtInlineCandidate;
+        }
+        else
+        {
+            return retExprVal;
         }
     }
 }

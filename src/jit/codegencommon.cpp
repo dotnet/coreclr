@@ -2018,7 +2018,7 @@ AGAIN:
         }
 #endif // LEGACY_BACKEND
 
-#if defined(_TARGET_ARM64_) || (defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND))
+#if defined(_TARGET_ARMARCH_) && !defined(LEGACY_BACKEND)
         if (cns == 0)
 #endif
         {
@@ -2038,7 +2038,7 @@ AGAIN:
 
                     goto AGAIN;
 
-#if SCALED_ADDR_MODES && !defined(_TARGET_ARM64_) && !(defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND))
+#if SCALED_ADDR_MODES && (!defined(_TARGET_ARMARCH_) || defined(LEGACY_BACKEND))
                 // TODO-ARM64-CQ, TODO-ARM-CQ: For now we don't try to create a scaled index.
                 case GT_MUL:
                     if (op1->gtOverflow())
@@ -2103,7 +2103,7 @@ AGAIN:
 
         switch (op1->gtOper)
         {
-#if !defined(_TARGET_ARM64_) && !(defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND))
+#if !defined(_TARGET_ARMARCH_) || defined(LEGACY_BACKEND)
             // TODO-ARM64-CQ, TODO-ARM-CQ: For now we don't try to create a scaled index.
             case GT_ADD:
 
@@ -2165,7 +2165,7 @@ AGAIN:
                 break;
 
 #endif // SCALED_ADDR_MODES
-#endif // !_TARGET_ARM64_ && !(_TARGET_ARM_ && !LEGACY_BACKEND)
+#endif // !_TARGET_ARMARCH || LEGACY_BACKEND
 
             case GT_NOP:
 
@@ -2194,7 +2194,7 @@ AGAIN:
         noway_assert(op2);
         switch (op2->gtOper)
         {
-#if !defined(_TARGET_ARM64_) && !(defined(_TARGET_ARM_) && !defined(LEGACY_BACKEND))
+#if !defined(_TARGET_ARMARCH_) || defined(LEGACY_BACKEND)
             // TODO-ARM64-CQ, TODO-ARM-CQ: For now we don't try to create a scaled index.
             case GT_ADD:
 
@@ -2252,7 +2252,7 @@ AGAIN:
                 break;
 
 #endif // SCALED_ADDR_MODES
-#endif // !_TARGET_ARM64_ && !(_TARGET_ARM_ && !LEGACY_BACKEND)
+#endif // !_TARGET_ARMARCH || LEGACY_BACKEND
 
             case GT_NOP:
 
@@ -3020,7 +3020,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         }
         else if (compiler->info.genCPU == CPU_X64)
         {
-            if (compiler->canUseAVX())
+            if (compiler->canUseVexEncoding())
             {
                 printf("X64 CPU with AVX");
             }
@@ -11175,7 +11175,7 @@ void CodeGen::genVzeroupperIfNeeded(bool check256bitOnly /* = true*/)
 
     if (emitVzeroUpper)
     {
-        assert(compiler->getSIMDSupportLevel() == SIMD_AVX2_Supported);
+        assert(compiler->canUseVexEncoding());
         instGen(INS_vzeroupper);
     }
 }
@@ -11223,7 +11223,7 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
     structPassingKind howToReturnStruct;
     var_types         returnType = getReturnTypeForStruct(hClass, &howToReturnStruct);
 
-    return (returnType == TYP_STRUCT);
+    return (varTypeIsStruct(returnType));
 }
 
 //----------------------------------------------

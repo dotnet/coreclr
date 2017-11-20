@@ -413,7 +413,7 @@
     <value>Search pattern '{0}' cannot contain ".." to move up directories and can be contained only internally in file/directory names, as in "a..b".</value>
   </data>
   <data name="Arg_InvalidTypeInRetType" xml:space="preserve">
-    <value>The return Type contains some invalid type (i.e. null, ByRef)</value>
+    <value>The return Type must be a type provided by the runtime.</value>
   </data>
   <data name="Arg_InvalidTypeInSignature" xml:space="preserve">
     <value>The signature Type array contains some invalid type (i.e. null, void)</value>
@@ -2428,9 +2428,6 @@
   <data name="IndexOutOfRange_ArrayRankIndex" xml:space="preserve">
     <value>Array does not have that many dimensions.</value>
   </data>
-  <data name="IndexOutOfRange_IORaceCondition" xml:space="preserve">
-    <value>Probable I/O race condition detected while copying memory. The I/O package is not thread safe by default. In multithreaded applications, a stream must be accessed in a thread-safe way, such as a thread-safe wrapper returned by TextReader's or TextWriter's Synchronized methods. This also applies to classes like StreamWriter and StreamReader.</value>
-  </data>
   <data name="IndexOutOfRange_UMSPosition" xml:space="preserve">
     <value>Unmanaged memory stream position was beyond the capacity of the stream.</value>
   </data>
@@ -3685,10 +3682,19 @@
   <data name="NotSupported_SignatureType" xml:space="preserve">
     <value>This method is not supported on signature types.</value>
   </data>
-    <data name="Memory_ThrowIfDisposed" xml:space="preserve">
+  <data name="Memory_ThrowIfDisposed" xml:space="preserve">
     <value>Memory&lt;T&gt; has been disposed.</value>
   </data>
   <data name="Memory_OutstandingReferences" xml:space="preserve">
     <value>Release all references before disposing this instance.</value>
+  </data>
+  <data name="HashCode_HashCodeNotSupported" xml:space="preserve">
+    <value>HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.</value>
+  </data>
+  <data name="HashCode_EqualityNotSupported" xml:space="preserve">
+    <value>HashCode is a mutable struct and should not be compared with other HashCodes.</value>
+  </data>
+  <data name="Arg_TypeNotSupported" xml:space="preserve">
+    <value>Specified type is not supported</value>
   </data>
 </root>

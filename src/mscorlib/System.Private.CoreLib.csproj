@@ -119,7 +119,6 @@
   <!-- Sources -->
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RuntimeHelpers.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\FriendAccessAllowedAttribute.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TypeDependencyAttribute.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\jithelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\Unsafe.cs" />
@@ -253,7 +252,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\ICustomPropertyProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\ICustomProperty.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\CustomPropertyImpl.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\WindowsRuntimeBufferHelper.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCominterop)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\IIterable.cs" />
@@ -334,7 +332,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Attribute.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BadImageFormatException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\CompatibilitySwitches.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Decimal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DefaultBinder.CanConvert.cs" />
@@ -351,7 +348,7 @@
     <Compile Include="$(BclSourcesRoot)\System\mda.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MissingFieldException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MissingMemberException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Number.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Number.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RtType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeArgumentHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeHandles.cs" />
@@ -507,7 +504,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\ConcurrentExclusiveSchedulerPair.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\ProducerConsumerQueues.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TPLETWProvider.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskToApm.cs" />
     <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Threading\Tasks\IAsyncCausalityTracerStatics.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -516,14 +512,12 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolPreAllocatedOverlapped.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\System\IO\__Error.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\BinaryReader.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\Directory.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\SearchOption.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\File.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileLoadException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileNotFoundException.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IO\MemoryStream.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\Stream.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\UnmanagedMemoryAccessor.cs" />
   </ItemGroup>
@@ -532,7 +526,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debugger.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\DebuggerAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\ICustomDebuggerNotification.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Stacktrace.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Stackframe.cs" />
