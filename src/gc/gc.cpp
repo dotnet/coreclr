@@ -17285,6 +17285,94 @@ uint8_t* gc_heap::find_object (uint8_t* o, uint8_t* low)
 #define method_table(o) ((CObjectHeader*)(o))->GetMethodTable()
 
 inline
+BOOL gc_heap::is_string_and_about_to_be_promoted_to_gen2 (uint8_t* o)
+{
+    assert((object_gennum (o) == 1) == (
+        o != NULL &&
+        in_range_for_segment (o, ephemeral_heap_segment) &&
+        (o >= generation_allocation_start (generation_of (1))) &&
+        (o < generation_allocation_start (generation_of (0)))
+        ));
+    return (
+        o != NULL &&
+        settings.condemned_generation >= 1 &&
+        method_table (o) == *g_gc_pStringClass &&
+        in_range_for_segment (o, ephemeral_heap_segment) &&
+        (o >= generation_allocation_start (generation_of (1))) &&
+        (o < generation_allocation_start (generation_of (0))) &&
+        (((StringObject*)o)->GetStringLength() >= sizeof (uint8_t*) / 2)
+        );
+}
+
+inline
+BOOL gc_heap::try_relocate_duplicate_string (uint8_t** pold_address)
+{
+    uint8_t* old_address = *pold_address;
+    if (!old_address)
+    {
+        return false;
+    }
+    // it's sad we can't leverage mark bit to indicate that string is duplicate
+    // and we should look at original address in object header
+    // it's appear that mark bit is unset in plan_phase but later is resetted "somwhere"
+    // we trashing object header with 0xFFFF... to indicate that actual reloc address
+    // is at first sizeof pointer bytes after length field
+    // thus we restricting reduplicatable strings to be at least sizeof pointer bytes / 2 chars
+    // todo: replace object_gennum with faster check like in is_string_and_about_to_be_promoted_to_gen2
+    if (method_table (old_address) == *g_gc_pStringClass && *(uint8_t**)(header(old_address)->GetHeader()) == (uint8_t*)-1)
+    {
+        assert ( object_gennum (old_address) == 2 );
+        assert ( ((StringObject*)old_address)->GetStringLength() >= sizeof (uint8_t*) / 2);
+        *pold_address = *(uint8_t**)(old_address + sizeof(uint8_t*) + sizeof(uint32_t));
+        return true;
+    }
+    return false;
+}
+
+inline
+void gc_heap::adjust_string_dups_reloc_pointers (int thread)
+{    
+#ifdef MULTIPLE_HEAPS
+#else
+    while (StringDedup::AdvanceDups(0))
+    {
+        uint8_t* dup;
+        uint8_t* reloc_address = NULL;
+        while (dup = StringDedup::DequeueDup(0))
+        {
+            StringObject* string_dup = (StringObject*) dup;
+            if (string_dup->GetStringLength() == StringDedup::CurrentDupsStringLength() &&
+                true /* todo: compare buffers, maybe hashes first, hash might be stored in sync block */)
+            {
+                assert (object_gennum (dup) == 2);
+                assert (string_dup->GetStringLength() >= sizeof (uint8_t*) / 2);
+
+                if (reloc_address == NULL)
+                {
+                    reloc_address = dup;
+                    gc_heap::relocate_address (&reloc_address);
+                }
+                else
+                {
+                    uint8_t** sync_block = (uint8_t**)(header(dup)->GetHeader());
+                    *sync_block = (uint8_t*)-1;
+                    *(uint8_t**)(dup + sizeof(uint8_t*) + sizeof(uint32_t)) = reloc_address;
+                }
+            }
+        }
+        if (reloc_address == NULL)
+        {
+            // todo: StringDedup::RemoveDupsKey(0);
+        }
+        else
+        {
+            StringDedup::ResetDupsKey(reloc_address, 0);
+        }
+    }
+#endif // MULTIPLE_HEAPS
+}
+
+inline
 BOOL gc_heap::gc_mark1 (uint8_t* o)
 {
     BOOL marked = !marked (o);
@@ -18264,6 +18352,8 @@ gc_heap::mark_object_simple (uint8_t** po THREAD_NUMBER_DCL)
             m_boundary (o);
             size_t s = size (o);
             promoted_bytes (thread) += s;
+            if (is_string_and_about_to_be_promoted_to_gen2 (o))
+                StringDedup::EnqPromoted(o, thread);
             {
                 go_through_object_cl (method_table(o), o, s, poo,
                                         {
@@ -19437,6 +19527,8 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     sc.thread_number = heap_number;
     sc.promotion = TRUE;
     sc.concurrent = FALSE;
+
+    StringDedup::GcStarted();
 
     dprintf(2,("---- Mark Phase condemning %d ----", condemned_gen_number));
     BOOL  full_p = (condemned_gen_number == max_generation);
@@ -22881,6 +22973,8 @@ void gc_heap::plan_phase (int condemned_gen_number)
                   Align (min_obj_size))));
     }
 
+    StringDedup::GcFinished();
+
     //verify_partial();
 }
 #ifdef _PREFAST_
@@ -23561,17 +23655,29 @@ gc_heap::reloc_survivor_helper (uint8_t** pval)
 inline void
 gc_heap::relocate_obj_helper (uint8_t* x, size_t s)
 {
-    THREAD_FROM_HEAP;
+    THREAD_FROM_HEAP;    
+#ifndef MULTIPLE_HEAPS
+        const int thread = 0;
+#endif //MULTIPLE_HEAPS
+    if (is_string_and_about_to_be_promoted_to_gen2 (x))
+    {
+        uint8_t* pval = x;
+        reloc_survivor_helper (&pval);
+        StringDedup::EnqPromoted(pval, thread);
+    }
     if (contain_pointers (x))
     {
         dprintf (3, ("$%Ix$", (size_t)x));
 
         go_through_object_nostart (method_table(x), x, s, pval,
                             {
-                                uint8_t* child = *pval;
-                                reloc_survivor_helper (pval);
-                                if (child)
+                                if (!try_relocate_duplicate_string (pval))
                                 {
+                                    reloc_survivor_helper (pval);
+                                }
+                                uint8_t* child = *pval;
+                                if (child)
+                                {                                    
                                     dprintf (3, ("%Ix->%Ix->%Ix", (uint8_t*)pval, child, *pval));
                                 }
                             });
@@ -23648,6 +23754,9 @@ inline
 void gc_heap::relocate_shortened_obj_helper (uint8_t* x, size_t s, uint8_t* end, mark* pinned_plug_entry, BOOL is_pinned)
 {
     THREAD_FROM_HEAP;
+#ifndef MULTIPLE_HEAPS
+    const int thread = 0;
+#endif //MULTIPLE_HEAPS
     uint8_t* plug = pinned_plug (pinned_plug_entry);
 
     if (!is_pinned)
@@ -23683,7 +23792,14 @@ void gc_heap::relocate_shortened_obj_helper (uint8_t* x, size_t s, uint8_t* end,
     uint8_t* child = 0;
 
     dprintf (3, ("x: %Ix, pp: %Ix, end: %Ix", x, plug, end));
-
+    
+    if (is_string_and_about_to_be_promoted_to_gen2 (x))
+    {
+        // todo: should I handle (uint8_t*)pval >= end like in go_through_object_nostart below?
+        uint8_t* pval = x;
+        reloc_survivor_helper (&pval);
+        StringDedup::EnqPromoted(pval, thread);
+    }
     if (contain_pointers (x))
     {
         dprintf (3,("$%Ix$", (size_t)x));
@@ -23691,18 +23807,23 @@ void gc_heap::relocate_shortened_obj_helper (uint8_t* x, size_t s, uint8_t* end,
         go_through_object_nostart (method_table(x), x, s, pval,
         {
             dprintf (3, ("obj %Ix, member: %Ix->%Ix", x, (uint8_t*)pval, *pval));
-
             if ((uint8_t*)pval >= end)
             {
                 current_saved_info_to_relocate = saved_info_to_relocate + ((uint8_t*)pval - saved_plug_info_start) / sizeof (uint8_t**);
                 child = *current_saved_info_to_relocate;
+                // todo: figure out how to use `try_relocate_duplicate_string` with overlapped ref
                 reloc_ref_in_shortened_obj (pval, current_saved_info_to_relocate);
                 dprintf (3, ("last part: R-%Ix(saved: %Ix)->%Ix ->%Ix",
                     (uint8_t*)pval, current_saved_info_to_relocate, child, *current_saved_info_to_relocate));
+                child = *current_saved_info_to_relocate;
             }
             else
-            {
-                reloc_survivor_helper (pval);
+            {                
+                if (!try_relocate_duplicate_string (pval))
+                {
+                    reloc_survivor_helper (pval);
+                }
+                child = *pval;
             }
         });
     }
@@ -24274,6 +24395,7 @@ void gc_heap::relocate_phase (int condemned_gen_number,
     sc.promotion = FALSE;
     sc.concurrent = FALSE;
 
+    StringDedup::Rewind();
 
 #ifdef TIME_GC
         unsigned start;
@@ -24299,6 +24421,9 @@ void gc_heap::relocate_phase (int condemned_gen_number,
         gc_t_join.restart();
 #endif //MULTIPLE_HEAPS
     }
+
+    dprintf(3,("Adjusting string duplicates reloc pointers"));
+    adjust_string_dups_reloc_pointers (heap_number);
 
     dprintf(3,("Relocating roots"));
     GCScan::GcScanRoots(GCHeap::Relocate,
@@ -33472,6 +33597,7 @@ HRESULT GCHeap::Initialize ()
     HRESULT hr = S_OK;
 
     g_gc_pFreeObjectMethodTable = GCToEEInterface::GetFreeObjectMethodTable();
+    g_gc_pStringClass = GCToEEInterface::GetStringMethodTable();
     g_num_processors = GCToOSInterface::GetTotalProcessorCount();
     assert(g_num_processors != 0);
 
@@ -33505,8 +33631,12 @@ HRESULT GCHeap::Initialize ()
 
     nhp = min (nhp, MAX_SUPPORTED_CPUS);
 
+    StringDedup::Init(nhp);
+    //SdTest::Test123();
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/, nhp);
 #else
+    StringDedup::Init(0);
+    //SdTest::Test123();
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/);
 #endif //MULTIPLE_HEAPS
 
@@ -33896,10 +34026,20 @@ void GCHeap::Relocate (Object** ppObject, ScanContext* sc,
         }
     }
 
-    {
-        pheader = object;
-        hp->relocate_address(&pheader THREAD_NUMBER_ARG);
-        *ppObject = (Object*)pheader;
+    {        
+        if (!hp->try_relocate_duplicate_string ((uint8_t**)ppObject))
+        {
+            pheader = object;
+            hp->relocate_address(&pheader THREAD_NUMBER_ARG);
+            *ppObject = (Object*)pheader;
+    #ifndef MULTIPLE_HEAPS
+            const int thread = 0;
+    #endif //MULTIPLE_HEAPS
+            if (hp->is_string_and_about_to_be_promoted_to_gen2 (object))
+            {
+                StringDedup::EnqPromoted(pheader, thread);
+            }
+        }
     }
 
     STRESS_LOG_ROOT_RELOCATE(ppObject, object, pheader, ((!(flags & GC_CALL_INTERIOR)) ? ((Object*)object)->GetGCSafeMethodTable() : 0));

@@ -124,6 +124,11 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
 )
 
 set( GC_SOURCES_DAC_AND_WKS_COMMON
+  ../gc/stringdedup.cpp
+  ../gc/stringdedupqueue.cpp
+  ../gc/stringdedupthread.cpp
+  ../gc/stringdeduptable.cpp
+  ../gc/stringobjhashtable.cpp
   ../gc/handletable.cpp
   ../gc/handletablecore.cpp
   ../gc/handletablescan.cpp

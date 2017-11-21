@@ -14,6 +14,11 @@ set( GC_SOURCES
   gchandletable.cpp
   gceesvr.cpp
   gceewks.cpp
+  stringdedup.cpp
+  stringdedupqueue.cpp
+  stringdedupthread.cpp
+  stringdeduptable.cpp
+  stringobjhashtable.cpp
   handletablecache.cpp)
 
 if(CLR_CMAKE_PLATFORM_UNIX)

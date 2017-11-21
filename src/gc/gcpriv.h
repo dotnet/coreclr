@@ -217,12 +217,14 @@ void GCLogConfig (const char *fmt, ... );
 #ifdef MULTIPLE_HEAPS
 #define THREAD_NUMBER_DCL ,int thread
 #define THREAD_NUMBER_ARG ,thread
+#define THREAD_NUMBER_SOLE_ARG thread
 #define THREAD_NUMBER_FROM_CONTEXT int thread = sc->thread_number;
 #define THREAD_FROM_HEAP  int thread = heap_number;
 #define HEAP_FROM_THREAD  gc_heap* hpt = gc_heap::g_heaps[thread];
 #else
 #define THREAD_NUMBER_DCL
 #define THREAD_NUMBER_ARG
+#define THREAD_NUMBER_SOLE_ARG
 #define THREAD_NUMBER_FROM_CONTEXT
 #define THREAD_FROM_HEAP
 #define HEAP_FROM_THREAD  gc_heap* hpt = 0;
@@ -1535,6 +1537,12 @@ protected:
     void set_allocation_heap_segment (generation* gen);
     PER_HEAP
     void reset_allocation_pointers (generation* gen, uint8_t* start);
+    PER_HEAP
+    BOOL is_string_and_about_to_be_promoted_to_gen2 (uint8_t* o);
+    PER_HEAP
+    BOOL try_relocate_duplicate_string (uint8_t** pold_address);
+    PER_HEAP
+    void adjust_string_dups_reloc_pointers (int thread);
     PER_HEAP
     int object_gennum (uint8_t* o);
     PER_HEAP

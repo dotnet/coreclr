@@ -222,6 +222,12 @@ inline MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     return g_theGCToCLR->GetFreeObjectMethodTable();
 }
 
+inline MethodTable** GCToEEInterface::GetStringMethodTable()
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->GetStringMethodTable();
+}
+
 inline bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
 {
     assert(g_theGCToCLR != nullptr);

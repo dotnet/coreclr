@@ -11,6 +11,8 @@
 
 MethodTable * g_pFreeObjectMethodTable;
 
+MethodTable ** g_pStringClass;
+
 int32_t g_TrapReturningThreads;
 
 EEConfig * g_pConfig;
@@ -319,4 +321,9 @@ void GCToEEInterface::FreeStringConfigValue(const char *value)
 MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
 {
     return g_pFreeObjectMethodTable;
+}
+
+MethodTable** GCToEEInterface::GetStringMethodTable()
+{
+    return g_pStringClass;
 }

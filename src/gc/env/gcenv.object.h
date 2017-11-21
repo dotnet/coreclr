@@ -168,3 +168,21 @@ public:
         return offsetof(ArrayBase, m_dwLength);
     }
 };
+
+
+class StringObject : public Object
+{
+private:
+    uint32_t m_StringLength;
+    wchar_t m_Characters[1];
+public:
+    uint32_t GetStringLength()
+    { 
+        return m_StringLength;
+    }
+
+    wchar_t* GetBuffer() 
+    {
+        return m_Characters;
+    }    
+};

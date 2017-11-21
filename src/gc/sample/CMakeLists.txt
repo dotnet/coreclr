@@ -20,6 +20,11 @@ set(SOURCES
     ../handletablescan.cpp
     ../objecthandle.cpp
     ../softwarewritewatch.cpp
+    ../stringdedup.cpp
+    ../stringdedupqueue.cpp
+    ../stringdedupthread.cpp
+    ../stringdeduptable.cpp
+    ../stringobjhashtable.cpp
 )
 
 if(WIN32)
