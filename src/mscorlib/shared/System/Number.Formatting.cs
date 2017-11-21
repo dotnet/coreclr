@@ -102,6 +102,9 @@ namespace System
             return sb.TryCopyTo(destination, out charsWritten);
         }
 
+#if PROJECTN
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoOptimization)]
+#endif
         private static unsafe void DecimalToNumber(decimal value, ref NumberBuffer number)
         {
             decimal d = value;
