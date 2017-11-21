@@ -501,6 +501,10 @@ namespace System
             return Number.FormatDecimal(this, format, NumberFormatInfo.GetInstance(provider));
         }
 
+        public bool TryFormat(Span<char> destination, out int charsWritten, string format = null, IFormatProvider provider = null)
+        {
+            return Number.TryFormatDecimal(this, format, NumberFormatInfo.GetInstance(provider), destination, out charsWritten);
+        }
 
         // Converts a string to a Decimal. The string must consist of an optional
         // minus sign ("-") followed by a sequence of digits ("0" - "9"). The

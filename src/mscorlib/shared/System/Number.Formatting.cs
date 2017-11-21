@@ -76,6 +76,32 @@ namespace System
             return sb.GetString();
         }
 
+        public static bool TryFormatDecimal(decimal value, string format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
+        {
+            char fmt = ParseFormatSpecifier(format, out int digits);
+
+            NumberBuffer number = default;
+            DecimalToNumber(value, ref number);
+
+            ValueStringBuilder sb;
+            unsafe
+            {
+                char* stackPtr = stackalloc char[CharStackBufferSize];
+                sb = new ValueStringBuilder(new Span<char>(stackPtr, CharStackBufferSize));
+            }
+
+            if (fmt != 0)
+            {
+                NumberToString(ref sb, ref number, fmt, digits, info, isDecimal: true);
+            }
+            else
+            {
+                NumberToStringFormat(ref sb, ref number, format, info);
+            }
+
+            return sb.TryCopyTo(destination, out charsWritten);
+        }
+
         private static unsafe void DecimalToNumber(decimal value, ref NumberBuffer number)
         {
             decimal d = value;
