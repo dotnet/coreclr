@@ -56,11 +56,11 @@ namespace System
     // throw an exception. A conversion from float or double to
     // Decimal throws an OverflowException if the value is not within
     // the range of the Decimal type.
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Explicit)]
     [Serializable]
     [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public struct Decimal : IFormattable, IComparable, IConvertible, IComparable<Decimal>, IEquatable<Decimal>, IDeserializationCallback
+    public partial struct Decimal : IFormattable, IComparable, IConvertible, IComparable<Decimal>, IEquatable<Decimal>, IDeserializationCallback
     {
         // Sign mask for the flags field. A value of zero in this bit indicates a
         // positive Decimal value, and a value of one in this bit indicates a
@@ -135,14 +135,23 @@ namespace System
         // NOTE: Do not change the order in which these fields are declared. The
         // native methods in this class rely on this particular order. 
         // Do not rename (binary serialization).
+        [FieldOffset(0)]
         private int flags;
+        [FieldOffset(4)]
         private int hi;
+        [FieldOffset(8)]
         private int lo;
+        [FieldOffset(12)]
         private int mid;
 
-        internal uint Low => (uint)lo;
-        internal uint Mid => (uint)mid;
-        internal uint High => (uint)hi;
+        // NOTE: This set of fields overlay the ones exposed to serialization (which have to be signed ints for serialization compat.)
+        // The code for decimal formatting was ported from C++ and expects unsigned values.
+        [FieldOffset(4), NonSerialized]
+        internal uint High;
+        [FieldOffset(8), NonSerialized]
+        internal uint Low;
+        [FieldOffset(12), NonSerialized]
+        internal uint Mid;
 
         // Constructs a zero Decimal.
         //public Decimal() {
@@ -1350,21 +1359,6 @@ namespace System
         Object IConvertible.ToType(Type type, IFormatProvider provider)
         {
             return Convert.DefaultToType((IConvertible)this, type, provider);
-        }
-
-        internal static uint D32DivMod1E9(uint hi32, ref uint lo32)
-        {
-            ulong n = (ulong)hi32 << 32 | lo32;
-            lo32 = (uint)(n / 1000000000);
-            return (uint)(n % 1000000000);
-        }
-
-        internal static uint DecDivMod1E9(ref decimal value)
-        {
-            return D32DivMod1E9(D32DivMod1E9(D32DivMod1E9(0,
-                                                          ref Unsafe.As<int, uint>(ref value.hi)),
-                                             ref Unsafe.As<int, uint>(ref value.mid)),
-                                ref Unsafe.As<int, uint>(ref value.lo));
         }
     }
 }

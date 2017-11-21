@@ -114,7 +114,7 @@ namespace System
             number.sign = d.IsNegative;
 
             char* p = buffer + DecimalPrecision;
-            while (d.Mid != 0 | d.High != 0)
+            while ((d.Mid | d.High) != 0)
             {
                 p = UInt32ToDecChars(p, decimal.DecDivMod1E9(ref d), 9);
             }
