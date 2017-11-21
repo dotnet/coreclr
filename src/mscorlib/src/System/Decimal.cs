@@ -140,6 +140,9 @@ namespace System
         private int lo;
         private int mid;
 
+        internal uint Low => (uint)lo;
+        internal uint Mid => (uint)mid;
+        internal uint High => (uint)hi;
 
         // Constructs a zero Decimal.
         //public Decimal() {
@@ -362,6 +365,10 @@ namespace System
             FCallAddSub(ref d1, ref d2, DECIMAL_ADD);
             return d1;
         }
+
+        internal bool IsNegative => (flags & SignMask) != 0;
+
+        internal int Scale => (byte)((uint)flags >> ScaleShift);
 
         // FCallAddSub adds or subtracts two decimal values.  On return, d1 contains the result
         // of the operation.  Passing in DECIMAL_ADD or DECIMAL_NEG for bSign indicates
@@ -1339,6 +1346,21 @@ namespace System
         Object IConvertible.ToType(Type type, IFormatProvider provider)
         {
             return Convert.DefaultToType((IConvertible)this, type, provider);
+        }
+
+        internal static uint D32DivMod1E9(uint hi32, ref uint lo32)
+        {
+            ulong n = (ulong)hi32 << 32 | lo32;
+            lo32 = (uint)(n / 1000000000);
+            return (uint)(n % 1000000000);
+        }
+
+        internal static uint DecDivMod1E9(ref decimal value)
+        {
+            return D32DivMod1E9(D32DivMod1E9(D32DivMod1E9(0,
+                                                          ref Unsafe.As<int, uint>(ref value.hi)),
+                                             ref Unsafe.As<int, uint>(ref value.mid)),
+                                ref Unsafe.As<int, uint>(ref value.lo));
         }
     }
 }
