@@ -273,7 +273,7 @@ void CodeGen::genCodeForBBlist()
 
         block->bbEmitCookie = nullptr;
 
-        if (block->bbFlags & (BBF_JMP_TARGET | BBF_HAS_LABEL))
+        if ((block->bbFlags & (BBF_JMP_TARGET | BBF_HAS_LABEL)) || block->bbJumpKind == BBJ_CALLFINALLY)
         {
             /* Mark a label and update the current set of live GC refs */
 
