@@ -178,7 +178,7 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
     return true;
 }
 
-bool EventPipeConfiguration::UnregisterProviderNoLock(EventPipeProvider &provider)
+bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
 {
     CONTRACTL
     {
