@@ -85,6 +85,9 @@ private:
     // Get the provider without taking the lock.
     EventPipeProvider* GetProviderNoLock(const SString &providerID);
 
+    // Unregister a provider without taking the lock.
+    bool UnregisterProviderNoLock(EventPipeProvider &provider);
+
     // Determines whether or not the event pipe is enabled.
     Volatile<bool> m_enabled;
 

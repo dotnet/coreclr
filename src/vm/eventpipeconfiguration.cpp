@@ -36,7 +36,9 @@ EventPipeConfiguration::~EventPipeConfiguration()
 
     if(m_pConfigProvider != NULL)
     {
+        UnregisterProviderNoLock(*m_pConfigProvider);
         delete(m_pConfigProvider);
+
         m_pConfigProvider = NULL;
     }
 
@@ -176,7 +178,7 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
     return true;
 }
 
-bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
+bool EventPipeConfiguration::UnregisterProviderNoLock(EventPipeProvider &provider)
 {
     CONTRACTL
     {
@@ -188,6 +190,19 @@ bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
 
     // Take the lock before manipulating the provider list.
     CrstHolder _crst(EventPipe::GetLock());
+
+    return UnregisterProviderNoLock(provider);
+}
+
+bool EventPipeConfiguration::UnregisterProviderNoLock(EventPipeProvider &provider)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
@@ -488,9 +503,7 @@ void EventPipeConfiguration::DeleteDeferredProviders()
             pElem = m_pProviderList->GetNext(pElem);
             if(pProvider->GetDeleteDeferred())
             {
-                // The act of deleting the provider unregisters it,
-                // removes it from the list, and deletes the list element
-                delete(pProvider);
+                DeleteProvider(pProvider);
             }
         }
     }
