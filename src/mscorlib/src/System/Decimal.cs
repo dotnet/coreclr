@@ -56,7 +56,7 @@ namespace System
     // throw an exception. A conversion from float or double to
     // Decimal throws an OverflowException if the value is not within
     // the range of the Decimal type.
-    [StructLayout(LayoutKind.Explicit)]
+    [StructLayout(LayoutKind.Sequential)]
     [Serializable]
     [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
@@ -135,23 +135,14 @@ namespace System
         // NOTE: Do not change the order in which these fields are declared. The
         // native methods in this class rely on this particular order. 
         // Do not rename (binary serialization).
-        [FieldOffset(0)]
         private int flags;
-        [FieldOffset(4)]
         private int hi;
-        [FieldOffset(8)]
         private int lo;
-        [FieldOffset(12)]
         private int mid;
 
-        // NOTE: This set of fields overlay the ones exposed to serialization (which have to be signed ints for serialization compat.)
-        // The code for decimal formatting was ported from C++ and expects unsigned values.
-        [FieldOffset(4), NonSerialized]
-        internal uint High;
-        [FieldOffset(8), NonSerialized]
-        internal uint Low;
-        [FieldOffset(12), NonSerialized]
-        internal uint Mid;
+        internal uint High => (uint)hi;
+        internal uint Low => (uint)lo;
+        internal uint Mid => (uint)mid;
 
         // Constructs a zero Decimal.
         //public Decimal() {
