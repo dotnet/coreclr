@@ -1977,6 +1977,40 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
     }
 }
 
+static bool hasAnyThrowableNodes(Compiler* compiler, BasicBlock* block, GenTree** disabledNodes, int nodeCount) {
+
+    LIR::Range& blockRange = LIR::AsRange(block);
+    GenTree* currentNode = blockRange.LastNode();
+    GenTree* endNode = blockRange.FirstNonPhiNode()->gtPrev;
+
+    int left = nodeCount;
+
+    while (currentNode != endNode)
+    {
+        int idx = 0;
+        for (int i = 0; i < nodeCount; ++i)
+        {
+            if (disabledNodes[i] == currentNode)
+            {
+                --left;
+                disabledNodes[i] = nullptr;
+                break;
+            }
+        }
+
+        if (currentNode->OperMayThrow(compiler))
+        {
+            return true;
+        }
+
+        if (left == 0) return false;
+
+        currentNode = currentNode->gtPrev;
+    }
+
+    return true;
+}
+
 void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars)
 {
     // Don't kill volatile vars and vars in scope.
@@ -2006,7 +2040,31 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                     JITDUMP("Removing dead call:\n");
                     DISPNODE(call);
 
-                    node->VisitOperands([](GenTree* operand) -> GenTree::VisitResult {
+                    int nodeCount = 0;
+                    GenTree** disabledNodes = nullptr;
+
+                    if (call->fgArgInfo->HasStackArgs())
+                    {
+                        if ((block->bbFlags & BBF_HAS_THROW_HELPER_EDGES) != 0)
+                        {
+                            node->VisitOperands([&nodeCount](GenTree* operand) -> GenTree::VisitResult {
+
+                                if (operand->OperIs(GT_PUTARG_STK))
+                                {
+                                    ++nodeCount;
+                                }
+
+                                return GenTree::VisitResult::Continue;
+                            });
+
+                            disabledNodes = (GenTree**)compGetMemArray(sizeof(GenTree*), nodeCount);
+                            memset(disabledNodes, 0, sizeof(GenTree*) * nodeCount);
+                        }
+                    }
+
+                    int idx = 0;
+
+                    node->VisitOperands([disabledNodes, nodeCount, &idx](GenTree* operand) -> GenTree::VisitResult {
                         if (operand->IsValue())
                         {
                             operand->SetUnusedValue();
@@ -2016,12 +2074,31 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                         // these nodes.
                         if (operand->OperIs(GT_PUTARG_STK))
                         {
+
+                            // collect stack-affecting nodes
+                            if (disabledNodes != nullptr)
+                            {
+                                disabledNodes[idx++] = operand;
+                            }
                             operand->AsPutArgStk()->gtOp1->SetUnusedValue();
                             operand->gtBashToNOP();
+
                         }
+
+                        assert(idx <= nodeCount);
 
                         return GenTree::VisitResult::Continue;
                     });
+
+                    assert(idx == nodeCount);
+
+                    if (nodeCount > 0)
+                    {
+                        if (hasAnyThrowableNodes(this, block, disabledNodes, nodeCount))
+                        {
+                            codeGen->setFramePointerRequired(true);
+                        }
+                    }
 
                     blockRange.Remove(node);
 
