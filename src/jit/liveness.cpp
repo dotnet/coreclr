@@ -1977,11 +1977,12 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
     }
 }
 
-static bool hasAnyThrowableNodes(Compiler* compiler, BasicBlock* block, GenTree** disabledNodes, int nodeCount) {
+static bool hasAnyThrowableNodes(Compiler* compiler, BasicBlock* block, GenTree** disabledNodes, int nodeCount)
+{
 
-    LIR::Range& blockRange = LIR::AsRange(block);
-    GenTree* currentNode = blockRange.LastNode();
-    GenTree* endNode = blockRange.FirstNonPhiNode()->gtPrev;
+    LIR::Range& blockRange  = LIR::AsRange(block);
+    GenTree*    currentNode = blockRange.LastNode();
+    GenTree*    endNode     = blockRange.FirstNonPhiNode()->gtPrev;
 
     int left = nodeCount;
 
@@ -2003,7 +2004,10 @@ static bool hasAnyThrowableNodes(Compiler* compiler, BasicBlock* block, GenTree*
             return true;
         }
 
-        if (left == 0) return false;
+        if (left == 0)
+        {
+            return false;
+        }
 
         currentNode = currentNode->gtPrev;
     }
@@ -2040,7 +2044,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                     JITDUMP("Removing dead call:\n");
                     DISPNODE(call);
 
-                    int nodeCount = 0;
+                    int       nodeCount     = 0;
                     GenTree** disabledNodes = nullptr;
 
                     if (call->fgArgInfo->HasStackArgs())
@@ -2082,7 +2086,6 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                             }
                             operand->AsPutArgStk()->gtOp1->SetUnusedValue();
                             operand->gtBashToNOP();
-
                         }
 
                         assert(idx <= nodeCount);
