@@ -40,7 +40,6 @@ namespace System.IO
         internal static int FindFileNameIndex(string path)
         {
             Debug.Assert(path != null);
-            CheckInvalidPathChars(path);
 
             for (int i = path.Length - 1; i >= 0; i--)
             {
