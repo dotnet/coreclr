@@ -17,7 +17,7 @@ namespace System
     public struct Nullable<T> where T : struct
     {
         private readonly bool hasValue; // Do not rename (binary serialization)
-        internal T value; // Do not rename (binary serialization)
+        internal T value; // Do not rename (binary serialization) or make readonly (can be mutated in ToString, etc.)
 
         [NonVersionable]
         public Nullable(T value)
