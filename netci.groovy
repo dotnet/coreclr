@@ -1665,7 +1665,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def bootstrapRid = Utilities.getBoostrapPublishRid(os)
                         def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
                         buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture}" 
-                        buildCommands += "${bootstrapRidEnv}./build-test.sh ${lowerConfiguration} ${architecture} generatelayoutonly" 
+                        buildCommands += "${bootstrapRidEnv}./build-test.sh ${lowerConfiguration} ${architecture}" 
+                        buildCommands += "tar -czf ${bootstrapRidEnv}/bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz ${bootstrapRidEnv}/bin/tests/${osGroup}.${architecture}.${configuration} || exit 0"
+                        buildCommands += "rm -r ${bootstrapRidEnv}/bin/tests/${osGroup}.${architecture}.${configuration}"
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Set time out
@@ -2339,7 +2341,7 @@ Constants.allScenarios.each { scenario ->
 
                             // Coreclr build containing the tests and mscorlib
 
-                            if (windowsArmJob != true) {
+                            if ((windowsArmJob != true) && (architecture == 'arm64')) {
                                 copyArtifacts(inputWindowTestsBuildName) {
                                     excludePatterns('**/testResults.xml', '**/*.ni.dll')
                                     buildSelector {
@@ -2374,7 +2376,7 @@ Constants.allScenarios.each { scenario ->
                                 }
 
                                 // Unzip the tests first.  Exit with 0
-                                shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
+                                shell("mkdir ./bin/tests/${osGroup}.${architecture}.${configuration} && tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz -C ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
 
                                 // Execute the tests
                                 // If we are running a stress mode, we'll set those variables first
@@ -2390,11 +2392,8 @@ Constants.allScenarios.each { scenario ->
                                     shell('./init-tools.sh')
                                 }
 
-                                testOpts += "--copyNativeTestBin"
-
                                 shell("""./tests/runtest.sh \\
-                --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${architecture}.${configuration}\" \\
-                --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
+                --testRootDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}\" \\
                 --coreOverlayDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root\" \\
                 --limitedDumpGeneration ${testEnvOpt} ${serverGCString} ${testOpts}""")
 
@@ -2567,7 +2566,7 @@ Constants.allScenarios.each { scenario ->
                         return
                     }
 
-                    if (windowsArmJob == true) {
+                    if (!((osGroup == "Linux") && (architecture == "arm64"))) {
                         // For Windows arm jobs there is no reason to build a parallel test job.
                         // The product build supports building and archiving the tests.
 
