@@ -1689,8 +1689,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
                         buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture}" 
                         buildCommands += "${bootstrapRidEnv}./build-test.sh ${lowerConfiguration} ${architecture}" 
-                        buildCommands += "tar -czf ${bootstrapRidEnv}/bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz ${bootstrapRidEnv}/bin/tests/${osGroup}.${architecture}.${configuration} || exit 0"
-                        buildCommands += "rm -r ${bootstrapRidEnv}/bin/tests/${osGroup}.${architecture}.${configuration}"
+                        buildCommands += "tar -czf ${bootstrapRidEnv}./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz ${bootstrapRidEnv}/bin/tests/${osGroup}.${architecture}.${configuration} || exit 0"
+                        buildCommands += "rm -r ${bootstrapRidEnv}./bin/tests/${osGroup}.${architecture}.${configuration}"
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Set time out
