@@ -1689,7 +1689,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
                         buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture}" 
                         buildCommands += "${bootstrapRidEnv}./build-test.sh ${lowerConfiguration} ${architecture}" 
-                        buildCommands += "tar -czf ${bootstrapRidEnv}./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz ${bootstrapRidEnv}/bin/tests/${osGroup}.${architecture}.${configuration} || exit 0"
+                        buildCommands += "tar -czf ${bootstrapRidEnv}./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz ${bootstrapRidEnv}./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0"
                         buildCommands += "rm -r ${bootstrapRidEnv}./bin/tests/${osGroup}.${architecture}.${configuration}"
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
@@ -2406,7 +2406,7 @@ Constants.allScenarios.each { scenario ->
                                 }
 
                                 // Unzip the tests first.  Exit with 0
-                                shell("mkdir ./bin/tests/${osGroup}.${architecture}.${configuration} && tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz -C ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
+                                shell("|| exit 0")
 
                                 // Execute the tests
                                 // If we are running a stress mode, we'll set those variables first
