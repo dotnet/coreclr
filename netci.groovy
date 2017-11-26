@@ -2406,7 +2406,7 @@ Constants.allScenarios.each { scenario ->
                                 }
 
                                 // Unzip the tests first.  Exit with 0
-                                shell("mkdir ./bin/tests/${osGroup}.${architecture}.${configuration} && tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz -C ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
+                                shell("tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz || exit 0")
 
                                 // Execute the tests
                                 // If we are running a stress mode, we'll set those variables first
