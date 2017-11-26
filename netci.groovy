@@ -2341,7 +2341,10 @@ Constants.allScenarios.each { scenario ->
 
                             // Coreclr build containing the tests and mscorlib
 
-                            if ((windowsArmJob != true) && (architecture == 'arm64')) {
+                            def isUnixArm64 = (windowsArmJob != true) && (architecture == 'arm64')
+
+                            // pri1 jobs still need to copy windows_nt built tests
+                            if (isUnixArm64 || (configuration != "default")) {
                                 copyArtifacts(inputWindowTestsBuildName) {
                                     excludePatterns('**/testResults.xml', '**/*.ni.dll')
                                     buildSelector {
@@ -2375,8 +2378,16 @@ Constants.allScenarios.each { scenario ->
                                     shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
                                 }
 
-                                // Unzip the tests first.  Exit with 0
-                                shell("tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz || exit 0")
+                                if (isUnixArm64 || (configuration != "default")) {
+                                    // Unzip the tests first.  Exit with 0
+                                    shell("tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz || exit 0")
+                                } else {
+                                    shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
+                                }
+
+                                if (!isUnixArm64) {
+                                    shell("build-test.sh ${architecture} ${configuration} --generatelayoutonly")
+                                }
 
                                 // Execute the tests
                                 // If we are running a stress mode, we'll set those variables first
@@ -2566,7 +2577,10 @@ Constants.allScenarios.each { scenario ->
                         return
                     }
 
-                    if (!((osGroup == "Linux") && (architecture == "arm64"))) {
+                    def isUnixArm64 = !((osGroup == "Linux") && (architecture == "arm64"))
+
+                    // For pri0 jobs we can build tests on unix
+                    if (configuration == "default" && (isUnixArm64 == false)) {
                         // For Windows arm jobs there is no reason to build a parallel test job.
                         // The product build supports building and archiving the tests.
 
