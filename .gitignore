@@ -317,8 +317,3 @@ sandbox
 
 #IL linker for testing
 linker
-
-# nategraf's local modifications
-.gitignore
-doxygen.conf
-doxygen/
