@@ -451,7 +451,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureData.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\TextInfo.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' != 'true'">
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.cs" />
@@ -562,7 +561,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceSet.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\System\Nullable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\Comparer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\ComparerHelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\EqualityComparer.cs" />
@@ -588,7 +586,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingTable.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\TextInfo.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileSystemEnumerable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\TextReader.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\StreamReader.cs" />
@@ -598,16 +595,11 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Kernel32\Interop.GetSystemDirectoryW.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Windows\Normaliz\Interop.Idna.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Windows\Normaliz\Interop.Normalization.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debug.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CompareInfo.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureData.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\IdnMapping.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\TextInfo.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\Normalization.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Environment.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TimeZoneInfo.Win32.cs" />

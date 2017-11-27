@@ -120,9 +120,9 @@ namespace System
             throw GetAddingDuplicateWithKeyArgumentException(key);
         }
 
-        internal static void ThrowKeyNotFoundException()
+        internal static void ThrowKeyNotFoundException(object key)
         {
-            throw new KeyNotFoundException();
+            throw new KeyNotFoundException(key.ToString());
         }
 
         internal static void ThrowArgumentException(ExceptionResource resource)
@@ -258,6 +258,11 @@ namespace System
         internal static void ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen()
         {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);
+        }
+
+        internal static void ThrowInvalidOperationException_InvalidOperation_NoValue()
+        {
+            throw GetInvalidOperationException(ExceptionResource.InvalidOperation_NoValue);
         }
 
         internal static void ThrowArraySegmentCtorValidationFailedExceptions(Array array, int offset, int count)
