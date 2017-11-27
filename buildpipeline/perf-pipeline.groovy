@@ -92,9 +92,9 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
 
         String runXUnitCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\""
         if (scenario == 'perf') {
+            String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2\""
             if (test == 'small' || testFolder == 'all')
             {
-                String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2\""
                 String runXUnitPerflabArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\perflab\\Perflab -library"
 
                 profileArg = isProfileOn ? "default+${profileArg}+gcapi" : profileArg
