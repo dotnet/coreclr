@@ -66,7 +66,6 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
 
         String test = ''
         if (testFolder != 'all') {
-            assert validTestFolders.contains(testFolder)
             test = testFolder
         }
 
