@@ -122,7 +122,7 @@ namespace System
 
         internal static void ThrowKeyNotFoundException(object key)
         {
-            throw new KeyNotFoundException(key.ToString());
+            throw new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
         }
 
         internal static void ThrowArgumentException(ExceptionResource resource)
