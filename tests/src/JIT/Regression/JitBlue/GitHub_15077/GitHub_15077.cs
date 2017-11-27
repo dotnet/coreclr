@@ -37,6 +37,6 @@ class P
         UInt32 r32a = Gx(32);
         UInt32 r31a = Gx(31);
         Console.WriteLine($"r32:{r32,0:X} r31:{r31,0:X} r32a:{r32a,0:X} r31a:{r31a,0:X}");
-        return (r32 == 0xFFFFFFF) && (r32 == 0xFFFFFFFF) && (r31 == 0x7FFFFFF) && (r31 == 0x7FFFFFFF) ? 100 : 0;
+        return (r32 == 0xFFFFFFFF) && (r32a == 0xFFFFFFFF) && (r31 == 0x7FFFFFFF) && (r31a == 0x7FFFFFFF) ? 100 : 0;
     }
 }
