@@ -147,7 +147,7 @@ void Compiler::lvaInitTypeRef()
         if (howToReturnStruct == SPK_PrimitiveType)
         {
             assert(returnType != TYP_UNKNOWN);
-            assert(returnType != TYP_STRUCT);
+            assert(!varTypeIsStruct(returnType));
 
             info.compRetNativeType = returnType;
 
@@ -2224,14 +2224,14 @@ bool Compiler::lvaIsMultiregStruct(LclVarDsc* varDsc)
 
         if (howToPassStruct == SPK_ByValueAsHfa)
         {
-            assert(type == TYP_STRUCT);
+            assert(varTypeIsStruct(TYP_STRUCT));
             return true;
         }
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM64_)
         if (howToPassStruct == SPK_ByValue)
         {
-            assert(type == TYP_STRUCT);
+            assert(varTypeIsStruct(TYP_STRUCT));
             return true;
         }
 #endif
@@ -7303,7 +7303,7 @@ Compiler::fgWalkResult Compiler::lvaStressLclFldCB(GenTreePtr* pTree, fgWalkData
 #ifdef _TARGET_ARM_
         // We need to support alignment requirements to access memory on ARM
         unsigned alignment = 1;
-        pComp->codeGen->InferOpSizeAlign(tree, &alignment);
+        pComp->codeGen->InferOpSizeAlign(lcl, &alignment);
         alignment = roundUp(alignment, TARGET_POINTER_SIZE);
         padding   = roundUp(padding, alignment);
 #endif // _TARGET_ARM_

@@ -433,15 +433,15 @@ void CodeGen::genPrepForEHCodegen()
             // has BBF_HAS_LABEL set.
         }
 
-#ifdef _TARGET_AMD64_
+#if FEATURE_EH_CALLFINALLY_THUNKS
         if (HBtab->HasFinallyHandler())
         {
             anyFinallys = true;
         }
-#endif // _TARGET_AMD64_
+#endif // FEATURE_EH_CALLFINALLY_THUNKS
     }
 
-#ifdef _TARGET_AMD64_
+#if FEATURE_EH_CALLFINALLY_THUNKS
     if (anyFinallys)
     {
         for (BasicBlock* block = compiler->fgFirstBB; block != nullptr; block = block->bbNext)
@@ -460,7 +460,7 @@ void CodeGen::genPrepForEHCodegen()
             } // block is BBJ_CALLFINALLY
         }     // for each block
     }         // if (anyFinallys)
-#endif        // _TARGET_AMD64_
+#endif        // FEATURE_EH_CALLFINALLY_THUNKS
 }
 
 void CodeGenInterface::genUpdateLife(GenTreePtr tree)
@@ -2647,7 +2647,7 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
 #ifdef _TARGET_ARMARCH_
 //------------------------------------------------------------------------
 // genEmitGSCookieCheck: Generate code to check that the GS cookie
-// wasn't thrashed by a buffer overrun. Coomon code for ARM32 and ARM64
+// wasn't thrashed by a buffer overrun. Common code for ARM32 and ARM64.
 //
 void CodeGen::genEmitGSCookieCheck(bool pushReg)
 {
@@ -2658,8 +2658,14 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
     if (!pushReg && (compiler->info.compRetType == TYP_REF))
         gcInfo.gcRegGCrefSetCur |= RBM_INTRET;
 
-    regNumber regGSConst = REG_TMP_0;
-    regNumber regGSValue = REG_TMP_1;
+    // We need two temporary registers, to load the GS cookie values and compare them. We can't use
+    // any argument registers if 'pushReg' is true (meaning we have a JMP call). They should be
+    // callee-trash registers, which should not contain anything interesting at this point.
+    // We don't have any IR node representing this check, so LSRA can't communicate registers
+    // for us to use.
+
+    regNumber regGSConst = REG_GSCOOKIE_TMP_0;
+    regNumber regGSValue = REG_GSCOOKIE_TMP_1;
 
     if (compiler->gsGlobalSecurityCookieAddr == nullptr)
     {
@@ -11201,7 +11207,7 @@ bool Compiler::IsMultiRegPassedType(CORINFO_CLASS_HANDLE hClass)
     structPassingKind howToPassStruct;
     var_types         returnType = getArgTypeForStruct(hClass, &howToPassStruct);
 
-    return (returnType == TYP_STRUCT);
+    return (varTypeIsStruct(returnType));
 }
 
 //-----------------------------------------------------------------------------------
@@ -11223,7 +11229,7 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
     structPassingKind howToReturnStruct;
     var_types         returnType = getReturnTypeForStruct(hClass, &howToReturnStruct);
 
-    return (returnType == TYP_STRUCT);
+    return (varTypeIsStruct(returnType));
 }
 
 //----------------------------------------------
