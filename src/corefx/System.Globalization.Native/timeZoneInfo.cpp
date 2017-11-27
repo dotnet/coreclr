@@ -18,11 +18,12 @@ extern "C" int32_t GlobalizationNative_ReadLink(const char* path, char* result, 
 {
     ssize_t r = readlink(path, result, resultCapacity - 1); // subtract one to make room for the NULL character
 
-    if (r < 1 || r >= resultCapacity)
-        return false;
+    if (r >= 0)
+    {
+        result[r] = '\0';
+    }
 
-    result[r] = '\0';
-    return true;
+    return (int32_t)r;
 }
 
 /*

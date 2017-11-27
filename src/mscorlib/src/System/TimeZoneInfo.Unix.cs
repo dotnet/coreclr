@@ -381,26 +381,34 @@ namespace System
         /// </summary>
         private static string FindTimeZoneIdUsingReadLink(string tzFilePath)
         {
-            string id = null;
-
-            StringBuilder symlinkPathBuilder = StringBuilderCache.Acquire(Path.MaxPath);
-            bool result = Interop.GlobalizationInterop.ReadLink(tzFilePath, symlinkPathBuilder, (uint)symlinkPathBuilder.Capacity);
-            if (result)
+            int capacity = 4096;
+            do
             {
-                string symlinkPath = StringBuilderCache.GetStringAndRelease(symlinkPathBuilder);
-                // time zone Ids have to point under the time zone directory
-                string timeZoneDirectory = GetTimeZoneDirectory();
-                if (symlinkPath.StartsWith(timeZoneDirectory))
+                StringBuilder symlinkPathBuilder = StringBuilderCache.Acquire(capacity);
+                int result = Interop.GlobalizationInterop.ReadLink(tzFilePath, symlinkPathBuilder, (uint)symlinkPathBuilder.Capacity);
+                if (result > 0 && result < symlinkPathBuilder.Capacity)
                 {
-                    id = symlinkPath.Substring(timeZoneDirectory.Length);
+                    string symlinkPath = StringBuilderCache.GetStringAndRelease(symlinkPathBuilder);
+                    // time zone Ids have to point under the time zone directory
+                    string timeZoneDirectory = GetTimeZoneDirectory();
+                    string id = null;
+                    if (symlinkPath.StartsWith(timeZoneDirectory))
+                    {
+                        id = symlinkPath.Substring(timeZoneDirectory.Length);
+                    }
+                    return id;
                 }
-            }
-            else
-            {
                 StringBuilderCache.Release(symlinkPathBuilder);
-            }
 
-            return id;
+                if (result > 0)
+                {
+                    capacity *= 2;
+                }
+                else
+                {
+                    return null;
+                }
+            } while (true);
         }
 
         /// <summary>
