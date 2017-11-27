@@ -45,9 +45,11 @@ def windowsBuild(String arch, String config, String pgo, boolean isBaseline) {
     }
 
     bat "set __TestIntermediateDir=int&&.\\build.cmd -${config} -${arch} -skipbuildpackages ${pgoBuildFlag}"
+    bat "tests\\runtest.cmd ${config} ${arch} GenerateLayoutOnly"
+    bat "rd /s /q bin\\obj"
 
     // Stash build artifacts. Stash tests in an additional stash to be used by Linux test runs
-    stash name: "nt-${arch}-${pgo}${baselineString}-build-artifacts", includes: 'bin/**'
+    stash name: "nt-${arch}-${pgo}${baselineString}-build-artifacts", includes: 'bin/'
     stash name: "nt-${arch}-${pgo}${baselineString}-test-artifacts", includes: 'bin/tests/**'
 }
 
@@ -83,8 +85,6 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
 
         bat "py \".\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\""
         bat ".\\init-tools.cmd"
-        bat "run.cmd build -Project=\"tests\\build.proj\" -BuildOS=Windows_NT -BuildType=${config} -BuildArch=${arch} -BatchRestorePackages"
-        bat "tests\\runtest.cmd ${config} ${arch} GenerateLayoutOnly"
 
         // We run run-xunit-perf differently for each of the different job types
 
