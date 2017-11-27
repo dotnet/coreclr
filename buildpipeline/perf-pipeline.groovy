@@ -356,7 +356,7 @@ def innerLoopTests = [:]
                     baseline = " baseline"
                 }
                 if (isPR() || !isBaseline) {
-                    innerLoopTests["windows ${arch} ryujit ${opt_level} pgo${baseline} perf"] = {
+                    innerLoopTests["windows ${arch} ryujit ${opt_level} pgo ${benchmark}${baseline} perf"] = {
                         simpleNode('windows_server_2016_clr_perf', 180) {
                             windowsPerf(arch, config, uploadString, runType, opt_level, 'ryujit', 'pgo', 'perf', isBaseline, true, benchmark)
                         }
