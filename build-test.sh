@@ -281,6 +281,7 @@ usage()
     echo "crosscomponent - optional argument to build cross-architecture component,"
     echo "               - will use CAC_ROOTFS_DIR environment variable if set."
     echo "portableLinux - build for Portable Linux Distribution"
+    echo "portablebuild - Use portable build."
     echo "verbose - optional argument to enable verbose build output."
     echo "rebuild - if tests have already been built - rebuild them"
     echo "generatelayoutonly - only pull down dependencies and build coreroot"
@@ -458,6 +459,10 @@ while :; do
 
         cross)
             __CrossBuild=1
+            ;;
+
+        portableBuild)
+            __PortableBuild=1
             ;;
 
         portablelinux)
