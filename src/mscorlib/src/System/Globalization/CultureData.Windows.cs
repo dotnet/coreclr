@@ -276,6 +276,7 @@ namespace System.Globalization
         // region name match the requested region name
         private static CultureData GetCultureDataFromRegionName(String regionName)
         {
+            Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert(regionName != null);
 
             const uint LOCALE_SUPPLEMENTAL = 0x00000002;
