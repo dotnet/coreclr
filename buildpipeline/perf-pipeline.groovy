@@ -16,20 +16,6 @@ def validTestFolders = [
     'small'
     ]
 
-def smallTestFolders = [
-    'Burgers',
-    'Devirtualization',
-    'FractalPerf',
-    'Inlining',
-    'Layout',
-    'Linq',
-    'Math',
-    'Roslyn',
-    'SciMark',
-    'Serialization',
-    'V8'
-    ]
-
 //--------------------- Windows Functions ----------------------------//
 
 def windowsBuild(String arch, String config, String pgo, boolean isBaseline) {
@@ -102,7 +88,20 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
             }
 
             if (test == 'small') {
-                smallTestFolders.each { benchmark ->
+
+                [
+                    'Burgers',
+                    'Devirtualization',
+                    'FractalPerf',
+                    'Inlining',
+                    'Layout',
+                    'Linq',
+                    'Math',
+                    'Roslyn',
+                    'SciMark',
+                    'Serialization',
+                    'V7'
+                ].each { benchmark ->
                     String runXUnitCodeQualityArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\Jit\\Performance\\CodeQuality\\${benchmark}"
                     bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitCodeQualityArgs} -collectionFlags ${profileArg}"
                 }
