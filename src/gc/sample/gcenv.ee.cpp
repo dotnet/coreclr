@@ -11,7 +11,7 @@
 
 MethodTable * g_pFreeObjectMethodTable;
 
-MethodTable ** g_pStringClass;
+MethodTable * g_pStringClass;
 
 int32_t g_TrapReturningThreads;
 
@@ -323,7 +323,7 @@ MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     return g_pFreeObjectMethodTable;
 }
 
-MethodTable** GCToEEInterface::GetStringMethodTable()
+MethodTable* GCToEEInterface::GetStringMethodTable()
 {
     return g_pStringClass;
 }

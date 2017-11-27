@@ -1022,10 +1022,10 @@ MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     return g_pFreeObjectMethodTable;
 }
 
-MethodTable** GCToEEInterface::GetStringMethodTable()
+MethodTable* GCToEEInterface::GetStringMethodTable()
 {
-    //assert(g_pStringClass != nullptr);
-    return &g_pStringClass;
+    assert(g_pStringClass != nullptr);
+    return g_pStringClass;
 }
 
 // These are arbitrary, we shouldn't ever be having confrig keys or values

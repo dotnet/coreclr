@@ -222,7 +222,7 @@ inline MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     return g_theGCToCLR->GetFreeObjectMethodTable();
 }
 
-inline MethodTable** GCToEEInterface::GetStringMethodTable()
+inline MethodTable* GCToEEInterface::GetStringMethodTable()
 {
     assert(g_theGCToCLR != nullptr);
     return g_theGCToCLR->GetStringMethodTable();

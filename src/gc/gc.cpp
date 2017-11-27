@@ -3870,7 +3870,9 @@ size_t gcard_of ( uint8_t*);
 #define memref(i) *(uint8_t**)(i)
 
 //GC Flags
-#define GC_MARKED       (size_t)0x1
+#define GC_MARKED                       (size_t)0x1
+#define GC_STRING_DUPLICATE             (size_t)0x2
+#define GC_MARKED_OR_STRING_DUPLICATE   GC_MARKED | GC_STRING_DUPLICATE
 #define slot(i, j) ((uint8_t**)(i))[j+1]
 
 #define free_object_base_size (plug_skew + sizeof(ArrayBase))
@@ -3964,7 +3966,7 @@ public:
 
     MethodTable    *GetMethodTable() const
     {
-        return( (MethodTable *) (((size_t) RawGetMethodTable()) & (~(GC_MARKED))));
+        return( (MethodTable *) (((size_t) RawGetMethodTable()) & (~(GC_MARKED_OR_STRING_DUPLICATE))));
     }
 
     void SetMarked()
@@ -3977,6 +3979,26 @@ public:
         return !!(((size_t)RawGetMethodTable()) & GC_MARKED);
     }
 
+    void ClearMarked()
+    {
+        RawSetMethodTable((MethodTable *) (((size_t) RawGetMethodTable()) & (~GC_MARKED)));
+    }
+
+    void SetDuplicate()
+    {
+        RawSetMethodTable((MethodTable *) (((size_t) RawGetMethodTable()) | GC_STRING_DUPLICATE));
+    }
+
+    BOOL IsDuplicate() const
+    {
+        return !!(((size_t)RawGetMethodTable()) & GC_STRING_DUPLICATE);
+    }
+
+    void ClearDuplicate()
+    {
+        RawSetMethodTable((MethodTable *) (((size_t) RawGetMethodTable()) & (~GC_STRING_DUPLICATE)));
+    }
+
     void SetPinned()
     {
         assert (!(gc_heap::settings.concurrent));
@@ -3986,11 +4008,6 @@ public:
     BOOL IsPinned() const
     {
         return !!((((CObjectHeader*)this)->GetHeader()->GetBits()) & BIT_SBLK_GC_RESERVE);
-    }
-
-    void ClearMarked()
-    {
-        RawSetMethodTable( GetMethodTable() );
     }
 
     CGCDesc *GetSlotMap ()
@@ -9003,6 +9020,9 @@ retry:
 };
 
 
+#define duplicate(i) header(i)->IsDuplicate()
+#define set_duplicate(i) header(i)->SetDuplicate()
+#define clear_duplicate(i) header(i)->ClearDuplicate()
 #define marked(i) header(i)->IsMarked()
 #define set_marked(i) header(i)->SetMarked()
 #define clear_marked(i) header(i)->ClearMarked()
@@ -15357,6 +15377,11 @@ void gc_heap::gc1()
     assert (g_gc_card_bundle_table == card_bundle_table);
 #endif    
 
+    if (!g_gc_pStringClass)
+    {
+        g_gc_pStringClass = GCToEEInterface::GetStringMethodTable();
+    }
+
     {
         if (n == max_generation)
         {
@@ -17296,11 +17321,10 @@ BOOL gc_heap::is_string_and_about_to_be_promoted_to_gen2 (uint8_t* o)
     return (
         o != NULL &&
         settings.condemned_generation >= 1 &&
-        method_table (o) == *g_gc_pStringClass &&
+        method_table (o) == g_gc_pStringClass &&
         in_range_for_segment (o, ephemeral_heap_segment) &&
         (o >= generation_allocation_start (generation_of (1))) &&
-        (o < generation_allocation_start (generation_of (0))) &&
-        (((StringObject*)o)->GetStringLength() >= sizeof (uint8_t*) / 2)
+        (o < generation_allocation_start (generation_of (0)))
         );
 }
 
@@ -17312,23 +17336,24 @@ BOOL gc_heap::try_relocate_duplicate_string (uint8_t** pold_address)
     {
         return false;
     }
-    // it's sad we can't leverage mark bit to indicate that string is duplicate
-    // and we should look at original address in object header
-    // it's appear that mark bit is unset in plan_phase but later is resetted "somwhere"
-    // we trashing object header with 0xFFFF... to indicate that actual reloc address
-    // is at first sizeof pointer bytes after length field
-    // thus we restricting reduplicatable strings to be at least sizeof pointer bytes / 2 chars
-    // todo: replace object_gennum with faster check like in is_string_and_about_to_be_promoted_to_gen2
-    if (method_table (old_address) == *g_gc_pStringClass && *(uint8_t**)(header(old_address)->GetHeader()) == (uint8_t*)-1)
+
+    // todo: `method_table` and `duplicate` both are reading MT and do some bit twiddling
+    // I will be pretty surprised that any compiler can elide this into one read and mask check
+    // so we need to do this manually like `is_duplicate_string { raw_mt & (string_mt | dup_mask) }`
+    // ... well, `clear_duplicate` can be fused with the check
+    if ((method_table (old_address) == g_gc_pStringClass) && duplicate (old_address))
     {
         assert ( object_gennum (old_address) == 2 );
-        assert ( ((StringObject*)old_address)->GetStringLength() >= sizeof (uint8_t*) / 2);
-        *pold_address = *(uint8_t**)(old_address + sizeof(uint8_t*) + sizeof(uint32_t));
+        *pold_address = *(uint8_t**)(header(old_address)->GetHeader());
+        clear_duplicate (old_address);
         return true;
     }
     return false;
 }
 
+// We setting second last bit in MT to indicate that
+// the string is duplicate and we write the address of
+// its original to its "object header"
 inline
 void gc_heap::adjust_string_dups_reloc_pointers (int thread)
 {    
@@ -17345,7 +17370,6 @@ void gc_heap::adjust_string_dups_reloc_pointers (int thread)
                 true /* todo: compare buffers, maybe hashes first, hash might be stored in sync block */)
             {
                 assert (object_gennum (dup) == 2);
-                assert (string_dup->GetStringLength() >= sizeof (uint8_t*) / 2);
 
                 if (reloc_address == NULL)
                 {
@@ -17354,9 +17378,9 @@ void gc_heap::adjust_string_dups_reloc_pointers (int thread)
                 }
                 else
                 {
+                    set_duplicate (dup);
                     uint8_t** sync_block = (uint8_t**)(header(dup)->GetHeader());
-                    *sync_block = (uint8_t*)-1;
-                    *(uint8_t**)(dup + sizeof(uint8_t*) + sizeof(uint32_t)) = reloc_address;
+                    *sync_block = reloc_address;
                 }
             }
         }
@@ -33597,7 +33621,6 @@ HRESULT GCHeap::Initialize ()
     HRESULT hr = S_OK;
 
     g_gc_pFreeObjectMethodTable = GCToEEInterface::GetFreeObjectMethodTable();
-    g_gc_pStringClass = GCToEEInterface::GetStringMethodTable();
     g_num_processors = GCToOSInterface::GetTotalProcessorCount();
     assert(g_num_processors != 0);
 
@@ -33632,11 +33655,9 @@ HRESULT GCHeap::Initialize ()
     nhp = min (nhp, MAX_SUPPORTED_CPUS);
 
     StringDedup::Init(nhp);
-    //SdTest::Test123();
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/, nhp);
 #else
     StringDedup::Init(0);
-    //SdTest::Test123();
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/);
 #endif //MULTIPLE_HEAPS
 
