@@ -381,34 +381,19 @@ namespace System
         /// </summary>
         private static string FindTimeZoneIdUsingReadLink(string tzFilePath)
         {
-            int capacity = 4096;
-            do
-            {
-                StringBuilder symlinkPathBuilder = StringBuilderCache.Acquire(capacity);
-                int result = Interop.GlobalizationInterop.ReadLink(tzFilePath, symlinkPathBuilder, (uint)symlinkPathBuilder.Capacity);
-                if (result > 0 && result < symlinkPathBuilder.Capacity)
-                {
-                    string symlinkPath = StringBuilderCache.GetStringAndRelease(symlinkPathBuilder);
-                    // time zone Ids have to point under the time zone directory
-                    string timeZoneDirectory = GetTimeZoneDirectory();
-                    string id = null;
-                    if (symlinkPath.StartsWith(timeZoneDirectory))
-                    {
-                        id = symlinkPath.Substring(timeZoneDirectory.Length);
-                    }
-                    return id;
-                }
-                StringBuilderCache.Release(symlinkPathBuilder);
+            string id = null;
 
-                if (result > 0)
+            string symlinkPath = Interop.Sys.ReadLink(tzFilePath);
+            if (symlinkPath != null)
+            {
+                string timeZoneDirectory = GetTimeZoneDirectory();
+                if (symlinkPath.StartsWith(timeZoneDirectory))
                 {
-                    capacity *= 2;
+                    id = symlinkPath.Substring(timeZoneDirectory.Length);
                 }
-                else
-                {
-                    return null;
-                }
-            } while (true);
+            }
+
+            return id;
         }
 
         /// <summary>
