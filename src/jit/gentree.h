@@ -3182,16 +3182,16 @@ struct GenTreeFieldList : public GenTreeArgList
         if (prevList == nullptr)
         {
             gtFlags |= GTF_FIELD_LIST_HEAD;
+#ifndef LEGACY_BACKEND
+            // A GT_FIELD_LIST head is always contained. Other nodes return false from IsValue()
+            // and should not be marked as contained.
+            gtFlags |= GTF_CONTAINED;
+#endif
         }
         else
         {
             prevList->gtOp2 = this;
         }
-#ifndef LEGACY_BACKEND
-        // A GT_FIELD_LIST is always contained. Note that this should only matter for the head node, but
-        // the list may be reordered.
-        gtFlags |= GTF_CONTAINED;
-#endif
     }
 };
 
