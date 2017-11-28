@@ -21,14 +21,16 @@
         IL_000a:  ldc.i4.s   97
         IL_000c:  call       char ILGEN_CLASS::ILGEN_METHOD_ZERO(float64, char)
         IL_0011:  pop
-        IL_0012:  call       char ILGEN_CLASS::ILGEN_METHOD_INF(float64, char)
-        IL_0020:  pop
-                  leave.s done
-        }
-        catch [mscorlib]System.Exception
-        {
-            leave.s done
-        }
+        IL_0201:  ldc.r8     0.0
+        IL_020a:  ldc.i4.s   97
+        IL_0212:  call       char ILGEN_CLASS::ILGEN_METHOD_INF(float64, char)
+        IL_0220:  pop
+        IL_0320:  leave.s done
+    }
+    catch [mscorlib]System.Exception
+    {
+        leave.s done
+    }
     done:
         ldc.i4 100
         ret
