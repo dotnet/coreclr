@@ -873,7 +873,7 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation, W("EXPERIMENTAL_TieredCo
 // TypeLoader
 // 
 CONFIG_DWORD_INFO(INTERNAL_TypeLoader_InjectInterfaceDuplicates, W("INTERNAL_TypeLoader_InjectInterfaceDuplicates"), 0, "Injects duplicates in interface map for all types.")
-CONFIG_DWORD_INFO(UNSUPPORTED_TypeLoader_DefaultInterfaces, W("UNSUPPORTED_TypeLoader_DefaultInterfaces"), 0, "Enables support for default interfaces.")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TypeLoader_DefaultInterfaces, W("UNSUPPORTED_TypeLoader_DefaultInterfaces"), 0, "Enables support for default interfaces.")
 
 // 
 // Virtual call stubs

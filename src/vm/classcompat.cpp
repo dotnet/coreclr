@@ -2613,11 +2613,11 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
         }
 
         // Some interface checks.
-        if (fIsClassInterface && (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TypeLoader_DefaultInterfaces) == 0))
+        if (fIsClassInterface)
         {
             if (IsMdVirtual(dwMemberAttrs))
             {
-                if (!IsMdAbstract(dwMemberAttrs))
+                if (!IsMdAbstract(dwMemberAttrs) && (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TypeLoader_DefaultInterfaces) == 0))
                 {
                     BuildMethodTableThrowException(BFA_VIRTUAL_NONAB_INT_METHOD);
                 }
@@ -2625,7 +2625,7 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
             else
             {
                 // Instance field/method
-                if (!IsMdStatic(dwMemberAttrs))
+                if (!IsMdStatic(dwMemberAttrs) && (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TypeLoader_DefaultInterfaces) == 0))
                 {
                     BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
                 }
