@@ -268,7 +268,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
     perfOSList.each { os ->
         def newJob = job(getFullPerfJobName(project, os, isPR)) {
 
-            label('linux_clr_perf')
+            label('ubuntu_1604_clr_perf')
             wrappers {
                 credentialsBinding {
                     string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
@@ -418,7 +418,7 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
         throughputOptLevelList.each { opt_level ->
             def newJob = job(getFullThroughputJobName(project, "${os}_${opt_level}", isPR)) {
 
-                label('linux_clr_perf')
+                label('ubuntu_1604_clr_perf')
                     wrappers {
                         credentialsBinding {
                             string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
