@@ -19,10 +19,10 @@
         IL_0000:  nop
         IL_0001:  ldc.r8     0.0
         IL_000a:  ldc.i4.s   97
-        IL_000c:  call       char test.Program::ILGEN_METHOD_ZERO(float64, char)
+        IL_000c:  call       char ILGEN_CLASS::ILGEN_METHOD_ZERO(float64, char)
         IL_0011:  pop
-        IL_000c:  call       char test.Program::ILGEN_METHOD_INF(float64, char)
-        IL_0011:  pop
+        IL_0012:  call       char ILGEN_CLASS::ILGEN_METHOD_INF(float64, char)
+        IL_0020:  pop
                   leave.s done
         }
         catch [mscorlib]System.Exception
