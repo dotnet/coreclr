@@ -452,8 +452,6 @@ struct BasicBlock : private LIR::Range
 
 #define BBF_DOMINATED_BY_EXCEPTIONAL_ENTRY 0x400000000 // Block is dominated by exceptional entry.
 
-#define BBF_HAS_THROW_HELPER_EDGES 0x800000000
-
 // Flags that relate blocks to loop structure.
 
 #define BBF_LOOP_FLAGS (BBF_LOOP_PREHEADER | BBF_LOOP_HEAD | BBF_LOOP_CALL0 | BBF_LOOP_CALL1)

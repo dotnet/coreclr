@@ -18169,7 +18169,6 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
     // so on Windows Amd64 we can allocate the 4 outgoing
     // arg slots on the stack frame if there are no other calls.
     compUsesThrowHelper = true;
-    srcBlk->bbFlags |= BBF_HAS_THROW_HELPER_EDGES;
 
     // For debuggable code, genJumpToThrowHlpBlk() will generate the 'throw'
     // code inline. It has to be kept consistent with fgAddCodeRef()
