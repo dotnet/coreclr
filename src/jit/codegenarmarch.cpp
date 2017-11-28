@@ -1664,7 +1664,6 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
         GenTreeAddrMode arrLenAddr(base->TypeGet(), base, nullptr, 0, static_cast<unsigned>(node->gtLenOffset));
         arrLenAddr.gtRegNum = REG_NA;
         arrLenAddr.SetContained();
-        arrLenAddr.gtNext = (GenTree*)(-1);
 
         GenTreeIndir arrLen = indirForm(TYP_INT, &arrLenAddr);
         arrLen.gtRegNum     = tmpReg;

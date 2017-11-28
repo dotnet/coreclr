@@ -12617,7 +12617,6 @@ GenTreeIndir CodeGen::indirForm(var_types type, GenTree* base)
 {
     GenTreeIndir i(GT_IND, type, base, nullptr);
     i.gtRegNum = REG_NA;
-    i.gtNext   = (GenTree*)(-1);
     i.SetContained();
     return i;
 }
@@ -12630,7 +12629,6 @@ GenTreeIntCon CodeGen::intForm(var_types type, ssize_t value)
 {
     GenTreeIntCon i(type, value);
     i.gtRegNum = REG_NA;
-    i.gtNext   = (GenTree*)(-1);
     return i;
 }
 

@@ -4554,7 +4554,6 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
         GenTreeAddrMode arrLenAddr(base->TypeGet(), base, nullptr, 0, node->gtLenOffset);
         arrLenAddr.gtRegNum = REG_NA;
         arrLenAddr.SetContained();
-        arrLenAddr.gtNext = (GenTree*)(-1);
 
         GenTreeIndir arrLen = indirForm(TYP_INT, &arrLenAddr);
 
@@ -4576,7 +4575,6 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
 
             arrLen.gtRegNum = REG_NA;
             arrLen.SetContained();
-            arrLen.gtNext = (GenTree*)(-1);
         }
 
         // Generate the range check.

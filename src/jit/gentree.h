@@ -3185,7 +3185,7 @@ struct GenTreeFieldList : public GenTreeArgList
 #ifndef LEGACY_BACKEND
             // A GT_FIELD_LIST head is always contained. Other nodes return false from IsValue()
             // and should not be marked as contained.
-            gtFlags |= GTF_CONTAINED;
+            SetContained();
 #endif
         }
         else
