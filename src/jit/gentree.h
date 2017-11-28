@@ -2067,6 +2067,7 @@ public:
     {
         assert(IsValue());
         gtFlags |= GTF_CONTAINED;
+        assert(isContained());
     }
 
     void ClearContained()
