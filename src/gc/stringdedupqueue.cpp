@@ -49,10 +49,10 @@ bool StringDedupQueue::EnsureCapacity()
     size_t new_size = capacity == 0 ? 4 : (capacity * 2);
     uint8_t** new_buf = new (nothrow) uint8_t*[new_size];
     if (new_buf == NULL)
+    {
         return false;
+    }
 
-    // static_assert(std::is_trivially_copyable<T>::value, "memcpy here");
-    //memcpy(new_buf, buf, capacity * sizeof(T));
     uint8_t** from = buf + (write_pos & (capacity - 1));
     uint8_t** to = new_buf;
     size_t elemsCount = capacity - (write_pos & (capacity - 1));

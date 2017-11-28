@@ -22,21 +22,34 @@
     GCHashTableIteration StringDedup::iter;
 #endif //MULTIPLE_HEAPS
 
-void StringDedup::Init(
+bool StringDedup::Init(
     size_t number_of_heaps
 )
 {
-    table = new StringDedupTable;
+    table = new (nothrow) StringDedupTable;
+    bool table_online = table->Init();
+    if (!table_online)
+    {
+        return false;
+    }
 #ifdef MULTIPLE_HEAPS
     nqueues = number_of_heaps;
-    queues = new StringDedupQueue [number_of_heaps];
-    mem_write_posx = new size_t [number_of_heaps];
-    thread = new StringDedupThread(table, queues, number_of_heaps);
-    iters = new GCHashTableIteration [number_of_heaps];
+    queues = new (nothrow) StringDedupQueue [number_of_heaps];
+    thread = new (nothrow) StringDedupThread(table, queues, number_of_heaps);
+    iters = new (nothrow) GCHashTableIteration [number_of_heaps];
+    if (!queues || !thread || !iters)
+    {
+        return false;
+    }
 #else
-    queue = new StringDedupQueue;
-    thread = new StringDedupThread(table, queue);
+    queue = new (nothrow) StringDedupQueue;
+    thread = new (nothrow) StringDedupThread(table, queue);
+    if (!queue || !thread)
+    {
+        return false;
+    }
 #endif // MULTIPLE_HEAPS
+    return true;
 }
 
 void StringDedup::Rewind()
@@ -97,7 +110,7 @@ uint32_t StringDedup::CurrentDupsStringLength()
 #endif // MULTIPLE_HEAPS
 }
 
-wchar_t* StringDedup::CurrentDupsStringBuf()
+TCHAR* StringDedup::CurrentDupsStringBuf()
 {
 #ifdef MULTIPLE_HEAPS
 #else    

@@ -169,19 +169,21 @@ public:
     }
 };
 
-
+#ifdef _MSC_VER
+#pragma warning(disable : 4200)     // disable zero-sized array warning
+#endif
 class StringObject : public Object
 {
 private:
     uint32_t m_StringLength;
-    wchar_t m_Characters[1];
+    TCHAR m_Characters[0];
 public:
     uint32_t GetStringLength()
     { 
         return m_StringLength;
     }
 
-    wchar_t* GetBuffer() 
+    TCHAR* GetBuffer() 
     {
         return m_Characters;
     }    

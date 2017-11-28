@@ -12,8 +12,10 @@ bool GCHashTableBase::Init(uint32_t numBuckets, AllocationHeap heap)
 {
     buckets = new (nothrow) GCHashEntry*[numBuckets]();
 
-    if (buckets == NULL)
+    if (!buckets)
+    {
         return false;
+    }
 
     this->numBuckets = numBuckets;
     this->heap = heap;
@@ -80,7 +82,7 @@ uint32_t GCHashTableBase::GetHash(GCStringData* key)
 {
     uint32_t hash = 5381;
     uint8_t const *data = (const uint8_t *)key->GetStringBuffer();
-    size_t iSize = key->GetCharCount()*sizeof(wchar_t);
+    size_t iSize = key->GetCharCount()*sizeof(TCHAR);
     uint8_t const *dataEnd = data + iSize;
 
     for (/**/ ; data < dataEnd; data++)
@@ -176,8 +178,10 @@ bool GCHashTableBase::GrowHashTable()
 
     GCHashEntry** newBuckets = new (nothrow) GCHashEntry*[newNumBuckets]();
 
-    if (newBuckets == NULL)
+    if (!newBuckets)
+    {
         return false;
+    }
 
     for (uint32_t i = 0; i < numBuckets; i++)
     {
@@ -207,7 +211,8 @@ bool GCHashTableBase::GrowHashTable()
 GCHashEntry* GCHashTableBase::AllocateEntry(GCStringData* key)
 {
     GCHashEntry* entry = new (nothrow) GCHashEntry;
-    if (entry) {
+    if (entry) 
+    {
         GCStringData* entryKey = &entry->Key;
         entryKey->SetAddress (key->GetAddress());
         entryKey->SetCharCount (key->GetCharCount());
@@ -242,5 +247,5 @@ bool GCHashTableBase::CompareKeys(GCHashEntry* entry, GCStringData* key)
     if (entryKey->GetCharCount() != key->GetCharCount())
         return false;
 
-    return !memcmp(entryKey->GetStringBuffer(), key->GetStringBuffer(), entryKey->GetCharCount() * sizeof(wchar_t));
+    return !memcmp(entryKey->GetStringBuffer(), key->GetStringBuffer(), entryKey->GetCharCount() * sizeof(TCHAR));
 }

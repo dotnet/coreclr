@@ -33654,12 +33654,17 @@ HRESULT GCHeap::Initialize ()
 
     nhp = min (nhp, MAX_SUPPORTED_CPUS);
 
-    StringDedup::Init(nhp);
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/, nhp);
+    bool string_dedup_online = StringDedup::Init(nhp);
 #else
-    StringDedup::Init(0);
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/);
+    bool string_dedup_online = StringDedup::Init(0);
 #endif //MULTIPLE_HEAPS
+
+    if (!string_dedup_online)
+    {
+        return E_OUTOFMEMORY;
+    }
 
     if (hr != S_OK)
         return hr;

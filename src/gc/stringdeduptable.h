@@ -13,6 +13,7 @@ friend class StringDedup;
 public:
 	StringDedupTable();
 	~StringDedupTable();
+    bool Init();
 	bool Insert(uint8_t*& item);
 private:    
     GCHashTableBase* ht;

@@ -8,8 +8,16 @@
 
 StringDedupTable::StringDedupTable()
 {
-    ht = new GCUnicodeStringHashTable();
-    ht->Init(11, NULL);
+}
+
+bool StringDedupTable::Init()
+{
+    ht = new (nothrow) GCUnicodeStringHashTable();
+    if (ht)
+    {
+        return ht->Init(11, NULL);
+    }
+    return false;
 }
 
 StringDedupTable::~StringDedupTable()

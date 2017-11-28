@@ -6,6 +6,17 @@
 #define _STRINGHASHTABLE_H_
 #include "common.h"
 
+#ifdef PLATFORM_UNIX
+
+typedef char TCHAR;
+
+#else
+
+#ifndef _INC_WINDOWS
+typedef wchar_t TCHAR;
+#endif
+
+#endif
 
 class StringDupsList
 {
@@ -21,7 +32,7 @@ private:
 
         size_t new_size = capacity == 0 ? 4 : (capacity * 2);
         uint8_t** new_buf = new (nothrow) uint8_t*[new_size];
-        if (new_buf == NULL)
+        if (!new_buf)
             return false;
 
         // static_assert(std::is_trivially_copyable<T>::value, "memcpy here");
@@ -69,12 +80,12 @@ class GCStringData
 {
 private:
     uint8_t* address;
-    wchar_t* string;
+    TCHAR* string;
     uint32_t count;
 
 public:
     GCStringData() : address(NULL), count(0), string(NULL) {};
-    GCStringData(uint8_t* address, uint32_t count, wchar_t* string) : count(0)
+    GCStringData(uint8_t* address, uint32_t count, TCHAR* string) : count(0)
     {
         SetAddress(address);
         SetStringBuffer(string);
@@ -96,11 +107,11 @@ public:
     {
         count = _count;
     }
-    inline wchar_t* GetStringBuffer() const
+    inline TCHAR* GetStringBuffer() const
     {
         return string; 
     }
-    inline void SetStringBuffer(wchar_t* _string)
+    inline void SetStringBuffer(TCHAR* _string)
     {
         string = _string;
     }

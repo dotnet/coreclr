@@ -13,7 +13,7 @@
 class StringDedup
 {
 public:
-    static void Init(size_t number_of_heaps);
+    static bool Init(size_t number_of_heaps);
     static void EnqPromoted(uint8_t* str, int thread);
     static void Rewind();
     static void GcStarted();
@@ -23,7 +23,7 @@ public:
     static uint8_t* DequeueDup(int thread);
     static void ResetDupsKey(uint8_t* new_original, int thread);
     static uint32_t CurrentDupsStringLength();
-    static wchar_t* CurrentDupsStringBuf();
+    static TCHAR* CurrentDupsStringBuf();
 private:
     static StringDedupThread* thread;
     static StringDedupTable* table;
