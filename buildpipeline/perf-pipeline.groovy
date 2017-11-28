@@ -47,7 +47,7 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
             baselineString = "-baseline"
         }
         dir ('.') {
-            unstash "nt-${arch}-${pgo}${baselineString}-build-artifacts"
+            unstash "nt-${arch}-${pgo}${baselineString}-test-artifacts"
             unstash "benchview-tools"
             unstash "metadata"
         }
