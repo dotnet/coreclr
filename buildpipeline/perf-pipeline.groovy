@@ -11,10 +11,10 @@ def validTestFolders = [
     'BenchI',
     'BenchmarksGame',
     'Bytemark',
-    'Functions',
     'Math',
     'Span',
-    'small'
+    'first half',
+    'last half'
     ]
 
 //--------------------- Windows Functions ----------------------------//
@@ -80,7 +80,7 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
         String runXUnitCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\""
         if (scenario == 'perf') {
             String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2\""
-            if (test == 'small' || testFolder == 'all')
+            if (test == 'first half' || testFolder == 'all')
             {
                 String runXUnitPerflabArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\perflab\\Perflab -library"
 
@@ -88,14 +88,21 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
                 bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerflabArgs} -collectionFlags ${profileArg}"
             }
 
-            if (test == 'small') {
+            if (test == 'first half') {
 
                 [
                     'Burgers',
                     'Devirtualization',
                     'FractalPerf',
                     'Inlining',
-                    'Layout',
+                    'Layout'
+                ].each { benchmark ->
+                    String runXUnitCodeQualityArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\Jit\\Performance\\CodeQuality\\${benchmark}"
+                    bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitCodeQualityArgs} -collectionFlags ${profileArg}"
+                }
+            }
+            else if (test == 'last half') {
+                [
                     'Linq',
                     'Roslyn',
                     'SciMark',
