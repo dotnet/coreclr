@@ -444,7 +444,8 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
             {
                 // gtFoldExprConst will deal with whether the cast is signed or
                 // unsigned, or overflow-sensitive.
-                andOp2 = oper->gtOp.gtOp2 = gtFoldExprConst(andOp2);
+                andOp2 = gtFoldExprConst(andOp2);
+                oper->gtOp.gtOp2 = andOp2;
             }
 
             // Look for a constant less than 2^{32} for a cast to uint, or less
@@ -486,7 +487,8 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
 
                 // Expose constant value for shift, if possible, to maximize the number
                 // of cases we can handle.
-                shiftAmount = oper->gtOp.gtOp2 = gtFoldExpr(shiftAmount);
+                shiftAmount = gtFoldExpr(shiftAmount);
+                oper->gtOp.gtOp2 = shiftAmount;
 
                 if (shiftAmount->IsIntegralConst())
                 {

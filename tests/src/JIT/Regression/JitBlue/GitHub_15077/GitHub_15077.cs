@@ -6,7 +6,8 @@ using System;
 using System.Runtime.CompilerServices;
 
 // Codegen bug when propagating an int cast through
-// a long shift
+// a long shift. Tests below have known and unknown
+// long shifts where shift amount is 31 or 32.
 
 class P
 {
