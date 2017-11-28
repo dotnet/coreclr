@@ -12,6 +12,7 @@ def validTestFolders = [
     'BenchmarksGame',
     'Bytemark',
     'Functions',
+    'Math',
     'Span',
     'small'
     ]
@@ -96,11 +97,10 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
                     'Inlining',
                     'Layout',
                     'Linq',
-                    'Math',
                     'Roslyn',
                     'SciMark',
                     'Serialization',
-                    'V7'
+                    'V8'
                 ].each { benchmark ->
                     String runXUnitCodeQualityArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\Jit\\Performance\\CodeQuality\\${benchmark}"
                     bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitCodeQualityArgs} -collectionFlags ${profileArg}"
