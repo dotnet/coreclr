@@ -36,7 +36,7 @@ def windowsBuild(String arch, String config, String pgo, boolean isBaseline) {
     bat "rd /s /q bin\\obj"
 
     // Stash build artifacts. Stash tests in an additional stash to be used by Linux test runs
-    stash name: "nt-${arch}-${pgo}${baselineString}-build-artifacts", includes: 'bin/'
+    stash name: "nt-${arch}-${pgo}${baselineString}-build-artifacts", includes: 'bin/**'
     stash name: "nt-${arch}-${pgo}${baselineString}-test-artifacts", includes: 'bin/tests/**'
 }
 
@@ -378,13 +378,13 @@ def outerLoopTests = [:]
 if (!isPR()) {
     outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} jitbench"] = {
         simpleNode('windows_server_2016_clr_perf', 180) {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false)
+            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false, '')
         }
     }
 
     outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} illink"] = {
         simpleNode('Windows_NT', '20170427-elevated') {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false)
+            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false, '')
         }
     }
 
