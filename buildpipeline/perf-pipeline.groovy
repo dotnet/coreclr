@@ -7,8 +7,7 @@
 //-------------------------- Globals ---------------------------------//
 
 def validTestFolders = [
-    'BenchF',
-    'BenchI',
+    'Benchstones',
     'BenchmarksGame',
     'Bytemark',
     'Math',
