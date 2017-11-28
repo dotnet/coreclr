@@ -470,7 +470,7 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
             bool canPushCast = oper->OperIs(GT_ADD, GT_SUB, GT_MUL, GT_AND, GT_OR, GT_XOR, GT_NOT, GT_NEG);
 
             // For long LSH cast to int, there is a discontinuity in behavior
-            // when the shift amount 32 or larger.
+            // when the shift amount is 32 or larger.
             //
             // CAST(INT, LSH(1LL, 31)) == LSH(1, 31)
             // LSH(CAST(INT, 1LL), CAST(INT, 31)) == LSH(1, 31)
@@ -483,6 +483,11 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
             if (oper->OperIs(GT_LSH))
             {
                 GenTree* shiftAmount = oper->gtOp.gtOp2;
+
+                // Expose constant value for shift, if possible, to maximize the number
+                // of cases we can handle.
+                shiftAmount = oper->gtOp.gtOp2 = gtFoldExpr(shiftAmount);
+
                 if (shiftAmount->IsIntegralConst())
                 {
                     const ssize_t shiftAmountValue = shiftAmount->AsIntCon()->IconValue();
