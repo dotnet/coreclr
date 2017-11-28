@@ -122,7 +122,7 @@ namespace System
 
         internal static void ThrowKeyNotFoundException(object key)
         {
-            throw new GetKeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
+            throw GetKeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
         }
 
         internal static void ThrowArgumentException(ExceptionResource resource)
@@ -305,7 +305,7 @@ namespace System
 
         private static KeyNotFoundException GetKeyNotFoundException(object key)
         {
-            return new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString())); 
+            return new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
         }
 
         internal static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource)
@@ -364,9 +364,9 @@ namespace System
 
         internal static void ThrowNotSupportedExceptionIfNonNumericType<T>()
         {
-            if (typeof(T) != typeof(Byte) && typeof(T) != typeof(SByte) && 
-                typeof(T) != typeof(Int16) && typeof(T) != typeof(UInt16) && 
-                typeof(T) != typeof(Int32) && typeof(T) != typeof(UInt32) && 
+            if (typeof(T) != typeof(Byte) && typeof(T) != typeof(SByte) &&
+                typeof(T) != typeof(Int16) && typeof(T) != typeof(UInt16) &&
+                typeof(T) != typeof(Int32) && typeof(T) != typeof(UInt32) &&
                 typeof(T) != typeof(Int64) && typeof(T) != typeof(UInt64) &&
                 typeof(T) != typeof(Single) && typeof(T) != typeof(Double))
             {
