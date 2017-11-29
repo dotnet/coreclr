@@ -2385,10 +2385,6 @@ Constants.allScenarios.each { scenario ->
                                     shell("tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz || exit 0")
                                 }
 
-                                if (!isUnixArm64) {
-                                    shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
-                                }
-
                                 // Execute the tests
                                 // If we are running a stress mode, we'll set those variables first
                                 def testEnvOpt = ""
