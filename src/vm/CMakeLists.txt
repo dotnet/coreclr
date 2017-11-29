@@ -125,6 +125,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
 
 set( GC_SOURCES_DAC_AND_WKS_COMMON
   ../gc/stringdedup.cpp
+  ../gc/marvin32.cpp
   ../gc/stringdedupqueue.cpp
   ../gc/stringdedupthread.cpp
   ../gc/stringdeduptable.cpp

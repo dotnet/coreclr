@@ -19,11 +19,9 @@ typedef void * HANDLE;
 #ifdef PLATFORM_UNIX
 typedef char16_t WCHAR;
 #else
-
 #ifndef _INC_WINDOWS
 typedef wchar_t WCHAR;
 #endif
-
 #endif
 
 #ifdef PLATFORM_UNIX

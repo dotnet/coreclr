@@ -15,6 +15,7 @@ set( GC_SOURCES
   gceesvr.cpp
   gceewks.cpp
   stringdedup.cpp
+  marvin32.cpp
   stringdedupqueue.cpp
   stringdedupthread.cpp
   stringdeduptable.cpp

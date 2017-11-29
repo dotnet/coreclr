@@ -21,6 +21,7 @@ set(SOURCES
     ../objecthandle.cpp
     ../softwarewritewatch.cpp
     ../stringdedup.cpp
+    ../marvin32.cpp
     ../stringdedupqueue.cpp
     ../stringdedupthread.cpp
     ../stringdeduptable.cpp

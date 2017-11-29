@@ -7,15 +7,11 @@
 #include "common.h"
 
 #ifdef PLATFORM_UNIX
-
-typedef char WCHAR;
-
+typedef char16_t WCHAR;
 #else
-
 #ifndef _INC_WINDOWS
 typedef wchar_t WCHAR;
 #endif
-
 #endif
 
 class StringDupsList
