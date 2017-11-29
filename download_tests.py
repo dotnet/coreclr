@@ -84,6 +84,7 @@ parser.add_argument("-configuration", dest="configuration", nargs='?', default="
 parser.add_argument("-priority", dest="priority", nargs='?', default="0")
 
 parser.add_argument("-branch", dest="branch", nargs='?', default="master")
+parser.add_argument("-build_number", dest="build_number", nargs='?', default="lastSuccessfulBuild")
 
 parser.add_argument("--check_for_modifications", dest="check_for_modifications", action="store_true", default=False)
 parser.add_argument("--download_product", dest="download_product", action="store_true", default=False)
@@ -119,7 +120,7 @@ def __check_for_modifications__():
 
     return test_dir_modified
 
-def download_tests(os_group, arch, configuration, priority, branch, test_location, download_product):
+def download_tests(os_group, arch, configuration, priority, branch, test_location, download_product, build_number):
     """ Download the tests to the passed location
 
     Args:
@@ -163,9 +164,9 @@ def download_tests(os_group, arch, configuration, priority, branch, test_locatio
     if arch == "arm64" and os_group == "linux":
         os_group = "small_page_size"
     
-    product_netci_location = "%s/%s%s%s/lastSuccessfulBuild/artifact/bin/Product/%s.%s.%s/*zip*/archive.zip" % (netci_location, arch, configuration, os_group, original_os, original_arch, original_configuration)
-    obj_netci_location = "%s/%s%s%s/lastSuccessfulBuild/artifact/bin/obj/*zip*/archive.zip" % (netci_location, arch, configuration, os_group)
-    tests_netci_location = "%s/%s%s%s/lastSuccessfulBuild/artifact/bin/tests/%s.%s.%s.tar.gz" % (netci_location, arch, configuration, os_group, original_os, original_arch, original_configuration)
+    product_netci_location = "%s/%s%s%s/%s/artifact/bin/Product/%s.%s.%s/*zip*/archive.zip" % (netci_location, arch, configuration, os_group, build_number, original_os, original_arch, original_configuration)
+    obj_netci_location = "%s/%s%s%s/%s/artifact/bin/obj/%s.%s.%s/*zip*/archive.zip" % (netci_location, arch, configuration, os_group, build_number, original_os, original_arch, original_configuration)
+    tests_netci_location = "%s/%s%s%s/%s/artifact/bin/tests/%s.%s.%s.tar.gz" % (netci_location, arch, configuration, os_group, build_number, original_os, original_arch, original_configuration)
 
     product_zip_location = os.path.join(bin_location, "Product", "%s.%s.%s.zip" % (original_os, original_arch, original_configuration))
     obj_zip_location = os.path.join(bin_location, "obj", "%s.%s.%s.zip" % (original_os, original_arch, original_configuration))
@@ -174,7 +175,14 @@ def download_tests(os_group, arch, configuration, priority, branch, test_locatio
     if os.path.isdir(test_location):
         shutil.rmtree(test_location, ignore_errors=True)
 
-    os.mkdir(test_location)
+    if not os.path.isdir(bin_location):
+        os.mkdir(bin_location)
+    if not os.path.isdir(os.path.join(bin_location, "obj")):
+        os.mkdir(os.path.join(bin_location, "obj"))
+    if not os.path.isdir(os.path.join(bin_location, "Product")):
+        os.mkdir(os.path.join(bin_location, "Product"))
+    if not os.path.isdir(os.path.join(bin_location, "tests")):
+        os.mkdir(os.path.join(bin_location, "tests"))
 
     def download_and_unzip_file(netci_location, zip_location, location, use_gzip=False):
         try:
@@ -182,10 +190,14 @@ def download_tests(os_group, arch, configuration, priority, branch, test_locatio
             tests.retrieve(netci_location, zip_location)
         except Exception, e:
             print e
+            print netci_location
         
             sys.exit(1)
 
         assert os.path.isfile(zip_location)
+
+        if not os.path.isdir(location):
+            os.mkdir(location)
 
         if not use_gzip:
             zip = zipfile.ZipFile(zip_location)
@@ -242,6 +254,7 @@ def main(args):
     test_location = args.test_location
     configuration = args.configuration
     priority = args.priority
+    build_number = args.build_number
     branch = args.branch
 
     check_for_modifications = args.check_for_modifications
@@ -253,7 +266,7 @@ def main(args):
 
     if not modified:
         # Download and set up the tests.
-        download_tests(g_current_os, g_current_arch, configuration, priority, branch, test_location, download_product)
+        download_tests(g_current_os, g_current_arch, configuration, priority, branch, test_location, download_product, build_number)
 
 ################################################################################
 # __main__ (entry point)

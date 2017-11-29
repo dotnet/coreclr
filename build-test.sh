@@ -6,7 +6,7 @@ initHostDistroRid()
     if [ "$__HostOS" == "Linux" ]; then
         if [ -e /etc/os-release ]; then
             source /etc/os-release
-            if [[ $ID == "alpine" ]]; then
+            if [[ $ID == "alpine" || $ID == "rhel" ]]; then
                 # remove the last version digit
                 VERSION_ID=${VERSION_ID%.*}
             fi
@@ -36,7 +36,7 @@ initHostDistroRid()
     fi
 
     if [ "$__HostDistroRid" == "" ]; then
-        echo "WARNING: Cannot determine runtime id for current distro."
+        echo "WARNING: Can not determine runtime id for current distro."
     fi
 }
 
@@ -45,8 +45,13 @@ initTargetDistroRid()
     if [ $__CrossBuild == 1 ]; then
         if [ "$__BuildOS" == "Linux" ]; then
             if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
-                echo "WARNING: Can not determine runtime id for current distro."
-                export __DistroRid=""
+                if [ -e $ROOTFS_DIR/android_platform ]; then
+                    source $ROOTFS_DIR/android_platform
+                    export __DistroRid="$RID"
+                else
+                    echo "WARNING: Can not determine runtime id for current distro."
+                    export __DistroRid=""
+                fi
             else
                 source $ROOTFS_DIR/etc/os-release
                 export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
@@ -68,14 +73,17 @@ initTargetDistroRid()
         elif [ "$__BuildOS" == "OSX" ]; then
             export __DistroRid="osx-$__BuildArch"
             export __RuntimeId="osx-$__BuildArch"
+        elif [ "$__BuildOS" == "FreeBSD" ]; then
+            export __DistroRid="freebsd-$__BuildArch"
+            export __RuntimeId="freebsd-$__BuildArch"
         fi
     fi
 
-   if [ "$ID.$VERSION_ID" == "ubuntu.16.04" ]; then
+    if [ "$ID.$VERSION_ID" == "ubuntu.16.04" ]; then
      export __DistroRid="ubuntu.14.04-$__BuildArch"
-   fi
+    fi
 
-   echo "__DistroRid: " $__DistroRid
+    echo "__DistroRid: " $__DistroRid
 }
 
 isMSBuildOnNETCoreSupported()
@@ -100,6 +108,107 @@ isMSBuildOnNETCoreSupported()
         elif [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
         fi
+    fi
+}
+
+build_CoreLib_ni()
+{
+    echo "Generating native image for System.Private.CoreLib."
+    echo "$__BinDir/crossgen /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll"
+    $__BinDir/crossgen /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll
+    if [ $? -ne 0 ]; then
+        echo "Failed to generate native image for System.Private.CoreLib."
+        exit 1
+    fi
+
+    if [ "$__BuildOS" == "Linux" ]; then
+        echo "Generating symbol file for System.Private.CoreLib."
+        $__BinDir/crossgen /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll
+        if [ $? -ne 0 ]; then
+            echo "Failed to generate symbol file for System.Private.CoreLib."
+            exit 1
+        fi
+    fi
+}
+
+generate_layout()
+{
+    __TestDir=$__ProjectDir/tests
+    __ProjectFilesDir=$__TestDir
+    __TestBinDir=$__TestWorkingDir
+
+    if [ $__RebuildTests -ne 0 ]; then
+        if [ -d "${__TestBinDir}" ]; then
+            echo "Removing tests build dir: ${__TestBinDir}"
+            rm -rf $__TestBinDir
+        fi
+    fi
+
+    __CMakeBinDir="${__TestBinDir}"
+
+    if [ -z "$__TestIntermediateDir" ]; then
+        __TestIntermediateDir="tests/obj/${__BuildOS}.${__BuildArch}.${__BuildType}"
+    fi
+
+    echo "__BuildOS: ${__BuildOS}"
+    echo "__BuildArch: ${__BuildArch}"
+    echo "__BuildType: ${__BuildType}"
+    echo "__TestIntermediateDir: ${__TestIntermediateDir}"
+
+    if [ ! -f "$__TestBinDir" ]; then
+        echo "Creating TestBinDir: ${__TestBinDir}"
+        mkdir -p $__TestBinDir
+    fi
+    if [ ! -f "$__LogsDir" ]; then
+        echo "Creating LogsDir: ${__LogsDir}"
+        mkdir -p $__LogsDir
+    fi
+
+    __BuildProperties="-p:OSGroup=${__BuildOS} -p:BuildOS=${__BuildOS} -p:BuildArch=${__BuildArch} -p:BuildType=${__BuildType}"
+
+    # =========================================================================================
+    # ===
+    # === Restore product binaries from packages
+    # ===
+    # =========================================================================================
+
+    build_Tests_internal "Restore_Product" "${__ProjectDir}/tests/build.proj" " -BatchRestorePackages" "Restore product binaries (build tests)"
+    build_Tests_internal "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "-BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct" "Restore product binaries (run tests)"
+
+    if [ -n "$__UpdateInvalidPackagesArg" ]; then
+        __up=-updateinvalidpackageversion
+    fi
+
+    echo "${__MsgPrefix}Creating test overlay..."
+
+    if [ -z "$XuintTestBinBase" ]; then
+      XuintTestBinBase=$__TestWorkingDir
+    fi
+
+    export CORE_ROOT=$XuintTestBinBase/Tests/Core_Root
+
+    if [ ! -f "${CORE_ROOT}" ]; then
+      mkdir -p $CORE_ROOT
+    else
+      rm -rf $CORE_ROOT/*
+    fi
+
+    build_Tests_internal "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "-testOverlay" "Creating test overlay"
+
+    if [ $__ZipTests -ne 0 ]; then
+        echo "${__MsgPrefix}ZIP tests packages..."
+        build_Tests_internal "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" " " "Prep test binaries for Helix publishing"
+    fi
+
+    # Make sure to copy over the pulled down packages
+    cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
+
+    # Work hardcoded path around
+    if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets" ]; then
+        ln -s "${__BuildToolsDir}/Microsoft.CSharp.Core.targets" "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets"
+    fi
+    if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.targets" ]; then
+        ln -s "${__BuildToolsDir}/Microsoft.CSharp.Targets" "${__BuildToolsDir}/Microsoft.CSharp.targets"
     fi
 }
 
@@ -149,53 +258,50 @@ build_Tests()
         build_Tests_internal "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "-BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct" "Restore product binaries (run tests)"
     fi
 
-    if [ -z "$__GenarateLayoutOnly" ]; then
+    echo "Starting the Managed Tests Build..."
 
-        echo "Starting the Managed Tests Build..."
+    __ManagedTestBuiltMarker=${__TestBinDir}/managed_test_build
 
-        __ManagedTestBuiltMarker=${__TestBinDir}/managed_test_build
+    if [ ! -f $__ManagedTestBuiltMarker ]; then
 
-        if [ ! -f $__ManagedTestBuiltMarker ]; then
+        build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
 
-            build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
+        if [ $? -ne 0 ]; then
+            echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
+            exit 1
+        else
+            echo "Tests have been built."
+            echo "Create marker \"${__ManagedTestBuiltMarker}\""
+            touch $__ManagedTestBuiltMarker
+        fi
+    else
+        echo "Managed Tests had been built before."
+    fi
+
+    if [ $__BuildTestWrappers -ne -0 ]; then
+        echo "${__MsgPrefix}Creating test wrappers..."
+
+        __XUnitWrapperBuiltMarker=${__TestBinDir}/xunit_wrapper_build
+
+        if [ ! -f $__XUnitWrapperBuiltMarker ]; then
+
+            build_Tests_internal "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "-BuildWrappers -MsBuildEventLogging=\" \" " "Test Xunit Wrapper"
 
             if [ $? -ne 0 ]; then
                 echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
                 exit 1
             else
-                echo "Tests have been built."
-                echo "Create marker \"${__ManagedTestBuiltMarker}\""
-                touch $__ManagedTestBuiltMarker
+                echo "XUnit Wrappers have been built."
+                echo "Create marker \"${__XUnitWrapperBuiltMarker}\""
+                touch $__XUnitWrapperBuiltMarker
             fi
         else
-            echo "Managed Tests had been built before."
+            echo "XUnit Wrappers had been built before."
         fi
+    fi
 
-        if [ $__BuildTestWrappers -ne -0 ]; then
-            echo "${__MsgPrefix}Creating test wrappers..."
-
-            __XUnitWrapperBuiltMarker=${__TestBinDir}/xunit_wrapper_build
-
-            if [ ! -f $__XUnitWrapperBuiltMarker ]; then
-
-                build_Tests_internal "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "-BuildWrappers -MsBuildEventLogging=\" \" " "Test Xunit Wrapper"
-
-                if [ $? -ne 0 ]; then
-                    echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
-                    exit 1
-                else
-                    echo "XUnit Wrappers have been built."
-                    echo "Create marker \"${__XUnitWrapperBuiltMarker}\""
-                    touch $__XUnitWrapperBuiltMarker
-                fi
-            else
-                echo "XUnit Wrappers had been built before."
-            fi
-        fi
-
-        if [ -n "$__UpdateInvalidPackagesArg" ]; then
-            __up=-updateinvalidpackageversion
-        fi
+    if [ -n "$__UpdateInvalidPackagesArg" ]; then
+        __up=-updateinvalidpackageversion
     fi
 
     echo "${__MsgPrefix}Creating test overlay..."
