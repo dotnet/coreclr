@@ -2344,7 +2344,7 @@ Constants.allScenarios.each { scenario ->
                             def isUnixArm64 = (windowsArmJob != true) && (architecture == 'arm64')
 
                             // pri1 jobs still need to copy windows_nt built tests
-                            if (isUnixArm64 || (scenario != "default")) {
+                            if (isUnixArm64) {
                                 copyArtifacts(inputWindowTestsBuildName) {
                                     excludePatterns('**/testResults.xml', '**/*.ni.dll')
                                     buildSelector {
@@ -2378,11 +2378,11 @@ Constants.allScenarios.each { scenario ->
                                     shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
                                 }
 
-                                if (isUnixArm64 || (scenario != "default")) {
+                                if (isUnixArm64) {
                                     // Unzip the tests first.  Exit with 0
-                                    shell("tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz || exit 0")
-                                } else {
                                     shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
+                                } else {
+                                    shell("tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz || exit 0")
                                 }
 
                                 if (!isUnixArm64) {
@@ -2580,7 +2580,7 @@ Constants.allScenarios.each { scenario ->
                     def isUnixArm64 = ((osGroup == "Linux") && (architecture == "arm64"))
 
                     // For pri0 jobs we can build tests on unix
-                    if ((scenario == "default") && (isUnixArm64 == false)) {
+                    if (isUnixArm64 == false) {
                         // For Windows arm jobs there is no reason to build a parallel test job.
                         // The product build supports building and archiving the tests.
 
