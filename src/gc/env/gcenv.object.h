@@ -176,14 +176,14 @@ class StringObject : public Object
 {
 private:
     uint32_t m_StringLength;
-    TCHAR m_Characters[0];
+    WCHAR m_Characters[0];
 public:
     uint32_t GetStringLength()
     { 
         return m_StringLength;
     }
 
-    TCHAR* GetBuffer() 
+    WCHAR* GetBuffer() 
     {
         return m_Characters;
     }    

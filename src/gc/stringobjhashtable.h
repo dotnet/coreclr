@@ -8,12 +8,12 @@
 
 #ifdef PLATFORM_UNIX
 
-typedef char TCHAR;
+typedef char WCHAR;
 
 #else
 
 #ifndef _INC_WINDOWS
-typedef wchar_t TCHAR;
+typedef wchar_t WCHAR;
 #endif
 
 #endif
@@ -80,12 +80,12 @@ class GCStringData
 {
 private:
     uint8_t* address;
-    TCHAR* string;
+    WCHAR* string;
     uint32_t count;
 
 public:
     GCStringData() : address(NULL), count(0), string(NULL) {};
-    GCStringData(uint8_t* address, uint32_t count, TCHAR* string) : count(0)
+    GCStringData(uint8_t* address, uint32_t count, WCHAR* string) : count(0)
     {
         SetAddress(address);
         SetStringBuffer(string);
@@ -107,11 +107,11 @@ public:
     {
         count = _count;
     }
-    inline TCHAR* GetStringBuffer() const
+    inline WCHAR* GetStringBuffer() const
     {
         return string; 
     }
-    inline void SetStringBuffer(TCHAR* _string)
+    inline void SetStringBuffer(WCHAR* _string)
     {
         string = _string;
     }

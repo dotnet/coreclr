@@ -23,7 +23,7 @@ public:
     static uint8_t* DequeueDup(int thread);
     static void ResetDupsKey(uint8_t* new_original, int thread);
     static uint32_t CurrentDupsStringLength();
-    static TCHAR* CurrentDupsStringBuf();
+    static WCHAR* CurrentDupsStringBuf();
 private:
     static StringDedupThread* thread;
     static StringDedupTable* table;

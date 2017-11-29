@@ -17,15 +17,11 @@ struct GCSystemInfo
 typedef void * HANDLE;
 
 #ifdef PLATFORM_UNIX
-
-typedef char TCHAR;
-#define _T(s) s
-
+typedef char16_t WCHAR;
 #else
 
 #ifndef _INC_WINDOWS
-typedef wchar_t TCHAR;
-#define _T(s) L##s
+typedef wchar_t WCHAR;
 #endif
 
 #endif

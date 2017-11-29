@@ -110,7 +110,7 @@ uint32_t StringDedup::CurrentDupsStringLength()
 #endif // MULTIPLE_HEAPS
 }
 
-TCHAR* StringDedup::CurrentDupsStringBuf()
+WCHAR* StringDedup::CurrentDupsStringBuf()
 {
 #ifdef MULTIPLE_HEAPS
 #else    

@@ -23,4 +23,4 @@ private:
 	bool EnsureCapacity();
 };
 
-#endif _STRINGDEDUPQUEUE_H_
+#endif // _STRINGDEDUPQUEUE_H_
