@@ -1324,6 +1324,11 @@ BOOL OnGcCoverageInterrupt(PCONTEXT regs)
     if (!codeInfo.IsValid())
         return(FALSE);
 
+#ifdef _TARGET_ARM_
+    _ASSERTE(((TADDR)instrPtr) & THUMB_CODE);
+    instrPtr = instrPtr - THUMB_CODE;
+#endif
+
     MethodDesc* pMD = codeInfo.GetMethodDesc();
     DWORD offset = codeInfo.GetRelOffset();
 
