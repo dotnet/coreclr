@@ -2577,7 +2577,7 @@ Constants.allScenarios.each { scenario ->
                         return
                     }
 
-                    def isUnixArm64 = !((osGroup == "Linux") && (architecture == "arm64"))
+                    def isUnixArm64 = ((osGroup == "Linux") && (architecture == "arm64"))
 
                     // For pri0 jobs we can build tests on unix
                     if ((configuration == "default") && (isUnixArm64 == false)) {
