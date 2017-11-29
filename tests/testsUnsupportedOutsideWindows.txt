@@ -1,3 +1,4 @@
+baseservices/threading/paramthreadstart/ThreadStartBool_1/ThreadStartBool_1.sh
 baseservices/exceptions/regressions/Dev11/147911/test147911/test147911.sh
 baseservices/exceptions/regressions/V1/SEH/VJ/UnmanagedToManaged/UnmanagedToManaged.sh
 baseservices/threading/commitstackonlyasneeded/DefaultStackCommit/DefaultStackCommit.sh

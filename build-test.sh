@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-
 initHostDistroRid()
 {
     __HostDistroRid=""
@@ -145,47 +144,9 @@ build_Tests()
     # ===
     # =========================================================================================
 
-    build_Tests_internal "Restore_Product" "${__ProjectDir}/tests/build.proj" " -BatchRestorePackages" "Restore product binaries (build tests)"
-
-    build_Tests_internal "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "-BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct" "Restore product binaries (run tests)"
-
-    if [ -n "$__UpdateInvalidPackagesArg" ]; then
-        __up=-updateinvalidpackageversion
-    fi
-
-    echo "${__MsgPrefix}Creating test overlay..."
-
-    if [ -z "$XuintTestBinBase" ]; then
-      XuintTestBinBase=$__TestWorkingDir
-    fi
-
-    export CORE_ROOT=$XuintTestBinBase/Tests/Core_Root
-
-    if [ ! -f "${CORE_ROOT}" ]; then
-      mkdir -p $CORE_ROOT
-    else
-      rm -rf $CORE_ROOT/*
-    fi
-
-    cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
-
-    build_Tests_internal "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "-testOverlay" "Creating test overlay"
-
-    if [ $__ZipTests -ne 0 ]; then
-        echo "${__MsgPrefix}ZIP tests packages..."
-        build_Tests_internal "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" " " "Prep test binaries for Helix publishing"
-    fi
-
-    if [ -n "$__GenarateLayoutOnly" ]; then
-        exit 0
-    fi
-
-    # Work hardcoded path around
-    if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets" ]; then
-        ln -s "${__BuildToolsDir}/Microsoft.CSharp.Core.targets" "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets"
-    fi
-    if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.targets" ]; then
-        ln -s "${__BuildToolsDir}/Microsoft.CSharp.Targets" "${__BuildToolsDir}/Microsoft.CSharp.targets"
+    if [ -n "$__BuildAgainstPackagesArg" ]; then
+        build_Tests_internal "Restore_Product" "${__ProjectDir}/tests/build.proj" " -BatchRestorePackages" "Restore product binaries (build tests)"
+        build_Tests_internal "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "-BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct" "Restore product binaries (run tests)"
     fi
 
     echo "Starting the Managed Tests Build..."
@@ -228,6 +189,46 @@ build_Tests()
         else
             echo "XUnit Wrappers had been built before."
         fi
+    fi
+
+    if [ -n "$__UpdateInvalidPackagesArg" ]; then
+        __up=-updateinvalidpackageversion
+    fi
+
+    echo "${__MsgPrefix}Creating test overlay..."
+
+    if [ -z "$XuintTestBinBase" ]; then
+      XuintTestBinBase=$__TestWorkingDir
+    fi
+
+    export CORE_ROOT=$XuintTestBinBase/Tests/Core_Root
+
+    if [ ! -f "${CORE_ROOT}" ]; then
+      mkdir -p $CORE_ROOT
+    else
+      rm -rf $CORE_ROOT/*
+    fi
+
+    build_Tests_internal "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "-testOverlay" "Creating test overlay"
+
+    if [ $__ZipTests -ne 0 ]; then
+        echo "${__MsgPrefix}ZIP tests packages..."
+        build_Tests_internal "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" " " "Prep test binaries for Helix publishing"
+    fi
+
+    # Make sure to copy over the pulled down packages
+    cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
+
+    if [ -n "$__GenarateLayoutOnly" ]; then
+        exit 0
+    fi
+
+    # Work hardcoded path around
+    if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets" ]; then
+        ln -s "${__BuildToolsDir}/Microsoft.CSharp.Core.targets" "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets"
+    fi
+    if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.targets" ]; then
+        ln -s "${__BuildToolsDir}/Microsoft.CSharp.Targets" "${__BuildToolsDir}/Microsoft.CSharp.targets"
     fi
 }
 
@@ -285,6 +286,7 @@ usage()
     echo "verbose - optional argument to enable verbose build output."
     echo "rebuild - if tests have already been built - rebuild them"
     echo "generatelayoutonly - only pull down dependencies and build coreroot"
+    echo "buildagainstpackages - pull down and build using packages."
     echo "runtests - run tests after building them"
     echo "ziptests - zips CoreCLR tests & Core_Root for a Helix run"
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
@@ -397,6 +399,7 @@ __ClangMajorVersion=0
 __ClangMinorVersion=0
 __NuGetPath="$__PackagesDir/NuGet.exe"
 __HostDistroRid=""
+__BuildAgainstPackagesArg=
 __DistroRid=""
 __cmakeargs=""
 __PortableLinux=0
@@ -521,6 +524,10 @@ while :; do
 
         generatelayoutonly)
             __GenarateLayoutOnly=1
+            ;;
+
+        buildagainstpackages)
+            __BuildAgainstPackagesArg=1
             ;;
 
         bindir)
