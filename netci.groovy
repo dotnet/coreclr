@@ -2382,7 +2382,7 @@ Constants.allScenarios.each { scenario ->
                                     // Unzip the tests first.  Exit with 0
                                     shell("tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz || exit 0")
                                 } else {
-                                    shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.${architecture}.${configuration} || exit 0")
+                                    shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
                                 }
 
                                 if (!isUnixArm64) {
