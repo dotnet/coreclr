@@ -4898,6 +4898,10 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
 
     // 4-byte write
     getEmitter()->emitIns_S_R(INS_str, EA_4BYTE, tmpReg, varNum, offs + 8);
+
+    genUpdateLife(treeNode);
+
+    compiler->lvaTable[varNum].lvRegNum = REG_STK;
 }
 
 #endif // FEATURE_SIMD
