@@ -84,7 +84,7 @@ else
 
     # Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
     mkdir corefx
-    curl https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu14.04_release/lastSuccessfulBuild/artifact/bin/build.tar.gz -o ./corefx/build.tar.gz
+    curl https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu16.04_release/lastSuccessfulBuild/artifact/bin/build.tar.gz -o ./corefx/build.tar.gz
 
     # Unpack the corefx binaries
     pushd corefx > /dev/null

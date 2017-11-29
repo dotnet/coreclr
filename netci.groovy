@@ -2430,7 +2430,7 @@ Constants.allScenarios.each { scenario ->
                                 // Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
                                 def osJobName
                                 if (os == 'Ubuntu') {
-                                    osJobName = 'ubuntu14.04'
+                                    osJobName = 'ubuntu16.04'
                                 }
                                 else if (architecture == 'x86') {
                                     if (os == 'Ubuntu') {

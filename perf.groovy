@@ -8,7 +8,7 @@ def projectName = Utilities.getFolderName(project)
 def projectFolder = projectName + '/' + Utilities.getFolderName(branch)
 
 def static getOSGroup(def os) {
-    def osGroupMap = ['Ubuntu14.04':'Linux',
+    def osGroupMap = ['Ubuntu16.04':'Linux',
         'RHEL7.2': 'Linux',
         'Ubuntu16.04': 'Linux',
         'Debian8.4':'Linux',
@@ -267,7 +267,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
 
 
     // Actual perf testing on the following OSes
-    def perfOSList = ['Ubuntu14.04']
+    def perfOSList = ['Ubuntu16.04']
     perfOSList.each { os ->
         def newJob = job(getFullPerfJobName(project, os, isPR)) {
 
@@ -409,7 +409,7 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
     }
 
     // Actual perf testing on the following OSes
-    def throughputOSList = ['Ubuntu14.04']
+    def throughputOSList = ['Ubuntu16.04']
     def throughputOptLevelList = ['full_opt', 'min_opt']
 
     def throughputOSOptLevelList = []
