@@ -107,7 +107,7 @@
     <ProjectLanguage Condition="'$(MSBuildProjectExtension)' == '.ilproj' OR '$(Language)' == 'IL'">IL</ProjectLanguage>
     <ProjectLanguage Condition="'$(MSBuildProjectExtension)' == '.csproj' OR '$(Language)' == 'C#' OR '$(ProjectLanguage)'==''">CSharp</ProjectLanguage>
 
-    <SkipImportILTargets Condition="'$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'">true</SkipImportILTargets>
+    <SkipImportILTargets Condition="'$(CLRTestPriority)' &gt; '$(CLRTestPriorityToBuild)'">true</SkipImportILTargets>
   </PropertyGroup>
 
   <Import Project="CLRTest.Execute.targets" />
