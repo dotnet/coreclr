@@ -386,6 +386,9 @@ namespace System
             string symlinkPath = Interop.Sys.ReadLink(tzFilePath);
             if (symlinkPath != null)
             {
+                // Use Path.Combine to resolve links that contain a relative path (e.g. /etc/localtime).
+                symlinkPath = Path.Combine(tzFilePath, symlinkPath);
+
                 string timeZoneDirectory = GetTimeZoneDirectory();
                 if (symlinkPath.StartsWith(timeZoneDirectory))
                 {
