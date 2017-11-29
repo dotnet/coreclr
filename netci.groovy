@@ -2580,7 +2580,7 @@ Constants.allScenarios.each { scenario ->
                     def isUnixArm64 = !((osGroup == "Linux") && (architecture == "arm64"))
 
                     // For pri0 jobs we can build tests on unix
-                    if (configuration == "default" && (isUnixArm64 == false)) {
+                    if ((configuration == "default") && (isUnixArm64 == false)) {
                         // For Windows arm jobs there is no reason to build a parallel test job.
                         // The product build supports building and archiving the tests.
 
