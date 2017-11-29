@@ -2386,7 +2386,7 @@ Constants.allScenarios.each { scenario ->
                                 }
 
                                 if (!isUnixArm64) {
-                                    shell("./build-test.sh ${architecture} ${configuration} --generatelayoutonly")
+                                    shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
                                 }
 
                                 // Execute the tests
