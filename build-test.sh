@@ -149,50 +149,53 @@ build_Tests()
         build_Tests_internal "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "-BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct" "Restore product binaries (run tests)"
     fi
 
-    echo "Starting the Managed Tests Build..."
+    if [ -z "$__GenarateLayoutOnly" ]; then
 
-    __ManagedTestBuiltMarker=${__TestBinDir}/managed_test_build
+        echo "Starting the Managed Tests Build..."
 
-    if [ ! -f $__ManagedTestBuiltMarker ]; then
+        __ManagedTestBuiltMarker=${__TestBinDir}/managed_test_build
 
-        build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
+        if [ ! -f $__ManagedTestBuiltMarker ]; then
 
-        if [ $? -ne 0 ]; then
-            echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
-            exit 1
-        else
-            echo "Tests have been built."
-            echo "Create marker \"${__ManagedTestBuiltMarker}\""
-            touch $__ManagedTestBuiltMarker
-        fi
-    else
-        echo "Managed Tests had been built before."
-    fi
-
-    if [ $__BuildTestWrappers -ne -0 ]; then
-        echo "${__MsgPrefix}Creating test wrappers..."
-
-        __XUnitWrapperBuiltMarker=${__TestBinDir}/xunit_wrapper_build
-
-        if [ ! -f $__XUnitWrapperBuiltMarker ]; then
-
-            build_Tests_internal "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "-BuildWrappers -MsBuildEventLogging=\" \" " "Test Xunit Wrapper"
+            build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
 
             if [ $? -ne 0 ]; then
                 echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
                 exit 1
             else
-                echo "XUnit Wrappers have been built."
-                echo "Create marker \"${__XUnitWrapperBuiltMarker}\""
-                touch $__XUnitWrapperBuiltMarker
+                echo "Tests have been built."
+                echo "Create marker \"${__ManagedTestBuiltMarker}\""
+                touch $__ManagedTestBuiltMarker
             fi
         else
-            echo "XUnit Wrappers had been built before."
+            echo "Managed Tests had been built before."
         fi
-    fi
 
-    if [ -n "$__UpdateInvalidPackagesArg" ]; then
-        __up=-updateinvalidpackageversion
+        if [ $__BuildTestWrappers -ne -0 ]; then
+            echo "${__MsgPrefix}Creating test wrappers..."
+
+            __XUnitWrapperBuiltMarker=${__TestBinDir}/xunit_wrapper_build
+
+            if [ ! -f $__XUnitWrapperBuiltMarker ]; then
+
+                build_Tests_internal "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "-BuildWrappers -MsBuildEventLogging=\" \" " "Test Xunit Wrapper"
+
+                if [ $? -ne 0 ]; then
+                    echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
+                    exit 1
+                else
+                    echo "XUnit Wrappers have been built."
+                    echo "Create marker \"${__XUnitWrapperBuiltMarker}\""
+                    touch $__XUnitWrapperBuiltMarker
+                fi
+            else
+                echo "XUnit Wrappers had been built before."
+            fi
+        fi
+
+        if [ -n "$__UpdateInvalidPackagesArg" ]; then
+            __up=-updateinvalidpackageversion
+        fi
     fi
 
     echo "${__MsgPrefix}Creating test overlay..."
@@ -218,10 +221,6 @@ build_Tests()
 
     # Make sure to copy over the pulled down packages
     cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
-
-    if [ -n "$__GenarateLayoutOnly" ]; then
-        exit 0
-    fi
 
     # Work hardcoded path around
     if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets" ]; then
