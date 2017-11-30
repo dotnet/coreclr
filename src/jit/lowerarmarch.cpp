@@ -785,13 +785,16 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
 
         case SIMDIntrinsicGetItem:
         {
-            // TODO-ARM64-CQ Support containing op1 memory ops
 
             // This implements get_Item method. The sources are:
             //  - the source SIMD struct
             //  - index (which element to get)
             // The result is baseType of SIMD struct.
+            op1 = simdNode->gtOp.gtOp1;
             op2 = simdNode->gtOp.gtOp2;
+
+            // TODO-ARM64-CQ Support containing op1 memory ops
+            op1->ClearContained();
 
             // If the index is a constant, mark it as contained.
             if (op2->IsCnsIntOrI())
