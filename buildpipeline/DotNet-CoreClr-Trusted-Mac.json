@@ -35,7 +35,7 @@
       },
       "inputs": {
         "filename": "$(Agent.BuildDirectory)/s/sync.sh",
-        "arguments": "",
+        "arguments": "-p -- /p:DotNetRestoreSources=$(PB_RestoreSource)",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -242,6 +242,10 @@
     },
     "Label": {
       "value": "$(Build.BuildNumber)"
+    },
+    "PB_RestoreSource": {
+      "value": "",
+      "allowOverride": true
     }
   },
   "demands": [
