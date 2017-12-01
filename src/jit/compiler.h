@@ -2440,11 +2440,10 @@ public:
 #ifdef LEGACY_BACKEND
     // variable interference graph
     VARSET_TP lvaVarIntf[lclMAX_TRACKED];
-#endif
 
     // variable preference graph
     VARSET_TP lvaVarPref[lclMAX_TRACKED];
-
+#endif
 #if DOUBLE_ALIGN
 #ifdef DEBUG
     // # of procs compiled a with double-aligned stack
