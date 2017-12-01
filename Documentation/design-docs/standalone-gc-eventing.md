@@ -33,57 +33,65 @@ without using a standalone GC.
 
 ## Querying Whether Events Are Enabled
 
-Since it is not acceptable to perform an indirection when querying whether or not a requested event
-is enabled, it follows that the GC must maintain some state about what events are currently enabled.
-Events are enabled through *keywords* an *levels*; a particular event is enabled if both the event's
-keyword and thee event's level have been enabled on the provider to which the event belongs.
+Tt is not acceptable to perform an indirection when querying whether or not a requested event
+is enabled. Therefore, it follows that the GC must maintain some state about what events are currently 
+enabled. Events are enabled through *keywords* and *levels*; a particular event is enabled if both the 
+event's keyword and the event's level have been enabled on the provider to which the event belongs.
 
 To accomplish this, the GC will contain a class with this signature:
 
 ```c++
-
-struct GCEvent {
+// Constructed on GC startup for every event that the GC can fire.
+struct GCEvent
+{
     /* opaque, but will contain information about what event this is,
-       its keyword, and its level */
+       its keyword, its level, and a handle to the EE's representation of this event */
+    /* this structure is potentially auto-generated from an event manifest */
 };
 
-class GCEventStatus {
+class GCEventStatus
+{
 public:
     // Returns true if this event is currently enabled, false otherwise.
     static bool IsEventEnabled(const GCEvent& event);
 
-    // Enables events with the given keyword.
-    static void EnableKeyword(int keyword);
+    // Enables events with the given keyword and level.
+    static void Enable(int keyword, int level);
 
-    // Disables events the given keyword.
-    static void DisableKeyword(int keyword);
-
-    // Enables events with the given level.
-    static void EnableLevel(int level);
-
-    // Disables events the given level.
-    static void DisableLevel(int level);
+    // Disables events the given keyword and level.
+    static void Disable(int keyword, int level);
 };
 
 ```
 
 The GC will use `GCEventStatus::IsEventEnabled` to query whether or not a particular event is enabled.
 Whenever the EE observes a change in what keywords or levels are enabled, it must inform the GC of the
-change so that it can update `GCEventStatus` using `EnableKeyword`, `DisableKeyword`, `EnableLevel`, and
-`DisableLevel` to synchronize its state with the EE. Therefore, two functions are added to `IGCHeap` that
-the EE will call in order to inform the GC of changes to the event state:
+change so that it can update `GCEventStatus` using `Enable` and `Disable`. The exact mechanism by which
+the EE observes a change in the event state is described further below. ("Getting Informed of Changes to 
+Event State")
+
+When the EE *does* observe a change, it informs the GC using these two new methods on `IGCHeap`:
 
 ```c++
-
-// Enables or disables events with the given keyword.
-void IGCHeap::SetEventKeywordState(int keyword, bool enabled);
-
-// Enables or disables events with the given level.
-void IGCHeap::SetEventLevelState(int level, bool enabled);
+void IGCHeap::EnableEvents(int keyword, int level)
+void IGCHeap::DisableEvents(int keyword, int level)
 ```
 
-These interface methods in turn will call `GCEventStatus::{Enable, Disable}{Keyword, Level}` in order
-to enable or disable keywords or levels.
+
+These interface methods in turn will call `GCEventStatus::{Enable, Disable}` in order
+to enable or disable keywords or levels. The currently enabled keywords and levels are encoded as
+bit vectors so that querying whether an event is enabled is as fast as loading three globals, a pointer
+dereference, and two bit tests, e.g. (hypothetically):
+
+```c++
+uint32_t enabledLevels;
+uint32_t enabledKeywords;
+
+bool GCEventStatus::IsEventEnabled(const GCEvent& event)
+{
+    return (enabledLevels & event.level) && (enabledKeywords & event.keyword);
+}
+```
 
 ## Firing Events
 
@@ -95,8 +103,52 @@ Given that we have validated that an event is enabled (through `GCEventStatus::I
 fire the event using this new method on `IGCToCLR`:
 
 ```c++
-void IGCToCLR::FireEvent(int eventId, void* eventPayload, size_t eventPayloadSize);
+struct GCEventData
+{
+    void *DataPointer;
+    size_t Size;
+};
+
+void IGCToCLR::FireEvent(
+    /* IN */ void* eventHandle,
+    /* IN */ GCEventData** eventData,
+    /* IN */ unsigned int eventDataCount,
+    /* IN */ const GUID* pActivityId = nullptr,
+    /* IN */ const GUID* pRelatedActivityId = nullptr
+);
 ```
 
-It is up to the GC to format the event payload in such a way that the EE can decode it and forward the
-event and its payload to the underlying event pipeline.
+The four arguments of this function are:
+1. `eventHandle` - An opaque handle to the EE's representation of the event being fired.
+2. `eventData` - An array of `GCEventData` objects that indicates the payload of the event being fired.
+Each `GCEventData` is a tuple of a data pointer and size, so it can be used to describe arbitrary data.
+3. `eventDataCount` - The size of the `eventData` array.
+4. `pActivityId` and `pRelatedActivityId` - If provided, passes the activity ID and related activity ID
+verbatim to the underlying event implementation.
+
+The EE will use this information to determine 1) if this event truly is enabled and, 2) if it is,
+forwarding it to the apporopriate underlying event implementation, be it EventPipe, ETW, or LTTNG.
+
+## Getting Informed of Changes to Event State
+
+There are three mechanisms by which CoreCLR is able to log events: EventPipe, ETW, and LTTNG. When it
+comes to changing the state of events, EventPipe and ETW both allow users to attach callbacks that are
+invoked whenever events are enabled or disabled. For these two mechanisms, it is sufficient to use
+this callback mechanism to call `IGCHeap::{Enable/Disable}Events` from within such a callback in order
+to inform the GC of changes to tracing state.
+
+LTTNG does not have such a mechanism. In order to observe changes in the eventing state, LTTNG must be
+polled periodically. For this purpose, when tracing using LTTNG, a new thread will be spawned by the EE
+whose responsibility is to periodically poll LTTNG and invoke the GC whenever it detects changes in the
+eventing state.
+
+## Unresolved Questions
+
+In order for the GC to obtain a handle for events that it intends to fire (the first parameter of
+`IGCToCLR::FireEvent`), it must obtain these handles in some way from the EE. There is some precedent 
+for this in the way that the free object method table is obtained from the EE; in this case, the GC
+calls `IGCToCLR::GetFreeObjectMethodTable()` to obtain a pointer to the free object method table.
+Something similar could be done here, where the GC could ask the EE on startup for a list of event
+handles that it will then use to populate the eventing data structures defined by this document.
+
+Is this a reasonable approach, or can we do better?
