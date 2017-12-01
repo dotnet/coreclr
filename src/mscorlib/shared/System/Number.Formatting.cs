@@ -9,9 +9,242 @@ using System.Text;
 
 namespace System
 {
+    // The Format methods provided by the numeric classes convert
+    // the numeric value to a string using the format string given by the
+    // format parameter. If the format parameter is null or
+    // an empty string, the number is formatted as if the string "G" (general
+    // format) was specified. The info parameter specifies the
+    // NumberFormatInfo instance to use when formatting the number. If the
+    // info parameter is null or omitted, the numeric formatting information
+    // is obtained from the current culture. The NumberFormatInfo supplies
+    // such information as the characters to use for decimal and thousand
+    // separators, and the spelling and placement of currency symbols in monetary
+    // values.
+    //
+    // Format strings fall into two categories: Standard format strings and
+    // user-defined format strings. A format string consisting of a single
+    // alphabetic character (A-Z or a-z), optionally followed by a sequence of
+    // digits (0-9), is a standard format string. All other format strings are
+    // used-defined format strings.
+    //
+    // A standard format string takes the form Axx, where A is an
+    // alphabetic character called the format specifier and xx is a
+    // sequence of digits called the precision specifier. The format
+    // specifier controls the type of formatting applied to the number and the
+    // precision specifier controls the number of significant digits or decimal
+    // places of the formatting operation. The following table describes the
+    // supported standard formats.
+    //
+    // C c - Currency format. The number is
+    // converted to a string that represents a currency amount. The conversion is
+    // controlled by the currency format information of the NumberFormatInfo
+    // used to format the number. The precision specifier indicates the desired
+    // number of decimal places. If the precision specifier is omitted, the default
+    // currency precision given by the NumberFormatInfo is used.
+    //
+    // D d - Decimal format. This format is
+    // supported for integral types only. The number is converted to a string of
+    // decimal digits, prefixed by a minus sign if the number is negative. The
+    // precision specifier indicates the minimum number of digits desired in the
+    // resulting string. If required, the number will be left-padded with zeros to
+    // produce the number of digits given by the precision specifier.
+    //
+    // E e Engineering (scientific) format.
+    // The number is converted to a string of the form
+    // "-d.ddd...E+ddd" or "-d.ddd...e+ddd", where each
+    // 'd' indicates a digit (0-9). The string starts with a minus sign if the
+    // number is negative, and one digit always precedes the decimal point. The
+    // precision specifier indicates the desired number of digits after the decimal
+    // point. If the precision specifier is omitted, a default of 6 digits after
+    // the decimal point is used. The format specifier indicates whether to prefix
+    // the exponent with an 'E' or an 'e'. The exponent is always consists of a
+    // plus or minus sign and three digits.
+    //
+    // F f Fixed point format. The number is
+    // converted to a string of the form "-ddd.ddd....", where each
+    // 'd' indicates a digit (0-9). The string starts with a minus sign if the
+    // number is negative. The precision specifier indicates the desired number of
+    // decimal places. If the precision specifier is omitted, the default numeric
+    // precision given by the NumberFormatInfo is used.
+    //
+    // G g - General format. The number is
+    // converted to the shortest possible decimal representation using fixed point
+    // or scientific format. The precision specifier determines the number of
+    // significant digits in the resulting string. If the precision specifier is
+    // omitted, the number of significant digits is determined by the type of the
+    // number being converted (10 for int, 19 for long, 7 for
+    // float, 15 for double, 19 for Currency, and 29 for
+    // Decimal). Trailing zeros after the decimal point are removed, and the
+    // resulting string contains a decimal point only if required. The resulting
+    // string uses fixed point format if the exponent of the number is less than
+    // the number of significant digits and greater than or equal to -4. Otherwise,
+    // the resulting string uses scientific format, and the case of the format
+    // specifier controls whether the exponent is prefixed with an 'E' or an 'e'.
+    //
+    // N n Number format. The number is
+    // converted to a string of the form "-d,ddd,ddd.ddd....", where
+    // each 'd' indicates a digit (0-9). The string starts with a minus sign if the
+    // number is negative. Thousand separators are inserted between each group of
+    // three digits to the left of the decimal point. The precision specifier
+    // indicates the desired number of decimal places. If the precision specifier
+    // is omitted, the default numeric precision given by the
+    // NumberFormatInfo is used.
+    //
+    // X x - Hexadecimal format. This format is
+    // supported for integral types only. The number is converted to a string of
+    // hexadecimal digits. The format specifier indicates whether to use upper or
+    // lower case characters for the hexadecimal digits above 9 ('X' for 'ABCDEF',
+    // and 'x' for 'abcdef'). The precision specifier indicates the minimum number
+    // of digits desired in the resulting string. If required, the number will be
+    // left-padded with zeros to produce the number of digits given by the
+    // precision specifier.
+    //
+    // Some examples of standard format strings and their results are shown in the
+    // table below. (The examples all assume a default NumberFormatInfo.)
+    //
+    // Value        Format  Result
+    // 12345.6789   C       $12,345.68
+    // -12345.6789  C       ($12,345.68)
+    // 12345        D       12345
+    // 12345        D8      00012345
+    // 12345.6789   E       1.234568E+004
+    // 12345.6789   E10     1.2345678900E+004
+    // 12345.6789   e4      1.2346e+004
+    // 12345.6789   F       12345.68
+    // 12345.6789   F0      12346
+    // 12345.6789   F6      12345.678900
+    // 12345.6789   G       12345.6789
+    // 12345.6789   G7      12345.68
+    // 123456789    G7      1.234568E8
+    // 12345.6789   N       12,345.68
+    // 123456789    N4      123,456,789.0000
+    // 0x2c45e      x       2c45e
+    // 0x2c45e      X       2C45E
+    // 0x2c45e      X8      0002C45E
+    //
+    // Format strings that do not start with an alphabetic character, or that start
+    // with an alphabetic character followed by a non-digit, are called
+    // user-defined format strings. The following table describes the formatting
+    // characters that are supported in user defined format strings.
+    //
+    // 
+    // 0 - Digit placeholder. If the value being
+    // formatted has a digit in the position where the '0' appears in the format
+    // string, then that digit is copied to the output string. Otherwise, a '0' is
+    // stored in that position in the output string. The position of the leftmost
+    // '0' before the decimal point and the rightmost '0' after the decimal point
+    // determines the range of digits that are always present in the output
+    // string.
+    //
+    // # - Digit placeholder. If the value being
+    // formatted has a digit in the position where the '#' appears in the format
+    // string, then that digit is copied to the output string. Otherwise, nothing
+    // is stored in that position in the output string.
+    //
+    // . - Decimal point. The first '.' character
+    // in the format string determines the location of the decimal separator in the
+    // formatted value; any additional '.' characters are ignored. The actual
+    // character used as a the decimal separator in the output string is given by
+    // the NumberFormatInfo used to format the number.
+    //
+    // , - Thousand separator and number scaling.
+    // The ',' character serves two purposes. First, if the format string contains
+    // a ',' character between two digit placeholders (0 or #) and to the left of
+    // the decimal point if one is present, then the output will have thousand
+    // separators inserted between each group of three digits to the left of the
+    // decimal separator. The actual character used as a the decimal separator in
+    // the output string is given by the NumberFormatInfo used to format the
+    // number. Second, if the format string contains one or more ',' characters
+    // immediately to the left of the decimal point, or after the last digit
+    // placeholder if there is no decimal point, then the number will be divided by
+    // 1000 times the number of ',' characters before it is formatted. For example,
+    // the format string '0,,' will represent 100 million as just 100. Use of the
+    // ',' character to indicate scaling does not also cause the formatted number
+    // to have thousand separators. Thus, to scale a number by 1 million and insert
+    // thousand separators you would use the format string '#,##0,,'.
+    //
+    // % - Percentage placeholder. The presence of
+    // a '%' character in the format string causes the number to be multiplied by
+    // 100 before it is formatted. The '%' character itself is inserted in the
+    // output string where it appears in the format string.
+    //
+    // E+ E- e+ e-   - Scientific notation.
+    // If any of the strings 'E+', 'E-', 'e+', or 'e-' are present in the format
+    // string and are immediately followed by at least one '0' character, then the
+    // number is formatted using scientific notation with an 'E' or 'e' inserted
+    // between the number and the exponent. The number of '0' characters following
+    // the scientific notation indicator determines the minimum number of digits to
+    // output for the exponent. The 'E+' and 'e+' formats indicate that a sign
+    // character (plus or minus) should always precede the exponent. The 'E-' and
+    // 'e-' formats indicate that a sign character should only precede negative
+    // exponents.
+    //
+    // \ - Literal character. A backslash character
+    // causes the next character in the format string to be copied to the output
+    // string as-is. The backslash itself isn't copied, so to place a backslash
+    // character in the output string, use two backslashes (\\) in the format
+    // string.
+    //
+    // 'ABC' "ABC" - Literal string. Characters
+    // enclosed in single or double quotation marks are copied to the output string
+    // as-is and do not affect formatting.
+    //
+    // ; - Section separator. The ';' character is
+    // used to separate sections for positive, negative, and zero numbers in the
+    // format string.
+    //
+    // Other - All other characters are copied to
+    // the output string in the position they appear.
+    //
+    // For fixed point formats (formats not containing an 'E+', 'E-', 'e+', or
+    // 'e-'), the number is rounded to as many decimal places as there are digit
+    // placeholders to the right of the decimal point. If the format string does
+    // not contain a decimal point, the number is rounded to the nearest
+    // integer. If the number has more digits than there are digit placeholders to
+    // the left of the decimal point, the extra digits are copied to the output
+    // string immediately before the first digit placeholder.
+    //
+    // For scientific formats, the number is rounded to as many significant digits
+    // as there are digit placeholders in the format string.
+    //
+    // To allow for different formatting of positive, negative, and zero values, a
+    // user-defined format string may contain up to three sections separated by
+    // semicolons. The results of having one, two, or three sections in the format
+    // string are described in the table below.
+    //
+    // Sections:
+    //
+    // One - The format string applies to all values.
+    //
+    // Two - The first section applies to positive values
+    // and zeros, and the second section applies to negative values. If the number
+    // to be formatted is negative, but becomes zero after rounding according to
+    // the format in the second section, then the resulting zero is formatted
+    // according to the first section.
+    //
+    // Three - The first section applies to positive
+    // values, the second section applies to negative values, and the third section
+    // applies to zeros. The second section may be left empty (by having no
+    // characters between the semicolons), in which case the first section applies
+    // to all non-zero values. If the number to be formatted is non-zero, but
+    // becomes zero after rounding according to the format in the first or second
+    // section, then the resulting zero is formatted according to the third
+    // section.
+    //
+    // For both standard and user-defined formatting operations on values of type
+    // float and double, if the value being formatted is a NaN (Not
+    // a Number) or a positive or negative infinity, then regardless of the format
+    // string, the resulting string is given by the NaNSymbol,
+    // PositiveInfinitySymbol, or NegativeInfinitySymbol property of
+    // the NumberFormatInfo used to format the number.
+
     internal static partial class Number
     {
         internal const int DecimalPrecision = 29; // Decimal.DecCalc also uses this value
+        private const int FloatPrecision = 7;
+        private const int DoublePrecision = 15;
+        private const int ScaleNAN = unchecked((int)0x80000000);
+        private const int ScaleINF = 0x7FFFFFFF;
         private const int MaxUInt32HexDigits = 8;
         private const int MaxUInt32DecDigits = 10;
         private const int MaxUInt64DecDigits = 20;
@@ -50,7 +283,7 @@ namespace System
             "(#)", "-#", "- #", "#-", "# -",
         };
 
-        public static string FormatDecimal(decimal value, string format, NumberFormatInfo info)
+        public static string FormatDecimal(decimal value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
 
@@ -73,10 +306,10 @@ namespace System
                 NumberToStringFormat(ref sb, ref number, format, info);
             }
 
-            return sb.GetString();
+            return sb.ToString();
         }
 
-        public static bool TryFormatDecimal(decimal value, string format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
+        public static bool TryFormatDecimal(decimal value, ReadOnlySpan<char> format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
 
@@ -102,9 +335,6 @@ namespace System
             return sb.TryCopyTo(destination, out charsWritten);
         }
 
-#if PROJECTN
-        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoOptimization)]
-#endif
         private static unsafe void DecimalToNumber(decimal value, ref NumberBuffer number)
         {
             decimal d = value;
@@ -131,10 +361,228 @@ namespace System
             *dst = '\0';
         }
 
-        public static string FormatInt32(int value, string format, NumberFormatInfo info)
+        public static string FormatDouble(double value, string format, NumberFormatInfo info)
         {
-            int digits;
-            char fmt = ParseFormatSpecifier(format, out digits);
+            Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
+            var sb = new ValueStringBuilder(stackBuffer);
+            return FormatDouble(ref sb, value, format, info) ?? sb.ToString();
+        }
+
+        public static bool TryFormatDouble(double value, ReadOnlySpan<char> format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
+        {
+            Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
+            var sb = new ValueStringBuilder(stackBuffer);
+            string s = FormatDouble(ref sb, value, format, info);
+            return s != null ?
+                TryCopyTo(s, destination, out charsWritten) :
+                sb.TryCopyTo(destination, out charsWritten);
+        }
+
+        /// <summary>Formats the specified value according to the specified format and info.</summary>
+        /// <returns>
+        /// Non-null if an existing string can be returned, in which case the builder will be unmodified.
+        /// Null if no existing string was returned, in which case the formatted output is in the builder.
+        /// </returns>
+        private static string FormatDouble(ref ValueStringBuilder sb, double value, ReadOnlySpan<char> format, NumberFormatInfo info)
+        {
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            int precision = DoublePrecision;
+            NumberBuffer number = default;
+
+            switch (fmt)
+            {
+                case 'R':
+                case 'r':
+                    {
+                        // In order to give numbers that are both friendly to display and round-trippable, we parse the
+                        // number using 15 digits and then determine if it round trips to the same value. If it does, we
+                        // convert that NUMBER to a string, otherwise we reparse using 17 digits and display that.
+                        DoubleToNumber(value, DoublePrecision, ref number);
+                        if (number.scale == ScaleNAN)
+                        {
+                            return info.NaNSymbol;
+                        }
+                        else if (number.scale == ScaleINF)
+                        {
+                            return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                        }
+
+                        if (NumberToDouble(ref number) == value)
+                        {
+                            NumberToString(ref sb, ref number, 'G', DoublePrecision, info, isDecimal: false);
+                        }
+                        else
+                        {
+                            DoubleToNumber(value, 17, ref number);
+                            NumberToString(ref sb, ref number, 'G', 17, info, isDecimal: false);
+                        }
+
+                        return null;
+                    }
+
+                case 'E':
+                case 'e':
+                    // Round values less than E14 to 15 digits
+                    if (digits > 14)
+                    {
+                        precision = 17;
+                    }
+                    break;
+
+                case 'G':
+                case 'g':
+                    // Round values less than G15 to 15 digits. G16 and G17 will not be touched.
+                    if (digits > 15)
+                    {
+                        precision = 17;
+                    }
+                    break;
+            }
+
+            DoubleToNumber(value, precision, ref number);
+            if (number.scale == ScaleNAN)
+            {
+                return info.NaNSymbol;
+            }
+            else if (number.scale == ScaleINF)
+            {
+                return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+            }
+
+            if (fmt != 0)
+            {
+                NumberToString(ref sb, ref number, fmt, digits, info, isDecimal: false);
+            }
+            else
+            {
+                NumberToStringFormat(ref sb, ref number, format, info);
+            }
+
+            return null;
+        }
+
+        public static string FormatSingle(float value, string format, NumberFormatInfo info)
+        {
+            Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
+            var sb = new ValueStringBuilder(stackBuffer);
+            return FormatSingle(ref sb, value, format, info) ?? sb.ToString();
+        }
+
+        public static bool TryFormatSingle(float value, ReadOnlySpan<char> format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
+        {
+            Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
+            var sb = new ValueStringBuilder(stackBuffer);
+            string s = FormatSingle(ref sb, value, format, info);
+            return s != null ?
+                TryCopyTo(s, destination, out charsWritten) :
+                sb.TryCopyTo(destination, out charsWritten);
+        }
+
+        /// <summary>Formats the specified value according to the specified format and info.</summary>
+        /// <returns>
+        /// Non-null if an existing string can be returned, in which case the builder will be unmodified.
+        /// Null if no existing string was returned, in which case the formatted output is in the builder.
+        /// </returns>
+        private static string FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
+        {
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            int precision = FloatPrecision;
+            NumberBuffer number = default;
+
+            switch (fmt)
+            {
+                case 'R':
+                case 'r':
+                    {
+                        // In order to give numbers that are both friendly to display and round-trippable, we parse the
+                        // number using 7 digits and then determine if it round trips to the same value. If it does, we
+                        // convert that NUMBER to a string, otherwise we reparse using 9 digits and display that.
+                        DoubleToNumber(value, FloatPrecision, ref number);
+                        if (number.scale == ScaleNAN)
+                        {
+                            return info.NaNSymbol;
+                        }
+                        else if (number.scale == ScaleINF)
+                        {
+                            return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+                        }
+
+                        if ((float)NumberToDouble(ref number) == value)
+                        {
+                            NumberToString(ref sb, ref number, 'G', FloatPrecision, info, isDecimal: false);
+                        }
+                        else
+                        {
+                            DoubleToNumber(value, 9, ref number);
+                            NumberToString(ref sb, ref number, 'G', 9, info, isDecimal: false);
+                        }
+                        return null;
+                    }
+
+                case 'E':
+                case 'e':
+                    // Round values less than E14 to 15 digits.
+                    if (digits > 6)
+                    {
+                        precision = 9;
+                    }
+                    break;
+
+                case 'G':
+                case 'g':
+                    // Round values less than G15 to 15 digits. G16 and G17 will not be touched.
+                    if (digits > 7)
+                    {
+                        precision = 9;
+                    }
+                    break;
+            }
+
+            DoubleToNumber(value, precision, ref number);
+            if (number.scale == ScaleNAN)
+            {
+                return info.NaNSymbol;
+            }
+            else if (number.scale == ScaleINF)
+            {
+                return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
+            }
+
+            if (fmt != 0)
+            {
+                NumberToString(ref sb, ref number, fmt, digits, info, false);
+            }
+            else
+            {
+                NumberToStringFormat(ref sb, ref number, format, info);
+            }
+            return null;
+        }
+
+        private static bool TryCopyTo(string source, Span<char> destination, out int charsWritten)
+        {
+            Debug.Assert(source != null);
+
+            if (source.AsReadOnlySpan().TryCopyTo(destination))
+            {
+                charsWritten = source.Length;
+                return true;
+            }
+
+            charsWritten = 0;
+            return false;
+        }
+
+        public static string FormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider provider)
+        {
+            // Fast path for default format with a non-negative value
+            if (value >= 0 && format.Length == 0)
+            {
+                return UInt32ToDecStr((uint)value, digits: -1);
+            }
+
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
 
             char fmtUpper = (char)(fmt & 0xFFDF); // ensure fmt is upper-cased for purposes of comparison
             if ((fmtUpper == 'G' && digits < 1) || fmtUpper == 'D')
@@ -167,14 +615,20 @@ namespace System
                 {
                     NumberToStringFormat(ref sb, ref number, format, info);
                 }
-                return sb.GetString();
+                return sb.ToString();
             }
         }
 
-        public static bool TryFormatInt32(int value, string format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
+        public static bool TryFormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
         {
-            int digits;
-            char fmt = ParseFormatSpecifier(format, out digits);
+            // Fast path for default format with a non-negative value
+            if (value >= 0 && format.Length == 0)
+            {
+                return TryUInt32ToDecStr((uint)value, digits: -1, destination, out charsWritten);
+            }
+
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
 
             char fmtUpper = (char)(fmt & 0xFFDF); // ensure fmt is upper-cased for purposes of comparison
             if ((fmtUpper == 'G' && digits < 1) || fmtUpper == 'D')
@@ -211,10 +665,16 @@ namespace System
             }
         }
 
-        public static string FormatUInt32(uint value, string format, NumberFormatInfo info)
+        public static string FormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider provider)
         {
-            int digits;
-            char fmt = ParseFormatSpecifier(format, out digits);
+            // Fast path for default format
+            if (format.Length == 0)
+            {
+                return UInt32ToDecStr(value, digits: -1);
+            }
+
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
 
             char fmtUpper = (char)(fmt & 0xFFDF); // ensure fmt is upper-cased for purposes of comparison
             if ((fmtUpper == 'G' && digits < 1) || fmtUpper == 'D')
@@ -245,14 +705,20 @@ namespace System
                 {
                     NumberToStringFormat(ref sb, ref number, format, info);
                 }
-                return sb.GetString();
+                return sb.ToString();
             }
         }
 
-        public static bool TryFormatUInt32(uint value, string format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
+        public static bool TryFormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
         {
-            int digits;
-            char fmt = ParseFormatSpecifier(format, out digits);
+            // Fast path for default format
+            if (format.Length == 0)
+            {
+                return TryUInt32ToDecStr(value, digits: -1, destination, out charsWritten);
+            }
+
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
 
             char fmtUpper = (char)(fmt & 0xFFDF); // ensure fmt is upper-cased for purposes of comparison
             if ((fmtUpper == 'G' && digits < 1) || fmtUpper == 'D')
@@ -287,10 +753,16 @@ namespace System
             }
         }
 
-        public static string FormatInt64(long value, string format, NumberFormatInfo info)
+        public static string FormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider provider)
         {
-            int digits;
-            char fmt = ParseFormatSpecifier(format, out digits);
+            // Fast path for default format with a non-negative value
+            if (value >= 0 && format.Length == 0)
+            {
+                return UInt64ToDecStr((ulong)value, digits: -1);
+            }
+
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
 
             char fmtUpper = (char)(fmt & 0xFFDF); // ensure fmt is upper-cased for purposes of comparison
             if ((fmtUpper == 'G' && digits < 1) || fmtUpper == 'D')
@@ -324,14 +796,20 @@ namespace System
                 {
                     NumberToStringFormat(ref sb, ref number, format, info);
                 }
-                return sb.GetString();
+                return sb.ToString();
             }
         }
 
-        public static bool TryFormatInt64(long value, string format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
+        public static bool TryFormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
         {
-            int digits;
-            char fmt = ParseFormatSpecifier(format, out digits);
+            // Fast path for default format with a non-negative value
+            if (value >= 0 && format.Length == 0)
+            {
+                return TryUInt64ToDecStr((ulong)value, digits: -1, destination, out charsWritten);
+            }
+
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
 
             char fmtUpper = (char)(fmt & 0xFFDF); // ensure fmt is upper-cased for purposes of comparison
             if ((fmtUpper == 'G' && digits < 1) || fmtUpper == 'D')
@@ -369,10 +847,16 @@ namespace System
             }
         }
 
-        public static string FormatUInt64(ulong value, string format, NumberFormatInfo info)
+        public static string FormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider provider)
         {
-            int digits;
-            char fmt = ParseFormatSpecifier(format, out digits);
+            // Fast path for default format
+            if (format.Length == 0)
+            {
+                return UInt64ToDecStr(value, digits: -1);
+            }
+
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
 
             char fmtUpper = (char)(fmt & 0xFFDF); // ensure fmt is upper-cased for purposes of comparison
             if ((fmtUpper == 'G' && digits < 1) || fmtUpper == 'D')
@@ -404,14 +888,20 @@ namespace System
                 {
                     NumberToStringFormat(ref sb, ref number, format, info);
                 }
-                return sb.GetString();
+                return sb.ToString();
             }
         }
 
-        public static bool TryFormatUInt64(ulong value, string format, NumberFormatInfo info, Span<char> destination, out int charsWritten)
+        public static bool TryFormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
         {
-            int digits;
-            char fmt = ParseFormatSpecifier(format, out digits);
+            // Fast path for default format
+            if (format.Length == 0)
+            {
+                return TryUInt64ToDecStr(value, digits: -1, destination, out charsWritten);
+            }
+
+            char fmt = ParseFormatSpecifier(format, out int digits);
+            NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
 
             char fmtUpper = (char)(fmt & 0xFFDF); // ensure fmt is upper-cased for purposes of comparison
             if ((fmtUpper == 'G' && digits < 1) || fmtUpper == 'D')
@@ -447,11 +937,7 @@ namespace System
             }
         }
 
-#if PROJECTN
-        [MethodImpl(MethodImplOptions.NoOptimization)]
-#else
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // called from only one location
-#endif
         private static unsafe void Int32ToNumber(int value, ref NumberBuffer number)
         {
             number.precision = Int32Precision;
@@ -555,11 +1041,7 @@ namespace System
             return buffer;
         }
 
-#if PROJECTN
-        [MethodImpl(MethodImplOptions.NoOptimization)]
-#else
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // called from only one location
-#endif
         private static unsafe void UInt32ToNumber(uint value, ref NumberBuffer number)
         {
             number.precision = UInt32Precision;
@@ -659,9 +1141,6 @@ namespace System
             }
         }
 
-#if PROJECTN
-        [MethodImpl(MethodImplOptions.NoOptimization)]
-#endif
         private static unsafe void Int64ToNumber(long input, ref NumberBuffer number)
         {
             ulong value = (ulong)input;
@@ -789,9 +1268,6 @@ namespace System
             return TryCopyTo(p, (int)(buffer + bufferLength - p), destination, out charsWritten);
         }
 
-#if PROJECTN
-        [MethodImpl(MethodImplOptions.NoOptimization)]
-#endif
         private static unsafe void UInt64ToNumber(ulong value, ref NumberBuffer number)
         {
             number.precision = UInt64Precision;
@@ -849,45 +1325,70 @@ namespace System
             return TryCopyTo(p, (int)(buffer + bufferSize - p), destination, out charsWritten);
         }
 
-        internal static unsafe char ParseFormatSpecifier(string format, out int digits)
+        internal static unsafe char ParseFormatSpecifier(ReadOnlySpan<char> format, out int digits)
         {
-            if (format != null)
+            char c = default;
+            if (format.Length > 0)
             {
-                fixed (char* pFormat = format)
+                // If the format begins with a symbol, see if it's a standard format
+                // with or without a specified number of digits.
+                c = format[0];
+                if ((uint)(c - 'A') <= 'Z' - 'A' ||
+                    (uint)(c - 'a') <= 'z' - 'a')
                 {
-                    char ch = *pFormat;
-                    if (ch != 0)
+                    // Fast path for sole symbol, e.g. "D"
+                    if (format.Length == 1)
                     {
-                        if ((uint)(ch - 'A') <= 'Z' - 'A' ||
-                            (uint)(ch - 'a') <= 'z' - 'a')
-                        {
-                            int i = 1;
-                            int n = -1;
-                            if ((uint)(pFormat[i] - '0') <= '9' - '0')
-                            {
-                                n = pFormat[i++] - '0';
-                                while ((uint)(pFormat[i] - '0') <= '9' - '0')
-                                {
-                                    n = (n * 10) + pFormat[i++] - '0';
-                                    if (n >= 10)
-                                        break;
-                                }
-                            }
-                            if (pFormat[i] == 0)
-                            {
-                                digits = n;
-                                return ch;
-                            }
-                        }
-
                         digits = -1;
-                        return '\0';
+                        return c;
+                    }
+
+                    if (format.Length == 2)
+                    {
+                        // Fast path for symbol and single digit, e.g. "X4"
+                        int d = format[1] - '0';
+                        if ((uint)d < 10)
+                        {
+                            digits = d;
+                            return c;
+                        }
+                    }
+                    else if (format.Length == 3)
+                    {
+                        // Fast path for symbol and double digit, e.g. "F12"
+                        int d1 = format[1] - '0', d2 = format[2] - '0';
+                        if ((uint)d1 < 10 && (uint)d2 < 10)
+                        {
+                            digits = d1 * 10 + d2;
+                            return c;
+                        }
+                    }
+
+                    // Fallback for symbol and any length digits.  The digits value must be >= 0 && <= 99,
+                    // but it can begin with any number of 0s, and thus we may need to check more than two
+                    // digits.  Further, for compat, we need to stop when we hit a null char.
+                    int n = 0;
+                    int i = 1;
+                    while (i < format.Length && (((uint)format[i] - '0') < 10) && n < 10)
+                    {
+                        n = (n * 10) + format[i++] - '0';
+                    }
+
+                    // If we're at the end of the digits rather than having stopped because we hit something
+                    // other than a digit or overflowed, return the standard format info.
+                    if (i == format.Length || format[i] == '\0')
+                    {
+                        digits = n;
+                        return c;
                     }
                 }
             }
 
+            // Default empty format to be "G"; custom format is signified with '\0'.
             digits = -1;
-            return 'G';
+            return format.Length == 0 || c == '\0' ? // For compat, treat '\0' as the end of the specifier, even if the specifier extends beyond it.
+                'G' : 
+                '\0';
         }
 
         internal static unsafe void NumberToString(ref ValueStringBuilder sb, ref NumberBuffer number, char format, int nMaxDigits, NumberFormatInfo info, bool isDecimal)
@@ -1024,7 +1525,7 @@ namespace System
             }
         }
 
-        internal static unsafe void NumberToStringFormat(ref ValueStringBuilder sb, ref NumberBuffer number, string format, NumberFormatInfo info)
+        internal static unsafe void NumberToStringFormat(ref ValueStringBuilder sb, ref NumberBuffer number, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             int digitCount;
             int decimalPos;
@@ -1057,9 +1558,9 @@ namespace System
                 scaleAdjust = 0;
                 src = section;
 
-                fixed (char* pFormat = format)
+                fixed (char* pFormat = &format.DangerousGetPinnableReference())
                 {
-                    while ((ch = pFormat[src++]) != 0 && ch != ';')
+                    while (src < format.Length && (ch = pFormat[src++]) != 0 && ch != ';')
                     {
                         switch (ch)
                         {
@@ -1100,19 +1601,19 @@ namespace System
                                 break;
                             case '\'':
                             case '"':
-                                while (pFormat[src] != 0 && pFormat[src++] != ch)
+                                while (src < format.Length && pFormat[src] != 0 && pFormat[src++] != ch)
                                     ;
                                 break;
                             case '\\':
-                                if (pFormat[src] != 0)
+                                if (src < format.Length && pFormat[src] != 0)
                                     src++;
                                 break;
                             case 'E':
                             case 'e':
-                                if (pFormat[src] == '0' || ((pFormat[src] == '+' || pFormat[src] == '-') && pFormat[src + 1] == '0'))
+                                if ((src < format.Length && pFormat[src] == '0') ||
+                                    (src + 1 < format.Length && (pFormat[src] == '+' || pFormat[src] == '-') && pFormat[src + 1] == '0'))
                                 {
-                                    while (pFormat[++src] == '0')
-                                        ;
+                                    while (++src < format.Length && pFormat[src] == '0');
                                     scientific = true;
                                 }
                                 break;
@@ -1227,11 +1728,11 @@ namespace System
 
             bool decimalWritten = false;
 
-            fixed (char* pFormat = format)
+            fixed (char* pFormat = &format.DangerousGetPinnableReference())
             {
                 char* cur = dig;
 
-                while ((ch = pFormat[src++]) != 0 && ch != ';')
+                while (src < format.Length && (ch = pFormat[src++]) != 0 && ch != ';')
                 {
                     if (adjust > 0)
                     {
@@ -1315,13 +1816,13 @@ namespace System
                             break;
                         case '\'':
                         case '"':
-                            while (pFormat[src] != 0 && pFormat[src] != ch)
+                            while (src < format.Length && pFormat[src] != 0 && pFormat[src] != ch)
                                 sb.Append(pFormat[src++]);
-                            if (pFormat[src] != 0)
+                            if (src < format.Length && pFormat[src] != 0)
                                 src++;
                             break;
                         case '\\':
-                            if (pFormat[src] != 0)
+                            if (src < format.Length && pFormat[src] != 0)
                                 sb.Append(pFormat[src++]);
                             break;
                         case 'E':
@@ -1331,17 +1832,17 @@ namespace System
                                 int i = 0;
                                 if (scientific)
                                 {
-                                    if (pFormat[src] == '0')
+                                    if (src < format.Length && pFormat[src] == '0')
                                     {
                                         // Handles E0, which should format the same as E-0
                                         i++;
                                     }
-                                    else if (pFormat[src] == '+' && pFormat[src + 1] == '0')
+                                    else if (src+1 < format.Length && pFormat[src] == '+' && pFormat[src + 1] == '0')
                                     {
                                         // Handles E+0
                                         positiveSign = true;
                                     }
-                                    else if (pFormat[src] == '-' && pFormat[src + 1] == '0')
+                                    else if (src+1 < format.Length && pFormat[src] == '-' && pFormat[src + 1] == '0')
                                     {
                                         // Handles E-0
                                         // Do nothing, this is just a place holder s.t. we don't break out of the loop.
@@ -1352,7 +1853,7 @@ namespace System
                                         break;
                                     }
 
-                                    while (pFormat[++src] == '0')
+                                    while (++src < format.Length && pFormat[src] == '0')
                                         i++;
                                     if (i > 10)
                                         i = 10;
@@ -1364,10 +1865,13 @@ namespace System
                                 else
                                 {
                                     sb.Append(ch); // Copy E or e to output
-                                    if (pFormat[src] == '+' || pFormat[src] == '-')
-                                        sb.Append(pFormat[src++]);
-                                    while (pFormat[src] == '0')
-                                        sb.Append(pFormat[src++]);
+                                    if (src < format.Length)
+                                    {
+                                        if (pFormat[src] == '+' || pFormat[src] == '-')
+                                            sb.Append(pFormat[src++]);
+                                        while (src < format.Length && pFormat[src] == '0')
+                                            sb.Append(pFormat[src++]);
+                                    }
                                 }
                                 break;
                             }
@@ -1676,7 +2180,7 @@ namespace System
             dig[i] = '\0';
         }
 
-        private static unsafe int FindSection(string format, int section)
+        private static unsafe int FindSection(ReadOnlySpan<char> format, int section)
         {
             int src;
             char ch;
@@ -1684,26 +2188,31 @@ namespace System
             if (section == 0)
                 return 0;
 
-            fixed (char* pFormat = format)
+            fixed (char* pFormat = &format.DangerousGetPinnableReference())
             {
                 src = 0;
                 for (;;)
                 {
+                    if (src >= format.Length)
+                    {
+                        return 0;
+                    }
+
                     switch (ch = pFormat[src++])
                     {
                         case '\'':
                         case '"':
-                            while (pFormat[src] != 0 && pFormat[src++] != ch)
+                            while (src < format.Length && pFormat[src] != 0 && pFormat[src++] != ch)
                                 ;
                             break;
                         case '\\':
-                            if (pFormat[src] != 0)
+                            if (src < format.Length && pFormat[src] != 0)
                                 src++;
                             break;
                         case ';':
                             if (--section != 0)
                                 break;
-                            if (pFormat[src] != 0 && pFormat[src] != ';')
+                            if (src < format.Length && pFormat[src] != 0 && pFormat[src] != ';')
                                 return src;
                             goto case '\0';
                         case '\0':

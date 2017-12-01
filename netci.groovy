@@ -172,8 +172,8 @@ class Constants {
                // 'r2r_jitforcerelocs'
                // 'r2r_gcstress15'
                'minopts':                                ["MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
-               // 'tieredcompilation'
-               // 'forcerelocs'
+               'tieredcompilation':                      [],
+               'forcerelocs':                            [],
                'jitstress1':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstress2':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs1':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -194,7 +194,7 @@ class Constants {
                'jitstress2_jitstressregs0x1000':         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'tailcallstress':                         ["TAILCALLSTRESS_FAIL", "TAILCALLSTRESS_EXCLUDE"],
                // 'jitsse2only'                          // Only relevant to xarch
-               // 'jitnosimd'
+               'jitnosimd':                              [],    // Only interesting on platforms where SIMD support exists.
                // 'corefx_baseline'
                // 'corefx_minopts'
                // 'corefx_tieredcompilation'
@@ -211,19 +211,19 @@ class Constants {
                'gcstress0x3':                            ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
                'gcstress0xc':                            ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
                'zapdisable':                             ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
-               // 'heapverify1'
-               // 'gcstress0xc_zapdisable'
-               // 'gcstress0xc_zapdisable_jitstress2'
-               // 'gcstress0xc_zapdisable_heapverify1'
+               'heapverify1':                            [],
+               'gcstress0xc_zapdisable':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
+               'gcstress0xc_zapdisable_jitstress2':      ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'gcstress0xc_zapdisable_heapverify1':     ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
                'gcstress0xc_jitstress1':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'gcstress0xc_jitstress2':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               // 'gcstress0xc_minopts_heapverify1'
+               'gcstress0xc_minopts_heapverify1':        ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
 
                //
                // NOTE: the following scenarios are not defined in the 'allScenarios' list! Is this a bug?
                //
 
-               'minopts_zapdisable':                     ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "TAILCALLSTRESS_FAIL", "TAILCALLSTRESS_EXCLUDE"],
+               'minopts_zapdisable':                     ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
                'gcstress0x3_jitstress1':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'gcstress0x3_jitstress2':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'gcstress0x3_jitstressregs1':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -505,6 +505,52 @@ def static appendStressModeScriptStep(def os, def appendScript, def stepScriptLo
     return stepScript
 }
 
+def static isNeedDocker(def architecture, def os, def isBuild) {
+    if (isBuild) {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return true
+        }
+        else if (architecture == 'arm') {
+            if (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen') {
+                return true
+            }
+        }
+    }
+    else {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return true
+        }
+    }
+    return false
+}
+
+def static getDockerImageName(def architecture, def os, def isBuild) {
+    // We must change some docker private images to official later
+    if (isBuild) {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return "hseok82/dotnet-buildtools-prereqs:ubuntu-16.04-crossx86-ef0ac75-20175511035548"
+        }
+        else if (architecture == 'arm') {
+            if (os == 'Ubuntu') {
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-0cd4667-20172211042239"
+            }
+            else if (os == 'Ubuntu16.04') {
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-ef0ac75-20175511035548"
+            }
+            else if (os == 'Tizen') {
+                return "hqueue/dotnetcore:ubuntu1404_cross_prereqs_v4-tizen_rootfs"
+            }
+        }
+    }
+    else {
+        if (architecture == 'x86' && os == 'Ubuntu') {
+            return "hseok82/dotnet-buildtools-prereqs:ubuntu1604_x86_test"
+        }
+    }
+    println("Unknown architecture to use docker: ${architecture} ${os}");
+    assert false
+}
+
 // Calculates the name of the build job based on some typical parameters.
 //
 def static getJobName(def configuration, def architecture, def os, def scenario, def isBuildOnly) {
@@ -576,7 +622,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             switch (architecture) {
                 case 'x64':
                 case 'x86':
-                    if (architecture == 'x86' && os == 'Ubuntu') {
+                    if (isFlowJob && architecture == 'x86' && os == 'Ubuntu') {
                         Utilities.addPeriodicTrigger(job, '@daily')
                     }
                     else if (isFlowJob || os == 'Windows_NT' || !(os in Constants.crossList)) {
@@ -1120,6 +1166,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
                     break
                 case 'Windows_NT':
+                    // Triggers on the non-flow jobs aren't necessary here
+                    if (!isFlowJob) {
+                        break
+                    }
+
                     // Set up a private trigger
                     def contextString = "${os} ${architecture} Cross ${configuration}"
                     def triggerString = "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}"
@@ -1216,6 +1267,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
                     break
                 case 'Windows_NT':
+                    // Triggers on the non-flow jobs aren't necessary here
+                    if (!isFlowJob) {
+                        break
+                    }
+
                     assert isArmWindowsScenario(scenario)
                     switch (scenario) {
                         case 'default':
@@ -1244,6 +1300,10 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
         case 'x86': // editor brace matching: {
             assert ((os == 'Windows_NT') || ((os == 'Ubuntu') && (scenario == 'default')))
             if (os == 'Ubuntu') {
+                // Triggers on the non-flow jobs aren't necessary here
+                if (!isFlowJob) {
+                    break
+                }
                 // on-demand only for ubuntu x86
                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build",
                     "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}.*")
@@ -1643,7 +1703,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                 case 'x86':
                     if (architecture == 'x86' && os == 'Ubuntu') {
                         // build and PAL test
-                        buildCommands += "./tests/scripts/x86_ci_script.sh --buildConfig=${lowerConfiguration}"
+                        def dockerImage = getDockerImageName(architecture, os, true)
+                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code -e ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} ./build.sh ${architecture} cross ${lowerConfiguration}"
+                        dockerImage = getDockerImageName(architecture, os, false)
+                        buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code ${dockerImage} ./src/pal/tests/palsuite/runpaltests.sh /opt/code/bin/obj/${osGroup}.${architecture}.${configuration} /opt/code/bin/paltestout"
+                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                         break
                     }
@@ -1773,8 +1837,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
     return buildCommands
 }
-
-// Additional scenario which can alter behavior
 
 Constants.allScenarios.each { scenario ->
     [true, false].each { isPR ->
@@ -2005,7 +2067,7 @@ Constants.allScenarios.each { scenario ->
 
                     // Add all the standard options
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
-                    addTriggers(newJob, branch, isPR, architecture, os, configuration, scenario, false, isBuildOnly)
+                    addTriggers(newJob, branch, isPR, architecture, os, configuration, scenario, false, isBuildOnly) // isFlowJob==false
 
                     def buildCommands = calculateBuildCommands(newJob, scenario, branch, isPR, architecture, configuration, os, isBuildOnly)
                     def osGroup = getOSGroup(os)
@@ -2080,7 +2142,7 @@ Constants.allScenarios.each { scenario ->
 // Create jobs requiring flow jobs. This includes x64 non-Windows, arm64 Ubuntu, and arm/arm64/armlb Windows.
 Constants.allScenarios.each { scenario ->
     [true, false].each { isPR ->
-        ['arm', 'armlb', 'x64', 'arm64'].each { architecture ->
+        ['arm', 'armlb', 'x64', 'arm64', 'x86'].each { architecture ->
             Constants.crossList.each { os ->
                 if (architecture == 'arm64') {
                     if (os != "Ubuntu" && os != "Windows_NT") {
@@ -2088,6 +2150,11 @@ Constants.allScenarios.each { scenario ->
                     }
                 } else if (architecture == 'arm' || architecture == 'armlb') {
                     if (os != 'Windows_NT') {
+                        return
+                    }
+                }
+                else if (architecture == 'x86') {
+                    if (os != "Ubuntu") {
                         return
                     }
                 }
@@ -2108,8 +2175,15 @@ Constants.allScenarios.each { scenario ->
                         }
                     }
                     else {
+                        // Non-Windows
                         if (architecture == 'arm64') {
                             if (scenario != 'default' && scenario != 'r2r' && scenario != 'gcstress0x3' && scenario != 'gcstress0xc') {
+                                return
+                            }
+                        }
+                        else if (architecture == 'x86') {
+                            // Linux/x86 only want default test
+                            if (scenario != 'default') {
                                 return
                             }
                         }
@@ -2367,12 +2441,24 @@ Constants.allScenarios.each { scenario ->
                             // In addition, test steps are entirely different
                             // because we do not have a unified runner
                             if (windowsArmJob != true) {
-
                                 // HACK -- Arm64 does not have corefx jobs yet.
                                 // Clone corefx and build the native packages overwriting the x64 packages.
                                 if (architecture == 'arm64') {
                                     shell("cp ./bin/Product/Linux.arm64.${configuration}/corefxNative/* ./bin/CoreFxBinDir")
                                     shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
+                                }
+                                else if (architecture == 'x86') {
+                                    shell("mkdir ./bin/CoreFxNative")
+
+                                    copyArtifacts("${corefxFolder}/ubuntu16.04_x86_release") {
+                                        includePatterns('bin/build.tar.gz')
+                                        targetDirectory('bin/CoreFxNative')
+                                        buildSelector {
+                                            latestSuccessful(true)
+                                        }
+                                    }
+
+                                    shell("tar -xf ./bin/CoreFxNative/bin/build.tar.gz -C ./bin/CoreFxBinDir")
                                 }
 
                                 // Unzip the tests first.  Exit with 0
@@ -2381,6 +2467,15 @@ Constants.allScenarios.each { scenario ->
                                 shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
 
                                 // Execute the tests
+                                def runDocker = isNeedDocker(architecture, os, false)
+                                def dockerPrefix = ""
+                                def dockerCmd = ""
+                                if (runDocker) {
+                                    def dockerImage = getDockerImageName(architecture, os, false)
+                                    dockerPrefix = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} "
+                                    dockerCmd = dockerPrefix + "${dockerImage} "
+                                }
+
                                 // If we are running a stress mode, we'll set those variables first
                                 def testEnvOpt = ""
                                 if (isJitStressScenario(scenario)) {
@@ -2394,19 +2489,24 @@ Constants.allScenarios.each { scenario ->
                                     shell('./init-tools.sh')
                                 }
 
-                                shell("""./tests/runtest.sh \\
+                                shell("""${dockerCmd}./tests/runtest.sh \\
                 --testRootDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}\" \\
                 --coreOverlayDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root\" \\
-                --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests" \\
+                --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
                 --copyNativeTestBin --limitedDumpGeneration ${testEnvOpt} ${serverGCString} ${testOpts}""")
 
                                 if (isGcReliabilityFramework(scenario)) {
                                     // runtest.sh doesn't actually execute the reliability framework - do it here.
                                     if (serverGCString != '') {
-                                        shell("export COMPlus_gcServer=1")
+                                        if (runDocker) {
+                                            dockerCmd = dockerPrefix + "-e COMPlus_gcServer=1 ${dockerImage} "
+                                        }
+                                        else {
+                                            shell("export COMPlus_gcServer=1")
+                                        }
                                     }
 
-                                    shell("./tests/scripts/run-gc-reliability-framework.sh ${architecture} ${configuration}")
+                                    shell("${dockerCmd}./tests/scripts/run-gc-reliability-framework.sh ${architecture} ${configuration}")
                                 }
                             } 
 
@@ -2420,6 +2520,9 @@ Constants.allScenarios.each { scenario ->
                                 def coreRootLocation = "%WORKSPACE%\\bin\\tests\\Windows_NT.${architecture}.${configuration}\\Tests\\Core_Root"
                                 def addEnvVariable =  { variable, value -> buildCommands += "set ${variable}=${value}\r\n"}
                                 def addCommand = { cmd -> buildCommands += "${cmd}\r\n"}
+
+                                // Make sure Command Extensions are enabled. Used so %ERRORLEVEL% is available.
+                                addCommand("SETLOCAL ENABLEEXTENSIONS")
     
                                 // For all jobs 
                                 addEnvVariable("CORE_ROOT", coreRootLocation)
@@ -2497,10 +2600,25 @@ Constants.allScenarios.each { scenario ->
                                 addCommand("pushd bin\\tests\\${osGroup}.${architecture}.${configuration}")
                                 addCommand("${smartyCommand}")
 
-                                batchFile(buildCommands)
+                                // Save the errorlevel from the smarty command to be used as the errorlevel of this batch file.
+                                // However, we also need to remove all the variables that were set during this batch file, so we
+                                // can run the ZIP powershell command (below) in a clean environment. (We can't run the powershell
+                                // command with the COMPlus_AltJit variables set, for example.) To do that, we do ENDLOCAL as well
+                                // as save the current errorlevel on the same line. This works because CMD evaluates the %errorlevel%
+                                // variable expansion (or any variable expansion on the line) BEFORE it executes the ENDLOCAL command.
+                                // Note that the ENDLOCAL also undoes the pushd command, but we add the popd here for clarity.
+                                addCommand("popd & ENDLOCAL & set __save_smarty_errorlevel=%errorlevel%")
 
-                                // ZIP up the smarty output.
-                                batchFile("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0', '.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0.zip')\"")
+                                // ZIP up the smarty output, no matter what the smarty result.
+                                addCommand("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0', '.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0.zip')\"")
+
+                                addCommand("echo %errorlevel%")
+                                addCommand("dir .\\bin\\tests\\${osGroup}.${architecture}.${configuration}")
+
+                                // Use the smarty errorlevel as the script errorlevel.
+                                addCommand("exit /b %__save_smarty_errorlevel%")
+
+                                batchFile(buildCommands)
                             }
                         }
                     }
@@ -2611,7 +2729,7 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
 
                     setMachineAffinity(newFlowJob, os, flowArch, affinityOptions)
                     Utilities.standardJobSetup(newFlowJob, project, isPR, "*/${branch}")
-                    addTriggers(newFlowJob, branch, isPR, architecture, os, configuration, scenario, true, false)
+                    addTriggers(newFlowJob, branch, isPR, architecture, os, configuration, scenario, true, false) // isFlowJob==true, isWindowsBuildOnlyJob==false
                 } // configuration
             } // os
         } // architecture
