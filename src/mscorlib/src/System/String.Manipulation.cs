@@ -1089,12 +1089,12 @@ namespace System
             return ReplaceInternal(oldValue, newValue);
         }
 
-        public unsafe String[] Split(char separator, StringSplitOptions options = StringSplitOptions.None)
+        public String[] Split(char separator, StringSplitOptions options = StringSplitOptions.None)
         {
             return SplitInternal(new ReadOnlySpan<char>(ref separator, 1), int.MaxValue, options);
         }
 
-        public unsafe String[] Split(char separator, int count, StringSplitOptions options = StringSplitOptions.None)
+        public String[] Split(char separator, int count, StringSplitOptions options = StringSplitOptions.None)
         {
             return SplitInternal(new ReadOnlySpan<char>(ref separator, 1), count, options);
         }
