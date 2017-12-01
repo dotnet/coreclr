@@ -111,26 +111,6 @@ isMSBuildOnNETCoreSupported()
     fi
 }
 
-build_CoreLib_ni()
-{
-    echo "Generating native image for System.Private.CoreLib."
-    echo "$__BinDir/crossgen /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll"
-    $__BinDir/crossgen /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll
-    if [ $? -ne 0 ]; then
-        echo "Failed to generate native image for System.Private.CoreLib."
-        exit 1
-    fi
-
-    if [ "$__BuildOS" == "Linux" ]; then
-        echo "Generating symbol file for System.Private.CoreLib."
-        $__BinDir/crossgen /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll
-        if [ $? -ne 0 ]; then
-            echo "Failed to generate symbol file for System.Private.CoreLib."
-            exit 1
-        fi
-    fi
-}
-
 generate_layout()
 {
     __TestDir=$__ProjectDir/tests
@@ -173,7 +153,6 @@ generate_layout()
     # =========================================================================================
 
     build_Tests_internal "Restore_Product" "${__ProjectDir}/tests/build.proj" " -BatchRestorePackages" "Restore product binaries (build tests)"
-    build_Tests_internal "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "-BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct" "Restore product binaries (run tests)"
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
         __up=-updateinvalidpackageversion
@@ -753,7 +732,11 @@ __sharedFxDir=$__BuildToolsDir/dotnetcli/shared/Microsoft.NETCore.App/$__CoreClr
 
 echo "Building Tests..."
 
-build_Tests
+if [ -z "__GenerateLayoutOnly" ]; then
+    build_Tests
+else
+    generate_layout
+fi
 
 if [ $? -ne 0 ]; then
     echo "Failed to build tests"
