@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Tracing.Tests.Common;
+using Microsoft.Diagnostics.Tracing;
 
 namespace Tracing.Tests
 {
@@ -41,14 +42,33 @@ namespace Tracing.Tests
             FileInfo outputMeta = new FileInfo(outputFilename);
             Console.WriteLine("\tCreated {0} bytes of data", outputMeta.Length);
 
+            Console.WriteLine("\tStart: Processing events from file.");
             bool pass = false;
-            if (outputMeta.Length > trivialSize){
-                pass = true;
+            int eventCount = 0;
+            using (var trace = TraceEventDispatcher.GetDispatcherFromFileName(outputFilename))
+            {
+                trace.Dynamic.All += delegate(TraceEvent data)
+                {
+                    eventCount += 1;
+                    //Console.WriteLine("GOT EVENT: " + data.ToString());
+                };
+                // Handle everything for dev
+                trace.UnhandledEvents += delegate(TraceEvent data)
+                {
+                    eventCount += 1;
+                    //if ((int)data.ID != 0xFFFE)
+                    //    Console.WriteLine("GOT UNHANDLED EVENT: " + data.Dump());
+                };
+
+                trace.Process();
             }
+            Console.WriteLine("\tEnd: Processing events from file.\n");
+            
+            Console.WriteLine("\tProcessed {0} events", eventCount);
 
             if (keepOutput)
             {
-                Console.WriteLine(String.Format("\tOutput file: {0}", outputFilename));
+                Console.WriteLine("\tOutput file: {0}", outputFilename);
             }
             else
             {
