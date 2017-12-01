@@ -1336,7 +1336,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
     def lowerConfiguration = configuration.toLowerCase()
 
     def priority = '1'
-    if (scenario == 'default' && isPR == true) {
+    if ((scenario == 'default' && isPR == true) || (scenario == 'default' && isBuildOnly == true)) {
         priority = '0'
     }
 
@@ -2341,7 +2341,7 @@ Constants.allScenarios.each { scenario ->
                             def isUnixArm64 = (windowsArmJob != true) && (architecture == 'arm64')
 
                             // pri1 jobs still need to copy windows_nt built tests
-                            if (isUnixArm64) {
+                            if (windowsArmJob != true) {
                                 copyArtifacts(inputWindowTestsBuildName) {
                                     excludePatterns('**/testResults.xml', '**/*.ni.dll')
                                     buildSelector {
