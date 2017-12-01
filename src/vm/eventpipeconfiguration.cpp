@@ -36,7 +36,6 @@ EventPipeConfiguration::~EventPipeConfiguration()
 
     if(m_pConfigProvider != NULL)
     {
-        UnregisterProviderNoLock(*m_pConfigProvider);
         delete(m_pConfigProvider);
 
         m_pConfigProvider = NULL;
@@ -81,7 +80,7 @@ void EventPipeConfiguration::Initialize()
     CONTRACTL_END;
 
     // Create the configuration provider.
-    m_pConfigProvider = CreateProvider(SL(s_configurationProviderName), NULL, NULL);
+    m_pConfigProvider = new EventPipeProvider(this, SL(s_configurationProviderName), NULL, NULL);
 
     // Create the metadata event.
     m_pMetadataEvent = m_pConfigProvider->AddEvent(
@@ -190,19 +189,6 @@ bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
 
     // Take the lock before manipulating the provider list.
     CrstHolder _crst(EventPipe::GetLock());
-
-    return UnregisterProviderNoLock(provider);
-}
-
-bool EventPipeConfiguration::UnregisterProviderNoLock(EventPipeProvider &provider)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
