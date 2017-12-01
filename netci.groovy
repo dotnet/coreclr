@@ -1666,8 +1666,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
                         buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture}" 
                         buildCommands += "${bootstrapRidEnv}./build-test.sh ${lowerConfiguration} ${architecture} --portablebuild" 
-                        buildCommands += "tar -czf ${bootstrapRidEnv}./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz ${bootstrapRidEnv}./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0"
-                        buildCommands += "rm -r ${bootstrapRidEnv}./bin/tests/${osGroup}.${architecture}.${configuration}"
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Set time out
@@ -2378,12 +2376,10 @@ Constants.allScenarios.each { scenario ->
                                     shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
                                 }
 
-                                if (isUnixArm64) {
-                                    // Unzip the tests first.  Exit with 0
-                                    shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
-                                } else {
-                                    shell("tar xzvf ./bin/tests/${osGroup}.${architecture}.${configuration}.tar.gz || exit 0")
-                                }
+                                // Unzip the tests first.  Exit with 0
+                                shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
+
+                                shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
 
                                 // Execute the tests
                                 // If we are running a stress mode, we'll set those variables first
@@ -2576,7 +2572,7 @@ Constants.allScenarios.each { scenario ->
                     def isUnixArm64 = ((osGroup == "Linux") && (architecture == "arm64"))
 
                     // For pri0 jobs we can build tests on unix
-                    if (isUnixArm64 == false) {
+                    if (windowsArmJob) {
                         // For Windows arm jobs there is no reason to build a parallel test job.
                         // The product build supports building and archiving the tests.
 
