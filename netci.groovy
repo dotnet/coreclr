@@ -1664,14 +1664,13 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // only on supported OS platforms.
                         def bootstrapRid = Utilities.getBoostrapPublishRid(os)
                         def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
-                        buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture}" 
-                        buildCommands += "${bootstrapRidEnv}./build-test.sh ${lowerConfiguration} ${architecture} --portablebuild" 
+                        buildCommands += "${bootstrapRidEnv}./build.sh verbose ${lowerConfiguration} ${architecture}"
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Set time out
                         setTestJobTimeOut(newJob, scenario)
                         // Basic archiving of the build
-                        Utilities.addArchival(newJob, "bin/Product/**,bin/tests/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
+                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
                         // And pal tests
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
