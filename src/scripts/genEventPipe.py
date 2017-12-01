@@ -274,6 +274,7 @@ def generateEventPipeHelperFile(etwmanifest, eventpipe_directory, extern):
     with open_for_update(os.path.join(eventpipe_directory, "eventpipehelpers.cpp")) as helper:
         helper.write(stdprolog_cpp)
         helper.write("""
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -292,7 +293,10 @@ bool ResizeBuffer(char *&buffer, size_t& size, size_t currLen, size_t newSize, b
     if (newSize < 32)
         newSize = 32;
 
-    char *newBuffer = new char[newSize];
+    char *newBuffer = new (nothrow) char[newSize];
+
+    if (newBuffer == NULL)
+        return false;
 
     memcpy(newBuffer, buffer, currLen);
 

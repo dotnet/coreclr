@@ -565,6 +565,7 @@ def generateLttngFiles(etwmanifest,eventprovider_directory):
 
     with open_for_update(eventprovider_directory + lttng_directory + "/eventprovhelpers.cpp") as helper:
         helper.write("""
+#include "common.h"
 #include "palrt.h"
 #include "pal.h"
 #include "stdlib.h"
@@ -583,7 +584,10 @@ bool ResizeBuffer(char *&buffer, size_t& size, size_t currLen, size_t newSize, b
     if (newSize < 32)
         newSize = 32;
 
-    char *newBuffer = new char[newSize];
+    char *newBuffer = new (nothrow) char[newSize];
+
+    if (newBuffer == NULL)
+        return false;
 
     memcpy(newBuffer, buffer, currLen);
 
