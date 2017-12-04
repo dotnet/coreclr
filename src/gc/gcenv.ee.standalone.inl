@@ -276,4 +276,10 @@ inline void GCToEEInterface::FireGcStartAndGenerationRanges(uint32_t count, uint
     g_theGCToCLR->FireGcStartAndGenerationRanges(count, depth, reason, type);
 }
 
+inline void GCToEEInterface::FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth)
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->FireGcEndAndGenerationRanges(count, depth);
+}
+
 #endif // __GCTOENV_EE_STANDALONE_INL__

@@ -190,11 +190,7 @@ void GCHeap::UpdatePostGCCounters()
 #endif //ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef FEATURE_EVENT_TRACE
-    ETW::GCLog::ETW_GC_INFO Info;
-
-    Info.GCEnd.Depth = condemned_gen;
-    Info.GCEnd.Count = (uint32_t)pSettings->gc_index;
-    ETW::GCLog::FireGcEndAndGenerationRanges(Info.GCEnd.Count, Info.GCEnd.Depth);
+    GCToEEInterface::FireGcEndAndGenerationRanges(condemned_gen, (uint32_t)pSettings->gc_index);
 
     ETW::GCLog::ETW_GC_INFO HeapInfo;
     ZeroMemory(&HeapInfo, sizeof(HeapInfo));

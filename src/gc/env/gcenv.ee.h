@@ -83,6 +83,7 @@ public:
     static void WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback);
     static void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
     static void FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type);
+    static void FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth);
 };
 
 #endif // __GCENV_EE_H__

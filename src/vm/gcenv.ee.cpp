@@ -1396,3 +1396,10 @@ void GCToEEInterface::FireGcStartAndGenerationRanges(uint32_t count, uint32_t de
     info.GCStart.Type = (ETW::GCLog::st_GCEventInfo::GC_TYPE)type;
     ETW::GCLog::FireGcStartAndGenerationRanges(&info);
 }
+
+void GCToEEInterface::FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    ETW::GCLog::FireGcEndAndGenerationRanges(count, depth);
+}
