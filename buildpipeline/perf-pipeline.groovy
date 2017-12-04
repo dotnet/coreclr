@@ -377,13 +377,13 @@ def outerLoopTests = [:]
 if (!isPR()) {
     outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} jitbench"] = {
         simpleNode('windows_server_2016_clr_perf', 180) {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false, '')
+            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false, false, '')
         }
     }
 
     outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} illink"] = {
         simpleNode('Windows_NT', '20170427-elevated') {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false, '')
+            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false, false, '')
         }
     }
 
