@@ -27,6 +27,8 @@ setlocal ENABLEDELAYEDEXPANSION
   set BETTER=desc
   set OPT_LEVEL=full_opt
   set VALID_OPTLEVELS=min_opt full_opt tiered
+  set SLICE_DIR=
+  set CORECLR_TEST_DIR=
 
   call :parse_command_line_arguments %*
   if defined USAGE_DISPLAYED exit /b %ERRORLEVEL%
@@ -44,12 +46,18 @@ setlocal ENABLEDELAYEDEXPANSION
 
   rem find and stage the tests
   set /A "LV_FAILURES=0"
-  for /R %CORECLR_PERF% %%T in (*.%TEST_FILE_EXT%) do (
-    call :run_benchmark %%T || (
-      set /A "LV_FAILURES+=1"
+
+  if defined SLICE_DIR (
+    for /R %SLICE_DIR% %%S in (slice*.txt) do (
+      call :run_slice_benchmarks %%S
+    )
+  ) else (
+    for /R %CORECLR_PERF% %%T in (*.%TEST_FILE_EXT%) do (
+      call :run_benchmark %%T || (
+        set /A "LV_FAILURES+=1"
+      )
     )
   )
-
   if not defined JIT_NAME (
     set JIT_NAME=ryujit
   )
@@ -69,6 +77,23 @@ setlocal ENABLEDELAYEDEXPANSION
   )
 
   exit /b %ERRORLEVEL%
+
+:run_slice_benchmarks
+setlocal 
+  set /P CORECLR_TEST_DIR=< %~1
+  echo %CORECLR_TEST_DIR%
+  set CORECLR_TEST_FULL_PATH=%CORECLR_PERF%%CORECLR_TEST_DIR%
+  echo %CORECLR_TEST_FULL_PATH%
+  for /R %CORECLR_TEST_FULL_PATH% %%T in (*.%TEST_FILE_EXT%) do (
+    call :run_benchmark %%T || (
+      set /A "LV_FAILURES+=1"
+    )
+  )
+
+  del %~1
+
+  exit /b 0
+
 
 :run_benchmark
 rem ****************************************************************************
@@ -248,6 +273,12 @@ rem ****************************************************************************
   )
   IF /I [%~1] == [-outputdir] (
     set LV_SANDBOX_OUTPUT_DIR=%~2
+    shift
+    shift
+    goto :parse_command_line_arguments
+  )
+  IF /I [%~1] == [-sliceDir] (
+    set SLICE_DIR=%~2
     shift
     shift
     goto :parse_command_line_arguments
