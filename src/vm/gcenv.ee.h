@@ -62,6 +62,7 @@ public:
     bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name);
     void WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback);
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
+    void FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type);
 };
 
 } // namespace standalone

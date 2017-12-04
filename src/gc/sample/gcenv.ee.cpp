@@ -337,3 +337,7 @@ void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* s
 void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*callback)(Object*, Object*, void*))
 {
 }
+
+void GCToEEInterface::FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type)
+{
+}

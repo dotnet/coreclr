@@ -74,10 +74,8 @@ void GCHeap::UpdatePreGCCounters()
 
     GetPerfCounters().m_Security.timeRTchecks = 0;
     GetPerfCounters().m_Security.timeRTchecksBase = 1; // To avoid divide by zero
-
 #endif //ENABLE_PERF_COUNTERS
 
-#ifdef FEATURE_EVENT_TRACE
 #ifdef MULTIPLE_HEAPS
         //take the first heap....
     gc_mechanisms *pSettings = &gc_heap::g_heaps[0]->settings;
@@ -85,27 +83,24 @@ void GCHeap::UpdatePreGCCounters()
     gc_mechanisms *pSettings = &gc_heap::settings;
 #endif //MULTIPLE_HEAPS
 
-    ETW::GCLog::ETW_GC_INFO Info;
+    uint32_t count = (uint32_t)pSettings->gc_index;
+    uint32_t depth = (uint32_t)pSettings->condemned_generation;
+    uint32_t reason = (uint32_t)pSettings->reason;
 
-    Info.GCStart.Count = (uint32_t)pSettings->gc_index;
-    Info.GCStart.Depth = (uint32_t)pSettings->condemned_generation;
-    Info.GCStart.Reason = (ETW::GCLog::ETW_GC_INFO::GC_REASON)((int)(pSettings->reason));
-
-    Info.GCStart.Type = ETW::GCLog::ETW_GC_INFO::GC_NGC;
+    uint32_t type = /*ETW::GCLog::ETW_GC_INFO::GC_NGC*/ 0;
     if (pSettings->concurrent)
     {
-        Info.GCStart.Type = ETW::GCLog::ETW_GC_INFO::GC_BGC;
+        type = /*ETW::GCLog::ETW_GC_INFO::GC_BGC*/ 1;
     }
 #ifdef BACKGROUND_GC
-    else if (Info.GCStart.Depth < max_generation)
+    else if (depth < max_generation)
     {
         if (pSettings->background_p)
-            Info.GCStart.Type = ETW::GCLog::ETW_GC_INFO::GC_FGC;
+            type = /*ETW::GCLog::ETW_GC_INFO::GC_FGC*/ 2;
     }
 #endif //BACKGROUND_GC
 
-    ETW::GCLog::FireGcStartAndGenerationRanges(&Info);
-#endif // FEATURE_EVENT_TRACE
+    GCToEEInterface::FireGcStartAndGenerationRanges(count, depth, reason, type);
 }
 
 void GCHeap::UpdatePostGCCounters()

@@ -251,6 +251,12 @@ public:
     // This function is a no-op if "object" is not an OverlappedData object.
     virtual
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*)) = 0;
+
+    //
+    // Routines related to event tracing.
+    //
+    virtual
+    void FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

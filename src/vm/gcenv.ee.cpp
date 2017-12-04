@@ -1384,3 +1384,15 @@ void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*call
         }
     }
 }
+
+void GCToEEInterface::FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    ETW::GCLog::ETW_GC_INFO info;
+    info.GCStart.Count = count;
+    info.GCStart.Depth = depth;
+    info.GCStart.Reason = (ETW::GCLog::ETW_GC_INFO::GC_REASON)reason;
+    info.GCStart.Type = (ETW::GCLog::st_GCEventInfo::GC_TYPE)type;
+    ETW::GCLog::FireGcStartAndGenerationRanges(&info);
+}
