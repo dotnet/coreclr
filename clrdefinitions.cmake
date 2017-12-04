@@ -1,5 +1,13 @@
 include(clrfeatures.cmake)
 
+# If set, indicates that this is not an officially supported release
+set(PRERELEASE 1)
+
+# Features we're currently flighting, but don't intend to ship in officially supported releases
+if (PRERELEASE)
+  add_definitions(-DFEATURE_DEFAULT_INTERFACES=1)  
+endif (PRERELEASE)
+
 if (CLR_CMAKE_TARGET_ARCH_AMD64)
   if (CLR_CMAKE_PLATFORM_UNIX)
     add_definitions(-DDBG_TARGET_AMD64_UNIX)
