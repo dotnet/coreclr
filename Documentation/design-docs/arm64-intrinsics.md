@@ -203,9 +203,7 @@ Intrinsics will extend the API of CoreCLR.  They will need to follow standard AP
 
 #### API review of a new intrinsic `static class`es
 
-Review will be facilitated by GitHub Issues requests.
-
-API reviews will be completed within the CoreFX project.
+Review will be facilitated by GitHub Pull requests to amend the Approved API section of this document.
 
 A separate GitHub Issue will be created for the review of each intrinsic `static class`.  This allows design and review team to
 review separately.  This allows review complexity to be kept manageable.  The O(N^2) nature of the review process will be kept to
@@ -296,3 +294,65 @@ Deprecation of instructions should be relatively rare
 + In event an assembly instruction is deprecated
   1. Prefer emulation using alternate instructions if practical
   2. Add `SetThrowOnDeprecated()` interface to allow developers to find these issues
+
+## Approved APIs
+
+The following sections document APIs which have completed the API review process.
+
+Until each API is approved it shall be marked "TBD Not Approved"
+
+### `Required`
+
+TBD Not approved
+
+### `Aes`
+
+TBD Not approved
+
+### `Atomics`
+
+TBD Not approved
+
+### `Crc32`
+
+TBD Not approved
+
+### `Esb`
+
+TBD Not approved
+
+### `Fp`
+
+TBD Not approved
+
+### `Fp16`
+
+TBD Not approved
+
+### `Pmull64`
+
+TBD Not approved
+
+### `Ras`
+
+TBD Not approved
+
+### `Sha1`
+
+TBD Not approved
+
+### `Sha2`
+
+TBD Not approved
+
+### `Simd`
+
+TBD Not approved
+
+### `SimdFp16`
+
+TBD Not approved
+
+### `Sve`
+
+TBD Not approved
