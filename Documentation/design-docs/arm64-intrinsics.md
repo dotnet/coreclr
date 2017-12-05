@@ -74,9 +74,9 @@ features
 In the event the OS fails to provides a means to detect a support for an instruction set extension
 it must be treated as unsupported.
 
-NOTE: Exceptions might be where :
+NOTE: Exceptions might be where:
 
-+ CoreCLR is distributed as source and CMake build configuration test is used  detect these features
++ CoreCLR is distributed as source and CMake build configuration test is used to detect these features
 + Installer detects features and sets appropriate configuration knobs
 + VM runs code inside safe try/catch blocks to test for instruction support
 + Platform requires a specific minimum set of instructions
@@ -117,7 +117,33 @@ The sets will be chosen to match the granularity if the `ARM64` `ID_*` register 
 
 #### Specific Class Names
 
-TBD Add table to document each known extension and recommended `static class` name.
+The table below documents the set of known extensions, their identification, and their recommended intrinsic
+class names.
+
+| ID Register      | Field   | Values   | Intrinsic `static class` name |
+| ---------------- | ------- | -------- | ----------------------------- |
+| N/A              | N/A     | N/A      | Required                      |
+| ID_AA64ISAR0_EL1 | AES     | (1b, 10b)| Aes                           |
+| ID_AA64ISAR0_EL1 | AES     | (10b)    | Pmull64                       |
+| ID_AA64ISAR0_EL1 | SHA1    | (1b)     | Sha1                          |
+| ID_AA64ISAR0_EL1 | SHA2    | (1b)     | Sha2                          |
+| ID_AA64ISAR0_EL1 | CRC32   | (1b)     | Crc32                         |
+| ID_AA64ISAR0_EL1 | Atomic  | (10b)    | Atomics                       |
+| ID_AA64ISAR0_EL1 | RDM     | (1b)     | SimdV81                       |
+| ID_AA64MMFR2_EL1 | IESB    | (1b)     | Esb                           |
+| ID_AA64PFR0_EL1  | FP      | (0b, 1b) | Fp                            |
+| ID_AA64PFR0_EL1  | FP      | (1b)     | Fp16                          |
+| ID_AA64PFR0_EL1  | AdvSIMD | (0b, 1b) | Simd                          |
+| ID_AA64PFR0_EL1  | AdvSIMD | (1b)     | SimdFp16                      |
+| ID_AA64PFR0_EL1  | RAS     | (1b)     | Ras                           |
+| ID_AA64PFR0_EL1  | SVE     | (1b)     | Sve                           |
+
+The `Required` `static class` is used to represent any intrinsic which is guaranteed to be implemented on all
+`ARM64` platforms.  Investigation is needed to determine if this is an empty set.
+
+It is also possible the `ESB` or `RAS` may not need intrinsics.
+
+As further extensions are released, this set of intrinsics will grow.
 
 ### Intrinsic Method Names
 
@@ -126,6 +152,10 @@ assembly instructions.
 
 Where precedence exists within the `System.Runtime.Intrinsics.X86` namespace, identical method names will be
 chosen: `Add`, `Multiply`, `Load`, `Store` ...
+
+It is also worth noting `System.Runtime.Intrinsics.X86` naming conventions will include the suffix `Scalar` for
+operations which take vector argument(s), but contain an implicit cast(s) to the base type and therefore operate only
+on the first item of the argument vector(s).
 
 ### Intinsic Method Argument Types
 
@@ -147,6 +177,11 @@ Intrinsic methods will typically use a standard set of argument types:
   + Optionally, briefly summarize operation performed
     + In many cases this may be unnecessary: `Add`, `Multiply`, `Load`, `Store`
     + In some cases this may be difficult to do correctly. (Crypto instructions)
+  + Optionally mention corresponding compiler gcc, clang, and/or MSVC intrinsics
+    + Review of existing documentation shows `ARM64` intrinsics are mostly absent or undocumented so
+    initially this will not be necessary for `ARM64`
+    + See gcc manual "AArch64 Built-in Functions"
+    + MSVC ARM64 documentation has not been publically released
 
 ## Phased Implementation
 
@@ -173,10 +208,10 @@ Review will be facilitated by GitHub Issues requests.
 API reviews will be completed within the CoreFX project.
 
 A separate GitHub Issue will be created for the review of each intrinsic `static class`.  This allows design and review team to
-review separately.  This allows reviw complexity to be kept manageable.  The O(N^2) nature of the review process will be kept to 
+review separately.  This allows review complexity to be kept manageable.  The O(N^2) nature of the review process will be kept to
 reasonable levels and iterations will be finite.
 
-Every effort will be made to completely elaborate all the methods of the intrinsic `static class` for each review.  This will 
+Every effort will be made to completely elaborate all the methods of the intrinsic `static class` for each review.  This will
 help minimize reopening the same classes for review.
 
 Implementation will be kept separate from from API review.
@@ -184,20 +219,14 @@ Implementation will be kept separate from from API review.
 ### Partial implementation of intrinsic `static class`
 
 + `IsSupported` must represents the state of an entire intrinsic `static class`
-+ Once API review is complete and approved, it is acceptable to implement approved methods in any order provided tests
-
-### Addition of new intrinsics methods to an existing `static class`
-
-Since each `ARM64` intrinsic `static class` only supports a single platform, adding new instructions is not
-inherently problematic.  New methods can be added without undue complexity.
-
-The primary problem would be the API review process
++ Once API review is complete and approved, it is acceptable to implement approved methods in any order provided tests are added
++ The approved API must be completed before the intrinsic `static class` is included in a release
 
 ### Test coverage
 
 As intrinsic support is added test coverage must be extended to provide basic testing
 
-Tests 
+Tests
 
 ## Half precision floating point
 
