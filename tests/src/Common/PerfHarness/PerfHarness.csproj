@@ -4,7 +4,7 @@
 
   <PropertyGroup>
     <OutputType>exe</OutputType>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>net461</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +12,7 @@
       <IncludeAssets>All</IncludeAssets>
     </PackageReference>
     <PackageReference Include="xunit.performance.api" Version="$(XunitPerformanceApiPackageVersion)" />
+    <PackageReference Include="NETStandard.Library" Version="2.0.1" />
   </ItemGroup>
 
 </Project>
