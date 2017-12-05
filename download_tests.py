@@ -85,6 +85,7 @@ parser.add_argument("-priority", dest="priority", nargs='?', default="0")
 
 parser.add_argument("-branch", dest="branch", nargs='?', default="master")
 parser.add_argument("-build_number", dest="build_number", nargs='?', default="lastSuccessfulBuild")
+parser.add_argument("-windows_build_number", dest="windows_build_number", nargs='?', default=None)
 
 parser.add_argument("--check_for_modifications", dest="check_for_modifications", action="store_true", default=False)
 parser.add_argument("--download_product", dest="download_product", action="store_true", default=False)
@@ -120,7 +121,7 @@ def __check_for_modifications__():
 
     return test_dir_modified
 
-def download_tests(os_group, arch, configuration, priority, branch, test_location, download_product, build_number):
+def download_tests(os_group, arch, configuration, priority, branch, test_location, download_product, build_number, windows_build_number):
     """ Download the tests to the passed location
 
     Args:
@@ -166,11 +167,22 @@ def download_tests(os_group, arch, configuration, priority, branch, test_locatio
     
     product_netci_location = "%s/%s%s%s/%s/artifact/bin/Product/%s.%s.%s/*zip*/archive.zip" % (netci_location, arch, configuration, os_group, build_number, original_os, original_arch, original_configuration)
     obj_netci_location = "%s/%s%s%s/%s/artifact/bin/obj/%s.%s.%s/*zip*/archive.zip" % (netci_location, arch, configuration, os_group, build_number, original_os, original_arch, original_configuration)
-    tests_netci_location = "%s/%s%s%s/%s/artifact/bin/tests/%s.%s.%s.tar.gz" % (netci_location, arch, configuration, os_group, build_number, original_os, original_arch, original_configuration)
+
+    tests_netci_location = None
+
+    if windows_build_number is None:
+        tests_netci_location = "%s/%s%s%s/%s/artifact/bin/tests/%s.%s.%s.tar.gz" % (netci_location, arch, configuration, os_group, build_number, original_os, original_arch, original_configuration)
+    else:
+        tests_netci_location = "%s/%s%s%s_bld/%s/artifact/bin/tests/tests.zip" % (netci_location, arch, configuration, "windows_nt", windows_build_number)
 
     product_zip_location = os.path.join(bin_location, "Product", "%s.%s.%s.zip" % (original_os, original_arch, original_configuration))
     obj_zip_location = os.path.join(bin_location, "obj", "%s.%s.%s.zip" % (original_os, original_arch, original_configuration))
-    tests_zip_location = os.path.join(bin_location, "tests", "%s.%s.%s.tar.gz" % (original_os, original_arch, original_configuration))
+
+    tests_zip_location = None
+    if windows_build_number is None:
+        tests_zip_location = os.path.join(bin_location, "tests", "%s.%s.%s.tar.gz" % (original_os, original_arch, original_configuration))
+    else:
+        tests_zip_location = os.path.join(bin_location, "tests", "%s.%s.%s.zip" % ("Windows_NT", original_arch, original_configuration))
 
     if os.path.isdir(test_location):
         shutil.rmtree(test_location, ignore_errors=True)
@@ -184,7 +196,21 @@ def download_tests(os_group, arch, configuration, priority, branch, test_locatio
     if not os.path.isdir(os.path.join(bin_location, "tests")):
         os.mkdir(os.path.join(bin_location, "tests"))
 
-    def download_and_unzip_file(netci_location, zip_location, location, use_gzip=False):
+    def download_and_unzip_file(netci_location, zip_location, location, use_gzip=False, use_native_unzip=False):
+        def extractAll(zip_name, location, use_native_unzip=False):
+            if use_native_unzip:
+                unzip_location = os.path.basename(zip_name)[:-4]
+                if os.path.isdir(os.path.join(location, unzip_location)):
+                    shutil.rmtree(os.path.join(location, unzip_location))
+
+                command = "unzip %s -d %s" % (zip_name, location)
+                command = command.split(" ")
+                proc = subprocess.Popen(command)
+                proc.communicate()
+            else:
+                zip = zipfile.ZipFile(zip_name)
+                zip.extractall(path=location)
+
         try:
             tests = urllib.URLopener()
             tests.retrieve(netci_location, zip_location)
@@ -197,11 +223,10 @@ def download_tests(os_group, arch, configuration, priority, branch, test_locatio
         assert os.path.isfile(zip_location)
 
         if not os.path.isdir(location):
-            os.mkdir(location)
+            os.makedirs(location)
 
         if not use_gzip:
-            zip = zipfile.ZipFile(zip_location)
-            zip.extractall(location)
+            extractAll(zip_location, location, use_native_unzip)
         else:
             tar = tarfile.open(zip_location, "r:gz")
             tar.extractall(location)
@@ -230,13 +255,22 @@ def download_tests(os_group, arch, configuration, priority, branch, test_locatio
     if os.path.isdir(scratch_location):
         shutil.rmtree(scratch_location, ignore_errors=True)
     
-    download_and_unzip_file(tests_netci_location, tests_zip_location, scratch_location, True)
+    if windows_build_number is None:
+        download_and_unzip_file(tests_netci_location, tests_zip_location, scratch_location, True)
+    else:
+        scratch_location = os.path.join(bin_location, "tests", "scratch", "Windows_NT.x64.Checked")
+        download_and_unzip_file(tests_netci_location, tests_zip_location, scratch_location, use_native_unzip=True)
+
+    scratch_location = os.path.join(bin_location, "tests", "scratch")
 
     if os.path.isdir(os.path.join(bin_location, "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration))):
         shutil.rmtree(os.path.join(bin_location, "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration)), ignore_errors=True)
 
     # Move the test dir
-    shutil.move(os.path.join(scratch_location, "bin", "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration)), os.path.join(bin_location, "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration)))
+    if windows_build_number is None:
+        shutil.move(os.path.join(scratch_location, "bin", "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration)), os.path.join(bin_location, "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration)))
+    else:
+        shutil.move(os.path.join(scratch_location, "%s.%s.%s" % ("Windows_NT", original_arch, original_configuration)), os.path.join(bin_location, "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration)))
 
     shutil.rmtree(scratch_location)
 
@@ -244,6 +278,22 @@ def download_tests(os_group, arch, configuration, priority, branch, test_locatio
     assert os.path.isdir(os.path.join(bin_location, "Product"))
     assert os.path.isdir(os.path.join(bin_location, "obj"))
     assert os.path.isdir(os.path.join(bin_location, "tests"))
+
+    print "Download successful."
+
+    if download_product:
+        print "Product location: %s" % os.path.join(bin_location, "Product", "%s.%s.%s" % (original_os, original_arch, original_configuration))
+        print "Obj location: %s" % os.path.join(bin_location, "obj", "%s.%s.%s" % (original_os, original_arch, original_configuration))
+
+    print "tests location: %s" % os.path.join(bin_location, "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration))
+
+    print "Example build-test.sh command:"
+    print "./build-test.sh %s %s generatelayoutonly" % (original_arch, original_configuration)
+
+    print "Example runtest.sh command:"
+    print "./tests/runtest.sh --coreOverlayDir=%s --testNativeBinDir=%s --testRootDir=%s --copyNativeTestBin" % (os.path.join(bin_location, "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration), "Tests", "Core_Root"),
+                                                                                                         os.path.join(bin_location, "obj", "%s.%s.%s" % (original_os, original_arch, original_configuration), "tests"),
+                                                                                                         os.path.join(bin_location, "tests", "%s.%s.%s" % (original_os, original_arch, original_configuration)))
 
 ################################################################################
 # Main
@@ -255,6 +305,7 @@ def main(args):
     configuration = args.configuration
     priority = args.priority
     build_number = args.build_number
+    windows_build_number = args.windows_build_number
     branch = args.branch
 
     check_for_modifications = args.check_for_modifications
@@ -266,7 +317,7 @@ def main(args):
 
     if not modified:
         # Download and set up the tests.
-        download_tests(g_current_os, g_current_arch, configuration, priority, branch, test_location, download_product, build_number)
+        download_tests(g_current_os, g_current_arch, configuration, priority, branch, test_location, download_product, build_number, windows_build_number)
 
 ################################################################################
 # __main__ (entry point)

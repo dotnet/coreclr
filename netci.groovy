@@ -2463,6 +2463,7 @@ Constants.allScenarios.each { scenario ->
 
                                 // Unzip the tests first.  Exit with 0
                                 shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
+                                shell("rm -r ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
 
                                 shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
 
