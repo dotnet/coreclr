@@ -263,6 +263,9 @@ public:
 
     virtual
     void FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress) = 0;
+
+    virtual
+    void FirePinObject(uint8_t* objectAddress, uint8_t** pinningObjectAddress) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

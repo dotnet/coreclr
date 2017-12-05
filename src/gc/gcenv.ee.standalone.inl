@@ -288,4 +288,10 @@ inline void GCToEEInterface::FireAllocationTick(size_t allocationAmount, bool is
     g_theGCToCLR->FireAllocationTick(allocationAmount, isSohAllocation, heapNumber, objectAddress);
 }
 
+inline void GCToEEInterface::FirePinObject(uint8_t* objectAddress, uint8_t** pinningObjectAddress) 
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->FirePinObject(objectAddress, pinningObjectAddress);
+}
+
 #endif // __GCTOENV_EE_STANDALONE_INL__

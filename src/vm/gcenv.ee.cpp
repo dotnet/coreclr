@@ -1440,3 +1440,31 @@ void GCToEEInterface::FireAllocationTick(size_t allocationAmount, bool isSohAllo
                                    );
     }
 }
+
+void GCToEEInterface::FirePinObject(uint8_t* objectAddress, uint8_t** pinningObjectAddress)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    Object* obj = (Object*)objectAddress;
+
+    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName; 
+   
+    EX_TRY
+    {
+        FAULT_NOT_FATAL();
+
+        TypeHandle th = obj->GetGCSafeTypeHandleIfPossible();
+        if(th != NULL)
+        {
+            th.GetName(strTypeName);
+        }
+
+        FireEtwPinObjectAtGCTime(pinningObjectAddress,
+                             objectAddress,
+                             obj->GetSize(),
+                             strTypeName.GetUnicode(),
+                             GetClrInstanceId());
+    }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions)
+}

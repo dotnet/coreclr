@@ -85,6 +85,7 @@ public:
     static void FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type);
     static void FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth);
     static void FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress);
+    static void FirePinObject(uint8_t* objectAddress, uint8_t** pinningObjectAddress);
 };
 
 #endif // __GCENV_EE_H__

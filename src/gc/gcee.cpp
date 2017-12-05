@@ -454,33 +454,7 @@ void gc_heap::fire_etw_allocation_event (size_t allocation_amount, int gen_numbe
 
 void gc_heap::fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject)
 {
-#ifdef FEATURE_REDHAWK
-    UNREFERENCED_PARAMETER(object);
-    UNREFERENCED_PARAMETER(ppObject);
-#else
-    Object* obj = (Object*)object;
-
-    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName; 
-   
-    EX_TRY
-    {
-        FAULT_NOT_FATAL();
-
-        TypeHandle th = obj->GetGCSafeTypeHandleIfPossible();
-        if(th != NULL)
-        {
-            th.GetName(strTypeName);
-        }
-
-        FireEtwPinObjectAtGCTime(ppObject,
-                             object,
-                             obj->GetSize(),
-                             strTypeName.GetUnicode(),
-                             GetClrInstanceId());
-    }
-    EX_CATCH {}
-    EX_END_CATCH(SwallowAllExceptions)
-#endif // FEATURE_REDHAWK
+    GCToEEInterface::FirePinObject(object, ppObject);
 }
 #endif // FEATURE_EVENT_TRACE
 
