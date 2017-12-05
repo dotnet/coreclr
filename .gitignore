@@ -317,3 +317,6 @@ sandbox
 
 #IL linker for testing
 linker
+
+# Check in binaries for this test
+!packages/xunit.*.nupkg
