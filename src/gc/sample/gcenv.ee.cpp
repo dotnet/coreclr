@@ -345,3 +345,7 @@ void GCToEEInterface::FireGcStartAndGenerationRanges(uint32_t count, uint32_t de
 void GCToEEInterface::FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth)
 {
 }
+
+void GCToEEInterface::FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress)
+{
+}

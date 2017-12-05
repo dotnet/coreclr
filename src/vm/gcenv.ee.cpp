@@ -1403,3 +1403,40 @@ void GCToEEInterface::FireGcEndAndGenerationRanges(uint32_t count, uint32_t dept
 
     ETW::GCLog::FireGcEndAndGenerationRanges(count, depth);
 }
+
+void GCToEEInterface::FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    assert(GetThread() != nullptr);
+    void * typeId = nullptr;
+    const WCHAR * name = nullptr;
+    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName;
+
+    EX_TRY
+    {
+        TypeHandle th = GetThread()->GetTHAllocContextObj();
+
+        if (th != 0)
+        {
+            th.GetName(strTypeName);
+            name = strTypeName.GetUnicode();
+            typeId = th.GetMethodTable();
+        }
+    }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions)
+
+    if (typeId != nullptr)
+    {
+        FireEtwGCAllocationTick_V3((uint32_t)allocationAmount,
+                                   isSohAllocation ? ETW::GCLog::ETW_GC_INFO::AllocationSmall : ETW::GCLog::ETW_GC_INFO::AllocationLarge, 
+                                   GetClrInstanceId(),
+                                   allocationAmount,
+                                   typeId, 
+                                   name,
+                                   heapNumber,
+                                   objectAddress
+                                   );
+    }
+}

@@ -64,6 +64,7 @@ public:
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
     void FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type);
     void FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth);
+    void FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress);
 };
 
 } // namespace standalone

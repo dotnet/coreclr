@@ -260,6 +260,9 @@ public:
 
     virtual
     void FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth) = 0;
+
+    virtual
+    void FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

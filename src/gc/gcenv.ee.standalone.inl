@@ -282,4 +282,10 @@ inline void GCToEEInterface::FireGcEndAndGenerationRanges(uint32_t count, uint32
     g_theGCToCLR->FireGcEndAndGenerationRanges(count, depth);
 }
 
+inline void GCToEEInterface::FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress) 
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->FireAllocationTick(allocationAmount, isSohAllocation, heapNumber, objectAddress);
+}
+
 #endif // __GCTOENV_EE_STANDALONE_INL__
