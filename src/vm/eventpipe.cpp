@@ -228,8 +228,7 @@ void EventPipe::Shutdown()
     }
     CONTRACTL_END;
 
-    // EventPipe::Disable is additionally can throw exceptions
-    // Shutdown is used within the CLR Shutdown routine and cannot
+    // We are shutting down, so if diasabling EventPipe throws, we need to move along anyway
     EX_TRY
     {
         Disable();
@@ -264,7 +263,7 @@ void EventPipe::Enable(
     CONTRACTL_END;
 
     // If tracing is not initialized or is already enabled, bail here.
-    if(!s_tracingInitialized || s_pConfig->Enabled())
+    if(!s_tracingInitialized || s_pConfig == NULL || s_pConfig->Enabled())
     {
         return;
     }
@@ -314,7 +313,7 @@ void EventPipe::Disable()
     // Take the lock before disabling tracing.
     CrstHolder _crst(GetLock());
 
-    if(s_pConfig->Enabled())
+    if(s_pConfig != NULL && s_pConfig->Enabled())
     {
         // Disable the profiler.
         SampleProfiler::Disable();
@@ -470,7 +469,6 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(s_pBufferManager != NULL);
     }
     CONTRACTL_END;
 
@@ -485,6 +483,12 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     if(pThread == NULL)
     {
         // We can't write an event without the thread object.
+        return;
+    }
+
+    if(s_pConfig == NULL)
+    {
+        // We can't procede without a configuration
         return;
     }
 
