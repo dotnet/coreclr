@@ -24,6 +24,7 @@ EventPipeProvider::EventPipeProvider(EventPipeConfiguration *pConfig, const SStr
 
     m_providerName = providerName;
     m_enabled = false;
+    m_deleteDeferred = false;
     m_keywords = 0;
     m_providerLevel = EventPipeEventLevel::Critical;
     m_pEventList = new SList<SListElem<EventPipeEvent*>>();
