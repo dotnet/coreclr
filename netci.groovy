@@ -2441,6 +2441,8 @@ Constants.allScenarios.each { scenario ->
                             // In addition, test steps are entirely different
                             // because we do not have a unified runner
                             if (windowsArmJob != true) {
+                                def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName(branch)
+
                                 // HACK -- Arm64 does not have corefx jobs yet.
                                 // Clone corefx and build the native packages overwriting the x64 packages.
                                 if (architecture == 'arm64') {
