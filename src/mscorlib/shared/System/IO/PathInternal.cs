@@ -9,7 +9,7 @@ namespace System.IO
 {
     /// <summary>Contains internal path helpers that are shared between many projects.</summary>
     internal static partial class PathInternal
-    {        
+    {
         /// <summary>
         /// Returns the start index of the filename
         /// in the given path, or 0 if no directory
