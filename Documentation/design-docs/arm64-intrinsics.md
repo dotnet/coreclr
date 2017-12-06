@@ -63,7 +63,8 @@ exception must be thrown.
 The JIT must use a set of flags corresponding to logical sets of instructions to alter code
 generation.
 
-The VM must query the OS to populate the set of JIT flags.
+The VM must query the OS to populate the set of JIT flags.  For the special altJit case, a
+means must provide for setting the flags.
 
 Each OS must provide mechanism for determining which sets of instructions are supported.
 
@@ -122,26 +123,28 @@ class names.
 
 | ID Register      | Field   | Values   | Intrinsic `static class` name |
 | ---------------- | ------- | -------- | ----------------------------- |
-| N/A              | N/A     | N/A      | Required                      |
+| N/A              | N/A     | N/A      | All                           |
 | ID_AA64ISAR0_EL1 | AES     | (1b, 10b)| Aes                           |
-| ID_AA64ISAR0_EL1 | AES     | (10b)    | Pmull64                       |
-| ID_AA64ISAR0_EL1 | SHA1    | (1b)     | Sha1                          |
-| ID_AA64ISAR0_EL1 | SHA2    | (1b)     | Sha2                          |
-| ID_AA64ISAR0_EL1 | CRC32   | (1b)     | Crc32                         |
 | ID_AA64ISAR0_EL1 | Atomic  | (10b)    | Atomics                       |
-| ID_AA64ISAR0_EL1 | RDM     | (1b)     | SimdV81                       |
-| ID_AA64MMFR2_EL1 | IESB    | (1b)     | Esb                           |
+| ID_AA64ISAR0_EL1 | CRC32   | (1b)     | Crc32                         |
+| ID_AA64ISAR0_EL1 | DP      | (1b)     | Dp                            |
 | ID_AA64PFR0_EL1  | FP      | (0b, 1b) | Fp                            |
 | ID_AA64PFR0_EL1  | FP      | (1b)     | Fp16                          |
+| ID_AA64ISAR0_EL1 | AES     | (10b)    | Pmull                         |
+| ID_AA64PFR0_EL1  | RAS     | (1b)     | Ras                           |
+| ID_AA64ISAR0_EL1 | SHA1    | (1b)     | Sha1                          |
+| ID_AA64ISAR0_EL1 | SHA2    | (1b, 10b)| Sha2                          |
+| ID_AA64ISAR0_EL1 | SHA3    | (1b)     | Sha3                          |
+| ID_AA64ISAR0_EL1 | SHA2    | (10b)    | Sha512                        |
 | ID_AA64PFR0_EL1  | AdvSIMD | (0b, 1b) | Simd                          |
 | ID_AA64PFR0_EL1  | AdvSIMD | (1b)     | SimdFp16                      |
-| ID_AA64PFR0_EL1  | RAS     | (1b)     | Ras                           |
+| ID_AA64ISAR0_EL1 | RDM     | (1b)     | SimdV81                       |
+| ID_AA64ISAR0_EL1 | SM3     | (1b)     | Sm3                           |
+| ID_AA64ISAR0_EL1 | SM4     | (1b)     | Sm4                           |
 | ID_AA64PFR0_EL1  | SVE     | (1b)     | Sve                           |
 
 The `Required` `static class` is used to represent any intrinsic which is guaranteed to be implemented on all
 `ARM64` platforms.  Investigation is needed to determine if this is an empty set.
-
-It is also possible the `ESB` or `RAS` may not need intrinsics.
 
 As further extensions are released, this set of intrinsics will grow.
 
@@ -205,7 +208,7 @@ Intrinsics will extend the API of CoreCLR.  They will need to follow standard AP
 
 Review will be facilitated by GitHub Pull requests to amend the Approved API section of this document.
 
-A separate GitHub Issue will be created for the review of each intrinsic `static class`.  This allows design and review team to
+A separate GitHub Issue will typically created for the review of each intrinsic `static class`.  This allows design and review team to
 review separately.  This allows review complexity to be kept manageable.  The O(N^2) nature of the review process will be kept to
 reasonable levels and iterations will be finite.
 
@@ -223,8 +226,6 @@ Implementation will be kept separate from from API review.
 ### Test coverage
 
 As intrinsic support is added test coverage must be extended to provide basic testing
-
-Tests
 
 ## Half precision floating point
 
@@ -301,7 +302,7 @@ The following sections document APIs which have completed the API review process
 
 Until each API is approved it shall be marked "TBD Not Approved"
 
-### `Required`
+### `All`
 
 TBD Not approved
 
@@ -317,7 +318,7 @@ TBD Not approved
 
 TBD Not approved
 
-### `Esb`
+### `Dp`
 
 TBD Not approved
 
@@ -329,7 +330,7 @@ TBD Not approved
 
 TBD Not approved
 
-### `Pmull64`
+### `Pmull`
 
 TBD Not approved
 
@@ -345,11 +346,31 @@ TBD Not approved
 
 TBD Not approved
 
+### `Sha3`
+
+TBD Not approved
+
+### `Sha512`
+
+TBD Not approved
+
 ### `Simd`
 
 TBD Not approved
 
 ### `SimdFp16`
+
+TBD Not approved
+
+### `SimdV81`
+
+TBD Not approved
+
+### `Sm3`
+
+TBD Not approved
+
+### `Sm4`
 
 TBD Not approved
 
