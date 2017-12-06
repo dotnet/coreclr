@@ -37,7 +37,6 @@ EventPipeConfiguration::~EventPipeConfiguration()
     if(m_pConfigProvider != NULL)
     {
         delete(m_pConfigProvider);
-
         m_pConfigProvider = NULL;
     }
 

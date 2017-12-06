@@ -194,7 +194,7 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread
 
         // EX_TRY is used here as opposed to new (nothrow) because
         // the constructor also allocates a private buffer, which
-        // could through, and cannot be easily checked
+        // could throw, and cannot be easily checked
         EX_TRY
         {
             pNewBuffer = new EventPipeBuffer(bufferSize);

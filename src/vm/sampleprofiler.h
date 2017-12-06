@@ -45,7 +45,7 @@ class SampleProfiler
 
         // Calls either PAL_nanosleep or ClrSleepEx depending on platform
         // Note: Although we specify the time in ns, that is no indication
-        // of the actually accuracy with whihc we will return from sleep
+        // of the actually accuracy with which we will return from sleep
         // In reality Unix will have a minimum granularity of ~10ms
         // and Windows has a default granularity of ~16ms, but can be
         // adjusted to as low as ~1ms
