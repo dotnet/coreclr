@@ -34,11 +34,15 @@ debug = 0
 def loadDefinitionFile(filename):
     result = []
 
-    with open(filename, 'r') as f:
-        for line in f:
-            theLine = line.rstrip("\r\n").strip()
-            if (len(theLine) > 0):
-                result.append(theLine)
+    try:
+        with open(filename, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    result.append(line)
+    except FileNotFoundError:
+        # If cmake was not used, this script won't work, and that's ok
+        sys.exit(0)
 
     result = sorted(result)
     return result
