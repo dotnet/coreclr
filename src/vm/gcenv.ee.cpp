@@ -1389,19 +1389,23 @@ void GCToEEInterface::FireGcStartAndGenerationRanges(uint32_t count, uint32_t de
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifdef FEATURE_EVENT_TRACE
     ETW::GCLog::ETW_GC_INFO info;
     info.GCStart.Count = count;
     info.GCStart.Depth = depth;
     info.GCStart.Reason = (ETW::GCLog::ETW_GC_INFO::GC_REASON)reason;
     info.GCStart.Type = (ETW::GCLog::st_GCEventInfo::GC_TYPE)type;
     ETW::GCLog::FireGcStartAndGenerationRanges(&info);
+#endif // FEATURE_EVENT_TRACE
 }
 
 void GCToEEInterface::FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth)
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifdef FEATURE_EVENT_TRACE
     ETW::GCLog::FireGcEndAndGenerationRanges(count, depth);
+#endif // FEATURE_EVENT_TRACE
 }
 
 void GCToEEInterface::FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress)
