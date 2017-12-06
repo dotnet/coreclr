@@ -76,34 +76,34 @@ namespace System
 
         public override String ToString()
         {
-            return Number.FormatUInt64(m_value, null, NumberFormatInfo.CurrentInfo);
+            return Number.FormatUInt64(m_value, null, null);
         }
 
         public String ToString(IFormatProvider provider)
         {
-            return Number.FormatUInt64(m_value, null, NumberFormatInfo.GetInstance(provider));
+            return Number.FormatUInt64(m_value, null, provider);
         }
 
         public String ToString(String format)
         {
-            return Number.FormatUInt64(m_value, format, NumberFormatInfo.CurrentInfo);
+            return Number.FormatUInt64(m_value, format, null);
         }
 
         public String ToString(String format, IFormatProvider provider)
         {
-            return Number.FormatUInt64(m_value, format, NumberFormatInfo.GetInstance(provider));
+            return Number.FormatUInt64(m_value, format, provider);
         }
 
-        public bool TryFormat(Span<char> destination, out int charsWritten, string format = null, IFormatProvider provider = null)
+        public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default, IFormatProvider provider = null)
         {
-            return Number.TryFormatUInt64(m_value, format, NumberFormatInfo.GetInstance(provider), destination, out charsWritten);
+            return Number.TryFormatUInt64(m_value, format, provider, destination, out charsWritten);
         }
 
         [CLSCompliant(false)]
         public static ulong Parse(String s)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseUInt64(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.CurrentInfo);
+            return Number.ParseUInt64(s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo);
         }
 
         [CLSCompliant(false)]
@@ -111,14 +111,14 @@ namespace System
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseUInt64(s.AsReadOnlySpan(), style, NumberFormatInfo.CurrentInfo);
+            return Number.ParseUInt64(s, style, NumberFormatInfo.CurrentInfo);
         }
 
         [CLSCompliant(false)]
         public static ulong Parse(string s, IFormatProvider provider)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseUInt64(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.GetInstance(provider));
+            return Number.ParseUInt64(s, NumberStyles.Integer, NumberFormatInfo.GetInstance(provider));
         }
 
         [CLSCompliant(false)]
@@ -126,7 +126,7 @@ namespace System
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseUInt64(s.AsReadOnlySpan(), style, NumberFormatInfo.GetInstance(provider));
+            return Number.ParseUInt64(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
         [CLSCompliant(false)]
@@ -145,7 +145,7 @@ namespace System
                 return false;
             }
 
-            return Number.TryParseUInt64(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.CurrentInfo, out result);
+            return Number.TryParseUInt64(s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo, out result);
         }
 
         [CLSCompliant(false)]
@@ -165,13 +165,8 @@ namespace System
                 return false;
             }
 
-            return Number.TryParseUInt64(s.AsReadOnlySpan(), style, NumberFormatInfo.GetInstance(provider), out result);
+            return Number.TryParseUInt64(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
-
-        // TODO https://github.com/dotnet/corefx/issues/23642: Remove once corefx has been updated with new overloads.
-        [CLSCompliant(false)]
-        public static Boolean TryParse(ReadOnlySpan<char> s, out UInt64 result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null) =>
-            TryParse(s, style, provider, out result);
 
         [CLSCompliant(false)]
         public static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider provider, out ulong result)

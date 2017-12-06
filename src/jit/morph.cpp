@@ -444,7 +444,8 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
             {
                 // gtFoldExprConst will deal with whether the cast is signed or
                 // unsigned, or overflow-sensitive.
-                andOp2 = oper->gtOp.gtOp2 = gtFoldExprConst(andOp2);
+                andOp2           = gtFoldExprConst(andOp2);
+                oper->gtOp.gtOp2 = andOp2;
             }
 
             // Look for a constant less than 2^{32} for a cast to uint, or less
@@ -465,9 +466,67 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
         if (fgGlobalMorph && !tree->gtOverflow() && !oper->gtOverflowEx())
         {
             // For these operations the lower 32 bits of the result only depends
-            // upon the lower 32 bits of the operands
+            // upon the lower 32 bits of the operands.
             //
-            if (oper->OperIs(GT_ADD, GT_SUB, GT_MUL, GT_AND, GT_OR, GT_XOR, GT_NOT, GT_NEG, GT_LSH))
+            bool canPushCast = oper->OperIs(GT_ADD, GT_SUB, GT_MUL, GT_AND, GT_OR, GT_XOR, GT_NOT, GT_NEG);
+
+            // For long LSH cast to int, there is a discontinuity in behavior
+            // when the shift amount is 32 or larger.
+            //
+            // CAST(INT, LSH(1LL, 31)) == LSH(1, 31)
+            // LSH(CAST(INT, 1LL), CAST(INT, 31)) == LSH(1, 31)
+            //
+            // CAST(INT, LSH(1LL, 32)) == 0
+            // LSH(CAST(INT, 1LL), CAST(INT, 32)) == LSH(1, 32) == LSH(1, 0) == 1
+            //
+            // So some extra validation is needed.
+            //
+            if (oper->OperIs(GT_LSH))
+            {
+                GenTree* shiftAmount = oper->gtOp.gtOp2;
+
+                // Expose constant value for shift, if possible, to maximize the number
+                // of cases we can handle.
+                shiftAmount      = gtFoldExpr(shiftAmount);
+                oper->gtOp.gtOp2 = shiftAmount;
+
+                if (shiftAmount->IsIntegralConst())
+                {
+                    const ssize_t shiftAmountValue = shiftAmount->AsIntCon()->IconValue();
+
+                    if (shiftAmountValue >= 64)
+                    {
+                        // Shift amount is large enough that result is undefined.
+                        // Don't try and optimize.
+                        assert(!canPushCast);
+                    }
+                    else if (shiftAmountValue >= 32)
+                    {
+                        // Result of the shift is zero.
+                        DEBUG_DESTROY_NODE(tree);
+                        GenTree* zero = gtNewZeroConNode(TYP_INT);
+                        return fgMorphTree(zero);
+                    }
+                    else if (shiftAmountValue >= 0)
+                    {
+                        // Shift amount is small enough that we can push the cast through.
+                        canPushCast = true;
+                    }
+                    else
+                    {
+                        // Shift amount is negative and so result is undefined.
+                        // Don't try and optimize.
+                        assert(!canPushCast);
+                    }
+                }
+                else
+                {
+                    // Shift amount is unknown. We can't optimize this case.
+                    assert(!canPushCast);
+                }
+            }
+
+            if (canPushCast)
             {
                 DEBUG_DESTROY_NODE(tree);
 
@@ -16207,7 +16266,13 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(co
     }
 
     // Can the entire tree be removed?
-    bool removedStmt = fgCheckRemoveStmt(block, stmt);
+    bool removedStmt = false;
+
+    // Defer removing statements during CSE so we don't inadvertently remove any CSE defs.
+    if (!optValnumCSE_phase)
+    {
+        removedStmt = fgCheckRemoveStmt(block, stmt);
+    }
 
     // Or this is the last statement of a conditional branch that was just folded?
     if (!removedStmt && (stmt->getNextStmt() == nullptr) && !fgRemoveRestOfBlock)

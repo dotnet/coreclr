@@ -69,70 +69,64 @@ namespace System
 
         public override String ToString()
         {
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.CurrentInfo);
+            return Number.FormatInt32(m_value, null, null);
         }
 
         public String ToString(IFormatProvider provider)
         {
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.GetInstance(provider));
+            return Number.FormatInt32(m_value, null, provider);
         }
 
         public String ToString(String format)
         {
-            return ToString(format, NumberFormatInfo.CurrentInfo);
+            return ToString(format, null);
         }
 
         public String ToString(String format, IFormatProvider provider)
         {
-            return ToString(format, NumberFormatInfo.GetInstance(provider));
-        }
-
-        public bool TryFormat(Span<char> destination, out int charsWritten, string format = null, IFormatProvider provider = null)
-        {
-            NumberFormatInfo info = NumberFormatInfo.GetInstance(provider);
-
             if (m_value < 0 && format != null && format.Length > 0 && (format[0] == 'X' || format[0] == 'x'))
             {
                 uint temp = (uint)(m_value & 0x0000FFFF);
-                return Number.TryFormatUInt32(temp, format, info, destination, out charsWritten);
+                return Number.FormatUInt32(temp, format, provider);
             }
-            return Number.TryFormatInt32(m_value, format, info, destination, out charsWritten);
+
+            return Number.FormatInt32(m_value, format, provider);
         }
 
-        private String ToString(String format, NumberFormatInfo info)
+        public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default, IFormatProvider provider = null)
         {
-            if (m_value < 0 && format != null && format.Length > 0 && (format[0] == 'X' || format[0] == 'x'))
+            if (m_value < 0 && format.Length > 0 && (format[0] == 'X' || format[0] == 'x'))
             {
                 uint temp = (uint)(m_value & 0x0000FFFF);
-                return Number.FormatUInt32(temp, format, info);
+                return Number.TryFormatUInt32(temp, format, provider, destination, out charsWritten);
             }
-            return Number.FormatInt32(m_value, format, info);
+            return Number.TryFormatInt32(m_value, format, provider, destination, out charsWritten);
         }
 
         public static short Parse(String s)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Parse(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.CurrentInfo);
+            return Parse((ReadOnlySpan<char>)s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo);
         }
 
         public static short Parse(String s, NumberStyles style)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Parse(s.AsReadOnlySpan(), style, NumberFormatInfo.CurrentInfo);
+            return Parse((ReadOnlySpan<char>)s, style, NumberFormatInfo.CurrentInfo);
         }
 
         public static short Parse(String s, IFormatProvider provider)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Parse(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.GetInstance(provider));
+            return Parse((ReadOnlySpan<char>)s, NumberStyles.Integer, NumberFormatInfo.GetInstance(provider));
         }
 
         public static short Parse(String s, NumberStyles style, IFormatProvider provider)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Parse(s.AsReadOnlySpan(), style, NumberFormatInfo.GetInstance(provider));
+            return Parse((ReadOnlySpan<char>)s, style, NumberFormatInfo.GetInstance(provider));
         }
 
         public static short Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
@@ -176,7 +170,7 @@ namespace System
                 return false;
             }
 
-            return TryParse(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.CurrentInfo, out result);
+            return TryParse((ReadOnlySpan<char>)s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo, out result);
         }
 
         public static bool TryParse(ReadOnlySpan<char> s, out short result)
@@ -194,12 +188,8 @@ namespace System
                 return false;
             }
 
-            return TryParse(s.AsReadOnlySpan(), style, NumberFormatInfo.GetInstance(provider), out result);
+            return TryParse((ReadOnlySpan<char>)s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
-
-        // TODO https://github.com/dotnet/corefx/issues/23642: Remove once corefx has been updated with new overloads.
-        public static bool TryParse(ReadOnlySpan<char> s, out Int16 result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null) =>
-            TryParse(s, style, provider, out result);
 
         public static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider provider, out short result)
         {

@@ -172,8 +172,8 @@ class Constants {
                // 'r2r_jitforcerelocs'
                // 'r2r_gcstress15'
                'minopts':                                ["MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
-               // 'tieredcompilation'
-               // 'forcerelocs'
+               'tieredcompilation':                      [],
+               'forcerelocs':                            [],
                'jitstress1':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstress2':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs1':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -194,7 +194,7 @@ class Constants {
                'jitstress2_jitstressregs0x1000':         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'tailcallstress':                         ["TAILCALLSTRESS_FAIL", "TAILCALLSTRESS_EXCLUDE"],
                // 'jitsse2only'                          // Only relevant to xarch
-               // 'jitnosimd'
+               'jitnosimd':                              [],    // Only interesting on platforms where SIMD support exists.
                // 'corefx_baseline'
                // 'corefx_minopts'
                // 'corefx_tieredcompilation'
@@ -211,19 +211,19 @@ class Constants {
                'gcstress0x3':                            ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
                'gcstress0xc':                            ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
                'zapdisable':                             ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
-               // 'heapverify1'
-               // 'gcstress0xc_zapdisable'
-               // 'gcstress0xc_zapdisable_jitstress2'
-               // 'gcstress0xc_zapdisable_heapverify1'
+               'heapverify1':                            [],
+               'gcstress0xc_zapdisable':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
+               'gcstress0xc_zapdisable_jitstress2':      ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'gcstress0xc_zapdisable_heapverify1':     ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
                'gcstress0xc_jitstress1':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'gcstress0xc_jitstress2':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               // 'gcstress0xc_minopts_heapverify1'
+               'gcstress0xc_minopts_heapverify1':        ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
 
                //
                // NOTE: the following scenarios are not defined in the 'allScenarios' list! Is this a bug?
                //
 
-               'minopts_zapdisable':                     ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "TAILCALLSTRESS_FAIL", "TAILCALLSTRESS_EXCLUDE"],
+               'minopts_zapdisable':                     ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
                'gcstress0x3_jitstress1':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'gcstress0x3_jitstress2':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'gcstress0x3_jitstressregs1':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -1166,6 +1166,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
                     break
                 case 'Windows_NT':
+                    // Triggers on the non-flow jobs aren't necessary here
+                    if (!isFlowJob) {
+                        break
+                    }
+
                     // Set up a private trigger
                     def contextString = "${os} ${architecture} Cross ${configuration}"
                     def triggerString = "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}"
@@ -1262,6 +1267,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
                     break
                 case 'Windows_NT':
+                    // Triggers on the non-flow jobs aren't necessary here
+                    if (!isFlowJob) {
+                        break
+                    }
+
                     assert isArmWindowsScenario(scenario)
                     switch (scenario) {
                         case 'default':
@@ -1828,8 +1838,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
     return buildCommands
 }
 
-// Additional scenario which can alter behavior
-
 Constants.allScenarios.each { scenario ->
     [true, false].each { isPR ->
         Constants.architectureList.each { architecture ->
@@ -2059,7 +2067,7 @@ Constants.allScenarios.each { scenario ->
 
                     // Add all the standard options
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
-                    addTriggers(newJob, branch, isPR, architecture, os, configuration, scenario, false, isBuildOnly)
+                    addTriggers(newJob, branch, isPR, architecture, os, configuration, scenario, false, isBuildOnly) // isFlowJob==false
 
                     def buildCommands = calculateBuildCommands(newJob, scenario, branch, isPR, architecture, configuration, os, isBuildOnly)
                     def osGroup = getOSGroup(os)
@@ -2167,14 +2175,17 @@ Constants.allScenarios.each { scenario ->
                         }
                     }
                     else {
+                        // Non-Windows
                         if (architecture == 'arm64') {
                             if (scenario != 'default' && scenario != 'r2r' && scenario != 'gcstress0x3' && scenario != 'gcstress0xc') {
                                 return
                             }
-                    else if (architecture == 'x86') {
-                        // Linux/x86 only want default test
-                        if (scenario != 'default') {
-                            return
+                        }
+                        else if (architecture == 'x86') {
+                            // Linux/x86 only want default test
+                            if (scenario != 'default') {
+                                return
+                            }
                         }
                     }
 
@@ -2532,6 +2543,9 @@ Constants.allScenarios.each { scenario ->
                                 def coreRootLocation = "%WORKSPACE%\\bin\\tests\\Windows_NT.${architecture}.${configuration}\\Tests\\Core_Root"
                                 def addEnvVariable =  { variable, value -> buildCommands += "set ${variable}=${value}\r\n"}
                                 def addCommand = { cmd -> buildCommands += "${cmd}\r\n"}
+
+                                // Make sure Command Extensions are enabled. Used so %ERRORLEVEL% is available.
+                                addCommand("SETLOCAL ENABLEEXTENSIONS")
     
                                 // For all jobs 
                                 addEnvVariable("CORE_ROOT", coreRootLocation)
@@ -2590,10 +2604,13 @@ Constants.allScenarios.each { scenario ->
                                     addArchSpecificExclude(architecture, failTag)
                                     addArchSpecificExclude(architecture, excludeTag)
                                 }
-
                                 else {
                                     addExclude("pri1")
                                 }
+
+                                // Exclude any test marked LONG_RUNNING; these often exceed the standard timeout and fail as a result.
+                                // TODO: We should create a "long running" job that runs these with a longer timeout.
+                                addExclude("LONG_RUNNING")
 
                                 smartyCommand += "/lstFile Tests.lst"
 
@@ -2609,10 +2626,25 @@ Constants.allScenarios.each { scenario ->
                                 addCommand("pushd bin\\tests\\${osGroup}.${architecture}.${configuration}")
                                 addCommand("${smartyCommand}")
 
-                                batchFile(buildCommands)
+                                // Save the errorlevel from the smarty command to be used as the errorlevel of this batch file.
+                                // However, we also need to remove all the variables that were set during this batch file, so we
+                                // can run the ZIP powershell command (below) in a clean environment. (We can't run the powershell
+                                // command with the COMPlus_AltJit variables set, for example.) To do that, we do ENDLOCAL as well
+                                // as save the current errorlevel on the same line. This works because CMD evaluates the %errorlevel%
+                                // variable expansion (or any variable expansion on the line) BEFORE it executes the ENDLOCAL command.
+                                // Note that the ENDLOCAL also undoes the pushd command, but we add the popd here for clarity.
+                                addCommand("popd & ENDLOCAL & set __save_smarty_errorlevel=%errorlevel%")
 
-                                // ZIP up the smarty output.
-                                batchFile("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0', '.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0.zip')\"")
+                                // ZIP up the smarty output, no matter what the smarty result.
+                                addCommand("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0', '.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0.zip')\"")
+
+                                addCommand("echo %errorlevel%")
+                                addCommand("dir .\\bin\\tests\\${osGroup}.${architecture}.${configuration}")
+
+                                // Use the smarty errorlevel as the script errorlevel.
+                                addCommand("exit /b %__save_smarty_errorlevel%")
+
+                                batchFile(buildCommands)
                             }
                         }
                     }
@@ -2720,7 +2752,7 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
 
                     setMachineAffinity(newFlowJob, os, flowArch, affinityOptions)
                     Utilities.standardJobSetup(newFlowJob, project, isPR, "*/${branch}")
-                    addTriggers(newFlowJob, branch, isPR, architecture, os, configuration, scenario, true, false)
+                    addTriggers(newFlowJob, branch, isPR, architecture, os, configuration, scenario, true, false) // isFlowJob==true, isWindowsBuildOnlyJob==false
                 } // configuration
             } // os
         } // architecture

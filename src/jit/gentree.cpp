@@ -12735,8 +12735,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         // If we have class handles, try and resolve the type equality test completely.
         if ((cls1Hnd != nullptr) && (cls2Hnd != nullptr))
         {
-            JITDUMP("Asking runtime to compare %p (%s) and %p (%s) for equality\n", cls1Hnd,
-                    info.compCompHnd->getClassName(cls1Hnd), cls2Hnd, info.compCompHnd->getClassName(cls2Hnd));
+            JITDUMP("Asking runtime to compare %p (%s) and %p (%s) for equality\n", dspPtr(cls1Hnd),
+                    info.compCompHnd->getClassName(cls1Hnd), dspPtr(cls2Hnd), info.compCompHnd->getClassName(cls2Hnd));
             TypeCompareState s = info.compCompHnd->compareTypesForEquality(cls1Hnd, cls2Hnd);
 
             if (s != TypeCompareState::May)
@@ -16514,10 +16514,10 @@ bool GenTree::isContained() const
         assert(!isMarkedContained);
     }
 
-    // if it's contained it better have a user
+    // if it's contained it can't be unused.
     if (isMarkedContained)
     {
-        assert(gtNext != nullptr);
+        assert(!IsUnusedValue());
     }
 #endif // DEBUG
     return isMarkedContained;
