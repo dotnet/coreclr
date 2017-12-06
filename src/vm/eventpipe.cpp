@@ -509,7 +509,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
             // We're under lock and blocking the disabling thread.
             // This copy occurs here (rather than at file write) because
             // A) The FastSerializer API would need to change if we waited
-            // B) It is unclear there is a benifit to multiple file write calls
+            // B) It is unclear there is a benefit to multiple file write calls
             //    as opposed a a buffer copy here
             EventPipeEventInstance instance(
                 event,
