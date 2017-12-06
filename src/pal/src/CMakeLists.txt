@@ -238,6 +238,8 @@ add_library(coreclrpal
   ${PLATFORM_SOURCES}
 )
 
+# This builds in functionality to load LTTng tracepoints at runtime
+# Needed when using LTTng to support event tracing on Linux
 if(CLR_CMAKE_PLATFORM_LINUX AND FEATURE_EVENT_TRACE)
     add_library(tracepointprovider
       STATIC
