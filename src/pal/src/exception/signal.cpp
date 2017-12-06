@@ -98,7 +98,7 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
 #endif
 #endif // !HAVE_MACH_EXCEPTIONS
 
-static void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction, int additionalFlags = 0, int skipIgnored = 0);
+static void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction, int additionalFlags = 0, bool skipIgnored = false);
 static void restore_signal(int signal_id, struct sigaction *previousAction);
 
 /* internal data declarations *********************************************/
@@ -249,8 +249,8 @@ BOOL SEHInitializeSignals(DWORD flags)
     // We don't setup a handler for SIGINT/SIGQUIT when those signals are ignored.
     // Otherwise our child processes would reset to the default on exec causing them
     // to terminate on these signals.
-    handle_signal(SIGINT, sigint_handler, &g_previous_sigint, 0, 1);
-    handle_signal(SIGQUIT, sigquit_handler, &g_previous_sigquit, 0, 1);
+    handle_signal(SIGINT, sigint_handler, &g_previous_sigint   , 0 /* additionalFlags */, true /* skipIgnored */);
+    handle_signal(SIGQUIT, sigquit_handler, &g_previous_sigquit, 0 /* additionalFlags */, true /* skipIgnored */);
 
     if (!EnsureSignalAlternateStack())
     {
@@ -906,7 +906,7 @@ Parameters :
     
 note : if sigfunc is NULL, the default signal handler is restored    
 --*/
-void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction, int additionalFlags, int skipIgnored)
+void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction, int additionalFlags, bool skipIgnored)
 {
     struct sigaction newAction;
 
