@@ -33,7 +33,7 @@ class SampleProfiler
         static void Disable();
 
         // Set the sampling rate.
-        static void SetSamplingRate(long nanoseconds);
+        static void SetSamplingRate(unsigned long nanoseconds);
 
     private:
 
@@ -54,10 +54,10 @@ class SampleProfiler
         // scheduling priority. There is no way to prevent this from user threads
         // Additionally we may get lucky and there will be an open CPU to run
         // and under light load the timings will achieve great accuracy!
-        static void PlatformSleep(long nanoseconds);
+        static void PlatformSleep(unsigned long nanoseconds);
 
-        static void BeginTimePeriod();
-        static void EndTimePeriod();
+        static void SetTimeGranularity();
+        static void ResetTimeGranularity();
 
         // True when profiling is enabled.
         static Volatile<BOOL> s_profilingEnabled;
@@ -81,7 +81,7 @@ class SampleProfiler
         static CLREventStatic s_threadShutdownEvent;
 
         // The sampling rate.
-        static long s_samplingRateInNs;
+        static unsigned long s_samplingRateInNs;
 
         // Whether or not timeBeginPeriod has been used to set the scheduler period
         static bool s_timePeriodIsSet;

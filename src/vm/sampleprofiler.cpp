@@ -26,7 +26,7 @@ EventPipeEvent* SampleProfiler::s_pThreadTimeEvent = NULL;
 BYTE* SampleProfiler::s_pPayloadExternal = NULL;
 BYTE* SampleProfiler::s_pPayloadManaged = NULL;
 CLREventStatic SampleProfiler::s_threadShutdownEvent;
-long SampleProfiler::s_samplingRateInNs = 1 MILLION; // 1ms
+unsigned long SampleProfiler::s_samplingRateInNs = 1 MILLION; // 1ms
 bool SampleProfiler::s_timePeriodIsSet = FALSE;
 
 void SampleProfiler::Enable()
@@ -77,7 +77,7 @@ void SampleProfiler::Enable()
 
     s_threadShutdownEvent.CreateManualEvent(FALSE);
 
-    BeginTimePeriod();
+    SetTimeGranularity();
 }
 
 void SampleProfiler::Disable()
@@ -111,7 +111,7 @@ void SampleProfiler::Disable()
     //HACK
 }
 
-void SampleProfiler::SetSamplingRate(long nanoseconds)
+void SampleProfiler::SetSamplingRate(unsigned long nanoseconds)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -119,13 +119,13 @@ void SampleProfiler::SetSamplingRate(long nanoseconds)
     // make sure to change it back before changing our period
     // and losing track of what we set it to
     if(s_timePeriodIsSet){
-        EndTimePeriod();
+        ResetTimeGranularity();
     }
 
     s_samplingRateInNs = nanoseconds;
 
     if(!s_timePeriodIsSet){
-        BeginTimePeriod();
+        SetTimeGranularity();
     }
 }
 
@@ -221,7 +221,16 @@ void SampleProfiler::WalkManagedThreads()
     }
 }
 
-void SampleProfiler::PlatformSleep(long nanoseconds){
+void SampleProfiler::PlatformSleep(unsigned long nanoseconds)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
 #ifdef FEATURE_PAL
     PAL_nanosleep(nanoseconds);
 #else //FEATURE_PAL
@@ -229,22 +238,40 @@ void SampleProfiler::PlatformSleep(long nanoseconds){
 #endif //FEATURE_PAL
 }
 
-void SampleProfiler::BeginTimePeriod(){
-#ifndef PLATFORM_UNIX
+void SampleProfiler::SetTimeGranularity()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+#ifndef PLATFORM_WINDOWS
     // Attempt to set the systems minimum timer period to the sampling rate
     // If the sampling rate is lower than the current system setting (16ms by default),
     // this will cause the OS to wake more often for scheduling descsion, allowing us to take samples
     // Note that is effects a system-wide setting and when set low will increase the amount of time
     // the OS is on-CPU, decreasing overall system performance and increasing power consumption
     if(timeBeginPeriod(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR) s_timePeriodIsSet = TRUE;
-#endif //PLATFORM_UNIX
+#endif //PLATFORM_WINDOWS
 }
 
-void SampleProfiler::EndTimePeriod(){
-#ifndef PLATFORM_UNIX
+void SampleProfiler::ResetTimeGranularity()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+#ifndef PLATFORM_WINDOWS
     // End the modifications we had to the timer period in Enable
     if(timeEndPeriod(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR) s_timePeriodIsSet = FALSE;
-#endif //PLATFORM_UNIX
+#endif //PLATFORM_WINDOWS
 }
 
 #endif // FEATURE_PERFTRACING
