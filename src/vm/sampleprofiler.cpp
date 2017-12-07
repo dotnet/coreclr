@@ -248,7 +248,7 @@ void SampleProfiler::SetTimeGranularity()
     }
     CONTRACTL_END;
 
-#ifndef PLATFORM_WINDOWS
+#ifdef PLATFORM_WINDOWS
     // Attempt to set the systems minimum timer period to the sampling rate
     // If the sampling rate is lower than the current system setting (16ms by default),
     // this will cause the OS to wake more often for scheduling descsion, allowing us to take samples
@@ -268,7 +268,7 @@ void SampleProfiler::ResetTimeGranularity()
     }
     CONTRACTL_END;
 
-#ifndef PLATFORM_WINDOWS
+#ifdef PLATFORM_WINDOWS
     // End the modifications we had to the timer period in Enable
     if(timeEndPeriod(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR) s_timePeriodIsSet = FALSE;
 #endif //PLATFORM_WINDOWS
