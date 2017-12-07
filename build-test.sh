@@ -166,11 +166,11 @@ generate_layout()
 
     export CORE_ROOT=$XuintTestBinBase/Tests/Core_Root
 
-    if [ ! -f "${CORE_ROOT}" ]; then
-      mkdir -p $CORE_ROOT
-    else
-      rm -rf $CORE_ROOT/*
+    if [ -d "${CORE_ROOT}" ]; then
+      rm -rf $CORE_ROOT
     fi
+
+    mkdir -p $CORE_ROOT
 
     build_Tests_internal "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "-testOverlay" "Creating test overlay"
 
@@ -178,6 +178,9 @@ generate_layout()
         echo "${__MsgPrefix}ZIP tests packages..."
         build_Tests_internal "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" " " "Prep test binaries for Helix publishing"
     fi
+
+    chmod +x $__BinDir/corerun
+    chmod +x $__BinDir/crossgen
 
     # Make sure to copy over the pulled down packages
     cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
