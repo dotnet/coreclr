@@ -33,5 +33,5 @@ add_subdirectory(samples)
 add_subdirectory(threading)
 
 if(FEATURE_EVENT_TRACE)
-  add_subdirectory(${GENERATED_EVENTING_DIR}/eventprovider/tests ${CMAKE_CURRENT_BINARY_DIR}/eventprovider )
+  add_subdirectory(${GENERATED_EVENTING_DIR}/eventprovider/tests ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
 endif(FEATURE_EVENT_TRACE)
