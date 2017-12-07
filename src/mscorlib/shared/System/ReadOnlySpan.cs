@@ -322,6 +322,9 @@ namespace System
         /// </summary>
         public static ReadOnlySpan<T> Empty => default(ReadOnlySpan<T>);
 
+        // This exposes the internal representation for Span-related apis use only.
+        internal ByReference<T> Pointer => _pointer;
+
         /// <summary>Gets an enumerator for this span.</summary>
         public Enumerator GetEnumerator() => new Enumerator(this);
 
