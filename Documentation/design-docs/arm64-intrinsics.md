@@ -58,13 +58,15 @@ The `IsSupported` properties are design so that JIT can remove code on unused pa
 If client code calls an intrinsic which is not supported by the platform a `PlatformNotSupported`
 exception must be thrown.
 
-### JIT, VM & OS requirements
+### JIT, VM, PAL & OS requirements
 
 The JIT must use a set of flags corresponding to logical sets of instructions to alter code
 generation.
 
 The VM must query the OS to populate the set of JIT flags.  For the special altJit case, a
 means must provide for setting the flags.
+
+PAL must provide an OS abstraction layer.
 
 Each OS must provide mechanism for determining which sets of instructions are supported.
 
@@ -121,30 +123,38 @@ The sets will be chosen to match the granularity if the `ARM64` `ID_*` register 
 The table below documents the set of known extensions, their identification, and their recommended intrinsic
 class names.
 
-| ID Register      | Field   | Values   | Intrinsic `static class` name |
-| ---------------- | ------- | -------- | ----------------------------- |
-| N/A              | N/A     | N/A      | All                           |
-| ID_AA64ISAR0_EL1 | AES     | (1b, 10b)| Aes                           |
-| ID_AA64ISAR0_EL1 | Atomic  | (10b)    | Atomics                       |
-| ID_AA64ISAR0_EL1 | CRC32   | (1b)     | Crc32                         |
-| ID_AA64ISAR0_EL1 | DP      | (1b)     | Dp                            |
-| ID_AA64PFR0_EL1  | FP      | (0b, 1b) | Fp                            |
-| ID_AA64PFR0_EL1  | FP      | (1b)     | Fp16                          |
-| ID_AA64ISAR0_EL1 | AES     | (10b)    | Pmull                         |
-| ID_AA64PFR0_EL1  | RAS     | (1b)     | Ras                           |
-| ID_AA64ISAR0_EL1 | SHA1    | (1b)     | Sha1                          |
-| ID_AA64ISAR0_EL1 | SHA2    | (1b, 10b)| Sha2                          |
-| ID_AA64ISAR0_EL1 | SHA3    | (1b)     | Sha3                          |
-| ID_AA64ISAR0_EL1 | SHA2    | (10b)    | Sha512                        |
-| ID_AA64PFR0_EL1  | AdvSIMD | (0b, 1b) | Simd                          |
-| ID_AA64PFR0_EL1  | AdvSIMD | (1b)     | SimdFp16                      |
-| ID_AA64ISAR0_EL1 | RDM     | (1b)     | SimdV81                       |
-| ID_AA64ISAR0_EL1 | SM3     | (1b)     | Sm3                           |
-| ID_AA64ISAR0_EL1 | SM4     | (1b)     | Sm4                           |
-| ID_AA64PFR0_EL1  | SVE     | (1b)     | Sve                           |
+| ID Register      | Field   | Values   | Intrinsic `static class` name | Ext. type  |
+| ---------------- | ------- | -------- | ----------------------------- | ---------- |
+| N/A              | N/A     | N/A      | All                           | Baseline   |
+| ID_AA64ISAR0_EL1 | AES     | (1b, 10b)| Aes                           | Crypto     |
+| ID_AA64ISAR0_EL1 | Atomic  | (10b)    | Atomics                       | Ordering   |
+| ID_AA64ISAR0_EL1 | CRC32   | (1b)     | Crc32                         | Crypto     |
+| ID_AA64ISAR1_EL1 | DPB     | (1b)     | Dcpop                         | Ordering   |
+| ID_AA64ISAR0_EL1 | DP      | (1b)     | Dp                            | SIMD       |
+| ID_AA64ISAR1_EL1 | FCMA    | (1b)     | Fcma                          | SIMD       |
+| ID_AA64PFR0_EL1  | FP      | (0b, 1b) | Fp                            | FP         |
+| ID_AA64PFR0_EL1  | FP      | (1b)     | Fp16                          | FP, Half   |
+| ID_AA64ISAR1_EL1 | JSCVT   | (1b)     | Jscvt                         | SIMD       |
+| ID_AA64ISAR1_EL1 | LRCPC   | (1b)     | Lrcpc                         | Ordering   |
+| ID_AA64ISAR0_EL1 | AES     | (10b)    | Pmull                         | SIMD       |
+| ID_AA64PFR0_EL1  | RAS     | (1b)     | Ras                           | Ordering   |
+| ID_AA64ISAR0_EL1 | SHA1    | (1b)     | Sha1                          | Crypto     |
+| ID_AA64ISAR0_EL1 | SHA2    | (1b, 10b)| Sha2                          | Crypto     |
+| ID_AA64ISAR0_EL1 | SHA3    | (1b)     | Sha3                          | Crypto     |
+| ID_AA64ISAR0_EL1 | SHA2    | (10b)    | Sha512                        | Crypto     |
+| ID_AA64PFR0_EL1  | AdvSIMD | (0b, 1b) | Simd                          | SIMD       |
+| ID_AA64PFR0_EL1  | AdvSIMD | (1b)     | SimdFp16                      | SIMD,Half  |
+| ID_AA64ISAR0_EL1 | RDM     | (1b)     | SimdV81                       | SIMD       |
+| ID_AA64ISAR0_EL1 | SM3     | (1b)     | Sm3                           | Crypto     |
+| ID_AA64ISAR0_EL1 | SM4     | (1b)     | Sm4                           | Crypto     |
+| ID_AA64PFR0_EL1  | SVE     | (1b)     | Sve                           | SIMD,SVE   |
 
-The `Required` `static class` is used to represent any intrinsic which is guaranteed to be implemented on all
-`ARM64` platforms.  Investigation is needed to determine if this is an empty set.
+The `All`, `Simd`, and `Fp` classes will together contain the bulk of the `ARM64` intrinsics.  Most other extensions
+will only add a few instruction so they should be simpler to review.
+
+The `Baseline` `All` `static class` is used to represent any intrinsic which is guaranteed to be implemented on all
+`ARM64` platforms.  This set will include general purpose instructions.  Investigation is needed to determine if
+any of these need intrinsics or whether this is an empty set.
 
 As further extensions are released, this set of intrinsics will grow.
 
@@ -318,7 +328,15 @@ TBD Not approved
 
 TBD Not approved
 
+### `Dcpop`
+
+TBD Not approved
+
 ### `Dp`
+
+TBD Not approved
+
+### `Fcma`
 
 TBD Not approved
 
@@ -327,6 +345,14 @@ TBD Not approved
 TBD Not approved
 
 ### `Fp16`
+
+TBD Not approved
+
+### `Jscvt`
+
+TBD Not approved
+
+### `Lrcpc`
 
 TBD Not approved
 
