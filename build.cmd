@@ -401,7 +401,7 @@ if %__BuildNative% EQU 1 (
 
     echo Laying out dynamically generated files consumed by the build system
     echo Laying out dynamically generated Event test files and etmdummy stub functions
-    %PYTHON% -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --testdir %__IntermediatesEventingDir%\eventprovider\tests --nonextern || exit /b 1
+    %PYTHON% -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern || exit /b 1
 
     echo Laying out dynamically generated EventPipe Implementation
     %PYTHON% -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
