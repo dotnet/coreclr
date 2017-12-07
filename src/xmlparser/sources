@@ -1,0 +1,36 @@
+#
+# 
+#  Copyright (c) 2006 Microsoft Corporation.  All rights reserved.
+# 
+#  The use and distribution terms for this software are contained in the file
+#  named license.txt, which can be found in the root of this distribution.
+#  By using this software in any fashion, you are agreeing to be bound by the
+#  terms of this license.
+# 
+#  You must not remove this notice, or any other, from this software.
+# 
+#
+
+# Take out the CRT.
+NO_NTDLL			=1
+!undef USE_LIBCMT
+
+INCLUDES        = $(INCLUDES);.
+
+TARGETNAME      =xmlparser
+TARGETPATH      =$(CLR_LIB_DEST)
+TARGETTYPE      =LIBRARY
+
+USER_C_FLAGS     = $(USER_C_FLAGS) -DUNICODE -D_UNICODE -DFEATURE_NO_HOST
+
+SOURCES=                        \
+    bufferedstream.cpp  \
+    charencoder.cpp     \
+    encodingstream.cpp  \
+    xmlhelper.cpp       \
+    xmlparser.cpp       \
+    xmlstream.cpp       \
+    _rawstack.cpp       \
+    _reference.cpp      \
+
+    
