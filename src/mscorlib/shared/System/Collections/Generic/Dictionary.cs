@@ -74,10 +74,11 @@ namespace System.Collections.Generic
         {
             if (capacity < 0) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
             if (capacity > 0) Initialize(capacity);
-            this.comparer = comparer ?? EqualityComparer<TKey>.Default;
+            this.comparer = comparer;
 
-            if (this.comparer == EqualityComparer<string>.Default)
+            if (typeof(TKey) == typeof(string) && (comparer == null || this.comparer == EqualityComparer<string>.Default))
             {
+                // To start, move off default comparer for string which is randomised
                 this.comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Default;
             }
         }
@@ -141,13 +142,7 @@ namespace System.Collections.Generic
             HashHelpers.SerializationInfoTable.Add(this, info);
         }
 
-        public IEqualityComparer<TKey> Comparer
-        {
-            get
-            {
-                return comparer;
-            }
-        }
+        public IEqualityComparer<TKey> Comparer => comparer ?? EqualityComparer<TKey>.Default;
 
         public int Count
         {
@@ -288,10 +283,9 @@ namespace System.Collections.Generic
             }
             else
             {
-                EqualityComparer<TValue> c = EqualityComparer<TValue>.Default;
                 for (int i = 0; i < count; i++)
                 {
-                    if (entries[i].hashCode >= 0 && c.Equals(entries[i].value, value)) return true;
+                    if (entries[i].hashCode >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, value)) return true;
                 }
             }
             return false;
@@ -343,7 +337,7 @@ namespace System.Collections.Generic
             }
 
             info.AddValue(VersionName, version);
-            info.AddValue(ComparerName, comparer, typeof(IEqualityComparer<TKey>));
+            info.AddValue(ComparerName, comparer ?? EqualityComparer<TKey>.Default, typeof(IEqualityComparer<TKey>));
             info.AddValue(HashSizeName, buckets == null ? 0 : buckets.Length); // This is the length of the bucket array
 
             if (buckets != null)
@@ -364,13 +358,13 @@ namespace System.Collections.Generic
             found = true;
             if (buckets != null)
             {
-                int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+                int hashCode = (comparer == null ? EqualityComparer<TKey>.Default.GetHashCode(key) : comparer.GetHashCode(key)) & 0x7FFFFFFF;
                 int targetBucket = hashCode % buckets.Length;
                 int i = buckets[targetBucket];
                 while (i >= 0)
                 {
                     ref Entry candidateEntry = ref entries[i];
-                    if (candidateEntry.hashCode == hashCode && comparer.Equals(candidateEntry.key, key))
+                    if (candidateEntry.hashCode == hashCode && ((comparer == null && EqualityComparer<TKey>.Default.Equals(candidateEntry.key, key)) || (comparer != null && comparer.Equals(candidateEntry.key, key))))
                     {
                         return ref candidateEntry;
                     }
@@ -406,7 +400,7 @@ namespace System.Collections.Generic
             }
 
             if (buckets == null) Initialize(0);
-            int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+            int hashCode = (comparer == null ? EqualityComparer<TKey>.Default.GetHashCode(key) : comparer.GetHashCode(key)) & 0x7FFFFFFF;
             int targetBucket = hashCode % buckets.Length;
             int collisionCount = 0;
 
@@ -414,7 +408,7 @@ namespace System.Collections.Generic
             while (i >= 0)
             {
                 ref Entry candidateEntry = ref entries[i];
-                if (candidateEntry.hashCode == hashCode && comparer.Equals(candidateEntry.key, key))
+                if (candidateEntry.hashCode == hashCode && ((comparer == null && EqualityComparer<TKey>.Default.Equals(candidateEntry.key, key)) || (comparer != null && comparer.Equals(candidateEntry.key, key))))
                 {
                     if (behavior == InsertionBehavior.OverwriteExisting)
                     {
@@ -466,7 +460,8 @@ namespace System.Collections.Generic
 
             if (typeof(TKey) == typeof(string) && collisionCount > HashHelpers.HashCollisionThreshold && comparer is NonRandomizedStringEqualityComparer)
             {
-                comparer = (IEqualityComparer<TKey>)EqualityComparer<string>.Default;
+                // Clear comparer back to default, for randomised hashing
+                comparer = null;
                 Resize(entries.Length, true);
             }
 
@@ -541,7 +536,7 @@ namespace System.Collections.Generic
                 {
                     if (newEntries[i].hashCode != -1)
                     {
-                        newEntries[i].hashCode = (comparer.GetHashCode(newEntries[i].key) & 0x7FFFFFFF);
+                        newEntries[i].hashCode = (comparer == null ? EqualityComparer<TKey>.Default.GetHashCode(newEntries[i].key) : comparer.GetHashCode(newEntries[i].key)) & 0x7FFFFFFF;
                     }
                 }
             }
@@ -572,15 +567,14 @@ namespace System.Collections.Generic
 
             if (buckets != null)
             {
-                int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+                int hashCode = (comparer == null ? EqualityComparer<TKey>.Default.GetHashCode(key) : comparer.GetHashCode(key)) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;
                 int last = -1;
                 int i = buckets[bucket];
                 while (i >= 0)
                 {
                     ref Entry entry = ref entries[i];
-
-                    if (entry.hashCode == hashCode && comparer.Equals(entry.key, key))
+                    if (entry.hashCode == hashCode && ((comparer == null && EqualityComparer<TKey>.Default.Equals(entry.key, key)) || (comparer != null && comparer.Equals(entry.key, key))))
                     {
                         if (last < 0)
                         {
@@ -626,15 +620,14 @@ namespace System.Collections.Generic
 
             if (buckets != null)
             {
-                int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+                int hashCode = (comparer == null ? EqualityComparer<TKey>.Default.GetHashCode(key) : comparer.GetHashCode(key)) & 0x7FFFFFFF;
                 int bucket = hashCode % buckets.Length;
                 int last = -1;
                 int i = buckets[bucket];
                 while (i >= 0)
                 {
                     ref Entry entry = ref entries[i];
-
-                    if (entry.hashCode == hashCode && comparer.Equals(entry.key, key))
+                    if (entry.hashCode == hashCode && ((comparer == null && EqualityComparer<TKey>.Default.Equals(entry.key, key)) || (comparer != null && comparer.Equals(entry.key, key))))
                     {
                         if (last < 0)
                         {
