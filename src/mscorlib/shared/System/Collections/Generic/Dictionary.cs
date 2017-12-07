@@ -62,6 +62,8 @@ namespace System.Collections.Generic
         private const string KeyValuePairsName = "KeyValuePairs"; // Do not rename (binary serialization)
         private const string ComparerName = "Comparer"; // Do not rename (binary serialization)
 
+        private static Entry s_nullEntry;
+
         public Dictionary() : this(0, null) { }
 
         public Dictionary(int capacity) : this(capacity, null) { }
@@ -210,10 +212,12 @@ namespace System.Collections.Generic
         {
             get
             {
-                int i = FindEntry(key);
-                if (i >= 0) return entries[i].value;
-                ThrowHelper.ThrowKeyNotFoundException(key);
-                return default(TValue);
+                ref Entry entry = ref FindEntry(key, out bool found);
+                if (!found)
+                {
+                    ThrowHelper.ThrowKeyNotFoundException(key);
+                }
+                return entry.value;
             }
             set
             {
@@ -235,8 +239,8 @@ namespace System.Collections.Generic
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
         {
-            int i = FindEntry(keyValuePair.Key);
-            if (i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value))
+            ref Entry entry = ref FindEntry(keyValuePair.Key, out bool found);
+            if (found && EqualityComparer<TValue>.Default.Equals(entry.value, keyValuePair.Value))
             {
                 return true;
             }
@@ -245,8 +249,8 @@ namespace System.Collections.Generic
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
-            int i = FindEntry(keyValuePair.Key);
-            if (i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value))
+            ref Entry entry = ref FindEntry(keyValuePair.Key, out bool found);
+            if (found && EqualityComparer<TValue>.Default.Equals(entry.value, keyValuePair.Value))
             {
                 Remove(keyValuePair.Key);
                 return true;
@@ -269,7 +273,8 @@ namespace System.Collections.Generic
 
         public bool ContainsKey(TKey key)
         {
-            return FindEntry(key) >= 0;
+            FindEntry(key, out bool found);
+            return found;
         }
 
         public bool ContainsValue(TValue value)
@@ -349,22 +354,39 @@ namespace System.Collections.Generic
             }
         }
 
-        private int FindEntry(TKey key)
+        private ref Entry FindEntry(TKey key, out bool found)
         {
             if (key == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
+            found = true;
             if (buckets != null)
             {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-                for (int i = buckets[hashCode % buckets.Length]; i >= 0; i = entries[i].next)
+                int targetBucket = hashCode % buckets.Length;
+                int i = buckets[targetBucket];
+                while (i >= 0)
                 {
-                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) return i;
+                    ref Entry candidateEntry = ref entries[i];
+                    if (candidateEntry.hashCode == hashCode && comparer.Equals(candidateEntry.key, key))
+                    {
+                        return ref candidateEntry;
+                    }
+
+                    i = candidateEntry.next;
                 }
             }
-            return -1;
+
+            found = false;
+            return ref NotFound;
+        }
+
+        private ref Entry NotFound
+        {
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            get => ref s_nullEntry;
         }
 
         private void Initialize(int capacity)
@@ -652,14 +674,8 @@ namespace System.Collections.Generic
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            int i = FindEntry(key);
-            if (i >= 0)
-            {
-                value = entries[i].value;
-                return true;
-            }
-            value = default(TValue);
-            return false;
+            value = FindEntry(key, out bool found).value;
+            return found;
         }
 
         public bool TryAdd(TKey key, TValue value) => TryInsert(key, value, InsertionBehavior.None);
@@ -793,11 +809,8 @@ namespace System.Collections.Generic
             {
                 if (IsCompatibleKey(key))
                 {
-                    int i = FindEntry((TKey)key);
-                    if (i >= 0)
-                    {
-                        return entries[i].value;
-                    }
+                    ref var entry = ref FindEntry((TKey)key, out bool found);
+                    return found ? (object)entry.value : null;
                 }
                 return null;
             }
