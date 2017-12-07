@@ -11,7 +11,6 @@ namespace Tracing.Tests
     {
         private static int allocIterations = 10000;
         private static int gcIterations = 10;
-        private static int trivialSize = 0x100000;
 
         static int Main(string[] args)
         {
@@ -50,9 +49,6 @@ namespace Tracing.Tests
                 Console.WriteLine("\tStart: Disable tracing.");
                 TraceControl.Disable();
                 Console.WriteLine("\tEnd: Disable tracing.\n");
-
-                FileInfo outputMeta = new FileInfo(outputFilename);
-                Console.WriteLine("\tCreated {0} bytes of data", outputMeta.Length);
 
                 Console.WriteLine("\tStart: Processing events from file.");
                 int allocTickCount = 0;
