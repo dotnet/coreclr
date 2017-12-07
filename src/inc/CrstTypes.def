@@ -783,3 +783,6 @@ End
 
 Crst NotifyGdb
 End
+
+Crst XMLParser
+End

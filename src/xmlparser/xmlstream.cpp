@@ -27,6 +27,8 @@
 #include "bufferedstream.h"
 #include "xmlparser.hpp"
 
+#include <mscorcfg.h>
+
 const long BLOCK_SIZE = 512;
 const long STACK_INCREMENT = 10;
 
@@ -61,16 +63,16 @@ typedef enum
 const StateEntry g_DeclarationTable[] =
 {
 // 0    '<' ^ '!' 
-    { OP_CHAR, L"!", 1, (DWORD)XML_E_INTERNALERROR,  },                    
+    { OP_CHAR, W("!"), 1, (DWORD)XML_E_INTERNALERROR,  },                    
 // 1    '<!' ^ '-'
-    { OP_PEEK, L"-", 2, 4, 0 },                    
+    { OP_PEEK, W("-"), 2, 4, 0 },                    
 // 2    '<!-'
     { OP_COMMENT,  NULL, 3,   },                 
 // 3    done !!
     { OP_POP,  NULL, 0, 0 },
 
 // 4    '<!' ^ '['
-    { OP_PEEK, L"[", 5, (DWORD)XML_E_BADDECLNAME, 0 },
+    { OP_PEEK, W("["), 5, (DWORD)XML_E_BADDECLNAME, 0 },
 // 5    '<![...'
     { OP_CONDSECT,  NULL, 3,   }
  
@@ -89,7 +91,7 @@ const StateEntry g_XMLDeclarationTable[] =
 // 3    '<?xml' S ^ version="1.0" ...
     { OP_NAME, NULL, 4, },
 // 4    '<?xml' S version^="1.0" ...
-    { OP_STRCMP, L"version", 5, 12, XML_VERSION },
+    { OP_STRCMP, W("version"), 5, 12, XML_VERSION },
 // 5
     { OP_EQUALS, NULL, 6 },
 // 6    '<?xml' S version = ^ "1.0" ...
@@ -97,17 +99,17 @@ const StateEntry g_XMLDeclarationTable[] =
 // 7    '<?xml' S version '=' value ^ 
     { OP_TOKEN, NULL, 8, XML_PCDATA, -1 },
 // 8    ^ are we done ?
-    { OP_CHARWS, L"?", 28, 9 },    // must be '?' or whitespace.
+    { OP_CHARWS, W("?"), 28, 9 },    // must be '?' or whitespace.
 // 9    ^ S? [encoding|standalone] '?>'
     { OP_OWS, NULL, 10 },
 // 10
-    { OP_CHAR, L"?", 28, 33 },    // may have '?' after skipping whitespace.
+    { OP_CHAR, W("?"), 28, 33 },    // may have '?' after skipping whitespace.
 // 11    ^ [encoding|standalone] '?>'
     { OP_NAME, NULL, 12, },
 // 12
-    { OP_STRCMP, L"standalone", 23, 13, XML_STANDALONE },
+    { OP_STRCMP, W("standalone"), 23, 13, XML_STANDALONE },
 // 13
-    { OP_STRCMP, L"encoding", 14, (DWORD)XML_E_UNEXPECTED_ATTRIBUTE, XML_ENCODING },
+    { OP_STRCMP, W("encoding"), 14, (DWORD)XML_E_UNEXPECTED_ATTRIBUTE, XML_ENCODING },
 // 14
     { OP_EQUALS, NULL, 15 },
 // 15   
@@ -118,48 +120,48 @@ const StateEntry g_XMLDeclarationTable[] =
     { OP_TOKEN, NULL, 18, XML_PCDATA, -1 },
 
 // 18    ^ are we done ?
-    { OP_CHARWS, L"?", 28, 19 },    // must be '?' or whitespace.
+    { OP_CHARWS, W("?"), 28, 19 },    // must be '?' or whitespace.
 // 19    ^ S? standalone '?>'
     { OP_OWS, NULL, 20 },
 // 20
-    { OP_CHAR, L"?", 28, 34 },    // may have '?' after skipping whitespace.
+    { OP_CHAR, W("?"), 28, 34 },    // may have '?' after skipping whitespace.
 // 21    ^ standalone '?>'
     { OP_NAME, NULL, 22, },
 // 22 
-    { OP_STRCMP, L"standalone", 23, (DWORD)XML_E_UNEXPECTED_ATTRIBUTE, 
+    { OP_STRCMP, W("standalone"), 23, (DWORD)XML_E_UNEXPECTED_ATTRIBUTE, 
 XML_STANDALONE },
 // 23
     { OP_EQUALS, NULL, 24 },
 // 24
     { OP_ATTRVAL, NULL, 25, 0 },
 // 25   
-    { OP_STRCMP, L"yes", 31, 30, -1  },
+    { OP_STRCMP, W("yes"), 31, 30, -1  },
 
 // 26    <?xml ....... ^ '?>'   -- now expecting just the closing '?>' chars
     { OP_OWS, NULL, 27 },
 // 27    
-    { OP_CHAR, L"?", 28, (DWORD)XML_E_XMLDECLSYNTAX, 0 },
+    { OP_CHAR, W("?"), 28, (DWORD)XML_E_XMLDECLSYNTAX, 0 },
 // 28   
-    { OP_CHAR, L">", 29, (DWORD)XML_E_XMLDECLSYNTAX, 0 },
+    { OP_CHAR, W(">"), 29, (DWORD)XML_E_XMLDECLSYNTAX, 0 },
 // 29    done !!
     { OP_POP,  NULL, 0, XMLStream::XML_ENDXMLDECL },
 
 //----------------------- check standalone values  "yes" or "no"
 // 30
-    { OP_STRCMP, L"no", 31, (DWORD)XML_E_INVALID_STANDALONE, -1  },
+    { OP_STRCMP, W("no"), 31, (DWORD)XML_E_INVALID_STANDALONE, -1  },
 // 31
     { OP_TOKEN, NULL, 26, XML_PCDATA, -1 },
     
 //----------------------- check version = "1.0"
 // 32
-    { OP_STRCMP, L"1.0", 7, (DWORD)XML_E_INVALID_VERSION, -1 },
+    { OP_STRCMP, W("1.0"), 7, (DWORD)XML_E_INVALID_VERSION, -1 },
 // 33 
     { OP_SNCHAR, NULL, 11, (DWORD)XML_E_XMLDECLSYNTAX },   
 // 34 
     { OP_SNCHAR, NULL, 21, (DWORD)XML_E_XMLDECLSYNTAX },  
 };
 
-static const WCHAR* g_pstrCDATA = L"CDATA";
+static const WCHAR* g_pstrCDATA = W("CDATA");
 ////////////////////////////////////////////////////////////////////////
 XMLStream::XMLStream(XMLParser * pXMLParser)
 :   _pStack(1), _pStreams(1)
@@ -875,9 +877,9 @@ XMLStream::parsePI()
                 const WCHAR* t;
                 long len;
                 getToken(&t,&len);
-                //if (! StringEquals(L"xml",t,3,false)) // case sensitive
-                //if (::FusionpCompareStrings(L"xml", 3, t, 3, false)!=0) // not equal 
-				if(wcsncmp(L"xml", t, 3) != 0)
+                //if (! StringEquals(W("xml"),t,3,false)) // case sensitive
+                //if (::FusionpCompareStrings(W("xml"), 3, t, 3, false)!=0) // not equal 
+				if(wcsncmp(W("xml"), t, 3) != 0)
                     return XML_E_BADXMLCASE;
             }
             return pushTable(10, g_XMLDeclarationTable, (DWORD)XML_E_UNCLOSEDPI);
@@ -1272,9 +1274,9 @@ XMLStream::parsePCData()
                 WCHAR* pText;
                 long len;
                 _pInput->getToken((const WCHAR**)&pText, &len);
-                //if (len >= 2 && StrCmpN(L"]]", pText + len - 2, 2) == 0)
-//                if ((len >= 2) && (::FusionpCompareStrings(L"]]", 2, pText + len - 2, 2, false)==0))
-                  if ((len >= 2) && (wcsncmp(L"]]", pText + len - 2, 2)==0))
+                //if (len >= 2 && StrCmpN(W("]]"), pText + len - 2, 2) == 0)
+//                if ((len >= 2) && (::FusionpCompareStrings(W("]]"), 2, pText + len - 2, 2, false)==0))
+                  if ((len >= 2) && (wcsncmp(W("]]"), pText + len - 2, 2)==0))
 		             return XML_E_INVALID_CDATACLOSINGTAG;               
             }
 // This slows us down too much.
@@ -1603,11 +1605,11 @@ XMLStream::parseCondSect()
             const WCHAR* t;
             long len;
             getToken(&t,&len);
-            //if (StringEquals(L"IGNORE",t,len,false))
+            //if (StringEquals(W("IGNORE"),t,len,false))
             //{
             //    return switchTo(&XMLStream::parseIgnoreSect);
             //}
-            //else if (StringEquals(L"INCLUDE",t,len,false))
+            //else if (StringEquals(W("INCLUDE"),t,len,false))
             //{
             //    return switchTo(&XMLStream::parseIncludeSect);
             //}
@@ -1858,7 +1860,7 @@ XMLStream::parseTable()
         case OP_STRCMP:
             {
                 // 428740: Prefix complained about null ptr deref.
-                const WCHAR* t=L"";
+                const WCHAR* t=W("");
                 long len=0;
                 getToken(&t,&len);
                 long delta = (pSE->_lDelta < 0) ? pSE->_lDelta : 0;
@@ -1906,7 +1908,7 @@ XMLStream::parseTable()
         case OP_ENCODING:
             {
                 // 429011: Prefix complained correctly about unitialized t
-                const WCHAR* t = L"";
+                const WCHAR* t = W("");
                 long len = 0;
                 _pInput->getToken(&t,&len);
                 hr =  _pInput->switchEncoding(t, len+pSE->_lDelta);
@@ -2023,4 +2025,202 @@ XMLStream::ErrorCallback(HRESULT hr)
     else if (hr == (HRESULT) E_DATA_REALLOCATE)
         hr = XML_DATAREALLOCATE;
     return _pXMLParser->ErrorCallback(hr);
+}
+
+
+class XMLParserShimFileStream : public _unknown<IStream, &IID_IStream>
+{
+public:
+    XMLParserShimFileStream()  
+    { 
+        hFile = INVALID_HANDLE_VALUE;
+        read = true;
+    }
+
+    ~XMLParserShimFileStream() 
+    { 
+		close();
+    }
+
+    bool close()
+    {
+        if ( hFile != INVALID_HANDLE_VALUE)
+            ::CloseHandle(hFile);
+
+        return TRUE; 
+    }
+
+    bool open(PCWSTR name, bool read = true)
+    {
+        if ( ! name ) {
+            return false; 
+        }
+        if (read)
+        {
+            hFile = ::WszCreateFile( 
+                name,
+                GENERIC_READ,
+                FILE_SHARE_READ,
+                NULL,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                NULL);
+        }
+        else
+        {
+            hFile = ::WszCreateFile(
+                name,
+                GENERIC_WRITE,
+                FILE_SHARE_READ,
+                NULL,
+                CREATE_ALWAYS,
+                FILE_ATTRIBUTE_NORMAL,
+                NULL);
+        }
+        return (hFile == INVALID_HANDLE_VALUE) ? false : true;
+    }
+
+    virtual /* [local] */ HRESULT STDMETHODCALLTYPE Read( 
+        /* [out] */ void __RPC_FAR *pv,
+        /* [in] */ ULONG cb,
+        /* [out] */ ULONG __RPC_FAR *pcbRead)
+    {   
+        if (!read) return E_FAIL;
+
+        DWORD len;
+        BOOL rc = ReadFile(
+            hFile,  // handle of file to read 
+            pv, // address of buffer that receives data  
+            cb, // number of bytes to read 
+            &len,   // address of number of bytes read 
+            NULL    // address of structure for data 
+           );
+        if (pcbRead)
+            *pcbRead = len;
+        return (rc) ? S_OK : E_FAIL;
+    }
+    
+    virtual /* [local] */ HRESULT STDMETHODCALLTYPE Write( 
+        /* [size_is][in] */ const void __RPC_FAR *pv,
+        /* [in] */ ULONG cb,
+        /* [out] */ ULONG __RPC_FAR *pcbWritten)
+    {
+        if (read) return E_FAIL;
+
+        BOOL rc = WriteFile(
+            hFile,  // handle of file to write 
+            pv, // address of buffer that contains data  
+            cb, // number of bytes to write 
+            pcbWritten, // address of number of bytes written 
+            NULL    // address of structure for overlapped I/O  
+           );
+
+        return (rc) ? S_OK : E_FAIL;
+    }
+
+    virtual /* [local] */ HRESULT STDMETHODCALLTYPE Seek( 
+        /* [in] */ LARGE_INTEGER dlibMove,
+        /* [in] */ DWORD dwOrigin,
+        /* [out] */ ULARGE_INTEGER __RPC_FAR *plibNewPosition) {
+
+      /*        UNUSED(dlibMove);
+        UNUSED(dwOrigin);
+        UNUSED(plibNewPosition);
+      */
+        return E_NOTIMPL; 
+    }
+    
+    virtual HRESULT STDMETHODCALLTYPE SetSize( 
+        /* [in] */ ULARGE_INTEGER libNewSize) { 
+      //UNUSED(libNewSize);
+        return E_NOTIMPL; }
+    
+    virtual /* [local] */ HRESULT STDMETHODCALLTYPE CopyTo( 
+        /* [unique][in] */ IStream __RPC_FAR *pstm,
+        /* [in] */ ULARGE_INTEGER cb,
+        /* [out] */ ULARGE_INTEGER __RPC_FAR *pcbRead,
+        /* [out] */ ULARGE_INTEGER __RPC_FAR *pcbWritten) { 
+      /*
+        UNUSED(pstm);
+        UNUSED(cb);
+        UNUSED(pcbRead);
+        UNUSED(pcbWritten);
+      */
+        return E_NOTIMPL; 
+    }
+    
+    virtual HRESULT STDMETHODCALLTYPE Commit( 
+        /* [in] */ DWORD grfCommitFlags) { 
+      //    UNUSED(grfCommitFlags);
+        return E_NOTIMPL; 
+    }
+    
+    virtual HRESULT STDMETHODCALLTYPE Revert( void) { return E_NOTIMPL; }
+    
+    virtual HRESULT STDMETHODCALLTYPE LockRegion( 
+        /* [in] */ ULARGE_INTEGER libOffset,
+        /* [in] */ ULARGE_INTEGER cb,
+        /* [in] */ DWORD dwLockType) { 
+      /*    UNUSED(libOffset);
+        UNUSED(cb);
+        UNUSED(dwLockType);
+      */
+        return E_NOTIMPL; 
+    }
+    
+    virtual HRESULT STDMETHODCALLTYPE UnlockRegion( 
+        /* [in] */ ULARGE_INTEGER libOffset,
+        /* [in] */ ULARGE_INTEGER cb,
+        /* [in] */ DWORD dwLockType) { 
+      /*    UNUSED(libOffset);
+        UNUSED(cb);
+        UNUSED(dwLockType); 
+      */
+        return E_NOTIMPL; 
+    }
+    
+    virtual HRESULT STDMETHODCALLTYPE Stat( 
+        /* [out] */ STATSTG __RPC_FAR *pstatstg,
+        /* [in] */ DWORD grfStatFlag) { 
+      /*
+        UNUSED(pstatstg);
+        UNUSED(grfStatFlag);
+      */
+        return E_NOTIMPL; 
+    }
+    
+    virtual HRESULT STDMETHODCALLTYPE Clone( 
+        /* [out] */ IStream __RPC_FAR *__RPC_FAR *ppstm) { 
+      //    UNUSED(ppstm);  
+        return E_NOTIMPL; 
+    }
+private:
+    HANDLE hFile;
+    bool read;
+};
+
+STDAPI CreateConfigStream(LPCWSTR pszFileName, IStream** ppStream)
+{   
+    HRESULT hr = S_OK;
+    XMLParserShimFileStream *ptr = NULL;
+
+    BEGIN_ENTRYPOINT_NOTHROW;
+
+    if(ppStream == NULL) IfFailGo(E_POINTER);
+
+
+    ptr = new (nothrow) XMLParserShimFileStream();
+    IfNullGo(ptr);
+    if(!ptr->open(pszFileName)) 
+    {
+        delete ptr;
+        IfFailGo(HRESULT_FROM_GetLastError());
+    }
+
+    ptr->AddRef(); // refCount = 1;
+    *ppStream = ptr;
+ErrExit:
+    END_ENTRYPOINT_NOTHROW;
+    
+    return hr;
 }

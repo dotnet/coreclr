@@ -218,9 +218,9 @@ HRESULT EncodingStream::autoDetect()
                 // Note, -1 below to remove the count for the NULL
 
                 if (guess == 0xFFFE)
-                    encoding = Encoding::newEncoding(L"UTF-16LE", NumItems(L"UTF-16LE")-1, true, true);
+                    encoding = Encoding::newEncoding(W("UTF-16LE"), NumItems(W("UTF-16LE"))-1, true, true);
                 else
-                    encoding = Encoding::newEncoding(L"UTF-16BE", NumItems(L"UTF-16BE")-1, false, true);
+                    encoding = Encoding::newEncoding(W("UTF-16BE"), NumItems(W("UTF-16BE"))-1, false, true);
             }
             bnext = 2;
         }
@@ -323,7 +323,7 @@ HRESULT EncodingStream::checkNewEncoding(const WCHAR **charset, ULONG * len)
     // If we're not in a UTF-16 set, then we'll default to using UTF-16LE for the UCS-2
     // character set.
 
-    if (!_wcsnicmp(*charset, L"ucs-2", *len))
+    if (!_wcsnicmp(*charset, W("ucs-2"), *len))
     {
         // If the current encoding is UTF-16, then we don't need to make a change
 
@@ -332,10 +332,10 @@ HRESULT EncodingStream::checkNewEncoding(const WCHAR **charset, ULONG * len)
 
 
         // Otherwise, let's make ucs-2 be UTF-16LE
-        *charset = L"utf-16le";
+        *charset = W("utf-16le");
 
         // -1 so len doesn't include the null terminator
-        *len = NumItems(L"utf-16le") -1;
+        *len = NumItems(W("utf-16le")) -1;
     }
 
     return S_OK;

@@ -47,7 +47,7 @@ class XMLParser : public _unknown<IXMLParser, &IID_IXMLParser>
 public:
 
 	XMLParser();
-        ~XMLParser();
+    ~XMLParser();
 
 		// ======= IUnknown override ============================
         virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void ** ppvObject);
@@ -208,7 +208,7 @@ public:
 
 		HRESULT ErrorCallback(HRESULT hr);
 
-        bool ctorInit(CrstLevel crstLevel);
+        bool ctorInit(CrstType crstType);
 private:
 
 		HRESULT PushTokenizer();

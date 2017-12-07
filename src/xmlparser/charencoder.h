@@ -28,7 +28,7 @@ typedef HRESULT WideCharFromMultiByteFunc(DWORD* pdwMode, CODEPAGE codepage, BYT
 struct EncodingEntry
 {
     UINT codepage;
-    WCHAR * charset;
+    const WCHAR * charset;
     UINT  maxCharSize;
     WideCharFromMultiByteFunc * pfnWideCharFromMultiByte;
 };
@@ -41,7 +41,7 @@ protected:
 public:
 
     // default encoding is UTF-8.
-    static Encoding* newEncoding(const WCHAR * s = TEXT("UTF-8"), ULONG len = 5, bool endian = false, bool mark = false);
+    static Encoding* newEncoding(const WCHAR * s = W("UTF-8"), ULONG len = 5, bool endian = false, bool mark = false);
     virtual ~Encoding();
     WCHAR * charset;        // charset 
     bool    littleendian;   // endian flag for UCS-2/UTF-16 encoding, true: little endian, false: big endian

@@ -65,9 +65,9 @@ XMLParser::XMLParser()
 }
 /////////////////////////////////////////////////////////////////////////////
 bool
-XMLParser::ctorInit(CrstLevel crstLevel)
+XMLParser::ctorInit(CrstType crstType)
 {
-    _cs = ClrCreateCriticalSection("XMLParser",crstLevel,(CrstFlags)(CRST_REENTRANCY|CRST_HOST_BREAKABLE|CRST_UNSAFE_SAMELEVEL));
+    _cs = ClrCreateCriticalSection(crstType,(CrstFlags)(CRST_REENTRANCY|CRST_HOST_BREAKABLE|CRST_UNSAFE_SAMELEVEL));
 
     _pTokenizer = NULL;
     _pCurrent = NULL;
@@ -1393,16 +1393,16 @@ STDAPI GetXMLElementAttribute(LPCWSTR pwszAttributeName, __out_ecount(cchBuffer)
 }
 
 
-STDAPI GetXMLObjectEx(IXMLParser **ppv, CrstLevel crstLevel)
+STDAPI GetXMLObjectEx(IXMLParser **ppv, CrstType crstType)
 {
 
     if(ppv == NULL) return E_POINTER;
     *ppv = NULL;
     IXMLParser *pParser = new (nothrow) XMLParser();
     if(pParser == NULL) return E_OUTOFMEMORY;
-    if (!(((XMLParser*)pParser)->ctorInit(crstLevel)))
+    if (!(((XMLParser*)pParser)->ctorInit(crstType)))
     {
-        delete pParser;
+        delete (XMLParser*)pParser;
         return E_OUTOFMEMORY;
     }
 

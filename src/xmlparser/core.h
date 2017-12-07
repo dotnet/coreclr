@@ -51,7 +51,9 @@
 
 #endif // end of #ifndef _FUSION_XMLPARSER_XMLCORE_H_INCLUDE_
 
+#ifndef NEW
 #define NEW(x) new (nothrow) x
+#endif
 #define FUSION_DBG_LEVEL_ERROR 0
 #define CODEPAGE UINT
 #ifndef Assert
