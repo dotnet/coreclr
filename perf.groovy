@@ -237,7 +237,7 @@ def static getOSGroup(def os) {
 
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
 [true, false].each { isPR ->
-    ['Ubuntu14.04'].each { os ->
+    ['Ubuntu16.04'].each { os ->
         def newJob = job(Utilities.getFullJobName(project, "perf_${os}", isPR)) {
 
             label('ubuntu_1604_clr_perf')
@@ -326,7 +326,7 @@ def static getOSGroup(def os) {
 
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
 [true, false].each { isPR ->
-    ['Ubuntu14.04'].each { os ->
+    ['Ubuntu16.04'].each { os ->
         def newJob = job(Utilities.getFullJobName(project, "perf_throughput_${os}", isPR)) {
 
             label('ubuntu_1604_clr_perf')
