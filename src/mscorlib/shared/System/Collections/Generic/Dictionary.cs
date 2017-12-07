@@ -388,13 +388,15 @@ namespace System.Collections.Generic
             int targetBucket = hashCode % buckets.Length;
             int collisionCount = 0;
 
-            for (int i = buckets[targetBucket]; i >= 0; i = entries[i].next)
+            int i = buckets[targetBucket];
+            while (i >= 0)
             {
-                if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
+                ref Entry candidateEntry = ref entries[i];
+                if (candidateEntry.hashCode == hashCode && comparer.Equals(candidateEntry.key, key))
                 {
                     if (behavior == InsertionBehavior.OverwriteExisting)
                     {
-                        entries[i].value = value;
+                        candidateEntry.value = value;
                         version++;
                         return true;
                     }
@@ -406,6 +408,8 @@ namespace System.Collections.Generic
 
                     return false;
                 }
+
+                i = candidateEntry.next;
                 collisionCount++;
             }
 
@@ -427,17 +431,18 @@ namespace System.Collections.Generic
                 count++;
             }
 
-            entries[index].hashCode = hashCode;
-            entries[index].next = buckets[targetBucket];
-            entries[index].key = key;
-            entries[index].value = value;
+            ref Entry entry = ref entries[index];
+            entry.hashCode = hashCode;
+            entry.next = buckets[targetBucket];
+            entry.key = key;
+            entry.value = value;
             buckets[targetBucket] = index;
             version++;
 
             // If we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
             // i.e. EqualityComparer<string>.Default.
 
-            if (collisionCount > HashHelpers.HashCollisionThreshold && comparer is NonRandomizedStringEqualityComparer)
+            if (typeof(TKey) == typeof(string) && collisionCount > HashHelpers.HashCollisionThreshold && comparer is NonRandomizedStringEqualityComparer)
             {
                 comparer = (IEqualityComparer<TKey>)EqualityComparer<string>.Default;
                 Resize(entries.Length, true);
