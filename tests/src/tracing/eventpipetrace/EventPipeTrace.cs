@@ -15,7 +15,7 @@ namespace Tracing.Tests
 
         static int Main(string[] args)
         {
-            bool pass = false;
+            bool pass = true;
             bool keepOutput = false;
 
             // Use the first arg as an output filename if there is one
@@ -62,10 +62,21 @@ namespace Tracing.Tests
                     trace.Clr.GCAllocationTick += delegate(GCAllocationTickTraceData data)
                     {
                         allocTickCount += 1;
+
+                        // Some basic integrity checks
+                        pass &= data.TypeName == "System.Object"; 
+                        pass &= data.AllocationKind == GCAllocationKind.Small; 
+                        pass &= data.ProviderName == "Microsoft-Windows-DotNETRuntime"; 
+                        pass &= data.EventName == "GC/AllocationTick"; 
                     };
                     trace.Clr.GCTriggered += delegate(GCTriggeredTraceData data)
                     {
                         gcTriggerCount += 1;
+
+                        // Some basic integrity checks
+                        pass &= data.Reason == GCReason.Induced; 
+                        pass &= data.ProviderName == "Microsoft-Windows-DotNETRuntime"; 
+                        pass &= data.EventName == "GC/Triggered"; 
                     };
 
                     trace.Process();
@@ -75,13 +86,13 @@ namespace Tracing.Tests
                 Console.WriteLine("\tProcessed {0} GCAllocationTick events", allocTickCount);
                 Console.WriteLine("\tProcessed {0} GCTriggered events", gcTriggerCount);
 
-                pass = allocTickCount > 0;
+                pass &= allocTickCount > 0;
                 pass &= gcTriggerCount == gcIterations;
             }
             finally {
                 if (keepOutput)
                 {
-                    Console.WriteLine("\tOutput file: {0}", outputFilename);
+                    Console.WriteLine("\n\tOutput file: {0}", outputFilename);
                 }
                 else
                 {
