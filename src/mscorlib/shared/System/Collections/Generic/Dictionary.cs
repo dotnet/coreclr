@@ -207,6 +207,11 @@ namespace System.Collections.Generic
         {
             get
             {
+                if (key == null)
+                {
+                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+                }
+
                 ref Entry entry = ref FindEntry(key, out bool found);
                 if (!found)
                 {
@@ -216,6 +221,11 @@ namespace System.Collections.Generic
             }
             set
             {
+                if (key == null)
+                {
+                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+                }
+
                 bool modified = TryInsert(key, value, InsertionBehavior.OverwriteExisting);
                 Debug.Assert(modified);
             }
@@ -223,6 +233,11 @@ namespace System.Collections.Generic
 
         public void Add(TKey key, TValue value)
         {
+            if (key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+            }
+
             bool modified = TryInsert(key, value, InsertionBehavior.ThrowOnExisting);
             Debug.Assert(modified); // If there was an existing key and the Add failed, an exception will already have been thrown.
         }
@@ -234,6 +249,11 @@ namespace System.Collections.Generic
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
         {
+            if (keyValuePair.Key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+            }
+
             ref Entry entry = ref FindEntry(keyValuePair.Key, out bool found);
             if (found && EqualityComparer<TValue>.Default.Equals(entry.value, keyValuePair.Value))
             {
@@ -244,6 +264,11 @@ namespace System.Collections.Generic
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
+            if (keyValuePair.Key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+            }
+
             ref Entry entry = ref FindEntry(keyValuePair.Key, out bool found);
             if (found && EqualityComparer<TValue>.Default.Equals(entry.value, keyValuePair.Value))
             {
@@ -268,6 +293,11 @@ namespace System.Collections.Generic
 
         public bool ContainsKey(TKey key)
         {
+            if (key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+            }
+
             FindEntry(key, out bool found);
             return found;
         }
@@ -350,10 +380,7 @@ namespace System.Collections.Generic
 
         private ref Entry FindEntry(TKey key, out bool found)
         {
-            if (key == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
-            }
+            Debug.Assert(key != null);
 
             found = true;
             if (buckets != null)
@@ -394,10 +421,7 @@ namespace System.Collections.Generic
 
         private bool TryInsert(TKey key, TValue value, InsertionBehavior behavior)
         {
-            if (key == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
-            }
+            Debug.Assert(key != null);
 
             if (buckets == null) Initialize(0);
             int hashCode = (comparer == null ? EqualityComparer<TKey>.Default.GetHashCode(key) : comparer.GetHashCode(key)) & 0x7FFFFFFF;
@@ -667,11 +691,24 @@ namespace System.Collections.Generic
 
         public bool TryGetValue(TKey key, out TValue value)
         {
+            if (key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+            }
+
             value = FindEntry(key, out bool found).value;
             return found;
         }
 
-        public bool TryAdd(TKey key, TValue value) => TryInsert(key, value, InsertionBehavior.None);
+        public bool TryAdd(TKey key, TValue value)
+        {
+            if (key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+            }
+
+            return TryInsert(key, value, InsertionBehavior.None);
+        }
 
         bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly
         {
@@ -802,6 +839,11 @@ namespace System.Collections.Generic
             {
                 if (IsCompatibleKey(key))
                 {
+                    if (key == null)
+                    {
+                        ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+                    }
+
                     ref var entry = ref FindEntry((TKey)key, out bool found);
                     return found ? (object)entry.value : null;
                 }
