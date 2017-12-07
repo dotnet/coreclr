@@ -48,22 +48,28 @@ EventPipeConfiguration::~EventPipeConfiguration()
 
     if(m_pProviderList != NULL)
     {
-        // Here we manipulate the list without taking a lock
-        // This is because the lock is HOST_BREAKABLE and may throw
-        // but we are not allowed to throw here
-        // This is OK because if this destructor is being called no 
-        // other thread should be acessing this this configuration anymore anyway
-
-        SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
-        while(pElem != NULL)
+        // We swallow exceptions here because the HOST_BREAKABLE
+        // lock may throw and this destructor gets called in throw
+        // intolerant places. If that happens the provider list will leak
+        EX_TRY
         {
-            // We don't delete provider itself because it can be in-use
-            SListElem<EventPipeProvider*> *pCurElem = pElem;
-            pElem = m_pProviderList->GetNext(pElem);
-            delete(pCurElem);
-        }
+            // Take the lock before manipulating the list.
+            CrstHolder _crst(EventPipe::GetLock());
 
-        delete(m_pProviderList);
+            SListElem<EventPipeProvider*> *pElem = m_pProviderList->GetHead();
+            while(pElem != NULL)
+            {
+                // We don't delete provider itself because it can be in-use
+                SListElem<EventPipeProvider*> *pCurElem = pElem;
+                pElem = m_pProviderList->GetNext(pElem);
+                delete(pCurElem);
+            }
+
+            delete(m_pProviderList);
+        }
+        EX_CATCH { }
+        EX_END_CATCH(SwallowAllExceptions);
+
         m_pProviderList = NULL;
     }
 }
