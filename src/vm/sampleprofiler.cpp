@@ -11,9 +11,9 @@
 
 #ifdef FEATURE_PERFTRACING
 
-#ifndef PLATFORM_UNIX
+#ifdef PLATFORM_WINDOWS
 #include <mmsystem.h>
-#endif //PLATFORM_UNIX
+#endif //PLATFORM_WINDOWS
 
 // To avoid counting zeros in conversions
 #define MILLION * 1000000
@@ -116,13 +116,15 @@ void SampleProfiler::SetSamplingRate(unsigned long nanoseconds)
     // If the time period setting was modified by us,
     // make sure to change it back before changing our period
     // and losing track of what we set it to
-    if(s_timePeriodIsSet){
+    if(s_timePeriodIsSet)
+    {
         ResetTimeGranularity();
     }
 
     s_samplingRateInNs = nanoseconds;
 
-    if(!s_timePeriodIsSet){
+    if(!s_timePeriodIsSet)
+    {
         SetTimeGranularity();
     }
 }
