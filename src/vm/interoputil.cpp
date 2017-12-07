@@ -1398,9 +1398,9 @@ ErrExit:
 }
 
 void SafeRelease_OnException(IUnknown* pUnk, RCW* pRCW
-#ifdef MDA_SUPPORTED
+#if defined(MDA_SUPPORTED) && defined(FEATURE_COMINTEROP)
                              , MdaReportAvOnComRelease* pProbe
-#endif // MDA_SUPPORTED
+#endif // MDA_SUPPORTED && FEATURE_COMINTEROP
                              )
 {
     CONTRACTL
@@ -1414,11 +1414,11 @@ void SafeRelease_OnException(IUnknown* pUnk, RCW* pRCW
 #ifndef CROSSGEN_COMPILE
     BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return;)
 
-#ifdef MDA_SUPPORTED
+#if defined(MDA_SUPPORTED) && defined(FEATURE_COMINTEROP)
     // Report the exception that was thrown.
     if (pProbe) 
         pProbe->ReportHandledException(pRCW);
-#endif  // MDA_SUPPORTED
+#endif  // MDA_SUPPORTED && FEATURE_COMINTEROP
 
 #ifdef FEATURE_COMINTEROP
     LogInterop(W("An exception occurred during release"));
@@ -1452,14 +1452,14 @@ ULONG SafeReleasePreemp(IUnknown * pUnk, RCW * pRCW)
     // Message pump could happen, so arbitrary managed code could run.
     CONTRACT_VIOLATION(ThrowsViolation | FaultViolation);
 
-#ifdef MDA_SUPPORTED
+#if defined(MDA_SUPPORTED) && defined(FEATURE_COMINTEROP)
     // Mode where we just let the fault occur.
     MdaReportAvOnComRelease* pProbe = MDA_GET_ASSISTANT_EX(ReportAvOnComRelease);
     if (pProbe && pProbe->AllowAV())
     {
         return pUnk->Release();
     }   
-#endif // MDA_SUPPORTED    
+#endif // MDA_SUPPORTED && FEATURE_COMINTEROP
 
     bool fException = false;
     
@@ -1496,9 +1496,9 @@ ULONG SafeReleasePreemp(IUnknown * pUnk, RCW * pRCW)
     if (fException)
     {
         SafeRelease_OnException(pUnk, pRCW
-#ifdef MDA_SUPPORTED
+#if defined(MDA_SUPPORTED) && defined(FEATURE_COMINTEROP)
             , pProbe
-#endif // MDA_SUPPORTED
+#endif // MDA_SUPPORTED && FEATURE_COMINTEROP
             );
     }
 
@@ -1532,14 +1532,14 @@ ULONG SafeRelease(IUnknown* pUnk, RCW* pRCW)
     // Message pump could happen, so arbitrary managed code could run.
     CONTRACT_VIOLATION(ThrowsViolation | FaultViolation);
 
-#ifdef MDA_SUPPORTED
+#if defined(MDA_SUPPORTED) && defined(FEATURE_COMINTEROP)
     // Mode where we just let the fault occur.
     MdaReportAvOnComRelease* pProbe = MDA_GET_ASSISTANT_EX(ReportAvOnComRelease);
     if (pProbe && pProbe->AllowAV())
     {
         return pUnk->Release();
     }   
-#endif // MDA_SUPPORTED    
+#endif // MDA_SUPPORTED && FEATURE_COMINTEROP
 
     bool fException = false;
     
@@ -1576,9 +1576,9 @@ ULONG SafeRelease(IUnknown* pUnk, RCW* pRCW)
     if (fException)
     {
         SafeRelease_OnException(pUnk, pRCW
-#ifdef MDA_SUPPORTED
+#if defined(MDA_SUPPORTED) && defined(FEATURE_COMINTEROP)
             , pProbe
-#endif // MDA_SUPPORTED
+#endif // MDA_SUPPORTED && FEATURE_COMINTEROP
             );
     }
 

@@ -140,6 +140,10 @@ if(CLR_CMAKE_PLATFORM_LINUX)
   )
 endif(CLR_CMAKE_PLATFORM_LINUX)
 
+list(APPEND CORECLR_LIBRARIES
+        xmlparser
+  )
+
 target_link_libraries(coreclr ${CORECLR_LIBRARIES}) 
 
 if(WIN32)

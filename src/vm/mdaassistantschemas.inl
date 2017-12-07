@@ -45,6 +45,7 @@
         MDA_DEFINE_OUTPUT_END(AsynchronousThreadAbort)         
     MDA_DEFINE_ASSISTANT_END(AsynchronousThreadAbort)
 
+#if 0
     // BindingFailure
     MDA_DEFINE_ASSISTANT(BindingFailure, NULL)
         // Input
@@ -62,6 +63,7 @@
             MDA_XSD_ONCE_END()
         MDA_DEFINE_OUTPUT_END(BindingFailure)         
     MDA_DEFINE_ASSISTANT_END(BindingFailure)
+#endif
 
     // CallbackOnCollectedDelegate
     MDA_DEFINE_ASSISTANT(CallbackOnCollectedDelegate, NULL)
@@ -146,6 +148,7 @@
         MDA_DEFINE_OUTPUT_END(ExceptionSwallowedOnCallFromCom)
     MDA_DEFINE_ASSISTANT_END(ExceptionSwallowedOnCallFromCom)
 
+#ifdef FEATURE_COMINTEROP
     // FailedQI
     MDA_DEFINE_ASSISTANT(FailedQI, NULL)
         // Input
@@ -157,6 +160,7 @@
             MDA_XSD_ONCE_END()       
         MDA_DEFINE_OUTPUT_END(FailedQI)      
     MDA_DEFINE_ASSISTANT_END(FailedQI)
+#endif
     
     // FatalExecutionEngineError
     MDA_DEFINE_ASSISTANT(FatalExecutionEngineError, NULL)   
@@ -191,6 +195,7 @@
         MDA_DEFINE_OUTPUT_END(IllegalPrepareConstrainedRegion)         
     MDA_DEFINE_ASSISTANT_END(IllegalPrepareConstrainedRegion)
 
+#ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
     // InvalidApartmentStateChange
     MDA_DEFINE_ASSISTANT(InvalidApartmentStateChange, NULL)
         // Input
@@ -202,6 +207,7 @@
             MDA_XSD_ONCE_END()
         MDA_DEFINE_OUTPUT_END(InvalidApartmentStateChange)
     MDA_DEFINE_ASSISTANT_END(InvalidApartmentStateChange)
+#endif
 
     // InvalidCERCall
     MDA_DEFINE_ASSISTANT(InvalidCERCall, NULL)
@@ -260,6 +266,7 @@
         MDA_DEFINE_OUTPUT_END(InvalidMemberDeclaration)
     MDA_DEFINE_ASSISTANT_END(InvalidMemberDeclaration)
 
+#ifdef PLATFORM_WINDOWS
     // InvalidOverlappedToPinvoke
     MDA_DEFINE_ASSISTANT(InvalidOverlappedToPinvoke, NULL)
         // Input
@@ -270,6 +277,7 @@
         MDA_DEFINE_OUTPUT(InvalidOverlappedToPinvoke)
         MDA_DEFINE_OUTPUT_END(InvalidOverlappedToPinvoke)
     MDA_DEFINE_ASSISTANT_END(InvalidOverlappedToPinvoke) 
+#endif // PLATFORM_WINDOWS
 
     // InvalidVariant
     MDA_DEFINE_ASSISTANT(InvalidVariant, NULL)
@@ -306,6 +314,7 @@
         MDA_DEFINE_OUTPUT_END(LoaderLock)         
     MDA_DEFINE_ASSISTANT_END(LoaderLock)
 
+#if 0
     // LoadFromContext
     MDA_DEFINE_ASSISTANT(LoadFromContext, NULL)
         // Input
@@ -320,6 +329,7 @@
             MDA_XSD_ONCE_END()
         MDA_DEFINE_OUTPUT_END(LoadFromContext)         
     MDA_DEFINE_ASSISTANT_END(LoadFromContext)
+#endif
 
     // MarshalCleanupError
     MDA_DEFINE_ASSISTANT(MarshalCleanupError, NULL)
@@ -479,6 +489,7 @@
         MDA_DEFINE_OUTPUT_END(ReleaseHandleFailed)         
     MDA_DEFINE_ASSISTANT_END(ReleaseHandleFailed)
 
+#ifdef FEATURE_COMINTEROP
     // ReportAvOnComRelease
     MDA_DEFINE_ASSISTANT(ReportAvOnComRelease, NULL)
         // Input
@@ -489,6 +500,7 @@
         MDA_DEFINE_OUTPUT(ReportAvOnComRelease)
         MDA_DEFINE_OUTPUT_END(ReportAvOnComRelease)
     MDA_DEFINE_ASSISTANT_END(ReportAvOnComRelease)   
+#endif
 
     // StreamWriterBufferedDataLost
     MDA_DEFINE_ASSISTANT(StreamWriterBufferedDataLost, NULL)

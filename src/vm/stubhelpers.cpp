@@ -1210,7 +1210,7 @@ FCIMPL1(void, StubHelpers::StubRegisterRCW, Object *unsafe_pThis)
     OBJECTREF oref = ObjectToOBJECTREF(unsafe_pThis);
     HELPER_METHOD_FRAME_BEGIN_1(oref);
 
-#if defined(_DEBUG) && defined(FEATURE_MDA)
+#if defined(_DEBUG) && defined(MDA_SUPPORTED)
     // Make sure that we only get here because the MDA is turned on.
     MdaRaceOnRCWCleanup* mda = MDA_GET_ASSISTANT(RaceOnRCWCleanup);
     _ASSERTE(mda != NULL);
@@ -1260,7 +1260,7 @@ FCIMPL1(void, StubHelpers::StubUnregisterRCW, Object *unsafe_pThis)
     OBJECTREF oref = ObjectToOBJECTREF(unsafe_pThis);
     HELPER_METHOD_FRAME_BEGIN_1(oref);
 
-#if defined(_DEBUG) && defined(FEATURE_MDA)
+#if defined(_DEBUG) && defined(MDA_SUPPORTED)
     // Make sure that we only get here because the MDA is turned on.
     MdaRaceOnRCWCleanup* mda = MDA_GET_ASSISTANT(RaceOnRCWCleanup);
     _ASSERTE(mda != NULL);

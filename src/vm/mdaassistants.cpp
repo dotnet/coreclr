@@ -461,6 +461,7 @@ void MdaRaceOnRCWCleanup::ReportViolation()
     msg.SendMessagef(MDARC_RCW_CLEANUP_RACE);
 }
 
+#ifdef FEATURE_COMINTEROP
 
 //
 // MdaFailedQI
@@ -573,6 +574,8 @@ HRESULT MdaFailedQIAssistantCallback(LPVOID pData)
     return S_OK;        // Need to return S_OK so that the assert in CtxEntry::EnterContext() won't fire.
 }
 
+#endif
+
 //
 // MdaDisconnectedContext
 //
@@ -595,7 +598,7 @@ void MdaDisconnectedContext::ReportViolationDisconnected(LPVOID context, HRESULT
         StackSString strHRMsg;
         GetHRMsg(hr, strHRMsg);
         
-        msg.SendMessagef(MDARC_DISCONNECTED_CONTEXT_1, context, strHRMsg.GetUnicode());
+        msg.SendMessagef(MDARC_DISCONNECTED_CONTEXT_1, context, strHRMsg.GetUnicode(), context);
     }
 }
 
@@ -630,6 +633,7 @@ void MdaDisconnectedContext::ReportViolationCleanup(LPVOID context1, LPVOID cont
     }
 }
 
+#ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
 //
 // MdaInvalidApartmentStateChange
@@ -681,6 +685,8 @@ void MdaInvalidApartmentStateChange::ReportViolation(Thread* pThread, Thread::Ap
     }
     EX_END_CATCH(SwallowAllExceptions);
 }
+
+#endif
     
 //
 // MdaDllMainReturnsFalse
@@ -727,6 +733,8 @@ void MdaOverlappedFreeError::ReportError(LPVOID pOverlapped)
             pOverlapped);
 }
 
+#ifdef PLATFORM_WINDOWS
+
 //
 // MdaInvalidOverlappedToPinvoke
 //
@@ -763,7 +771,7 @@ Return Flags Mda_##Name Args                                                    
 #undef CREATE_WRAPPER_FUNCTION
 
 #define CREATE_WRAPPER_FUNCTION(DllName, Return, Flags, Name, Args, ArgsUsed)    \
-    { L#DllName W(".DLL"), L#Name, Mda_##Name, NULL, NULL },
+    { W(#DllName) W(".DLL"), W(#Name), (LPVOID) Mda_##Name, NULL, NULL },
 static MdaInvalidOverlappedToPinvoke::pinvoke_entry PInvokeTable[] = {
 #include "invalidoverlappedwrappers.h"
 };
@@ -822,7 +830,7 @@ BOOL MdaInvalidOverlappedToPinvoke::InitializeModuleFunctions(HINSTANCE hmod)
             {
                 SString moduleNameForLookup(m_entries[i].m_functionName);
                 StackScratchBuffer ansiVersion;                
-                m_entries[i].m_realFunction = GetProcAddress(hmod, moduleNameForLookup.GetANSI(ansiVersion));
+                m_entries[i].m_realFunction = (LPVOID)GetProcAddress(hmod, moduleNameForLookup.GetANSI(ansiVersion));
                 m_entries[i].m_hmod = hmod;                
             }
             bFoundSomething = TRUE;
@@ -946,6 +954,8 @@ LPVOID MdaInvalidOverlappedToPinvoke::Register(HINSTANCE hmod,LPVOID pvTarget)
     return NULL;
 }
 
+#endif // PLATFORM_WINDOWS
+
 //
 // MdaPInvokeLog
 //
@@ -1003,7 +1013,7 @@ void MdaPInvokeLog::LogPInvoke(NDirectMethodDesc* pMD, HINSTANCE hMod)
 
         StackSString sszDllName;
         sszDllName.Append(szFileName);
-        if (szExt)
+        if (*szExt)
             sszDllName.Append(szExt);
 
         if (Filter(sszDllName))
@@ -1162,6 +1172,7 @@ void MdaJitCompilationStart::NowCompiling(MethodDesc* pMD)
     msg.SendMessage();
 }
 
+#if 0
 //
 // MdaLoadFromContext
 //
@@ -1312,6 +1323,7 @@ void MdaBindingFailure::BindFailed(AssemblySpec *pSpec, OBJECTREF *pExceptionObj
     }
 }
 
+#endif
 
 //
 // MdaReflection
@@ -1684,7 +1696,7 @@ void MdaMarshaling::GetManagedSideForField(SString& strManagedMarshalType, Field
         
         if (strcmp(szNamespace, "System") == 0 && strcmp(szClassName, "UIntPtr") == 0)
         {
-            static LPWSTR strRetVal = W("Void*");
+            static LPCWSTR strRetVal = W("Void*");
             strManagedMarshalType.Set(strRetVal);
         }
         else
@@ -1787,7 +1799,7 @@ BOOL MdaMarshaling::CheckForPrimitiveType(CorElementType elemType, SString& strP
     }
     CONTRACTL_END;
     
-    LPWSTR  strRetVal;
+    LPCWSTR  strRetVal;
 
     switch (elemType)
     {
@@ -1875,7 +1887,7 @@ void MdaLoaderLock::ReportViolation(HINSTANCE hInst)
 
         if (cName)
         {
-            msg.SendMessagef(MDARC_LOADER_LOCK_DLL, szName);
+            msg.SendMessagef(MDARC_LOADER_LOCK_DLL, cName);
         }
         else
         {
@@ -1976,7 +1988,9 @@ void MdaDangerousThreadingAPI::ReportViolation(__in_z WCHAR *apiName)
     msg.SendMessagef(MDARC_DANGEROUS_THREADINGAPI, apiName);
 }
 
-    
+
+#ifdef FEATURE_COMINTEROP
+
 //
 // MdaReportAvOnComRelease
 //
@@ -2016,6 +2030,8 @@ void MdaReportAvOnComRelease::ReportHandledException(RCW* pRCW)
     }
     EX_END_CATCH(SwallowAllExceptions);
 }
+
+#endif
 
 void MdaInvalidFunctionPointerInDelegate::ReportViolation(LPVOID pFunc)
 {

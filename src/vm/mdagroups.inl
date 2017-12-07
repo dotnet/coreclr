@@ -18,7 +18,9 @@
 // managed debugger team for further guidance.
 MDA_GROUP_DEFINITION(managedDebugger) 
     MDA_GROUP_MEMBER(AsynchronousThreadAbort)
+#if 0
     MDA_GROUP_MEMBER(BindingFailure)
+#endif
     MDA_GROUP_MEMBER(CallbackOnCollectedDelegate)
     MDA_GROUP_MEMBER(ContextSwitchDeadlock)
     MDA_GROUP_MEMBER(DangerousThreadingAPI)
@@ -26,15 +28,23 @@ MDA_GROUP_DEFINITION(managedDebugger)
     MDA_GROUP_MEMBER(DisconnectedContext)
     MDA_GROUP_MEMBER(DllMainReturnsFalse)
     MDA_GROUP_MEMBER(ExceptionSwallowedOnCallFromCom)
+#ifdef FEATURE_COMINTEROP
     MDA_GROUP_MEMBER(FailedQI)
-    MDA_GROUP_MEMBER(FatalExecutionEngineError)    
+#endif
+    MDA_GROUP_MEMBER(FatalExecutionEngineError)
+#ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT    
     MDA_GROUP_MEMBER(InvalidApartmentStateChange)
+#endif
     MDA_GROUP_MEMBER(InvalidFunctionPointerInDelegate)
     MDA_GROUP_MEMBER(InvalidMemberDeclaration)
+#ifdef PLATFORM_WINDOWS
     MDA_GROUP_MEMBER(InvalidOverlappedToPinvoke)
+#endif
     MDA_GROUP_MEMBER(InvalidVariant)
     MDA_GROUP_MEMBER(LoaderLock)
+#if 0
     MDA_GROUP_MEMBER(LoadFromContext)
+#endif
     MDA_GROUP_MEMBER(MarshalCleanupError)
     MDA_GROUP_MEMBER(NonComVisibleBaseClass)
     MDA_GROUP_MEMBER(NotMarshalable)
@@ -44,7 +54,9 @@ MDA_GROUP_DEFINITION(managedDebugger)
     MDA_GROUP_MEMBER(RaceOnRCWCleanup)
     MDA_GROUP_MEMBER(Reentrancy)
     MDA_GROUP_MEMBER(ReleaseHandleFailed)
+#ifdef FEATURE_COMINTEROP
     MDA_GROUP_MEMBER(ReportAvOnComRelease)
+#endif
     MDA_GROUP_MEMBER(StreamWriterBufferedDataLost)   
 MDA_GROUP_DEFINITION_END(managedDebugger) 
 
