@@ -107,8 +107,6 @@ void SampleProfiler::Disable()
 
     // Wait for the sampling thread to clean itself up.
     s_threadShutdownEvent.Wait(0, FALSE /* bAlertable */);
-
-    //HACK
 }
 
 void SampleProfiler::SetSamplingRate(unsigned long nanoseconds)
