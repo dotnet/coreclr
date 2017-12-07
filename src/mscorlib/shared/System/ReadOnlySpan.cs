@@ -323,7 +323,7 @@ namespace System
         public static ReadOnlySpan<T> Empty => default(ReadOnlySpan<T>);
 
         // This exposes the internal representation for Span-related apis use only.
-        internal ByReference<T> Pointer => _pointer;
+        internal ref readonly T Reference => ref _pointer.Value;
 
         /// <summary>Gets an enumerator for this span.</summary>
         public Enumerator GetEnumerator() => new Enumerator(this);

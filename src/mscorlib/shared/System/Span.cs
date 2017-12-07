@@ -410,7 +410,7 @@ namespace System
         public static Span<T> Empty => default(Span<T>);
 
         // This exposes the internal representation for Span-related apis use only.
-        internal ByReference<T> Pointer => _pointer;
+        internal ref T Reference => ref _pointer.Value;
 
         /// <summary>Gets an enumerator for this span.</summary>
         public Enumerator GetEnumerator() => new Enumerator(this);
