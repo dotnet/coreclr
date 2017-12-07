@@ -935,7 +935,7 @@ void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAct
         if (-1 == sigaction(signal_id, NULL, previousAction))
         {
             ASSERT("handle_signal: sigaction() call failed with error code %d (%s)\n",
-            errno, strerror(errno));
+                errno, strerror(errno));
         }
         else if (previousAction->sa_handler == SIG_IGN)
         {
