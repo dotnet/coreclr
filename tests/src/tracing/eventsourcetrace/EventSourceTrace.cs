@@ -65,7 +65,7 @@ namespace Tracing.Tests
             try
             {
                 Console.WriteLine("\tStart: Enable tracing.");
-                TraceControl.EnableDefault(outputFilename);
+                TraceControl.Enable(GetConfig(eventSource, outputFilename));
                 Console.WriteLine("\tEnd: Enable tracing.\n");
 
                 Console.WriteLine("\tStart: Messaging.");
