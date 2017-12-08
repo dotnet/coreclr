@@ -9,7 +9,7 @@ import sys
 # Argument Parser
 ##########################################################################
 
-description = 'Tool to collect throughtput performance data'
+description = 'Tool to generate slice<number>.txt files based off of a slice json file (see perf-slices.json for format)'
 
 parser = argparse.ArgumentParser(description=description)
 

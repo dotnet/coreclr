@@ -1,31 +1,26 @@
 {
     "slices" : [
         {
-            "id" : "1",
             "folders" : [
                 "Benchstones"
             ]
         },
         {
-            "id" : "2",
             "folders" : [
                 "BenchmarksGame"
             ]
         },
         {
-            "id" : "3",
             "folders" : [
                 "Bytemark"
             ]
         },
         {
-            "id" : "4",
             "folders" : [
                 "Span"
             ]
         },
         {
-            "id" : "5",
             "folders" : [
                 "Burgers",
                 "Devirtualization",
@@ -35,7 +30,6 @@
             ]
         },
         {
-            "id" : "6",
             "folders" : [
                 "Linq",
                 "Roslyn",
