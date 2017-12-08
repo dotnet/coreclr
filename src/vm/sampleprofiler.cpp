@@ -28,9 +28,12 @@ BYTE* SampleProfiler::s_pPayloadManaged = NULL;
 CLREventStatic SampleProfiler::s_threadShutdownEvent;
 unsigned long SampleProfiler::s_samplingRateInNs = 1 MILLION; // 1ms
 bool SampleProfiler::s_timePeriodIsSet = FALSE;
+
+#ifndef FEATURE_PAL
 PVOID SampleProfiler::s_timeBeginPeriodFn = NULL;
 PVOID SampleProfiler::s_timeEndPeriodFn = NULL;
 HINSTANCE SampleProfiler::s_hMultimediaLib = NULL;
+#endif //FEATURE_PAL
 
 typedef MMRESULT (WINAPI *TimePeriodFnPtr) (UINT uPeriod);
 
@@ -46,6 +49,8 @@ void SampleProfiler::Enable()
         PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
+    
+    LoadDependencies();
 
     if(s_pEventPipeProvider == NULL)
     {
@@ -82,7 +87,6 @@ void SampleProfiler::Enable()
 
     s_threadShutdownEvent.CreateManualEvent(FALSE);
 
-    LoadWindowsMultiMediaLibrary();
     SetTimeGranularity();
 }
 
@@ -118,7 +122,7 @@ void SampleProfiler::Disable()
     {
         ResetTimeGranularity();
     }
-    UnloadWindowsMultiMediaLibrary();
+    UnloadDependencies();
 }
 
 void SampleProfiler::SetSamplingRate(unsigned long nanoseconds)
@@ -298,7 +302,7 @@ void SampleProfiler::ResetTimeGranularity()
 #endif //FEATURE_PAL
 }
 
-bool SampleProfiler::LoadWindowsMultiMediaLibrary()
+bool SampleProfiler::LoadDependencies()
 {
     CONTRACTL
     {
@@ -323,7 +327,7 @@ bool SampleProfiler::LoadWindowsMultiMediaLibrary()
 #endif //FEATURE_PAL
 }
 
-void SampleProfiler::UnloadWindowsMultiMediaLibrary()
+void SampleProfiler::UnloadDependencies()
 {
     CONTRACTL
     {
