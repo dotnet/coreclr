@@ -115,7 +115,6 @@ if(WIN32)
         version.lib
         shlwapi.lib
         bcrypt.lib
-        winmm.lib
         RuntimeObject.lib
     )
 else()

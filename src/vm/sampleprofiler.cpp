@@ -11,9 +11,9 @@
 
 #ifdef FEATURE_PERFTRACING
 
-#ifdef PLATFORM_WINDOWS
+#ifndef FEATURE_PAL
 #include <mmsystem.h>
-#endif //PLATFORM_WINDOWS
+#endif //FEATURE_PAL
 
 // To avoid counting zeros in conversions
 #define MILLION * 1000000
@@ -28,6 +28,11 @@ BYTE* SampleProfiler::s_pPayloadManaged = NULL;
 CLREventStatic SampleProfiler::s_threadShutdownEvent;
 unsigned long SampleProfiler::s_samplingRateInNs = 1 MILLION; // 1ms
 bool SampleProfiler::s_timePeriodIsSet = FALSE;
+PVOID SampleProfiler::s_timeBeginPeriodFn = NULL;
+PVOID SampleProfiler::s_timeEndPeriodFn = NULL;
+HINSTANCE SampleProfiler::s_hMultimediaLib = NULL;
+
+typedef MMRESULT (WINAPI *TimePeriodFnPtr) (UINT uPeriod);
 
 void SampleProfiler::Enable()
 {
@@ -77,6 +82,7 @@ void SampleProfiler::Enable()
 
     s_threadShutdownEvent.CreateManualEvent(FALSE);
 
+    LoadWindowsMultiMediaLibrary();
     SetTimeGranularity();
 }
 
@@ -107,6 +113,12 @@ void SampleProfiler::Disable()
 
     // Wait for the sampling thread to clean itself up.
     s_threadShutdownEvent.Wait(0, FALSE /* bAlertable */);
+
+    if(s_timePeriodIsSet)
+    {
+        ResetTimeGranularity();
+    }
+    UnloadWindowsMultiMediaLibrary();
 }
 
 void SampleProfiler::SetSamplingRate(unsigned long nanoseconds)
@@ -176,7 +188,7 @@ DWORD WINAPI SampleProfiler::ThreadProc(void *args)
 
     // Signal Disable() that the thread has been destroyed.
     s_threadShutdownEvent.Set();
- 
+
     return S_OK;
 }
 
@@ -243,19 +255,25 @@ void SampleProfiler::SetTimeGranularity()
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-#ifdef PLATFORM_WINDOWS
+#ifndef FEATURE_PAL
     // Attempt to set the systems minimum timer period to the sampling rate
     // If the sampling rate is lower than the current system setting (16ms by default),
     // this will cause the OS to wake more often for scheduling descsion, allowing us to take samples
     // Note that is effects a system-wide setting and when set low will increase the amount of time
     // the OS is on-CPU, decreasing overall system performance and increasing power consumption
-    if(timeBeginPeriod(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR) s_timePeriodIsSet = TRUE;
-#endif //PLATFORM_WINDOWS
+    if(s_timeBeginPeriodFn != NULL)
+    {
+        if(((TimePeriodFnPtr) s_timeBeginPeriodFn)(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR)
+        {
+            s_timePeriodIsSet = TRUE;
+        }
+    }
+#endif //FEATURE_PAL
 }
 
 void SampleProfiler::ResetTimeGranularity()
@@ -263,15 +281,67 @@ void SampleProfiler::ResetTimeGranularity()
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-#ifdef PLATFORM_WINDOWS
+#ifndef FEATURE_PAL
     // End the modifications we had to the timer period in Enable
-    if(timeEndPeriod(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR) s_timePeriodIsSet = FALSE;
-#endif //PLATFORM_WINDOWS
+    if(s_timeEndPeriodFn != NULL)
+    {
+        if(((TimePeriodFnPtr) s_timeEndPeriodFn)(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR)
+        {
+            s_timePeriodIsSet = FALSE;
+        }
+    }
+#endif //FEATURE_PAL
+}
+
+bool SampleProfiler::LoadWindowsMultiMediaLibrary()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+#ifndef FEATURE_PAL
+    s_hMultimediaLib = WszLoadLibrary(W("winmm.dll"));
+
+    if (s_hMultimediaLib != NULL)
+    {
+        s_timeBeginPeriodFn = (PVOID) GetProcAddress(s_hMultimediaLib, "timeBeginPeriod");
+        s_timeEndPeriodFn = (PVOID) GetProcAddress(s_hMultimediaLib, "timeEndPeriod");
+    }
+
+    return s_hMultimediaLib != NULL && s_timeBeginPeriodFn != NULL && s_timeEndPeriodFn != NULL;
+#else
+    return FALSE;
+#endif //FEATURE_PAL
+}
+
+void SampleProfiler::UnloadWindowsMultiMediaLibrary()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+#ifndef FEATURE_PAL
+    if (s_hMultimediaLib != NULL)
+    {
+        FreeLibrary(s_hMultimediaLib);
+        s_hMultimediaLib = NULL;
+        s_timeBeginPeriodFn = NULL;
+        s_timeEndPeriodFn = NULL;
+    }
+#endif //FEATURE_PAL
 }
 
 #endif // FEATURE_PERFTRACING

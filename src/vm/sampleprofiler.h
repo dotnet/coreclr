@@ -56,6 +56,13 @@ class SampleProfiler
         // and under light load the timings will achieve great accuracy!
         static void PlatformSleep(unsigned long nanoseconds);
 
+        static bool LoadWindowsMultiMediaLibrary();
+        static void UnloadWindowsMultiMediaLibrary();
+
+        static HINSTANCE s_hMultimediaLib;
+        static PVOID s_timeBeginPeriodFn;
+        static PVOID s_timeEndPeriodFn;
+
         static void SetTimeGranularity();
         static void ResetTimeGranularity();
 
