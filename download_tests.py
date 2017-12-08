@@ -41,9 +41,9 @@ from collections import defaultdict
 ################################################################################
 
 os_groups = {
-    "Darwin": "OSX", 
-    "Linux": "Linux", 
-    "Windows": "Windows_NT"
+    "darwin": "OSX", 
+    "linux": "Linux", 
+    "windows": "Windows_NT"
 }
 
 linux_os = {
@@ -51,17 +51,18 @@ linux_os = {
 }
 
 arch_groups = {
+    "amd64": "x64",
     "x86_64": "x64",
     "i386": "x86"
 }
 
-g_current_os = os_groups[platform.system()]
+g_current_os = os_groups[platform.system().lower()]
 g_current_distro = None
 
 if g_current_os == "Linux":
     g_current_distro = linux_os[platform.linux_distribution()[0]]
 
-g_current_arch = arch_groups[platform.machine()]
+g_current_arch = arch_groups[platform.machine().lower()]
 
 g_netci_location = "https://ci.dot.net/job/dotnet_coreclr"
 
@@ -182,7 +183,10 @@ def download_tests(os_group, distro, arch, configuration, priority, branch, test
     if windows_build_number is None:
         tests_netci_location = "%s/%s%s%s/%s/artifact/bin/tests/%s.%s.%s.tar.gz" % (netci_location, arch, configuration, os_group, build_number, original_os, original_arch, original_configuration)
     else:
-        tests_netci_location = "%s/%s%s%s_bld/%s/artifact/bin/tests/tests.zip" % (netci_location, arch, configuration, "windows_nt", windows_build_number)
+        if priority == "0":
+            tests_netci_location = "%s/%s%s%s_bld/%s/artifact/bin/tests/tests.zip" % (netci_location, arch, configuration, "windows_nt", windows_build_number)
+        else:
+            tests_netci_location = "%s/%s%s%s/%s/artifact/bin/tests/tests.zip" % (netci_location, arch, configuration, "windows_nt", windows_build_number)
 
     product_zip_location = os.path.join(bin_location, "Product", "%s.%s.%s.zip" % (original_os, original_arch, original_configuration))
     obj_zip_location = os.path.join(bin_location, "obj", "%s.%s.%s.zip" % (original_os, original_arch, original_configuration))
@@ -207,7 +211,9 @@ def download_tests(os_group, distro, arch, configuration, priority, branch, test
 
     def download_and_unzip_file(netci_location, zip_location, location, use_gzip=False, use_native_unzip=False):
         def extractAll(zip_name, location, use_native_unzip=False):
-            if use_native_unzip:
+            is_windows = g_current_os == "Windows_NT"
+
+            if use_native_unzip and not is_windows:
                 unzip_location = os.path.basename(zip_name)[:-4]
                 if os.path.isdir(os.path.join(location, unzip_location)):
                     shutil.rmtree(os.path.join(location, unzip_location))

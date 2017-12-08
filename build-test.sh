@@ -138,7 +138,7 @@ generate_layout()
     # ===
     # =========================================================================================
 
-    build_Tests_internal "Restore_Product" "${__ProjectDir}/tests/build.proj" " -BatchRestorePackages" "Restore product binaries (build tests)"
+    build_Tests_internal "Restore_FrameWork_Packages" "${__ProjectDir}/tests/build.proj" " -BatchRestorePackages" "Restore product binaries (build tests)"
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
         __up=-updateinvalidpackageversion
