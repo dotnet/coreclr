@@ -36,8 +36,15 @@ EventPipeConfiguration::~EventPipeConfiguration()
 
     if(m_pConfigProvider != NULL)
     {
-        delete(m_pConfigProvider);
-        m_pConfigProvider = NULL;
+        // This unregisters the provider, which takes a
+        // HOST_BREAKABLE lock
+        EX_TRY
+        {
+          DeleteProvider(m_pConfigProvider);
+          m_pConfigProvider = NULL;
+        }
+        EX_CATCH { }
+        EX_END_CATCH(SwallowAllExceptions);
     }
 
     if(m_pEnabledProviderList != NULL)
@@ -85,7 +92,7 @@ void EventPipeConfiguration::Initialize()
     CONTRACTL_END;
 
     // Create the configuration provider.
-    m_pConfigProvider = new EventPipeProvider(this, SL(s_configurationProviderName), NULL, NULL);
+    m_pConfigProvider = CreateProvider(SL(s_configurationProviderName), NULL, NULL);
 
     // Create the metadata event.
     m_pMetadataEvent = m_pConfigProvider->AddEvent(
@@ -120,7 +127,7 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pProvider != NULL);
     }
@@ -187,7 +194,7 @@ bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
