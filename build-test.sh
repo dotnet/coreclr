@@ -3,30 +3,14 @@
 initHostDistroRid()
 {
     __HostDistroRid=""
-    if [ "$__HostOS" == "Linux" ]; then
-        if [ -e /etc/os-release ]; then
-            source /etc/os-release
-            if [[ $ID == "alpine" || $ID == "rhel" ]]; then
-                # remove the last version digit
-                VERSION_ID=${VERSION_ID%.*}
-            fi
-            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
-        elif [ -e /etc/redhat-release ]; then
-            local redhatRelease=$(</etc/redhat-release)
-            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
-               __HostDistroRid="rhel.6-$__HostArch"
-            fi
-        fi
-    fi
-
-    if [ "$__HostOS" == "OSX" ]; then
-        __PortableBuild=1
-    fi
+    __PortableBuild=1
 
     # Portable builds target the base RID
     if [ "$__PortableBuild" == 1 ]; then
         if [ "$__BuildOS" == "OSX" ]; then
             export __HostDistroRid="osx-$__BuildArch"
+        elif [ "$__BuildOS" == "Linux" ]; then
+            export __HostDistroRid="linux-$__BuildArch"
         fi
     fi
 
@@ -38,6 +22,8 @@ initHostDistroRid()
     if [ "$__HostDistroRid" == "" ]; then
         echo "WARNING: Can not determine runtime id for current distro."
     fi
+
+    echo "Setting __HostDistroRid to $__HostDistroRid"
 }
 
 initTargetDistroRid()

@@ -46,12 +46,21 @@ os_groups = {
     "Windows": "Windows_NT"
 }
 
+linux_os = {
+    "CentOS Linux": "centos7.1"
+}
+
 arch_groups = {
     "x86_64": "x64",
     "i386": "x86"
 }
 
 g_current_os = os_groups[platform.system()]
+g_current_distro = None
+
+if g_current_os == "Linux":
+    g_current_distro = linux_os[platform.linux_distribution()[0]]
+
 g_current_arch = arch_groups[platform.machine()]
 
 g_netci_location = "https://ci.dot.net/job/dotnet_coreclr"
@@ -121,7 +130,7 @@ def __check_for_modifications__():
 
     return test_dir_modified
 
-def download_tests(os_group, arch, configuration, priority, branch, test_location, download_product, build_number, windows_build_number):
+def download_tests(os_group, distro, arch, configuration, priority, branch, test_location, download_product, build_number, windows_build_number):
     """ Download the tests to the passed location
 
     Args:
@@ -158,11 +167,11 @@ def download_tests(os_group, arch, configuration, priority, branch, test_locatio
     os_group = os_group.lower()
 
     if os_group == "linux":
-        os_group = "ubuntu"
+        os_group = distro
     elif os_group == "osx":
         os_group = "%s10.12" % os_group
 
-    if arch == "arm64" and os_group == "linux":
+    if arch == "arm64" and original_os_group == "linux":
         os_group = "small_page_size"
     
     product_netci_location = "%s/%s%s%s/%s/artifact/bin/Product/%s.%s.%s/*zip*/archive.zip" % (netci_location, arch, configuration, os_group, build_number, original_os, original_arch, original_configuration)
@@ -317,7 +326,7 @@ def main(args):
 
     if not modified:
         # Download and set up the tests.
-        download_tests(g_current_os, g_current_arch, configuration, priority, branch, test_location, download_product, build_number, windows_build_number)
+        download_tests(g_current_os, g_current_distro, g_current_arch, configuration, priority, branch, test_location, download_product, build_number, windows_build_number)
 
 ################################################################################
 # __main__ (entry point)
