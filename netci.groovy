@@ -2292,9 +2292,18 @@ Constants.allScenarios.each { scenario ->
                         inputWindowsTestBuildArch = "x64"
                     }
 
-                    def inputWindowTestsBuildName = projectFolder + '/' +
+                    def inputWindowTestsBuildName = ""
+
+                    if (isJitStressScenario(scenario)) {
+                        inputWindowTestsBuildName = projectFolder + '/' +
+                        Utilities.getFullJobName(project, getJobName(configuration, inputWindowsTestBuildArch, 'windows_nt', testBuildScenario, false), isPR)
+                    } else {
+                        inputWindowTestsBuildName = projectFolder + '/' +
                         Utilities.getFullJobName(project, getJobName(configuration, inputWindowsTestBuildArch, 'windows_nt', testBuildScenario, true), isPR)
 
+                    }
+
+                     
                     // Enable Server GC for Ubuntu PR builds
                     def serverGCString = ''
                     if (os == 'Ubuntu' && isPR) {

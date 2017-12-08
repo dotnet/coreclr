@@ -54,7 +54,8 @@ linux_os = {
 arch_groups = {
     "amd64": "x64",
     "x86_64": "x64",
-    "i386": "x86"
+    "i386": "x86",
+    "armv7l": "arm"
 }
 
 g_current_os = os_groups[platform.system().lower()]
@@ -158,7 +159,7 @@ def download_tests(os_group, distro, arch, configuration, priority, branch, test
     if arch == "x64":
         arch = ""
     elif "arm" in arch:
-        arch = arch + "_cross_"
+        arch = arch + "lb_cross_"
     else:
         arch = arch + "_"
 
