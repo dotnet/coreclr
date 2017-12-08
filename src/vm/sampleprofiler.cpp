@@ -33,9 +33,9 @@ bool SampleProfiler::s_timePeriodIsSet = FALSE;
 PVOID SampleProfiler::s_timeBeginPeriodFn = NULL;
 PVOID SampleProfiler::s_timeEndPeriodFn = NULL;
 HINSTANCE SampleProfiler::s_hMultimediaLib = NULL;
-#endif //FEATURE_PAL
 
 typedef MMRESULT (WINAPI *TimePeriodFnPtr) (UINT uPeriod);
+#endif //FEATURE_PAL
 
 void SampleProfiler::Enable()
 {
