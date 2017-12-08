@@ -5065,8 +5065,9 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             }
         }
     }
-    // We should still have a TYP_STRUCT
-    assert(varTypeIsStruct(argValue->TypeGet()));
+    // We should still have a TYP_STRUCT or
+    // if struct is produced from `localloc` IL code we might have TYP_BLK
+    assert(varTypeIsStruct(argValue->TypeGet()) || (argValue->TypeGet() == TYP_BLK));
 
     GenTreeFieldList* newArg = nullptr;
 
@@ -5117,23 +5118,39 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             noway_assert(elemCount <= 4);
 #endif
 
-            for (unsigned inx = 0; inx < elemCount; inx++)
+            if (varDsc->lvGcLayout != nullptr)
             {
-                CorInfoGCType currentGcLayoutType = (CorInfoGCType)varDsc->lvGcLayout[inx];
 
-                // We setup the type[inx] value above using the GC info from 'objClass'
-                // This GT_LCL_VAR must have the same GC layout info
-                //
-                if (currentGcLayoutType != TYPE_GC_NONE)
+                for (unsigned inx = 0; inx < elemCount; inx++)
                 {
-                    noway_assert(type[inx] == getJitGCType((BYTE)currentGcLayoutType));
+                    CorInfoGCType currentGcLayoutType = (CorInfoGCType)varDsc->lvGcLayout[inx];
+
+                    // We setup the type[inx] value above using the GC info from 'objClass'
+                    // This GT_LCL_VAR must have the same GC layout info
+                    //
+                    if (currentGcLayoutType != TYPE_GC_NONE)
+                    {
+                        noway_assert(type[inx] == getJitGCType((BYTE)currentGcLayoutType));
+                    }
+                    else
+                    {
+                        // We may have use a small type when we setup the type[inx] values above
+                        // We can safely widen this to TYP_I_IMPL
+                        type[inx] = TYP_I_IMPL;
+                    }
                 }
-                else
-                {
-                    // We may have use a small type when we setup the type[inx] values above
-                    // We can safely widen this to TYP_I_IMPL
-                    type[inx] = TYP_I_IMPL;
-                }
+            }
+            else
+            {
+#ifdef DEBUG
+                const DWORD structFlags = info.compCompHnd->getClassAttribs(objClass);
+                // On coreclr the check for GC includes a "may" to account for the special
+                // ByRef like span structs.  The added check for "CONTAINS_STACK_PTR" is the particular bit.
+                // When this is set the struct will contain a ByRef that could be a GC pointer or a native
+                // pointer.
+                assert(((structFlags & CORINFO_FLG_CONTAINS_STACK_PTR) == 0) &&
+                       (((structFlags & CORINFO_FLG_CONTAINS_GC_PTR) == 0)));
+#endif // DEBUG
             }
         }
 
