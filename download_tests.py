@@ -47,7 +47,8 @@ os_groups = {
 }
 
 linux_os = {
-    "CentOS Linux": "centos7.1"
+    "CentOS Linux": "centos7.1",
+    "Ubuntu": "ubuntu"
 }
 
 arch_groups = {
