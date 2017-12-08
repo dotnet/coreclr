@@ -38,7 +38,7 @@ EventPipeProvider::~EventPipeProvider()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -46,24 +46,30 @@ EventPipeProvider::~EventPipeProvider()
     // Free all of the events.
     if(m_pEventList != NULL)
     {
-        // Here we manipulate the list without taking a lock
-        // This is because the lock is HOST_BREAKABLE and may throw
-        // but we are not allowed to throw here
-        // This is OK because if this destructor is being called no 
-        // other thread should be acessing this this provider anymore anyway
-
-        SListElem<EventPipeEvent*> *pElem = m_pEventList->GetHead();
-        while(pElem != NULL)
+        // We swallow exceptions here because the HOST_BREAKABLE
+        // lock may throw and this destructor gets called in throw
+        // intolerant places. If that happens the event list will leak
+        EX_TRY
         {
-            EventPipeEvent *pEvent = pElem->GetValue();
-            delete pEvent;
+            // Take the lock before manipulating the list.
+            CrstHolder _crst(EventPipe::GetLock());
 
-            SListElem<EventPipeEvent*> *pCurElem = pElem;
-            pElem = m_pEventList->GetNext(pElem);
-            delete pCurElem;
+            SListElem<EventPipeEvent*> *pElem = m_pEventList->GetHead();
+            while(pElem != NULL)
+            {
+                EventPipeEvent *pEvent = pElem->GetValue();
+                delete pEvent;
+
+                SListElem<EventPipeEvent*> *pCurElem = pElem;
+                pElem = m_pEventList->GetNext(pElem);
+                delete pCurElem;
+            }
+
+            delete m_pEventList;
         }
+        EX_CATCH { }
+        EX_END_CATCH(SwallowAllExceptions);
 
-        delete m_pEventList;
         m_pEventList = NULL;
     }
 }

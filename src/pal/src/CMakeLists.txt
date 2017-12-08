@@ -379,7 +379,7 @@ endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
 add_subdirectory(examples)
 
 if(FEATURE_EVENT_TRACE)
-  add_subdirectory(${GENERATED_EVENTING_DIR}/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider )
+  add_subdirectory(${GENERATED_EVENTING_DIR}/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
 endif(FEATURE_EVENT_TRACE)
 
 # Install the static PAL library for VS
