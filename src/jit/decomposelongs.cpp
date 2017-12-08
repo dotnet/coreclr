@@ -1539,6 +1539,11 @@ GenTree* DecomposeLongs::DecomposeRotate(LIR::Use& use)
         gtLong->gtOp.gtOp1 = loResult;
         gtLong->gtOp.gtOp2 = hiResult;
 
+        if (tree->IsUnusedValue())
+        {
+            gtLong->SetUnusedValue();
+        }
+
         GenTree* next = tree->gtNext;
         // Remove tree and don't do anything else.
         Range().Remove(tree);
