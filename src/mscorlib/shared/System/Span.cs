@@ -27,7 +27,7 @@ namespace System
     public readonly ref struct Span<T>
     {
         /// <summary>A byref or a native ptr.</summary>
-        private readonly ByReference<T> _pointer;
+        internal readonly ByReference<T> _pointer;
         /// <summary>The number of elements this Span contains.</summary>
 #if PROJECTN
         [Bound]
@@ -408,9 +408,6 @@ namespace System
         /// Returns an empty <see cref="Span{T}"/>
         /// </summary>
         public static Span<T> Empty => default(Span<T>);
-
-        // This exposes the internal representation for Span-related apis use only.
-        internal ref T Reference => ref _pointer.Value;
 
         /// <summary>Gets an enumerator for this span.</summary>
         public Enumerator GetEnumerator() => new Enumerator(this);

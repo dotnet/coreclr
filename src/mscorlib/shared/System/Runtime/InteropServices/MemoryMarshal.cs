@@ -24,12 +24,10 @@ namespace System.Runtime.InteropServices
         /// </remarks>
         public static Memory<T> AsMemory<T>(ReadOnlyMemory<T> readOnlyMemory) =>
             Unsafe.As<ReadOnlyMemory<T>, Memory<T>>(ref readOnlyMemory);
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T GetReference<T>(in Span<T> span) => ref span.Reference;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref readonly T GetReference<T>(in ReadOnlySpan<T> span) => ref span.Reference;
+        public static ref T GetReference<T>(Span<T> span) => ref span._pointer.Value;
+
+        public static ref readonly T GetReference<T>(ReadOnlySpan<T> span) => ref span._pointer.Value;
 
         public static bool TryGetArray<T>(ReadOnlyMemory<T> readOnlyMemory, out ArraySegment<T> arraySegment)
         {
