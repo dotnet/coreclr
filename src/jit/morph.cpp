@@ -4973,6 +4973,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             if (underlyingTree->TypeGet() == argValue->TypeGet())
             {
                 argValue = underlyingTree;
+                assert(objClass == gtGetStructHandleIfPresent(underlyingTree));
             }
         }
     }
