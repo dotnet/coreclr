@@ -423,13 +423,14 @@ namespace System.Collections.Generic
             }
             else
             {
-                if (_count == _entries.Length)
+                int count = _count;
+                if (count == _entries.Length)
                 {
-                    Resize();
+                    Expand(prime: HashHelpers.ExpandPrime(count));
                     targetBucket = hashCode % _buckets.Length;
                 }
-                index = _count;
-                _count++;
+                index = count;
+                _count = count + 1;
             }
 
             _entries[index].hashCode = hashCode;
@@ -445,7 +446,7 @@ namespace System.Collections.Generic
             if (collisionCount > HashHelpers.HashCollisionThreshold && _comparer is NonRandomizedStringEqualityComparer)
             {
                 _comparer = (IEqualityComparer<TKey>)EqualityComparer<string>.Default;
-                Resize(_entries.Length, true);
+                Rehash();
             }
 
             return true;
@@ -497,42 +498,58 @@ namespace System.Collections.Generic
             HashHelpers.SerializationInfoTable.Remove(this);
         }
 
-        private void Resize()
+        private void Rehash()
         {
-            Resize(HashHelpers.ExpandPrime(_count), false);
-        }
-
-        private void Resize(int newSize, bool forceNewHashCodes)
-        {
-            Debug.Assert(newSize >= _entries.Length);
-
-            int[] buckets = new int[newSize];
+            int[] buckets = _buckets;
             for (int i = 0; i < buckets.Length; i++)
             {
                 buckets[i] = -1;
             }
-            Entry[] entries = new Entry[newSize];
 
             int count = _count;
-            Array.Copy(_entries, 0, entries, 0, count);
+            int length = buckets.Length;
+            Entry[] entries = _entries;
 
-            if (forceNewHashCodes)
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    if (entries[i].hashCode != -1)
-                    {
-                        entries[i].hashCode = (_comparer.GetHashCode(entries[i].key) & 0x7FFFFFFF);
-                    }
-                }
-            }
+            IEqualityComparer<TKey> comparer = _comparer;
 
             for (int i = 0; i < count; i++)
             {
-                if (entries[i].hashCode >= 0)
+                ref Entry entry = ref entries[i];
+                int hashCode = entry.hashCode;
+                if (hashCode >= 0)
                 {
-                    int bucket = entries[i].hashCode % newSize;
-                    entries[i].next = buckets[bucket];
+                    hashCode = (comparer.GetHashCode(entry.key) & 0x7FFFFFFF);
+                    int bucket = hashCode % length;
+                    entry.hashCode = hashCode;
+                    entry.next = buckets[bucket];
+                    buckets[bucket] = i;
+                }
+            }
+        }
+
+        private void Expand(int prime)
+        {
+            Debug.Assert(HashHelpers.IsPrime(prime));
+            Debug.Assert(prime > _buckets.Length);
+
+            int[] buckets = new int[prime];
+            for (int i = 0; i < buckets.Length; i++)
+            {
+                buckets[i] = -1;
+            }
+
+            Entry[] entries = new Entry[prime];
+            int count = _count;
+            Array.Copy(_entries, 0, entries, 0, count);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref Entry entry = ref entries[i];
+                int hashCode = entry.hashCode;
+                if (hashCode >= 0)
+                {
+                    int bucket = hashCode % prime;
+                    entry.next = buckets[bucket];
                     buckets[bucket] = i;
                 }
             }
