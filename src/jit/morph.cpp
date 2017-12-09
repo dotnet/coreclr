@@ -4963,11 +4963,17 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
         objClass           = argObj->gtClass;
         structSize         = info.compCompHnd->getClassSize(objClass);
 
-        // If we have a GT_OBJ of a GT_ADDR then we set argValue to the child node of the GT_ADDR
-        //
-        if (argObj->gtOp1->OperGet() == GT_ADDR)
+        // If we have a GT_OBJ of a GT_ADDR then we set argValue to the child node of the GT_ADDR.
+        GenTree* op1 = argObj->gtOp1;
+        if (op1->OperGet() == GT_ADDR)
         {
-            argValue = argObj->gtOp1->gtOp.gtOp1;
+            GenTree* underlyingTree = op1->gtOp.gtOp1;
+
+            // Only update to the same type.
+            if (underlyingTree->TypeGet() == argValue->TypeGet())
+            {
+                argValue = underlyingTree;
+            }
         }
     }
     else if (arg->OperGet() == GT_LCL_VAR)
