@@ -315,12 +315,12 @@ GenTree* DecomposeLongs::FinalizeDecomposition(LIR::Use& use,
     assert(Range().Contains(hiResult));
 
     GenTree* gtLong = new (m_compiler, GT_LONG) GenTreeOp(GT_LONG, TYP_LONG, loResult, hiResult);
-    loResult->ClearUnusedValue();
-    hiResult->ClearUnusedValue();
-
     Range().InsertAfter(insertResultAfter, gtLong);
 
     use.ReplaceWith(m_compiler, gtLong);
+
+    loResult->ClearUnusedValue();
+    hiResult->ClearUnusedValue();
 
     return gtLong->gtNext;
 }
