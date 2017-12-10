@@ -443,7 +443,7 @@ namespace System.Collections.Generic
             // If we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
             // i.e. EqualityComparer<string>.Default.
 
-            if (collisionCount > HashHelpers.HashCollisionThreshold && _comparer is NonRandomizedStringEqualityComparer)
+            if (default(TKey) == null && collisionCount > HashHelpers.HashCollisionThreshold && _comparer is NonRandomizedStringEqualityComparer)
             {
                 _comparer = (IEqualityComparer<TKey>)EqualityComparer<string>.Default;
                 Rehash();
@@ -500,29 +500,34 @@ namespace System.Collections.Generic
 
         private void Rehash()
         {
-            int[] buckets = _buckets;
-            for (int i = 0; i < buckets.Length; i++)
+            // Structs are never rehashed
+            Debug.Assert(default(TKey) == null);
+            if (default(TKey) == null)
             {
-                buckets[i] = -1;
-            }
-
-            int count = _count;
-            int length = buckets.Length;
-            Entry[] entries = _entries;
-
-            IEqualityComparer<TKey> comparer = _comparer;
-
-            for (int i = 0; i < count; i++)
-            {
-                ref Entry entry = ref entries[i];
-                int hashCode = entry.hashCode;
-                if (hashCode >= 0)
+                int[] buckets = _buckets;
+                for (int i = 0; i < buckets.Length; i++)
                 {
-                    hashCode = (comparer.GetHashCode(entry.key) & 0x7FFFFFFF);
-                    int bucket = hashCode % length;
-                    entry.hashCode = hashCode;
-                    entry.next = buckets[bucket];
-                    buckets[bucket] = i;
+                    buckets[i] = -1;
+                }
+
+                int count = _count;
+                int length = buckets.Length;
+                Entry[] entries = _entries;
+
+                IEqualityComparer<TKey> comparer = _comparer;
+
+                for (int i = 0; i < count; i++)
+                {
+                    ref Entry entry = ref entries[i];
+                    int hashCode = entry.hashCode;
+                    if (hashCode >= 0)
+                    {
+                        hashCode = (comparer.GetHashCode(entry.key) & 0x7FFFFFFF);
+                        int bucket = hashCode % length;
+                        entry.hashCode = hashCode;
+                        entry.next = buckets[bucket];
+                        buckets[bucket] = i;
+                    }
                 }
             }
         }
