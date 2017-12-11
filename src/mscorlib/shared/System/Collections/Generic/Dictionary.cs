@@ -362,15 +362,26 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            if (_buckets != null)
+            int[] buckets = _buckets;
+            int i = -1;
+            if (buckets != null)
             {
-                int hashCode = _comparer.GetHashCode(key) & 0x7FFFFFFF;
-                for (int i = _buckets[hashCode % _buckets.Length]; i >= 0; i = _entries[i].next)
+                IEqualityComparer<TKey> comparer = _comparer;
+                int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+                i = buckets[hashCode % buckets.Length];
+
+                Entry[] entries = _entries;
+                while (i >= 0)
                 {
-                    if (_entries[i].hashCode == hashCode && _comparer.Equals(_entries[i].key, key)) return i;
+                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
+                    {
+                        break;
+                    }
+
+                    i = entries[i].next;
                 }
             }
-            return -1;
+            return i;
         }
 
         private void Initialize(int capacity)
