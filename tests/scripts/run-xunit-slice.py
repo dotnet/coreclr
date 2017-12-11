@@ -33,10 +33,6 @@ def validate_args(args):
     an exception stating x argument is incorrect.
     """
 
-    slice_number = args.slice_number
-    slice_file = args.slice_file
-    slice_dir = args.slice_dir
-
     def validate_arg(arg, check):
         """ Validate an individual arg
         Args:
@@ -51,29 +47,25 @@ def validate_args(args):
         helper = lambda item: item is not None and check(item)
 
         if not helper(arg):
-            raise Exception('Argument: %s is not valid.' % (arg))
+            raise ValueError('Argument: %s is not valid.' % (arg))
 
-    validate_arg(slice_number, lambda item: item >= -1)
-    validate_arg(slice_file, lambda item: os.path.isfile(item))
-    validate_arg(slice_dir, lambda item: os.path.isdir(item))
+    validate_arg(args.slice_number, lambda item: item >= -1)
+    validate_arg(args.slice_file, lambda item: os.path.isfile(item))
+    validate_arg(args.slice_dir, lambda item: os.path.isdir(item))
 
-    return (slice_number, slice_file, slice_dir)
+    return (args.slice_number, args.slice_file, args.slice_dir)
 
 def main(args):
     slice_number, slice_file, slice_dir = validate_args(args)
-    json_data = open(slice_file).read()
 
-    data = json.loads(json_data)
-
-    if slice_number >= len(data["slices"]):
-        raise Exception('Invalid slice number. %s is greater than the max number of slices %s' % (slice_number, len(data["slices"])))
-    elif slice_number != -1:
-        folder_number = 1
-        for folder in data["slices"][slice_number]["folders"]:
-            f = open (os.path.join(slice_dir, "slice" + str(folder_number) + ".txt"), 'w')
-            f.write(folder)
-            f.close()
-            folder_number = folder_number + 1
+    with open(slice_file) as json_data:
+        data = json.load(json_data)
+        if slice_number >= len(data["slices"]):
+            raise ValueError('Invalid slice number. %s is greater than the max number of slices %s' % (slice_number, len(data["slices"])))
+        elif slice_number != -1:
+            for count, folder in enumerate(data["slices"][slice_number]["folders"]):
+                with open (os.path.join(slice_dir, "slice" + str(count+1) + ".txt"), 'w') as f:
+                    f.write(folder)
 
     return 0
 

@@ -317,7 +317,7 @@ def innerLoopTests = [:]
 ['x64', 'x86'].each { arch ->
     ['full_opt'].each { opt_level ->
         [false].each { isBaseline ->
-            [0,1,2,3,4,5].each { slice ->
+            (0..5).each { slice ->
                 String baseline = ""
                 if (isBaseline) {
                     baseline = " baseline"
