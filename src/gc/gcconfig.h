@@ -56,7 +56,7 @@ public:
   BOOL_CONFIG(ServerGC,     "gcServer",     false, "Whether we should be using Server GC")     \
   BOOL_CONFIG(ConcurrentGC, "gcConcurrent", true,  "Whether we should be using Concurrent GC") \
   BOOL_CONFIG(ConservativeGC, "gcConservative", false, "Enables/Disables conservative GC")     \
-  BOOL_CONFIG(ForceCompact, "gcForceCompact", false,                                           \
+  BOOL_CONFIG(ForceCompact, "gcForceCompact", true,                                           \
       "When set to true, always do compacting GC")                                             \
   BOOL_CONFIG(RetainVM,     "GCRetainVM",   false,                                             \
       "When set we put the segments that should be deleted on a standby list (instead of "     \
@@ -74,7 +74,7 @@ public:
       "Specifies the name of the GC config log file")                                          \
   INT_CONFIG(HeapVerifyLevel, "HeapVerify", HEAPVERIFY_NONE,                                   \
       "When set verifies the integrity of the managed heap on entry and exit of each GC")      \
-  INT_CONFIG(LOHCompactionMode, "GCLOHCompact", 0, "Specifies the LOH compaction mode")        \
+  INT_CONFIG(LOHCompactionMode, "GCLOHCompact", 2, "Specifies the LOH compaction mode")        \
   INT_CONFIG(BGCSpinCount,  "BGCSpinCount", 140, "Specifies the bgc spin count")               \
   INT_CONFIG(BGCSpin,       "BGCSpin",      2,   "Specifies the bgc spin time")                \
   INT_CONFIG(HeapCount,     "GCHeapCount",  0,   "Specifies the number of server GC heaps")    \
