@@ -4970,7 +4970,8 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             GenTree* underlyingTree = op1->gtOp.gtOp1;
 
             // Only update to the same type.
-            if ((underlyingTree->TypeGet() == argValue->TypeGet()) && (objClass == gtGetStructHandleIfPresent(underlyingTree)))
+            if ((underlyingTree->TypeGet() == argValue->TypeGet()) &&
+                (objClass == gtGetStructHandleIfPresent(underlyingTree)))
             {
                 argValue = underlyingTree;
             }
