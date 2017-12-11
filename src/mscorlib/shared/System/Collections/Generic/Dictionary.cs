@@ -395,17 +395,20 @@ namespace System.Collections.Generic
             }
 
             if (_buckets == null) Initialize(0);
-            int hashCode = _comparer.GetHashCode(key) & 0x7FFFFFFF;
+            IEqualityComparer<TKey> comparer = _comparer;
+            int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
             int targetBucket = hashCode % _buckets.Length;
             int collisionCount = 0;
 
-            for (int i = _buckets[targetBucket]; i >= 0; i = _entries[i].next)
+            int i = _buckets[targetBucket];
+            Entry[] entries = _entries;
+            while (i >= 0)
             {
-                if (_entries[i].hashCode == hashCode && _comparer.Equals(_entries[i].key, key))
+                if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
                 {
                     if (behavior == InsertionBehavior.OverwriteExisting)
                     {
-                        _entries[i].value = value;
+                        entries[i].value = value;
                         _version++;
                         return true;
                     }
@@ -417,6 +420,8 @@ namespace System.Collections.Generic
 
                     return false;
                 }
+
+                i = entries[i].next;
                 collisionCount++;
             }
 
@@ -424,34 +429,36 @@ namespace System.Collections.Generic
             if (_freeCount > 0)
             {
                 index = _freeList;
-                _freeList = _entries[index].next;
+                _freeList = entries[index].next;
                 _freeCount--;
             }
             else
             {
-                if (_count == _entries.Length)
+                int count = _count;
+                if (count == entries.Length)
                 {
                     Resize();
                     targetBucket = hashCode % _buckets.Length;
                 }
-                index = _count;
-                _count++;
+                index = count;
+                _count = count + 1;
+                entries = _entries;
             }
 
-            _entries[index].hashCode = hashCode;
-            _entries[index].next = _buckets[targetBucket];
-            _entries[index].key = key;
-            _entries[index].value = value;
+            entries[index].hashCode = hashCode;
+            entries[index].next = _buckets[targetBucket];
+            entries[index].key = key;
+            entries[index].value = value;
             _buckets[targetBucket] = index;
             _version++;
 
-            // If we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
-            // i.e. EqualityComparer<string>.Default.
-
-            if (collisionCount > HashHelpers.HashCollisionThreshold && _comparer is NonRandomizedStringEqualityComparer)
+            // Value types never rehash
+            if (default(TKey) == null && collisionCount > HashHelpers.HashCollisionThreshold && _comparer is NonRandomizedStringEqualityComparer)
             {
+                // If we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
+                // i.e. EqualityComparer<string>.Default.
                 _comparer = (IEqualityComparer<TKey>)EqualityComparer<string>.Default;
-                Resize(_entries.Length, true);
+                Resize(entries.Length, true);
             }
 
             return true;
@@ -510,6 +517,8 @@ namespace System.Collections.Generic
 
         private void Resize(int newSize, bool forceNewHashCodes)
         {
+            // Value types never rehash
+            Debug.Assert(!forceNewHashCodes || default(TKey) == null);
             Debug.Assert(newSize >= _entries.Length);
 
             int[] buckets = new int[newSize];
@@ -522,7 +531,7 @@ namespace System.Collections.Generic
             int count = _count;
             Array.Copy(_entries, 0, entries, 0, count);
 
-            if (forceNewHashCodes)
+            if (default(TKey) == null && forceNewHashCodes)
             {
                 for (int i = 0; i < count; i++)
                 {
