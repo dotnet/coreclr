@@ -350,6 +350,7 @@ if (!isPR()) {
                 windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false, false, -1)
             }
         }
+    }
 
     ['x64', 'x86'].each { arch ->
         ['min_opt', 'full_opt'].each { opt_level ->
