@@ -614,6 +614,7 @@
     <Compile Include="$(BclSourcesRoot)\mscorlib.Friends.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="shared\System\Buffers\ValueListBuilder.cs" />
     <Compile Include="src\System\Runtime\RuntimeImports.cs" />
   </ItemGroup>
   <Import Project="shared\System.Private.CoreLib.Shared.projitems" />

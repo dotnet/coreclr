@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using Internal.Runtime.CompilerServices;
+using System.Buffers;
 
 namespace System
 {
@@ -1163,8 +1163,11 @@ namespace System
                 return new String[] { this };
             }
 
-            Span<int> sepList = Length < StackallocStringLengthLimit ? stackalloc int[Length] : new int[Length];
-            int numReplaces = MakeSeparatorList(separators, sepList);
+            Span<int> initialSpan = Length < StackallocStringLengthLimit ? stackalloc int[Length] : stackalloc int[StackallocStringLengthLimit];
+            var sepListBuilder = new ValueListBuilder<int>(initialSpan);
+
+            ReadOnlySpan<int> sepList = MakeSeparatorList(separators, ref sepListBuilder);
+            int numReplaces = sepList.Length;
 
             // Handle the special case of no replaces.
             if (0 == numReplaces)
@@ -1172,14 +1175,19 @@ namespace System
                 return new String[] { this };
             }
 
+            string[] result;
             if (omitEmptyEntries)
             {
-                return SplitOmitEmptyEntries(sepList, null, 1, numReplaces, count);
+                result = SplitOmitEmptyEntries(sepList, default, 1, numReplaces, count);
             }
             else
             {
-                return SplitKeepEmptyEntries(sepList, null, 1, numReplaces, count);
+                result = SplitKeepEmptyEntries(sepList, default, 1, numReplaces, count);
             }
+
+            sepListBuilder.Dispose();
+
+            return result;
         }
 
         public String[] Split(String separator, StringSplitOptions options = StringSplitOptions.None)
@@ -1273,7 +1281,7 @@ namespace System
         //     the original string will be returned regardless of the count. 
         //
 
-        private string[] SplitKeepEmptyEntries(Span<int> sepList, Span<int> lengthList, int defaultLength, int numReplaces, int count)
+        private string[] SplitKeepEmptyEntries(ReadOnlySpan<int> sepList, ReadOnlySpan<int> lengthList, int defaultLength, int numReplaces, int count)
         {
             Debug.Assert(numReplaces >= 0);
             Debug.Assert(count >= 2);
@@ -1311,7 +1319,7 @@ namespace System
 
 
         // This function will not keep the Empty String 
-        private string[] SplitOmitEmptyEntries(Span<int> sepList, Span<int> lengthList, int defaultLength, int numReplaces, int count)
+        private string[] SplitOmitEmptyEntries(ReadOnlySpan<int> sepList, ReadOnlySpan<int> lengthList, int defaultLength, int numReplaces, int count)
         {
             Debug.Assert(numReplaces >= 0);
             Debug.Assert(count >= 2);
@@ -1371,9 +1379,8 @@ namespace System
         // Args: separator  -- A string containing all of the split characters.
         //       sepList    -- an array of ints for split char indicies.
         //--------------------------------------------------------------------    
-        private int MakeSeparatorList(ReadOnlySpan<char> separators, Span<int> sepList)
+        private ReadOnlySpan<int> MakeSeparatorList(ReadOnlySpan<char> separators, ref ValueListBuilder<int> sepListBuilder)
         {
-            int foundCount = 0;
             char sep0, sep1, sep2;
 
             switch (separators.Length)
@@ -1384,7 +1391,7 @@ namespace System
                     {
                         if (char.IsWhiteSpace(this[i]))
                         {
-                            sepList[foundCount++] = i;
+                            sepListBuilder.Append(i);
                         }
                     }
                     break;
@@ -1396,7 +1403,7 @@ namespace System
                     {
                         if (this[i] == sep0)
                         {
-                            sepList[foundCount++] = i;
+                            sepListBuilder.Append(i);
                         }
                     }
                     break;
@@ -1408,7 +1415,7 @@ namespace System
                         char c = this[i];
                         if (c == sep0 || c == sep1)
                         {
-                            sepList[foundCount++] = i;
+                            sepListBuilder.Append(i);
                         }
                     }
                     break;
@@ -1421,7 +1428,7 @@ namespace System
                         char c = this[i];
                         if (c == sep0 || c == sep1 || c == sep2)
                         {
-                            sepList[foundCount++] = i;
+                            sepListBuilder.Append(i);
                         }
                     }
                     break;
@@ -1441,14 +1448,14 @@ namespace System
                             if (IsCharBitSet(charMap, (byte)c) && IsCharBitSet(charMap, (byte)(c >> 8)) &&
                                 separators.Contains(c))
                             {
-                                sepList[foundCount++] = i;
+                                sepListBuilder.Append(i);
                             }
                         }
                     }
                     break;
             }
 
-            return foundCount;
+            return sepListBuilder.AsReadOnlySpan();
         }
 
         //--------------------------------------------------------------------  
