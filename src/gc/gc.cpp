@@ -2353,80 +2353,39 @@ void stomp_write_barrier_initialize(uint8_t* ephemeral_low, uint8_t* ephemeral_h
 //extract the high bits [high, 32] of a uint32_t
 #define highbits(wrd, bits) ((wrd) & ~((1 << (bits))-1))
 
-// Things we will need to manually initialize:
+// Things we need to manually initialize:
 // gen0 min_size - based on cache
 // gen0/1 max_size - based on segment size
-//
-// TODO: the values that are here currently are the same as the old ones except
-// some are changed for latency_level_memory_footprint. 
-// These values will definitely require tuning.
-// 
 static static_data static_data_table[latency_level_last - latency_level_first + 1][NUMBERGENERATIONS] = 
 {
     // latency_level_memory_footprint
-    // TODO: we will still want different max_size for Server GC; 6mb is very small.
     {
         // gen0
-        {0, 6*1024*1024, 40000, 0.25f, 9.0f, 20.0f}, 
+        {0, 0, 40000, 0.5f, 9.0f, 20.0f, 1000, 1},
         // gen1
-        {9*32*1024, 6*1024*1024, 80000, 0.25f, 2.0f, 7.0f}, 
+        {163840, 0, 80000, 0.5f, 2.0f, 7.0f, 10000, 10},
         // gen2
-        {256*1024, SSIZE_T_MAX, 200000, 0.1f, 1.1f, 1.3f}, 
+        {256*1024, SSIZE_T_MAX, 200000, 0.25f, 1.2f, 1.8f, 100000, 100},
         // gen3
-        // TODO: fragmentation_limit and fragmentation_burden_limit will be specified when
-        // we dynamically compact LOH.
-        {3*1024*1024, SSIZE_T_MAX, 0, 0.0f, 1.25f, 2.5f}
+        {3*1024*1024, SSIZE_T_MAX, 0, 0.0f, 1.25f, 4.5f, 0, 0}
     },
 
-    // These levels all have the same values right now, taken from the old ones.
-    // 
-    // latency_level_throughput
     // latency_level_balanced
-    // latency_level_short_pauses
     {
         // gen0
         {0, 0, 40000, 0.5f,
 #ifdef MULTIPLE_HEAPS
-            20.0f, 40.0f},
+            20.0f, 40.0f,
 #else
-            9.0f, 20.0f},
+            9.0f, 20.0f,
 #endif //MULTIPLE_HEAPS
+            1000, 1},
         // gen1
-        {9*32*1024, 0, 80000, 0.5f, 2.0f, 7.0f},
+        {9*32*1024, 0, 80000, 0.5f, 2.0f, 7.0f, 10000, 10},
         // gen2
-        {256*1024, SSIZE_T_MAX, 200000, 0.25f, 1.2f, 1.8f},
+        {256*1024, SSIZE_T_MAX, 200000, 0.25f, 1.2f, 1.8f, 100000, 100},
         // gen3
-        {3*1024*1024, SSIZE_T_MAX, 0, 0.0f, 1.25f, 4.5f}  
-    },
-    {
-        // gen0
-        {0, 0, 40000, 0.5f,
-#ifdef MULTIPLE_HEAPS
-            20.0f, 40.0f},
-#else
-            9.0f, 20.0f},
-#endif //MULTIPLE_HEAPS
-        // gen1
-        {9*32*1024, 0, 80000, 0.5f, 2.0f, 7.0f},
-        // gen2
-        {256*1024, SSIZE_T_MAX, 200000, 0.25f, 1.2f, 1.8f},
-        // gen3
-        {3*1024*1024, SSIZE_T_MAX, 0, 0.0f, 1.25f, 4.5f}  
-    },
-    {
-        // gen0
-        {0, 0, 40000, 0.5f,
-#ifdef MULTIPLE_HEAPS
-            20.0f, 40.0f},
-#else
-            9.0f, 20.0f},
-#endif //MULTIPLE_HEAPS
-        // gen1
-        {9*32*1024, 0, 80000, 0.5f, 2.0f, 7.0f},
-        // gen2
-        {256*1024, SSIZE_T_MAX, 200000, 0.25f, 1.2f, 1.8f},
-        // gen3
-        {3*1024*1024, SSIZE_T_MAX, 0, 0.0f, 1.25f, 4.5f}  
+        {3*1024*1024, SSIZE_T_MAX, 0, 0.0f, 1.25f, 4.5f, 0, 0}
     },
 };
 
@@ -6173,7 +6132,7 @@ bool gc_heap::new_allocation_allowed (int gen_number)
         dprintf (3, ("evaluating allocation rate"));
         dynamic_data* dd0 = dynamic_data_of (0);
         if ((allocation_running_amount - dd_new_allocation (dd0)) >
-            dd_min_gc_size (dd0))
+            dd_min_size (dd0))
         {
             uint32_t ctime = GCToOSInterface::GetLowPrecisionTimeStamp();
             if ((ctime - allocation_running_time) > 1000)
@@ -10196,8 +10155,7 @@ gc_heap::init_semi_shared()
     should_expand_in_full_gc = FALSE;
 
 #ifdef FEATURE_LOH_COMPACTION
-    // TODO!!! This is temporary! We need to change this when we dynamically determine whether we want to compact LOH.
-    loh_compaction_always_p = (GCConfig::GetLOHCompactionMode() != 0) || (latency_level == latency_level_memory_footprint);
+    loh_compaction_always_p = GCConfig::GetLOHCompactionMode() != 0;
     loh_compaction_mode = loh_compaction_default;
 #endif //FEATURE_LOH_COMPACTION
 
@@ -10663,10 +10621,10 @@ gc_heap::init_gc_heap (int  h_number)
 
     //needs to be done after the dynamic data has been initialized
 #ifndef MULTIPLE_HEAPS
-    allocation_running_amount = dd_min_gc_size (dynamic_data_of (0));
+    allocation_running_amount = dd_min_size (dynamic_data_of (0));
 #endif //!MULTIPLE_HEAPS
 
-    fgn_last_alloc = dd_min_gc_size (dynamic_data_of (0));
+    fgn_last_alloc = dd_min_size (dynamic_data_of (0));
 
     mark* arr = new (nothrow) (mark [MARK_STACK_INITIAL_LENGTH]);
     if (!arr)
@@ -10788,7 +10746,7 @@ gc_heap::init_gc_heap (int  h_number)
     background_soh_alloc_count = 0;
     background_loh_alloc_count = 0;
     bgc_overflow_count = 0;
-    end_loh_size = dd_min_gc_size (dynamic_data_of (max_generation + 1));
+    end_loh_size = dd_min_size (dynamic_data_of (max_generation + 1));
 #endif //BACKGROUND_GC
 
 #ifdef GC_CONFIG_DRIVEN
@@ -11619,7 +11577,7 @@ void gc_heap::handle_oom (int heap_num, oom_reason reason, size_t alloc_size,
 
     if (reason == oom_budget)
     {
-        alloc_size = dd_min_gc_size (dynamic_data_of (0)) / 2;
+        alloc_size = dd_min_size (dynamic_data_of (0)) / 2;
     }
 
     if ((reason == oom_budget) && ((!fgm_result.loh_p) && (fgm_result.fgm != fgm_no_failure)))
@@ -12688,7 +12646,7 @@ void gc_heap::wait_for_background_planning (alloc_wait_reason awr)
 
 BOOL gc_heap::bgc_loh_should_allocate()
 {
-    size_t min_gc_size = dd_min_gc_size(dynamic_data_of (max_generation + 1));
+    size_t min_gc_size = dd_min_size(dynamic_data_of (max_generation + 1));
 
     if ((bgc_begin_loh_size + bgc_loh_size_increased) < (min_gc_size * 10))
     {
@@ -14854,8 +14812,8 @@ int gc_heap::generation_to_condemn (int n_initial,
         for (i = (temp_gen+1); i <= n_time_max; i++)
         {
             dynamic_data* dd = dynamic_data_of (i);
-            if ((now > dd_time_clock(dd) + power (10, i)*1000) &&
-                (dd_gc_clock (dd0) > (dd_gc_clock (dd) + (power (10, i)))) &&
+            if ((now > dd_time_clock(dd) + dd_time_clock_interval(dd)) &&
+                (dd_gc_clock (dd0) > (dd_gc_clock (dd) + dd_gc_clock_interval(dd))) &&
                 ((n < max_generation) || ((dd_current_size (dd) < dd_max_size (dd0)))))
             {
                 n = min (i, n_time_max);
@@ -15835,7 +15793,7 @@ void gc_heap::gc1()
                     // down to min_gc_size to stay in the cache
                     gc_heap* hp = gc_heap::g_heaps[0];
                     dynamic_data* dd = hp->dynamic_data_of (gen);
-                    size_t min_gc_size = dd_min_gc_size(dd);
+                    size_t min_gc_size = dd_min_size(dd);
                     // if min GC size larger than true on die cache, then don't bother
                     // limiting the desired size
                     if ((min_gc_size <= GCToOSInterface::GetCacheSizePerLogicalCpu(TRUE)) &&
@@ -19919,7 +19877,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
             size_t m = 0;
             for (int n = 0; n <= condemned_gen_number;n++)
             {
-                m +=  (size_t)(dd_min_gc_size (dynamic_data_of (n))*(n+1)*0.1);
+                m +=  (size_t)(dd_min_size (dynamic_data_of (n))*(n+1)*0.1);
             }
 
             for (int i = 0; i < n_heaps; i++)
@@ -20004,7 +19962,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
             size_t m = 0;
             for (int n = 0; n <= condemned_gen_number;n++)
             {
-                m +=  (size_t)(dd_min_gc_size (dynamic_data_of (n))*(n+1)*0.06);
+                m +=  (size_t)(dd_min_size (dynamic_data_of (n))*(n+1)*0.06);
             }
             dynamic_data* dd = dynamic_data_of (min (condemned_gen_number +1,
                                                      max_generation));
@@ -29584,14 +29542,8 @@ void gc_heap::set_static_data()
         dynamic_data* dd = dynamic_data_of (i);
         static_data* sdata = &pause_mode_sdata[i];
 
+        dd->sdata = sdata;
         dd->min_size = sdata->min_size;
-        dd->min_gc_size = sdata->min_size;
-        dd->max_size = sdata->max_size;
-        dd->default_new_allocation = sdata->min_size;
-        dd->fragmentation_limit = sdata->fragmentation_limit;
-        dd->fragmentation_burden_limit = sdata->fragmentation_burden_limit;
-        dd->limit = sdata->limit;
-        dd->max_limit = sdata->max_limit;
 
         dprintf (GTC_LOG, ("PM: %d - min: %Id, max: %Id, fr_l: %Id, fr_b: %d%%",
             settings.pause_mode,
@@ -29628,12 +29580,9 @@ void gc_heap::init_static_data()
     dprintf (GTC_LOG, ("gen0size: %Id, gen0 min: %Id, max: %Id, gen1 max: %Id",
         gen0size, gen0_min_size, gen0_max_size, gen1_max_size));
 
-    static_data_table[latency_level_memory_footprint][0].min_size = 
-        min (gen0_min_size, static_data_table[latency_level_memory_footprint][0].max_size);
-
-    for (int i = latency_level_throughput; i <= latency_level_last; i++)
+    for (int i = latency_level_first; i <= latency_level_last; i++)
     {
-        static_data_table[i][0].min_size = gen0_max_size;
+        static_data_table[i][0].min_size = gen0_min_size;
         static_data_table[i][0].max_size = gen0_max_size;
         static_data_table[i][1].max_size = gen1_max_size;
     }
@@ -29647,7 +29596,7 @@ bool gc_heap::init_dynamic_data()
 
     set_static_data();
 
-    for (int i = 0; i < max_generation+1; i++)
+    for (int i = 0; i <= max_generation+1; i++)
     {
         dynamic_data* dd = dynamic_data_of (i);
         dd->gc_clock = 0;
@@ -29658,7 +29607,6 @@ bool gc_heap::init_dynamic_data()
         dd->new_allocation = dd->min_size;
         dd->gc_new_allocation = dd->new_allocation;
         dd->desired_allocation = dd->new_allocation;
-        dd->default_new_allocation = dd->min_size;
         dd->fragmentation = 0;
     }
 
@@ -29709,7 +29657,7 @@ size_t gc_heap::desired_new_allocation (dynamic_data* dd,
 
     if (dd_begin_data_size (dd) == 0)
     {
-        size_t new_allocation = dd_default_new_allocation (dd);
+        size_t new_allocation = dd_min_size (dd);
         current_gc_data_per_heap->gen_data[gen_number].new_allocation = new_allocation;        
         return new_allocation;
     }
@@ -29720,7 +29668,7 @@ size_t gc_heap::desired_new_allocation (dynamic_data* dd,
         size_t    current_size = dd_current_size (dd);
         float     max_limit = dd_max_limit (dd);
         float     limit = dd_limit (dd);
-        size_t    min_gc_size = dd_min_gc_size (dd);
+        size_t    min_gc_size = dd_min_size (dd);
         float     f = 0;
         size_t    max_size = dd_max_size (dd);
         size_t    new_allocation = 0;
@@ -30170,7 +30118,7 @@ void gc_heap::trim_youngest_desired_low_memory()
 
         dynamic_data* dd = dynamic_data_of (0);
         size_t current = dd_desired_allocation (dd);
-        size_t candidate = max (Align ((committed_mem / 10), get_alignment_constant(FALSE)), dd_min_gc_size (dd));
+        size_t candidate = max (Align ((committed_mem / 10), get_alignment_constant(FALSE)), dd_min_size (dd));
 
         dd_desired_allocation (dd) = min (current, candidate);
     }
@@ -30516,7 +30464,7 @@ size_t gc_heap::approximate_new_allocation()
 // a reasonable amount of allocation requests.
 size_t gc_heap::end_space_after_gc()
 {
-    return max ((dd_min_gc_size (dynamic_data_of (0))/2), (END_SPACE_AFTER_GC + Align (min_obj_size)));
+    return max ((dd_min_size (dynamic_data_of (0))/2), (END_SPACE_AFTER_GC + Align (min_obj_size)));
 }
 
 BOOL gc_heap::ephemeral_gen_fit_p (gc_tuning_point tp)
