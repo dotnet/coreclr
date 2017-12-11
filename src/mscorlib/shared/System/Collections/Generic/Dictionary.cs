@@ -397,10 +397,10 @@ namespace System.Collections.Generic
             if (_buckets == null) Initialize(0);
             IEqualityComparer<TKey> comparer = _comparer;
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-            int targetBucket = hashCode % _buckets.Length;
             int collisionCount = 0;
 
-            int i = _buckets[targetBucket];
+            ref int bucket = ref _buckets[hashCode % _buckets.Length];
+            int i = bucket;
             Entry[] entries = _entries;
             do
             {
@@ -431,6 +431,7 @@ namespace System.Collections.Generic
                 collisionCount++;
             } while (true);
 
+            bool resized = false;
             int index;
             if (_freeCount > 0)
             {
@@ -444,18 +445,21 @@ namespace System.Collections.Generic
                 if (count == entries.Length)
                 {
                     Resize();
-                    targetBucket = hashCode % _buckets.Length;
+                    resized = true;
+                    //targetBucket = hashCode % _buckets.Length;
                 }
                 index = count;
                 _count = count + 1;
                 entries = _entries;
             }
 
+            ref int targetBucket = ref resized ? ref _buckets[hashCode % _buckets.Length] : ref bucket;
+
             entries[index].hashCode = hashCode;
-            entries[index].next = _buckets[targetBucket];
+            entries[index].next = targetBucket;
             entries[index].key = key;
             entries[index].value = value;
-            _buckets[targetBucket] = index;
+            targetBucket = index;
             _version++;
 
             // Value types never rehash
