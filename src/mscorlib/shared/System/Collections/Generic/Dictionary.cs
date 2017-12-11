@@ -404,9 +404,10 @@ namespace System.Collections.Generic
             Entry[] entries = _entries;
             do
             {
+                // Should be a while loop https://github.com/dotnet/coreclr/issues/15476
+                // Test uint in if rather than loop condition to drop range check for following array access
                 if ((uint)i >= (uint)entries.Length)
                 {
-                    // Test uint in if rather than loop condition to drop range check for following array access
                     break;
                 }
 
@@ -431,12 +432,15 @@ namespace System.Collections.Generic
                 collisionCount++;
             } while (true);
 
+            // Can be improved with "Ref Local Reassignment"
+            // https://github.com/dotnet/csharplang/blob/master/proposals/ref-local-reassignment.md
             bool resized = false;
+            bool updateFreeList = false;
             int index;
             if (_freeCount > 0)
             {
                 index = _freeList;
-                _freeList = entries[index].next;
+                updateFreeList = true;
                 _freeCount--;
             }
             else
@@ -446,7 +450,6 @@ namespace System.Collections.Generic
                 {
                     Resize();
                     resized = true;
-                    //targetBucket = hashCode % _buckets.Length;
                 }
                 index = count;
                 _count = count + 1;
@@ -454,11 +457,16 @@ namespace System.Collections.Generic
             }
 
             ref int targetBucket = ref resized ? ref _buckets[hashCode % _buckets.Length] : ref bucket;
+            ref Entry entry = ref entries[index];
 
-            entries[index].hashCode = hashCode;
-            entries[index].next = targetBucket;
-            entries[index].key = key;
-            entries[index].value = value;
+            if (updateFreeList)
+            {
+                _freeList = entry.next;
+            }
+            entry.hashCode = hashCode;
+            entry.next = targetBucket;
+            entry.key = key;
+            entry.value = value;
             targetBucket = index;
             _version++;
 
