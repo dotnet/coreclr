@@ -191,6 +191,11 @@ void LIR::Use::ReplaceWith(Compiler* compiler, GenTree* replacement)
     assert(IsDummyUse() || m_range->Contains(m_user));
     assert(m_range->Contains(replacement));
 
+    if (Def()->IsUnusedValue())
+    {
+        replacement->SetUnusedValue();
+    }
+
     if (!IsDummyUse())
     {
         m_user->ReplaceOperand(m_edge, replacement);

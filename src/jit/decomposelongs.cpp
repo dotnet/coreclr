@@ -315,17 +315,12 @@ GenTree* DecomposeLongs::FinalizeDecomposition(LIR::Use& use,
     assert(Range().Contains(hiResult));
 
     GenTree* gtLong = new (m_compiler, GT_LONG) GenTreeOp(GT_LONG, TYP_LONG, loResult, hiResult);
-    if (use.IsDummyUse())
-    {
-        gtLong->SetUnusedValue();
-    }
-
-    loResult->ClearUnusedValue();
-    hiResult->ClearUnusedValue();
-
     Range().InsertAfter(insertResultAfter, gtLong);
 
     use.ReplaceWith(m_compiler, gtLong);
+
+    loResult->ClearUnusedValue();
+    hiResult->ClearUnusedValue();
 
     return gtLong->gtNext;
 }
@@ -1094,10 +1089,6 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
         {
             GenTree* next = shift->gtNext;
             // Remove shift and don't do anything else.
-            if (shift->IsUnusedValue())
-            {
-                gtLong->SetUnusedValue();
-            }
             Range().Remove(shift);
             use.ReplaceWith(m_compiler, gtLong);
             return next;
@@ -1468,11 +1459,6 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
 
         GenTree* call = m_compiler->gtNewHelperCallNode(helper, TYP_LONG, argList);
         call->gtFlags |= shift->gtFlags & GTF_ALL_EFFECT;
-
-        if (shift->IsUnusedValue())
-        {
-            call->SetUnusedValue();
-        }
 
         GenTreeCall*    callNode    = call->AsCall();
         ReturnTypeDesc* retTypeDesc = callNode->GetReturnTypeDesc();
