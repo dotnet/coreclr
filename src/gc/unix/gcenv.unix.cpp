@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include "config.h"
 
-
 #include "gcenv.structs.h"
 #include "gcenv.base.h"
 #include "gcenv.os.h"
