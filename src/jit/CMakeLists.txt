@@ -9,6 +9,10 @@ if (CLR_CMAKE_TARGET_ARCH_AMD64 OR (CLR_CMAKE_TARGET_ARCH_I386 AND NOT CLR_CMAKE
   add_definitions(-DFEATURE_HW_INTRINSICS)
 endif ()
 
+if (CLR_CMAKE_TARGET_ARCH_ARM64)
+  add_definitions(-DFEATURE_SIMD)
+endif ()
+
 # JIT_BUILD disables certain PAL_TRY debugging features
 add_definitions(-DJIT_BUILD=1)
 
@@ -141,6 +145,7 @@ set( JIT_ARM64_SOURCES
   lowerarm64.cpp
   lsraarmarch.cpp
   lsraarm64.cpp
+  simd.cpp
   targetarm64.cpp
   unwindarm.cpp
   unwindarm64.cpp
@@ -253,9 +258,10 @@ endif (FEATURE_MERGE_JIT_AND_ENGINE)
 
 add_subdirectory(standalone)
 
-if (CLR_CMAKE_PLATFORM_ARCH_ARM)
+if (CLR_CMAKE_TARGET_ARCH_ARM)
+    # Build RyuJIT/arm32 protojit to run on both x86 host (crossgen build) and arm host (native).
     add_subdirectory(protojit)
-endif (CLR_CMAKE_PLATFORM_ARCH_ARM)
+endif (CLR_CMAKE_TARGET_ARCH_ARM)
 
 if (CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_AMD64)
     # On x86, build RyuJIT/ARM32 cross-compiling altjit.
@@ -276,7 +282,6 @@ if ((CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_AMD64) AND WIN32)
 endif ()
 
 if (CLR_CMAKE_PLATFORM_ARCH_I386 AND WIN32)
-    add_subdirectory(legacyjit)
     # On Windows x86, build altjit generating Windows/ARM32 code using LEGACY_BACKEND.
     # (Note: we could also create linuxlegacynonjit for generating Linux/ARM32 code using LEGACY_BACKEND, if needed.)
     add_subdirectory(legacynonjit)

@@ -189,8 +189,7 @@ CORINFO_METHOD_HANDLE MyICJI::resolveVirtualMethod(CORINFO_METHOD_HANDLE  virtua
 CORINFO_METHOD_HANDLE MyICJI::getUnboxedEntry(CORINFO_METHOD_HANDLE ftn, bool* requiresInstMethodTableArg)
 {
     jitInstance->mc->cr->AddCall("getUnboxedEntry");
-    CORINFO_METHOD_HANDLE result =
-        jitInstance->mc->repGetUnboxedEntry(ftn, requiresInstMethodTableArg);
+    CORINFO_METHOD_HANDLE result = jitInstance->mc->repGetUnboxedEntry(ftn, requiresInstMethodTableArg);
     return result;
 }
 
@@ -434,6 +433,20 @@ const char* MyICJI::getClassName(CORINFO_CLASS_HANDLE cls)
 {
     jitInstance->mc->cr->AddCall("getClassName");
     const char* result = jitInstance->mc->repGetClassName(cls);
+    return result;
+}
+
+const char* MyICJI::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    jitInstance->mc->cr->AddCall("getClassNameFromMetadata");
+    const char* result = jitInstance->mc->repGetClassNameFromMetadata(cls, namespaceName);
+    return result;
+}
+
+CORINFO_CLASS_HANDLE MyICJI::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    jitInstance->mc->cr->AddCall("getTypeInstantiationArgument");
+    CORINFO_CLASS_HANDLE result = jitInstance->mc->repGetTypeInstantiationArgument(cls, index);
     return result;
 }
 

@@ -21,7 +21,7 @@ namespace System
     public readonly ref struct ReadOnlySpan<T>
     {
         /// <summary>A byref or a native ptr.</summary>
-        private readonly ByReference<T> _pointer;
+        internal readonly ByReference<T> _pointer;
         /// <summary>The number of elements this ReadOnlySpan contains.</summary>
 #if PROJECTN
         [Bound]
@@ -173,9 +173,7 @@ namespace System
                 return Unsafe.Add(ref _pointer.Value, index);
             }
 #else
-#if CORERT
             [Intrinsic]
-#endif
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             [NonVersionable]
             get
@@ -263,12 +261,13 @@ namespace System
         /// <summary>
         /// Defines an implicit conversion of an array to a <see cref="ReadOnlySpan{T}"/>
         /// </summary>
-        public static implicit operator ReadOnlySpan<T>(T[] array) => new ReadOnlySpan<T>(array);
+        public static implicit operator ReadOnlySpan<T>(T[] array) => array != null ? new ReadOnlySpan<T>(array) : default;
 
         /// <summary>
         /// Defines an implicit conversion of a <see cref="ArraySegment{T}"/> to a <see cref="ReadOnlySpan{T}"/>
         /// </summary>
-        public static implicit operator ReadOnlySpan<T>(ArraySegment<T> arraySegment) => new ReadOnlySpan<T>(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
+        public static implicit operator ReadOnlySpan<T>(ArraySegment<T> arraySegment)
+            => arraySegment.Array != null ? new ReadOnlySpan<T>(arraySegment.Array, arraySegment.Offset, arraySegment.Count) : default;
 
         /// <summary>
         /// Forms a slice out of the given read-only span, beginning at 'start'.
@@ -322,5 +321,60 @@ namespace System
         /// Returns a 0-length read-only span whose base is the null pointer.
         /// </summary>
         public static ReadOnlySpan<T> Empty => default(ReadOnlySpan<T>);
+
+        /// <summary>Gets an enumerator for this span.</summary>
+        public Enumerator GetEnumerator() => new Enumerator(this);
+
+        /// <summary>Enumerates the elements of a <see cref="ReadOnlySpan{T}"/>.</summary>
+        public ref struct Enumerator
+        {
+            /// <summary>The span being enumerated.</summary>
+            private readonly ReadOnlySpan<T> _span;
+            /// <summary>The next index to yield.</summary>
+            private int _index;
+
+            /// <summary>Initialize the enumerator.</summary>
+            /// <param name="span">The span to enumerate.</param>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            internal Enumerator(ReadOnlySpan<T> span)
+            {
+                _span = span;
+                _index = -1;
+            }
+
+            /// <summary>Advances the enumerator to the next element of the span.</summary>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool MoveNext()
+            {
+                int index = _index + 1;
+                if (index < _span.Length)
+                {
+                    _index = index;
+                    return true;
+                }
+
+                return false;
+            }
+
+            /// <summary>Gets the element at the current position of the enumerator.</summary>
+            public ref readonly T Current
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get
+                {
+                    // TODO https://github.com/dotnet/coreclr/pull/14727:
+                    // Change this to simply be:
+                    //     get => ref readonly _span[_index];
+                    // once ReadOnlySpan<T>'s indexer returns ref readonly.
+
+                    if ((uint)_index >= (uint)_span.Length)
+                    {
+                        ThrowHelper.ThrowIndexOutOfRangeException();
+                    }
+
+                    return ref Unsafe.Add(ref _span.DangerousGetPinnableReference(), _index);
+                }
+            }
+        }
     }
 }

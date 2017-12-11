@@ -30,19 +30,11 @@ def static getOSGroup(def os) {
     ['Windows_NT'].each { os ->
         ['x64', 'x86'].each { arch ->
             ['ryujit'].each { jit ->
-                if (arch == 'x64' && jit == 'legacy_backend') {
-                    return
-                }
-
                 ['full_opt', 'min_opt'].each { opt_level ->
 
                     def architecture = arch
                     def jobName = "perf_perflab_${os}_${arch}_${opt_level}_${jit}"
                     def testEnv = ""
-
-                    if (jit == 'legacy_backend') {
-                        testEnv = '-testEnv %WORKSPACE%\\tests\\legacyjit_x86_testenv.cmd'
-                    }
 
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
                         // Set the label.
@@ -72,7 +64,7 @@ def static getOSGroup(def os) {
                         steps {
                             // Batch
 
-                            batchFile("powershell wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
+                            batchFile("powershell -NoProfile wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
                             batchFile("if exist \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\" rmdir /s /q \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\"")
                             batchFile("\"%WORKSPACE%\\nuget.exe\" install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory \"%WORKSPACE%\" -Prerelease -ExcludeVersion")
                             //Do this here to remove the origin but at the front of the branch name as this is a problem for BenchView
@@ -140,10 +132,14 @@ def static getOSGroup(def os) {
                         builder.triggerForBranch(branch)
                         builder.emitTrigger(newJob)
                     }
-                    else {
+                    else if (opt_level == 'full_opt') {
                         // Set a push trigger
                         TriggerBuilder builder = TriggerBuilder.triggerOnCommit()
                         builder.emitTrigger(newJob)
+                    }
+                    else {
+                        // Set periodic trigger
+                        Utilities.addPeriodicTrigger(newJob, '@daily')
                     }
                 }
             }
@@ -155,17 +151,8 @@ def static getOSGroup(def os) {
 [true, false].each { isPR ->
     ['Windows_NT'].each { os ->
         ['x64', 'x86'].each { arch ->
-            ['ryujit', 'legacy_backend'].each { jit ->
+            ['ryujit'].each { jit ->
                 [true, false].each { pgo_optimized ->
-                    if (arch == 'x64' && jit == 'legacy_backend') {
-                        return
-                    }
-
-                    // pgo not supported for legacy_backend
-                    if (pgo_optimized && jit == 'legacy_backend') {
-                        return
-                    }
-
                     ['full_opt', 'min_opt'].each { opt_level ->
                         def architecture = arch
 
@@ -248,10 +235,14 @@ def static getOSGroup(def os) {
                             builder.triggerForBranch(branch)
                             builder.emitTrigger(newJob)
                         }
-                        else {
+                        else if (opt_level == 'full_opt' && pgo_optimized) {
                             // Set a push trigger
                             TriggerBuilder builder = TriggerBuilder.triggerOnCommit()
                             builder.emitTrigger(newJob)
+                        }
+                        else {
+                            // Set periodic trigger
+                            Utilities.addPeriodicTrigger(newJob, '@daily')
                         }
                     }
                 }
@@ -284,11 +275,11 @@ def static getFullPerfJobName(def project, def os, def isPR) {
 
 
     // Actual perf testing on the following OSes
-    def perfOSList = ['Ubuntu14.04']
+    def perfOSList = ['Ubuntu16.04']
     perfOSList.each { os ->
         def newJob = job(getFullPerfJobName(project, os, isPR)) {
 
-            label('linux_clr_perf')
+            label('ubuntu_1604_clr_perf')
             wrappers {
                 credentialsBinding {
                     string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
@@ -441,7 +432,7 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
         throughputOptLevelList.each { opt_level ->
             def newJob = job(getFullThroughputJobName(project, "${os}_${opt_level}", isPR)) {
 
-                label('linux_clr_perf')
+                label('ubuntu_1604_clr_perf')
                     wrappers {
                         credentialsBinding {
                             string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
@@ -583,7 +574,7 @@ parallel(
 
                         steps {
                             // Batch
-                            batchFile("powershell wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
+                            batchFile("powershell -NoProfile wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
                             batchFile("if exist \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\" rmdir /s /q \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\"")
                             batchFile("\"%WORKSPACE%\\nuget.exe\" install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory \"%WORKSPACE%\" -Prerelease -ExcludeVersion")
 
@@ -649,10 +640,14 @@ parallel(
                         builder.triggerForBranch(branch)
                         builder.emitTrigger(newJob)
                     }
-                    else {
+                    else if (opt_level == 'full_opt') {
                         // Set a push trigger
                         TriggerBuilder builder = TriggerBuilder.triggerOnCommit()
                         builder.emitTrigger(newJob)
+                    }
+                    else {
+                        // Set periodic trigger
+                        Utilities.addPeriodicTrigger(newJob, '@daily')
                     }
                 }
             }
@@ -682,7 +677,7 @@ parallel(
 
             steps {
                 // Install nuget and get BenchView tools
-                batchFile("powershell wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
+                batchFile("powershell -NoProfile wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
                 batchFile("if exist \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\" rmdir /s /q \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\"")
                 batchFile("\"%WORKSPACE%\\nuget.exe\" install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory \"%WORKSPACE%\" -Prerelease -ExcludeVersion")
 
@@ -776,7 +771,7 @@ parallel(
 
                         steps {
                             // Batch
-                            batchFile("powershell wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
+                            batchFile("powershell -NoProfile wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
                             batchFile("if exist \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\" rmdir /s /q \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\"")
                             batchFile("\"%WORKSPACE%\\nuget.exe\" install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory \"%WORKSPACE%\" -Prerelease -ExcludeVersion")
 

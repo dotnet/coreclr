@@ -21,11 +21,11 @@ namespace System.Buffers
                 {
                     ThrowHelper.ThrowObjectDisposedException(nameof(OwnedMemory<T>), ExceptionResource.Memory_ThrowIfDisposed);
                 }
-                return new Memory<T>(this, 0, Length);
+                return new Memory<T>(owner: this, 0, Length);
             }
         }
 
-        public abstract MemoryHandle Pin();
+        public abstract MemoryHandle Pin(int offset = 0);
 
         protected internal abstract bool TryGetArray(out ArraySegment<T> arraySegment);
 

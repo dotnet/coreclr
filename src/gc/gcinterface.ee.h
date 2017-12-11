@@ -79,6 +79,9 @@ public:
 
     // Gets the Thread instance for the current thread, or null if no thread
     // instance is associated with this thread.
+    //
+    // If the GC created the current thread, GetThread returns null for threads
+    // that were not created as suspendable (see `IGCHeap::CreateThread`).
     virtual
     Thread* GetThread() = 0;
 
@@ -98,9 +101,21 @@ public:
     virtual
     void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param) = 0;
 
-    // Creates and returns a new background thread.
+    // Creates and returns a new thread.
+    // Parameters:
+    //  threadStart - The function that will serve as the thread stub for the
+    //                new thread. It will be invoked immediately upon the
+    //                new thread upon creation.
+    //  arg - The argument that will be passed verbatim to threadStart.
+    //  is_suspendable - Whether or not the thread that is created should be suspendable
+    //                   from a runtime perspective. Threads that are suspendable have
+    //                   a VM Thread object associated with them that can be accessed
+    //                   using `IGCHeap::GetThread`.
+    //  name - The name of this thread, optionally used for diagnostic purposes.
+    // Returns:
+    //  true if the thread was started successfully, false if not.
     virtual
-    Thread* CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg) = 0;
+    bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name) = 0;
 
     // When a GC starts, gives the diagnostics code a chance to run.
     virtual
@@ -192,16 +207,50 @@ public:
     virtual
     void FreeStringConfigValue(const char* value) = 0;
 
-    // Asks the EE about whether or not the current thread is a GC thread:
-    // a server GC thread, background GC thread, or the thread that suspended
-    // the EE at the start of a GC.
+    // Returns true if this thread is a "GC thread", or a thread capable of
+    // doing GC work. Threads are either /always/ GC threads
+    // (if they were created for this purpose - background GC threads
+    // and server GC threads) or they became GC threads by suspending the EE
+    // and initiating a collection.
     virtual
     bool IsGCThread() = 0;
 
-    // Asks the EE about whether or not the current thread is a GC "special"
-    // thread: a server GC thread or a background GC thread.
+    // Returns true if the current thread is either a background GC thread
+    // or a server GC thread.
     virtual
-    bool IsGCSpecialThread() = 0;
+    bool WasCurrentThreadCreatedByGC() = 0;
+
+    // Given an object, if this object is an instance of `System.Threading.OverlappedData`,
+    // and the runtime treats instances of this class specially, traverses the objects that
+    // are directly or (once) indirectly pinned by this object and reports them to the GC for
+    // the purposes of relocation and promotion.
+    //
+    // Overlapped objects are very special and as such the objects they wrap can't be promoted in
+    // the same manner as normal objects. This callback gives the EE the opportunity to hide these
+    // details, if they are implemented at all.
+    //
+    // This function is a no-op if "object" is not an OverlappedData object.
+    virtual
+    void WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback) = 0;
+
+    // Given an object, if this object is an instance of `System.Threading.OverlappedData` and the
+    // runtime treats instances of this class specially, traverses the objects that are directly
+    // or once indirectly pinned by this object and invokes the given callback on them. The callback
+    // is passed the following arguments:
+    //     Object* "from" - The object that "caused" the "to" object to be pinned. If a single object
+    //                      is pinned directly by this OverlappedData, this object will be the
+    //                      OverlappedData object itself. If an array is pinned by this OverlappedData,
+    //                      this object will be the pinned array.
+    //     Object* "to"   - The object that is pinned by the "from" object. If a single object is pinned
+    //                      by an OverlappedData, "to" will be that single object. If an array is pinned
+    //                      by an OverlappedData, the callback will be invoked on all elements of that
+    //                      array and each element will be a "to" object.
+    //     void* "context" - Passed verbatim from "WalkOverlappedObject" to the callback function.
+    // The "context" argument will be passed directly to the callback without modification or inspection.
+    //
+    // This function is a no-op if "object" is not an OverlappedData object.
+    virtual
+    void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*)) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
