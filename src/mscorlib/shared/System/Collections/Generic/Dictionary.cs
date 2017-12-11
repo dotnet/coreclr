@@ -402,8 +402,14 @@ namespace System.Collections.Generic
 
             int i = _buckets[targetBucket];
             Entry[] entries = _entries;
-            while (i >= 0)
+            do
             {
+                if ((uint)i >= (uint)entries.Length)
+                {
+                    // Test uint in if rather than loop condition to drop range check for following array access
+                    break;
+                }
+
                 if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
                 {
                     if (behavior == InsertionBehavior.OverwriteExisting)
@@ -423,7 +429,7 @@ namespace System.Collections.Generic
 
                 i = entries[i].next;
                 collisionCount++;
-            }
+            } while (true);
 
             int index;
             if (_freeCount > 0)
