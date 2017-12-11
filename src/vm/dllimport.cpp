@@ -6278,7 +6278,7 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
         if (pvTarget)
         {
 
-#ifdef MDA_SUPPORTED
+#if defined(MDA_SUPPORTED) && defined(PLATFORM_WINDOWS)
             MdaInvalidOverlappedToPinvoke *pOverlapCheck = MDA_GET_ASSISTANT(InvalidOverlappedToPinvoke);
             if (pOverlapCheck && pOverlapCheck->ShouldHook(pMD))
             {

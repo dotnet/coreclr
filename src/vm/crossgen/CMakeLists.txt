@@ -52,6 +52,7 @@ set(VM_CROSSGEN_SOURCES
     ../methodimpl.cpp
     ../methodtable.cpp
     ../methodtablebuilder.cpp
+    ../mdadac.cpp
     ../mscorlib.cpp
     ../stubcache.cpp
     ../mlinfo.cpp

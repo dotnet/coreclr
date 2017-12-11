@@ -2067,7 +2067,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
         GetCl(),
         GetHalfBakedMethodTable());
 
-#ifdef MDA_SUPPORTED
+#if defined(MDA_SUPPORTED) && !defined(CROSSGEN_COMPILE)
     MdaMarshaling* mda = MDA_GET_ASSISTANT(Marshaling);
     if (mda && HasLayout())
     {

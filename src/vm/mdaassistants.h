@@ -118,7 +118,7 @@ public:
     BOOL m_bBreak;
 };
 
-
+#if 0
 //
 // MdaLoadFromContext
 //
@@ -131,7 +131,6 @@ public:
     MDA_ASSISTANT_BASE_MEMBERS;
 };
 
-
 // MdaBindingFailure
 //
 class MdaBindingFailure
@@ -143,6 +142,7 @@ public:
     MDA_ASSISTANT_BASE_MEMBERS;
 };
 
+#endif
 
 //
 // MdaReflection
@@ -183,6 +183,8 @@ public:
 
     MDA_ASSISTANT_BASE_MEMBERS;
 };
+
+#ifdef PLATFORM_WINDOWS
 
 //
 // MdaInvalidOverlappedToPinvoke
@@ -225,6 +227,8 @@ public:
     UINT m_entryCount;
     BOOL m_bJustMyCode;
 };
+
+#endif // PLATFORM_WINDOWS
 
 #ifdef _TARGET_X86_    
 //
@@ -381,6 +385,8 @@ public:
 };
 
 
+#ifdef FEATURE_COMINTEROP
+
 //
 // MdaReportAvOnComRelease
 //
@@ -407,6 +413,7 @@ public:
     BOOL m_allowAv;
 };
 
+#endif
 
 
 //
@@ -509,6 +516,8 @@ public:
 };
 
 
+#ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
+
 //
 // MdaInvalidApartmentStateChange
 //
@@ -521,7 +530,9 @@ public:
     MDA_ASSISTANT_BASE_MEMBERS;
 };
 
+#endif
 
+#ifdef FEATURE_COMINTEROP
 
 //
 // MdaFailedQI
@@ -546,6 +557,7 @@ public:
     MDA_ASSISTANT_BASE_MEMBERS;
 };
 
+#endif
 
 //
 // MdaDisconnectedContext

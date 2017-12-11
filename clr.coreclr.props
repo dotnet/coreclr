@@ -5,6 +5,8 @@
     <FeatureManagedEtwChannels>true</FeatureManagedEtwChannels>
 
     <ProfilingSupportedBuild>true</ProfilingSupportedBuild>
+
+    <MdaSupportedBuild>true</MdaSupportedBuild>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetsUnix)' == 'true'">

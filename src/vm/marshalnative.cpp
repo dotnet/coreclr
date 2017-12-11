@@ -659,7 +659,7 @@ FCIMPL1(VOID, MarshalNative::GCHandleInternalFree, OBJECTHANDLE handle)
     HELPER_METHOD_FRAME_BEGIN_0();
 
 #ifdef MDA_SUPPORTED
-    UINT handleType = HandleFetchType(handle);
+    UINT handleType = GCHandleUtilities::GetGCHandleManager()->HandleFetchType(handle);
 #endif
 
     DestroyTypedHandle(handle);

@@ -211,6 +211,8 @@ set(VM_SOURCES_WKS
     managedmdimport.cpp
     marshalnative.cpp
     marvin32.cpp
+    mda.cpp
+    mdadac.cpp
     mdaassistants.cpp
     methodtablebuilder.cpp
     mlinfo.cpp

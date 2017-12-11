@@ -63,6 +63,7 @@ endif(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
 add_definitions(-D_BLD_CLR)
 add_definitions(-DDEBUGGING_SUPPORTED)
 add_definitions(-DPROFILING_SUPPORTED)
+add_definitions(-DMDA_SUPPORTED)
 
 if(WIN32)
   add_definitions(-DWIN32)

@@ -7100,7 +7100,7 @@ EndTry2:;
                         // Note: TryResolveAssembly() can also throw if an AssemblyResolve event subscriber throws
                         //       and the MDA isn't sent in this case (or for transient failure cases)
                         //
-#ifdef MDA_SUPPORTED
+#if 0
                         MdaBindingFailure* pProbe = MDA_GET_ASSISTANT(BindingFailure);
                         if (pProbe)
                         {

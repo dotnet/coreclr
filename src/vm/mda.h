@@ -6,10 +6,8 @@
 #ifndef _MDA_
 #define _MDA_
 
-#ifndef _DEBUG
 #ifdef DACCESS_COMPILE
 #undef MDA_SUPPORTED
-#endif
 #endif
 
 #ifdef MDA_SUPPORTED
@@ -487,7 +485,7 @@ template<typename PRODUCT>
 class MdaFactory
 {
 public:
-    MdaFactory() : m_cProduct(0), m_next(NULL) { LIMITED_METHOD_CONTRACT; }
+    MdaFactory() : m_next(NULL), m_cProduct(0) { LIMITED_METHOD_CONTRACT; }
     ~MdaFactory() { LIMITED_METHOD_CONTRACT; if (m_next) delete m_next; } 
     MdaFactory* GetNext() { if (!m_next) m_next = new MdaFactory<PRODUCT>(); return m_next; }   
     PRODUCT* Create();
@@ -1059,7 +1057,7 @@ private:
         virtual void SetAttributes(MdaXmlElement* pXml);
 
     public:
-        MdaSchemaDeclDefRef() : m_declDef(MdaElemUndefined), m_ppRef(NULL) { LIMITED_METHOD_CONTRACT; }
+        MdaSchemaDeclDefRef() : m_ppRef(NULL), m_declDef(MdaElemUndefined) { LIMITED_METHOD_CONTRACT; }
         LPCWSTR GetDeclDefName() { WRAPPER_NO_CONTRACT; ASSERT(IsDeclDef(this)); return GetElementName(m_declDef); }
         LPCWSTR GetRefName() { LIMITED_METHOD_CONTRACT; return GetRef()->GetDeclDefName(); }
         MdaElemDeclDef GetDeclDef() { LIMITED_METHOD_CONTRACT; ASSERT(IsDeclDef(this)); return m_declDef; }

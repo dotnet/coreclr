@@ -44,44 +44,44 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #include "mscorrc.common.rc"
 
 #define MDARC_PINVOKE_SIGNATURE_MISMATCH_MSG                                                                \
-    L"A call to PInvoke function '%1$s' has unbalanced the stack. This is likely because the managed PInvoke "\
+    L"A call to PInvoke function '%s' has unbalanced the stack. This is likely because the managed PInvoke "\
     L"signature does not match the unmanaged target signature. Check that the calling convention and "      \
     L"parameters of the PInvoke signature match the target unmanaged signature."
     
 #define MDARC_PINVOKE_LOG_MSG                                                                               \
-    L"The first PInvoke call to export '%1$s' in module '%2$s' has been made."
+    L"The first PInvoke call to export '%s' in module '%s' has been made."
 
 #define MDARC_LOAD_FROM_CONTEXT_MSG                                                                         \
-    L"The assembly named '%1$s' was loaded from '%2$s' using the LoadFrom context. The use of this "        \
+    L"The assembly named '%s' was loaded from '%s' using the LoadFrom context. The use of this "            \
     L"context can result in unexpected behavior for serialization, casting and dependency resolution. "     \
     L"In almost all cases, it is recommended that the LoadFrom context be avoided. This can be done "       \
     L"by installing assemblies in the Global Assembly Cache or in the ApplicationBase directory and "       \
     L"using Assembly.Load when explicitly loading assemblies."
 
 #define MDARC_BINDING_FAILURE_CODEBASE_ONLY_MSG                                                             \
-    L"The assembly loaded from code base '%1$s' failed to load in the '%2$s' binding context of the "       \
-    L"AppDomain with ID %3$d. The cause of the failure was: %4$s"
+    L"The assembly loaded from code base '%s' failed to load in the '%s' binding context of the "           \
+    L"AppDomain with ID %d. The cause of the failure was: %s"
 
 #define MDARC_BINDING_FAILURE_DISPLAYNAME_ONLY_MSG                                                          \
-    L"The assembly with display name '%1$s' failed to load in the '%2$s' binding context of the "           \
-    L"AppDomain with ID %3$d. The cause of the failure was: %4$s"                                               
+    L"The assembly with display name '%s' failed to load in the '%s' binding context of the "               \
+    L"AppDomain with ID %d. The cause of the failure was: %s"                                               
 
 #define MDARC_BINDING_FAILURE_MSG                                                                           \
-    L"The assembly with display name '%1$s' loaded from code base '%2$s' failed to load "                   \
-    L"in the '%3$s' binding context of the AppDomain with ID %4$d. The cause of the failure was: %5$s"             
+    L"The assembly with display name '%s' loaded from code base '%s' failed to load "                       \
+    L"in the '%s' binding context of the AppDomain with ID %d. The cause of the failure was: %s"             
 
 #define MDARC_INVALID_CONFIG_FILE_MSG                                                                       \
-    L"The '%1$s' configuration file is invalid."
+    L"The '%s' configuration file is invalid."
 
 #define MDARC_CALLBACK_ON_COLLECTED_DELEGATE_MSG                                                            \
-    L"A callback was made on a garbage collected delegate of type '%1$s'. This may cause application "      \
+    L"A callback was made on a garbage collected delegate of type '%s'. This may cause application "        \
     L"crashes, corruption and data loss. "                                                                  \
     L"When passing delegates to unmanaged code, they must be kept alive by the "                            \
     L"managed application until it is guaranteed that they will never be called."
 
 #define MDARC_INVALID_APT_STATE_CHANGE_SET_MSG                                                              \
-    L"An attempt was made to change the apartment state of the thread to %1$s, "                            \
-    L"but it has already been set to %2$s. When creating a new thread the apartment state should"           \
+    L"An attempt was made to change the apartment state of the thread to %s, "                              \
+    L"but it has already been set to %s. When creating a new thread the apartment state should"             \
     L"be set before the thread is started. For the main thread of the application, the apartment"           \
     L"state can be set by specifying either [STAThreadAttribute] or [MTAThreadAttribute] on the"            \
     L"main method of the application. "                                                                     \
@@ -91,14 +91,14 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"InvalidApartmentStateChange MDA."
 
 #define MDARC_INVALID_APT_STATE_CHANGE_NOTSET_MSG                                                           \
-    L"The current thread used to have an apartment state of %1$s, but the application has CoUnitialized "   \
-    L"this thread and it is now %2$s. This may cause calls on RuntimeCallableWrappers "                     \
+    L"The current thread used to have an apartment state of %s, but the application has CoUnitialized "     \
+    L"this thread and it is now %s. This may cause calls on RuntimeCallableWrappers "                       \
     L"representing some COM components to fail and may also cause COM component that are "                  \
     L"not multi-threaded to be accessed from multiple threads at the same time which can cause "            \
     L"corruption or data loss."
 
 #define MDARC_JIT_ATTACH_MSG                                                                                \
-    L"%1$s Managed Debugging Assistant"
+    L"%s Managed Debugging Assistant"
 
 #define MDARC_LOADER_LOCK_MSG                                                                               \
     L"Attempting managed execution inside OS Loader lock. Do not "                                          \
@@ -106,7 +106,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"so can cause the application to hang."
 
 #define MDARC_LOADER_LOCK_DLL_MSG                                                                           \
-    L"DLL '%1$s' is attempting managed execution inside OS Loader lock. Do not "                            \
+    L"DLL '%s' is attempting managed execution inside OS Loader lock. Do not "                              \
     L"attempt to run managed code inside a DllMain or image initialization function since doing "           \
     L"so can cause the application to hang."
 
@@ -130,7 +130,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"RuntimeCallableWrapper was garbage collected. This is the result of a user "                          \
     L"refcount error or other problem with a COM object's Release. Make sure "                              \
     L"refcounts are managed properly.  The COM interface pointer's original vtable "                        \
-    L"pointer was 0x%1$x. While these types of exceptions are caught by the CLR, "                          \
+    L"pointer was 0x%x. While these types of exceptions are caught by the CLR, "                            \
     L"they can still lead to corruption and data loss so if possible the issue causing the exception "      \
     L"should be addressed" 
 
@@ -140,13 +140,13 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"corruption or data loss."
 
 #define MDARC_FAILED_QI_MSG                                                                                 \
-    L"The call to QI for interface '%1$s' with IID '%2$s' failed with HRESULT 0x%3$s (%4$s). "              \
+    L"The call to QI for interface '%s' with IID '%s' failed with HRESULT 0x%s (%s). "                      \
     L"One likely reason this failed is that the object does not have a proxy/stub dll properly registered."
 
 #define MDARC_DISCONNECTED_CONTEXT_1_MSG                                                                    \
-    L"Transition into COM context 0x%1$x for this RuntimeCallableWrapper failed with the following error: " \
-    L"%2$s. "                                                                                               \
-    L"This is typically because the COM context 0x%1$x where this RuntimeCallableWrapper was created "      \
+    L"Transition into COM context 0x%x for this RuntimeCallableWrapper failed with the following error: "   \
+    L"%s. "                                                                                                 \
+    L"This is typically because the COM context 0x%x where this RuntimeCallableWrapper was created "        \
     L"has been disconnected or it is busy doing something else and cannot process the context transition. " \
     L"No proxy will be used to service the request on the COM component and calls will be made to the "     \
     L"COM component directly. This may cause corruption or data loss. "										\
@@ -155,11 +155,11 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"RuntimeCallableWrappers that represents COM components that live inside them."
 
 #define MDARC_DISCONNECTED_CONTEXT_2_MSG                                                                    \
-    L"Transition into COM context 0x%1$x for this RuntimeCallableWrapper failed with the following error: " \
-    L"%2$s. "                                                                                               \
-    L"This is typically because the COM context 0x%1$x where this RuntimeCallableWrapper was created "      \
+    L"Transition into COM context 0x%x for this RuntimeCallableWrapper failed with the following error: "   \
+    L"%s. "                                                                                                 \
+    L"This is typically because the COM context 0x%x where this RuntimeCallableWrapper was created "        \
     L"has been disconnected or it is busy doing something else. " 								            \
-    L"Releasing the interfaces from the current COM context (COM context 0x%3$x). "                         \
+    L"Releasing the interfaces from the current COM context (COM context 0x%x). "                           \
     L"This may cause corruption or data loss. "                                                             \
     L"To avoid this problem, please ensure that all COM contexts/apartments/threads stay alive and are "    \
     L"available for context transition, until the application is completely done with the "                 \
@@ -178,7 +178,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"exceptions, corruption or data loss."
 
 #define MDARC_CONTEXT_SWITCH_DEADLOCK_MSG                                                                                                                                       \
-   L"The CLR has been unable to transition from COM context 0x%1$x to COM context 0x%2$x for 60 seconds. "  \
+   L"The CLR has been unable to transition from COM context 0x%x to COM context 0x%x for 60 seconds. "  \
    L"The thread that owns the destination context/apartment is most likely either doing a non pumping wait " \
    L"or processing a very long running operation without pumping Windows messages. "                        \
    L"This situation generally has a negative performance impact and may even lead to "                      \
@@ -191,13 +191,13 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
    L"another thread.  Attempting to free an in-use RCW can cause corruption or data loss."
 
 #define MDARC_MARSHALING_METHOD_MSG                                                                         \
-    L"Marshaling parameter with index %1$i and name '%2$s' from '%3$s' to '%4$s'"
+    L"Marshaling parameter with index %i and name '%s' from '%s' to '%s'"
 
 #define MDARC_MARSHALING_FIELD_MSG                                                                          \
-    L"Marshaling field '%1$s' from '%2$s' to '%3$s'"
+    L"Marshaling field '%s' from '%s' to '%s'"
 
 #define MDARC_INVALID_FUNCTION_PTR_IN_DELEGATE_MSG                                                          \
-    L"Invalid function pointer 0x%1$x was passed into the runtime to be converted to a delegate. "          \
+    L"Invalid function pointer 0x%x was passed into the runtime to be converted to a delegate. "            \
     L"Passing in invalid function pointers to be converted to delegates can cause crashes, "                \
     L"corruption or data loss. "
     
@@ -208,7 +208,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 #define MDARC_VTABLE_CALL_ON_AUTODISP_MEMBER_MSG                                                            \
     L"An early bound call (vtable call) was made on the following member of an auto "                       \
-    L"dispatch class interface: '%1$s'. Early bound calls on members of auto dispatch "                     \
+    L"dispatch class interface: '%s'. Early bound calls on members of auto dispatch "                       \
     L"class interfaces are not allowed. Please consider using an explicit interface "                       \
     L"as the default interface for the type. If a class interface must be "                                 \
     L"called early bound, change it to auto dual. This can be accomplished "                                \
@@ -217,47 +217,47 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"[ClassInterface(ClassInterfaceType.AutoDual)] "                                                       \
     
 #define MDARC_INVALID_CER_CALL_MSG                                                                          \
-    L"Method '%1$s', while executing within a constrained execution region, makes a call "                  \
-    L"at IL offset 0x%2$04X to '%3$s', which does not have a sufficiently strong reliability "              \
+    L"Method '%s', while executing within a constrained execution region, makes a call "                    \
+    L"at IL offset 0x%04X to '%s', which does not have a sufficiently strong reliability "                  \
     L"contract and might cause non-deterministic results."
 
 #define MDARC_VIRTUAL_CER_CALL_MSG                                                                          \
-    L"Method '%1$s', while executing within a constrained execution region, makes a call "                  \
-    L"at IL offset 0x%2$04X to '%3$s', which is virtual and cannot be prepared automatically "              \
+    L"Method '%s', while executing within a constrained execution region, makes a call "                    \
+    L"at IL offset 0x%04X to '%s', which is virtual and cannot be prepared automatically "                  \
     L"at compile time. The caller must ensure this method is prepared explicitly at "                       \
     L"runtime before entering the constrained execution region."
     
 #define MDARC_OPENGENERIC_CER_CALL_MSG                                                                      \
-    L"Method '%1$s', which contains at least one constrained execution region, cannot be "                  \
+    L"Method '%s', which contains at least one constrained execution region, cannot be "                    \
     L"prepared automatically since it has one or more unbound generic type parameters. "                    \
     L"The caller must ensure this method is prepared explicitly at runtime prior to "                       \
     L"execution."
     
 #define MDARC_ILLEGAL_PCR_MSG                                                                               \
-    L"Method '%1$s' calls RuntimeHelpers.PrepareConstrainedRegions() at IL offset 0x%2$04X. "               \
+    L"Method '%s' calls RuntimeHelpers.PrepareConstrainedRegions() at IL offset 0x%04X. "                   \
     L"This is invalid since it does not coincide with the beginning of a try clause."
 
 #define MDARC_MARSHALCLEANUPERROR_THREADCULTURE_MSG                                                         \
     L"The CLR marshaler encountered an error while attempting to restore the thread culture after a call "  \
     L"from unmanaged to managed where an LCID was used to specify the culture for the call. This will "     \
-    L"cause the thread's culture to remain set to the one associated with the LCID. The cause of the failure was: %1$s"  
+    L"cause the thread's culture to remain set to the one associated with the LCID. The cause of the failure was: %s"  
 
 #define MDARC_MARSHALCLEANUPERROR_SAFEHANDLERELEASE_MSG                                                     \
     L"The CLR marshaler encountered an error while attempting to release the reference to a SafeHandle "    \
     L"it acquired in order to marshal the SafeHandle to an unmanaged pointer during a call from managed to unmanaged. " \
-    L"This may cause the unmanaged resource the SafeHandle represents to be leaked. The cause of the failure was: %1$s"  
+    L"This may cause the unmanaged resource the SafeHandle represents to be leaked. The cause of the failure was: %s"  
 
 #define MDARC_MARSHALCLEANUPERROR_SAFEHANDLEPROP_MSG                                                        \
     L"The CLR marshaler encountered an error while attempting to associate a SafeHandle with an unmanaged resource. " \
-    L"This may cause the unmanaged resource to be leaked. The cause of the failure was: %1$s"  
+    L"This may cause the unmanaged resource to be leaked. The cause of the failure was: %s"  
 
 #define MDARC_MARSHALCLEANUPERROR_CUSTOMCLEANUP_MSG                                                         \
-    L"An exception was thrown from the CleanupNativeData method of a custom marshaler of type '%1$s'. "     \
-    L"This may cause an unmanaged data leak and should be corrected if possible. The cause of the failure was: %1$s"  
+    L"An exception was thrown from the CleanupNativeData method of a custom marshaler of type '%s'. "     \
+    L"This may cause an unmanaged data leak and should be corrected if possible. The cause of the failure was: %s"  
 
 #define MDARC_SAFEHANDLE_CRITICAL_FAILURE_MSG                                                               \
-    L"A SafeHandle or CriticalHandle of type '%1$s' failed to properly release the handle "                 \
-    L"with value 0x%2$p. This usually indicates that the handle was released incorrectly "                  \
+    L"A SafeHandle or CriticalHandle of type '%s' failed to properly release the handle "                   \
+    L"with value 0x%p. This usually indicates that the handle was released incorrectly "                    \
     L"via another means (such as extracting the handle using DangerousGetHandle and "                       \
     L"closing it directly or building another SafeHandle around it.)"
     
@@ -270,23 +270,23 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"Reflection has created a memberInfo cache."
     
 #define MDARC_INVALID_MEMBER_DECLARATION_MSG                                                                \
-    L"The following error occurred while determining how to marshal the parameters of member '%1$s' of type '%2$s': " \
-    L"%3$s This is most likely due to an incompatible MarshalAs attribute on one of the parameters. "  
+    L"The following error occurred while determining how to marshal the parameters of member '%s' of type '%s': " \
+    L"%s This is most likely due to an incompatible MarshalAs attribute on one of the parameters. "  
     
 #define MDARC_EXCEPTION_SWALLOWED_COM_TO_CLR_MSG                                                            \
-    L"A COM client has called managed method '%1$s' on type '%2$s'. This method does not have an HRESULT return type and " \
-    L"an exception was thrown that was not handled. The exception contains the following message: %3$s. "   \
+    L"A COM client has called managed method '%s' on type '%s'. This method does not have an HRESULT return type and " \
+    L"an exception was thrown that was not handled. The exception contains the following message: %s. "     \
     L"This exception will be caught and zero will be returned to the COM caller if the method's return "    \
     L"type is not void." 
 
 #define MDARC_ASYNCHRONOUS_THREADABORT_MSG                                                                  \
-    L"User code running on thread %1$i has attempted to abort thread %2$i. This may result in a corrupt state " \
+    L"User code running on thread %i has attempted to abort thread %i. This may result in a corrupt state " \
     L"or resource leaks if the thread being aborted was in the middle of an operation that modifies global "\
     L"state or uses native resources. Aborting threads other than the currently running thread is strongly "\
     L"discouraged."
 
 #define MDARC_DANGEROUS_THREADINGAPI_MSG                                                                    \
-    L"User code has attempted to call the following API: '%1$s'. This may result in a deadlock in the process."
+    L"User code has attempted to call the following API: '%s'. This may result in a deadlock in the process."
 
 #define MDARC_DATETIME_INVALID_LOCAL_FORMAT_MSG                                                             \
     L"A UTC DateTime is being converted to text in a format that is only correct for local times. "         \
@@ -299,19 +299,19 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"DateTimeMode on the DataColumn object to DataSetDateTime.Utc. "                                  
 
 #define MDARC_NON_COMVISIBLE_BASE_CLASS_CLASSITF_MSG                                                        \
-    L"A QueryInterface call was made requesting the class interface of COM visible managed class '%1$s'. "  \
-    L"However since this class derives from non COM visible class '%2$s', the QueryInterface call will fail. " \
+    L"A QueryInterface call was made requesting the class interface of COM visible managed class '%s'. "    \
+    L"However since this class derives from non COM visible class '%s', the QueryInterface call will fail. " \
     L"This is done to prevent the non COM visible base class from being constrained by the COM versioning " \
     L"rules."    
 
 #define MDARC_NON_COMVISIBLE_BASE_CLASS_IDISPATCH_MSG                                                       \
     L"A QueryInterface call was made requesting the default IDispatch interface of COM visible managed "    \
-    L"class '%1$s'. However since this class does not have an explicit default interface and derives from non "\
-    L"COM visible class '%2$s', the QueryInterface call will fail. This is done to prevent the non COM "    \
+    L"class '%s'. However since this class does not have an explicit default interface and derives from non "\
+    L"COM visible class '%s', the QueryInterface call will fail. This is done to prevent the non COM "    \
     L"visible base class from being constrained by the COM versioning rules."    
 
 #define MDARC_INVALID_GCHANDLE_COOKIE_MSG                                                                   \
-    L"An attempt was made to retrieve a GCHandle from an invalid IntPtr cookie (0x%1$x). "                  \
+    L"An attempt was made to retrieve a GCHandle from an invalid IntPtr cookie (0x%x). "                    \
     L"The cookie was most likely invalid because the cookie does not represent a GCHandle, "                \
     L"the GCHandle has already been freed, "                                                                \
     L"the retrieval was attempted in the wrong AppDomain, "                                                 \
@@ -321,21 +321,21 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"corruption or data loss. "
 
 #define MDARC_FATAL_EXECUTION_ENGINE_ERROR_MSG \
-    L"The runtime has encountered a fatal error. The address of the error was at 0x%1$08x, on thread 0x%2$x. "\
-    L"The error code is 0x%3$08x. This error may be a bug in the CLR or in the unsafe "                     \
+    L"The runtime has encountered a fatal error. The address of the error was at 0x%08x, on thread 0x%x. "  \
+    L"The error code is 0x%08x. This error may be a bug in the CLR or in the unsafe "                       \
     L"or non-verifiable portions of user code. Common sources of this bug include user marshaling errors "  \
     L"for COM-interop or PInvoke, which may corrupt the stack." \
 
 #define MDARC_INVALID_OVERLAPPED_TO_PINVOKE_MSG                                                             \
-    L"An overlapped pointer (0x%1$p) that was not allocated on the GC heap was passed via PInvoke to "      \
-    L"the Win32 function '%2$s' in module '%3$s'. "                                                         \
+    L"An overlapped pointer (0x%p) that was not allocated on the GC heap was passed via PInvoke to "        \
+    L"the Win32 function '%s' in module '%s'. "                                                             \
     L"If the AppDomain is shut down, this can cause heap corruption when the async I/O completes. "         \
     L"The best solution is to pass a NativeOverlapped structure retrieved from a call to "                  \
     L"System.Threading.Overlapped.Pack(). If the AppDomain exits, the CLR will keep this structure "        \
     L"alive and pinned until the I/O completes."
 
 #define MDARC_INVALID_OVERLAPPED_FREE_MSG                                                                   \
-    L"An overlapped pointer (0x%1$p) may have been freed before the I/O operation completed. "              \
+    L"An overlapped pointer (0x%p) may have been freed before the I/O operation completed. "                \
     L"Freeing an overlapped pointer before the I/O operation completes will cause GC heap corruption "      \
     L"when the I/O does complete. "                                                                         \
     L"Note that this MDA may not represent an error if the overlapped operation did not start successfully" 

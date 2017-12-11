@@ -142,6 +142,7 @@ add_subdirectory(tools)
 add_subdirectory(unwinder)
 add_subdirectory(ildasm)
 add_subdirectory(ilasm)
+add_subdirectory(xmlparser)
 
 if(WIN32)
   add_subdirectory(ipcman)

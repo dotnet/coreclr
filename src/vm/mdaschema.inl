@@ -14,7 +14,7 @@
 // MDA_ASSISTANT_NAME
 //
 #ifdef MDA_ASSISTANT_NAME
-#define MDA_DEFINE_ASSISTANT(NAME, ABBR) L#NAME,
+#define MDA_DEFINE_ASSISTANT(NAME, ABBR) W(#NAME),
 #endif
 
 //
@@ -28,7 +28,7 @@
 // MDA_ELEMENT_DEFINITION_STRING
 //
 #ifdef MDA_ASSISTANT_STRING
-#define MDA_DEFINE_ASSISTANT(NAME, ABBR) L#NAME
+#define MDA_DEFINE_ASSISTANT(NAME, ABBR) W(#NAME)
 #endif
 
 //
@@ -81,8 +81,8 @@
 //
 #ifdef MDA_ACTIVATE_GROUPS
 #define MDA_GROUP_DEFINITION(NAME)                                                      \
-    if (sszActivationMechanism.EqualsCaseInsensitive(L#NAME))                           \
-        ActivateGroup(L#NAME, aGroups[cGroup], &mdaXmlPairs);                           \
+    if (sszActivationMechanism.EqualsCaseInsensitive(W(#NAME)))                           \
+        ActivateGroup(W(#NAME), aGroups[cGroup], &mdaXmlPairs);                           \
     cGroup++;
 #endif
 
@@ -91,8 +91,8 @@
 //
 #ifdef MDA_ACTIVATE_SINGLTON_GROUPS
 #define MDA_DEFINE_ASSISTANT(NAME, ABBR)                                        \
-    if (sszActivationMechanism.EqualsCaseInsensitive(L#NAME))                           \
-        mdaXmlPairs.Set(ToLowerFirstChar(L#NAME, &sstringFactory),                      \
+    if (sszActivationMechanism.EqualsCaseInsensitive(W(#NAME)))                           \
+        mdaXmlPairs.Set(ToLowerFirstChar(W(#NAME), &sstringFactory),                      \
             GetSwitchActivationXml(MdaElemDef(NAME)));
 #endif
 
@@ -135,14 +135,14 @@ MDA_XSD_DEFINE_ELEMENT(AssistantMsgGroup)
 // MDA_MAP_ASSISTANT_DEFINITION_TO_NAME
 //
 #ifdef MDA_MAP_ASSISTANT_DEFINITION_TO_NAME
-#define MDA_DEFINE_ASSISTANT(NAME, ABBR) g_arElementNames[i++] = ToLowerFirstChar(L#NAME);
+#define MDA_DEFINE_ASSISTANT(NAME, ABBR) g_arElementNames[i++] = ToLowerFirstChar(W(#NAME));
 #endif
 
 //
 // MDA_MAP_ELEMENT_DEFINITION_TO_NAME
 //
 #ifdef MDA_MAP_ELEMENT_DEFINITION_TO_NAME
-#define MDA_XSD_DEFINE_ELEMENT(NAME) g_arElementNames[i++] = ToLowerFirstChar(L#NAME);
+#define MDA_XSD_DEFINE_ELEMENT(NAME) g_arElementNames[i++] = ToLowerFirstChar(W(#NAME));
 #define MDA_XSD_TYPEDEF_ELEMENT(NAME, TYPE) MDA_XSD_DEFINE_ELEMENT(NAME)
 #define MDA_XSD_DEFINE_EXTEND_ELEMENT(NAME, TYPE)  MDA_XSD_DEFINE_ELEMENT(NAME)
 #define MDA_XSD_DEFINE_EXTEND_TYPE(NAME, TYPE)  MDA_XSD_DEFINE_ELEMENT(NAME)
@@ -157,7 +157,7 @@ MDA_XSD_DEFINE_ELEMENT(AssistantMsgGroup)
 // MDA_MAP_ELEMENT_DECLARATION_TO_NAME
 //
 #ifdef MDA_MAP_ELEMENT_DECLARATION_TO_NAME
-#define MDA_XSD_ELEMENT(NAME) g_arElementNames[i++] = ToLowerFirstChar(L#NAME);
+#define MDA_XSD_ELEMENT(NAME) g_arElementNames[i++] = ToLowerFirstChar(W(#NAME));
 #define MDA_XSD_ELEMENT_REFTYPE(NAME, TYPE) MDA_XSD_ELEMENT(NAME)
 #define MDA_XSD_ELEMENT_EXTEND_TYPE(NAME, TYPE) MDA_XSD_ELEMENT(NAME)
 #define MDA_XSD_ELEMENT_ANY(NAME) MDA_XSD_ELEMENT(NAME)
@@ -167,7 +167,7 @@ MDA_XSD_DEFINE_ELEMENT(AssistantMsgGroup)
 // MDA_MAP_ATTRIBUTE_DECLARATION_TO_NAME
 //
 #ifdef MDA_MAP_ATTRIBUTE_DECLARATION_TO_NAME
-#define MDA_XSD_ATTRIBUTE_OPT(NAME, TYPE) g_arAttributeNames[i++] = ToLowerFirstChar(L#NAME);
+#define MDA_XSD_ATTRIBUTE_OPT(NAME, TYPE) g_arAttributeNames[i++] = ToLowerFirstChar(W(#NAME));
 #define MDA_XSD_ATTRIBUTE_REQ(NAME, TYPE) MDA_XSD_ATTRIBUTE_OPT(NAME, TYPE)
 #define MDA_XSD_ATTRIBUTE_DEFAULT(NAME, TYPE, DEFAULT) MDA_XSD_ATTRIBUTE_OPT(NAME, TYPE)
 #endif
