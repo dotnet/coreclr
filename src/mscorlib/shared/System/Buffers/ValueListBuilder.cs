@@ -22,16 +22,11 @@ namespace System.Buffers
         public void Append(T item)
         {
             int pos = _pos;
-            if (pos < _span.Length)
-            {
-                _span[pos] = item;
-                _pos = pos + 1;
-            }
-            else
-            {
+            if (pos >= _span.Length)
                 Grow();
-                Append(item);
-            }
+
+            _span[pos] = item;
+            _pos = pos + 1;
         }
 
         public ReadOnlySpan<T> AsReadOnlySpan()
