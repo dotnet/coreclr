@@ -8,8 +8,9 @@
 #include <memory>
 #include <pthread.h>
 #include <signal.h>
-#include <stdlib.h>
+
 #include "config.h"
+#include "common.h"
 
 #include "gcenv.structs.h"
 #include "gcenv.base.h"

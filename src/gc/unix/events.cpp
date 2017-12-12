@@ -9,8 +9,8 @@
 #include <mutex>
 #include <pthread.h>
 #include <errno.h>
-#include <stdlib.h>
 #include "config.h"
+#include "common.h"
 
 #include "gcenv.structs.h"
 #include "gcenv.base.h"
