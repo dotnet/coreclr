@@ -87,6 +87,32 @@ namespace System.IO
             return fullPath;
         }
 
+        public static string GetFullPath(string path, string basePath)
+        {
+            if (basePath == null)
+                throw new ArgumentNullException(nameof(basePath));
+
+            if (!Path.IsPathFullyQualified(basePath))
+                throw new ArgumentException();
+
+            int length = path.Length;
+            if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])))
+            {
+
+            }
+            else if(length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
+            {
+                if (Path.GetPathRoot(path) == Path.GetPathRoot(basePath))
+                {
+                    return Path.Combine(basePath, path);
+                }
+                else
+                {
+                    return path.Insert(2, "\\");
+                } 
+            }
+        }
+
         public static string GetTempPath()
         {
             StringBuilder sb = StringBuilderCache.Acquire(Interop.Kernel32.MAX_PATH);
