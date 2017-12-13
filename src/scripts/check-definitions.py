@@ -40,7 +40,7 @@ def loadDefinitionFile(filename):
                 line = line.strip()
                 if line:
                     result.append(line)
-    except FileNotFoundError:
+    except IOError:
         # If cmake was not used, this script won't work, and that's ok
         sys.exit(0)
 
