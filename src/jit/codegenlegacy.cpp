@@ -19290,7 +19290,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                         /* Keep track of ESP for EBP-less frames */
                         genSinglePush();
 
-                        argSize += sizeof(void*);
+                        argSize += REGSIZE_BYTES;
 
 #elif defined(_TARGET_ARM_)
 
@@ -19683,16 +19683,16 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
         // Push the count of the incoming stack arguments
 
         unsigned nOldStkArgs =
-            (unsigned)((compiler->compArgSize - (intRegState.rsCalleeRegArgCount * sizeof(void*))) / sizeof(void*));
+            (unsigned)((compiler->compArgSize - (intRegState.rsCalleeRegArgCount * REGSIZE_BYTES)) / REGSIZE_BYTES);
         getEmitter()->emitIns_I(INS_push, EA_4BYTE, nOldStkArgs);
         genSinglePush(); // Keep track of ESP for EBP-less frames
-        args += sizeof(void*);
+        args += REGSIZE_BYTES;
 
         // Push the count of the outgoing stack arguments
 
-        getEmitter()->emitIns_I(INS_push, EA_4BYTE, argSize / sizeof(void*));
+        getEmitter()->emitIns_I(INS_push, EA_4BYTE, argSize / REGSIZE_BYTES);
         genSinglePush(); // Keep track of ESP for EBP-less frames
-        args += sizeof(void*);
+        args += REGSIZE_BYTES;
 
         // Push info about the callee-saved registers to be restored
         // For now, we always spill all registers if compiler->compTailCallUsed
@@ -19701,13 +19701,13 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
                                    (fTailCallTargetIsVSD ? 0x2 : 0x0); // Stub dispatch flag
         getEmitter()->emitIns_I(INS_push, EA_4BYTE, calleeSavedRegInfo);
         genSinglePush(); // Keep track of ESP for EBP-less frames
-        args += sizeof(void*);
+        args += REGSIZE_BYTES;
 
         // Push the address of the target function
 
         getEmitter()->emitIns_R(INS_push, EA_4BYTE, REG_TAILCALL_ADDR);
         genSinglePush(); // Keep track of ESP for EBP-less frames
-        args += sizeof(void*);
+        args += REGSIZE_BYTES;
 
 #else // _TARGET_X86_
 
