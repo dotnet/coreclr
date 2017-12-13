@@ -10008,8 +10008,8 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
         if (fCalleePop)
         {
-            noway_assert(compiler->compArgSize >= intRegState.rsCalleeRegArgCount * sizeof(void*));
-            stkArgSize = compiler->compArgSize - intRegState.rsCalleeRegArgCount * sizeof(void*);
+            noway_assert(compiler->compArgSize >= intRegState.rsCalleeRegArgCount * REGSIZE_BYTES);
+            stkArgSize = compiler->compArgSize - intRegState.rsCalleeRegArgCount * REGSIZE_BYTES;
 
             noway_assert(compiler->compArgSize < 0x10000); // "ret" only has 2 byte operand
         }
@@ -11948,7 +11948,7 @@ void CodeGen::genSetScopeInfo(unsigned            which,
 
         noway_assert(cookieOffset < varOffset);
         unsigned offset     = varOffset - cookieOffset;
-        unsigned stkArgSize = compiler->compArgSize - intRegState.rsCalleeRegArgCount * sizeof(void*);
+        unsigned stkArgSize = compiler->compArgSize - intRegState.rsCalleeRegArgCount * REGSIZE_BYTES;
         noway_assert(offset < stkArgSize);
         offset = stkArgSize - offset;
 
