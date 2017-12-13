@@ -33,25 +33,18 @@ correspond to a single assembly instruction.
 
 ## Logical Sets of Intrinsics
 
-Individual CPU instantiate a specific set of instructions.  For various reasons, an
-individual CPU will have a specific set of supported instructions.  for `ARM64` the
+For various reasons, an individual CPU will have a specific set of supported instructions.  For `ARM64` the
 set of supported instructions is identified by various `ID_* System registers`.
 While these feature registers are only available for the OS to access, they provide
-a logical grouping of instructions which are enable/disabled to gether.
+a logical grouping of instructions which are enabled/disabled together.
 
 ### API Logical Set grouping & `IsSupported`
 
 The C# API must provide a mechanism to determine which sets of instructions are supported.
-
 Existing design uses a separate `static class` to group the methods which correspond to each
-logical set of instructions.
-
-A single `IsSupported` property is included in each `static class` to allow client code to alter
-control flow.
-
-The `IsSupported` properties are design so that JIT can remove code on unused paths.
-
-`ARM64` will use an identical approach.
+logical set of instructions.  A single `IsSupported` property is included in each `static class`
+to allow client code to alter control flow.  The `IsSupported` properties are designed so that JIT
+can remove code on unused paths.  `ARM64` will use an identical approach.
 
 ### API `PlatformNotSupported` Exception
 
@@ -68,7 +61,7 @@ means must provide for setting the flags.
 
 PAL must provide an OS abstraction layer.
 
-Each OS must provide mechanism for determining which sets of instructions are supported.
+Each OS must provide a mechanism for determining which sets of instructions are supported.
 
 + Linux provides the HWCAP detection mechanism which is able to detect current set of exposed
 features
@@ -86,7 +79,7 @@ NOTE: Exceptions might be where:
 
 ### Intrinsics & Crossgen
 
-For any intrinsic which may not be supported on all variants of a platform.  Crossgen Method
+For any intrinsic which may not be supported on all variants of a platform, crossgen method
 compilation must be trapped, so that the JIT is forced to generate optimal platform dependent
 code at runtime.
 
@@ -99,8 +92,8 @@ code at runtime.
 + `System.Runtime.Intrinsics` is used for type definitions useful across multiple platforms
 + `System.Runtime.Intrinsics.Arm` is used type definitions shared across `ARM32` and `ARM64` platforms
 + `System.Runtime.Intrinsics.Arm.Arm64` is used for type definitions for the `ARM64` platform
-  + The primary implementation of `ARM64` intrinsics wil occur within this namespace
-  + While `x86` and `x64` share a common namespace.  This document is recommending a separate namespace
+  + The primary implementation of `ARM64` intrinsics will occur within this namespace
+  + While `x86` and `x64` share a common namespace, this document is recommending a separate namespace
   for `ARM32` and `ARM64`.  This is because `AARCH64` is a separate `ISA` from the `AARCH32` `Arm` & `Thumb`
   instruction sets.  It is not an `ISA` extension, but rather a new `ISA`.  This is different from `x64`
   which could be viewed as a superset of `x86`.
@@ -116,38 +109,38 @@ platform specific functionality.  These API's are currently out of scope of this
 Within the `System.Runtime.Intrinsics.Arm.Arm64` namespace there will be a separate `static class` for each
 logical set of instructions
 
-The sets will be chosen to match the granularity if the `ARM64` `ID_*` register fields.
+The sets will be chosen to match the granularity of the `ARM64` `ID_*` register fields.
 
 #### Specific Class Names
 
 The table below documents the set of known extensions, their identification, and their recommended intrinsic
 class names.
 
-| ID Register      | Field   | Values   | Intrinsic `static class` name | Ext. type  |
-| ---------------- | ------- | -------- | ----------------------------- | ---------- |
-| N/A              | N/A     | N/A      | All                           | Baseline   |
-| ID_AA64ISAR0_EL1 | AES     | (1b, 10b)| Aes                           | Crypto     |
-| ID_AA64ISAR0_EL1 | Atomic  | (10b)    | Atomics                       | Ordering   |
-| ID_AA64ISAR0_EL1 | CRC32   | (1b)     | Crc32                         | Crypto     |
-| ID_AA64ISAR1_EL1 | DPB     | (1b)     | Dcpop                         | Ordering   |
-| ID_AA64ISAR0_EL1 | DP      | (1b)     | Dp                            | SIMD       |
-| ID_AA64ISAR1_EL1 | FCMA    | (1b)     | Fcma                          | SIMD       |
-| ID_AA64PFR0_EL1  | FP      | (0b, 1b) | Fp                            | FP         |
-| ID_AA64PFR0_EL1  | FP      | (1b)     | Fp16                          | FP, Half   |
-| ID_AA64ISAR1_EL1 | JSCVT   | (1b)     | Jscvt                         | SIMD       |
-| ID_AA64ISAR1_EL1 | LRCPC   | (1b)     | Lrcpc                         | Ordering   |
-| ID_AA64ISAR0_EL1 | AES     | (10b)    | Pmull                         | SIMD       |
-| ID_AA64PFR0_EL1  | RAS     | (1b)     | Ras                           | Ordering   |
-| ID_AA64ISAR0_EL1 | SHA1    | (1b)     | Sha1                          | Crypto     |
-| ID_AA64ISAR0_EL1 | SHA2    | (1b, 10b)| Sha2                          | Crypto     |
-| ID_AA64ISAR0_EL1 | SHA3    | (1b)     | Sha3                          | Crypto     |
-| ID_AA64ISAR0_EL1 | SHA2    | (10b)    | Sha512                        | Crypto     |
-| ID_AA64PFR0_EL1  | AdvSIMD | (0b, 1b) | Simd                          | SIMD       |
-| ID_AA64PFR0_EL1  | AdvSIMD | (1b)     | SimdFp16                      | SIMD,Half  |
-| ID_AA64ISAR0_EL1 | RDM     | (1b)     | SimdV81                       | SIMD       |
-| ID_AA64ISAR0_EL1 | SM3     | (1b)     | Sm3                           | Crypto     |
-| ID_AA64ISAR0_EL1 | SM4     | (1b)     | Sm4                           | Crypto     |
-| ID_AA64PFR0_EL1  | SVE     | (1b)     | Sve                           | SIMD,SVE   |
+| ID Register      | Field   | Values   | Intrinsic `static class` name |
+| ---------------- | ------- | -------- | ----------------------------- |
+| N/A              | N/A     | N/A      | All                           |
+| ID_AA64ISAR0_EL1 | AES     | (1b, 10b)| Aes                           |
+| ID_AA64ISAR0_EL1 | Atomic  | (10b)    | Atomics                       |
+| ID_AA64ISAR0_EL1 | CRC32   | (1b)     | Crc32                         |
+| ID_AA64ISAR1_EL1 | DPB     | (1b)     | Dcpop                         |
+| ID_AA64ISAR0_EL1 | DP      | (1b)     | Dp                            |
+| ID_AA64ISAR1_EL1 | FCMA    | (1b)     | Fcma                          |
+| ID_AA64PFR0_EL1  | FP      | (0b, 1b) | Fp                            |
+| ID_AA64PFR0_EL1  | FP      | (1b)     | Fp16                          |
+| ID_AA64ISAR1_EL1 | JSCVT   | (1b)     | Jscvt                         |
+| ID_AA64ISAR1_EL1 | LRCPC   | (1b)     | Lrcpc                         |
+| ID_AA64ISAR0_EL1 | AES     | (10b)    | Pmull                         |
+| ID_AA64PFR0_EL1  | RAS     | (1b)     | Ras                           |
+| ID_AA64ISAR0_EL1 | SHA1    | (1b)     | Sha1                          |
+| ID_AA64ISAR0_EL1 | SHA2    | (1b, 10b)| Sha2                          |
+| ID_AA64ISAR0_EL1 | SHA3    | (1b)     | Sha3                          |
+| ID_AA64ISAR0_EL1 | SHA2    | (10b)    | Sha512                        |
+| ID_AA64PFR0_EL1  | AdvSIMD | (0b, 1b) | Simd                          |
+| ID_AA64PFR0_EL1  | AdvSIMD | (1b)     | SimdFp16                      |
+| ID_AA64ISAR0_EL1 | RDM     | (1b)     | SimdV81                       |
+| ID_AA64ISAR0_EL1 | SM3     | (1b)     | Sm3                           |
+| ID_AA64ISAR0_EL1 | SM4     | (1b)     | Sm4                           |
+| ID_AA64PFR0_EL1  | SVE     | (1b)     | Sve                           |
 
 The `All`, `Simd`, and `Fp` classes will together contain the bulk of the `ARM64` intrinsics.  Most other extensions
 will only add a few instruction so they should be simpler to review.
@@ -163,7 +156,7 @@ As further extensions are released, this set of intrinsics will grow.
 Intrinsics will be named to describe functionality.  Names will not correspond to specific named
 assembly instructions.
 
-Where precedence exists within the `System.Runtime.Intrinsics.X86` namespace, identical method names will be
+Where precedent exists within the `System.Runtime.Intrinsics.X86` namespace, identical method names will be
 chosen: `Add`, `Multiply`, `Load`, `Store` ...
 
 It is also worth noting `System.Runtime.Intrinsics.X86` naming conventions will include the suffix `Scalar` for
@@ -214,7 +207,10 @@ As rough guidelines for order of implementation:
 
 Intrinsics will extend the API of CoreCLR.  They will need to follow standard API review practices.
 
-#### API review of a new intrinsic `static class`es
+XArch intrinsics are being added to the NetStandard API https://github.com/dotnet/corefx/issues/24346.  ARM64 intrinsics should be
+treated identically.
+
+#### API review of a new intrinsic `static class`
 
 Review will be facilitated by GitHub Pull requests to amend the Approved API section of this document.
 
@@ -229,7 +225,7 @@ Implementation will be kept separate from from API review.
 
 ### Partial implementation of intrinsic `static class`
 
-+ `IsSupported` must represents the state of an entire intrinsic `static class`
++ `IsSupported` must represent the state of an entire intrinsic `static class`
 + Once API review is complete and approved, it is acceptable to implement approved methods in any order provided tests are added
 + The approved API must be completed before the intrinsic `static class` is included in a release
 
@@ -244,7 +240,7 @@ This document will refer to half precision floating point as `Half`.
 + Machine learning and Artificial intelligence often use `Half` type to simplify storage and improve processing time.
 + CoreCLR and `CIL` in general do not have general support for a `Half` type
 + There is an open request to expose `Half` intrinsics
-+ There is an outstanding proposal to add `System.Half` to support this request
++ There is an outstanding proposal to add `System.Half` to support this request https://github.com/dotnet/corefx/issues/25702
 + Implementation of `Half` features will be adjusted based on
   + Implementation of the `System.Half` proposal
   + Availability of supporting hardware (extensions)
@@ -259,7 +255,7 @@ ARMv8 baseline support for `Half` is limited.  The following operations are supp
 + Widening from `Vector128<Half>` to two `Vector128<Float>`
 + Narrowing from two `Vector128<Float>` to `Vector128<Half>`
 
-Recent extension add support for
+Recent extensions add support for
 
 + General operations on `Half` types
 + Vector operations on `Half` types
@@ -281,15 +277,23 @@ Test cases must be written and conformance must be demonstrated.
 `SVE`, the Scalable Vector Extension introduces its own complexity.
 
 The extension
-+ Creates a new set of SVE registers
-+ Each register has a platform specific length
-  + Any multiple of 128 bits
+
++ Creates a set of `Z0-Z31` scalable vector registers.  These overlay existing vector registers.  Each scalar vector register has a platform specific length
+  + Any multiple of 128 bits up to 2048 bits
++ Creates a new set of `P0-P15` predicate registers.  Each predicate register has a platform specific length which is 1/8th of the scalar vector length.
++ Add an extensive set of instructions including complex load and store operations.
++ Modifies the ARM64 ABI.
 
 Therefore implementation will not be trivial.
 
-+ Register allocator may need changes
++ Register allocator will need changes to support predicate allocation
 + SIMD support will face similar issues
-+ Open issue: Should we use `Vector<T>` or SVE<T> in user interface design?
++ Open issue: Should we use `Vector<T>`, `Vector128<t>, Vector256<t>, ... Vector2048<T>`, `SVE<T>` ... in user interface design?
+  + Use of `Vector128<t>, Vector256<t>, ... Vector2048<T>` is current default proposal.
+Having 16 forms of every API may create issues for framework and client developers.
+However generics may provide some/sufficient relief to make this acceptable.
+  + Use of `Vector<T>` may be preferred if SVE will not be used for `FEATURE_SIMD`
+  + Use of `SVE<T>` may be preferred if SVE will not be used for `FEATURE_SIMD`
 
 Given lack of available hardware and a lack of thorough understanding of the specification:
 
