@@ -5349,12 +5349,15 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             GenTreePtr  baseAddr = argObj->gtOp1;
             var_types   addrType = baseAddr->TypeGet();
 
-            GenTree* addrTaken = baseAddr->gtOp.gtOp1;
-            if (addrTaken->IsLocal())
+            if (baseAddr->OperGet() == GT_ADDR)
             {
-                GenTreeLclVarCommon* varNode = addrTaken->AsLclVarCommon();
-                unsigned             varNum  = varNode->gtLclNum;
-                lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_IsStruct));
+                GenTree* addrTaken = baseAddr->gtOp.gtOp1;
+                if (addrTaken->IsLocal())
+                {
+                    GenTreeLclVarCommon* varNode = addrTaken->AsLclVarCommon();
+                    unsigned             varNum  = varNode->gtLclNum;
+                    lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_IsStruct));
+                }
             }
 
             // Create a new tree for 'arg'
