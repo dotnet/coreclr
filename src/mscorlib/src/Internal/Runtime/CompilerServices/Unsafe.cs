@@ -175,7 +175,7 @@ namespace Internal.Runtime.CompilerServices
             typeof(T).ToString(); // Type token used by the actual method body
             throw new InvalidOperationException();
         }
-        
+
         /// <summary>
         /// Writes a value of type <typeparamref name="T"/> to the given location.
         /// </summary>
@@ -189,7 +189,7 @@ namespace Internal.Runtime.CompilerServices
             throw new InvalidOperationException();
         }
 
-#region NotInCoreRT
+        #region NotInCoreRT
         // These APIs are not available in CoreRT - https://github.com/dotnet/corert/blob/master/src/System.Private.CoreLib/src/Internal/Runtime/CompilerServices/Unsafe.cs
 
         /// <summary>
@@ -204,7 +204,7 @@ namespace Internal.Runtime.CompilerServices
             throw new InvalidOperationException();
         }
 
-        
+
         /// <summary>
         /// Determines the byte offset from origin to target from the given references.
         /// </summary>
@@ -216,6 +216,6 @@ namespace Internal.Runtime.CompilerServices
             // See getILIntrinsicImplementationForUnsafe for how this happens.
             throw new InvalidOperationException();
         }
-#endregion
+        #endregion
     }
 }
