@@ -17,33 +17,20 @@ namespace Internal.Runtime.CompilerServices
     //
     // Subsetted clone of System.Runtime.CompilerServices.Unsafe for internal runtime use.
     // Keep in sync with https://github.com/dotnet/corefx/tree/master/src/System.Runtime.CompilerServices.Unsafe.
-    // 
+    //
 
     /// <summary>
-    /// For internal use only. Contains generic, low-level functionality for manipulating pointers. 
+    /// For internal use only. Contains generic, low-level functionality for manipulating pointers.
     /// </summary>
+    [CLSCompliant(false)]
     public static unsafe class Unsafe
     {
         /// <summary>
         /// Returns a pointer to the given by-ref parameter.
         /// </summary>
-        [CLSCompliant(false)]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* AsPointer<T>(ref T value)
-        {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
-            throw new InvalidOperationException();
-        }
-
-        /// <summary>
-        /// Reinterprets the given location as a reference to a value of type <typeparamref name="T"/>.
-        /// </summary>
-        [CLSCompliant(false)]
-        [NonVersionable]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T AsRef<T>(void* source)
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
@@ -64,11 +51,11 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Casts the given object to the specified type.
+        /// Casts the given object to the specified type, performs no dynamic type checking.
         /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T As<T>(object o) where T : class
+        public static T As<T>(object value) where T : class
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.
@@ -101,9 +88,8 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Adds an element offset to the given reference.
+        /// Adds an element offset to the given pointer.
         /// </summary>
-        [CLSCompliant(false)]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* Add<T>(void* source, int elementOffset)
@@ -115,21 +101,8 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Determines the byte offset from origin to target from the given references.
-        /// </summary>
-        [NonVersionable]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IntPtr ByteOffset<T>(ref T origin, ref T target)
-        {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
-            throw new InvalidOperationException();
-        }
-
-        /// <summary>
         /// Adds an element offset to the given reference.
         /// </summary>
-        [CLSCompliant(false)]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref T AddByteOffset<T>(ref T source, nuint byteOffset)
@@ -155,7 +128,6 @@ namespace Internal.Runtime.CompilerServices
         /// Initializes a block of memory at the given location with a given initial value 
         /// without assuming architecture dependent alignment of the address.
         /// </summary>
-        [CLSCompliant(false)]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void InitBlockUnaligned(ref byte startAddress, byte value, uint byteCount)
@@ -165,7 +137,9 @@ namespace Internal.Runtime.CompilerServices
             throw new InvalidOperationException();
         }
 
-        [CLSCompliant(false)]
+        /// <summary>
+        /// Reads a value of type <typeparamref name="T"/> from the given location.
+        /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T ReadUnaligned<T>(void* source)
@@ -176,6 +150,9 @@ namespace Internal.Runtime.CompilerServices
             throw new InvalidOperationException();
         }
 
+        /// <summary>
+        /// Reads a value of type <typeparamref name="T"/> from the given location.
+        /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T ReadUnaligned<T>(ref byte source)
@@ -186,7 +163,9 @@ namespace Internal.Runtime.CompilerServices
             throw new InvalidOperationException();
         }
 
-        [CLSCompliant(false)]
+        /// <summary>
+        /// Writes a value of type <typeparamref name="T"/> to the given location.
+        /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteUnaligned<T>(void* destination, T value)
@@ -196,7 +175,10 @@ namespace Internal.Runtime.CompilerServices
             typeof(T).ToString(); // Type token used by the actual method body
             throw new InvalidOperationException();
         }
-
+        
+        /// <summary>
+        /// Writes a value of type <typeparamref name="T"/> to the given location.
+        /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteUnaligned<T>(ref byte destination, T value)
@@ -206,5 +188,34 @@ namespace Internal.Runtime.CompilerServices
             typeof(T).ToString(); // Type token used by the actual method body
             throw new InvalidOperationException();
         }
+
+#region NotInCoreRT
+        // These APIs are not available in CoreRT - https://github.com/dotnet/corert/blob/master/src/System.Private.CoreLib/src/Internal/Runtime/CompilerServices/Unsafe.cs
+
+        /// <summary>
+        /// Reinterprets the given location as a reference to a value of type <typeparamref name="T"/>.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T AsRef<T>(void* source)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            throw new InvalidOperationException();
+        }
+
+        
+        /// <summary>
+        /// Determines the byte offset from origin to target from the given references.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static IntPtr ByteOffset<T>(ref T origin, ref T target)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.
+            throw new InvalidOperationException();
+        }
+#endregion
     }
 }
