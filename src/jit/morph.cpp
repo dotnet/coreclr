@@ -490,6 +490,11 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
                 shiftAmount      = gtFoldExpr(shiftAmount);
                 oper->gtOp.gtOp2 = shiftAmount;
 
+#if DEBUG
+                // We may remorph the shift amount tree again later, so clear any morphed flag.
+                shiftAmount->gtDebugFlags &= ~GTF_DEBUG_NODE_MORPHED;
+#endif // DEBUG
+
                 if (shiftAmount->IsIntegralConst())
                 {
                     const ssize_t shiftAmountValue = shiftAmount->AsIntCon()->IconValue();
@@ -898,6 +903,7 @@ unsigned UpdateGT_LISTFlags(GenTreePtr tree)
 void fgArgTabEntry::Dump()
 {
     printf("fgArgTabEntry[arg %u", argNum);
+    printf(" %d.%s", node->gtTreeID, GenTree::OpName(node->gtOper));
     if (regNum != REG_STK)
     {
         printf(", %s, regs=%u", getRegName(regNum), numRegs);
@@ -2132,6 +2138,17 @@ void fgArgInfo::SortArgs()
 
     argsSorted = true;
 }
+
+#ifdef DEBUG
+void fgArgInfo::Dump(Compiler* compiler)
+{
+    for (unsigned curInx = 0; curInx < ArgCount(); curInx++)
+    {
+        fgArgTabEntryPtr curArgEntry = ArgTable()[curInx];
+        curArgEntry->Dump();
+    }
+}
+#endif
 
 //------------------------------------------------------------------------------
 // fgMakeTmpArgNode : This function creates a tmp var only if needed.
@@ -4585,15 +4602,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #ifdef DEBUG
     if (verbose)
     {
-        fgArgInfoPtr argInfo = call->fgArgInfo;
-        for (unsigned curInx = 0; curInx < argInfo->ArgCount(); curInx++)
-        {
-            fgArgTabEntryPtr curArgEntry = argInfo->ArgTable()[curInx];
-            curArgEntry->Dump();
-        }
+        call->fgArgInfo->Dump(this);
     }
 #endif
-
     return call;
 }
 #ifdef _PREFAST_

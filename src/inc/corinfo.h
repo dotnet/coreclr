@@ -213,11 +213,11 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* b6af83a1-ca48-46c6-b7b0-5d7d6a79a5c5 */
-    0xb6af83a1,
-    0xca48,
-    0x46c6,
-    {0xb7, 0xb0, 0x5d, 0x7d, 0x6a, 0x79, 0xa5, 0xc5}
+SELECTANY const GUID JITEEVersionIdentifier = { /* 01c3d216-a404-4290-8278-ac27a4793d31 */
+    0x01c3d216,
+    0xa404,
+    0x4290,
+    {0x82, 0x78, 0xac, 0x27, 0xa4, 0x79, 0x3d, 0x31}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -809,7 +809,7 @@ enum CorInfoFlag
     CORINFO_FLG_VIRTUAL               = 0x00000040,
 //  CORINFO_FLG_UNUSED                = 0x00000080,
     CORINFO_FLG_NATIVE                = 0x00000100,
-//  CORINFO_FLG_UNUSED                = 0x00000200,
+    CORINFO_FLG_INTRINSIC_TYPE        = 0x00000200, // This type is marked by [Intrinsic]
     CORINFO_FLG_ABSTRACT              = 0x00000400,
 
     CORINFO_FLG_EnC                   = 0x00000800, // member was added by Edit'n'Continue
@@ -2280,6 +2280,21 @@ public:
     virtual const char* getClassName (
             CORINFO_CLASS_HANDLE    cls
             ) = 0;
+
+    // Return class name as in metadata, or nullptr if there is none.
+    // Suitable for non-debugging use.
+    virtual const char* getClassNameFromMetadata (
+            CORINFO_CLASS_HANDLE    cls,
+            const char            **namespaceName   /* OUT */
+            ) = 0;
+
+    // Return the type argument of the instantiated generic class,
+    // which is specified by the index
+    virtual CORINFO_CLASS_HANDLE getTypeInstantiationArgument(
+            CORINFO_CLASS_HANDLE cls, 
+            unsigned             index
+            ) = 0;
+    
 
     // Append a (possibly truncated) representation of the type cls to the preallocated buffer ppBuf of length pnBufLen
     // If fNamespace=TRUE, include the namespace/enclosing classes

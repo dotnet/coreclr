@@ -29,7 +29,7 @@ namespace System
         private readonly int _index;
         private readonly int _length;
 
-        private const int RemoveOwnedFlagBitMask = 0x7FFFFFFF;
+        internal const int RemoveOwnedFlagBitMask = 0x7FFFFFFF;
 
         /// <summary>
         /// Creates a new memory over the entirety of the target array.
@@ -215,8 +215,7 @@ namespace System
             {
                 if (_index < 0)
                 {
-                    memoryHandle = ((OwnedMemory<T>)_object).Pin();
-                    memoryHandle.AddOffset((_index & RemoveOwnedFlagBitMask) * Unsafe.SizeOf<T>());
+                    memoryHandle = ((OwnedMemory<T>)_object).Pin((_index & RemoveOwnedFlagBitMask) * Unsafe.SizeOf<T>());
                 }
                 else if (typeof(T) == typeof(char) && _object is string s)
                 {

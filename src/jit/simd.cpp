@@ -129,6 +129,14 @@ var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, u
         return TYP_UNKNOWN;
     }
 
+#if FEATURE_HW_INTRINSICS && DEBUG
+    if (isIntrinsicType(typeHnd))
+    {
+        JITDUMP("\nFound Vector Type: %s with base type %s\n", getClassNameFromMetadata(typeHnd, nullptr),
+                getClassNameFromMetadata(getTypeInstantiationArgument(typeHnd, 0), nullptr));
+    }
+#endif
+
     // fast path search using cached type handles of important types
     var_types simdBaseType = TYP_UNKNOWN;
     unsigned  size         = 0;
@@ -226,7 +234,7 @@ var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, u
         // TODO-Throughput: implement product shipping solution to query base type.
         WCHAR  className[256] = {0};
         WCHAR* pbuf           = &className[0];
-        int    len            = sizeof(className) / sizeof(className[0]);
+        int    len            = _countof(className);
         info.compCompHnd->appendClassName(&pbuf, &len, typeHnd, TRUE, FALSE, FALSE);
         noway_assert(pbuf < &className[256]);
         JITDUMP("SIMD Candidate Type %S\n", className);

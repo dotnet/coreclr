@@ -13337,7 +13337,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                             !(prefixFlags & PREFIX_TAILCALL_EXPLICIT) && // User hasn't set "tail." prefix yet.
                             verCheckTailCallConstraint(opcode, &resolvedToken,
                                                        constraintCall ? &constrainedResolvedToken : nullptr,
-                                                       true) // Is it legal to do talcall?
+                                                       true) // Is it legal to do tailcall?
                             )
                         {
                             // Stress the tailcall.
@@ -17333,11 +17333,11 @@ void Compiler::impImport(BasicBlock* method)
 
     /* Allocate the stack contents */
 
-    if (info.compMaxStack <= sizeof(impSmallStack) / sizeof(impSmallStack[0]))
+    if (info.compMaxStack <= _countof(impSmallStack))
     {
         /* Use local variable, don't waste time allocating on the heap */
 
-        impStkSize              = sizeof(impSmallStack) / sizeof(impSmallStack[0]);
+        impStkSize              = _countof(impSmallStack);
         verCurrentState.esStack = impSmallStack;
     }
     else

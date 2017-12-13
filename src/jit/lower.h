@@ -137,7 +137,11 @@ private:
     // Call Lowering
     // ------------------------------
     void LowerCall(GenTree* call);
-    GenTree* LowerCompare(GenTree* tree);
+#ifndef _TARGET_64BIT_
+    GenTree* DecomposeLongCompare(GenTree* cmp);
+#endif
+    GenTree* OptimizeConstCompare(GenTree* cmp);
+    GenTree* LowerCompare(GenTree* cmp);
     GenTree* LowerJTrue(GenTreeOp* jtrue);
     void LowerJmpMethod(GenTree* jmp);
     void LowerRet(GenTree* ret);
@@ -155,7 +159,7 @@ private:
     GenTree* NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryPtr info, var_types type);
     void LowerArg(GenTreeCall* call, GenTreePtr* ppTree);
 #ifdef _TARGET_ARMARCH_
-    GenTree* LowerFloatArg(GenTree* arg, fgArgTabEntry* info);
+    GenTree* LowerFloatArg(GenTree** pArg, fgArgTabEntry* info);
     GenTree* LowerFloatArgReg(GenTree* arg, regNumber regNum);
 #endif
 
