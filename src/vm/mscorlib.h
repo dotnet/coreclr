@@ -768,7 +768,7 @@ DEFINE_METHOD(JIT_HELPERS,          UNSAFE_CAST_TO_STACKPTR,UnsafeCastToStackPoi
 #endif // _DEBUG
 DEFINE_METHOD(JIT_HELPERS,          GET_RAW_SZ_ARRAY_DATA,  GetRawSzArrayData, NoSig)
 
-DEFINE_CLASS(UNSAFE,                CompilerServices,       Unsafe)
+DEFINE_CLASS(UNSAFE,                InternalCompilerServices,       Unsafe)
 DEFINE_METHOD(UNSAFE,               AS_POINTER,             AsPointer, NoSig)
 DEFINE_METHOD(UNSAFE,               AS_REF,                 AsRef, NoSig)
 DEFINE_METHOD(UNSAFE,               SIZEOF,                 SizeOf, NoSig)
