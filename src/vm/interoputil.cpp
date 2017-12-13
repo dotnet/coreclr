@@ -2335,12 +2335,8 @@ VOID EnsureComStarted(BOOL fCoInitCurrentThread)
 
     if (g_fComStarted == FALSE)
     {
-        //FinalizerThread::GetFinalizerThread()->SetRequiresCoInitialize();
-
-        // Attempt to set the thread's apartment model (to MTA by default). May not
-        // succeed (if someone beat us to the punch). That doesn't matter (since
-        // COM+ objects are now apartment agile), we only care that a CoInitializeEx
-        // has been performed on this thread by us.
+        // Setting the thread's apartment state to Unknown when no attribute is supplied by the User.
+        // Thread is not CoInitialized
         if (fCoInitCurrentThread)
             GetThread()->SetApartment(Thread::AS_Unknown, FALSE);
 
