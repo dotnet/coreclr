@@ -35,6 +35,18 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <summary>
+        /// Casts the given object to the specified type.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T AsRef<T>(void* source)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            throw new InvalidOperationException();
+        }
+
+        /// <summary>
         /// Returns the size of an object of the given type parameter.
         /// </summary>
         [NonVersionable]
@@ -98,6 +110,18 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <summary>
+        /// Determines the byte offset from origin to target from the given references.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static IntPtr ByteOffset<T>(ref T origin, ref T target)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.
+            throw new InvalidOperationException();
+        }
+
+        /// <summary>
         /// Adds an element offset to the given reference.
         /// </summary>
         [NonVersionable]
@@ -127,10 +151,48 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void InitBlockUnaligned(void* startAddress, byte value, uint byteCount)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            throw new InvalidOperationException();
+        }
+
+        /// <summary>
+        /// Initializes a block of memory at the given location with a given initial value 
+        /// without assuming architecture dependent alignment of the address.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void InitBlockUnaligned(ref byte startAddress, byte value, uint byteCount)
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            throw new InvalidOperationException();
+        }
+
+        /// <summary>
+        /// Copies bytes from the source address to the destination address.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CopyBlock(ref byte destination, ref byte source, uint byteCount)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            throw new InvalidOperationException();
+        }
+
+        /// <summary>
+        /// Reads a value of type <typeparamref name="T"/> from the given location.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Read<T>(void* source)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            typeof(T).ToString(); // Type token used by the actual method body
             throw new InvalidOperationException();
         }
 
