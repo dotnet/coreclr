@@ -2335,6 +2335,7 @@ VOID EnsureComStarted(BOOL fCoInitCurrentThread)
 
     if (g_fComStarted == FALSE)
     {
+        FinalizerThread::GetFinalizerThread()->SetRequiresCoInitialize(); 
         // Setting the thread's apartment state to Unknown when no attribute is supplied by the User.
         // Thread is not CoInitialized
         if (fCoInitCurrentThread)
