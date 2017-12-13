@@ -4502,8 +4502,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
 #endif
 
-    assert(argSize % (int)sizeof(void*) == 0);
-    argCnt = argSize / (int)sizeof(void*);
+    assert(argSize % (int)REGSIZE_BYTES == 0);
+    argCnt = argSize / (int)REGSIZE_BYTES;
 
     /* Managed RetVal: emit sequence point for the call */
     if (emitComp->opts.compDbgInfo && ilOffset != BAD_IL_OFFSET)
