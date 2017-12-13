@@ -7198,7 +7198,7 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
             CEE_LDARG_0,
             CEE_LDARG_1,
             CEE_LDARG_2,
-            CEE_CPBLK,
+            CEE_PREFIX1, (CEE_CPBLK & 0xFF),
             CEE_RET
         };
 
