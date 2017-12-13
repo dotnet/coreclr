@@ -5684,7 +5684,7 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
         GenTreePtr asgStmt = impAppendTree(asg, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
 
         op1 = gtNewLclvNode(impBoxTemp, TYP_REF);
-        op2 = gtNewIconNode(sizeof(void*), TYP_I_IMPL);
+        op2 = gtNewIconNode(TARGET_POINTER_SIZE, TYP_I_IMPL);
         op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1, op2);
 
         if (varTypeIsStruct(exprToBox))
@@ -6542,7 +6542,7 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
                         GetFieldSeqStore()->CreateSingleton(FieldSeqStore::FirstElemPseudoField);
                     op1 =
                         gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                                      new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, sizeof(void*), firstElemFldSeq));
+                                      new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, TARGET_POINTER_SIZE, firstElemFldSeq));
 
                     if (varTypeIsStruct(lclTyp))
                     {
@@ -6598,7 +6598,7 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
         FieldSeqNode* fldSeq = GetFieldSeqStore()->CreateSingleton(FieldSeqStore::FirstElemPseudoField);
 
         op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                            new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, sizeof(void*), fldSeq));
+                            new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, TARGET_POINTER_SIZE, fldSeq));
     }
 
     if (!(access & CORINFO_ACCESS_ADDRESS))
@@ -11303,7 +11303,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // remember the element size
                     if (lclTyp == TYP_REF)
                     {
-                        op1->gtIndex.gtIndElemSize = sizeof(void*);
+                        op1->gtIndex.gtIndElemSize = TARGET_POINTER_SIZE;
                     }
                     else
                     {
@@ -14698,7 +14698,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // UNBOX(exp) morphs into
                     // clone = pop(exp);
                     // ((*clone == typeToken) ? nop : helper(clone, typeToken));
-                    // push(clone + sizeof(void*))
+                    // push(clone + TARGET_POINTER_SIZE)
                     //
                     GenTreePtr cloneOperand;
                     op1 = impCloneExpr(op1, &cloneOperand, NO_CLASS_HANDLE, (unsigned)CHECK_SPILL_ALL,
@@ -14731,7 +14731,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // to the beginning of the value-type. Today this means adjusting
                     // past the base of the objects vtable field which is pointer sized.
 
-                    op2 = gtNewIconNode(sizeof(void*), TYP_I_IMPL);
+                    op2 = gtNewIconNode(TARGET_POINTER_SIZE, TYP_I_IMPL);
                     op1 = gtNewOperNode(GT_ADD, TYP_BYREF, cloneOperand, op2);
                 }
                 else
