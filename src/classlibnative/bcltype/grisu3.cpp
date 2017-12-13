@@ -14,6 +14,7 @@
 // 1/lg(10)
 const double Grisu3::D_1_LOG2_10 = 0.30102999566398114;
 
+constexpr UINT32 Grisu3::m_cachedPowerOfTen[CACHED_POWER_OF_TEN_NUM]; 
 constexpr PowerOfTen Grisu3::m_cachedPowers[CACHED_POWER_NUM];
 
 bool Grisu3::Run(double value, int count, int* dec, int* sign, wchar_t* digits)
@@ -164,6 +165,11 @@ bool Grisu3::DigitGen(const DiyFp& mp, int count, wchar_t* buffer, int* len, int
     DiyFp one = DiyFp(static_cast<UINT64>(1) << -mp.e(), mp.e());
     UINT32 p1 = static_cast<UINT32>(mp.f() >> -one.e());
     UINT64 p2 = mp.f() & (one.f() - 1);
+
+    if (p2 == 0 && (count >= 11 || p1 < m_cachedPowerOfTen[count - 1]))
+    {
+        return false;
+    }
 
     // Note: The code in the paper simply assignes div to TEN9 and kappa to 10 directly.
     // That means we need to check if any leading zero of the generated

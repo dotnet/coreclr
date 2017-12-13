@@ -46,7 +46,21 @@ private:
     static const UINT32 TEN6 = 1000000;
     static const UINT32 TEN7 = 10000000;
     static const UINT32 TEN8 = 100000000;
-    static const UINT32 TEN9 = 1000000000;
+    static const UINT32 TEN9 = 1000000000; 
+
+    static const int CACHED_POWER_OF_TEN_NUM = 10;
+    static constexpr UINT32 m_cachedPowerOfTen[CACHED_POWER_OF_TEN_NUM] = {
+        1,              // 10^0
+        10,             // 10^1
+        100,            // 10^2
+        1000,           // 10^3
+        10000,          // 10^4
+        100000,         // 10^5
+        1000000,        // 10^6
+        10000000,       // 10^7
+        100000000,      // 10^8
+        1000000000     // 10^9
+    };
 
     static const int POWER_DECIMAL_EXPONENT_DISTANCE = 8;
     static const int POWER_MIN_DECIMAL_EXPONENT = -348;
