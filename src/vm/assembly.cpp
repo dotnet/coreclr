@@ -1791,7 +1791,7 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
 
         mdToken tkEntryPoint = m_pManifestFile->GetEntryPointToken();
         // <TODO>@TODO: What if the entrypoint is in another file of the assembly?</TODO>
-       ReleaseHolder<IMDInternalImport> scope(m_pManifestFile->GetMDImportWithRef());
+        ReleaseHolder<IMDInternalImport> scope(m_pManifestFile->GetMDImportWithRef());
         // In theory, we should have a valid executable image and scope should never be NULL, but we've been  
         // getting Watson failures for AVs here due to ISVs modifying image headers and some new OS loader 
         // checks (see Dev10# 718530 and Windows 7# 615596)
