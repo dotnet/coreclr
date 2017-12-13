@@ -151,48 +151,10 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void InitBlockUnaligned(void* startAddress, byte value, uint byteCount)
-        {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
-            throw new InvalidOperationException();
-        }
-
-        /// <summary>
-        /// Initializes a block of memory at the given location with a given initial value 
-        /// without assuming architecture dependent alignment of the address.
-        /// </summary>
-        [NonVersionable]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void InitBlockUnaligned(ref byte startAddress, byte value, uint byteCount)
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
-            throw new InvalidOperationException();
-        }
-
-        /// <summary>
-        /// Copies bytes from the source address to the destination address.
-        /// </summary>
-        [NonVersionable]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void CopyBlock(ref byte destination, ref byte source, uint byteCount)
-        {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
-            throw new InvalidOperationException();
-        }
-
-        /// <summary>
-        /// Reads a value of type <typeparamref name="T"/> from the given location.
-        /// </summary>
-        [NonVersionable]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T Read<T>(void* source)
-        {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
-            typeof(T).ToString(); // Type token used by the actual method body
             throw new InvalidOperationException();
         }
 
