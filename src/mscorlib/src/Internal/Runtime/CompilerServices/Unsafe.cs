@@ -42,14 +42,9 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* AsPointer<T>(ref T value)
         {
-#if PROJECTN
-            // This method is implemented by the toolchain
-            throw new PlatformNotSupportedException();
-#else
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
-            throw new InvalidOperationException();
-#endif
+            throw new PlatformNotSupportedException();
 
             // ldarg.0
             // conv.u
@@ -64,15 +59,10 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf<T>()
         {
-#if PROJECTN
-            // This method is implemented by the toolchain
-            throw new PlatformNotSupportedException();
-#else
             // The body of this function will be replaced by the EE with unsafe code that just returns sizeof !!T
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
             typeof(T).ToString(); // Type token used by the actual method body
-            throw new InvalidOperationException();
-#endif
+            throw new PlatformNotSupportedException();
 
             // sizeof !!0
             // ret
@@ -86,14 +76,9 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T As<T>(object value) where T : class
         {
-#if PROJECTN
-            // This method is implemented by the toolchain
-            throw new PlatformNotSupportedException();
-#else
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.
-            throw new InvalidOperationException();
-#endif
+            throw new PlatformNotSupportedException();
 
             // ldarg.0
             // ret
@@ -107,14 +92,9 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref TTo As<TFrom, TTo>(ref TFrom source)
         {
-#if PROJECTN
-            // This method is implemented by the toolchain
-            throw new PlatformNotSupportedException();
-#else
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.
-            throw new InvalidOperationException();
-#endif
+            throw new PlatformNotSupportedException();
 
             // ldarg.0
             // ret
@@ -133,7 +113,7 @@ namespace Internal.Runtime.CompilerServices
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.
             typeof(T).ToString(); // Type token used by the actual method body
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
 #endif
         }
 
@@ -150,7 +130,7 @@ namespace Internal.Runtime.CompilerServices
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.
             typeof(T).ToString(); // Type token used by the actual method body
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
 #endif
         }
 
@@ -167,7 +147,7 @@ namespace Internal.Runtime.CompilerServices
 #else
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
 #endif
         }
 
@@ -179,14 +159,9 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool AreSame<T>(ref T left, ref T right)
         {
-#if PROJECTN
-            // This method is implemented by the toolchain
-            throw new PlatformNotSupportedException();
-#else
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
-            throw new InvalidOperationException();
-#endif
+            throw new PlatformNotSupportedException();
 
             // ldarg.0
             // ldarg.1
@@ -209,7 +184,7 @@ namespace Internal.Runtime.CompilerServices
 #else
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
 #endif
         }
 
@@ -227,7 +202,7 @@ namespace Internal.Runtime.CompilerServices
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
             typeof(T).ToString(); // Type token used by the actual method body
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
 #endif
         }
 
@@ -245,7 +220,7 @@ namespace Internal.Runtime.CompilerServices
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
             typeof(T).ToString(); // Type token used by the actual method body
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
 #endif
         }
 
@@ -263,7 +238,7 @@ namespace Internal.Runtime.CompilerServices
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
             typeof(T).ToString(); // Type token used by the actual method body
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
 #endif
         }
 
@@ -281,7 +256,7 @@ namespace Internal.Runtime.CompilerServices
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
             typeof(T).ToString(); // Type token used by the actual method body
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
 #endif
         }
 
@@ -359,7 +334,7 @@ namespace Internal.Runtime.CompilerServices
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
         }
 
 
@@ -372,7 +347,7 @@ namespace Internal.Runtime.CompilerServices
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.
-            throw new InvalidOperationException();
+            throw new PlatformNotSupportedException();
         }
 
 #endif
