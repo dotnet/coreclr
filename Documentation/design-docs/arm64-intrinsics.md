@@ -386,7 +386,125 @@ TBD Not approved
 
 ### `Simd`
 
-TBD Not approved
+```C#
+namespace System.Runtime.Intrinsics.Arm.Arm64
+{
+    /// <summary>
+    /// This class provides access to the Arm64 AdvSIMD intrinsics
+    ///
+    /// Arm64 CPU indicate support for this feature by setting
+    /// ID_AA64PFR0_EL1.AdvSIMD == 0 or better.
+    /// </summary>
+    [CLSCompliant(false)]
+    public static class Simd
+    {
+        /// <summary>
+        /// IsSupported property indicates whether any method provided 
+        /// by this class is supported by the current runtime.
+        /// </summary>
+        public static bool IsSupported { get; }
+
+        /// <summary>
+        /// Vector absolute value
+        /// Corresponds to vector forms of ARM64 ABS & FABS
+        /// </summary>
+        public static Vector64<byte>    Abs(Vector64<sbyte>   value);
+        public static Vector64<ushort>  Abs(Vector64<short>   value);
+        public static Vector64<uint>    Abs(Vector64<int>     value);
+        public static Vector64<ulong>   Abs(Vector64<long>    value);
+        public static Vector64<float>   Abs(Vector64<float>   value);
+        public static Vector128<byte>   Abs(Vector128<sbyte>  value);
+        public static Vector128<ushort> Abs(Vector128<short>  value);
+        public static Vector128<uint>   Abs(Vector128<int>    value);
+        public static Vector128<ulong>  Abs(Vector128<long>   value);
+        public static Vector128<float>  Abs(Vector128<float>  value);
+        public static Vector128<double> Abs(Vector128<double> value);
+
+        /// <summary>
+        /// Vector add
+        /// Corresponds to vector forms of ARM64 ADD & FADD
+        /// </summary>
+        public static Vector64<byte>    Add(Vector64<byte>    left, Vector64<byte>    right);
+        public static Vector64<sbyte>   Add(Vector64<sbyte>   left, Vector64<sbyte>   right);
+        public static Vector64<ushort>  Add(Vector64<ushort>  left, Vector64<ushort>  right);
+        public static Vector64<short>   Add(Vector64<short>   left, Vector64<short>   right);
+        public static Vector64<uint>    Add(Vector64<uint>    left, Vector64<uint>    right);
+        public static Vector64<int>     Add(Vector64<int>     left, Vector64<int>     right);
+        public static Vector64<ulong>   Add(Vector64<ulong>   left, Vector64<ulong>   right);
+        public static Vector64<long>    Add(Vector64<long>    left, Vector64<long>    right);
+        public static Vector64<float>   Add(Vector64<float>   left, Vector64<float>   right);
+        public static Vector128<byte>   Add(Vector128<byte>   left, Vector128<byte>   right);
+        public static Vector128<sbyte>  Add(Vector128<sbyte>  left, Vector128<sbyte>  right);
+        public static Vector128<ushort> Add(Vector128<ushort> left, Vector128<ushort> right);
+        public static Vector128<short>  Add(Vector128<short>  left, Vector128<short>  right);
+        public static Vector128<uint>   Add(Vector128<uint>   left, Vector128<uint>   right);
+        public static Vector128<int>    Add(Vector128<int>    left, Vector128<int>    right);
+        public static Vector128<ulong>  Add(Vector128<ulong>  left, Vector128<ulong>  right);
+        public static Vector128<long>   Add(Vector128<long>   left, Vector128<long>   right);
+        public static Vector128<float>  Add(Vector128<float>  left, Vector128<float>  right);
+        public static Vector128<double> Add(Vector128<double> left, Vector128<double> right);
+
+        /// <summary>
+        /// Vector add high narrow lower
+        ///
+        /// Add vector elements, narrow result register, and store in lower half of destination
+        /// Zero upper half of destination
+        ///
+        /// Corresponds to vector forms of ARM64 ADDHN
+        /// </summary>
+        public static Vector128<byte>   AddHighNarrowLower(Vector128<ushort> left, Vector128<ushort> right);
+        public static Vector128<sbyte>  AddHighNarrowLower(Vector128<short>  left, Vector128<short>  right);
+        public static Vector128<ushort> AddHighNarrowLower(Vector128<uint>   left, Vector128<uint>   right);
+        public static Vector128<short>  AddHighNarrowLower(Vector128<int>    left, Vector128<int>    right);
+        public static Vector128<uint>   AddHighNarrowLower(Vector128<ulong>  left, Vector128<ulong>  right);
+        public static Vector128<int>    AddHighNarrowLower(Vector128<long>   left, Vector128<long>   right);
+
+        /// <summary>
+        /// Vector add high narrow upper
+        ///
+        /// Add vector elements, narrow result register, and store in upper half of destination
+        /// Or with lower half of destination
+        ///
+        /// Corresponds to vector forms of ARM64 ADDHN2
+        /// </summary>
+        public static Vector128<byte>   AddHighNarrowUpper(Vector128<ushort> left, Vector128<ushort> right, Vector128<ushort> lower);
+        public static Vector128<sbyte>  AddHighNarrowUpper(Vector128<short>  left, Vector128<short>  right, Vector128<short>  lower);
+        public static Vector128<ushort> AddHighNarrowUpper(Vector128<uint>   left, Vector128<uint>   right, Vector128<uint>   lower);
+        public static Vector128<short>  AddHighNarrowUpper(Vector128<int>    left, Vector128<int>    right, Vector128<int>    lower);
+        public static Vector128<uint>   AddHighNarrowUpper(Vector128<ulong>  left, Vector128<ulong>  right, Vector128<ulong>  lower);
+        public static Vector128<int>    AddHighNarrowUpper(Vector128<long>   left, Vector128<long>   right, Vector128<long>   lower);
+
+        /// <summary>
+        /// Vector add pairwise
+        ///
+        /// Concatenate left and right to form a vector with twice as many element.
+        /// For each pair of elements in the concatenated vector, add to produce a single element
+        /// Store the result of the pairwise addition in a vector of the original length
+        /// Pairs formed from the right operand will form the lower half to the result.  Left will form the upper
+        ///
+        /// Corresponds to vector forms of ARM64 ADDP & FADDP
+        /// </summary>
+        public static Vector64<byte>    AddPairwise(Vector64<byte>    left, Vector64<byte>    right);
+        public static Vector64<sbyte>   AddPairwise(Vector64<sbyte>   left, Vector64<sbyte>   right);
+        public static Vector64<ushort>  AddPairwise(Vector64<ushort>  left, Vector64<ushort>  right);
+        public static Vector64<short>   AddPairwise(Vector64<short>   left, Vector64<short>   right);
+        public static Vector64<uint>    AddPairwise(Vector64<uint>    left, Vector64<uint>    right);
+        public static Vector64<int>     AddPairwise(Vector64<int>     left, Vector64<int>     right);
+        public static Vector64<ulong>   AddPairwise(Vector64<ulong>   left, Vector64<ulong>   right);
+        public static Vector64<long>    AddPairwise(Vector64<long>    left, Vector64<long>    right);
+        public static Vector64<float>   AddPairwise(Vector64<float>   left, Vector64<float>   right);
+        public static Vector128<byte>   AddPairwise(Vector128<byte>   left, Vector128<byte>   right);
+        public static Vector128<sbyte>  AddPairwise(Vector128<sbyte>  left, Vector128<sbyte>  right);
+        public static Vector128<ushort> AddPairwise(Vector128<ushort> left, Vector128<ushort> right);
+        public static Vector128<short>  AddPairwise(Vector128<short>  left, Vector128<short>  right);
+        public static Vector128<uint>   AddPairwise(Vector128<uint>   left, Vector128<uint>   right);
+        public static Vector128<int>    AddPairwise(Vector128<int>    left, Vector128<int>    right);
+        public static Vector128<ulong>  AddPairwise(Vector128<ulong>  left, Vector128<ulong>  right);
+        public static Vector128<long>   AddPairwise(Vector128<long>   left, Vector128<long>   right);
+        public static Vector128<float>  AddPairwise(Vector128<float>  left, Vector128<float>  right);
+        public static Vector128<double> AddPairwise(Vector128<double> left, Vector128<double> right);
+    }
+```
 
 ### `SimdFp16`
 
