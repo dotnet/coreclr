@@ -2,9 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections;
 using System.Diagnostics;
+
+#if !ES_BUILD_AGAINST_DOTNET_V35
+using Contract = System.Diagnostics.Contracts.Contract;
+#else
+using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
+#endif
 
 #if ES_BUILD_STANDALONE
 namespace Microsoft.Diagnostics.Tracing
@@ -47,7 +54,7 @@ namespace System.Diagnostics.Tracing
                     position++;
                 }
 
-                throw new System.Collections.Generic.KeyNotFoundException();
+                throw new System.Collections.Generic.KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
             }
             set
             {

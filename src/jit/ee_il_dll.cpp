@@ -327,8 +327,6 @@ void CILJit::clearCache(void)
  */
 BOOL CILJit::isCacheCleanupRequired(void)
 {
-    BOOL doCleanup;
-
     if (g_realJitCompiler != nullptr)
     {
         if (g_realJitCompiler->isCacheCleanupRequired())
@@ -384,8 +382,7 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
     jitFlags.SetFromFlags(cpuCompileFlags);
 
 #ifdef FEATURE_SIMD
-#ifdef _TARGET_XARCH_
-#ifndef LEGACY_BACKEND
+#if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_FEATURE_SIMD) &&
         jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
     {
@@ -398,13 +395,12 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
             return 32;
         }
     }
-#endif // !LEGACY_BACKEND
+#endif // !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
     if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
     {
         JITDUMP("getMaxIntrinsicSIMDVectorLength: returning 16\n");
     }
     return 16;
-#endif // _TARGET_XARCH_
 #else  // !FEATURE_SIMD
     if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
     {
@@ -510,7 +506,7 @@ GenTreePtr Compiler::eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig)
     cookie = info.compCompHnd->GetCookieForPInvokeCalliSig(szMetaSig, &pCookie);
     assert((cookie == nullptr) != (pCookie == nullptr));
 
-    return gtNewIconEmbHndNode(cookie, pCookie, GTF_ICON_PINVKI_HDL);
+    return gtNewIconEmbHndNode(cookie, pCookie, GTF_ICON_PINVKI_HDL, szMetaSig);
 }
 
 //------------------------------------------------------------------------
@@ -724,7 +720,7 @@ void Compiler::eeGetVars()
     {
         // Allocate a bit-array for all the variables and initialize to false
 
-        bool*    varInfoProvided = (bool*)compGetMemA(info.compLocalsCount * sizeof(varInfoProvided[0]));
+        bool*    varInfoProvided = (bool*)compGetMem(info.compLocalsCount * sizeof(varInfoProvided[0]));
         unsigned i;
         for (i = 0; i < info.compLocalsCount; i++)
         {

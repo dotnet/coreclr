@@ -12,7 +12,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Globalization;
-using System.Runtime.Serialization;
 using System.Runtime.Versioning;
 
 namespace System.Diagnostics
@@ -23,19 +22,15 @@ namespace System.Diagnostics
     // VM\DebugDebugger.h. The binder will catch some of these layout problems.
     internal class StackFrameHelper : IDisposable
     {
-        [NonSerialized]
         private Thread targetThread;
         private int[] rgiOffset;
         private int[] rgiILOffset;
-        // this field is here only for backwards compatibility of serialization format
-        private MethodBase[] rgMethodBase;
 
 #pragma warning disable 414
         // dynamicMethods is an array of System.Resolver objects, used to keep
         // DynamicMethodDescs alive for the lifetime of StackFrameHelper.
         private Object dynamicMethods; // Field is not used from managed.        
 
-        [NonSerialized]
         private IntPtr[] rgMethodHandle;
         private String[] rgAssemblyPath;
         private IntPtr[] rgLoadedPeAddress;
@@ -47,7 +42,6 @@ namespace System.Diagnostics
         private String[] rgFilename;
         private int[] rgiLineNumber;
         private int[] rgiColumnNumber;
-        [OptionalField]
         private bool[] rgiLastFrameFromForeignExceptionStackTrace;
         private GetSourceLineInfoDelegate getSourceLineInfo;
         private int iFrameCount;
@@ -66,7 +60,6 @@ namespace System.Diagnostics
         public StackFrameHelper(Thread target)
         {
             targetThread = target;
-            rgMethodBase = null;
             rgMethodHandle = null;
             rgiMethodToken = null;
             rgiOffset = null;
@@ -178,7 +171,7 @@ namespace System.Diagnostics
             // and then we fetch the proper MethodBase!!
             IntPtr mh = rgMethodHandle[i];
 
-            if (mh.IsNull())
+            if (mh == IntPtr.Zero)
                 return null;
 
             IRuntimeMethodInfo mhReal = RuntimeMethodHandle.GetTypicalMethodDefinition(new RuntimeMethodInfoStub(mh, this));
@@ -198,49 +191,6 @@ namespace System.Diagnostics
         }
 
         public virtual int GetNumberOfFrames() { return iFrameCount; }
-
-        //
-        // serialization implementation
-        //
-        [OnSerializing]
-        private void OnSerializing(StreamingContext context)
-        {
-            // this is called in the process of serializing this object.
-            // For compatibility with Everett we need to assign the rgMethodBase field as that is the field
-            // that will be serialized
-            rgMethodBase = (rgMethodHandle == null) ? null : new MethodBase[rgMethodHandle.Length];
-            if (rgMethodHandle != null)
-            {
-                for (int i = 0; i < rgMethodHandle.Length; i++)
-                {
-                    if (!rgMethodHandle[i].IsNull())
-                        rgMethodBase[i] = RuntimeType.GetMethodBase(new RuntimeMethodInfoStub(rgMethodHandle[i], this));
-                }
-            }
-        }
-
-        [OnSerialized]
-        private void OnSerialized(StreamingContext context)
-        {
-            // after we are done serializing null the rgMethodBase field
-            rgMethodBase = null;
-        }
-
-        [OnDeserialized]
-        private void OnDeserialized(StreamingContext context)
-        {
-            // after we are done deserializing we need to transform the rgMethodBase in rgMethodHandle
-            rgMethodHandle = (rgMethodBase == null) ? null : new IntPtr[rgMethodBase.Length];
-            if (rgMethodBase != null)
-            {
-                for (int i = 0; i < rgMethodBase.Length; i++)
-                {
-                    if (rgMethodBase[i] != null)
-                        rgMethodHandle[i] = rgMethodBase[i].MethodHandle.Value;
-                }
-            }
-            rgMethodBase = null;
-        }
     }
 
 
@@ -537,7 +487,8 @@ namespace System.Diagnostics
             {
                 StackFrame sf = GetFrame(iFrameIndex);
                 MethodBase mb = sf.GetMethod();
-                if (mb != null)
+                if (mb != null && (ShowInStackTrace(mb) || 
+                                   (iFrameIndex == m_iNumOfFrames - 1))) // Don't filter last frame
                 {
                     // We want a newline at the end of every line except for the last
                     if (fFirstFrame)
@@ -657,15 +608,10 @@ namespace System.Diagnostics
             return sb.ToString();
         }
 
-        // This helper is called from within the EE to construct a string representation
-        // of the current stack trace.
-        private static String GetManagedStackTraceStringHelper(bool fNeedFileInfo)
+        private static bool ShowInStackTrace(MethodBase mb)
         {
-            // Note all the frames in System.Diagnostics will be skipped when capturing 
-            // a normal stack trace (not from an exception) so we don't need to explicitly
-            // skip the GetManagedStackTraceStringHelper frame.
-            StackTrace st = new StackTrace(0, fNeedFileInfo);
-            return st.ToString();
+            Debug.Assert(mb != null);
+            return !(mb.IsDefined(typeof(StackTraceHiddenAttribute)) || (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute)) ?? false));
         }
     }
 }

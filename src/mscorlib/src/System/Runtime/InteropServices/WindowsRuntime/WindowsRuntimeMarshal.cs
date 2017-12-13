@@ -237,7 +237,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                             registrationTokens[handler] = tokens;
                     }
 
-                    BCLDebug.Log("INTEROP", "[WinRT_Eventing] Event subscribed for managed instance = " + instance + ", handler = " + handler + "\n");
+                    Log("[WinRT_Eventing] Event subscribed for managed instance = " + instance + ", handler = " + handler + "\n");
                 }
             }
 
@@ -283,7 +283,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     // Failure to find a registration for a token is not an error - it's simply a no-op.
                     if (!registrationTokens.TryGetValue(handler, out tokens))
                     {
-                        BCLDebug.Log("INTEROP", "[WinRT_Eventing] no registrationTokens found for instance=" + instance + ", handler= " + handler + "\n");
+                        Log("[WinRT_Eventing] no registrationTokens found for instance=" + instance + ", handler= " + handler + "\n");
 
                         return;
                     }
@@ -306,7 +306,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 removeMethod(token);
 
-                BCLDebug.Log("INTEROP", "[WinRT_Eventing] Event unsubscribed for managed instance = " + instance + ", handler = " + handler + ", token = " + token.m_value + "\n");
+                Log("[WinRT_Eventing] Event unsubscribed for managed instance = " + instance + ", handler = " + handler + ", token = " + token.m_value + "\n");
             }
 
             internal static void RemoveAllEventHandlers(Action<EventRegistrationToken> removeMethod)
@@ -330,15 +330,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     // Clear the dictionary - at this point all event handlers are no longer in the cache
                     // but they are not removed yet
                     registrationTokens.Clear();
-                    BCLDebug.Log("INTEROP", "[WinRT_Eventing] Cache cleared for managed instance = " + instance + "\n");
+                    Log("[WinRT_Eventing] Cache cleared for managed instance = " + instance + "\n");
                 }
 
                 //
                 // Remove all handlers outside the lock
                 //
-                BCLDebug.Log("INTEROP", "[WinRT_Eventing] Start removing all events for instance = " + instance + "\n");
+                Log("[WinRT_Eventing] Start removing all events for instance = " + instance + "\n");
                 CallRemoveMethods(removeMethod, tokensToRemove);
-                BCLDebug.Log("INTEROP", "[WinRT_Eventing] Finished removing all events for instance = " + instance + "\n");
+                Log("[WinRT_Eventing] Finished removing all events for instance = " + instance + "\n");
             }
         }
 
@@ -351,7 +351,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // Key = (target object, event)
             // We use a key of object+event to save an extra dictionary
             //
-            internal struct EventCacheKey
+            internal struct EventCacheKey : IEquatable<EventCacheKey>
             {
                 internal object target;
                 internal MethodInfo method;
@@ -360,13 +360,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 {
                     return "(" + target + ", " + method + ")";
                 }
-            }
 
-            internal class EventCacheKeyEqualityComparer : IEqualityComparer<EventCacheKey>
-            {
-                public bool Equals(EventCacheKey lhs, EventCacheKey rhs)
+                public bool Equals(EventCacheKey other)
                 {
-                    return (Object.Equals(lhs.target, rhs.target) && Object.Equals(lhs.method, rhs.method));
+                    return (Object.Equals(target, other.target) && Object.Equals(method, other.method));
                 }
 
                 public int GetHashCode(EventCacheKey key)
@@ -405,7 +402,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     // and remove it from cache when the token count drop to 0
                     // we don't need to take locks for decrement the count - we only need to take a global
                     // lock when we decide to destroy cache for the IUnknown */type instance
-                    BCLDebug.Log("INTEROP", "[WinRT_Eventing] Finalizing EventRegistrationTokenList for " + _tokenListCount.Key + "\n");
+                    Log("[WinRT_Eventing] Finalizing EventRegistrationTokenList for " + _tokenListCount.Key + "\n");
                     _tokenListCount.Dec();
                 }
 
@@ -451,7 +448,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 internal void Inc()
                 {
                     int newCount = Interlocked.Increment(ref _count);
-                    BCLDebug.Log("INTEROP", "[WinRT_Eventing] Incremented TokenListCount for " + _key + ", Value = " + newCount + "\n");
+                    Log("[WinRT_Eventing] Incremented TokenListCount for " + _key + ", Value = " + newCount + "\n");
                 }
 
                 internal void Dec()
@@ -462,7 +459,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     try
                     {
                         int newCount = Interlocked.Decrement(ref _count);
-                        BCLDebug.Log("INTEROP", "[WinRT_Eventing] Decremented TokenListCount for " + _key + ", Value = " + newCount + "\n");
+                        Log("[WinRT_Eventing] Decremented TokenListCount for " + _key + ", Value = " + newCount + "\n");
                         if (newCount == 0)
                             CleanupCache();
                     }
@@ -478,9 +475,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     // because the total token list count has dropped to 0 and we don't have any events subscribed
                     Debug.Assert(s_eventRegistrations != null);
 
-                    BCLDebug.Log("INTEROP", "[WinRT_Eventing] Removing " + _key + " from cache" + "\n");
+                    Log("[WinRT_Eventing] Removing " + _key + " from cache" + "\n");
                     s_eventRegistrations.Remove(_key);
-                    BCLDebug.Log("INTEROP", "[WinRT_Eventing] s_eventRegistrations size = " + s_eventRegistrations.Count + "\n");
+                    Log("[WinRT_Eventing] s_eventRegistrations size = " + s_eventRegistrations.Count + "\n");
                 }
             }
 
@@ -517,7 +514,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             //   them the latest token in this case. This is guaranteed by always giving the last token and always use equality to
             //   add/remove event handlers
             internal volatile static Dictionary<EventCacheKey, EventCacheEntry> s_eventRegistrations =
-                new Dictionary<EventCacheKey, EventCacheEntry>(new EventCacheKeyEqualityComparer());
+                new Dictionary<EventCacheKey, EventCacheEntry>();
 
             // Prevent add/remove handler code to run at the same with with cache cleanup code
             private volatile static MyReaderWriterLock s_eventCacheRWLock = new MyReaderWriterLock();
@@ -611,7 +608,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         s_eventCacheRWLock.ReleaseReaderLock();
                     }
 
-                    BCLDebug.Log("INTEROP", "[WinRT_Eventing] Event subscribed for instance = " + instanceKey + ", handler = " + handler + "\n");
+                    Log("[WinRT_Eventing] Event subscribed for instance = " + instanceKey + ", handler = " + handler + "\n");
                 }
                 catch (Exception)
                 {
@@ -667,7 +664,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                             return null;
                         }
 
-                        BCLDebug.Log("INTEROP", "[WinRT_Eventing] Adding (" + instance + "," + removeMethod.Method + ") into cache" + "\n");
+                        Log("[WinRT_Eventing] Adding (" + instance + "," + removeMethod.Method + ") into cache" + "\n");
 
                         eventCacheEntry = new EventCacheEntry();
                         eventCacheEntry.registrationTable = new ConditionalWeakTable<object, EventRegistrationTokenListWithCount>();
@@ -701,7 +698,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     {
                         // We have no information regarding this particular instance (IUnknown*/type) - just return
                         // This is necessary to avoid leaking empty dictionary/conditionalWeakTables for this instance
-                        BCLDebug.Log("INTEROP", "[WinRT_Eventing] no registrationTokens found for instance=" + instanceKey + ", handler= " + handler + "\n");
+                        Log("[WinRT_Eventing] no registrationTokens found for instance=" + instanceKey + ", handler= " + handler + "\n");
                         return;
                     }
 
@@ -722,7 +719,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         if (tokens == null)
                         {
                             // Failure to find a registration for a token is not an error - it's simply a no-op.
-                            BCLDebug.Log("INTEROP", "[WinRT_Eventing] no token list found for instance=" + instanceKey + ", handler= " + handler + "\n");
+                            Log("[WinRT_Eventing] no token list found for instance=" + instanceKey + ", handler= " + handler + "\n");
                             return;
                         }
 
@@ -744,7 +741,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                             registrationTokens.Remove(key);
                         }
 
-                        BCLDebug.Log("INTEROP", "[WinRT_Eventing] Event unsubscribed for managed instance = " + instanceKey + ", handler = " + handler + ", token = " + token.m_value + "\n");
+                        Log("[WinRT_Eventing] Event unsubscribed for managed instance = " + instanceKey + ", handler = " + handler + ", token = " + token.m_value + "\n");
                     }
                 }
                 finally
@@ -792,7 +789,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         // Clear the table - at this point all event handlers are no longer in the cache
                         // but they are not removed yet
                         registrationTokens.Clear();
-                        BCLDebug.Log("INTEROP", "[WinRT_Eventing] Cache cleared for managed instance = " + instanceKey + "\n");
+                        Log("[WinRT_Eventing] Cache cleared for managed instance = " + instanceKey + "\n");
                     }
                 }
                 finally
@@ -803,9 +800,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 //
                 // Remove all handlers outside the lock
                 //
-                BCLDebug.Log("INTEROP", "[WinRT_Eventing] Start removing all events for instance = " + instanceKey + "\n");
+                Log("[WinRT_Eventing] Start removing all events for instance = " + instanceKey + "\n");
                 CallRemoveMethods(removeMethod, tokensToRemove);
-                BCLDebug.Log("INTEROP", "[WinRT_Eventing] Finished removing all events for instance = " + instanceKey + "\n");
+                Log("[WinRT_Eventing] Finished removing all events for instance = " + instanceKey + "\n");
             }
 
 
@@ -1032,7 +1029,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     exceptions.Add(ex);
                 }
 
-                BCLDebug.Log("INTEROP", "[WinRT_Eventing] Event unsubscribed for token = " + token.m_value + "\n");
+                Log("[WinRT_Eventing] Event unsubscribed for token = " + token.m_value + "\n");
             }
 
             if (exceptions.Count > 0)
@@ -1125,7 +1122,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         /// for the application to be invoked to process the error.
         /// </summary>
         /// <returns>true if the error was reported, false if not (ie running on Win8)</returns>
-        [FriendAccessAllowed]
+        // [FriendAccessAllowed]
         internal static bool ReportUnhandledError(Exception e)
         {
             // Only report to the WinRT global exception handler in modern apps
@@ -1278,6 +1275,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 UnsafeNativeMethods.WindowsDeleteString(ptr);
             }
+        }
+
+        [Conditional("_LOGGING")]
+        private static void Log(string s)
+        {
+            // Internal.Console.WriteLine(s);
         }
     }
 }

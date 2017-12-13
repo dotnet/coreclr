@@ -37,7 +37,7 @@ namespace System.Runtime.CompilerServices
 
     /// <summary>Provides an awaitable context for switching into a target environment.</summary>
     /// <remarks>This type is intended for compiler use only.</remarks>
-    public struct YieldAwaitable
+    public readonly struct YieldAwaitable
     {
         /// <summary>Gets an awaiter for this <see cref="YieldAwaitable"/>.</summary>
         /// <returns>An awaiter for this awaitable.</returns>
@@ -46,7 +46,7 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Provides an awaiter that switches into a target environment.</summary>
         /// <remarks>This type is intended for compiler use only.</remarks>
-        public struct YieldAwaiter : ICriticalNotifyCompletion
+        public readonly struct YieldAwaiter : ICriticalNotifyCompletion
         {
             /// <summary>Gets whether a yield is not required.</summary>
             /// <remarks>This property is intended for compiler user rather than use directly in code.</remarks>
@@ -85,7 +85,7 @@ namespace System.Runtime.CompilerServices
                 // post the continuation to it.  However, treat the base type
                 // as if there wasn't a SynchronizationContext, since that's what it
                 // logically represents.
-                var syncCtx = SynchronizationContext.CurrentNoFlow;
+                var syncCtx = SynchronizationContext.Current;
                 if (syncCtx != null && syncCtx.GetType() != typeof(SynchronizationContext))
                 {
                     syncCtx.Post(s_sendOrPostCallbackRunAction, continuation);

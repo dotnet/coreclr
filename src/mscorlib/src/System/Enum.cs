@@ -275,7 +275,6 @@ namespace System
         internal static extern RuntimeType InternalGetUnderlyingType(RuntimeType enumType);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [System.Security.SuppressUnmanagedCodeSecurity]
         private static extern void GetEnumValuesAndNames(RuntimeTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, bool getNames);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -340,7 +339,7 @@ namespace System
                         return m_innerException;
 
                     default:
-                        Debug.Assert(false, "Unknown EnumParseFailure: " + m_failure);
+                        Debug.Fail("Unknown EnumParseFailure: " + m_failure);
                         return new ArgumentException(SR.Arg_EnumValueNotFound);
                 }
             }
@@ -757,7 +756,7 @@ namespace System
                     case CorElementType.U:
                         return *(UIntPtr*)pValue;
                     default:
-                        Debug.Assert(false, "Invalid primitive type");
+                        Debug.Fail("Invalid primitive type");
                         return null;
                 }
             }
@@ -809,7 +808,7 @@ namespace System
                             return *(uint*)pValue;
                         }
                     default:
-                        Debug.Assert(false, "Invalid primitive type");
+                        Debug.Fail("Invalid primitive type");
                         return 0;
                 }
             }
@@ -866,7 +865,7 @@ namespace System
                     case CorElementType.U:
                         return (*(UIntPtr*)pValue).GetHashCode();
                     default:
-                        Debug.Assert(false, "Invalid primitive type");
+                        Debug.Fail("Invalid primitive type");
                         return 0;
                 }
             }

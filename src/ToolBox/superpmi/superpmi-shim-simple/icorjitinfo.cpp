@@ -141,6 +141,12 @@ void interceptor_ICJI::getMethodVTableOffset(CORINFO_METHOD_HANDLE method,      
     original_ICorJitInfo->getMethodVTableOffset(method, offsetOfIndirection, offsetAfterIndirection, isRelative);
 }
 
+// Get the unboxed entry point for a method, if possible.
+CORINFO_METHOD_HANDLE interceptor_ICJI::getUnboxedEntry(CORINFO_METHOD_HANDLE ftn, bool* requiresInstMethodTableArg)
+{
+    return original_ICorJitInfo->getUnboxedEntry(ftn, requiresInstMethodTableArg);
+}
+
 // Find the virtual method in implementingClass that overrides virtualMethod.
 // Return null if devirtualization is not possible.
 CORINFO_METHOD_HANDLE interceptor_ICJI::resolveVirtualMethod(CORINFO_METHOD_HANDLE  virtualMethod,
@@ -356,6 +362,16 @@ CorInfoType interceptor_ICJI::asCorInfoType(CORINFO_CLASS_HANDLE cls)
 const char* interceptor_ICJI::getClassName(CORINFO_CLASS_HANDLE cls)
 {
     return original_ICorJitInfo->getClassName(cls);
+}
+
+const char* interceptor_ICJI::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    return original_ICorJitInfo->getClassNameFromMetadata(cls, namespaceName);
+}
+
+CORINFO_CLASS_HANDLE interceptor_ICJI::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    return original_ICorJitInfo->getTypeInstantiationArgument(cls, index);
 }
 
 // Append a (possibly truncated) representation of the type cls to the preallocated buffer ppBuf of length pnBufLen

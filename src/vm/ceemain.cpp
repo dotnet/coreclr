@@ -175,7 +175,6 @@
 #include "finalizerthread.h"
 #include "threadsuspend.h"
 #include "disassembler.h"
-#include "gcenv.ee.h"
 
 #ifndef FEATURE_PAL
 #include "dwreport.h"
@@ -183,7 +182,6 @@
 
 #include "stringarraylist.h"
 #include "stubhelpers.h"
-#include "perfdefaults.h"
 
 #ifdef FEATURE_STACK_SAMPLING
 #include "stacksampler.h"
@@ -2447,103 +2445,6 @@ BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)
 // Initialize the Garbage Collector
 //
 
-// Prototype for the function that initialzes the garbage collector.
-// Should only be called once: here, during EE startup.
-// Returns true if the initialization was successful, false otherwise.
-//
-// When using a standalone GC, this function is loaded dynamically using
-// GetProcAddress.
-extern "C" bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleManager** gcHandleManager, GcDacVars* gcDacVars);
-
-#ifdef FEATURE_STANDALONE_GC
-
-void LoadGarbageCollector()
-{
-    CONTRACTL {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    TCHAR *standaloneGc = nullptr;
-    CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCStandaloneLocation, &standaloneGc);
-    HMODULE hMod;
-    if (!standaloneGc)
-    {
-#ifdef FEATURE_STANDALONE_GC_ONLY
-        // if the user has set GCUseStandalone but has not given us a standalone location,
-        // try and load the initialization symbol from the current module.
-        hMod = GetModuleInst();
-#else
-        ThrowHR(E_FAIL);
-#endif // FEATURE_STANDALONE_GC_ONLY
-    }
-    else
-    {
-        hMod = CLRLoadLibrary(standaloneGc);
-    }
-
-    if (!hMod)
-    {
-        ThrowHR(E_FAIL);
-    }
-
-    InitializeGarbageCollectorFunction igcf = (InitializeGarbageCollectorFunction)GetProcAddress(hMod, INITIALIZE_GC_FUNCTION_NAME);
-    if (!igcf)
-    {
-        ThrowHR(E_FAIL);
-    }
-
-    // at this point we are committing to using the standalone GC
-    // given to us.
-    IGCToCLR* gcToClr = new (nothrow) standalone::GCToEEInterface();
-    if (!gcToClr)
-    {
-        ThrowOutOfMemory();
-    }
-
-    IGCHandleManager *pGcHandleManager;
-    IGCHeap *pGCHeap;
-    if (!igcf(gcToClr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars))
-    {
-        ThrowOutOfMemory();
-    }
-
-    assert(pGCHeap != nullptr);
-    assert(pGcHandleManager != nullptr);
-    g_pGCHeap = pGCHeap;
-    g_pGCHandleManager = pGcHandleManager;
-    g_gcDacGlobals = &g_gc_dac_vars;
-}
-
-#endif // FEATURE_STANDALONE_GC
-
-#ifndef FEATURE_STANDALONE_GC_ONLY
-void LoadStaticGarbageCollector()
-{
-    CONTRACTL{
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    IGCHandleManager *pGcHandleManager;
-    IGCHeap *pGCHeap;
-
-    if (!InitializeGarbageCollector(nullptr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars)) 
-    {
-        ThrowOutOfMemory();
-    }
-
-    assert(pGCHeap != nullptr);
-    assert(pGcHandleManager != nullptr);
-    g_pGCHeap = pGCHeap;
-    g_pGCHandleManager = pGcHandleManager;
-    g_gcDacGlobals = &g_gc_dac_vars;
-}
-#endif // FEATURE_STANDALONE_GC_ONLY
-
-
 void InitializeGarbageCollector()
 {
     CONTRACTL{
@@ -2566,21 +2467,10 @@ void InitializeGarbageCollector()
     g_pFreeObjectMethodTable->SetBaseSize(ObjSizeOf (ArrayBase));
     g_pFreeObjectMethodTable->SetComponentSize(1);
 
-#ifdef FEATURE_STANDALONE_GC
-    if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCUseStandalone)
-#ifdef FEATURE_STANDALONE_GC_ONLY
-        || true
-#endif // FEATURE_STANDALONE_GC_ONLY
-        )
+    hr = GCHeapUtilities::LoadAndInitialize();
+    if (hr != S_OK)
     {
-        LoadGarbageCollector();
-    }
-    else
-#endif // FEATURE_STANDALONE_GC
-    {
-#ifndef FEATURE_STANDALONE_GC_ONLY
-        LoadStaticGarbageCollector();
-#endif // FEATURE_STANDALONE_GC_ONLY
+        ThrowHR(hr);
     }
 
     // Apparently the Windows linker removes global variables if they are never
@@ -3300,107 +3190,6 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
 }
 
 #endif // FEATURE_USE_LCID
-// ---------------------------------------------------------------------------
-// Export shared logging code for JIT, et.al.
-// ---------------------------------------------------------------------------
-#ifdef _DEBUG
-
-extern VOID LogAssert( LPCSTR szFile, int iLine, LPCSTR expr);
-extern "C"
-//__declspec(dllexport)
-VOID STDMETHODCALLTYPE LogHelp_LogAssert( LPCSTR szFile, int iLine, LPCSTR expr)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        ENTRY_POINT;            
-        PRECONDITION(CheckPointer(szFile));
-        PRECONDITION(CheckPointer(expr));
-    }  CONTRACTL_END;
-
-    BEGIN_ENTRYPOINT_VOIDRET;
-    LogAssert(szFile, iLine, expr);
-    END_ENTRYPOINT_VOIDRET;
-
-}
-
-extern "C"
-//__declspec(dllexport)
-BOOL STDMETHODCALLTYPE LogHelp_NoGuiOnAssert()
-{
-    LIMITED_METHOD_CONTRACT;
-    BOOL fRet = FALSE;
-    BEGIN_ENTRYPOINT_VOIDRET;
-    fRet = NoGuiOnAssert();
-    END_ENTRYPOINT_VOIDRET;
-    return fRet;
-}
-
-extern "C"
-//__declspec(dllexport)
-VOID STDMETHODCALLTYPE LogHelp_TerminateOnAssert()
-{
-    LIMITED_METHOD_CONTRACT;
-    BEGIN_ENTRYPOINT_VOIDRET;
-//  __asm int 3;
-    TerminateOnAssert();
-    END_ENTRYPOINT_VOIDRET;
-
-}
-
-#else // !_DEBUG
-
-extern "C"
-//__declspec(dllexport)
-VOID STDMETHODCALLTYPE LogHelp_LogAssert( LPCSTR szFile, int iLine, LPCSTR expr) {
-    LIMITED_METHOD_CONTRACT;
-
-    //BEGIN_ENTRYPOINT_VOIDRET;
-    //END_ENTRYPOINT_VOIDRET;
-}
-
-extern "C"
-//__declspec(dllexport)
-BOOL STDMETHODCALLTYPE LogHelp_NoGuiOnAssert() {
-    LIMITED_METHOD_CONTRACT;
-
-    //BEGIN_ENTRYPOINT_VOIDRET;
-    //END_ENTRYPOINT_VOIDRET;
-
-    return FALSE;
-}
-
-extern "C"
-//__declspec(dllexport)
-VOID STDMETHODCALLTYPE LogHelp_TerminateOnAssert() {
-    LIMITED_METHOD_CONTRACT;
-
-    //BEGIN_ENTRYPOINT_VOIDRET;
-    //END_ENTRYPOINT_VOIDRET;
-
-}
-
-#endif // _DEBUG
-
-
-#ifndef ENABLE_PERF_COUNTERS
-//
-// perf counter stubs for builds which don't have perf counter support
-// These are needed because we export these functions in our DLL
-
-
-Perf_Contexts* STDMETHODCALLTYPE GetPrivateContextsPerfCounters()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    //BEGIN_ENTRYPOINT_VOIDRET;
-    //END_ENTRYPOINT_VOIDRET;
-
-    return NULL;
-}
-
-#endif
 
 
 #ifdef ENABLE_CONTRACTS_IMPL

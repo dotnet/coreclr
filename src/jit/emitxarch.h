@@ -94,14 +94,14 @@ code_t AddRexXPrefix(instruction ins, code_t code);
 code_t AddRexBPrefix(instruction ins, code_t code);
 code_t AddRexPrefix(instruction ins, code_t code);
 
-bool useSSE3_4Encodings;
-bool UseSSE3_4()
+bool useSSE4Encodings;
+bool UseSSE4()
 {
-    return useSSE3_4Encodings;
+    return useSSE4Encodings;
 }
-void SetUseSSE3_4(bool value)
+void SetUseSSE4(bool value)
 {
-    useSSE3_4Encodings = value;
+    useSSE4Encodings = value;
 }
 bool EncodedBySSE38orSSE3A(instruction ins);
 bool Is4ByteSSE4Instruction(instruction ins);
@@ -147,14 +147,14 @@ code_t AddVexPrefixIfNeededAndNotPresent(instruction ins, code_t code, emitAttr 
     return code;
 }
 
-bool useAVXEncodings;
-bool UseAVX()
+bool useVEXEncodings;
+bool UseVEXEncoding()
 {
-    return useAVXEncodings;
+    return useVEXEncodings;
 }
-void SetUseAVX(bool value)
+void SetUseVEXEncoding(bool value)
 {
-    useAVXEncodings = value;
+    useVEXEncodings = value;
 }
 
 bool containsAVXInstruction = false;
@@ -185,11 +185,11 @@ bool IsThreeOperandAVXInstruction(instruction ins)
 }
 bool Is4ByteAVXInstruction(instruction ins);
 #else  // LEGACY_BACKEND
-bool UseAVX()
+bool UseVEXEncoding()
 {
     return false;
 }
-void SetUseAVX(bool value)
+void SetUseVEXEncoding(bool value)
 {
 }
 bool ContainsAVX()
@@ -391,28 +391,15 @@ void emitIns_R_L(instruction ins, emitAttr attr, BasicBlock* dst, regNumber reg)
 
 void emitIns_R_D(instruction ins, emitAttr attr, unsigned offs, regNumber reg);
 
-void emitIns_I_AR(
-    instruction ins, emitAttr attr, int val, regNumber reg, int offs, int memCookie = 0, void* clsCookie = nullptr);
+void emitIns_I_AR(instruction ins, emitAttr attr, int val, regNumber reg, int offs);
 
 void emitIns_I_AI(instruction ins, emitAttr attr, int val, ssize_t disp);
 
-void emitIns_R_AR(instruction ins,
-                  emitAttr    attr,
-                  regNumber   ireg,
-                  regNumber   reg,
-                  int         offs,
-                  int         memCookie = 0,
-                  void*       clsCookie = nullptr);
+void emitIns_R_AR(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs);
 
 void emitIns_R_AI(instruction ins, emitAttr attr, regNumber ireg, ssize_t disp);
 
-void emitIns_AR_R(instruction ins,
-                  emitAttr    attr,
-                  regNumber   ireg,
-                  regNumber   reg,
-                  int         offs,
-                  int         memCookie = 0,
-                  void*       clsCookie = nullptr);
+void emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs);
 
 void emitIns_AI_R(instruction ins, emitAttr attr, regNumber ireg, ssize_t disp);
 

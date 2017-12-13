@@ -17,6 +17,7 @@
 namespace System.Runtime.InteropServices
 {
     using System;
+    using System.Diagnostics;
     using System.Reflection;
     using System.Threading;
     using System.Runtime;
@@ -46,9 +47,6 @@ namespace System.Runtime.InteropServices
       decorated with a reliability contract of the appropriate level. In most cases
       this should be:
         ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)
-      Also, any P/Invoke methods should use the SuppressUnmanagedCodeSecurity
-      attribute to avoid a runtime security check that can also inject failures
-      (even if the check is guaranteed to pass).
 
       The GC will run ReleaseHandle methods after any normal finalizers have been
       run for objects that were collected at the same time. This ensures classes
@@ -110,7 +108,6 @@ namespace System.Runtime.InteropServices
       class's default constructor.  Also, you probably want to define CloseHandle
       somewhere, and remember to apply a reliability contract to it.
 
-      [SuppressUnmanagedCodeSecurity]
       internal static class MyNativeMethods {
           [DllImport("kernel32")]
           private static extern MySafeHandleSubclass CreateHandle(int someState);
@@ -137,12 +134,6 @@ namespace System.Runtime.InteropServices
     {
         // ! Do not add or rearrange fields as the EE depends on this layout.
         //------------------------------------------------------------------
-#if DEBUG
-        // FxCop thinks this field is marshaled and so it raises a CA2101 error unless 
-        // we specify this.  In practice this is never presented to Win32.
-        [MarshalAs(UnmanagedType.LPWStr)]
-        private String _stackTrace;  // Where we allocated this SafeHandle.
-#endif
         protected IntPtr handle;   // this must be protected so derived classes can use out params. 
         private int _state;   // Combined ref count and closed/disposed flags (so we can atomically modify them).
         private bool _ownsHandle;  // Whether we can release this handle.
@@ -162,13 +153,6 @@ namespace System.Runtime.InteropServices
             if (!ownsHandle)
                 GC.SuppressFinalize(this);
 
-#if DEBUG
-            if (BCLDebug.SafeHandleStackTracesEnabled)
-                _stackTrace = Environment.GetStackTrace(null, false);
-            else
-                _stackTrace = "For a stack trace showing who allocated this SafeHandle, set SafeHandleStackTraces to 1 and rerun your app.";
-#endif
-
             // Set this last to prevent SafeHandle's finalizer from freeing an
             // invalid handle.  This means we don't have to worry about 
             // ThreadAbortExceptions interrupting this constructor or the managed
@@ -179,7 +163,7 @@ namespace System.Runtime.InteropServices
         // Migrating InheritanceDemands requires this default ctor, so we can mark it critical
         protected SafeHandle()
         {
-            BCLDebug.Assert(false, "SafeHandle's protected default ctor should never be used!");
+            Debug.Fail("SafeHandle's protected default ctor should never be used!");
             throw new NotImplementedException();
         }
 

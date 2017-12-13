@@ -63,8 +63,6 @@ SPTR_IMPL(ThreadStore, ThreadStore, s_pThreadStore);
 CONTEXT *ThreadStore::s_pOSContext = NULL;
 CLREvent *ThreadStore::s_pWaitForStackCrawlEvent;
 
-static CrstStatic s_initializeYieldProcessorNormalizedCrst;
-
 #ifndef DACCESS_COMPILE
 
 
@@ -904,12 +902,6 @@ void DestroyThread(Thread *th)
 #endif // _TARGET_X86_
 #endif // WIN64EXCEPTIONS
 
-    if (g_fEEShutDown == 0) 
-    {
-        th->SetThreadState(Thread::TS_ReportDead);
-        th->OnThreadTerminate(FALSE);
-    }
-
 #ifdef FEATURE_PERFTRACING
     // Before the thread dies, mark its buffers as no longer owned
     // so that they can be cleaned up after the thread dies.
@@ -919,6 +911,12 @@ void DestroyThread(Thread *th)
         pBufferList->SetOwnedByThread(false);
     }
 #endif // FEATURE_PERFTRACING
+
+    if (g_fEEShutDown == 0) 
+    {
+        th->SetThreadState(Thread::TS_ReportDead);
+        th->OnThreadTerminate(FALSE);
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -1103,7 +1101,7 @@ void InitThreadManager()
     }
     CONTRACTL_END;
 
-    s_initializeYieldProcessorNormalizedCrst.Init(CrstLeafLock);
+    InitializeYieldProcessorNormalizedCrst();
 
     // All patched helpers should fit into one page.
     // If you hit this assert on retail build, there is most likely problem with BBT script.
@@ -1243,11 +1241,11 @@ void Dbg_TrackSyncStack::EnterSync(UINT_PTR caller, void *pAwareLock)
 {
     LIMITED_METHOD_CONTRACT;
 
-    STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::EnterSync, IP=%p, Recursion=%d, MonitorHeld=%d, HoldingThread=%p.\n",
+    STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::EnterSync, IP=%p, Recursion=%u, LockState=%x, HoldingThread=%p.\n",
                     caller,
-                    ((AwareLock*)pAwareLock)->m_Recursion,
-                    ((AwareLock*)pAwareLock)->m_MonitorHeld.LoadWithoutBarrier(),
-                    ((AwareLock*)pAwareLock)->m_HoldingThread );
+                    ((AwareLock*)pAwareLock)->GetRecursionLevel(),
+                    ((AwareLock*)pAwareLock)->GetLockState(),
+                    ((AwareLock*)pAwareLock)->GetHoldingThread());
 
     if (m_Active)
     {
@@ -1269,11 +1267,11 @@ void Dbg_TrackSyncStack::LeaveSync(UINT_PTR caller, void *pAwareLock)
 {
     WRAPPER_NO_CONTRACT;
 
-    STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::LeaveSync, IP=%p, Recursion=%d, MonitorHeld=%d, HoldingThread=%p.\n",
+    STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::LeaveSync, IP=%p, Recursion=%u, LockState=%x, HoldingThread=%p.\n",
                     caller,
-                    ((AwareLock*)pAwareLock)->m_Recursion,
-                    ((AwareLock*)pAwareLock)->m_MonitorHeld.LoadWithoutBarrier(),
-                    ((AwareLock*)pAwareLock)->m_HoldingThread );
+                    ((AwareLock*)pAwareLock)->GetRecursionLevel(),
+                    ((AwareLock*)pAwareLock)->GetLockState(),
+                    ((AwareLock*)pAwareLock)->GetHoldingThread());
 
     if (m_Active)
     {
@@ -7551,11 +7549,6 @@ void CommonTripThread()
 
     thread->HandleThreadAbort ();
 
-    if (thread->IsYieldRequested())
-    {
-        __SwitchToThread(0, CALLER_LIMITS_SPINNING);
-    }
-
     if (thread->CatchAtSafePoint())
     {
         _ASSERTE(!ThreadStore::HoldingThreadStore(thread));
@@ -10214,10 +10207,6 @@ void Thread::InternalSwitchOut()
         m_ThreadHandleForClose = hThread;
     }
 
-    // The host is getting control of this thread, so if we were trying
-    // to yield this thread, we can stop those attempts now.
-    ResetThreadState(TS_YieldRequested);
-
     _ASSERTE (!fNoTLS ||
               (CExecutionEngine::CheckThreadStateNoCreate(0) == NULL));
     }
@@ -10440,11 +10429,6 @@ HRESULT Thread::Reset(BOOL fFull)
         IfFailGo(E_UNEXPECTED);
     }
 
-    if (HasThreadState(Thread::TS_YieldRequested))
-    {
-        ResetThreadState(Thread::TS_YieldRequested);
-    }
-
     _ASSERTE (!PreemptiveGCDisabled());
     _ASSERTE (m_pFrame == FRAME_TOP);
     // A host should not recycle a CLRTask if the task is created by us through CreateNewThread.
@@ -10536,11 +10520,6 @@ HRESULT Thread::ExitTask ()
     //_ASSERTE (m_UnmanagedRefCount == 0);
     if (this != GetThread())
         IfFailGo(HOST_E_INVALIDOPERATION);
-
-    if (HasThreadState(Thread::TS_YieldRequested))
-    {
-        ResetThreadState(Thread::TS_YieldRequested);
-    }
 
 #ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
     if (IsCoInitialized())
@@ -11412,104 +11391,3 @@ ULONGLONG Thread::QueryThreadProcessorUsage()
     return ullCurrentUsage - ullPreviousUsage;
 }
 #endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// YieldProcessorNormalized
-
-// Defaults are for when InitializeYieldProcessorNormalized has not yet been called or when no measurement is done, and are
-// tuned for Skylake processors
-int g_yieldsPerNormalizedYield = 1; // current value is for Skylake processors, this would be 9 for pre-Skylake
-int g_optimalMaxNormalizedYieldsPerSpinIteration = 7;
-
-static Volatile<bool> s_isYieldProcessorNormalizedInitialized = false;
-
-void InitializeYieldProcessorNormalized()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    CrstHolder lock(&s_initializeYieldProcessorNormalizedCrst);
-
-    if (s_isYieldProcessorNormalizedInitialized)
-    {
-        return;
-    }
-
-    // Intel pre-Skylake processor: measured typically 14-17 cycles per yield
-    // Intel post-Skylake processor: measured typically 125-150 cycles per yield
-    const int MeasureDurationMs = 10;
-    const int MaxYieldsPerNormalizedYield = 10; // measured typically 8-9 on pre-Skylake
-    const int MinNsPerNormalizedYield = 37; // measured typically 37-46 on post-Skylake
-    const int NsPerOptimialMaxSpinIterationDuration = 272; // approx. 900 cycles, measured 281 on pre-Skylake, 263 on post-Skylake
-    const int NsPerSecond = 1000 * 1000 * 1000;
-
-    LARGE_INTEGER li;
-    if (!QueryPerformanceFrequency(&li) || (ULONGLONG)li.QuadPart < 1000 / MeasureDurationMs)
-    {
-        // High precision clock not available or clock resolution is too low, resort to defaults
-        s_isYieldProcessorNormalizedInitialized = true;
-        return;
-    }
-    ULONGLONG ticksPerSecond = li.QuadPart;
-
-    // Measure the nanosecond delay per yield
-    ULONGLONG measureDurationTicks = ticksPerSecond / (1000 / MeasureDurationMs);
-    unsigned int yieldCount = 0;
-    QueryPerformanceCounter(&li);
-    ULONGLONG startTicks = li.QuadPart;
-    ULONGLONG elapsedTicks;
-    do
-    {
-        // On some systems, querying the high performance counter has relatively significant overhead. Do enough yields to mask
-        // the timing overhead. Assuming one yield has a delay of MinNsPerNormalizedYield, 1000 yields would have a delay in the
-        // low microsecond range.
-        for (int i = 0; i < 1000; ++i)
-        {
-            YieldProcessor();
-        }
-        yieldCount += 1000;
-
-        QueryPerformanceCounter(&li);
-        ULONGLONG nowTicks = li.QuadPart;
-        elapsedTicks = nowTicks - startTicks;
-    } while (elapsedTicks < measureDurationTicks);
-    double nsPerYield = (double)elapsedTicks * NsPerSecond / ((double)yieldCount * ticksPerSecond);
-    if (nsPerYield < 1)
-    {
-        nsPerYield = 1;
-    }
-
-    // Calculate the number of yields required to span the duration of a normalized yield
-    int yieldsPerNormalizedYield = (int)(MinNsPerNormalizedYield / nsPerYield + 0.5);
-    if (yieldsPerNormalizedYield < 1)
-    {
-        yieldsPerNormalizedYield = 1;
-    }
-    else if (yieldsPerNormalizedYield > MaxYieldsPerNormalizedYield)
-    {
-        yieldsPerNormalizedYield = MaxYieldsPerNormalizedYield;
-    }
-
-    // Calculate the maximum number of yields that would be optimal for a late spin iteration. Typically, we would not want to
-    // spend excessive amounts of time (thousands of cycles) doing only YieldProcessor, as SwitchToThread/Sleep would do a
-    // better job of allowing other work to run.
-    int optimalMaxNormalizedYieldsPerSpinIteration =
-        (int)(NsPerOptimialMaxSpinIterationDuration / (yieldsPerNormalizedYield * nsPerYield) + 0.5);
-    if (optimalMaxNormalizedYieldsPerSpinIteration < 1)
-    {
-        optimalMaxNormalizedYieldsPerSpinIteration = 1;
-    }
-
-    g_yieldsPerNormalizedYield = yieldsPerNormalizedYield;
-    g_optimalMaxNormalizedYieldsPerSpinIteration = optimalMaxNormalizedYieldsPerSpinIteration;
-    s_isYieldProcessorNormalizedInitialized = true;
-}
-
-void EnsureYieldProcessorNormalizedInitialized()
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (!s_isYieldProcessorNormalizedInitialized)
-    {
-        InitializeYieldProcessorNormalized();
-    }
-}

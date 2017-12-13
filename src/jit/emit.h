@@ -427,8 +427,8 @@ public:
 #endif // DEBUG
 
 #ifdef _TARGET_XARCH_
-        SetUseSSE3_4(false);
-        SetUseAVX(false);
+        SetUseSSE4(false);
+        SetUseVEXEncoding(false);
 #endif // _TARGET_XARCH_
     }
 
@@ -530,7 +530,7 @@ protected:
         int             amDisp : AM_DISP_BITS;
     };
 
-#if defined(DEBUG) || defined(LATE_DISASM) // LATE_DISASM needs the idMemCookie on calls to display the call target name
+#ifdef DEBUG // This information is used in DEBUG builds to display the method name for call instructions
 
     struct instrDesc;
 
@@ -539,8 +539,7 @@ protected:
         unsigned idNum;
         size_t   idSize;       // size of the instruction descriptor
         unsigned idVarRefOffs; // IL offset for LclVar reference
-        size_t   idMemCookie;  // for display of member names in addr modes
-        void*    idClsCookie;  // for display of member names in addr modes
+        size_t   idMemCookie;  // for display of method name  (also used by switch table)
 #ifdef TRANSLATE_PDB
         unsigned int idilStart; // instruction descriptor source information for PDB translation
 #endif
@@ -549,7 +548,7 @@ protected:
         CORINFO_SIG_INFO* idCallSig;     // Used to report native call site signatures to the EE
     };
 
-#endif // defined(DEBUG) || defined(LATE_DISASM)
+#endif // DEBUG
 
 #ifdef _TARGET_ARM_
     unsigned insEncodeSetFlags(insFlags sf);
@@ -579,13 +578,13 @@ protected:
     struct instrDesc
     {
     private:
-#if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
+#if (defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)) && !defined(LEGACY_BACKEND)
         // The assembly instruction
         instruction _idIns : 9;
-#else  // !defined(_TARGET_XARCH_) || defined(LEGACY_BACKEND)
+#else  // !(defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)) || defined(LEGACY_BACKEND)
         // The assembly instruction
         instruction _idIns : 8;
-#endif // !defined(_TARGET_XARCH_) || defined(LEGACY_BACKEND)
+#endif // !(defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)) || defined(LEGACY_BACKEND)
         // The format for the instruction
         insFormat _idInsFmt : 8;
 
@@ -631,7 +630,7 @@ protected:
         // x86:   16 bits
         // amd64: 17 bits
         // arm:   16 bits
-        // arm64: 16 bits
+        // arm64: 17 bits
 
     private:
 #ifdef _TARGET_XARCH_
@@ -670,7 +669,7 @@ protected:
         // x86:   30 bits
         // amd64: 38 bits
         // arm:   32 bits
-        // arm64: 30 bits
+        // arm64: 31 bits
         CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if HAS_TINY_DESC
@@ -720,8 +719,8 @@ protected:
 #define ID_EXTRA_BITFIELD_BITS (16)
 
 #elif defined(_TARGET_ARM64_)
-// For Arm64, we have used 16 bits from the second DWORD.
-#define ID_EXTRA_BITFIELD_BITS (16)
+// For Arm64, we have used 17 bits from the second DWORD.
+#define ID_EXTRA_BITFIELD_BITS (17)
 #elif defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
 // For xarch !LEGACY_BACKEND, we have used 14 bits from the second DWORD.
 #define ID_EXTRA_BITFIELD_BITS (14)
@@ -737,7 +736,7 @@ protected:
         // x86:   38 bits  // if HAS_TINY_DESC is not defined (which it is)
         // amd64: 46 bits
         // arm:   48 bits
-        // arm64: 48 bits
+        // arm64: 49 bits
         CLANG_FORMAT_COMMENT_ANCHOR;
 
         unsigned _idCnsReloc : 1; // LargeCns is an RVA and needs reloc tag
@@ -750,7 +749,7 @@ protected:
         // x86:   40 bits
         // amd64: 48 bits
         // arm:   50 bits
-        // arm64: 50 bits
+        // arm64: 51 bits
         CLANG_FORMAT_COMMENT_ANCHOR;
 
 #define ID_EXTRA_BITS (ID_EXTRA_RELOC_BITS + ID_EXTRA_BITFIELD_BITS)
@@ -766,7 +765,7 @@ protected:
         // x86:   24 bits
         // amd64: 16 bits
         // arm:   14 bits
-        // arm64: 14 bits
+        // arm64: 13 bits
 
         unsigned _idSmallCns : ID_BIT_SMALL_CNS;
 
@@ -777,7 +776,7 @@ protected:
 
 #endif // !HAS_TINY_DESC
 
-#if defined(DEBUG) || defined(LATE_DISASM)
+#ifdef DEBUG
 
         instrDescDebugInfo* _idDebugOnlyInfo;
 
@@ -792,7 +791,7 @@ protected:
         }
 
     private:
-#endif // defined(DEBUG) || defined(LATE_DISASM)
+#endif // DEBUG
 
         //
         // This is the end of the smallest instrDesc we can allocate for all
@@ -869,7 +868,7 @@ protected:
     emitter::emitAllocInstr() to clear them.
  */
 
-#if defined(DEBUG) || defined(LATE_DISASM)
+#if DEBUG
 #define TINY_IDSC_DEBUG_EXTRA (sizeof(void*))
 #else
 #define TINY_IDSC_DEBUG_EXTRA (0)
@@ -1711,8 +1710,8 @@ private:
     UNATIVE_OFFSET emitInstCodeSz(instrDesc* id);
 
 #ifndef LEGACY_BACKEND
-    CORINFO_FIELD_HANDLE emitLiteralConst(ssize_t cnsValIn, emitAttr attr = EA_8BYTE);
-    CORINFO_FIELD_HANDLE emitFltOrDblConst(GenTreeDblCon* tree, emitAttr attr = EA_UNKNOWN);
+    CORINFO_FIELD_HANDLE emitAnyConst(const void* cnsAddr, unsigned cnsSize, bool dblAlign);
+    CORINFO_FIELD_HANDLE emitFltOrDblConst(double constValue, emitAttr attr);
     regNumber emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src);
     regNumber emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src1, GenTree* src2);
     void emitInsLoadInd(instruction ins, emitAttr attr, regNumber dstReg, GenTreeIndir* mem);

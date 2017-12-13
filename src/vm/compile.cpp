@@ -4903,10 +4903,7 @@ static bool IsMethodAccessibleOutsideItsAssembly(MethodDesc * pMD)
 {
     STANDARD_VM_CONTRACT;
 
-    // Note that this ignores unrestricted friend access. This friend access allowed attribute can be used to 
-    // prevent methods from getting trimmed if necessary.
-    if (pMD->GetMDImport()->GetCustomAttributeByName(pMD->GetMemberDef(), FRIEND_ACCESS_ALLOWED_ATTRIBUTE_TYPE, NULL, NULL) == S_OK)
-        return true;
+    // Note that this ignores friend access.
 
     switch (pMD->GetAttrs() & mdMemberAccessMask)
     {
@@ -5205,19 +5202,11 @@ static void SpecializeEqualityComparer(SString& ss, Instantiation& inst)
         if (et == ELEMENT_TYPE_I4 ||
             et == ELEMENT_TYPE_U4 ||
             et == ELEMENT_TYPE_U2 ||
-            et == ELEMENT_TYPE_U1)
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_I1)
         {
             ss.Set(W("System.Collections.Generic.EnumEqualityComparer`1"));
-            return;
-        }
-        else if (et == ELEMENT_TYPE_I2)
-        {
-            ss.Set(W("System.Collections.Generic.ShortEnumEqualityComparer`1"));
-            return;
-        }
-        else if (et == ELEMENT_TYPE_I1)
-        {
-            ss.Set(W("System.Collections.Generic.SByteEnumEqualityComparer`1"));
             return;
         }
         else if (et == ELEMENT_TYPE_I8 ||

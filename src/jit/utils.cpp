@@ -120,7 +120,7 @@ const char* varTypeName(var_types vt)
 #undef DEF_TP
     };
 
-    assert((unsigned)vt < sizeof(varTypeNames) / sizeof(varTypeNames[0]));
+    assert((unsigned)vt < _countof(varTypeNames));
 
     return varTypeNames[vt];
 }
@@ -882,7 +882,7 @@ void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
  *  Histogram class.
  */
 
-Histogram::Histogram(IAllocator* allocator, const unsigned* const sizeTable)
+Histogram::Histogram(HostAllocator* allocator, const unsigned* const sizeTable)
     : m_allocator(allocator), m_sizeTable(sizeTable), m_counts(nullptr)
 {
     unsigned sizeCount = 0;
@@ -1004,7 +1004,7 @@ FixedBitVect* FixedBitVect::bitVectInit(UINT size, Compiler* comp)
 
     assert(bitVectMemSize * bitChunkSize() >= size);
 
-    bv = (FixedBitVect*)comp->compGetMemA(sizeof(FixedBitVect) + bitVectMemSize, CMK_FixedBitVect);
+    bv = (FixedBitVect*)comp->compGetMem(sizeof(FixedBitVect) + bitVectMemSize, CMK_FixedBitVect);
     memset(bv->bitVect, 0, bitVectMemSize);
 
     bv->bitVectSize = size;
@@ -1476,6 +1476,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_RETHROW:
             case CORINFO_HELP_THROW_ARGUMENTEXCEPTION:
             case CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION:
+            case CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED:
 
                 break;
 
@@ -1540,7 +1541,7 @@ void HelperCallProperties::init()
 // MyAssembly;mscorlib;System
 // MyAssembly;mscorlib System
 
-AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, IAllocator* alloc) : m_alloc(alloc)
+AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator* alloc) : m_alloc(alloc)
 {
     assert(m_alloc != nullptr);
 
@@ -2113,7 +2114,6 @@ T GetSignedMagic(T denom, int* shift /*out*/)
     UT  q2;
     UT  t;
     T   result_magic;
-    int result_shift;
     int iters = 0;
 
     absDenom = abs(denom);

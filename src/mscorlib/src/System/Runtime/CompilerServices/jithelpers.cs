@@ -66,7 +66,6 @@ namespace System.Runtime.CompilerServices
         public byte m_arrayData;
     }
 
-    [FriendAccessAllowed]
     internal static class JitHelpers
     {
         // The special dll name to be used for DllImport of QCalls
@@ -93,7 +92,7 @@ namespace System.Runtime.CompilerServices
             return new StackCrawlMarkHandle(UnsafeCastToStackPointer(ref stackMark));
         }
 
-#if _DEBUG
+#if DEBUG
         static internal int UnsafeEnumCast<T>(T val) where T : struct		// Actually T must be 4 byte (or less) enum
         {
             Debug.Assert(typeof(T).IsEnum
@@ -145,7 +144,7 @@ namespace System.Runtime.CompilerServices
             // See getILIntrinsicImplementation for how this happens.  
             throw new InvalidOperationException();
         }
-#else // _DEBUG
+#else // DEBUG
 
         static internal int UnsafeEnumCast<T>(T val) where T : struct		// Actually T must be 4 byte (or less) enum
         {
@@ -167,7 +166,7 @@ namespace System.Runtime.CompilerServices
             // See getILIntrinsicImplementation for how this happens.  
             throw new InvalidOperationException();
         }
-#endif // _DEBUG
+#endif // DEBUG
 
         // Set the given element in the array without any type or range checks
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -179,7 +178,7 @@ namespace System.Runtime.CompilerServices
             return Unsafe.As<PinningHelper>(o);
         }
 
-#if _DEBUG
+#if DEBUG
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern static bool IsAddressInStack(IntPtr ptr);
 #endif

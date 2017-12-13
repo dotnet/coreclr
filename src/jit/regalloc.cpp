@@ -219,7 +219,7 @@ const regNumber* Compiler::raGetRegVarOrder(var_types regType, unsigned* wbVarOr
     if (varTypeIsFloating(regType))
     {
         static const regNumber raRegVarOrderFlt[]   = {REG_VAR_ORDER_FLT};
-        const unsigned         raRegVarOrderFltSize = sizeof(raRegVarOrderFlt) / sizeof(raRegVarOrderFlt[0]);
+        const unsigned         raRegVarOrderFltSize = _countof(raRegVarOrderFlt);
 
         if (wbVarOrderSize != NULL)
             *wbVarOrderSize = raRegVarOrderFltSize;
@@ -230,7 +230,7 @@ const regNumber* Compiler::raGetRegVarOrder(var_types regType, unsigned* wbVarOr
 #endif
     {
         static const regNumber raRegVarOrder[]   = {REG_VAR_ORDER};
-        const unsigned         raRegVarOrderSize = sizeof(raRegVarOrder) / sizeof(raRegVarOrder[0]);
+        const unsigned         raRegVarOrderSize = _countof(raRegVarOrder);
 
         if (wbVarOrderSize != NULL)
             *wbVarOrderSize = raRegVarOrderSize;
@@ -360,7 +360,7 @@ inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
 {
     var_types type = tree->TypeGet();
 
-    if (type == TYP_STRUCT && IsHfa(tree))
+    if (varTypeIsStruct(type) && IsHfa(tree))
     {
         int retSlots = GetHfaCount(tree);
         return ((1 << retSlots) - 1) << REG_FLOATRET;
@@ -392,7 +392,7 @@ inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
         RBM_ILLEGAL,   // TYP_UNKNOWN,
     };
 
-    assert((unsigned)type < sizeof(returnMap) / sizeof(returnMap[0]));
+    assert((unsigned)type < _countof(returnMap));
     assert(returnMap[TYP_LONG] == RBM_LNGRET);
     assert(returnMap[TYP_DOUBLE] == RBM_DOUBLERET);
     assert(returnMap[TYP_REF] == RBM_INTRET);
@@ -751,7 +751,7 @@ regNumber Compiler::raUpdateRegStateForArg(RegState* regState, LclVarDsc* argDsc
 #endif // _TARGET_ARM_
 
 #if FEATURE_MULTIREG_ARGS
-    if (argDsc->lvType == TYP_STRUCT)
+    if (varTypeIsStruct(argDsc->lvType))
     {
         if (argDsc->lvIsHfaRegArg())
         {
@@ -1064,7 +1064,7 @@ inline regMaskTP Compiler::rpPredictRegMask(rpPredictReg predictReg, var_types t
     if (rpHasVarIndexForPredict(predictReg))
         predictReg = PREDICT_REG;
 
-    noway_assert((unsigned)predictReg < sizeof(rpPredictMap) / sizeof(rpPredictMap[0]));
+    noway_assert((unsigned)predictReg < _countof(rpPredictMap));
     noway_assert(rpPredictMap[predictReg] != RBM_ILLEGAL);
 
     regMaskTP regAvailForType = rpPredictMap[predictReg];
@@ -1342,7 +1342,7 @@ RET:
         while (iter.NextElem(&varNum))
         {
             // We'll need this for one of the calls...
-            VarSetOps::OldStyleClearD(this, varAsSet);
+            VarSetOps::ClearD(this, varAsSet);
             VarSetOps::AddElemD(this, varAsSet, varNum);
 
             // If this varBit and lastUse?
@@ -6352,7 +6352,7 @@ void Compiler::rpPredictRegUse()
         /*  Zero the variable/register interference graph */
         for (unsigned i = 0; i < REG_COUNT; i++)
         {
-            VarSetOps::OldStyleClearD(this, raLclRegIntf[i]);
+            VarSetOps::ClearD(this, raLclRegIntf[i]);
         }
 
         // if there are PInvoke calls and compLvFrameListRoot is enregistered,
@@ -6805,7 +6805,7 @@ void Compiler::rpRecordPrediction()
         if (rpBestRecordedPrediction == NULL)
         {
             rpBestRecordedPrediction =
-                reinterpret_cast<VarRegPrediction*>(compGetMemArrayA(lvaCount, sizeof(VarRegPrediction)));
+                reinterpret_cast<VarRegPrediction*>(compGetMemArray(lvaCount, sizeof(VarRegPrediction)));
         }
         for (unsigned k = 0; k < lvaCount; k++)
         {

@@ -1740,7 +1740,7 @@ static BOOL try_enter_spin_lock(GCSpinLock *pSpinLock)
 inline
 static void leave_spin_lock(GCSpinLock *pSpinLock)
 {
-    BOOL gc_thread_p = IsGCSpecialThread();
+    bool gc_thread_p = GCToEEInterface::WasCurrentThreadCreatedByGC();
 //    _ASSERTE((pSpinLock->holding_thread == GCToEEInterface::GetThread()) || gc_thread_p || pSpinLock->released_by_gc_p);
     pSpinLock->released_by_gc_p = gc_thread_p;
     pSpinLock->holding_thread = (Thread*) -1;
@@ -5351,23 +5351,7 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
 bool gc_heap::create_gc_thread ()
 {
     dprintf (3, ("Creating gc thread\n"));
-
-    GCThreadAffinity affinity;
-    affinity.Group = GCThreadAffinity::None;
-    affinity.Processor = GCThreadAffinity::None;
-
-    if (!gc_thread_no_affinitize_p)
-    {
-        // We are about to set affinity for GC threads. It is a good place to set up NUMA and
-        // CPU groups because the process mask, processor number, and group number are all
-        // readily available.
-        if (CPUGroupInfo::CanEnableGCCPUGroups()) 
-            set_thread_group_affinity_for_heap(heap_number, &affinity);
-        else
-            set_thread_affinity_mask_for_heap(heap_number, &affinity);
-    }
-
-    return GCToOSInterface::CreateThread(gc_thread_stub, this, &affinity);
+    return GCToEEInterface::CreateThread(gc_thread_stub, this, false, "Server GC");
 }
 
 #ifdef _MSC_VER
@@ -5401,15 +5385,19 @@ void gc_heap::gc_thread_function ()
                 proceed_with_gc_p = FALSE;
             }
             else
+            {
                 settings.init_mechanisms();
+                gc_start_event.Set();
+            }
             dprintf (3, ("%d gc thread waiting...", heap_number));
-            gc_start_event.Set();
         }
         else
         {
             gc_start_event.Wait(INFINITE, FALSE);
             dprintf (3, ("%d gc thread waiting... Done", heap_number));
         }
+
+        assert ((heap_number == 0) || proceed_with_gc_p);
 
         if (proceed_with_gc_p)
             garbage_collect (GCHeap::GcCondemnedGeneration);
@@ -5447,7 +5435,18 @@ void gc_heap::gc_thread_function ()
 
             gc_heap::internal_gc_done = true;
 
-            set_gc_done();
+            if (proceed_with_gc_p)
+                set_gc_done();
+            else
+            {
+                // If we didn't actually do a GC, it means we didn't wait up the other threads,
+                // we still need to set the gc_done_event for those threads.
+                for (int i = 0; i < gc_heap::n_heaps; i++)
+                {
+                    gc_heap* hp = gc_heap::g_heaps[i];
+                    hp->set_gc_done();
+                }
+            }
         }
         else
         {
@@ -7450,7 +7449,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
 
             // Either this thread was the thread that did the suspension which means we are suspended; or this is called
             // from a GC thread which means we are in a blocking GC and also suspended.
-            BOOL is_runtime_suspended = IsGCThread();
+            bool is_runtime_suspended = GCToEEInterface::IsGCThread();
             if (!is_runtime_suspended)
             {
                 // Note on points where the runtime is suspended anywhere in this function. Upon an attempt to suspend the
@@ -7513,7 +7512,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             // to be changed, so we are doing this after all global state has
             // been updated. See the comment above suspend_EE() above for more
             // info.
-            stomp_write_barrier_resize(!!IsGCThread(), la != saved_g_lowest_address);
+            stomp_write_barrier_resize(GCToEEInterface::IsGCThread(), la != saved_g_lowest_address);
         }
 
 
@@ -15519,8 +15518,8 @@ void gc_heap::gc1()
 #endif //BACKGROUND_GC
     {
 #ifndef FEATURE_REDHAWK
-        // IsGCThread() always returns false on CoreRT, but this assert is useful in CoreCLR.
-        assert(!!IsGCThread());
+        // GCToEEInterface::IsGCThread() always returns false on CoreRT, but this assert is useful in CoreCLR.
+        assert(GCToEEInterface::IsGCThread());
 #endif // FEATURE_REDHAWK
         adjust_ephemeral_limits();
     }
@@ -24902,27 +24901,29 @@ void gc_heap::compact_phase (int condemned_gen_number,
 #endif //_MSC_VER
 void gc_heap::gc_thread_stub (void* arg)
 {
-    ClrFlsSetThreadType (ThreadType_GC);
-    STRESS_LOG_RESERVE_MEM (GC_STRESSLOG_MULTIPLY);
-
-#ifndef FEATURE_REDHAWK
-    // We commit the thread's entire stack to ensure we're robust in low memory conditions.
-    BOOL fSuccess = Thread::CommitThreadStack(NULL);
-
-    if (!fSuccess)
-    {
-#ifdef BACKGROUND_GC
-        // For background GC we revert to doing a blocking GC.
-        return;
-#else
-        STRESS_LOG0(LF_GC, LL_ALWAYS, "Thread::CommitThreadStack failed.");
-        _ASSERTE(!"Thread::CommitThreadStack failed.");
-        GCToEEInterface::HandleFatalError(COR_E_STACKOVERFLOW);
-#endif //BACKGROUND_GC
-    }
-#endif // FEATURE_REDHAWK
-
     gc_heap* heap = (gc_heap*)arg;
+    if (!gc_thread_no_affinitize_p)
+    {
+        GCThreadAffinity affinity;
+        affinity.Group = GCThreadAffinity::None;
+        affinity.Processor = GCThreadAffinity::None;
+
+        // We are about to set affinity for GC threads. It is a good place to set up NUMA and
+        // CPU groups because the process mask, processor number, and group number are all
+        // readily available.
+        if (CPUGroupInfo::CanEnableGCCPUGroups())
+            set_thread_group_affinity_for_heap(heap->heap_number, &affinity);
+        else
+            set_thread_affinity_mask_for_heap(heap->heap_number, &affinity);
+
+        if (!GCToOSInterface::SetThreadAffinity(&affinity))
+        {
+            dprintf(1, ("Failed to set thread affinity for server GC thread"));
+        }
+    }
+
+    // server GC threads run at a higher priority than normal.
+    GCToOSInterface::BoostThreadPriority();
     _alloca (256*heap->heap_number);
     heap->gc_thread_function();
 }
@@ -24938,10 +24939,12 @@ void gc_heap::gc_thread_stub (void* arg)
 #pragma warning(push)
 #pragma warning(disable:4702) // C4702: unreachable code: gc_thread_function may not return
 #endif //_MSC_VER
-uint32_t __stdcall gc_heap::bgc_thread_stub (void* arg)
+void gc_heap::bgc_thread_stub (void* arg)
 {
     gc_heap* heap = (gc_heap*)arg;
-    return heap->bgc_thread_function();
+    heap->bgc_thread = GCToEEInterface::GetThread();
+    assert(heap->bgc_thread != nullptr);
+    heap->bgc_thread_function();
 }
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -26685,7 +26688,6 @@ BOOL gc_heap::prepare_bgc_thread(gc_heap* gh)
     BOOL success = FALSE;
     BOOL thread_created = FALSE;
     dprintf (2, ("Preparing gc thread"));
-
     gh->bgc_threads_timeout_cs.Enter();
     if (!(gh->bgc_thread_running))
     {
@@ -26715,9 +26717,7 @@ BOOL gc_heap::create_bgc_thread(gc_heap* gh)
 
     //dprintf (2, ("Creating BGC thread"));
 
-    gh->bgc_thread = GCToEEInterface::CreateBackgroundThread(gh->bgc_thread_stub, gh);
-    gh->bgc_thread_running = (gh->bgc_thread != NULL);    
-
+    gh->bgc_thread_running = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh, true, "Background GC");
     return gh->bgc_thread_running;
 }
 
@@ -26893,7 +26893,7 @@ void gc_heap::kill_gc_thread()
     recursive_gc_sync::shutdown();
 }
 
-uint32_t gc_heap::bgc_thread_function()
+void gc_heap::bgc_thread_function()
 {
     assert (background_gc_done_event.IsValid());
     assert (bgc_start_event.IsValid());
@@ -27051,7 +27051,7 @@ uint32_t gc_heap::bgc_thread_function()
     FireEtwGCTerminateConcurrentThread_V1(GetClrInstanceId());
 
     dprintf (3, ("bgc_thread thread exiting"));
-    return 0;
+    return;
 }
 
 #endif //BACKGROUND_GC
@@ -34013,7 +34013,7 @@ bool GCHeap::StressHeap(gc_alloc_context * context)
 
 #ifdef BACKGROUND_GC
         // don't trigger a GC from the GC threads but still trigger GCs from user threads.
-        if (IsGCSpecialThread())
+        if (GCToEEInterface::WasCurrentThreadCreatedByGC())
         {
             return FALSE;
         }

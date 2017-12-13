@@ -248,7 +248,6 @@ public:
 
     // Policy policies
     virtual bool PropagateNeverToRuntime() const = 0;
-    virtual bool IsLegacyPolicy() const          = 0;
 
     // Policy estimates
     virtual int CodeSizeEstimate() = 0;
@@ -454,13 +453,6 @@ public:
         return m_Policy;
     }
 
-    // True if the policy used for this result is (exactly) the legacy
-    // policy.
-    bool UsesLegacyPolicy() const
-    {
-        return m_Policy->IsLegacyPolicy();
-    }
-
     // SetReported indicates that this particular result doesn't need
     // to be reported back to the runtime, either because the runtime
     // already knows, or we aren't actually inlining yet.
@@ -523,6 +515,7 @@ struct InlArgInfo
     unsigned   argIsThis : 1;               // the argument is the 'this' pointer
     unsigned   argHasSideEff : 1;           // the argument has side effects
     unsigned   argHasGlobRef : 1;           // the argument has a global ref
+    unsigned   argHasCallerLocalRef : 1;    // the argument value depends on an aliased caller local
     unsigned   argHasTmp : 1;               // the argument will be evaluated to a temp
     unsigned   argHasLdargaOp : 1;          // Is there LDARGA(s) operation on this argument?
     unsigned   argHasStargOp : 1;           // Is there STARG(s) operation on this argument?
@@ -790,6 +783,13 @@ public:
         m_ImportCount++;
     }
 
+    // Inform strategy about the inline decision for a prejit root
+    void NotePrejitDecision(const InlineResult& r)
+    {
+        m_PrejitRootDecision    = r.GetPolicy()->GetDecision();
+        m_PrejitRootObservation = r.GetPolicy()->GetObservation();
+    }
+
     // Dump csv header for inline stats to indicated file.
     static void DumpCsvHeader(FILE* f);
 
@@ -874,27 +874,29 @@ private:
     static CritSecObject s_XmlWriterLock;
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
-    Compiler*      m_Compiler;
-    InlineContext* m_RootContext;
-    InlinePolicy*  m_LastSuccessfulPolicy;
-    InlineContext* m_LastContext;
-    unsigned       m_CallCount;
-    unsigned       m_CandidateCount;
-    unsigned       m_AlwaysCandidateCount;
-    unsigned       m_ForceCandidateCount;
-    unsigned       m_DiscretionaryCandidateCount;
-    unsigned       m_UnprofitableCandidateCount;
-    unsigned       m_ImportCount;
-    unsigned       m_InlineCount;
-    unsigned       m_MaxInlineSize;
-    unsigned       m_MaxInlineDepth;
-    int            m_InitialTimeBudget;
-    int            m_InitialTimeEstimate;
-    int            m_CurrentTimeBudget;
-    int            m_CurrentTimeEstimate;
-    int            m_InitialSizeEstimate;
-    int            m_CurrentSizeEstimate;
-    bool           m_HasForceViaDiscretionary;
+    Compiler*         m_Compiler;
+    InlineContext*    m_RootContext;
+    InlinePolicy*     m_LastSuccessfulPolicy;
+    InlineContext*    m_LastContext;
+    InlineDecision    m_PrejitRootDecision;
+    InlineObservation m_PrejitRootObservation;
+    unsigned          m_CallCount;
+    unsigned          m_CandidateCount;
+    unsigned          m_AlwaysCandidateCount;
+    unsigned          m_ForceCandidateCount;
+    unsigned          m_DiscretionaryCandidateCount;
+    unsigned          m_UnprofitableCandidateCount;
+    unsigned          m_ImportCount;
+    unsigned          m_InlineCount;
+    unsigned          m_MaxInlineSize;
+    unsigned          m_MaxInlineDepth;
+    int               m_InitialTimeBudget;
+    int               m_InitialTimeEstimate;
+    int               m_CurrentTimeBudget;
+    int               m_CurrentTimeEstimate;
+    int               m_InitialSizeEstimate;
+    int               m_CurrentSizeEstimate;
+    bool              m_HasForceViaDiscretionary;
 
 #if defined(DEBUG) || defined(INLINE_DATA)
     long       m_MethodXmlFilePosition;

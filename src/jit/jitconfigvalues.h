@@ -101,6 +101,7 @@ CONFIG_INTEGER(JitPrintInlinedMethods, W("JitPrintInlinedMethods"), 0)
 CONFIG_INTEGER(JitPrintDevirtualizedMethods, W("JitPrintDevirtualizedMethods"), 0)
 CONFIG_INTEGER(JitRequired, W("JITRequired"), -1)
 CONFIG_INTEGER(JitRoundFloat, W("JITRoundFloat"), DEFAULT_ROUND_LEVEL)
+CONFIG_INTEGER(JitStackAllocToLocalSize, W("JitStackAllocToLocalSize"), DEFAULT_MAX_LOCALLOC_TO_LOCAL_SIZE)
 CONFIG_INTEGER(JitSkipArrayBoundCheck, W("JitSkipArrayBoundCheck"), 0)
 CONFIG_INTEGER(JitSlowDebugChecksEnabled, W("JitSlowDebugChecksEnabled"), 1) // Turn on slow debug checks
 CONFIG_INTEGER(JitSplitFunctionSize, W("JitSplitFunctionSize"), 0) // On ARM, use this as the maximum function/funclet
@@ -186,7 +187,26 @@ CONFIG_STRING(NgenDumpFgDir, W("NgenDumpFgDir"))                 // Ngen Xml Flo
 CONFIG_STRING(NgenDumpFgFile, W("NgenDumpFgFile"))               // Ngen Xml Flowgraph support
 CONFIG_STRING(NgenDumpIRFormat, W("NgenDumpIRFormat"))           // Same as JitDumpIRFormat, but for ngen
 CONFIG_STRING(NgenDumpIRPhase, W("NgenDumpIRPhase"))             // Same as JitDumpIRPhase, but for ngen
-#endif                                                           // defined(DEBUG)
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+CONFIG_INTEGER(EnableSSE, W("EnableSSE"), 1)     // Enable SSE
+CONFIG_INTEGER(EnableSSE2, W("EnableSSE2"), 1)   // Enable SSE2
+CONFIG_INTEGER(EnableSSE3, W("EnableSSE3"), 1)   // Enable SSE3
+CONFIG_INTEGER(EnableSSSE3, W("EnableSSSE3"), 1) // Enable SSSE3
+CONFIG_INTEGER(EnableSSE41, W("EnableSSE41"), 1) // Enable SSE41
+CONFIG_INTEGER(EnableSSE42, W("EnableSSE42"), 1) // Enable SSE42
+// EnableAVX is already defined for DEBUG and non-DEBUG mode both
+CONFIG_INTEGER(EnableAVX2, W("EnableAVX2"), 1) // Enable AVX2
+
+CONFIG_INTEGER(EnableAES, W("EnableAES"), 1)             // Enable AES
+CONFIG_INTEGER(EnableBMI1, W("EnableBMI1"), 1)           // Enable BMI1
+CONFIG_INTEGER(EnableBMI2, W("EnableBMI2"), 1)           // Enable BMI2
+CONFIG_INTEGER(EnableFMA, W("EnableFMA"), 1)             // Enable FMA
+CONFIG_INTEGER(EnableLZCNT, W("EnableLZCNT"), 1)         // Enable AES
+CONFIG_INTEGER(EnablePCLMULQDQ, W("EnablePCLMULQDQ"), 1) // Enable PCLMULQDQ
+CONFIG_INTEGER(EnablePOPCNT, W("EnablePOPCNT"), 1)       // Enable POPCNT
+#endif                                                   // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#endif                                                   // defined(DEBUG)
 
 #ifdef FEATURE_ENABLE_NO_RANGE_CHECKS
 CONFIG_INTEGER(JitNoRangeChks, W("JitNoRngChks"), 0) // If 1, don't generate range checks
@@ -290,8 +310,9 @@ CONFIG_STRING(JitMeasureNowayAssertFile,
 
 #if defined(DEBUG) || defined(INLINE_DATA)
 CONFIG_INTEGER(JitInlineDumpData, W("JitInlineDumpData"), 0)
-CONFIG_INTEGER(JitInlineDumpXml, W("JitInlineDumpXml"), 0) // 1 = full xml (all methods), 2 = minimal xml (only method
-                                                           // with inlines)
+CONFIG_INTEGER(JitInlineDumpXml, W("JitInlineDumpXml"), 0) // 1 = full xml (+ failures in DEBUG)
+                                                           // 2 = only methods with inlines (+ failures in DEBUG)
+                                                           // 3 = only methods with inlines, no failures
 CONFIG_INTEGER(JitInlineLimit, W("JitInlineLimit"), -1)
 CONFIG_INTEGER(JitInlinePolicyDiscretionary, W("JitInlinePolicyDiscretionary"), 0)
 CONFIG_INTEGER(JitInlinePolicyFull, W("JitInlinePolicyFull"), 0)
@@ -303,7 +324,6 @@ CONFIG_STRING(JitNoInlineRange, W("JitNoInlineRange"))
 CONFIG_STRING(JitInlineReplayFile, W("JitInlineReplayFile"))
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
-CONFIG_INTEGER(JitInlinePolicyLegacy, W("JitInlinePolicyLegacy"), 0)
 CONFIG_INTEGER(JitInlinePolicyModel, W("JitInlinePolicyModel"), 0)
 
 CONFIG_INTEGER(JitEECallTimingInfo, W("JitEECallTimingInfo"), 0)

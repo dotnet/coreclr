@@ -14,27 +14,17 @@ namespace System.Buffers
         private GCHandle _handle;
 
         [CLSCompliant(false)]
-        public MemoryHandle(IRetainable owner, void* pinnedPointer = null, GCHandle handle = default(GCHandle))
+        public MemoryHandle(IRetainable owner, void* pointer = null, GCHandle handle = default(GCHandle))
         {
             _owner = owner;
-            _pointer = pinnedPointer;
+            _pointer = pointer;
             _handle = handle;
         }
 
-        internal void AddOffset(int offset)
-        {
-            if (_pointer == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.pointer);
-            }
-            else
-            {
-                _pointer = (void*)((byte*)_pointer + offset);
-            }
-        }
-
         [CLSCompliant(false)]
-        public void* PinnedPointer => _pointer;
+        public void* Pointer => _pointer;
+
+        public bool HasPointer => _pointer != null;
 
         public void Dispose()
         { 

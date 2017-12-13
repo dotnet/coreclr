@@ -697,6 +697,9 @@ namespace System
             throw new ArgumentOutOfRangeException(nameof(length));
         }
 
+        public static implicit operator ReadOnlySpan<char>(string value) =>
+            value != null ? new ReadOnlySpan<char>(ref value.GetRawStringData(), value.Length) : default;
+
         // Returns this string.
         public override String ToString()
         {
@@ -858,19 +861,16 @@ namespace System
 
         public CharEnumerator GetEnumerator()
         {
-            BCLDebug.Perf(false, "Avoid using String's CharEnumerator until C# special cases foreach on String - use the indexed property on String instead.");
             return new CharEnumerator(this);
         }
 
         IEnumerator<char> IEnumerable<char>.GetEnumerator()
         {
-            BCLDebug.Perf(false, "Avoid using String's CharEnumerator until C# special cases foreach on String - use the indexed property on String instead.");
             return new CharEnumerator(this);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            BCLDebug.Perf(false, "Avoid using String's CharEnumerator until C# special cases foreach on String - use the indexed property on String instead.");
             return new CharEnumerator(this);
         }
 

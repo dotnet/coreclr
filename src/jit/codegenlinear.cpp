@@ -902,7 +902,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             emitter*    emit       = getEmitter();
 
             // Fixes Issue #3326
-            attr = emit->emitInsAdjustLoadStoreAttr(ins, attr);
+            attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
 
             // Load local variable from its home location.
             inst_RV_TT(ins, dstReg, unspillTree, 0, attr);
@@ -1891,6 +1891,12 @@ void CodeGen::genCodeForCast(GenTreeOp* tree)
         // Casts int32/uint32/int64/uint64 --> float/double
         genIntToFloatCast(tree);
     }
+#ifndef _TARGET_64BIT_
+    else if (varTypeIsLong(tree->gtOp1))
+    {
+        genLongToIntCast(tree);
+    }
+#endif // !_TARGET_64BIT_
     else
     {
         // Casts int <--> int

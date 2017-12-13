@@ -27,7 +27,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IMapViewToIReadOnlyDictionaryAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // V this[K key] { get }
@@ -111,7 +111,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (Exception ex)
             {
                 if (HResults.E_BOUNDS == ex._HResult)
-                    throw new KeyNotFoundException(SR.Arg_KeyNotFound);
+                    throw new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
                 throw;
             }
         }

@@ -42,6 +42,7 @@ using System.Diagnostics;
 
 namespace System
 {
+    [StackTraceHidden]
     internal static class ThrowHelper
     {
         internal static void ThrowArrayTypeMismatchException()
@@ -99,14 +100,16 @@ namespace System
                                                     ExceptionResource.ArgumentOutOfRange_Count);
         }
 
-        internal static void ThrowWrongKeyTypeArgumentException(object key, Type targetType)
+        internal static void ThrowWrongKeyTypeArgumentException<T>(T key, Type targetType)
         {
-            throw GetWrongKeyTypeArgumentException(key, targetType);
+            // Generic key to move the boxing to the right hand side of throw
+            throw GetWrongKeyTypeArgumentException((object)key, targetType);
         }
 
-        internal static void ThrowWrongValueTypeArgumentException(object value, Type targetType)
+        internal static void ThrowWrongValueTypeArgumentException<T>(T value, Type targetType)
         {
-            throw GetWrongValueTypeArgumentException(value, targetType);
+            // Generic key to move the boxing to the right hand side of throw
+            throw GetWrongValueTypeArgumentException((object)value, targetType);
         }
 
         private static ArgumentException GetAddingDuplicateWithKeyArgumentException(object key)
@@ -114,14 +117,16 @@ namespace System
             return new ArgumentException(SR.Format(SR.Argument_AddingDuplicateWithKey, key));
         }
 
-        internal static void ThrowAddingDuplicateWithKeyArgumentException(object key)
+        internal static void ThrowAddingDuplicateWithKeyArgumentException<T>(T key)
         {
-            throw GetAddingDuplicateWithKeyArgumentException(key);
+            // Generic key to move the boxing to the right hand side of throw
+            throw GetAddingDuplicateWithKeyArgumentException((object)key);
         }
 
-        internal static void ThrowKeyNotFoundException()
+        internal static void ThrowKeyNotFoundException<T>(T key)
         {
-            throw new KeyNotFoundException();
+            // Generic key to move the boxing to the right hand side of throw
+            throw GetKeyNotFoundException((object)key);
         }
 
         internal static void ThrowArgumentException(ExceptionResource resource)
@@ -259,6 +264,11 @@ namespace System
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);
         }
 
+        internal static void ThrowInvalidOperationException_InvalidOperation_NoValue()
+        {
+            throw GetInvalidOperationException(ExceptionResource.InvalidOperation_NoValue);
+        }
+
         internal static void ThrowArraySegmentCtorValidationFailedExceptions(Array array, int offset, int count)
         {
             throw GetArraySegmentCtorValidationFailedException(array, offset, count);
@@ -295,6 +305,11 @@ namespace System
         private static ArgumentException GetWrongValueTypeArgumentException(object value, Type targetType)
         {
             return new ArgumentException(SR.Format(SR.Arg_WrongType, value, targetType), nameof(value));
+        }
+
+        private static KeyNotFoundException GetKeyNotFoundException(object key)
+        {
+            return new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
         }
 
         internal static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource)
@@ -349,6 +364,18 @@ namespace System
                 "The enum value is not defined, please check the ExceptionResource Enum.");
 
             return SR.GetResourceString(resource.ToString());
+        }
+
+        internal static void ThrowNotSupportedExceptionIfNonNumericType<T>()
+        {
+            if (typeof(T) != typeof(Byte) && typeof(T) != typeof(SByte) && 
+                typeof(T) != typeof(Int16) && typeof(T) != typeof(UInt16) && 
+                typeof(T) != typeof(Int32) && typeof(T) != typeof(UInt32) && 
+                typeof(T) != typeof(Int64) && typeof(T) != typeof(UInt64) &&
+                typeof(T) != typeof(Single) && typeof(T) != typeof(Double))
+            {
+                throw new NotSupportedException(SR.Arg_TypeNotSupported);
+            }
         }
     }
 
@@ -431,7 +458,9 @@ namespace System
         keyValuePair,
         input,
         ownedMemory,
-        pointer
+        pointer,
+        start,
+        format
     }
 
     //

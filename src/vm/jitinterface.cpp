@@ -4029,6 +4029,9 @@ DWORD CEEInfo::getClassAttribsInternal (CORINFO_CLASS_HANDLE clsHnd)
 
         if (pClass->IsSealed())
             ret |= CORINFO_FLG_FINAL;
+
+        if (pMT->IsIntrinsicType())
+            ret |= CORINFO_FLG_INTRINSIC_TYPE;
     }
 
     return ret;
@@ -6641,6 +6644,61 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
 }
 
 /*********************************************************************/
+const char* CEEInfo::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    CONTRACTL {
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    const char* result = NULL;
+    const char* namespaceResult = NULL;
+
+    JIT_TO_EE_TRANSITION();
+    TypeHandle VMClsHnd(cls);
+
+    if (!VMClsHnd.IsTypeDesc())
+    {
+        result = VMClsHnd.AsMethodTable()->GetFullyQualifiedNameInfo(&namespaceResult);
+    }
+   
+    if (namespaceName != NULL)
+    {
+        *namespaceName = namespaceResult;
+    }
+
+    EE_TO_JIT_TRANSITION();
+    
+    return result;
+}
+
+/*********************************************************************/
+CORINFO_CLASS_HANDLE CEEInfo::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    CONTRACTL {
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    CORINFO_CLASS_HANDLE result = NULL;
+
+    JIT_TO_EE_TRANSITION_LEAF();
+
+    TypeHandle VMClsHnd(cls);
+    Instantiation inst = VMClsHnd.GetInstantiation();
+    TypeHandle typeArg = index < inst.GetNumArgs() ? inst[index] : NULL;
+    result = CORINFO_CLASS_HANDLE(typeArg.AsPtr());
+
+    EE_TO_JIT_TRANSITION_LEAF();
+    
+    return result;
+}
+
+/*********************************************************************/
 DWORD CEEInfo::getMethodAttribs (CORINFO_METHOD_HANDLE ftn)
 {
     CONTRACTL {
@@ -8816,6 +8874,45 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethod(CORINFO_METHOD_HANDLE method
     return result;
 }
 
+/*********************************************************************/
+CORINFO_METHOD_HANDLE CEEInfo::getUnboxedEntry(
+    CORINFO_METHOD_HANDLE ftn,
+    bool* requiresInstMethodTableArg)
+{
+    CONTRACTL {
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    CORINFO_METHOD_HANDLE result = NULL;
+
+    JIT_TO_EE_TRANSITION();
+
+    MethodDesc* pMD = GetMethod(ftn);
+    bool requiresInstMTArg = false;
+
+    if (pMD->IsUnboxingStub())
+    {
+        MethodTable* pMT = pMD->GetMethodTable();
+        MethodDesc* pUnboxedMD = pMT->GetUnboxedEntryPointMD(pMD);
+
+        result = (CORINFO_METHOD_HANDLE)pUnboxedMD;
+        requiresInstMTArg = !!pUnboxedMD->RequiresInstMethodTableArg();
+    }
+
+    if (requiresInstMethodTableArg != NULL)
+    {
+        *requiresInstMethodTableArg = requiresInstMTArg;
+    }
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
+}
+
+/*********************************************************************/
 void CEEInfo::expandRawHandleIntrinsic(
     CORINFO_RESOLVED_TOKEN *        pResolvedToken,
     CORINFO_GENERICHANDLE_RESULT *  pResult)
@@ -8897,17 +8994,7 @@ CORINFO_CLASS_HANDLE CEEInfo::getDefaultEqualityComparerClassHelper(CORINFO_CLAS
         switch(normType)
         {
             case ELEMENT_TYPE_I1:
-            {
-                targetClass = MscorlibBinder::GetClass(CLASS__SBYTE_ENUM_EQUALITYCOMPARER);
-                break;
-            }
-
             case ELEMENT_TYPE_I2:
-            {
-                targetClass = MscorlibBinder::GetClass(CLASS__SHORT_ENUM_EQUALITYCOMPARER);
-                break;
-            }
-
             case ELEMENT_TYPE_U1:
             case ELEMENT_TYPE_U2:
             case ELEMENT_TYPE_I4:
@@ -11233,7 +11320,17 @@ void CEEJitInfo::recordRelocation(void * location,
                     // When m_fAllowRel32 == FALSE, the JIT will use a REL32s for direct code targets only.
                     // Use jump stub.
                     // 
-                    delta = rel32UsingJumpStub(fixupLocation, (PCODE)target, m_pMethodBeingCompiled);
+                    delta = rel32UsingJumpStub(fixupLocation, (PCODE)target, m_pMethodBeingCompiled, NULL, false /* throwOnOutOfMemoryWithinRange */);
+                    if (delta == 0)
+                    {
+                        // This forces the JIT to retry the method, which allows us to reserve more space for jump stubs and have a higher chance that
+                        // we will find space for them.
+                        m_fRel32Overflow = TRUE;
+                    }
+
+                    // Keep track of conservative estimate of how much memory may be needed by jump stubs. We will use it to reserve extra memory 
+                    // on retry to increase chances that the retry succeeds.
+                    m_reserveForJumpStubs = max(0x400, m_reserveForJumpStubs + 0x10);
                 }
             }
 
@@ -11698,7 +11795,7 @@ void CEEJitInfo::allocMem (
         COMPlusThrowHR(CORJIT_OUTOFMEM);
     }
 
-    m_CodeHeader = m_jitManager->allocCode(m_pMethodBeingCompiled, totalSize.Value(), flag
+    m_CodeHeader = m_jitManager->allocCode(m_pMethodBeingCompiled, totalSize.Value(), GetReserveForJumpStubs(), flag
 #ifdef WIN64EXCEPTIONS
                                            , m_totalUnwindInfos
                                            , &m_moduleBase
@@ -12534,6 +12631,7 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
 #endif
 
     BOOL fAllowRel32 = g_fAllowRel32 | fForceRel32Overflow;
+    size_t reserveForJumpStubs = 0;
 
     // For determinism, never try to use the REL32 in compilation process
     if (IsCompilationProcess())
@@ -12559,6 +12657,7 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
         if (fForceRel32Overflow)
             jitInfo.SetRel32Overflow(fAllowRel32);
         jitInfo.SetAllowRel32(fAllowRel32);
+        jitInfo.SetReserveForJumpStubs(reserveForJumpStubs);
 #endif
 
         MethodDesc * pMethodForSecurity = jitInfo.GetMethodForSecurity(ftnHnd);
@@ -12715,8 +12814,9 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
             // Disallow rel32 relocs in future.
             g_fAllowRel32 = FALSE;
 
-            _ASSERTE(fAllowRel32 != FALSE);
             fAllowRel32 = FALSE;
+
+            reserveForJumpStubs = jitInfo.GetReserveForJumpStubs();
             continue;
         }
 #endif // _TARGET_AMD64_ && !CROSSGEN_COMPILE

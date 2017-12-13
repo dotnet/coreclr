@@ -6178,7 +6178,7 @@ bool CodeGen::genCodeForQmarkWithCMOV(GenTreePtr tree, regMaskTP destReg, regMas
                                            INS_cmove,  INS_cmovne, INS_cmovbe, INS_cmova,  INS_cmovs,  INS_cmovns,
                                            INS_cmovpe, INS_cmovpo, INS_cmovl,  INS_cmovge, INS_cmovle, INS_cmovg};
 
-    noway_assert((unsigned)jumpKind < (sizeof(EJtoCMOV) / sizeof(EJtoCMOV[0])));
+    noway_assert((unsigned)jumpKind < _countof(EJtoCMOV));
     instruction cmov_ins = EJtoCMOV[jumpKind];
 
     noway_assert(insIsCMOV(cmov_ins));
@@ -18277,8 +18277,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
 #endif
 
 #ifdef _TARGET_ARM_
-    if (compiler->opts.ShouldUsePInvokeHelpers() && (call->gtFlags & GTF_CALL_UNMANAGED) &&
-        ((call->gtFlags & GTF_CALL_VIRT_KIND_MASK) == GTF_CALL_NONVIRT))
+    if (compiler->opts.ShouldUsePInvokeHelpers() && (call->gtFlags & GTF_CALL_UNMANAGED) && !call->IsVirtual())
     {
         (void)genPInvokeCallProlog(nullptr, 0, (CORINFO_METHOD_HANDLE) nullptr, nullptr);
     }
@@ -20336,7 +20335,7 @@ void* CodeGen::genCreateAndStoreGCInfoJIT32(unsigned codeSize,
 
 void CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsigned prologSize DEBUGARG(void* codePtr))
 {
-    IAllocator*    allowZeroAlloc = new (compiler, CMK_GC) AllowZeroAllocator(compiler->getAllocatorGC());
+    IAllocator*    allowZeroAlloc = new (compiler, CMK_GC) CompIAllocator(compiler->getAllocatorGC());
     GcInfoEncoder* gcInfoEncoder  = new (compiler, CMK_GC)
         GcInfoEncoder(compiler->info.compCompHnd, compiler->info.compMethodInfo, allowZeroAlloc, NOMEM);
     assert(gcInfoEncoder);

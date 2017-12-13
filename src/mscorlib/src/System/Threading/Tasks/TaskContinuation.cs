@@ -65,7 +65,7 @@ namespace System.Threading.Tasks
                 actionWithState(antecedent, m_stateObject);
                 return;
             }
-            Debug.Assert(false, "Invalid m_action in ContinuationTaskFromTask");
+            Debug.Fail("Invalid m_action in ContinuationTaskFromTask");
         }
     }
 
@@ -112,7 +112,7 @@ namespace System.Threading.Tasks
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
             }
-            Debug.Assert(false, "Invalid m_action in ContinuationResultTaskFromTask");
+            Debug.Fail("Invalid m_action in ContinuationResultTaskFromTask");
         }
     }
 
@@ -159,7 +159,7 @@ namespace System.Threading.Tasks
                 actionWithState(antecedent, m_stateObject);
                 return;
             }
-            Debug.Assert(false, "Invalid m_action in ContinuationTaskFromResultTask");
+            Debug.Fail("Invalid m_action in ContinuationTaskFromResultTask");
         }
     }
 
@@ -206,7 +206,7 @@ namespace System.Threading.Tasks
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
             }
-            Debug.Assert(false, "Invalid m_action in ContinuationResultTaskFromResultTask");
+            Debug.Fail("Invalid m_action in ContinuationResultTaskFromResultTask");
         }
     }
 
@@ -401,7 +401,7 @@ namespace System.Threading.Tasks
         {
             // If we're allowed to inline, run the action on this thread.
             if (canInlineContinuationTask &&
-                m_syncContext == SynchronizationContext.CurrentNoFlow)
+                m_syncContext == SynchronizationContext.Current)
             {
                 RunCallback(GetInvokeActionCallback(), m_action, ref Task.t_currentTask);
             }
@@ -614,7 +614,7 @@ namespace System.Threading.Tasks
             {
                 // If there's a SynchronizationContext, we'll be conservative and say 
                 // this is a bad location to inline.
-                var ctx = SynchronizationContext.CurrentNoFlow;
+                var ctx = SynchronizationContext.Current;
                 if (ctx != null && ctx.GetType() != typeof(SynchronizationContext)) return false;
 
                 // Similarly, if there's a non-default TaskScheduler, we'll be conservative

@@ -7,6 +7,10 @@ set __BuildType=Debug
 set __BuildOS=Windows_NT
 set __MSBuildBuildArch=x64
 
+:: Define a prefix for most output progress messages that come from this script. That makes
+:: it easier to see where these are coming from. Note that there is a trailing space here.
+set "__MsgPrefix=RUNTEST: "
+
 :: Default to highest Visual Studio version available
 ::
 :: For VS2015 (and prior), only a single instance is allowed to be installed on a box
@@ -22,15 +26,18 @@ set __MSBuildBuildArch=x64
 :: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
 :: toolset if it is installed. Finally, we will fail the script if no supported VS instance
 :: can be found.
-if defined VisualStudioVersion goto :Run
+if defined VisualStudioVersion ( 
+    if not defined __VSVersion echo %__MsgPrefix%Detected Visual Studio %VisualStudioVersion% developer command ^prompt environment
+    goto Run
+)
 
 set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if exist %_VSWHERE% (
-  for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
+  for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -prerelease -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
 )
 if not exist "%_VSCOMNTOOLS%" set _VSCOMNTOOLS=%VS140COMNTOOLS%
 if not exist "%_VSCOMNTOOLS%" (
-  echo Error: Visual Studio 2015 or 2017 required.
+  echo %__MsgPrefix%Error: Visual Studio 2015 or 2017 required.
   echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
   exit /b 1
 )
@@ -43,10 +50,6 @@ set __VSVersion=vs2017
 
 if defined VS140COMNTOOLS set __VSVersion=vs2015
 if defined VS150COMNTOOLS set __VSVersion=vs2017
-
-:: Define a prefix for most output progress messages that come from this script. That makes
-:: it easier to see where these are coming from. Note that there is a trailing space here.
-set __MsgPrefix=RUNTEST: 
 
 set __ProjectDir=%~dp0
 :: remove trailing slash
@@ -63,6 +66,8 @@ set __AgainstPackages=
 set __JitDisasm=
 set __IlasmRoundTrip=
 set __CollectDumps=
+set __DoCrossgen=
+set __CrossgenAltJit=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -90,12 +95,13 @@ if /i "%1" == "TestEnv"               (set __TestEnv=%2&shift&shift&goto Arg_Loo
 if /i "%1" == "AgainstPackages"       (set __AgainstPackages=1&shift&goto Arg_Loop)
 if /i "%1" == "sequential"            (set __Sequential=1&shift&goto Arg_Loop)
 if /i "%1" == "crossgen"              (set __DoCrossgen=1&shift&goto Arg_Loop)
+if /i "%1" == "crossgenaltjit"        (set __DoCrossgen=1&set __CrossgenAltJit=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "longgc"                (set __LongGCTests=1&shift&goto Arg_Loop)
 if /i "%1" == "gcsimulator"           (set __GCSimulatorTests=1&shift&goto Arg_Loop)
 if /i "%1" == "jitstress"             (set COMPlus_JitStress=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "jitstressregs"         (set COMPlus_JitStressRegs=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "jitminopts"            (set COMPlus_JITMinOpts=1&shift&shift&goto Arg_Loop)
-if /i "%1" == "jitforcerelocs"        (set COMPlus_ForceRelocs=1&shift&shift&goto Arg_Loop)
+if /i "%1" == "jitminopts"            (set COMPlus_JITMinOpts=1&shift&goto Arg_Loop)
+if /i "%1" == "jitforcerelocs"        (set COMPlus_ForceRelocs=1&shift&goto Arg_Loop)
 if /i "%1" == "jitdisasm"             (set __JitDisasm=1&shift&goto Arg_Loop)
 if /i "%1" == "ilasmroundtrip"        (set __IlasmRoundTrip=1&shift&goto Arg_Loop)
 if /i "%1" == "GenerateLayoutOnly"    (set __GenerateLayoutOnly=1&shift&goto Arg_Loop)
@@ -103,6 +109,7 @@ if /i "%1" == "PerfTests"             (set __PerfTests=true&shift&goto Arg_Loop)
 if /i "%1" == "runcrossgentests"      (set RunCrossGen=true&shift&goto Arg_Loop)
 if /i "%1" == "link"                  (set DoLink=true&set ILLINK=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "tieredcompilation"     (set COMPLUS_EXPERIMENTAL_TieredCompilation=1&shift&goto Arg_Loop)
+if /i "%1" == "gcname"                (set COMPlus_GCName=%2&shift&shift&goto Arg_Loop)
 
 REM change it to COMPlus_GCStress when we stop using xunit harness
 if /i "%1" == "gcstresslevel"         (set __GCSTRESSLEVEL=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
@@ -154,11 +161,7 @@ if not exist "%__VCToolsRoot%\vcvarsall.bat"          goto NoVS
 if not exist "%__VSToolsRoot%\VsDevCmd.bat"           goto NoVS
 
 :: Does MSBuild really exist?
-if not exist %_msbuildexe% echo Error: Could not find MSBuild.exe.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions. && exit /b 1
-
-:: Set the environment for the  build- VS cmd prompt
-echo %__MsgPrefix%Using environment: "%__VSToolsRoot%\VsDevCmd.bat"
-call                                 "%__VSToolsRoot%\VsDevCmd.bat"
+if not exist %_msbuildexe% echo %__MsgPrefix%Error: Could not find MSBuild.exe.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions. && exit /b 1
 
 if not defined VSINSTALLDIR (
     echo %__MsgPrefix%Error: runtest.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
@@ -186,10 +189,11 @@ if defined DoLink (
 )
 
 REM Prepare the Test Drop
+echo %__MsgPrefix%Removing 'ni' files and 'lock' folders from %__TestWorkingDir%
 REM Cleans any NI from the last run
-powershell "Get-ChildItem -path %__TestWorkingDir% -Include '*.ni.*' -Recurse -Force | Remove-Item -force"
+powershell -NoProfile "Get-ChildItem -path %__TestWorkingDir% -Include '*.ni.*' -Recurse -Force | Remove-Item -force"
 REM Cleans up any lock folder used for synchronization from last run
-powershell "Get-ChildItem -path %__TestWorkingDir% -Include 'lock' -Recurse -Force |  where {$_.Attributes -eq 'Directory'}| Remove-Item -force -Recurse"
+powershell -NoProfile "Get-ChildItem -path %__TestWorkingDir% -Include 'lock' -Recurse -Force |  where {$_.Attributes -eq 'Directory'}| Remove-Item -force -Recurse"
 
 if defined CORE_ROOT goto SkipCoreRootSetup
 
@@ -214,10 +218,7 @@ if "%__PerfTests%"=="true" goto RunPerfTests
 
 call :ResolveDependecies
 
-if not defined __DoCrossgen goto :SkipPrecompileFX
-call :PrecompileFX
-
-:SkipPrecompileFX
+if defined __DoCrossgen call :PrecompileFX
 
 if  defined __GenerateLayoutOnly (
     REM Delete the unecessary mscorlib.ni file.
@@ -280,11 +281,11 @@ echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%
 echo %__MsgPrefix%Starting the test run ...  
 
 set __BuildLogRootName=PerfTestRunResults  
-echo Running perf tests  
+echo %__MsgPrefix%Running perf tests  
 call :msbuild "%__ProjectFilesDir%\runtest.proj" /t:RunPerfTests /clp:showcommandline  
 
 if errorlevel 1 (  
-   echo Test Run failed. Refer to the following:  
+   echo %__MsgPrefix%Test Run failed. Refer to the following:  
    echo     Html report: %__TestRunHtmlLog%  
 )  
 
@@ -328,7 +329,7 @@ if %__exitCode% neq 0 (
     exit /b 0
 )
     
-echo Successfully precompiled %2
+echo %__MsgPrefix%Successfully precompiled %2
 exit /b 0
 
 :jitdisasm
@@ -349,11 +350,26 @@ if %__exitCode% neq 0 (
     exit /b 0
 )
 
-echo Successfully precompiled and generated dasm for %2
+echo %__MsgPrefix%Successfully precompiled and generated dasm for %2
 exit /b 0
 
 :PrecompileFX
+setlocal
+
+if defined __CrossgenAltJit (
+    REM Set altjit flags for the crossgen run. Note that this entire crossgen section is within a setlocal/endlocal scope,
+    REM so we don't need to save or unset these afterwards.
+    echo %__MsgPrefix%Setting altjit environment variables for %__CrossgenAltJit%.
+    set COMPlus_AltJit=*
+    set COMPlus_AltJitNgen=*
+    set COMPlus_AltJitName=%__CrossgenAltJit%
+    set COMPlus_AltJitAssertOnNYI=1
+    set COMPlus_NoGuiOnAssert=1
+    set COMPlus_ContinueOnAssert=0
+)
+
 for %%F in (%CORE_ROOT%\*.dll) do call :PrecompileAssembly "%CORE_ROOT%" "%%F" %%~nF%%~xF
+endlocal
 exit /b 0
 
 :msbuild
@@ -382,7 +398,7 @@ set __msbuildLogArgs=^
 set __msbuildArgs=%* %__msbuildCommonArgs% %__msbuildLogArgs%
 
 @REM The next line will overwrite the existing log file, if any.
-echo %_msbuildexe% %__msbuildArgs%
+echo %__MsgPrefix%%_msbuildexe% %__msbuildArgs%
 echo Invoking: %_msbuildexe% %__msbuildArgs% > "%__BuildLog%"
 
 %_msbuildexe% %__msbuildArgs%
@@ -407,7 +423,7 @@ if "%CORE_ROOT%" == "" (
 :: they often bump up against the default 10 minute timeout.
 :: 20 minutes is more than enough time for a test to complete successfully.
 if defined __LongGCTests (
-    echo Running Long GC tests, extending timeout to 20 minutes
+    echo %__MsgPrefix%Running Long GC tests, extending timeout to 20 minutes
     set __TestTimeout=1200000
     set RunningLongGCTests=1
 )
@@ -415,30 +431,30 @@ if defined __LongGCTests (
 :: GCSimulator tests can take up to an hour to complete. They are run twice a week in the
 :: CI, so it's fine if they take a long time.
 if defined __GCSimulatorTests (
-    echo Running GCSimulator tests, extending timeout to one hour
+    echo %__MsgPrefix%Running GCSimulator tests, extending timeout to one hour
     set __TestTimeout=3600000
     set RunningGCSimulatorTests=1
 )
 
 if defined __JitDisasm (
     if defined __DoCrossgen (
-        echo Running jit disasm on framework and test assemblies
+        echo %__MsgPrefix%Running jit disasm on framework and test assemblies
     )
     if not defined __DoCrossgen (
-       echo Running jit disasm on test assemblies only
+       echo %__MsgPrefix%Running jit disasm on test assemblies only
     )
     set RunningJitDisasm=1
 )
 
 if defined __IlasmRoundTrip (
-    echo Running Ilasm round trip
+    echo %__MsgPrefix%Running Ilasm round trip
     set RunningIlasmRoundTrip=1
 )
 
 set __BuildLogRootName=Tests_GenerateRuntimeLayout
 call :msbuild "%__ProjectFilesDir%\runtest.proj" /p:GenerateRuntimeLayout=true 
 if errorlevel 1 (
-    echo Test Dependency Resolution Failed
+    echo %__MsgPrefix%Test Dependency Resolution Failed
     exit /b 1
 )
 echo %__MsgPrefix%Created the runtime layout with all dependencies in %CORE_ROOT%
@@ -466,6 +482,7 @@ echo AgainstPackages           - This indicates that we are running tests that w
 echo GenerateLayoutOnly        - If specified will not run the tests and will only create the Runtime Dependency Layout
 echo sequential                - Run tests sequentially (no parallelism).
 echo crossgen                  - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests.
+echo crossgenaltjit ^<altjit^>   - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests, using the given altjit.
 echo link ^<ILlink^>             - Runs the tests after linking via the IL linker ^<ILlink^>.
 echo RunCrossgenTests          - Runs ReadytoRun tests
 echo jitstress ^<n^>             - Runs the tests with COMPlus_JitStress=n
@@ -483,6 +500,7 @@ echo                               4: GC on every allowable JITed instruction
 echo                               8: GC on every allowable NGEN instruction
 echo                              16: GC only on a unique stack trace
 echo tieredcompilation         - Run the tests with COMPlus_EXPERIMENTAL_TieredCompilation=1
+echo gcname ^<n^>              - Runs the tests with COMPlus_GCName=n
 echo msbuildargs ^<args...^>     - Pass all subsequent args directly to msbuild invocations.
 echo ^<CORE_ROOT^>               - Path to the runtime to test (if specified).
 echo.

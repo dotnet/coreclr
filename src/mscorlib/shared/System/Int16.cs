@@ -2,16 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-**
-**
-** Purpose: This class will encapsulate a short and provide an
-**          Object representation of it.
-**
-** 
-===========================================================*/
-
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -22,7 +12,7 @@ namespace System
     [Serializable]
     [StructLayout(LayoutKind.Sequential)]
     [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public struct Int16 : IComparable, IConvertible, IFormattable, IComparable<Int16>, IEquatable<Int16>
+    public struct Int16 : IComparable, IConvertible, IFormattable, IComparable<Int16>, IEquatable<Int16>, ISpanFormattable
     {
         private short m_value; // Do not rename (binary serialization)
 
@@ -79,58 +69,64 @@ namespace System
 
         public override String ToString()
         {
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.CurrentInfo);
+            return Number.FormatInt32(m_value, null, null);
         }
 
         public String ToString(IFormatProvider provider)
         {
-            return Number.FormatInt32(m_value, null, NumberFormatInfo.GetInstance(provider));
+            return Number.FormatInt32(m_value, null, provider);
         }
 
         public String ToString(String format)
         {
-            return ToString(format, NumberFormatInfo.CurrentInfo);
+            return ToString(format, null);
         }
 
         public String ToString(String format, IFormatProvider provider)
         {
-            return ToString(format, NumberFormatInfo.GetInstance(provider));
-        }
-
-        private String ToString(String format, NumberFormatInfo info)
-        {
             if (m_value < 0 && format != null && format.Length > 0 && (format[0] == 'X' || format[0] == 'x'))
             {
                 uint temp = (uint)(m_value & 0x0000FFFF);
-                return Number.FormatUInt32(temp, format, info);
+                return Number.FormatUInt32(temp, format, provider);
             }
-            return Number.FormatInt32(m_value, format, info);
+
+            return Number.FormatInt32(m_value, format, provider);
+        }
+
+        public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default, IFormatProvider provider = null)
+        {
+            if (m_value < 0 && format.Length > 0 && (format[0] == 'X' || format[0] == 'x'))
+            {
+                uint temp = (uint)(m_value & 0x0000FFFF);
+                return Number.TryFormatUInt32(temp, format, provider, destination, out charsWritten);
+            }
+            return Number.TryFormatInt32(m_value, format, provider, destination, out charsWritten);
         }
 
         public static short Parse(String s)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Parse(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.CurrentInfo);
+            return Parse((ReadOnlySpan<char>)s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo);
         }
 
         public static short Parse(String s, NumberStyles style)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Parse(s.AsReadOnlySpan(), style, NumberFormatInfo.CurrentInfo);
+            return Parse((ReadOnlySpan<char>)s, style, NumberFormatInfo.CurrentInfo);
         }
 
         public static short Parse(String s, IFormatProvider provider)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Parse(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.GetInstance(provider));
+            return Parse((ReadOnlySpan<char>)s, NumberStyles.Integer, NumberFormatInfo.GetInstance(provider));
         }
 
         public static short Parse(String s, NumberStyles style, IFormatProvider provider)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Parse(s.AsReadOnlySpan(), style, NumberFormatInfo.GetInstance(provider));
+            return Parse((ReadOnlySpan<char>)s, style, NumberFormatInfo.GetInstance(provider));
         }
 
         public static short Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
@@ -174,7 +170,12 @@ namespace System
                 return false;
             }
 
-            return TryParse(s.AsReadOnlySpan(), NumberStyles.Integer, NumberFormatInfo.CurrentInfo, out result);
+            return TryParse((ReadOnlySpan<char>)s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo, out result);
+        }
+
+        public static bool TryParse(ReadOnlySpan<char> s, out short result)
+        {
+            return TryParse(s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo, out result);
         }
 
         public static bool TryParse(String s, NumberStyles style, IFormatProvider provider, out Int16 result)
@@ -187,10 +188,10 @@ namespace System
                 return false;
             }
 
-            return TryParse(s.AsReadOnlySpan(), style, NumberFormatInfo.GetInstance(provider), out result);
+            return TryParse((ReadOnlySpan<char>)s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
-        public static bool TryParse(ReadOnlySpan<char> s, out Int16 result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        public static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider provider, out short result)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);

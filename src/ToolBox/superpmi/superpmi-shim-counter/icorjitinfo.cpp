@@ -163,6 +163,13 @@ CORINFO_METHOD_HANDLE interceptor_ICJI::resolveVirtualMethod(CORINFO_METHOD_HAND
     return original_ICorJitInfo->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
 }
 
+// Get the unboxed entry point for a method, if possible.
+CORINFO_METHOD_HANDLE interceptor_ICJI::getUnboxedEntry(CORINFO_METHOD_HANDLE ftn, bool* requiresInstMethodTableArg)
+{
+    mcs->AddCall("getUnboxedEntry");
+    return original_ICorJitInfo->getUnboxedEntry(ftn, requiresInstMethodTableArg);
+}
+
 // Given T, return the type of the default EqualityComparer<T>.
 // Returns null if the type can't be determined exactly.
 CORINFO_CLASS_HANDLE interceptor_ICJI::getDefaultEqualityComparerClass(CORINFO_CLASS_HANDLE cls)
@@ -396,6 +403,18 @@ const char* interceptor_ICJI::getClassName(CORINFO_CLASS_HANDLE cls)
 {
     mcs->AddCall("getClassName");
     return original_ICorJitInfo->getClassName(cls);
+}
+
+const char* interceptor_ICJI::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    mcs->AddCall("getClassNameFromMetadata");
+    return original_ICorJitInfo->getClassNameFromMetadata(cls, namespaceName);
+}
+
+CORINFO_CLASS_HANDLE interceptor_ICJI::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    mcs->AddCall("getTypeInstantiationArgument");
+    return original_ICorJitInfo->getTypeInstantiationArgument(cls, index);
 }
 
 // Append a (possibly truncated) representation of the type cls to the preallocated buffer ppBuf of length pnBufLen

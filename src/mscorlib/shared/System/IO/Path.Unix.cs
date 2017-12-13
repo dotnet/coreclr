@@ -14,8 +14,6 @@ namespace System.IO
 
         public static char[] GetInvalidPathChars() => new char[] { '\0' };
 
-        internal static int MaxPath => Interop.Sys.MaxPath;
-
         // Expands the given path to a fully qualified path. 
         public static string GetFullPath(string path)
         {
@@ -25,8 +23,9 @@ namespace System.IO
             if (path.Length == 0)
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
-            PathInternal.CheckInvalidPathChars(path);
-
+            if (path.IndexOf('\0') != -1)
+                throw new ArgumentException(SR.Argument_InvalidPathChars, nameof(path)); 
+            
             // Expand with current directory if necessary
             if (!IsPathRooted(path))
             {
@@ -176,7 +175,6 @@ namespace System.IO
             if (path == null)
                 return false;
 
-            PathInternal.CheckInvalidPathChars(path);
             return path.Length > 0 && path[0] == PathInternal.DirectorySeparatorChar;
         }
 

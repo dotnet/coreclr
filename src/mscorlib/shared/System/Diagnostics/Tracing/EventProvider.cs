@@ -14,6 +14,12 @@ using System.Security.Permissions;
 using System.Threading;
 using System;
 
+#if !ES_BUILD_AGAINST_DOTNET_V35
+using Contract = System.Diagnostics.Contracts.Contract;
+#else
+using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
+#endif
+
 #if ES_BUILD_AGAINST_DOTNET_V35
 using Microsoft.Internal;       // for Tuple (can't define alias for open generic types so we "use" the whole namespace)
 #endif
@@ -143,7 +149,7 @@ namespace System.Diagnostics.Tracing
             status = EventRegister(eventSource, m_etwCallback);
             if (status != 0)
             {
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS && !ES_BUILD_STANDALONE
                 throw new ArgumentException(Interop.Kernel32.GetMessage(unchecked((int)status)));
 #else
                 throw new ArgumentException(Convert.ToString(unchecked((int)status)));
@@ -628,6 +634,7 @@ namespace System.Diagnostics.Tracing
             if ((level <= m_level) ||
                 (m_level == 0))
             {
+
                 //
                 // Check if Keyword is enabled
                 //

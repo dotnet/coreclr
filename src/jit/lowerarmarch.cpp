@@ -362,7 +362,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // we should unroll the loop to improve CQ.
             // For reference see the code in lowerxarch.cpp.
 
-            if ((size != 0) && (size <= INITBLK_UNROLL_LIMIT))
+            if ((size != 0) && (size <= CPBLK_UNROLL_LIMIT))
             {
                 blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
             }
@@ -484,6 +484,28 @@ void Lowering::LowerRotate(GenTreePtr tree)
     ContainCheckShiftRotate(tree->AsOp());
 }
 
+#ifdef FEATURE_SIMD
+//----------------------------------------------------------------------------------------------
+// Lowering::LowerSIMD: Perform containment analysis for a SIMD intrinsic node.
+//
+//  Arguments:
+//     simdNode - The SIMD intrinsic node.
+//
+void Lowering::LowerSIMD(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtType != TYP_SIMD32);
+
+    if (simdNode->TypeGet() == TYP_SIMD12)
+    {
+        // GT_SIMD node requiring to produce TYP_SIMD12 in fact
+        // produces a TYP_SIMD16 result
+        simdNode->gtType = TYP_SIMD16;
+    }
+
+    ContainCheckSIMD(simdNode);
+}
+#endif // FEATURE_SIMD
+
 //------------------------------------------------------------------------
 // Containment analysis
 //------------------------------------------------------------------------
@@ -540,6 +562,20 @@ void Lowering::ContainCheckIndir(GenTreeIndir* indirNode)
     {
         return;
     }
+
+#ifdef FEATURE_SIMD
+    // If indirTree is of TYP_SIMD12, don't mark addr as contained
+    // so that it always get computed to a register.  This would
+    // mean codegen side logic doesn't need to handle all possible
+    // addr expressions that could be contained.
+    //
+    // TODO-ARM64-CQ: handle other addr mode expressions that could be marked
+    // as contained.
+    if (indirNode->TypeGet() == TYP_SIMD12)
+    {
+        return;
+    }
+#endif // FEATURE_SIMD
 
     GenTree* addr          = indirNode->Addr();
     bool     makeContained = true;
@@ -643,10 +679,9 @@ void Lowering::ContainCheckStoreLoc(GenTreeLclVarCommon* storeLoc)
 #ifdef FEATURE_SIMD
     if (varTypeIsSIMD(storeLoc))
     {
-        if (op1->IsCnsIntOrI())
+        if (op1->IsIntegralConst(0))
         {
-            // For an InitBlk we want op1 to be contained; otherwise we want it to
-            // be evaluated into an xmm register.
+            // For an InitBlk we want op1 to be contained
             MakeSrcContained(storeLoc, op1);
         }
         return;
@@ -715,6 +750,70 @@ void Lowering::ContainCheckBoundsChk(GenTreeBoundsChk* node)
         CheckImmedAndMakeContained(node, node->gtArrLen);
     }
 }
+
+#ifdef FEATURE_SIMD
+//----------------------------------------------------------------------------------------------
+// ContainCheckSIMD: Perform containment analysis for a SIMD intrinsic node.
+//
+//  Arguments:
+//     simdNode - The SIMD intrinsic node.
+//
+void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
+{
+    switch (simdNode->gtSIMDIntrinsicID)
+    {
+        GenTree* op1;
+        GenTree* op2;
+
+        case SIMDIntrinsicInit:
+            op1 = simdNode->gtOp.gtOp1;
+            if (op1->IsIntegralConst(0))
+            {
+                MakeSrcContained(simdNode, op1);
+            }
+            break;
+
+        case SIMDIntrinsicInitArray:
+            // We have an array and an index, which may be contained.
+            CheckImmedAndMakeContained(simdNode, simdNode->gtGetOp2());
+            break;
+
+        case SIMDIntrinsicOpEquality:
+        case SIMDIntrinsicOpInEquality:
+            // TODO-ARM64-CQ Support containing 0
+            break;
+
+        case SIMDIntrinsicGetItem:
+        {
+            // This implements get_Item method. The sources are:
+            //  - the source SIMD struct
+            //  - index (which element to get)
+            // The result is baseType of SIMD struct.
+            op1 = simdNode->gtOp.gtOp1;
+            op2 = simdNode->gtOp.gtOp2;
+
+            // If the index is a constant, mark it as contained.
+            if (op2->IsCnsIntOrI())
+            {
+                MakeSrcContained(simdNode, op2);
+            }
+
+            if (IsContainableMemoryOp(op1))
+            {
+                MakeSrcContained(simdNode, op1);
+                if (op1->OperGet() == GT_IND)
+                {
+                    op1->AsIndir()->Addr()->ClearContained();
+                }
+            }
+            break;
+        }
+
+        default:
+            break;
+    }
+}
+#endif // FEATURE_SIMD
 
 #endif // _TARGET_ARMARCH_
 

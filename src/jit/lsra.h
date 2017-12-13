@@ -445,6 +445,15 @@ public:
         InsertAtBottom
     };
 
+#ifdef _TARGET_ARM_
+    void addResolutionForDouble(BasicBlock*     block,
+                                GenTreePtr      insertionPoint,
+                                Interval**      sourceIntervals,
+                                regNumberSmall* location,
+                                regNumber       toReg,
+                                regNumber       fromReg,
+                                ResolveType     resolveType);
+#endif
     void addResolution(
         BasicBlock* block, GenTreePtr insertionPoint, Interval* interval, regNumber outReg, regNumber inReg);
 
@@ -630,6 +639,11 @@ private:
         return getLsraRegOptionalControl() == LSRA_REG_OPTIONAL_NO_ALLOC;
     }
 
+    bool candidatesAreStressLimited()
+    {
+        return ((lsraStressMask & (LSRA_LIMIT_MASK | LSRA_SELECT_MASK)) != 0);
+    }
+
     // Dump support
     void lsraDumpIntervals(const char* msg);
     void dumpRefPositions(const char* msg);
@@ -666,6 +680,10 @@ private:
     {
         return false;
     }
+    bool candidatesAreStressLimited()
+    {
+        return false;
+    }
 #endif // !DEBUG
 
 public:
@@ -690,6 +708,7 @@ private:
     void setFrameType();
 
     // Update allocations at start/end of block
+    void unassignIntervalBlockStart(RegRecord* regRecord, VarToRegMap inVarToRegMap);
     void processBlockEndAllocation(BasicBlock* current);
 
     // Record variable locations at start/end of block
@@ -698,24 +717,18 @@ private:
 
 #ifdef _TARGET_ARM_
     bool isSecondHalfReg(RegRecord* regRec, Interval* interval);
+    RegRecord* getSecondHalfRegRec(RegRecord* regRec);
     RegRecord* findAnotherHalfRegRec(RegRecord* regRec);
-    bool canSpillDoubleReg(RegRecord*   physRegRecord,
-                           LsraLocation refLocation,
-                           unsigned*    recentAssignedRefWeight,
-                           unsigned     farthestRefPosWeight);
+    bool canSpillDoubleReg(RegRecord* physRegRecord, LsraLocation refLocation, unsigned* recentAssignedRefWeight);
     void unassignDoublePhysReg(RegRecord* doubleRegRecord);
 #endif
     void updateAssignedInterval(RegRecord* reg, Interval* interval, RegisterType regType);
     void updatePreviousInterval(RegRecord* reg, Interval* interval, RegisterType regType);
     bool canRestorePreviousInterval(RegRecord* regRec, Interval* assignedInterval);
     bool isAssignedToInterval(Interval* interval, RegRecord* regRec);
-    bool checkActiveInterval(Interval* interval, LsraLocation refLocation);
-    bool checkActiveIntervals(RegRecord* physRegRecord, LsraLocation refLocation, RegisterType registerType);
-    bool canSpillReg(RegRecord*   physRegRecord,
-                     LsraLocation refLocation,
-                     unsigned*    recentAssignedRefWeight,
-                     unsigned     farthestRefPosWeight);
-    bool isRegInUse(RegRecord* regRec, RefPosition* refPosition, LsraLocation* nextLocation);
+    bool isRefPositionActive(RefPosition* refPosition, LsraLocation refLocation);
+    bool canSpillReg(RegRecord* physRegRecord, LsraLocation refLocation, unsigned* recentAssignedRefWeight);
+    bool isRegInUse(RegRecord* regRec, RefPosition* refPosition);
 
     RefType CheckBlockType(BasicBlock* block, BasicBlock* prevBlock);
 
@@ -776,8 +789,6 @@ private:
 
     // Given some tree node add refpositions for all the registers this node kills
     bool buildKillPositionsForNode(GenTree* tree, LsraLocation currentLoc);
-
-    bool killGCRefs(GenTree* tree);
 
     regMaskTP allRegs(RegisterType rt);
     regMaskTP allRegs(GenTree* tree);
@@ -888,13 +899,14 @@ private:
      ****************************************************************************/
     RegisterType getRegisterType(Interval* currentInterval, RefPosition* refPosition);
     regNumber tryAllocateFreeReg(Interval* current, RefPosition* refPosition);
-    RegRecord* findBestPhysicalReg(RegisterType regType,
-                                   LsraLocation endLocation,
-                                   regMaskTP    candidates,
-                                   regMaskTP    preferences);
     regNumber allocateBusyReg(Interval* current, RefPosition* refPosition, bool allocateIfProfitable);
     regNumber assignCopyReg(RefPosition* refPosition);
 
+    bool isMatchingConstant(RegRecord* physRegRecord, RefPosition* refPosition);
+    bool isSpillCandidate(Interval*     current,
+                          RefPosition*  refPosition,
+                          RegRecord*    physRegRecord,
+                          LsraLocation& nextLocation);
     void checkAndAssignInterval(RegRecord* regRec, Interval* interval);
     void assignPhysReg(RegRecord* regRec, Interval* interval);
     void assignPhysReg(regNumber reg, Interval* interval)
@@ -939,8 +951,7 @@ private:
         unsigned fromBBNum;
         unsigned toBBNum;
     };
-    typedef SimplerHashTable<unsigned, SmallPrimitiveKeyFuncs<unsigned>, SplitEdgeInfo, JitSimplerHashBehavior>
-                                SplitBBNumToTargetBBNumMap;
+    typedef JitHashTable<unsigned, JitSmallPrimitiveKeyFuncs<unsigned>, SplitEdgeInfo> SplitBBNumToTargetBBNumMap;
     SplitBBNumToTargetBBNumMap* splitBBNumToTargetBBNumMap;
     SplitBBNumToTargetBBNumMap* getSplitBBNumToTargetBBNumMap()
     {
@@ -992,7 +1003,6 @@ private:
         GenTree* operand, bool& first, LsraTupleDumpMode mode, char* operandString, const unsigned operandStringLength);
     void TupleStyleDump(LsraTupleDumpMode mode);
 
-    bool         dumpTerse;
     LsraLocation maxNodeLocation;
 
     // Width of various fields - used to create a streamlined dump during allocation that shows the
@@ -1019,11 +1029,19 @@ private:
     // How many rows have we printed since last printing a "title row"?
     static const int MAX_ROWS_BETWEEN_TITLES = 50;
     int              rowCountSinceLastTitle;
+    // Current mask of registers being printed in the dump.
+    regMaskTP lastDumpedRegisters;
+    regMaskTP registersToDump;
+    int       lastUsedRegNumIndex;
+    bool shouldDumpReg(regNumber regNum)
+    {
+        return (registersToDump & genRegMask(regNum)) != 0;
+    }
 
     void dumpRegRecordHeader();
     void dumpRegRecordTitle();
+    void dumpRegRecordTitleIfNeeded();
     void dumpRegRecordTitleLines();
-    int  getLastUsedRegNumIndex();
     void dumpRegRecords();
     // An abbreviated RefPosition dump for printing with column-based register state
     void dumpRefPositionShort(RefPosition* refPosition, BasicBlock* currentBlock);
@@ -1032,8 +1050,7 @@ private:
     // A dump of Referent, in exactly regColumnWidth characters
     void dumpIntervalName(Interval* interval);
 
-    // Events during the allocation phase that cause some dump output, which differs depending
-    // upon whether dumpTerse is set:
+    // Events during the allocation phase that cause some dump output
     enum LsraDumpEvent{
         // Conflicting def/use
         LSRA_EVENT_DEFUSE_CONFLICT, LSRA_EVENT_DEFUSE_FIXED_DELAY_USE, LSRA_EVENT_DEFUSE_CASE1, LSRA_EVENT_DEFUSE_CASE2,
@@ -1088,17 +1105,17 @@ private:
 
 private:
 #if MEASURE_MEM_ALLOC
-    IAllocator* lsraIAllocator;
+    CompAllocator* lsraAllocator;
 #endif
 
-    IAllocator* getAllocator(Compiler* comp)
+    CompAllocator* getAllocator(Compiler* comp)
     {
 #if MEASURE_MEM_ALLOC
-        if (lsraIAllocator == nullptr)
+        if (lsraAllocator == nullptr)
         {
-            lsraIAllocator = new (comp, CMK_LSRA) CompAllocator(comp, CMK_LSRA);
+            lsraAllocator = new (comp, CMK_LSRA) CompAllocator(comp, CMK_LSRA);
         }
-        return lsraIAllocator;
+        return lsraAllocator;
 #else
         return comp->getAllocator();
 #endif
@@ -1202,11 +1219,19 @@ private:
     VARSET_TP fpCalleeSaveCandidateVars;
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 #if defined(_TARGET_AMD64_)
-    static const var_types LargeVectorType     = TYP_SIMD32;
+    static bool varTypeNeedsPartialCalleeSave(var_types type)
+    {
+        return (emitTypeSize(type) == 32);
+    }
     static const var_types LargeVectorSaveType = TYP_SIMD16;
 #elif defined(_TARGET_ARM64_)
-    static const var_types LargeVectorType      = TYP_SIMD16;
-    static const var_types LargeVectorSaveType  = TYP_DOUBLE;
+    static bool varTypeNeedsPartialCalleeSave(var_types type)
+    {
+        // ARM64 ABI FP Callee save registers only require Callee to save lower 8 Bytes
+        // For SIMD types longer then 8 bytes Caller is responsible for saving and restoring Upper bytes.
+        return (emitTypeSize(type) == 16);
+    }
+    static const var_types LargeVectorSaveType = TYP_DOUBLE;
 #else // !defined(_TARGET_AMD64_) && !defined(_TARGET_ARM64_)
 #error("Unknown target architecture for FEATURE_SIMD")
 #endif // !defined(_TARGET_AMD64_) && !defined(_TARGET_ARM64_)
@@ -1261,6 +1286,10 @@ private:
 #ifdef FEATURE_SIMD
     void TreeNodeInfoInitSIMD(GenTreeSIMD* tree);
 #endif // FEATURE_SIMD
+
+#if FEATURE_HW_INTRINSICS
+    void TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree);
+#endif // FEATURE_HW_INTRINSICS
 
     void TreeNodeInfoInitPutArgStk(GenTreePutArgStk* argNode);
 #ifdef _TARGET_ARM_

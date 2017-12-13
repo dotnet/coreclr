@@ -505,6 +505,8 @@ public:
 
     CorInfoType asCorInfoType(CORINFO_CLASS_HANDLE cls);
     const char* getClassName(CORINFO_CLASS_HANDLE cls);
+    const char* getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName);
+    CORINFO_CLASS_HANDLE getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index);
     const char* getHelperName(CorInfoHelpFunc ftnNum);
     int appendClassName(__deref_inout_ecount(*pnBufLen) WCHAR** ppBuf, int* pnBufLen,
                                   CORINFO_CLASS_HANDLE    cls,
@@ -675,12 +677,14 @@ public:
     CORINFO_METHOD_HANDLE resolveVirtualMethod(
         CORINFO_METHOD_HANDLE virtualMethod,
         CORINFO_CLASS_HANDLE implementingClass,
-        CORINFO_CONTEXT_HANDLE ownerType
-        );
+        CORINFO_CONTEXT_HANDLE ownerType);
+
+    CORINFO_METHOD_HANDLE getUnboxedEntry(
+        CORINFO_METHOD_HANDLE ftn,
+        bool* requiresInstMethodTableArg);
 
     CORINFO_CLASS_HANDLE getDefaultEqualityComparerClass(
-        CORINFO_CLASS_HANDLE elemType
-        );
+        CORINFO_CLASS_HANDLE elemType);
 
     void expandRawHandleIntrinsic(
         CORINFO_RESOLVED_TOKEN *        pResolvedToken,

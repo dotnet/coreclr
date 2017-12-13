@@ -24,9 +24,11 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "ssaconfig.h" // For "SsaConfig::RESERVED_SSA_NUM"
 #include "reglist.h"
 #include "valuenumtype.h"
-#include "simplerhash.h"
+#include "jitstd.h"
+#include "jithashtable.h"
 #include "nodeinfo.h"
 #include "simd.h"
+#include "namedintrinsiclist.h"
 
 // Debugging GenTree is much easier if we add a magic virtual function to make the debugger able to figure out what type
 // it's got. This is enabled by default in DEBUG. To enable it in RET builds (temporarily!), you need to change the
@@ -258,10 +260,9 @@ struct FieldSeqNode
 // This class canonicalizes field sequences.
 class FieldSeqStore
 {
-    typedef SimplerHashTable<FieldSeqNode, /*KeyFuncs*/ FieldSeqNode, FieldSeqNode*, JitSimplerHashBehavior>
-        FieldSeqNodeCanonMap;
+    typedef JitHashTable<FieldSeqNode, /*KeyFuncs*/ FieldSeqNode, FieldSeqNode*> FieldSeqNodeCanonMap;
 
-    IAllocator*           m_alloc;
+    CompAllocator*        m_alloc;
     FieldSeqNodeCanonMap* m_canonMap;
 
     static FieldSeqNode s_notAField; // No value, just exists to provide an address.
@@ -271,7 +272,7 @@ class FieldSeqStore
     static int ConstantIndexPseudoFieldStruct;
 
 public:
-    FieldSeqStore(IAllocator* alloc);
+    FieldSeqStore(CompAllocator* alloc);
 
     // Returns the (canonical in the store) singleton field sequence for the given handle.
     FieldSeqNode* CreateSingleton(CORINFO_FIELD_HANDLE fieldHnd);
@@ -313,7 +314,6 @@ class GenTreeOperandIterator;
 /*****************************************************************************/
 
 typedef struct GenTree* GenTreePtr;
-struct GenTreeArgList;
 
 // Forward declarations of the subtypes
 #define GTSTRUCT_0(fn, en) struct GenTree##fn;
@@ -322,6 +322,8 @@ struct GenTreeArgList;
 #define GTSTRUCT_3(fn, en, en2, en3) struct GenTree##fn;
 #define GTSTRUCT_4(fn, en, en2, en3, en4) struct GenTree##fn;
 #define GTSTRUCT_N(fn, ...) struct GenTree##fn;
+#define GTSTRUCT_2_SPECIAL(fn, en, en2) GTSTRUCT_2(fn, en, en2)
+#define GTSTRUCT_3_SPECIAL(fn, en, en2, en3) GTSTRUCT_3(fn, en, en2, en3)
 #include "gtstructs.h"
 
 /*****************************************************************************/
@@ -426,6 +428,9 @@ struct GenTree
     }                                                                                                                  \
     __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
 #endif
+
+#define GTSTRUCT_2_SPECIAL(fn, en, en2) GTSTRUCT_2(fn, en, en2)
+#define GTSTRUCT_3_SPECIAL(fn, en, en2, en3) GTSTRUCT_3(fn, en, en2, en3)
 
 #include "gtstructs.h"
 
@@ -931,7 +936,14 @@ public:
 #define GTF_CALL_POP_ARGS           0x04000000 // GT_CALL -- caller pop arguments?
 #define GTF_CALL_HOISTABLE          0x02000000 // GT_CALL -- call is hoistable
 #ifdef LEGACY_BACKEND
+#ifdef _TARGET_ARM_
+// The GTF_CALL_REG_SAVE flag indicates that the call preserves all integer registers. This is used for
+// the PollGC helper. However, since the PollGC helper on ARM follows the standard calling convention,
+// for that target we don't use this flag.
+#define GTF_CALL_REG_SAVE           0x00000000
+#else
 #define GTF_CALL_REG_SAVE           0x01000000 // GT_CALL -- This call preserves all integer regs
+#endif // _TARGET_ARM_
 #endif // LEGACY_BACKEND
                                                // For additional flags for GT_CALL node see GTF_CALL_M_*
 
@@ -1017,7 +1029,7 @@ public:
 #define GTF_ICON_TOKEN_HDL          0xB0000000 // GT_CNS_INT -- constant is a token handle
 #define GTF_ICON_TLS_HDL            0xC0000000 // GT_CNS_INT -- constant is a TLS ref with offset
 #define GTF_ICON_FTN_ADDR           0xD0000000 // GT_CNS_INT -- constant is a function address
-#define GTF_ICON_CIDMID_HDL         0xE0000000 // GT_CNS_INT -- constant is a class or module ID handle
+#define GTF_ICON_CIDMID_HDL         0xE0000000 // GT_CNS_INT -- constant is a class ID or a module ID
 #define GTF_ICON_BBC_PTR            0xF0000000 // GT_CNS_INT -- constant is a basic block count pointer
 
 #define GTF_ICON_FIELD_OFF          0x08000000 // GT_CNS_INT -- constant is a field offset
@@ -1713,6 +1725,11 @@ public:
 #ifdef FEATURE_SIMD
             case GT_SIMD:
 #endif // !FEATURE_SIMD
+
+#if FEATURE_HW_INTRINSICS
+            case GT_HWIntrinsic:
+#endif // FEATURE_HW_INTRINSICS
+
 #if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
             case GT_PUTARG_REG:
 #endif // !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
@@ -1800,6 +1817,9 @@ public:
     void ReplaceOperand(GenTree** useEdge, GenTree* replacement);
 
     inline GenTreePtr gtEffectiveVal(bool commaOnly = false);
+
+    // Tunnel through any GT_RET_EXPRs
+    inline GenTree* gtRetExprVal();
 
     // Return the child of this node if it is a GT_RELOAD or GT_COPY; otherwise simply return the node itself
     inline GenTree* gtSkipReloadOrCopy();
@@ -2047,6 +2067,7 @@ public:
     {
         assert(IsValue());
         gtFlags |= GTF_CONTAINED;
+        assert(isContained());
     }
 
     void ClearContained()
@@ -2681,34 +2702,6 @@ struct GenTreeIntCon : public GenTreeIntConCommon
     // sequence of fields.
     FieldSeqNode* gtFieldSeq;
 
-#if defined(LATE_DISASM)
-
-    /*  If the constant was morphed from some other node,
-        these fields enable us to get back to what the node
-        originally represented. See use of gtNewIconHandleNode()
-     */
-
-    union {
-        /* Template struct - The significant field of the other
-         * structs should overlap exactly with this struct
-         */
-
-        struct
-        {
-            unsigned gtIconHdl1;
-            void*    gtIconHdl2;
-        } gtIconHdl;
-
-        /* GT_FIELD, etc */
-
-        struct
-        {
-            unsigned             gtIconCPX;
-            CORINFO_CLASS_HANDLE gtIconCls;
-        } gtIconFld;
-    };
-#endif
-
     GenTreeIntCon(var_types type, ssize_t value DEBUGARG(bool largeNode = false))
         : GenTreeIntConCommon(GT_CNS_INT, type DEBUGARG(largeNode))
         , gtIconVal(value)
@@ -2762,7 +2755,6 @@ struct GenTreeLngCon : public GenTreeIntConCommon
     INT32 HiVal()
     {
         return (INT32)(gtLconVal >> 32);
-        ;
     }
 
     GenTreeLngCon(INT64 val) : GenTreeIntConCommon(GT_CNS_NATIVELONG, TYP_LONG)
@@ -3191,16 +3183,16 @@ struct GenTreeFieldList : public GenTreeArgList
         if (prevList == nullptr)
         {
             gtFlags |= GTF_FIELD_LIST_HEAD;
+#ifndef LEGACY_BACKEND
+            // A GT_FIELD_LIST head is always contained. Other nodes return false from IsValue()
+            // and should not be marked as contained.
+            SetContained();
+#endif
         }
         else
         {
             prevList->gtOp2 = this;
         }
-#ifndef LEGACY_BACKEND
-        // A GT_FIELD_LIST is always contained. Note that this should only matter for the head node, but
-        // the list may be reordered.
-        gtFlags |= GTF_CONTAINED;
-#endif
     }
 };
 
@@ -4224,20 +4216,38 @@ struct GenTreeIntrinsic : public GenTreeOp
 #endif
 };
 
+struct GenTreeJitIntrinsic : public GenTreeOp
+{
+    var_types gtSIMDBaseType; // SIMD vector base type
+    unsigned  gtSIMDSize;     // SIMD vector size in bytes, use 0 for scalar intrinsics
+
+    GenTreeJitIntrinsic(
+        genTreeOps oper, var_types type, GenTreePtr op1, GenTreePtr op2, var_types baseType, unsigned size)
+        : GenTreeOp(oper, type, op1, op2), gtSIMDBaseType(baseType), gtSIMDSize(size)
+    {
+    }
+
+    bool isSIMD()
+    {
+        return gtSIMDSize != 0;
+    }
+
+#if DEBUGGABLE_GENTREE
+    GenTreeJitIntrinsic() : GenTreeOp()
+    {
+    }
+#endif
+};
+
 #ifdef FEATURE_SIMD
 
 /* gtSIMD   -- SIMD intrinsic   (possibly-binary op [NULL op2 is allowed] with additional fields) */
-struct GenTreeSIMD : public GenTreeOp
+struct GenTreeSIMD : public GenTreeJitIntrinsic
 {
     SIMDIntrinsicID gtSIMDIntrinsicID; // operation Id
-    var_types       gtSIMDBaseType;    // SIMD vector base type
-    unsigned        gtSIMDSize;        // SIMD vector size in bytes
 
     GenTreeSIMD(var_types type, GenTreePtr op1, SIMDIntrinsicID simdIntrinsicID, var_types baseType, unsigned size)
-        : GenTreeOp(GT_SIMD, type, op1, nullptr)
-        , gtSIMDIntrinsicID(simdIntrinsicID)
-        , gtSIMDBaseType(baseType)
-        , gtSIMDSize(size)
+        : GenTreeJitIntrinsic(GT_SIMD, type, op1, nullptr, baseType, size), gtSIMDIntrinsicID(simdIntrinsicID)
     {
     }
 
@@ -4247,20 +4257,41 @@ struct GenTreeSIMD : public GenTreeOp
                 SIMDIntrinsicID simdIntrinsicID,
                 var_types       baseType,
                 unsigned        size)
-        : GenTreeOp(GT_SIMD, type, op1, op2)
-        , gtSIMDIntrinsicID(simdIntrinsicID)
-        , gtSIMDBaseType(baseType)
-        , gtSIMDSize(size)
+        : GenTreeJitIntrinsic(GT_SIMD, type, op1, op2, baseType, size), gtSIMDIntrinsicID(simdIntrinsicID)
     {
     }
 
 #if DEBUGGABLE_GENTREE
-    GenTreeSIMD() : GenTreeOp()
+    GenTreeSIMD() : GenTreeJitIntrinsic()
     {
     }
 #endif
 };
 #endif // FEATURE_SIMD
+
+#if FEATURE_HW_INTRINSICS
+struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
+{
+    NamedIntrinsic gtHWIntrinsicId;
+
+    GenTreeHWIntrinsic(var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size)
+        : GenTreeJitIntrinsic(GT_HWIntrinsic, type, op1, nullptr, baseType, size), gtHWIntrinsicId(hwIntrinsicID)
+    {
+    }
+
+    GenTreeHWIntrinsic(
+        var_types type, GenTree* op1, GenTree* op2, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size)
+        : GenTreeJitIntrinsic(GT_HWIntrinsic, type, op1, op2, baseType, size), gtHWIntrinsicId(hwIntrinsicID)
+    {
+    }
+
+#if DEBUGGABLE_GENTREE
+    GenTreeHWIntrinsic() : GenTreeJitIntrinsic()
+    {
+    }
+#endif
+};
+#endif // FEATURE_HW_INTRINSICS
 
 /* gtIndex -- array access */
 
@@ -6104,6 +6135,33 @@ inline GenTreePtr GenTree::gtEffectiveVal(bool commaOnly)
         else
         {
             return effectiveVal;
+        }
+    }
+}
+
+//-------------------------------------------------------------------------
+// gtRetExprVal - walk back through GT_RET_EXPRs
+//
+// Returns:
+//    tree representing return value from a successful inline,
+//    or original call for failed or yet to be determined inline.
+//
+// Notes:
+//    Multi-level inlines can form chains of GT_RET_EXPRs.
+//    This method walks back to the root of the chain.
+
+inline GenTree* GenTree::gtRetExprVal()
+{
+    GenTree* retExprVal = this;
+    for (;;)
+    {
+        if (retExprVal->gtOper == GT_RET_EXPR)
+        {
+            retExprVal = retExprVal->gtRetExpr.gtInlineCandidate;
+        }
+        else
+        {
+            return retExprVal;
         }
     }
 }

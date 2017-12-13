@@ -653,11 +653,11 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
             maskRestoreRegsFloat &= ~reg1Mask;
             floatRegsToRestoreCount -= 1;
 
-            genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP0, nullptr);
+            genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP1, nullptr);
         }
         else
         {
-            genEpilogRestoreReg(reg2, spOffset, stackDelta, REG_IP0, nullptr);
+            genEpilogRestoreReg(reg2, spOffset, stackDelta, REG_IP1, nullptr);
         }
     }
 
@@ -702,11 +702,11 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
             maskRestoreRegsInt &= ~reg1Mask;
             intRegsToRestoreCount -= 1;
 
-            genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP0, nullptr);
+            genEpilogRestoreRegPair(reg1, reg2, spOffset, stackDelta, REG_IP1, nullptr);
         }
         else
         {
-            genEpilogRestoreReg(reg2, spOffset, stackDelta, REG_IP0, nullptr);
+            genEpilogRestoreReg(reg2, spOffset, stackDelta, REG_IP1, nullptr);
         }
     }
 
@@ -1461,10 +1461,9 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
 
         case GT_CNS_DBL:
         {
-            emitter*       emit       = getEmitter();
-            emitAttr       size       = emitActualTypeSize(tree);
-            GenTreeDblCon* dblConst   = tree->AsDblCon();
-            double         constValue = dblConst->gtDblCon.gtDconVal;
+            emitter* emit       = getEmitter();
+            emitAttr size       = emitActualTypeSize(tree);
+            double   constValue = tree->AsDblCon()->gtDconVal;
 
             // Make sure we use "movi reg, 0x00"  only for positive zero (0.0) and not for negative zero (-0.0)
             if (*(__int64*)&constValue == 0)
@@ -1485,7 +1484,7 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
 
                 // We must load the FP constant from the constant pool
                 // Emit a data section constant for the float or double constant.
-                CORINFO_FIELD_HANDLE hnd = emit->emitFltOrDblConst(dblConst);
+                CORINFO_FIELD_HANDLE hnd = emit->emitFltOrDblConst(constValue, size);
                 // For long address (default): `adrp + ldr + fmov` will be emitted.
                 // For short address (proven later), `ldr` will be emitted.
                 emit->emitIns_R_C(INS_ldr, size, targetReg, addrReg, hnd, 0);
@@ -1614,7 +1613,7 @@ void CodeGen::genCodeForLclVar(GenTreeLclVar* tree)
         instruction ins  = ins_Load(targetType);
         emitAttr    attr = emitTypeSize(targetType);
 
-        attr = emit->emitInsAdjustLoadStoreAttr(ins, attr);
+        attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
 
         emit->emitIns_R_S(ins, attr, tree->gtRegNum, varNum, 0);
         genProduceReg(tree);
@@ -1633,6 +1632,15 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
     regNumber targetReg  = tree->gtRegNum;
     emitter*  emit       = getEmitter();
     noway_assert(targetType != TYP_STRUCT);
+
+#ifdef FEATURE_SIMD
+    // storing of TYP_SIMD12 (i.e. Vector3) field
+    if (tree->TypeGet() == TYP_SIMD12)
+    {
+        genStoreLclTypeSIMD12(tree);
+        return;
+    }
+#endif // FEATURE_SIMD
 
     // record the offset
     unsigned offset = tree->gtLclOffs;
@@ -1667,7 +1675,7 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
 
     emitAttr attr = emitTypeSize(targetType);
 
-    attr = emit->emitInsAdjustLoadStoreAttr(ins, attr);
+    attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
 
     emit->emitIns_S_R(ins, attr, dataReg, varNum, offset);
 
@@ -1705,12 +1713,31 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
     }
     else
     {
+#ifdef FEATURE_SIMD
+        // storing of TYP_SIMD12 (i.e. Vector3) field
+        if (tree->TypeGet() == TYP_SIMD12)
+        {
+            genStoreLclTypeSIMD12(tree);
+            return;
+        }
+#endif // FEATURE_SIMD
+
         genConsumeRegs(data);
 
         regNumber dataReg = REG_NA;
         if (data->isContainedIntOrIImmed())
         {
+            // This is only possible for a zero-init.
             assert(data->IsIntegralConst(0));
+
+            if (varTypeIsSIMD(targetType))
+            {
+                assert(targetReg != REG_NA);
+                getEmitter()->emitIns_R_I(INS_movi, EA_16BYTE, targetReg, 0x00, INS_OPTS_16B);
+                genProduceReg(tree);
+                return;
+            }
+
             dataReg = REG_ZR;
         }
         else
@@ -1727,7 +1754,7 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
             instruction ins  = ins_Store(targetType);
             emitAttr    attr = emitTypeSize(targetType);
 
-            attr = emit->emitInsAdjustLoadStoreAttr(ins, attr);
+            attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
 
             emit->emitIns_S_R(ins, attr, dataReg, varNum, /* offset */ 0);
 
@@ -2052,22 +2079,22 @@ void CodeGen::genLclHeap(GenTreePtr tree)
         // to tickle the pages to ensure that SP is always valid and is
         // in sync with the "stack guard page".  Note that in the worst
         // case SP is on the last byte of the guard page.  Thus you must
-        // touch SP+0 first not SP+x01000.
+        // touch SP-0 first not SP-0x1000.
         //
         // Another subtlety is that you don't want SP to be exactly on the
         // boundary of the guard page because PUSH is predecrement, thus
         // call setup would not touch the guard page but just beyond it
         //
         // Note that we go through a few hoops so that SP never points to
-        // illegal pages at any time during the ticking process
+        // illegal pages at any time during the tickling process
         //
         //       subs  regCnt, SP, regCnt      // regCnt now holds ultimate SP
-        //       jb    Loop                    // result is smaller than orignial SP (no wrap around)
+        //       bvc   Loop                    // result is smaller than orignial SP (no wrap around)
         //       mov   regCnt, #0              // Overflow, pick lowest possible value
         //
         //  Loop:
         //       ldr   wzr, [SP + 0]           // tickle the page - read from the page
-        //       sub   regTmp, SP, GetOsPageSize()   // decrement SP by GetOsPageSize()
+        //       sub   regTmp, SP, PAGE_SIZE   // decrement SP by eeGetPageSize()
         //       cmp   regTmp, regCnt
         //       jb    Done
         //       mov   SP, regTmp
@@ -2096,7 +2123,7 @@ void CodeGen::genLclHeap(GenTreePtr tree)
         // tickle the page - Read from the updated SP - this triggers a page fault when on the guard page
         getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, REG_ZR, REG_SPBASE, 0);
 
-        // decrement SP by GetOsPageSize()
+        // decrement SP by eeGetPageSize()
         getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, regTmp, REG_SPBASE, compiler->eeGetPageSize());
 
         getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, regTmp, regCnt);
@@ -2104,7 +2131,7 @@ void CodeGen::genLclHeap(GenTreePtr tree)
         inst_JMP(jmpLTU, done);
 
         // Update SP to be at the next page of stack that we will tickle
-        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, regCnt);
+        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, regTmp);
 
         // Jump to loop and tickle new stack address
         inst_JMP(EJ_jmp, loop);
@@ -2997,6 +3024,15 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
     emitAttr    attr       = emitTypeSize(tree);
     instruction ins        = ins_Store(targetType);
 
+#ifdef FEATURE_SIMD
+    // Storing Vector3 of size 12 bytes through indirection
+    if (tree->TypeGet() == TYP_SIMD12)
+    {
+        genStoreIndTypeSIMD12(tree);
+        return;
+    }
+#endif // FEATURE_SIMD
+
     GCInfo::WriteBarrierForm writeBarrierForm = gcInfo.gcIsWriteBarrierCandidate(tree, data);
     if (writeBarrierForm != GCInfo::WBF_NoBarrier)
     {
@@ -3689,8 +3725,1246 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
 
     regMaskTP killMask = compiler->compHelperCallKillSet((CorInfoHelpFunc)helper);
     regTracker.rsTrashRegSet(killMask);
-    regTracker.rsTrashRegsForGCInterruptability();
 }
+
+#ifdef FEATURE_SIMD
+
+//------------------------------------------------------------------------
+// genSIMDIntrinsic: Generate code for a SIMD Intrinsic.  This is the main
+// routine which in turn calls apropriate genSIMDIntrinsicXXX() routine.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    Currently, we only recognize SIMDVector<float> and SIMDVector<int>, and
+//    a limited set of methods.
+//
+// TODO-CLEANUP Merge all versions of this function and move to new file simdcodegencommon.cpp.
+void CodeGen::genSIMDIntrinsic(GenTreeSIMD* simdNode)
+{
+    // NYI for unsupported base types
+    if (simdNode->gtSIMDBaseType != TYP_INT && simdNode->gtSIMDBaseType != TYP_LONG &&
+        simdNode->gtSIMDBaseType != TYP_FLOAT && simdNode->gtSIMDBaseType != TYP_DOUBLE &&
+        simdNode->gtSIMDBaseType != TYP_CHAR && simdNode->gtSIMDBaseType != TYP_UBYTE &&
+        simdNode->gtSIMDBaseType != TYP_SHORT && simdNode->gtSIMDBaseType != TYP_BYTE &&
+        simdNode->gtSIMDBaseType != TYP_UINT && simdNode->gtSIMDBaseType != TYP_ULONG)
+    {
+        noway_assert(!"SIMD intrinsic with unsupported base type.");
+    }
+
+    switch (simdNode->gtSIMDIntrinsicID)
+    {
+        case SIMDIntrinsicInit:
+            genSIMDIntrinsicInit(simdNode);
+            break;
+
+        case SIMDIntrinsicInitN:
+            genSIMDIntrinsicInitN(simdNode);
+            break;
+
+        case SIMDIntrinsicSqrt:
+        case SIMDIntrinsicAbs:
+        case SIMDIntrinsicCast:
+        case SIMDIntrinsicConvertToSingle:
+        case SIMDIntrinsicConvertToInt32:
+        case SIMDIntrinsicConvertToUInt32:
+        case SIMDIntrinsicConvertToDouble:
+        case SIMDIntrinsicConvertToInt64:
+        case SIMDIntrinsicConvertToUInt64:
+            genSIMDIntrinsicUnOp(simdNode);
+            break;
+
+        case SIMDIntrinsicWidenLo:
+        case SIMDIntrinsicWidenHi:
+            genSIMDIntrinsicWiden(simdNode);
+            break;
+
+        case SIMDIntrinsicNarrow:
+            genSIMDIntrinsicNarrow(simdNode);
+            break;
+
+        case SIMDIntrinsicAdd:
+        case SIMDIntrinsicSub:
+        case SIMDIntrinsicMul:
+        case SIMDIntrinsicDiv:
+        case SIMDIntrinsicBitwiseAnd:
+        case SIMDIntrinsicBitwiseAndNot:
+        case SIMDIntrinsicBitwiseOr:
+        case SIMDIntrinsicBitwiseXor:
+        case SIMDIntrinsicMin:
+        case SIMDIntrinsicMax:
+        case SIMDIntrinsicEqual:
+        case SIMDIntrinsicLessThan:
+        case SIMDIntrinsicGreaterThan:
+        case SIMDIntrinsicLessThanOrEqual:
+        case SIMDIntrinsicGreaterThanOrEqual:
+            genSIMDIntrinsicBinOp(simdNode);
+            break;
+
+        case SIMDIntrinsicOpEquality:
+        case SIMDIntrinsicOpInEquality:
+            genSIMDIntrinsicRelOp(simdNode);
+            break;
+
+        case SIMDIntrinsicDotProduct:
+            genSIMDIntrinsicDotProduct(simdNode);
+            break;
+
+        case SIMDIntrinsicGetItem:
+            genSIMDIntrinsicGetItem(simdNode);
+            break;
+
+        case SIMDIntrinsicSetX:
+        case SIMDIntrinsicSetY:
+        case SIMDIntrinsicSetZ:
+        case SIMDIntrinsicSetW:
+            genSIMDIntrinsicSetItem(simdNode);
+            break;
+
+        case SIMDIntrinsicUpperSave:
+            genSIMDIntrinsicUpperSave(simdNode);
+            break;
+
+        case SIMDIntrinsicUpperRestore:
+            genSIMDIntrinsicUpperRestore(simdNode);
+            break;
+
+        case SIMDIntrinsicSelect:
+            NYI("SIMDIntrinsicSelect lowered during import to (a & sel) | (b & ~sel)");
+            break;
+
+        default:
+            noway_assert(!"Unimplemented SIMD intrinsic.");
+            unreached();
+    }
+}
+
+insOpts CodeGen::genGetSimdInsOpt(bool is16B, var_types elementType)
+{
+    insOpts result = INS_OPTS_NONE;
+
+    switch (elementType)
+    {
+        case TYP_DOUBLE:
+        case TYP_ULONG:
+        case TYP_LONG:
+            result = is16B ? INS_OPTS_2D : INS_OPTS_1D;
+            break;
+        case TYP_FLOAT:
+        case TYP_UINT:
+        case TYP_INT:
+            result = is16B ? INS_OPTS_4S : INS_OPTS_2S;
+            break;
+        case TYP_CHAR:
+        case TYP_SHORT:
+            result = is16B ? INS_OPTS_8H : INS_OPTS_4H;
+            break;
+        case TYP_UBYTE:
+        case TYP_BYTE:
+            result = is16B ? INS_OPTS_16B : INS_OPTS_8B;
+            break;
+        default:
+            assert(!"Unsupported element type");
+            unreached();
+    }
+
+    return result;
+}
+
+// getOpForSIMDIntrinsic: return the opcode for the given SIMD Intrinsic
+//
+// Arguments:
+//   intrinsicId    -   SIMD intrinsic Id
+//   baseType       -   Base type of the SIMD vector
+//   immed          -   Out param. Any immediate byte operand that needs to be passed to SSE2 opcode
+//
+//
+// Return Value:
+//   Instruction (op) to be used, and immed is set if instruction requires an immediate operand.
+//
+instruction CodeGen::getOpForSIMDIntrinsic(SIMDIntrinsicID intrinsicId, var_types baseType, unsigned* ival /*=nullptr*/)
+{
+    instruction result = INS_invalid;
+    if (varTypeIsFloating(baseType))
+    {
+        switch (intrinsicId)
+        {
+            case SIMDIntrinsicAbs:
+                result = INS_fabs;
+                break;
+            case SIMDIntrinsicAdd:
+                result = INS_fadd;
+                break;
+            case SIMDIntrinsicBitwiseAnd:
+                result = INS_and;
+                break;
+            case SIMDIntrinsicBitwiseAndNot:
+                result = INS_bic;
+                break;
+            case SIMDIntrinsicBitwiseOr:
+                result = INS_orr;
+                break;
+            case SIMDIntrinsicBitwiseXor:
+                result = INS_eor;
+                break;
+            case SIMDIntrinsicCast:
+                result = INS_mov;
+                break;
+            case SIMDIntrinsicConvertToInt32:
+            case SIMDIntrinsicConvertToInt64:
+                result = INS_fcvtns;
+                break;
+            case SIMDIntrinsicConvertToUInt32:
+            case SIMDIntrinsicConvertToUInt64:
+                result = INS_fcvtnu;
+                break;
+            case SIMDIntrinsicDiv:
+                result = INS_fdiv;
+                break;
+            case SIMDIntrinsicEqual:
+                result = INS_fcmeq;
+                break;
+            case SIMDIntrinsicGreaterThan:
+                result = INS_fcmgt;
+                break;
+            case SIMDIntrinsicGreaterThanOrEqual:
+                result = INS_fcmge;
+                break;
+            case SIMDIntrinsicLessThan:
+                result = INS_fcmlt;
+                break;
+            case SIMDIntrinsicLessThanOrEqual:
+                result = INS_fcmle;
+                break;
+            case SIMDIntrinsicMax:
+                result = INS_fmax;
+                break;
+            case SIMDIntrinsicMin:
+                result = INS_fmin;
+                break;
+            case SIMDIntrinsicMul:
+                result = INS_fmul;
+                break;
+            case SIMDIntrinsicNarrow:
+                // Use INS_fcvtn lower bytes of result followed by INS_fcvtn2 for upper bytes
+                // Return lower bytes instruction here
+                result = INS_fcvtn;
+                break;
+            case SIMDIntrinsicSelect:
+                result = INS_bsl;
+                break;
+            case SIMDIntrinsicSqrt:
+                result = INS_fsqrt;
+                break;
+            case SIMDIntrinsicSub:
+                result = INS_fsub;
+                break;
+            case SIMDIntrinsicWidenLo:
+                result = INS_fcvtl;
+                break;
+            case SIMDIntrinsicWidenHi:
+                result = INS_fcvtl2;
+                break;
+            default:
+                assert(!"Unsupported SIMD intrinsic");
+                unreached();
+        }
+    }
+    else
+    {
+        bool isUnsigned = varTypeIsUnsigned(baseType);
+
+        switch (intrinsicId)
+        {
+            case SIMDIntrinsicAbs:
+                assert(!isUnsigned);
+                result = INS_abs;
+                break;
+            case SIMDIntrinsicAdd:
+                result = INS_add;
+                break;
+            case SIMDIntrinsicBitwiseAnd:
+                result = INS_and;
+                break;
+            case SIMDIntrinsicBitwiseAndNot:
+                result = INS_bic;
+                break;
+            case SIMDIntrinsicBitwiseOr:
+                result = INS_orr;
+                break;
+            case SIMDIntrinsicBitwiseXor:
+                result = INS_eor;
+                break;
+            case SIMDIntrinsicCast:
+                result = INS_mov;
+                break;
+            case SIMDIntrinsicConvertToDouble:
+            case SIMDIntrinsicConvertToSingle:
+                result = isUnsigned ? INS_ucvtf : INS_scvtf;
+                break;
+            case SIMDIntrinsicEqual:
+                result = INS_cmeq;
+                break;
+            case SIMDIntrinsicGreaterThan:
+                result = isUnsigned ? INS_cmhi : INS_cmgt;
+                break;
+            case SIMDIntrinsicGreaterThanOrEqual:
+                result = isUnsigned ? INS_cmhs : INS_cmge;
+                break;
+            case SIMDIntrinsicLessThan:
+                assert(!isUnsigned);
+                result = INS_cmlt;
+                break;
+            case SIMDIntrinsicLessThanOrEqual:
+                assert(!isUnsigned);
+                result = INS_cmle;
+                break;
+            case SIMDIntrinsicMax:
+                result = isUnsigned ? INS_umax : INS_smax;
+                break;
+            case SIMDIntrinsicMin:
+                result = isUnsigned ? INS_umin : INS_smin;
+                break;
+            case SIMDIntrinsicMul:
+                result = INS_mul;
+                break;
+            case SIMDIntrinsicNarrow:
+                // Use INS_xtn lower bytes of result followed by INS_xtn2 for upper bytes
+                // Return lower bytes instruction here
+                result = INS_xtn;
+                break;
+            case SIMDIntrinsicSelect:
+                result = INS_bsl;
+                break;
+            case SIMDIntrinsicSub:
+                result = INS_sub;
+                break;
+            case SIMDIntrinsicWidenLo:
+                result = isUnsigned ? INS_uxtl : INS_sxtl;
+                break;
+            case SIMDIntrinsicWidenHi:
+                result = isUnsigned ? INS_uxtl2 : INS_sxtl2;
+                break;
+            default:
+                assert(!"Unsupported SIMD intrinsic");
+                unreached();
+        }
+    }
+
+    noway_assert(result != INS_invalid);
+    return result;
+}
+
+//------------------------------------------------------------------------
+// genSIMDIntrinsicInit: Generate code for SIMD Intrinsic Initialize.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genSIMDIntrinsicInit(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicInit);
+
+    GenTree*  op1       = simdNode->gtGetOp1();
+    var_types baseType  = simdNode->gtSIMDBaseType;
+    regNumber targetReg = simdNode->gtRegNum;
+    assert(targetReg != REG_NA);
+    var_types targetType = simdNode->TypeGet();
+
+    genConsumeOperands(simdNode);
+    regNumber op1Reg = op1->IsIntegralConst(0) ? REG_ZR : op1->gtRegNum;
+
+    // TODO-ARM64-CQ Add LD1R to allow SIMDIntrinsicInit from contained memory
+    // TODO-ARM64-CQ Add MOVI to allow SIMDIntrinsicInit from contained immediate small constants
+
+    assert(op1->isContained() == op1->IsIntegralConst(0));
+    assert(!op1->isUsedFromMemory());
+
+    assert(genIsValidFloatReg(targetReg));
+    assert(genIsValidIntReg(op1Reg) || genIsValidFloatReg(op1Reg));
+
+    bool     is16B = (simdNode->gtSIMDSize > 8);
+    emitAttr attr  = is16B ? EA_16BYTE : EA_8BYTE;
+    insOpts  opt   = genGetSimdInsOpt(is16B, baseType);
+
+    if (genIsValidIntReg(op1Reg))
+    {
+        getEmitter()->emitIns_R_R(INS_dup, attr, targetReg, op1Reg, opt);
+    }
+    else
+    {
+        getEmitter()->emitIns_R_R_I(INS_dup, attr, targetReg, op1Reg, 0, opt);
+    }
+
+    genProduceReg(simdNode);
+}
+
+//-------------------------------------------------------------------------------------------
+// genSIMDIntrinsicInitN: Generate code for SIMD Intrinsic Initialize for the form that takes
+//                        a number of arguments equal to the length of the Vector.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genSIMDIntrinsicInitN(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicInitN);
+
+    regNumber targetReg = simdNode->gtRegNum;
+    assert(targetReg != REG_NA);
+
+    var_types targetType = simdNode->TypeGet();
+
+    var_types baseType = simdNode->gtSIMDBaseType;
+
+    regNumber vectorReg = targetReg;
+
+    if (varTypeIsFloating(baseType))
+    {
+        // Note that we cannot use targetReg before consuming all float source operands.
+        // Therefore use an internal temp register
+        vectorReg = simdNode->GetSingleTempReg(RBM_ALLFLOAT);
+    }
+
+    emitAttr baseTypeSize = emitTypeSize(baseType);
+
+    // We will first consume the list items in execution (left to right) order,
+    // and record the registers.
+    regNumber operandRegs[FP_REGSIZE_BYTES];
+    unsigned  initCount = 0;
+    for (GenTree* list = simdNode->gtGetOp1(); list != nullptr; list = list->gtGetOp2())
+    {
+        assert(list->OperGet() == GT_LIST);
+        GenTree* listItem = list->gtGetOp1();
+        assert(listItem->TypeGet() == baseType);
+        assert(!listItem->isContained());
+        regNumber operandReg   = genConsumeReg(listItem);
+        operandRegs[initCount] = operandReg;
+        initCount++;
+    }
+
+    assert((initCount * baseTypeSize) <= simdNode->gtSIMDSize);
+
+    if (initCount * baseTypeSize < EA_16BYTE)
+    {
+        getEmitter()->emitIns_R_I(INS_movi, EA_16BYTE, vectorReg, 0x00, INS_OPTS_16B);
+    }
+
+    if (varTypeIsIntegral(baseType))
+    {
+        for (unsigned i = 0; i < initCount; i++)
+        {
+            getEmitter()->emitIns_R_R_I(INS_ins, baseTypeSize, vectorReg, operandRegs[i], i);
+        }
+    }
+    else
+    {
+        for (unsigned i = 0; i < initCount; i++)
+        {
+            getEmitter()->emitIns_R_R_I_I(INS_ins, baseTypeSize, vectorReg, operandRegs[i], i, 0);
+        }
+    }
+
+    // Load the initialized value.
+    if (targetReg != vectorReg)
+    {
+        getEmitter()->emitIns_R_R(INS_mov, EA_16BYTE, targetReg, vectorReg);
+    }
+
+    genProduceReg(simdNode);
+}
+
+//----------------------------------------------------------------------------------
+// genSIMDIntrinsicUnOp: Generate code for SIMD Intrinsic unary operations like sqrt.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genSIMDIntrinsicUnOp(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicSqrt || simdNode->gtSIMDIntrinsicID == SIMDIntrinsicCast ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicAbs ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicConvertToSingle ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicConvertToInt32 ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicConvertToUInt32 ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicConvertToDouble ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicConvertToInt64 ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicConvertToUInt64);
+
+    GenTree*  op1       = simdNode->gtGetOp1();
+    var_types baseType  = simdNode->gtSIMDBaseType;
+    regNumber targetReg = simdNode->gtRegNum;
+    assert(targetReg != REG_NA);
+    var_types targetType = simdNode->TypeGet();
+
+    genConsumeOperands(simdNode);
+    regNumber op1Reg = op1->gtRegNum;
+
+    assert(genIsValidFloatReg(op1Reg));
+    assert(genIsValidFloatReg(targetReg));
+
+    instruction ins = getOpForSIMDIntrinsic(simdNode->gtSIMDIntrinsicID, baseType);
+
+    bool     is16B = (simdNode->gtSIMDSize > 8);
+    emitAttr attr  = is16B ? EA_16BYTE : EA_8BYTE;
+    insOpts  opt   = (ins == INS_mov) ? INS_OPTS_NONE : genGetSimdInsOpt(is16B, baseType);
+
+    getEmitter()->emitIns_R_R(ins, attr, targetReg, op1Reg, opt);
+
+    genProduceReg(simdNode);
+}
+
+//--------------------------------------------------------------------------------
+// genSIMDIntrinsicWiden: Generate code for SIMD Intrinsic Widen operations
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Notes:
+//    The Widen intrinsics are broken into separate intrinsics for the two results.
+//
+void CodeGen::genSIMDIntrinsicWiden(GenTreeSIMD* simdNode)
+{
+    assert((simdNode->gtSIMDIntrinsicID == SIMDIntrinsicWidenLo) ||
+           (simdNode->gtSIMDIntrinsicID == SIMDIntrinsicWidenHi));
+
+    GenTree*  op1       = simdNode->gtGetOp1();
+    var_types baseType  = simdNode->gtSIMDBaseType;
+    regNumber targetReg = simdNode->gtRegNum;
+    assert(targetReg != REG_NA);
+    var_types simdType = simdNode->TypeGet();
+
+    genConsumeOperands(simdNode);
+    regNumber op1Reg   = op1->gtRegNum;
+    regNumber srcReg   = op1Reg;
+    emitAttr  emitSize = emitActualTypeSize(simdType);
+
+    instruction ins = getOpForSIMDIntrinsic(simdNode->gtSIMDIntrinsicID, baseType);
+
+    if (varTypeIsFloating(baseType))
+    {
+        getEmitter()->emitIns_R_R(ins, EA_8BYTE, targetReg, op1Reg);
+    }
+    else
+    {
+        bool    is16B = (simdNode->gtSIMDIntrinsicID == SIMDIntrinsicWidenHi);
+        insOpts opt   = genGetSimdInsOpt(is16B, baseType);
+
+        getEmitter()->emitIns_R_R(ins, is16B ? EA_16BYTE : EA_8BYTE, targetReg, op1Reg, opt);
+    }
+
+    genProduceReg(simdNode);
+}
+
+//--------------------------------------------------------------------------------
+// genSIMDIntrinsicNarrow: Generate code for SIMD Intrinsic Narrow operations
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Notes:
+//    This intrinsic takes two arguments. The first operand is narrowed to produce the
+//    lower elements of the results, and the second operand produces the high elements.
+//
+void CodeGen::genSIMDIntrinsicNarrow(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicNarrow);
+
+    GenTree*  op1       = simdNode->gtGetOp1();
+    GenTree*  op2       = simdNode->gtGetOp2();
+    var_types baseType  = simdNode->gtSIMDBaseType;
+    regNumber targetReg = simdNode->gtRegNum;
+    assert(targetReg != REG_NA);
+    var_types simdType = simdNode->TypeGet();
+    emitAttr  emitSize = emitTypeSize(simdType);
+
+    genConsumeOperands(simdNode);
+    regNumber op1Reg = op1->gtRegNum;
+    regNumber op2Reg = op2->gtRegNum;
+
+    assert(genIsValidFloatReg(op1Reg));
+    assert(genIsValidFloatReg(op2Reg));
+    assert(genIsValidFloatReg(targetReg));
+    assert(op2Reg != targetReg);
+    assert(simdNode->gtSIMDSize == 16);
+
+    instruction ins = getOpForSIMDIntrinsic(simdNode->gtSIMDIntrinsicID, baseType);
+    assert((ins == INS_fcvtn) || (ins == INS_xtn));
+
+    if (ins == INS_fcvtn)
+    {
+        getEmitter()->emitIns_R_R(INS_fcvtn, EA_8BYTE, targetReg, op1Reg);
+        getEmitter()->emitIns_R_R(INS_fcvtn2, EA_8BYTE, targetReg, op2Reg);
+    }
+    else
+    {
+        insOpts opt  = INS_OPTS_NONE;
+        insOpts opt2 = INS_OPTS_NONE;
+
+        // This is not the same as genGetSimdInsOpt()
+        // Basetype is the soure operand type
+        // However encoding is based on the destination operand type which is 1/2 the basetype.
+        switch (baseType)
+        {
+            case TYP_ULONG:
+            case TYP_LONG:
+                opt  = INS_OPTS_2S;
+                opt2 = INS_OPTS_4S;
+                break;
+            case TYP_UINT:
+            case TYP_INT:
+                opt  = INS_OPTS_4H;
+                opt2 = INS_OPTS_8H;
+                break;
+            case TYP_CHAR:
+            case TYP_SHORT:
+                opt  = INS_OPTS_8B;
+                opt2 = INS_OPTS_16B;
+                break;
+            default:
+                assert(!"Unsupported narrowing element type");
+                unreached();
+        }
+        getEmitter()->emitIns_R_R(INS_xtn, EA_8BYTE, targetReg, op1Reg, opt);
+        getEmitter()->emitIns_R_R(INS_xtn2, EA_16BYTE, targetReg, op2Reg, opt2);
+    }
+
+    genProduceReg(simdNode);
+}
+
+//--------------------------------------------------------------------------------
+// genSIMDIntrinsicBinOp: Generate code for SIMD Intrinsic binary operations
+// add, sub, mul, bit-wise And, AndNot and Or.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genSIMDIntrinsicBinOp(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicAdd || simdNode->gtSIMDIntrinsicID == SIMDIntrinsicSub ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicMul || simdNode->gtSIMDIntrinsicID == SIMDIntrinsicDiv ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicBitwiseAnd ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicBitwiseAndNot ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicBitwiseOr ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicBitwiseXor || simdNode->gtSIMDIntrinsicID == SIMDIntrinsicMin ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicMax || simdNode->gtSIMDIntrinsicID == SIMDIntrinsicEqual ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicLessThan ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicGreaterThan ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicLessThanOrEqual ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicGreaterThanOrEqual);
+
+    GenTree*  op1       = simdNode->gtGetOp1();
+    GenTree*  op2       = simdNode->gtGetOp2();
+    var_types baseType  = simdNode->gtSIMDBaseType;
+    regNumber targetReg = simdNode->gtRegNum;
+    assert(targetReg != REG_NA);
+    var_types targetType = simdNode->TypeGet();
+
+    genConsumeOperands(simdNode);
+    regNumber op1Reg = op1->gtRegNum;
+    regNumber op2Reg = op2->gtRegNum;
+
+    assert(genIsValidFloatReg(op1Reg));
+    assert(genIsValidFloatReg(op2Reg));
+    assert(genIsValidFloatReg(targetReg));
+
+    // TODO-ARM64-CQ Contain integer constants where posible
+
+    instruction ins = getOpForSIMDIntrinsic(simdNode->gtSIMDIntrinsicID, baseType);
+
+    bool     is16B = (simdNode->gtSIMDSize > 8);
+    emitAttr attr  = is16B ? EA_16BYTE : EA_8BYTE;
+    insOpts  opt   = genGetSimdInsOpt(is16B, baseType);
+
+    getEmitter()->emitIns_R_R_R(ins, attr, targetReg, op1Reg, op2Reg, opt);
+
+    genProduceReg(simdNode);
+}
+
+//--------------------------------------------------------------------------------
+// genSIMDIntrinsicRelOp: Generate code for a SIMD Intrinsic relational operater
+// == and !=
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genSIMDIntrinsicRelOp(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicOpEquality ||
+           simdNode->gtSIMDIntrinsicID == SIMDIntrinsicOpInEquality);
+
+    GenTree*  op1        = simdNode->gtGetOp1();
+    GenTree*  op2        = simdNode->gtGetOp2();
+    var_types baseType   = simdNode->gtSIMDBaseType;
+    regNumber targetReg  = simdNode->gtRegNum;
+    var_types targetType = simdNode->TypeGet();
+
+    genConsumeOperands(simdNode);
+    regNumber op1Reg   = op1->gtRegNum;
+    regNumber op2Reg   = op2->gtRegNum;
+    regNumber otherReg = op2Reg;
+
+    instruction ins = getOpForSIMDIntrinsic(SIMDIntrinsicEqual, baseType);
+
+    bool     is16B = (simdNode->gtSIMDSize > 8);
+    emitAttr attr  = is16B ? EA_16BYTE : EA_8BYTE;
+    insOpts  opt   = genGetSimdInsOpt(is16B, baseType);
+
+    // TODO-ARM64-CQ Contain integer constants where posible
+
+    regNumber tmpFloatReg = simdNode->GetSingleTempReg(RBM_ALLFLOAT);
+
+    getEmitter()->emitIns_R_R_R(ins, attr, tmpFloatReg, op1Reg, op2Reg, opt);
+
+    if ((simdNode->gtFlags & GTF_SIMD12_OP) != 0)
+    {
+        // For 12Byte vectors we must set upper bits to get correct comparison
+        // We do not assume upper bits are zero.
+        instGen_Set_Reg_To_Imm(EA_4BYTE, targetReg, -1);
+        getEmitter()->emitIns_R_R_I(INS_ins, EA_4BYTE, tmpFloatReg, targetReg, 3);
+    }
+
+    getEmitter()->emitIns_R_R(INS_uminv, attr, tmpFloatReg, tmpFloatReg,
+                              (simdNode->gtSIMDSize > 8) ? INS_OPTS_16B : INS_OPTS_8B);
+
+    getEmitter()->emitIns_R_R_I(INS_mov, EA_1BYTE, targetReg, tmpFloatReg, 0);
+
+    if (simdNode->gtSIMDIntrinsicID == SIMDIntrinsicOpInEquality)
+    {
+        getEmitter()->emitIns_R_R_I(INS_eor, EA_4BYTE, targetReg, targetReg, 0x1);
+    }
+
+    getEmitter()->emitIns_R_R_I(INS_and, EA_4BYTE, targetReg, targetReg, 0x1);
+
+    genProduceReg(simdNode);
+}
+
+//--------------------------------------------------------------------------------
+// genSIMDIntrinsicDotProduct: Generate code for SIMD Intrinsic Dot Product.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genSIMDIntrinsicDotProduct(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicDotProduct);
+
+    GenTree*  op1      = simdNode->gtGetOp1();
+    GenTree*  op2      = simdNode->gtGetOp2();
+    var_types baseType = simdNode->gtSIMDBaseType;
+    var_types simdType = op1->TypeGet();
+
+    regNumber targetReg = simdNode->gtRegNum;
+    assert(targetReg != REG_NA);
+
+    var_types targetType = simdNode->TypeGet();
+    assert(targetType == baseType);
+
+    genConsumeOperands(simdNode);
+    regNumber op1Reg = op1->gtRegNum;
+    regNumber op2Reg = op2->gtRegNum;
+    regNumber tmpReg = targetReg;
+
+    if (!varTypeIsFloating(baseType))
+    {
+        tmpReg = simdNode->GetSingleTempReg(RBM_ALLFLOAT);
+    }
+
+    instruction ins = getOpForSIMDIntrinsic(SIMDIntrinsicMul, baseType);
+
+    bool     is16B = (simdNode->gtSIMDSize > 8);
+    emitAttr attr  = is16B ? EA_16BYTE : EA_8BYTE;
+    insOpts  opt   = genGetSimdInsOpt(is16B, baseType);
+
+    // Vector multiply
+    getEmitter()->emitIns_R_R_R(ins, attr, tmpReg, op1Reg, op2Reg, opt);
+
+    if ((simdNode->gtFlags & GTF_SIMD12_OP) != 0)
+    {
+        // For 12Byte vectors we must zero upper bits to get correct dot product
+        // We do not assume upper bits are zero.
+        getEmitter()->emitIns_R_R_I(INS_ins, EA_4BYTE, tmpReg, REG_ZR, 3);
+    }
+
+    // Vector add horizontal
+    if (varTypeIsFloating(baseType))
+    {
+        if (baseType == TYP_FLOAT)
+        {
+            if (opt == INS_OPTS_4S)
+            {
+                getEmitter()->emitIns_R_R_R(INS_faddp, attr, tmpReg, tmpReg, tmpReg, INS_OPTS_4S);
+            }
+            getEmitter()->emitIns_R_R(INS_faddp, EA_4BYTE, targetReg, tmpReg);
+        }
+        else
+        {
+            getEmitter()->emitIns_R_R(INS_faddp, EA_8BYTE, targetReg, tmpReg);
+        }
+    }
+    else
+    {
+        ins = varTypeIsUnsigned(baseType) ? INS_uaddlv : INS_saddlv;
+
+        getEmitter()->emitIns_R_R(ins, attr, tmpReg, tmpReg, opt);
+
+        // Mov to integer register
+        if (varTypeIsUnsigned(baseType) || (genTypeSize(baseType) < 4))
+        {
+            getEmitter()->emitIns_R_R_I(INS_mov, emitTypeSize(baseType), targetReg, tmpReg, 0);
+        }
+        else
+        {
+            getEmitter()->emitIns_R_R_I(INS_smov, emitActualTypeSize(baseType), targetReg, tmpReg, 0);
+        }
+    }
+
+    genProduceReg(simdNode);
+}
+
+//------------------------------------------------------------------------------------
+// genSIMDIntrinsicGetItem: Generate code for SIMD Intrinsic get element at index i.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicGetItem);
+
+    GenTree*  op1      = simdNode->gtGetOp1();
+    GenTree*  op2      = simdNode->gtGetOp2();
+    var_types simdType = op1->TypeGet();
+    assert(varTypeIsSIMD(simdType));
+
+    // op1 of TYP_SIMD12 should be considered as TYP_SIMD16
+    if (simdType == TYP_SIMD12)
+    {
+        simdType = TYP_SIMD16;
+    }
+
+    var_types baseType  = simdNode->gtSIMDBaseType;
+    regNumber targetReg = simdNode->gtRegNum;
+    assert(targetReg != REG_NA);
+    var_types targetType = simdNode->TypeGet();
+    assert(targetType == genActualType(baseType));
+
+    // GetItem has 2 operands:
+    // - the source of SIMD type (op1)
+    // - the index of the value to be returned.
+    genConsumeOperands(simdNode);
+
+    emitAttr baseTypeSize  = emitTypeSize(baseType);
+    unsigned baseTypeScale = genLog2(EA_SIZE_IN_BYTES(baseTypeSize));
+
+    if (op2->IsCnsIntOrI())
+    {
+        assert(op2->isContained());
+
+        ssize_t index = op2->gtIntCon.gtIconVal;
+
+        // We only need to generate code for the get if the index is valid
+        // If the index is invalid, previously generated for the range check will throw
+        if (getEmitter()->isValidVectorIndex(emitTypeSize(simdType), baseTypeSize, index))
+        {
+            if (op1->isContained())
+            {
+                int         offset = (int)index * genTypeSize(baseType);
+                instruction ins    = ins_Load(baseType);
+                baseTypeSize       = varTypeIsFloating(baseType)
+                                   ? baseTypeSize
+                                   : getEmitter()->emitInsAdjustLoadStoreAttr(ins, baseTypeSize);
+
+                assert(!op1->isUsedFromReg());
+
+                if (op1->OperIsLocal())
+                {
+                    unsigned varNum = op1->gtLclVarCommon.gtLclNum;
+
+                    getEmitter()->emitIns_R_S(ins, baseTypeSize, targetReg, varNum, offset);
+                }
+                else
+                {
+                    assert(op1->OperGet() == GT_IND);
+
+                    GenTree* addr = op1->AsIndir()->Addr();
+                    assert(!addr->isContained());
+                    regNumber baseReg = addr->gtRegNum;
+
+                    // ldr targetReg, [baseReg, #offset]
+                    getEmitter()->emitIns_R_R_I(ins, baseTypeSize, targetReg, baseReg, offset);
+                }
+            }
+            else
+            {
+                assert(op1->isUsedFromReg());
+                regNumber srcReg = op1->gtRegNum;
+
+                // mov targetReg, srcReg[#index]
+                getEmitter()->emitIns_R_R_I(INS_mov, baseTypeSize, targetReg, srcReg, index);
+            }
+        }
+    }
+    else
+    {
+        assert(!op2->isContained());
+
+        regNumber baseReg  = REG_NA;
+        regNumber indexReg = op2->gtRegNum;
+
+        if (op1->isContained())
+        {
+            // Optimize the case of op1 is in memory and trying to access ith element.
+            assert(!op1->isUsedFromReg());
+            if (op1->OperIsLocal())
+            {
+                unsigned varNum = op1->gtLclVarCommon.gtLclNum;
+
+                baseReg = simdNode->ExtractTempReg();
+
+                // Load the address of varNum
+                getEmitter()->emitIns_R_S(INS_lea, EA_PTRSIZE, baseReg, varNum, 0);
+            }
+            else
+            {
+                // Require GT_IND addr to be not contained.
+                assert(op1->OperGet() == GT_IND);
+
+                GenTree* addr = op1->AsIndir()->Addr();
+                assert(!addr->isContained());
+
+                baseReg = addr->gtRegNum;
+            }
+        }
+        else
+        {
+            assert(op1->isUsedFromReg());
+            regNumber srcReg = op1->gtRegNum;
+
+            unsigned simdInitTempVarNum = compiler->lvaSIMDInitTempVarNum;
+            noway_assert(compiler->lvaSIMDInitTempVarNum != BAD_VAR_NUM);
+
+            baseReg = simdNode->ExtractTempReg();
+
+            // Load the address of simdInitTempVarNum
+            getEmitter()->emitIns_R_S(INS_lea, EA_PTRSIZE, baseReg, simdInitTempVarNum, 0);
+
+            // Store the vector to simdInitTempVarNum
+            getEmitter()->emitIns_R_R(INS_str, emitTypeSize(simdType), srcReg, baseReg);
+        }
+
+        assert(genIsValidIntReg(indexReg));
+        assert(genIsValidIntReg(baseReg));
+        assert(baseReg != indexReg);
+
+        // Load item at baseReg[index]
+        getEmitter()->emitIns_R_R_R_Ext(ins_Load(baseType), baseTypeSize, targetReg, baseReg, indexReg, INS_OPTS_LSL,
+                                        baseTypeScale);
+    }
+
+    genProduceReg(simdNode);
+}
+
+//------------------------------------------------------------------------------------
+// genSIMDIntrinsicSetItem: Generate code for SIMD Intrinsic set element at index i.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genSIMDIntrinsicSetItem(GenTreeSIMD* simdNode)
+{
+    // Determine index based on intrinsic ID
+    int index = -1;
+    switch (simdNode->gtSIMDIntrinsicID)
+    {
+        case SIMDIntrinsicSetX:
+            index = 0;
+            break;
+        case SIMDIntrinsicSetY:
+            index = 1;
+            break;
+        case SIMDIntrinsicSetZ:
+            index = 2;
+            break;
+        case SIMDIntrinsicSetW:
+            index = 3;
+            break;
+
+        default:
+            unreached();
+    }
+    assert(index != -1);
+
+    // op1 is the SIMD vector
+    // op2 is the value to be set
+    GenTree* op1 = simdNode->gtGetOp1();
+    GenTree* op2 = simdNode->gtGetOp2();
+
+    var_types baseType  = simdNode->gtSIMDBaseType;
+    regNumber targetReg = simdNode->gtRegNum;
+    assert(targetReg != REG_NA);
+    var_types targetType = simdNode->TypeGet();
+    assert(varTypeIsSIMD(targetType));
+
+    assert(op2->TypeGet() == baseType);
+    assert(simdNode->gtSIMDSize >= ((index + 1) * genTypeSize(baseType)));
+
+    genConsumeOperands(simdNode);
+    regNumber op1Reg = op1->gtRegNum;
+    regNumber op2Reg = op2->gtRegNum;
+
+    assert(genIsValidFloatReg(targetReg));
+    assert(genIsValidFloatReg(op1Reg));
+    assert(genIsValidIntReg(op2Reg) || genIsValidFloatReg(op2Reg));
+    assert(targetReg != op2Reg);
+
+    emitAttr attr = emitTypeSize(baseType);
+
+    // Insert mov if register assignment requires it
+    getEmitter()->emitIns_R_R(INS_mov, EA_16BYTE, targetReg, op1Reg);
+
+    if (genIsValidIntReg(op2Reg))
+    {
+        getEmitter()->emitIns_R_R_I(INS_ins, attr, targetReg, op2Reg, index);
+    }
+    else
+    {
+        getEmitter()->emitIns_R_R_I_I(INS_ins, attr, targetReg, op2Reg, index, 0);
+    }
+
+    genProduceReg(simdNode);
+}
+
+//-----------------------------------------------------------------------------
+// genSIMDIntrinsicUpperSave: save the upper half of a TYP_SIMD16 vector to
+//                            the given register, if any, or to memory.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    The upper half of all SIMD registers are volatile, even the callee-save registers.
+//    When a 16-byte SIMD value is live across a call, the register allocator will use this intrinsic
+//    to cause the upper half to be saved.  It will first attempt to find another, unused, callee-save
+//    register.  If such a register cannot be found, it will save it to an available caller-save register.
+//    In that case, this node will be marked GTF_SPILL, which will cause genProduceReg to save the 8 byte
+//    value to the stack.  (Note that if there are no caller-save registers available, the entire 16 byte
+//    value will be spilled to the stack.)
+//
+void CodeGen::genSIMDIntrinsicUpperSave(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicUpperSave);
+
+    GenTree* op1 = simdNode->gtGetOp1();
+    assert(op1->IsLocal());
+    assert(emitTypeSize(op1->TypeGet()) == 16);
+    regNumber targetReg = simdNode->gtRegNum;
+    regNumber op1Reg    = genConsumeReg(op1);
+    assert(op1Reg != REG_NA);
+    assert(targetReg != REG_NA);
+    getEmitter()->emitIns_R_R_I_I(INS_mov, EA_8BYTE, targetReg, op1Reg, 0, 1);
+
+    genProduceReg(simdNode);
+}
+
+//-----------------------------------------------------------------------------
+// genSIMDIntrinsicUpperRestore: Restore the upper half of a TYP_SIMD16 vector to
+//                               the given register, if any, or to memory.
+//
+// Arguments:
+//    simdNode - The GT_SIMD node
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    For consistency with genSIMDIntrinsicUpperSave, and to ensure that lclVar nodes always
+//    have their home register, this node has its targetReg on the lclVar child, and its source
+//    on the simdNode.
+//    Regarding spill, please see the note above on genSIMDIntrinsicUpperSave.  If we have spilled
+//    an upper-half to a caller save register, this node will be marked GTF_SPILLED.  However, unlike
+//    most spill scenarios, the saved tree will be different from the restored tree, but the spill
+//    restore logic, which is triggered by the call to genConsumeReg, requires us to provide the
+//    spilled tree (saveNode) in order to perform the reload.  We can easily find that tree,
+//    as it is in the spill descriptor for the register from which it was saved.
+//
+void CodeGen::genSIMDIntrinsicUpperRestore(GenTreeSIMD* simdNode)
+{
+    assert(simdNode->gtSIMDIntrinsicID == SIMDIntrinsicUpperRestore);
+
+    GenTree* op1 = simdNode->gtGetOp1();
+    assert(op1->IsLocal());
+    assert(emitTypeSize(op1->TypeGet()) == 16);
+    regNumber srcReg    = simdNode->gtRegNum;
+    regNumber lclVarReg = genConsumeReg(op1);
+    unsigned  varNum    = op1->AsLclVarCommon()->gtLclNum;
+    assert(lclVarReg != REG_NA);
+    assert(srcReg != REG_NA);
+    if (simdNode->gtFlags & GTF_SPILLED)
+    {
+        GenTree* saveNode = regSet.rsSpillDesc[srcReg]->spillTree;
+        noway_assert(saveNode != nullptr && (saveNode->gtRegNum == srcReg));
+        genConsumeReg(saveNode);
+    }
+    getEmitter()->emitIns_R_R_I_I(INS_mov, EA_8BYTE, lclVarReg, srcReg, 1, 0);
+}
+
+//-----------------------------------------------------------------------------
+// genStoreIndTypeSIMD12: store indirect a TYP_SIMD12 (i.e. Vector3) to memory.
+// Since Vector3 is not a hardware supported write size, it is performed
+// as two writes: 8 byte followed by 4-byte.
+//
+// Arguments:
+//    treeNode - tree node that is attempting to store indirect
+//
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genStoreIndTypeSIMD12(GenTree* treeNode)
+{
+    assert(treeNode->OperGet() == GT_STOREIND);
+
+    GenTree* addr = treeNode->gtOp.gtOp1;
+    GenTree* data = treeNode->gtOp.gtOp2;
+
+    // addr and data should not be contained.
+    assert(!data->isContained());
+    assert(!addr->isContained());
+
+#ifdef DEBUG
+    // Should not require a write barrier
+    GCInfo::WriteBarrierForm writeBarrierForm = gcInfo.gcIsWriteBarrierCandidate(treeNode, data);
+    assert(writeBarrierForm == GCInfo::WBF_NoBarrier);
+#endif
+
+    genConsumeOperands(treeNode->AsOp());
+
+    // Need an addtional integer register to extract upper 4 bytes from data.
+    regNumber tmpReg = treeNode->GetSingleTempReg();
+    assert(tmpReg != addr->gtRegNum);
+
+    // 8-byte write
+    getEmitter()->emitIns_R_R(ins_Store(TYP_DOUBLE), EA_8BYTE, data->gtRegNum, addr->gtRegNum);
+
+    // Extract upper 4-bytes from data
+    getEmitter()->emitIns_R_R_I(INS_mov, EA_4BYTE, tmpReg, data->gtRegNum, 2);
+
+    // 4-byte write
+    getEmitter()->emitIns_R_R_I(INS_str, EA_4BYTE, tmpReg, addr->gtRegNum, 8);
+}
+
+//-----------------------------------------------------------------------------
+// genLoadIndTypeSIMD12: load indirect a TYP_SIMD12 (i.e. Vector3) value.
+// Since Vector3 is not a hardware supported write size, it is performed
+// as two loads: 8 byte followed by 4-byte.
+//
+// Arguments:
+//    treeNode - tree node of GT_IND
+//
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genLoadIndTypeSIMD12(GenTree* treeNode)
+{
+    assert(treeNode->OperGet() == GT_IND);
+
+    GenTree*  addr      = treeNode->gtOp.gtOp1;
+    regNumber targetReg = treeNode->gtRegNum;
+
+    assert(!addr->isContained());
+
+    regNumber operandReg = genConsumeReg(addr);
+
+    // Need an addtional int register to read upper 4 bytes, which is different from targetReg
+    regNumber tmpReg = treeNode->GetSingleTempReg();
+
+    // 8-byte read
+    getEmitter()->emitIns_R_R(ins_Load(TYP_DOUBLE), EA_8BYTE, targetReg, addr->gtRegNum);
+
+    // 4-byte read
+    getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, tmpReg, addr->gtRegNum, 8);
+
+    // Insert upper 4-bytes into data
+    getEmitter()->emitIns_R_R_I(INS_mov, EA_4BYTE, targetReg, tmpReg, 2);
+
+    genProduceReg(treeNode);
+}
+
+//-----------------------------------------------------------------------------
+// genStoreLclTypeSIMD12: store a TYP_SIMD12 (i.e. Vector3) type field.
+// Since Vector3 is not a hardware supported write size, it is performed
+// as two stores: 8 byte followed by 4-byte.
+//
+// Arguments:
+//    treeNode - tree node that is attempting to store TYP_SIMD12 field
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
+{
+    assert((treeNode->OperGet() == GT_STORE_LCL_FLD) || (treeNode->OperGet() == GT_STORE_LCL_VAR));
+
+    unsigned offs   = 0;
+    unsigned varNum = treeNode->gtLclVarCommon.gtLclNum;
+    assert(varNum < compiler->lvaCount);
+
+    if (treeNode->OperGet() == GT_LCL_FLD)
+    {
+        offs = treeNode->gtLclFld.gtLclOffs;
+    }
+
+    GenTreePtr op1 = treeNode->gtOp.gtOp1;
+    assert(!op1->isContained());
+    regNumber operandReg = genConsumeReg(op1);
+
+    // Need an addtional integer register to extract upper 4 bytes from data.
+    regNumber tmpReg = treeNode->GetSingleTempReg();
+
+    // store lower 8 bytes
+    getEmitter()->emitIns_S_R(ins_Store(TYP_DOUBLE), EA_8BYTE, operandReg, varNum, offs);
+
+    // Extract upper 4-bytes from data
+    getEmitter()->emitIns_R_R_I(INS_mov, EA_4BYTE, tmpReg, operandReg, 2);
+
+    // 4-byte write
+    getEmitter()->emitIns_S_R(INS_str, EA_4BYTE, tmpReg, varNum, offs + 8);
+}
+
+#endif // FEATURE_SIMD
 
 /*****************************************************************************
  * Unit testing of the ARM64 emitter: generate a bunch of instructions into the prolog
@@ -5527,6 +6801,77 @@ void CodeGen::genArm64EmitterUnitTests()
     theEmitter->emitIns_R_R(INS_rev64, EA_8BYTE, REG_V12, REG_V13, INS_OPTS_2S);
     theEmitter->emitIns_R_R(INS_rev64, EA_16BYTE, REG_V14, REG_V15, INS_OPTS_4S);
 
+    // addv vector
+    theEmitter->emitIns_R_R(INS_addv, EA_8BYTE, REG_V4, REG_V5, INS_OPTS_8B);
+    theEmitter->emitIns_R_R(INS_addv, EA_16BYTE, REG_V6, REG_V7, INS_OPTS_16B);
+    theEmitter->emitIns_R_R(INS_addv, EA_8BYTE, REG_V8, REG_V9, INS_OPTS_4H);
+    theEmitter->emitIns_R_R(INS_addv, EA_16BYTE, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R(INS_addv, EA_8BYTE, REG_V12, REG_V13, INS_OPTS_2S);
+    theEmitter->emitIns_R_R(INS_addv, EA_16BYTE, REG_V14, REG_V15, INS_OPTS_4S);
+
+    // saddlv vector
+    theEmitter->emitIns_R_R(INS_saddlv, EA_8BYTE, REG_V4, REG_V5, INS_OPTS_8B);
+    theEmitter->emitIns_R_R(INS_saddlv, EA_16BYTE, REG_V6, REG_V7, INS_OPTS_16B);
+    theEmitter->emitIns_R_R(INS_saddlv, EA_8BYTE, REG_V8, REG_V9, INS_OPTS_4H);
+    theEmitter->emitIns_R_R(INS_saddlv, EA_16BYTE, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R(INS_saddlv, EA_8BYTE, REG_V12, REG_V13, INS_OPTS_2S);
+    theEmitter->emitIns_R_R(INS_saddlv, EA_16BYTE, REG_V14, REG_V15, INS_OPTS_4S);
+
+    // smaxlv vector
+    theEmitter->emitIns_R_R(INS_smaxlv, EA_8BYTE, REG_V4, REG_V5, INS_OPTS_8B);
+    theEmitter->emitIns_R_R(INS_smaxlv, EA_16BYTE, REG_V6, REG_V7, INS_OPTS_16B);
+    theEmitter->emitIns_R_R(INS_smaxlv, EA_8BYTE, REG_V8, REG_V9, INS_OPTS_4H);
+    theEmitter->emitIns_R_R(INS_smaxlv, EA_16BYTE, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R(INS_smaxlv, EA_8BYTE, REG_V12, REG_V13, INS_OPTS_2S);
+    theEmitter->emitIns_R_R(INS_smaxlv, EA_16BYTE, REG_V14, REG_V15, INS_OPTS_4S);
+
+    // sminlv vector
+    theEmitter->emitIns_R_R(INS_sminlv, EA_8BYTE, REG_V4, REG_V5, INS_OPTS_8B);
+    theEmitter->emitIns_R_R(INS_sminlv, EA_16BYTE, REG_V6, REG_V7, INS_OPTS_16B);
+    theEmitter->emitIns_R_R(INS_sminlv, EA_8BYTE, REG_V8, REG_V9, INS_OPTS_4H);
+    theEmitter->emitIns_R_R(INS_sminlv, EA_16BYTE, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R(INS_sminlv, EA_8BYTE, REG_V12, REG_V13, INS_OPTS_2S);
+    theEmitter->emitIns_R_R(INS_sminlv, EA_16BYTE, REG_V14, REG_V15, INS_OPTS_4S);
+
+    // uaddlv vector
+    theEmitter->emitIns_R_R(INS_uaddlv, EA_8BYTE, REG_V4, REG_V5, INS_OPTS_8B);
+    theEmitter->emitIns_R_R(INS_uaddlv, EA_16BYTE, REG_V6, REG_V7, INS_OPTS_16B);
+    theEmitter->emitIns_R_R(INS_uaddlv, EA_8BYTE, REG_V8, REG_V9, INS_OPTS_4H);
+    theEmitter->emitIns_R_R(INS_uaddlv, EA_16BYTE, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R(INS_uaddlv, EA_8BYTE, REG_V12, REG_V13, INS_OPTS_2S);
+    theEmitter->emitIns_R_R(INS_uaddlv, EA_16BYTE, REG_V14, REG_V15, INS_OPTS_4S);
+
+    // umaxlv vector
+    theEmitter->emitIns_R_R(INS_umaxlv, EA_8BYTE, REG_V4, REG_V5, INS_OPTS_8B);
+    theEmitter->emitIns_R_R(INS_umaxlv, EA_16BYTE, REG_V6, REG_V7, INS_OPTS_16B);
+    theEmitter->emitIns_R_R(INS_umaxlv, EA_8BYTE, REG_V8, REG_V9, INS_OPTS_4H);
+    theEmitter->emitIns_R_R(INS_umaxlv, EA_16BYTE, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R(INS_umaxlv, EA_8BYTE, REG_V12, REG_V13, INS_OPTS_2S);
+    theEmitter->emitIns_R_R(INS_umaxlv, EA_16BYTE, REG_V14, REG_V15, INS_OPTS_4S);
+
+    // uminlv vector
+    theEmitter->emitIns_R_R(INS_uminlv, EA_8BYTE, REG_V4, REG_V5, INS_OPTS_8B);
+    theEmitter->emitIns_R_R(INS_uminlv, EA_16BYTE, REG_V6, REG_V7, INS_OPTS_16B);
+    theEmitter->emitIns_R_R(INS_uminlv, EA_8BYTE, REG_V8, REG_V9, INS_OPTS_4H);
+    theEmitter->emitIns_R_R(INS_uminlv, EA_16BYTE, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R(INS_uminlv, EA_8BYTE, REG_V12, REG_V13, INS_OPTS_2S);
+    theEmitter->emitIns_R_R(INS_uminlv, EA_16BYTE, REG_V14, REG_V15, INS_OPTS_4S);
+
+    // faddp scalar
+    theEmitter->emitIns_R_R(INS_faddp, EA_4BYTE, REG_V0, REG_V1);
+    theEmitter->emitIns_R_R(INS_faddp, EA_8BYTE, REG_V2, REG_V3);
+
+    // INS_fcvtl
+    theEmitter->emitIns_R_R(INS_fcvtl, EA_4BYTE, REG_V0, REG_V1);
+
+    // INS_fcvtl2
+    theEmitter->emitIns_R_R(INS_fcvtl2, EA_4BYTE, REG_V0, REG_V1);
+
+    // INS_fcvtn
+    theEmitter->emitIns_R_R(INS_fcvtn, EA_8BYTE, REG_V0, REG_V1);
+
+    // INS_fcvtn2
+    theEmitter->emitIns_R_R(INS_fcvtn2, EA_8BYTE, REG_V0, REG_V1);
 #endif
 
 #ifdef ALL_ARM64_EMITTER_UNIT_TESTS
@@ -6018,7 +7363,120 @@ void CodeGen::genArm64EmitterUnitTests()
     theEmitter->emitIns_R_R_R(INS_uabd, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
     theEmitter->emitIns_R_R_R(INS_uabd, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
     theEmitter->emitIns_R_R_R(INS_uabd, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+#endif // ALL_ARM64_EMITTER_UNIT_TESTS
 
+#ifdef ALL_ARM64_EMITTER_UNIT_TESTS
+    // smax vector
+    theEmitter->emitIns_R_R_R(INS_smax, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_smax, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_smax, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_smax, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_smax, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_smax, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+
+    // smin vector
+    theEmitter->emitIns_R_R_R(INS_smin, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_smin, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_smin, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_smin, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_smin, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_smin, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+
+    // umax vector
+    theEmitter->emitIns_R_R_R(INS_umax, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_umax, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_umax, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_umax, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_umax, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_umax, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+
+    // umin vector
+    theEmitter->emitIns_R_R_R(INS_umin, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_umin, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_umin, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_umin, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_umin, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_umin, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+
+    // cmeq vector
+    theEmitter->emitIns_R_R_R(INS_cmeq, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_cmeq, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_cmeq, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_cmeq, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_cmeq, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_cmeq, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_cmeq, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_1D);
+    theEmitter->emitIns_R_R_R(INS_cmeq, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
+
+    // cmge vector
+    theEmitter->emitIns_R_R_R(INS_cmge, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_cmge, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_cmge, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_cmge, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_cmge, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_cmge, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_cmge, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_1D);
+    theEmitter->emitIns_R_R_R(INS_cmge, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
+
+    // cmgt vector
+    theEmitter->emitIns_R_R_R(INS_cmgt, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_cmgt, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_cmgt, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_cmgt, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_cmgt, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_cmgt, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_cmgt, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_1D);
+    theEmitter->emitIns_R_R_R(INS_cmgt, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
+
+    // cmhi vector
+    theEmitter->emitIns_R_R_R(INS_cmhi, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_cmhi, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_cmhi, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_cmhi, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_cmhi, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_cmhi, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_cmhi, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_1D);
+    theEmitter->emitIns_R_R_R(INS_cmhi, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
+
+    // cmhs vector
+    theEmitter->emitIns_R_R_R(INS_cmhs, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_cmhs, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_cmhs, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_cmhs, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_cmhs, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_cmhs, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_cmhs, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_1D);
+    theEmitter->emitIns_R_R_R(INS_cmhs, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
+
+    // ctst vector
+    theEmitter->emitIns_R_R_R(INS_ctst, EA_8BYTE, REG_V0, REG_V1, REG_V2, INS_OPTS_8B);
+    theEmitter->emitIns_R_R_R(INS_ctst, EA_16BYTE, REG_V3, REG_V4, REG_V5, INS_OPTS_16B);
+    theEmitter->emitIns_R_R_R(INS_ctst, EA_8BYTE, REG_V6, REG_V7, REG_V8, INS_OPTS_4H);
+    theEmitter->emitIns_R_R_R(INS_ctst, EA_16BYTE, REG_V9, REG_V10, REG_V11, INS_OPTS_8H);
+    theEmitter->emitIns_R_R_R(INS_ctst, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_ctst, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_ctst, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_1D);
+    theEmitter->emitIns_R_R_R(INS_ctst, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
+
+    // faddp vector
+    theEmitter->emitIns_R_R_R(INS_faddp, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_faddp, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_faddp, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
+
+    // fcmeq vector
+    theEmitter->emitIns_R_R_R(INS_fcmeq, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_fcmeq, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_fcmeq, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
+
+    // fcmge vector
+    theEmitter->emitIns_R_R_R(INS_fcmge, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_fcmge, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_fcmge, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
+
+    // fcmgt vector
+    theEmitter->emitIns_R_R_R(INS_fcmgt, EA_8BYTE, REG_V12, REG_V13, REG_V14, INS_OPTS_2S);
+    theEmitter->emitIns_R_R_R(INS_fcmgt, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_4S);
+    theEmitter->emitIns_R_R_R(INS_fcmgt, EA_16BYTE, REG_V15, REG_V16, REG_V17, INS_OPTS_2D);
 #endif // ALL_ARM64_EMITTER_UNIT_TESTS
 
 #ifdef ALL_ARM64_EMITTER_UNIT_TESTS

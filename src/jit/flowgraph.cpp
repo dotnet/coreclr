@@ -309,21 +309,22 @@ void Compiler::fgInstrumentMethod()
                 continue;
             }
 
+            // Assign the current block's IL offset into the profile data
             bbProfileBuffer->ILOffset = block->bbCodeOffs;
 
-            GenTreePtr addr;
-            GenTreePtr value;
+            size_t addrOfBlockCount = (size_t)&bbProfileBuffer->ExecutionCount;
 
-            value = gtNewOperNode(GT_IND, TYP_INT, gtNewIconEmbHndNode((void*)&bbProfileBuffer->ExecutionCount, nullptr,
-                                                                       GTF_ICON_BBC_PTR));
-            value = gtNewOperNode(GT_ADD, TYP_INT, value, gtNewIconNode(1));
+            // Read Basic-Block count value
+            GenTree* valueNode = gtNewIndOfIconHandleNode(TYP_INT, addrOfBlockCount, GTF_ICON_BBC_PTR, false);
 
-            addr = gtNewOperNode(GT_IND, TYP_INT, gtNewIconEmbHndNode((void*)&bbProfileBuffer->ExecutionCount, nullptr,
-                                                                      GTF_ICON_BBC_PTR));
+            // Increment value by 1
+            GenTree* rhsNode = gtNewOperNode(GT_ADD, TYP_INT, valueNode, gtNewIconNode(1));
 
-            addr = gtNewAssignNode(addr, value);
+            // Write new Basic-Block count value
+            GenTree* lhsNode = gtNewIndOfIconHandleNode(TYP_INT, addrOfBlockCount, GTF_ICON_BBC_PTR, false);
+            GenTree* asgNode = gtNewAssignNode(lhsNode, rhsNode);
 
-            fgInsertStmtAtBeg(block, addr);
+            fgInsertStmtAtBeg(block, asgNode);
 
             countOfBlocks--;
             bbProfileBuffer++;
@@ -358,10 +359,13 @@ void Compiler::fgInstrumentMethod()
         GenTreeArgList* args = gtNewArgList(arg);
         GenTreePtr      call = gtNewHelperCallNode(CORINFO_HELP_BBT_FCN_ENTER, TYP_VOID, args);
 
-        GenTreePtr handle =
-            gtNewIconEmbHndNode((void*)&bbProfileBufferStart->ExecutionCount, nullptr, GTF_ICON_BBC_PTR);
-        GenTreePtr value = gtNewOperNode(GT_IND, TYP_INT, handle);
-        GenTreePtr relop = gtNewOperNode(GT_NE, TYP_INT, value, gtNewIconNode(0, TYP_INT));
+        size_t addrOfBlockCount = (size_t)&bbProfileBuffer->ExecutionCount;
+
+        // Read Basic-Block count value
+        GenTreePtr valueNode = gtNewIndOfIconHandleNode(TYP_INT, addrOfBlockCount, GTF_ICON_BBC_PTR, false);
+
+        // Compare Basic-Block count value against zero
+        GenTreePtr relop = gtNewOperNode(GT_NE, TYP_INT, valueNode, gtNewIconNode(0, TYP_INT));
         relop->gtFlags |= GTF_RELOP_QMARK; // TODO-Cleanup: [Simple]  Move this to gtNewQmarkNode
         GenTreePtr colon = new (this, GT_COLON) GenTreeColon(TYP_VOID, gtNewNothingNode(), call);
         GenTreePtr cond  = gtNewQmarkNode(TYP_VOID, relop, colon);
@@ -3338,10 +3342,10 @@ Compiler::SwitchUniqueSuccSet Compiler::GetDescriptorForSwitch(BasicBlock* switc
     }
 }
 
-void Compiler::SwitchUniqueSuccSet::UpdateTarget(IAllocator* alloc,
-                                                 BasicBlock* switchBlk,
-                                                 BasicBlock* from,
-                                                 BasicBlock* to)
+void Compiler::SwitchUniqueSuccSet::UpdateTarget(CompAllocator* alloc,
+                                                 BasicBlock*    switchBlk,
+                                                 BasicBlock*    from,
+                                                 BasicBlock*    to)
 {
     assert(switchBlk->bbJumpKind == BBJ_SWITCH); // Precondition.
     unsigned     jmpTabCnt = switchBlk->bbJumpSwt->bbsCount;
@@ -3984,23 +3988,30 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         noway_assert(pAddrOfCaptureThreadGlobal == nullptr);
 #endif
 
-        GenTreePtr trap;
+        GenTreePtr value; // The value of g_TrapReturningThreads
         if (pAddrOfCaptureThreadGlobal != nullptr)
         {
-            trap = gtNewOperNode(GT_IND, TYP_I_IMPL,
-                                 gtNewIconHandleNode((size_t)pAddrOfCaptureThreadGlobal, GTF_ICON_PTR_HDL));
+            // Use a double indirection
+            GenTreePtr addr =
+                gtNewIndOfIconHandleNode(TYP_I_IMPL, (size_t)pAddrOfCaptureThreadGlobal, GTF_ICON_PTR_HDL, true);
+
+            value = gtNewOperNode(GT_IND, TYP_INT, addr);
+            // This indirection won't cause an exception.
+            value->gtFlags |= GTF_IND_NONFAULTING;
         }
         else
         {
-            trap = gtNewIconHandleNode((size_t)addrTrap, GTF_ICON_PTR_HDL);
+            // Use a single indirection
+            value = gtNewIndOfIconHandleNode(TYP_INT, (size_t)addrTrap, GTF_ICON_PTR_HDL, false);
         }
 
-        GenTreePtr trapRelop = gtNewOperNode(GT_EQ, TYP_INT,
-                                             // lhs [g_TrapReturningThreads]
-                                             gtNewOperNode(GT_IND, TYP_INT, trap),
-                                             // rhs 0
-                                             gtNewIconNode(0, TYP_INT));
-        trapRelop->gtFlags |= GTF_RELOP_JMP_USED | GTF_DONT_CSE; // Treat reading g_TrapReturningThreads as volatile.
+        // Treat the reading of g_TrapReturningThreads as volatile.
+        value->gtFlags |= GTF_IND_VOLATILE;
+
+        // Compare for equal to zero
+        GenTreePtr trapRelop = gtNewOperNode(GT_EQ, TYP_INT, value, gtNewIconNode(0, TYP_INT));
+
+        trapRelop->gtFlags |= GTF_RELOP_JMP_USED | GTF_DONT_CSE;
         GenTreePtr trapCheck = gtNewOperNode(GT_JTRUE, TYP_VOID, trapRelop);
         fgInsertStmtAtEnd(top, trapCheck);
         top->bbJumpDest = bottom;
@@ -4321,6 +4332,18 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
         // Observe force inline state and code size.
         compInlineResult->NoteBool(InlineObservation::CALLEE_IS_FORCE_INLINE, isForceInline);
         compInlineResult->NoteInt(InlineObservation::CALLEE_IL_CODE_SIZE, codeSize);
+
+        // Determine if call site is within a try.
+        if (isInlining && impInlineInfo->iciBlock->hasTryIndex())
+        {
+            compInlineResult->Note(InlineObservation::CALLSITE_IN_TRY_REGION);
+        }
+
+        // Determine if the call site is in a loop.
+        if (isInlining && ((impInlineInfo->iciBlock->bbFlags & BBF_BACKWARD_JUMP) != 0))
+        {
+            compInlineResult->Note(InlineObservation::CALLSITE_IN_LOOP);
+        }
 
 #ifdef DEBUG
 
@@ -4796,8 +4819,6 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                 // the list of other opcodes (for all platforms).
 
                 __fallthrough;
-
-            case CEE_LOCALLOC:
             case CEE_MKREFANY:
             case CEE_RETHROW:
                 if (makeInlineObservations)
@@ -4810,6 +4831,19 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                     if (isInlining)
                     {
                         assert(compInlineResult->IsFailure());
+                        return;
+                    }
+                }
+                break;
+
+            case CEE_LOCALLOC:
+
+                // We now allow localloc callees to become candidates in some cases.
+                if (makeInlineObservations)
+                {
+                    compInlineResult->Note(InlineObservation::CALLEE_HAS_LOCALLOC);
+                    if (isInlining && compInlineResult->IsFailure())
+                    {
                         return;
                     }
                 }
@@ -4889,25 +4923,16 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
     {
         compInlineResult->Note(InlineObservation::CALLEE_END_OPCODE_SCAN);
 
-        if (!compInlineResult->UsesLegacyPolicy())
+        // If there are no return blocks we know it does not return, however if there
+        // return blocks we don't know it returns as it may be counting unreachable code.
+        // However we will still make the CALLEE_DOES_NOT_RETURN observation.
+
+        compInlineResult->NoteBool(InlineObservation::CALLEE_DOES_NOT_RETURN, retBlocks == 0);
+
+        if (retBlocks == 0 && isInlining)
         {
-            // If there are no return blocks we know it does not return, however if there
-            // return blocks we don't know it returns as it may be counting unreachable code.
-            // However we will still make the CALLEE_DOES_NOT_RETURN observation.
-
-            compInlineResult->NoteBool(InlineObservation::CALLEE_DOES_NOT_RETURN, retBlocks == 0);
-
-            if (retBlocks == 0 && isInlining)
-            {
-                // Mark the call node as "no return" as it can impact caller's code quality.
-                impInlineInfo->iciCall->gtCallMoreFlags |= GTF_CALL_M_DOES_NOT_RETURN;
-            }
-        }
-
-        // Determine if call site is within a try.
-        if (isInlining && impInlineInfo->iciBlock->hasTryIndex())
-        {
-            compInlineResult->Note(InlineObservation::CALLSITE_IN_TRY_REGION);
+            // Mark the call node as "no return" as it can impact caller's code quality.
+            impInlineInfo->iciCall->gtCallMoreFlags |= GTF_CALL_M_DOES_NOT_RETURN;
         }
 
         // If the inline is viable and discretionary, do the
@@ -5029,14 +5054,6 @@ void Compiler::fgObserveInlineConstants(OPCODE opcode, const FgStack& stack, boo
     // The stack only has to be 1 deep for BRTRUE/FALSE
     bool lookForBranchCases = stack.IsStackAtLeastOneDeep();
 
-    if (compInlineResult->UsesLegacyPolicy())
-    {
-        // LegacyPolicy misses cases where the stack is really one
-        // deep but the model says it's two deep. We need to do
-        // likewise to preseve old behavior.
-        lookForBranchCases &= !stack.IsStackTwoDeep();
-    }
-
     if (lookForBranchCases)
     {
         if (opcode == CEE_BRFALSE || opcode == CEE_BRFALSE_S || opcode == CEE_BRTRUE || opcode == CEE_BRTRUE_S)
@@ -5090,6 +5107,8 @@ void Compiler::fgObserveInlineConstants(OPCODE opcode, const FgStack& stack, boo
     {
         if (FgStack::IsArgument(slot0))
         {
+            compInlineResult->Note(InlineObservation::CALLEE_ARG_FEEDS_TEST);
+
             unsigned varNum = FgStack::SlotTypeToArgNum(slot0);
             if (impInlineInfo->inlArgInfo[varNum].argNode->OperIsConst())
             {
@@ -5099,6 +5118,8 @@ void Compiler::fgObserveInlineConstants(OPCODE opcode, const FgStack& stack, boo
 
         if (FgStack::IsArgument(slot1))
         {
+            compInlineResult->Note(InlineObservation::CALLEE_ARG_FEEDS_TEST);
+
             unsigned varNum = FgStack::SlotTypeToArgNum(slot1);
             if (impInlineInfo->inlArgInfo[varNum].argNode->OperIsConst())
             {
@@ -5885,14 +5906,8 @@ void Compiler::fgFindBasicBlocks()
 #ifdef DEBUG
         // If fgFindJumpTargets marked the call as "no return" there
         // really should be no BBJ_RETURN blocks in the method.
-        //
-        // Note LegacyPolicy does not mark calls as no return, so if
-        // it's active, skip the check.
-        if (!compInlineResult->UsesLegacyPolicy())
-        {
-            bool markedNoReturn = (impInlineInfo->iciCall->gtCallMoreFlags & GTF_CALL_M_DOES_NOT_RETURN) != 0;
-            assert((markedNoReturn && (retBlocks == 0)) || (!markedNoReturn && (retBlocks >= 1)));
-        }
+        bool markedNoReturn = (impInlineInfo->iciCall->gtCallMoreFlags & GTF_CALL_M_DOES_NOT_RETURN) != 0;
+        assert((markedNoReturn && (retBlocks == 0)) || (!markedNoReturn && (retBlocks >= 1)));
 #endif // DEBUG
 
         if (compInlineResult->IsFailure())
@@ -6827,7 +6842,8 @@ bool Compiler::fgIsThrow(GenTreePtr tree)
         (tree->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_THROWDIVZERO)) ||
         (tree->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_THROWNULLREF)) ||
         (tree->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_THROW)) ||
-        (tree->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_RETHROW)))
+        (tree->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_RETHROW)) ||
+        (tree->gtCall.gtCallMethHnd == eeFindHelper(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED)))
     {
         noway_assert(tree->gtFlags & GTF_CALL);
         noway_assert(tree->gtFlags & GTF_EXCEPT);
@@ -7023,9 +7039,7 @@ GenTreeCall* Compiler::fgGetStaticsCCtorHelper(CORINFO_CLASS_HANDLE cls, CorInfo
 
     if (pmoduleID)
     {
-        opModuleIDArg = gtNewIconHandleNode((size_t)pmoduleID, GTF_ICON_CIDMID_HDL);
-        opModuleIDArg = gtNewOperNode(GT_IND, TYP_I_IMPL, opModuleIDArg);
-        opModuleIDArg->gtFlags |= GTF_IND_INVARIANT;
+        opModuleIDArg = gtNewIndOfIconHandleNode(TYP_I_IMPL, (size_t)pmoduleID, GTF_ICON_CIDMID_HDL, true);
     }
     else
     {
@@ -7036,9 +7050,7 @@ GenTreeCall* Compiler::fgGetStaticsCCtorHelper(CORINFO_CLASS_HANDLE cls, CorInfo
     {
         if (pclsID)
         {
-            opClassIDArg = gtNewIconHandleNode((size_t)pclsID, GTF_ICON_CIDMID_HDL);
-            opClassIDArg = gtNewOperNode(GT_IND, TYP_INT, opClassIDArg);
-            opClassIDArg->gtFlags |= GTF_IND_INVARIANT;
+            opClassIDArg = gtNewIndOfIconHandleNode(TYP_INT, (size_t)pclsID, GTF_ICON_CIDMID_HDL, true);
         }
         else
         {
@@ -7101,6 +7113,7 @@ GenTreeCall* Compiler::fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls)
 
 bool Compiler::fgAddrCouldBeNull(GenTreePtr addr)
 {
+    addr = addr->gtEffectiveVal();
     if ((addr->gtOper == GT_CNS_INT) && addr->IsIconHandle())
     {
         return false;
@@ -7651,7 +7664,7 @@ GenTreePtr Compiler::fgGetCritSectOfStaticMethod()
         critSect = info.compCompHnd->getMethodSync(info.compMethodHnd, (void**)&pCrit);
         noway_assert((!critSect) != (!pCrit));
 
-        tree = gtNewIconEmbHndNode(critSect, pCrit, GTF_ICON_METHOD_HDL);
+        tree = gtNewIconEmbHndNode(critSect, pCrit, GTF_ICON_METHOD_HDL, info.compMethodHnd);
     }
     else
     {
@@ -8491,7 +8504,10 @@ private:
         assert(mergingReturns);
 
         BasicBlock* mergedReturnBlock = nullptr;
-        if ((returnBlock != nullptr) && (maxReturns > 1))
+
+        // Do not look for mergable constant returns in debug codegen as
+        // we may lose track of sequence points.
+        if ((returnBlock != nullptr) && (maxReturns > 1) && !comp->opts.compDbgCode)
         {
             // Check to see if this is a constant return so that we can search
             // for and/or create a constant return block for it.
@@ -8886,9 +8902,9 @@ void Compiler::fgAddInternal()
 
     if (dbgHandle || pDbgHandle)
     {
-        GenTreePtr guardCheckVal =
-            gtNewOperNode(GT_IND, TYP_INT, gtNewIconEmbHndNode(dbgHandle, pDbgHandle, GTF_ICON_TOKEN_HDL));
-        GenTreePtr guardCheckCond = gtNewOperNode(GT_EQ, TYP_INT, guardCheckVal, gtNewZeroConNode(TYP_INT));
+        GenTree* embNode        = gtNewIconEmbHndNode(dbgHandle, pDbgHandle, GTF_ICON_TOKEN_HDL, info.compMethodHnd);
+        GenTree* guardCheckVal  = gtNewOperNode(GT_IND, TYP_INT, embNode);
+        GenTree* guardCheckCond = gtNewOperNode(GT_EQ, TYP_INT, guardCheckVal, gtNewZeroConNode(TYP_INT));
         guardCheckCond->gtFlags |= GTF_RELOP_QMARK;
 
         // Create the callback which will yield the final answer
@@ -10410,7 +10426,7 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
     if (fgDomsComputed && block->bbNum > fgDomBBcount)
     {
         BlockSetOps::Assign(this, block->bbReach, bNext->bbReach);
-        BlockSetOps::OldStyleClearD(this, bNext->bbReach);
+        BlockSetOps::ClearD(this, bNext->bbReach);
 
         block->bbIDom = bNext->bbIDom;
         bNext->bbIDom = nullptr;
@@ -14904,7 +14920,15 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
 #if DEBUG
     if (verbose)
     {
-        printf("\nAfter this change in fgOptimizeBranch");
+        // Dump out the newStmtList that we created
+        printf("\nfgOptimizeBranch added these statements(s) at the end of BB%02u:\n", bJump->bbNum);
+        for (stmt = newStmtList->AsStmt(); stmt; stmt = stmt->gtNextStmt)
+        {
+            gtDispTree(stmt);
+        }
+        printf("\nfgOptimizeBranch changed block BB%02u from BBJ_ALWAYS to BBJ_COND.\n", bJump->bbNum);
+
+        printf("\nAfter this change in fgOptimizeBranch the BB graph is:");
         fgDispBasicBlocks(verboseTrees);
         printf("\n");
     }
@@ -16095,7 +16119,7 @@ void Compiler::fgReorderBlocks()
 #if DEBUG
         if (verbose)
         {
-            printf("\nAfter this change in fgReorderBlocks");
+            printf("\nAfter this change in fgReorderBlocks the BB graph is:");
             fgDispBasicBlocks(verboseTrees);
             printf("\n");
         }
@@ -19355,7 +19379,7 @@ const char* Compiler::fgProcessEscapes(const char* nameIn, escapeMapping_t* map)
 
     if (subsitutionRequired)
     {
-        char* newName = (char*)compGetMemA(lengthOut, CMK_DebugOnly);
+        char* newName = (char*)compGetMem(lengthOut, CMK_DebugOnly);
         char* pDest;
         pDest = newName;
         pChar = nameIn;
@@ -21536,7 +21560,6 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, GenTree* node)
 
         if (tree->OperIsUnary() && tree->gtOp.gtOp1)
         {
-            GenTreePtr lclVarTree;
             expectedPrevTree = tree->gtOp.gtOp1;
         }
         else if (tree->OperIsBinary() && tree->gtOp.gtOp1)
@@ -22948,6 +22971,7 @@ _Done:
     compLongUsed |= InlineeCompiler->compLongUsed;
     compFloatingPointUsed |= InlineeCompiler->compFloatingPointUsed;
     compLocallocUsed |= InlineeCompiler->compLocallocUsed;
+    compLocallocOptimized |= InlineeCompiler->compLocallocOptimized;
     compQmarkUsed |= InlineeCompiler->compQmarkUsed;
     compUnsafeCastUsed |= InlineeCompiler->compUnsafeCastUsed;
     compNeedsGSSecurityCookie |= InlineeCompiler->compNeedsGSSecurityCookie;
@@ -23205,11 +23229,7 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                         //
                         // Chase through any GT_RET_EXPRs to find the actual argument
                         // expression.
-                        GenTree* actualArgNode = argNode;
-                        while (actualArgNode->gtOper == GT_RET_EXPR)
-                        {
-                            actualArgNode = actualArgNode->gtRetExpr.gtInlineCandidate;
-                        }
+                        GenTree* actualArgNode = argNode->gtRetExprVal();
 
                         // For case (1)
                         //
@@ -25851,4 +25871,16 @@ void Compiler::fgCompDominatedByExceptionalEntryBlocks()
             }
         }
     }
+}
+
+//------------------------------------------------------------------------
+// fgNeedReturnSpillTemp: Answers does the inlinee need to spill all returns
+//  as a temp.
+//
+// Return Value:
+//    true if the inlinee has to spill return exprs.
+bool Compiler::fgNeedReturnSpillTemp()
+{
+    assert(compIsForInlining());
+    return (lvaInlineeReturnSpillTemp != BAD_VAR_NUM);
 }

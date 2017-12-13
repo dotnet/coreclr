@@ -1248,6 +1248,8 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_CALLEE_TRASH_NOGC   RBM_CALLEE_TRASH
 #endif
   #define REG_DEFAULT_HELPER_CALL_TARGET REG_R12
+  #define REG_FASTTAILCALL_TARGET REG_R12   // Target register for fast tail call
+  #define RBM_FASTTAILCALL_TARGET RBM_R12
 
   #define RBM_ALLINT              (RBM_INT_CALLEE_SAVED | RBM_INT_CALLEE_TRASH)
   #define RBM_ALLFLOAT            (RBM_FLT_CALLEE_SAVED | RBM_FLT_CALLEE_TRASH)
@@ -1315,6 +1317,12 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   //  This is the second register in REG_TMP_ORDER
   #define REG_TMP_1                REG_R2
   #define RBM_TMP_1                RBM_R2
+
+#ifndef LEGACY_BACKEND
+  // Temporary registers used for the GS cookie check.
+  #define REG_GSCOOKIE_TMP_0       REG_R12
+  #define REG_GSCOOKIE_TMP_1       REG_LR
+#endif // !LEGACY_BACKEND
 
   //  This is the first register pair in REG_TMP_ORDER
   #define REG_PAIR_TMP             REG_PAIR_R2R3
@@ -1527,6 +1535,11 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define CPBLK_UNROLL_LIMIT       64      // Upper bound to let the code generator to loop unroll CpBlk.
   #define INITBLK_UNROLL_LIMIT     64      // Upper bound to let the code generator to loop unroll InitBlk.
 
+#ifdef FEATURE_SIMD
+  #define ALIGN_SIMD_TYPES         1       // whether SIMD type locals are to be aligned
+  #define FEATURE_PARTIAL_SIMD_CALLEE_SAVE 1 // Whether SIMD registers are partially saved at calls
+#endif // FEATURE_SIMD
+
   #define FEATURE_WRITE_BARRIER    1       // Generate the proper WriteBarrier calls for GC    
   #define FEATURE_FIXED_OUT_ARGS   1       // Preallocate the outgoing arg area in the prolog
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
@@ -1587,6 +1600,8 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_CALLEE_TRASH        (RBM_INT_CALLEE_TRASH | RBM_FLT_CALLEE_TRASH)
   #define RBM_CALLEE_TRASH_NOGC   (RBM_R12|RBM_R13|RBM_R14|RBM_R15|RBM_IP1)
   #define REG_DEFAULT_HELPER_CALL_TARGET REG_R12
+  #define REG_FASTTAILCALL_TARGET REG_IP0   // Target register for fast tail call
+  #define RBM_FASTTAILCALL_TARGET RBM_IP0
 
   #define RBM_ALLINT              (RBM_INT_CALLEE_SAVED | RBM_INT_CALLEE_TRASH)
   #define RBM_ALLFLOAT            (RBM_FLT_CALLEE_SAVED | RBM_FLT_CALLEE_TRASH)
@@ -1602,7 +1617,7 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
                                    REG_V28, REG_V29, REG_V30, REG_V31, \
                                    REG_V7,  REG_V6,  REG_V5,  REG_V4,  \
                                    REG_V8,  REG_V9,  REG_V10, REG_V11, \
-                                   REG_V12, REG_V13, REG_V14, REG_V16, \
+                                   REG_V12, REG_V13, REG_V14, REG_V15, \
                                    REG_V3,  REG_V2, REG_V1,  REG_V0 
 
   #define REG_CALLEE_SAVED_ORDER   REG_R19,REG_R20,REG_R21,REG_R22,REG_R23,REG_R24,REG_R25,REG_R26,REG_R27,REG_R28
@@ -1628,6 +1643,10 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   //  This is the second register in REG_TMP_ORDER
   #define REG_TMP_1                REG_R10
   #define RBM_TMP_1                RBM_R10
+
+  // Temporary registers used for the GS cookie check.
+  #define REG_GSCOOKIE_TMP_0       REG_R9
+  #define REG_GSCOOKIE_TMP_1       REG_R10
 
   // register to hold shift amount; no special register is required on ARM64.
   #define REG_SHIFT                REG_NA

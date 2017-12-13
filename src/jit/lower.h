@@ -137,7 +137,11 @@ private:
     // Call Lowering
     // ------------------------------
     void LowerCall(GenTree* call);
-    GenTree* LowerCompare(GenTree* tree);
+#ifndef _TARGET_64BIT_
+    GenTree* DecomposeLongCompare(GenTree* cmp);
+#endif
+    GenTree* OptimizeConstCompare(GenTree* cmp);
+    GenTree* LowerCompare(GenTree* cmp);
     GenTree* LowerJTrue(GenTreeOp* jtrue);
     void LowerJmpMethod(GenTree* jmp);
     void LowerRet(GenTree* ret);
@@ -151,9 +155,14 @@ private:
     GenTree* LowerVirtualVtableCall(GenTreeCall* call);
     GenTree* LowerVirtualStubCall(GenTreeCall* call);
     void LowerArgsForCall(GenTreeCall* call);
-    void ReplaceArgWithPutArgOrCopy(GenTreePtr* ppChild, GenTreePtr newNode);
+    void ReplaceArgWithPutArgOrBitcast(GenTreePtr* ppChild, GenTreePtr newNode);
     GenTree* NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryPtr info, var_types type);
     void LowerArg(GenTreeCall* call, GenTreePtr* ppTree);
+#ifdef _TARGET_ARMARCH_
+    GenTree* LowerFloatArg(GenTree** pArg, fgArgTabEntry* info);
+    GenTree* LowerFloatArgReg(GenTree* arg, regNumber regNum);
+#endif
+
     void InsertPInvokeCallProlog(GenTreeCall* call);
     void InsertPInvokeCallEpilog(GenTreeCall* call);
     void InsertPInvokeMethodProlog();
@@ -166,8 +175,8 @@ private:
         PopFrame
     };
     GenTree* CreateFrameLinkUpdate(FrameLinkAction);
-    GenTree* AddrGen(ssize_t addr, regNumber reg = REG_NA);
-    GenTree* AddrGen(void* addr, regNumber reg = REG_NA);
+    GenTree* AddrGen(ssize_t addr);
+    GenTree* AddrGen(void* addr);
 
     GenTree* Ind(GenTree* tree)
     {
@@ -282,18 +291,15 @@ private:
     GenTree* LowerConstIntDivOrMod(GenTree* node);
     GenTree* LowerSignedDivOrMod(GenTree* node);
     void LowerBlockStore(GenTreeBlk* blkNode);
-#ifdef _TARGET_ARM64_
-    void LowerPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntryPtr info);
-#endif // _TARGET_ARM64_
-#ifdef _TARGET_ARM_
-    void LowerPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntryPtr info);
-#endif // _TARGET_ARM64_
     void LowerPutArgStk(GenTreePutArgStk* tree);
 
     GenTree* TryCreateAddrMode(LIR::Use&& use, bool isIndir);
     void AddrModeCleanupHelper(GenTreeAddrMode* addrMode, GenTree* node);
 
     GenTree* LowerSwitch(GenTree* node);
+    bool TryLowerSwitchToBitTest(
+        BasicBlock* jumpTable[], unsigned jumpCount, unsigned targetCount, BasicBlock* bbSwitch, GenTree* switchValue);
+
     void LowerCast(GenTree* node);
 
 #if !CPU_LOAD_STORE_ARCH

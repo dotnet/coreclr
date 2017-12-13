@@ -1478,6 +1478,7 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
     const static insFormat formatEncode2M[2] = {IF_DV_3A, IF_DV_3AI};
     const static insFormat formatEncode2N[2] = {IF_DV_2N, IF_DV_2O};
     const static insFormat formatEncode2O[2] = {IF_DV_3E, IF_DV_3A};
+    const static insFormat formatEncode2P[2] = {IF_DV_2G, IF_DV_3B};
 
     code_t    code           = BAD_CODE;
     insFormat insFmt         = emitInsFormat(ins);
@@ -1897,6 +1898,17 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
             for (index = 0; index < 2; index++)
             {
                 if (fmt == formatEncode2O[index])
+                {
+                    encoding_found = true;
+                    break;
+                }
+            }
+            break;
+
+        case IF_EN2P:
+            for (index = 0; index < 2; index++)
+            {
+                if (fmt == formatEncode2P[index])
                 {
                     encoding_found = true;
                     break;
@@ -3795,6 +3807,16 @@ void emitter::emitIns_R_R(
             }
             break;
 
+        case INS_dup:
+            // Vector operation
+            assert(insOptsAnyArrangement(opt));
+            assert(isVectorRegister(reg1));
+            assert(isGeneralRegisterOrZR(reg2));
+            assert(isValidVectorDatasize(size));
+            assert(isValidArrangement(size, opt));
+            fmt = IF_DV_2C;
+            break;
+
         case INS_abs:
         case INS_not:
             assert(isVectorRegister(reg1));
@@ -3939,6 +3961,13 @@ void emitter::emitIns_R_R(
             fmt = IF_DR_2G;
             break;
 
+        case INS_addv:
+        case INS_saddlv:
+        case INS_smaxv:
+        case INS_sminv:
+        case INS_uaddlv:
+        case INS_umaxv:
+        case INS_uminv:
         case INS_rev64:
             assert(isVectorRegister(reg1));
             assert(isVectorRegister(reg2));
@@ -3946,6 +3975,26 @@ void emitter::emitIns_R_R(
             assert(isValidArrangement(size, opt));
             elemsize = optGetElemsize(opt);
             assert(elemsize != EA_8BYTE); // No encoding for type D
+            fmt = IF_DV_2M;
+            break;
+
+        case INS_xtn:
+        case INS_xtn2:
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            assert(isValidVectorDatasize(size));
+            assert(isValidArrangement(size, opt));
+            elemsize = optGetElemsize(opt);
+            // size is determined by instruction
+            if (ins == INS_xtn)
+            {
+                assert(size == EA_8BYTE);
+            }
+            else // ins == INS_xtn2
+            {
+                assert(size == EA_16BYTE);
+            }
+            assert(elemsize != EA_8BYTE); // Narrowing must not end with 8 byte data
             fmt = IF_DV_2M;
             break;
 
@@ -4089,6 +4138,18 @@ void emitter::emitIns_R_R(
             }
             break;
 
+        case INS_fcvtl:
+        case INS_fcvtl2:
+        case INS_fcvtn:
+        case INS_fcvtn2:
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            assert(isValidVectorDatasize(size));
+            assert(insOptsNone(opt));
+            assert(size == EA_8BYTE); // Narrowing from Double or Widening to Double (Half not supported)
+            fmt = IF_DV_2G;
+            break;
+
         case INS_scvtf:
         case INS_ucvtf:
             if (insOptsAnyArrangement(opt))
@@ -4154,6 +4215,15 @@ void emitter::emitIns_R_R(
                 assert(isVectorRegister(reg2));
                 fmt = IF_DV_2G;
             }
+            break;
+
+        case INS_faddp:
+            // Scalar operation
+            assert(insOptsNone(opt));
+            assert(isValidVectorElemsizeFloat(size));
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            fmt = IF_DV_2G;
             break;
 
         case INS_fcvt:
@@ -5004,10 +5074,67 @@ void emitter::emitIns_R_R_R(
             emitIns_R_R_R_I(ins, attr, reg1, reg2, reg3, 0, INS_OPTS_NONE);
             return;
 
+        case INS_cmeq:
+        case INS_cmge:
+        case INS_cmgt:
+        case INS_cmhi:
+        case INS_cmhs:
+        case INS_ctst:
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            assert(isVectorRegister(reg3));
+
+            if (isValidVectorDatasize(size))
+            {
+                // Vector operation
+                assert(insOptsAnyArrangement(opt));
+                assert(isValidArrangement(size, opt));
+                elemsize = optGetElemsize(opt);
+                fmt      = IF_DV_3A;
+            }
+            else
+            {
+                NYI("Untested");
+                // Scalar operation
+                assert(size == EA_8BYTE); // Only Double supported
+                fmt = IF_DV_3E;
+            }
+            break;
+
+        case INS_fcmeq:
+        case INS_fcmge:
+        case INS_fcmgt:
+            assert(isVectorRegister(reg1));
+            assert(isVectorRegister(reg2));
+            assert(isVectorRegister(reg3));
+
+            if (isValidVectorDatasize(size))
+            {
+                // Vector operation
+                assert(insOptsAnyArrangement(opt));
+                assert(isValidArrangement(size, opt));
+                elemsize = optGetElemsize(opt);
+                assert((elemsize == EA_8BYTE) || (elemsize == EA_4BYTE)); // Only Double/Float supported
+                assert(opt != INS_OPTS_1D);                               // Reserved encoding
+                fmt = IF_DV_3B;
+            }
+            else
+            {
+                NYI("Untested");
+                // Scalar operation
+                assert((size == EA_8BYTE) || (size == EA_4BYTE)); // Only Double/Float supported
+                fmt = IF_DV_3D;
+            }
+            break;
+
         case INS_saba:
         case INS_sabd:
+        case INS_smax:
+        case INS_smin:
         case INS_uaba:
         case INS_uabd:
+        case INS_umax:
+        case INS_umin:
             assert(isVectorRegister(reg1));
             assert(isVectorRegister(reg2));
             assert(isVectorRegister(reg3));
@@ -5120,6 +5247,7 @@ void emitter::emitIns_R_R_R(
             fmt = IF_DV_3D;
             break;
 
+        case INS_faddp:
         case INS_fmla:
         case INS_fmls:
             assert(isVectorRegister(reg1));
@@ -6101,8 +6229,8 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
 
         case INS_str:
         case INS_ldr:
-            assert(isValidGeneralDatasize(size));
-            scale = (size == EA_8BYTE) ? 3 : 2;
+            assert(isValidGeneralDatasize(size) || isValidVectorDatasize(size));
+            scale = genLog2(EA_SIZE_IN_BYTES(size));
             break;
 
         case INS_lea:
@@ -6123,7 +6251,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
 
     base = emitComp->lvaFrameAddress(varx, &FPbased);
     disp = base + offs;
-    assert((scale >= 0) && (scale <= 3));
+    assert((scale >= 0) && (scale <= 4));
 
     regNumber reg2 = FPbased ? REG_FPBASE : REG_SPBASE;
     reg2           = encodingSPtoZR(reg2);
@@ -6148,7 +6276,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
         else
         {
             regNumber rsvdReg = codeGen->rsGetRsvdReg();
-            codeGen->instGen_Set_Reg_To_Imm(size, rsvdReg, imm);
+            codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, rsvdReg, imm);
             fmt = IF_DR_3A; // add reg1,reg2,rsvdReg
         }
     }
@@ -6190,7 +6318,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
         if (useRegForImm)
         {
             regNumber rsvdReg = codeGen->rsGetRsvdReg();
-            codeGen->instGen_Set_Reg_To_Imm(size, rsvdReg, imm);
+            codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, rsvdReg, imm);
             fmt = IF_LS_3A;
         }
     }
@@ -6230,7 +6358,6 @@ void emitter::emitIns_R_R_S_S(
     assert(isGeneralRegisterOrZR(reg2));
     assert(offs >= 0);
 
-    emitAttr       size  = EA_SIZE(attr1);
     insFormat      fmt   = IF_LS_3B;
     int            disp  = 0;
     const unsigned scale = 3;
@@ -6271,7 +6398,7 @@ void emitter::emitIns_R_R_S_S(
     if (useRegForAdr)
     {
         regNumber rsvd = codeGen->rsGetRsvdReg();
-        emitIns_R_R_Imm(INS_add, EA_8BYTE, rsvd, reg3, imm);
+        emitIns_R_R_Imm(INS_add, EA_PTRSIZE, rsvd, reg3, imm);
         reg3 = rsvd;
         imm  = 0;
     }
@@ -6417,7 +6544,7 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber reg1, int va
         // The reserved register is not stored in idReg3() since that field overlaps with iiaLclVar.
         // It is instead implicit when idSetIsLclVar() is set, with this encoding format.
         regNumber rsvdReg = codeGen->rsGetRsvdReg();
-        codeGen->instGen_Set_Reg_To_Imm(size, rsvdReg, imm);
+        codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, rsvdReg, imm);
         fmt = IF_LS_3A;
     }
 
@@ -6456,7 +6583,6 @@ void emitter::emitIns_S_S_R_R(
     assert(isGeneralRegisterOrZR(reg2));
     assert(offs >= 0);
 
-    emitAttr       size  = EA_SIZE(attr1);
     insFormat      fmt   = IF_LS_3B;
     int            disp  = 0;
     const unsigned scale = 3;
@@ -6497,7 +6623,7 @@ void emitter::emitIns_S_S_R_R(
     if (useRegForAdr)
     {
         regNumber rsvd = codeGen->rsGetRsvdReg();
-        emitIns_R_R_Imm(INS_add, EA_8BYTE, rsvd, reg3, imm);
+        emitIns_R_R_Imm(INS_add, EA_PTRSIZE, rsvd, reg3, imm);
         reg3 = rsvd;
         imm  = 0;
     }
@@ -6663,13 +6789,7 @@ void emitter::emitIns_C_R(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE f
     assert(!"emitIns_C_R not supported for RyuJIT backend");
 }
 
-void emitter::emitIns_R_AR(instruction ins,
-                           emitAttr    attr,
-                           regNumber   ireg,
-                           regNumber   reg,
-                           int         offs,
-                           int         memCookie /* = 0 */,
-                           void*       clsCookie /* = NULL */)
+void emitter::emitIns_R_AR(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs)
 {
     NYI("emitIns_R_AR");
 }
@@ -6728,13 +6848,7 @@ void emitter::emitIns_R_AI(instruction ins, emitAttr attr, regNumber ireg, ssize
     }
 }
 
-void emitter::emitIns_AR_R(instruction ins,
-                           emitAttr    attr,
-                           regNumber   ireg,
-                           regNumber   reg,
-                           int         offs,
-                           int         memCookie /* = 0 */,
-                           void*       clsCookie /* = NULL */)
+void emitter::emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs)
 {
     NYI("emitIns_AR_R");
 }
@@ -7278,20 +7392,17 @@ void emitter::emitIns_Call(EmitCallType          callType,
                    VarSetOps::ToString(emitComp, ((instrDescCGCA*)id)->idcGCvars));
         }
     }
-#endif
 
-#if defined(DEBUG) || defined(LATE_DISASM)
     id->idDebugOnlyInfo()->idMemCookie = (size_t)methHnd; // method token
-    id->idDebugOnlyInfo()->idClsCookie = 0;
     id->idDebugOnlyInfo()->idCallSig   = sigInfo;
-#endif
+#endif // DEBUG
 
-#if defined(LATE_DISASM)
+#ifdef LATE_DISASM
     if (addr != nullptr)
     {
         codeGen->getDisAssembler().disSetMethod((size_t)addr, methHnd);
     }
-#endif // defined(LATE_DISASM)
+#endif // LATE_DISASM
 
     dispIns(id);
     appendToCurIG(id);
@@ -7559,10 +7670,9 @@ void emitter::emitIns_Call(EmitCallType          callType,
 
     if ((code & 0x00800000) && !exclusive) // Is this a sign-extending opcode? (i.e. ldrsw, ldrsh, ldrsb)
     {
-        assert((size == EA_4BYTE) || (size == EA_8BYTE));
         if ((code & 0x80000000) == 0) // Is it a ldrsh or ldrsb and not ldrsw ?
         {
-            if (size == EA_4BYTE) // Do we need to encode the 32-bit Rt size bit?
+            if (EA_SIZE(size) != EA_8BYTE) // Do we need to encode the 32-bit Rt size bit?
             {
                 return 0x00400000; // set the bit at location 22
             }
@@ -7570,8 +7680,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
     else if (code & 0x80000000) // Is this a ldr/str/ldur/stur opcode?
     {
-        assert((size == EA_4BYTE) || (size == EA_8BYTE));
-        if (size == EA_8BYTE) // Do we need to encode the 64-bit size bit?
+        if (EA_SIZE(size) == EA_8BYTE) // Do we need to encode the 64-bit size bit?
         {
             return 0x40000000; // set the bit at location 30
         }
@@ -11393,75 +11502,6 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
         // Then load/store dataReg from/to [addrReg]
         emitIns_R_R(ins, ldstAttr, dataReg, addr->gtRegNum);
     }
-}
-
-// Generates an integer data section constant and returns a field handle representing
-// the data offset to access the constant via a load instruction.
-// This is called during ngen for any relocatable constants
-//
-CORINFO_FIELD_HANDLE emitter::emitLiteralConst(ssize_t cnsValIn, emitAttr attr /*=EA_8BYTE*/)
-{
-    ssize_t constValue = cnsValIn;
-    void*   cnsAddr    = &constValue;
-    bool    dblAlign;
-
-    if (attr == EA_4BYTE)
-    {
-        dblAlign = false;
-    }
-    else
-    {
-        assert(attr == EA_8BYTE);
-        dblAlign = true;
-    }
-
-    // Access to inline data is 'abstracted' by a special type of static member
-    // (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
-    // to constant data, not a real static field.
-
-    UNATIVE_OFFSET cnsSize = (attr == EA_4BYTE) ? 4 : 8;
-    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, cnsSize, dblAlign);
-    return emitComp->eeFindJitDataOffs(cnum);
-}
-
-// Generates a float or double data section constant and returns field handle representing
-// the data offset to access the constant.  This is called by emitInsBinary() in case
-// of contained float of double constants.
-CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(GenTreeDblCon* tree, emitAttr attr /*=EA_UNKNOWN*/)
-{
-    if (attr == EA_UNKNOWN)
-    {
-        attr = emitTypeSize(tree->TypeGet());
-    }
-    else
-    {
-        assert(emitTypeSize(tree->TypeGet()) == attr);
-    }
-
-    double constValue = tree->gtDblCon.gtDconVal;
-    void*  cnsAddr;
-    float  f;
-    bool   dblAlign;
-
-    if (attr == EA_4BYTE)
-    {
-        f        = forceCastToFloat(constValue);
-        cnsAddr  = &f;
-        dblAlign = false;
-    }
-    else
-    {
-        cnsAddr  = &constValue;
-        dblAlign = true;
-    }
-
-    // Access to inline data is 'abstracted' by a special type of static member
-    // (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
-    // to constant data, not a real static field.
-
-    UNATIVE_OFFSET cnsSize = (attr == EA_4BYTE) ? 4 : 8;
-    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, cnsSize, dblAlign);
-    return emitComp->eeFindJitDataOffs(cnum);
 }
 
 // The callee must call genConsumeReg() for any non-contained srcs

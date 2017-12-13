@@ -2392,7 +2392,7 @@ void emitter::emitIns_R_R_I(instruction ins,
             assert(insOptsNone(opt));
 
             // Is it just a mov?
-            if (imm == 0)
+            if ((imm == 0) && insDoesNotSetFlags(flags))
             {
                 // Is the mov even necessary?
                 // Fix 383915 ARM ILGEN
@@ -3808,19 +3808,12 @@ void emitter::emitIns_C_I(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE f
  *  The following adds instructions referencing address modes.
  */
 
-void emitter::emitIns_I_AR(
-    instruction ins, emitAttr attr, int val, regNumber reg, int offs, int memCookie, void* clsCookie)
+void emitter::emitIns_I_AR(instruction ins, emitAttr attr, int val, regNumber reg, int offs)
 {
     NYI("emitIns_I_AR");
 }
 
-void emitter::emitIns_R_AR(instruction ins,
-                           emitAttr    attr,
-                           regNumber   ireg,
-                           regNumber   reg,
-                           int         offs,
-                           int         memCookie /* = 0 */,
-                           void*       clsCookie /* = NULL */)
+void emitter::emitIns_R_AR(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs)
 {
     if (ins == INS_mov)
     {
@@ -3890,13 +3883,7 @@ void emitter::emitIns_R_AI(instruction ins, emitAttr attr, regNumber ireg, ssize
     NYI("emitIns_R_AI");
 }
 
-void emitter::emitIns_AR_R(instruction ins,
-                           emitAttr    attr,
-                           regNumber   ireg,
-                           regNumber   reg,
-                           int         offs,
-                           int         memCookie /* = 0 */,
-                           void*       clsCookie /* = NULL */)
+void emitter::emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs)
 {
     if (ins == INS_mov)
     {
@@ -4652,20 +4639,17 @@ void emitter::emitIns_Call(EmitCallType          callType,
                    VarSetOps::ToString(emitComp, ((instrDescCGCA*)id)->idcGCvars));
         }
     }
-#endif
 
-#if defined(DEBUG) || defined(LATE_DISASM)
     id->idDebugOnlyInfo()->idMemCookie = (size_t)methHnd; // method token
-    id->idDebugOnlyInfo()->idClsCookie = 0;
     id->idDebugOnlyInfo()->idCallSig   = sigInfo;
-#endif
+#endif // DEBUG
 
-#if defined(LATE_DISASM)
+#ifdef LATE_DISASM
     if (addr != nullptr)
     {
         codeGen->getDisAssembler().disSetMethod((size_t)addr, methHnd);
     }
-#endif // defined(LATE_DISASM)
+#endif // LATE_DISASM
 
     dispIns(id);
     appendToCurIG(id);
@@ -7641,24 +7625,32 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
 
         if (indir->HasIndex())
         {
+            assert(addr->OperGet() == GT_LEA);
+
             GenTree* index = indir->Index();
 
             if (offset != 0)
             {
                 regNumber tmpReg = indir->GetSingleTempReg();
 
+                // If the LEA produces a GCREF or BYREF, we need to be careful to mark any temp register
+                // computed with the base register as a BYREF.
+                GenTreeAddrMode* lea                    = addr->AsAddrMode();
+                emitAttr         leaAttr                = emitTypeSize(lea);
+                emitAttr         leaBasePartialAddrAttr = EA_IS_GCREF_OR_BYREF(leaAttr) ? EA_BYREF : EA_PTRSIZE;
+
                 if (emitIns_valid_imm_for_add(offset, INS_FLAGS_DONT_CARE))
                 {
                     if (lsl > 0)
                     {
                         // Generate code to set tmpReg = base + index*scale
-                        emitIns_R_R_R_I(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
-                                        INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
+                        emitIns_R_R_R_I(INS_add, leaBasePartialAddrAttr, tmpReg, memBase->gtRegNum, index->gtRegNum,
+                                        lsl, INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
                     }
                     else // no scale
                     {
                         // Generate code to set tmpReg = base + index
-                        emitIns_R_R_R(INS_add, EA_PTRSIZE, tmpReg, memBase->gtRegNum, index->gtRegNum);
+                        emitIns_R_R_R(INS_add, leaBasePartialAddrAttr, tmpReg, memBase->gtRegNum, index->gtRegNum);
                     }
 
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
@@ -7672,7 +7664,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                     codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
                     // Then add the base register
                     //      rd = rd + base
-                    emitIns_R_R_R(INS_add, EA_PTRSIZE, tmpReg, tmpReg, memBase->gtRegNum);
+                    emitIns_R_R_R(INS_add, leaBasePartialAddrAttr, tmpReg, tmpReg, memBase->gtRegNum);
 
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
                     noway_assert(tmpReg != index->gtRegNum);

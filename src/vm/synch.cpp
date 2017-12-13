@@ -841,7 +841,7 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorC
     }
 #else // !_TARGET_ARM64_
     const UINT32 Sleep0Threshold = 10;
-    YieldProcessorWithBackOffNormalizationInfo normalizationInfo;
+    YieldProcessorNormalizationInfo normalizationInfo;
 #ifdef FEATURE_PAL
     // The PAL's wait subsystem is quite slow, spin more to compensate for the more expensive wait
     spinCount *= 2;
@@ -973,7 +973,6 @@ void CLRLifoSemaphore::Release(INT32 releaseCount)
         if (countsBeforeUpdate == counts)
         {
             _ASSERTE((UINT32)releaseCount <= m_maximumSignalCount - counts.signalCount);
-            _ASSERTE(newCounts.countOfWaitersSignaledToWake <= newCounts.waiterCount);
             if (countOfWaitersToWake <= 0)
             {
                 return;

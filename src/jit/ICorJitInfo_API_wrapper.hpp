@@ -356,6 +356,22 @@ const char* WrapICorJitInfo::getClassName(CORINFO_CLASS_HANDLE    cls)
     return result;
 }
 
+const char* WrapICorJitInfo::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    API_ENTER(getClassNameFromMetadata);
+    const char* result = wrapHnd->getClassNameFromMetadata(cls, namespaceName);
+    API_LEAVE(getClassNameFromMetadata);
+    return result;
+}
+
+CORINFO_CLASS_HANDLE WrapICorJitInfo::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    API_ENTER(getTypeInstantiationArgument);
+    CORINFO_CLASS_HANDLE result = wrapHnd->getTypeInstantiationArgument(cls, index);
+    API_LEAVE(getTypeInstantiationArgument);
+    return result;
+}
+
 int WrapICorJitInfo::appendClassName(
             __deref_inout_ecount(*pnBufLen) WCHAR** ppBuf,
             int* pnBufLen,
@@ -1617,6 +1633,17 @@ CORINFO_METHOD_HANDLE WrapICorJitInfo::resolveVirtualMethod(
     API_ENTER(resolveVirtualMethod);
     CORINFO_METHOD_HANDLE result = wrapHnd->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
     API_LEAVE(resolveVirtualMethod);
+    return result;
+}
+
+CORINFO_METHOD_HANDLE WrapICorJitInfo::getUnboxedEntry(
+    CORINFO_METHOD_HANDLE       ftn,          /* IN */
+    bool* requiresInstMethodTableArg          /* OUT */
+)
+{
+    API_ENTER(getUnboxedEntry);
+    CORINFO_METHOD_HANDLE result = wrapHnd->getUnboxedEntry(ftn, requiresInstMethodTableArg);
+    API_LEAVE(getUnboxedEntry);
     return result;
 }
 

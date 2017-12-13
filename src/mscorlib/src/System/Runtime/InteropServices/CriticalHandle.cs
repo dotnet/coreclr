@@ -73,10 +73,6 @@ using System.IO;
   should be decorated with a reliability contract of the appropriate
   level. In most cases this should be:
     ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)
-  Also, any P/Invoke methods should use the
-  SuppressUnmanagedCodeSecurity attribute to avoid a runtime security
-  check that can also inject failures (even if the check is guaranteed
-  to pass).
 
   Subclasses must also implement the IsInvalid property so that the
   infrastructure can tell when critical finalization is actually required.
@@ -135,9 +131,6 @@ namespace System.Runtime.InteropServices
     {
         // ! Do not add or rearrange fields as the EE depends on this layout.
         //------------------------------------------------------------------
-#if DEBUG
-        private String _stackTrace; // Where we allocated this CriticalHandle.
-#endif
         protected IntPtr handle;    // This must be protected so derived classes can use out params. 
         private bool _isClosed;     // Set by SetHandleAsInvalid or Close/Dispose/finalization.
 
@@ -146,13 +139,6 @@ namespace System.Runtime.InteropServices
         {
             handle = invalidHandleValue;
             _isClosed = false;
-
-#if DEBUG
-            if (BCLDebug.SafeHandleStackTracesEnabled)
-                _stackTrace = Environment.GetStackTrace(null, false);
-            else
-                _stackTrace = "For a stack trace showing who allocated this CriticalHandle, set SafeHandleStackTraces to 1 and rerun your app.";
-#endif
         }
 
         // Adding an empty default constructor for annotation purposes

@@ -17,7 +17,7 @@ namespace System
 
         internal static MatchNumberDelegate m_hebrewNumberParser = new MatchNumberDelegate(DateTimeParse.MatchHebrewDigits);
 
-        internal static DateTime ParseExact(ReadOnlySpan<char> s, String format, DateTimeFormatInfo dtfi, DateTimeStyles style)
+        internal static DateTime ParseExact(ReadOnlySpan<char> s, ReadOnlySpan<char> format, DateTimeFormatInfo dtfi, DateTimeStyles style)
         {
             DateTimeResult result = new DateTimeResult();       // The buffer to store the parsing result.
             result.Init();
@@ -31,7 +31,7 @@ namespace System
             }
         }
 
-        internal static DateTime ParseExact(ReadOnlySpan<char> s, String format, DateTimeFormatInfo dtfi, DateTimeStyles style, out TimeSpan offset)
+        internal static DateTime ParseExact(ReadOnlySpan<char> s, ReadOnlySpan<char> format, DateTimeFormatInfo dtfi, DateTimeStyles style, out TimeSpan offset)
         {
             DateTimeResult result = new DateTimeResult();       // The buffer to store the parsing result.
             offset = TimeSpan.Zero;
@@ -48,7 +48,7 @@ namespace System
             }
         }
 
-        internal static bool TryParseExact(ReadOnlySpan<char> s, String format, DateTimeFormatInfo dtfi, DateTimeStyles style, out DateTime result)
+        internal static bool TryParseExact(ReadOnlySpan<char> s, ReadOnlySpan<char> format, DateTimeFormatInfo dtfi, DateTimeStyles style, out DateTime result)
         {
             result = DateTime.MinValue;
             DateTimeResult resultData = new DateTimeResult();       // The buffer to store the parsing result.
@@ -61,7 +61,7 @@ namespace System
             return false;
         }
 
-        internal static bool TryParseExact(ReadOnlySpan<char> s, String format, DateTimeFormatInfo dtfi, DateTimeStyles style, out DateTime result, out TimeSpan offset)
+        internal static bool TryParseExact(ReadOnlySpan<char> s, ReadOnlySpan<char> format, DateTimeFormatInfo dtfi, DateTimeStyles style, out DateTime result, out TimeSpan offset)
         {
             result = DateTime.MinValue;
             offset = TimeSpan.Zero;
@@ -77,13 +77,8 @@ namespace System
             return false;
         }
 
-        internal static bool TryParseExact(ReadOnlySpan<char> s, String format, DateTimeFormatInfo dtfi, DateTimeStyles style, ref DateTimeResult result)
+        internal static bool TryParseExact(ReadOnlySpan<char> s, ReadOnlySpan<char> format, DateTimeFormatInfo dtfi, DateTimeStyles style, ref DateTimeResult result)
         {
-            if (format == null)
-            {
-                result.SetFailure(ParseFailureKind.ArgumentNull, nameof(SR.ArgumentNull_String), null, nameof(format));
-                return false;
-            }
             if (s.Length == 0)
             {
                 result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_BadDateTime), null);
@@ -620,17 +615,9 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             str.GetRegularToken(out tokenType, out tokenValue, dtfi);
 
 #if _LOGGING
-            // Builds with _LOGGING defined (x86dbg, amd64chk, etc) support tracing
-            // Set the following internal-only/unsupported environment variables to enable DateTime tracing to the console:
-            //
-            // COMPlus_LogEnable=1
-            // COMPlus_LogToConsole=1
-            // COMPlus_LogLevel=9
-            // COMPlus_ManagedLogFacility=0x00001000
             if (_tracingEnabled)
             {
-                BCLDebug.Trace("DATETIME", "[DATETIME] Lex({0})\tpos:{1}({2}), {3}, DS.{4}", Hex(str.Value),
-                               str.Index, Hex(str.m_current), tokenType, dps);
+                Trace($"Lex({Hex(str.Value)})\tpos:{str.Index}({Hex(str.m_current)}), {tokenType}, DS.{dps}");
             }
 #endif // _LOGGING
 
@@ -3784,7 +3771,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
         // This method also set the dtfi according/parseInfo to some special pre-defined
         // formats.
         //
-        private static String ExpandPredefinedFormat(String format, ref DateTimeFormatInfo dtfi, ref ParsingInfo parseInfo, ref DateTimeResult result)
+        private static String ExpandPredefinedFormat(ReadOnlySpan<char> format, ref DateTimeFormatInfo dtfi, ref ParsingInfo parseInfo, ref DateTimeResult result)
         {
             //
             // Check the format to see if we need to override the dtfi to be InvariantInfo,
@@ -4439,7 +4426,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
 
         private static bool DoStrictParse(
             ReadOnlySpan<char> s,
-            String formatParam,
+            ReadOnlySpan<char> formatParam,
             DateTimeStyles styles,
             DateTimeFormatInfo dtfi,
             ref DateTimeResult result)
@@ -4450,9 +4437,6 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             parseInfo.calendar = dtfi.Calendar;
             parseInfo.fAllowInnerWhite = ((styles & DateTimeStyles.AllowInnerWhite) != 0);
             parseInfo.fAllowTrailingWhite = ((styles & DateTimeStyles.AllowTrailingWhite) != 0);
-
-            // We need the original values of the following two below.
-            String originalFormat = formatParam;
 
             if (formatParam.Length == 1)
             {
@@ -4478,7 +4462,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             // if we have parsed every item twice.
             result.Hour = result.Minute = result.Second = -1;
 
-            __DTString format = new __DTString(formatParam.AsReadOnlySpan(), dtfi, false);
+            __DTString format = new __DTString(formatParam, dtfi, false);
             __DTString str = new __DTString(s, dtfi, false);
 
             if (parseInfo.fAllowTrailingWhite)
@@ -4647,71 +4631,64 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                 case ParseFailureKind.FormatBadDateTimeCalendar:
                     return new FormatException(SR.Format(SR.GetResourceString(result.failureMessageID), result.calendar));
                 default:
-                    Debug.Assert(false, "Unkown DateTimeParseFailure: " + result);
+                    Debug.Fail("Unkown DateTimeParseFailure: " + result);
                     return null;
             }
         }
 
-        // Builds with _LOGGING defined (x86dbg, amd64chk, etc) support tracing
-        // Set the following internal-only/unsupported environment variables to enable DateTime tracing to the console:
-        //
-        // COMPlus_LogEnable=1
-        // COMPlus_LogToConsole=1
-        // COMPlus_LogLevel=9
-        // COMPlus_ManagedLogFacility=0x00001000
         [Conditional("_LOGGING")]
-        internal static void LexTraceExit(string message, DS dps)
+        private static void LexTraceExit(string message, DS dps)
         {
 #if _LOGGING
             if (!_tracingEnabled)
                 return;
-            BCLDebug.Trace("DATETIME", "[DATETIME] Lex return {0}, DS.{1}", message, dps);
+            Trace($"Lex return {message}, DS.{dps}");
 #endif // _LOGGING
         }
         [Conditional("_LOGGING")]
-        internal static void PTSTraceExit(DS dps, bool passed)
+        private static void PTSTraceExit(DS dps, bool passed)
         {
 #if _LOGGING
             if (!_tracingEnabled)
                 return;
-            BCLDebug.Trace("DATETIME", "[DATETIME] ProcessTerminalState {0} @ DS.{1}", passed ? "passed" : "failed", dps);
+            Trace($"ProcessTerminalState {(passed ? "passed" : "failed")} @ DS.{dps}");
 #endif // _LOGGING
         }
         [Conditional("_LOGGING")]
-        internal static void TPTraceExit(string message, DS dps)
+        private static void TPTraceExit(string message, DS dps)
         {
 #if _LOGGING
             if (!_tracingEnabled)
                 return;
-            BCLDebug.Trace("DATETIME", "[DATETIME] TryParse return {0}, DS.{1}", message, dps);
+            Trace($"TryParse return {message}, DS.{dps}");
 #endif // _LOGGING
         }
         [Conditional("_LOGGING")]
-        internal static void DTFITrace(DateTimeFormatInfo dtfi)
+        private static void DTFITrace(DateTimeFormatInfo dtfi)
         {
 #if _LOGGING
             if (!_tracingEnabled)
                 return;
 
-            BCLDebug.Trace("DATETIME", "[DATETIME] DateTimeFormatInfo Properties");
+            Trace("DateTimeFormatInfo Properties");
 #if !FEATURE_COREFX_GLOBALIZATION
-            BCLDebug.Trace("DATETIME", " NativeCalendarName {0}", Hex(dtfi.NativeCalendarName));
+            Trace($" NativeCalendarName {Hex(dtfi.NativeCalendarName)}");
 #endif
-            BCLDebug.Trace("DATETIME", "       AMDesignator {0}", Hex(dtfi.AMDesignator));
-            BCLDebug.Trace("DATETIME", "       PMDesignator {0}", Hex(dtfi.PMDesignator));
-            BCLDebug.Trace("DATETIME", "      TimeSeparator {0}", Hex(dtfi.TimeSeparator));
-            BCLDebug.Trace("DATETIME", "      AbbrvDayNames {0}", Hex(dtfi.AbbreviatedDayNames));
-            BCLDebug.Trace("DATETIME", "   ShortestDayNames {0}", Hex(dtfi.ShortestDayNames));
-            BCLDebug.Trace("DATETIME", "           DayNames {0}", Hex(dtfi.DayNames));
-            BCLDebug.Trace("DATETIME", "    AbbrvMonthNames {0}", Hex(dtfi.AbbreviatedMonthNames));
-            BCLDebug.Trace("DATETIME", "         MonthNames {0}", Hex(dtfi.MonthNames));
-            BCLDebug.Trace("DATETIME", " AbbrvMonthGenNames {0}", Hex(dtfi.AbbreviatedMonthGenitiveNames));
-            BCLDebug.Trace("DATETIME", "      MonthGenNames {0}", Hex(dtfi.MonthGenitiveNames));
+            Trace($"       AMDesignator {Hex(dtfi.AMDesignator)}");
+            Trace($"       PMDesignator {Hex(dtfi.PMDesignator)}");
+            Trace($"      TimeSeparator {Hex(dtfi.TimeSeparator)}");
+            Trace($"      AbbrvDayNames {Hex(dtfi.AbbreviatedDayNames)}");
+            Trace($"   ShortestDayNames {Hex(dtfi.ShortestDayNames)}");
+            Trace($"           DayNames {Hex(dtfi.DayNames)}");
+            Trace($"    AbbrvMonthNames {Hex(dtfi.AbbreviatedMonthNames)}");
+            Trace($"         MonthNames {Hex(dtfi.MonthNames)}");
+            Trace($" AbbrvMonthGenNames {Hex(dtfi.AbbreviatedMonthGenitiveNames)}");
+            Trace($"      MonthGenNames {Hex(dtfi.MonthGenitiveNames)}");
 #endif // _LOGGING
         }
 #if _LOGGING
         // return a string in the form: "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
-        internal static string Hex(string[] strs)
+        private static string Hex(string[] strs)
         {
             if (strs == null || strs.Length == 0)
                 return String.Empty;
@@ -4764,8 +4741,8 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             return buffer.ToString();
         }
         // return a string in the form: "Sun"
-        internal static string Hex(string str) => Hex(str.AsReadOnlySpan());
-        internal static string Hex(ReadOnlySpan<char> str)
+        private static string Hex(string str) => Hex((ReadOnlySpan<char>)str);
+        private static string Hex(ReadOnlySpan<char> str)
         {
             StringBuilder buffer = new StringBuilder();
             buffer.Append("\"");
@@ -4780,7 +4757,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             return buffer.ToString();
         }
         // return an unicode escaped string form of char c
-        internal static String Hex(char c)
+        private static String Hex(char c)
         {
             if (c <= '\x007f')
                 return c.ToString(CultureInfo.InvariantCulture);
@@ -4788,7 +4765,12 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                 return "\\u" + ((int)c).ToString("x4", CultureInfo.InvariantCulture);
         }
 
-        internal static bool _tracingEnabled = BCLDebug.CheckEnabled("DATETIME");
+        private static void Trace(string s)
+        {
+            // Internal.Console.WriteLine(s);
+        }
+
+        private static bool _tracingEnabled = false;
 #endif // _LOGGING
     }
 

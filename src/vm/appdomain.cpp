@@ -46,7 +46,6 @@
 
 #ifdef FEATURE_COMINTEROP
 #include "comtoclrcall.h"
-#include "sxshelpers.h"
 #include "runtimecallablewrapper.h"
 #include "mngstdinterfaces.h"
 #include "olevariant.h"
@@ -63,8 +62,6 @@
 #include "threadpoolrequest.h"
 
 #include "nativeoverlapped.h"
-
-#include "compatibilityflags.h"
 
 #ifndef FEATURE_PAL
 #include "dwreport.h"
@@ -2061,8 +2058,6 @@ BOOL AppDomain::GetPreferComInsteadOfManagedRemoting()
 
     return (GetComOrRemotingFlag() == COMorRemoting_COM);
 }
-
-STDAPI GetXMLObjectEx(IXMLParser **ppv);
 
 COMorRemotingFlag AppDomain::GetPreferComInsteadOfManagedRemotingFromConfigFile()
 {
@@ -6427,22 +6422,6 @@ PVOID AppDomain::GetFriendlyNameNoSet(bool* isUtf8)
 
 #endif // DACCESS_COMPILE
 
-void AppDomain::CacheStringsForDAC()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    //
-    // If the application base, private bin paths, and configuration file are
-    // available, cache them so DAC can read them out of memory
-    //
-}
-
 #ifndef DACCESS_COMPILE
 
 BOOL AppDomain::AddFileToCache(AssemblySpec* pSpec, PEAssembly *pFile, BOOL fAllowFailure)
@@ -7699,8 +7678,6 @@ void AppDomain::InitializeDomainContext(BOOL allowRedirects,
         setupDomain.Call(args);
     }
     GCPROTECT_END();
-
-    CacheStringsForDAC();
 #endif // CROSSGEN_COMPILE
 }
 
@@ -10937,22 +10914,6 @@ PTR_MethodTable BaseDomain::LookupType(UINT32 id) {
     CONSISTENCY_CHECK(pMT->IsInterface());
     return pMT;
 }
-
-#ifndef DACCESS_COMPILE
-
-
-//------------------------------------------------------------------------
-BOOL GetCompatibilityFlag(CompatibilityFlag flag)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    } CONTRACTL_END;
-
-    return FALSE;
-}
-#endif // !DACCESS_COMPILE
 
 //---------------------------------------------------------------------------------------
 // 

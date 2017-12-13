@@ -92,7 +92,7 @@ const char* emitter::emitIfName(unsigned f)
 
     static char errBuff[32];
 
-    if (f < sizeof(ifNames) / sizeof(*ifNames))
+    if (f < _countof(ifNames))
     {
         return ifNames[f];
     }
@@ -1337,7 +1337,7 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
 
     emitInsCount++;
 
-#if defined(DEBUG) || defined(LATE_DISASM)
+#if defined(DEBUG)
     /* In debug mode we clear/set some additional fields */
 
     instrDescDebugInfo* info = (instrDescDebugInfo*)emitGetMem(sizeof(*info));
@@ -1346,7 +1346,6 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
     info->idSize       = sz;
     info->idVarRefOffs = 0;
     info->idMemCookie  = 0;
-    info->idClsCookie  = nullptr;
 #ifdef TRANSLATE_PDB
     info->idilStart = emitInstrDescILBase;
 #endif
@@ -1356,7 +1355,7 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
 
     id->idDebugOnlyInfo(info);
 
-#endif // defined(DEBUG) || defined(LATE_DISASM)
+#endif // defined(DEBUG)
 
     /* Store the size and handle the two special values
        that indicate GCref and ByRef */
@@ -1472,8 +1471,8 @@ void emitter::emitBegProlog()
     /* Nothing is live on entry to the prolog */
 
     // These were initialized to Empty at the start of compilation.
-    VarSetOps::OldStyleClearD(emitComp, emitInitGCrefVars);
-    VarSetOps::OldStyleClearD(emitComp, emitPrevGCrefVars);
+    VarSetOps::ClearD(emitComp, emitInitGCrefVars);
+    VarSetOps::ClearD(emitComp, emitPrevGCrefVars);
     emitInitGCrefRegs = RBM_NONE;
     emitPrevGCrefRegs = RBM_NONE;
     emitInitByrefRegs = RBM_NONE;
@@ -1521,10 +1520,6 @@ void emitter::emitMarkPrologEnd()
 void emitter::emitEndProlog()
 {
     assert(emitComp->compGeneratingProlog);
-
-    size_t prolSz;
-
-    insGroup* tempIG;
 
     emitNoGCIG = false;
 
@@ -3123,7 +3118,7 @@ const BYTE emitter::emitFmtToOps[] = {
 };
 
 #ifdef DEBUG
-const unsigned emitter::emitFmtCount = sizeof(emitFmtToOps) / sizeof(emitFmtToOps[0]);
+const unsigned emitter::emitFmtCount = _countof(emitFmtToOps);
 #endif
 
 /*****************************************************************************
@@ -4565,7 +4560,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     /* Assume no live GC ref variables on entry */
 
-    VarSetOps::OldStyleClearD(emitComp, emitThisGCrefVars); // This is initialized to Empty at the start of codegen.
+    VarSetOps::ClearD(emitComp, emitThisGCrefVars); // This is initialized to Empty at the start of codegen.
     emitThisGCrefRegs = emitThisByrefRegs = RBM_NONE;
     emitThisGCrefVset                     = true;
 
@@ -5367,6 +5362,69 @@ UNATIVE_OFFSET emitter::emitDataConst(const void* cnsAddr, unsigned cnsSize, boo
 
     return cnum;
 }
+
+#ifndef LEGACY_BACKEND
+
+//------------------------------------------------------------------------
+// emitAnyConst: Create a data section constant of arbitrary size.
+//
+// Arguments:
+//    cnsAddr  - pointer to the data to be placed in the data section
+//    cnsSize  - size of the data
+//    dblAlign - whether to align the data section to an 8 byte boundary
+//
+// Return Value:
+//    A field handle representing the data offset to access the constant.
+//
+CORINFO_FIELD_HANDLE emitter::emitAnyConst(const void* cnsAddr, unsigned cnsSize, bool dblAlign)
+{
+    UNATIVE_OFFSET cnum = emitDataConst(cnsAddr, cnsSize, dblAlign);
+    return emitComp->eeFindJitDataOffs(cnum);
+}
+
+//------------------------------------------------------------------------
+// emitFltOrDblConst: Create a float or double data section constant.
+//
+// Arguments:
+//    constValue - constant value
+//    attr       - constant size
+//
+// Return Value:
+//    A field handle representing the data offset to access the constant.
+//
+// Notes:
+//    If attr is EA_4BYTE then the double value is converted to a float value.
+//    If attr is EA_8BYTE then 8 byte alignment is automatically requested.
+//
+CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(double constValue, emitAttr attr)
+{
+    assert((attr == EA_4BYTE) || (attr == EA_8BYTE));
+
+    void* cnsAddr;
+    float f;
+    bool  dblAlign;
+
+    if (attr == EA_4BYTE)
+    {
+        f        = forceCastToFloat(constValue);
+        cnsAddr  = &f;
+        dblAlign = false;
+    }
+    else
+    {
+        cnsAddr  = &constValue;
+        dblAlign = true;
+    }
+
+    // Access to inline data is 'abstracted' by a special type of static member
+    // (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
+    // to constant data, not a real static field.
+
+    UNATIVE_OFFSET cnsSize = (attr == EA_4BYTE) ? 4 : 8;
+    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, cnsSize, dblAlign);
+    return emitComp->eeFindJitDataOffs(cnum);
+}
+#endif
 
 /*****************************************************************************
  *
@@ -7195,7 +7253,6 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
     char*           retbuf;
 
     insGroup*      ig;
-    UNATIVE_OFFSET of;
     UNATIVE_OFFSET nextof = 0;
 
     for (ig = emitIGlist; ig != nullptr; ig = ig->igNext)

@@ -69,7 +69,7 @@ GTNODE(CAST             , GenTreeCast        ,0,GTK_UNOP|GTK_EXOP)      // conve
 #if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
 GTNODE(BITCAST          , GenTreeMultiRegOp  ,0,GTK_UNOP)               // reinterpretation of bits as another type
 #else
-GTNODE(BITCAST          , GenTreeUnOp        ,0,GTK_UNOP)               // reinterpretation of bits as another type
+GTNODE(BITCAST          , GenTreeOp          ,0,GTK_UNOP)               // reinterpretation of bits as another type
 #endif
 GTNODE(CKFINITE         , GenTreeOp          ,0,GTK_UNOP|GTK_NOCONTAIN) // Check for NaN
 GTNODE(LCLHEAP          , GenTreeOp          ,0,GTK_UNOP|GTK_NOCONTAIN) // alloca()
@@ -223,6 +223,10 @@ GTNODE(RSH_LO           , GenTreeOp          ,0,GTK_BINOP)
 #ifdef FEATURE_SIMD
 GTNODE(SIMD             , GenTreeSIMD        ,0,GTK_BINOP|GTK_EXOP)     // SIMD functions/operators/intrinsics
 #endif // FEATURE_SIMD
+
+#if FEATURE_HW_INTRINSICS
+GTNODE(HWIntrinsic      , GenTreeHWIntrinsic ,0,GTK_BINOP|GTK_EXOP)               // hardware intrinsics
+#endif // FEATURE_HW_INTRINSICS
 
 //-----------------------------------------------------------------------------
 //  LIR specific compare and conditional branch/set nodes:

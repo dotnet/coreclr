@@ -46,7 +46,7 @@ namespace System
         FormatAssembly = 0x00000004, // Include assembly display name in type names
         FormatSignature = 0x00000008, // Include signature in method names
         FormatNoVersion = 0x00000010, // Suppress version and culture information in all assembly names
-#if _DEBUG
+#if DEBUG
         FormatDebug = 0x00000020, // For debug printing of types only
 #endif
         FormatAngleBrackets = 0x00000040, // Whether generic types are C<T> or C[T]
@@ -389,7 +389,7 @@ namespace System
                             list = PopulateInterfaces(filter);
                             break;
                         default:
-                            BCLDebug.Assert(false, "Invalid CacheType");
+                            Debug.Fail("Invalid CacheType");
                             break;
                     }
 
@@ -2453,13 +2453,13 @@ namespace System
         {
             get
             {
-                if (m_cache.IsNull())
+                if (m_cache == IntPtr.Zero)
                 {
                     IntPtr newgcHandle = new RuntimeTypeHandle(this).GetGCHandle(GCHandleType.WeakTrackResurrection);
-                    IntPtr gcHandle = Interlocked.CompareExchange(ref m_cache, newgcHandle, (IntPtr)0);
+                    IntPtr gcHandle = Interlocked.CompareExchange(ref m_cache, newgcHandle, IntPtr.Zero);
                     // Leak the handle if the type is collectible. It will be reclaimed when
                     // the type goes away.
-                    if (!gcHandle.IsNull() && !IsCollectible())
+                    if (gcHandle != IntPtr.Zero && !IsCollectible)
                         GCHandle.InternalFree(newgcHandle);
                 }
 
@@ -3151,10 +3151,7 @@ namespace System
             return new RuntimeTypeHandle(this);
         }
 
-        internal bool IsCollectible()
-        {
-            return RuntimeTypeHandle.IsCollectible(GetTypeHandleInternal());
-        }
+        public sealed override bool IsCollectible => RuntimeTypeHandle.IsCollectible(GetTypeHandleInternal());
 
         protected override TypeCode GetTypeCodeImpl()
         {
@@ -4930,11 +4927,9 @@ namespace System
         private static extern unsafe bool EqualsCaseSensitive(void* szLhs, void* szRhs, int cSz);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern unsafe bool EqualsCaseInsensitive(void* szLhs, void* szRhs, int cSz);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern unsafe uint HashCaseInsensitive(void* sz, int cSz);
 
         private static int GetUtf8StringByteLength(void* pUtf8String)

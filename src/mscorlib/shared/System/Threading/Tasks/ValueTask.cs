@@ -50,7 +50,7 @@ namespace System.Threading.Tasks
     /// </remarks>
     [AsyncMethodBuilder(typeof(AsyncValueTaskMethodBuilder<>))]
     [StructLayout(LayoutKind.Auto)]
-    public struct ValueTask<TResult> : IEquatable<ValueTask<TResult>>
+    public readonly struct ValueTask<TResult> : IEquatable<ValueTask<TResult>>
     {
         /// <summary>The task to be used if the operation completed asynchronously or if it completed synchronously but non-successfully.</summary>
         internal readonly Task<TResult> _task;
@@ -115,6 +115,15 @@ namespace System.Threading.Tasks
             // cache the generated task into _task as it would end up changing both equality comparison
             // and the hash code we generate in GetHashCode.
             _task ?? AsyncTaskMethodBuilder<TResult>.GetTaskForResult(_result);
+
+        internal Task<TResult> AsTaskExpectNonNull() =>
+            // Return the task if we were constructed from one, otherwise manufacture one.
+            // Unlike AsTask(), this method is called only when we expect _task to be non-null,
+            // and thus we don't want GetTaskForResult inlined.
+            _task ?? GetTaskForResultNoInlining();
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private Task<TResult> GetTaskForResultNoInlining() => AsyncTaskMethodBuilder<TResult>.GetTaskForResult(_result);
 
         /// <summary>Gets whether the <see cref="ValueTask{TResult}"/> represents a completed operation.</summary>
         public bool IsCompleted => _task == null || _task.IsCompleted;

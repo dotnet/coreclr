@@ -5,12 +5,6 @@
 
 #include "common.h"
 
-
-#ifndef FEATURE_MERGE_JIT_AND_ENGINE
-#include "metahost.h"
-#endif
-
-
 #include "coregen.h"
 
 #include "clr/fs/dir.h"
@@ -443,15 +437,6 @@ Zapper::Zapper(ZapperOptions *pOptions)
 {
     Init(pOptions);
 }
-
-#ifndef FEATURE_MERGE_JIT_AND_ENGINE
-
-//
-// Pointer to the activated CLR interface provided by the shim.
-//
-extern ICLRRuntimeInfo *g_pCLRRuntime;
-
-#endif // FEATURE_MERGE_JIT_AND_ENGINE
 
 void Zapper::Init(ZapperOptions *pOptions, bool fFreeZapperOptions)
 {
@@ -1408,6 +1393,14 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
     m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE2);
 
 #endif // _TARGET_X86_
+
+#if defined(_TARGET_ARM64_)
+    static ConfigDWORD fFeatureSIMD;
+    if (fFeatureSIMD.val(CLRConfig::EXTERNAL_FeatureSIMD) != 0)
+    {
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FEATURE_SIMD);
+    }
+#endif
 
     if (   m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO)
         && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE)

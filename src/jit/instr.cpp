@@ -72,7 +72,7 @@ const char* CodeGen::genInsName(instruction ins)
     };
     // clang-format on
 
-    assert((unsigned)ins < sizeof(insNames) / sizeof(insNames[0]));
+    assert((unsigned)ins < _countof(insNames));
     assert(insNames[ins] != nullptr);
 
     return insNames[ins];
@@ -213,7 +213,7 @@ void CodeGen::instGen(instruction ins)
 // static inline
 bool CodeGenInterface::instIsFP(instruction ins)
 {
-    assert((unsigned)ins < sizeof(instInfo) / sizeof(instInfo[0]));
+    assert((unsigned)ins < _countof(instInfo));
 
     return (instInfo[ins] & INST_FP) != 0;
 }
@@ -1214,35 +1214,17 @@ void CodeGen::sched_AM(instruction ins,
         assert(baseReg != REG_NA);
         reg = baseReg;
 
-#ifdef LATE_DISASM
-        /*
-            Keep in mind that non-static data members (GT_FIELD nodes) were
-            transformed into GT_IND nodes - we keep the CLS/CPX information
-            in the GT_CNS_INT node representing the field offset of the
-            class member
-         */
-
-        if (addr->gtOper != GT_LEA && (addr->gtOp.gtOp2->gtOper == GT_CNS_INT) &&
-            addr->gtOp.gtOp2->IsIconHandle(GTF_ICON_FIELD_HDL))
-        {
-            /* This is a field offset - set the CPX/CLS values to emit a fixup */
-
-            cpx = addr->gtOp.gtOp2->gtIntCon.gtIconFld.gtIconCPX;
-            cls = addr->gtOp.gtOp2->gtIntCon.gtIconFld.gtIconCls;
-        }
-#endif
-
         if (cons)
         {
-            getEmitter()->emitIns_I_AR(ins, size, imm, reg, offs, cpx, cls);
+            getEmitter()->emitIns_I_AR(ins, size, imm, reg, offs);
         }
         else if (rdst)
         {
-            getEmitter()->emitIns_R_AR(ins, size, ireg, reg, offs, cpx, cls);
+            getEmitter()->emitIns_R_AR(ins, size, ireg, reg, offs);
         }
         else
         {
-            getEmitter()->emitIns_AR_R(ins, size, ireg, reg, offs, cpx, cls);
+            getEmitter()->emitIns_AR_R(ins, size, ireg, reg, offs);
         }
     }
 }
@@ -1888,18 +1870,13 @@ AGAIN:
     }
 }
 
+#ifdef LEGACY_BACKEND
 regNumber CodeGen::genGetZeroRegister()
 {
-    regNumber zeroReg = REG_NA;
-
-#if REDUNDANT_LOAD
-
     // Is the constant already in some register?
 
-    zeroReg = regTracker.rsIconIsInReg(0);
-#endif
+    regNumber zeroReg = regTracker.rsIconIsInReg(0);
 
-#ifdef LEGACY_BACKEND
     if (zeroReg == REG_NA)
     {
         regMaskTP freeMask = regSet.rsRegMaskFree();
@@ -1924,7 +1901,6 @@ regNumber CodeGen::genGetZeroRegister()
             genSetRegToIcon(zeroReg, 0, TYP_INT);
         }
     }
-#endif // !LEGACY_BACKEND
 
     return zeroReg;
 }
@@ -1934,7 +1910,6 @@ regNumber CodeGen::genGetZeroRegister()
  *  Generate an instruction that has one operand given by a tree (which has
  *  been made addressable) and another that is an integer constant.
  */
-#ifdef LEGACY_BACKEND
 void CodeGen::inst_TT_IV(instruction ins, GenTreePtr tree, ssize_t val, unsigned offs, emitAttr size, insFlags flags)
 {
     bool sizeInferred = false;
@@ -2265,9 +2240,7 @@ AGAIN:
             assert(!"invalid address");
     }
 }
-#endif // LEGACY_BACKEND
 
-#ifdef LEGACY_BACKEND
 /*****************************************************************************
  *
  *  Generate an instruction that has one operand given by a register and the
@@ -3149,9 +3122,11 @@ instruction CodeGen::ins_Move_Extend(var_types srcType, bool srcInReg)
         // TODO-CQ: based on whether src type is aligned use movaps instead
 
         return (srcInReg) ? INS_movaps : INS_movups;
-#else  // !defined(_TARGET_XARCH_) || defined(LEGACY_BACKEND)
+#elif defined(_TARGET_ARM64_)
+        return (srcInReg) ? INS_mov : ins_Load(srcType);
+#else  // !defined(_TARGET_ARM64_) && !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
         assert(!"unhandled SIMD type");
-#endif // !defined(_TARGET_XARCH_) || defined(LEGACY_BACKEND)
+#endif // !defined(_TARGET_ARM64_) && !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
     }
 
 #if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
@@ -3299,7 +3274,7 @@ instruction CodeGenInterface::ins_Load(var_types srcType, bool aligned /*=false*
         }
         else
 #endif // FEATURE_SIMD
-            if (compiler->canUseAVX())
+            if (compiler->canUseVexEncoding())
         {
             return (aligned) ? INS_movapd : INS_movupd;
         }
@@ -3310,6 +3285,8 @@ instruction CodeGenInterface::ins_Load(var_types srcType, bool aligned /*=false*
             // latter.
             return (aligned) ? INS_movaps : INS_movups;
         }
+#elif defined(_TARGET_ARM64_)
+        return INS_ldr;
 #else
         assert(!"ins_Load with SIMD type");
 #endif
@@ -3462,7 +3439,7 @@ instruction CodeGenInterface::ins_Store(var_types dstType, bool aligned /*=false
         }
         else
 #endif // FEATURE_SIMD
-            if (compiler->canUseAVX())
+            if (compiler->canUseVexEncoding())
         {
             return (aligned) ? INS_movapd : INS_movupd;
         }

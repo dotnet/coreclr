@@ -918,6 +918,16 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     {
         *wbPassStruct = howToPassStruct;
     }
+
+#if defined(FEATURE_MULTIREG_ARGS) && defined(_TARGET_ARM64_)
+    // Normalize struct return type for ARM64 FEATURE_MULTIREG_ARGS
+    // This is not yet enabled for ARM32 since FEATURE_SIMD is not enabled
+    if (varTypeIsStruct(useType))
+    {
+        useType = impNormStructType(clsHnd);
+    }
+#endif
+
     return useType;
 }
 
@@ -1138,6 +1148,17 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     {
         *wbReturnStruct = howToReturnStruct;
     }
+
+#if defined(FEATURE_MULTIREG_RET) && defined(_TARGET_ARM64_)
+    // Normalize struct return type for ARM64 FEATURE_MULTIREG_RET
+    // This is not yet enabled for ARM32 since FEATURE_SIMD is not enabled
+    // This is not needed for XARCH as eeGetSystemVAmd64PassStructInRegisterDescriptor() is used
+    if (varTypeIsStruct(useType))
+    {
+        useType = impNormStructType(clsHnd);
+    }
+#endif
+
     return useType;
 }
 
@@ -1180,7 +1201,7 @@ struct FileLine
         m_condStr = other.m_condStr;
     }
 
-    // GetHashCode() and Equals() are needed by SimplerHashTable
+    // GetHashCode() and Equals() are needed by JitHashTable
 
     static unsigned GetHashCode(FileLine fl)
     {
@@ -1200,7 +1221,7 @@ struct FileLine
     }
 };
 
-typedef SimplerHashTable<FileLine, FileLine, size_t, JitSimplerHashBehavior> FileLineToCountMap;
+typedef JitHashTable<FileLine, FileLine, size_t, HostAllocator> FileLineToCountMap;
 FileLineToCountMap* NowayAssertMap;
 
 void Compiler::RecordNowayAssert(const char* filename, unsigned line, const char* condStr)
@@ -1892,13 +1913,15 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     {
         m_inlineStrategy = nullptr;
         compInlineResult = inlineInfo->inlineResult;
-        compAsIAllocator = nullptr; // We shouldn't be using the compAsIAllocator for other than the root compiler.
+
+        // We shouldn't be using the compAllocatorGeneric for other than the root compiler.
+        compAllocatorGeneric = nullptr;
 #if MEASURE_MEM_ALLOC
-        compAsIAllocatorBitset    = nullptr;
-        compAsIAllocatorGC        = nullptr;
-        compAsIAllocatorLoopHoist = nullptr;
+        compAllocatorBitset    = nullptr;
+        compAllocatorGC        = nullptr;
+        compAllocatorLoopHoist = nullptr;
 #ifdef DEBUG
-        compAsIAllocatorDebugOnly = nullptr;
+        compAllocatorDebugOnly = nullptr;
 #endif // DEBUG
 #endif // MEASURE_MEM_ALLOC
 
@@ -1910,18 +1933,19 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     {
         m_inlineStrategy = new (this, CMK_Inlining) InlineStrategy(this);
         compInlineResult = nullptr;
-        compAsIAllocator = new (this, CMK_Unknown) CompAllocator(this, CMK_AsIAllocator);
+
+        compAllocatorGeneric = new (this, CMK_Unknown) CompAllocator(this, CMK_Generic);
 #if MEASURE_MEM_ALLOC
-        compAsIAllocatorBitset    = new (this, CMK_Unknown) CompAllocator(this, CMK_bitset);
-        compAsIAllocatorGC        = new (this, CMK_Unknown) CompAllocator(this, CMK_GC);
-        compAsIAllocatorLoopHoist = new (this, CMK_Unknown) CompAllocator(this, CMK_LoopHoist);
+        compAllocatorBitset    = new (this, CMK_Unknown) CompAllocator(this, CMK_bitset);
+        compAllocatorGC        = new (this, CMK_Unknown) CompAllocator(this, CMK_GC);
+        compAllocatorLoopHoist = new (this, CMK_Unknown) CompAllocator(this, CMK_LoopHoist);
 #ifdef DEBUG
-        compAsIAllocatorDebugOnly = new (this, CMK_Unknown) CompAllocator(this, CMK_DebugOnly);
+        compAllocatorDebugOnly = new (this, CMK_Unknown) CompAllocator(this, CMK_DebugOnly);
 #endif // DEBUG
 #endif // MEASURE_MEM_ALLOC
 
 #ifdef LEGACY_BACKEND
-        compQMarks = new (this, CMK_Unknown) ExpandArrayStack<GenTreePtr>(getAllocator());
+        compQMarks = new (this, CMK_Unknown) JitExpandArrayStack<GenTreePtr>(getAllocator());
 #endif
     }
 
@@ -1961,9 +1985,9 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
 
         // If this method were a real constructor for Compiler, these would
         // become method initializations.
-        impPendingBlockMembers    = ExpandArray<BYTE>(getAllocator());
-        impSpillCliquePredMembers = ExpandArray<BYTE>(getAllocator());
-        impSpillCliqueSuccMembers = ExpandArray<BYTE>(getAllocator());
+        impPendingBlockMembers    = JitExpandArray<BYTE>(getAllocator());
+        impSpillCliquePredMembers = JitExpandArray<BYTE>(getAllocator());
+        impSpillCliqueSuccMembers = JitExpandArray<BYTE>(getAllocator());
 
         memset(&lvMemoryPerSsaData, 0, sizeof(PerSsaArray));
         lvMemoryPerSsaData.Init(getAllocator());
@@ -1997,6 +2021,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     compLongUsed          = false;
     compTailCallUsed      = false;
     compLocallocUsed      = false;
+    compLocallocOptimized = false;
     compQmarkRationalized = false;
     compQmarkUsed         = false;
     compFloatingPointUsed = false;
@@ -2157,19 +2182,6 @@ void Compiler::compDoComponentUnitTestsOnce()
     }
 }
 #endif // DEBUG
-
-/******************************************************************************
- *
- *  The Emitter uses this callback function to allocate its memory
- */
-
-/* static */
-void* Compiler::compGetMemCallback(void* p, size_t size, CompMemKind cmk)
-{
-    assert(p);
-
-    return ((Compiler*)p)->compGetMem(size, cmk);
-}
 
 /*****************************************************************************
  *
@@ -2443,6 +2455,52 @@ const char* Compiler::compLocalVarName(unsigned varNum, unsigned offs)
 #endif // DEBUG
 /*****************************************************************************/
 
+#ifdef _TARGET_XARCH_
+static bool configEnableISA(InstructionSet isa)
+{
+#ifdef DEBUG
+    switch (isa)
+    {
+        case InstructionSet_SSE:
+            return JitConfig.EnableSSE() != 0;
+        case InstructionSet_SSE2:
+            return JitConfig.EnableSSE2() != 0;
+        case InstructionSet_SSE3:
+            return JitConfig.EnableSSE3() != 0;
+        case InstructionSet_SSSE3:
+            return JitConfig.EnableSSSE3() != 0;
+        case InstructionSet_SSE41:
+            return JitConfig.EnableSSE41() != 0;
+        case InstructionSet_SSE42:
+            return JitConfig.EnableSSE42() != 0;
+        case InstructionSet_AVX:
+            return JitConfig.EnableAVX() != 0;
+        case InstructionSet_AVX2:
+            return JitConfig.EnableAVX2() != 0;
+
+        case InstructionSet_AES:
+            return JitConfig.EnableAES() != 0;
+        case InstructionSet_BMI1:
+            return JitConfig.EnableBMI1() != 0;
+        case InstructionSet_BMI2:
+            return JitConfig.EnableBMI2() != 0;
+        case InstructionSet_FMA:
+            return JitConfig.EnableFMA() != 0;
+        case InstructionSet_LZCNT:
+            return JitConfig.EnableLZCNT() != 0;
+        case InstructionSet_PCLMULQDQ:
+            return JitConfig.EnablePCLMULQDQ() != 0;
+        case InstructionSet_POPCNT:
+            return JitConfig.EnablePOPCNT() != 0;
+        default:
+            return false;
+    }
+#else
+    return true;
+#endif
+}
+#endif // _TARGET_XARCH_
+
 void Compiler::compSetProcessor()
 {
     const JitFlags& jitFlags = *opts.jitFlags;
@@ -2462,42 +2520,6 @@ void Compiler::compSetProcessor()
     // Processor specific optimizations
     //
     CLANG_FORMAT_COMMENT_ANCHOR;
-
-#ifdef _TARGET_XARCH_
-    opts.compCanUseSSE3_4 = false;
-    if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3_4))
-    {
-        if (JitConfig.EnableSSE3_4() != 0)
-        {
-            opts.compCanUseSSE3_4 = true;
-        }
-    }
-
-    // COMPlus_EnableAVX can be used to disable using AVX if available on a target machine.
-    opts.compCanUseAVX = false;
-    if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
-    {
-        if (JitConfig.EnableAVX() != 0)
-        {
-            opts.compCanUseAVX = true;
-        }
-    }
-
-    if (!compIsForInlining())
-    {
-        if (opts.compCanUseAVX)
-        {
-            codeGen->getEmitter()->SetUseAVX(true);
-            // Assume each JITted method does not contain AVX instruction at first
-            codeGen->getEmitter()->SetContainsAVX(false);
-            codeGen->getEmitter()->SetContains256bitAVX(false);
-        }
-        else if (opts.compCanUseSSE3_4)
-        {
-            codeGen->getEmitter()->SetUseSSE3_4(true);
-        }
-    }
-#endif // _TARGET_XARCH_
 
 #ifdef _TARGET_AMD64_
     opts.compUseFCOMI   = false;
@@ -2558,60 +2580,132 @@ void Compiler::compSetProcessor()
     {
         if (opts.compCanUseSSE2)
         {
-            opts.setSupportedISA(InstructionSet_SSE);
-            opts.setSupportedISA(InstructionSet_SSE2);
+            if (configEnableISA(InstructionSet_SSE))
+            {
+                opts.setSupportedISA(InstructionSet_SSE);
+            }
+            if (configEnableISA(InstructionSet_SSE2))
+            {
+                opts.setSupportedISA(InstructionSet_SSE2);
+            }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
             {
-                opts.setSupportedISA(InstructionSet_AES);
+                if (configEnableISA(InstructionSet_AES))
+                {
+                    opts.setSupportedISA(InstructionSet_AES);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX))
             {
-                opts.setSupportedISA(InstructionSet_AVX);
+                if (configEnableISA(InstructionSet_AVX))
+                {
+                    opts.setSupportedISA(InstructionSet_AVX);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
             {
-                opts.setSupportedISA(InstructionSet_AVX2);
+                // COMPlus_EnableAVX is also used to control the code generation of
+                // System.Numerics.Vectors and floating-point arithmetics
+                if (configEnableISA(InstructionSet_AVX) && configEnableISA(InstructionSet_AVX2))
+                {
+                    opts.setSupportedISA(InstructionSet_AVX2);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1))
             {
-                opts.setSupportedISA(InstructionSet_BMI1);
+                if (configEnableISA(InstructionSet_BMI1))
+                {
+                    opts.setSupportedISA(InstructionSet_BMI1);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2))
             {
-                opts.setSupportedISA(InstructionSet_BMI2);
+                if (configEnableISA(InstructionSet_BMI2))
+                {
+                    opts.setSupportedISA(InstructionSet_BMI2);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FMA))
             {
-                opts.setSupportedISA(InstructionSet_FMA);
+                if (configEnableISA(InstructionSet_FMA))
+                {
+                    opts.setSupportedISA(InstructionSet_FMA);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT))
             {
-                opts.setSupportedISA(InstructionSet_LZCNT);
+                if (configEnableISA(InstructionSet_LZCNT))
+                {
+                    opts.setSupportedISA(InstructionSet_LZCNT);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
             {
-                opts.setSupportedISA(InstructionSet_PCLMULQDQ);
+                if (configEnableISA(InstructionSet_PCLMULQDQ))
+                {
+                    opts.setSupportedISA(InstructionSet_PCLMULQDQ);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT))
             {
-                opts.setSupportedISA(InstructionSet_POPCNT);
+                if (configEnableISA(InstructionSet_POPCNT))
+                {
+                    opts.setSupportedISA(InstructionSet_POPCNT);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3))
             {
-                opts.setSupportedISA(InstructionSet_SSE3);
+                if (configEnableISA(InstructionSet_SSE3))
+                {
+                    opts.setSupportedISA(InstructionSet_SSE3);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41))
             {
-                opts.setSupportedISA(InstructionSet_SSE41);
+                if (configEnableISA(InstructionSet_SSE41))
+                {
+                    opts.setSupportedISA(InstructionSet_SSE41);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42))
             {
-                opts.setSupportedISA(InstructionSet_SSE42);
+                if (configEnableISA(InstructionSet_SSE42))
+                {
+                    opts.setSupportedISA(InstructionSet_SSE42);
+                }
             }
             if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3))
             {
-                opts.setSupportedISA(InstructionSet_SSSE3);
+                if (configEnableISA(InstructionSet_SSSE3))
+                {
+                    opts.setSupportedISA(InstructionSet_SSSE3);
+                }
             }
+        }
+    }
+
+    opts.compCanUseSSE4 = false;
+    if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41) &&
+        jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42))
+    {
+        if (JitConfig.EnableSSE3_4() != 0)
+        {
+            opts.compCanUseSSE4 = true;
+        }
+    }
+
+    if (!compIsForInlining())
+    {
+        if (canUseVexEncoding())
+        {
+            codeGen->getEmitter()->SetUseVEXEncoding(true);
+            // Assume each JITted method does not contain AVX instruction at first
+            codeGen->getEmitter()->SetContainsAVX(false);
+            codeGen->getEmitter()->SetContains256bitAVX(false);
+        }
+        else if (CanUseSSE4())
+        {
+            codeGen->getEmitter()->SetUseSSE4(true);
         }
     }
 #endif
@@ -3785,10 +3879,6 @@ bool Compiler::compStressCompile(compStressArea stressArea, unsigned weight)
     if ((strStressModeNamesNot != nullptr) &&
         (wcsstr(strStressModeNamesNot, s_compStressModeNames[stressArea]) != nullptr))
     {
-        if (verbose)
-        {
-            printf("JitStressModeNamesNot contains %ws\n", s_compStressModeNames[stressArea]);
-        }
         doStress = false;
         goto _done;
     }
@@ -3799,10 +3889,6 @@ bool Compiler::compStressCompile(compStressArea stressArea, unsigned weight)
     {
         if (wcsstr(strStressModeNames, s_compStressModeNames[stressArea]) != nullptr)
         {
-            if (verbose)
-            {
-                printf("JitStressModeNames contains %ws\n", s_compStressModeNames[stressArea]);
-            }
             doStress = true;
             goto _done;
         }
@@ -5093,7 +5179,7 @@ bool Compiler::compQuirkForPPP()
         assert((varDscExposedStruct->lvExactSize / TARGET_POINTER_SIZE) == 8);
 
         BYTE* oldGCPtrs = varDscExposedStruct->lvGcLayout;
-        BYTE* newGCPtrs = (BYTE*)compGetMemA(8, CMK_LvaTable);
+        BYTE* newGCPtrs = (BYTE*)compGetMem(8, CMK_LvaTable);
 
         for (int i = 0; i < 4; i++)
         {
@@ -5980,6 +6066,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
         {
             prejitResult.DetermineProfitability(methodInfo);
         }
+
+        m_inlineStrategy->NotePrejitDecision(prejitResult);
 
         // Handle the results of the inline analysis.
         if (prejitResult.IsFailure())
@@ -7285,7 +7373,7 @@ void Compiler::compCallArgStats()
                     regArgDeferred++;
                     argTotalObjPtr++;
 
-                    if (call->gtFlags & (GTF_CALL_VIRT_VTABLE | GTF_CALL_VIRT_STUB))
+                    if (call->IsVirtual())
                     {
                         /* virtual function */
                         argVirtualCalls++;
@@ -7730,7 +7818,7 @@ void CompTimeSummaryInfo::Print(FILE* f)
                 extraHdr2);
 
         // Ensure that at least the names array and the Phases enum have the same number of entries:
-        assert(sizeof(PhaseNames) / sizeof(const char*) == PHASE_NUMBER_OF);
+        assert(_countof(PhaseNames) == PHASE_NUMBER_OF);
         for (int i = 0; i < PHASE_NUMBER_OF; i++)
         {
             double phase_tot_ms  = (((double)m_total.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
@@ -7794,7 +7882,7 @@ void CompTimeSummaryInfo::Print(FILE* f)
         fprintf(f, "     PHASE                            inv/meth Mcycles    time (ms)  %% of total\n");
         fprintf(f, "     --------------------------------------------------------------------------------------\n");
         // Ensure that at least the names array and the Phases enum have the same number of entries:
-        assert(sizeof(PhaseNames) / sizeof(const char*) == PHASE_NUMBER_OF);
+        assert(_countof(PhaseNames) == PHASE_NUMBER_OF);
         for (int i = 0; i < PHASE_NUMBER_OF; i++)
         {
             double phase_tot_ms = (((double)m_filtered.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
@@ -9646,15 +9734,15 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 {
                     chars += printf("[CALL_INLINE_CANDIDATE]");
                 }
-                if (tree->gtFlags & GTF_CALL_NONVIRT)
+                if (!tree->AsCall()->IsVirtual())
                 {
                     chars += printf("[CALL_NONVIRT]");
                 }
-                if (tree->gtFlags & GTF_CALL_VIRT_VTABLE)
+                if (tree->AsCall()->IsVirtualVtable())
                 {
                     chars += printf("[CALL_VIRT_VTABLE]");
                 }
-                if (tree->gtFlags & GTF_CALL_VIRT_STUB)
+                if (tree->AsCall()->IsVirtualStub())
                 {
                     chars += printf("[CALL_VIRT_STUB]");
                 }
@@ -11300,3 +11388,33 @@ HelperCallProperties Compiler::s_helperCallProperties;
 
 /*****************************************************************************/
 /*****************************************************************************/
+
+//------------------------------------------------------------------------
+// killGCRefs:
+// Given some tree node return does it need all GC refs to be spilled from
+// callee save registers.
+//
+// Arguments:
+//    tree       - the tree for which we ask about gc refs.
+//
+// Return Value:
+//    true       - tree kills GC refs on callee save registers
+//    false      - tree doesn't affect GC refs on callee save registers
+bool Compiler::killGCRefs(GenTreePtr tree)
+{
+    if (tree->IsCall())
+    {
+        GenTreeCall* call = tree->AsCall();
+        if (call->IsUnmanaged())
+        {
+            return true;
+        }
+
+        if (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_JIT_PINVOKE_BEGIN))
+        {
+            assert(opts.ShouldUsePInvokeHelpers());
+            return true;
+        }
+    }
+    return false;
+}

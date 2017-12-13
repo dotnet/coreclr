@@ -43,7 +43,6 @@
     <_TargetFrameworkDirectories Condition="'$(BuildToolsTargetsDesktop)' != 'true'">$(MSBuildThisFileDirectory)/Documentation</_TargetFrameworkDirectories>
     <_FullFrameworkReferenceAssemblyPaths Condition="'$(BuildToolsTargetsDesktop)' != 'true'">$(MSBuildThisFileDirectory)/Documentation</_FullFrameworkReferenceAssemblyPaths>
     <ExcludeSigningImport>true</ExcludeSigningImport>
-    <SkipImportILTargets>true</SkipImportILTargets>
   </PropertyGroup>
 
   <!-- Common properties -->
@@ -83,25 +82,28 @@
   <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
   <Import Project="$(ProjectDir)..\dependencies.props" />
 
+  <!-- Add test-specific package restore sources. -->
+  <PropertyGroup>
+    <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
+      https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json;
+      $(RestoreSources)
+    </RestoreSources>
+    <RestoreSources Condition="'$(IntermediateAzureFeed)' != ''">
+      $(IntermediateAzureFeed);
+      $(RestoreSources)
+    </RestoreSources>
+  </PropertyGroup>
+
   <!-- Use Roslyn Compilers to build -->
   <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false' and '$(RoslynIncompatibleMsbuildVersion)' != 'true'" />
   <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'=='true' and Exists('$(RoslynPropsFile)') and '$(RoslynIncompatibleMsbuildVersion)' != 'true'" />
 
-   <ItemGroup> 
-     <!-- Need to escape double forward slash (%2F) or MSBuild will normalize to one slash on Unix. -->
-     <DotnetSourceList Include="$(IntermediateAzureFeed)" Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'" />
-     <DotnetSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json" />
-     <DotnetSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-core/api/v3/index.json" />
-     <DotnetSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-buildtools/api/v3/index.json" /> 
-     <DotnetSourceList Include="https:%2F%2Fapi.nuget.org/v3/index.json" />
-   </ItemGroup> 
-  
   <PropertyGroup Condition="'$(BuildAllProjects)'=='true'">
     <!-- When we do a traversal build we get all packages up front, don't restore them again -->
     <RestorePackages>false</RestorePackages>
   </PropertyGroup>
 
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'">
     <BuildVersionFile>$(BaseIntermediateOutputPath)BuildVersion-$(OfficialBuildId).props</BuildVersionFile>
   </PropertyGroup>
 
@@ -111,7 +113,7 @@
   <PropertyGroup Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'">
     <VersionToRestore Condition="'$(StableVersion)' != ''">$(StableVersion)</VersionToRestore>
     <VersionToRestore Condition="'$(VersionToRestore)' == ''">$(PackageVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)-$(BuildNumberMinor)</VersionToRestore>
-    <PackageVersionArg>/p:CoreClrPackageVersion=$(VersionToRestore)</PackageVersionArg>
+    <PackageVersionArg>/p:MicrosoftNETCoreRuntimeCoreCLRPackageVersion=$(VersionToRestore)</PackageVersionArg>
   </PropertyGroup>
 
   <!-- Which tests shall we build? Default: Priority 0 tests.
