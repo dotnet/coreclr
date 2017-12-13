@@ -35,7 +35,7 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Casts the given object to the specified type.
+        /// Reinterprets the given location as a reference to a value of type <typeparamref name="T"/>.
         /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
