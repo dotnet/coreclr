@@ -6387,7 +6387,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
     if (emitInsWritesToLclVarStackLoc(id))
     {
         int       varNum = id->idAddr()->iiaLclVar.lvaVarNum();
-        unsigned  ofs    = AlignDown(id->idAddr()->iiaLclVar.lvaOffset(), sizeof(size_t));
+        unsigned  ofs    = AlignDown(id->idAddr()->iiaLclVar.lvaOffset(), TARGET_POINTER_SIZE);
         regNumber regBase;
         int       adr = emitComp->lvaFrameAddress(varNum, true, &regBase, ofs);
         if (id->idGCref() != GCT_NONE)
