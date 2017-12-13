@@ -14,6 +14,12 @@ using nuint = System.UInt32;
 using nint = System.Int32;
 #endif
 
+//
+// The implementations of most the methods in this file are provided as intrinsics.
+// In CoreCLR, the body of the functions are replaced by the EE with unsafe code. See see getILIntrinsicImplementationForUnsafe for details.
+// In CoreRT, see Internal.IL.Stubs.UnsafeIntrinsics for details.
+//
+
 namespace Internal.Runtime.CompilerServices
 {
     //
@@ -35,8 +41,6 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* AsPointer<T>(ref T value)
         {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
             throw new PlatformNotSupportedException();
 
             // ldarg.0
@@ -52,8 +56,6 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf<T>()
         {
-            // The body of this function will be replaced by the EE with unsafe code that just returns sizeof !!T
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
             typeof(T).ToString(); // Type token used by the actual method body
             throw new PlatformNotSupportedException();
 
@@ -69,8 +71,6 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T As<T>(object value) where T : class
         {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
             throw new PlatformNotSupportedException();
 
             // ldarg.0
@@ -85,8 +85,6 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref TTo As<TFrom, TTo>(ref TFrom source)
         {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
             throw new PlatformNotSupportedException();
 
             // ldarg.0
@@ -101,8 +99,6 @@ namespace Internal.Runtime.CompilerServices
         public static ref T Add<T>(ref T source, int elementOffset)
         {
 #if CORECLR
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
             typeof(T).ToString(); // Type token used by the actual method body
             throw new PlatformNotSupportedException();
 #else
@@ -118,8 +114,6 @@ namespace Internal.Runtime.CompilerServices
         public static void* Add<T>(void* source, int elementOffset)
         {
 #if CORECLR
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
             typeof(T).ToString(); // Type token used by the actual method body
             throw new PlatformNotSupportedException();
 #else
@@ -146,8 +140,6 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool AreSame<T>(ref T left, ref T right)
         {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
             throw new PlatformNotSupportedException();
 
             // ldarg.0
@@ -178,8 +170,6 @@ namespace Internal.Runtime.CompilerServices
         public static T ReadUnaligned<T>(void* source)
         {
 #if CORECLR
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
             typeof(T).ToString(); // Type token used by the actual method body
             throw new PlatformNotSupportedException();
 #else
@@ -196,8 +186,6 @@ namespace Internal.Runtime.CompilerServices
         public static T ReadUnaligned<T>(ref byte source)
         {
 #if CORECLR
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
             typeof(T).ToString(); // Type token used by the actual method body
             throw new PlatformNotSupportedException();
 #else
@@ -214,8 +202,6 @@ namespace Internal.Runtime.CompilerServices
         public static void WriteUnaligned<T>(void* destination, T value)
         {
 #if CORECLR
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
             typeof(T).ToString(); // Type token used by the actual method body
             throw new PlatformNotSupportedException();
 #else
@@ -232,8 +218,6 @@ namespace Internal.Runtime.CompilerServices
         public static void WriteUnaligned<T>(ref byte destination, T value)
         {
 #if CORECLR
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
             typeof(T).ToString(); // Type token used by the actual method body
             throw new PlatformNotSupportedException();
 #else
@@ -247,7 +231,7 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static ref T AddByteOffset<T>(ref T source, IntPtr byteOffset)
+        public static ref T AddByteOffset<T>(ref T source, IntPtr byteOffset)
         {
             // This method is implemented by the toolchain
             throw new PlatformNotSupportedException();
@@ -264,7 +248,7 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static T Read<T>(void* source)
+        public static T Read<T>(void* source)
         {
             return Unsafe.As<byte, T>(ref *(byte*)source);
         }
@@ -275,7 +259,7 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static T Read<T>(ref byte source)
+        public static T Read<T>(ref byte source)
         {
             return Unsafe.As<byte, T>(ref source);
         }
@@ -286,7 +270,7 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Write<T>(void* destination, T value)
+        public static void Write<T>(void* destination, T value)
         {
             Unsafe.As<byte, T>(ref *(byte*)destination) = value;
         }
@@ -297,7 +281,7 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Write<T>(ref byte destination, T value)
+        public static void Write<T>(ref byte destination, T value)
         {
             Unsafe.As<byte, T>(ref destination) = value;
         }
@@ -307,11 +291,13 @@ namespace Internal.Runtime.CompilerServices
         /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static ref T AsRef<T>(void* source)
+        public static ref T AsRef<T>(void* source)
         {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+#if CORECLR 
             throw new PlatformNotSupportedException();
+#else
+            return ref Unsafe.As<byte, T>(ref *(byte*)source);
+#endif
         }
 
         /// <summary>
@@ -319,10 +305,8 @@ namespace Internal.Runtime.CompilerServices
         /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static IntPtr ByteOffset<T>(ref T origin, ref T target)
+        public static IntPtr ByteOffset<T>(ref T origin, ref T target)
         {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementationForUnsafe for how this happens.
             throw new PlatformNotSupportedException();
         }
     }
