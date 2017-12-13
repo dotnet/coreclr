@@ -17,7 +17,7 @@ def branch = GithubBranchName
 def alpine36Pipeline = Pipeline.createPipelineForGithub(this, project, branch, 'buildpipeline/alpine.3.6.groovy')
 
 def configurations = [
-    ['TGroup':"netcoreapp", 'Pipeline':alpine36Pipeline, 'Name':'Alpine.3.6' ,'ForPR':"", 'Arch':['x64']],
+    ['TGroup':"netcoreapp", 'Pipeline':alpine36Pipeline, 'Name':'Alpine.3.6' ,'ForPR':"Debug-x64", 'Arch':['x64']],
 ]
 
 configurations.each { config ->
