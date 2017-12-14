@@ -17,7 +17,7 @@ def branch = GithubBranchName
 def alpine36Pipeline = Pipeline.createPipelineForGithub(this, project, branch, 'buildpipeline/alpine.3.6.groovy')
 
 def configurations = [
-    ['TGroup':"netcoreapp", 'Pipeline':alpine36Pipeline, 'Name':'Alpine.3.6' ,'ForPR':"Debug-x64", 'Arch':['x64']],
+    ['Pipeline':alpine36Pipeline, 'Name':'Alpine.3.6' ,'ForPR':"Debug-x64", 'Arch':['x64']],
 ]
 
 configurations.each { config ->
@@ -26,10 +26,8 @@ configurations.each { config ->
     def triggerName = "${config.Name} ${archGroup} ${configurationGroup} Build"
 
     def pipeline = config.Pipeline
-    def params = ['TGroup':config.TGroup,
-                  'CGroup':configurationGroup,
-                  'AGroup':archGroup,
-                  'TestOuter': false]
+    def params = ['CGroup':configurationGroup,
+                  'AGroup':archGroup]
 
     // Add default PR triggers for particular configurations but manual triggers for all
     if (config.ForPR.contains("${configurationGroup}-${archGroup}")) {
@@ -41,10 +39,6 @@ configurations.each { config ->
 
     // Add trigger for all configurations to run on merge
     pipeline.triggerPipelineOnGithubPush(params)
-
-    // Add optional PR trigger for Outerloop test runs
-    params.TestOuter = true
-    pipeline.triggerPipelineOnGithubPRComment("Outerloop ${triggerName}", params)
 }}}
 
 JobReport.Report.generateJobReport(out)
