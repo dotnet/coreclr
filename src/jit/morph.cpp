@@ -5356,7 +5356,9 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
                 {
                     GenTreeLclVarCommon* varNode = addrTaken->AsLclVarCommon();
                     unsigned             varNum  = varNode->gtLclNum;
-                    lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_IsStruct));
+                    // We access non-struct type (for example, long) as a struct type.
+                    // Make sure lclVar lives on stack to make sure its fields are accessible by address.
+                    lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_LocalField));
                 }
             }
 
