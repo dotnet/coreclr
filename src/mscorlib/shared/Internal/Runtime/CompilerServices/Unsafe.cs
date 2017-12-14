@@ -115,7 +115,7 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T Add<T>(ref T source, nuint elementOffset)
+        public static ref T Add<T>(ref T source, IntPtr elementOffset)
         {
 #if CORECLR
             typeof(T).ToString(); // Type token used by the actual method body
