@@ -1634,7 +1634,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
     assert((compiler->compArgSize & 0x3) == 0);
 
     size_t argCount =
-        (compiler->compArgSize - (compiler->codeGen->intRegState.rsCalleeRegArgCount * sizeof(void*))) / sizeof(void*);
+        (compiler->compArgSize - (compiler->codeGen->intRegState.rsCalleeRegArgCount * REGSIZE_BYTES)) / REGSIZE_BYTES;
     assert(argCount <= MAX_USHORT_SIZE_T);
     header->argCount = static_cast<unsigned short>(argCount);
 
