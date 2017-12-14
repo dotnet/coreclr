@@ -166,8 +166,10 @@ namespace SuperPMICollection
             // under the appropriate shell.
             if (Global.IsWindows)
             {
+                Console.WriteLine("================AD=========="); 
                 if ((program.LastIndexOf(".bat") != -1) || (program.LastIndexOf(".cmd") != -1))
                 {
+                    Console.WriteLine("================AG=========="); 
                     string programArgumentSep = String.IsNullOrEmpty(arguments) ? "" : " ";
                     arguments = "/c " + program + programArgumentSep + arguments;
                     program = Environment.GetEnvironmentVariable("ComSpec"); // path to CMD.exe
@@ -175,17 +177,21 @@ namespace SuperPMICollection
             }
             else
             {
+                Console.WriteLine("================AE=========="); 
                 if (program.LastIndexOf(".sh") != -1)
                 {
+                    Console.WriteLine("================AF=========="); 
                     string programArgumentSep = String.IsNullOrEmpty(arguments) ? "" : " ";
                     arguments = "bash " + program + programArgumentSep + arguments;
                     program = "/usr/bin/env";
                 }
             }
-
+            Console.WriteLine("================AA=========="); 
             Console.WriteLine("Running: " + program + " " + arguments);
             Process p = Process.Start(program, arguments);
+            Console.WriteLine("================AB==========" + program + " : " + arguments); 
             p.WaitForExit();
+            Console.WriteLine("================AC========== " + p.ExitCode); 
             return p.ExitCode;
         }
 
@@ -199,17 +205,20 @@ namespace SuperPMICollection
 
             if (Global.IsWindows)
             {
+                Console.WriteLine("================O=========="); 
                 int lastIndex = testName.LastIndexOf("\\");
                 if (lastIndex == -1)
                 {
+                    Console.WriteLine("================Q=========="); 
                     throw new SpmiException("test path doesn't have any directory separators? " + testName);
                 }
                 testDir = testName.Substring(0, lastIndex);
+                Console.WriteLine("================R========== " + testDir); 
             }
             else
             {
                 // Just in case we've been given a test name in Windows format, convert it to Unix format here.
-
+                Console.WriteLine("================P=========="); 
                 testName = testName.Replace("\\", "/");
                 testName = testName.Replace(".cmd", ".sh");
                 testName = testName.Replace(".bat", ".sh");
@@ -224,25 +233,28 @@ namespace SuperPMICollection
                 RunProgram("/bin/chmod", "+x \"" + testName + "\"");
 
                 // Now, figure out how to run the test.
-
+                Console.WriteLine("================S========== " + testName); 
                 int lastIndex = testName.LastIndexOf("/");
                 if (lastIndex == -1)
                 {
                     throw new SpmiException("test path doesn't have any directory separators? " + testName);
                 }
                 testDir = testName.Substring(0, lastIndex);
+                Console.WriteLine("================T========== " + testDir); 
             }
 
             // Run the script in the same directory where the test lives.
             string originalDir = Directory.GetCurrentDirectory();
             Directory.SetCurrentDirectory(testDir);
-
+            Console.WriteLine("================U========== " + originalDir); 
             try
             {
+                Console.WriteLine("================W========== "); 
                 RunProgram(testName, "");
             }
             finally
             {
+                Console.WriteLine("================V=========="); 
                 // Restore the original current directory from before the test run.
                 Directory.SetCurrentDirectory(originalDir);
             }
@@ -273,7 +285,7 @@ namespace SuperPMICollection
             // Figure out the root of the test binaries directory.
             // Perhaps this (or something similar) would be a better way to figure out the binary root dir:
             // testBinaryRootDir = System.IO.Path.GetDirectoryName(new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath);
-
+            Console.WriteLine("================L=========="); 
             string thisTestDir = Directory.GetCurrentDirectory();
             int lastIndex = thisTestDir.LastIndexOf("JIT");
             if (lastIndex == -1)
@@ -281,14 +293,16 @@ namespace SuperPMICollection
                 throw new SpmiException("we expect the current directory when the test is run to be within the JIT test binaries tree, but it is not: " + thisTestDir);
             }
             string testBinaryRootDir = thisTestDir.Substring(0, lastIndex);
-
+            Console.WriteLine("================M=========="); 
             // Run the tests
             foreach (string test in SuperPMICollectionTestProgramsList)
             {
+                Console.WriteLine("================N========== " + test); 
                 string testFullPath = Path.Combine(testBinaryRootDir, test);
                 try
                 {
                     RunTest(testFullPath);
+                    Console.WriteLine("================P========== " + testFullPath); 
                 }
                 catch (SpmiException ex)
                 {
@@ -298,6 +312,7 @@ namespace SuperPMICollection
 
                     Console.Error.WriteLine("WARNING: test failed (ignoring): " + ex.Message);
                 }
+                Console.WriteLine("================O=========="); 
             }
         }
 
@@ -306,11 +321,13 @@ namespace SuperPMICollection
         {
             if (runProgramPath == null)
             {
+                Console.WriteLine("================J=========="); 
                 // No program was given to use for collection, so use our default set.
                 RunTestProgramsWhileCollecting();
             }
             else
             {
+                Console.WriteLine("================K========== " + runProgramPath + " : " + runProgramArguments); 
                 RunProgram(runProgramPath, runProgramArguments);
             }
         }
@@ -333,21 +350,23 @@ namespace SuperPMICollection
             Environment.SetEnvironmentVariable("SuperPMIShimPath", Global.JitPath);
             Environment.SetEnvironmentVariable("COMPlus_AltJit", "*");
             Environment.SetEnvironmentVariable("COMPlus_AltJitName", Global.CollectorShimName);
-
+            Console.WriteLine("================H==========");    
             RunProgramsWhileCollecting(runProgramPath, runProgramArguments);
-
+            Console.WriteLine("================G==========");
             // Un-set environment variables
             Environment.SetEnvironmentVariable("SuperPMIShimLogPath", "");
             Environment.SetEnvironmentVariable("SuperPMIShimPath", "");
             Environment.SetEnvironmentVariable("COMPlus_AltJit", "");
             Environment.SetEnvironmentVariable("COMPlus_AltJitName", "");
-
+            Console.WriteLine("================F==========");
             // Did any .mc files get generated?
             string[] mcFiles = Directory.GetFiles(s_tempDir, "*.mc");
             if (mcFiles.Length == 0)
             {
+                Console.WriteLine("UH OH");
                 throw new SpmiException("no .mc files generated");
             }
+            Console.WriteLine("================I==========");
         }
 
         // Merge MC files:
@@ -565,14 +584,23 @@ namespace SuperPMICollection
 
             try
             {
+                Console.WriteLine("CreateTempDirectory");
                 CreateTempDirectory(tempPath);
+                Console.WriteLine("ChooseFilePaths");
                 ChooseFilePaths(outputMchPath);
+                Console.WriteLine("CollectMCFiles");
                 CollectMCFiles(runProgramPath, runProgramArguments);
+                Console.WriteLine("MergeMCFiles");
                 MergeMCFiles();
+                Console.WriteLine("CreateCleanMCHFile");
                 CreateCleanMCHFile();
+                Console.WriteLine("CreateThinUniqueMCH");
                 CreateThinUniqueMCH();
+                Console.WriteLine("CreateTOC");
                 CreateTOC();
+                Console.WriteLine("VerifyFinalMCH");
                 VerifyFinalMCH();
+                Console.WriteLine("Success");
 
                 // Success!
                 result = 100;
@@ -656,6 +684,9 @@ namespace SuperPMICollection
             string runProgramPath = null;
             string runProgramArguments = null;
             string tempPath = null;
+
+            // TEMPORARILY DISABLING - see issue #15089
+            return 100;
 
             // Parse arguments
             if (args.Length > 0)
