@@ -56,7 +56,9 @@ namespace Internal.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf<T>()
         {
+#if CORECLR
             typeof(T).ToString(); // Type token used by the actual method body
+#endif
             throw new PlatformNotSupportedException();
 
             // sizeof !!0
@@ -94,6 +96,7 @@ namespace Internal.Runtime.CompilerServices
         /// <summary>
         /// Adds an element offset to the given reference.
         /// </summary>
+        [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref T Add<T>(ref T source, int elementOffset)
@@ -109,6 +112,7 @@ namespace Internal.Runtime.CompilerServices
         /// <summary>
         /// Adds an element offset to the given pointer.
         /// </summary>
+        [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* Add<T>(void* source, int elementOffset)
@@ -289,20 +293,18 @@ namespace Internal.Runtime.CompilerServices
         /// <summary>
         /// Reinterprets the given location as a reference to a value of type <typeparamref name="T"/>.
         /// </summary>
+        [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref T AsRef<T>(void* source)
         {
-#if CORECLR 
-            throw new PlatformNotSupportedException();
-#else
             return ref Unsafe.As<byte, T>(ref *(byte*)source);
-#endif
         }
 
         /// <summary>
         /// Determines the byte offset from origin to target from the given references.
         /// </summary>
+        [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IntPtr ByteOffset<T>(ref T origin, ref T target)
