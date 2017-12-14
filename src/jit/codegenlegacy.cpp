@@ -5090,11 +5090,11 @@ void CodeGen::genCodeForTreeLeaf(GenTreePtr tree, regMaskTP destReg, regMaskTP b
             // The last slot is reserved for ICodeManager::FixContext(ppEndRegion)
             unsigned filterEndOffsetSlotOffs;
             PREFIX_ASSUME(compiler->lvaLclSize(compiler->lvaShadowSPslotsVar) >
-                          sizeof(void*)); // below doesn't underflow.
-            filterEndOffsetSlotOffs = (unsigned)(compiler->lvaLclSize(compiler->lvaShadowSPslotsVar) - (sizeof(void*)));
+                          TARGET_POINTER_SIZE); // below doesn't underflow.
+            filterEndOffsetSlotOffs = (unsigned)(compiler->lvaLclSize(compiler->lvaShadowSPslotsVar) - TARGET_POINTER_SIZE);
 
             unsigned curNestingSlotOffs;
-            curNestingSlotOffs = filterEndOffsetSlotOffs - ((finallyNesting + 1) * sizeof(void*));
+            curNestingSlotOffs = filterEndOffsetSlotOffs - ((finallyNesting + 1) * TARGET_POINTER_SIZE);
             instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, 0, compiler->lvaShadowSPslotsVar, curNestingSlotOffs);
             reg = REG_STK;
             break;
@@ -13047,14 +13047,14 @@ void CodeGen::genCodeForBBlist()
                 // The last slot is reserved for ICodeManager::FixContext(ppEndRegion)
                 unsigned filterEndOffsetSlotOffs;
                 filterEndOffsetSlotOffs =
-                    (unsigned)(compiler->lvaLclSize(compiler->lvaShadowSPslotsVar) - (sizeof(void*)));
+                    (unsigned)(compiler->lvaLclSize(compiler->lvaShadowSPslotsVar) - TARGET_POINTER_SIZE);
 
                 unsigned curNestingSlotOffs;
-                curNestingSlotOffs = (unsigned)(filterEndOffsetSlotOffs - ((finallyNesting + 1) * sizeof(void*)));
+                curNestingSlotOffs = (unsigned)(filterEndOffsetSlotOffs - ((finallyNesting + 1) * TARGET_POINTER_SIZE));
 
                 // Zero out the slot for the next nesting level
                 instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, 0, compiler->lvaShadowSPslotsVar,
-                                           curNestingSlotOffs - sizeof(void*));
+                                           curNestingSlotOffs - TARGET_POINTER_SIZE);
 
                 instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, LCL_FINALLY_MARK, compiler->lvaShadowSPslotsVar,
                                            curNestingSlotOffs);
@@ -15977,7 +15977,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                             addrReg = 0;
 
                             // Get the number of BYTES to copy to the stack
-                            opsz = roundUp(compiler->info.compCompHnd->getClassSize(arg->gtObj.gtClass), sizeof(void*));
+                            opsz = roundUp(compiler->info.compCompHnd->getClassSize(arg->gtObj.gtClass), TARGET_POINTER_SIZE);
                             size_t bytesToBeCopied = opsz;
 
                             // postponedFields is true if we have any postponed fields
@@ -16020,14 +16020,14 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                 if (fieldVarDsc->lvStackAligned())
                                 {
                                     if (fieldVarDsc->lvExactSize != 2 * sizeof(unsigned) &&
-                                        fieldVarDsc->lvFldOffset + sizeof(void*) != bytesToBeCopied)
+                                        fieldVarDsc->lvFldOffset + TARGET_POINTER_SIZE != bytesToBeCopied)
                                     {
                                         // Might need 4-bytes paddings for fields other than LONG and DOUBLE.
                                         // Just push some junk (i.e EAX) on the stack.
                                         inst_RV(INS_push, REG_EAX, TYP_INT);
                                         genSinglePush();
 
-                                        bytesToBeCopied -= sizeof(void*);
+                                        bytesToBeCopied -= TARGET_POINTER_SIZE;
                                     }
 
                                     // If we have an expectedAlignedOffset make sure that this push instruction
@@ -16060,11 +16060,11 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                         }
                                         else
                                         {
-                                            getEmitter()->emitIns_S(INS_push, EA_4BYTE, varNum, sizeof(void*));
+                                            getEmitter()->emitIns_S(INS_push, EA_4BYTE, varNum, TARGET_POINTER_SIZE);
                                             genSinglePush();
                                         }
 
-                                        bytesToBeCopied -= sizeof(void*);
+                                        bytesToBeCopied -= TARGET_POINTER_SIZE;
                                     }
 
                                     // Push the "upper half" of DOUBLE var if it is not enregistered.
@@ -16073,11 +16073,11 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                     {
                                         if (!fieldVarDsc->lvRegister)
                                         {
-                                            getEmitter()->emitIns_S(INS_push, EA_4BYTE, varNum, sizeof(void*));
+                                            getEmitter()->emitIns_S(INS_push, EA_4BYTE, varNum, TARGET_POINTER_SIZE);
                                             genSinglePush();
                                         }
 
-                                        bytesToBeCopied -= sizeof(void*);
+                                        bytesToBeCopied -= TARGET_POINTER_SIZE;
                                     }
 
                                     //
@@ -16156,7 +16156,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                         genSinglePush();
                                     }
 
-                                    bytesToBeCopied -= sizeof(void*);
+                                    bytesToBeCopied -= TARGET_POINTER_SIZE;
                                 }
                                 else // not stack aligned
                                 {
@@ -16171,11 +16171,11 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                         // This should never change until it is set back to UINT_MAX by an aligned
                                         // offset
                                         noway_assert(expectedAlignedOffset ==
-                                                     roundUp(fieldVarDsc->lvFldOffset, sizeof(void*)) - sizeof(void*));
+                                                     roundUp(fieldVarDsc->lvFldOffset, TARGET_POINTER_SIZE) - TARGET_POINTER_SIZE);
                                     }
 
                                     expectedAlignedOffset =
-                                        roundUp(fieldVarDsc->lvFldOffset, sizeof(void*)) - sizeof(void*);
+                                        roundUp(fieldVarDsc->lvFldOffset, TARGET_POINTER_SIZE) - TARGET_POINTER_SIZE;
 
                                     noway_assert(expectedAlignedOffset < bytesToBeCopied);
 
@@ -16302,8 +16302,8 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                     noway_assert(arg->gtObj.gtOp1->InReg());
                     regNumber reg = arg->gtObj.gtOp1->gtRegNum;
                     // Get the number of DWORDS to copy to the stack
-                    opsz = roundUp(compiler->info.compCompHnd->getClassSize(arg->gtObj.gtClass), sizeof(void*));
-                    unsigned slots = (unsigned)(opsz / sizeof(void*));
+                    opsz = roundUp(compiler->info.compCompHnd->getClassSize(arg->gtObj.gtClass), sizeof(DWORD));
+                    unsigned slots = (unsigned)(opsz / sizeof(DWORD));
 
                     BYTE* gcLayout = new (compiler, CMK_Codegen) BYTE[slots];
 
@@ -16355,7 +16355,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
 
                         if (opsz & 0x4)
                         {
-                            stkDisp -= sizeof(void*);
+                            stkDisp -= TARGET_POINTER_SIZE;
                             getEmitter()->emitIns_AR_R(INS_push, EA_4BYTE, REG_NA, reg, stkDisp);
                             genSinglePush();
                         }
@@ -16367,7 +16367,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                         {
                             getEmitter()->emitIns_R_AR(INS_movq, EA_8BYTE, xmmReg, reg, curDisp);
                             getEmitter()->emitIns_AR_R(INS_movq, EA_8BYTE, xmmReg, REG_SPBASE, curDisp);
-                            curDisp += 2 * sizeof(void*);
+                            curDisp += 2 * TARGET_POINTER_SIZE;
                         }
                         noway_assert(curDisp == stkDisp);
                     }
@@ -16385,7 +16385,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                 noway_assert(gcLayout[i] == TYPE_GC_BYREF);
                                 fieldSize = EA_BYREF;
                             }
-                            getEmitter()->emitIns_AR_R(INS_push, fieldSize, REG_NA, reg, i * sizeof(void*));
+                            getEmitter()->emitIns_AR_R(INS_push, fieldSize, REG_NA, reg, i * TARGET_POINTER_SIZE);
                             genSinglePush();
                         }
                     }
