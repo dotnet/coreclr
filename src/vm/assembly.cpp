@@ -1780,14 +1780,8 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
     INT32   iRetVal = 0;
 
     BEGIN_ENTRYPOINT_THROWS;
-
-    Thread *pThread = GetThread();
-    MethodDesc *pMeth;
     {
-        // This thread looks like it wandered in -- but actually we rely on it to keep the process alive.
-        pThread->SetBackground(FALSE);
-    
-        GCX_COOP();
+        GCX_PREEMP();
 
         mdToken tkEntryPoint = m_pManifestFile->GetEntryPointToken();
         // <TODO>@TODO: What if the entrypoint is in another file of the assembly?</TODO>
@@ -1814,8 +1808,17 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
         // before running the AppDomainManager initialization code.
         if (state == Thread::AS_InSTA || state == Thread::AS_InMTA)
             SystemDomain::SetThreadAptState(scope, state);
-#endif // FEATURE_COMINTEROP
+#endif // FEATURE_COMINTEROP    
+    }
+
+    Thread *pThread = GetThread();
+    MethodDesc *pMeth;
+    {
+        // This thread looks like it wandered in -- but actually we rely on it to keep the process alive.
+        pThread->SetBackground(FALSE);
     
+        GCX_COOP();
+
         pMeth = GetEntryPoint();
         if (pMeth) {
             RunMainPre();
