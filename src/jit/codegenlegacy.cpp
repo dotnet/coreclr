@@ -18476,7 +18476,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
 
     if (valUsed)
     {
-        if (call->gtType == TYP_REF || call->gtType == TYP_ARRAY)
+        if (call->gtType == TYP_REF)
         {
             retSize = EA_GCREF;
         }
@@ -20037,7 +20037,6 @@ regMaskTP CodeGen::genCodeForCall(GenTreeCall* call, bool valUsed)
     switch (call->gtType)
     {
         case TYP_REF:
-        case TYP_ARRAY:
         case TYP_BYREF:
             gcInfo.gcMarkRegPtrVal(REG_INTRET, call->TypeGet());
 
