@@ -5091,7 +5091,8 @@ void CodeGen::genCodeForTreeLeaf(GenTreePtr tree, regMaskTP destReg, regMaskTP b
             unsigned filterEndOffsetSlotOffs;
             PREFIX_ASSUME(compiler->lvaLclSize(compiler->lvaShadowSPslotsVar) >
                           TARGET_POINTER_SIZE); // below doesn't underflow.
-            filterEndOffsetSlotOffs = (unsigned)(compiler->lvaLclSize(compiler->lvaShadowSPslotsVar) - TARGET_POINTER_SIZE);
+            filterEndOffsetSlotOffs =
+                (unsigned)(compiler->lvaLclSize(compiler->lvaShadowSPslotsVar) - TARGET_POINTER_SIZE);
 
             unsigned curNestingSlotOffs;
             curNestingSlotOffs = filterEndOffsetSlotOffs - ((finallyNesting + 1) * TARGET_POINTER_SIZE);
@@ -15977,7 +15978,8 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                             addrReg = 0;
 
                             // Get the number of BYTES to copy to the stack
-                            opsz = roundUp(compiler->info.compCompHnd->getClassSize(arg->gtObj.gtClass), TARGET_POINTER_SIZE);
+                            opsz = roundUp(compiler->info.compCompHnd->getClassSize(arg->gtObj.gtClass),
+                                           TARGET_POINTER_SIZE);
                             size_t bytesToBeCopied = opsz;
 
                             // postponedFields is true if we have any postponed fields
@@ -16171,7 +16173,8 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                         // This should never change until it is set back to UINT_MAX by an aligned
                                         // offset
                                         noway_assert(expectedAlignedOffset ==
-                                                     roundUp(fieldVarDsc->lvFldOffset, TARGET_POINTER_SIZE) - TARGET_POINTER_SIZE);
+                                                     roundUp(fieldVarDsc->lvFldOffset, TARGET_POINTER_SIZE) -
+                                                         TARGET_POINTER_SIZE);
                                     }
 
                                     expectedAlignedOffset =

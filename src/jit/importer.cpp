@@ -6540,9 +6540,9 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
                     op1->gtType = TYP_REF; // points at boxed object
                     FieldSeqNode* firstElemFldSeq =
                         GetFieldSeqStore()->CreateSingleton(FieldSeqStore::FirstElemPseudoField);
-                    op1 =
-                        gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                                      new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, TARGET_POINTER_SIZE, firstElemFldSeq));
+                    op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
+                                        new (this, GT_CNS_INT)
+                                            GenTreeIntCon(TYP_I_IMPL, TARGET_POINTER_SIZE, firstElemFldSeq));
 
                     if (varTypeIsStruct(lclTyp))
                     {
