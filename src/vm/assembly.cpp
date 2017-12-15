@@ -1794,6 +1794,7 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
             ThrowHR(COR_E_BADIMAGEFORMAT);
         }
 
+#ifdef FEATURE_COMINTEROP 
         Thread::ApartmentState state = Thread::AS_Unknown;        
 
         if((!IsNilToken(tkEntryPoint)) && (TypeFromToken(tkEntryPoint) == mdtMethodDef)) {
@@ -1807,6 +1808,8 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
         // before running the AppDomainManager initialization code.
         if (state == Thread::AS_InSTA || state == Thread::AS_InMTA)
             SystemDomain::SetThreadAptState(state);
+
+#endif // FEATURE_COMINTEROP
     }
 
     Thread *pThread = GetThread();
