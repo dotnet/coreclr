@@ -371,15 +371,17 @@ namespace System.Collections.Generic
                 i = buckets[hashCode % buckets.Length];
 
                 Entry[] entries = _entries;
-                while (i >= 0)
+                do
                 {
-                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
+                    // Should be a while loop https://github.com/dotnet/coreclr/issues/15476
+                    // Test in if to drop range check for following array access
+                    if ((uint)i >= (uint)entries.Length || (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)))
                     {
                         break;
                     }
 
                     i = entries[i].next;
-                }
+                } while (true);
             }
             return i;
         }
