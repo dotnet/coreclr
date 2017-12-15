@@ -1055,7 +1055,6 @@ FCIMPL1(INT32, ThreadNative::GetApartmentState, ThreadBaseObject* pThisUNSAFE)
         // ApartmentState.Unknown to our callers.
         if (!g_fComStarted)
         {
-            //EnsureComStarted();
             state = thread->GetApartment();
         }
     }
