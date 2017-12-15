@@ -92,27 +92,27 @@ namespace System.IO
             if (basePath == null)
                 throw new ArgumentNullException(nameof(basePath));
 
-            if (!Path.IsPathFullyQualified(basePath))
+            if (!IsPathFullyQualified(basePath))
                 throw new ArgumentException();
+
+            if (IsPathFullyQualified(path))
+                return GetFullPath(path);
 
             int length = path.Length;
 
             if (PathInternal.IsDevice(basePath))
             {
-                if (Path.IsPathFullyQualified(path))
-                {
-                    return RemoveRelativeSegments(Combine(basePath, path));
-                }
+                return RemoveRelativeSegments(CombineNoChecks(basePath, path), PathInternal.GetRootLength(basePath));
             }
             else if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0]))) //current drive rooted
             {
-                return Combine(GetPathRoot(basePath), path);
+                return CombineNoChecks(GetPathRoot(basePath), path);
             }
             else if(length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar && !PathInternal.IsDirectorySeparator(path[2]))
             {
                 if (GetPathRoot(path) == GetPathRoot(basePath))
                 {
-                    return Combine(basePath, path);
+                    return CombineNoChecks(basePath, path);
                 }
                 else
                 {
@@ -120,7 +120,7 @@ namespace System.IO
                 } 
             }
 
-            return GetFullPath(path);
+            return GetFullPath(CombineNoChecks(basePath, path));
         }
 
         /// <summary>
