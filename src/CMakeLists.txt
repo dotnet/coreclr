@@ -10,9 +10,9 @@ include_directories("classlibnative/cryptography")
 include_directories("classlibnative/inc")
 include_directories("${GENERATED_INCLUDE_DIR}")
 
-if(WIN32)
-  include_directories("${GENERATED_INCLUDE_DIR}/etw")
-endif(WIN32)
+if(WIN32 AND FEATURE_EVENT_TRACE)
+    include_directories("${GENERATED_INCLUDE_DIR}/etw")
+endif(WIN32 AND FEATURE_EVENT_TRACE)
 
 
 if(CLR_CMAKE_PLATFORM_UNIX)

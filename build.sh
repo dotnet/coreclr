@@ -233,6 +233,10 @@ generate_event_logging_sources()
                 fi
                 ;;
         esac
+
+        if [[ $__CrossBuild == 1 ]]; then
+            cp -r $__GeneratedIntermediate $__CrossCompIntermediatesDir
+        fi
     fi
 }
 
