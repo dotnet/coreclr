@@ -323,7 +323,7 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T AsRef<T>(ref T source)
+        public static ref T AsRef<T>(in T source)
         {
             throw new PlatformNotSupportedException();
         }
