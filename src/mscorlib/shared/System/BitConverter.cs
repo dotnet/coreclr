@@ -227,7 +227,7 @@ namespace System
         {
             if (value.Length < sizeof(char))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<char>(ref MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<char>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value)));
         }
 
         // Converts an array of bytes into a short.  
@@ -248,7 +248,7 @@ namespace System
         {
             if (value.Length < sizeof(short))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<short>(ref MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<short>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value)));
         }
 
         // Converts an array of bytes into an int.  
@@ -269,7 +269,7 @@ namespace System
         {
             if (value.Length < sizeof(int))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<int>(ref MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<int>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into a long.  
@@ -290,7 +290,7 @@ namespace System
         {
             if (value.Length < sizeof(long))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<long>(ref MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<long>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value)));
         }
 
         // Converts an array of bytes into an ushort.
@@ -304,7 +304,7 @@ namespace System
         {
             if (value.Length < sizeof(ushort))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<ushort>(ref MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<ushort>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value)));
         }
 
         // Converts an array of bytes into an uint.
@@ -318,7 +318,7 @@ namespace System
         {
             if (value.Length < sizeof(uint))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<uint>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value)));
         }
 
         // Converts an array of bytes into an unsigned long.
@@ -332,7 +332,7 @@ namespace System
         {
             if (value.Length < sizeof(ulong))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<ulong>(ref MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<ulong>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value)));
         }
 
         // Converts an array of bytes into a float.  
@@ -343,7 +343,7 @@ namespace System
         {
             if (value.Length < sizeof(float))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<float>(ref MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<float>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value)));
         }
 
         // Converts an array of bytes into a double.  
@@ -354,7 +354,7 @@ namespace System
         {
             if (value.Length < sizeof(double))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<double>(ref MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<double>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value)));
         }
 
         // Converts an array of bytes into a String.  
@@ -444,7 +444,7 @@ namespace System
         {
             if (value.Length < sizeof(byte))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<byte>(ref MemoryMarshal.GetReference(value)) != 0;
+            return Unsafe.ReadUnaligned<byte>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value))) != 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
