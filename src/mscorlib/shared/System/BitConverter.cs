@@ -269,7 +269,7 @@ namespace System
         {
             if (value.Length < sizeof(int))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<int>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value));
+            return Unsafe.ReadUnaligned<int>(ref Unsafe.AsRef(in MemoryMarshal.GetReference(value)));
         }
 
         // Converts an array of bytes into a long.  
