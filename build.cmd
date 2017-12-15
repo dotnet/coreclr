@@ -515,6 +515,9 @@ if /i "%__BuildArch%"=="arm" (
     )
 
 if /i "%__DoCrossArchBuild%"=="1" (
+    REM Copy over eventing files
+    robocopy /E %__IntermediatesEventingDir% %__CrossCompIntermediatesDir%\eventing
+
     REM Scope environment changes start {
     setlocal
 
