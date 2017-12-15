@@ -240,12 +240,12 @@ add_library(coreclrpal
 
 # This builds in functionality to load LTTng tracepoints at runtime
 # Needed when using LTTng to support event tracing on Linux
-if(CLR_CMAKE_PLATFORM_LINUX AND FEATURE_EVENT_TRACE)
+if(CLR_CMAKE_PLATFORM_LINUX)
     add_library(tracepointprovider
       STATIC
       misc/tracepointprovider.cpp
     )
-endif(CLR_CMAKE_PLATFORM_LINUX AND FEATURE_EVENT_TRACE)
+endif(CLR_CMAKE_PLATFORM_LINUX)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   find_library(COREFOUNDATION CoreFoundation)
