@@ -44,6 +44,20 @@ namespace System.IO
             return result;
         }
 
+        public static string GetFullPath(string path, string basePath)
+        {
+            if (basePath == null)
+                throw new ArgumentNullException(nameof(basePath));
+
+            if (!IsPathFullyQualified(basePath))
+                throw new ArgumentException();
+
+            if (IsPathFullyQualified(path))
+                return GetFullPath(path);
+
+            return GetFullPath(CombineNoChecks(basePath, path));
+        }
+
         /// <summary>
         /// Try to remove relative segments from the given path (without combining with a root).
         /// </summary>
