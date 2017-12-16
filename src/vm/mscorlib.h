@@ -770,8 +770,7 @@ DEFINE_METHOD(JIT_HELPERS,          GET_RAW_SZ_ARRAY_DATA,  GetRawSzArrayData, N
 
 DEFINE_CLASS(UNSAFE,                InternalCompilerServices,       Unsafe)
 DEFINE_METHOD(UNSAFE,               AS_POINTER,             AsPointer, NoSig)
-DEFINE_METHOD(UNSAFE,               PTR_AS_REF,             AsRef, GM_PtrVoid_RetT)
-DEFINE_METHOD(UNSAFE,               REF_READONLY_AS_REF,    AsRef, GM_RefT_RetT)
+DEFINE_METHOD(UNSAFE,               AS_REF,                 AsRef, NoSig)
 DEFINE_METHOD(UNSAFE,               SIZEOF,                 SizeOf, NoSig)
 DEFINE_METHOD(UNSAFE,               BYREF_AS,               As, GM_RefTFrom_RetRefTTo)
 DEFINE_METHOD(UNSAFE,               OBJECT_AS,              As, GM_Obj_RetT)

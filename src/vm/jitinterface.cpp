@@ -7130,8 +7130,7 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
     }
     else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_AS)->GetMemberDef() ||
              tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__OBJECT_AS)->GetMemberDef() ||
-             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__PTR_AS_REF)->GetMemberDef() ||
-             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__REF_READONLY_AS_REF)->GetMemberDef())
+             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__AS_REF)->GetMemberDef())
     {
         // Return the argument that was passed in.
         static const BYTE ilcode[] = { CEE_LDARG_0, CEE_RET };

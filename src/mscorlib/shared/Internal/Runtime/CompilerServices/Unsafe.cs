@@ -318,17 +318,6 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Reinterprets the given read-only reference as a reference.
-        /// </summary>
-        [Intrinsic]
-        [NonVersionable]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T AsRef<T>(in T source)
-        {
-            throw new PlatformNotSupportedException();
-        }
-
-        /// <summary>
         /// Determines the byte offset from origin to target from the given references.
         /// </summary>
         [Intrinsic]
