@@ -1780,37 +1780,6 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
     INT32   iRetVal = 0;
 
     BEGIN_ENTRYPOINT_THROWS;
-    {
-        GCX_PREEMP();
-
-        mdToken tkEntryPoint = m_pManifestFile->GetEntryPointToken();
-        // <TODO>@TODO: What if the entrypoint is in another file of the assembly?</TODO>
-        ReleaseHolder<IMDInternalImport> scope(m_pManifestFile->GetMDImportWithRef());
-        // In theory, we should have a valid executable image and scope should never be NULL, but we've been  
-        // getting Watson failures for AVs here due to ISVs modifying image headers and some new OS loader 
-        // checks (see Dev10# 718530 and Windows 7# 615596)
-        if (scope == NULL)
-        {
-            ThrowHR(COR_E_BADIMAGEFORMAT);
-        }
-
-#ifdef FEATURE_COMINTEROP 
-        Thread::ApartmentState state = Thread::AS_Unknown;        
-
-        if((!IsNilToken(tkEntryPoint)) && (TypeFromToken(tkEntryPoint) == mdtMethodDef)) {
-            if (scope->IsValidToken(tkEntryPoint))
-                state = SystemDomain::GetEntryPointThreadAptState(scope, tkEntryPoint);
-            else
-                ThrowHR(COR_E_BADIMAGEFORMAT);
-        }
-
-        // If the entry point has an explicit thread apartment state, set it
-        // before running the AppDomainManager initialization code.
-        if (state == Thread::AS_InSTA || state == Thread::AS_InMTA)
-            SystemDomain::SetThreadAptState(state);
-
-#endif // FEATURE_COMINTEROP
-    }
 
     Thread *pThread = GetThread();
     MethodDesc *pMeth;
@@ -1846,6 +1815,31 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
         StackSString displayName;
         GetDisplayName(displayName);
         COMPlusThrowHR(COR_E_MISSINGMETHOD, IDS_EE_FAILED_TO_FIND_MAIN, displayName);
+    }
+
+    {
+        GCX_PREEMP();
+
+        mdToken tkEntryPoint = m_pManifestFile->GetEntryPointToken();
+        // <TODO>@TODO: What if the entrypoint is in another file of the assembly?</TODO>
+        ReleaseHolder<IMDInternalImport> scope(m_pManifestFile->GetMDImportWithRef());
+        // In theory, we should have a valid executable image and scope should never be NULL, but we've been
+        // getting Watson failures for AVs here due to ISVs modifying image headers and some new OS loader
+        // checks (see Dev10# 718530 and Windows 7# 615596)
+        if (scope == NULL)
+        {
+            ThrowHR(COR_E_BADIMAGEFORMAT);
+        }
+
+#ifdef FEATURE_COMINTEROP
+        Thread::ApartmentState state = Thread::AS_Unknown;
+        state = SystemDomain::GetEntryPointThreadAptState(scope, tkEntryPoint);
+
+        // If the entry point has an explicit thread apartment state, set it
+        // before running the AppDomainManager initialization code.
+        if (state == Thread::AS_InSTA || state == Thread::AS_InMTA)
+            SystemDomain::SetThreadAptState(state);
+#endif // FEATURE_COMINTEROP
     }
     
     IfFailThrow(hr);
