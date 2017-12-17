@@ -26,7 +26,7 @@ set "__MsgPrefix=BUILDTEST: "
 :: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
 :: toolset if it is installed. Finally, we will fail the script if no supported VS instance
 :: can be found.
-if defined VisualStudioVersion ( 
+if defined VisualStudioVersion (
     if not defined __VSVersion echo %__MsgPrefix%Detected Visual Studio %VisualStudioVersion% developer command ^prompt environment
     goto Run
 )
@@ -86,24 +86,24 @@ if "%1" == "" goto ArgsDone
 if /i "%1" == "-?"    goto Usage
 if /i "%1" == "-h"    goto Usage
 if /i "%1" == "-help" goto Usage
+::~ This should be converted to check for -buildarch=?
+if /i "%1" == "-x64"                   (set __BuildArch=x64&set __VCBuildArch=x86_amd64&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-x86"                   (set __BuildArch=x86&set __VCBuildArch=x86&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-arm"                   (set __BuildArch=arm&set __VCBuildArch=x86_arm&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-arm64"                 (set __BuildArch=arm64&set __VCBuildArch=x86_arm64&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+::~ Should this be converted to check for -buildtype=?
+if /i "%1" == "-debug"                 (set __BuildType=Debug&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-release"               (set __BuildType=Release&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-checked"               (set __BuildType=Checked&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
-if /i "%1" == "x64"                   (set __BuildArch=x64&set __VCBuildArch=x86_amd64&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "x86"                   (set __BuildArch=x86&set __VCBuildArch=x86&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "arm"                   (set __BuildArch=arm&set __VCBuildArch=x86_arm&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "arm64"                 (set __BuildArch=arm64&set __VCBuildArch=x86_arm64&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-
-if /i "%1" == "debug"                 (set __BuildType=Debug&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "release"               (set __BuildType=Release&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "checked"               (set __BuildType=Checked&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-
-if /i "%1" == "skipmanaged"           (set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "toolset_dir"           (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
-if /i "%1" == "buildagainstpackages"  (set __ZipTests=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "ziptests"              (set __ZipTests=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "crossgen"              (set __DoCrossgen=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
-if /i "%1" == "targetsNonWindows"     (set __TargetsWindows=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-skipmanaged"           (set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-toolset_dir"           (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-buildagainstpackages"  (set __ZipTests=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-ziptests"              (set __ZipTests=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-docrossgen"            (set __DoCrossgen=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-runtimeid"             (set __RuntimeId=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-buildos"               (set __BuildOS=%2&set __TargetsWindows=0&set __DoCrossgen=0&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 
 if [!processedArgs!]==[] (
   set __UnprocessedBuildArgs=%__args%
@@ -329,7 +329,7 @@ md "%CORE_ROOT_STAGE%"
 xcopy "%__BinDir%" "%CORE_ROOT_STAGE%"
 
 
-if defined __BuildAgainstPackagesArg ( 
+if defined __BuildAgainstPackagesArg (
   if "%__TargetsWindows%"=="0" (
 
     if not exist %__PackagesDir%\TestNativeBins (
@@ -450,10 +450,14 @@ echo     %0 [option1] [option2] ...
 echo All arguments are optional. Options are case-insensitive. The options are:
 echo.
 echo. -? -h -help: view this message.
-echo Build architecture: -buildArch: only x64 is currently allowed ^(default: x64^).
-echo Build type: -buildType: one of Debug, Checked, Release ^(default: Debug^).
-echo buildagainstpackages: builds tests against restored packages, instead of against a built product.
-echo runtimeid ^<ID^>: Builds a test overlay for the specified OS (Only supported when building against packages). Supported IDs are:
+echo -buildos=<val>: Currently supports: FreeBSD, NetBSD, Linux, OSX. Do not use this in conjunction wiht runtimeId
+::~ Specifying build conf inline is bad, but it's what was in the script and it would require re-writing the args loop.
+::~ This should be a buildtype param the notes originally said. Better yet, convert it to PS. :/
+echo -debug: Build debug symbols and configuration. Do not use with -release or -checked, the last parameter takes precidence.
+echo -release: Build release configuration and forgoes debug symbols. Do not use with -debug or -checked, the last parameter takes precidence.
+echo -checked: Creates a checked build. Do not use with -debug or -release, the last parameter takes precidence.
+echo -buildagainstpackages: builds tests against restored packages, instead of against a built product.
+echo -runtimed=<number>: Builds a test overlay for the specified OS (Only supported when building against packages). Supported IDs are:
 echo     alpine.3.4.3-x64: Builds overlay for Alpine 3.4.3
 echo     debian.8-x64: Builds overlay for Debian 8
 echo     fedora.24-x64: Builds overlay for Fedora 24
@@ -467,9 +471,9 @@ echo     ubuntu.16.04-x64: Builds overlay for Ubuntu 16.04
 echo     ubuntu.16.10-x64: Builds overlay for Ubuntu 16.10
 echo     win-x64: Builds overlay for portable Windows
 echo     win7-x64: Builds overlay for Windows 7
-echo ziptests: zips CoreCLR tests & Core_Root for a Helix run
-echo crossgen: Precompiles the framework managed assemblies
-echo Exclude- Optional parameter - specify location of default exclusion file (defaults to tests\issues.targets if not specified)
+echo -ziptests: zips CoreCLR tests & Core_Root for a Helix run
+echo -docrossgen=[0|1]: Set to 1 to recompile the framework managed assemblies. Set to 0 if using -buildos
+echo -exclude: Optional parameter to specify location of default exclusion file (defaults to tests\issues.targets if not specified)
 echo     Set to "" to disable default exclusion file.
 echo -- ... : all arguments following this tag will be passed directly to msbuild.
 echo -priority=^<N^> : specify a set of test that will be built and run, with priority N.
@@ -548,6 +552,6 @@ if %__exitCode% neq 0 (
 :: Delete original .dll & replace it with the Crossgened .dll
 del %1
 ren "%CORE_ROOT%\temp.ni.dll" %2
-    
+
 echo Successfully precompiled %2
 exit /b 0
