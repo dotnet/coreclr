@@ -40,7 +40,7 @@ setlocal ENABLEDELAYEDEXPANSION
   call :set_perf_run_log        || exit /b 1
   call :build_perfharness       || exit /b 1
 
-  call :run_cmd xcopy /sy "%CORECLR_REPO%\bin\tests\Windows_NT.%TEST_ARCH%.%TEST_CONFIG%\Tests\Core_Root"\* . >> %RUNLOG% || exit /b 1
+  REM call :run_cmd xcopy /sy "%CORECLR_REPO%\bin\tests\Windows_NT.%TEST_ARCH%.%TEST_CONFIG%\Tests\Core_Root"\* . >> %RUNLOG% || exit /b 1
 
   rem find and stage the tests
   set /A "LV_FAILURES=0"
@@ -125,15 +125,15 @@ setlocal
   if defined IS_SCENARIO_TEST (
     set "LV_COMMON_ARGS=%LV_COMMON_ARGS% --target-architecture "%TEST_ARCHITECTURE%""
   ) else (
-    set "LV_COMMON_ARGS=PerfHarness.dll %LV_COMMON_ARGS%"
+    set "LV_COMMON_ARGS=PerfHarness.exe %LV_COMMON_ARGS%"
   )
 
-  set "LV_CMD=%STABILITY_PREFIX% corerun.exe %LV_COMMON_ARGS% --perf:collect %COLLECTION_FLAGS%"
+  set "LV_CMD=%STABILITY_PREFIX% %LV_COMMON_ARGS% --perf:collect %COLLECTION_FLAGS%"
   call :print_to_console $ !LV_CMD!
   call :run_cmd !LV_CMD! 1>"%BENCHNAME_LOG_FILE_NAME%" 2>&1
 
   IF %ERRORLEVEL% NEQ 0 (
-    call :print_error corerun.exe exited with %ERRORLEVEL% code.
+    call :print_error PerfHarness.exe exited with %ERRORLEVEL% code.
     if exist "%BENCHNAME_LOG_FILE_NAME%" type "%BENCHNAME_LOG_FILE_NAME%"
     exit /b 1
   )

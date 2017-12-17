@@ -6,6 +6,7 @@
       https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json;
       https://dotnet.myget.org/F/dotnet-core/api/v3/index.json;
       https://api.nuget.org/v3/index.json;
+      $(MSBuildThisFileDirectory)\packages;
       $(RestoreSources)
     </RestoreSources>
   </PropertyGroup>
@@ -37,7 +38,7 @@
     <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview1-26017-01</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XunitConsoleNetcorePackageVersion>1.0.2-prerelease-00177</XunitConsoleNetcorePackageVersion>
-    <XunitPerformanceApiPackageVersion>1.0.0-beta-build0012</XunitPerformanceApiPackageVersion>
+    <XunitPerformanceApiPackageVersion>1.0.0-beta-build0014</XunitPerformanceApiPackageVersion>
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>1.0.3-alpha-experimental</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
     <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
   </PropertyGroup>
