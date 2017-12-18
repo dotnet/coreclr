@@ -170,6 +170,20 @@ bool FindLibWithMajorMinorVersion(int* majorVer, int* minorVer)
     return false;
 }
 
+// Select the version of ICU present at build time.
+// Search for library files with names including the major and minor version.
+bool FindLibWithBuildMajorMinorVersion(int* majorVer, int* minorVer)
+{
+    if (OpenICULibraries(U_ICU_VERSION_MAJOR_NUM, U_ICU_VERSION_MINOR_NUM, -1))
+    {
+        *majorVer = U_ICU_VERSION_MAJOR_NUM;
+        *minorVer = U_ICU_VERSION_MINOR_NUM;
+        return true;
+    }
+
+    return false;
+}
+
 // Select the highest supported version of ICU present on the local machine
 // Search for library files with names including the major, minor and sub version.
 bool FindLibWithMajorMinorSubVersion(int* majorVer, int* minorVer, int* subVer)
@@ -201,6 +215,7 @@ bool FindICULibs(char* symbolName, char* symbolVersion)
     int subVer = -1;
 
     if (!FindLibUsingOverride(&majorVer, &minorVer, &subVer) &&
+        !FindLibWithBuildMajorMinorVersion(&majorVer, &minorVer) &&
         !FindLibWithMajorMinorVersion(&majorVer, &minorVer) &&
         !FindLibWithMajorMinorSubVersion(&majorVer, &minorVer, &subVer) &&
         // This is a fallback for the rare case when there are only lib files with major version
