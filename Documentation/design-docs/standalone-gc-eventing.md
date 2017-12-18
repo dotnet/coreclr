@@ -103,16 +103,10 @@ Given that we have validated that an event is enabled (through `GCEventStatus::I
 fire the event using this new method on `IGCToCLR`:
 
 ```c++
-struct GCEventData
-{
-    void *DataPointer;
-    size_t Size;
-};
-
-void IGCToCLR::FireEvent(
+void IGCToCLR::FireKnownEvent(
     /* IN */ void* eventHandle,
-    /* IN */ GCEventData** eventData,
-    /* IN */ unsigned int eventDataCount,
+    /* IN */ void** eventData,
+    /* IN */ uint32_t eventDataCount,
     /* IN */ const GUID* pActivityId = nullptr,
     /* IN */ const GUID* pRelatedActivityId = nullptr
 );
@@ -120,7 +114,7 @@ void IGCToCLR::FireEvent(
 
 The four arguments of this function are:
 1. `eventHandle` - An opaque handle to the EE's representation of the event being fired.
-2. `eventData` - An array of `GCEventData` objects that indicates the payload of the event being fired.
+2. `eventData` - An array of pointers that contains the payload of the event being fired.
 Each `GCEventData` is a tuple of a data pointer and size, so it can be used to describe arbitrary data.
 3. `eventDataCount` - The size of the `eventData` array.
 4. `pActivityId` and `pRelatedActivityId` - If provided, passes the activity ID and related activity ID
@@ -128,6 +122,8 @@ verbatim to the underlying event implementation.
 
 The EE will use this information to determine 1) if this event truly is enabled and, 2) if it is,
 forwarding it to the apporopriate underlying event implementation, be it EventPipe, ETW, or LTTNG.
+The passed-in eventHandle will be a handle to an object from which the EE can get information about
+the version of the event and other useful metadata.
 
 ## Getting Informed of Changes to Event State
 
@@ -142,13 +138,75 @@ polled periodically. For this purpose, when tracing using LTTNG, a new thread wi
 whose responsibility is to periodically poll LTTNG and invoke the GC whenever it detects changes in the
 eventing state.
 
-## Unresolved Questions
+## Adding New Events
 
-In order for the GC to obtain a handle for events that it intends to fire (the first parameter of
-`IGCToCLR::FireEvent`), it must obtain these handles in some way from the EE. There is some precedent 
-for this in the way that the free object method table is obtained from the EE; in this case, the GC
-calls `IGCToCLR::GetFreeObjectMethodTable()` to obtain a pointer to the free object method table.
-Something similar could be done here, where the GC could ask the EE on startup for a list of event
-handles that it will then use to populate the eventing data structures defined by this document.
+It is useful for a standalone GC to be able to fire events that the EE was not previously aware of.
+For example, it is useful for a GC developer to add some event-based instrumentation to the GC, especially
+when testing new features and ensuring that they work as expected.
 
-Is this a reasonable approach, or can we do better?
+While it is possible for some eventing implementations to receive events that are created at runtime, not all
+eventing implementations (particularly LTTNG) are not flexible enough for this. In order to accomodate new
+events, another method is added to `IGCToCLR`:
+
+```c++
+void IGCToCLR::FireCustomEvent(
+    /* IN */ const char* eventName,
+    /* IN */ uint64_t eventId,
+    /* IN */ void* payload,
+    /* IN */ size_t payloadSize
+);
+```
+
+This callback fires a "custom" event that the EE is not previously aware of. The four arguments of this
+function are:
+
+1. `eventName` - The name of this custom event.
+2. `eventId` - A unique integer ID of this custom event that consumers can use to identify this event.
+3. `payload` - A raw binary payload of the event, passed verbatim to the underlying event implementation.
+4. `payloadSize` - The size of the binary payload.
+
+A runtime implementing this callback will implement it by having a "catch-all" GC event whose schema is
+an arbitrary sequence of bytes. Tools can parse the (deliberately unspecified) binary format provided by GC
+events that use this mechanism in order to recover the data within the payload.
+
+## Handling EE-specific arguments for GC events
+
+A number of events that the GC fires rely on state that is maintained by the EE. Several examples of this
+are:
+
+* Tracing controllers can request specific GC sequence numbers for the `GcStart` event. Before firing `GcStart`,
+the GC must first [obtain the requested sequence number](https://github.com/dotnet/coreclr/blob/46dc37a27abe79d5977a1942541b1665b61f7a17/src/vm/eventtrace.cpp#L894-L902).
+* Almost all events get the CLR instance ID (`GetClrInstanceId()`) and pass it as an argument to the
+event being fired.
+* Some events gather metadata about objects that are only known to the EE. Some examples of this would be
+[string representations of types](https://github.com/dotnet/coreclr/blob/46dc37a27abe79d5977a1942541b1665b61f7a17/src/gc/gcee.cpp#L468-L480) 
+("type names") and [app domains](https://github.com/dotnet/coreclr/blob/46dc37a27abe79d5977a1942541b1665b61f7a17/src/gc/handletable.cpp#L620).
+
+There are two concerns here that are at odds with one another. While we want to ensure that the API surface
+area of `IGCToCLR` is as minimal as possible, we also want to allow for custom events to have the ability
+to fire events whose payloads contain EE-known details. To this end I propose that we examine these bits
+of EE state leakage on a case-by-case basis. For EE state that is likely to be something that a custom event
+writer would use (for example - type names), callbacks on `IGCToCLR` are added to ensure that the GC has
+access to these details. For EE state that is not likely to be something used in custom events, we can
+"intercept" events as the flow from the GC to the EE but before they flow into the underlying event pipelines
+and add the EE-specific data at that point.
+
+To be more specific, the implementation of `IGCToCLR::FireKnownEvent` will look something like this:
+
+```c++
+void GCToEEInterface::FireKnownEvent(...)
+{
+    switch (eventId)
+    {
+        ...
+        case GcStartEventId:
+        {
+            LONGLONG l64ClientSequenceNumberToLog = GetClientSequenceNumber();
+            FireEtwGCStart_V2(..., l64ClientSequenceNumberToLog);
+        }
+    }
+}
+```
+
+If a particular event needs access to EE details, the GC can fire the event with *incomplete arguments* and
+the EE can fill them in before it actually fires the event.
