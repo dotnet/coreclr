@@ -89,14 +89,14 @@ namespace System.IO
 
         public static string GetFullPath(string path, string basePath)
         {
+            if (IsPathFullyQualified(path))
+                return GetFullPath(path);
+
             if (basePath == null)
                 throw new ArgumentNullException(nameof(basePath));
 
             if (!IsPathFullyQualified(basePath))
                 throw new ArgumentException();
-
-            if (IsPathFullyQualified(path))
-                return GetFullPath(path);
 
             int length = path.Length;
 
@@ -106,17 +106,17 @@ namespace System.IO
             }
             else if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0]))) //current drive rooted
             {
-                return CombineNoChecks(GetPathRoot(basePath), path);
+                return RemoveRelativeSegments(CombineNoChecks(GetPathRoot(basePath), path.Substring(1)));
             }
             else if(length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar && !PathInternal.IsDirectorySeparator(path[2]))
             {
                 if (GetPathRoot(path) == GetPathRoot(basePath))
                 {
-                    return CombineNoChecks(basePath, path);
+                    return RemoveRelativeSegments(CombineNoChecks(basePath, path.Substring(2)), basePath.Length);
                 }
                 else
                 {
-                    return path.Insert(2, "\\");
+                    return RemoveRelativeSegments(path.Insert(2, "\\"), PathInternal.GetRootLength(path));
                 } 
             }
 

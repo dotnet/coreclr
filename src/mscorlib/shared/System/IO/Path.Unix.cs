@@ -46,14 +46,15 @@ namespace System.IO
 
         public static string GetFullPath(string path, string basePath)
         {
+
+            if (IsPathFullyQualified(path))
+                return GetFullPath(path);
+
             if (basePath == null)
                 throw new ArgumentNullException(nameof(basePath));
 
             if (!IsPathFullyQualified(basePath))
                 throw new ArgumentException();
-
-            if (IsPathFullyQualified(path))
-                return GetFullPath(path);
 
             return GetFullPath(CombineNoChecks(basePath, path));
         }
