@@ -105,6 +105,22 @@ bool OpenICULibraries(int majorVer, int minorVer, int subVer)
     return libicuuc != nullptr;
 }
 
+__attribute__((destructor))
+void CloseICULibraries()
+{
+    if (libicuuc != nullptr)
+    {
+        dlclose(libicuuc);
+        libicuuc = nullptr;
+    }
+
+    if (libicui18n != nullptr)
+    {
+        dlclose(libicui18n);
+        libicui18n = nullptr;
+    }
+}
+
 // Select libraries using the version override specified by the CLR_ICU_VERSION_OVERRIDE
 // environment variable.
 // The format of the string in this variable is majorVer[.minorVer[.subVer]] (the brackets
@@ -170,15 +186,51 @@ bool FindLibWithMajorMinorVersion(int* majorVer, int* minorVer)
     return false;
 }
 
+bool FindSymbolVersion(int majorVer, int minorVer, int subVer, char* symbolName, char* symbolVersion)
+{
+    // Find out the format of the version string added to each symbol
+    // First try just the unversioned symbol
+    if (dlsym(libicuuc, "u_strlen") == nullptr)
+    {
+        // Now try just the _majorVer added
+        sprintf(symbolVersion, "_%d", majorVer);
+        sprintf(symbolName, "u_strlen%s", symbolVersion);
+        if ((dlsym(libicuuc, symbolName) == nullptr) && (minorVer != -1))
+        {
+            // Now try the _majorVer_minorVer added
+            sprintf(symbolVersion, "_%d_%d", majorVer, minorVer);
+            sprintf(symbolName, "u_strlen%s", symbolVersion);
+            if ((dlsym(libicuuc, symbolName) == nullptr) && (subVer != -1))
+            {
+                // Finally, try the _majorVer_minorVer_subVer added
+                sprintf(symbolVersion, "_%d_%d_%d", majorVer, minorVer, subVer);
+                sprintf(symbolName, "u_strlen%s", symbolVersion);
+                if (dlsym(libicuuc, symbolName) == nullptr)
+                {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 // Select the version of ICU present at build time.
-bool FindLibWithBuildMajorVersion(int* majorVer)
+bool FindLibWithBuildMajorVersion(int* majorVer, char* symbolName, char* symbolVersion)
 {
     // ICU packaging documentation (http://userguide.icu-project.org/packaging)
     // describes applications link against the major (e.g. libicuuc.so.54).
     if (OpenICULibraries(U_ICU_VERSION_MAJOR_NUM, -1, -1))
     {
-        *majorVer = U_ICU_VERSION_MAJOR_NUM;
-        return true;
+        // Verify the major is enough to lookup symbols.
+        if (FindSymbolVersion(U_ICU_VERSION_MAJOR_NUM, -1, -1, symbolName, symbolVersion))
+        {
+            *majorVer = U_ICU_VERSION_MAJOR_NUM;
+            return true;
+        }
+
+        CloseICULibraries();
     }
 
     return false;
@@ -215,7 +267,7 @@ bool FindICULibs(char* symbolName, char* symbolVersion)
     int subVer = -1;
 
     if (!FindLibUsingOverride(&majorVer, &minorVer, &subVer) &&
-        !FindLibWithBuildMajorVersion(&majorVer) &&
+        !FindLibWithBuildMajorVersion(&majorVer, symbolName, symbolVersion) &&
         !FindLibWithMajorMinorVersion(&majorVer, &minorVer) &&
         !FindLibWithMajorMinorSubVersion(&majorVer, &minorVer, &subVer) &&
         // This is a fallback for the rare case when there are only lib files with major version
@@ -224,33 +276,8 @@ bool FindICULibs(char* symbolName, char* symbolVersion)
         // No usable ICU version found
         return false;
     }
-    // Find out the format of the version string added to each symbol
-    // First try just the unversioned symbol
-    if (dlsym(libicuuc, "u_strlen") == nullptr)
-    {
-        // Now try just the _majorVer added
-        sprintf(symbolVersion, "_%d", majorVer);
-        sprintf(symbolName, "u_strlen%s", symbolVersion);
-        if ((dlsym(libicuuc, symbolName) == nullptr) && (minorVer != -1))
-        {
-            // Now try the _majorVer_minorVer added
-            sprintf(symbolVersion, "_%d_%d", majorVer, minorVer);
-            sprintf(symbolName, "u_strlen%s", symbolVersion);
-            if ((dlsym(libicuuc, symbolName) == nullptr) && (subVer != -1))
-            {
-                // Finally, try the _majorVer_minorVer_subVer added
-                sprintf(symbolVersion, "_%d_%d_%d", majorVer, minorVer, subVer);
-                sprintf(symbolName, "u_strlen%s", symbolVersion);
-                if (dlsym(libicuuc, symbolName) == nullptr)
-                {
-                    return false;
-                }
-            }
-        }
-    }
 
-    return true;
-
+    return FindSymbolVersion(majorVer, minorVer, subVer, symbolName, symbolVersion);
 }
 
 #endif // __APPLE__
@@ -292,18 +319,4 @@ extern "C" int32_t GlobalizationNative_GetICUVersion()
     int32_t version;
     u_getVersion((uint8_t *) &version);
     return version; 
-}
-
-__attribute__((destructor))
-void ShutdownICUShim()
-{
-    if (libicuuc != nullptr)
-    {
-        dlclose(libicuuc);
-    }
-
-    if (libicui18n != nullptr)
-    {
-        dlclose(libicui18n);
-    }
 }
