@@ -675,25 +675,18 @@ namespace System
             return true;
         }
 
-        // From System.Web.Util.HashCodeCombiner
-        internal static int CombineHashCodes(int h1, int h2)
-        {
-            return (((h1 << 5) + h1) ^ h2);
-        }
-
         int IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
             if (comparer == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparer);
 
-            int ret = 0;
-
+            var hashCode = new HashCode();
             for (int i = (this.Length >= 8 ? this.Length - 8 : 0); i < this.Length; i++)
             {
-                ret = CombineHashCodes(ret, comparer.GetHashCode(GetValue(i)));
+                hashCode.Add(comparer.GetHashCode(GetValue(i)));
             }
 
-            return ret;
+            return hashCode.ToHashCode();
         }
 
         // Searches an array for a given element using a binary search algorithm.
