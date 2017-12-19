@@ -263,7 +263,13 @@ void EventPipe::Enable(
     CONTRACTL_END;
 
     // If tracing is not initialized or is already enabled, bail here.
-    if(!s_tracingInitialized || s_pConfig == NULL || s_pConfig->Enabled())
+    if(!s_tracingInitialized || s_pConfig->Enabled())
+    {
+        return;
+    }
+
+    // If the state or aurguments are invalid, bail
+    if(s_pConfig == NULL || pProviders == NULL || numProviders <= 0)
     {
         return;
     }
@@ -706,15 +712,15 @@ CrstStatic* EventPipe::GetLock()
 
 void QCALLTYPE EventPipeInternal::Enable(
         __in_z LPCWSTR outputFile,
-        unsigned int circularBufferSizeInMB,
-        long profilerSamplingRateInNanoseconds,
+        UINT32 circularBufferSizeInMB,
+        INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
-        int numProviders)
+        INT32 numProviders)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
-    SampleProfiler::SetSamplingRate(profilerSamplingRateInNanoseconds);
+    SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
     EventPipe::Enable(outputFile, circularBufferSizeInMB, pProviders, numProviders);
     END_QCALL;
 }
@@ -747,12 +753,12 @@ INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
 
 INT_PTR QCALLTYPE EventPipeInternal::DefineEvent(
     INT_PTR provHandle,
-    unsigned int eventID,
+    UINT32 eventID,
     __int64 keywords,
-    unsigned int eventVersion,
-    unsigned int level,
+    UINT32 eventVersion,
+    UINT32 level,
     void *pMetadata,
-    unsigned int metadataLength)
+    UINT32 metadataLength)
 {
     QCALL_CONTRACT;
 
@@ -788,9 +794,9 @@ void QCALLTYPE EventPipeInternal::DeleteProvider(
 
 void QCALLTYPE EventPipeInternal::WriteEvent(
     INT_PTR eventHandle,
-    unsigned int eventID,
+    UINT32 eventID,
     void *pData,
-    unsigned int length,
+    UINT32 length,
     LPCGUID pActivityId,
     LPCGUID pRelatedActivityId)
 {
@@ -806,9 +812,9 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
 
 void QCALLTYPE EventPipeInternal::WriteEventData(
     INT_PTR eventHandle,
-    unsigned int eventID,
+    UINT32 eventID,
     EventData **pEventData,
-    unsigned int eventDataCount,
+    UINT32 eventDataCount,
     LPCGUID pActivityId,
     LPCGUID pRelatedActivityId)
 {
