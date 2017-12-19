@@ -12,6 +12,14 @@ namespace Tracing.Tests
         private static int allocIterations = 10000;
         private static int gcIterations = 10;
 
+        static void AssertEqual<T>(T left, T right) where T : IEquatable<T>
+        {
+            if (left.Equals(right) == false)
+            {
+                throw new Exception(string.Format("Values were not equal! {0} and {1}", left, right));
+            }
+        }
+
         static int Main(string[] args)
         {
             bool pass = true;
@@ -60,19 +68,19 @@ namespace Tracing.Tests
                         allocTickCount += 1;
 
                         // Some basic integrity checks
-                        pass &= data.TypeName == "System.Object"; 
-                        pass &= data.AllocationKind == GCAllocationKind.Small; 
-                        pass &= data.ProviderName == "Microsoft-Windows-DotNETRuntime"; 
-                        pass &= data.EventName == "GC/AllocationTick"; 
+                        // AssertEqual(data.TypeName, "System.Object"); https://github.com/Microsoft/perfview/issues/470
+                        AssertEqual(data.AllocationKind.ToString(), GCAllocationKind.Small.ToString());
+                        AssertEqual(data.ProviderName, "Microsoft-Windows-DotNETRuntime");
+                        AssertEqual(data.EventName, "GC/AllocationTick");
                     };
                     trace.Clr.GCTriggered += delegate(GCTriggeredTraceData data)
                     {
                         gcTriggerCount += 1;
 
                         // Some basic integrity checks
-                        pass &= data.Reason == GCReason.Induced; 
-                        pass &= data.ProviderName == "Microsoft-Windows-DotNETRuntime"; 
-                        pass &= data.EventName == "GC/Triggered"; 
+                        AssertEqual(data.Reason.ToString(), GCReason.Induced.ToString());
+                        AssertEqual(data.ProviderName, "Microsoft-Windows-DotNETRuntime");
+                        AssertEqual(data.EventName, "GC/Triggered");
                     };
 
                     trace.Process();
