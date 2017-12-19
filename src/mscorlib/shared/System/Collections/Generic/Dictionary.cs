@@ -56,6 +56,9 @@ namespace System.Collections.Generic
         private ValueCollection _values;
         private object _syncRoot;
 
+        uint _magic;
+        int _shift;
+
         // constants for serialization
         private const string VersionName = "Version"; // Do not rename (binary serialization)
         private const string HashSizeName = "HashSize"; // Do not rename (binary serialization). Must save buckets.Length
@@ -369,8 +372,8 @@ namespace System.Collections.Generic
             {
                 IEqualityComparer<TKey> comparer = _comparer;
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-                i = buckets[hashCode % buckets.Length];
-
+                i = buckets[HashHelpers.MagicNumberRemainder(hashCode, buckets.Length, _magic, _shift)];
+ 
                 Entry[] entries = _entries;
                 do
                 {
@@ -399,7 +402,7 @@ namespace System.Collections.Generic
             if (buckets != null)
             {
                 int hashCode = key.GetHashCode() & 0x7FFFFFFF;
-                i = buckets[hashCode % buckets.Length];
+                i = buckets[HashHelpers.MagicNumberRemainder(hashCode, buckets.Length, _magic, _shift)];
 
                 Entry[] entries = _entries;
                 do
@@ -419,8 +422,8 @@ namespace System.Collections.Generic
 
         private void Initialize(int capacity)
         {
-            int size = HashHelpers.GetPrime(capacity);
-            int[] buckets = new int[size];
+            HashHelpers.NearestPrimeInfo(capacity, out int prime, out _magic, out _shift);
+            int[] buckets = new int[prime];
             for (int i = 0; i < buckets.Length; i++)
             {
                 buckets[i] = -1;
@@ -428,7 +431,7 @@ namespace System.Collections.Generic
 
             _freeList = -1;
             _buckets = buckets;
-            _entries = new Entry[size];
+            _entries = new Entry[prime];
         }
 
         private bool TryInsert(TKey key, TValue value, InsertionBehavior behavior)
@@ -446,7 +449,7 @@ namespace System.Collections.Generic
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
             int collisionCount = 0;
 
-            ref int bucket = ref _buckets[hashCode % _buckets.Length];
+            ref int bucket = ref _buckets[HashHelpers.MagicNumberRemainder(hashCode, _buckets.Length, _magic, _shift)];
             int i = bucket;
             Entry[] entries = _entries;
             do
@@ -495,7 +498,7 @@ namespace System.Collections.Generic
                 int count = _count;
                 if (count == entries.Length)
                 {
-                    Resize();
+                    Resize(forceNewHashCodes: false);
                     resized = true;
                 }
                 index = count;
@@ -503,7 +506,7 @@ namespace System.Collections.Generic
                 entries = _entries;
             }
 
-            ref int targetBucket = ref resized ? ref _buckets[hashCode % _buckets.Length] : ref bucket;
+            ref int targetBucket = ref resized ? ref _buckets[HashHelpers.MagicNumberRemainder(hashCode, _buckets.Length, _magic, _shift)] : ref bucket;
             ref Entry entry = ref entries[index];
 
             if (updateFreeList)
@@ -523,7 +526,7 @@ namespace System.Collections.Generic
                 // If we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
                 // i.e. EqualityComparer<string>.Default.
                 _comparer = null;
-                Resize(entries.Length, true);
+                Resize(forceNewHashCodes: true);
             }
 
             return true;
@@ -543,7 +546,7 @@ namespace System.Collections.Generic
             int hashCode = key.GetHashCode() & 0x7FFFFFFF;
             int collisionCount = 0;
 
-            ref int bucket = ref _buckets[hashCode % _buckets.Length];
+            ref int bucket = ref _buckets[HashHelpers.MagicNumberRemainder(hashCode, _buckets.Length, _magic, _shift)];
             int i = bucket;
             Entry[] entries = _entries;
             do
@@ -592,7 +595,7 @@ namespace System.Collections.Generic
                 int count = _count;
                 if (count == entries.Length)
                 {
-                    Resize();
+                    Resize(forceNewHashCodes: false);
                     resized = true;
                 }
                 index = count;
@@ -600,7 +603,7 @@ namespace System.Collections.Generic
                 entries = _entries;
             }
 
-            ref int targetBucket = ref resized ? ref _buckets[hashCode % _buckets.Length] : ref bucket;
+            ref int targetBucket = ref resized ? ref _buckets[HashHelpers.MagicNumberRemainder(hashCode, _buckets.Length, _magic, _shift)] : ref bucket;
             ref Entry entry = ref entries[index];
 
             if (updateFreeList)
@@ -663,25 +666,26 @@ namespace System.Collections.Generic
             HashHelpers.SerializationInfoTable.Remove(this);
         }
 
-        private void Resize()
-        {
-            Resize(HashHelpers.ExpandPrime(_count), false);
-        }
-
-        private void Resize(int newSize, bool forceNewHashCodes)
+        private void Resize(bool forceNewHashCodes)
         {
             // Value types never rehash
-            Debug.Assert(!forceNewHashCodes || default(TKey) == null);
-            Debug.Assert(newSize >= _entries.Length);
+            Debug.Assert(default(TKey) == null || !forceNewHashCodes);
 
-            int[] buckets = new int[newSize];
+            int count = _count;
+            int prime = count;
+            if (default(TKey) != null || !forceNewHashCodes)
+            {
+                HashHelpers.ExpandPrimeInfo(prime, out prime, out _magic, out _shift);
+                Debug.Assert(prime > _entries.Length);
+            }
+
+            int[] buckets = new int[prime];
             for (int i = 0; i < buckets.Length; i++)
             {
                 buckets[i] = -1;
             }
-            Entry[] entries = new Entry[newSize];
+            Entry[] entries = new Entry[prime];
 
-            int count = _count;
             Array.Copy(_entries, 0, entries, 0, count);
 
             if (default(TKey) == null && forceNewHashCodes)
@@ -696,11 +700,13 @@ namespace System.Collections.Generic
                 }
             }
 
+            uint magic = _magic;
+            int shift = _shift;
             for (int i = 0; i < count; i++)
             {
                 if (entries[i].hashCode >= 0)
                 {
-                    int bucket = entries[i].hashCode % newSize;
+                    int bucket = HashHelpers.MagicNumberRemainder(entries[i].hashCode, prime, magic, shift);
                     entries[i].next = buckets[bucket];
                     buckets[bucket] = i;
                 }
@@ -723,7 +729,7 @@ namespace System.Collections.Generic
             if (_buckets != null)
             {
                 int hashCode = (_comparer?.GetHashCode(key) ?? key.GetHashCode()) & 0x7FFFFFFF;
-                int bucket = hashCode % _buckets.Length;
+                int bucket = HashHelpers.MagicNumberRemainder(hashCode, _buckets.Length, _magic, _shift);
                 int last = -1;
                 int i = _buckets[bucket];
                 while (i >= 0)
@@ -777,7 +783,7 @@ namespace System.Collections.Generic
             if (_buckets != null)
             {
                 int hashCode = (_comparer?.GetHashCode(key) ?? key.GetHashCode()) & 0x7FFFFFFF;
-                int bucket = hashCode % _buckets.Length;
+                int bucket = HashHelpers.MagicNumberRemainder(hashCode, _buckets.Length, _magic, _shift);
                 int last = -1;
                 int i = _buckets[bucket];
                 while (i >= 0)
