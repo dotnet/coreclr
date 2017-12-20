@@ -96,7 +96,7 @@ namespace System.IO
                 throw new ArgumentNullException(nameof(basePath));
 
             if (!IsPathFullyQualified(basePath))
-                throw new ArgumentException();
+                throw new ArgumentException(SR.Arg_BasePathNotFullyQualified);
 
             int length = path.Length;
 
@@ -108,16 +108,19 @@ namespace System.IO
             {
                 return RemoveRelativeSegments(CombineNoChecks(GetPathRoot(basePath), path.Substring(1)));
             }
-            else if(length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar && !PathInternal.IsDirectorySeparator(path[2]))
+            else if (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
             {
-                if (GetPathRoot(path) == GetPathRoot(basePath))
+                if (length == 2 || !PathInternal.IsDirectorySeparator(path[2]))
                 {
-                    return RemoveRelativeSegments(CombineNoChecks(basePath, path.Substring(2)), basePath.Length);
+                    if (GetPathRoot(path) == GetPathRoot(basePath))
+                    {
+                        return RemoveRelativeSegments(CombineNoChecks(basePath, path.Substring(2)), basePath.Length);
+                    }
+                    else
+                    {
+                        return RemoveRelativeSegments(path.Insert(2, "\\"), PathInternal.GetRootLength(path));
+                    }
                 }
-                else
-                {
-                    return RemoveRelativeSegments(path.Insert(2, "\\"), PathInternal.GetRootLength(path));
-                } 
             }
 
             return GetFullPath(CombineNoChecks(basePath, path));
