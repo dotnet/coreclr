@@ -405,11 +405,11 @@ if NOT DEFINED PYTHON (
 )
 
 if /i "%__DoCrossArchBuild%"=="1" (
-    set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
-    set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
-) else (
     set __IntermediatesIncDir=%__CrossCompIntermediatesDir%\src\inc
     set __IntermediatesEventingDir=%__CrossCompIntermediatesDir%\eventing
+) else (
+    set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
+    set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
 )
 
 echo Laying out dynamically generated files consumed by the build system
