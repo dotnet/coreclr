@@ -4954,7 +4954,10 @@ private:
     bool fgIsCodeAdded();
 
     bool fgIsThrowHlpBlk(BasicBlock* block);
+
+#if !FEATURE_FIXED_OUT_ARGS
     unsigned fgThrowHlpBlkStkLevel(BasicBlock* block);
+#endif // !FEATURE_FIXED_OUT_ARGS
 
     unsigned fgBigOffsetMorphingTemps[TYP_COUNT];
 
