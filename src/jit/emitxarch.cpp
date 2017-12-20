@@ -88,14 +88,14 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
             ins == INS_minpd || ins == INS_minsd || ins == INS_divps || ins == INS_divpd || ins == INS_maxps ||
             ins == INS_maxpd || ins == INS_maxss || ins == INS_maxsd || ins == INS_andnps || ins == INS_andnpd ||
             ins == INS_paddb || ins == INS_paddw || ins == INS_paddd || ins == INS_paddq || ins == INS_psubb ||
-            ins == INS_psubw || ins == INS_psubd || ins == INS_psubq || ins == INS_pmuludq || ins == INS_pxor ||
-            ins == INS_insertps || ins == INS_vinsertf128 || ins == INS_punpckldq || ins == INS_phaddd ||
-            ins == INS_pminub || ins == INS_pminsw || ins == INS_pminsb || ins == INS_pminsd || ins == INS_pminuw ||
-            ins == INS_pminud || ins == INS_pmaxub || ins == INS_pmaxsw || ins == INS_pmaxsb || ins == INS_pmaxsd ||
-            ins == INS_pmaxuw || ins == INS_pmaxud || ins == INS_vinserti128 || ins == INS_punpckhbw ||
-            ins == INS_punpcklbw || ins == INS_punpckhqdq || ins == INS_punpcklqdq || ins == INS_punpckhwd ||
-            ins == INS_punpcklwd || ins == INS_punpckhdq || ins == INS_packssdw || ins == INS_packsswb ||
-            ins == INS_packuswb || ins == INS_packusdw || ins == INS_vperm2i128);
+            ins == INS_psubw || ins == INS_psubd || ins == INS_psubq || ins == INS_pmuludq || ins == INS_pmuldq ||
+            ins == INS_pxor || ins == INS_insertps || ins == INS_vinsertf128 || ins == INS_punpckldq ||
+            ins == INS_phaddd || ins == INS_pminub || ins == INS_pminsw || ins == INS_pminsb || ins == INS_pminsd ||
+            ins == INS_pminuw || ins == INS_pminud || ins == INS_pmaxub || ins == INS_pmaxsw || ins == INS_pmaxsb ||
+            ins == INS_pmaxsd || ins == INS_pmaxuw || ins == INS_pmaxud || ins == INS_vinserti128 ||
+            ins == INS_punpckhbw || ins == INS_punpcklbw || ins == INS_punpckhqdq || ins == INS_punpcklqdq ||
+            ins == INS_punpckhwd || ins == INS_punpcklwd || ins == INS_punpckhdq || ins == INS_packssdw ||
+            ins == INS_packsswb || ins == INS_packuswb || ins == INS_packusdw || ins == INS_vperm2i128);
 }
 
 // Returns true if the AVX instruction requires 3 operands that duplicate the source
