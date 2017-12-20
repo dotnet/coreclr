@@ -134,9 +134,9 @@ endif(FEATURE_PAL)
 include_directories(dummy)
 
 """)
-        if extern: cmake_file.write("add_library")
-        else: cmake_file.write("add_library_clr")
-        cmake_file.write("""(eventpipe
+        if extern: cmake.write("add_library")
+        else: cmake.write("add_library_clr")
+        cmake.write("""(eventprovider
     STATIC\n""")
 
         for providerNode in tree.getElementsByTagName('provider'):
