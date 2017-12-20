@@ -193,12 +193,8 @@ generate_event_logging_sources()
         return
     fi
 
-    # Event Logging Infrastructure
-    if [[ $__CrossBuild == 1 ]]; then
-        __GeneratedIntermediate="$__CrossCompIntermediatesDir/eventing"
-    else
-        __GeneratedIntermediate="$__IntermediatesDir/eventing"
-    fi
+# Event Logging Infrastructure
+    __GeneratedIntermediate="$__IntermediatesDir/eventing"
     __GeneratedIntermediateEventProvider="$__GeneratedIntermediate/eventprovider"
     __GeneratedIntermediateEventPipe="$__GeneratedIntermediate/eventpipe"
 
@@ -237,6 +233,10 @@ generate_event_logging_sources()
                 fi
                 ;;
         esac
+
+        if [[ $__CrossBuild == 1 ]]; then
+            cp -r $__GeneratedIntermediate $__CrossCompIntermediatesDir
+        fi
     fi
 }
 
