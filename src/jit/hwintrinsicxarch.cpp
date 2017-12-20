@@ -393,14 +393,27 @@ GenTree* Compiler::impSSSE3Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HA
 
 GenTree* Compiler::impSSE41Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig)
 {
+    GenTree*  retNode  = nullptr;
+    GenTree*  op1      = nullptr;
+    GenTree*  op2      = nullptr;
+    var_types baseType = TYP_UNKNOWN;
     switch (intrinsic)
     {
         case NI_SSE41_IsSupported:
             return gtNewIconNode(featureSIMD && compSupports(InstructionSet_SSE41));
 
+        case NI_SSE41_Multiply:
+            assert(sig->numArgs == 2);
+            op2      = impSIMDPopStack(TYP_SIMD16);
+            op1      = impSIMDPopStack(TYP_SIMD16);
+            baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
+            retNode  = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, op2, NI_SSE41_Multiply, baseType, 16);
+            break;
+
         default:
             return nullptr;
     }
+    return retNode;
 }
 
 GenTree* Compiler::impSSE42Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig)
@@ -459,11 +472,12 @@ GenTree* Compiler::impAVXIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HAND
             break;
 
         case NI_AVX_Add:
+        case NI_AVX_Multiply:
             assert(sig->numArgs == 2);
             op2      = impSIMDPopStack(TYP_SIMD32);
             op1      = impSIMDPopStack(TYP_SIMD32);
             baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
-            retNode  = gtNewSimdHWIntrinsicNode(TYP_SIMD32, op1, op2, NI_AVX_Add, baseType, 32);
+            retNode  = gtNewSimdHWIntrinsicNode(TYP_SIMD32, op1, op2, intrinsic, baseType, 32);
             break;
 
         default:
@@ -486,11 +500,12 @@ GenTree* Compiler::impAVX2Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HAN
             break;
 
         case NI_AVX2_Add:
+        case NI_AVX2_Multiply:
             assert(sig->numArgs == 2);
             op2      = impSIMDPopStack(TYP_SIMD32);
             op1      = impSIMDPopStack(TYP_SIMD32);
             baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
-            retNode  = gtNewSimdHWIntrinsicNode(TYP_SIMD32, op1, op2, NI_AVX2_Add, baseType, 32);
+            retNode  = gtNewSimdHWIntrinsicNode(TYP_SIMD32, op1, op2, intrinsic, baseType, 32);
             break;
 
         default:

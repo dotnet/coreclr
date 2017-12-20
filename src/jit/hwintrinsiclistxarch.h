@@ -28,6 +28,7 @@ HARDWARE_INTRINSIC(SSSE3_IsSupported,           "get_IsSupported",              
 
 //  SSE41 Intrinsics 
 HARDWARE_INTRINSIC(SSE41_IsSupported,           "get_IsSupported",              SSE41)
+HARDWARE_INTRINSIC(SSE41_Multiply,              "Multiply",                     SSE41)
 
 //  SSE42 Intrinsics 
 HARDWARE_INTRINSIC(SSE42_IsSupported,           "get_IsSupported",              SSE42)
@@ -36,10 +37,12 @@ HARDWARE_INTRINSIC(SSE42_Crc32,                 "Crc32",                        
 //  AVX Intrinsics 
 HARDWARE_INTRINSIC(AVX_IsSupported,             "get_IsSupported",              AVX)
 HARDWARE_INTRINSIC(AVX_Add,                     "Add",                          AVX)
+HARDWARE_INTRINSIC(AVX_Multiply,                "Multiply",                     AVX)
 
 //  AVX2 Intrinsics 
 HARDWARE_INTRINSIC(AVX2_IsSupported,            "get_IsSupported",              AVX2)
 HARDWARE_INTRINSIC(AVX2_Add,                    "Add",                          AVX2)
+HARDWARE_INTRINSIC(AVX2_Multiply,               "Multiply",                     AVX2)
 
 //  AES Intrinsics 
 HARDWARE_INTRINSIC(AES_IsSupported,             "get_IsSupported",              AES)

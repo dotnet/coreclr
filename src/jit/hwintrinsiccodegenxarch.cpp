@@ -180,7 +180,32 @@ void CodeGen::genSSSE3Intrinsic(GenTreeHWIntrinsic* node)
 
 void CodeGen::genSSE41Intrinsic(GenTreeHWIntrinsic* node)
 {
-    NYI("Implement SSE41 intrinsic code generation");
+    NamedIntrinsic intrinsicID = node->gtHWIntrinsicId;
+    GenTree*       op1         = node->gtGetOp1();
+    GenTree*       op2         = node->gtGetOp2();
+    regNumber      targetReg   = node->gtRegNum;
+    var_types      targetType  = node->TypeGet();
+    var_types      baseType    = node->gtSIMDBaseType;
+
+    regNumber op1Reg = op1->gtRegNum;
+    regNumber op2Reg = REG_NA;
+
+    genConsumeOperands(node);
+
+    emitter* emit = getEmitter();
+    switch (intrinsicID)
+    {
+        case NI_SSE41_Multiply:
+            assert(baseType == TYP_LONG);
+            op2Reg = op2->gtRegNum;
+            emit->emitIns_SIMD_R_R_R(INS_pmuldq, targetReg, op1Reg, op2Reg, TYP_SIMD16);
+            break;
+
+        default:
+            unreached();
+            break;
+    }
+    genProduceReg(node);
 }
 
 void CodeGen::genSSE42Intrinsic(GenTreeHWIntrinsic* node)
@@ -263,6 +288,28 @@ void CodeGen::genAVXIntrinsic(GenTreeHWIntrinsic* node)
             emit->emitIns_R_R_R(ins, emitTypeSize(TYP_SIMD32), targetReg, op1Reg, op2Reg);
             break;
         }
+
+        case NI_AVX_Multiply:
+        {
+            op2Reg = op2->gtRegNum;
+            instruction ins;
+            switch (baseType)
+            {
+                case TYP_DOUBLE:
+                    ins = INS_mulpd;
+                    break;
+                case TYP_FLOAT:
+                    ins = INS_mulps;
+                    break;
+                default:
+                    unreached();
+                    break;
+            }
+
+            emit->emitIns_R_R_R(ins, emitTypeSize(TYP_SIMD32), targetReg, op1Reg, op2Reg);
+            break;
+        }
+
         default:
             unreached();
             break;
@@ -318,6 +365,28 @@ void CodeGen::genAVX2Intrinsic(GenTreeHWIntrinsic* node)
             emit->emitIns_R_R_R(ins, emitTypeSize(TYP_SIMD32), targetReg, op1Reg, op2Reg);
             break;
         }
+
+        case NI_AVX2_Multiply:
+        {
+            op2Reg = op2->gtRegNum;
+            instruction ins;
+            switch (baseType)
+            {
+                case TYP_LONG:
+                    ins = INS_pmuldq;
+                    break;
+                case TYP_ULONG:
+                    ins = INS_pmuludq;
+                    break;
+                default:
+                    unreached();
+                    break;
+            }
+
+            emit->emitIns_R_R_R(ins, emitTypeSize(TYP_SIMD32), targetReg, op1Reg, op2Reg);
+            break;
+        }
+
         default:
             unreached();
             break;
