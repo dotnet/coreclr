@@ -3700,4 +3700,7 @@
   <data name="IO_InvalidReadLength" xml:space="preserve">
     <value>The read operation returned an invalid length.</value>
   </data>
+  <data name="Arg_BasePathNotFullyQualified" xml:space="preserve">
+    <value>Basepath argument is not fully qualified.</value>
+  </data>
 </root>
