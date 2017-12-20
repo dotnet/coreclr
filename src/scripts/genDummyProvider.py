@@ -163,7 +163,6 @@ install(TARGETS eventprovider DESTINATION lib)
             impl.write(stdprolog_cpp + "\n")
 
             impl.write("""
-#include "stdlib.h"
 #ifdef PLATFORM_UNIX
 #include "pal_mstypes.h"
 #include "pal_error.h"
