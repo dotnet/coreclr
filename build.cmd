@@ -294,6 +294,16 @@ if %__EnforcePgo%==1 (
     )
 )
 
+REM Determine if this is a cross-arch build
+
+if /i "%__BuildArch%"=="arm64" (
+    set __DoCrossArchBuild=1
+    )
+
+if /i "%__BuildArch%"=="arm" (
+    set __DoCrossArchBuild=1
+    )
+
 :: Set the remaining variables based upon the determined build configuration
 set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__IntermediatesDir=%__RootBinDir%\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
@@ -394,21 +404,23 @@ if NOT DEFINED PYTHON (
     exit /b 1
 )
 
-set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
-set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
-
-if %__BuildNative% EQU 1 (
-
-    echo Laying out dynamically generated files consumed by the build system
-    echo Laying out dynamically generated Event test files and etmdummy stub functions
-    %PYTHON% -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern || exit /b 1
-
-    echo Laying out dynamically generated EventPipe Implementation
-    %PYTHON% -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
-
-    echo Laying out ETW event logging interface
-    %PYTHON% -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
+if /i "%__DoCrossArchBuild%"=="1" (
+    set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
+    set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
+) else (
+    set __IntermediatesIncDir=%__CrossCompIntermediatesDir%\src\inc
+    set __IntermediatesEventingDir=%__CrossCompIntermediatesDir%\eventing
 )
+
+echo Laying out dynamically generated files consumed by the build system
+echo Laying out dynamically generated Event test files and etmdummy stub functions
+%PYTHON% -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern || exit /b 1
+
+echo Laying out dynamically generated EventPipe Implementation
+%PYTHON% -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
+
+echo Laying out ETW event logging interface
+%PYTHON% -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
 
 REM =========================================================================================
 REM ===
@@ -506,18 +518,7 @@ REM === Build Cross-Architecture Native Components (if applicable)
 REM ===
 REM =========================================================================================
 
-if /i "%__BuildArch%"=="arm64" (
-    set __DoCrossArchBuild=1
-    )
-
-if /i "%__BuildArch%"=="arm" (
-    set __DoCrossArchBuild=1
-    )
-
 if /i "%__DoCrossArchBuild%"=="1" (
-    REM Copy over eventing files
-    robocopy /E %__IntermediatesEventingDir% %__CrossCompIntermediatesDir%\eventing
-
     REM Scope environment changes start {
     setlocal
 
