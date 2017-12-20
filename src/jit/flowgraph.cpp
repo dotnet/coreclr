@@ -18248,13 +18248,13 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
 
     /* We have to allocate a new entry and prepend it to the list */
 
-    add            = new (this, CMK_Unknown) AddCodeDsc;
-    add->acdData   = refData;
-    add->acdKind   = kind;
-    add->acdStkLvl = (unsigned short)stkDepth;
-    noway_assert(add->acdStkLvl == stkDepth);
-    add->acdNext  = fgAddCodeList;
-    fgAddCodeList = add;
+    add                = new (this, CMK_Unknown) AddCodeDsc;
+    add->acdData       = refData;
+    add->acdKind       = kind;
+    add->acdNext       = fgAddCodeList;
+    fgAddCodeList      = add;
+    add->acdStkLvl     = (unsigned short)stkDepth;
+    add->acdStkLvlInit = false;
 
     /* Create the target basic block */
 
