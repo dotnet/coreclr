@@ -263,13 +263,13 @@ void EventPipe::Enable(
     CONTRACTL_END;
 
     // If tracing is not initialized or is already enabled, bail here.
-    if(!s_tracingInitialized || s_pConfig->Enabled())
+    if(!s_tracingInitialized || s_pConfig == NULL || s_pConfig->Enabled())
     {
         return;
     }
 
     // If the state or aurguments are invalid, bail
-    if(s_pConfig == NULL || pProviders == NULL || numProviders <= 0)
+    if(pProviders == NULL || numProviders <= 0)
     {
         return;
     }
