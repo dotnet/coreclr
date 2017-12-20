@@ -104,7 +104,7 @@ namespace System.IO
             {
                 return RemoveRelativeSegments(CombineNoChecks(basePath, path), PathInternal.GetRootLength(basePath));
             }
-            else if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0]))) //current drive rooted
+            else if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])))
             {
                 return RemoveRelativeSegments(CombineNoChecks(GetPathRoot(basePath), path.Substring(1)));
             }
