@@ -27,6 +27,11 @@ namespace System.IO
             return path.Length > 0 && IsDirectorySeparator(path[0]) ? 1 : 0;
         }
 
+        internal static int GetRootLength(ReadOnlySpan<char> path)
+        {
+            return path.Length > 0 && IsDirectorySeparator(path[0]) ? 1 : 0;
+        }
+
         internal static bool IsDirectorySeparator(char c)
         {
             // The alternate directory separator char is the same as the directory separator,
@@ -73,6 +78,44 @@ namespace System.IO
 
             return builder.ToString();
         }
+
+        internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
+        {
+            if (path.IsEmpty) return path;
+
+            // Make a pass to see if we need to normalize so we can potentially skip allocating
+            bool normalized = true;
+
+            for (int i = 0; i < path.Length; i++)
+            {
+                if (IsDirectorySeparator(path[i])
+                    && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
+                {
+                    normalized = false;
+                    break;
+                }
+            }
+
+            if (normalized) return path;
+
+            char[] normalizedPath = new char[path.Length];
+            int index = 0;
+
+            for (int i = 0; i < path.Length; i++)
+            {
+                char current = path[i];
+
+                // Skip if we have another separator following
+                if (IsDirectorySeparator(current)
+                    && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
+                    continue;
+
+                normalizedPath[index] = current;
+                index++;
+            }
+
+            return new ReadOnlySpan<char>(normalizedPath, 0, index);
+        }
         
         /// <summary>
         /// Returns true if the character is a directory or volume separator.
@@ -88,6 +131,13 @@ namespace System.IO
         }
 
         internal static bool IsPartiallyQualified(string path)
+        {
+            // This is much simpler than Windows where paths can be rooted, but not fully qualified (such as Drive Relative)
+            // As long as the path is rooted in Unix it doesn't use the current directory and therefore is fully qualified.
+            return !Path.IsPathRooted(path);
+        }
+
+        internal static bool IsPartiallyQualified(ReadOnlySpan<char> path)
         {
             // This is much simpler than Windows where paths can be rooted, but not fully qualified (such as Drive Relative)
             // As long as the path is rooted in Unix it doesn't use the current directory and therefore is fully qualified.

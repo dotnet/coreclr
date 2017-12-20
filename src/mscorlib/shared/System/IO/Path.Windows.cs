@@ -127,6 +127,16 @@ namespace System.IO
             return false;
         }
 
+        public static bool IsPathRooted(ReadOnlySpan<char> path)
+        {
+            int length = path.Length;
+            if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])) ||
+                (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar))
+                return true;
+
+            return false;
+        }
+
         // Returns the root portion of the given path. The resulting string
         // consists of those rightmost characters of the path that constitute the
         // root of the path. Possible patterns for the resulting string are: An
@@ -149,6 +159,20 @@ namespace System.IO
             return pathRoot <= 0 ? string.Empty : path.Substring(0, pathRoot);
         }
 
+        public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
+        {
+            ReadOnlySpan<char> result = new ReadOnlySpan<char>();
+
+            if (path.IsEmpty)
+                return path;
+
+            // Need to return the normalized directory separator
+            path = PathInternal.NormalizeDirectorySeparators(path);
+
+            int pathRoot = PathInternal.GetRootLength(new string(path));
+            return pathRoot <= 0 ? result : path.Slice(0, pathRoot);
+        }
+   
         /// <summary>Gets whether the system is case-sensitive.</summary>
         internal static bool IsCaseSensitive { get { return false; } }
     }

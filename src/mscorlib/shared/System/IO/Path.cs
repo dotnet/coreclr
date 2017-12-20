@@ -92,6 +92,25 @@ namespace System.IO
             return null;
         }
 
+        public static ReadOnlySpan<char> GetDirectoryName(ReadOnlySpan<char> path)
+        {
+            if (path.IsEmpty)
+                return path;
+
+            path = PathInternal.NormalizeDirectorySeparators(path);
+            int root = PathInternal.GetRootLength(new string(path));
+
+            int i = path.Length;
+            if (i > root)
+            {
+                while (i > root && !PathInternal.IsDirectorySeparator(path[--i]))
+                    ;
+                return path.Slice(0, i);
+            }
+
+            return new ReadOnlySpan<char>();
+        }
+
         // Returns the extension of the given path. The returned value includes the
         // period (".") character of the extension except when you have a terminal period when you get string.Empty, such as ".exe" or
         // ".cpp". The returned value is null if the given path is
@@ -118,6 +137,26 @@ namespace System.IO
             return string.Empty;
         }
 
+        public static ReadOnlySpan<char> GetExtension(ReadOnlySpan<char> path)
+        {
+            int length = path.Length;
+
+            for (int i = length - 1; i >= 0; i--)
+            {
+                char ch = path[i];
+                if (ch == '.')
+                {
+                    if (i != length - 1)
+                        return path.Slice(i, length - i);
+                    else
+                        return new ReadOnlySpan<char>();
+                }
+                if (PathInternal.IsDirectoryOrVolumeSeparator(ch))
+                    break;
+            }
+            return new ReadOnlySpan<char>();
+        }
+
         // Returns the name and extension parts of the given path. The resulting
         // string contains the characters of path that follow the last
         // separator in path. The resulting string is null if path is null.
@@ -129,6 +168,13 @@ namespace System.IO
             int offset = PathInternal.FindFileNameIndex(path);
             int count = path.Length - offset;
             return path.Substring(offset, count);
+        }
+
+        public static ReadOnlySpan<char> GetFileName(ReadOnlySpan<char> path)
+        {
+            int offset = PathInternal.FindFileNameIndex(path);
+            int count = path.Length - offset;
+            return path.Slice(offset, count);
         }
 
         public static string GetFileNameWithoutExtension(string path)
@@ -143,6 +189,17 @@ namespace System.IO
             return end == -1 ?
                 path.Substring(offset) : // No extension was found
                 path.Substring(offset, end - offset);
+        }
+
+        public static ReadOnlySpan<char> GetFileNameWithoutExtension(ReadOnlySpan<char> path)
+        {
+            int length = path.Length;
+            int offset = PathInternal.FindFileNameIndex(path);
+
+            int end = new string(path).LastIndexOf('.', length - 1, length - offset);
+            return end == -1 ?
+                path.Slice(offset) : // No extension was found
+                path.Slice(offset, end - offset);
         }
 
         // Returns a cryptographically strong random 8.3 string that can be 
@@ -182,6 +239,11 @@ namespace System.IO
             return !PathInternal.IsPartiallyQualified(path);
         }
 
+        public static bool IsPathFullyQualified(ReadOnlySpan<char> path)
+        {
+            return !PathInternal.IsPartiallyQualified(path);
+        }
+
         // Tests if a path includes a file extension. The result is
         // true if the characters that follow the last directory
         // separator ('\\' or '/') or volume separator (':') in the path include 
@@ -199,6 +261,21 @@ namespace System.IO
                     }
                     if (PathInternal.IsDirectoryOrVolumeSeparator(ch)) break;
                 }
+            }
+            return false;
+        }
+
+        public static bool HasExtension(ReadOnlySpan<char> path)
+        {
+            for (int i = path.Length - 1; i >= 0; i--)
+            {
+                char ch = path[i];
+                if (ch == '.')
+                {
+                    return i != path.Length - 1;
+                }
+                if (PathInternal.IsDirectoryOrVolumeSeparator(ch))
+                    break;
             }
             return false;
         }

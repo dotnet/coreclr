@@ -36,6 +36,18 @@ namespace System.IO
             return 0; // the whole path is the filename
         }
 
+        internal static int FindFileNameIndex(ReadOnlySpan<char> path)
+        {
+            for (int i = path.Length - 1; i >= 0; i--)
+            {
+                char ch = path[i];
+                if (IsDirectoryOrVolumeSeparator(ch))
+                    return i + 1;
+            }
+
+            return 0; // the whole path is the filename
+        }
+
         /// <summary>
         /// Returns true if the path ends in a directory separator.
         /// </summary>

@@ -275,6 +275,32 @@ namespace System.IO
                 && IsValidDriveChar(path[0]));
         }
 
+        internal static bool IsPartiallyQualified(ReadOnlySpan<char> path)
+        {
+            if (path.Length < 2)
+            {
+                // It isn't fixed, it must be relative.  There is no way to specify a fixed
+                // path with one character (or less).
+                return true;
+            }
+
+            if (IsDirectorySeparator(path[0]))
+            {
+                // There is no valid way to specify a relative path with two initial slashes or
+                // \? as ? isn't valid for drive relative paths and \??\ is equivalent to \\?\
+                return !(path[1] == '?' || IsDirectorySeparator(path[1]));
+            }
+
+            // The only way to specify a fixed path that doesn't begin with two slashes
+            // is the drive, colon, slash format- i.e. C:\
+            return !((path.Length >= 3)
+                && (path[1] == VolumeSeparatorChar)
+                && IsDirectorySeparator(path[2])
+                // To match old behavior we'll check the drive character for validity as the path is technically
+                // not qualified if you don't have a valid drive. "=:\" is the "=" file's default data stream.
+                && IsValidDriveChar(path[0]));
+        }
+
         /// <summary>
         /// Returns the characters to skip at the start of the path if it starts with space(s) and a drive or directory separator.
         /// (examples are " C:", " \")
@@ -284,6 +310,21 @@ namespace System.IO
         /// Note that this conflicts with IsPathRooted() which doesn't (and never did) such a skip.
         /// </remarks>
         internal static int PathStartSkip(string path)
+        {
+            int startIndex = 0;
+            while (startIndex < path.Length && path[startIndex] == ' ') startIndex++;
+
+            if (startIndex > 0 && (startIndex < path.Length && IsDirectorySeparator(path[startIndex]))
+                || (startIndex + 1 < path.Length && path[startIndex + 1] == ':' && IsValidDriveChar(path[startIndex])))
+            {
+                // Go ahead and skip spaces as we're either " C:" or " \"
+                return startIndex;
+            }
+
+            return 0;
+        }
+
+        internal static int PathStartSkip(ReadOnlySpan<char> path)
         {
             int startIndex = 0;
             while (startIndex < path.Length && path[startIndex] == ' ') startIndex++;
@@ -396,6 +437,68 @@ namespace System.IO
             }
 
             return builder.ToString();
+        }
+
+        internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
+        {
+            if (path.IsEmpty) return path;
+
+            char current;
+            int start = PathStartSkip(path);
+
+            if (start == 0)
+            {
+                // Make a pass to see if we need to normalize so we can potentially skip allocating
+                bool normalized = true;
+
+                for (int i = 0; i < path.Length; i++)
+                {
+                    current = path[i];
+                    if (IsDirectorySeparator(current)
+                        && (current != DirectorySeparatorChar
+                            // Check for sequential separators past the first position (we need to keep initial two for UNC/extended)
+                            || (i > 0 && i + 1 < path.Length && IsDirectorySeparator(path[i + 1]))))
+                    {
+                        normalized = false;
+                        break;
+                    }
+                }
+
+                if (normalized) return path;
+            }
+
+            char[] normalizedPath = new char[path.Length];
+            int index = 0;
+
+            if (IsDirectorySeparator(path[start]))
+            {
+                start++;
+                normalizedPath[index] = DirectorySeparatorChar;
+                index++;
+            }
+
+            for (int i = start; i < path.Length; i++)
+            {
+                current = path[i];
+
+                // If we have a separator
+                if (IsDirectorySeparator(current))
+                {
+                    // If the next is a separator, skip adding this
+                    if (i + 1 < path.Length && IsDirectorySeparator(path[i + 1]))
+                    {
+                        continue;
+                    }
+
+                    // Ensure it is the primary separator
+                    current = DirectorySeparatorChar;
+                }
+
+                normalizedPath[index] = current;
+                index++;
+            }
+
+            return new ReadOnlySpan<char>(normalizedPath, 0, index);
         }
 
         /// <summary>
