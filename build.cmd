@@ -404,13 +404,8 @@ if NOT DEFINED PYTHON (
     exit /b 1
 )
 
-if /i "%__DoCrossArchBuild%"=="1" (
-    set __IntermediatesIncDir=%__CrossCompIntermediatesDir%\src\inc
-    set __IntermediatesEventingDir=%__CrossCompIntermediatesDir%\eventing
-) else (
-    set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
-    set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
-)
+set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
+set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
 
 echo Laying out dynamically generated files consumed by the build system
 echo Laying out dynamically generated Event test files and etmdummy stub functions
@@ -421,6 +416,18 @@ echo Laying out dynamically generated EventPipe Implementation
 
 echo Laying out ETW event logging interface
 %PYTHON% -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
+
+if /i "%__DoCrossArchBuild%"=="1" (
+    echo Laying out dynamically generated files from cross arch build
+    set __CrossCompIntermediatesIncDir=%__CrossCompIntermediatesDir%\src\inc
+    set __CrossCompIntermediatesEventingDir=%__CrossCompIntermediatesDir%\eventing
+
+    %PYTHON% -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__CrossCompIntermediatesIncDir% --dummy %__CrossCompIntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern || exit /b 1
+
+    %PYTHON% -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__CrossCompIntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
+
+    %PYTHON% -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__CrossCompIntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
+)
 
 REM =========================================================================================
 REM ===
