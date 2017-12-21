@@ -421,7 +421,9 @@ if /i "%__DoCrossArchBuild%"=="1" (
     echo Laying out dynamically generated files from cross arch build
     set __CrossCompIntermediatesIncDir=%__CrossCompIntermediatesDir%\src\inc
     set __CrossCompIntermediatesEventingDir=%__CrossCompIntermediatesDir%\eventing
+)
 
+if /i "%__DoCrossArchBuild%"=="1" (
     %PYTHON% -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__CrossCompIntermediatesIncDir% --dummy %__CrossCompIntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern || exit /b 1
 
     %PYTHON% -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__CrossCompIntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
