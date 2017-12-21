@@ -338,41 +338,13 @@ struct GenTree
 #define GTSTRUCT_0(fn, en)                                                                                             \
     GenTree##fn* As##fn()                                                                                              \
     {                                                                                                                  \
-        assert(this->OperIsSimple());                                                                                  \
+        assert(OperIsSimple());                                                                                        \
         return reinterpret_cast<GenTree##fn*>(this);                                                                   \
     }                                                                                                                  \
-    GenTree##fn& As##fn##Ref()                                                                                         \
+    const GenTree##fn* As##fn() const                                                                                  \
     {                                                                                                                  \
-        return *As##fn();                                                                                              \
-    }                                                                                                                  \
-    __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
-#define GTSTRUCT_1(fn, en)                                                                                             \
-    GenTree##fn* As##fn()                                                                                              \
-    {                                                                                                                  \
-        assert(this->gtOper == en);                                                                                    \
-        return reinterpret_cast<GenTree##fn*>(this);                                                                   \
-    }                                                                                                                  \
-    GenTree##fn& As##fn##Ref()                                                                                         \
-    {                                                                                                                  \
-        return *As##fn();                                                                                              \
-    }                                                                                                                  \
-    __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
-#define GTSTRUCT_2(fn, en, en2)                                                                                        \
-    GenTree##fn* As##fn()                                                                                              \
-    {                                                                                                                  \
-        assert(this->gtOper == en || this->gtOper == en2);                                                             \
-        return reinterpret_cast<GenTree##fn*>(this);                                                                   \
-    }                                                                                                                  \
-    GenTree##fn& As##fn##Ref()                                                                                         \
-    {                                                                                                                  \
-        return *As##fn();                                                                                              \
-    }                                                                                                                  \
-    __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
-#define GTSTRUCT_3(fn, en, en2, en3)                                                                                   \
-    GenTree##fn* As##fn()                                                                                              \
-    {                                                                                                                  \
-        assert(this->gtOper == en || this->gtOper == en2 || this->gtOper == en3);                                      \
-        return reinterpret_cast<GenTree##fn*>(this);                                                                   \
+        assert(OperIsSimple());                                                                                        \
+        return reinterpret_cast<const GenTree##fn*>(this);                                                             \
     }                                                                                                                  \
     GenTree##fn& As##fn##Ref()                                                                                         \
     {                                                                                                                  \
@@ -380,55 +352,27 @@ struct GenTree
     }                                                                                                                  \
     __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
 
-#define GTSTRUCT_4(fn, en, en2, en3, en4)                                                                              \
-    GenTree##fn* As##fn()                                                                                              \
-    {                                                                                                                  \
-        assert(this->gtOper == en || this->gtOper == en2 || this->gtOper == en3 || this->gtOper == en4);               \
-        return reinterpret_cast<GenTree##fn*>(this);                                                                   \
-    }                                                                                                                  \
-    GenTree##fn& As##fn##Ref()                                                                                         \
-    {                                                                                                                  \
-        return *As##fn();                                                                                              \
-    }                                                                                                                  \
-    __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
-
-#ifdef DEBUG
-// VC does not optimize out this loop in retail even though the value it computes is unused
-// so we need a separate version for non-debug
 #define GTSTRUCT_N(fn, ...)                                                                                            \
     GenTree##fn* As##fn()                                                                                              \
     {                                                                                                                  \
-        genTreeOps validOps[] = {__VA_ARGS__};                                                                         \
-        bool       found      = false;                                                                                 \
-        for (unsigned i = 0; i < ArrLen(validOps); i++)                                                                \
-        {                                                                                                              \
-            if (this->gtOper == validOps[i])                                                                           \
-            {                                                                                                          \
-                found = true;                                                                                          \
-                break;                                                                                                 \
-            }                                                                                                          \
-        }                                                                                                              \
-        assert(found);                                                                                                 \
+        assert(OperIs(__VA_ARGS__));                                                                                   \
         return reinterpret_cast<GenTree##fn*>(this);                                                                   \
+    }                                                                                                                  \
+    const GenTree##fn* As##fn() const                                                                                  \
+    {                                                                                                                  \
+        assert(OperIs(__VA_ARGS__));                                                                                   \
+        return reinterpret_cast<const GenTree##fn*>(this);                                                             \
     }                                                                                                                  \
     GenTree##fn& As##fn##Ref()                                                                                         \
     {                                                                                                                  \
         return *As##fn();                                                                                              \
     }                                                                                                                  \
     __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
-#else
-#define GTSTRUCT_N(fn, ...)                                                                                            \
-    GenTree##fn* As##fn()                                                                                              \
-    {                                                                                                                  \
-        return reinterpret_cast<GenTree##fn*>(this);                                                                   \
-    }                                                                                                                  \
-    GenTree##fn& As##fn##Ref()                                                                                         \
-    {                                                                                                                  \
-        return *As##fn();                                                                                              \
-    }                                                                                                                  \
-    __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
-#endif
 
+#define GTSTRUCT_1(fn, en) GTSTRUCT_N(fn, en)
+#define GTSTRUCT_2(fn, en, en2) GTSTRUCT_N(fn, en, en2)
+#define GTSTRUCT_3(fn, en, en2, en3) GTSTRUCT_N(fn, en, en2, en3)
+#define GTSTRUCT_4(fn, en, en2, en3, en4) GTSTRUCT_N(fn, en, en2, en3, en4)
 #define GTSTRUCT_2_SPECIAL(fn, en, en2) GTSTRUCT_2(fn, en, en2)
 #define GTSTRUCT_3_SPECIAL(fn, en, en2, en3) GTSTRUCT_3(fn, en, en2, en3)
 
@@ -736,6 +680,8 @@ public:
     void CopyReg(GenTreePtr from);
     bool gtHasReg() const;
 
+    int GetRegisterDstCount() const;
+
     regMaskTP gtGetRegMask() const;
 
     unsigned gtFlags; // see GTF_xxxx below
@@ -757,10 +703,6 @@ public:
 #ifdef LEGACY_BACKEND
     regMaskSmall gtUsedRegs; // set of used (trashed) registers
 #endif                       // LEGACY_BACKEND
-
-#ifndef LEGACY_BACKEND
-    TreeNodeInfo gtLsraInfo;
-#endif // !LEGACY_BACKEND
 
     void SetVNsFromNode(GenTreePtr tree)
     {
@@ -1078,8 +1020,9 @@ public:
 #define GTF_DEBUG_NODE_LARGE        0x00000004
 #define GTF_DEBUG_NODE_CG_PRODUCED  0x00000008 // genProduceReg has been called on this node
 #define GTF_DEBUG_NODE_CG_CONSUMED  0x00000010 // genConsumeReg has been called on this node
+#define GTF_DEBUG_NODE_LSRA_ADDED   0x00000020 // This node was added by LSRA
 
-#define GTF_DEBUG_NODE_MASK         0x0000001F // These flags are all node (rather than operation) properties.
+#define GTF_DEBUG_NODE_MASK         0x0000003F // These flags are all node (rather than operation) properties.
 
 #define GTF_DEBUG_VAR_CSE_REF       0x00800000 // GT_LCL_VAR -- This is a CSE LCL_VAR node
 #endif // defined(DEBUG)
@@ -1178,7 +1121,7 @@ public:
             {
                 // ADDR ndoes may only be present in LIR if the location they refer to is not a
                 // local, class variable, or IND node.
-                GenTree*   location   = const_cast<GenTree*>(this)->gtGetOp1();
+                GenTree*   location   = gtGetOp1();
                 genTreeOps locationOp = location->OperGet();
                 return !location->IsLocal() && (locationOp != GT_CLS_VAR) && (locationOp != GT_IND);
             }
@@ -1189,10 +1132,20 @@ public:
         }
     }
 
-    // NOTE: the three UnusedValue helpers immediately below are defined in lir.h.
+    // LIR flags
+    //   These helper methods, along with the flag values they manipulate, are defined in lir.h
+    //
+    // UnusedValue indicates that, although this node produces a value, it is unused.
     inline void SetUnusedValue();
     inline void ClearUnusedValue();
     inline bool IsUnusedValue() const;
+    // RegOptional indicates that codegen can still generate code even if it isn't allocated a register.
+    inline bool IsRegOptional() const;
+    inline void SetRegOptional();
+    inline void ClearRegOptional();
+#ifdef DEBUG
+    void dumpLIRFlags();
+#endif
 
     bool OperIs(genTreeOps oper) const
     {
@@ -1640,6 +1593,15 @@ public:
         return OperIsSIMD(gtOper);
     }
 
+#if FEATURE_HW_INTRINSICS
+    inline bool OperIsSimdHWIntrinsic() const;
+#else
+    inline bool OperIsSimdHWIntrinsic() const
+    {
+        return false;
+    }
+#endif
+
     // This is here for cleaner GT_LONG #ifdefs.
     static bool OperIsLong(genTreeOps gtOper)
     {
@@ -1787,15 +1749,15 @@ public:
 
     inline GenTreePtr* pCurrent();
 
-    inline GenTreePtr gtGetOp1();
+    inline GenTree* gtGetOp1() const;
 
     // Directly return op2. Asserts the node is binary. Might return nullptr if the binary node allows
     // a nullptr op2, such as GT_LIST. This is more efficient than gtGetOp2IfPresent() if you know what
     // node type you have.
-    inline GenTreePtr gtGetOp2();
+    inline GenTree* gtGetOp2() const;
 
     // The returned pointer might be nullptr if the node is not binary, or if non-null op2 is not required.
-    inline GenTreePtr gtGetOp2IfPresent();
+    inline GenTree* gtGetOp2IfPresent() const;
 
     // Given a tree node, if this is a child of that node, return the pointer to the child node so that it
     // can be modified; otherwise, return null.
@@ -2181,17 +2143,6 @@ public:
     // cast operations
     inline var_types  CastFromType();
     inline var_types& CastToType();
-
-    // Returns true if this gentree node is marked by lowering to indicate
-    // that codegen can still generate code even if it wasn't allocated a
-    // register.
-    bool IsRegOptional() const;
-#ifndef LEGACY_BACKEND
-    void ClearRegOptional()
-    {
-        gtLsraInfo.regOptional = false;
-    }
-#endif
 
     // Returns "true" iff "this" is a phi-related node (i.e. a GT_PHI_ARG, GT_PHI, or a PhiDefn).
     bool IsPhiNode();
@@ -4227,7 +4178,7 @@ struct GenTreeJitIntrinsic : public GenTreeOp
     {
     }
 
-    bool isSIMD()
+    bool isSIMD() const
     {
         return gtSIMDSize != 0;
     }
@@ -4291,6 +4242,17 @@ struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
     }
 #endif
 };
+
+inline bool GenTree::OperIsSimdHWIntrinsic() const
+{
+    if (gtOper == GT_HWIntrinsic)
+    {
+        // We cannot use AsHWIntrinsic() as it is not declared const
+        const GenTreeHWIntrinsic* hwIntrinsic = reinterpret_cast<const GenTreeHWIntrinsic*>(this);
+        return hwIntrinsic->isSIMD();
+    }
+    return false;
+}
 #endif // FEATURE_HW_INTRINSICS
 
 /* gtIndex -- array access */
@@ -5931,10 +5893,8 @@ inline bool GenTree::IsSIMDEqualityOrInequality() const
 #ifdef FEATURE_SIMD
     if (gtOper == GT_SIMD)
     {
-        // Has to cast away const-ness since AsSIMD() method is non-const.
-        GenTreeSIMD* simdNode = const_cast<GenTree*>(this)->AsSIMD();
-        return (simdNode->gtSIMDIntrinsicID == SIMDIntrinsicOpEquality ||
-                simdNode->gtSIMDIntrinsicID == SIMDIntrinsicOpInEquality);
+        SIMDIntrinsicID id = AsSIMD()->gtSIMDIntrinsicID;
+        return (id == SIMDIntrinsicOpEquality) || (id == SIMDIntrinsicOpInEquality);
     }
 #endif
 
@@ -6033,9 +5993,9 @@ inline GenTreePtr* GenTree::pCurrent()
     return &(gtOp.gtOp1);
 }
 
-inline GenTreePtr GenTree::gtGetOp1()
+inline GenTree* GenTree::gtGetOp1() const
 {
-    return gtOp.gtOp1;
+    return AsOp()->gtOp1;
 }
 
 #ifdef DEBUG
@@ -6093,11 +6053,11 @@ inline bool GenTree::RequiresNonNullOp2(genTreeOps oper)
 }
 #endif // DEBUG
 
-inline GenTreePtr GenTree::gtGetOp2()
+inline GenTree* GenTree::gtGetOp2() const
 {
     assert(OperIsBinary());
 
-    GenTreePtr op2 = gtOp.gtOp2;
+    GenTree* op2 = AsOp()->gtOp2;
 
     // Only allow null op2 if the node type allows it, e.g. GT_LIST.
     assert((op2 != nullptr) || !RequiresNonNullOp2(gtOper));
@@ -6105,11 +6065,11 @@ inline GenTreePtr GenTree::gtGetOp2()
     return op2;
 }
 
-inline GenTreePtr GenTree::gtGetOp2IfPresent()
+inline GenTree* GenTree::gtGetOp2IfPresent() const
 {
     /* gtOp.gtOp2 is only valid for GTK_BINOP nodes. */
 
-    GenTreePtr op2 = OperIsBinary() ? gtOp.gtOp2 : nullptr;
+    GenTree* op2 = OperIsBinary() ? AsOp()->gtOp2 : nullptr;
 
     // This documents the genTreeOps for which gtOp.gtOp2 cannot be nullptr.
     // This helps prefix in its analysis of code which calls gtGetOp2()
@@ -6248,8 +6208,7 @@ inline bool GenTree::IsCopyOrReloadOfMultiRegCall() const
 {
     if (IsCopyOrReload())
     {
-        GenTree* t = const_cast<GenTree*>(this);
-        return t->gtGetOp1()->IsMultiRegCall();
+        return gtGetOp1()->IsMultiRegCall();
     }
 
     return false;

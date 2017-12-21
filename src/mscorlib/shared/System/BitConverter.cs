@@ -4,6 +4,9 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -36,7 +39,7 @@ namespace System
             if (destination.Length < sizeof(byte))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value ? (byte)1 : (byte)0);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value ? (byte)1 : (byte)0);
             return true;
         }
 
@@ -54,7 +57,7 @@ namespace System
             if (destination.Length < sizeof(char))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value);
             return true;
         }
 
@@ -73,7 +76,7 @@ namespace System
             if (destination.Length < sizeof(short))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value);
             return true;
         }
 
@@ -92,7 +95,7 @@ namespace System
             if (destination.Length < sizeof(int))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value);
             return true;
         }
 
@@ -111,7 +114,7 @@ namespace System
             if (destination.Length < sizeof(long))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value);
             return true;
         }
 
@@ -132,7 +135,7 @@ namespace System
             if (destination.Length < sizeof(ushort))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value);
             return true;
         }
 
@@ -153,7 +156,7 @@ namespace System
             if (destination.Length < sizeof(uint))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value);
             return true;
         }
 
@@ -174,7 +177,7 @@ namespace System
             if (destination.Length < sizeof(ulong))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value);
             return true;
         }
 
@@ -193,7 +196,7 @@ namespace System
             if (destination.Length < sizeof(float))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value);
             return true;
         }
 
@@ -212,7 +215,7 @@ namespace System
             if (destination.Length < sizeof(double))
                 return false;
 
-            Unsafe.WriteUnaligned(ref destination.DangerousGetPinnableReference(), value);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(destination), value);
             return true;
         }
 
@@ -224,7 +227,7 @@ namespace System
         {
             if (value.Length < sizeof(char))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<char>(ref value.DangerousGetPinnableReference());
+            return Unsafe.ReadUnaligned<char>(ref MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into a short.  
@@ -245,7 +248,7 @@ namespace System
         {
             if (value.Length < sizeof(short))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<short>(ref value.DangerousGetPinnableReference());
+            return Unsafe.ReadUnaligned<short>(ref MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into an int.  
@@ -266,7 +269,7 @@ namespace System
         {
             if (value.Length < sizeof(int))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<int>(ref value.DangerousGetPinnableReference());
+            return Unsafe.ReadUnaligned<int>(ref MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into a long.  
@@ -287,7 +290,7 @@ namespace System
         {
             if (value.Length < sizeof(long))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<long>(ref value.DangerousGetPinnableReference());
+            return Unsafe.ReadUnaligned<long>(ref MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into an ushort.
@@ -301,7 +304,7 @@ namespace System
         {
             if (value.Length < sizeof(ushort))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<ushort>(ref value.DangerousGetPinnableReference());
+            return Unsafe.ReadUnaligned<ushort>(ref MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into an uint.
@@ -315,7 +318,7 @@ namespace System
         {
             if (value.Length < sizeof(uint))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<uint>(ref value.DangerousGetPinnableReference());
+            return Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into an unsigned long.
@@ -329,7 +332,7 @@ namespace System
         {
             if (value.Length < sizeof(ulong))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<ulong>(ref value.DangerousGetPinnableReference());
+            return Unsafe.ReadUnaligned<ulong>(ref MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into a float.  
@@ -340,7 +343,7 @@ namespace System
         {
             if (value.Length < sizeof(float))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<float>(ref value.DangerousGetPinnableReference());
+            return Unsafe.ReadUnaligned<float>(ref MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into a double.  
@@ -351,7 +354,7 @@ namespace System
         {
             if (value.Length < sizeof(double))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<double>(ref value.DangerousGetPinnableReference());
+            return Unsafe.ReadUnaligned<double>(ref MemoryMarshal.GetReference(value));
         }
 
         // Converts an array of bytes into a String.  
@@ -441,7 +444,7 @@ namespace System
         {
             if (value.Length < sizeof(byte))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value);
-            return Unsafe.ReadUnaligned<byte>(ref value.DangerousGetPinnableReference()) != 0;
+            return Unsafe.ReadUnaligned<byte>(ref MemoryMarshal.GetReference(value)) != 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

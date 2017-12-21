@@ -551,6 +551,12 @@ public:
             CORINFO_CLASS_HANDLE        cls
             );
 
+    // "System.Int32" ==> CORINFO_TYPE_INT..
+    // "System.UInt32" ==> CORINFO_TYPE_UINT..
+    CorInfoType getTypeForPrimitiveNumericClass(
+            CORINFO_CLASS_HANDLE        cls
+            );
+
     // TRUE if child is a subtype of parent
     // if parent is an interface, then does child implement / extend parent
     BOOL canCast(
@@ -738,7 +744,8 @@ public:
     void getMethodSigInternal (
             CORINFO_METHOD_HANDLE ftnHnd,
             CORINFO_SIG_INFO* sigInfo,
-            CORINFO_CLASS_HANDLE owner = NULL
+            CORINFO_CLASS_HANDLE owner = NULL,
+            BOOL isCallSite = FALSE
             );
 
     void getEHinfo(

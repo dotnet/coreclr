@@ -166,6 +166,15 @@
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\JitBlue\GitHub_11408\GitHub_11408\GitHub_11408.cmd">
             <Issue>11408</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\diamondshape\diamondshape\*">
+            <Issue>15591</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\sharedgenerics\sharedgenerics\*">
+            <Issue>15591</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\constrainedcall\constrainedcall\*">
+            <Issue>15353</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest612\Generated612\*">
             <Issue>6707</Issue>
         </ExcludeList>
@@ -209,6 +218,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\JitBlue\DevDiv_255294\DevDiv_255294\DevDiv_255294.cmd">
             <Issue>11469, The test causes OutOfMemory exception in crossgen mode.</Issue> 
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\JitBlue\GitHub_15291\GitHub_15291\GitHub_15291.cmd">
+            <Issue>15566</Issue> 
         </ExcludeList>
     </ItemGroup>
 

@@ -764,6 +764,61 @@ bool GenTree::gtHasReg() const
     return hasReg;
 }
 
+//-----------------------------------------------------------------------------
+// GetRegisterDstCount: Get the number of registers defined by the node.
+//
+// Arguments:
+//    None
+//
+// Return Value:
+//    The number of registers that this node defines.
+//
+// Notes:
+//    This should not be called on a contained node.
+//    This does not look at the actual register assignments, if any, and so
+//    is valid after Lowering.
+//
+int GenTree::GetRegisterDstCount() const
+{
+    assert(!isContained());
+    if (!IsMultiRegNode())
+    {
+        return (IsValue()) ? 1 : 0;
+    }
+    else if (IsMultiRegCall())
+    {
+        // temporarily cast away const-ness as AsCall() method is not declared const
+        GenTree* temp = const_cast<GenTree*>(this);
+        return temp->AsCall()->GetReturnTypeDesc()->GetReturnRegCount();
+    }
+    else if (IsCopyOrReloadOfMultiRegCall())
+    {
+        // A multi-reg copy or reload, will have valid regs for only those
+        // positions that need to be copied or reloaded.  Hence we need
+        // to consider only those registers for computing reg mask.
+
+        GenTree*             tree         = const_cast<GenTree*>(this);
+        GenTreeCopyOrReload* copyOrReload = tree->AsCopyOrReload();
+        GenTreeCall*         call         = copyOrReload->gtGetOp1()->AsCall();
+        return call->GetReturnTypeDesc()->GetReturnRegCount();
+    }
+#if !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+    else if (OperIsPutArgSplit())
+    {
+        return (const_cast<GenTree*>(this))->AsPutArgSplit()->gtNumRegs;
+    }
+    // A PUTARG_REG could be a MultiRegOp on ARM since we could move a double register to two int registers,
+    // either for all double parameters w/SoftFP or for varargs).
+    else
+    {
+        assert(OperIsMultiRegOp());
+        return (TypeGet() == TYP_LONG) ? 2 : 1;
+    }
+#endif // !defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+    assert(!"Unexpected multi-reg node");
+    return 0;
+}
+
 //---------------------------------------------------------------
 // gtGetRegMask: Get the reg mask of the node.
 //
@@ -3511,13 +3566,17 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                         case CORINFO_INTRINSIC_Sin:
                         case CORINFO_INTRINSIC_Cos:
                         case CORINFO_INTRINSIC_Sqrt:
+                        case CORINFO_INTRINSIC_Cbrt:
                         case CORINFO_INTRINSIC_Cosh:
                         case CORINFO_INTRINSIC_Sinh:
                         case CORINFO_INTRINSIC_Tan:
                         case CORINFO_INTRINSIC_Tanh:
                         case CORINFO_INTRINSIC_Asin:
+                        case CORINFO_INTRINSIC_Asinh:
                         case CORINFO_INTRINSIC_Acos:
+                        case CORINFO_INTRINSIC_Acosh:
                         case CORINFO_INTRINSIC_Atan:
+                        case CORINFO_INTRINSIC_Atanh:
                         case CORINFO_INTRINSIC_Atan2:
                         case CORINFO_INTRINSIC_Log10:
                         case CORINFO_INTRINSIC_Pow:
@@ -11428,6 +11487,9 @@ void Compiler::gtDispTree(GenTreePtr   tree,
                 case CORINFO_INTRINSIC_Cos:
                     printf(" cos");
                     break;
+                case CORINFO_INTRINSIC_Cbrt:
+                    printf(" cbrt");
+                    break;
                 case CORINFO_INTRINSIC_Sqrt:
                     printf(" sqrt");
                     break;
@@ -11452,14 +11514,23 @@ void Compiler::gtDispTree(GenTreePtr   tree,
                 case CORINFO_INTRINSIC_Asin:
                     printf(" asin");
                     break;
+                case CORINFO_INTRINSIC_Asinh:
+                    printf(" asinh");
+                    break;
                 case CORINFO_INTRINSIC_Acos:
                     printf(" acos");
+                    break;
+                case CORINFO_INTRINSIC_Acosh:
+                    printf(" acosh");
                     break;
                 case CORINFO_INTRINSIC_Atan:
                     printf(" atan");
                     break;
                 case CORINFO_INTRINSIC_Atan2:
                     printf(" atan2");
+                    break;
+                case CORINFO_INTRINSIC_Atanh:
+                    printf(" atanh");
                     break;
                 case CORINFO_INTRINSIC_Log10:
                     printf(" log10");
@@ -13767,7 +13838,7 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                                 i1 = itemp;
                                 goto CNS_INT;
 
-                            case TYP_CHAR:
+                            case TYP_USHORT:
                                 itemp = INT32(UINT16(i1));
                                 if (tree->gtOverflow())
                                 {
@@ -13892,7 +13963,7 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                                 i1 = INT32(INT16(lval1));
                                 goto CHECK_INT_OVERFLOW;
 
-                            case TYP_CHAR:
+                            case TYP_USHORT:
                                 i1 = INT32(UINT16(lval1));
                                 goto CHECK_UINT_OVERFLOW;
 
@@ -14036,7 +14107,7 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                                 i1 = INT32(INT16(d1));
                                 goto CNS_INT;
 
-                            case TYP_CHAR:
+                            case TYP_USHORT:
                                 i1 = INT32(UINT16(d1));
                                 goto CNS_INT;
 
@@ -16049,19 +16120,6 @@ bool Compiler::gtComplexityExceeds(GenTreePtr* tree, unsigned limit)
     }
 }
 
-// -------------------------------------------------------------------------
-// IsRegOptional: Returns true if this gentree node is marked by lowering to
-// indicate that codegen can still generate code even if it wasn't allocated
-// a register.
-bool GenTree::IsRegOptional() const
-{
-#ifdef LEGACY_BACKEND
-    return false;
-#else
-    return gtLsraInfo.regOptional;
-#endif
-}
-
 bool GenTree::IsPhiNode()
 {
     return (OperGet() == GT_PHI_ARG) || (OperGet() == GT_PHI) || IsPhiDefn();
@@ -17000,7 +17058,13 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
 #ifdef FEATURE_SIMD
             case GT_SIMD:
                 structHnd = gtGetStructHandleForSIMD(tree->gtType, tree->AsSIMD()->gtSIMDBaseType);
+                break;
 #endif // FEATURE_SIMD
+#if FEATURE_HW_INTRINSICS
+            case GT_HWIntrinsic:
+                structHnd = gtGetStructHandleForHWSIMD(tree->gtType, tree->AsHWIntrinsic()->gtSIMDBaseType);
+                break;
+#endif
                 break;
         }
     }
@@ -17836,15 +17900,23 @@ GenTreeHWIntrinsic* Compiler::gtNewScalarHWIntrinsicNode(var_types      type,
 // Return Value
 //    pointer to the throw node
 //
-GenTree* Compiler::gtNewMustThrowException(unsigned helper, var_types type)
+GenTree* Compiler::gtNewMustThrowException(unsigned helper, var_types type, CORINFO_CLASS_HANDLE clsHnd)
 {
     GenTreeCall* node = gtNewHelperCallNode(helper, TYP_VOID);
     node->gtCallMoreFlags |= GTF_CALL_M_DOES_NOT_RETURN;
     if (type != TYP_VOID)
     {
-        unsigned dummyTemp         = lvaGrabTemp(true DEBUGARG("dummy temp of must thrown exception"));
-        lvaTable[dummyTemp].lvType = type;
-        GenTree* dummyNode         = gtNewLclvNode(dummyTemp, type);
+        unsigned dummyTemp = lvaGrabTemp(true DEBUGARG("dummy temp of must thrown exception"));
+        if (type == TYP_STRUCT)
+        {
+            lvaSetStruct(dummyTemp, clsHnd, false);
+            type = lvaTable[dummyTemp].lvType; // struct type is normalized
+        }
+        else
+        {
+            lvaTable[dummyTemp].lvType = type;
+        }
+        GenTree* dummyNode = gtNewLclvNode(dummyTemp, type);
         return gtNewOperNode(GT_COMMA, type, node, dummyNode);
     }
     return node;

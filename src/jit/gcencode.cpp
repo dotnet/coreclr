@@ -44,7 +44,6 @@ ReturnKind GCInfo::getReturnKind()
     switch (compiler->info.compRetType)
     {
         case TYP_REF:
-        case TYP_ARRAY:
             return RT_Object;
         case TYP_BYREF:
             return RT_ByRef;
@@ -55,9 +54,6 @@ ReturnKind GCInfo::getReturnKind()
 
             switch (retType)
             {
-                case TYP_ARRAY:
-                    _ASSERTE(false && "TYP_ARRAY unexpected from getReturnTypeForStruct()");
-                // fall through
                 case TYP_REF:
                     return RT_Object;
 
@@ -1634,7 +1630,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
     assert((compiler->compArgSize & 0x3) == 0);
 
     size_t argCount =
-        (compiler->compArgSize - (compiler->codeGen->intRegState.rsCalleeRegArgCount * sizeof(void*))) / sizeof(void*);
+        (compiler->compArgSize - (compiler->codeGen->intRegState.rsCalleeRegArgCount * REGSIZE_BYTES)) / REGSIZE_BYTES;
     assert(argCount <= MAX_USHORT_SIZE_T);
     header->argCount = static_cast<unsigned short>(argCount);
 
@@ -2085,7 +2081,7 @@ unsigned PendingArgsStack::pasEnumGCoffs(unsigned iter, unsigned* offs)
         {
             unsigned offset;
 
-            offset = (pasDepth - i) * sizeof(void*);
+            offset = (pasDepth - i) * TARGET_POINTER_SIZE;
             if (curArg == GCT_BYREF)
                 offset |= byref_OFFSET_FLAG;
 
@@ -2110,7 +2106,7 @@ unsigned PendingArgsStack::pasEnumGCoffs(unsigned iter, unsigned* offs)
             lvl += i;
 
             unsigned offset;
-            offset = lvl * sizeof(void*);
+            offset = lvl * TARGET_POINTER_SIZE;
             if (mask & pasByrefBottomMask)
                 offset |= byref_OFFSET_FLAG;
 
@@ -2329,7 +2325,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
             // A struct will have gcSlots only if it is at least TARGET_POINTER_SIZE.
             if (varDsc->lvType == TYP_STRUCT && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
             {
-                unsigned slots  = compiler->lvaLclSize(varNum) / sizeof(void*);
+                unsigned slots  = compiler->lvaLclSize(varNum) / TARGET_POINTER_SIZE;
                 BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
 
                 // walk each member of the array
@@ -2344,7 +2340,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                     {
                         assert(pass == 1);
 
-                        unsigned offset = varDsc->lvStkOffs + i * sizeof(void*);
+                        unsigned offset = varDsc->lvStkOffs + i * TARGET_POINTER_SIZE;
 #if DOUBLE_ALIGN
                         // For genDoubleAlign(), locals are addressed relative to ESP and
                         // arguments are addressed relative to EBP.
@@ -2489,7 +2485,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
             unsigned begOffs;
             unsigned endOffs;
 
-            assert(~OFFSET_MASK % sizeof(void*) == 0);
+            assert(~OFFSET_MASK % TARGET_POINTER_SIZE == 0);
 
             /* Get hold of the variable's stack offset */
 
@@ -4276,7 +4272,7 @@ void GCInfo::gcMakeRegPtrTable(
         // Note that the enregisterable struct types cannot have GC pointers in them.
         if ((varDsc->lvType == TYP_STRUCT) && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
         {
-            unsigned slots  = compiler->lvaLclSize(varNum) / sizeof(void*);
+            unsigned slots  = compiler->lvaLclSize(varNum) / TARGET_POINTER_SIZE;
             BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
 
             // walk each member of the array
@@ -4287,7 +4283,7 @@ void GCInfo::gcMakeRegPtrTable(
                     continue;
                 }
 
-                int offset = varDsc->lvStkOffs + i * sizeof(void*);
+                int offset = varDsc->lvStkOffs + i * TARGET_POINTER_SIZE;
 #if DOUBLE_ALIGN
                 // For genDoubleAlign(), locals are addressed relative to ESP and
                 // arguments are addressed relative to EBP.

@@ -370,7 +370,6 @@ inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
         RBM_ILLEGAL,   // TYP_UNDEF,
         RBM_NONE,      // TYP_VOID,
         RBM_INTRET,    // TYP_BOOL,
-        RBM_INTRET,    // TYP_CHAR,
         RBM_INTRET,    // TYP_BYTE,
         RBM_INTRET,    // TYP_UBYTE,
         RBM_INTRET,    // TYP_SHORT,
@@ -383,12 +382,9 @@ inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
         RBM_DOUBLERET, // TYP_DOUBLE,
         RBM_INTRET,    // TYP_REF,
         RBM_INTRET,    // TYP_BYREF,
-        RBM_INTRET,    // TYP_ARRAY,
         RBM_ILLEGAL,   // TYP_STRUCT,
         RBM_ILLEGAL,   // TYP_BLK,
         RBM_ILLEGAL,   // TYP_LCLBLK,
-        RBM_ILLEGAL,   // TYP_PTR,
-        RBM_ILLEGAL,   // TYP_FNC,
         RBM_ILLEGAL,   // TYP_UNKNOWN,
     };
 
@@ -1131,7 +1127,7 @@ regMaskTP Compiler::rpPredictRegPick(var_types type, rpPredictReg predictReg, re
         case TYP_BYTE:
         case TYP_UBYTE:
         case TYP_SHORT:
-        case TYP_CHAR:
+        case TYP_USHORT:
         case TYP_INT:
         case TYP_UINT:
         case TYP_REF:
@@ -4392,7 +4388,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 }
                 tree->gtUsedRegs = (regMaskSmall)(regMask | tmpMask);
                 goto RETURN_CHECK;
-#else  // !_TARGET_ARM
+#else  // !_TARGET_ARM_
                 goto GENERIC_UNARY;
 #endif // _TARGET_ARM_
             }
