@@ -144,7 +144,7 @@ namespace System.Threading
         }
 
         // Instance with one key/value pair.
-        private sealed class OneElementAsyncLocalValueMap : IAsyncLocalValueMap
+        internal sealed class OneElementAsyncLocalValueMap : IAsyncLocalValueMap
         {
             private readonly IAsyncLocal _key1;
             private readonly object _value1;
