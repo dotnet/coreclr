@@ -5,9 +5,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_definitions(-DPIC=1)
 add_definitions(-DBIT64=1)
-if(FEATURE_FIXED_ICU_VERSION)
-   add_definitions(-DFEATURE_FIXED_ICU_VERSION)
-endif(FEATURE_FIXED_ICU_VERSION)
 
 set(ICU_HOMEBREW_INC_PATH "/usr/local/opt/icu4c/include")
 

@@ -167,18 +167,17 @@ bool FindLibUsingOverride(char* symbolName, char* symbolVersion)
 // Search for library files with names including the major version.
 bool FindLibWithMajorVersion(char* symbolName, char* symbolVersion)
 {
-#ifdef FEATURE_FIXED_ICU_VERSION
-    // Select the version of ICU present at build time.
     // ICU packaging documentation (http://userguide.icu-project.org/packaging)
     // describes applications link against the major (e.g. libicuuc.so.54).
-    if (OpenICULibraries(U_ICU_VERSION_MAJOR_NUM, -1, -1, symbolName, symbolVersion))
+
+    // Select the version of ICU present at build time.
+    if (OpenICULibraries(MinICUVersion, -1, -1, symbolName, symbolVersion))
     {
         return true;
     }
-#endif
 
     // Select the highest supported version of ICU present on the local machine
-    for (int i = MaxICUVersion; i >= MinICUVersion; i--)
+    for (int i = MaxICUVersion; i > MinICUVersion; i--)
     {
         if (OpenICULibraries(i, -1, -1, symbolName, symbolVersion))
         {
