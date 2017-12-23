@@ -34,7 +34,7 @@
       <TopLevelDirectories Include="@(NonExcludedTestDirectories)" />
       <SecondLevel Include="$([System.IO.Directory]::GetDirectories(%(TopLevelDirectories.Identity)))" />
       <SecondLevelDirectories Include="@(SecondLevel)">
-        <Path>$([System.IO.Path]::GetFullPath(%(AllRunnableTestPaths.Identity)))</Path>
+        <Path>$([System.IO.Path]::GetFullPath(%(Identity)))</Path>
       </SecondLevelDirectories>
       <TestDirectoriesWithDup Include="@(SecondLevelDirectories -> '%(Identity)')" Condition="$([System.String]::new('%(Path)').StartsWith('%(Identity)'))" />
 
