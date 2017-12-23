@@ -4503,6 +4503,49 @@ CorInfoType CEEInfo::getTypeForPrimitiveValueClass(
     return result;
 }
 
+/*********************************************************************/
+CorInfoType CEEInfo::getTypeForPrimitiveNumericClass(
+        CORINFO_CLASS_HANDLE clsHnd)
+{
+    CONTRACTL {
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    CorInfoType result = CORINFO_TYPE_UNDEF;
+
+    JIT_TO_EE_TRANSITION_LEAF();
+
+    TypeHandle th(clsHnd);
+    _ASSERTE (!th.IsGenericVariable());
+
+    CorElementType ty = th.GetSignatureCorElementType();
+    switch (ty)
+    {
+        case ELEMENT_TYPE_I1:
+        case ELEMENT_TYPE_U1:
+        case ELEMENT_TYPE_I2:
+        case ELEMENT_TYPE_U2:
+        case ELEMENT_TYPE_I4:
+        case ELEMENT_TYPE_U4:
+        case ELEMENT_TYPE_I8:
+        case ELEMENT_TYPE_U8:
+        case ELEMENT_TYPE_R4:
+        case ELEMENT_TYPE_R8:
+            result = asCorInfoType(ty);
+            break;
+
+        default:
+            break;
+    }
+
+    JIT_TO_EE_TRANSITION_LEAF();
+
+    return result;
+}
+
 
 void CEEInfo::getGSCookie(GSCookie * pCookieVal, GSCookie ** ppCookieVal)
 {
@@ -5354,8 +5397,7 @@ void CEEInfo::getCallInfo(
         directCall = true;
     }
     else
-    // Force all interface calls to be interpreted as if they are virtual.
-    if (pTargetMD->GetMethodTable()->IsInterface())
+    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsVirtual())
     {
         directCall = false;
     }
@@ -5758,7 +5800,7 @@ void CEEInfo::getCallInfo(
     pResult->classFlags = getClassAttribsInternal(pResolvedToken->hClass);
 
     pResult->methodFlags = getMethodAttribsInternal(pResult->hMethod);
-    getMethodSigInternal(pResult->hMethod, &pResult->sig, (pResult->hMethod == pResolvedToken->hMethod) ? pResolvedToken->hClass : NULL);
+    getMethodSigInternal(pResult->hMethod, &pResult->sig, (pResult->hMethod == pResolvedToken->hMethod) ? pResolvedToken->hClass : NULL, /* isCallSite = */ TRUE);
 
     if (flags & CORINFO_CALLINFO_VERIFICATION)
     {
@@ -7086,7 +7128,8 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
         return true;
     }
     else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_AS)->GetMemberDef() ||
-             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__OBJECT_AS)->GetMemberDef())
+             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__OBJECT_AS)->GetMemberDef() ||
+             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__AS_REF)->GetMemberDef())
     {
         // Return the argument that was passed in.
         static const BYTE ilcode[] = { CEE_LDARG_0, CEE_RET };
@@ -7105,6 +7148,29 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
         static BYTE ilcode[] = { CEE_LDARG_1,
             CEE_PREFIX1, (CEE_SIZEOF & 0xFF), 0,0,0,0,
             CEE_CONV_I,
+            CEE_MUL,
+            CEE_LDARG_0,
+            CEE_ADD,
+            CEE_RET };
+
+        ilcode[3] = (BYTE)(tokGenericArg);
+        ilcode[4] = (BYTE)(tokGenericArg >> 8);
+        ilcode[5] = (BYTE)(tokGenericArg >> 16);
+        ilcode[6] = (BYTE)(tokGenericArg >> 24);
+
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 2;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_INTPTR_ADD)->GetMemberDef())
+    {
+        mdToken tokGenericArg = FindGenericMethodArgTypeSpec(MscorlibBinder::GetModule()->GetMDImport());
+
+        static BYTE ilcode[] = { CEE_LDARG_1,
+            CEE_PREFIX1, (CEE_SIZEOF & 0xFF), 0,0,0,0,
             CEE_MUL,
             CEE_LDARG_0,
             CEE_ADD,
@@ -7150,6 +7216,23 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
         methInfo->ILCode = const_cast<BYTE*>(ilcode);
         methInfo->ILCodeSize = sizeof(ilcode);
         methInfo->maxStack = 3;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_BYTE_OFFSET)->GetMemberDef())
+    {
+        static const BYTE ilcode[] = 
+        {
+            CEE_LDARG_1,
+            CEE_LDARG_0,
+            CEE_SUB,
+            CEE_RET
+        };
+
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 2;
         methInfo->EHcount = 0;
         methInfo->options = (CorInfoOptions)0;
         return true;
@@ -8471,7 +8554,8 @@ void
 CEEInfo::getMethodSigInternal(
     CORINFO_METHOD_HANDLE ftnHnd, 
     CORINFO_SIG_INFO *    sigRet, 
-    CORINFO_CLASS_HANDLE  owner)
+    CORINFO_CLASS_HANDLE  owner,
+    BOOL isCallSite)
 {
     STANDARD_VM_CONTRACT;
 
@@ -8497,7 +8581,15 @@ CEEInfo::getMethodSigInternal(
     // Shared generic methods and shared methods on generic structs take an extra argument representing their instantiation
     if (ftn->RequiresInstArg())
     {
-        sigRet->callConv = (CorInfoCallConv) (sigRet->callConv | CORINFO_CALLCONV_PARAMTYPE);
+        //
+        // If we are making an interface call that is a default interface method, we need to lie to the JIT.  
+        // The reason being that we already made sure target is always directly callable (through instantiation stubs), 
+        // JIT should not generate shared generics aware call code and insert the secret argument again at the callsite.
+        // Otherwise we would end up with two secret generic dictionary arguments (since the stub also provides one).
+        //
+        BOOL isDefaultInterfaceMethodCallSite = isCallSite && ftn->IsDefaultInterfaceMethod();
+        if (!isDefaultInterfaceMethodCallSite)
+            sigRet->callConv = (CorInfoCallConv) (sigRet->callConv | CORINFO_CALLCONV_PARAMTYPE);
     }
 
     // We want the calling convention bit to be consistant with the method attribute bit

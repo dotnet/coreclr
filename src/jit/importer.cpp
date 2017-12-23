@@ -240,7 +240,7 @@ bool Compiler::impILConsumesAddr(const BYTE* codeAddr, CORINFO_METHOD_HANDLE fnc
             var_types lclTyp = JITtype2varType(info.compCompHnd->getFieldType(resolvedToken.hField, &clsHnd));
 
             // Preserve 'small' int types
-            if (lclTyp > TYP_INT)
+            if (!varTypeIsSmall(lclTyp))
             {
                 lclTyp = genActualType(lclTyp);
             }
@@ -1097,14 +1097,16 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr           destAddr,
     assert(src->gtOper == GT_LCL_VAR || src->gtOper == GT_FIELD || src->gtOper == GT_IND || src->gtOper == GT_OBJ ||
            src->gtOper == GT_CALL || src->gtOper == GT_MKREFANY || src->gtOper == GT_RET_EXPR ||
            src->gtOper == GT_COMMA || src->gtOper == GT_ADDR ||
-           (src->TypeGet() != TYP_STRUCT && (GenTree::OperIsSIMD(src->gtOper) || src->gtOper == GT_LCL_FLD)));
+           (src->TypeGet() != TYP_STRUCT &&
+            (GenTree::OperIsSIMD(src->gtOper) || src->OperIsSimdHWIntrinsic() || src->gtOper == GT_LCL_FLD)));
 #else  // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     assert(varTypeIsStruct(src));
 
     assert(src->gtOper == GT_LCL_VAR || src->gtOper == GT_FIELD || src->gtOper == GT_IND || src->gtOper == GT_OBJ ||
            src->gtOper == GT_CALL || src->gtOper == GT_MKREFANY || src->gtOper == GT_RET_EXPR ||
            src->gtOper == GT_COMMA ||
-           (src->TypeGet() != TYP_STRUCT && (GenTree::OperIsSIMD(src->gtOper) || src->gtOper == GT_LCL_FLD)));
+           (src->TypeGet() != TYP_STRUCT &&
+            (GenTree::OperIsSIMD(src->gtOper) || src->OperIsSimdHWIntrinsic() || src->gtOper == GT_LCL_FLD)));
 #endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     if (destAddr->OperGet() == GT_ADDR)
     {
@@ -1610,6 +1612,11 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
             assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
             break;
 #endif // FEATURE_SIMD
+#if FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
+            break;
+#endif
 
         case GT_COMMA:
         {
@@ -1638,6 +1645,14 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
 
 #ifdef FEATURE_SIMD
             if (blockNode->OperGet() == GT_SIMD)
+            {
+                parent->gtOp.gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
+                alreadyNormalized  = true;
+            }
+            else
+#endif
+#if FEATURE_HW_INTRINSICS
+                if (blockNode->OperGet() == GT_HWIntrinsic && blockNode->AsHWIntrinsic()->isSIMD())
             {
                 parent->gtOp.gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
                 alreadyNormalized  = true;
@@ -3414,6 +3429,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         GenTreePtr op1, op2;
 
         case CORINFO_INTRINSIC_Sin:
+        case CORINFO_INTRINSIC_Cbrt:
         case CORINFO_INTRINSIC_Sqrt:
         case CORINFO_INTRINSIC_Abs:
         case CORINFO_INTRINSIC_Cos:
@@ -3423,9 +3439,12 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         case CORINFO_INTRINSIC_Tan:
         case CORINFO_INTRINSIC_Tanh:
         case CORINFO_INTRINSIC_Asin:
+        case CORINFO_INTRINSIC_Asinh:
         case CORINFO_INTRINSIC_Acos:
+        case CORINFO_INTRINSIC_Acosh:
         case CORINFO_INTRINSIC_Atan:
         case CORINFO_INTRINSIC_Atan2:
+        case CORINFO_INTRINSIC_Atanh:
         case CORINFO_INTRINSIC_Log10:
         case CORINFO_INTRINSIC_Pow:
         case CORINFO_INTRINSIC_Exp:
@@ -3537,7 +3556,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         case CORINFO_INTRINSIC_StringGetChar:
             op2 = impPopStack().val;
             op1 = impPopStack().val;
-            op1 = gtNewIndexRef(TYP_CHAR, op1, op2);
+            op1 = gtNewIndexRef(TYP_USHORT, op1, op2);
             op1->gtFlags |= GTF_INX_STRING_LAYOUT;
             retNode = op1;
             break;
@@ -3721,10 +3740,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
             //     BoundsCheck(index, s->_length)
             //     s->_pointer + index * sizeof(T)
             //
-            // For ReadOnlySpan<T>
-            //   Comma
-            //     BoundsCheck(index, s->_length)
-            //     *(s->_pointer + index * sizeof(T))
+            // For ReadOnlySpan<T> -- same expansion, as it now returns a readonly ref
             //
             // Signature should show one class type parameter, which
             // we need to examine.
@@ -3777,16 +3793,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
             // Prepare result
             var_types resultType = JITtype2varType(sig->retType);
-
-            if (isReadOnly)
-            {
-                result = gtNewOperNode(GT_IND, resultType, result);
-            }
-            else
-            {
-                assert(resultType == result->TypeGet());
-            }
-
+            assert(resultType == result->TypeGet());
             retNode = gtNewOperNode(GT_COMMA, resultType, boundsCheck, result);
 
             break;
@@ -3872,7 +3879,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     {
         assert(retNode == nullptr);
         const NamedIntrinsic ni = lookupNamedIntrinsic(method);
-#if FEATURE_HW_INTRINSICS
+#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
         if (ni > NI_HW_INTRINSIC_START && ni < NI_HW_INTRINSIC_END)
         {
             return impX86HWIntrinsic(ni, method, sig);
@@ -3954,13 +3961,15 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
     GenTree* op2;
 
     assert(callType != TYP_STRUCT);
-    assert((intrinsicID == CORINFO_INTRINSIC_Sin) || (intrinsicID == CORINFO_INTRINSIC_Sqrt) ||
-           (intrinsicID == CORINFO_INTRINSIC_Abs) || (intrinsicID == CORINFO_INTRINSIC_Cos) ||
-           (intrinsicID == CORINFO_INTRINSIC_Round) || (intrinsicID == CORINFO_INTRINSIC_Cosh) ||
-           (intrinsicID == CORINFO_INTRINSIC_Sinh) || (intrinsicID == CORINFO_INTRINSIC_Tan) ||
-           (intrinsicID == CORINFO_INTRINSIC_Tanh) || (intrinsicID == CORINFO_INTRINSIC_Asin) ||
-           (intrinsicID == CORINFO_INTRINSIC_Acos) || (intrinsicID == CORINFO_INTRINSIC_Atan) ||
-           (intrinsicID == CORINFO_INTRINSIC_Atan2) || (intrinsicID == CORINFO_INTRINSIC_Log10) ||
+    assert((intrinsicID == CORINFO_INTRINSIC_Sin) || intrinsicID == CORINFO_INTRINSIC_Cbrt ||
+           (intrinsicID == CORINFO_INTRINSIC_Sqrt) || (intrinsicID == CORINFO_INTRINSIC_Abs) ||
+           (intrinsicID == CORINFO_INTRINSIC_Cos) || (intrinsicID == CORINFO_INTRINSIC_Round) ||
+           (intrinsicID == CORINFO_INTRINSIC_Cosh) || (intrinsicID == CORINFO_INTRINSIC_Sinh) ||
+           (intrinsicID == CORINFO_INTRINSIC_Tan) || (intrinsicID == CORINFO_INTRINSIC_Tanh) ||
+           (intrinsicID == CORINFO_INTRINSIC_Asin) || (intrinsicID == CORINFO_INTRINSIC_Asinh) ||
+           (intrinsicID == CORINFO_INTRINSIC_Acos) || (intrinsicID == CORINFO_INTRINSIC_Acosh) ||
+           (intrinsicID == CORINFO_INTRINSIC_Atan) || (intrinsicID == CORINFO_INTRINSIC_Atan2) ||
+           (intrinsicID == CORINFO_INTRINSIC_Atanh) || (intrinsicID == CORINFO_INTRINSIC_Log10) ||
            (intrinsicID == CORINFO_INTRINSIC_Pow) || (intrinsicID == CORINFO_INTRINSIC_Exp) ||
            (intrinsicID == CORINFO_INTRINSIC_Ceiling) || (intrinsicID == CORINFO_INTRINSIC_Floor));
 
@@ -4100,7 +4109,7 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
         }
     }
 
-#if FEATURE_HW_INTRINSICS
+#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
     if ((namespaceName != nullptr) && strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0)
     {
         InstructionSet isa = lookupHWIntrinsicISA(className);
@@ -5663,7 +5672,7 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
         GenTreePtr asgStmt = impAppendTree(asg, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
 
         op1 = gtNewLclvNode(impBoxTemp, TYP_REF);
-        op2 = gtNewIconNode(sizeof(void*), TYP_I_IMPL);
+        op2 = gtNewIconNode(TARGET_POINTER_SIZE, TYP_I_IMPL);
         op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1, op2);
 
         if (varTypeIsStruct(exprToBox))
@@ -6358,7 +6367,6 @@ GenTreePtr Compiler::impImportStaticReadOnlyField(void* fldAddr, var_types lclTy
             ival = *((short*)fldAddr);
             goto IVAL_COMMON;
 
-        case TYP_CHAR:
         case TYP_USHORT:
             ival = *((unsigned short*)fldAddr);
             goto IVAL_COMMON;
@@ -6520,9 +6528,9 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
                     op1->gtType = TYP_REF; // points at boxed object
                     FieldSeqNode* firstElemFldSeq =
                         GetFieldSeqStore()->CreateSingleton(FieldSeqStore::FirstElemPseudoField);
-                    op1 =
-                        gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                                      new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, sizeof(void*), firstElemFldSeq));
+                    op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
+                                        new (this, GT_CNS_INT)
+                                            GenTreeIntCon(TYP_I_IMPL, TARGET_POINTER_SIZE, firstElemFldSeq));
 
                     if (varTypeIsStruct(lclTyp))
                     {
@@ -6578,7 +6586,7 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
         FieldSeqNode* fldSeq = GetFieldSeqStore()->CreateSingleton(FieldSeqStore::FirstElemPseudoField);
 
         op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                            new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, sizeof(void*), fldSeq));
+                            new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, TARGET_POINTER_SIZE, fldSeq));
     }
 
     if (!(access & CORINFO_ACCESS_ADDRESS))
@@ -11193,7 +11201,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto ARR_LD;
             case CEE_LDELEM_U2:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto ARR_LD;
 
             ARR_LD:
@@ -11283,7 +11291,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // remember the element size
                     if (lclTyp == TYP_REF)
                     {
-                        op1->gtIndex.gtIndElemSize = sizeof(void*);
+                        op1->gtIndex.gtIndElemSize = TARGET_POINTER_SIZE;
                     }
                     else
                     {
@@ -12215,7 +12223,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto CONV_OVF;
             case CEE_CONV_OVF_U2:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto CONV_OVF;
             case CEE_CONV_OVF_U:
                 lclTyp = TYP_U_IMPL;
@@ -12247,7 +12255,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto CONV_OVF_UN;
             case CEE_CONV_OVF_U2_UN:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto CONV_OVF_UN;
             case CEE_CONV_OVF_U_UN:
                 lclTyp = TYP_U_IMPL;
@@ -12290,7 +12298,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto CONV;
             case CEE_CONV_U2:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto CONV;
 #if (REGSIZE_BYTES == 8)
             case CEE_CONV_U:
@@ -12404,7 +12412,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                                 mask  = 0x00FF;
                                 umask = 0x007F;
                                 break;
-                            case TYP_CHAR:
+                            case TYP_USHORT:
                             case TYP_SHORT:
                                 mask  = 0xFFFF;
                                 umask = 0x7FFF;
@@ -12739,7 +12747,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto LDIND;
             case CEE_LDIND_U2:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto LDIND;
             LDIND:
 
@@ -13639,7 +13647,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 }
 
                 /* Preserve 'small' int types */
-                if (lclTyp > TYP_INT)
+                if (!varTypeIsSmall(lclTyp))
                 {
                     lclTyp = genActualType(lclTyp);
                 }
@@ -13975,7 +13983,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 }
 
                 /* Preserve 'small' int types */
-                if (lclTyp > TYP_INT)
+                if (!varTypeIsSmall(lclTyp))
                 {
                     lclTyp = genActualType(lclTyp);
                 }
@@ -14678,7 +14686,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // UNBOX(exp) morphs into
                     // clone = pop(exp);
                     // ((*clone == typeToken) ? nop : helper(clone, typeToken));
-                    // push(clone + sizeof(void*))
+                    // push(clone + TARGET_POINTER_SIZE)
                     //
                     GenTreePtr cloneOperand;
                     op1 = impCloneExpr(op1, &cloneOperand, NO_CLASS_HANDLE, (unsigned)CHECK_SPILL_ALL,
@@ -14711,7 +14719,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // to the beginning of the value-type. Today this means adjusting
                     // past the base of the objects vtable field which is pointer sized.
 
-                    op2 = gtNewIconNode(sizeof(void*), TYP_I_IMPL);
+                    op2 = gtNewIconNode(TARGET_POINTER_SIZE, TYP_I_IMPL);
                     op1 = gtNewOperNode(GT_ADD, TYP_BYREF, cloneOperand, op2);
                 }
                 else
@@ -19146,6 +19154,7 @@ bool Compiler::IsMathIntrinsic(CorInfoIntrinsics intrinsicId)
     switch (intrinsicId)
     {
         case CORINFO_INTRINSIC_Sin:
+        case CORINFO_INTRINSIC_Cbrt:
         case CORINFO_INTRINSIC_Sqrt:
         case CORINFO_INTRINSIC_Abs:
         case CORINFO_INTRINSIC_Cos:
@@ -19155,9 +19164,12 @@ bool Compiler::IsMathIntrinsic(CorInfoIntrinsics intrinsicId)
         case CORINFO_INTRINSIC_Tan:
         case CORINFO_INTRINSIC_Tanh:
         case CORINFO_INTRINSIC_Asin:
+        case CORINFO_INTRINSIC_Asinh:
         case CORINFO_INTRINSIC_Acos:
+        case CORINFO_INTRINSIC_Acosh:
         case CORINFO_INTRINSIC_Atan:
         case CORINFO_INTRINSIC_Atan2:
+        case CORINFO_INTRINSIC_Atanh:
         case CORINFO_INTRINSIC_Log10:
         case CORINFO_INTRINSIC_Pow:
         case CORINFO_INTRINSIC_Exp:

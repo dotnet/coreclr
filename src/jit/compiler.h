@@ -743,7 +743,7 @@ public:
     bool lvStackAligned() const
     {
         assert(lvIsStructField);
-        return ((lvFldOffset % sizeof(void*)) == 0);
+        return ((lvFldOffset % TARGET_POINTER_SIZE) == 0);
     }
     bool lvNormalizeOnLoad() const
     {
@@ -1412,33 +1412,32 @@ public:
     }
 #endif // FEATURE_FIXED_OUT_ARGS
 
+#if defined(UNIX_X86_ABI)
     void ComputeStackAlignment(unsigned curStackLevelInBytes)
     {
-#if defined(UNIX_X86_ABI)
         padStkAlign = AlignmentPad(curStackLevelInBytes, STACK_ALIGN);
-#endif // defined(UNIX_X86_ABI)
     }
 
-    void SetStkSizeBytes(unsigned newStkSizeBytes)
-    {
-#if defined(UNIX_X86_ABI)
-        stkSizeBytes = newStkSizeBytes;
-#endif // defined(UNIX_X86_ABI)
-    }
-
-#if defined(UNIX_X86_ABI)
     unsigned GetStkAlign()
     {
         return padStkAlign;
     }
+
+    void SetStkSizeBytes(unsigned newStkSizeBytes)
+    {
+        stkSizeBytes = newStkSizeBytes;
+    }
+
     unsigned GetStkSizeBytes() const
     {
         return stkSizeBytes;
     }
+
     bool IsStkAlignmentDone() const
     {
         return alignmentDone;
     }
+
     void SetStkAlignmentDone()
     {
         alignmentDone = true;
@@ -2067,7 +2066,8 @@ public:
                                                    GenTree*       op1,
                                                    GenTree*       op2,
                                                    NamedIntrinsic hwIntrinsicID);
-    GenTree* gtNewMustThrowException(unsigned helper, var_types type);
+    GenTree* gtNewMustThrowException(unsigned helper, var_types type, CORINFO_CLASS_HANDLE clsHnd);
+    CORINFO_CLASS_HANDLE gtGetStructHandleForHWSIMD(var_types simdType, var_types simdBaseType);
 #endif // FEATURE_HW_INTRINSICS
 
     GenTreePtr gtNewLclLNode(unsigned lnum, var_types type, IL_OFFSETX ILoffs = BAD_IL_OFFSET);
@@ -3025,6 +3025,9 @@ protected:
     InstructionSet lookupHWIntrinsicISA(const char* className);
     NamedIntrinsic lookupHWIntrinsic(const char* methodName, InstructionSet isa);
     InstructionSet isaOfHWIntrinsic(NamedIntrinsic intrinsic);
+    bool isIntrinsicAnIsSupportedPropertyGetter(NamedIntrinsic intrinsic);
+    bool isFullyImplmentedISAClass(InstructionSet isa);
+#ifdef _TARGET_XARCH_
     GenTree* impX86HWIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
     GenTree* impSSEIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
     GenTree* impSSE2Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
@@ -3041,6 +3044,9 @@ protected:
     GenTree* impLZCNTIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
     GenTree* impPCLMULQDQIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
     GenTree* impPOPCNTIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
+    bool compSupportsHWIntrinsic(InstructionSet isa);
+    bool isScalarISA(InstructionSet isa);
+#endif // _TARGET_XARCH_
 #endif // FEATURE_HW_INTRINSICS
     GenTreePtr impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
                                        CORINFO_SIG_INFO*    sig,
@@ -5973,7 +5979,6 @@ public:
                     return INT_MIN;
                 case TYP_BOOL:
                 case TYP_UBYTE:
-                case TYP_CHAR:
                 case TYP_USHORT:
                 case TYP_UINT:
                     return 0;
@@ -5995,7 +6000,6 @@ public:
                     return INT_MAX;
                 case TYP_UBYTE:
                     return UCHAR_MAX;
-                case TYP_CHAR:
                 case TYP_USHORT:
                     return USHRT_MAX;
                 case TYP_UINT:
@@ -7393,6 +7397,29 @@ private:
     CORINFO_CLASS_HANDLE SIMDVector4Handle;
     CORINFO_CLASS_HANDLE SIMDVectorHandle;
 
+#if FEATURE_HW_INTRINSICS
+    CORINFO_CLASS_HANDLE Vector128FloatHandle;
+    CORINFO_CLASS_HANDLE Vector128DoubleHandle;
+    CORINFO_CLASS_HANDLE Vector128IntHandle;
+    CORINFO_CLASS_HANDLE Vector128UShortHandle;
+    CORINFO_CLASS_HANDLE Vector128UByteHandle;
+    CORINFO_CLASS_HANDLE Vector128ShortHandle;
+    CORINFO_CLASS_HANDLE Vector128ByteHandle;
+    CORINFO_CLASS_HANDLE Vector128LongHandle;
+    CORINFO_CLASS_HANDLE Vector128UIntHandle;
+    CORINFO_CLASS_HANDLE Vector128ULongHandle;
+    CORINFO_CLASS_HANDLE Vector256FloatHandle;
+    CORINFO_CLASS_HANDLE Vector256DoubleHandle;
+    CORINFO_CLASS_HANDLE Vector256IntHandle;
+    CORINFO_CLASS_HANDLE Vector256UShortHandle;
+    CORINFO_CLASS_HANDLE Vector256UByteHandle;
+    CORINFO_CLASS_HANDLE Vector256ShortHandle;
+    CORINFO_CLASS_HANDLE Vector256ByteHandle;
+    CORINFO_CLASS_HANDLE Vector256LongHandle;
+    CORINFO_CLASS_HANDLE Vector256UIntHandle;
+    CORINFO_CLASS_HANDLE Vector256ULongHandle;
+#endif
+
     // Get the handle for a SIMD type.
     CORINFO_CLASS_HANDLE gtGetStructHandleForSIMD(var_types simdType, var_types simdBaseType)
     {
@@ -7425,8 +7452,6 @@ private:
                 return SIMDDoubleHandle;
             case TYP_INT:
                 return SIMDIntHandle;
-            case TYP_CHAR:
-                return SIMDUShortHandle;
             case TYP_USHORT:
                 return SIMDUShortHandle;
             case TYP_UBYTE:
@@ -7678,7 +7703,8 @@ private:
     // Get preferred alignment of SIMD type.
     int getSIMDTypeAlignment(var_types simdType);
 
-    // Get the number of bytes in a SIMD Vector for the current compilation.
+    // Get the number of bytes in a System.Numeric.Vector<T> for the current compilation.
+    // Note - cannot be used for System.Runtime.Intrinsic
     unsigned getSIMDVectorRegisterByteLength()
     {
 #if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
@@ -7700,9 +7726,27 @@ private:
     }
 
     // The minimum and maximum possible number of bytes in a SIMD vector.
+
+    // maxSIMDStructBytes
+    // The minimum SIMD size supported by System.Numeric.Vectors or System.Runtime.Intrinsic
+    // SSE:  16-byte Vector<T> and Vector128<T>
+    // AVX:  32-byte Vector256<T> (Vector<T> is 16-byte)
+    // AVX2: 32-byte Vector<T> and Vector256<T>
     unsigned int maxSIMDStructBytes()
     {
+#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
+        if (compSupports(InstructionSet_AVX))
+        {
+            return YMM_REGSIZE_BYTES;
+        }
+        else
+        {
+            assert(getSIMDSupportLevel() >= SIMD_SSE2_Supported);
+            return XMM_REGSIZE_BYTES;
+        }
+#else
         return getSIMDVectorRegisterByteLength();
+#endif
     }
     unsigned int minSIMDStructBytes()
     {

@@ -5270,7 +5270,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     {
         assert(!varTypeIsStruct(call));
 
-        if (call->gtType == TYP_REF || call->gtType == TYP_ARRAY)
+        if (call->gtType == TYP_REF)
         {
             retSize = EA_GCREF;
         }
@@ -6584,7 +6584,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
                 typeMax  = SHRT_MAX;
                 break;
 
-            case TYP_CHAR:
+            case TYP_USHORT:
                 typeMask = ssize_t((int)0xFFFF0000L);
                 break;
 

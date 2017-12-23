@@ -538,7 +538,6 @@ inline bool genTypeCanRepresentValue(var_types type, TValue value)
         case TYP_BYTE:
             return FitsIn<INT8>(value);
         case TYP_USHORT:
-        case TYP_CHAR:
             return FitsIn<UINT16>(value);
         case TYP_SHORT:
             return FitsIn<INT16>(value);
@@ -552,7 +551,6 @@ inline bool genTypeCanRepresentValue(var_types type, TValue value)
             return FitsIn<INT64>(value);
         case TYP_REF:
         case TYP_BYREF:
-        case TYP_ARRAY:
             return FitsIn<UINT_PTR>(value);
         default:
             return false;
@@ -607,7 +605,6 @@ inline var_types genActualType(var_types type)
     /* Spot check to make certain the table is in synch with the enum */
 
     assert(genActualTypes[TYP_DOUBLE] == TYP_DOUBLE);
-    assert(genActualTypes[TYP_FNC] == TYP_FNC);
     assert(genActualTypes[TYP_REF] == TYP_REF);
 
     assert((unsigned)type < sizeof(genActualTypes));
@@ -626,7 +623,7 @@ inline var_types genUnsignedType(var_types type)
             type = TYP_UBYTE;
             break;
         case TYP_SHORT:
-            type = TYP_CHAR;
+            type = TYP_USHORT;
             break;
         case TYP_INT:
             type = TYP_UINT;
@@ -2132,7 +2129,7 @@ inline void LclVarDsc::addPrefReg(regMaskTP regMask, Compiler* comp)
 
 #ifdef _TARGET_ARM_
     // Don't set a preferred register for a TYP_STRUCT that takes more than one register slot
-    if ((lvType == TYP_STRUCT) && (lvSize() > sizeof(void*)))
+    if ((lvType == TYP_STRUCT) && (lvSize() > REGSIZE_BYTES))
         return;
 #endif
 

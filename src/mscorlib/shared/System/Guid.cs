@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+using Internal.Runtime.CompilerServices;
+
 namespace System
 {
     // Represents a Globally Unique Identifier.
@@ -1360,7 +1362,7 @@ namespace System
 
             unsafe
             {
-                fixed (char* guidChars = &destination.DangerousGetPinnableReference())
+                fixed (char* guidChars = &MemoryMarshal.GetReference(destination))
                 {
                     char * p = guidChars;
 
