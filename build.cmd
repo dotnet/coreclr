@@ -397,10 +397,10 @@ REM ===
 REM =========================================================================================
 
 REM Find python and set it to the variable PYTHON
-echo import sys; print sys.executable | (python2.7 || python2 || py -2 || python) > %TEMP%\pythonlocation.txt 2> NUL
+echo import sys; sys.stdout.write(sys.executable) | (py -3 || py -2 || python3 || python2 || python) > %TEMP%\pythonlocation.txt 2> NUL
 set /p PYTHON=<%TEMP%\pythonlocation.txt
 if NOT DEFINED PYTHON (
-    echo %__MsgPrefix%Error: Could not find a python 2.7 installation
+    echo %__MsgPrefix%Error: Could not find a python installation
     exit /b 1
 )
 
