@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Runtime.Versioning;
 
 namespace System
@@ -58,7 +59,7 @@ namespace System
         {
             return hasValue ? value : defaultValue;
         }
-
+        
         public override bool Equals(object other)
         {
             if (!hasValue) return other == null;
@@ -147,6 +148,16 @@ namespace System
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Deconstruct a <see cref="Nullable{T}"/> into a <see cref="Tuple{Boolean, T}"/>.
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public static void Deconstruct<T>(this Nullable<T> nullable, out bool hasValue, out T value) where T: struct
+        {
+            hasValue = nullable.HasValue;
+            value = nullable ?? default;
         }
     }
 }
