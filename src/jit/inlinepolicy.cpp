@@ -371,7 +371,7 @@ void DefaultPolicy::NoteBool(InlineObservation obs, bool value)
                 break;
 
             case InlineObservation::CALLEE_DOES_NOT_RETURN:
-                m_IsNoReturn      = value;
+                m_IsNoReturn      = (m_IsForceInlineKnown && m_IsForceInline) ? 0 : value;
                 m_IsNoReturnKnown = true;
                 break;
 
@@ -463,7 +463,8 @@ void DefaultPolicy::NoteInt(InlineObservation obs, int value)
 
             unsigned basicBlockCount = static_cast<unsigned>(value);
 
-            if (m_IsNoReturn && (basicBlockCount == 1))
+            // CALLEE_IS_FORCE_INLINE overrides CALLEE_DOES_NOT_RETURN
+            if (m_IsNoReturn && (basicBlockCount == 1) && !m_IsForceInline)
             {
                 SetNever(InlineObservation::CALLEE_DOES_NOT_RETURN);
             }
