@@ -157,7 +157,7 @@ namespace System
         public static void Deconstruct<T>(this Nullable<T> nullable, out bool hasValue, out T value) where T: struct
         {
             hasValue = nullable.HasValue;
-            value = nullable ?? default;
+            value = nullable.GetValueOrDefault();
         }
     }
 }
