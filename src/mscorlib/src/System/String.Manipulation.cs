@@ -14,7 +14,7 @@ namespace System
 {
     public partial class String
     {
-        private const int StackallocStringLengthLimit = 512;
+        private const int StackallocIntBufferSizeLimit = 512;
 
         unsafe private static void FillStringChecked(String dest, int destPos, String src)
         {
@@ -1163,7 +1163,7 @@ namespace System
                 return new string[] { this };
             }
 
-            Span<int> initialSpan = stackalloc int[StackallocStringLengthLimit];
+            Span<int> initialSpan = stackalloc int[StackallocIntBufferSizeLimit];
             var sepListBuilder = new ValueListBuilder<int>(initialSpan);
 
             MakeSeparatorList(separators, ref sepListBuilder);
@@ -1241,10 +1241,10 @@ namespace System
                 return SplitInternal(separator, count, options);
             }
             
-            Span<int> sepListInitialSpan = stackalloc int[StackallocStringLengthLimit];
+            Span<int> sepListInitialSpan = stackalloc int[StackallocIntBufferSizeLimit];
             var sepListBuilder = new ValueListBuilder<int>(sepListInitialSpan);
 
-            Span<int> lengthListInitialSpan = stackalloc int[StackallocStringLengthLimit];
+            Span<int> lengthListInitialSpan = stackalloc int[StackallocIntBufferSizeLimit];
             var lengthListBuilder = new ValueListBuilder<int>(lengthListInitialSpan);
 
             MakeSeparatorList(separators, ref sepListBuilder, ref lengthListBuilder);
@@ -1269,7 +1269,7 @@ namespace System
 
         private string[] SplitInternal(string separator, int count, StringSplitOptions options)
         {
-            Span<int> sepListInitialSpan = stackalloc int[StackallocStringLengthLimit];
+            Span<int> sepListInitialSpan = stackalloc int[StackallocIntBufferSizeLimit];
             var sepListBuilder = new ValueListBuilder<int>(sepListInitialSpan);
 
             MakeSeparatorList(separator, ref sepListBuilder);
