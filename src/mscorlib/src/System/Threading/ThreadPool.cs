@@ -1293,7 +1293,10 @@ namespace System.Threading
             return true;
         }
 
-        public static bool UnsafeQueueUserWorkItem(WaitCallback callBack, Object state)
+        public static bool UnsafeQueueUserWorkItem(WaitCallback callBack, Object state) =>
+            UnsafeQueueUserWorkItem(callBack, state, preferLocal: false);
+
+        internal static bool UnsafeQueueUserWorkItem(WaitCallback callBack, Object state, bool preferLocal)
         {
             if (callBack == null)
             {
@@ -1304,7 +1307,7 @@ namespace System.Threading
 
             IThreadPoolWorkItem tpcallBack = new QueueUserWorkItemCallback(callBack, state, null);
 
-            ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: true);
+            ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: !preferLocal);
 
             return true;
         }
