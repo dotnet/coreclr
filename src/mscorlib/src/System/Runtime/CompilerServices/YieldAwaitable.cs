@@ -100,11 +100,11 @@ namespace System.Runtime.CompilerServices
                     {
                         if (flowContext)
                         {
-                            ThreadPool.QueueUserWorkItem(s_waitCallbackRunAction, continuation);
+                            ThreadPool.QueueUserWorkItem(s_waitCallbackRunAction, continuation, preferLocal: true);
                         }
                         else
                         {
-                            ThreadPool.UnsafeQueueUserWorkItem(s_waitCallbackRunAction, continuation);
+                            ThreadPool.UnsafeQueueUserWorkItem(s_waitCallbackRunAction, continuation, preferLocal: true);
                         }
                     }
                     // We're targeting a custom scheduler, so queue a task.
