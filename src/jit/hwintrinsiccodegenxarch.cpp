@@ -24,6 +24,94 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "gcinfo.h"
 #include "gcinfoencoder.h"
 
+struct HWIntrinsicInfo
+{
+    instruction ins[6]; // flt, dbl, i8, i16, i32, i64
+    int         ival;   // expected to be 0-255, -1 indicates no ival
+}
+
+static const hwIntrinsicInfoArray[] = {
+#define HARDWARE_INTRINSIC(id, name, isa, ins1, ins2, ins3, ins4, ins5, ins6, ival)                                    \
+    {ins1, ins2, ins3, ins4, ins5, ins6, ival},
+#include "hwintrinsiclistxarch.h"
+};
+
+//------------------------------------------------------------------------
+// insOfHWIntrinsic: map named intrinsic value to its corresponding instruction
+//
+// Arguments:
+//    intrinsic -- id of the intrinsic function.
+//    baseType  -- the base type of the intrinsic (flt, dbl, i8, i16, i32, i64)
+//
+// Return Value:
+//    instruction for the intrinsic
+//
+static instruction insOfHWIntrinsic(NamedIntrinsic intrinsicID, var_types baseType)
+{
+    assert(intrinsicID != NI_Illegal);
+    assert(intrinsicID > NI_HW_INTRINSIC_START && intrinsicID < NI_HW_INTRINSIC_END);
+
+    int index = -1;
+
+    switch (baseType)
+    {
+        case TYP_BYTE:
+        case TYP_UBYTE:
+            index = 2;
+            break;
+
+        case TYP_SHORT:
+        case TYP_USHORT:
+            index = 3;
+            break;
+
+        case TYP_INT:
+        case TYP_UINT:
+            index = 4;
+            break;
+
+        case TYP_LONG:
+        case TYP_ULONG:
+            index = 5;
+            break;
+
+        case TYP_FLOAT:
+            index = 0;
+            break;
+
+        case TYP_DOUBLE:
+            index = 1;
+            break;
+
+        default:
+            unreached();
+            break;
+    }
+
+    instruction ins = hwIntrinsicInfoArray[intrinsicID - NI_HW_INTRINSIC_START - 1].ins[index];
+    assert(ins != INS_invalid);
+    return ins;
+}
+
+//------------------------------------------------------------------------
+// ivalOfHWIntrinsic: map named intrinsic value to its corresponding ival
+//
+// Arguments:
+//    intrinsic -- id of the intrinsic function.
+//
+// Return Value:
+//    ival for the intrinsic
+//
+static int ivalOfHWIntrinsic(NamedIntrinsic intrinsicID)
+{
+    assert(intrinsicID != NI_Illegal);
+    assert(intrinsicID > NI_HW_INTRINSIC_START && intrinsicID < NI_HW_INTRINSIC_END);
+
+    int ival = hwIntrinsicInfoArray[intrinsicID - NI_HW_INTRINSIC_START - 1].ival;
+    assert((int8_t)ival == ival);
+    return ival;
+}
+
 void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
 {
     NamedIntrinsic intrinsicID = node->gtHWIntrinsicId;
