@@ -175,7 +175,7 @@ namespace System.IO
             if (path == null)
                 return false;
 
-            return path.Length > 0 && path[0] == PathInternal.DirectorySeparatorChar;
+            return IsPathRooted(path.AsReadOnlySpan());
         }
 
         public static bool IsPathRooted(ReadOnlySpan<char> path)
@@ -191,12 +191,12 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
-            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
+            return GetPathRoot(path.AsReadOnlySpan());
         }
 
         public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
         {
-            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString.AsReadOnlySpan() : new ReadOnlySpan<char>();
+            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString.AsReadOnlySpan() : ReadOnlySpan<char>().Empty;
         }
 
         /// <summary>Gets whether the system is case-sensitive.</summary>

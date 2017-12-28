@@ -26,14 +26,7 @@ namespace System.IO
         {
             Debug.Assert(path != null);
 
-            for (int i = path.Length - 1; i >= 0; i--)
-            {
-                char ch = path[i];
-                if (IsDirectoryOrVolumeSeparator(ch))
-                    return i + 1;
-            }
-
-            return 0; // the whole path is the filename
+            return FindFileNameIndex(path.AsReadOnlySpan());
         }
 
         internal static int FindFileNameIndex(ReadOnlySpan<char> path)

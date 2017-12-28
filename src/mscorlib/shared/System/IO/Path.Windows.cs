@@ -119,10 +119,7 @@ namespace System.IO
         {
             if (path != null)
             {
-                int length = path.Length;
-                if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])) ||
-                    (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar))
-                    return true;
+                IsPathRooted(path.AsReadOnlySpan());
             }
             return false;
         }
@@ -152,25 +149,19 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
-            // Need to return the normalized directory separator
-            path = PathInternal.NormalizeDirectorySeparators(path);
-
-            int pathRoot = PathInternal.GetRootLength(path);
-            return pathRoot <= 0 ? string.Empty : path.Substring(0, pathRoot);
+            return new string(GetPathRoot(path.AsReadOnlySpan()));
         }
 
         public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
         {
-            ReadOnlySpan<char> result = new ReadOnlySpan<char>();
-
-            if (path.IsEmpty)
+            if (PathInternal.IsEffectivelyEmpty(path))
                 return path;
 
             // Need to return the normalized directory separator
             path = PathInternal.NormalizeDirectorySeparators(path);
 
             int pathRoot = PathInternal.GetRootLength(new string(path));
-            return pathRoot <= 0 ? result : path.Slice(0, pathRoot);
+            return pathRoot <= 0 ? ReadOnlySpan<char>.Empty : path.Slice(0, pathRoot);
         }
    
         /// <summary>Gets whether the system is case-sensitive.</summary>

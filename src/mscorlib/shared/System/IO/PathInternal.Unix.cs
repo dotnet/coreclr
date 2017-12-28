@@ -24,7 +24,7 @@ namespace System.IO
 
         internal static int GetRootLength(string path)
         {
-            return path.Length > 0 && IsDirectorySeparator(path[0]) ? 1 : 0;
+            return GetRootLength(path.AsReadOnlySpan());
         }
 
         internal static int GetRootLength(ReadOnlySpan<char> path)
@@ -98,8 +98,8 @@ namespace System.IO
 
             if (normalized) return path;
 
-            char[] normalizedPath = new char[path.Length];
-            int index = 0;
+            Span<char> result = new char[path.Length];
+            ValueStringBuilder sb = new ValueStringBuilder(result);
 
             for (int i = 0; i < path.Length; i++)
             {
@@ -110,11 +110,10 @@ namespace System.IO
                     && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
                     continue;
 
-                normalizedPath[index] = current;
-                index++;
+                sb.append(current);
             }
 
-            return new ReadOnlySpan<char>(normalizedPath, 0, index);
+            return result;
         }
         
         /// <summary>

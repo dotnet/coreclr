@@ -94,11 +94,11 @@ namespace System.IO
 
         public static ReadOnlySpan<char> GetDirectoryName(ReadOnlySpan<char> path)
         {
-            if (path.IsEmpty)
+            if (PathInternal.IsEffectivelyEmpty(path))
                 return path;
 
             path = PathInternal.NormalizeDirectorySeparators(path);
-            int root = PathInternal.GetRootLength(new string(path));
+            int root = PathInternal.GetRootLength(path, path.Length);
 
             int i = path.Length;
             if (i > root)
@@ -108,7 +108,7 @@ namespace System.IO
                 return path.Slice(0, i);
             }
 
-            return new ReadOnlySpan<char>();
+            return ReadOnlySpan<char>.Empty;
         }
 
         // Returns the extension of the given path. The returned value includes the
@@ -120,21 +120,7 @@ namespace System.IO
             if (path == null)
                 return null;
 
-            int length = path.Length;
-            for (int i = length - 1; i >= 0; i--)
-            {
-                char ch = path[i];
-                if (ch == '.')
-                {
-                    if (i != length - 1)
-                        return path.Substring(i, length - i);
-                    else
-                        return string.Empty;
-                }
-                if (PathInternal.IsDirectoryOrVolumeSeparator(ch))
-                    break;
-            }
-            return string.Empty;
+            return new string(path.AsReadOnlySpan());
         }
 
         public static ReadOnlySpan<char> GetExtension(ReadOnlySpan<char> path)
@@ -154,7 +140,7 @@ namespace System.IO
                 if (PathInternal.IsDirectoryOrVolumeSeparator(ch))
                     break;
             }
-            return new ReadOnlySpan<char>();
+            return ReadOnlySpan<char>.Empty;
         }
 
         // Returns the name and extension parts of the given path. The resulting
@@ -165,9 +151,7 @@ namespace System.IO
             if (path == null)
                 return null;
 
-            int offset = PathInternal.FindFileNameIndex(path);
-            int count = path.Length - offset;
-            return path.Substring(offset, count);
+            return new string(GetFileName(path.AsReadOnlySpan()));
         }
 
         public static ReadOnlySpan<char> GetFileName(ReadOnlySpan<char> path)
@@ -182,13 +166,7 @@ namespace System.IO
             if (path == null)
                 return null;
 
-            int length = path.Length;
-            int offset = PathInternal.FindFileNameIndex(path);
-
-            int end = path.LastIndexOf('.', length - 1, length - offset);
-            return end == -1 ?
-                path.Substring(offset) : // No extension was found
-                path.Substring(offset, end - offset);
+            return new string(GetFileNameWithoutExtension(path.AsReadOnlySpan()));
         }
 
         public static ReadOnlySpan<char> GetFileNameWithoutExtension(ReadOnlySpan<char> path)
@@ -196,7 +174,7 @@ namespace System.IO
             int length = path.Length;
             int offset = PathInternal.FindFileNameIndex(path);
 
-            int end = new string(path).LastIndexOf('.', length - 1, length - offset);
+            int end = path.LastIndexOf('.', length - 1, length - offset);
             return end == -1 ?
                 path.Slice(offset) : // No extension was found
                 path.Slice(offset, end - offset);
@@ -236,7 +214,7 @@ namespace System.IO
             {
                 throw new ArgumentNullException(nameof(path));
             }
-            return !PathInternal.IsPartiallyQualified(path);
+            return IsPathFullyQualified(path.AsReadOnlySpan());
         }
 
         public static bool IsPathFullyQualified(ReadOnlySpan<char> path)
@@ -252,15 +230,7 @@ namespace System.IO
         {
             if (path != null)
             {
-                for (int i = path.Length - 1; i >= 0; i--)
-                {
-                    char ch = path[i];
-                    if (ch == '.')
-                    {
-                        return i != path.Length - 1;
-                    }
-                    if (PathInternal.IsDirectoryOrVolumeSeparator(ch)) break;
-                }
+                HasExtension(path.AsReadOnlySpan());
             }
             return false;
         }
