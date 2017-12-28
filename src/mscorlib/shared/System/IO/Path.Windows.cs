@@ -155,15 +155,15 @@ namespace System.IO
         public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
         {
             if (PathInternal.IsEffectivelyEmpty(path))
-                return path;
+                return ReadOnlySpan<char>.Empty;
 
             // Need to return the normalized directory separator
             path = PathInternal.NormalizeDirectorySeparators(path);
 
-            int pathRoot = PathInternal.GetRootLength(new string(path));
+            int pathRoot = PathInternal.GetRootLength(path);
             return pathRoot <= 0 ? ReadOnlySpan<char>.Empty : path.Slice(0, pathRoot);
         }
-   
+
         /// <summary>Gets whether the system is case-sensitive.</summary>
         internal static bool IsCaseSensitive { get { return false; } }
     }

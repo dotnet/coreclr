@@ -79,26 +79,18 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
-            path = PathInternal.NormalizeDirectorySeparators(path);
-            int root = PathInternal.GetRootLength(path);
+            ReadOnlySpan<char> result = GetDirectoryName(path.AsReadOnlySpan());
 
-            int i = path.Length;
-            if (i > root)
-            {
-                while (i > root && !PathInternal.IsDirectorySeparator(path[--i])) ;
-                return path.Substring(0, i);
-            }
-            
-            return null;
+            return result.IsEmpty ? null : new string(result); 
         }
 
         public static ReadOnlySpan<char> GetDirectoryName(ReadOnlySpan<char> path)
         {
             if (PathInternal.IsEffectivelyEmpty(path))
-                return path;
+                return ReadOnlySpan<char>.Empty;
 
             path = PathInternal.NormalizeDirectorySeparators(path);
-            int root = PathInternal.GetRootLength(path, path.Length);
+            int root = PathInternal.GetRootLength(path);
 
             int i = path.Length;
             if (i > root)
@@ -120,7 +112,7 @@ namespace System.IO
             if (path == null)
                 return null;
 
-            return new string(path.AsReadOnlySpan());
+            return new string(GetExtension(path.AsReadOnlySpan()));
         }
 
         public static ReadOnlySpan<char> GetExtension(ReadOnlySpan<char> path)
@@ -135,7 +127,7 @@ namespace System.IO
                     if (i != length - 1)
                         return path.Slice(i, length - i);
                     else
-                        return new ReadOnlySpan<char>();
+                        return ReadOnlySpan<char>.Empty;
                 }
                 if (PathInternal.IsDirectoryOrVolumeSeparator(ch))
                     break;

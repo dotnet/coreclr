@@ -174,57 +174,7 @@ namespace System.IO
         /// </summary>
         internal unsafe static int GetRootLength(string path)
         {
-            fixed (char* value = path)
-            {
-                return GetRootLength(value, path.Length);
-            }
-        }
-
-        private unsafe static int GetRootLength(char* path, int pathLength)
-        {
-            int i = 0;
-            int volumeSeparatorLength = 2;  // Length to the colon "C:"
-            int uncRootLength = 2;          // Length to the start of the server name "\\"
-
-            bool extendedSyntax = StartsWithOrdinal(path, pathLength, ExtendedPathPrefix);
-            bool extendedUncSyntax = StartsWithOrdinal(path, pathLength, UncExtendedPathPrefix);
-            if (extendedSyntax)
-            {
-                // Shift the position we look for the root from to account for the extended prefix
-                if (extendedUncSyntax)
-                {
-                    // "\\" -> "\\?\UNC\"
-                    uncRootLength = UncExtendedPathPrefix.Length;
-                }
-                else
-                {
-                    // "C:" -> "\\?\C:"
-                    volumeSeparatorLength += ExtendedPathPrefix.Length;
-                }
-            }
-
-            if ((!extendedSyntax || extendedUncSyntax) && pathLength > 0 && IsDirectorySeparator(path[0]))
-            {
-                // UNC or simple rooted path (e.g. "\foo", NOT "\\?\C:\foo")
-
-                i = 1; //  Drive rooted (\foo) is one character
-                if (extendedUncSyntax || (pathLength > 1 && IsDirectorySeparator(path[1])))
-                {
-                    // UNC (\\?\UNC\ or \\), scan past the next two directory separators at most
-                    // (e.g. to \\?\UNC\Server\Share or \\Server\Share\)
-                    i = uncRootLength;
-                    int n = 2; // Maximum separators to skip
-                    while (i < pathLength && (!IsDirectorySeparator(path[i]) || --n > 0)) i++;
-                }
-            }
-            else if (pathLength >= volumeSeparatorLength && path[volumeSeparatorLength - 1] == VolumeSeparatorChar)
-            {
-                // Path is at least longer than where we expect a colon, and has a colon (\\?\A:, A:)
-                // If the colon is followed by a directory separator, move past it
-                i = volumeSeparatorLength;
-                if (pathLength >= volumeSeparatorLength + 1 && IsDirectorySeparator(path[volumeSeparatorLength])) i++;
-            }
-            return i;
+            return GetRootLength(path.AsReadOnlySpan());
         }
 
         internal unsafe static int GetRootLength(ReadOnlySpan<char> path)
@@ -275,16 +225,6 @@ namespace System.IO
                     i++;
             }
             return i;
-        }
-
-        private unsafe static bool StartsWithOrdinal(char* source, int sourceLength, string value)
-        {
-            if (sourceLength < value.Length) return false;
-            for (int i = 0; i < value.Length; i++)
-            {
-                if (value[i] != source[i]) return false;
-            }
-            return true;
         }
 
         private unsafe static bool StartsWithOrdinal(ReadOnlySpan<char> source, int sourceLength, string value)
@@ -403,14 +343,16 @@ namespace System.IO
         /// </remarks>
         internal static string NormalizeDirectorySeparators(string path)
         {
-            if (string.IsNullOrEmpty(path)) return path;
+            if (string.IsNullOrEmpty(path))
+                return path;
 
             return new string(NormalizeDirectorySeparators(path.AsReadOnlySpan()));
         }
 
         internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
         {
-            if (path.IsEmpty) return path;
+            if (path.IsEmpty)
+                return path;
 
             char current;
             int start = PathStartSkip(path);
@@ -433,10 +375,11 @@ namespace System.IO
                     }
                 }
 
-                if (normalized) return path;
+                if (normalized)
+                    return path;
             }
 
-            Span<char> result = new char[path.Length];
+            Span<char> result = Span<char>.Empty;
             ValueStringBuilder sb = new ValueStringBuilder(result);
             
             if (IsDirectorySeparator(path[start]))

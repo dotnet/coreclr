@@ -47,36 +47,7 @@ namespace System.IO
         {
             if (string.IsNullOrEmpty(path)) return path;
 
-            // Make a pass to see if we need to normalize so we can potentially skip allocating
-            bool normalized = true;
-
-            for (int i = 0; i < path.Length; i++)
-            {
-                if (IsDirectorySeparator(path[i])
-                    && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
-                {
-                    normalized = false;
-                    break;
-                }
-            }
-
-            if (normalized) return path;
-
-            StringBuilder builder = new StringBuilder(path.Length);
-
-            for (int i = 0; i < path.Length; i++)
-            {
-                char current = path[i];
-
-                // Skip if we have another separator following
-                if (IsDirectorySeparator(current)
-                    && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
-                    continue;
-
-                builder.Append(current);
-            }
-
-            return builder.ToString();
+            return new string(NormalizeDirectorySeparators(path.AsReadOnlySpan()));
         }
 
         internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
@@ -98,7 +69,7 @@ namespace System.IO
 
             if (normalized) return path;
 
-            Span<char> result = new char[path.Length];
+            Span<char> result = Span<char>.Empty;
             ValueStringBuilder sb = new ValueStringBuilder(result);
 
             for (int i = 0; i < path.Length; i++)
