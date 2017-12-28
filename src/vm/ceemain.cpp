@@ -2037,8 +2037,6 @@ BOOL IsThreadInSTA()
 }
 #endif
 
-BOOL g_fWeOwnProcess = FALSE;
-
 static LONG s_ActiveShutdownThreadCount = 0;
 
 // ---------------------------------------------------------------------------
@@ -2169,7 +2167,7 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
     }
 
 #ifdef FEATURE_COMINTEROP
-    if (!fIsDllUnloading && IsThreadInSTA())
+    if (!fIsDllUnloading && IsThreadInSTA() && CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_FinalizeOnShutdown))
     {
         // #STAShutDown
         // 
