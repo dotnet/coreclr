@@ -110,7 +110,7 @@ namespace System.IO
                     && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
                     continue;
 
-                sb.append(current);
+                sb.Append(current);
             }
 
             return result;
@@ -156,6 +156,11 @@ namespace System.IO
         internal static bool IsEffectivelyEmpty(string path)
         {
             return string.IsNullOrEmpty(path);
+        }
+
+        internal static bool IsEffectivelyEmpty(ReadOnlySpan<char> path)
+        {
+            return path.IsEmpty;
         }
     }
 }

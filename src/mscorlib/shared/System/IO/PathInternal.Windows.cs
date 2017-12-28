@@ -227,8 +227,9 @@ namespace System.IO
             return i;
         }
 
-        internal unsafe static int GetRootLength(ReadOnlySpan<char> path, int pathLength)
+        internal unsafe static int GetRootLength(ReadOnlySpan<char> path)
         {
+            int pathLength = path.Length;
             int i = 0;
             int volumeSeparatorLength = 2;  // Length to the colon "C:"
             int uncRootLength = 2;          // Length to the start of the server name "\\"
