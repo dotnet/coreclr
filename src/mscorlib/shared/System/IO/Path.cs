@@ -558,7 +558,7 @@ namespace System.IO
                     }
 
                     // Skip this character and the next if it's referring to the current directory,
-                    // e.g. "parent/./child" =? "parent/child"
+                    // e.g. "parent/./child" => "parent/child"
                     if ((i + 2 == path.Length || PathInternal.IsDirectorySeparator(path[i + 2])) &&
                         path[i + 1] == '.')
                     {
