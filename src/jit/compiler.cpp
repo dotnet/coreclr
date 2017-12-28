@@ -48,6 +48,8 @@ bool                Compiler::s_pAltJitExcludeAssembliesListInitialized = false;
 AssemblyNamesList2* Compiler::s_pAltJitExcludeAssembliesList            = nullptr;
 #endif // ALT_JIT
 
+// dummy
+
 /*****************************************************************************
  *
  *  Little helpers to grab the current cycle counter value; this is done
