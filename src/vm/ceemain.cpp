@@ -2074,15 +2074,8 @@ DWORD WINAPI EEShutDownProcForSTAThread(LPVOID lpParameter)
     {
         action = eRudeExitProcess;
     }
-    UINT exitCode;
-    if (g_fWeOwnProcess)
-    {
-        exitCode = GetLatchedExitCode();
-    }
-    else
-    {
-        exitCode = HOST_E_EXITPROCESS_TIMEOUT;
-    }
+
+    UINT exitCode = GetLatchedExitCode();
     EEPolicy::HandleExitProcessFromEscalation(action, exitCode);
 
     return 0;
