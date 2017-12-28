@@ -172,12 +172,12 @@ namespace System.IO
         /// <summary>
         /// Gets the length of the root of the path (drive, share, etc.).
         /// </summary>
-        internal unsafe static int GetRootLength(string path)
+        internal static int GetRootLength(string path)
         {
             return GetRootLength(path.AsReadOnlySpan());
         }
 
-        internal unsafe static int GetRootLength(ReadOnlySpan<char> path)
+        internal static int GetRootLength(ReadOnlySpan<char> path)
         {
             int pathLength = path.Length;
             int i = 0;
@@ -227,7 +227,7 @@ namespace System.IO
             return i;
         }
 
-        private unsafe static bool StartsWithOrdinal(ReadOnlySpan<char> source, int sourceLength, string value)
+        private static bool StartsWithOrdinal(ReadOnlySpan<char> source, int sourceLength, string value)
         {
             if (sourceLength < value.Length)
                 return false;
@@ -380,7 +380,7 @@ namespace System.IO
             }
 
             Span<char> result = Span<char>.Empty;
-            ValueStringBuilder sb = new ValueStringBuilder(result);
+            ValueStringBuilder sb = new ValueStringBuilder(result, path.Length);
             
             if (IsDirectorySeparator(path[start]))
             {

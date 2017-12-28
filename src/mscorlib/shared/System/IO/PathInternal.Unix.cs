@@ -70,7 +70,7 @@ namespace System.IO
             if (normalized) return path;
 
             Span<char> result = Span<char>.Empty;
-            ValueStringBuilder sb = new ValueStringBuilder(result);
+            ValueStringBuilder sb = new ValueStringBuilder(result, path.Length);
 
             for (int i = 0; i < path.Length; i++)
             {
