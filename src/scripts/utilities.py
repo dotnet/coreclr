@@ -2,13 +2,15 @@ from filecmp import dircmp
 from hashlib import sha256
 from io import StringIO
 import shutil
+import sys
 import os
 
 class WrappedStringIO(StringIO):
     """A wrapper around StringIO to allow writing str objects"""
     def write(self, s):
-        if isinstance(s, str):
-            s = unicode(s)
+        if sys.version_info < (3, 0, 0):
+            if isinstance(s, str):
+                s = unicode(s)
         super(WrappedStringIO, self).write(s)
 
 class UpdateFileWriter:
@@ -39,13 +41,13 @@ class UpdateFileWriter:
 
             try:
                 with open(self.filename, 'r') as fstream:
-                    cur_hash.update(fstream.read())
+                    cur_hash.update(fstream.read().encode('utf-8'))
                 file_found = True
             except IOError:
                 file_found = False
 
             if file_found:
-                new_hash.update(new_content)
+                new_hash.update(new_content.encode('utf-8'))
                 update = new_hash.digest() != cur_hash.digest()
             else:
                 update = True
