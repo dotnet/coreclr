@@ -501,7 +501,7 @@ namespace System.Globalization
                     return false;
                 }
 
-                throw new OverflowException(SR.Format(SR.GetResourceString(nameof(SR.Overflow_TimeSpanElementTooLarge)), new string(_originalTimeSpanString)));
+                throw new OverflowException(SR.Format(SR.Overflow_TimeSpanElementTooLarge, new string(_originalTimeSpanString)));
             }
 
             internal bool SetBadTimeSpanFailure()
@@ -511,7 +511,7 @@ namespace System.Globalization
                     return false;
                 }
 
-                throw new FormatException(SR.Format(SR.GetResourceString(nameof(SR.Format_BadTimeSpan)), new string(_originalTimeSpanString)));
+                throw new FormatException(SR.Format(SR.Format_BadTimeSpan, new string(_originalTimeSpanString)));
             }
 
             internal bool SetBadFormatSpecifierFailure(char? formatSpecifierCharacter = null)
@@ -521,7 +521,7 @@ namespace System.Globalization
                     return false;
                 }
 
-                throw new FormatException(SR.Format(SR.GetResourceString(nameof(SR.Format_BadFormatSpecifier)), formatSpecifierCharacter));
+                throw new FormatException(SR.Format(SR.Format_BadFormatSpecifier, formatSpecifierCharacter));
             }
         }
 
