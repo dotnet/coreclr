@@ -67,8 +67,7 @@ namespace System.Globalization
             None = 0,
             ArgumentNull = 1,
             Format = 2,
-            FormatWithParameter = 3,
-            Overflow = 4,
+            FormatWithParameter = 3
         }
 
         [Flags]
@@ -513,6 +512,16 @@ namespace System.Globalization
                 }
 
                 throw new FormatException(SR.Format(SR.GetResourceString(nameof(SR.Format_BadTimeSpan)), new string(_originalTimeSpanString)));
+            }
+
+            internal bool SetBadFormatSpecifierFailure(char? formatSpecifierCharacter = null)
+            {
+                if (!_throwOnFailure)
+                {
+                    return false;
+                }
+
+                throw new FormatException(SR.Format(SR.GetResourceString(nameof(SR.Format_BadFormatSpecifier)), formatSpecifierCharacter));
             }
         }
 
@@ -1193,7 +1202,7 @@ namespace System.Globalization
         {
             if (format.Length == 0)
             {
-                return result.SetFailure(ParseFailureKind.FormatWithParameter, nameof(SR.Format_BadFormatSpecifier));
+                return result.SetBadFormatSpecifierFailure();
             }
 
             if (format.Length == 1)
@@ -1212,7 +1221,7 @@ namespace System.Globalization
                         return TryParseTimeSpan(input, TimeSpanStandardStyles.Localized | TimeSpanStandardStyles.RequireFull, formatProvider, ref result);
 
                     default:
-                        return result.SetFailure(ParseFailureKind.FormatWithParameter, nameof(SR.Format_BadFormatSpecifier), format[0]);
+                        return result.SetBadFormatSpecifierFailure(format[0]);
                 }
             }
 
@@ -1666,7 +1675,7 @@ namespace System.Globalization
             {
                 if (formats[i] == null || formats[i].Length == 0)
                 {
-                    return result.SetFailure(ParseFailureKind.FormatWithParameter, nameof(SR.Format_BadFormatSpecifier));
+                    return result.SetBadFormatSpecifierFailure();
                 }
 
                 // Create a new non-throwing result each time to ensure the runs are independent.
