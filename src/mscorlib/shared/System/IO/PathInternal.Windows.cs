@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace System.IO
@@ -341,18 +342,10 @@ namespace System.IO
         ///   3. Doesn't play nice with string logic
         ///   4. Isn't a cross-plat friendly concept/behavior
         /// </remarks>
-        internal static string NormalizeDirectorySeparators(string path)
-        {
-            if (string.IsNullOrEmpty(path))
-                return path;
-
-            return new string(NormalizeDirectorySeparators(path.AsReadOnlySpan()));
-        }
-
-        internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
+        internal unsafe static string NormalizeDirectorySeparatorsIfNeccessary(ReadOnlySpan<char> path)
         {
             if (path.IsEmpty)
-                return path;
+                return string.Empty;
 
             char current;
             int start = PathStartSkip(path);
@@ -376,39 +369,44 @@ namespace System.IO
                 }
 
                 if (normalized)
-                    return path;
+                    return null;
             }
 
-            Span<char> result = Span<char>.Empty;
-            ValueStringBuilder sb = new ValueStringBuilder(result, path.Length);
-            
-            if (IsDirectorySeparator(path[start]))
+            fixed (char* f = &MemoryMarshal.GetReference(path))
             {
-                start++;
-                sb.Append(DirectorySeparatorChar);
-            }
-
-            for (int i = start; i < path.Length; i++)
-            {
-                current = path[i];
-
-                // If we have a separator
-                if (IsDirectorySeparator(current))
+                return string.Create(path.Length, (Path: (IntPtr)f, Start: start, PathLength: path.Length), (dst, state) =>
                 {
-                    // If the next is a separator, skip adding this
-                    if (i + 1 < path.Length && IsDirectorySeparator(path[i + 1]))
+                    int i = state.Start;
+                    int j = 0;
+
+                    ReadOnlySpan<char> temp = new Span<char>((char*)state.Path, state.PathLength);
+
+                    if (IsDirectorySeparator(temp[state.Start]))
                     {
-                        continue;
+                        i++;
+                        dst[j++] = DirectorySeparatorChar;
                     }
 
-                    // Ensure it is the primary separator
-                    current = DirectorySeparatorChar;
-                }
+                    for (; i < temp.Length; i++)
+                    {
+                        current = temp[i];
 
-                sb.Append(current);
+                        // If we have a separator
+                        if (IsDirectorySeparator(current))
+                        {
+                            // If the next is a separator, skip adding this
+                            if (i + 1 < temp.Length && IsDirectorySeparator(temp[i + 1]))
+                            {
+                                continue;
+                            }
+
+                            // Ensure it is the primary separator
+                            current = DirectorySeparatorChar;
+                        }
+                        dst[j++] = current;
+                    }
+                });
             }
-
-            return result;
         }
 
         /// <summary>

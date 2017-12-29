@@ -21,14 +21,6 @@ namespace System.Text
             _pos = 0;
         }
 
-        public ValueStringBuilder(Span<char> initialBuffer, int capacity)
-        {
-            _arrayToReturnToPool = null;
-            _chars = initialBuffer;
-            _pos = 0;
-            Grow(capacity);
-        }
-
         public int Length => _pos;
 
         public override string ToString()

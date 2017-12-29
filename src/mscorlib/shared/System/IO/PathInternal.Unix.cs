@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Text;
+using System.Runtime.InteropServices;
 
 namespace System.IO
 {
@@ -43,16 +44,10 @@ namespace System.IO
         /// <summary>
         /// Normalize separators in the given path. Compresses forward slash runs.
         /// </summary>
-        internal static string NormalizeDirectorySeparators(string path)
+        internal unsafe static string NormalizeDirectorySeparatorsIfNeccessary(ReadOnlySpan<char> path)
         {
-            if (string.IsNullOrEmpty(path)) return path;
-
-            return new string(NormalizeDirectorySeparators(path.AsReadOnlySpan()));
-        }
-
-        internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
-        {
-            if (path.IsEmpty) return path;
+            if (path.IsEmpty)
+                return string.Empty;
 
             // Make a pass to see if we need to normalize so we can potentially skip allocating
             bool normalized = true;
@@ -67,24 +62,28 @@ namespace System.IO
                 }
             }
 
-            if (normalized) return path;
+            if (normalized)
+                return null;
 
-            Span<char> result = Span<char>.Empty;
-            ValueStringBuilder sb = new ValueStringBuilder(result, path.Length);
-
-            for (int i = 0; i < path.Length; i++)
+            fixed (char* f = &MemoryMarshal.GetReference(path))
             {
-                char current = path[i];
+                return string.Create(path.Length, (Path: (IntPtr)f, PathLength: path.Length), (dst, state) =>
+                {
+                    ReadOnlySpan<char> temp = new Span<char>((char*)state.Path, state.PathLength);
 
-                // Skip if we have another separator following
-                if (IsDirectorySeparator(current)
-                    && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
-                    continue;
+                    for (i = 0; i < temp.Length; i++)
+                    {
+                        char current = temp[i];
 
-                sb.Append(current);
+                        // Skip if we have another separator following
+                        if (IsDirectorySeparator(current)
+                            && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
+                            continue;
+
+                         dst[j++] = current;
+                    }
+                });
             }
-
-            return result;
         }
         
         /// <summary>

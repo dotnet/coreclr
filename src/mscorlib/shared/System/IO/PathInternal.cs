@@ -140,5 +140,20 @@ namespace System.IO
                 searchPattern = searchPattern.Substring(index + 2);
             }
         }
+
+        internal static string NormalizeDirectorySeparators(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return path;
+
+            string result = NormalizeDirectorySeparatorsIfNeccessary(path);
+            return result != null ? result : path;
+        }
+
+        internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
+        {
+            string result = NormalizeDirectorySeparatorsIfNeccessary(path);
+            return string.IsNullOrEmpty(result) ? ReadOnlySpan<char>.Empty : result.AsReadOnlySpan();
+        }
     }
 }
