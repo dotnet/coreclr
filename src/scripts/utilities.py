@@ -1,3 +1,10 @@
+﻿##
+## Licensed to the .NET Foundation under one or more agreements.
+## The .NET Foundation licenses this file to you under the MIT license.
+## See the LICENSE file in the project root for more information.
+##
+##  This file provides utility functions to the adjacent python scripts
+
 from filecmp import dircmp
 from hashlib import sha256
 from io import StringIO
