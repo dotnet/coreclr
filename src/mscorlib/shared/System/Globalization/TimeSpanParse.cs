@@ -62,14 +62,6 @@ namespace System.Globalization
         private const int MaxSeconds = 59;
         private const int MaxFraction = 9999999;
 
-        private enum ParseFailureKind : byte
-        {
-            None = 0,
-            ArgumentNull = 1,
-            Format = 2,
-            FormatWithParameter = 3
-        }
-
         [Flags]
         private enum TimeSpanStandardStyles : byte
         {
@@ -471,27 +463,25 @@ namespace System.Globalization
                 _originalTimeSpanString = originalTimeSpanString;
             }
 
-            internal bool SetFailure(ParseFailureKind kind, string resourceKey, object messageArgument = null, string argumentName = null)
+            internal bool SetFailure(string resourceKey, object messageArgument = null)
             {
                 if (!_throwOnFailure)
                 {
                     return false;
                 }
 
-                string message = SR.GetResourceString(resourceKey);
-                switch (kind)
+                throw new FormatException(SR.Format(SR.GetResourceString(resourceKey), messageArgument));
+            }
+
+            internal bool SetArgumentNullFailure(string argumentName)
+            {
+                if (!_throwOnFailure)
                 {
-                    case ParseFailureKind.ArgumentNull:
-                        Debug.Assert(argumentName != null);
-                        throw new ArgumentNullException(argumentName, message);
-
-                    case ParseFailureKind.FormatWithParameter:
-                        throw new FormatException(SR.Format(message, messageArgument));
-
-                    default:
-                        Debug.Assert(kind == ParseFailureKind.Format, $"Unexpected failure {kind}");
-                        throw new FormatException(message);
+                    return false;
                 }
+
+                Debug.Assert(argumentName != null);
+                throw new ArgumentNullException(argumentName, SR.ArgumentNull_String);
             }
 
             internal bool SetOverflowFailure()
@@ -1258,7 +1248,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 2 || seenHH || !ParseExactDigits(ref tokenizer, tokenLen, out hh))
                         {
-                            return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                            return result.SetFailure(nameof(SR.Format_InvalidString));
                         }
                         seenHH = true;
                         break;
@@ -1267,7 +1257,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 2 || seenMM || !ParseExactDigits(ref tokenizer, tokenLen, out mm))
                         {
-                            return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                            return result.SetFailure(nameof(SR.Format_InvalidString));
                         }
                         seenMM = true;
                         break;
@@ -1276,7 +1266,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 2 || seenSS || !ParseExactDigits(ref tokenizer, tokenLen, out ss))
                         {
-                            return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                            return result.SetFailure(nameof(SR.Format_InvalidString));
                         }
                         seenSS = true;
                         break;
@@ -1285,7 +1275,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > DateTimeFormat.MaxSecondsFractionDigits || seenFF || !ParseExactDigits(ref tokenizer, tokenLen, tokenLen, out leadingZeroes, out ff))
                         {
-                            return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                            return result.SetFailure(nameof(SR.Format_InvalidString));
                         }
                         seenFF = true;
                         break;
@@ -1294,7 +1284,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > DateTimeFormat.MaxSecondsFractionDigits || seenFF)
                         {
-                            return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                            return result.SetFailure(nameof(SR.Format_InvalidString));
                         }
                         ParseExactDigits(ref tokenizer, tokenLen, tokenLen, out leadingZeroes, out ff);
                         seenFF = true;
@@ -1305,7 +1295,7 @@ namespace System.Globalization
                         int tmp = 0;
                         if (tokenLen > 8 || seenDD || !ParseExactDigits(ref tokenizer, (tokenLen < 2) ? 1 : tokenLen, (tokenLen < 2) ? 8 : tokenLen, out tmp, out dd))
                         {
-                            return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                            return result.SetFailure(nameof(SR.Format_InvalidString));
                         }
                         seenDD = true;
                         break;
@@ -1316,12 +1306,12 @@ namespace System.Globalization
                         if (!DateTimeParse.TryParseQuoteString(format, i, enquotedString, out tokenLen))
                         {
                             StringBuilderCache.Release(enquotedString);
-                            return result.SetFailure(ParseFailureKind.FormatWithParameter, nameof(SR.Format_BadQuote), ch);
+                            return result.SetFailure(nameof(SR.Format_BadQuote), ch);
                         }
                         if (!ParseExactLiteral(ref tokenizer, enquotedString))
                         {
                             StringBuilderCache.Release(enquotedString);
-                            return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                            return result.SetFailure(nameof(SR.Format_InvalidString));
                         }
                         StringBuilderCache.Release(enquotedString);
                         break;
@@ -1343,7 +1333,7 @@ namespace System.Globalization
                         {
                             // This means that '%' is at the end of the format string or
                             // "%%" appears in the format string.
-                            return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                            return result.SetFailure(nameof(SR.Format_InvalidString));
                         }
 
                     case '\\':
@@ -1358,12 +1348,12 @@ namespace System.Globalization
                         else
                         {
                             // This means that '\' is at the end of the format string or the literal match failed.
-                            return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                            return result.SetFailure(nameof(SR.Format_InvalidString));
                         }
                         break;
 
                     default:
-                        return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_InvalidString));
+                        return result.SetFailure(nameof(SR.Format_InvalidString));
                 }
 
                 i += tokenLen;
@@ -1656,7 +1646,7 @@ namespace System.Globalization
         {
             if (formats == null)
             {
-                return result.SetFailure(ParseFailureKind.ArgumentNull, nameof(SR.ArgumentNull_String), argumentName: nameof(formats));
+                return result.SetArgumentNullFailure(nameof(formats));
             }
 
             if (input.Length == 0)
@@ -1666,7 +1656,7 @@ namespace System.Globalization
 
             if (formats.Length == 0)
             {
-                return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_NoFormatSpecifier));
+                return result.SetFailure(nameof(SR.Format_NoFormatSpecifier));
             }
 
             // Do a loop through the provided formats and see if we can parse succesfully in
