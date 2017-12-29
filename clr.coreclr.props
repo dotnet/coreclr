@@ -4,6 +4,7 @@
     <FeatureICastable>true</FeatureICastable>
     <FeatureManagedEtwChannels>true</FeatureManagedEtwChannels>
     <FeatureManagedEtw>true</FeatureManagedEtw>
+    <FeaturePerfTracing>true</FeaturePerfTracing>
 
     <ProfilingSupportedBuild>true</ProfilingSupportedBuild>
   </PropertyGroup>
