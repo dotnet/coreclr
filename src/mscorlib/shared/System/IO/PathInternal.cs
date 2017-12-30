@@ -144,7 +144,7 @@ namespace System.IO
         internal static string NormalizeDirectorySeparators(string path)
         {
             if (path == null)
-                return path
+                return path;
 
             return NormalizeDirectorySeparatorsIfNecessary(path) ?? path;
         }
