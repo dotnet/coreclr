@@ -146,14 +146,13 @@ namespace System.IO
             if (string.IsNullOrEmpty(path))
                 return path;
 
-            string result = NormalizeDirectorySeparatorsIfNeccessary(path);
-            return result != null ? result : path;
+            return NormalizeDirectorySeparatorsIfNeccessary(path) ?? path;
         }
 
         internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
         {
             string result = NormalizeDirectorySeparatorsIfNeccessary(path);
-            return string.IsNullOrEmpty(result) ? ReadOnlySpan<char>.Empty : result.AsReadOnlySpan();
+            return result != null  ? path : result.AsReadOnlySpan();
         }
     }
 }

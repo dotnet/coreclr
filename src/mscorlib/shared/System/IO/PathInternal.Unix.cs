@@ -71,7 +71,7 @@ namespace System.IO
                 {
                     ReadOnlySpan<char> temp = new Span<char>((char*)state.Path, state.PathLength);
 
-                    for (i = 0; i < temp.Length; i++)
+                    for (int i = 0; i < temp.Length; i++)
                     {
                         char current = temp[i];
 
