@@ -141,18 +141,12 @@ namespace System.IO
             }
         }
 
-        internal static string NormalizeDirectorySeparators(string path)
-        {
-            if (string.IsNullOrEmpty(path))
-                return path;
-
-            return NormalizeDirectorySeparatorsIfNeccessary(path) ?? path;
-        }
+        internal static string NormalizeDirectorySeparators(string path) => string.IsNullOrEmpty(path) ? path : NormalizeDirectorySeparatorsIfNeccessary(path) ?? path;
 
         internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
         {
             string result = NormalizeDirectorySeparatorsIfNeccessary(path);
-            return result != null  ? path : result.AsReadOnlySpan();
+            return result != null ? path : result.AsReadOnlySpan();
         }
     }
 }
