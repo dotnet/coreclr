@@ -126,37 +126,41 @@ namespace System
             return result;
         }
 
+        public static int LastIndexOf(this ReadOnlySpan<char> source, char value)
+        {
+            if (source.Length == 0)
+                return -1;
+
+            for (int i = source.Length; i >= 0; i--)
+            {
+                if (source[i] == value)
+                    return i;
+            }
+            return -1;
+        }
+
+        public static int LastIndexOf(this ReadOnlySpan<char> source, char value, int startIndex)
+        {
+            if (startIndex < 0 || startIndex >= source.Length)
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+
+            return LastIndexOf(source.Slice(0 , startIndex + 1), value);
+        }
+
         // Returns the index of the last occurrence of a specified character in the current instance.
         // The search starts at startIndex and runs backwards to startIndex - count + 1.
         // The character at position startIndex is included in the search.  startIndex is the larger
         // index within the string.
         //
-        public static int LastIndexOf(this ReadOnlySpan<char> source, char value)
-        {
-            return LastIndexOf(source, value, source.Length - 1, source.Length);
-        }
-
-        public static int LastIndexOf(this ReadOnlySpan<char> source, char value, int startIndex)
-        {
-            return LastIndexOf(source, value, startIndex, startIndex + 1);
-        }
-
         public static int LastIndexOf(this ReadOnlySpan<char> source, char value, int startIndex, int count)
         {
-            if (source.Length == 0)
-                return -1;
-
             if (startIndex < 0 || startIndex >= source.Length)
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
 
             if (count < 0 || count - 1 > startIndex)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            for (int i = startIndex; i >= startIndex - count + 1; i--)
-            {
-                if (source[i] == value) return i;
-            }
-            return -1;
+            return LastIndexOf(source.Slice(startIndex - count + 1, count), value);
         }        
     }
 }

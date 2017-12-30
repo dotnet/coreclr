@@ -222,7 +222,7 @@ namespace System.IO
         {
             if (path != null)
             {
-                HasExtension(path.AsReadOnlySpan());
+                return HasExtension(path.AsReadOnlySpan());
             }
             return false;
         }
