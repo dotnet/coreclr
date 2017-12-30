@@ -342,7 +342,7 @@ namespace System.IO
         ///   3. Doesn't play nice with string logic
         ///   4. Isn't a cross-plat friendly concept/behavior
         /// </remarks>
-        internal unsafe static string NormalizeDirectorySeparatorsIfNeccessary(ReadOnlySpan<char> path)
+        internal unsafe static string NormalizeDirectorySeparatorsIfNecessary(ReadOnlySpan<char> path)
         {
             if (path.IsEmpty)
                 return string.Empty;

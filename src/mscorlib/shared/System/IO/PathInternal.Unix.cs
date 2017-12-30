@@ -44,7 +44,7 @@ namespace System.IO
         /// <summary>
         /// Normalize separators in the given path. Compresses forward slash runs.
         /// </summary>
-        internal unsafe static string NormalizeDirectorySeparatorsIfNeccessary(ReadOnlySpan<char> path)
+        internal unsafe static string NormalizeDirectorySeparatorsIfNecessary(ReadOnlySpan<char> path)
         {
             if (path.IsEmpty)
                 return string.Empty;
