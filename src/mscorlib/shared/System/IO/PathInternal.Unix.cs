@@ -69,6 +69,7 @@ namespace System.IO
             {
                 return string.Create(path.Length, (Path: (IntPtr)f, PathLength: path.Length), (dst, state) =>
                 {
+                    int j = 0;
                     ReadOnlySpan<char> temp = new Span<char>((char*)state.Path, state.PathLength);
 
                     for (int i = 0; i < temp.Length; i++)
@@ -77,10 +78,10 @@ namespace System.IO
 
                         // Skip if we have another separator following
                         if (IsDirectorySeparator(current)
-                            && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
+                            && (i + 1 < temp.Length && IsDirectorySeparator(temp[i + 1])))
                             continue;
 
-                         dst[j++] = current;
+                        dst[j++] = current;
                     }
                 });
             }
