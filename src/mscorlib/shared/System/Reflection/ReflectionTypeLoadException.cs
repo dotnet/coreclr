@@ -40,10 +40,29 @@ namespace System.Reflection
             info.AddValue("Exceptions", LoaderExceptions, typeof(Exception[]));
         }
 
-        /// <summary>
-        /// Creates and returns a string representation of the current <see cref="AggregateException"/>.
-        /// </summary>
-        /// <returns>A string representation of the current exception.</returns>
+        public override string Message
+        {
+            get
+            {
+                if (LoaderExceptions.Length == 0)
+                {
+                    return base.Message;
+                }
+
+                StringBuilder sb = StringBuilderCache.Acquire();
+                sb.Append(base.Message);
+                sb.Append(' ');
+                foreach (Exception e in LoaderExceptions)
+                {
+                    sb.Append('(');
+                    sb.Append(e.Message);
+                    sb.Append(") ");
+                }
+                sb.Length -= 1;
+                return StringBuilderCache.GetStringAndRelease(sb);
+            }
+        }
+
         public override string ToString()
         {
             StringBuilder text = new StringBuilder();
