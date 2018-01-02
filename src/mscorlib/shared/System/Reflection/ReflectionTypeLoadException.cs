@@ -47,7 +47,7 @@ namespace System.Reflection
         public override string ToString()
         {
             StringBuilder text = new StringBuilder();
-            text.AppendLine(SR.ReflectionTypeLoad_LoadFailed.ToString());
+            text.AppendLine(SR.ReflectionTypeLoad_LoadFailed);
 
             foreach (Exception e in LoaderExceptions)
             {
