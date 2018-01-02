@@ -3286,6 +3286,10 @@
   <data name="ReflectionTypeLoad_LoadFailed" xml:space="preserve">
     <value>Unable to load one or more of the requested types. Retrieve the LoaderExceptions property for more information.</value>
   </data>
+  <data name="ReflectionTypeLoad_InnerException" xml:space="preserve">
+    <value>(Inner Exception #{0}) </value>
+    <comment>This text is prepended to each inner exception description during reflection type load exception formatting</comment>
+  </data>
   <data name="Remoting_AppDomainUnloaded_ThreadUnwound" xml:space="preserve">
     <value>The application domain in which the thread was running has been unloaded.</value>
   </data>

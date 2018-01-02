@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Globalization;
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace System.Reflection
 {
@@ -37,6 +39,28 @@ namespace System.Reflection
             base.GetObjectData(info, context);
             info.AddValue("Types", null, typeof(Type[]));
             info.AddValue("Exceptions", LoaderExceptions, typeof(Exception[]));
+        }
+
+        /// <summary>
+        /// Creates and returns a string representation of the current <see cref="AggregateException"/>.
+        /// </summary>
+        /// <returns>A string representation of the current exception.</returns>
+        public override string ToString()
+        {
+            StringBuilder text = new StringBuilder();
+            text.Append(SR.ReflectionTypeLoad_LoadFailed.ToString());
+
+            for (int i = 0; i < LoaderExceptions.Length; i++)
+            {
+                text.Append(Environment.NewLine);
+                text.Append("---> ");
+                text.Append(string.Format(CultureInfo.InvariantCulture, SR.ReflectionTypeLoad_InnerException, i));
+                text.Append(LoaderExceptions[i].ToString());
+                text.Append("<---");
+                text.Append(Environment.NewLine);
+            }
+
+            return text.ToString();
         }
 
         public Type[] Types { get; }
