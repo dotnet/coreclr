@@ -53,7 +53,6 @@ namespace System.Reflection
             {
                 text.Append(Environment.NewLine);
                 text.Append(LoaderExceptions[i].ToString());
-                text.Append(Environment.NewLine);
             }
 
             return text.ToString();
