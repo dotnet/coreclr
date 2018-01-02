@@ -20,7 +20,7 @@ See github issue [#13153](https://github.com/dotnet/coreclr/issues/13153) for mo
 
 ### ReJIT on ARM
 
-ReJIT optimizations are only available on x86/x64 for now. 
+ReJIT feature is only available on x86/x64 for now. 
 
 ### Any issues we missed?
 
