@@ -47,12 +47,11 @@ namespace System.Reflection
         public override string ToString()
         {
             StringBuilder text = new StringBuilder();
-            text.Append(SR.ReflectionTypeLoad_LoadFailed.ToString());
+            text.AppendLine(SR.ReflectionTypeLoad_LoadFailed.ToString());
 
             for (int i = 0; i < LoaderExceptions.Length; i++)
             {
-                text.Append(Environment.NewLine);
-                text.Append(LoaderExceptions[i].ToString());
+                text.AppendLine(LoaderExceptions[i].ToString());
             }
 
             return text.ToString();
