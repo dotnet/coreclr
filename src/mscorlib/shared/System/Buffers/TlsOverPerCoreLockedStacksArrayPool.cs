@@ -158,7 +158,11 @@ namespace System.Buffers
             }
 
             // Determine with what bucket this array length is associated
+#if !CORERT && !ARM && !ARM64
             int bucketIndex = Lzcnt.IsSupported ? Utilities.SelectBucketIndexIntrinsic(array.Length) : Utilities.SelectBucketIndex(array.Length);
+#else
+            int bucketIndex = Utilities.SelectBucketIndex(array.Length);
+#endif
 
             // If we can tell that the buffer was allocated (or empty), drop it. Otherwise, check if we have space in the pool.
             if (bucketIndex < _buckets.Length)
