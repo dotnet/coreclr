@@ -52,7 +52,6 @@ namespace System.Reflection
             for (int i = 0; i < LoaderExceptions.Length; i++)
             {
                 text.Append(Environment.NewLine);
-                text.Append("\t");
                 text.Append(LoaderExceptions[i].ToString());
                 text.Append(Environment.NewLine);
             }
