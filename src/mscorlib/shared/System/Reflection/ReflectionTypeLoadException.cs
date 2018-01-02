@@ -49,17 +49,15 @@ namespace System.Reflection
                     return base.Message;
                 }
 
-                StringBuilder sb = StringBuilderCache.Acquire();
-                sb.Append(base.Message);
-                sb.Append(' ');
+                StringBuilder text = new StringBuilder();
+                text.AppendLine(base.Message);
                 foreach (Exception e in LoaderExceptions)
                 {
-                    sb.Append('(');
-                    sb.Append(e.Message);
-                    sb.Append(") ");
+                    text.Append('(');
+                    text.Append(e.Message);
+                    text.AppendLine(") ");
                 }
-                sb.Length -= 1;
-                return StringBuilderCache.GetStringAndRelease(sb);
+                return text.ToString();
             }
         }
 
