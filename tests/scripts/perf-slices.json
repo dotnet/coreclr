@@ -1,0 +1,42 @@
+{
+    "slices" : [
+        {
+            "folders" : [
+                "Benchstones"
+            ]
+        },
+        {
+            "folders" : [
+                "BenchmarksGame"
+            ]
+        },
+        {
+            "folders" : [
+                "Bytemark"
+            ]
+        },
+        {
+            "folders" : [
+                "Span"
+            ]
+        },
+        {
+            "folders" : [
+                "Burgers",
+                "Devirtualization",
+                "FractalPerf",
+                "Inlining",
+                "Layout"
+            ]
+        },
+        {
+            "folders" : [
+                "Linq",
+                "Roslyn",
+                "SciMark",
+                "Serialization",
+                "V8"
+            ]
+        }
+    ]
+}
