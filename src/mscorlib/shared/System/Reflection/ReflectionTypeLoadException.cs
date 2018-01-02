@@ -49,9 +49,9 @@ namespace System.Reflection
             StringBuilder text = new StringBuilder();
             text.AppendLine(SR.ReflectionTypeLoad_LoadFailed.ToString());
 
-            for (int i = 0; i < LoaderExceptions.Length; i++)
+            foreach (Exception e in LoaderExceptions)
             {
-                text.AppendLine(LoaderExceptions[i].ToString());
+                text.AppendLine(e.ToString());
             }
 
             return text.ToString();
