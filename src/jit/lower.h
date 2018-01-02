@@ -268,6 +268,7 @@ private:
     // Per tree node member functions
     void LowerStoreIndir(GenTreeIndir* node);
     GenTree* LowerAdd(GenTree* node);
+    GenTree* LowerDivModToHelperCall(GenTreeOp* div);
     bool LowerUnsignedDivOrMod(GenTreeOp* divMod);
     GenTree* LowerConstIntDivOrMod(GenTree* node);
     GenTree* LowerSignedDivOrMod(GenTree* node);

@@ -150,6 +150,12 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_UDIV:
         case GT_UMOD:
+#ifdef USE_HELPERS_FOR_INT_DIV
+            if (node->TypeGet() == TYP_INT)
+            {
+                return LowerDivModToHelperCall(node->AsOp());
+            }
+#endif
             if (!LowerUnsignedDivOrMod(node->AsOp()))
             {
                 ContainCheckDivOrMod(node->AsOp());
@@ -158,6 +164,12 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_DIV:
         case GT_MOD:
+#ifdef USE_HELPERS_FOR_INT_DIV
+            if (node->TypeGet() == TYP_INT)
+            {
+                return LowerDivModToHelperCall(node->AsOp());
+            }
+#endif
             return LowerSignedDivOrMod(node);
 
         case GT_SWITCH:
@@ -4412,6 +4424,66 @@ GenTree* Lowering::LowerAdd(GenTree* node)
 #endif // !_TARGET_ARMARCH_
 
     return nullptr;
+}
+
+GenTree* Lowering::LowerDivModToHelperCall(GenTreeOp* node)
+{
+    assert(node->OperIs(GT_DIV, GT_MOD, GT_UDIV, GT_UMOD));
+    assert(node->TypeGet() == TYP_INT);
+
+    unsigned helper;
+
+    switch (node->OperGet())
+    {
+        case GT_DIV:
+            helper = CORINFO_HELP_DIV;
+            break;
+        case GT_MOD:
+            helper = CORINFO_HELP_MOD;
+            break;
+        case GT_UDIV:
+            helper = CORINFO_HELP_UDIV;
+            break;
+        case GT_UMOD:
+            helper = CORINFO_HELP_UMOD;
+            break;
+        default:
+            unreached();
+    }
+
+    GenTree* arg1 = comp->gtNewZeroConNode(TYP_INT);
+    GenTree* arg2 = comp->gtNewZeroConNode(TYP_INT);
+
+    GenTreeArgList* argList = comp->gtNewArgList(arg1, arg2);
+
+    GenTreeCall* call = comp->gtNewHelperCallNode(helper, TYP_INT, argList)->AsCall();
+    call->gtFlags |= (node->gtFlags & GTF_ALL_EFFECT) | GTF_CALL;
+    call = comp->fgMorphArgs(call);
+    comp->fgCheckArgCnt();
+    BlockRange().InsertAfter(node, LIR::SeqTree(comp, call));
+
+    LIR::Use nodeUse;
+    if (BlockRange().TryGetUse(node, &nodeUse))
+    {
+        nodeUse.ReplaceWith(comp, call);
+    }
+    else
+    {
+        call->SetUnusedValue();
+    }
+
+    LIR::Use argUse;
+    BlockRange().TryGetUse(arg1, &argUse);
+    argUse.ReplaceWith(comp, node->gtGetOp1());
+    BlockRange().TryGetUse(arg2, &argUse);
+    argUse.ReplaceWith(comp, node->gtGetOp2());
+
+    BlockRange().Remove(arg1);
+    BlockRange().Remove(arg2);
+
+    BlockRange().Remove(node);
+
+    return call;
 }
 
 //------------------------------------------------------------------------

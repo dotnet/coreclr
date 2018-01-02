@@ -241,6 +241,12 @@ GenTree* DecomposeLongs::DecomposeNode(GenTree* tree)
             nextNode = DecomposeShift(use);
             break;
 
+        case GT_DIV:
+        case GT_MOD:
+        case GT_UDIV:
+            nextNode = DecomposeToDivMulHelper(use);
+            break;
+
         case GT_ROL:
         case GT_ROR:
             nextNode = DecomposeRotate(use);
@@ -601,7 +607,7 @@ GenTree* DecomposeLongs::DecomposeCast(LIR::Use& use)
         }
         else
         {
-            if (!use.IsDummyUse() && (use.User()->OperGet() == GT_MUL))
+            if (!use.IsDummyUse() && use.User()->OperIs(GT_MUL) && ((use.User()->gtFlags & GTF_MUL_64RSLT) != 0))
             {
                 //
                 // This int->long cast is used by a GT_MUL that will be transformed by DecomposeMul into a
@@ -609,8 +615,6 @@ GenTree* DecomposeLongs::DecomposeCast(LIR::Use& use)
                 // Skip cast decomposition so DecomposeMul doesn't need to bother with dead code removal,
                 // especially in the case of sign extending casts that also introduce new lclvars.
                 //
-
-                assert((use.User()->gtFlags & GTF_MUL_64RSLT) != 0);
 
                 skipDecomposition = true;
             }
@@ -1388,6 +1392,68 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
     }
 }
 
+GenTree* DecomposeLongs::DecomposeToDivMulHelper(LIR::Use& use)
+{
+    assert(use.IsInitialized());
+
+    GenTree* def = use.Def();
+    unsigned helper;
+
+    switch (def->OperGet())
+    {
+        case GT_DIV:
+            helper = CORINFO_HELP_LDIV;
+            break;
+        case GT_MOD:
+            helper = CORINFO_HELP_LMOD;
+            break;
+        case GT_UDIV:
+            helper = CORINFO_HELP_ULDIV;
+            break;
+        case GT_UMOD:
+            helper = CORINFO_HELP_ULMOD;
+            break;
+        case GT_MUL:
+            if (!def->gtOverflow())
+            {
+                helper = CORINFO_HELP_LMUL;
+            }
+            else if (!def->IsUnsigned())
+            {
+                helper = CORINFO_HELP_LMUL_OVF;
+            }
+            else
+            {
+                helper = CORINFO_HELP_ULMUL_OVF;
+            }
+            break;
+        default:
+            unreached();
+    }
+
+    GenTreeArgList* arg2 = new (m_compiler, GT_LIST) GenTreeArgList(def->gtGetOp2());
+    GenTreeArgList* arg1 = new (m_compiler, GT_LIST) GenTreeArgList(def->gtGetOp1(), arg2);
+    GenTreeCall*    call = m_compiler->gtNewHelperCallNode(helper, TYP_LONG, arg1);
+    call->GetReturnTypeDesc()->InitializeLongReturnType(m_compiler);
+    call->fgArgInfo = new (m_compiler, CMK_fgArgInfo) fgArgInfo(m_compiler, call, 2);
+    call->fgArgInfo->AddStkArg(0, arg1->Current(), arg1, 2, 1, false);
+    call->fgArgInfo->AddStkArg(1, arg2->Current(), arg2, 2, 1, false);
+    Range().InsertAfter(def, call);
+
+    if (!use.IsDummyUse())
+    {
+        use.ReplaceWith(m_compiler, call);
+    }
+    else
+    {
+        call->SetUnusedValue();
+    }
+
+    Range().Remove(def);
+
+    return call;
+}
+
 //------------------------------------------------------------------------
 // DecomposeRotate: Decompose GT_ROL and GT_ROR with constant shift amounts. We can
 // inspect the rotate amount and decompose to the appropriate node types, generating
@@ -1551,7 +1617,10 @@ GenTree* DecomposeLongs::DecomposeMul(LIR::Use& use)
     genTreeOps oper = tree->OperGet();
 
     assert(oper == GT_MUL);
-    assert((tree->gtFlags & GTF_MUL_64RSLT) != 0);
+    if ((tree->gtFlags & GTF_MUL_64RSLT) == 0)
+    {
+        return DecomposeToDivMulHelper(use);
+    }
 
     GenTree* op1 = tree->gtGetOp1();
     GenTree* op2 = tree->gtGetOp2();
@@ -1613,10 +1682,11 @@ GenTree* DecomposeLongs::DecomposeUMod(LIR::Use& use)
     GenTree* loOp2 = op2->gtGetOp1();
     GenTree* hiOp2 = op2->gtGetOp2();
 
-    assert(loOp2->OperGet() == GT_CNS_INT);
-    assert(hiOp2->OperGet() == GT_CNS_INT);
-    assert((loOp2->gtIntCon.gtIconVal >= 2) && (loOp2->gtIntCon.gtIconVal <= 0x3fffffff));
-    assert(hiOp2->gtIntCon.gtIconVal == 0);
+    if (!hiOp2->IsIntegralConst(0) || !loOp2->OperIs(GT_CNS_INT) || (loOp2->AsIntCon()->IconValue() < 2) ||
+        (loOp2->AsIntCon()->IconValue() > 0x3fffffff))
+    {
+        return DecomposeToDivMulHelper(use);
+    }
 
     // Get rid of op2's hi part. We don't need it.
     Range().Remove(hiOp2);

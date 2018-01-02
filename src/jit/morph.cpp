@@ -11244,9 +11244,6 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
 
     switch (oper)
     {
-        // Some arithmetic operators need to use a helper call to the EE
-        int helper;
-
         case GT_ASG:
             tree = fgDoNormalizeOnStore(tree);
             /* fgDoNormalizeOnStore can change op2 */
@@ -11436,13 +11433,7 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                 }
                 else if ((tree->gtFlags & GTF_MUL_64RSLT) == 0)
                 {
-                NO_MUL_64RSLT:
-                    if (tree->gtOverflow())
-                        helper = (tree->gtFlags & GTF_UNSIGNED) ? CORINFO_HELP_ULMUL_OVF : CORINFO_HELP_LMUL_OVF;
-                    else
-                        helper = CORINFO_HELP_LMUL;
-
-                    goto USE_HELPER_FOR_ARITH;
+                NO_MUL_64RSLT:;
                 }
                 else
                 {
@@ -11456,23 +11447,6 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             break;
 
         case GT_DIV:
-
-#ifndef _TARGET_64BIT_
-            if (typ == TYP_LONG)
-            {
-                helper = CORINFO_HELP_LDIV;
-                goto USE_HELPER_FOR_ARITH;
-            }
-
-#if USE_HELPERS_FOR_INT_DIV
-            if (typ == TYP_INT)
-            {
-                helper = CORINFO_HELP_DIV;
-                goto USE_HELPER_FOR_ARITH;
-            }
-#endif
-#endif // !_TARGET_64BIT_
-
             if (op2->gtOper == GT_CAST && op2->gtOp.gtOp1->IsCnsIntOrI())
             {
                 op2 = gtFoldExprConst(op2);
@@ -11480,28 +11454,12 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             break;
 
         case GT_UDIV:
-
-#ifndef _TARGET_64BIT_
-            if (typ == TYP_LONG)
-            {
-                helper = CORINFO_HELP_ULDIV;
-                goto USE_HELPER_FOR_ARITH;
-            }
-#if USE_HELPERS_FOR_INT_DIV
-            if (typ == TYP_INT)
-            {
-                helper = CORINFO_HELP_UDIV;
-                goto USE_HELPER_FOR_ARITH;
-            }
-#endif
-#endif // _TARGET_64BIT_
             break;
 
         case GT_MOD:
-
             if (varTypeIsFloating(typ))
             {
-                helper = CORINFO_HELP_DBLREM;
+                int helper = CORINFO_HELP_DBLREM;
                 noway_assert(op2);
                 if (op1->TypeGet() == TYP_FLOAT)
                 {
@@ -11518,64 +11476,41 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                 {
                     tree->gtOp.gtOp2 = op2 = gtNewCastNode(TYP_DOUBLE, op2, false, TYP_DOUBLE);
                 }
-                goto USE_HELPER_FOR_ARITH;
+
+                // We have to morph these arithmetic operations into helper calls
+                // before morphing the arguments (preorder), else the arguments
+                // won't get correct values of fgPtrArgCntCur.
+                // However, try to fold the tree first in case we end up with a
+                // simple node which won't need a helper call at all
+
+                GenTree* oldTree = tree;
+                tree             = gtFoldExpr(tree);
+
+                // Were we able to fold it ?
+                // Note that gtFoldExpr may return a non-leaf even if successful
+                // e.g. for something like "expr / 1" - see also bug #290853
+                if (tree->OperIsLeaf() || (oldTree != tree))
+                {
+                    return (oldTree != tree) ? fgMorphTree(tree) : fgMorphLeaf(tree);
+                }
+
+                // Did we fold it into a comma node with throw?
+                if (tree->OperIs(GT_COMMA))
+                {
+                    noway_assert(fgIsCommaThrow(tree));
+                    return fgMorphTree(tree);
+                }
+
+                return fgMorphIntoHelperCall(tree, helper, gtNewArgList(op1, op2));
             }
 
             // Do not use optimizations (unlike UMOD's idiv optimizing during codegen) for signed mod.
             // A similar optimization for signed mod will not work for a negative perfectly divisible
             // HI-word. To make it correct, we would need to divide without the sign and then flip the
             // result sign after mod. This requires 18 opcodes + flow making it not worthy to inline.
-            goto ASSIGN_HELPER_FOR_MOD;
+            __fallthrough;
 
         case GT_UMOD:
-
-#ifdef _TARGET_ARMARCH_
-//
-// Note for _TARGET_ARMARCH_ we don't have  a remainder instruction, so we don't do this optimization
-//
-#else  // _TARGET_XARCH
-            /* If this is an unsigned long mod with op2 which is a cast to long from a
-               constant int, then don't morph to a call to the helper.  This can be done
-               faster inline using idiv.
-            */
-
-            noway_assert(op2);
-            if ((typ == TYP_LONG) && opts.OptEnabled(CLFLG_CONSTANTFOLD) &&
-                ((tree->gtFlags & GTF_UNSIGNED) == (op1->gtFlags & GTF_UNSIGNED)) &&
-                ((tree->gtFlags & GTF_UNSIGNED) == (op2->gtFlags & GTF_UNSIGNED)))
-            {
-                if (op2->gtOper == GT_CAST && op2->gtCast.CastOp()->gtOper == GT_CNS_INT &&
-                    op2->gtCast.CastOp()->gtIntCon.gtIconVal >= 2 &&
-                    op2->gtCast.CastOp()->gtIntCon.gtIconVal <= 0x3fffffff &&
-                    (tree->gtFlags & GTF_UNSIGNED) == (op2->gtCast.CastOp()->gtFlags & GTF_UNSIGNED))
-                {
-                    tree->gtOp.gtOp2 = op2 = fgMorphCast(op2);
-                    noway_assert(op2->gtOper == GT_CNS_NATIVELONG);
-                }
-
-                if (op2->gtOper == GT_CNS_NATIVELONG && op2->gtIntConCommon.LngValue() >= 2 &&
-                    op2->gtIntConCommon.LngValue() <= 0x3fffffff)
-                {
-                    tree->gtOp.gtOp1 = op1 = fgMorphTree(op1);
-                    noway_assert(op1->TypeGet() == TYP_LONG);
-
-                    // Update flags for op1 morph
-                    tree->gtFlags &= ~GTF_ALL_EFFECT;
-
-                    tree->gtFlags |= (op1->gtFlags & GTF_ALL_EFFECT); // Only update with op1 as op2 is a constant
-
-                    // If op1 is a constant, then do constant folding of the division operator
-                    if (op1->gtOper == GT_CNS_NATIVELONG)
-                    {
-                        tree = gtFoldExpr(tree);
-                    }
-                    return tree;
-                }
-            }
-#endif // _TARGET_XARCH
-
-        ASSIGN_HELPER_FOR_MOD:
-
             // For "val % 1", return 0 if op1 doesn't have any side effects
             // and we are not in the CSE phase, we cannot discard 'tree'
             // because it may contain CSE expressions that we haven't yet examined.
@@ -11592,30 +11527,6 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                     return zeroNode;
                 }
             }
-
-#ifndef _TARGET_64BIT_
-            if (typ == TYP_LONG)
-            {
-                helper = (oper == GT_UMOD) ? CORINFO_HELP_ULMOD : CORINFO_HELP_LMOD;
-                goto USE_HELPER_FOR_ARITH;
-            }
-
-#if USE_HELPERS_FOR_INT_DIV
-            if (typ == TYP_INT)
-            {
-                if (oper == GT_UMOD)
-                {
-                    helper = CORINFO_HELP_UMOD;
-                    goto USE_HELPER_FOR_ARITH;
-                }
-                else if (oper == GT_MOD)
-                {
-                    helper = CORINFO_HELP_MOD;
-                    goto USE_HELPER_FOR_ARITH;
-                }
-            }
-#endif
-#endif // !_TARGET_64BIT_
 
             if (op2->gtOper == GT_CAST && op2->gtOp.gtOp1->IsCnsIntOrI())
             {
@@ -11660,7 +11571,7 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             // the redundant division. If there's no redundant division then
             // nothing is lost, lowering would have done this transform anyway.
 
-            if (!optValnumCSE_phase && ((tree->OperGet() == GT_MOD) && op2->IsIntegralConst()))
+            if (!optValnumCSE_phase && ((tree->OperGet() == GT_MOD) && op2->IsCnsIntOrI()))
             {
                 ssize_t divisorValue    = op2->AsIntCon()->IconValue();
                 size_t  absDivisorValue = (divisorValue == SSIZE_T_MIN) ? static_cast<size_t>(divisorValue)
@@ -11675,38 +11586,6 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             }
 #endif // !_TARGET_ARM64_
             break;
-
-        USE_HELPER_FOR_ARITH:
-        {
-            // TODO: this comment is wrong now, do an appropriate fix.
-            /* We have to morph these arithmetic operations into helper calls
-               before morphing the arguments (preorder), else the arguments
-               won't get correct values of fgPtrArgCntCur.
-               However, try to fold the tree first in case we end up with a
-               simple node which won't need a helper call at all */
-
-            noway_assert(tree->OperIsBinary());
-
-            GenTree* oldTree = tree;
-
-            tree = gtFoldExpr(tree);
-
-            // Were we able to fold it ?
-            // Note that gtFoldExpr may return a non-leaf even if successful
-            // e.g. for something like "expr / 1" - see also bug #290853
-            if (tree->OperIsLeaf() || (oldTree != tree))
-            {
-                return (oldTree != tree) ? fgMorphTree(tree) : fgMorphLeaf(tree);
-            }
-
-            // Did we fold it into a comma node with throw?
-            if (tree->gtOper == GT_COMMA)
-            {
-                noway_assert(fgIsCommaThrow(tree));
-                return fgMorphTree(tree);
-            }
-        }
-            return fgMorphIntoHelperCall(tree, helper, gtNewArgList(op1, op2));
 
         case GT_RETURN:
             // normalize small integer return values
@@ -12755,15 +12634,6 @@ DONE_MORPHING_CHILDREN:
             break;
 
         case GT_MUL:
-
-#ifndef _TARGET_64BIT_
-            if (typ == TYP_LONG)
-            {
-                // This must be GTF_MUL_64RSLT
-                assert(tree->gtIsValid64RsltMul());
-                return tree;
-            }
-#endif // _TARGET_64BIT_
             goto CM_OVF_OP;
 
         case GT_SUB:
