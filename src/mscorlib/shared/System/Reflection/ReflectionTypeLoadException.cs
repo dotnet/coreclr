@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -53,10 +52,8 @@ namespace System.Reflection
             for (int i = 0; i < LoaderExceptions.Length; i++)
             {
                 text.Append(Environment.NewLine);
-                text.Append("---> ");
-                text.Append(string.Format(CultureInfo.InvariantCulture, SR.ReflectionTypeLoad_InnerException, i));
+                text.Append("\t");
                 text.Append(LoaderExceptions[i].ToString());
-                text.Append("<---");
                 text.Append(Environment.NewLine);
             }
 
