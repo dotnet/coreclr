@@ -400,8 +400,10 @@ set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
 set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
 
 REM Find python and set it to the variable PYTHON
-echo import sys; sys.stdout.write(sys.executable) | (py -3 || py -2 || python3 || python2 || python) > %TEMP%\pythonlocation.txt 2> NUL
-set /p PYTHON=<%TEMP%\pythonlocation.txt
+echo | set /p =  import sys; sys.stdout.write(sys.executable) | (py -3 || py -2 || python3 || python2 || python) > %TEMP%\pythonlocation_test.txt 2> NUL
+set /p PYTHON_NO_Q= <%TEMP%\pythonlocation_test.txt
+set q=^"
+set PYTHON=%q%%PYTHON_NO_Q%%q%
 
 if /i "%__BuildNative%"=="1" (
     if NOT DEFINED PYTHON (
