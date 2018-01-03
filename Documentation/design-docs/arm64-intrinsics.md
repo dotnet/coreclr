@@ -80,8 +80,10 @@ NOTE: Exceptions might be where:
 ### Intrinsics & Crossgen
 
 For any intrinsic which may not be supported on all variants of a platform, crossgen method
-compilation must be trapped, so that the JIT is forced to generate optimal platform dependent
-code at runtime.
+compilation should be designed to allow optimal code generation.
+
+Initial implementation will simply trap so that the JIT is forced to generate optimal platform dependent code at
+runtime.  Subsequent implementations may use different approaches.
 
 ## Choice of Arm64 naming conventions
 
@@ -146,8 +148,8 @@ The `All`, `Simd`, and `Fp` classes will together contain the bulk of the `ARM64
 will only add a few instruction so they should be simpler to review.
 
 The `Baseline` `All` `static class` is used to represent any intrinsic which is guaranteed to be implemented on all
-`ARM64` platforms.  This set will include general purpose instructions.  Investigation is needed to determine if
-any of these need intrinsics or whether this is an empty set.
+`ARM64` platforms.  This set will include general purpose instructions.  For example, this would include intrinsics
+such as `LeadingZeroCount` and `LeadingSignCount`.
 
 As further extensions are released, this set of intrinsics will grow.
 
@@ -156,20 +158,50 @@ As further extensions are released, this set of intrinsics will grow.
 Intrinsics will be named to describe functionality.  Names will not correspond to specific named
 assembly instructions.
 
-Where precedent exists within the `System.Runtime.Intrinsics.X86` namespace, identical method names will be
-chosen: `Add`, `Multiply`, `Load`, `Store` ...
+Where precedent exists for common operations within the `System.Runtime.Intrinsics.X86` namespace, identical method
+names will be chosen: `Add`, `Multiply`, `Load`, `Store` ...
+
+Where `ARM` naming convention differs substantially from `XARCH`, `ARM` naming conventions will sometimes be preferred.
+For instance
+
++ `ARM` uses `Replicate` or `Duplicate` rather than X86 `Broadcast`.
++ `ARM` uses `Across` rather than `X86` `Horizontal`.
+
+These will need to reviewed on a case by case basis.
 
 It is also worth noting `System.Runtime.Intrinsics.X86` naming conventions will include the suffix `Scalar` for
 operations which take vector argument(s), but contain an implicit cast(s) to the base type and therefore operate only
 on the first item of the argument vector(s).
 
-### Intinsic Method Argument Types
+### Intinsic Method Argument and Return Types
 
-Intrinsic methods will typically use a standard set of argument types:
+Intrinsic methods will typically use a standard set of argument and return types:
+
 + Integer type: `byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`
 + Floating types: `double`, `single`, `System.Half`
-+ Vector types: Vector128<T>
++ Vector types: `Vector128<T>`, `Vector64<T>`
 + SVE will add new vector types: TBD
++ `Tuple<>` for return types
+
+It is proposed to add the `Vector64<T>` type.  Most `ARM64` instructions support 8 byte and 16 byte forms.  8 byte
+operations can execute faster with less power on some platforms. So adding `Vector64<T>` will allow exposing the full
+flexibility of the instruction set and allow for optimal usage.
+
+Some intrinsics will need to produce multiple results.  The most notable are the structured load operations `LD2`,
+`LD3`, `LD4` ...  For these operations it is proposed that the intrinsic API return a `Tuple<>` of `Vector64<T>` or
+`Vector128<T>`
+
+#### Literal immediates
+
+Some assembly instructions require an immediate encoded directly in the assembly instruction.  These need to be
+constant at JIT time.
+
+To identify these method arguments, propose adding a new `[LiteralConst]` attribute.
+
+If the literal immediates are not constant, the JIT needs to throw an `ArgumentException`.
+
+A compile time exception is not ideal, As this would only be detected at runtime.  However any better solution would
+seem to require language extensions.
 
 ## Intrinsic Interface Documentation
 
@@ -200,38 +232,59 @@ As rough guidelines for order of implementation:
   + This is primarily driven by availability of hardware.  Features released in earlier will be prevalent in
   more hardware.
 + Priorities will be driven by optimization efforts and requests
-  + Priority will be given to intrinsics which are equivalent/similar to those actively used in libraries for other platforms
+  + Priority will be given to intrinsics which are equivalent/similar to those actively used in libraries for other
+  platforms
   + Priority will be given to intrinsics which have already been implemented for other platforms
 
 ### API review
 
 Intrinsics will extend the API of CoreCLR.  They will need to follow standard API review practices.
 
-XArch intrinsics are being added to the NetStandard API https://github.com/dotnet/corefx/issues/24346.  ARM64 intrinsics should be
-treated identically.
+XArch intrinsics are being added to the NetStandard API https://github.com/dotnet/corefx/issues/24346.  ARM64 intrinsics
+should be treated identically.
 
-#### API review of a new intrinsic `static class`
+Each review will identify targeted NetStandard API version where the API will be extended and released.
 
-Review will be facilitated by GitHub Pull requests to amend the Approved API section of this document.
+#### API review of an intrinsic `static class`
 
-A separate GitHub Issue will typically created for the review of each intrinsic `static class`.  This allows design and review team to
-review separately.  This allows review complexity to be kept manageable.  The O(N^2) nature of the review process will be kept to
-reasonable levels and iterations will be finite.
+Given the need to add hundreds or thousands of intrinsics, it will be helpful to review incrementally.
 
-Every effort will be made to completely elaborate all the methods of the intrinsic `static class` for each review.  This will
-help minimize reopening the same classes for review.
+A separate GitHub Issue will typically created for the review of each intrinsic `static class`.
 
-Implementation will be kept separate from from API review.
+When the `static class` exceeds a few dozen methods, it is desirable to break the review into smaller more manageable
+pieces.
+
+The extensive set of ARM64 assembly instructions make reviewing and implementing an exhaustive set a long process.
+To facilitate incremental progress, initial intrinsic API for a given `static class` need not be exhaustive.
 
 ### Partial implementation of intrinsic `static class`
 
-+ `IsSupported` must represent the state of an entire intrinsic `static class`
-+ Once API review is complete and approved, it is acceptable to implement approved methods in any order provided tests are added
-+ The approved API must be completed before the intrinsic `static class` is included in a release
++ `IsSupported` must represent the state of an entire intrinsic `static class` for a given NetStandard API.
++ Once API review is complete and approved, it is acceptable to implement approved methods in any order.
++ The approved API must be completed before the intrinsic `static class` is included in its targeted `CoreFX` /
+`NetStandard` release
 
-### Test coverage
+## Test coverage
 
-As intrinsic support is added test coverage must be extended to provide basic testing
+As intrinsic support is added test coverage must be extended to provide basic testing.
+
+Tests should be added as soon as practical.  CoreCLR Implementation and CoreFX API will need to be merged before tests
+can be merged.
+
+## LSRA changes to allocate contiguous register ranges
+
+Some ARM64 instructions will require allocation of contiguous blocks of registers.  These are likely limited to load and
+store multiple instructions.
+
+It is not clear if this is a new LSRA feature and if it is how much complexity this will introduce into the LSRA.
+
+## ARM ABI Vector64<T> and Vector128<T>
+
+For intrinsic method calls, these vector types will implicitly be treated as pass by vector register.
+
+For other calls, ARM64 ABI conventions must be followed.  For purposes of the ABI calling conventions, these vector
+types will treated as composite struct type containing a contiguous array of `T`.  They will need to follow standard
+struct argument and return passing rules.
 
 ## Half precision floating point
 
@@ -240,25 +293,39 @@ This document will refer to half precision floating point as `Half`.
 + Machine learning and Artificial intelligence often use `Half` type to simplify storage and improve processing time.
 + CoreCLR and `CIL` in general do not have general support for a `Half` type
 + There is an open request to expose `Half` intrinsics
-+ There is an outstanding proposal to add `System.Half` to support this request https://github.com/dotnet/corefx/issues/25702
++ There is an outstanding proposal to add `System.Half` to support this request
+https://github.com/dotnet/corefx/issues/25702
 + Implementation of `Half` features will be adjusted based on
   + Implementation of the `System.Half` proposal
   + Availability of supporting hardware (extensions)
   + General language extensions supporting `Half`
 
-### ARMv8 Half precision support
+*`Half` support is currently outside the scope of the initial design proposal.  It is discussed below only for
+introductory purposes.
 
-ARMv8 baseline support for `Half` is limited.  The following operations are supported
+### ARM64 Half precision support
+
+ARM64 supports two half precision floating point formats
+
++ IEEE-754 compliant.
++ ARM alternative format
+
+The two formats are similar.  IEEE-754 has support for Inifinity and NAN and therefore has a somewhat smaller range.
+IEEE-754 should be preferred.
+
+ARM64 baseline support for `Half` is limited.  The following types of operations are supported
 
 + Loads and Stores
 + Conversion to/from `Float`
 + Widening from `Vector128<Half>` to two `Vector128<Float>`
 + Narrowing from two `Vector128<Float>` to `Vector128<Half>`
 
-Recent extensions add support for
+The optional ARMv8.2-FP16 extension adds support for
 
-+ General operations on `Half` types
-+ Vector operations on `Half` types
++ General operations on IEEE-754 `Half` types
++ Vector operations on IEEE-754 `Half` types
+
+These correspond to the proposed `static class`es `Fp16` and `SimdFp16`
 
 ### `Half` and ARM64 ABI
 
@@ -278,9 +345,11 @@ Test cases must be written and conformance must be demonstrated.
 
 The extension
 
-+ Creates a set of `Z0-Z31` scalable vector registers.  These overlay existing vector registers.  Each scalar vector register has a platform specific length
++ Creates a set of `Z0-Z31` scalable vector registers.  These overlay existing vector registers.  Each scalar vector
+register has a platform specific length
   + Any multiple of 128 bits up to 2048 bits
-+ Creates a new set of `P0-P15` predicate registers.  Each predicate register has a platform specific length which is 1/8th of the scalar vector length.
++ Creates a new set of `P0-P15` predicate registers.  Each predicate register has a platform specific length which is
+1/8th of the scalar vector length.
 + Add an extensive set of instructions including complex load and store operations.
 + Modifies the ARM64 ABI.
 
@@ -288,12 +357,14 @@ Therefore implementation will not be trivial.
 
 + Register allocator will need changes to support predicate allocation
 + SIMD support will face similar issues
-+ Open issue: Should we use `Vector<T>`, `Vector128<t>, Vector256<t>, ... Vector2048<T>`, `SVE<T>` ... in user interface design?
++ Open issue: Should we use `Vector<T>`, `Vector128<t>, Vector256<t>, ... Vector2048<T>`, `SVE<T>` ... in user interface
+design?
   + Use of `Vector128<t>, Vector256<t>, ... Vector2048<T>` is current default proposal.
 Having 16 forms of every API may create issues for framework and client developers.
 However generics may provide some/sufficient relief to make this acceptable.
-  + Use of `Vector<T>` may be preferred if SVE will not be used for `FEATURE_SIMD`
+  + Use of `Vector<T>` may be preferred if SVE will also be used for `FEATURE_SIMD`
   + Use of `SVE<T>` may be preferred if SVE will not be used for `FEATURE_SIMD`
+
 
 Given lack of available hardware and a lack of thorough understanding of the specification:
 
