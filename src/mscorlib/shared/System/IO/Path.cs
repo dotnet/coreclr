@@ -166,7 +166,7 @@ namespace System.IO
             int length = path.Length;
             int offset = PathInternal.FindFileNameIndex(path);
 
-            int end = path.LastIndexOf('.', length - 1, length - offset);
+            int end = path.Slice(offset, length - offset).LastIndexOf('.') + offset;
             return end == -1 ?
                 path.Slice(offset) : // No extension was found
                 path.Slice(offset, end - offset);
