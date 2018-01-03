@@ -59,7 +59,7 @@ namespace System
         {
             return hasValue ? value : defaultValue;
         }
-        
+
         public override bool Equals(object other)
         {
             if (!hasValue) return other == null;
