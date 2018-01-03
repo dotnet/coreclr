@@ -379,7 +379,7 @@ namespace System.IO
                     int i = state.Start;
                     int j = 0;
 
-                    ReadOnlySpan<char> temp = new Span<char>((char*)state.Path, state.PathLength);
+                    ReadOnlySpan<char> temp = new ReadOnlySpan<char>((char*)state.Path, state.PathLength);
 
                     if (IsDirectorySeparator(temp[state.Start]))
                     {

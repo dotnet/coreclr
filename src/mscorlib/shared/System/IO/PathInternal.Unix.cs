@@ -70,7 +70,7 @@ namespace System.IO
                 return string.Create(path.Length, (Path: (IntPtr)f, PathLength: path.Length), (dst, state) =>
                 {
                     int j = 0;
-                    ReadOnlySpan<char> temp = new Span<char>((char*)state.Path, state.PathLength);
+                    ReadOnlySpan<char> temp = new ReadOnlySpan<char>((char*)state.Path, state.PathLength);
 
                     for (int i = 0; i < temp.Length; i++)
                     {
