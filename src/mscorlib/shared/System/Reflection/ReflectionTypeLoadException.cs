@@ -53,9 +53,7 @@ namespace System.Reflection
                 text.AppendLine(base.Message);
                 foreach (Exception e in LoaderExceptions)
                 {
-                    text.Append('(');
-                    text.Append(e.Message);
-                    text.AppendLine(") ");
+                    text.AppendLine(e.Message);
                 }
                 return text.ToString();
             }
