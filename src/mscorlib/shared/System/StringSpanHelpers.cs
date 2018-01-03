@@ -135,7 +135,7 @@ namespace System
             for (int i = source.Length - 1; i >= 0; i--)
             {
                 if (source[i] == value)
-                   return i ;
+                    return i;
             }
 
             return -1;
