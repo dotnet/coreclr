@@ -370,6 +370,7 @@ namespace SoDBench
                     ProcessStartInfo dotnetPublish = new ProcessStartInfo()
                     {
                         FileName = s_dotnetExe.FullName,
+                        // The UserSharedCompiler flag is set to false to prevent hnadles from being held that will later cause deletion of the installed SDK to fail.
                         Arguments = $"publish -c Release --runtime {os} --output {publishDir.FullName} /p:UseSharedCompilation=false",
                         UseShellExecute = false,
                         WorkingDirectory = deploymentSandbox.FullName
