@@ -152,7 +152,7 @@ namespace System.IO
         internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
         {
             string result = NormalizeDirectorySeparatorsIfNecessary(path);
-            return result != null ? path : result.AsReadOnlySpan();
+            return result == null ? path : result.AsReadOnlySpan();
         }
     }
 }
