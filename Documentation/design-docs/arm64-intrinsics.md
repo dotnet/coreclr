@@ -120,7 +120,7 @@ class names.
 
 | ID Register      | Field   | Values   | Intrinsic `static class` name |
 | ---------------- | ------- | -------- | ----------------------------- |
-| N/A              | N/A     | N/A      | All                           |
+| N/A              | N/A     | N/A      | Base                          |
 | ID_AA64ISAR0_EL1 | AES     | (1b, 10b)| Aes                           |
 | ID_AA64ISAR0_EL1 | Atomic  | (10b)    | Atomics                       |
 | ID_AA64ISAR0_EL1 | CRC32   | (1b)     | Crc32                         |
@@ -147,7 +147,7 @@ class names.
 The `All`, `Simd`, and `Fp` classes will together contain the bulk of the `ARM64` intrinsics.  Most other extensions
 will only add a few instruction so they should be simpler to review.
 
-The `Baseline` `All` `static class` is used to represent any intrinsic which is guaranteed to be implemented on all
+The `Base` `static class` is used to represent any intrinsic which is guaranteed to be implemented on all
 `ARM64` platforms.  This set will include general purpose instructions.  For example, this would include intrinsics
 such as `LeadingZeroCount` and `LeadingSignCount`.
 
@@ -181,14 +181,14 @@ Intrinsic methods will typically use a standard set of argument and return types
 + Floating types: `double`, `single`, `System.Half`
 + Vector types: `Vector128<T>`, `Vector64<T>`
 + SVE will add new vector types: TBD
-+ `Tuple<>` for return types
++ `ValueTuple<>` for return types returning multiple values
 
 It is proposed to add the `Vector64<T>` type.  Most `ARM64` instructions support 8 byte and 16 byte forms.  8 byte
 operations can execute faster with less power on some platforms. So adding `Vector64<T>` will allow exposing the full
 flexibility of the instruction set and allow for optimal usage.
 
 Some intrinsics will need to produce multiple results.  The most notable are the structured load operations `LD2`,
-`LD3`, `LD4` ...  For these operations it is proposed that the intrinsic API return a `Tuple<>` of `Vector64<T>` or
+`LD3`, `LD4` ...  For these operations it is proposed that the intrinsic API return a `ValueTuple<>` of `Vector64<T>` or
 `Vector128<T>`
 
 #### Literal immediates
@@ -196,12 +196,8 @@ Some intrinsics will need to produce multiple results.  The most notable are the
 Some assembly instructions require an immediate encoded directly in the assembly instruction.  These need to be
 constant at JIT time.
 
-To identify these method arguments, propose adding a new `[LiteralConst]` attribute.
-
-If the literal immediates are not constant, the JIT needs to throw an `ArgumentException`.
-
-A compile time exception is not ideal, As this would only be detected at runtime.  However any better solution would
-seem to require language extensions.
+While the discussion is still on-going, consensus seems to be that any intrinsic must function correctly even when its
+arguments are not constant.
 
 ## Intrinsic Interface Documentation
 
@@ -240,10 +236,10 @@ As rough guidelines for order of implementation:
 
 Intrinsics will extend the API of CoreCLR.  They will need to follow standard API review practices.
 
-XArch intrinsics are being added to the NetStandard API https://github.com/dotnet/corefx/issues/24346.  ARM64 intrinsics
-should be treated identically.
+Initial XArch intrinsics are proposed to be added to the `netcoreapp2.1` Target Framework.  ARM64 intrinsics will
+be in similar Target Frameworks as the XArch intrinsics.
 
-Each review will identify targeted NetStandard API version where the API will be extended and released.
+Each review will identify the Target Framework API version where the API will be extended and released.
 
 #### API review of an intrinsic `static class`
 
@@ -259,10 +255,9 @@ To facilitate incremental progress, initial intrinsic API for a given `static cl
 
 ### Partial implementation of intrinsic `static class`
 
-+ `IsSupported` must represent the state of an entire intrinsic `static class` for a given NetStandard API.
++ `IsSupported` must represent the state of an entire intrinsic `static class` for a given Target Framework.
 + Once API review is complete and approved, it is acceptable to implement approved methods in any order.
-+ The approved API must be completed before the intrinsic `static class` is included in its targeted `CoreFX` /
-`NetStandard` release
++ The approved API must be completed before the intrinsic `static class` is included in its Target Framework release
 
 ## Test coverage
 
@@ -300,8 +295,8 @@ https://github.com/dotnet/corefx/issues/25702
   + Availability of supporting hardware (extensions)
   + General language extensions supporting `Half`
 
-*`Half` support is currently outside the scope of the initial design proposal.  It is discussed below only for
-introductory purposes.
+**`Half` support is currently outside the scope of the initial design proposal.  It is discussed below only for
+introductory purposes.**
 
 ### ARM64 Half precision support
 
@@ -369,7 +364,8 @@ However generics may provide some/sufficient relief to make this acceptable.
 Given lack of available hardware and a lack of thorough understanding of the specification:
 
 + SVE will require a separate design
-+ SVE is considered out of scope for this document
++ **SVE is considered out of scope for this document.  It is discussed above only for
+introductory purposes.**
 
 ## Miscellaneous
 ### Handling Instruction Deprecation
