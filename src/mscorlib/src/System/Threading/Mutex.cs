@@ -92,7 +92,7 @@ namespace System.Threading
         {
             if (name != null && (Path.MaxPath < name.Length))
             {
-                throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
+                throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath, name), nameof(name));
             }
         }
 #endif
@@ -101,8 +101,6 @@ namespace System.Threading
         {
 #if !PLATFORM_UNIX
             Debug.Assert(name == null || name.Length <= Path.MaxPath);
-#else
-            Debug.Assert(name == null);
 #endif
 
             uint mutexFlags = initiallyOwned ? Win32Native.CREATE_MUTEX_INITIAL_OWNER : 0;
@@ -116,7 +114,7 @@ namespace System.Threading
 #if PLATFORM_UNIX
                 if (errorCode == Interop.Errors.ERROR_FILENAME_EXCED_RANGE)
                     // On Unix, length validation is done by CoreCLR's PAL after converting to utf-8
-                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, WaitHandleNameMax), nameof(name));
+                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, WaitHandleNameMax, name), nameof(name));
 #endif
                 if (errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
