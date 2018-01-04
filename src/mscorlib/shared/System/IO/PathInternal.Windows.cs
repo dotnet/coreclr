@@ -173,11 +173,6 @@ namespace System.IO
         /// <summary>
         /// Gets the length of the root of the path (drive, share, etc.).
         /// </summary>
-        internal static int GetRootLength(string path)
-        {
-            return GetRootLength(path.AsReadOnlySpan());
-        }
-
         internal static int GetRootLength(ReadOnlySpan<char> path)
         {
             int pathLength = path.Length;

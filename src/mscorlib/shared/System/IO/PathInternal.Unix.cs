@@ -23,11 +23,6 @@ namespace System.IO
 
         internal const string ParentDirectoryPrefix = @"../";
 
-        internal static int GetRootLength(string path)
-        {
-            return GetRootLength(path.AsReadOnlySpan());
-        }
-
         internal static int GetRootLength(ReadOnlySpan<char> path)
         {
             return path.Length > 0 && IsDirectorySeparator(path[0]) ? 1 : 0;
@@ -98,13 +93,6 @@ namespace System.IO
             Debug.Assert(DirectorySeparatorChar == AltDirectorySeparatorChar);
             Debug.Assert(DirectorySeparatorChar == VolumeSeparatorChar);
             return ch == DirectorySeparatorChar;
-        }
-
-        internal static bool IsPartiallyQualified(string path)
-        {
-            // This is much simpler than Windows where paths can be rooted, but not fully qualified (such as Drive Relative)
-            // As long as the path is rooted in Unix it doesn't use the current directory and therefore is fully qualified.
-            return !Path.IsPathRooted(path);
         }
 
         internal static bool IsPartiallyQualified(ReadOnlySpan<char> path)
