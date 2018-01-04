@@ -759,6 +759,24 @@ namespace System.Collections.Generic
             return new Enumerator(this, Enumerator.KeyValuePair);
         }
 
+        /// <summary>
+        /// Ensures that the capacity of this dictionary is at least the given minimum value
+        /// </summary>
+        /// <param name="capacity"></param>
+        /// <returns></returns>
+        public int EnsureCapacity(int capacity)
+        {
+            if (capacity < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
+            if (_entries == null)
+                Initialize(0);
+            if (capacity <= _entries.Length)
+                return _entries.Length;
+            int newSize = HashHelpers.ExpandPrime(capacity);
+            Resize(newSize, false);
+            return newSize;
+        }
+
         bool ICollection.IsSynchronized
         {
             get { return false; }
