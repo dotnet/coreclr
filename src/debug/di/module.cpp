@@ -3677,6 +3677,48 @@ HRESULT CordbReJitILCode::GetInstrumentedILMap(ULONG32 cMap, ULONG32 *pcMap, COR
     return S_OK;
 }
 
+
+HRESULT CordbReJitILCode::CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint)
+{
+    PUBLIC_REENTRANT_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugFunctionBreakpoint **);
+
+    HRESULT hr;
+    ULONG32 size = GetSize();
+    LOG((LF_CORDB, LL_INFO10000, "CordbReJitILCode::CreateNativeBreakpoint, size=%d, this=0x%p\n",
+        size, this));
+
+    ULONG32 offset = 0;
+    // Make sure the offset is within range of the method.
+    // If we're native code, then both offset & total code size are bytes of native code,
+    // else they're both bytes of IL.
+    if (offset >= size)
+    {
+        return CORDBG_E_UNABLE_TO_SET_BREAKPOINT;
+    }
+
+    CordbFunctionBreakpoint *bp = new (nothrow) CordbFunctionBreakpoint(this, offset, TRUE);
+
+    if (bp == NULL)
+    {
+        return E_OUTOFMEMORY;
+    }
+
+    hr = bp->Activate(TRUE);
+    if (SUCCEEDED(hr))
+    {
+        *ppBreakpoint = static_cast<ICorDebugFunctionBreakpoint*> (bp);
+        bp->ExternalAddRef();
+        return S_OK;
+    }
+    else
+    {
+        delete bp;
+        return hr;
+    }
+}
+
 // FindNativeInfoInILVariableArray
 // Linear search through an array of NativeVarInfos, to find the variable of index dwIndex, valid
 // at the given ip. Returns CORDBG_E_IL_VAR_NOT_AVAILABLE if the variable isn't valid at the given ip.

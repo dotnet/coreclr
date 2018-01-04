@@ -570,6 +570,43 @@ HRESULT CordbFunction::GetActiveReJitRequestILCode(ICorDebugILCode **ppReJitedIL
     return hr;
 }
 
+//-----------------------------------------------------------------------------
+// CordbFunction::CreateNativeBreakpoint
+//  Public method for ICorDebugFunction4::CreateNativeBreakpoint.
+//   Sets a breakpoint at offset 0 for all native code versions of a method.
+// 
+// Parameters
+//   pnVersion - out parameter to hold the version number.
+// 
+// Returns:
+//   S_OK on success.
+//-----------------------------------------------------------------------------
+HRESULT CordbFunction::CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint)
+{
+    HRESULT hr = S_OK;
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugFunctionBreakpoint **);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
+
+    PUBLIC_API_BEGIN(this);
+    {
+        VMPTR_ILCodeVersionNode vmILCodeVersionNode = VMPTR_ILCodeVersionNode::NullPtr();
+        GetProcess()->GetDAC()->GetActiveRejitILCodeVersionNode(GetModule()->m_vmModule, m_MDToken, &vmILCodeVersionNode);
+        if (!vmILCodeVersionNode.IsNull())
+        {
+            RSSmartPtr<CordbReJitILCode> pCode;
+            IfFailThrow(LookupOrCreateReJitILCode(vmILCodeVersionNode, &pCode));
+            IfFailThrow(pCode->CreateNativeBreakpoint(ppBreakpoint));
+        }
+        else
+        {
+            hr = E_FAIL;
+        }
+    }
+    PUBLIC_API_END(hr);
+    return hr;
+}
+
 // determine whether we have a native-only implementation
 // Arguments:
 //     Input: none (we use information in various data members of this instance of CordbFunction: m_isNativeImpl,

@@ -4946,6 +4946,7 @@ DebuggerBreakpoint::DebuggerBreakpoint(Module *module,
                                        SIZE_T ilEnCVersion,  // must give the EnC version for non-native bps
                                        MethodDesc *nativeMethodDesc,  // use only when m_native
                                        DebuggerJitInfo *nativeJITInfo,  // optional when m_native, null otherwise
+                                       bool nativeCodeBindAllVersions,
                                        BOOL *pSucceed
                                        )
                                        : DebuggerController(NULL, pAppDomain)
@@ -4957,6 +4958,7 @@ DebuggerBreakpoint::DebuggerBreakpoint(Module *module,
 
     BOOL bindAcrossAllJittedInstances = !native;
     MethodDesc* pGenericInstanceFilter = NULL;
+
 #ifdef DEBUG
     // Normally any breakpoint specified as a native offset only binds in one jitted instance of a method, however
     // to better test the breakpoint binding logic in debug builds we allow the behavior to change. The test behavior
@@ -4977,7 +4979,13 @@ DebuggerBreakpoint::DebuggerBreakpoint(Module *module,
             pGenericInstanceFilter = nativeMethodDesc;
         }
     }
-#endif
+#endif // DEBUG
+
+    if (nativeCodeBindAllVersions && !native && offset == 0)
+    {
+        bindAcrossAllJittedInstances = TRUE;
+        pGenericInstanceFilter = NULL;
+    }
 
     if (!bindAcrossAllJittedInstances)
     {

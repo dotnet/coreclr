@@ -57,9 +57,11 @@ HRESULT CordbBreakpoint::BaseIsActive(BOOL *pbActive)
  * ------------------------------------------------------------------------- */
 
 CordbFunctionBreakpoint::CordbFunctionBreakpoint(CordbCode *code,
-                                                 SIZE_T offset)
+                                                 SIZE_T offset,
+                                                 BOOL bindToAllNativeCodeVersions)
   : CordbBreakpoint(code->GetProcess(), CBT_FUNCTION), 
-  m_code(code), m_offset(offset)
+  m_code(code), m_offset(offset),
+  m_bindToAllNativeCodeVersions(bindToAllNativeCodeVersions)
 {
     // Remember the app domain we came from so that breakpoints can be
     // deactivated from within the ExitAppdomain callback.
@@ -207,6 +209,7 @@ HRESULT CordbFunctionBreakpoint::Activate(BOOL fActivate)
 
         pEvent->BreakpointData.isIL = fIsIL ? true : false;
         pEvent->BreakpointData.offset = m_offset;
+        pEvent->BreakpointData.nativeCodeBindAllVersions = m_bindToAllNativeCodeVersions;
         if (fIsIL)
         {
             pEvent->BreakpointData.nativeCodeMethodDescToken = pEvent->BreakpointData.nativeCodeMethodDescToken.NullPtr();

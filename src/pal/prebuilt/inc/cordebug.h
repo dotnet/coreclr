@@ -619,6 +619,13 @@ typedef interface ICorDebugILCode2 ICorDebugILCode2;
 #endif 	/* __ICorDebugILCode2_FWD_DEFINED__ */
 
 
+#ifndef __ICorDebugILCode3_FWD_DEFINED__
+#define __ICorDebugILCode3_FWD_DEFINED__
+typedef interface ICorDebugILCode3 ICorDebugILCode3;
+
+#endif 	/* __ICorDebugILCode3_FWD_DEFINED__ */
+
+
 #ifndef __ICorDebugClass_FWD_DEFINED__
 #define __ICorDebugClass_FWD_DEFINED__
 typedef interface ICorDebugClass ICorDebugClass;
@@ -12719,6 +12726,86 @@ EXTERN_C const IID IID_ICorDebugILCode2;
 
 
 #endif 	/* __ICorDebugILCode2_INTERFACE_DEFINED__ */
+
+
+#ifndef __ICorDebugILCode3_INTERFACE_DEFINED__
+#define __ICorDebugILCode3_INTERFACE_DEFINED__
+
+/* interface ICorDebugILCode3 */
+/* [unique][uuid][local][object] */ 
+
+
+EXTERN_C const IID IID_ICorDebugILCode3;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("340abf6d-47fc-4dde-8598-ba64adad24b8")
+    ICorDebugILCode3 : public IUnknown
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE CreateNativeBreakpoint( 
+            /* [out] */ ICorDebugFunctionBreakpoint **ppBreakpoint) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ICorDebugILCode3Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ICorDebugILCode3 * This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */ 
+            _COM_Outptr_  void **ppvObject);
+        
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ICorDebugILCode3 * This);
+        
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ICorDebugILCode3 * This);
+        
+        HRESULT ( STDMETHODCALLTYPE *CreateNativeBreakpoint )( 
+            ICorDebugILCode3 * This,
+            /* [out] */ ICorDebugFunctionBreakpoint **ppBreakpoint);
+        
+        END_INTERFACE
+    } ICorDebugILCode3Vtbl;
+
+    interface ICorDebugILCode3
+    {
+        CONST_VTBL struct ICorDebugILCode3Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ICorDebugILCode3_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ICorDebugILCode3_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ICorDebugILCode3_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ICorDebugILCode3_CreateNativeBreakpoint(This,ppBreakpoint)	\
+    ( (This)->lpVtbl -> CreateNativeBreakpoint(This,ppBreakpoint) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ICorDebugILCode3_INTERFACE_DEFINED__ */
 
 
 #ifndef __ICorDebugClass_INTERFACE_DEFINED__

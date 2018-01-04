@@ -5397,6 +5397,11 @@ public:
     COM_METHOD GetActiveReJitRequestILCode(ICorDebugILCode **ppReJitedILCode);
 
     //-----------------------------------------------------------
+    // ICorDebugFunction4
+    //-----------------------------------------------------------
+    COM_METHOD CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint);
+
+    //-----------------------------------------------------------
     // Internal members
     //-----------------------------------------------------------
 protected:
@@ -5771,7 +5776,10 @@ protected:
 * rejitID. Thus it is 1:N with a given instantiation of CordbFunction.
 * ------------------------------------------------------------------------- */
 
-class CordbReJitILCode : public CordbILCode, public ICorDebugILCode, public ICorDebugILCode2
+class CordbReJitILCode : public CordbILCode, 
+                         public ICorDebugILCode, 
+                         public ICorDebugILCode2, 
+                         public ICorDebugILCode3
 {
 public:
     // Initialize a new CordbILCode instance
@@ -5797,6 +5805,11 @@ public:
     COM_METHOD GetLocalVarSigToken(mdSignature *pmdSig);
     COM_METHOD GetInstrumentedILMap(ULONG32 cMap, ULONG32 *pcMap, COR_IL_MAP map[]);
 
+    //-----------------------------------------------------------
+    // ICorDebugILCode3
+    //-----------------------------------------------------------
+    COM_METHOD CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint);
+    
 private:
     HRESULT Init(DacSharedReJitInfo* pSharedReJitInfo);
 
@@ -7560,7 +7573,7 @@ class CordbFunctionBreakpoint : public CordbBreakpoint,
                                 public ICorDebugFunctionBreakpoint
 {
 public:
-    CordbFunctionBreakpoint(CordbCode *code, SIZE_T offset);
+    CordbFunctionBreakpoint(CordbCode *code, SIZE_T offset, BOOL bindToAllNativeCodeVersions = FALSE);
     ~CordbFunctionBreakpoint();
 
     virtual void Neuter();
@@ -7621,6 +7634,7 @@ public:
     // leaked.
     RSExtSmartPtr<CordbCode> m_code;
     SIZE_T          m_offset;
+    BOOL            m_bindToAllNativeCodeVersions;
 };
 
 /* ------------------------------------------------------------------------- *
