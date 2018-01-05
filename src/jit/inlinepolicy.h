@@ -12,13 +12,13 @@
 // LegalPolicy          - partial class providing common legality checks
 // DefaultPolicy        - default inliner policy
 // DiscretionaryPolicy  - default variant with uniform size policy
+// FullPolicy           - inline aggressively up to size and depth limits
 // ModelPolicy          - policy based on statistical modelling
 //
 // These experimental policies are available only in
 // DEBUG or release+INLINE_DATA builds of the jit.
 //
 // RandomPolicy         - randomized inlining
-// FullPolicy           - inlines everything up to size and depth limits
 // SizePolicy           - tries not to increase method sizes
 //
 // The default policy in use is the DefaultPolicy.
@@ -327,8 +327,6 @@ private:
 
 #endif // defined(DEBUG) || defined(INLINE_DATA)
 
-#if defined(DEBUG) || defined(INLINE_DATA)
-
 // FullPolicy is an experimental policy that will always inline if
 // possible, subject to externally settable depth and size limits.
 //
@@ -344,12 +342,16 @@ public:
     // Policy determinations
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo) override;
 
+#if defined(DEBUG) || defined(INLINE_DATA)
     // Miscellaneous
     const char* GetName() const override
     {
         return "FullPolicy";
     }
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 };
+
+#if defined(DEBUG) || defined(INLINE_DATA)
 
 // SizePolicy is an experimental policy that will inline as much
 // as possible without increasing the (estimated) method size.
