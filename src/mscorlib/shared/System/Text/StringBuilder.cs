@@ -1646,6 +1646,36 @@ namespace System.Text
         }
 
         /// <summary>
+        /// Determines if the contents of this builder are equal to the contents of ReadOnlySpan<char>.
+        /// </summary>
+        /// <param name="value">The ReadOnlySpan<char>.</param>
+        public bool Equals(ReadOnlySpan<char> value)
+        {
+            if (value.Length != Length)
+                return false;
+
+            StringBuilder thisChunk = this;
+            int thisChunkIndex = thisChunk.m_ChunkLength;
+
+            for (int i = Length - 1; i >= 0; i--)
+            {
+                --thisChunkIndex;
+                while (thisChunkIndex < 0)
+                {
+                    thisChunk = thisChunk.m_ChunkPrevious;
+                    if (thisChunk == null)
+                        break;
+                    thisChunkIndex = thisChunk.m_ChunkLength + thisChunkIndex;
+                }
+
+                if (thisChunk.m_ChunkChars[thisChunkIndex] != value[i])
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Replaces all instances of one string with another in part of this builder.
         /// </summary>
         /// <param name="oldValue">The string to replace.</param>
