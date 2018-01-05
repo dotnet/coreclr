@@ -76,7 +76,7 @@ void StackLevelSetter::ProcessBlock(BasicBlock* block)
     for (auto i = range.rbegin(); i != range.rend(); ++i)
     {
         GenTree* node = *i;
-        if (NodePutsOnStack(node))
+        if (node->OperIsPutArgStkOrSplit())
         {
             GenTreePutArgStk* putArg   = static_cast<GenTreePutArgStk*>(node);
             unsigned          numSlots = putArgNumSlots[putArg];
@@ -207,7 +207,7 @@ unsigned StackLevelSetter::PopArgumentsFromCall(GenTreeCall* call)
             if (argTab->numSlots != 0)
             {
                 GenTree* node = argTab->node;
-                assert(NodePutsOnStack(node));
+                assert(node->OperIsPutArgStkOrSplit());
 
                 GenTreePutArgStk* putArg =
                     static_cast<GenTreePutArgStk*>(node); // PutArgSplit is inherited from PutArgStk.
@@ -252,19 +252,6 @@ void StackLevelSetter::SubStackLevel(unsigned value)
 {
     assert(currentStackLevel >= value);
     currentStackLevel -= value;
-}
-
-//------------------------------------------------------------------------
-// NodePutsOnStack: Check does the node put something on the stack.
-//
-// Arguments:
-//   node - the node to check.
-//
-// Return value:
-//   returns true if the node put an arg on the stack, false otherwise.
-bool StackLevelSetter::NodePutsOnStack(GenTree* node)
-{
-    return node->OperIsPutArgStk() || node->OperIsPutArgSplit();
 }
 
 #endif // !LEGACY_BACKEND
