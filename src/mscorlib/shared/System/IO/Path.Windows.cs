@@ -89,11 +89,11 @@ namespace System.IO
 
         public static string GetFullPath(string path, string basePath)
         {
-            if (IsPathFullyQualified(path))
-                return GetFullPath(path);
-
             if (basePath == null)
                 throw new ArgumentNullException(nameof(basePath));
+
+            if (IsPathFullyQualified(path))
+                return GetFullPath(path);
 
             if (!IsPathFullyQualified(basePath))
                 throw new ArgumentException(SR.Arg_BasePathNotFullyQualified);
