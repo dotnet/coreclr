@@ -44,12 +44,15 @@ namespace System.Reflection
 
         public Exception[] LoaderExceptions { get; }
 
-        public override string Message => CreateString(base.Message, LoaderExceptions, e => e.Message);
+        public override string Message => CreateString(isMessage: true);
 
-        public override string ToString() => CreateString(base.ToString(), LoaderExceptions, e => e.ToString());
+        public override string ToString() => CreateString(isMessage: false);
 
-        private static string CreateString(string baseValue, Exception[] exceptions, Func<Exception, string> selector)
+        private string CreateString(bool isMessage)
         {
+            string baseValue = isMessage ? base.Message : base.ToString();
+
+            Exception[] exceptions = LoaderExceptions;
             if (exceptions == null || exceptions.Length == 0)
             {
                 return baseValue;
@@ -61,7 +64,7 @@ namespace System.Reflection
                 if (e != null)
                 {
                     text.AppendLine();
-                    text.Append(selector(e));
+                    text.Append(isMessage ? e.Message : e.ToString());
                 }
             }
             return text.ToString();
