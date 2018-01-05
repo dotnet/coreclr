@@ -72,6 +72,7 @@
     .maxstack  1
     ldc.i4.1
     newarr     valuetype MyByRefLikeType
+    pop
     ret
   }
 
@@ -79,6 +80,7 @@
   {
     .maxstack  1
     newobj     instance void class [System.Runtime]System.Collections.Generic.List`1<valuetype MyByRefLikeType>::.ctor()
+    pop
     ret
   }
 

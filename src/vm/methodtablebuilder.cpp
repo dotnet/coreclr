@@ -4076,7 +4076,7 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                     goto GOT_ELEMENT_TYPE;
                 }
                 
-                // Inherit IsByRefLike characteristic from fields
+                // Check ByRefLike fields
                 if (!IsSelfRef(pByValueClass) && pByValueClass->IsByRefLike())
                 {
                     if (fIsStatic)
