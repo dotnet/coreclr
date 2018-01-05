@@ -27,7 +27,7 @@
 	IL_001b: ldarg 0x0000
 	IL_0021: conv.ovf.u4.un // the first throw block edge.
 	IL_0023: ldloc.s 0x01
-	IL_0025: mul // mul valus is known to be null.
+	IL_0025: mul // mul value is known to be null.
 	IL_0026: shl // long decomposition will replace IL_0026 with IL_0014.
 	IL_002c: conv.r4 // will be transformed into helper call, with put_arg before IL_0021.
    	IL_0009: ckfinite // to create the second throw edge.

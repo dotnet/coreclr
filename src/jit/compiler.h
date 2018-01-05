@@ -4831,7 +4831,7 @@ private:
 public:
     //------------------------------------------------------------------------
     // fgGetPtrArgCntMax: Return the maximum number of pointer-sized stack arguments that calls inside this method
-    // can push on the stack. This value is calculated during the morph.
+    // can push on the stack. This value is calculated during morph.
     //
     // Return Value:
     //    Returns fgPtrArgCntMax, that is private fields.

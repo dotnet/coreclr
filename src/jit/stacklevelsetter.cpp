@@ -32,7 +32,7 @@ StackLevelSetter::StackLevelSetter(Compiler* compiler)
 //   This value is used for sanity checks in the emitter.
 //
 //   For x86 it also sets throw-helper blocks incoming stack depth and set
-//   set framePointerRequired when it is necessary. These values are used to pop
+//   framePointerRequired when it is necessary. These values are used to pop
 //   pushed args when an exception occurs.
 void StackLevelSetter::DoPhase()
 {
@@ -63,8 +63,8 @@ void StackLevelSetter::DoPhase()
 //
 // Notes:
 //   Block starts and ends with an empty outgoing stack.
-//   Nodes in blocks are iterated in the reverse order to memorize put_arg_stk
-//   stack sizes.
+//   Nodes in blocks are iterated in the reverse order to memorize GT_PUTARG_STK
+//   and GT_PUTARG_SPLIT stack sizes.
 //
 // Arguments:
 //   block - the block to process.
@@ -149,6 +149,10 @@ void StackLevelSetter::SetThrowHelperBlocks(GenTree* node, BasicBlock* block)
 // SetThrowHelperBlock: Set throw helper block incoming stack levels targeted
 //                      from the block with this kind.
 //
+// Notes:
+//   Set framePointerRequired if finds that the block has several incoming edges
+//   with different stack levels.
+//
 // Arguments:
 //   kind - the special throw-helper kind;
 //   block - the source block that targets helper.
@@ -161,7 +165,6 @@ void StackLevelSetter::SetThrowHelperBlock(SpecialCodeKind kind, BasicBlock* blo
         if (add->acdStkLvl != currentStackLevel)
         {
             framePointerRequired = true;
-            return;
         }
     }
     else
@@ -190,7 +193,7 @@ void StackLevelSetter::SetThrowHelperBlock(SpecialCodeKind kind, BasicBlock* blo
 //   call - the call to process.
 //
 // Return value:
-//   the number of stack arguments.
+//   the number of stack slots in stack arguments for the call.
 unsigned StackLevelSetter::PopArgumentsFromCall(GenTreeCall* call)
 {
     unsigned     usedStackSlotsCount = 0;

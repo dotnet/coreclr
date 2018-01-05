@@ -18252,9 +18252,10 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
     add->acdData       = refData;
     add->acdKind       = kind;
     add->acdNext       = fgAddCodeList;
-    fgAddCodeList      = add;
-    add->acdStkLvl     = (unsigned short)stkDepth;
+    add->acdStkLvl     = stkDepth;
     add->acdStkLvlInit = false;
+
+    fgAddCodeList = add;
 
     /* Create the target basic block */
 
