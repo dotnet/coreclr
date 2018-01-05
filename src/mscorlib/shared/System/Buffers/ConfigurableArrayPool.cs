@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime.Intrinsics.X86;
 using System.Threading;
 
 namespace System.Buffers
@@ -45,7 +46,11 @@ namespace System.Buffers
 
             // Create the buckets.
             int poolId = Id;
+#if !CORERT && !ARM && !ARM64
+            int maxBuckets = Lzcnt.IsSupported ? Utilities.SelectBucketIndexIntrinsic(maxArrayLength) : Utilities.SelectBucketIndex(maxArrayLength);
+#else
             int maxBuckets = Utilities.SelectBucketIndex(maxArrayLength);
+#endif
             var buckets = new Bucket[maxBuckets + 1];
             for (int i = 0; i < buckets.Length; i++)
             {
@@ -76,7 +81,11 @@ namespace System.Buffers
             var log = ArrayPoolEventSource.Log;
             T[] buffer = null;
 
+#if !CORERT && !ARM && !ARM64
+            int index = Lzcnt.IsSupported ? Utilities.SelectBucketIndexIntrinsic(minimumLength) : Utilities.SelectBucketIndex(minimumLength);
+#else
             int index = Utilities.SelectBucketIndex(minimumLength);
+#endif
             if (index < _buckets.Length)
             {
                 // Search for an array starting at the 'index' bucket. If the bucket is empty, bump up to the
@@ -134,7 +143,11 @@ namespace System.Buffers
             }
 
             // Determine with what bucket this array length is associated
+#if !CORERT && !ARM && !ARM64
+            int bucket = Lzcnt.IsSupported ? Utilities.SelectBucketIndexIntrinsic(array.Length) : Utilities.SelectBucketIndex(array.Length);
+#else
             int bucket = Utilities.SelectBucketIndex(array.Length);
+#endif
 
             // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
             if (bucket < _buckets.Length)

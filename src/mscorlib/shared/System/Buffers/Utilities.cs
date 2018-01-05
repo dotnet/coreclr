@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 
 namespace System.Buffers
 {
@@ -23,6 +24,14 @@ namespace System.Buffers
 
             return poolIndex + (int)bitsRemaining;
         }
+
+#if !CORERT && !ARM && !ARM64
+        internal static int SelectBucketIndexIntrinsic(int bufferSize)
+        {
+            Debug.Assert(Lzcnt.IsSupported);
+            return (31 - (int)Lzcnt.LeadingZeroCount((uint)(bufferSize - 1) >> 3));
+        }
+#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int GetMaxSizeForBucket(int binIndex)
