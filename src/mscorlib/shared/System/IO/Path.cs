@@ -79,9 +79,9 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
-            ReadOnlySpan<char> result = GetDirectoryName(path.AsReadOnlySpan());
-
-            return result.IsEmpty ? null : new string(result); 
+            path = PathInternal.NormalizeDirectorySeparators(path);
+            int end = PathInternal.GetDirectoryNameOffset(path);
+            return end >= 0 ? path.Substring(0, end) : null;
         }
 
         public static ReadOnlySpan<char> GetDirectoryName(ReadOnlySpan<char> path)
@@ -90,17 +90,8 @@ namespace System.IO
                 return ReadOnlySpan<char>.Empty;
 
             path = PathInternal.NormalizeDirectorySeparators(path);
-            int root = PathInternal.GetRootLength(path);
-
-            int i = path.Length;
-            if (i > root)
-            {
-                while (i > root && !PathInternal.IsDirectorySeparator(path[--i]))
-                    ;
-                return path.Slice(0, i);
-            }
-
-            return ReadOnlySpan<char>.Empty;
+            int end = PathInternal.GetDirectoryNameOffset(path);
+            return end >= 0 ? path.Slice(0, end) : ReadOnlySpan<char>.Empty;
         }
 
         // Returns the extension of the given path. The returned value includes the
@@ -166,10 +157,10 @@ namespace System.IO
             int length = path.Length;
             int offset = PathInternal.FindFileNameIndex(path);
 
-            int end = path.Slice(offset, length - offset).LastIndexOf('.') + offset;
+            int end = path.Slice(offset, length - offset).LastIndexOf('.');
             return end == -1 ?
                 path.Slice(offset) : // No extension was found
-                path.Slice(offset, end - offset);
+                path.Slice(offset, end);
         }
 
         // Returns a cryptographically strong random 8.3 string that can be 

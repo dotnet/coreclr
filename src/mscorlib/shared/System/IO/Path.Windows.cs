@@ -119,7 +119,7 @@ namespace System.IO
         {
             if (path != null)
             {
-                IsPathRooted(path.AsReadOnlySpan());
+                return IsPathRooted(path.AsReadOnlySpan());
             }
             return false;
         }
@@ -145,7 +145,9 @@ namespace System.IO
         // only contains whitespace characters an ArgumentException gets thrown.
         public static string GetPathRoot(string path)
         {
-            if (path == null) return null;
+            if (path == null)
+                return null;
+
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 

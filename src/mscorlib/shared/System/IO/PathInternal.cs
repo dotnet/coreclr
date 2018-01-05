@@ -154,5 +154,20 @@ namespace System.IO
             string result = NormalizeDirectorySeparatorsIfNecessary(path);
             return result == null ? path : result.AsReadOnlySpan();
         }
+
+        internal static int GetDirectoryNameOffset(ReadOnlySpan<char> path)
+        {
+            int root = GetRootLength(path);
+
+            int i = path.Length;
+            if (i > root)
+            {
+                while (i > root && !IsDirectorySeparator(path[--i]))
+                    ;
+                return i;
+            }
+
+            return -1;
+        }
     }
 }
