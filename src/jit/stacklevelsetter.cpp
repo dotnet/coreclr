@@ -80,6 +80,7 @@ void StackLevelSetter::ProcessBlock(BasicBlock* block)
         {
             GenTreePutArgStk* putArg   = static_cast<GenTreePutArgStk*>(node);
             unsigned          numSlots = putArgNumSlots[putArg];
+            putArgNumSlots.Remove(putArg);
             SubStackLevel(numSlots);
         }
 
