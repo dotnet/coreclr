@@ -34,15 +34,7 @@ private:
 
     CompAllocator memAllocator;
 
-    struct PutArgStkHasher : public JitKeyFuncsDefEquals<const GenTreePutArgStk*>
-    {
-        static unsigned GetHashCode(const GenTreePutArgStk* key)
-        {
-            return (unsigned)(void*)key;
-        }
-    };
-
-    typedef JitHashTable<GenTreePutArgStk*, PutArgStkHasher, unsigned> PutArgNumSlotsMap;
+    typedef JitHashTable<GenTreePutArgStk*, JitPtrKeyFuncs<GenTreePutArgStk>, unsigned> PutArgNumSlotsMap;
     PutArgNumSlotsMap putArgNumSlots;
 
 #if !FEATURE_FIXED_OUT_ARGS
