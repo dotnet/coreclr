@@ -20,6 +20,10 @@ namespace JitBench
     {
         static void Main(string[] args)
         {
+            // The flag below is set to false to prevent the VBCSCompiler.exe hanging around
+            // after the performance execution finished and preventing the deletion of the folder.
+            Environment.SetEnvironmentVariable("UseSharedCompilation", "false");
+
             var options = JitBenchHarnessOptions.Parse(args);
 
             SetupStatics(options);
