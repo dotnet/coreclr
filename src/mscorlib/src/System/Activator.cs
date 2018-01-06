@@ -19,7 +19,7 @@ namespace System
 
         public static object CreateInstance(Type type, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             if (type is System.Reflection.Emit.TypeBuilder)
@@ -53,7 +53,7 @@ namespace System
 
         internal static object CreateInstance(Type type, bool nonPublic, bool wrapExceptions)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             if (type.UnderlyingSystemType is RuntimeType rt)
