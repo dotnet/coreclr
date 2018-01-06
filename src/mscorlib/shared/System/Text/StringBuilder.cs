@@ -1656,19 +1656,22 @@ namespace System.Text
 
             StringBuilder thisChunk = this;
             int thisChunkIndex = thisChunk.m_ChunkLength;
+            var chunkChars = thisChunk.m_ChunkChars;
 
             for (int i = Length - 1; i >= 0; i--)
             {
-                --thisChunkIndex;
-                while (thisChunkIndex < 0)
+                thisChunkIndex--;
+                if (thisChunkIndex < 0)
                 {
                     thisChunk = thisChunk.m_ChunkPrevious;
                     if (thisChunk == null)
-                        break;
-                    thisChunkIndex = thisChunk.m_ChunkLength + thisChunkIndex;
+                        return false;
+
+                    thisChunkIndex += thisChunk.m_ChunkLength;
+                    chunkChars = thisChunk.m_ChunkChars;
                 }
 
-                if (thisChunk.m_ChunkChars[thisChunkIndex] != value[i])
+                if (chunkChars[thisChunkIndex] != value[i])
                     return false;
             }
 
