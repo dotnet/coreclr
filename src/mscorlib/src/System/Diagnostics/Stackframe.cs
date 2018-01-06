@@ -203,7 +203,7 @@ namespace System.Diagnostics
         {
             StringBuilder sb = new StringBuilder(255);
 
-            if (method != null)
+            if ((object)method != null)
             {
                 sb.Append(method.Name);
 

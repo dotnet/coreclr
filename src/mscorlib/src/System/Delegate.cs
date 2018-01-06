@@ -62,7 +62,7 @@ namespace System
         // for the class defining the method.
         protected unsafe Delegate(Type target, String method)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
             if (target.ContainsGenericParameters)
@@ -72,7 +72,7 @@ namespace System
                 throw new ArgumentNullException(nameof(method));
 
             RuntimeType rtTarget = target as RuntimeType;
-            if (rtTarget == null)
+            if (rtTarget is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(target));
 
             // This API existed in v1/v1.1 and only expected to create open
@@ -243,7 +243,7 @@ namespace System
                             // walking won't be we compare using the generic type definition forms instead.
                             Type currentType = _target.GetType();
                             Type targetType = declaringType.GetGenericTypeDefinition();
-                            while (currentType != null)
+                            while ((object)currentType != null)
                             {
                                 if (currentType.IsGenericType &&
                                     currentType.GetGenericTypeDefinition() == targetType)
@@ -340,7 +340,7 @@ namespace System
         // V1 API.
         public static Delegate CreateDelegate(Type type, Object target, String method, bool ignoreCase, bool throwOnBindFailure)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
@@ -348,7 +348,7 @@ namespace System
                 throw new ArgumentNullException(nameof(method));
 
             RuntimeType rtType = type as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(type));
@@ -390,9 +390,9 @@ namespace System
         // V1 API.
         public static Delegate CreateDelegate(Type type, Type target, String method, bool ignoreCase, bool throwOnBindFailure)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
             if (target.ContainsGenericParameters)
                 throw new ArgumentException(SR.Arg_UnboundGenParam, nameof(target));
@@ -401,9 +401,9 @@ namespace System
 
             RuntimeType rtType = type as RuntimeType;
             RuntimeType rtTarget = target as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
-            if (rtTarget == null)
+            if (rtTarget is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(target));
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(type));
@@ -431,17 +431,17 @@ namespace System
         public static Delegate CreateDelegate(Type type, MethodInfo method, bool throwOnBindFailure)
         {
             // Validate the parameters.
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
             RuntimeType rtType = type as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
 
             RuntimeMethodInfo rmi = method as RuntimeMethodInfo;
-            if (rmi == null)
+            if (rmi is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(method));
 
             if (!rtType.IsDelegate())
@@ -480,17 +480,17 @@ namespace System
         public static Delegate CreateDelegate(Type type, Object firstArgument, MethodInfo method, bool throwOnBindFailure)
         {
             // Validate the parameters.
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
             RuntimeType rtType = type as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
 
             RuntimeMethodInfo rmi = method as RuntimeMethodInfo;
-            if (rmi == null)
+            if (rmi is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(method));
 
             if (!rtType.IsDelegate())
@@ -549,14 +549,14 @@ namespace System
         internal unsafe static Delegate CreateDelegateNoSecurityCheck(Type type, Object target, RuntimeMethodHandle method)
         {
             // Validate the parameters.
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             if (method.IsNullHandle())
                 throw new ArgumentNullException(nameof(method));
 
             RuntimeType rtType = type as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
 
             if (!rtType.IsDelegate())
@@ -581,14 +581,14 @@ namespace System
         internal static Delegate CreateDelegateNoSecurityCheck(RuntimeType type, Object firstArgument, MethodInfo method)
         {
             // Validate the parameters.
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
-            if (method == null)
+            if (method is null)
                 throw new ArgumentNullException(nameof(method));
 
 
             RuntimeMethodInfo rtMethod = method as RuntimeMethodInfo;
-            if (rtMethod == null)
+            if (rtMethod is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(method));
 
             if (!type.IsDelegate())

@@ -241,7 +241,7 @@ namespace System.Runtime.InteropServices
 
         public static int SizeOf(Type t)
         {
-            if (t == null)
+            if (t is null)
                 throw new ArgumentNullException(nameof(t));
             if (!(t is RuntimeType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(t));
@@ -264,14 +264,14 @@ namespace System.Runtime.InteropServices
         //====================================================================
         public static IntPtr OffsetOf(Type t, String fieldName)
         {
-            if (t == null)
+            if (t is null)
                 throw new ArgumentNullException(nameof(t));
 
             FieldInfo f = t.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (f == null)
+            if (f is null)
                 throw new ArgumentException(SR.Format(SR.Argument_OffsetOfFieldNotFound, t.FullName), nameof(fieldName));
             RtFieldInfo rtField = f as RtFieldInfo;
-            if (rtField == null)
+            if (rtField is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeFieldInfo, nameof(fieldName));
 
             return OffsetOfHelper(rtField);
@@ -835,12 +835,12 @@ namespace System.Runtime.InteropServices
         //====================================================================
         public static void Prelink(MethodInfo m)
         {
-            if (m == null)
+            if (m is null)
                 throw new ArgumentNullException(nameof(m));
 
             RuntimeMethodInfo rmi = m as RuntimeMethodInfo;
 
-            if (rmi == null)
+            if (rmi is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo);
 
             InternalPrelink(rmi);
@@ -851,7 +851,7 @@ namespace System.Runtime.InteropServices
 
         public static void PrelinkAll(Type c)
         {
-            if (c == null)
+            if (c is null)
                 throw new ArgumentNullException(nameof(c));
 
             MethodInfo[] mi = c.GetMethods();
@@ -905,7 +905,7 @@ namespace System.Runtime.InteropServices
         {
             if (ptr == IntPtr.Zero) return null;
 
-            if (structureType == null)
+            if (structureType is null)
                 throw new ArgumentNullException(nameof(structureType));
 
             if (structureType.IsGenericType)
@@ -913,7 +913,7 @@ namespace System.Runtime.InteropServices
 
             RuntimeType rt = structureType.UnderlyingSystemType as RuntimeType;
 
-            if (rt == null)
+            if (rt is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(structureType));
 
             Object structure = rt.CreateInstanceDefaultCtor(false /*publicOnly*/, false /*skipCheckThis*/, false /*fillCache*/, true /*wrapExceptions*/);
@@ -953,18 +953,18 @@ namespace System.Runtime.InteropServices
         //====================================================================
         public static IntPtr GetHINSTANCE(Module m)
         {
-            if (m == null)
+            if (m is null)
                 throw new ArgumentNullException(nameof(m));
 
             RuntimeModule rtModule = m as RuntimeModule;
-            if (rtModule == null)
+            if (rtModule is null)
             {
                 ModuleBuilder mb = m as ModuleBuilder;
-                if (mb != null)
+                if ((object)mb != null)
                     rtModule = mb.InternalModule;
             }
 
-            if (rtModule == null)
+            if (rtModule is null)
                 throw new ArgumentNullException(nameof(m), SR.Argument_MustBeRuntimeModule);
 
             return GetHINSTANCE(rtModule.GetNativeHandle());
@@ -1529,7 +1529,7 @@ namespace System.Runtime.InteropServices
         public static Object CreateWrapperOfType(Object o, Type t)
         {
             // Validate the arguments.
-            if (t == null)
+            if (t is null)
                 throw new ArgumentNullException(nameof(t));
             if (!t.IsCOMObject)
                 throw new ArgumentException(SR.Argument_TypeNotComObject, nameof(t));
@@ -1654,7 +1654,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         public static String GenerateProgIdForType(Type type)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
             if (type.IsImport)
                 throw new ArgumentException(SR.Argument_TypeMustNotBeComImport, nameof(type));
@@ -1721,7 +1721,7 @@ namespace System.Runtime.InteropServices
             Assembly sys = Assembly.Load("System, Version=" + ThisAssembly.Version +
                 ", Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken);
             Type t = sys.GetType("System.ComponentModel.LicenseManager");
-            if (t == null || !t.IsVisible)
+            if (t is null || !t.IsVisible)
                 return IntPtr.Zero;
             return t.TypeHandle.Value;
         }
@@ -1751,17 +1751,17 @@ namespace System.Runtime.InteropServices
             if (ptr == IntPtr.Zero)
                 throw new ArgumentNullException(nameof(ptr));
 
-            if (t == null)
+            if (t is null)
                 throw new ArgumentNullException(nameof(t));
 
-            if ((t as RuntimeType) == null)
+            if (!(t is RuntimeType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(t));
 
             if (t.IsGenericType)
                 throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(t));
 
             Type c = t.BaseType;
-            if (c == null || (c != typeof(Delegate) && c != typeof(MulticastDelegate)))
+            if (c is null || (c != typeof(Delegate) && c != typeof(MulticastDelegate)))
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(t));
 
             return GetDelegateForFunctionPointerInternal(ptr, t);

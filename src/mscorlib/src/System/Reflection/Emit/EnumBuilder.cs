@@ -25,7 +25,7 @@ namespace System.Reflection.Emit
     {
         public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo)
         {
-            if (typeInfo == null) return false;
+            if (typeInfo is null) return false;
             return IsAssignableFrom(typeInfo.AsType());
         }
 

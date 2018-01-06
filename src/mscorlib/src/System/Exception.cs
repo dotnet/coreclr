@@ -283,7 +283,7 @@ namespace System
         // this function is provided as a private helper to avoid the security demand
         private MethodBase GetTargetSiteInternal()
         {
-            if (_exceptionMethod != null)
+            if ((object)_exceptionMethod != null)
             {
                 return _exceptionMethod;
             }
@@ -373,10 +373,10 @@ namespace System
 
                         RuntimeModule rtModule = module as RuntimeModule;
 
-                        if (rtModule == null)
+                        if (rtModule is null)
                         {
                             System.Reflection.Emit.ModuleBuilder moduleBuilder = module as System.Reflection.Emit.ModuleBuilder;
-                            if (moduleBuilder != null)
+                            if ((object)moduleBuilder != null)
                                 rtModule = moduleBuilder.InternalModule;
                             else
                                 throw new ArgumentException(SR.Argument_MustBeRuntimeReflectionObject);
@@ -446,7 +446,7 @@ namespace System
                 {
                     tempStackTraceString = Environment.GetStackTrace(this, true);
                 }
-                if (_exceptionMethod == null)
+                if (_exceptionMethod is null)
                 {
                     _exceptionMethod = GetExceptionMethodFromStackTrace();
                 }

@@ -102,7 +102,7 @@ namespace System
                 paramArrayType = null;
 
                 // If we have named parameters then we may have a hole in the candidates array.
-                if (candidates[i] == null)
+                if (candidates[i] is null)
                     continue;
 
                 // Validate the parameters.
@@ -186,7 +186,7 @@ namespace System
 #endregion
 
                 Type pCls = null;
-                int argsToCheck = (paramArrayType != null) ? par.Length - 1 : args.Length;
+                int argsToCheck = ((object)paramArrayType != null) ? par.Length - 1 : args.Length;
 
 #region Match method by parameter type
                 for (j = 0; j < argsToCheck; j++)
@@ -217,14 +217,14 @@ namespace System
                     // now do a "classic" type check
                     if (pCls.IsPrimitive)
                     {
-                        if (argTypes[paramOrder[i][j]] == null || !CanChangePrimitiveObjectToType(args[paramOrder[i][j]], pCls))
+                        if (argTypes[paramOrder[i][j]] is null || !CanChangePrimitiveObjectToType(args[paramOrder[i][j]], pCls))
                         {
                             break;
                         }
                     }
                     else
                     {
-                        if (argTypes[paramOrder[i][j]] == null)
+                        if (argTypes[paramOrder[i][j]] is null)
                             continue;
 
                         if (!pCls.IsAssignableFrom(argTypes[paramOrder[i][j]]))
@@ -240,19 +240,19 @@ namespace System
 #endregion
                 }
 
-                if (paramArrayType != null && j == par.Length - 1)
+                if ((object)paramArrayType != null && j == par.Length - 1)
                 {
 #region Check that excess arguments can be placed in the param array
                     for (; j < args.Length; j++)
                     {
                         if (paramArrayType.IsPrimitive)
                         {
-                            if (argTypes[j] == null || !CanChangePrimitiveObjectToType(args[j], paramArrayType))
+                            if (argTypes[j] is null || !CanChangePrimitiveObjectToType(args[j], paramArrayType))
                                 break;
                         }
                         else
                         {
-                            if (argTypes[j] == null)
+                            if (argTypes[j] is null)
                                 continue;
 
                             if (!paramArrayType.IsAssignableFrom(argTypes[j]))
@@ -291,7 +291,7 @@ namespace System
 #region Found only one method
                 if (names != null)
                 {
-                    state = new BinderState((int[])paramOrder[0].Clone(), args.Length, paramArrayTypes[0] != null);
+                    state = new BinderState((int[])paramOrder[0].Clone(), args.Length, (object)paramArrayTypes[0] != null);
                     ReorderParams(paramOrder[0], args);
                 }
 
@@ -301,7 +301,7 @@ namespace System
 
                 if (parms.Length == args.Length)
                 {
-                    if (paramArrayTypes[0] != null)
+                    if ((object)paramArrayTypes[0] != null)
                     {
                         object[] objs = new object[parms.Length];
                         int lastPos = parms.Length - 1;
@@ -321,7 +321,7 @@ namespace System
                     for (; i < parms.Length - 1; i++)
                         objs[i] = parms[i].DefaultValue;
 
-                    if (paramArrayTypes[0] != null)
+                    if ((object)paramArrayTypes[0] != null)
                         objs[i] = Array.CreateInstance(paramArrayTypes[0], 0); // create an empty array for the 
 
                     else
@@ -372,7 +372,7 @@ namespace System
             // Reorder (if needed)
             if (names != null)
             {
-                state = new BinderState((int[])paramOrder[currentMin].Clone(), args.Length, paramArrayTypes[currentMin] != null);
+                state = new BinderState((int[])paramOrder[currentMin].Clone(), args.Length, (object)paramArrayTypes[currentMin] != null);
                 ReorderParams(paramOrder[currentMin], args);
             }
 
@@ -381,7 +381,7 @@ namespace System
             ParameterInfo[] parameters = candidates[currentMin].GetParametersNoCopy();
             if (parameters.Length == args.Length)
             {
-                if (paramArrayTypes[currentMin] != null)
+                if ((object)paramArrayTypes[currentMin] != null)
                 {
                     object[] objs = new object[parameters.Length];
                     int lastPos = parameters.Length - 1;
@@ -401,7 +401,7 @@ namespace System
                 for (; i < parameters.Length - 1; i++)
                     objs[i] = parameters[i].DefaultValue;
 
-                if (paramArrayTypes[currentMin] != null)
+                if ((object)paramArrayTypes[currentMin] != null)
                 {
                     objs[i] = Array.CreateInstance(paramArrayTypes[currentMin], 0);
                 }
@@ -563,7 +563,7 @@ namespace System
                         if (!(candidates[i] is MethodInfo methodInfo))
                             break;
                         type = signatureType.TryResolveAgainstGenericMethod(methodInfo);
-                        if (type == null)
+                        if (type is null)
                             break;
                     }
 
@@ -622,7 +622,7 @@ namespace System
             {
                 foreach (Type index in indexes)
                 {
-                    if (index == null)
+                    if (index is null)
                         throw new ArgumentNullException(nameof(indexes));
                 }
             }
@@ -671,7 +671,7 @@ namespace System
 
                 if (j == indexesLength)
                 {
-                    if (returnType != null)
+                    if ((object)returnType != null)
                     {
                         if (candidates[i].PropertyType.IsPrimitive)
                         {
@@ -835,10 +835,10 @@ namespace System
                 }
                 if (j < typesLength)
                     continue;
-                if (returnType != null && returnType != match[i].PropertyType)
+                if ((object)returnType != null && returnType != match[i].PropertyType)
                     continue;
 
-                if (bestMatch != null)
+                if ((object)bestMatch != null)
                     throw new AmbiguousMatchException(SR.Arg_AmbiguousMatchException);
 
                 bestMatch = match[i];
@@ -851,8 +851,8 @@ namespace System
                                             Type[] types, object[] args)
         {
             // A method using params is always less specific than one not using params
-            if (paramArrayType1 != null && paramArrayType2 == null) return 2;
-            if (paramArrayType2 != null && paramArrayType1 == null) return 1;
+            if ((object)paramArrayType1 != null && paramArrayType2 is null) return 2;
+            if ((object)paramArrayType2 != null && paramArrayType1 is null) return 1;
 
             // now either p1 and p2 both use params or neither does.
 
@@ -876,12 +876,12 @@ namespace System
                 //          the paramOrder array could contain indexes larger than p.Length - 1 (see VSW 577286)
                 //          so any index >= p.Length - 1 is being put in the param array
 
-                if (paramArrayType1 != null && paramOrder1[i] >= p1.Length - 1)
+                if ((object)paramArrayType1 != null && paramOrder1[i] >= p1.Length - 1)
                     c1 = paramArrayType1;
                 else
                     c1 = p1[paramOrder1[i]].ParameterType;
 
-                if (paramArrayType2 != null && paramOrder2[i] >= p2.Length - 1)
+                if ((object)paramArrayType2 != null && paramOrder2[i] >= p2.Length - 1)
                     c2 = paramArrayType2;
                 else
                     c2 = p2[paramOrder2[i]].ParameterType;
@@ -1107,7 +1107,7 @@ namespace System
             {
                 depth++;
                 currentType = currentType.BaseType;
-            } while (currentType != null);
+            } while ((object)currentType != null);
 
             return depth;
         }

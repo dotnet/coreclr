@@ -22,8 +22,7 @@ namespace System.Reflection
                 // This check is necessary because for some reason, Type adds a new "Module" property that hides the inherited one instead 
                 // of overriding.
 
-                Type type = this as Type;
-                if (type != null)
+                if (this is Type type)
                     return type.Module;
 
                 throw NotImplemented.ByDesign;
@@ -52,21 +51,15 @@ namespace System.Reflection
             if ((object)left == null || (object)right == null)
                 return false;
 
-            Type type1, type2;
-            MethodBase method1, method2;
-            FieldInfo field1, field2;
-            EventInfo event1, event2;
-            PropertyInfo property1, property2;
-
-            if ((type1 = left as Type) != null && (type2 = right as Type) != null)
+            if (left is Type type1 && right is Type type2)
                 return type1 == type2;
-            else if ((method1 = left as MethodBase) != null && (method2 = right as MethodBase) != null)
+            else if (left is MethodBase method1 && right is MethodBase method2)
                 return method1 == method2;
-            else if ((field1 = left as FieldInfo) != null && (field2 = right as FieldInfo) != null)
+            else if (left is FieldInfo field1 && right is FieldInfo field2)
                 return field1 == field2;
-            else if ((event1 = left as EventInfo) != null && (event2 = right as EventInfo) != null)
+            else if (left is EventInfo event1 && right is EventInfo event2)
                 return event1 == event2;
-            else if ((property1 = left as PropertyInfo) != null && (property2 = right as PropertyInfo) != null)
+            else if (left is PropertyInfo property1 && right is PropertyInfo property2)
                 return property1 == property2;
 
             return false;

@@ -42,7 +42,7 @@ namespace System.Reflection
                     // first take care of all the NO_INVOKE cases. 
                     if (ContainsGenericParameters ||
                          ReturnType.IsByRef ||
-                         (declaringType != null && declaringType.ContainsGenericParameters) ||
+                         (declaringType?.ContainsGenericParameters == true) ||
                          ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
                         // We don't need other flags if this method cannot be invoked
@@ -163,7 +163,7 @@ namespace System.Reflection
 
             RuntimeType parent = (RuntimeType)m_declaringType.BaseType;
 
-            if (parent == null)
+            if (parent is null)
                 return null;
 
             int slot = RuntimeMethodHandle.GetSlot(this);
@@ -212,7 +212,7 @@ namespace System.Reflection
 
             RuntimeMethodInfo mi = obj as RuntimeMethodInfo;
 
-            if (mi == null || !mi.IsGenericMethod)
+            if (mi is null || !mi.IsGenericMethod)
                 return false;
 
             // now we know that both operands are generic methods
@@ -252,12 +252,12 @@ namespace System.Reflection
 
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType, inherit);
@@ -265,12 +265,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType, inherit);
@@ -374,7 +374,7 @@ namespace System.Reflection
             get
             {
                 Type declaringType = DeclaringType;
-                if ((declaringType == null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
+                if ((declaringType is null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
                     throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInReflectionOnly);
                 return new RuntimeMethodHandle(this);
             }
@@ -419,7 +419,7 @@ namespace System.Reflection
         {
             // method is ReflectionOnly
             Type declaringType = DeclaringType;
-            if ((declaringType == null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
+            if ((declaringType is null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
             {
                 throw new InvalidOperationException(SR.Arg_ReflectionOnlyInvoke);
             }
@@ -544,7 +544,7 @@ namespace System.Reflection
 
         public override MethodInfo GetBaseDefinition()
         {
-            if (!IsVirtual || IsStatic || m_declaringType == null || m_declaringType.IsInterface)
+            if (!IsVirtual || IsStatic || m_declaringType is null || m_declaringType.IsInterface)
                 return this;
 
             int slot = RuntimeMethodHandle.GetSlot(this);
@@ -563,7 +563,7 @@ namespace System.Reflection
                 baseDeclaringType = declaringType;
 
                 declaringType = (RuntimeType)declaringType.BaseType;
-            } while (declaringType != null);
+            } while ((object)declaringType != null);
 
             return (MethodInfo)RuntimeType.GetMethodBase(baseDeclaringType, baseMethodHandle);
         }
@@ -606,11 +606,11 @@ namespace System.Reflection
         private Delegate CreateDelegateInternal(Type delegateType, Object firstArgument, DelegateBindingFlags bindingFlags, ref StackCrawlMark stackMark)
         {
             // Validate the parameters.
-            if (delegateType == null)
+            if (delegateType is null)
                 throw new ArgumentNullException(nameof(delegateType));
 
             RuntimeType rtType = delegateType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(delegateType));
 
             if (!rtType.IsDelegate())
@@ -643,12 +643,12 @@ namespace System.Reflection
             {
                 Type methodInstantiationElem = methodInstantiation[i];
 
-                if (methodInstantiationElem == null)
+                if (methodInstantiationElem is null)
                     throw new ArgumentNullException();
 
                 RuntimeType rtMethodInstantiationElem = methodInstantiationElem as RuntimeType;
 
-                if (rtMethodInstantiationElem == null)
+                if (rtMethodInstantiationElem is null)
                 {
                     Type[] methodInstantiationCopy = new Type[methodInstantiation.Length];
                     for (int iCopy = 0; iCopy < methodInstantiation.Length; iCopy++)
@@ -718,7 +718,7 @@ namespace System.Reflection
         {
             get
             {
-                if (DeclaringType != null && DeclaringType.ContainsGenericParameters)
+                if (DeclaringType?.ContainsGenericParameters == true)
                     return true;
 
                 if (!IsGenericMethod)

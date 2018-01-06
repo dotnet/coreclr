@@ -20,7 +20,7 @@ namespace System.Reflection
             MethodBase m = RuntimeType.GetMethodBase(handle.GetMethodInfo());
 
             Type declaringType = m.DeclaringType;
-            if (declaringType != null && declaringType.IsGenericType)
+            if (declaringType?.IsGenericType == true)
                 throw new ArgumentException(String.Format(
                     CultureInfo.CurrentCulture, SR.Argument_MethodDeclaringTypeGeneric,
                     m, declaringType.GetGenericTypeDefinition()));

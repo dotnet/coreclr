@@ -70,12 +70,9 @@ namespace System.Reflection
             if ((object)left == null || (object)right == null)
                 return false;
 
-            MethodInfo method1, method2;
-            ConstructorInfo constructor1, constructor2;
-
-            if ((method1 = left as MethodInfo) != null && (method2 = right as MethodInfo) != null)
+            if (left is MethodInfo method1 && right is MethodInfo method2)
                 return method1 == method2;
-            else if ((constructor1 = left as ConstructorInfo) != null && (constructor2 = right as ConstructorInfo) != null)
+            else if (left is ConstructorInfo constructor1 && right is ConstructorInfo constructor2)
                 return constructor1 == constructor2;
 
             return false;

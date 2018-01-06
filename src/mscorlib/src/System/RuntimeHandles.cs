@@ -29,7 +29,7 @@ namespace System
         {
             // Create local copy to avoid a race condition
             RuntimeType type = m_type;
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(null, SR.Arg_InvalidHandle);
             return new RuntimeTypeHandle(type);
         }
@@ -39,7 +39,7 @@ namespace System
         {
             // Create local copy to avoid a race condition
             RuntimeType type = m_type;
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(null, SR.Arg_InvalidHandle);
             return type;
         }
@@ -92,7 +92,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            return m_type != null ? m_type.GetHashCode() : 0;
+            return m_type?.GetHashCode() ?? 0;
         }
 
         public override bool Equals(object obj)
@@ -113,7 +113,7 @@ namespace System
         {
             get
             {
-                return m_type != null ? m_type.m_handle : IntPtr.Zero;
+                return m_type?.m_handle ?? IntPtr.Zero;
             }
         }
 
@@ -1216,17 +1216,12 @@ namespace System
 
         public override int GetHashCode()
         {
-            return m_ptr != null ? m_ptr.GetHashCode() : 0;
+            return m_ptr?.GetHashCode() ?? 0;
         }
 
         public override bool Equals(object obj)
         {
-            if (!(obj is ModuleHandle))
-                return false;
-
-            ModuleHandle handle = (ModuleHandle)obj;
-
-            return handle.m_ptr == m_ptr;
+            return obj is ModuleHandle handle && handle.m_ptr == m_ptr;
         }
 
         public unsafe bool Equals(ModuleHandle handle)
@@ -1253,7 +1248,7 @@ namespace System
         private static void ValidateModulePointer(RuntimeModule module)
         {
             // Make sure we have a valid Module to resolve against.
-            if (module == null)
+            if (module is null)
                 throw new InvalidOperationException(SR.InvalidOperation_NullModuleHandle);
         }
 

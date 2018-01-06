@@ -98,7 +98,7 @@ namespace System.Globalization
         public static CompareInfo GetCompareInfo(int culture, Assembly assembly)
         {
             // Parameter checking.
-            if (assembly == null)
+            if (assembly is null)
             {
                 throw new ArgumentNullException(nameof(assembly));
             }
@@ -124,7 +124,7 @@ namespace System.Globalization
         // Assembly constructor should be deprecated, we don't act on the assembly information any more
         public static CompareInfo GetCompareInfo(string name, Assembly assembly)
         {
-            if (name == null || assembly == null)
+            if (name == null || assembly is null)
             {
                 throw new ArgumentNullException(name == null ? nameof(name) : nameof(assembly));
             }
@@ -1280,7 +1280,7 @@ namespace System.Globalization
         {
             get
             {
-                if (m_SortVersion == null)
+                if (m_SortVersion is null)
                 {
                     if (_invariantMode)
                     {

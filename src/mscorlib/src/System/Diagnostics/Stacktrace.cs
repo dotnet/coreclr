@@ -106,17 +106,17 @@ namespace System.Diagnostics
             t_reentrancy++;
             try
             {
-                if (s_symbolsMethodInfo == null)
+                if (s_symbolsMethodInfo is null)
                 {
                     s_symbolsType = Type.GetType(
                         "System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
                         throwOnError: false);
 
-                    if (s_symbolsType == null)
+                    if (s_symbolsType is null)
                         return;
 
                     s_symbolsMethodInfo = s_symbolsType.GetMethod("GetSourceLineInfo", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-                    if (s_symbolsMethodInfo == null)
+                    if (s_symbolsMethodInfo is null)
                         return;
                 }
 
@@ -337,10 +337,10 @@ namespace System.Diagnostics
             for (int i = 0; i < iNumFrames; i++)
             {
                 MethodBase mb = StackF.GetMethodBase(i);
-                if (mb != null)
+                if ((object)mb != null)
                 {
                     Type t = mb.DeclaringType;
-                    if (t == null)
+                    if (t is null)
                         break;
                     String ns = t.Namespace;
                     if (ns == null)
@@ -487,7 +487,7 @@ namespace System.Diagnostics
             {
                 StackFrame sf = GetFrame(iFrameIndex);
                 MethodBase mb = sf.GetMethod();
-                if (mb != null && (ShowInStackTrace(mb) || 
+                if ((object)mb != null && (ShowInStackTrace(mb) || 
                                    (iFrameIndex == m_iNumOfFrames - 1))) // Don't filter last frame
                 {
                     // We want a newline at the end of every line except for the last
@@ -500,7 +500,7 @@ namespace System.Diagnostics
 
                     Type t = mb.DeclaringType;
                     // if there is a type (non global method) print it
-                    if (t != null)
+                    if ((object)t != null)
                     {
                         // Append t.FullName, replacing '+' with '.'
                         string fullName = t.FullName;
@@ -556,7 +556,7 @@ namespace System.Diagnostics
                                 fFirstParam = false;
 
                             String typeName = "<UnknownType>";
-                            if (pi[j].ParameterType != null)
+                            if ((object)pi[j].ParameterType != null)
                                 typeName = pi[j].ParameterType.Name;
                             sb.Append(typeName);
                             sb.Append(' ');

@@ -415,7 +415,7 @@ namespace System.Reflection
                 Array.Copy(publicKeyToken, _PublicKeyToken, publicKeyToken.Length);
             }
 
-            if (version != null)
+            if ((object)version != null)
                 _Version = (Version)version.Clone();
 
             _CultureInfo = cultureInfo;

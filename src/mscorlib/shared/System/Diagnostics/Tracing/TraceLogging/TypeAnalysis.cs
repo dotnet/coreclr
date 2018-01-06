@@ -47,7 +47,7 @@ namespace System.Diagnostics.Tracing
                 }
 
                 MethodInfo getterInfo = Statics.GetGetMethod(propertyInfo);
-                if (getterInfo == null)
+                if (getterInfo is null)
                 {
                     continue;
                 }

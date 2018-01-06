@@ -88,14 +88,14 @@ namespace System.Reflection.Emit
             if (name[0] == '\0')
                 throw new ArgumentException(SR.Argument_IllegalName, nameof(name));
 
-            if (mod == null)
+            if (mod is null)
                 throw new ArgumentNullException(nameof(mod));
 
             if (parameterTypes != null)
             {
                 foreach (Type t in parameterTypes)
                 {
-                    if (t == null)
+                    if (t is null)
                         throw new ArgumentNullException(nameof(parameterTypes));
                 }
             }
@@ -212,7 +212,7 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(SR.InvalidOperation_MethodHasBody);
             }
 
-            if (il.m_methodBuilder != this && il.m_methodBuilder != null)
+            if (il.m_methodBuilder != this && (object)il.m_methodBuilder != null)
             {
                 // you don't need to call DefineBody when you get your ILGenerator
                 // through MethodBuilder::GetILGenerator.
@@ -255,7 +255,7 @@ namespace System.Reflection.Emit
                     for (int j = 0; j < numCatch; j++)
                     {
                         int tkExceptionClass = 0;
-                        if (catchClass[j] != null)
+                        if ((object)catchClass[j] != null)
                         {
                             tkExceptionClass = dynMod.GetTypeTokenInternal(catchClass[j]).Token;
                         }
@@ -339,14 +339,11 @@ namespace System.Reflection.Emit
 
         internal static Type GetMethodBaseReturnType(MethodBase method)
         {
-            MethodInfo mi = null;
-            ConstructorInfo ci = null;
-
-            if ((mi = method as MethodInfo) != null)
+            if (method is MethodInfo mi)
             {
                 return mi.ReturnType;
             }
-            else if ((ci = method as ConstructorInfo) != null)
+            else if (method is ConstructorInfo ci)
             {
                 return ci.GetReturnType();
             }
@@ -375,7 +372,7 @@ namespace System.Reflection.Emit
                 m_parameterTypes = Array.Empty<Type>();
 
             m_signature = SignatureHelper.GetMethodSigHelper(m_module, m_callingConvention, m_inst != null ? m_inst.Length : 0,
-                m_returnType == null ? typeof(void) : m_returnType, m_returnTypeRequiredCustomModifiers, m_returnTypeOptionalCustomModifiers,
+                m_returnType is null ? typeof(void) : m_returnType, m_returnTypeRequiredCustomModifiers, m_returnTypeOptionalCustomModifiers,
                 m_parameterTypes, m_parameterTypeRequiredCustomModifiers, m_parameterTypeOptionalCustomModifiers);
 
             return m_signature;
@@ -444,7 +441,7 @@ namespace System.Reflection.Emit
 
         internal bool IsTypeCreated()
         {
-            return (m_containingType != null && m_containingType.IsCreated());
+            return m_containingType?.IsCreated() == true;
         }
 
         internal TypeBuilder GetTypeBuilder()
@@ -611,7 +608,7 @@ namespace System.Reflection.Emit
 
         public override ParameterInfo[] GetParameters()
         {
-            if (!m_bIsBaked || m_containingType == null || m_containingType.BakedRuntimeType == null)
+            if (!m_bIsBaked || m_containingType is null || m_containingType.BakedRuntimeType is null)
                 throw new NotSupportedException(SR.InvalidOperation_TypeNotCreated);
 
             MethodInfo rmi = m_containingType.GetMethod(m_strName, m_parameterTypes);
@@ -623,7 +620,7 @@ namespace System.Reflection.Emit
         {
             get
             {
-                if (!m_bIsBaked || m_containingType == null || m_containingType.BakedRuntimeType == null)
+                if (!m_bIsBaked || m_containingType is null || m_containingType.BakedRuntimeType is null)
                     throw new InvalidOperationException(SR.InvalidOperation_TypeNotCreated);
 
                 MethodInfo rmi = m_containingType.GetMethod(m_strName, m_parameterTypes);
@@ -798,7 +795,7 @@ namespace System.Reflection.Emit
 
             ThrowIfGeneric();
 
-            if (returnType != null)
+            if ((object)returnType != null)
             {
                 m_returnType = returnType;
             }
@@ -908,7 +905,7 @@ namespace System.Reflection.Emit
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));

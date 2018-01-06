@@ -1270,7 +1270,7 @@ namespace System.StubHelpers
         {
             if (pNativeHome != IntPtr.Zero)
             {
-                if (layoutType != null)
+                if ((object)layoutType != null)
                 {
                     // this must happen regardless of BackPropAction
                     Marshal.DestroyStructure(pNativeHome, layoutType);
@@ -1352,7 +1352,7 @@ namespace System.StubHelpers
             }
 
             string typeName;
-            if (managedType != null)
+            if ((object)managedType != null)
             {
                 if (managedType.GetType() != typeof(System.RuntimeType))
                 {   // The type should be exactly System.RuntimeType (and not its child System.ReflectionOnlyType, or other System.Type children)

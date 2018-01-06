@@ -440,13 +440,12 @@ namespace System.Runtime.Serialization
 
         public Object GetValue(String name, Type type)
         {
-            if ((object)type == null)
+            if (type is null)
             {
                 throw new ArgumentNullException(nameof(type));
             }
 
-            RuntimeType rt = type as RuntimeType;
-            if (rt == null)
+            if (!(type is RuntimeType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
             Type foundType;

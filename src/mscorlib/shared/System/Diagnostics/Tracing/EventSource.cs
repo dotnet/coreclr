@@ -403,7 +403,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public static Guid GetGuid(Type eventSourceType)
         {
-            if (eventSourceType == null)
+            if (eventSourceType is null)
                 throw new ArgumentNullException(nameof(eventSourceType));
 
             EventSourceAttribute attrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute));
@@ -470,7 +470,7 @@ namespace System.Diagnostics.Tracing
         /// <returns>The XML data string or null</returns>
         public static string GenerateManifest(Type eventSourceType, string assemblyPathToIncludeInManifest, EventManifestOptions flags)
         {
-            if (eventSourceType == null)
+            if (eventSourceType is null)
                 throw new ArgumentNullException(nameof(eventSourceType));
 
             byte[] manifestBytes = EventSource.CreateManifestAndDescriptors(eventSourceType, assemblyPathToIncludeInManifest, null, flags);
@@ -1619,7 +1619,7 @@ namespace System.Diagnostics.Tracing
 
         private static string GetName(Type eventSourceType, EventManifestOptions flags)
         {
-            if (eventSourceType == null)
+            if (eventSourceType is null)
                 throw new ArgumentNullException(nameof(eventSourceType));
 
             EventSourceAttribute attrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute), flags);
@@ -2179,7 +2179,7 @@ namespace System.Diagnostics.Tracing
                 // Checking to see if the Parameter types (from the Event method) match the supplied argument types.
                 // Fail if one of two things hold : either the argument type is not equal to the parameter type, or the 
                 // argument is null and the parameter type is non-nullable.
-                if ((args[i] != null && (args[i].GetType() != pType))
+                if ((args[i] != null && ((object)args[i].GetType() != pType))
                     || (args[i] == null && (!(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
                     )
                 {
@@ -3380,7 +3380,7 @@ namespace System.Diagnostics.Tracing
         private static Type GetEventSourceBaseType(Type eventSourceType, bool allowEventSourceOverride, bool reflectionOnly)
         {
             // return false for "object" and interfaces
-            if (eventSourceType.BaseType() == null)
+            if (eventSourceType.BaseType() is null)
                 return null;
 
             // now go up the inheritance chain until hitting a concrete type ("object" at worse)
@@ -3388,9 +3388,9 @@ namespace System.Diagnostics.Tracing
             {
                 eventSourceType = eventSourceType.BaseType();
             }
-            while (eventSourceType != null && eventSourceType.IsAbstract());
+            while ((object)eventSourceType != null && eventSourceType.IsAbstract());
 
-            if (eventSourceType != null)
+            if ((object)eventSourceType != null)
             {
                 if (!allowEventSourceOverride)
                 {
@@ -3459,7 +3459,7 @@ namespace System.Diagnostics.Tracing
                 // eventSourceType must be sealed and must derive from this EventSource
                 if ((flags & EventManifestOptions.Strict) != 0)
                 {
-                    bool typeMatch = GetEventSourceBaseType(eventSourceType, (flags & EventManifestOptions.AllowEventSourceOverride) != 0, eventSourceType.Assembly().ReflectionOnly()) != null;
+                    bool typeMatch = (object)GetEventSourceBaseType(eventSourceType, (flags & EventManifestOptions.AllowEventSourceOverride) != 0, eventSourceType.Assembly().ReflectionOnly()) != null;
 
                     if (!typeMatch)
                     {
@@ -3479,7 +3479,7 @@ namespace System.Diagnostics.Tracing
 #endif
                 {
                     Type nestedType = eventSourceType.GetNestedType(providerEnumKind);
-                    if (nestedType != null)
+                    if ((object)nestedType != null)
                     {
                         if (eventSourceType.IsAbstract())
                         {

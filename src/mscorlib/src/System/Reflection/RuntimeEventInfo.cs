@@ -72,7 +72,7 @@ namespace System.Reflection
         #region Object Overrides
         public override String ToString()
         {
-            if (m_addMethod == null || m_addMethod.GetParametersNoCopy().Length == 0)
+            if (m_addMethod is null || m_addMethod.GetParametersNoCopy().Length == 0)
                 throw new InvalidOperationException(SR.InvalidOperation_NoPublicAddMethod);
 
             return m_addMethod.GetParametersNoCopy()[0].ParameterType.FormatTypeName() + " " + Name;
@@ -87,12 +87,12 @@ namespace System.Reflection
 
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -100,12 +100,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);

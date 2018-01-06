@@ -52,7 +52,7 @@ namespace System.Reflection
         //a re-implementation of ISAF from Type, skipping the use of UnderlyingType
         public virtual bool IsAssignableFrom(TypeInfo typeInfo)
         {
-            if (typeInfo == null)
+            if (typeInfo is null)
                 return false;
 
             if (this == typeInfo)

@@ -69,7 +69,7 @@ namespace System.Reflection.Emit
             int index;
 
             MethodBuilder methodBuilder = m_methodBuilder as MethodBuilder;
-            if (methodBuilder == null)
+            if (methodBuilder is null)
                 // it's a light code gen entity
                 throw new NotSupportedException();
             dynMod = (ModuleBuilder)methodBuilder.Module;

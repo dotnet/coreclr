@@ -40,13 +40,13 @@ namespace System.Reflection
                     //
                     // first take care of all the NO_INVOKE cases. 
                     if (declaringType == typeof(void) ||
-                         (declaringType != null && declaringType.ContainsGenericParameters) ||
+                         (declaringType?.ContainsGenericParameters == true) ||
                          ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
                         // We don't need other flags if this method cannot be invoked
                         invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE;
                     }
-                    else if (IsStatic || declaringType != null && declaringType.IsAbstract)
+                    else if (IsStatic || declaringType?.IsAbstract == true)
                     {
                         invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_NO_CTOR_INVOKE;
                     }
@@ -155,12 +155,12 @@ namespace System.Reflection
 
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -168,12 +168,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
@@ -260,7 +260,7 @@ namespace System.Reflection
             get
             {
                 Type declaringType = DeclaringType;
-                if ((declaringType == null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
+                if ((declaringType is null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
                     throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInReflectionOnly);
                 return new RuntimeMethodHandle(this);
             }
@@ -284,7 +284,7 @@ namespace System.Reflection
 
         internal static void CheckCanCreateInstance(Type declaringType, bool isVarArg)
         {
-            if (declaringType == null)
+            if (declaringType is null)
                 throw new ArgumentNullException(nameof(declaringType));
 
             // ctor is ReflectOnly
@@ -395,7 +395,7 @@ namespace System.Reflection
         {
             get
             {
-                return (DeclaringType != null && DeclaringType.ContainsGenericParameters);
+                return DeclaringType?.ContainsGenericParameters == true;
             }
         }
         #endregion

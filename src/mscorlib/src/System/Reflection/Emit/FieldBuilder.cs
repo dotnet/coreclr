@@ -35,7 +35,7 @@ namespace System.Reflection.Emit
             if (fieldName[0] == '\0')
                 throw new ArgumentException(SR.Argument_IllegalName, nameof(fieldName));
 
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             if (type == typeof(void))
@@ -184,7 +184,7 @@ namespace System.Reflection.Emit
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
 
             if (binaryAttribute == null)

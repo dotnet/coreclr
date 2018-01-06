@@ -34,8 +34,8 @@ namespace System.Reflection
 
                     // first take care of all the NO_INVOKE cases
                     if (
-                        (declaringType != null && declaringType.ContainsGenericParameters) ||
-                        (declaringType == null && Module.Assembly.ReflectionOnly) ||
+                        (declaringType?.ContainsGenericParameters == true) ||
+                        (declaringType is null && Module.Assembly.ReflectionOnly) ||
                         (fIsReflectionOnlyType)
                        )
                     {
@@ -131,10 +131,10 @@ namespace System.Reflection
 
             if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE) != 0)
             {
-                if (declaringType != null && declaringType.ContainsGenericParameters)
+                if (declaringType?.ContainsGenericParameters == true)
                     throw new InvalidOperationException(SR.Arg_UnboundGenField);
 
-                if ((declaringType == null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
+                if ((declaringType is null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
                     throw new InvalidOperationException(SR.Arg_ReflectionOnlyField);
 
                 throw new FieldAccessException();
@@ -146,7 +146,7 @@ namespace System.Reflection
             value = fieldType.CheckValue(value, binder, culture, invokeAttr);
 
             bool domainInitialized = false;
-            if (declaringType == null)
+            if (declaringType is null)
             {
                 RuntimeFieldHandle.SetValue(this, obj, value, fieldType, m_fieldAttributes, null, ref domainInitialized);
             }
@@ -173,7 +173,7 @@ namespace System.Reflection
             value = fieldType.CheckValue(value, binder, culture, invokeAttr);
 
             bool domainInitialized = false;
-            if (declaringType == null)
+            if (declaringType is null)
             {
                 RuntimeFieldHandle.SetValue(this, obj, value, fieldType, m_fieldAttributes, null, ref domainInitialized);
             }
@@ -194,10 +194,10 @@ namespace System.Reflection
 
             if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE) != 0)
             {
-                if (declaringType != null && DeclaringType.ContainsGenericParameters)
+                if (declaringType?.ContainsGenericParameters == true)
                     throw new InvalidOperationException(SR.Arg_UnboundGenField);
 
-                if ((declaringType == null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
+                if ((declaringType is null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
                     throw new InvalidOperationException(SR.Arg_ReflectionOnlyField);
 
                 throw new FieldAccessException();
@@ -223,7 +223,7 @@ namespace System.Reflection
             RuntimeType fieldType = (RuntimeType)FieldType;
 
             bool domainInitialized = false;
-            if (declaringType == null)
+            if (declaringType is null)
             {
                 return RuntimeFieldHandle.GetValue(this, obj, fieldType, null, ref domainInitialized);
             }
@@ -320,7 +320,7 @@ namespace System.Reflection
             get
             {
                 Type declaringType = DeclaringType;
-                if ((declaringType == null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
+                if ((declaringType is null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
                     throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInReflectionOnly);
                 return new RuntimeFieldHandle(this);
             }
@@ -343,7 +343,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_fieldType == null)
+                if (m_fieldType is null)
                     m_fieldType = new Signature(this, m_declaringType).FieldType;
 
                 return m_fieldType;

@@ -24,7 +24,7 @@ namespace System.Reflection
         #region Public Static Members
         public static IList<CustomAttributeData> GetCustomAttributes(MemberInfo target)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
             return target.GetCustomAttributesData();
@@ -32,7 +32,7 @@ namespace System.Reflection
 
         public static IList<CustomAttributeData> GetCustomAttributes(Module target)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
             return target.GetCustomAttributesData();
@@ -40,7 +40,7 @@ namespace System.Reflection
 
         public static IList<CustomAttributeData> GetCustomAttributes(Assembly target)
         {
-            if (target == null)
+            if (target is null)
                 throw new ArgumentNullException(nameof(target));
 
             return target.GetCustomAttributesData();
@@ -433,11 +433,11 @@ namespace System.Reflection
 
             int i = 3; // ArraySubType, SizeParamIndex, SizeConst
             if (marshalAs.MarshalType != null) i++;
-            if (marshalAs.MarshalTypeRef != null) i++;
+            if ((object)marshalAs.MarshalTypeRef != null) i++;
             if (marshalAs.MarshalCookie != null) i++;
             i++; // IidParameterIndex
             i++; // SafeArraySubType
-            if (marshalAs.SafeArrayUserDefinedSubType != null) i++;
+            if ((object)marshalAs.SafeArrayUserDefinedSubType != null) i++;
             CustomAttributeNamedArgument[] namedArgs = new CustomAttributeNamedArgument[i];
 
             // For compatibility with previous runtimes, we always include the following 5 attributes, regardless
@@ -450,11 +450,11 @@ namespace System.Reflection
             namedArgs[i++] = new CustomAttributeNamedArgument(type.GetField("SafeArraySubType"), marshalAs.SafeArraySubType);
             if (marshalAs.MarshalType != null)
                 namedArgs[i++] = new CustomAttributeNamedArgument(type.GetField("MarshalType"), marshalAs.MarshalType);
-            if (marshalAs.MarshalTypeRef != null)
+            if ((object)marshalAs.MarshalTypeRef != null)
                 namedArgs[i++] = new CustomAttributeNamedArgument(type.GetField("MarshalTypeRef"), marshalAs.MarshalTypeRef);
             if (marshalAs.MarshalCookie != null)
                 namedArgs[i++] = new CustomAttributeNamedArgument(type.GetField("MarshalCookie"), marshalAs.MarshalCookie);
-            if (marshalAs.SafeArrayUserDefinedSubType != null)
+            if ((object)marshalAs.SafeArrayUserDefinedSubType != null)
                 namedArgs[i++] = new CustomAttributeNamedArgument(type.GetField("SafeArrayUserDefinedSubType"), marshalAs.SafeArrayUserDefinedSubType);
 
             m_namedArgs = Array.AsReadOnly(namedArgs);
@@ -586,16 +586,14 @@ namespace System.Reflection
         #region Constructor
         public CustomAttributeNamedArgument(MemberInfo memberInfo, object value)
         {
-            if (memberInfo == null)
+            if (memberInfo is null)
                 throw new ArgumentNullException(nameof(memberInfo));
 
             Type type = null;
-            FieldInfo field = memberInfo as FieldInfo;
-            PropertyInfo property = memberInfo as PropertyInfo;
 
-            if (field != null)
+            if (memberInfo is FieldInfo field)
                 type = field.FieldType;
-            else if (property != null)
+            else if (memberInfo is PropertyInfo property)
                 type = property.PropertyType;
             else
                 throw new ArgumentException(SR.Argument_InvalidMemberForNamedArgument);
@@ -606,7 +604,7 @@ namespace System.Reflection
 
         public CustomAttributeNamedArgument(MemberInfo memberInfo, CustomAttributeTypedArgument typedArgument)
         {
-            if (memberInfo == null)
+            if (memberInfo is null)
                 throw new ArgumentNullException(nameof(memberInfo));
 
             m_memberInfo = memberInfo;
@@ -617,7 +615,7 @@ namespace System.Reflection
         #region Object Override
         public override string ToString()
         {
-            if (m_memberInfo == null)
+            if (m_memberInfo is null)
                 return base.ToString();
 
             return String.Format(CultureInfo.CurrentCulture, "{0} = {1}", MemberInfo.Name, TypedValue.ToString(ArgumentType != typeof(object)));
@@ -775,7 +773,7 @@ namespace System.Reflection
         {
             RuntimeType type = RuntimeTypeHandle.GetTypeByNameUsingCARules(typeName, scope);
 
-            if (type == null)
+            if (type is null)
                 throw new InvalidOperationException(
                     String.Format(CultureInfo.CurrentUICulture, SR.Arg_CATypeResolutionFailed, typeName));
 
@@ -792,7 +790,7 @@ namespace System.Reflection
         public CustomAttributeTypedArgument(Type argumentType, object value)
         {
             // value can be null.
-            if (argumentType == null)
+            if (argumentType is null)
                 throw new ArgumentNullException(nameof(argumentType));
 
             m_value = (value == null) ? null : CanonicalizeValue(value);
@@ -888,7 +886,7 @@ namespace System.Reflection
 
         internal string ToString(bool typed)
         {
-            if (m_argumentType == null)
+            if (m_argumentType is null)
                 return base.ToString();
 
             if (ArgumentType.IsEnum)
@@ -998,7 +996,7 @@ namespace System.Reflection
             ref CustomAttributeNamedParameter[] customAttributeNamedParameters,
             RuntimeModule customAttributeModule)
         {
-            if (customAttributeModule == null)
+            if (customAttributeModule is null)
                 throw new ArgumentNullException(nameof(customAttributeModule));
 
             Debug.Assert(customAttributeCtorParameters != null);
@@ -1129,7 +1127,7 @@ namespace System.Reflection
         {
             Debug.Assert(type != null);
 
-            if (type.GetElementType() != null)
+            if ((object)type.GetElementType() != null)
                 return false;
 
             if (PseudoCustomAttribute.IsDefined(type, caType))
@@ -1143,7 +1141,7 @@ namespace System.Reflection
 
             type = type.BaseType as RuntimeType;
 
-            while (type != null)
+            while ((object)type != null)
             {
                 if (IsCustomAttributeDefined(type.GetRuntimeModule(), type.MetadataToken, caType, 0, inherit))
                     return true;
@@ -1170,7 +1168,7 @@ namespace System.Reflection
 
             method = method.GetParentDefinition();
 
-            while (method != null)
+            while ((object)method != null)
             {
                 if (IsCustomAttributeDefined(method.GetRuntimeModule(), method.MetadataToken, caType, 0, inherit))
                     return true;
@@ -1263,7 +1261,7 @@ namespace System.Reflection
             Debug.Assert(type != null);
             Debug.Assert(caType != null);
 
-            if (type.GetElementType() != null)
+            if ((object)type.GetElementType() != null)
                 return (caType.IsValueType) ? Array.Empty<Object>() : CreateAttributeArrayHelper(caType, 0);
 
             if (type.IsGenericType && !type.IsGenericTypeDefinition)
@@ -1284,13 +1282,13 @@ namespace System.Reflection
 
             List<object> result = new List<object>();
             bool mustBeInheritable = false;
-            bool useObjectArray = (caType == null || caType.IsValueType || caType.ContainsGenericParameters);
+            bool useObjectArray = (caType is null || caType.IsValueType || caType.ContainsGenericParameters);
             Type arrayType = useObjectArray ? typeof(object) : caType;
 
             while (pcaCount > 0)
                 result.Add(pca[--pcaCount]);
 
-            while (type != (RuntimeType)typeof(object) && type != null)
+            while (type != (RuntimeType)typeof(object) && (object)type != null)
             {
                 object[] attributes = GetCustomAttributes(type.GetRuntimeModule(), type.MetadataToken, 0, caType, mustBeInheritable, result);
                 mustBeInheritable = true;
@@ -1328,13 +1326,13 @@ namespace System.Reflection
 
             List<object> result = new List<object>();
             bool mustBeInheritable = false;
-            bool useObjectArray = (caType == null || caType.IsValueType || caType.ContainsGenericParameters);
+            bool useObjectArray = (caType is null || caType.IsValueType || caType.ContainsGenericParameters);
             Type arrayType = useObjectArray ? typeof(object) : caType;
 
             while (pcaCount > 0)
                 result.Add(pca[--pcaCount]);
 
-            while (method != null)
+            while ((object)method != null)
             {
                 object[] attributes = GetCustomAttributes(method.GetRuntimeModule(), method.MetadataToken, 0, caType, mustBeInheritable, result);
                 mustBeInheritable = true;
@@ -1454,7 +1452,7 @@ namespace System.Reflection
 
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
 
-            if (attributeFilterType != null)
+            if ((object)attributeFilterType != null)
             {
                 Debug.Assert(attributeCtorToken == 0);
 
@@ -1510,10 +1508,10 @@ namespace System.Reflection
             MetadataImport scope = decoratedModule.MetadataImport;
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
 
-            bool useObjectArray = (attributeFilterType == null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters);
+            bool useObjectArray = (attributeFilterType is null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters);
             Type arrayType = useObjectArray ? typeof(object) : attributeFilterType;
 
-            if (attributeFilterType == null && car.Length == 0)
+            if (attributeFilterType is null && car.Length == 0)
                 return CreateAttributeArrayHelper(arrayType, 0);
 
             object[] attributes = CreateAttributeArrayHelper(arrayType, car.Length);
@@ -1596,7 +1594,7 @@ namespace System.Reflection
                         if (isProperty)
                         {
                             #region // Initialize property
-                            if (type == null && value != null)
+                            if (type is null && value != null)
                             {
                                 type = (RuntimeType)value.GetType();
                                 if (type == Type_RuntimeType)
@@ -1605,13 +1603,13 @@ namespace System.Reflection
 
                             RuntimePropertyInfo property = null;
 
-                            if (type == null)
+                            if (type is null)
                                 property = attributeType.GetProperty(name) as RuntimePropertyInfo;
                             else
                                 property = attributeType.GetProperty(name, type, Type.EmptyTypes) as RuntimePropertyInfo;
 
                             // Did we get a valid property reference?
-                            if (property == null)
+                            if (property is null)
                             {
                                 throw new CustomAttributeFormatException(
                                     String.Format(CultureInfo.CurrentUICulture, 
@@ -2302,7 +2300,7 @@ namespace System.Reflection
         {
             int fieldOffset;
 
-            if (field.DeclaringType != null &&
+            if ((object)field.DeclaringType != null &&
                 field.GetRuntimeModule().MetadataImport.GetFieldOffset(field.DeclaringType.MetadataToken, field.MetadataToken, out fieldOffset))
                 return new FieldOffsetAttribute(fieldOffset);
 

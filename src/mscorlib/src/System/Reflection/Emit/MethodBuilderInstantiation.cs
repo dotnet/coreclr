@@ -76,7 +76,7 @@ namespace System.Reflection.Emit
                         return true;
                 }
 
-                if (DeclaringType != null && DeclaringType.ContainsGenericParameters)
+                if (DeclaringType?.ContainsGenericParameters == true)
                     return true;
 
                 return false;

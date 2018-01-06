@@ -134,20 +134,19 @@ namespace System
             get { return (short)(_Revision & 0xFFFF); }
         }
 
-        public int CompareTo(Object version)
+        public int CompareTo(object version)
         {
             if (version == null)
             {
                 return 1;
             }
 
-            Version v = version as Version;
-            if (v == null)
+            if (version is Version v)
             {
-                throw new ArgumentException(SR.Arg_MustBeVersion);
+                return CompareTo(v);
             }
 
-            return CompareTo(v);
+            throw new ArgumentException(SR.Arg_MustBeVersion);
         }
 
         public int CompareTo(Version value)
@@ -314,11 +313,11 @@ namespace System
                 return false;
             }
 
-            return (result = ParseVersion(input.AsReadOnlySpan(), throwOnFailure: false)) != null;
+            return (object)(result = ParseVersion(input.AsReadOnlySpan(), throwOnFailure: false)) != null;
         }
 
         public static bool TryParse(ReadOnlySpan<char> input, out Version result) =>
-            (result = ParseVersion(input, throwOnFailure: false)) != null;
+            (object)(result = ParseVersion(input, throwOnFailure: false)) != null;
 
         private static Version ParseVersion(ReadOnlySpan<char> input, bool throwOnFailure)
         {

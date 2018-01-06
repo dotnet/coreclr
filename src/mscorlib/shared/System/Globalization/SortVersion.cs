@@ -51,23 +51,15 @@ namespace System.Globalization
 
         public override bool Equals(object obj)
         {
-            SortVersion n = obj as SortVersion;
-            if (n != null)
-            {
-                return this.Equals(n);
-            }
-
-            return false;
+            return obj is SortVersion n && Equals(n);
         }
 
         public bool Equals(SortVersion other)
         {
-            if (other == null)
-            {
-                return false;
-            }
-
-            return m_NlsVersion == other.m_NlsVersion && m_SortId == other.m_SortId;
+            return
+                (object)other != null &&
+                m_NlsVersion == other.m_NlsVersion &&
+                m_SortId == other.m_SortId;
         }
 
         public override int GetHashCode()

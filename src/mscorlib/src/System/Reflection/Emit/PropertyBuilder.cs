@@ -89,7 +89,7 @@ namespace System.Reflection.Emit
 
         private void SetMethodSemantics(MethodBuilder mdBuilder, MethodSemanticsAttributes semantics)
         {
-            if (mdBuilder == null)
+            if (mdBuilder is null)
             {
                 throw new ArgumentNullException(nameof(mdBuilder));
             }
@@ -123,7 +123,7 @@ namespace System.Reflection.Emit
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
@@ -176,7 +176,7 @@ namespace System.Reflection.Emit
 
         public override MethodInfo GetGetMethod(bool nonPublic)
         {
-            if (nonPublic || m_getMethod == null)
+            if (nonPublic || m_getMethod is null)
                 return m_getMethod;
             // now check to see if m_getMethod is public
             if ((m_getMethod.Attributes & MethodAttributes.Public) == MethodAttributes.Public)
@@ -186,7 +186,7 @@ namespace System.Reflection.Emit
 
         public override MethodInfo GetSetMethod(bool nonPublic)
         {
-            if (nonPublic || m_setMethod == null)
+            if (nonPublic || m_setMethod is null)
                 return m_setMethod;
             // now check to see if m_setMethod is public
             if ((m_setMethod.Attributes & MethodAttributes.Public) == MethodAttributes.Public)
@@ -209,15 +209,9 @@ namespace System.Reflection.Emit
             get { return m_attributes; }
         }
 
-        public override bool CanRead
-        {
-            get { if (m_getMethod != null) return true; else return false; }
-        }
+        public override bool CanRead => (object)m_getMethod != null;
 
-        public override bool CanWrite
-        {
-            get { if (m_setMethod != null) return true; else return false; }
-        }
+        public override bool CanWrite => (object)m_setMethod != null;
 
         public override Object[] GetCustomAttributes(bool inherit)
         {

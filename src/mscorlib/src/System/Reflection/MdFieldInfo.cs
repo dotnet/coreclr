@@ -112,7 +112,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_fieldType == null)
+                if (m_fieldType is null)
                 {
                     ConstArray fieldMarshal = GetRuntimeModule().MetadataImport.GetSigOfFieldDef(m_tkField);
 

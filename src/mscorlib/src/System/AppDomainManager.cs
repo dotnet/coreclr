@@ -36,7 +36,7 @@ namespace System
                 // AppDomain is a manifest application domain or not. In the first case, we parse
                 // the application manifest to find out the entry point assembly and return that assembly.
                 // In the second case, we maintain the old behavior by calling GetEntryAssembly().
-                if (m_entryAssembly == null)
+                if (m_entryAssembly is null)
                 {
                     {
                         RuntimeAssembly entryAssembly = null;

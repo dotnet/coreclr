@@ -85,11 +85,11 @@ namespace System.Threading
             {
                 RuntimeHelpers.PrepareDelegate(new WaitDelegate(this.Wait));
 
-                if (s_cachedPreparedType1 == null) s_cachedPreparedType1 = type;
-                else if (s_cachedPreparedType2 == null) s_cachedPreparedType2 = type;
-                else if (s_cachedPreparedType3 == null) s_cachedPreparedType3 = type;
-                else if (s_cachedPreparedType4 == null) s_cachedPreparedType4 = type;
-                else if (s_cachedPreparedType5 == null) s_cachedPreparedType5 = type;
+                if (s_cachedPreparedType1 is null) s_cachedPreparedType1 = type;
+                else if (s_cachedPreparedType2 is null) s_cachedPreparedType2 = type;
+                else if (s_cachedPreparedType3 is null) s_cachedPreparedType3 = type;
+                else if (s_cachedPreparedType4 is null) s_cachedPreparedType4 = type;
+                else if (s_cachedPreparedType5 is null) s_cachedPreparedType5 = type;
             }
 
             _props |= SynchronizationContextProperties.RequireWaitNotification;

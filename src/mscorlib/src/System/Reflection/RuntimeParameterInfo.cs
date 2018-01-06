@@ -131,7 +131,7 @@ namespace System.Reflection
         {
             get
             {
-                MethodBase result = m_originalMember != null ? m_originalMember : MemberImpl as MethodBase;
+                MethodBase result = m_originalMember ?? MemberImpl as MethodBase;
                 Debug.Assert(result != null);
                 return result;
             }
@@ -221,7 +221,7 @@ namespace System.Reflection
             get
             {
                 // only instance of ParameterInfo has ClassImpl, all its subclasses don't
-                if (ClassImpl == null)
+                if (ClassImpl is null)
                 {
                     RuntimeType parameterType;
                     if (PositionImpl == -1)
@@ -327,7 +327,7 @@ namespace System.Reflection
                         CustomAttributeData.Filter(
                             CustomAttributeData.GetCustomAttributes(this), typeof(DateTimeConstantAttribute), 0);
 
-                    if (value.ArgumentType != null)
+                    if ((object)value.ArgumentType != null)
                         return new DateTime((long)value.Value);
                 }
                 else
@@ -470,18 +470,12 @@ namespace System.Reflection
 
         internal RuntimeModule GetRuntimeModule()
         {
-            RuntimeMethodInfo method = Member as RuntimeMethodInfo;
-            RuntimeConstructorInfo constructor = Member as RuntimeConstructorInfo;
-            RuntimePropertyInfo property = Member as RuntimePropertyInfo;
-
-            if (method != null)
-                return method.GetRuntimeModule();
-            else if (constructor != null)
-                return constructor.GetRuntimeModule();
-            else if (property != null)
-                return property.GetRuntimeModule();
-            else
-                return null;
+            MemberInfo member = Member;
+            return
+                member is RuntimeMethodInfo m ? m.GetRuntimeModule() :
+                member is RuntimeConstructorInfo c ? c.GetRuntimeModule() :
+                member is RuntimePropertyInfo p ? p.GetRuntimeModule() :
+                null;
         }
 
         public override int MetadataToken
@@ -515,7 +509,7 @@ namespace System.Reflection
 
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             if (MdToken.IsNullToken(m_tkParamDef))
@@ -523,7 +517,7 @@ namespace System.Reflection
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -531,7 +525,7 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             if (MdToken.IsNullToken(m_tkParamDef))
@@ -539,7 +533,7 @@ namespace System.Reflection
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
